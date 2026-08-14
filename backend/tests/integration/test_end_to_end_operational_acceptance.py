@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import io
 import json
+import logging
 import os
 import uuid
 from collections.abc import Mapping
@@ -13,6 +15,7 @@ from sqlalchemy import create_engine, select
 
 from cold_storage.bootstrap.app import create_app
 from cold_storage.bootstrap.dependencies import shutdown_dependencies
+from cold_storage.bootstrap.logging import _JSONFormatter
 from cold_storage.bootstrap.runtime_readiness import reset_readiness_state
 from cold_storage.bootstrap.s6_07_controlled_fixture import (
     _CATALOG_VALUES,
@@ -189,10 +192,19 @@ def test_strict_application_composition_returns_disabled_agent_503(
     readiness_engine = create_engine(database_url, pool_pre_ping=True)
     seed_startup_readiness(readiness_engine, token=f"strict-{uuid.uuid4().hex}")
     readiness_engine.dispose()
+    request_id = str(uuid.uuid4())
+    log_stream = io.StringIO()
+    log_handler = logging.StreamHandler(log_stream)
+    log_handler.setFormatter(_JSONFormatter())
+    root_logger = logging.getLogger()
+    root_logger.addHandler(log_handler)
     try:
         with TestClient(create_app()) as client:
-            response = client.post("/api/v1/agent/sessions", json={})
+            response = client.post(
+                "/api/v1/agent/sessions", json={}, headers={"X-Request-ID": request_id}
+            )
             assert response.status_code == 503
+            assert response.headers["X-Request-ID"] == request_id
             assert response.json() == {
                 "error": {
                     "code": "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
@@ -200,7 +212,15 @@ def test_strict_application_composition_returns_disabled_agent_503(
                     "details": {"retryable": False},
                 }
             }
+        records = [json.loads(line) for line in log_stream.getvalue().splitlines() if line.strip()]
+        assert any(
+            record.get("name", "").startswith("cold_storage.")
+            and record.get("correlation_id") == request_id
+            and record.get("request_id") == request_id
+            for record in records
+        )
     finally:
+        root_logger.removeHandler(log_handler)
         shutdown_dependencies()
 
 

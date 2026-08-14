@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from cold_storage.bootstrap.configuration_redactor import (
     EMIT_POINT_ENUM,
     SECRET_TYPE_ENUM,
@@ -64,3 +66,38 @@ class TestRedactExceptionForLogging:
         exc = ValueError("connection failed: postgresql://user:pass@host")
         result = redact_exception_for_logging(exc)
         assert "pass" not in result or "***" in result
+
+
+@pytest.mark.parametrize(
+    ("secret_type", "payload", "marker"),
+    [
+        ("DATABASE_URL", "postgresql://user:db-secret@host/db", "db-secret"),
+        ("REDIS_URL", "redis://user:redis-secret@host", "redis-secret"),
+        ("OTHER_DSN", "mysql://user:dsn-secret@host/db", "dsn-secret"),
+        ("PASSWORD", "password=password-secret", "password-secret"),
+        ("TOKEN", "token=token-secret", "token-secret"),
+        ("API_KEY", "api_key=api-secret", "api-secret"),
+        ("COOKIE", "Cookie: session=cookie-secret", "cookie-secret"),
+        (
+            "AUTHORIZATION_HEADER",
+            "Authorization: Bearer authorization-secret",
+            "authorization-secret",
+        ),
+        (
+            "SECRET_ENVIRONMENT_VARIABLE",
+            "SECRET_DATABASE=environment-secret",
+            "environment-secret",
+        ),
+        ("SIGNED_URL", "https://example.test/file?signature=signed-secret", "signed-secret"),
+    ],
+)
+def test_each_string_secret_type_is_redacted(secret_type: str, payload: str, marker: str) -> None:
+    assert secret_type in {item.value for item in SECRET_TYPE_ENUM}
+    result = redact_for_logging(payload)
+    assert marker not in result
+
+
+def test_credential_bearing_exception_type_is_redacted() -> None:
+    marker = "credential-exception-secret"
+    result = redact_exception_for_logging(ValueError(f"credential={marker}"))
+    assert marker not in result

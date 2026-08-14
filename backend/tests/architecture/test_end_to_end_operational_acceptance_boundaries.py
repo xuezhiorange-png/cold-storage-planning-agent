@@ -58,7 +58,7 @@ def test_workflow_is_dispatch_only_main_exact_and_read_only() -> None:
     assert "assemble-s6-07-acceptance-evidence" in workflow
     assert "verify-s6-07-acceptance-evidence" in workflow
     assert 'observation_type:"raw"' in workflow
-    assert "task012-s6-07-operational-observation-v2" in workflow
+    assert "task012-s6-07-operational-observation-v3" in workflow
     assert "if $scheme_status" not in workflow
     assert "persisted:($scheme[0].body // {})" not in workflow
     assert "source_binding:(($scheme[0].body.source_binding // {}))" not in workflow
@@ -80,6 +80,8 @@ def test_workflow_is_dispatch_only_main_exact_and_read_only() -> None:
     assert "migration:{exit_code:0" not in workflow
     assert 'database:{backend:"postgresql"' not in workflow
     assert 'parseable_record_count="${structured_record_count}"' not in workflow
+    assert "summarize-s6-07-log-observations" in workflow
+    assert "gh_api_with_retry" in workflow
     for forbidden_self_attestation in (
         "canonical_database_engine:",
         "canonical_artifact_storage:",
@@ -106,6 +108,8 @@ def test_s6_07_runtime_probe_is_production_compatible_and_cleanup_has_compose_en
     cleanup = workflow.index("- name: Cleanup controlled runtime")
     teardown = workflow.index("docker compose -f docker-compose.production.yml", cleanup)
     assert "down -v --remove-orphans" in workflow[teardown:]
+    assert "CLEANUP_SKIPPED_NO_RUNTIME_CONTEXT=YES" in workflow
+    assert "docker compose -f docker-compose.production.yml down" not in workflow[cleanup:]
 
 
 def test_s6_07_observability_probe_matches_request_id_middleware_contract() -> None:
@@ -124,13 +128,12 @@ def test_s6_07_observability_probe_matches_request_id_middleware_contract() -> N
     assert '-H "X-Request-ID: ${CORRELATION_ID}"' in workflow
     assert 'tolower($1)=="x-request-id"' in workflow
     assert "grep -qi '^x-request-id:" in workflow
-    assert "read -r structured_record_count parseable_record_count correlation_match_count" in (
-        workflow
-    )
-    assert 'if record.get("correlation_id") == correlation_id:' in workflow
-    assert "structured += 1" in workflow
-    assert "parseable += 1" in workflow
-    assert "correlation_matches += 1" in workflow
+    assert "summarize-s6-07-log-observations" in workflow
+    assert "matched_correlation_id" in workflow
+    assert "matched_request_id" in workflow
+    assert "structured += 1" not in workflow
+    assert "parseable += 1" not in workflow
+    assert "correlation_matches += 1" not in workflow
     for hardcoded_count in (
         "structured_record_count=0",
         "parseable_record_count=0",
@@ -301,22 +304,24 @@ def test_s6_07_redaction_count_helper_normalizes_zero_matches_and_fails_io(
     assert result.stdout.splitlines() == ["0", "1", "1", "2"]
 
 
-def test_workflow_stages_refreshed_s6_06_metadata_after_exact_validation() -> None:
+def test_workflow_uses_canonical_s6_06_verifier_without_composite_authority() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     run_api = workflow.index('"/repos/${GITHUB_REPOSITORY}/actions/runs/${S6_06_RUN_ID}"')
     artifact_api = workflow.index(
         '"/repos/${GITHUB_REPOSITORY}/actions/artifacts/${S6_06_ARTIFACT_ID}"'
     )
-    run_validation = workflow.index('jq -e --arg sha "${SOURCE_SHA}"')
-    artifact_validation = workflow.index('jq -e --arg digest "${S6_06_ARTIFACT_DIGEST}"')
     run_staging = workflow.index('cp "${RUN_ROOT}/s6-06-run.json"')
     artifact_staging = workflow.index('cp "${RUN_ROOT}/s6-06-artifact.json"')
+    archive_digest = workflow.index("verify-s6-06-archive-digest")
     historical_runs = workflow.index("while IFS= read -r run_id; do")
     historical_artifacts = workflow.index("while IFS= read -r artifact_id; do")
     verifier = workflow.index("verify-s6-06-prerequisite")
 
-    assert run_api < run_validation < run_staging < historical_runs < verifier
-    assert artifact_api < artifact_validation < artifact_staging < historical_artifacts < verifier
+    assert run_api < run_staging < archive_digest < historical_runs < verifier
+    assert artifact_api < artifact_staging < archive_digest < historical_artifacts < verifier
+    read_section = workflow[run_api:verifier]
+    assert 'jq -e --arg sha "${SOURCE_SHA}"' not in read_section
+    assert 'jq -e --arg digest "${S6_06_ARTIFACT_DIGEST}"' not in read_section
     assert '"${S6_06_METADATA}/run-${S6_06_RUN_ID}.json"' in workflow
     assert '"${S6_06_METADATA}/artifact-${S6_06_ARTIFACT_ID}.json"' in workflow
     assert 'if [ "${run_id}" = "${S6_06_RUN_ID}" ]; then' in workflow
@@ -536,3 +541,77 @@ def test_business_warning_does_not_imply_operational_failure() -> None:
         PROJECT_ROOT / "backend/tests/unit/test_end_to_end_operational_acceptance.py"
     ).read_text(encoding="utf-8")
     assert "test_requires_review_warning_is_not_operational_failure" in unit
+
+
+def test_r8_failure_diagnostics_are_bounded_and_not_acceptance_authority() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    diagnostic_start = workflow.index("- name: Record failure diagnostics")
+    cleanup_start = workflow.index("- name: Cleanup controlled runtime")
+    diagnostic_section = workflow[diagnostic_start:cleanup_start]
+    assert "if: failure()" in diagnostic_section
+    assert "DIAGNOSTIC_ONLY=true" in diagnostic_section
+    assert "ACCEPTANCE_AUTHORITY=false" in diagnostic_section
+    assert "failed_step=" in diagnostic_section
+    assert "error_code=" in diagnostic_section
+    assert "backend.log" not in diagnostic_section
+    assert "POSTGRES_PASSWORD" not in diagnostic_section
+    assert "GH_TOKEN" not in diagnostic_section
+    assert "s6-06.zip" not in diagnostic_section
+    assert "task012-s6-07-diagnostics-" in diagnostic_section
+
+
+def test_r8_network_and_job_bounds_are_explicit() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    assert "timeout-minutes: 45" in workflow
+    assert "for attempt in 1 2 3" in workflow
+    assert "timeout 45s gh api" in workflow
+    assert "sleep $((attempt * 2))" in workflow
+    assert "--connect-timeout 5" in workflow
+    assert "--max-time 30" in workflow
+    assert "--retry 2" in workflow
+
+
+def test_r8_project_http_raw_evidence_and_observation_v3_are_wired() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    module = MODULE.read_text(encoding="utf-8")
+    for name in (
+        "project.json",
+        "inputs.json",
+        "input-validation.json",
+        "planning-run.json",
+        "zone-plan.json",
+        "investment.json",
+        "project-after-restart.json",
+    ):
+        assert name in workflow
+    assert "project_calculation" in workflow
+    assert "project_calculation" in module
+    assert '"task012-s6-07-operational-observation-v3"' in workflow
+    assert '"task012-s6-07-operational-observation-v3"' in module
+    assert "HTTP_SCOPE_FAILED" in module
+
+
+def test_r8_production_logging_is_initialized_without_basic_config() -> None:
+    entrypoint = (
+        PROJECT_ROOT / "backend/src/cold_storage/bootstrap/production_entrypoint.py"
+    ).read_text(encoding="utf-8")
+    assert "logging.basicConfig" not in entrypoint
+    assert "from cold_storage.bootstrap.logging import configure_logging" in entrypoint
+    main_body = entrypoint[entrypoint.index("def main") :]
+    assert main_body.index("configure_logging()") < main_body.index("run_entrypoint()")
+
+
+def test_r8_redaction_runtime_scope_is_separate_from_full_contract() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    runbook = (
+        PROJECT_ROOT / "docs/runbooks/TASK-012-slice6-end-to-end-operational-acceptance.md"
+    ).read_text(encoding="utf-8")
+    redaction_tests = (PROJECT_ROOT / "backend/tests/test_redaction_integration.py").read_text(
+        encoding="utf-8"
+    )
+    assert "ALL_11_REDACTION_TYPES_RUNTIME_EXERCISED=false" in runbook
+    assert "CONTROLLED_RUNTIME_ACTUAL_SECRET_SURFACES" in runbook
+    assert "OTHER_DSN" in redaction_tests
+    assert "SECRET_ENVIRONMENT_VARIABLE" in redaction_tests
+    assert "test_credential_bearing_exception_type_is_redacted" in redaction_tests
+    assert "password_occurrences" in workflow

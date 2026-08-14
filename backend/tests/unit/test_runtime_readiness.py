@@ -1070,6 +1070,19 @@ def test_production_entrypoint_does_not_audit_app_none(monkeypatch):
                     )
 
 
+def test_production_entrypoint_initializes_canonical_logging_before_run() -> None:
+    """The process entrypoint must not create a second basicConfig handler."""
+
+    import inspect
+
+    from cold_storage.bootstrap import production_entrypoint
+
+    source = inspect.getsource(production_entrypoint)
+    assert "logging.basicConfig" not in source
+    main_body = source[source.index("def main") :]
+    assert main_body.index("configure_logging()") < main_body.index("run_entrypoint()")
+
+
 def test_production_entrypoint_runs_identity_then_reaches_uvicorn(monkeypatch):
     """BLOCKER-01: the entrypoint runs build-identity cross-check
     BEFORE uvicorn is constructed, then hands off to uvicorn. We

@@ -237,7 +237,9 @@ def run_entrypoint() -> int:
 
 def main(argv: list[str] | None = None) -> int:
     """Console-script entry point."""
-    logging.basicConfig(level=os.environ.get("COLD_STORAGE_LOG_LEVEL", "INFO"))
+    from cold_storage.bootstrap.logging import configure_logging  # noqa: PLC0415
+
+    configure_logging()
     try:
         return run_entrypoint()
     except KeyboardInterrupt:
