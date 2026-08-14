@@ -225,6 +225,23 @@ The diagnostic artifact never includes backend logs, database dumps, DSNs,
 passwords, tokens, authorization headers, workflow secrets, or the downloaded
 S6-06 ZIP. It is diagnostic-only and cannot close an acceptance gate.
 
+Failure diagnostics apply the canonical acceptance secret scanner to each
+observations JSON before copying it. Unsafe or unreadable observations are
+excluded and only their stable exclusion classification is retained:
+
+```text
+FAILED_DIAGNOSTIC_OBSERVATIONS_REQUIRE_SECRET_SCAN=YES
+UNSAFE_OBSERVATIONS_ARE_EXCLUDED_FROM_DIAGNOSTIC_ARTIFACT=YES
+DIAGNOSTIC_SECRET_SCAN_REUSES_CANONICAL_ACCEPTANCE_SCANNER=YES
+METADATA_FETCH_PRIMARY_ERROR_CODE_PRESERVED=YES
+```
+
+If GitHub metadata retries are exhausted, the same
+`S6_07_GITHUB_METADATA_FETCH_FAILED` code is propagated to the workflow
+environment and the failure summary. The diagnostic artifact never contains
+the rejected observation value, exception text, DSN, password, token,
+authorization header, or cookie.
+
 ## R8 observation contract
 
 The raw observation schema is

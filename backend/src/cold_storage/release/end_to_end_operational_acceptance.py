@@ -211,6 +211,18 @@ def _safe_secret_scan(value: object, *, path: str = "") -> None:
             raise _fail("S6_07_SECRET_MATERIAL_DETECTED", f"secret-like value at {path}")
 
 
+def verify_diagnostic_json_safe(path: Path) -> None:
+    """Verify one failure-diagnostic JSON file with the canonical scanner."""
+
+    try:
+        document = load_json_strict(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise _fail("S6_07_EVIDENCE_BUNDLE_INVALID", "diagnostic JSON is missing") from exc
+    except (OSError, UnicodeError, ReleaseEvidenceError) as exc:
+        raise _fail("S6_07_EVIDENCE_BUNDLE_INVALID", "diagnostic JSON is unreadable") from exc
+    _safe_secret_scan(document, path=path.name)
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -1731,6 +1743,9 @@ def _build_parser() -> argparse.ArgumentParser:
     summarize.add_argument("--expected-correlation-id", required=True)
     summarize.add_argument("--expected-request-id", required=True)
 
+    diagnostic = sub.add_parser("verify-diagnostic-json-safe")
+    diagnostic.add_argument("--input", required=True, type=Path)
+
     prerequisite = sub.add_parser("verify-s6-06-prerequisite")
     prerequisite.add_argument("--repository", default=EXPECTED_REPOSITORY)
     prerequisite.add_argument("--source-sha", required=True)
@@ -1809,6 +1824,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
             )
             return 0
+        if args.command == "verify-diagnostic-json-safe":
+            verify_diagnostic_json_safe(args.input)
+            print("S6_07_DIAGNOSTIC_JSON_SAFE=PASS")
+            return 0
         common = {
             "repository": args.repository,
             "source_sha": args.source_sha,
@@ -1851,6 +1870,7 @@ __all__ = [
     "main",
     "summarize_s6_07_log_observations",
     "validate_s6_07_inputs",
+    "verify_diagnostic_json_safe",
     "verify_s6_06_prerequisite",
     "verify_s6_06_archive_digest",
     "verify_s6_07_acceptance_evidence",

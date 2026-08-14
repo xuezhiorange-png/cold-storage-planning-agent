@@ -169,6 +169,8 @@ jobs:
               fi
             done
             echo "ERROR_CODE=${error_code}"
+            echo "S6_07_FAILURE_CODE=${error_code}" >> "${GITHUB_ENV}"
+            export S6_07_FAILURE_CODE="${error_code}"
             return 1
           }
 
@@ -832,13 +834,36 @@ jobs:
             "${RUN_ROOT}/s6-06-artifact.json" \
             "${RUN_ROOT}/runtime-facts.json" \
             "${RUN_ROOT}/build-identity.json" \
-            "${RUN_ROOT}/composition-manifest.json" \
-            "${RUN_ROOT}/observations.json" \
-            "${RUN_ROOT}/acceptance/observations.json"; do
+            "${RUN_ROOT}/composition-manifest.json"; do
             if [ -f "${safe_file}" ]; then
               cp "${safe_file}" "${DIAGNOSTIC_ROOT}/$(basename "${safe_file}")"
             fi
           done
+          copy_safe_observation() {
+            local observation_path="$1"
+            local diagnostic_name="$2"
+            local summary_prefix="$3"
+            if [ ! -f "${observation_path}" ]; then
+              return 0
+            fi
+            if PYTHONPATH=backend/src uv run --project backend python \
+              -m cold_storage.release.end_to_end_operational_acceptance \
+              verify-diagnostic-json-safe --input "${observation_path}"; then
+              cp "${observation_path}" "${DIAGNOSTIC_ROOT}/${diagnostic_name}"
+              printf '%s_json_included=true\n' "${summary_prefix}" >> \
+                "${DIAGNOSTIC_ROOT}/failure-summary.txt"
+            else
+              printf '%s_json_included=false\n' "${summary_prefix}" >> \
+                "${DIAGNOSTIC_ROOT}/failure-summary.txt"
+              printf '%s_json_exclusion_reason=secret_safety_gate_failed\n' \
+                "${summary_prefix}" >> "${DIAGNOSTIC_ROOT}/failure-summary.txt"
+            fi
+          }
+          copy_safe_observation \
+            "${RUN_ROOT}/observations.json" observations.json observations
+          copy_safe_observation \
+            "${RUN_ROOT}/acceptance/observations.json" \
+            acceptance-observations.json acceptance_observations
 
       - name: Upload S6-07 failure diagnostics
         if: failure()

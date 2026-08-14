@@ -538,6 +538,48 @@ def test_invalid_source_sha_fails_closed(tmp_path: Path, monkeypatch: pytest.Mon
     assert exc.value.failure_code == "S6_07_SOURCE_SHA_MISMATCH"
 
 
+def test_diagnostic_json_safety_cli_accepts_safe_json(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = tmp_path / "observations.json"
+    path.write_text(
+        json.dumps({"status": "failure", "code": "S6_07_OBSERVABILITY_FAILED"}),
+        encoding="utf-8",
+    )
+
+    assert acceptance.main(["verify-diagnostic-json-safe", "--input", str(path)]) == 0
+    assert capsys.readouterr().out.strip() == "S6_07_DIAGNOSTIC_JSON_SAFE=PASS"
+
+
+@pytest.mark.parametrize(
+    "secret_value",
+    [
+        "postgresql://user:secret@host/db",
+        "Authorization: Bearer diagnostic-token",
+        "ghp_diagnostic_token",
+        "github_pat_diagnostic_token",
+    ],
+)
+def test_diagnostic_json_safety_cli_rejects_secret_like_material(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], secret_value: str
+) -> None:
+    path = tmp_path / "observations.json"
+    path.write_text(json.dumps({"detail": secret_value}), encoding="utf-8")
+
+    assert acceptance.main(["verify-diagnostic-json-safe", "--input", str(path)]) == 1
+    assert capsys.readouterr().out.strip() == "ERROR_CODE=S6_07_SECRET_MATERIAL_DETECTED"
+
+
+def test_diagnostic_json_safety_cli_rejects_invalid_json(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = tmp_path / "observations.json"
+    path.write_text("{", encoding="utf-8")
+
+    assert acceptance.main(["verify-diagnostic-json-safe", "--input", str(path)]) == 1
+    assert capsys.readouterr().out.strip() == "ERROR_CODE=S6_07_EVIDENCE_BUNDLE_INVALID"
+
+
 @pytest.mark.parametrize(
     ("mutation", "expected"),
     [

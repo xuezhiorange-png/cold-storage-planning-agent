@@ -558,6 +558,30 @@ def test_r8_failure_diagnostics_are_bounded_and_not_acceptance_authority() -> No
     assert "GH_TOKEN" not in diagnostic_section
     assert "s6-06.zip" not in diagnostic_section
     assert "task012-s6-07-diagnostics-" in diagnostic_section
+    assert "verify-diagnostic-json-safe" in diagnostic_section
+    assert '"${RUN_ROOT}/observations.json"' in diagnostic_section
+    assert '"${RUN_ROOT}/acceptance/observations.json"' in diagnostic_section
+    assert 'cp "${observation_path}"' in diagnostic_section
+    assert 'cp "${RUN_ROOT}/observations.json"' not in diagnostic_section
+    assert 'cp "${RUN_ROOT}/acceptance/observations.json"' not in diagnostic_section
+    assert "%s_json_included=false\\n" in diagnostic_section
+    assert "%s_json_exclusion_reason=secret_safety_gate_failed\\n" in diagnostic_section
+    safety_gate = diagnostic_section.index("verify-diagnostic-json-safe")
+    observation_copy = diagnostic_section.index('cp "${observation_path}"')
+    assert safety_gate < observation_copy
+
+
+def test_r8_metadata_fetch_failure_code_reaches_failure_summary() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    helper_start = workflow.index("          gh_api_with_retry() {")
+    helper_end = workflow.index("\n          }", helper_start) + len("\n          }")
+    helper = workflow[helper_start:helper_end]
+    error_output = helper.index('echo "ERROR_CODE=${error_code}"')
+    env_output = helper.index('echo "S6_07_FAILURE_CODE=${error_code}" >> "${GITHUB_ENV}"')
+    export_output = helper.index('export S6_07_FAILURE_CODE="${error_code}"')
+    assert error_output < env_output < export_output
+    assert '"error_code=${S6_07_FAILURE_CODE:-S6_07_EVIDENCE_BUNDLE_INVALID}"' in workflow
+    assert helper.count('echo "ERROR_CODE=${error_code}"') == 1
 
 
 def test_r8_network_and_job_bounds_are_explicit() -> None:

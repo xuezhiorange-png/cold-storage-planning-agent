@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 
 from cold_storage.bootstrap.logging import (
     _JSONFormatter,
     configure_logging,
+    get_capability_tags,
     get_correlation_id,
     get_request_id,
     set_capability_tags,
@@ -53,6 +55,53 @@ class TestConfigureLogging:
         assert payload["capability_tags"] == ["strict_runtime"]
         assert payload["message"] == "runtime ready"
         set_capability_tags([])
+
+    def test_configure_logging_emits_application_record_through_root_handler(self) -> None:
+        configure_logging()
+        root = logging.getLogger()
+        handlers = [
+            handler
+            for handler in root.handlers
+            if isinstance(handler, logging.StreamHandler)
+            and getattr(handler, "cold_storage_bootstrap_logging_configured", False)
+        ]
+        assert len(handlers) == 1
+
+        handler = handlers[0]
+        stream = io.StringIO()
+        original_stream = handler.stream
+        logger = logging.getLogger("cold_storage.r8_test")
+        original_level = logger.level
+        original_propagate = logger.propagate
+        original_correlation_id = get_correlation_id()
+        original_request_id = get_request_id()
+        original_capability_tags = get_capability_tags()
+        correlation_id = "22222222-2222-4222-8222-222222222222"
+        try:
+            handler.setStream(stream)
+            logger.setLevel(logging.INFO)
+            logger.propagate = True
+            set_correlation_id(correlation_id)
+            set_request_id(correlation_id)
+            set_capability_tags(["strict_runtime"])
+            logger.info("runtime ready")
+            handler.flush()
+            payload = json.loads(stream.getvalue().strip())
+        finally:
+            handler.setStream(original_stream)
+            logger.setLevel(original_level)
+            logger.propagate = original_propagate
+            set_correlation_id(original_correlation_id)
+            set_request_id(original_request_id)
+            set_capability_tags(original_capability_tags)
+
+        assert payload["timestamp"]
+        assert payload["level"] == "INFO"
+        assert payload["name"] == "cold_storage.r8_test"
+        assert payload["correlation_id"] == correlation_id
+        assert payload["request_id"] == correlation_id
+        assert payload["capability_tags"] == ["strict_runtime"]
+        assert payload["message"] == "runtime ready"
 
 
 class TestCorrelationId:
