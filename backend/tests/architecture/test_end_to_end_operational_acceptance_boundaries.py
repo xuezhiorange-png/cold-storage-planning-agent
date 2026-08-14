@@ -108,6 +108,46 @@ def test_s6_07_runtime_probe_is_production_compatible_and_cleanup_has_compose_en
     assert "down -v --remove-orphans" in workflow[teardown:]
 
 
+def test_s6_07_observability_probe_matches_request_id_middleware_contract() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    middleware = (
+        PROJECT_ROOT / "backend/src/cold_storage/bootstrap/middleware/correlation_id.py"
+    ).read_text(encoding="utf-8")
+
+    assert '_HEADER_NAME = "x-request-id"' in middleware
+    assert '_RESPONSE_HEADER = "X-Request-ID"' in middleware
+    assert "import uuid" in workflow
+    assert "uuid.uuid4()" in workflow
+    assert 'CORRELATION_ID="s6-07-${GITHUB_RUN_ID}"' not in workflow
+    assert "X-Correlation-ID" not in workflow
+    assert "x-correlation-id" not in workflow.lower()
+    assert '-H "X-Request-ID: ${CORRELATION_ID}"' in workflow
+    assert 'tolower($1)=="x-request-id"' in workflow
+    assert "grep -qi '^x-request-id:" in workflow
+    assert "read -r structured_record_count parseable_record_count correlation_match_count" in (
+        workflow
+    )
+    assert 'if record.get("correlation_id") == correlation_id:' in workflow
+    assert "structured += 1" in workflow
+    assert "parseable += 1" in workflow
+    assert "correlation_matches += 1" in workflow
+    for hardcoded_count in (
+        "structured_record_count=0",
+        "parseable_record_count=0",
+        "correlation_match_count=0",
+    ):
+        assert hardcoded_count not in workflow
+    for diagnostic in (
+        "OBSERVED_CORRELATION_HEADER_PRESENT=",
+        "OBSERVED_CORRELATION_EXPECTED=",
+        "OBSERVED_CORRELATION_OBSERVED=",
+        "OBSERVED_STRUCTURED_RECORD_COUNT=",
+        "OBSERVED_PARSEABLE_RECORD_COUNT=",
+        "OBSERVED_CORRELATION_MATCH_COUNT=",
+    ):
+        assert diagnostic in workflow
+
+
 def test_s6_07_persists_compose_identity_across_steps() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     build_start = workflow.index("- name: Build and start synthetic strict runtime")

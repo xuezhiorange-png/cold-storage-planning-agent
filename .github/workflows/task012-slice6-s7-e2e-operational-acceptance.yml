@@ -343,7 +343,12 @@ jobs:
             .migration_exit_code == 0 and
             (.database_backend | type == "string" and length > 0)
           ' "${runtime_facts}"
-          CORRELATION_ID="s6-07-${GITHUB_RUN_ID}"
+          CORRELATION_ID="$(
+            python - <<'PY'
+          import uuid
+          print(uuid.uuid4())
+          PY
+          )"
           count_matches() {
             local output grep_status
             if output="$(grep "$@" "${ACCEPTANCE_ROOT}/backend.log")"; then
@@ -382,13 +387,13 @@ jobs:
 
           ready_status="$(curl --silent --show-error --dump-header "${ACCEPTANCE_ROOT}/health.headers" \
             --output "${ACCEPTANCE_ROOT}/ready.body" --write-out '%{http_code}' \
-            -H "X-Correlation-ID: ${CORRELATION_ID}" http://127.0.0.1:8000/health/ready)"
+            -H "X-Request-ID: ${CORRELATION_ID}" http://127.0.0.1:8000/health/ready)"
           jq -n --argjson status "${ready_status}" \
             --slurpfile body "${ACCEPTANCE_ROOT}/ready.body" \
             '{status:$status,body:$body[0]}' > "${ACCEPTANCE_ROOT}/ready.json"
-          observed_correlation="$(awk -F': ' 'tolower($1)=="x-correlation-id" {gsub("\\r", "", $2); print $2; exit}' "${ACCEPTANCE_ROOT}/health.headers" || true)"
+          observed_correlation="$(awk -F': ' 'tolower($1)=="x-request-id" {gsub("\\r", "", $2); print $2; exit}' "${ACCEPTANCE_ROOT}/health.headers" || true)"
           header_present=false
-          if grep -qi '^x-correlation-id:' "${ACCEPTANCE_ROOT}/health.headers"; then
+          if grep -qi '^x-request-id:' "${ACCEPTANCE_ROOT}/health.headers"; then
             header_present=true
           fi
 
@@ -502,11 +507,17 @@ jobs:
                   continue
               structured += 1
               parseable += 1
-              if correlation_id in json.dumps(record, sort_keys=True):
+              if record.get("correlation_id") == correlation_id:
                   correlation_matches += 1
           print(structured, parseable, correlation_matches)
           PY
           )
+          echo "OBSERVED_CORRELATION_HEADER_PRESENT=${header_present}"
+          echo "OBSERVED_CORRELATION_EXPECTED=${CORRELATION_ID}"
+          echo "OBSERVED_CORRELATION_OBSERVED=${observed_correlation}"
+          echo "OBSERVED_STRUCTURED_RECORD_COUNT=${structured_record_count}"
+          echo "OBSERVED_PARSEABLE_RECORD_COUNT=${parseable_record_count}"
+          echo "OBSERVED_CORRELATION_MATCH_COUNT=${correlation_match_count}"
 
           capture_response GET \
             "http://127.0.0.1:8000/api/v1/projects/${production_project_id}/versions/1/scheme-runs/${production_run_id}" \
