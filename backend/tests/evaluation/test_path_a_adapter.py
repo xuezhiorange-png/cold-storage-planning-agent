@@ -479,6 +479,7 @@ def test_execute_scenario_accepts_postgresql_database_backend(
         f"expected False (we seeded requires_review=False on every "
         f"CalculationRunRecord), got {result.review_required!r}"
     )
+    assert result.review_reasons == ()
 
     # 5. Re-read the persisted SchemeRunRecord via a fresh session
     #    and verify the dialect marker + lineage round-trip.

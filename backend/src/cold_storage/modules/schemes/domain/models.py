@@ -6,6 +6,7 @@ Float is only permitted at the DB/JSON serialisation boundary.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -14,6 +15,81 @@ from uuid import uuid4
 
 def _uuid() -> str:
     return str(uuid4())
+
+
+_REVIEW_REASON_FIELDS = frozenset({"code", "message", "stage", "source_type", "source_id"})
+_REVIEW_REASON_STAGES = frozenset({"zone", "cooling_load", "equipment", "power", "investment"})
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewReason:
+    """Canonical source-bound reason for a production review requirement.
+
+    The five fields are intentionally closed.  Serialization is kept at this
+    explicit boundary so dataclass representation can never become persisted
+    evidence or content-hash input.
+    """
+
+    code: str
+    message: str
+    stage: str
+    source_type: str
+    source_id: str
+
+    def __post_init__(self) -> None:
+        for field_name in _REVIEW_REASON_FIELDS:
+            value = getattr(self, field_name)
+            if type(value) is not str:
+                raise TypeError(f"ReviewReason.{field_name} must be str")
+        if self.stage not in _REVIEW_REASON_STAGES:
+            raise ValueError(f"Unsupported ReviewReason stage: {self.stage!r}")
+        if self.source_type != "calculation_run":
+            raise ValueError("ReviewReason.source_type must be 'calculation_run'")
+        for field_name in ("code", "message", "source_id"):
+            if not getattr(self, field_name).strip():
+                raise ValueError(f"ReviewReason.{field_name} must be non-empty")
+
+    def to_json(self) -> dict[str, str]:
+        """Return the exact five-field JSON object used by storage and hashes."""
+        return {
+            "code": self.code,
+            "message": self.message,
+            "stage": self.stage,
+            "source_type": self.source_type,
+            "source_id": self.source_id,
+        }
+
+    @classmethod
+    def from_json(cls, raw: Mapping[str, object]) -> ReviewReason:
+        """Strictly decode one canonical JSON object."""
+        if set(raw) != _REVIEW_REASON_FIELDS:
+            raise ValueError("ReviewReason JSON must contain exactly the five canonical fields")
+        return cls(
+            code=raw["code"],  # type: ignore[arg-type]
+            message=raw["message"],  # type: ignore[arg-type]
+            stage=raw["stage"],  # type: ignore[arg-type]
+            source_type=raw["source_type"],  # type: ignore[arg-type]
+            source_id=raw["source_id"],  # type: ignore[arg-type]
+        )
+
+
+def review_reasons_to_json(
+    reasons: Iterable[ReviewReason],
+) -> list[dict[str, str]]:
+    """Serialize canonical reasons without widening their schema."""
+    return [reason.to_json() for reason in reasons]
+
+
+def review_reasons_from_json(raw: object) -> list[ReviewReason]:
+    """Strictly decode a persisted JSON array of canonical reasons."""
+    if not isinstance(raw, list):
+        raise ValueError("ReviewReason JSON must be a list")
+    reasons: list[ReviewReason] = []
+    for item in raw:
+        if not isinstance(item, Mapping):
+            raise ValueError("ReviewReason JSON entries must be objects")
+        reasons.append(ReviewReason.from_json(item))
+    return reasons
 
 
 # ---------------------------------------------------------------------------
@@ -299,7 +375,7 @@ class SchemeRun:
     completed_at: datetime | None = None
     content_hash: str | None = None
     recommended_scheme_code: str | None = None
-    warning_messages: list[str] = field(default_factory=list)
+    warning_messages: list[ReviewReason] = field(default_factory=list)
     # Phase 1 (Task 11B) schema contract: 0035+0036 made
     # ``scheme_runs.database_backend`` NOT NULL with **no**
     # column-level server_default. The domain model therefore

@@ -56,9 +56,11 @@ from cold_storage.modules.schemes.domain.generator import (
     generate_schemes,
 )
 from cold_storage.modules.schemes.domain.models import (
+    ReviewReason,
     SchemeCandidate,
     SchemeRun,
     SchemeScoreBreakdown,
+    review_reasons_to_json,
 )
 from cold_storage.modules.schemes.domain.scoring import (
     score_candidates,
@@ -153,6 +155,15 @@ class PersistedSourceProvenanceMismatchError(ProductionSchemeError):
         self.mismatched_field = field
 
 
+class PersistedReviewStateMismatchError(ProductionSchemeError):
+    def __init__(self, run_id: str, field: str, persisted: object, verified: object) -> None:
+        super().__init__(
+            "persisted_review_state_mismatch",
+            f"Run {run_id!r} field {field!r}: persisted={persisted!r}, verified={verified!r}",
+        )
+        self.mismatched_field = field
+
+
 # ── Snapshot validation error ──────────────────────────────────────────────
 
 
@@ -210,7 +221,7 @@ def _compute_production_content_hash(
     input_snapshot: dict[str, Any] | None = None,
     assumption_snapshot: dict[str, Any] | None = None,
     comparison_snapshot: dict[str, Any] | None = None,
-    warning_messages: list[str] | None = None,
+    warning_messages: list[ReviewReason] | tuple[ReviewReason, ...] | None = None,
 ) -> str:
     """Compute content hash covering ALL production provenance fields."""
     content = {
@@ -249,7 +260,7 @@ def _compute_production_content_hash(
         "input_snapshot": input_snapshot or {},
         "assumption_snapshot": assumption_snapshot or {},
         "comparison_snapshot": comparison_snapshot or {},
-        "warning_messages": warning_messages or [],
+        "warning_messages": review_reasons_to_json(warning_messages or ()),
     }
     return hashlib.sha256(_canonical_json(content).encode()).hexdigest()
 
@@ -340,6 +351,8 @@ class ProductionSchemeService:
             raise ProductionSchemeError(
                 exc.code, f"Source binding verification failed: {exc}"
             ) from exc
+
+        review_reasons = list(source.review_reasons)
 
         # 2. Load and validate weight revision
         try:
@@ -471,7 +484,7 @@ class ProductionSchemeService:
             input_snapshot=gen_input_snapshot,
             assumption_snapshot=full_assumption_snapshot,
             comparison_snapshot=gen_comparison_snapshot,
-            warning_messages=[],
+            warning_messages=review_reasons,
         )
 
         # 8. Build and persist production SchemeRun
@@ -492,7 +505,7 @@ class ProductionSchemeService:
             candidates_snapshot=candidates_snapshot,
             requires_review=source.requires_review,
             recommended_scheme_code=recommended_code,
-            warning_messages=[],
+            warning_messages=review_reasons,
             created_at=now,
             completed_at=now,
             content_hash=content_hash,
@@ -564,7 +577,7 @@ class ProductionSchemeService:
             candidates_snapshot=candidates_snapshot,
             requires_review=source.requires_review,
             recommended_scheme_code=recommended_code,
-            warning_messages=[],
+            warning_messages=review_reasons,
             content_hash=content_hash,
             source_mode="production",
             source_binding_id=command.source_binding_id,
@@ -1211,6 +1224,21 @@ def read_verified_production_scheme_run(
 
     # P0-4: source_binding_id was used to load the binding (implicit verification);
     # source_snapshot_hash == combined_source_hash (already compared above).
+
+    if persisted.requires_review != sv.requires_review:
+        raise PersistedReviewStateMismatchError(
+            run_id,
+            "requires_review",
+            persisted.requires_review,
+            sv.requires_review,
+        )
+    if tuple(persisted.warning_messages) != sv.review_reasons:
+        raise PersistedReviewStateMismatchError(
+            run_id,
+            "warning_messages",
+            persisted.warning_messages,
+            sv.review_reasons,
+        )
 
     # 5. Re-verify weight revision content hash
     try:

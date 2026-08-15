@@ -46,9 +46,11 @@ from cold_storage.modules.schemes.domain.models import (
     CoolingLoadResult,
     EquipmentResult,
     InvestmentResult,
+    ReviewReason,
     SchemeCandidate,
     SchemeComparisonResult,
     SchemeGenerationInput,
+    SchemeRun,
     SchemeWeightSet,
     WeightCriterion,
     ZoneResult,
@@ -1308,3 +1310,81 @@ class TestNoFeasibleScheme:
         assert comparison.recommended_scheme_code is None
         feasible = [c for c in comparison.candidates if c.feasible]
         assert len(feasible) == 0
+
+
+class TestReviewReason:
+    def test_closed_source_bound_json_shape(self) -> None:
+        reason = ReviewReason(
+            code="DEMO_COEFFICIENT",
+            message="Coefficient requires review",
+            stage="zone",
+            source_type="calculation_run",
+            source_id="calc-zone-1",
+        )
+
+        assert reason.to_json() == {
+            "code": "DEMO_COEFFICIENT",
+            "message": "Coefficient requires review",
+            "stage": "zone",
+            "source_type": "calculation_run",
+            "source_id": "calc-zone-1",
+        }
+        assert set(reason.to_json()) == {
+            "code",
+            "message",
+            "stage",
+            "source_type",
+            "source_id",
+        }
+        assert ReviewReason.from_json(reason.to_json()) == reason
+
+    @pytest.mark.parametrize(
+        "field,value",
+        [
+            ("stage", "unknown"),
+            ("source_type", "manual"),
+            ("code", ""),
+            ("message", " "),
+            ("source_id", ""),
+        ],
+    )
+    def test_rejects_invalid_closed_fields(self, field: str, value: str) -> None:
+        values = {
+            "code": "CODE",
+            "message": "Message",
+            "stage": "zone",
+            "source_type": "calculation_run",
+            "source_id": "calc-1",
+        }
+        values[field] = value
+        with pytest.raises((TypeError, ValueError)):
+            ReviewReason(**values)
+
+    def test_json_rejects_extra_fields(self) -> None:
+        raw = {
+            "code": "CODE",
+            "message": "Message",
+            "stage": "zone",
+            "source_type": "calculation_run",
+            "source_id": "calc-1",
+            "details": "forbidden",
+        }
+        with pytest.raises(ValueError, match="exactly"):
+            ReviewReason.from_json(raw)
+
+    def test_scheme_run_carries_structured_reason(self) -> None:
+        reason = ReviewReason(
+            code="CODE",
+            message="Message",
+            stage="zone",
+            source_type="calculation_run",
+            source_id="calc-zone-1",
+        )
+
+        run = SchemeRun(
+            database_backend="sqlite",
+            requires_review=True,
+            warning_messages=[reason],
+        )
+
+        assert run.warning_messages == [reason]

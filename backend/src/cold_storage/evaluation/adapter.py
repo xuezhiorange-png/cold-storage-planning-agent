@@ -76,7 +76,11 @@ from cold_storage.bootstrap.production_composition import (
 from cold_storage.modules.schemes.application.production_ports import (
     GenerateProductionSchemeCommand,
 )
-from cold_storage.modules.schemes.domain.models import SchemeRun
+from cold_storage.modules.schemes.domain.models import (
+    ReviewReason,
+    SchemeRun,
+    review_reasons_from_json,
+)
 
 # ── Adapter error class ──────────────────────────────────────────────────
 
@@ -114,7 +118,7 @@ class AdapterResult:
     weight_set_revision_id: str
     combined_source_hash: str | None
     review_required: bool
-    review_reasons: tuple[str, ...] = field(default_factory=tuple)
+    review_reasons: tuple[ReviewReason, ...] = field(default_factory=tuple)
 
 
 # ── Input validation ──────────────────────────────────────────────────────
@@ -277,7 +281,19 @@ def execute_scenario(
         persisted_weight_set_revision_id = record.weight_set_revision_id
         persisted_combined_source_hash = record.combined_source_hash
         persisted_requires_review = record.requires_review
-        persisted_warning_messages = tuple(record.warning_messages or ())
+        if type(persisted_requires_review) is not bool:
+            raise AdapterInputError("Persisted SchemeRun requires_review must be an exact bool")
+        try:
+            persisted_warning_messages = tuple(review_reasons_from_json(record.warning_messages))
+        except ValueError as exc:
+            raise AdapterInputError(
+                "Persisted production SchemeRun warning_messages are not "
+                "canonical ReviewReason JSON"
+            ) from exc
+        if persisted_requires_review != bool(persisted_warning_messages):
+            raise AdapterInputError(
+                "Persisted production SchemeRun violates the review reason invariant"
+            )
 
     return AdapterResult(
         scheme_run=scheme_run,

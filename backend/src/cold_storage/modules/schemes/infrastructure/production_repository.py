@@ -12,6 +12,10 @@ from typing import Any
 from cold_storage.modules.schemes.application.production_ports import (
     PersistedSchemeRun,
 )
+from cold_storage.modules.schemes.domain.models import (
+    ReviewReason,
+    review_reasons_to_json,
+)
 from cold_storage.modules.schemes.infrastructure.orm import (
     SchemeCandidateRecord,
     SchemeRunRecord,
@@ -65,7 +69,7 @@ class SqlAlchemyProductionSchemeRunRepository:
         candidates_snapshot: dict[str, Any],
         requires_review: bool,
         recommended_scheme_code: str | None,
-        warning_messages: list[str],
+        warning_messages: list[ReviewReason],
         content_hash: str,
         source_mode: str,
         source_binding_id: str,
@@ -127,7 +131,7 @@ class SqlAlchemyProductionSchemeRunRepository:
             candidates_snapshot=candidates_snapshot,
             requires_review=requires_review,
             recommended_scheme_code=recommended_scheme_code,
-            warning_messages=warning_messages,
+            warning_messages=review_reasons_to_json(warning_messages),
             content_hash=content_hash,
             source_mode=source_mode,
             source_binding_id=source_binding_id,

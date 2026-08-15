@@ -48,6 +48,7 @@ from cold_storage.modules.schemes.application.production_ports import (
     CalculationRunSnapshot,
     VerifiedSourceMapping,
 )
+from cold_storage.modules.schemes.domain.models import ReviewReason
 
 # ── Constants ──────────────────────────────────────────────────────────────
 
@@ -366,6 +367,76 @@ class SourcePayloadCanonicalizationError(SourceBindingVerificationError):
         )
 
 
+class ReviewReasonSourceMissingError(SourceBindingVerificationError):
+    """Raised when a true review stage has no valid source warning."""
+
+    def __init__(self, stage: str, calculation_run_id: str) -> None:
+        super().__init__(
+            code="REVIEW_REASON_SOURCE_MISSING",
+            field=f"{stage}.warnings",
+            detail=(
+                f"CalculationRun {calculation_run_id!r} for stage {stage!r} "
+                "requires review but has no valid source-bound warning"
+            ),
+        )
+
+
+class ReviewReasonInvariantError(SourceBindingVerificationError):
+    """Raised when the aggregate review/reason invariant is violated."""
+
+    def __init__(self, requires_review: bool, reason_count: int) -> None:
+        super().__init__(
+            code="REVIEW_REASON_INVARIANT_VIOLATION",
+            field="review_reasons",
+            detail=(
+                f"requires_review={requires_review!r} is inconsistent with "
+                f"{reason_count} canonical review reasons"
+            ),
+        )
+
+
+def project_review_reasons(
+    runs: Mapping[str, CalculationRunSnapshot],
+) -> tuple[ReviewReason, ...]:
+    """Project only true producer stages' warnings into canonical reasons.
+
+    ``requires_review`` is read from each persisted CalculationRunSnapshot and
+    remains the sole boolean authority.  Advisory warnings from false stages
+    are deliberately excluded without changing their upstream evidence.
+    """
+    projected: list[ReviewReason] = []
+    seen: set[ReviewReason] = set()
+    for stage in _SLOT_STAGE_ORDER:
+        run = runs[stage]
+        if run.requires_review is False:
+            continue
+
+        for warning in run.warnings:
+            if not isinstance(warning, Mapping):
+                continue
+            code = warning.get("code")
+            message = warning.get("message")
+            if type(code) is not str or type(message) is not str:
+                continue
+            if not code.strip() or not message.strip():
+                continue
+            reason = ReviewReason(
+                code=code,
+                message=message,
+                stage=stage,
+                source_type="calculation_run",
+                source_id=run.id,
+            )
+            if reason not in seen:
+                projected.append(reason)
+                seen.add(reason)
+
+        if not any(reason.stage == stage for reason in projected):
+            raise ReviewReasonSourceMissingError(stage, run.id)
+
+    return tuple(projected)
+
+
 # ── Combined source hash helper (reuses Transaction B contract) ────────────
 
 
@@ -538,6 +609,10 @@ def verify_source_mapping(state: VerifiedSourceMapping) -> VerifiedSourceMapping
             expected=True,
             actual=state.requires_review,
         )
+    if state.requires_review and not state.review_reasons:
+        raise ReviewReasonInvariantError(state.requires_review, len(state.review_reasons))
+    if not state.requires_review and state.review_reasons:
+        raise ReviewReasonInvariantError(state.requires_review, len(state.review_reasons))
 
     # ── 10. Verify completeness (no NULL fields) ──────────────────────
     _verify_completeness(state)
@@ -862,6 +937,8 @@ def verify_source_binding(
         if run.calculation_type is None:
             raise CompletenessViolation(stage, "calculation_type")
 
+    review_reasons = project_review_reasons(runs)
+
     # Build and return the VerifiedSourceMapping
     any_review = any(r.requires_review for r in runs.values())
 
@@ -894,6 +971,7 @@ def verify_source_binding(
         equipment_calculation_id=runs["equipment"].id,
         power_calculation_id=runs["power"].id,
         investment_calculation_id=runs["investment"].id,
+        review_reasons=review_reasons,
     )
 
 

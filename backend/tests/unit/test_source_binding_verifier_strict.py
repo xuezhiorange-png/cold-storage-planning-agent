@@ -64,6 +64,7 @@ from cold_storage.modules.schemes.application.source_binding_verifier import (
     ProvenanceMissingKey,
     RequiresReviewMismatch,
     ResultHashMismatch,
+    ReviewReasonSourceMissingError,
     SlotHashMapMismatch,
     SlotIdentityMismatch,
     SlotMissingError,
@@ -73,9 +74,11 @@ from cold_storage.modules.schemes.application.source_binding_verifier import (
     TypedPayloadInvalid,
     UpstreamCalculationIdMismatch,
     _compute_combined_source_hash,
+    project_review_reasons,
     verify_source_binding,
     verify_source_mapping,
 )
+from cold_storage.modules.schemes.domain.models import ReviewReason
 
 # ── Canonical test constants ──────────────────────────────────────────────
 
@@ -1568,3 +1571,88 @@ class TestBinaryFloatCanonicalization:
         with pytest.raises(SourcePayloadCanonicalizationError) as exc_info:
             verify_source_binding(read_port, session, binding_id=_BINDING_ID)
         assert not issubclass(type(exc_info.value), TypeError)
+
+
+class TestReviewReasonProjection:
+    def test_true_stage_projects_exact_source_bound_reason(self) -> None:
+        runs = _build_all_runs()
+        runs["zone"] = dataclasses.replace(
+            runs["zone"],
+            requires_review=True,
+            warnings=[
+                {
+                    "code": " CODE ",
+                    "message": " producer message ",
+                    "details": {"kept": True},
+                }
+            ],
+        )
+
+        reasons = project_review_reasons(runs)
+
+        assert reasons == (
+            ReviewReason(
+                code=" CODE ",
+                message=" producer message ",
+                stage="zone",
+                source_type="calculation_run",
+                source_id="run-z-001",
+            ),
+        )
+
+    def test_false_stage_warning_remains_advisory(self) -> None:
+        runs = _build_all_runs()
+        runs["power"] = dataclasses.replace(
+            runs["power"],
+            warnings=[
+                {
+                    "code": "DEFAULT_DEMAND_FACTOR",
+                    "message": "Demand factor defaulted",
+                }
+            ],
+        )
+
+        assert project_review_reasons(runs) == ()
+
+    @pytest.mark.parametrize(
+        "warnings",
+        [[], [{"code": "MISSING_MESSAGE"}], ["legacy-warning"]],
+    )
+    def test_true_stage_without_valid_warning_fails_closed(self, warnings: list[object]) -> None:
+        runs = _build_all_runs()
+        runs["investment"] = dataclasses.replace(
+            runs["investment"], requires_review=True, warnings=warnings
+        )
+
+        with pytest.raises(ReviewReasonSourceMissingError) as exc_info:
+            project_review_reasons(runs)
+
+        assert exc_info.value.code == "REVIEW_REASON_SOURCE_MISSING"
+        assert exc_info.value.field == "investment.warnings"
+        assert "run-inv-001" in str(exc_info.value)
+
+    def test_stage_and_warning_order_and_exact_duplicate_dedupe(self) -> None:
+        runs = _build_all_runs()
+        runs["zone"] = dataclasses.replace(
+            runs["zone"],
+            requires_review=True,
+            warnings=[
+                {"code": "Z1", "message": "first"},
+                {"code": "Z2", "message": "second"},
+                {"code": "Z1", "message": "first"},
+            ],
+        )
+        runs["investment"] = dataclasses.replace(
+            runs["investment"],
+            requires_review=True,
+            warnings=[{"code": "I1", "message": "investment"}],
+        )
+
+        reasons = project_review_reasons(runs)
+
+        assert [(r.stage, r.code) for r in reasons] == [
+            ("zone", "Z1"),
+            ("zone", "Z2"),
+            ("investment", "I1"),
+        ]
+        assert reasons[0].source_id == "run-z-001"

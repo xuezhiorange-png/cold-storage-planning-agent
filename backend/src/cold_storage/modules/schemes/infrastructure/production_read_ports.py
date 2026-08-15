@@ -28,6 +28,7 @@ from cold_storage.modules.schemes.application.production_ports import (
     SourceBindingSnapshot,
     WeightSetRevisionSnapshot,
 )
+from cold_storage.modules.schemes.domain.models import review_reasons_from_json
 from cold_storage.modules.schemes.infrastructure.orm import (
     SchemeCandidateRecord,
     SchemeRunRecord,
@@ -259,7 +260,7 @@ class SqlAlchemyProductionSchemeRunReadPort:
             input_snapshot=dict(record.input_snapshot or {}),
             assumption_snapshot=dict(record.assumption_snapshot or {}),
             comparison_snapshot=dict(record.comparison_snapshot or {}),
-            warning_messages=[str(m) for m in (record.warning_messages or [])],
+            warning_messages=review_reasons_from_json(record.warning_messages),
             requires_review=record.requires_review or False,
             status=record.status,
             created_at=record.created_at,
