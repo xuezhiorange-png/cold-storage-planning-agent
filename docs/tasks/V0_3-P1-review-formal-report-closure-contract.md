@@ -1,6 +1,6 @@
 # V0.3 P1 Review and Formal-Report Closure Contract
 
-Status: CORRECTIVE AMENDMENT R3 FOR FINAL CONTRACT INDEPENDENT REVIEW
+Status: CORRECTIVE AMENDMENT R4 FOR FINAL CONTRACT INDEPENDENT REVIEW
 
 This document defines the V03-P1 contract. It does not implement the deferred
 review or formal-report work.
@@ -38,12 +38,19 @@ R2_INDEPENDENT_REVIEW_ID=4943334847
 R2_ISSUE109_RESULT_COMMENT_ID=5301325775
 
 R3_AMENDMENT_PARENT_HEAD=bdb44f923bfc207904c7a7f9e0ae22bda9973ff5
+R3_CORRECTED_HEAD=f98291939730ac0f54f62ec7661ab24cd21357da
+FINAL_CONTRACT_INDEPENDENT_REVIEW_ID=4943731867
+FINAL_REVIEW_FOLLOWUP_COMMENT_ID=5302009558
+FINAL_ISSUE109_RESULT_COMMENT_ID=5301999778
+
+R4_AMENDMENT_PARENT_HEAD=f98291939730ac0f54f62ec7661ab24cd21357da
 ```
 
-The R3 commit SHA is intentionally not written into its own content. It is
-recorded by the PR, the R3 Issue #109 completion record, and the later final
-independent review. This contract PR may change this document only; all
-future allowlists below are not permissions for this round.
+The R4 commit SHA is intentionally not written into its own content. It is
+recorded by the PR, the R4 Issue #109 completion record, and the later R4
+independent review. The preceding R3 head and final-review records above are
+retained as append-only provenance. This contract PR may change this document
+only; all future allowlists below are not permissions for this round.
 
 ### Corrective finding closure map
 
@@ -498,9 +505,23 @@ normalized parity is proven. It does not require non-empty canonical
 ### STEP B: REVIEW_REASON_PROPAGATION_IMPLEMENTATION
 
 Lane A must carry the exact upstream reason objects through Transaction B,
-`SourceBinding`, `SchemeRun`, JSON persistence, query/API projection, and the
-report-side review snapshot without changing producer rules. A new canonical
-fixture may be created only after Step A evidence passes:
+`SourceBinding`, `SchemeRun`, JSON persistence, fresh-session/restart readback,
+and the evaluation `AdapterResult` without changing producer rules. Lane A ends
+at a persisted and readable Scheme review authority. It does not implement the
+public `SchemeReviewAuthority` query, report-side projection, approval gate,
+formal-render gate, or bootstrap composition; those are Lane-B responsibilities
+under the separate Lane-B authorization.
+
+```text
+LANE_A_REVIEW_REASON_CONTINUITY_END_BOUNDARY=SCHEME_PERSISTENCE_READBACK_AND_EVALUATION
+LANE_A_PUBLIC_REPORT_BRIDGE_REQUIRED=NO
+LANE_B_REVIEW_BRIDGE_START_BOUNDARY=PERSISTED_SCHEME_REVIEW_AUTHORITY
+LANE_B_REVIEW_BRIDGE_END_BOUNDARY=REPORT_APPROVAL_AND_FORMAL_EXPORT_ENFORCEMENT
+LANE_B_CONSUMES_LANE_A_AUTHORITY=YES
+LANE_B_MAY_REDEFINE_LANE_A_REASON_SEMANTICS=NO
+```
+
+A new canonical fixture may be created only after Step A evidence passes:
 
 ```text
 backend/tests/pilot/data/task011-followup-high-throughput-source.v1.json
@@ -513,16 +534,44 @@ handwritten candidate.
 
 ### STEP C: POST_IMPLEMENTATION_ACCEPTANCE
 
-Only after Step B is implemented may acceptance require:
+The post-implementation gates are lane-specific and do not make Lane A
+responsible for unimplemented Lane-B paths.
+
+#### LANE_A_POST_IMPLEMENTATION_GATE
+
+After Lane A implementation, acceptance covers only the SchemeRun persistence
+and evaluation boundary:
 
 ```text
 review_required=false => review_reasons=[]
 review_required=true  => review_reasons contains >= 1 valid source-bound item
 ```
 
-This gate applies to persisted SchemeRun, fresh readback, public query/API,
-report review snapshot, approval enforcement, and formal export. It is the
-`POST_IMPLEMENTATION_REASON_CONTINUITY_GATE`, not the Step A source gate.
+This Lane-A gate applies to structured reasons in persisted SchemeRun, fresh
+readback/restart, and the evaluation adapter. All report-bridge and formal
+acceptance surfaces are evaluated only by Lane B.
+
+```text
+LANE_A_ACCEPTANCE_MAY_DEPEND_ON_UNIMPLEMENTED_LANE_B=NO
+```
+
+#### LANE_B_POST_IMPLEMENTATION_GATE
+
+After Lane A's merged authority is available, Lane B acceptance covers the
+public `SchemeReviewAuthority` query, report-source projection, approval
+bridge, formal-render bridge, persisted `mark_reviewed` action readback, and
+multilingual formal acceptance.
+
+```text
+LANE_B_REQUIRES_LANE_A_MERGED_AUTHORITY=YES
+```
+
+#### P1_COMPLETE_CHAIN_GATE
+
+The separately authorized controlled acceptance validates the complete chain:
+`CalculationRun -> SchemeRun -> public query -> report -> approval -> formal
+artifacts`. No Lane-A implementation PR is required to prove Lane-B behavior
+before Lane B exists.
 
 ```text
 SOURCE_DEFINITION_GATE_FROZEN=YES
@@ -995,11 +1044,28 @@ P1 uses the backend trusted-operator surface as the reviewer. No frontend
 production implementation is required or allowlisted; existing frontend
 formal-mode controls must not be treated as approval authority.
 
-### DOC_ALLOWLIST
+### IMPLEMENTATION_DOC_ALLOWLIST
+
+```text
+docs/runbooks/V0_3-P1-review-formal-report-acceptance.md
+```
+
+The governing contract is a separate authority path, not an ordinary
+implementation-document target. This R4 amendment may edit it only because
+the current round has explicit contract-amendment authorization; ordinary
+Lane-A, Lane-B, or controlled-acceptance implementation authorization does not.
+
+### CONTRACT_AUTHORITY_PATH
 
 ```text
 docs/tasks/V0_3-P1-review-formal-report-closure-contract.md
-docs/runbooks/V0_3-P1-review-formal-report-acceptance.md
+```
+
+```text
+CONTRACT_AUTHORITY_PATH_IS_IMPLEMENTATION_ALLOWLIST=NO
+CONTRACT_DOC_POST_MERGE_READ_ONLY=YES
+CONTRACT_DOC_ORDINARY_IMPLEMENTATION_WRITE_AUTHORITY=NO
+CONTRACT_DOC_CHANGE_REQUIRES_SEPARATE_AMENDMENT_AUTHORIZATION=YES
 ```
 
 ### WORKFLOW_ALLOWLIST
@@ -1167,24 +1233,26 @@ P1_STAGE_4=CONTRACT_CORRECTIVE_AMENDMENT_R2
 P1_STAGE_5=R2_CONTRACT_INDEPENDENT_REVIEW
 P1_STAGE_6=CONTRACT_CORRECTIVE_AMENDMENT_R3
 P1_STAGE_7=FINAL_CONTRACT_INDEPENDENT_REVIEW
-P1_STAGE_8=ISSUE72_AUTHORITY_RECONCILIATION_RECORD
-P1_STAGE_9=CONTRACT_READY_AUTHORIZATION
-P1_STAGE_10=CONTRACT_MERGE_AUTHORIZATION
-P1_STAGE_11=CONTRACT_POST_MERGE_VERIFICATION
-P1_STAGE_12=HIGH_THROUGHPUT_SOURCE_DEFINITION_EVIDENCE
-P1_STAGE_13=LANE_A_IMPLEMENTATION
-P1_STAGE_14=LANE_A_INDEPENDENT_REVIEW
-P1_STAGE_15=LANE_A_READY_AUTHORIZATION
-P1_STAGE_16=LANE_A_MERGE_AUTHORIZATION
-P1_STAGE_17=LANE_A_POST_MERGE_VERIFICATION
-P1_STAGE_18=LANE_B_IMPLEMENTATION
-P1_STAGE_19=LANE_B_INDEPENDENT_REVIEW
-P1_STAGE_20=LANE_B_READY_AUTHORIZATION
-P1_STAGE_21=LANE_B_MERGE_AUTHORIZATION
-P1_STAGE_22=LANE_B_POST_MERGE_VERIFICATION
-P1_STAGE_23=CONTROLLED_ACCEPTANCE_IMPLEMENTATION
-P1_STAGE_24=POST_MERGE_CONTROLLED_ACCEPTANCE
-P1_STAGE_25=P1_CLOSURE
+P1_STAGE_8=CONTRACT_CORRECTIVE_AMENDMENT_R4
+P1_STAGE_9=R4_CONTRACT_INDEPENDENT_REVIEW
+P1_STAGE_10=ISSUE72_AUTHORITY_RECONCILIATION_RECORD
+P1_STAGE_11=CONTRACT_READY_AUTHORIZATION
+P1_STAGE_12=CONTRACT_MERGE_AUTHORIZATION
+P1_STAGE_13=CONTRACT_POST_MERGE_VERIFICATION
+P1_STAGE_14=HIGH_THROUGHPUT_SOURCE_DEFINITION_EVIDENCE
+P1_STAGE_15=LANE_A_IMPLEMENTATION
+P1_STAGE_16=LANE_A_INDEPENDENT_REVIEW
+P1_STAGE_17=LANE_A_READY_AUTHORIZATION
+P1_STAGE_18=LANE_A_MERGE_AUTHORIZATION
+P1_STAGE_19=LANE_A_POST_MERGE_VERIFICATION
+P1_STAGE_20=LANE_B_IMPLEMENTATION
+P1_STAGE_21=LANE_B_INDEPENDENT_REVIEW
+P1_STAGE_22=LANE_B_READY_AUTHORIZATION
+P1_STAGE_23=LANE_B_MERGE_AUTHORIZATION
+P1_STAGE_24=LANE_B_POST_MERGE_VERIFICATION
+P1_STAGE_25=CONTROLLED_ACCEPTANCE_IMPLEMENTATION
+P1_STAGE_26=POST_MERGE_CONTROLLED_ACCEPTANCE
+P1_STAGE_27=P1_CLOSURE
 ```
 
 No stage authorizes the next stage. In particular, this amendment does not
@@ -1206,6 +1274,8 @@ READY_AUTO_MERGE=NO
 MERGE_AUTO_SOURCE_EVIDENCE=NO
 ISSUE72_RECONCILIATION_RECORD_REQUIRED_BEFORE_READY=YES
 ISSUE72_RECONCILIATION_AUTO_AUTHORIZES_READY=NO
+R4_REVIEW_PASS_AUTO_RECONCILIATION=NO
+ISSUE72_RECONCILIATION_REQUIRES_SEPARATE_AUTHORIZATION=YES
 ```
 
 ## 17. Stop conditions and failure handling
@@ -1263,8 +1333,16 @@ code, test, workflow, frontend, migration, controlled acceptance, Ready, or
 Merge changes in this round.
 
 ```text
+R4_FINDING_01_LANE_SCOPE_ALLOWLIST_CONFLICT_CLOSED=YES
+R4_FINDING_02_CONTRACT_SELF_MUTATION_AUTHORITY_CLOSED=YES
+R4_FINDING_03_STALE_NEXT_STAGE_MARKER_CLOSED=YES
+CURRENT_NEXT_STAGE_MARKER_UNAMBIGUOUS=YES
 V03_P1_IMPLEMENTATION_AUTHORIZED=NO
 V03_P1_IMPLEMENTATION_STARTED=NO
-NEXT_REQUIRED_STAGE=V03_P1_CORRECTED_CONTRACT_INDEPENDENT_REVIEW
+ISSUE72_RECONCILIATION_RECORD_AUTHORIZED=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+NEXT_REQUIRED_STAGE=V03_P1_R4_CONTRACT_INDEPENDENT_REVIEW
+NEXT_STAGE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
