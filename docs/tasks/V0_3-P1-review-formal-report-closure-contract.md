@@ -1,6 +1,6 @@
 # V0.3 P1 Review and Formal-Report Closure Contract
 
-Status: CONTRACT-FROZEN FOR INDEPENDENT REVIEW
+Status: CORRECTIVE AMENDMENT FOR CORRECTED-CONTRACT INDEPENDENT REVIEW
 
 This document defines the V03-P1 contract. It does not implement the deferred
 review or formal-report work.
@@ -21,6 +21,32 @@ The source SHA and tree SHA above are the authority for this contract round.
 An implementation PR must revalidate its own exact base and must not silently
 reuse this identity after `main` changes.
 
+This corrective amendment is governed by PR review IDs `4942369620` and
+`4942414051`, and Issue #109 review comment `5299888272`. It closes those
+seven findings without authorizing implementation. The contract PR may change
+this document only; all future allowlists below are not permissions for this
+round.
+
+### Corrective finding closure map
+
+1. **Structured reason type:** P1 uses a closed structured JSON object,
+   lossless typed/readback paths, existing JSON persistence, and no migration;
+   legacy string-only values are non-canonical.
+2. **Cross-backend parity:** raw IDs are retained and checked within each run;
+   normalized business projection is the cross-backend/repeatability contract.
+3. **Source-gate cycle:** Step A proves upstream source evidence while
+   recording the current missing SchemeRun propagation; Step B implements it;
+   Step C verifies non-empty reason continuity.
+4. **Report bridge:** a minimal public-query/provider/report-application bridge
+   is required and formal export must consume it; no ORM shortcut or
+   acceptance-only ambiguity remains.
+5. **Actor authority:** controlled acceptance uses a trusted injected operator
+   seam; P1 does not claim full production authentication/RBAC.
+6. **Fixture path:** the canonical fixture path is allowlisted only after Step
+   A evidence and its hash are accepted; this round does not create it.
+7. **Historical governance:** TASK-011/TASK-012 authority documents and
+   workflows are read-only; future P1 acceptance has a new V0.3 path.
+
 ## 2. Scope decision
 
 P1 is a closure package for two related lanes:
@@ -32,8 +58,9 @@ P1 is a closure package for two related lanes:
 
 `high_throughput_review` is a scenario label for Lane A. It is not a new
 throughput threshold, formula, coefficient, score, or review rule. The
-implementation cannot start until the exact source evidence gate in section 6
-is satisfied.
+implementation cannot start until the staged source-definition evidence gate
+in section 6 is satisfied. The report bridge is a minimal application-boundary
+enforcement change, not a redesign of the report status machine or renderer.
 
 The P1 contract reuses existing calculation, source-binding, scheme, report,
 approval, renderer, and artifact-storage authorities. It does not redesign
@@ -115,7 +142,10 @@ is no autonomous approval path.
 The current frontend report feature consumes report lists, revisions, render,
 exports, and downloads. `frontend/src/features/reports/components/
 ReportExportPanel.vue` has no review or approval controls. This is a confirmed
-frontend consumer gap; it is not silently treated as complete.
+frontend consumer gap. P1 does not authorize frontend production changes: the
+backend operator surface is the only accepted reviewer boundary for this
+package, and a frontend formal-mode selection must never be treated as
+approval.
 
 ## 4. Current report and approval lifecycle
 
@@ -162,6 +192,13 @@ Current behavior confirmed from `ReportService`:
    approval identity.
 8. Concurrent transitions must fail with the existing conflict semantics; they
    must not choose a winner by timestamp or retry an approval silently.
+9. For a review-required SchemeRun, a valid trusted-operator `mark_reviewed`
+   action for the exact scheme review snapshot is required before approval;
+   the existing report statuses are reused and no new status is added.
+10. Formal render must revalidate the approved revision's scheme-review
+    snapshot through the report application boundary. An approved report
+    whose required scheme review is absent, stale, or source-mismatched is not
+    eligible for formal output.
 
 ## 5. ReviewReason contract
 
@@ -192,6 +229,24 @@ Field rules:
   added to the P1 reason contract. Existing warning details remain upstream
   evidence unless separately required by a future contract.
 
+Current-main type reconciliation is explicit:
+
+- `SchemeRun.warning_messages`, `PersistedSchemeRun.warning_messages`, and
+  `ProductionSchemeRunRepository` currently type this value as
+  `list[str]`; P1 changes that canonical projection to a typed structured
+  reason object without changing the column shape.
+- `AdapterResult.review_reasons` currently exposes `tuple[str, ...]`; the P1
+  implementation must update the relevant typed boundary to the structured
+  object and preserve JSON objects through write, read, and restart.
+- `SchemeRunRecord.warning_messages` is already a JSON column. No database
+  schema change or migration is needed or allowed for this projection.
+- No read path may perform `str(reason)` or otherwise serialize an object into
+  a lossy string. A legacy string-only value is historical compatibility data,
+  not a new canonical approval authority.
+- The future implementation allowlist includes the minimum domain, query,
+  repository, and evaluation paths needed for this typed/readback closure;
+  it does not open the entire `schemes/**` tree.
+
 The reason item field set is closed. The warning-code set is producer-owned
 and therefore open, but every code must be present in the exact upstream
 warning evidence. An unknown code without matching persisted source evidence
@@ -218,6 +273,13 @@ Persistence and API rules:
   they may remain visible as historical draft data;
 - no new table or migration is authorized for this JSON projection.
 
+```text
+STRUCTURED_REVIEW_REASON_OBJECT_REQUIRED=YES
+DB_SCHEMA_MIGRATION_REQUIRED=NO
+LOSSLESS_JSON_RESTART_READBACK_REQUIRED=YES
+LEGACY_STRING_REASON_CANONICAL_AUTHORITY=NO
+```
+
 ### Review invariants
 
 These are acceptance invariants, not new review rules:
@@ -231,11 +293,25 @@ The persisted value, fresh readback, API projection, and formal-report
 consumer must agree. Any mismatch blocks approval/formal export and reports a
 deterministic validation error.
 
-## 6. Exact high-throughput source and evidence gate
+## 6. Staged high-throughput source and evidence gates
+
+The pre-implementation source-definition gate and the post-implementation
+reason-continuity gate are separate contracts. The first gate must not require
+the very SchemeRun propagation that Lane A is intended to implement.
+
+### STEP A: HIGH_THROUGHPUT_SOURCE_DEFINITION_EVIDENCE
 
 `HIGH_THROUGHPUT_EXACT_SOURCE_EVIDENCE` is a required pre-implementation gate.
 It is not satisfied by a historical candidate value, a fixture name, or the
-string `high_throughput_review`.
+string `high_throughput_review`. It is allowed to record the current confirmed
+gap:
+
+```text
+SCHEME_RUN_REVIEW_REASON_PROPAGATION=CURRENTLY_MISSING
+```
+
+That observation is not a Step A failure. Step A proves the upstream production
+authority from which Lane A must propagate reasons.
 
 The source package must bind all of the following:
 
@@ -246,13 +322,71 @@ The source package must bind all of the following:
 - ordered warning code/message/reason evidence for every true stage;
 - exact `CalculationRun` identities and result hashes;
 - exact `SourceBinding` identity and combined source hash;
-- exact persisted `SchemeRun` review boolean and reason list;
+- exact persisted `SchemeRun` review boolean and the observed current reason
+  state, including an empty list when the current integration loses reasons;
 - successful/completed status and no partial transaction;
 - two independent SQLite runs on fresh database/run roots;
 - two independent PostgreSQL runs on fresh database/run roots;
-- repeatability and cross-backend parity;
-- fresh-session/restart readback of reasons, state, and identity;
+- repeatability and normalized cross-backend parity;
+- fresh-session/restart readback of upstream evidence and identity;
 - no tracked-file mutation from evidence generation.
+
+For every run, raw evidence must retain the real `CalculationRun` IDs,
+`SourceBinding` ID, `SchemeRun` ID, reason `source_id`, result hashes, combined
+source hash, and backend identity. Within that run, each reason `source_id`
+must resolve to the declared stage's persisted `CalculationRun` and its result
+hash/source binding. This is raw identity integrity, not cross-run UUID
+equality.
+
+Repeatability and cross-backend comparison use a normalized business
+projection containing canonical input hash, the five-stage `requires_review`
+vector, ordered warning code/message, stage, source type, stage-result or
+semantic source evidence hash, boolean result, and normalized reason ordering.
+Runtime IDs are excluded from this projection.
+
+```text
+RAW_IDENTITY_PARITY_REQUIRED=NO
+RAW_IDENTITY_INTEGRITY_REQUIRED=YES
+NORMALIZED_BUSINESS_PARITY_REQUIRED=YES
+```
+
+Step A passes only when its upstream production evidence is complete and
+normalized parity is proven. It does not require non-empty canonical
+`SchemeRun.warning_messages` while that is the confirmed P1 gap.
+
+### STEP B: REVIEW_REASON_PROPAGATION_IMPLEMENTATION
+
+Lane A must carry the exact upstream reason objects through Transaction B,
+`SourceBinding`, `SchemeRun`, JSON persistence, query/API projection, and the
+report-side review snapshot without changing producer rules. A new canonical
+fixture may be created only after Step A evidence passes:
+
+```text
+backend/tests/pilot/data/task011-followup-high-throughput-source.v1.json
+FILE_CREATION_BEFORE_SOURCE_EVIDENCE_PASS=FORBIDDEN
+```
+
+The fixture content and SHA-256 must be generated from the accepted Step A
+source evidence, never from historical memory, a guessed golden, or a
+handwritten candidate.
+
+### STEP C: POST_IMPLEMENTATION_ACCEPTANCE
+
+Only after Step B is implemented may acceptance require:
+
+```text
+review_required=false => review_reasons=[]
+review_required=true  => review_reasons contains >= 1 valid source-bound item
+```
+
+This gate applies to persisted SchemeRun, fresh readback, public query/API,
+report review snapshot, approval enforcement, and formal export. It is the
+`POST_IMPLEMENTATION_REASON_CONTINUITY_GATE`, not the Step A source gate.
+
+```text
+SOURCE_DEFINITION_GATE_FROZEN=YES
+POST_IMPLEMENTATION_REASON_CONTINUITY_GATE_FROZEN=YES
+```
 
 Until this package exists and is independently verified:
 
@@ -263,8 +397,9 @@ HIGH_THROUGHPUT_SOURCE_EVIDENCE_GATE_REQUIRED=YES
 IMPLEMENTATION_READY=NO
 ```
 
-The evidence package must be attached to Issue #72 before Lane A
-implementation is considered ready.
+The Step A evidence package must be attached to Issue #72 before Lane A
+implementation is considered ready. This amendment round does not create the
+fixture or execute Step A.
 
 ## 7. Formal export eligibility
 
@@ -296,6 +431,46 @@ revision clears approval and requires the lifecycle again.
 
 The formal gate must continue to use service state and persisted identity; it
 must not trust a frontend flag, an LLM statement, or an artifact filename.
+
+### Scheme-review to report-approval bridge
+
+The current-main audit found that `SchemeQueryPort` exposes scheme results but
+not `requires_review`; `RealReportDataProvider` does not carry scheme review
+state/reasons into its report projection; and `ReportService`/
+`ReportRenderService` currently validate report approval and quality findings
+without consuming SchemeRun review authority. Therefore a report-side bridge
+is required for P1. It is not safe to describe Lane B as acceptance-only while
+leaving this production bypass intact.
+
+P1 freezes the following minimum architecture:
+
+1. `SchemeQueryPort` exposes a typed, read-only `SchemeReviewAuthority`
+   snapshot containing the authoritative SchemeRun identity, project/version
+   identity, `requires_review`, ordered structured reasons, combined/source
+   hash, and the persisted result identity. It is a public application query
+   boundary, not a Scheme ORM dependency.
+2. `RealReportDataProvider` maps that snapshot into the report-side source
+   projection. `ReportAssembler` preserves the review snapshot and its source
+   reference in the report revision/content lineage.
+3. `ReportService` validates the latest exact SchemeRun review snapshot before
+   `approve`, and requires a trusted-operator `mark_reviewed` action when the
+   snapshot is review-required. `ReportRenderService` revalidates that the
+   approved revision still carries the same valid review snapshot before
+   formal DOCX/PDF export.
+4. Reports must not import Scheme ORM/models or open a Scheme session directly.
+   No routes-only check and no frontend-only flag is sufficient. The existing
+   report status machine, approval snapshot, quality blocker rules, and render
+   mechanics remain unchanged except for this application-boundary gate.
+5. A missing, stale, mismatched, or ambiguous review snapshot fails closed;
+   it cannot be converted into a draft export or hidden warning.
+
+```text
+REPORT_REVIEW_BRIDGE_MODE=MINIMAL_APPLICATION_ENFORCEMENT
+LANE_B_REPORT_CORE_CHANGE_REQUIRED=YES
+```
+
+This is the selected architecture for P1; an acceptance-only alternative is
+not simultaneously retained as an unresolved option.
 
 ## 8. Multilingual formal acceptance
 
@@ -347,6 +522,12 @@ does not recalculate engineering values. A formal artifact must be traceable
 through this chain after a fresh process/session restart. No new lineage field
 is authorized unless a gap is demonstrated against these existing anchors.
 
+The scheme-review snapshot is part of this existing source lineage for P1. It
+must be carried through public query/provider/application boundaries rather
+than by a cross-module ORM shortcut. Its content hash and exact SchemeRun /
+SourceBinding identity must be included in the report revision's source
+references or equivalent existing approval snapshot fields.
+
 ## 10. Concurrency and idempotency boundary
 
 P1 must preserve the current report guarantees:
@@ -370,7 +551,7 @@ The current authorities are `ReportRenderService`,
 repository idempotency/CAS paths. Review closure must add regression coverage
 around these guarantees rather than replace them.
 
-## 11. API and frontend boundary
+## 11. API, operator, and frontend boundary
 
 The backend API already exposes report CRUD, revision, review action, render,
 export-list, artifact-detail, and download routes. P1 implementation may make
@@ -378,13 +559,32 @@ the review reason and approval snapshot explicit in responses, but it may not
 add an autonomous approval endpoint or let the client manufacture approval
 identity.
 
+The P1 approval actor is frozen as a controlled trusted-operator seam:
+
+- controlled acceptance injects a non-empty, deterministic operator actor from
+  a trusted test/control dependency;
+- `approved_by` may not be supplied by HTTP body, query parameter, header,
+  client JavaScript, model output, calculator output, or a background retry;
+- the actor is recorded in the existing report review/approval audit fields;
+- the current API literal `system` is not evidence of a human identity and may
+  not be used as the controlled-acceptance operator without the trusted seam.
+
+```text
+TRUSTED_OPERATOR_AUTHORITY_FROZEN=YES
+PRODUCTION_AUTH_INTEGRATION_REQUIRED_BY_P1=NO
+```
+
+P1 proves the trusted operator boundary and explicitly defers full
+production-authentication/RBAC integration to a later version. This is not
+autonomous AI approval.
+
 The frontend currently provides report list, revision selection, draft/formal
 mode selection, locale/format selection, render, export listing, and download.
 It does not provide review action controls or a human approval workflow. The
-P1 frontend acceptance must either add the minimum explicit human workflow or
-document that the backend operator surface is the only authorized reviewer; it
-must not present formal export as available merely because the user chose
-`formal` in a dropdown.
+P1 uses the backend trusted-operator surface as the only authorized reviewer
+and does not authorize frontend production changes. The frontend must not
+present formal export as available merely because the user chose `formal` in a
+dropdown.
 
 ## 12. Exact future implementation allowlist
 
@@ -394,18 +594,28 @@ contract-freeze PR itself changes only this document.
 ### PRODUCTION_CODE_ALLOWLIST
 
 ```text
+backend/src/cold_storage/modules/schemes/domain/models.py
 backend/src/cold_storage/modules/schemes/application/production_ports.py
 backend/src/cold_storage/modules/schemes/application/source_binding_verifier.py
+backend/src/cold_storage/modules/schemes/application/query.py
 backend/src/cold_storage/modules/schemes/application/production_service.py
+backend/src/cold_storage/modules/schemes/infrastructure/production_repository.py
+backend/src/cold_storage/modules/schemes/infrastructure/production_read_ports.py
+backend/src/cold_storage/modules/schemes/infrastructure/repository.py
 backend/src/cold_storage/evaluation/adapter.py
-backend/src/cold_storage/modules/reports/api/routes.py
-backend/src/cold_storage/evaluation/pilot_reports.py
 backend/src/cold_storage/evaluation/followup_acceptance.py
+backend/src/cold_storage/modules/reports/infrastructure/real_data_provider.py
+backend/src/cold_storage/modules/reports/application/assembler.py
+backend/src/cold_storage/modules/reports/application/service.py
+backend/src/cold_storage/modules/reports/application/render_service.py
+backend/src/cold_storage/modules/reports/domain/schema.py
 ```
 
-The permitted roles are reason projection, persisted-source verification,
-review API identity, and controlled pilot orchestration only. No calculator
-formula or report renderer redesign is implied.
+The permitted roles are structured reason projection, lossless JSON
+persistence/readback, public Scheme query exposure, report provider/assembler
+lineage, report application approval/formal enforcement, and controlled pilot
+orchestration. The report status machine and renderer mechanics are not
+redesigned. No calculator formula or report producer rule is in this list.
 
 ### TEST_ALLOWLIST
 
@@ -424,41 +634,36 @@ backend/tests/test_reports/test_idempotency_failure_states.py
 backend/tests/test_reports/test_storage_recovery_and_atomic.py
 backend/tests/pilot/test_task011_followup_acceptance.py
 backend/tests/pilot/run_task011_followup_acceptance.py
+backend/tests/pilot/data/task011-followup-high-throughput-source.v1.json
 ```
 
 ### FRONTEND_ALLOWLIST
 
 ```text
-frontend/src/api/contracts/reports.ts
-frontend/src/features/reports/api/reportsApi.ts
-frontend/src/features/reports/composables/useReportExport.ts
-frontend/src/features/reports/components/ReportsPage.vue
-frontend/src/features/reports/components/ReportExportPanel.vue
-frontend/src/features/reports/components/ReportExportPanel.test.ts
-frontend/src/features/reports/composables/useReportExport.test.ts
+FRONTEND_ALLOWLIST=[]
 ```
 
-Only the report review/status/export consumer is in scope. No unrelated
-frontend feature is allowlisted.
+P1 uses the backend trusted-operator surface as the reviewer. No frontend
+production implementation is required or allowlisted; existing frontend
+formal-mode controls must not be treated as approval authority.
 
 ### DOC_ALLOWLIST
 
 ```text
 docs/tasks/V0_3-P1-review-formal-report-closure-contract.md
-docs/tasks/TASK-011-remaining-pilot-readiness-definition.md
-docs/tasks/TASK-011-pilot-demo-runbook.md
-docs/runbooks/TASK-012-slice6-end-to-end-operational-acceptance.md
+docs/runbooks/V0_3-P1-review-formal-report-acceptance.md
 ```
 
 ### WORKFLOW_ALLOWLIST
 
 ```text
-.github/workflows/task011-followup-controlled-acceptance.yml
+.github/workflows/v0-3-p1-review-formal-report-acceptance.yml
 ```
 
-The workflow is not modified in this freeze round. Any future controlled
-acceptance must remain workflow-dispatch-only, exact-source-bound, and
-production-operation-free.
+The future workflow is a new V0.3 P1 surface, not a permission to mutate the
+historical TASK-011 workflow. It must remain workflow-dispatch-only,
+exact-source-bound, controlled-operator-bound, and production-operation-free.
+No workflow is modified in this freeze round.
 
 ### MIGRATION_ALLOWLIST
 
@@ -468,6 +673,15 @@ MIGRATION_ALLOWLIST=[]
 
 The P1 reason projection uses existing JSON persistence and existing report
 identity fields. A schema migration would require a new contract round.
+
+Historical TASK-011/TASK-012 documents and workflows are frozen authorities:
+
+```text
+HISTORICAL_TASK011_TASK012_AUTHORITY_READ_ONLY=YES
+```
+
+They are not future implementation targets unless a later contract explicitly
+proves an unavoidable historical factual correction.
 
 ## 13. Forbidden paths and semantic changes
 
@@ -501,11 +715,16 @@ golden semantics may be rewritten.
    SchemeRun -> persisted reason.
 2. `review_required=true` with an empty reason list is rejected.
 3. No-review input produces `review_required=false` and an empty reason list.
-4. Reason code/message/stage/source ID order and exact deduplication are stable.
-5. Reasons and state survive fresh-session/restart readback.
-6. SQLite and PostgreSQL produce identical canonical reason payloads.
-7. Two independent runs per backend prove repeatability.
-8. No autonomous approval path exists.
+4. Structured reason objects survive domain typing, JSON write/read, and
+   fresh-session/restart readback without `str(reason)` conversion.
+5. Reason code/message/stage/source ID order and exact deduplication are stable.
+6. Each run proves raw `source_id` integrity against the correct
+   CalculationRun/result hash/SourceBinding; runtime IDs are not compared
+   across independent runs.
+7. SQLite and PostgreSQL match on the normalized business projection, while
+   raw identity integrity is checked separately.
+8. Two independent runs per backend prove repeatability.
+9. No autonomous approval path exists.
 
 ### High-throughput source
 
@@ -514,22 +733,26 @@ golden semantics may be rewritten.
 3. Exact five-stage review vector and warning evidence.
 4. Transaction completion and source-binding hash verification.
 5. Two fresh SQLite runs and two fresh PostgreSQL runs.
-6. Cross-backend parity and restart readback.
+6. Normalized cross-backend parity and upstream-evidence restart readback;
+   raw identity parity is explicitly not required.
 7. Missing, mismatched, or synthetic-only source evidence fails closed.
 
 ### Formal report
 
 1. Formal export fails before approval.
 2. Formal export succeeds after valid approval.
-3. Stale revision, approval identity mismatch, content-hash mismatch, and
-   blocker state all fail closed.
-4. Approved `zh-CN` DOCX/PDF and `en-US` DOCX/PDF are produced.
-5. All four artifacts share canonical source/revision/approval identity and
+3. A review-required SchemeRun without a valid trusted-operator review action
+   cannot be approved or formally rendered, even if report status is manually
+   marked approved.
+4. Stale revision, approval identity mismatch, content-hash mismatch, scheme
+   review snapshot mismatch, and blocker state all fail closed.
+5. Approved `zh-CN` DOCX/PDF and `en-US` DOCX/PDF are produced.
+6. All four artifacts share canonical source/revision/approval identity and
    have independently verified file hashes.
-6. Duplicate and concurrent formal requests converge idempotently.
-7. Failed render and retry preserve storage atomicity and do not create a
+7. Duplicate and concurrent formal requests converge idempotently.
+8. Failed render and retry preserve storage atomicity and do not create a
    false formal artifact.
-8. Existing report lifecycle, approval snapshot, waiter, storage-recovery,
+9. Existing report lifecycle, approval snapshot, waiter, storage-recovery,
    and provenance regressions remain green.
 
 ## 15. CI and controlled-acceptance contract
@@ -544,17 +767,20 @@ An implementation PR must run, at minimum:
 - ruff check;
 - format check;
 - mypy;
-- frontend report tests if the frontend allowlist is used;
-- TASK-011 draft regressions.
+- report boundary and provider tests;
+- the existing TASK-011 draft regressions without changing their historical
+  authority.
 
-The controlled acceptance surface, if added or reused, must be dispatch-only,
-main-only, exact-source-bound, and independently verify its evidence. It must
-record:
+The future controlled acceptance surface is the new V0.3 P1 workflow and
+runbook path in the allowlist. It must be dispatch-only, main-only,
+exact-source-bound, trusted-operator-bound, and independently verify its
+evidence. It must record:
 
 - source SHA and tree SHA;
 - exact high-throughput input identity and hash;
 - stage review vector and reason objects;
 - SourceBinding and SchemeRun identity;
+- raw per-run IDs and backend identity plus normalized business projection;
 - every lifecycle transition and human actor;
 - approval revision/content hash/actor/time;
 - four formal artifact IDs, formats, locales, and file hashes;
@@ -565,7 +791,31 @@ record:
 No ordinary PR job may be presented as controlled acceptance. No controlled
 run may mutate production, registry, release, signing, or deployment state.
 
-## 16. Stop conditions and failure handling
+## 16. P1 stage order and authorization boundary
+
+The corrected sequence is:
+
+```text
+P1_STAGE_0=CONTRACT_FREEZE
+P1_STAGE_1=INDEPENDENT_REVIEW
+P1_STAGE_2=CONTRACT_CORRECTIVE_AMENDMENT
+P1_STAGE_3=CORRECTED_CONTRACT_INDEPENDENT_REVIEW
+P1_STAGE_4=HIGH_THROUGHPUT_SOURCE_DEFINITION_EVIDENCE
+P1_STAGE_5=LANE_A_REVIEW_REASON_IMPLEMENTATION
+P1_STAGE_6=LANE_A_INDEPENDENT_REVIEW
+P1_STAGE_7=LANE_A_READY_MERGE
+P1_STAGE_8=LANE_B_FORMAL_ACCEPTANCE_IMPLEMENTATION
+P1_STAGE_9=LANE_B_INDEPENDENT_REVIEW
+P1_STAGE_10=LANE_B_READY_MERGE
+P1_STAGE_11=POST_MERGE_CONTROLLED_ACCEPTANCE
+P1_STAGE_12=P1_CLOSURE
+```
+
+No stage authorizes the next stage. In particular, this amendment does not
+authorize Step A evidence generation, fixture creation, Lane A/B code, Ready,
+Merge, or controlled acceptance.
+
+## 17. Stop conditions and failure handling
 
 Implementation must stop and return `CONTRACT_BLOCKER` if it requires any of:
 
@@ -583,16 +833,20 @@ Every required source, review, approval, persistence, or artifact identity must
 fail closed on missing, stale, mismatched, or ambiguous evidence. It may not
 be converted to a warning to obtain a green CI result.
 
-## 17. Acceptance criteria
+## 18. Acceptance criteria
 
 P1 is complete only when all are true:
 
 ```text
 HIGH_THROUGHPUT_EXACT_SOURCE_EVIDENCE=PASS
+SOURCE_DEFINITION_GATE=PASS
 REVIEW_REASON_PROPAGATION=PASS
 REVIEW_REQUIRED_REASON_INVARIANT=PASS
+POST_IMPLEMENTATION_REASON_CONTINUITY_GATE=PASS
 SQLITE_PERSISTENCE_AND_RESTART=PASS
 POSTGRESQL_PERSISTENCE_AND_RESTART=PASS
+NORMALIZED_CROSS_BACKEND_PARITY=PASS
+RAW_IDENTITY_INTEGRITY=PASS
 LIFECYCLE_AND_HUMAN_APPROVAL=PASS
 FORMAL_EXPORT_FAIL_CLOSED=PASS
 ZH_CN_DOCX=PASS
@@ -609,7 +863,7 @@ The implementation PR must remain Draft until independent review accepts the
 evidence. Merge does not authorize controlled acceptance; controlled
 acceptance requires a separate exact-source authorization.
 
-## 18. Next-stage boundary
+## 19. Next-stage boundary
 
 This document freezes the P1 contract only. It does not authorize production
 code, test, workflow, frontend, migration, controlled acceptance, Ready, or
@@ -618,6 +872,6 @@ Merge changes in this round.
 ```text
 V03_P1_IMPLEMENTATION_AUTHORIZED=NO
 V03_P1_IMPLEMENTATION_STARTED=NO
-NEXT_REQUIRED_STAGE=V03_P1_CONTRACT_INDEPENDENT_REVIEW
+NEXT_REQUIRED_STAGE=V03_P1_CORRECTED_CONTRACT_INDEPENDENT_REVIEW
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
