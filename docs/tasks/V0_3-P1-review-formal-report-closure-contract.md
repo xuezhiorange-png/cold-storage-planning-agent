@@ -1,6 +1,6 @@
 # V0.3 P1 Review and Formal-Report Closure Contract
 
-Status: CORRECTIVE AMENDMENT FOR CORRECTED-CONTRACT INDEPENDENT REVIEW
+Status: CORRECTIVE AMENDMENT R3 FOR FINAL CONTRACT INDEPENDENT REVIEW
 
 This document defines the V03-P1 contract. It does not implement the deferred
 review or formal-report work.
@@ -21,11 +21,29 @@ The source SHA and tree SHA above are the authority for this contract round.
 An implementation PR must revalidate its own exact base and must not silently
 reuse this identity after `main` changes.
 
-This corrective amendment is governed by PR review IDs `4942369620` and
-`4942414051`, and Issue #109 review comment `5299888272`. It closes those
-seven findings without authorizing implementation. The contract PR may change
-this document only; all future allowlists below are not permissions for this
-round.
+This contract authority has an explicit, append-only review lineage:
+
+```text
+INITIAL_CONTRACT_HEAD=a1ebd4cb25e104f5bcde7c8b004b58bb8e79ddbd
+INITIAL_INDEPENDENT_REVIEW_ID=4942369620
+INITIAL_REVIEW_COMMENT_ID=4942414051
+INITIAL_ISSUE109_RESULT_COMMENT_ID=5299888272
+
+R1_CORRECTED_HEAD=6ed78d4f77320ed94159c57e04a1d1daa751fc79
+R1_CORRECTED_INDEPENDENT_REVIEW_ID=4943239922
+R1_ISSUE109_RESULT_COMMENT_ID=5301160868
+
+R2_CORRECTED_HEAD=bdb44f923bfc207904c7a7f9e0ae22bda9973ff5
+R2_INDEPENDENT_REVIEW_ID=4943334847
+R2_ISSUE109_RESULT_COMMENT_ID=5301325775
+
+R3_AMENDMENT_PARENT_HEAD=bdb44f923bfc207904c7a7f9e0ae22bda9973ff5
+```
+
+The R3 commit SHA is intentionally not written into its own content. It is
+recorded by the PR, the R3 Issue #109 completion record, and the later final
+independent review. This contract PR may change this document only; all
+future allowlists below are not permissions for this round.
 
 ### Corrective finding closure map
 
@@ -46,6 +64,98 @@ round.
    A evidence and its hash are accepted; this round does not create it.
 7. **Historical governance:** TASK-011/TASK-012 authority documents and
    workflows are read-only; future P1 acceptance has a new V0.3 path.
+
+```text
+R1_FINDINGS_01_07=CLOSED
+R2_FINDINGS_01_04=CLOSED
+R3_FINDING_01_AUTHORITY_PRECEDENCE_CLOSED=YES
+R3_FINDING_02_LANE_ALLOWLIST_SEPARATION_CLOSED=YES
+R3_FINDING_03_CONTRACT_PROVENANCE_CLOSED=YES
+R1_REGRESSION=NO
+R2_REGRESSION=NO
+```
+
+## 1.1 Authority reconciliation with Issue #72
+
+Issue #72 Definition / Freeze Record v1 (`5294899790`) remains the upstream
+historical deferred-scope authority. V0.3 P1 does not rely on an implicit
+"newer document wins" rule and does not blanket-supersede Issue #72.
+
+```text
+ISSUE72_ROLE=UPSTREAM_HISTORICAL_DEFERRED_SCOPE_AUTHORITY
+V03_P1_ROLE=NARROW_EXPLICIT_AMENDMENT_FOR_V0_3_P1_ONLY
+ISSUE72_BLANKET_SUPERSEDE=NO
+ISSUE72_UNAMENDED_RULES_REMAIN_AUTHORITY=YES
+V03_P1_MERGED_CONTRACT_CONTROLS_ENUMERATED_AMENDMENTS=YES
+IMPLEMENTATION_AUTHORIZED_BY_AUTHORITY_RECONCILIATION=NO
+```
+
+The merged V0.3 P1 contract makes only these narrow, enumerated amendments:
+
+### Amendment A: Lane A reason continuity
+
+The Issue #72 Lane-A continuity contract is extended only to make the
+existing production signal auditable and lossless: structured `ReviewReason`
+objects, exact source-bound reason identity, typed JSON persistence/readback,
+the required repository/read-port closure, and normalized cross-backend
+parity. The following Issue #72 rules remain binding and are not amended:
+
+- producer `requires_review` remains the review boolean authority;
+- source-definition evidence must pass before Lane-A implementation;
+- `high_throughput_review` is a scenario label, not a new rule;
+- no new threshold, formula, coefficient, scoring rule, or review rule;
+- historical TASK-011 goldens/manifests remain immutable.
+
+### Amendment B: Lane B report enforcement
+
+Issue #72 defines Lane B as an acceptance-composition extension. The current
+main audit proves that an acceptance-only description would leave a real
+production bypass: the report composition does not consume Scheme review
+authority. V0.3 P1 therefore narrows that extension into
+`MINIMAL_APPLICATION_ENFORCEMENT`, limited to the public
+`SchemeReviewAuthority` query, provider/assembler lineage, ReportService
+approval gate, ReportRenderService formal gate, persisted review-action
+readback, and composition wiring. It does not authorize report status-machine
+or renderer-mechanics redesign, autonomous approval, frontend approval
+authority, or production authentication/RBAC expansion.
+
+### Unamended Issue #72 rules
+
+The following remain fully binding: Lane A/Lane B separation, the mandatory
+source-definition evidence gate, no historical TASK-011 mutation, no formula,
+threshold, coefficient, scoring, or autonomous approval change, separate
+governance authorization for every stage, and
+`NO_STEP_IMPLIES_THE_NEXT=TRUE`.
+
+The amendment is not effective on `main` while PR #114 is unmerged:
+
+```text
+V03_P1_AMENDMENT_EFFECTIVE_ON_MAIN=NO
+```
+
+It becomes effective only after final independent review PASS, separate Ready
+authorization, separate Merge authorization, and post-merge exact SHA/tree
+verification. Until then the Issue #72 authority and this draft contract are
+planning records only.
+
+```text
+V03_P1_AMENDMENT_EFFECTIVE_ON_MAIN=YES_AFTER_POST_MERGE_VERIFICATION
+```
+
+After final contract independent review PASS, a separate Issue #72 authority
+reconciliation record is required before the contract Ready gate. It must
+name this contract path, reviewed PR head, final review ID, the enumerated
+amendments above, the unamended Issue #72 rules, and the continuing
+implementation/Ready/Merge prohibitions. R3 does not create that record, and
+it does not authorize Ready. The post-merge verification must recheck that the
+merged exact SHA/tree still matches the reconciled contract before source
+evidence can be authorized.
+
+```text
+ISSUE72_RECONCILIATION_RECORD_REQUIRED_BEFORE_READY=YES
+ISSUE72_RECONCILIATION_RECORD_CREATED_BY_R3=NO
+ISSUE72_RECONCILIATION_AUTO_AUTHORIZES_READY=NO
+```
 
 ## 2. Scope decision
 
@@ -659,7 +769,149 @@ dropdown.
 This is the maximum path allowlist for a future P1 implementation. The
 contract-freeze PR itself changes only this document.
 
-### PRODUCTION_CODE_ALLOWLIST
+### Lane-specific allowlist authority
+
+`P1_MAXIMUM_UNION_ALLOWLIST` is an audit-only mathematical union. It is not a
+write authority. Later implementation authorizations must bind to the
+lane-specific lists below.
+
+```text
+P1_MAXIMUM_UNION_ALLOWLIST_IS_WRITE_AUTHORITY=NO
+LANE_SPECIFIC_ALLOWLIST_IS_WRITE_AUTHORITY=YES
+LANE_A_ALLOWLIST_FROZEN=YES
+LANE_B_ALLOWLIST_FROZEN=YES
+CONTROLLED_ACCEPTANCE_ALLOWLIST_FROZEN=YES
+```
+
+### LANE_A_PRODUCTION_CODE_ALLOWLIST
+
+Lane A is limited to high-throughput review-reason continuity from verified
+CalculationRun evidence through SchemeRun persistence/readback and evaluation.
+It does not modify report approval or formal rendering.
+
+```text
+backend/src/cold_storage/modules/schemes/domain/models.py
+backend/src/cold_storage/modules/schemes/application/production_ports.py
+backend/src/cold_storage/modules/schemes/application/source_binding_verifier.py
+backend/src/cold_storage/modules/schemes/application/production_service.py
+backend/src/cold_storage/modules/schemes/infrastructure/production_repository.py
+backend/src/cold_storage/modules/schemes/infrastructure/production_read_ports.py
+backend/src/cold_storage/modules/schemes/infrastructure/repository.py
+backend/src/cold_storage/evaluation/adapter.py
+```
+
+This exact set covers the current-main typed domain/read model, verified source
+mapping, Transaction-B SchemeRun write path, production/restart readback,
+legacy repository lossless JSON projection, and evaluation readback. It
+explicitly excludes `bootstrap/app.py`, all reports paths, frontend, workflow,
+and migration.
+
+### LANE_A_TEST_ALLOWLIST
+
+```text
+backend/tests/unit/test_schemes_domain.py
+backend/tests/unit/test_schemes_service.py
+backend/tests/unit/test_source_binding_verifier_strict.py
+backend/tests/integration/test_production_scheme_sqlite.py
+backend/tests/integration/test_production_scheme_postgresql.py
+backend/tests/evaluation/test_path_a_adapter.py
+backend/tests/architecture/test_schemes_production_boundaries.py
+```
+
+### LANE_B_PRODUCTION_CODE_ALLOWLIST
+
+Lane B is limited to the formal-report review bridge and multilingual formal
+acceptance. It consumes Lane-A authority through public boundaries; it does
+not modify calculators, producer `requires_review`, scoring, coefficients, or
+Lane-A reason semantics.
+
+```text
+backend/src/cold_storage/bootstrap/app.py
+backend/src/cold_storage/modules/schemes/application/query.py
+backend/src/cold_storage/modules/reports/infrastructure/real_data_provider.py
+backend/src/cold_storage/modules/reports/infrastructure/repository.py
+backend/src/cold_storage/modules/reports/application/assembler.py
+backend/src/cold_storage/modules/reports/application/service.py
+backend/src/cold_storage/modules/reports/application/render_service.py
+backend/src/cold_storage/modules/reports/domain/schema.py
+```
+
+`bootstrap/app.py` is composition-only: it may inject the public
+`SchemeQueryPort`/`SchemeReviewAuthority`, report services, and trusted
+operator seam. It may not contain review business logic, access Scheme ORM,
+decide review/approval, or implement the report state machine.
+
+```text
+BOOTSTRAP_APP_ROLE=COMPOSITION_ONLY
+REPORT_REVIEW_BUSINESS_LOGIC_IN_BOOTSTRAP=FORBIDDEN
+SCHEME_ORM_ACCESS_FROM_REPORT_COMPOSITION=FORBIDDEN
+```
+
+### LANE_B_TEST_ALLOWLIST
+
+```text
+backend/tests/unit/test_real_report_data_provider.py
+backend/tests/unit/test_reports_boundaries.py
+backend/tests/unit/test_reports_service.py
+backend/tests/unit/test_reports_rendering.py
+backend/tests/architecture/test_architecture_boundaries.py
+backend/tests/test_reports/test_approval_and_artifact.py
+backend/tests/test_reports/test_real_approve_to_formal.py
+backend/tests/test_reports/test_real_production_e2e.py
+backend/tests/test_reports/test_real_storage_e2e.py
+backend/tests/test_reports/test_scheme_provenance_golden_e2e.py
+backend/tests/test_reports/test_p0_approval_snapshot_and_uow.py
+backend/tests/test_reports/test_localization.py
+backend/tests/test_reports/test_waiter_concurrent.py
+backend/tests/test_reports/test_concurrent_activation.py
+backend/tests/test_reports/test_idempotency_failure_states.py
+backend/tests/test_reports/test_storage_recovery_and_atomic.py
+```
+
+### P1_CONTROLLED_ACCEPTANCE_CODE_ALLOWLIST
+
+```text
+backend/src/cold_storage/evaluation/followup_acceptance.py
+```
+
+### P1_CONTROLLED_ACCEPTANCE_TEST_ALLOWLIST
+
+```text
+backend/tests/pilot/run_task011_followup_acceptance.py
+backend/tests/pilot/test_task011_followup_acceptance.py
+backend/tests/pilot/data/task011-followup-high-throughput-source.v1.json
+```
+
+The source JSON may be created only after the separately authorized
+source-definition evidence round binds its exact content and SHA-256. No
+historical TASK-011 golden or draft-pilot manifest may be rewritten.
+
+### P1_SHARED_PATH_ALLOWLIST
+
+```text
+P1_SHARED_PATH_ALLOWLIST=[]
+```
+
+No current path must be shared by Lane A and Lane B. If a later audit proves a
+shared path unavoidable, it requires a further contract amendment and an
+explicit lane reference.
+
+```text
+SHARED_PATH_DOES_NOT_AUTO_AUTHORIZE_WRITE=YES
+CURRENT_LANE_MUST_EXPLICITLY_REFERENCE_SHARED_PATH=YES
+```
+
+### P1_MAXIMUM_UNION_ALLOWLIST
+
+The existing combined list immediately below is retained only as the audit
+reference for the mathematical union of the lane-specific and controlled
+acceptance production paths. It is not a write authority.
+
+```text
+P1_MAXIMUM_UNION_ALLOWLIST_IS_WRITE_AUTHORITY=NO
+```
+
+### P1_MAXIMUM_UNION_PRODUCTION_PATHS
 
 ```text
 backend/src/cold_storage/bootstrap/app.py
@@ -681,12 +933,12 @@ backend/src/cold_storage/modules/reports/application/render_service.py
 backend/src/cold_storage/modules/reports/domain/schema.py
 ```
 
-The permitted roles are structured reason projection, lossless JSON
+The union contains the structured reason projection, lossless JSON
 persistence/readback, public Scheme query exposure, report provider/assembler
 lineage, persisted review-action readback, report application
-approval/formal enforcement, and controlled pilot orchestration. The report
-status machine and renderer mechanics are not redesigned. No calculator
-formula or report producer rule is in this list.
+approval/formal enforcement, and controlled pilot paths listed above. The
+report status machine and renderer mechanics are not redesigned. No calculator
+formula or report producer rule is authorized by this union.
 
 `backend/src/cold_storage/bootstrap/app.py` is allowlisted only as the
 production composition root. Its future changes may wire the public
@@ -702,22 +954,30 @@ REPORT_REVIEW_BUSINESS_LOGIC_IN_BOOTSTRAP=FORBIDDEN
 SCHEME_ORM_ACCESS_FROM_REPORT_COMPOSITION=FORBIDDEN
 ```
 
-### TEST_ALLOWLIST
+### P1_MAXIMUM_UNION_TEST_PATHS
 
 ```text
+backend/tests/unit/test_schemes_domain.py
+backend/tests/unit/test_schemes_service.py
 backend/tests/unit/test_source_binding_verifier_strict.py
 backend/tests/integration/test_production_scheme_sqlite.py
 backend/tests/integration/test_production_scheme_postgresql.py
 backend/tests/evaluation/test_path_a_adapter.py
-backend/tests/architecture/test_phase1_identity_foundation_boundary.py
+backend/tests/architecture/test_schemes_production_boundaries.py
+backend/tests/unit/test_real_report_data_provider.py
 backend/tests/unit/test_reports_boundaries.py
-backend/tests/test_reports/test_real_approve_to_formal.py
+backend/tests/unit/test_reports_service.py
+backend/tests/unit/test_reports_rendering.py
+backend/tests/architecture/test_architecture_boundaries.py
 backend/tests/test_reports/test_approval_and_artifact.py
+backend/tests/test_reports/test_real_approve_to_formal.py
 backend/tests/test_reports/test_real_production_e2e.py
 backend/tests/test_reports/test_real_storage_e2e.py
 backend/tests/test_reports/test_scheme_provenance_golden_e2e.py
 backend/tests/test_reports/test_p0_approval_snapshot_and_uow.py
+backend/tests/test_reports/test_localization.py
 backend/tests/test_reports/test_waiter_concurrent.py
+backend/tests/test_reports/test_concurrent_activation.py
 backend/tests/test_reports/test_idempotency_failure_states.py
 backend/tests/test_reports/test_storage_recovery_and_atomic.py
 backend/tests/pilot/test_task011_followup_acceptance.py
@@ -901,33 +1161,40 @@ The corrected sequence is:
 ```text
 P1_STAGE_0=CONTRACT_FREEZE
 P1_STAGE_1=INDEPENDENT_REVIEW
-P1_STAGE_2=CONTRACT_CORRECTIVE_AMENDMENT
-P1_STAGE_3=CORRECTED_CONTRACT_INDEPENDENT_REVIEW
+P1_STAGE_2=CONTRACT_CORRECTIVE_AMENDMENT_R1
+P1_STAGE_3=R1_CONTRACT_INDEPENDENT_REVIEW
 P1_STAGE_4=CONTRACT_CORRECTIVE_AMENDMENT_R2
 P1_STAGE_5=R2_CONTRACT_INDEPENDENT_REVIEW
-P1_STAGE_6=CONTRACT_READY_AUTHORIZATION
-P1_STAGE_7=CONTRACT_MERGE_AUTHORIZATION
-P1_STAGE_8=CONTRACT_POST_MERGE_VERIFICATION
-P1_STAGE_9=HIGH_THROUGHPUT_SOURCE_DEFINITION_EVIDENCE
-P1_STAGE_10=LANE_A_REVIEW_REASON_IMPLEMENTATION
-P1_STAGE_11=LANE_A_INDEPENDENT_REVIEW
-P1_STAGE_12=LANE_A_READY_AUTHORIZATION
-P1_STAGE_13=LANE_A_MERGE_AUTHORIZATION
-P1_STAGE_14=LANE_A_POST_MERGE_VERIFICATION
-P1_STAGE_15=LANE_B_FORMAL_ACCEPTANCE_IMPLEMENTATION
-P1_STAGE_16=LANE_B_INDEPENDENT_REVIEW
-P1_STAGE_17=LANE_B_READY_AUTHORIZATION
-P1_STAGE_18=LANE_B_MERGE_AUTHORIZATION
-P1_STAGE_19=LANE_B_POST_MERGE_VERIFICATION
-P1_STAGE_20=POST_MERGE_CONTROLLED_ACCEPTANCE
-P1_STAGE_21=P1_CLOSURE
+P1_STAGE_6=CONTRACT_CORRECTIVE_AMENDMENT_R3
+P1_STAGE_7=FINAL_CONTRACT_INDEPENDENT_REVIEW
+P1_STAGE_8=ISSUE72_AUTHORITY_RECONCILIATION_RECORD
+P1_STAGE_9=CONTRACT_READY_AUTHORIZATION
+P1_STAGE_10=CONTRACT_MERGE_AUTHORIZATION
+P1_STAGE_11=CONTRACT_POST_MERGE_VERIFICATION
+P1_STAGE_12=HIGH_THROUGHPUT_SOURCE_DEFINITION_EVIDENCE
+P1_STAGE_13=LANE_A_IMPLEMENTATION
+P1_STAGE_14=LANE_A_INDEPENDENT_REVIEW
+P1_STAGE_15=LANE_A_READY_AUTHORIZATION
+P1_STAGE_16=LANE_A_MERGE_AUTHORIZATION
+P1_STAGE_17=LANE_A_POST_MERGE_VERIFICATION
+P1_STAGE_18=LANE_B_IMPLEMENTATION
+P1_STAGE_19=LANE_B_INDEPENDENT_REVIEW
+P1_STAGE_20=LANE_B_READY_AUTHORIZATION
+P1_STAGE_21=LANE_B_MERGE_AUTHORIZATION
+P1_STAGE_22=LANE_B_POST_MERGE_VERIFICATION
+P1_STAGE_23=CONTROLLED_ACCEPTANCE_IMPLEMENTATION
+P1_STAGE_24=POST_MERGE_CONTROLLED_ACCEPTANCE
+P1_STAGE_25=P1_CLOSURE
 ```
 
 No stage authorizes the next stage. In particular, this amendment does not
 authorize Step A evidence generation, fixture creation, Lane A/B code, Ready,
-Merge, or controlled acceptance. The contract must be merged into `main` and
-then verified against the actual post-merge exact SHA/tree before Step A can
-be authorized.
+Merge, or controlled acceptance. The `CONTROLLED_ACCEPTANCE_IMPLEMENTATION`
+stage exists only if a later audit proves a separate workflow/runner
+implementation is still required; it is not automatically combined with Lane
+B. The contract must be merged into `main` and then verified against the
+actual post-merge exact SHA/tree before source-definition evidence can be
+authorized.
 
 ```text
 CONTRACT_MUST_BE_ON_MAIN_BEFORE_SOURCE_EVIDENCE=YES
@@ -937,6 +1204,8 @@ CONTRACT_POST_MERGE_VERIFICATION_GATE_FROZEN=YES
 CONTRACT_REVIEW_PASS_AUTO_READY=NO
 READY_AUTO_MERGE=NO
 MERGE_AUTO_SOURCE_EVIDENCE=NO
+ISSUE72_RECONCILIATION_RECORD_REQUIRED_BEFORE_READY=YES
+ISSUE72_RECONCILIATION_AUTO_AUTHORIZES_READY=NO
 ```
 
 ## 17. Stop conditions and failure handling
