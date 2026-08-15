@@ -293,6 +293,37 @@ The persisted value, fresh readback, API projection, and formal-report
 consumer must agree. Any mismatch blocks approval/formal export and reports a
 deterministic validation error.
 
+### ReviewReason projection authority
+
+The producer's persisted stage-level `requires_review` boolean is the sole
+authority for whether a warning participates in the canonical
+`ReviewReason` projection. Warning text, warning presence, and warning code
+must never be used to infer or upgrade that boolean. For each authoritative
+stage/`CalculationRun`:
+
+1. when `requires_review=false`, its warnings remain ordinary advisory
+   warnings and its `ReviewReason` projection is `[]`;
+2. when `requires_review=true` and at least one valid source-bound warning is
+   present, each such warning is projected into the closed structured reason
+   object using the exact producer code/message, stage, source type, and
+   `CalculationRun` source ID;
+3. when `requires_review=true` but no valid source-bound warning exists, the
+   projection fails closed with `REVIEW_REASON_SOURCE_MISSING`.
+
+Only reasons from true stages are aggregated. Therefore a legal producer
+warning such as the current installed-power `DEFAULT_DEMAND_FACTOR` warning
+does not become an approval blocker when that stage persists
+`requires_review=false`. Conversely, a true stage cannot be made acceptable by
+parsing, inventing, or copying a warning from another stage/run. The existing
+overall invariants remain authoritative after this stage-scoped projection.
+
+```text
+REVIEW_BOOLEAN_AUTHORITY=PRODUCER_REQUIRES_REVIEW
+WARNING_TEXT_DECIDES_REVIEW=NO
+WARNINGS_FROM_FALSE_STAGE_BECOME_REVIEW_REASON=NO
+TRUE_STAGE_WITHOUT_VALID_REASON=FAIL_CLOSED
+```
+
 ## 6. Staged high-throughput source and evidence gates
 
 The pre-implementation source-definition gate and the post-implementation
@@ -472,6 +503,43 @@ LANE_B_REPORT_CORE_CHANGE_REQUIRED=YES
 This is the selected architecture for P1; an acceptance-only alternative is
 not simultaneously retained as an unresolved option.
 
+### Persisted review-action authority
+
+The current main persists `ReportReviewActionRecord` and exposes
+`save_review_action`, but the application/repository boundary has no
+authoritative read path yet. P1 must add the smallest read-port method in the
+existing report application repository contract and implement it in the SQL
+repository. A fresh session must be able to query the persisted action; report
+status fields, `approved_by`, frontend state, request memory, or a client
+claim are not substitutes.
+
+For a review-required SchemeRun, formal authority requires a persisted action
+whose exact values include:
+
+- `report_id` equal to the report being approved/rendered;
+- `report_revision_id` equal to the current approved report revision;
+- `action=mark_reviewed`;
+- a non-empty actor supplied by the trusted operator seam;
+- persisted `created_at` and a valid existing lifecycle `from_status` /
+  `to_status` transition.
+
+The action's revision identity is chained through the existing report
+revision source references and canonical content hash to the exact SchemeRun,
+SourceBinding, and scheme-review authority hash. This is the minimum proof of
+which frozen review snapshot was acted on; no new database column is
+authorized. A `mark_reviewed` action for another revision, a missing action,
+an ambiguous readback, or a direct/manual `report.status=approved` mutation
+fails closed. The implementation must preserve the existing report state
+machine and append-only action history.
+
+```text
+REPORT_REVIEW_AUTHORITY_SOURCE=PERSISTED_REPORT_REVIEW_ACTION
+REPORT_REVIEW_ACTION_READBACK_REQUIRED=YES
+MARK_REVIEWED_ACTION_READBACK_REQUIRED=YES
+REPORT_STATUS_ALONE_SUFFICIENT_FOR_REVIEW_PROOF=NO
+REPORT_REVIEW_ACTION_MIGRATION_REQUIRED=NO
+```
+
 ## 8. Multilingual formal acceptance
 
 The acceptance target is exactly four artifacts for one approved revision:
@@ -594,6 +662,7 @@ contract-freeze PR itself changes only this document.
 ### PRODUCTION_CODE_ALLOWLIST
 
 ```text
+backend/src/cold_storage/bootstrap/app.py
 backend/src/cold_storage/modules/schemes/domain/models.py
 backend/src/cold_storage/modules/schemes/application/production_ports.py
 backend/src/cold_storage/modules/schemes/application/source_binding_verifier.py
@@ -605,6 +674,7 @@ backend/src/cold_storage/modules/schemes/infrastructure/repository.py
 backend/src/cold_storage/evaluation/adapter.py
 backend/src/cold_storage/evaluation/followup_acceptance.py
 backend/src/cold_storage/modules/reports/infrastructure/real_data_provider.py
+backend/src/cold_storage/modules/reports/infrastructure/repository.py
 backend/src/cold_storage/modules/reports/application/assembler.py
 backend/src/cold_storage/modules/reports/application/service.py
 backend/src/cold_storage/modules/reports/application/render_service.py
@@ -613,9 +683,24 @@ backend/src/cold_storage/modules/reports/domain/schema.py
 
 The permitted roles are structured reason projection, lossless JSON
 persistence/readback, public Scheme query exposure, report provider/assembler
-lineage, report application approval/formal enforcement, and controlled pilot
-orchestration. The report status machine and renderer mechanics are not
-redesigned. No calculator formula or report producer rule is in this list.
+lineage, persisted review-action readback, report application
+approval/formal enforcement, and controlled pilot orchestration. The report
+status machine and renderer mechanics are not redesigned. No calculator
+formula or report producer rule is in this list.
+
+`backend/src/cold_storage/bootstrap/app.py` is allowlisted only as the
+production composition root. Its future changes may wire the public
+`SchemeQueryPort`/`SchemeReviewAuthority` dependency into
+`RealReportDataProvider`, `ReportService`, and `ReportRenderService`, plus the
+trusted operator seam when required. It may not contain review business logic,
+read Scheme ORM objects directly, decide `requires_review`, decide approval,
+or implement the report status machine.
+
+```text
+BOOTSTRAP_APP_ROLE=COMPOSITION_ONLY
+REPORT_REVIEW_BUSINESS_LOGIC_IN_BOOTSTRAP=FORBIDDEN
+SCHEME_ORM_ACCESS_FROM_REPORT_COMPOSITION=FORBIDDEN
+```
 
 ### TEST_ALLOWLIST
 
@@ -625,7 +710,10 @@ backend/tests/integration/test_production_scheme_sqlite.py
 backend/tests/integration/test_production_scheme_postgresql.py
 backend/tests/evaluation/test_path_a_adapter.py
 backend/tests/architecture/test_phase1_identity_foundation_boundary.py
+backend/tests/unit/test_reports_boundaries.py
 backend/tests/test_reports/test_real_approve_to_formal.py
+backend/tests/test_reports/test_approval_and_artifact.py
+backend/tests/test_reports/test_real_production_e2e.py
 backend/tests/test_reports/test_real_storage_e2e.py
 backend/tests/test_reports/test_scheme_provenance_golden_e2e.py
 backend/tests/test_reports/test_p0_approval_snapshot_and_uow.py
@@ -725,6 +813,18 @@ golden semantics may be rewritten.
    raw identity integrity is checked separately.
 8. Two independent runs per backend prove repeatability.
 9. No autonomous approval path exists.
+10. The real production composition test proves the app wiring injects the
+    Scheme review authority into both `ReportService` and
+    `ReportRenderService`; an isolated service test is insufficient.
+11. A persisted `mark_reviewed` action can be read in a fresh session and is
+    required for review-required approval/formal export.
+12. A manually approved report without that action fails, and an action for a
+    different report revision fails.
+13. Warnings with `requires_review=false` produce no `ReviewReason`; a true
+    stage with a valid source-bound warning produces one; a true stage without
+    one fails closed.
+14. A composition-boundary guard rejects report imports of Scheme ORM,
+    review logic in `bootstrap/app.py`, and routes-only enforcement.
 
 ### High-throughput source
 
@@ -754,6 +854,9 @@ golden semantics may be rewritten.
    false formal artifact.
 9. Existing report lifecycle, approval snapshot, waiter, storage-recovery,
    and provenance regressions remain green.
+10. The real application composition injects and reads the Scheme review
+    authority through public boundaries, and review-action readback is
+    authoritative after restart.
 
 ## 15. CI and controlled-acceptance contract
 
@@ -800,20 +903,41 @@ P1_STAGE_0=CONTRACT_FREEZE
 P1_STAGE_1=INDEPENDENT_REVIEW
 P1_STAGE_2=CONTRACT_CORRECTIVE_AMENDMENT
 P1_STAGE_3=CORRECTED_CONTRACT_INDEPENDENT_REVIEW
-P1_STAGE_4=HIGH_THROUGHPUT_SOURCE_DEFINITION_EVIDENCE
-P1_STAGE_5=LANE_A_REVIEW_REASON_IMPLEMENTATION
-P1_STAGE_6=LANE_A_INDEPENDENT_REVIEW
-P1_STAGE_7=LANE_A_READY_MERGE
-P1_STAGE_8=LANE_B_FORMAL_ACCEPTANCE_IMPLEMENTATION
-P1_STAGE_9=LANE_B_INDEPENDENT_REVIEW
-P1_STAGE_10=LANE_B_READY_MERGE
-P1_STAGE_11=POST_MERGE_CONTROLLED_ACCEPTANCE
-P1_STAGE_12=P1_CLOSURE
+P1_STAGE_4=CONTRACT_CORRECTIVE_AMENDMENT_R2
+P1_STAGE_5=R2_CONTRACT_INDEPENDENT_REVIEW
+P1_STAGE_6=CONTRACT_READY_AUTHORIZATION
+P1_STAGE_7=CONTRACT_MERGE_AUTHORIZATION
+P1_STAGE_8=CONTRACT_POST_MERGE_VERIFICATION
+P1_STAGE_9=HIGH_THROUGHPUT_SOURCE_DEFINITION_EVIDENCE
+P1_STAGE_10=LANE_A_REVIEW_REASON_IMPLEMENTATION
+P1_STAGE_11=LANE_A_INDEPENDENT_REVIEW
+P1_STAGE_12=LANE_A_READY_AUTHORIZATION
+P1_STAGE_13=LANE_A_MERGE_AUTHORIZATION
+P1_STAGE_14=LANE_A_POST_MERGE_VERIFICATION
+P1_STAGE_15=LANE_B_FORMAL_ACCEPTANCE_IMPLEMENTATION
+P1_STAGE_16=LANE_B_INDEPENDENT_REVIEW
+P1_STAGE_17=LANE_B_READY_AUTHORIZATION
+P1_STAGE_18=LANE_B_MERGE_AUTHORIZATION
+P1_STAGE_19=LANE_B_POST_MERGE_VERIFICATION
+P1_STAGE_20=POST_MERGE_CONTROLLED_ACCEPTANCE
+P1_STAGE_21=P1_CLOSURE
 ```
 
 No stage authorizes the next stage. In particular, this amendment does not
 authorize Step A evidence generation, fixture creation, Lane A/B code, Ready,
-Merge, or controlled acceptance.
+Merge, or controlled acceptance. The contract must be merged into `main` and
+then verified against the actual post-merge exact SHA/tree before Step A can
+be authorized.
+
+```text
+CONTRACT_MUST_BE_ON_MAIN_BEFORE_SOURCE_EVIDENCE=YES
+CONTRACT_READY_GATE_FROZEN=YES
+CONTRACT_MERGE_GATE_FROZEN=YES
+CONTRACT_POST_MERGE_VERIFICATION_GATE_FROZEN=YES
+CONTRACT_REVIEW_PASS_AUTO_READY=NO
+READY_AUTO_MERGE=NO
+MERGE_AUTO_SOURCE_EVIDENCE=NO
+```
 
 ## 17. Stop conditions and failure handling
 
