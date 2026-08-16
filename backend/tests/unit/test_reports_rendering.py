@@ -105,10 +105,32 @@ def render_service(repo, db_session):
             uow=ReportRenderUnitOfWork(db_session, report_repo=repo, artifact_repo=repo),
             storage=storage,
             template_repo=repo,
+            scheme_review_query=_NoReviewQuery(),
         ),
         repo,
         storage,
     )
+
+
+def _no_review_authority() -> SchemeReviewAuthority:
+    return SchemeReviewAuthority(
+        scheme_run_id="scheme-render-no-review",
+        project_id="project-001",
+        project_version_id="version-001",
+        requires_review=False,
+        review_reasons=(),
+        source_binding_id="binding-render-no-review",
+        combined_source_hash="combined-render-no-review",
+        content_hash="content-render-no-review",
+    )
+
+
+class _NoReviewQuery:
+    def get_review_authority(self, project_id: str, version_id: str):
+        authority = _no_review_authority()
+        if (project_id, version_id) != (authority.project_id, authority.project_version_id):
+            return None
+        return authority
 
 
 def _seed_template(
@@ -192,6 +214,7 @@ def _seed_report(
                 "source_tool_version": "1.0.0",
             }
         },
+        "scheme_comparison": {"review_authority": _no_review_authority().to_snapshot()},
     }
 
     rev_rec = ReportRevisionRecord(
@@ -1691,3 +1714,127 @@ def test_formal_render_rejects_approved_status_without_review_proof(
     )
     repo.commit()
     gated._validate_export_mode(report, RenderMode.FORMAL, revision)
+
+
+def test_formal_render_rejects_missing_scheme_review_query(db_session, render_service) -> None:
+    """Formal export must fail closed when the authority query is not wired."""
+    report_id, revision_id, _ = _seed_report(
+        db_session,
+        status="approved",
+        revision_quality="approved",
+        approved=True,
+    )
+    _, repo, storage = render_service
+    gated = ReportRenderService(
+        uow=ReportRenderUnitOfWork(db_session, report_repo=repo, artifact_repo=repo),
+        storage=storage,
+        template_repo=repo,
+        scheme_review_query=None,
+    )
+    revision = repo.get_revision(report_id, 1)
+    report = repo.get_report(report_id)
+    assert report is not None
+    assert revision is not None
+    assert revision.id == revision_id
+
+    with pytest.raises(ExportPermissionError, match="authority query is required"):
+        gated._validate_export_mode(report, RenderMode.FORMAL, revision)
+
+
+def test_formal_render_rejects_query_returning_no_authority(db_session, render_service) -> None:
+    """A missing persisted authority cannot be treated as no review."""
+    report_id, revision_id, _ = _seed_report(
+        db_session,
+        status="approved",
+        revision_quality="approved",
+        approved=True,
+    )
+    _, repo, storage = render_service
+
+    class _MissingAuthorityQuery:
+        def get_review_authority(self, project_id: str, version_id: str) -> None:
+            return None
+
+    gated = ReportRenderService(
+        uow=ReportRenderUnitOfWork(db_session, report_repo=repo, artifact_repo=repo),
+        storage=storage,
+        template_repo=repo,
+        scheme_review_query=_MissingAuthorityQuery(),
+    )
+    report = repo.get_report(report_id)
+    revision = repo.get_revision(report_id, 1)
+    assert report is not None
+    assert revision is not None
+    assert revision.id == revision_id
+
+    with pytest.raises(ExportPermissionError, match="authority is missing"):
+        gated._validate_export_mode(report, RenderMode.FORMAL, revision)
+
+
+def test_formal_render_rejects_mark_reviewed_from_different_revision(
+    db_session, render_service
+) -> None:
+    """A review proof for another revision cannot authorize formal export."""
+    authority = SchemeReviewAuthority(
+        scheme_run_id="scheme-stale-revision",
+        project_id="project-001",
+        project_version_id="version-001",
+        requires_review=True,
+        review_reasons=(
+            ReviewReason(
+                code="ZONE_WARNING",
+                message="zone review",
+                stage="zone",
+                source_type="calculation_run",
+                source_id="calc-zone-1",
+            ),
+        ),
+        source_binding_id="binding-stale-revision",
+        combined_source_hash="combined-stale-revision",
+        content_hash="content-stale-revision",
+    )
+    report_id, revision_id, _ = _seed_report(
+        db_session,
+        status="approved",
+        revision_quality="approved",
+        approved=True,
+    )
+    revision_record = db_session.get(ReportRevisionRecord, revision_id)
+    assert revision_record is not None
+    revision_record.content_json = {
+        "scheme_comparison": {"review_authority": authority.to_snapshot()}
+    }
+    db_session.commit()
+
+    _, repo, storage = render_service
+    repo.save_review_action(
+        ReportReviewAction.create(
+            report_id=report_id,
+            report_revision_id="previous-revision-id",
+            action=ReviewAction.MARK_REVIEWED,
+            actor="trusted-operator",
+            comment="reviewed previous revision",
+            from_status=ReportStatus.UNDER_REVIEW,
+            to_status=ReportStatus.REVIEWED,
+        )
+    )
+    repo.commit()
+
+    class _Query:
+        def get_review_authority(self, project_id: str, version_id: str):
+            return authority
+
+    gated = ReportRenderService(
+        uow=ReportRenderUnitOfWork(db_session, report_repo=repo, artifact_repo=repo),
+        storage=storage,
+        template_repo=repo,
+        scheme_review_query=_Query(),
+        trusted_operator=lambda actor: actor == "trusted-operator",
+    )
+    report = repo.get_report(report_id)
+    revision = repo.get_revision(report_id, 1)
+    assert report is not None
+    assert revision is not None
+
+    with pytest.raises(ExportPermissionError, match="mark_reviewed proof"):
+        gated._validate_export_mode(report, RenderMode.FORMAL, revision)

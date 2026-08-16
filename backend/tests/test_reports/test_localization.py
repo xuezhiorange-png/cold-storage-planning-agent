@@ -57,7 +57,9 @@ from cold_storage.modules.reports.application.render_model_localizer import (
     localize_render_model,
 )
 from cold_storage.modules.reports.application.render_service import (
-    ReportRenderService,
+    ReportRenderService as _ProductionReportRenderService,
+)
+from cold_storage.modules.reports.application.render_service import (
     ReportRenderUnitOfWork,
     _compute_fingerprint,
 )
@@ -115,6 +117,7 @@ from cold_storage.modules.reports.localization.formatter import (
     format_decimal,
     format_unit_label,
 )
+from cold_storage.modules.schemes.application.query import SchemeReviewAuthority
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -163,6 +166,38 @@ class _MockDataProvider(ReportDataProvider):
         self, version_id: str, project_id: str | None = None
     ) -> dict[str, Any] | None:
         return {"version_id": version_id, "project_id": project_id}
+
+    def get_scheme_results(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        return {"review_authority": _no_review_authority().to_snapshot()}
+
+
+def _no_review_authority() -> SchemeReviewAuthority:
+    return SchemeReviewAuthority(
+        scheme_run_id="scheme-localization-no-review",
+        project_id="proj-1",
+        project_version_id="ver-1",
+        requires_review=False,
+        review_reasons=(),
+        source_binding_id="binding-localization-no-review",
+        combined_source_hash="combined-localization-no-review",
+        content_hash="content-localization-no-review",
+    )
+
+
+class _NoReviewQuery:
+    def get_review_authority(self, project_id: str, version_id: str):
+        authority = _no_review_authority()
+        if (project_id, version_id) != (authority.project_id, authority.project_version_id):
+            return None
+        return authority
+
+
+class ReportRenderService(_ProductionReportRenderService):
+    """Keep legacy localization fixtures on an explicit no-review authority."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("scheme_review_query", _NoReviewQuery())
+        super().__init__(*args, **kwargs)
 
 
 class _MockAssembler:
@@ -318,8 +353,14 @@ def _approve_report(service: ReportService, report: Report) -> Report:
         report_id=report.id,
         revision_number=report.current_revision_number + 1,
         schema_version="cold_storage_concept_design@1.0.0",
-        content_json={"report_metadata": {"project_id": report.project_id}},
-        canonical_content_json={"report_metadata": {}},
+        content_json={
+            "report_metadata": {"project_id": report.project_id},
+            "scheme_comparison": {"review_authority": _no_review_authority().to_snapshot()},
+        },
+        canonical_content_json={
+            "report_metadata": {},
+            "scheme_comparison": {"review_authority": _no_review_authority().to_snapshot()},
+        },
         content_hash="abc123",
         quality_status=ReportStatus.APPROVED,
         quality_findings_json=[],
@@ -388,7 +429,11 @@ def _setup_approved(
     with session_factory() as session:
         repo = SQLReportRepository(session)
         assembler = _MockAssembler(quality_status=ReportStatus.APPROVED)
-        service = ReportService(repository=repo, assembler=assembler)
+        service = ReportService(
+            repository=repo,
+            assembler=assembler,
+            scheme_review_query=_NoReviewQuery(),
+        )
         report = _create_report(repo, session)
         _generate_revision(service, report)
         report = repo.get_report(report.id)
@@ -410,6 +455,7 @@ def _make_render_service(
         storage=storage,
         template_repo=repo,
         uow=uow,
+        scheme_review_query=_NoReviewQuery(),
     )
     return render_svc, repo, storage
 
@@ -3092,7 +3138,11 @@ def _make_full_api_client(
         session = session_factory()
         repo = SQLReportRepository(session)
         assembler = _MockAssembler(quality_status=ReportStatus.APPROVED)
-        return ReportService(repository=repo, assembler=assembler)
+        return ReportService(
+            repository=repo,
+            assembler=assembler,
+            scheme_review_query=_NoReviewQuery(),
+        )
 
     app.dependency_overrides[_api_get_render] = _wire_render_service
     app.dependency_overrides[_api_get_service] = _wire_report_service
@@ -4120,7 +4170,11 @@ class TestTrueConcurrency:
         with sf() as session:
             repo = SQLReportRepository(session)
             assembler = _MockAssembler(quality_status=ReportStatus.APPROVED)
-            service = ReportService(repository=repo, assembler=assembler)
+            service = ReportService(
+                repository=repo,
+                assembler=assembler,
+                scheme_review_query=_NoReviewQuery(),
+            )
             report = _create_report(repo, session)
             _generate_revision(service, report)
             report = repo.get_report(report.id)

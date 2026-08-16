@@ -23,6 +23,37 @@ from cold_storage.modules.reports.application.assembler import (
 from cold_storage.modules.reports.application.service import ReportService
 from cold_storage.modules.reports.infrastructure.orm import Base
 from cold_storage.modules.reports.infrastructure.repository import SQLReportRepository
+from cold_storage.modules.schemes.application.query import SchemeReviewAuthority
+
+
+def _api_review_authority() -> SchemeReviewAuthority:
+    return SchemeReviewAuthority(
+        scheme_run_id="scheme-001",
+        project_id="proj-1",
+        project_version_id="ver-1",
+        requires_review=False,
+        review_reasons=(),
+        source_binding_id="binding-api-001",
+        combined_source_hash="combined-api-001",
+        content_hash="scheme_hash_123",
+        recommended_scheme_code="s1",
+        generator_version="1.0.0",
+    )
+
+
+class _APIReviewAuthorityQuery:
+    def __init__(self, authority: SchemeReviewAuthority) -> None:
+        self._authority = authority
+
+    def get_review_authority(
+        self, project_id: str, version_id: str
+    ) -> SchemeReviewAuthority | None:
+        if (project_id, version_id) != (
+            self._authority.project_id,
+            self._authority.project_version_id,
+        ):
+            return None
+        return self._authority
 
 
 class _APIFakeDataProvider(ReportDataProvider):
@@ -89,12 +120,15 @@ class _APIFakeDataProvider(ReportDataProvider):
         ]
 
     def get_scheme_results(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        authority = _api_review_authority()
         return {
-            "run_id": "scheme-001",
+            "run_id": authority.scheme_run_id,
+            "status": authority.status,
             "schemes": [{"scheme_id": "s1"}],
-            "recommended_scheme": "s1",
-            "generator_version": "1.0.0",
-            "persisted_content_hash": "scheme_hash_123",
+            "recommended_scheme": authority.recommended_scheme_code,
+            "generator_version": authority.generator_version,
+            "persisted_content_hash": authority.content_hash,
+            "review_authority": authority.to_snapshot(),
         }
 
     def get_agent_sessions(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
@@ -122,7 +156,12 @@ def service(db_session):
     repo = SQLReportRepository(db_session)
     provider = _APIFakeDataProvider()
     assembler = ReportAssembler(data_provider=provider)
-    return ReportService(repository=repo, assembler=assembler)
+    authority = _api_review_authority()
+    return ReportService(
+        repository=repo,
+        assembler=assembler,
+        scheme_review_query=_APIReviewAuthorityQuery(authority),
+    )
 
 
 @pytest.fixture()

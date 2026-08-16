@@ -1461,8 +1461,11 @@ class ReportRenderService:
                     report=report,
                     revision=revision,
                     scheme_review_query=self._scheme_review_query,
+                    required=True,
                 )
-                if authority is not None and authority.requires_review:
+                if authority is None:
+                    raise ValueError("Scheme review authority is missing")
+                if authority.requires_review:
                     _require_persisted_mark_reviewed(
                         repository=self._repo,
                         report=report,

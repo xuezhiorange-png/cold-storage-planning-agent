@@ -121,6 +121,7 @@ class _FakeDataProvider(ReportDataProvider):
             "recommended_scheme": "s1",
             "generator_version": "1.0.0",
             "persisted_content_hash": "scheme_hash_123",
+            "review_authority": _default_no_review_authority().to_snapshot(),
         }
 
     def get_agent_sessions(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
@@ -149,7 +150,11 @@ def assembler():
 
 @pytest.fixture()
 def service(repo, assembler):
-    return ReportService(repo, assembler)
+    return ReportService(
+        repo,
+        assembler,
+        scheme_review_query=_DefaultAuthorityQuery(_default_no_review_authority()),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -888,6 +893,33 @@ def _review_authority() -> SchemeReviewAuthority:
     )
 
 
+def _default_no_review_authority() -> SchemeReviewAuthority:
+    return SchemeReviewAuthority(
+        scheme_run_id="scheme-no-review-1",
+        project_id="p1",
+        project_version_id="v1",
+        requires_review=False,
+        review_reasons=(),
+        source_binding_id="binding-no-review-1",
+        combined_source_hash="combined-no-review-1",
+        content_hash="scheme-no-review-content-1",
+        recommended_scheme_code="s1",
+        generator_version="scheme-test@1.0.0",
+    )
+
+
+class _DefaultAuthorityQuery:
+    def __init__(self, authority: SchemeReviewAuthority) -> None:
+        self.authority = authority
+
+    def get_review_authority(self, project_id: str, version_id: str) -> SchemeReviewAuthority:
+        assert (project_id, version_id) == (
+            self.authority.project_id,
+            self.authority.project_version_id,
+        )
+        return self.authority
+
+
 class _ReviewAuthorityProvider(_FakeDataProvider):
     def __init__(self, authority: SchemeReviewAuthority) -> None:
         self._authority = authority
@@ -1059,3 +1091,105 @@ def test_stale_scheme_review_snapshot_fails_closed(db_session) -> None:
 
     with pytest.raises(ValueError, match="stale or mismatched"):
         service.mark_reviewed(report.id, "trusted-operator")
+
+
+def test_missing_scheme_review_query_fails_closed_for_approval(db_session) -> None:
+    """Approval cannot treat absent query wiring as no review required."""
+    authority = _review_authority()
+    repo = SQLReportRepository(db_session)
+    service = ReportService(repo, ReportAssembler(_ReviewAuthorityProvider(authority)))
+    report = service.create_report(
+        project_id="p1",
+        project_version_id="v1",
+        report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+        actor="trusted-operator",
+    )
+    service.generate_revision(report.id, "trusted-operator")
+
+    # Establish the legal pre-approval lifecycle with the authority query,
+    # then remove the query before approval to exercise fail-closed wiring.
+    service._scheme_review_query = _ReviewAuthorityQuery(authority)
+    service.submit_review(report.id, "trusted-operator")
+    service.mark_reviewed(report.id, "trusted-operator")
+    service._scheme_review_query = None
+
+    with pytest.raises(ValueError, match="authority query is required"):
+        service.approve(report.id, "trusted-operator")
+
+
+def test_query_returning_no_authority_fails_closed_without_embedded_snapshot(db_session) -> None:
+    """A missing persisted authority is not inferred to mean no review."""
+    repo = SQLReportRepository(db_session)
+    service = ReportService(repo, ReportAssembler(_FakeDataProvider()))
+    report = service.create_report(
+        project_id="p1",
+        project_version_id="v1",
+        report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+        actor="user1",
+    )
+    service.generate_revision(report.id, "user1")
+    current = repo.get_report(report.id)
+    assert current is not None
+    repo.update_report(replace(current, status=ReportStatus.REVIEWED, version=current.version + 1))
+    repo.commit()
+
+    class _MissingAuthorityQuery:
+        def get_review_authority(self, project_id: str, version_id: str) -> None:
+            return None
+
+    service._scheme_review_query = _MissingAuthorityQuery()
+    with pytest.raises(ValueError, match="authority is missing"):
+        service.approve(report.id, "user1")
+
+
+def test_different_revision_mark_reviewed_proof_fails_closed_for_approval(db_session) -> None:
+    """A persisted proof for revision 1 cannot approve revision 2."""
+    authority = _review_authority()
+    repo = SQLReportRepository(db_session)
+    service = ReportService(
+        repo,
+        ReportAssembler(_ReviewAuthorityProvider(authority)),
+        scheme_review_query=_ReviewAuthorityQuery(authority),
+        trusted_operator=lambda actor: actor == "trusted-operator",
+    )
+    report = service.create_report(
+        project_id="p1",
+        project_version_id="v1",
+        report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+        actor="trusted-operator",
+    )
+    revision_one = service.generate_revision(report.id, "trusted-operator")
+    service.submit_review(report.id, "trusted-operator")
+    service.mark_reviewed(report.id, "trusted-operator")
+
+    # The current state machine has no REVIEWED -> DRAFT action.  Reopen the
+    # report as an isolated test setup so revision 2 is generated by the real
+    # service while the persisted revision 1 proof remains intact.
+    current = repo.get_report(report.id)
+    assert current is not None
+    repo.update_report(
+        replace(current, status=ReportStatus.GENERATED, version=current.version + 1),
+        expected_version=current.version,
+    )
+    repo.commit()
+    revision_two = service.generate_revision(report.id, "trusted-operator")
+    service.submit_review(report.id, "trusted-operator")
+    current = repo.get_report(report.id)
+    assert current is not None
+    repo.update_report(
+        replace(current, status=ReportStatus.REVIEWED, version=current.version + 1),
+        expected_version=current.version,
+    )
+    repo.commit()
+
+    with pytest.raises(ValueError, match="persisted mark_reviewed proof"):
+        service.approve(report.id, "trusted-operator")
+
+    old_actions = repo.list_review_actions(
+        report.id,
+        report_revision_id=revision_one.id,
+        action=ReviewAction.MARK_REVIEWED,
+    )
+    assert len(old_actions) == 1
+    assert old_actions[0].report_revision_id == revision_one.id
+    assert revision_two.id != revision_one.id

@@ -73,6 +73,7 @@ from cold_storage.modules.reports.infrastructure.orm import Base
 from cold_storage.modules.reports.infrastructure.repository import (
     SQLReportRepository,
 )
+from cold_storage.modules.schemes.application.query import SchemeReviewAuthority
 
 
 def build_render_model(
@@ -152,6 +153,30 @@ class _MockDataProvider(ReportDataProvider):
         self, version_id: str, project_id: str | None = None
     ) -> dict[str, Any] | None:
         return {"version_id": version_id, "project_id": project_id}
+
+    def get_scheme_results(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        return {"review_authority": _no_review_authority().to_snapshot()}
+
+
+def _no_review_authority() -> SchemeReviewAuthority:
+    return SchemeReviewAuthority(
+        scheme_run_id="scheme-p0-no-review",
+        project_id="proj-1",
+        project_version_id="ver-1",
+        requires_review=False,
+        review_reasons=(),
+        source_binding_id="binding-p0-no-review",
+        combined_source_hash="combined-p0-no-review",
+        content_hash="content-p0-no-review",
+    )
+
+
+class _NoReviewQuery:
+    def get_review_authority(self, project_id: str, version_id: str):
+        authority = _no_review_authority()
+        if (project_id, version_id) != (authority.project_id, authority.project_version_id):
+            return None
+        return authority
 
 
 class _MockAssembler(ReportAssembler):
@@ -283,8 +308,14 @@ def _approve_with_quality_status(
         report_id=report.id,
         revision_number=report.current_revision_number + 1,
         schema_version="cold_storage_concept_design@1.0.0",
-        content_json={"report_metadata": {"project_id": report.project_id}},
-        canonical_content_json={"report_metadata": {}},
+        content_json={
+            "report_metadata": {"project_id": report.project_id},
+            "scheme_comparison": {"review_authority": _no_review_authority().to_snapshot()},
+        },
+        canonical_content_json={
+            "report_metadata": {},
+            "scheme_comparison": {"review_authority": _no_review_authority().to_snapshot()},
+        },
         content_hash="abc123",
         quality_status=quality_status,
         quality_findings_json=[],
@@ -307,7 +338,11 @@ def _setup_approved_report(session_factory):
     with session_factory() as session:
         repo = SQLReportRepository(session)
         assembler = _MockAssembler(quality_status=ReportStatus.APPROVED)
-        service = ReportService(repository=repo, assembler=assembler)
+        service = ReportService(
+            repository=repo,
+            assembler=assembler,
+            scheme_review_query=_NoReviewQuery(),
+        )
         report = _create_report(repo, session)
         _generate_revision(service, report, ReportStatus.GENERATED)
         report = repo.get_report(report.id)
@@ -491,7 +526,11 @@ class TestAllStageFailureClosure:
         with session_factory() as session:
             repo = SQLReportRepository(session)
             assembler = _MockAssembler(quality_status=ReportStatus.APPROVED)
-            service = ReportService(repository=repo, assembler=assembler)
+            service = ReportService(
+                repository=repo,
+                assembler=assembler,
+                scheme_review_query=_NoReviewQuery(),
+            )
             report = _create_report(repo, session)
             _generate_revision(service, report, ReportStatus.GENERATED)
             report = repo.get_report(report.id)
@@ -521,6 +560,7 @@ class TestAllStageFailureClosure:
                 storage=storage,
                 template_repo=template_repo,
                 uow=uow,
+                scheme_review_query=_NoReviewQuery(),
             )
 
             with pytest.raises(RenderError, match="Rendering failed"):
@@ -554,7 +594,11 @@ class TestAllStageFailureClosure:
         with session_factory() as session:
             repo = SQLReportRepository(session)
             assembler = _MockAssembler(quality_status=ReportStatus.APPROVED)
-            service = ReportService(repository=repo, assembler=assembler)
+            service = ReportService(
+                repository=repo,
+                assembler=assembler,
+                scheme_review_query=_NoReviewQuery(),
+            )
             report = _create_report(repo, session)
             _generate_revision(service, report, ReportStatus.GENERATED)
             report = repo.get_report(report.id)
@@ -576,6 +620,7 @@ class TestAllStageFailureClosure:
                 storage=storage,
                 template_repo=template_repo,
                 uow=uow,
+                scheme_review_query=_NoReviewQuery(),
             )
 
             # Capture artifact_id before failure
@@ -640,7 +685,11 @@ class TestAllStageFailureClosure:
         with session_factory() as session:
             repo = SQLReportRepository(session)
             assembler = _MockAssembler(quality_status=ReportStatus.APPROVED)
-            service = ReportService(repository=repo, assembler=assembler)
+            service = ReportService(
+                repository=repo,
+                assembler=assembler,
+                scheme_review_query=_NoReviewQuery(),
+            )
             report = _create_report(repo, session)
             _generate_revision(service, report, ReportStatus.GENERATED)
             report = repo.get_report(report.id)
@@ -663,6 +712,7 @@ class TestAllStageFailureClosure:
                 storage=storage,
                 template_repo=template_repo,
                 uow=uow,
+                scheme_review_query=_NoReviewQuery(),
             )
 
             with pytest.raises(RenderError):
@@ -711,7 +761,11 @@ class TestAllStageFailureClosure:
         with session_factory() as session:
             repo = SQLReportRepository(session)
             assembler = _MockAssembler(quality_status=ReportStatus.APPROVED)
-            service = ReportService(repository=repo, assembler=assembler)
+            service = ReportService(
+                repository=repo,
+                assembler=assembler,
+                scheme_review_query=_NoReviewQuery(),
+            )
             report = _create_report(repo, session)
             _generate_revision(service, report, ReportStatus.GENERATED)
             report = repo.get_report(report.id)
@@ -733,6 +787,7 @@ class TestAllStageFailureClosure:
                 storage=storage,
                 template_repo=template_repo,
                 uow=uow,
+                scheme_review_query=_NoReviewQuery(),
             )
 
             with (
@@ -841,7 +896,11 @@ class TestReportRenderServiceWithUnitOfWork:
         with session_factory() as session:
             repo = SQLReportRepository(session)
             assembler = _MockAssembler(quality_status=ReportStatus.APPROVED)
-            service = ReportService(repository=repo, assembler=assembler)
+            service = ReportService(
+                repository=repo,
+                assembler=assembler,
+                scheme_review_query=_NoReviewQuery(),
+            )
             report = _create_report(repo, session)
             _generate_revision(service, report, ReportStatus.GENERATED)
             report = repo.get_report(report.id)
@@ -863,6 +922,7 @@ class TestReportRenderServiceWithUnitOfWork:
                 storage=storage,
                 template_repo=template_repo,
                 uow=uow,
+                scheme_review_query=_NoReviewQuery(),
             )
 
             artifact = render_svc.render(

@@ -67,17 +67,26 @@ def _validate_scheme_review_lineage(
     report: Report,
     revision: ReportRevision,
     scheme_review_query: Any,
+    required: bool = False,
 ) -> Any | None:
-    """Re-read and compare the exact persisted SchemeRun report snapshot."""
+    """Re-read and compare the exact persisted SchemeRun report snapshot.
+
+    Draft projection keeps the historical optional behavior, but review
+    actions and formal authority must request the strict path explicitly.
+    Missing query wiring or a missing persisted authority is never equivalent
+    to ``requires_review=False`` on that path.
+    """
     if scheme_review_query is None:
+        if required:
+            raise ValueError("Scheme review authority query is required")
         return None
     authority = scheme_review_query.get_review_authority(
         report.project_id, report.project_version_id
     )
     embedded = _embedded_review_authority(revision)
     if authority is None:
-        if embedded is not None:
-            raise ValueError("Scheme review authority disappeared after report generation")
+        if required or embedded is not None:
+            raise ValueError("Scheme review authority is missing")
         return None
     if not hasattr(authority, "to_snapshot"):
         raise ValueError("Scheme review query returned an untyped authority")
@@ -590,8 +599,11 @@ class ReportService:
                 report=report,
                 revision=latest_rev,
                 scheme_review_query=self._scheme_review_query,
+                required=True,
             )
-            if authority is not None and authority.requires_review:
+            if authority is None:
+                raise ValueError("Scheme review authority is missing")
+            if authority.requires_review:
                 _require_persisted_mark_reviewed(
                     repository=self._repo,
                     report=report,
@@ -624,6 +636,7 @@ class ReportService:
                 report=report,
                 revision=latest_rev,
                 scheme_review_query=self._scheme_review_query,
+                required=True,
             )
 
         # Record action with real revision UUID

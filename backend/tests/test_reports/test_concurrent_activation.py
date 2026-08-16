@@ -47,6 +47,32 @@ from cold_storage.modules.reports.domain.errors import (
 from cold_storage.modules.reports.domain.models import ReportExportArtifact, ReportTemplate
 from cold_storage.modules.reports.infrastructure.orm import Base, ReportTemplateRecord
 from cold_storage.modules.reports.infrastructure.repository import SQLReportRepository
+from cold_storage.modules.schemes.application.query import SchemeReviewAuthority
+
+
+def _concurrency_no_review_authority() -> SchemeReviewAuthority:
+    return SchemeReviewAuthority(
+        scheme_run_id="scheme-concurrency-no-review",
+        project_id="proj-1",
+        project_version_id="ver-1",
+        requires_review=False,
+        review_reasons=(),
+        source_binding_id="binding-concurrency-no-review",
+        combined_source_hash="combined-concurrency-no-review",
+        content_hash="content-concurrency-no-review",
+    )
+
+
+class _NoReviewQuery:
+    def get_review_authority(self, project_id: str, version_id: str):
+        authority = _concurrency_no_review_authority()
+        if (project_id, version_id) != (
+            authority.project_id,
+            authority.project_version_id,
+        ):
+            return None
+        return authority
+
 
 # ---------------------------------------------------------------------------
 # BarrierArtifactRepository wrapper — places a threading.Barrier inside
@@ -992,6 +1018,7 @@ class TestConcurrentRenderAtClaimBoundary:
         from cold_storage.modules.reports.infrastructure.template_seed import (
             seed_default_templates,
         )
+        from cold_storage.modules.schemes.application.query import SchemeReviewAuthority
 
         # ---- Setup: file-backed SQLite ----
         db_path = tmp_path / "concurrent_locales.db"
@@ -1006,6 +1033,16 @@ class TestConcurrentRenderAtClaimBoundary:
         report_id = "report-locale-concurrent"
         with file_sf() as sess:
             repo = SQLReportRepository(sess)
+            no_review_authority = SchemeReviewAuthority(
+                scheme_run_id="scheme-concurrent-no-review",
+                project_id="proj-1",
+                project_version_id="ver-1",
+                requires_review=False,
+                review_reasons=(),
+                source_binding_id="binding-concurrent-no-review",
+                combined_source_hash="combined-concurrent-no-review",
+                content_hash="content-concurrent-no-review",
+            )
             report = Report.create(
                 project_id="proj-1",
                 project_version_id="ver-1",
@@ -1029,8 +1066,14 @@ class TestConcurrentRenderAtClaimBoundary:
                 report_id=report.id,
                 revision_number=1,
                 schema_version="cold_storage_concept_design@1.0.0",
-                content_json={"report_metadata": {"project_id": report.project_id}},
-                canonical_content_json={"report_metadata": {}},
+                content_json={
+                    "report_metadata": {"project_id": report.project_id},
+                    "scheme_comparison": {"review_authority": no_review_authority.to_snapshot()},
+                },
+                canonical_content_json={
+                    "report_metadata": {},
+                    "scheme_comparison": {"review_authority": no_review_authority.to_snapshot()},
+                },
                 content_hash="locale-test-hash-abc",
                 quality_status=ReportStatus.APPROVED,
                 quality_findings_json=[],
@@ -1082,10 +1125,21 @@ class TestConcurrentRenderAtClaimBoundary:
                         report_repo=repo,
                         artifact_repo=barrier_repo,
                     )
+
+                    class _NoReviewQuery:
+                        def get_review_authority(self, project_id: str, version_id: str):
+                            if (project_id, version_id) != (
+                                no_review_authority.project_id,
+                                no_review_authority.project_version_id,
+                            ):
+                                return None
+                            return no_review_authority
+
                     svc = ReportRenderService(
                         uow=uow,
                         storage=storage,
                         template_repo=repo,
+                        scheme_review_query=_NoReviewQuery(),
                     )
                     artifact = svc.render(
                         locale=locale,
@@ -1234,8 +1288,18 @@ class TestConcurrentRenderAtClaimBoundary:
                 report_id=report.id,
                 revision_number=1,
                 schema_version="cold_storage_concept_design@1.0.0",
-                content_json={"report_metadata": {"project_id": report.project_id}},
-                canonical_content_json={"report_metadata": {}},
+                content_json={
+                    "report_metadata": {"project_id": report.project_id},
+                    "scheme_comparison": {
+                        "review_authority": _concurrency_no_review_authority().to_snapshot()
+                    },
+                },
+                canonical_content_json={
+                    "report_metadata": {},
+                    "scheme_comparison": {
+                        "review_authority": _concurrency_no_review_authority().to_snapshot()
+                    },
+                },
                 content_hash="same-key-hash-xyz",
                 quality_status=ReportStatus.APPROVED,
                 quality_findings_json=[],
@@ -1286,6 +1350,7 @@ class TestConcurrentRenderAtClaimBoundary:
                         storage=shared_storage,
                         template_repo=repo,
                         idempotency_waiter=waiter,
+                        scheme_review_query=_NoReviewQuery(),
                     )
                     art = svc.render(
                         locale=ReportLocale.ZH_CN,
@@ -1390,8 +1455,18 @@ def _seed_concurrent_render_data_default_waiter(
             report_id=report.id,
             revision_number=1,
             schema_version="cold_storage_concept_design@1.0.0",
-            content_json={"report_metadata": {"project_id": report.project_id}},
-            canonical_content_json={"report_metadata": {}},
+            content_json={
+                "report_metadata": {"project_id": report.project_id},
+                "scheme_comparison": {
+                    "review_authority": _concurrency_no_review_authority().to_snapshot()
+                },
+            },
+            canonical_content_json={
+                "report_metadata": {},
+                "scheme_comparison": {
+                    "review_authority": _concurrency_no_review_authority().to_snapshot()
+                },
+            },
             content_hash="default-waiter-hash-xyz",
             quality_status=ReportStatus.APPROVED,
             quality_findings_json=[],
@@ -1469,6 +1544,7 @@ class TestDefaultDBWaiterConvergence:
                         storage=shared_storage,
                         template_repo=repo,
                         idempotency_waiter=waiter,
+                        scheme_review_query=_NoReviewQuery(),
                     )
                     art = svc.render(
                         locale=locale,
