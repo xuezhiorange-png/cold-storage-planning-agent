@@ -264,3 +264,47 @@ class TestProductionReadPortsBoundaries:
             "schemes.application.production_service:\n"
             + "\n".join(f"  line {line}: {mod}" for line, mod in violations)
         )
+
+
+class TestReviewReasonBoundaries:
+    """Keep source-bound reasons typed across the Lane A boundaries."""
+
+    _LANE_A_PRODUCTION_FILES = (
+        APP_DIR / "production_ports.py",
+        APP_DIR / "source_binding_verifier.py",
+        APP_DIR / "production_service.py",
+        INFRA_DIR / "production_repository.py",
+        INFRA_DIR / "production_read_ports.py",
+        INFRA_DIR / "repository.py",
+        BACKEND_SRC / "evaluation" / "adapter.py",
+    )
+
+    def test_no_lossy_reason_stringification_or_empty_production_projection(self) -> None:
+        for filepath in self._LANE_A_PRODUCTION_FILES:
+            source = filepath.read_text()
+            assert "str(w)" not in source
+            assert "str(m)" not in source
+            assert "repr(reason)" not in source
+
+        production_service = (APP_DIR / "production_service.py").read_text()
+        assert "warning_messages=[]" not in production_service
+
+    def test_legacy_readback_has_explicit_marker_without_cast_laundering(self) -> None:
+        filepath = INFRA_DIR / "repository.py"
+        source = filepath.read_text()
+        tree = ast.parse(source, filename=str(filepath))
+        readback_functions = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_legacy_warning_readback"
+        ]
+        assert len(readback_functions) == 1
+        readback = readback_functions[0]
+        assert "LegacyWarningText" in ast.unparse(readback)
+        assert not any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "cast"
+            for node in ast.walk(readback)
+        ), "legacy readback must not cast strings into ReviewReason"

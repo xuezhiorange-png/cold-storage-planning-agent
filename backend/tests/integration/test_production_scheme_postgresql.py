@@ -49,6 +49,7 @@ def _compute_domain_hash(
     stage: str,
     result_snapshot: dict[str, Any],
     run_id: str,
+    requires_review: bool = False,
 ) -> str:
     """Compute domain SourceSnapshotContentV1 result_hash for a stage.
 
@@ -99,7 +100,7 @@ def _compute_domain_hash(
         orchestration_identity_id=IDENTITY_ID,
         orchestration_run_attempt_id=ATTEMPT_ID,
         input_hash="pg-input-hash-001",
-        requires_review=False,
+        requires_review=requires_review,
         payload=result_snapshot,
         provenance=provenance,
     )
@@ -226,7 +227,10 @@ INVEST_HASH = ""
 # ── Combined source hash (matches verifier implementation) ────────────────
 
 
-def _compute_verifier_combined_source_hash() -> str:
+def _compute_verifier_combined_source_hash(
+    requires_reviews: dict[str, bool] | None = None,
+    result_hashes: dict[str, str] | None = None,
+) -> str:
     """Compute the combined source hash matching the verifier's implementation."""
     from cold_storage.modules.schemes.application.source_binding_verifier import (
         _compute_combined_source_hash,
@@ -239,6 +243,8 @@ def _compute_verifier_combined_source_hash() -> str:
         "power": POWER_RUN_ID,
         "investment": INVEST_RUN_ID,
     }
+    review_vector = {stage: False for stage in _SLOT_STAGE_ORDER}
+    review_vector.update(requires_reviews or {})
     return _compute_combined_source_hash(
         binding_schema_version="1.0.0",
         project_id=PROJECT_ID,
@@ -249,8 +255,8 @@ def _compute_verifier_combined_source_hash() -> str:
         orchestration_attempt_id=ATTEMPT_ID,
         orchestration_fingerprint="pg-test-fingerprint-001",
         slot_ids=slot_ids,
-        result_hashes=PER_CALC_HASHES,
-        requires_reviews={stage: False for stage in _SLOT_STAGE_ORDER},
+        result_hashes=result_hashes or PER_CALC_HASHES,
+        requires_reviews=review_vector,
     )
 
 
@@ -519,6 +525,8 @@ def _seed_calculation_runs(
     equip_result: dict[str, Any] | None = None,
     power_result: dict[str, Any] | None = None,
     invest_result: dict[str, Any] | None = None,
+    requires_reviews: dict[str, bool] | None = None,
+    warnings: dict[str, list[dict[str, Any]]] | None = None,
 ) -> dict[str, str]:
     """Create 5 CalculationRunRecords. Returns per-calc hash map."""
     from cold_storage.modules.projects.infrastructure.orm import (
@@ -539,7 +547,13 @@ def _seed_calculation_runs(
             select(CalculationRunRecord).where(CalculationRunRecord.id == run_id)
         ).scalar_one_or_none()
         if existing is None:
-            computed_hash = _compute_domain_hash(stage=stage, result_snapshot=snap, run_id=run_id)
+            stage_requires_review = (requires_reviews or {}).get(stage, False)
+            computed_hash = _compute_domain_hash(
+                stage=stage,
+                result_snapshot=snap,
+                run_id=run_id,
+                requires_review=stage_requires_review,
+            )
             provenance: dict[str, Any] = {
                 "stage": stage,
                 "upstream_calculation_ids": _SLOT_UPSTREAM_IDS.get(stage, {}),
@@ -556,9 +570,9 @@ def _seed_calculation_runs(
                     formulas=[],
                     coefficients=[],
                     assumptions=[],
-                    warnings=[],
+                    warnings=(warnings or {}).get(stage, []),
                     source_references=[],
-                    requires_review=False,
+                    requires_review=stage_requires_review,
                     calculation_type=SLOT_CALCULATION_TYPES[stage],
                     orchestration_identity_id=IDENTITY_ID,
                     orchestration_run_attempt_id=ATTEMPT_ID,
@@ -578,6 +592,7 @@ def _seed_calculation_runs(
                 stage=stage,
                 result_snapshot=existing.result_snapshot or {},
                 run_id=run_id,
+                requires_review=(requires_reviews or {}).get(stage, False),
             )
     session.commit()
     return per_calc
@@ -589,6 +604,7 @@ def _seed_source_binding(
     per_calc: dict[str, str] | None = None,
     binding_id: str = SOURCE_BINDING_ID,
     schema_version: str = "1.0.0",
+    requires_reviews: dict[str, bool] | None = None,
 ) -> None:
     """Create a SourceBindingRecord."""
     from cold_storage.modules.orchestration.infrastructure.orm import (
@@ -604,7 +620,10 @@ def _seed_source_binding(
     if existing is not None:
         return
 
-    combined = _compute_verifier_combined_source_hash()
+    combined = _compute_verifier_combined_source_hash(
+        requires_reviews,
+        result_hashes=per_calc,
+    )
 
     session.add(
         SourceBindingRecord(
@@ -731,12 +750,21 @@ def _seed_weight_set_and_revision(
     session.commit()
 
 
-def _seed_all_prereqs(session) -> None:
+def _seed_all_prereqs(
+    session,
+    *,
+    requires_reviews: dict[str, bool] | None = None,
+    warnings: dict[str, list[dict[str, Any]]] | None = None,
+) -> None:
     """Seed all prerequisite records for a happy-path test."""
     _seed_project_and_version(session)
     _seed_orchestration_prereqs(session)
-    _seed_calculation_runs(session)
-    _seed_source_binding(session)
+    per_calc = _seed_calculation_runs(
+        session,
+        requires_reviews=requires_reviews,
+        warnings=warnings,
+    )
+    _seed_source_binding(session, per_calc=per_calc, requires_reviews=requires_reviews)
     _seed_weight_set_and_revision(session)
 
     # Link attempt to source binding (attempt.source_binding_id must be non-NULL)
@@ -897,6 +925,69 @@ class TestPostgresProductionHappyPath:
                 )
         finally:
             verify_s.close()
+
+    def test_review_reasons_round_trip_as_structured_json(
+        self, pg_session_factory, pg_engine
+    ) -> None:
+        assert pg_engine.dialect.name == "postgresql"
+        review_vector = {
+            "zone": True,
+            "cooling_load": True,
+            "equipment": True,
+            "power": False,
+            "investment": True,
+        }
+        warnings = {
+            stage: [{"code": f"{stage.upper()}_REVIEW", "message": f"{stage} message"}]
+            for stage in ("zone", "cooling_load", "equipment", "investment")
+        }
+        warnings["power"] = [{"code": "DEFAULT_DEMAND_FACTOR", "message": "advisory power warning"}]
+
+        seed_s = pg_session_factory()
+        try:
+            _seed_all_prereqs(
+                seed_s,
+                requires_reviews=review_vector,
+                warnings=warnings,
+            )
+        finally:
+            seed_s.close()
+
+        run = _make_service(pg_engine).generate_production_scheme_run(_make_command())
+
+        assert run.requires_review is True
+        assert [(reason.stage, reason.code) for reason in run.warning_messages] == [
+            ("zone", "ZONE_REVIEW"),
+            ("cooling_load", "COOLING_LOAD_REVIEW"),
+            ("equipment", "EQUIPMENT_REVIEW"),
+            ("investment", "INVESTMENT_REVIEW"),
+        ]
+        with pg_session_factory() as verify_s:
+            from cold_storage.modules.schemes.infrastructure.orm import SchemeRunRecord
+
+            record = verify_s.get(SchemeRunRecord, run.id)
+            assert record is not None
+            assert record.warning_messages == [reason.to_json() for reason in run.warning_messages]
+
+        from cold_storage.modules.schemes.application.production_service import (
+            read_verified_production_scheme_run,
+        )
+        from cold_storage.modules.schemes.infrastructure.production_read_ports import (
+            SqlAlchemyProductionSchemeRunReadPort,
+            SqlAlchemySourceBindingReadPort,
+            SqlAlchemyWeightRevisionReadPort,
+        )
+
+        with pg_session_factory() as read_s:
+            read_back = read_verified_production_scheme_run(
+                SqlAlchemyProductionSchemeRunReadPort(),
+                SqlAlchemySourceBindingReadPort(),
+                SqlAlchemyWeightRevisionReadPort(),
+                read_s,
+                run_id=run.id,
+                generator_version="1.0.0",
+            )
+        assert read_back.warning_messages == run.warning_messages
 
 
 # ════════════════════════════════════════════════════════════════════════════

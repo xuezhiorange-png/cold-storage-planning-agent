@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Protocol
 
-from cold_storage.modules.schemes.domain.models import WeightCriterion
+from cold_storage.modules.schemes.domain.models import ReviewReason, WeightCriterion
 
 # ── Production command ─────────────────────────────────────────────────────
 
@@ -206,6 +206,19 @@ class VerifiedSourceMapping:
     power_calculation_id: str
     investment_calculation_id: str
 
+    # Source-bound review reasons projected from the true producer stages.
+    review_reasons: tuple[ReviewReason, ...] = ()
+
+    # The five producer booleans are retained independently of the aggregate
+    # review flag.  The fixed insertion order is part of the source-binding
+    # contract and is validated by the strict mapping verifier.
+    requires_review_by_stage: dict[str, bool] = field(default_factory=dict)
+
+    # Raw warning evidence is carried alongside the mapping so a caller that
+    # verifies this boundary can prove code/message identity without
+    # reconstructing producer evidence from the canonical reasons.
+    warnings_by_stage: dict[str, tuple[dict[str, Any], ...]] = field(default_factory=dict)
+
 
 # ── Production scheme run repository port ──────────────────────────────────
 
@@ -277,7 +290,7 @@ class PersistedSchemeRun:
     input_snapshot: dict[str, Any] = field(default_factory=dict)
     assumption_snapshot: dict[str, Any] = field(default_factory=dict)
     comparison_snapshot: dict[str, Any] = field(default_factory=dict)
-    warning_messages: list[str] = field(default_factory=list)
+    warning_messages: list[ReviewReason] = field(default_factory=list)
     requires_review: bool = True
     status: str = "pending"
     created_at: datetime | None = None
@@ -314,7 +327,7 @@ class ProductionSchemeRunRepository(Protocol):
         candidates_snapshot: dict[str, Any],
         requires_review: bool,
         recommended_scheme_code: str | None,
-        warning_messages: list[str],
+        warning_messages: list[ReviewReason],
         content_hash: str,
         source_mode: str,
         source_binding_id: str,

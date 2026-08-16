@@ -48,6 +48,7 @@ from cold_storage.modules.schemes.application.production_ports import (
     CalculationRunSnapshot,
     VerifiedSourceMapping,
 )
+from cold_storage.modules.schemes.domain.models import ReviewReason
 
 # ── Constants ──────────────────────────────────────────────────────────────
 
@@ -302,7 +303,7 @@ class UpstreamCalculationIdMismatch(SourceBindingVerificationError):
 
 
 class RequiresReviewMismatch(SourceBindingVerificationError):
-    def __init__(self, expected: bool, actual: bool) -> None:
+    def __init__(self, expected: bool, actual: object) -> None:
         super().__init__(
             code="requires_review_mismatch",
             field="requires_review",
@@ -364,6 +365,178 @@ class SourcePayloadCanonicalizationError(SourceBindingVerificationError):
             field=f"{stage}.payload",
             detail=detail or f"Payload for stage {stage!r} cannot be canonicalized",
         )
+
+
+class ReviewReasonSourceMissingError(SourceBindingVerificationError):
+    """Raised when a true review stage has no valid source warning."""
+
+    def __init__(self, stage: str, calculation_run_id: str) -> None:
+        super().__init__(
+            code="REVIEW_REASON_SOURCE_MISSING",
+            field=f"{stage}.warnings",
+            detail=(
+                f"CalculationRun {calculation_run_id!r} for stage {stage!r} "
+                "requires review but has no valid source-bound warning"
+            ),
+        )
+
+
+class ReviewReasonInvariantError(SourceBindingVerificationError):
+    """Raised when the aggregate review/reason invariant is violated."""
+
+    def __init__(self, requires_review: bool, reason_count: int) -> None:
+        super().__init__(
+            code="REVIEW_REASON_INVARIANT_VIOLATION",
+            field="review_reasons",
+            detail=(
+                f"requires_review={requires_review!r} is inconsistent with "
+                f"{reason_count} canonical review reasons"
+            ),
+        )
+
+
+class ReviewStageVectorMismatch(SourceBindingVerificationError):
+    """Raised when stage-level producer booleans are missing or inconsistent."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(
+            code="REVIEW_STAGE_VECTOR_MISMATCH",
+            field="requires_review_by_stage",
+            detail=detail,
+        )
+
+
+class ReviewReasonSourceMismatch(SourceBindingVerificationError):
+    """Raised when a reason is not bound to its true producer stage/run."""
+
+    def __init__(self, index: int, detail: str) -> None:
+        super().__init__(
+            code="REVIEW_REASON_SOURCE_MISMATCH",
+            field=f"review_reasons[{index}]",
+            detail=detail,
+        )
+
+
+class ReviewReasonProjectionMismatch(SourceBindingVerificationError):
+    """Raised when persisted canonical reasons differ from producer evidence."""
+
+    def __init__(self, expected: tuple[ReviewReason, ...], actual: object) -> None:
+        super().__init__(
+            code="REVIEW_REASON_PROJECTION_MISMATCH",
+            field="review_reasons",
+            detail=f"Expected {expected!r}, got {actual!r}",
+        )
+
+
+def _validate_stage_review_vector(
+    vector: Mapping[str, object],
+    *,
+    field_name: str = "requires_review_by_stage",
+) -> dict[str, bool]:
+    """Validate and copy the fixed five-stage producer boolean vector."""
+    if not isinstance(vector, Mapping):
+        raise ReviewStageVectorMismatch(f"{field_name} must be a mapping")
+    if set(vector) != set(_SLOT_STAGE_ORDER) or tuple(vector) != _SLOT_STAGE_ORDER:
+        raise ReviewStageVectorMismatch(
+            f"{field_name} keys must be exactly {_SLOT_STAGE_ORDER!r} in order; "
+            f"got {tuple(vector)!r}"
+        )
+    validated: dict[str, bool] = {}
+    for stage in _SLOT_STAGE_ORDER:
+        value = vector[stage]
+        if type(value) is not bool:
+            raise ReviewStageVectorMismatch(
+                f"{field_name}[{stage!r}] must be bool, got {type(value).__name__}"
+            )
+        validated[stage] = value
+    return validated
+
+
+def _validate_warning_evidence(
+    warnings_by_stage: Mapping[str, object],
+) -> dict[str, tuple[object, ...]]:
+    """Validate the fixed stage shape of carried upstream warning evidence."""
+    if not isinstance(warnings_by_stage, Mapping):
+        raise ReviewStageVectorMismatch("warnings_by_stage must be a mapping")
+    if (
+        set(warnings_by_stage) != set(_SLOT_STAGE_ORDER)
+        or tuple(warnings_by_stage) != _SLOT_STAGE_ORDER
+    ):
+        raise ReviewStageVectorMismatch(
+            f"warnings_by_stage keys must be exactly {_SLOT_STAGE_ORDER!r} in order; "
+            f"got {tuple(warnings_by_stage)!r}"
+        )
+    validated: dict[str, tuple[object, ...]] = {}
+    for stage in _SLOT_STAGE_ORDER:
+        warnings = warnings_by_stage[stage]
+        if not isinstance(warnings, (list, tuple)):
+            raise ReviewStageVectorMismatch(f"warnings_by_stage[{stage!r}] must be a sequence")
+        validated[stage] = tuple(warnings)
+    return validated
+
+
+def _project_review_reasons_from_stage_evidence(
+    *,
+    requires_review_by_stage: Mapping[str, object],
+    warnings_by_stage: Mapping[str, object],
+    source_ids_by_stage: Mapping[str, str],
+) -> tuple[ReviewReason, ...]:
+    """Project canonical reasons from exact stage booleans and raw warnings."""
+    stage_vector = _validate_stage_review_vector(requires_review_by_stage)
+    warning_evidence = _validate_warning_evidence(warnings_by_stage)
+    projected: list[ReviewReason] = []
+    seen: set[ReviewReason] = set()
+    for stage in _SLOT_STAGE_ORDER:
+        if stage not in source_ids_by_stage:
+            raise ReviewStageVectorMismatch(f"missing source id for stage {stage!r}")
+        source_id = source_ids_by_stage[stage]
+        if not source_id or not source_id.strip():
+            raise ReviewStageVectorMismatch(f"empty source id for stage {stage!r}")
+        if stage_vector[stage] is False:
+            continue
+
+        for warning in warning_evidence[stage]:
+            if not isinstance(warning, Mapping):
+                continue
+            code = warning.get("code")
+            message = warning.get("message")
+            if type(code) is not str or type(message) is not str:
+                continue
+            if not code.strip() or not message.strip():
+                continue
+            reason = ReviewReason(
+                code=code,
+                message=message,
+                stage=stage,
+                source_type="calculation_run",
+                source_id=source_id,
+            )
+            if reason not in seen:
+                projected.append(reason)
+                seen.add(reason)
+
+        if not any(reason.stage == stage for reason in projected):
+            raise ReviewReasonSourceMissingError(stage, source_id)
+
+    return tuple(projected)
+
+
+def project_review_reasons(
+    runs: Mapping[str, CalculationRunSnapshot],
+) -> tuple[ReviewReason, ...]:
+    """Project only true producer stages' warnings into canonical reasons.
+
+    ``requires_review`` is read from each persisted CalculationRunSnapshot and
+    remains the sole boolean authority.  Advisory warnings from false stages
+    are deliberately excluded without changing their upstream evidence.
+    """
+    return _project_review_reasons_from_stage_evidence(
+        requires_review_by_stage={
+            stage: runs[stage].requires_review for stage in _SLOT_STAGE_ORDER
+        },
+        warnings_by_stage={stage: tuple(runs[stage].warnings) for stage in _SLOT_STAGE_ORDER},
+        source_ids_by_stage={stage: runs[stage].id for stage in _SLOT_STAGE_ORDER},
+    )
 
 
 # ── Combined source hash helper (reuses Transaction B contract) ────────────
@@ -465,6 +638,18 @@ def verify_source_mapping(state: VerifiedSourceMapping) -> VerifiedSourceMapping
     if state.binding_schema_version not in _SUPPORTED_SCHEMA_VERSIONS:
         raise BindingSchemaError(state.binding_schema_version)
 
+    # Stage-level producer booleans are authoritative.  The aggregate flag is
+    # only their derived summary and must never be copied back into the slots.
+    stage_review_vector = _validate_stage_review_vector(state.requires_review_by_stage)
+    warning_evidence = _validate_warning_evidence(state.warnings_by_stage)
+    if type(state.requires_review) is not bool:
+        raise RequiresReviewMismatch(expected=True, actual=state.requires_review)
+    expected_aggregate = any(stage_review_vector.values())
+    if state.requires_review != expected_aggregate:
+        raise ReviewStageVectorMismatch(
+            "aggregate requires_review does not equal any(requires_review_by_stage.values())"
+        )
+
     # ── 2. Collect slot IDs from the mapping ──────────────────────────
     slot_ids: dict[str, str] = {}
     for stage in _SLOT_STAGE_ORDER:
@@ -510,11 +695,9 @@ def verify_source_mapping(state: VerifiedSourceMapping) -> VerifiedSourceMapping
 
     # ── 8. Verify combined source hash ────────────────────────────────
     result_hashes_map: dict[str, str] = {}
-    requires_reviews: dict[str, bool] = {}
     for stage in _SLOT_STAGE_ORDER:
         _, _, hash_attr, _, _ = _SLOT_DEFS[stage]
         result_hashes_map[stage] = getattr(state, hash_attr)
-        requires_reviews[stage] = state.requires_review
 
     expected_combined = _compute_combined_source_hash(
         binding_schema_version=state.binding_schema_version,
@@ -527,17 +710,49 @@ def verify_source_mapping(state: VerifiedSourceMapping) -> VerifiedSourceMapping
         orchestration_fingerprint=state.orchestration_fingerprint,
         slot_ids=slot_ids,
         result_hashes=result_hashes_map,
-        requires_reviews=requires_reviews,
+        requires_reviews=stage_review_vector,
     )
     if expected_combined != state.combined_source_hash:
         raise CombinedHashMismatch(expected_combined, state.combined_source_hash)
 
-    # ── 9. Verify requires_review consistency ─────────────────────────
-    if not isinstance(state.requires_review, bool):
-        raise RequiresReviewMismatch(
-            expected=True,
-            actual=state.requires_review,
-        )
+    expected_review_reasons = _project_review_reasons_from_stage_evidence(
+        requires_review_by_stage=stage_review_vector,
+        warnings_by_stage=warning_evidence,
+        source_ids_by_stage=slot_ids,
+    )
+    for index, reason in enumerate(state.review_reasons):
+        if type(reason) is not ReviewReason:
+            raise ReviewReasonSourceMismatch(
+                index,
+                f"expected ReviewReason, got {type(reason).__name__}",
+            )
+        if reason.stage not in _SLOT_STAGE_ORDER:
+            raise ReviewReasonSourceMismatch(index, f"unsupported stage {reason.stage!r}")
+        expected_source_id = slot_ids[reason.stage]
+        if reason.source_type != "calculation_run":
+            raise ReviewReasonSourceMismatch(
+                index,
+                f"source_type must be 'calculation_run', got {reason.source_type!r}",
+            )
+        if reason.source_id != expected_source_id:
+            raise ReviewReasonSourceMismatch(
+                index,
+                f"source_id {reason.source_id!r} does not match "
+                f"{reason.stage} CalculationRun {expected_source_id!r}",
+            )
+        if stage_review_vector[reason.stage] is not True:
+            raise ReviewReasonSourceMismatch(
+                index,
+                f"stage {reason.stage!r} does not require review",
+            )
+
+    # ── 9. Verify aggregate/reason invariants and exact projection ─────
+    if state.requires_review and not state.review_reasons:
+        raise ReviewReasonInvariantError(state.requires_review, len(state.review_reasons))
+    if not state.requires_review and state.review_reasons:
+        raise ReviewReasonInvariantError(state.requires_review, len(state.review_reasons))
+    if tuple(state.review_reasons) != expected_review_reasons:
+        raise ReviewReasonProjectionMismatch(expected_review_reasons, state.review_reasons)
 
     # ── 10. Verify completeness (no NULL fields) ──────────────────────
     _verify_completeness(state)
@@ -827,7 +1042,12 @@ def verify_source_binding(
 
     # Verify combined source hash
     result_hashes_map = {stage: runs[stage].result_hash or "" for stage in _SLOT_STAGE_ORDER}
-    requires_reviews = {stage: runs[stage].requires_review for stage in _SLOT_STAGE_ORDER}
+    requires_review_by_stage: dict[str, bool] = {}
+    for stage in _SLOT_STAGE_ORDER:
+        value = runs[stage].requires_review
+        if type(value) is not bool:
+            raise RequiresReviewMismatch(expected=True, actual=value)
+        requires_review_by_stage[stage] = value
     expected_combined = _compute_combined_source_hash(
         binding_schema_version=binding.schema_version,
         project_id=binding.project_id,
@@ -839,18 +1059,10 @@ def verify_source_binding(
         orchestration_fingerprint=binding.orchestration_fingerprint,
         slot_ids=slot_ids_map,
         result_hashes=result_hashes_map,
-        requires_reviews=requires_reviews,
+        requires_reviews=requires_review_by_stage,
     )
     if expected_combined != binding.combined_source_hash:
         raise CombinedHashMismatch(expected_combined, binding.combined_source_hash)
-
-    # Verify requires_review type
-    for stage in _SLOT_STAGE_ORDER:
-        if not isinstance(runs[stage].requires_review, bool):
-            raise RequiresReviewMismatch(
-                expected=True,
-                actual=runs[stage].requires_review,
-            )
 
     # Completeness check on runs
     for stage in _SLOT_STAGE_ORDER:
@@ -862,8 +1074,10 @@ def verify_source_binding(
         if run.calculation_type is None:
             raise CompletenessViolation(stage, "calculation_type")
 
+    review_reasons = project_review_reasons(runs)
+
     # Build and return the VerifiedSourceMapping
-    any_review = any(r.requires_review for r in runs.values())
+    any_review = any(requires_review_by_stage.values())
 
     return VerifiedSourceMapping(
         project_id=binding.project_id,
@@ -876,6 +1090,7 @@ def verify_source_binding(
         combined_source_hash=binding.combined_source_hash,
         binding_schema_version=binding.schema_version,
         requires_review=any_review,
+        requires_review_by_stage=requires_review_by_stage,
         zone_result_snapshot=runs["zone"].result_snapshot,
         zone_result_hash=runs["zone"].result_hash,
         cooling_load_result_snapshot=runs["cooling_load"].result_snapshot,
@@ -894,6 +1109,8 @@ def verify_source_binding(
         equipment_calculation_id=runs["equipment"].id,
         power_calculation_id=runs["power"].id,
         investment_calculation_id=runs["investment"].id,
+        review_reasons=review_reasons,
+        warnings_by_stage={stage: tuple(runs[stage].warnings) for stage in _SLOT_STAGE_ORDER},
     )
 
 

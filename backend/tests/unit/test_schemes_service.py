@@ -29,6 +29,7 @@ from cold_storage.modules.schemes.domain.errors import (
     SourceCalculationMissingError,
     WeightSetError,
 )
+from cold_storage.modules.schemes.domain.models import ReviewReason
 from cold_storage.modules.schemes.infrastructure.repository import SchemeRepository
 
 # ---------------------------------------------------------------------------
@@ -830,3 +831,61 @@ def app_no_calcs(session_no_calcs) -> FastAPI:
 @pytest.fixture()
 def client_no_calcs(app_no_calcs) -> TestClient:
     return TestClient(app_no_calcs)
+
+
+def test_production_content_hash_binds_canonical_review_reasons() -> None:
+    """The production content hash includes the exact five-field reason JSON."""
+    from cold_storage.modules.schemes.application.production_service import (
+        _compute_production_content_hash,
+    )
+
+    common = {
+        "source_binding_id": "binding-1",
+        "source_contract_version": "1.0.0",
+        "binding_schema_version": "1.0.0",
+        "project_id": "project-1",
+        "project_version_id": "version-1",
+        "execution_snapshot_id": "snapshot-1",
+        "coefficient_context_id": "coeff-1",
+        "orchestration_identity_id": "identity-1",
+        "authoritative_attempt_id": "attempt-1",
+        "orchestration_fingerprint": "fingerprint-1",
+        "zone_calculation_id": "calc-zone-1",
+        "cooling_load_calculation_id": "calc-cooling-1",
+        "equipment_calculation_id": "calc-equipment-1",
+        "power_calculation_id": "calc-power-1",
+        "investment_calculation_id": "calc-investment-1",
+        "zone_result_hash": "hash-zone",
+        "cooling_load_result_hash": "hash-cooling",
+        "equipment_result_hash": "hash-equipment",
+        "power_result_hash": "hash-power",
+        "investment_result_hash": "hash-investment",
+        "combined_source_hash": "hash-combined",
+        "weight_set_revision_id": "weight-revision-1",
+        "weight_set_content_hash": "hash-weight",
+        "weight_set_generator_compatibility_version": "1.0.0",
+        "generator_version": "1.0.0",
+        "profile_codes": ("balanced",),
+        "profile_parameters": {},
+        "candidates_snapshot": [],
+        "score_breakdowns_snapshot": [],
+        "requires_review": True,
+        "status": "completed",
+        "input_snapshot": {},
+        "assumption_snapshot": {},
+        "comparison_snapshot": {},
+    }
+    reason = ReviewReason(
+        code="CODE",
+        message="Message",
+        stage="zone",
+        source_type="calculation_run",
+        source_id="calc-zone-1",
+    )
+
+    empty = _compute_production_content_hash(**common, warning_messages=[])
+    with_reason = _compute_production_content_hash(**common, warning_messages=[reason])
+    with_same_reason = _compute_production_content_hash(**common, warning_messages=[reason])
+
+    assert with_reason != empty
+    assert with_reason == with_same_reason

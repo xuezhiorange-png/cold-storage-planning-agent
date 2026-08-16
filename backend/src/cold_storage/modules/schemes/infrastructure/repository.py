@@ -9,6 +9,7 @@ Key invariants:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from decimal import Decimal
 from typing import Any
 
@@ -17,6 +18,8 @@ from sqlalchemy.orm import Session
 
 from cold_storage.modules.schemes.domain.errors import CompletedRunImmutabilityError
 from cold_storage.modules.schemes.domain.models import (
+    LegacyWarningText,
+    ReviewReason,
     SchemeCandidate,
     SchemeRun,
     SchemeWeightSet,
@@ -37,6 +40,43 @@ def _json_safe(val: Any) -> Any:
     if isinstance(val, (list, tuple)):
         return [_json_safe(item) for item in val]
     return val
+
+
+def _legacy_warning_json(raw: object) -> list[object]:
+    """Serialize canonical reasons while preserving historical strings.
+
+    This repository serves the legacy scheme API.  String-only rows remain
+    historical compatibility data and are never trusted as production review
+    authority; the production read port uses strict canonical decoding.
+    """
+    if not isinstance(raw, list):
+        raise ValueError("SchemeRun.warning_messages must be a JSON list")
+    encoded: list[object] = []
+    for warning in raw:
+        if isinstance(warning, ReviewReason):
+            encoded.append(warning.to_json())
+        elif isinstance(warning, LegacyWarningText) or type(warning) is str:
+            encoded.append(str(warning))
+        else:
+            raise ValueError("Legacy warning entry must be a ReviewReason or string")
+    return encoded
+
+
+def _legacy_warning_readback(raw: object) -> list[ReviewReason | LegacyWarningText]:
+    """Read canonical objects and opaque legacy text without laundering."""
+    if not isinstance(raw, list):
+        raise ValueError("SchemeRun.warning_messages must be a JSON list")
+    decoded: list[ReviewReason | LegacyWarningText] = []
+    for warning in raw:
+        if type(warning) is str:
+            decoded.append(LegacyWarningText(warning))
+        elif isinstance(warning, Mapping):
+            decoded.append(ReviewReason.from_json(warning))
+        else:
+            raise ValueError("Legacy warning entry must be a ReviewReason object or string")
+    # String-only historical values are explicitly marked compatibility data;
+    # they cannot enter canonical production review authority.
+    return decoded
 
 
 class SchemeRepository:
@@ -142,7 +182,7 @@ class SchemeRepository:
             candidates_snapshot=run.candidates_snapshot,
             requires_review=run.requires_review,
             recommended_scheme_code=run.recommended_scheme_code,
-            warning_messages=run.warning_messages,
+            warning_messages=_legacy_warning_json(run.warning_messages),
             completed_at=run.completed_at,
             content_hash=run.content_hash,
             database_backend=run.database_backend,
@@ -313,7 +353,7 @@ class SchemeRepository:
             created_at=rec.created_at,
             completed_at=rec.completed_at,
             recommended_scheme_code=rec.recommended_scheme_code,
-            warning_messages=[str(w) for w in rec.warning_messages],
+            warning_messages=_legacy_warning_readback(rec.warning_messages),
             content_hash=rec.content_hash,
             # Phase 1 (Task 11B) readback: the column is NOT NULL
             # after 0035+0036, so a missing value indicates a
