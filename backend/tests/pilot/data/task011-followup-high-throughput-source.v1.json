@@ -1,0 +1,115 @@
+{
+  "canonical_input_sha256": "6a3ccd82852d8aa908a8bedcaab6437fbb68ff8ee3a305f9451c84b738d5f5d4",
+  "expected_requires_review": {
+    "cooling_load": true,
+    "equipment": true,
+    "investment": true,
+    "power": false,
+    "zone": true
+  },
+  "input": {
+    "cooling_load": {
+      "coefficients": {
+        "air_change_rate": "0.50",
+        "design_margin_ratio": "1.15",
+        "diversity_factor": "0.85",
+        "motor_efficiency": "0.92",
+        "product_specific_heat": "3.6",
+        "respiration_heat": "0",
+        "worker_heat_gain": "120"
+      },
+      "zones": [
+        {
+          "cooling_duration": "8",
+          "equipment_power": "4",
+          "fan_motor_power": "2",
+          "floor_area": "100",
+          "lighting_power": "2",
+          "motor_efficiency": "0.92",
+          "operating_hours_per_day": "16",
+          "outdoor_design_temperature": "35",
+          "packaging_mass": "100",
+          "packaging_specific_heat": "1.2",
+          "product_entry_temperature": "10",
+          "product_mass_per_day": "10000",
+          "product_specific_heat": "3.6",
+          "product_target_temperature": "2",
+          "roof_area": "100",
+          "room_design_temperature": "2",
+          "room_height": "5",
+          "temperature_level": "medium_temperature",
+          "u_value_floor": "0.40",
+          "u_value_roof": "0.30",
+          "u_value_wall": "0.35",
+          "wall_area": "100",
+          "worker_count": 2,
+          "worker_heat_gain": "120",
+          "zone_area": "200",
+          "zone_code": "Z1",
+          "zone_name": "s6-07-zone"
+        }
+      ]
+    },
+    "equipment": {
+      "coefficients": {
+        "compressor_cop": "2.5",
+        "condenser_capacity_margin": "1.1",
+        "evaporator_capacity_margin": "1.1",
+        "redundancy_ratio": "1.0"
+      },
+      "condensing_temperature_c": "40",
+      "systems": [
+        {
+          "design_evaporating_temperature": "-10",
+          "system_code": "SYS1",
+          "system_name": "controlled-system",
+          "zones": [
+            {
+              "defrost_method": "electric",
+              "design_cooling_load_kw_r": "25",
+              "evaporation_temperature_c": "-10",
+              "evaporator_count": 2,
+              "zone_code": "Z1",
+              "zone_name": "s6-07-zone"
+            }
+          ]
+        }
+      ]
+    },
+    "investment": {
+      "frozen_area_m2": "20",
+      "position_count": 30,
+      "refrigerated_area_m2": "180",
+      "total_area_m2": "200",
+      "total_power_kw": "45"
+    },
+    "power": {
+      "compressor_input_power_kw_e": "20",
+      "condenser_fan_power_kw_e": "3",
+      "defrost_power_kw_e": "2",
+      "evaporator_fan_power_kw_e": "4",
+      "lighting_power_kw_e": "3",
+      "other_auxiliary_power_kw_e": "2",
+      "processing_equipment_power_kw_e": "12",
+      "pump_power_kw_e": "1"
+    },
+    "product_category": "synthetic",
+    "zone": {
+      "daily_inbound_mass_kg": 10000,
+      "finished_storage_days": 2,
+      "packaging_storage_days": 3,
+      "precooling_required_ratio": 1,
+      "working_time_h_per_day": 16
+    }
+  },
+  "schema_version": "v0.3-p1-high-throughput-source.v1",
+  "source_candidate_path": "backend/src/cold_storage/bootstrap/s6_07_controlled_fixture.py::_EXECUTION_SNAPSHOT",
+  "source_label": "high_throughput_review",
+  "stage_order": [
+    "zone",
+    "cooling_load",
+    "equipment",
+    "power",
+    "investment"
+  ]
+}

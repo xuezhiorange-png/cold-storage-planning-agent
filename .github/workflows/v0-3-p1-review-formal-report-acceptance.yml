@@ -1,0 +1,158 @@
+name: V0.3 P1 Review Formal Report Controlled Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact main commit under controlled acceptance
+        required: true
+        type: string
+      source_tree_sha:
+        description: Exact main tree under controlled acceptance
+        required: true
+        type: string
+      trusted_operator:
+        description: Explicit trusted operator actor; never inferred from github.actor
+        required: true
+        type: string
+      authorization_record_id:
+        description: Stage26 authorization record
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  controlled-acceptance:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+          POSTGRES_DB: cold_storage
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U cold_storage -d cold_storage"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: cold_storage
+      PGPASSWORD: cold_storage
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      SOURCE_TREE_SHA: ${{ inputs.source_tree_sha }}
+      TRUSTED_OPERATOR: ${{ inputs.trusted_operator }}
+      AUTHORIZATION_RECORD_ID: ${{ inputs.authorization_record_id }}
+    steps:
+      - name: Checkout exact main source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate dispatch, source, and operator gates
+        run: |
+          set -euo pipefail
+          test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test -n "${AUTHORIZATION_RECORD_ID}"
+          test -n "${TRUSTED_OPERATOR}"
+          test "${TRUSTED_OPERATOR}" != "system"
+          test "${TRUSTED_OPERATOR}" != "api"
+          test "${TRUSTED_OPERATOR}" != "background"
+          test "${TRUSTED_OPERATOR}" != "llm"
+          test "${GITHUB_SHA}" = "${SOURCE_SHA}"
+          test "$(git rev-parse HEAD)" = "${SOURCE_SHA}"
+          test "$(git rev-parse HEAD^{tree})" = "${SOURCE_TREE_SHA}"
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          echo "CONTROLLED_ACCEPTANCE_SOURCE_GATE=PASS"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install PostgreSQL client and CJK font
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client fonts-wqy-zenhei
+
+      - name: Install locked backend dependencies
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Prepare fresh SQLite databases
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/v03-p1-acceptance"
+          for index in 1 2; do
+            db="${RUNNER_TEMP}/v03-p1-acceptance/sqlite-${index}.db"
+            COLD_STORAGE_DATABASE_BACKEND=sqlite \
+            COLD_STORAGE_DATABASE_URL="sqlite:///${db}" \
+            COLD_STORAGE_SQLITE_PATH="${db}" \
+            PYTHONPATH=src uv run alembic upgrade head
+          done
+
+      - name: Prepare fresh PostgreSQL databases
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          for index in 1 2; do
+            db="v03_p1_stage25_run${index}"
+            psql -d cold_storage -v ON_ERROR_STOP=1 -c "CREATE DATABASE ${db};"
+            COLD_STORAGE_DATABASE_BACKEND=postgresql \
+            COLD_STORAGE_DATABASE_URL="postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/${db}" \
+            PYTHONPATH=src uv run alembic upgrade head
+          done
+
+      - name: Run four isolated acceptance runs
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/v03-p1-acceptance/evidence"
+          mkdir -p "${evidence_root}"
+          cleanup() {
+            for index in 1 2; do
+              psql -d cold_storage -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS v03_p1_stage25_run${index};" || true
+            done
+          }
+          trap cleanup EXIT
+          for index in 1 2; do
+            db="${RUNNER_TEMP}/v03-p1-acceptance/sqlite-${index}.db"
+            PYTHONPATH=src uv run python tests/pilot/run_task011_followup_acceptance.py run \
+              --database-url "sqlite:///${db}" \
+              --source-json tests/pilot/data/task011-followup-high-throughput-source.v1.json \
+              --operator "${TRUSTED_OPERATOR}" \
+              --backend sqlite \
+              --run-index "${index}" \
+              --output "${evidence_root}/sqlite-run-${index}.json"
+          done
+          for index in 1 2; do
+            db="v03_p1_stage25_run${index}"
+            PYTHONPATH=src uv run python tests/pilot/run_task011_followup_acceptance.py run \
+              --database-url "postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/${db}" \
+              --source-json tests/pilot/data/task011-followup-high-throughput-source.v1.json \
+              --operator "${TRUSTED_OPERATOR}" \
+              --backend postgresql \
+              --run-index "${index}" \
+              --output "${evidence_root}/postgresql-run-${index}.json"
+          done
+          PYTHONPATH=src uv run python tests/pilot/run_task011_followup_acceptance.py compare \
+            --input sqlite-1 "${evidence_root}/sqlite-run-1.json" \
+            --input sqlite-2 "${evidence_root}/sqlite-run-2.json" \
+            --input postgresql-1 "${evidence_root}/postgresql-run-1.json" \
+            --input postgresql-2 "${evidence_root}/postgresql-run-2.json" \
+            --output "${evidence_root}/summary.json"
+
+      - name: Upload controlled acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v03-p1-review-formal-report-acceptance
+          path: ${{ runner.temp }}/v03-p1-acceptance/evidence
+          retention-days: 30
