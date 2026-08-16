@@ -11,13 +11,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from decimal import Decimal
-from typing import Any, cast
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from cold_storage.modules.schemes.domain.errors import CompletedRunImmutabilityError
 from cold_storage.modules.schemes.domain.models import (
+    LegacyWarningText,
     ReviewReason,
     SchemeCandidate,
     SchemeRun,
@@ -54,28 +55,28 @@ def _legacy_warning_json(raw: object) -> list[object]:
     for warning in raw:
         if isinstance(warning, ReviewReason):
             encoded.append(warning.to_json())
-        elif type(warning) is str:
-            encoded.append(warning)
+        elif isinstance(warning, LegacyWarningText) or type(warning) is str:
+            encoded.append(str(warning))
         else:
             raise ValueError("Legacy warning entry must be a ReviewReason or string")
     return encoded
 
 
-def _legacy_warning_readback(raw: object) -> list[ReviewReason]:
-    """Read canonical objects without stringifying historical rows."""
+def _legacy_warning_readback(raw: object) -> list[ReviewReason | LegacyWarningText]:
+    """Read canonical objects and opaque legacy text without laundering."""
     if not isinstance(raw, list):
         raise ValueError("SchemeRun.warning_messages must be a JSON list")
-    decoded: list[object] = []
+    decoded: list[ReviewReason | LegacyWarningText] = []
     for warning in raw:
         if type(warning) is str:
-            decoded.append(warning)
+            decoded.append(LegacyWarningText(warning))
         elif isinstance(warning, Mapping):
             decoded.append(ReviewReason.from_json(warning))
         else:
             raise ValueError("Legacy warning entry must be a ReviewReason object or string")
-    # String-only historical values are intentionally retained as opaque
-    # compatibility data and cannot become canonical approval authority.
-    return cast(list[ReviewReason], decoded)
+    # String-only historical values are explicitly marked compatibility data;
+    # they cannot enter canonical production review authority.
+    return decoded
 
 
 class SchemeRepository:

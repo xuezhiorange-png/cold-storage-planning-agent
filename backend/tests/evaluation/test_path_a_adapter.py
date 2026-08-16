@@ -73,6 +73,7 @@ from cold_storage.evaluation.adapter import (  # noqa: E402
     execute_scenario,
 )
 from cold_storage.evaluation.adapter import __all__ as adapter_all  # noqa: E402
+from cold_storage.modules.schemes.domain.models import ReviewReason  # noqa: E402
 
 from ._seed_helpers import (  # noqa: E402
     ATTEMPT_ID as A1_SEED_ATTEMPT_ID,
@@ -137,6 +138,95 @@ SCHEME_RUN_CORRELATION_ID = "test-a1-corr-001"
 # provenance explicit.
 SOURCE_BINDING_ID = A1_SEED_SOURCE_BINDING_ID
 WEIGHT_REVISION_ID = A1_SEED_WEIGHT_REVISION_ID
+
+
+_POSITIVE_REVIEW_VECTOR: dict[str, bool] = {
+    "zone": True,
+    "cooling_load": True,
+    "equipment": True,
+    "power": False,
+    "investment": True,
+}
+_POSITIVE_REVIEW_WARNINGS: dict[str, tuple[dict[str, str], ...]] = {
+    "zone": ({"code": "TEST_ZONE_REVIEW", "message": "zone producer review"},),
+    "cooling_load": ({"code": "TEST_COOLING_REVIEW", "message": "cooling producer review"},),
+    "equipment": ({"code": "TEST_EQUIPMENT_REVIEW", "message": "equipment producer review"},),
+    "power": ({"code": "DEFAULT_DEMAND_FACTOR", "message": "power advisory warning"},),
+    "investment": ({"code": "TEST_INVESTMENT_REVIEW", "message": "investment producer review"},),
+}
+_POSITIVE_REVIEW_RUN_IDS: dict[str, str] = {
+    "zone": A1_SEED_ZONE_RUN_ID,
+    "cooling_load": A1_SEED_COOL_RUN_ID,
+    "equipment": A1_SEED_EQUIP_RUN_ID,
+    "power": A1_SEED_POWER_RUN_ID,
+    "investment": A1_SEED_INVEST_RUN_ID,
+}
+
+
+def _seed_positive_review_required_state(session: Any) -> None:
+    """Rebind seeded CalculationRuns to the frozen mixed producer vector.
+
+    This test-only helper changes only CalculationRun and SourceBinding
+    evidence.  SchemeRun is still created by the real production service.
+    """
+    from sqlalchemy import select
+
+    from cold_storage.modules.orchestration.domain.fingerprint import result_hash
+    from cold_storage.modules.orchestration.domain.snapshots import (
+        build_source_snapshot_content_v1,
+    )
+    from cold_storage.modules.orchestration.infrastructure.orm import SourceBindingRecord
+    from cold_storage.modules.projects.infrastructure.orm import CalculationRunRecord
+    from cold_storage.modules.schemes.application.source_binding_verifier import (
+        _compute_combined_source_hash,
+    )
+
+    per_calculation_result_hashes: dict[str, str] = {}
+    for stage, run_id in _POSITIVE_REVIEW_RUN_IDS.items():
+        record = session.execute(
+            select(CalculationRunRecord).where(CalculationRunRecord.id == run_id)
+        ).scalar_one()
+        requires_review = _POSITIVE_REVIEW_VECTOR[stage]
+        record.requires_review = requires_review
+        record.warnings = [dict(warning) for warning in _POSITIVE_REVIEW_WARNINGS[stage]]
+        provenance = record.provenance or {}
+        content = build_source_snapshot_content_v1(
+            schema_version=record.schema_version or "1.0.0",
+            calculation_type=record.calculation_type,
+            calculator_name=record.calculator_name,
+            calculator_version=record.calculator_version,
+            project_id=record.project_id,
+            project_version_id=record.project_version_id,
+            execution_snapshot_id=record.execution_snapshot_id,
+            coefficient_context_id=record.coefficient_context_id,
+            orchestration_identity_id=record.orchestration_identity_id,
+            orchestration_run_attempt_id=record.orchestration_run_attempt_id,
+            input_hash=record.input_hash,
+            requires_review=requires_review,
+            payload=record.result_snapshot,
+            upstream_calculation_ids=provenance.get("upstream_calculation_ids", {}),
+        )
+        record.result_hash = result_hash(content)
+        per_calculation_result_hashes[stage] = record.result_hash
+
+    binding = session.execute(
+        select(SourceBindingRecord).where(SourceBindingRecord.id == A1_SEED_SOURCE_BINDING_ID)
+    ).scalar_one()
+    binding.per_calculation_result_hashes = per_calculation_result_hashes
+    binding.combined_source_hash = _compute_combined_source_hash(
+        binding_schema_version=binding.schema_version,
+        project_id=binding.project_id,
+        project_version_id=binding.project_version_id,
+        execution_snapshot_id=binding.execution_snapshot_id,
+        coefficient_context_id=binding.coefficient_context_id,
+        orchestration_identity_id=binding.orchestration_identity_id,
+        orchestration_attempt_id=binding.orchestration_run_attempt_id,
+        orchestration_fingerprint=binding.orchestration_fingerprint,
+        slot_ids=_POSITIVE_REVIEW_RUN_IDS,
+        result_hashes=per_calculation_result_hashes,
+        requires_reviews=_POSITIVE_REVIEW_VECTOR,
+    )
+    session.commit()
 
 
 # A trivial session factory for the input-validation tests. The
@@ -287,6 +377,70 @@ def test_execute_scenario_accepts_sqlite_database_backend(a1_engine, a1_session_
     assert result.weight_set_revision_id == A1_SEED_WEIGHT_REVISION_ID
     # AdapterResult MUST NOT carry calculation_run_ids (A1-2a)
     assert "calculation_run_ids" not in AdapterResult.__annotations__
+
+
+def _assert_positive_review_adapter_result(
+    session_factory: Callable[[], Any], backend: str
+) -> None:
+    """Exercise the real adapter boundary with the frozen mixed vector."""
+    from sqlalchemy import select
+
+    from cold_storage.modules.schemes.infrastructure.orm import SchemeRunRecord
+
+    seed_s = session_factory()
+    try:
+        seed_a1_all_prereqs(seed_s)
+        _seed_positive_review_required_state(seed_s)
+    finally:
+        seed_s.close()
+
+    result = execute_scenario(
+        session_factory,
+        source_binding_id=A1_SEED_SOURCE_BINDING_ID,
+        weight_set_revision_id=A1_SEED_WEIGHT_REVISION_ID,
+        correlation_id=f"test-positive-review-{backend}",
+        database_backend=backend,
+    )
+
+    assert result.review_required is True
+    assert result.review_reasons
+    assert all(isinstance(reason, ReviewReason) for reason in result.review_reasons)
+    assert [reason.stage for reason in result.review_reasons] == [
+        "zone",
+        "cooling_load",
+        "equipment",
+        "investment",
+    ]
+    assert all(reason.source_type == "calculation_run" for reason in result.review_reasons)
+    assert all(reason.stage != "power" for reason in result.review_reasons)
+    assert [reason.source_id for reason in result.review_reasons] == [
+        A1_SEED_ZONE_RUN_ID,
+        A1_SEED_COOL_RUN_ID,
+        A1_SEED_EQUIP_RUN_ID,
+        A1_SEED_INVEST_RUN_ID,
+    ]
+    assert [reason.code for reason in result.review_reasons] == [
+        "TEST_ZONE_REVIEW",
+        "TEST_COOLING_REVIEW",
+        "TEST_EQUIPMENT_REVIEW",
+        "TEST_INVESTMENT_REVIEW",
+    ]
+
+    # This is an independent fresh-session read of the JSON persistence
+    # surface, not the ORM object returned by the adapter.
+    with session_factory() as fresh_session:
+        record = fresh_session.execute(
+            select(SchemeRunRecord).where(SchemeRunRecord.id == result.scheme_run.id)
+        ).scalar_one()
+        assert record.warning_messages == [reason.to_json() for reason in result.review_reasons]
+        assert record.requires_review is True
+
+
+def test_execute_scenario_projects_positive_review_reasons_on_sqlite(
+    a1_engine, a1_session_factory
+) -> None:
+    """SQLite positive path returns persisted source-bound typed reasons."""
+    _assert_positive_review_adapter_result(a1_session_factory, "sqlite")
 
 
 # ── Test 4: ``correlation_id`` validation ───────────────────────────────
@@ -505,6 +659,15 @@ def test_execute_scenario_accepts_postgresql_database_backend(
         assert record.weight_set_revision_id == A1_SEED_WEIGHT_REVISION_ID
     finally:
         verify_s.close()
+
+
+@pytestmark_a2_pg
+def test_execute_scenario_projects_positive_review_reasons_on_postgresql(
+    a2_pg_engine, a2_pg_session_factory
+) -> None:
+    """PostgreSQL mirrors the positive typed ReviewReason adapter path."""
+    assert a2_pg_engine.dialect.name == "postgresql"
+    _assert_positive_review_adapter_result(a2_pg_session_factory, "postgresql")
 
 
 @pytestmark_a2_pg

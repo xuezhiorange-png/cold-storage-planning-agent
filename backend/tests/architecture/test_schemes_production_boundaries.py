@@ -288,3 +288,23 @@ class TestReviewReasonBoundaries:
 
         production_service = (APP_DIR / "production_service.py").read_text()
         assert "warning_messages=[]" not in production_service
+
+    def test_legacy_readback_has_explicit_marker_without_cast_laundering(self) -> None:
+        filepath = INFRA_DIR / "repository.py"
+        source = filepath.read_text()
+        tree = ast.parse(source, filename=str(filepath))
+        readback_functions = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_legacy_warning_readback"
+        ]
+        assert len(readback_functions) == 1
+        readback = readback_functions[0]
+        assert "LegacyWarningText" in ast.unparse(readback)
+        assert not any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "cast"
+            for node in ast.walk(readback)
+        ), "legacy readback must not cast strings into ReviewReason"

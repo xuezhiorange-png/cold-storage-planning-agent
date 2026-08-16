@@ -64,7 +64,10 @@ from cold_storage.modules.schemes.application.source_binding_verifier import (
     ProvenanceMissingKey,
     RequiresReviewMismatch,
     ResultHashMismatch,
+    ReviewReasonProjectionMismatch,
+    ReviewReasonSourceMismatch,
     ReviewReasonSourceMissingError,
+    ReviewStageVectorMismatch,
     SlotHashMapMismatch,
     SlotIdentityMismatch,
     SlotMissingError,
@@ -331,6 +334,17 @@ def _build_valid_mapping(**overrides: Any) -> VerifiedSourceMapping:
         "investment": "run-inv-001",
     }
 
+    review_vector = overrides.pop(
+        "requires_review_by_stage",
+        {stage: False for stage in ORCHESTRATION_STAGE_ORDER},
+    )
+    warning_evidence = overrides.pop(
+        "warnings_by_stage",
+        {stage: () for stage in ORCHESTRATION_STAGE_ORDER},
+    )
+    review_reasons = overrides.pop("review_reasons", ())
+    aggregate_review = overrides.pop("requires_review", any(review_vector.values()))
+
     combined = _compute_combined_source_hash(
         binding_schema_version="1.0.0",
         project_id=_PID,
@@ -342,13 +356,7 @@ def _build_valid_mapping(**overrides: Any) -> VerifiedSourceMapping:
         orchestration_fingerprint=_FP,
         slot_ids=slot_ids,
         result_hashes=_STAGE_HASHES,
-        requires_reviews={
-            "zone": False,
-            "cooling_load": False,
-            "equipment": False,
-            "power": False,
-            "investment": False,
-        },
+        requires_reviews=review_vector,
     )
 
     defaults = dict(
@@ -361,7 +369,7 @@ def _build_valid_mapping(**overrides: Any) -> VerifiedSourceMapping:
         orchestration_fingerprint=_FP,
         combined_source_hash=combined,
         binding_schema_version="1.0.0",
-        requires_review=False,
+        requires_review=aggregate_review,
         zone_result_snapshot=_zone_result(),
         zone_result_hash=_STAGE_HASHES["zone"],
         cooling_load_result_snapshot=_cooling_load_result(),
@@ -378,6 +386,9 @@ def _build_valid_mapping(**overrides: Any) -> VerifiedSourceMapping:
         equipment_calculation_id="run-eq-001",
         power_calculation_id="run-pow-001",
         investment_calculation_id="run-inv-001",
+        review_reasons=review_reasons,
+        requires_review_by_stage=review_vector,
+        warnings_by_stage=warning_evidence,
     )
     defaults.update(overrides)
     return VerifiedSourceMapping(**defaults)
@@ -568,6 +579,177 @@ class TestVerifySourceMappingStrict:
         """Valid bool requires_review passes."""
         state = _build_valid_mapping(requires_review=False)
         verify_source_mapping(state)
+
+    @pytest.mark.parametrize(
+        "vector",
+        [
+            {
+                "zone": True,
+                "cooling_load": True,
+                "equipment": True,
+                "power": False,
+            },
+            {
+                "zone": True,
+                "cooling_load": True,
+                "equipment": True,
+                "power": 0,
+                "investment": True,
+            },
+        ],
+    )
+    def test_stage_vector_requires_exact_keys_and_bool_values(
+        self, vector: dict[str, object]
+    ) -> None:
+        state = dataclasses.replace(_build_valid_mapping(), requires_review_by_stage=vector)
+        with pytest.raises(ReviewStageVectorMismatch) as exc_info:
+            verify_source_mapping(state)
+        assert exc_info.value.code == "REVIEW_STAGE_VECTOR_MISMATCH"
+
+    def test_mixed_stage_review_vector_and_source_reasons_pass(self) -> None:
+        vector = {
+            "zone": True,
+            "cooling_load": True,
+            "equipment": True,
+            "power": False,
+            "investment": True,
+        }
+        warnings = {
+            "zone": ({"code": "Z", "message": "zone review"},),
+            "cooling_load": ({"code": "CL", "message": "cooling review"},),
+            "equipment": ({"code": "EQ", "message": "equipment review"},),
+            "power": ({"code": "DEFAULT_DEMAND_FACTOR", "message": "advisory"},),
+            "investment": ({"code": "INV", "message": "investment review"},),
+        }
+        reasons = (
+            ReviewReason("Z", "zone review", "zone", "calculation_run", "run-z-001"),
+            ReviewReason("CL", "cooling review", "cooling_load", "calculation_run", "run-cl-001"),
+            ReviewReason("EQ", "equipment review", "equipment", "calculation_run", "run-eq-001"),
+            ReviewReason(
+                "INV", "investment review", "investment", "calculation_run", "run-inv-001"
+            ),
+        )
+        state = _build_valid_mapping(
+            requires_review_by_stage=vector,
+            warnings_by_stage=warnings,
+            review_reasons=reasons,
+        )
+
+        assert verify_source_mapping(state) is state
+
+    def test_combined_hash_detects_stage_vector_tampering(self) -> None:
+        vector = {
+            "zone": True,
+            "cooling_load": True,
+            "equipment": True,
+            "power": False,
+            "investment": True,
+        }
+        warnings = {
+            "zone": ({"code": "Z", "message": "zone review"},),
+            "cooling_load": ({"code": "CL", "message": "cooling review"},),
+            "equipment": ({"code": "EQ", "message": "equipment review"},),
+            "power": ({"code": "DEFAULT_DEMAND_FACTOR", "message": "advisory"},),
+            "investment": ({"code": "INV", "message": "investment review"},),
+        }
+        reasons = (
+            ReviewReason("Z", "zone review", "zone", "calculation_run", "run-z-001"),
+            ReviewReason("CL", "cooling review", "cooling_load", "calculation_run", "run-cl-001"),
+            ReviewReason("EQ", "equipment review", "equipment", "calculation_run", "run-eq-001"),
+            ReviewReason(
+                "INV", "investment review", "investment", "calculation_run", "run-inv-001"
+            ),
+        )
+        state = _build_valid_mapping(
+            requires_review_by_stage=vector,
+            warnings_by_stage=warnings,
+            review_reasons=reasons,
+        )
+        tampered_vector = dict(vector)
+        tampered_vector["power"] = True
+
+        with pytest.raises(CombinedHashMismatch) as exc_info:
+            verify_source_mapping(
+                dataclasses.replace(state, requires_review_by_stage=tampered_vector)
+            )
+        assert exc_info.value.code == "combined_hash_mismatch"
+
+    def test_aggregate_review_flag_cannot_replace_stage_vector(self) -> None:
+        vector = {
+            "zone": True,
+            "cooling_load": True,
+            "equipment": True,
+            "power": False,
+            "investment": True,
+        }
+        with pytest.raises(ReviewStageVectorMismatch) as exc_info:
+            verify_source_mapping(
+                _build_valid_mapping(
+                    requires_review_by_stage=vector,
+                    requires_review=False,
+                )
+            )
+        assert exc_info.value.code == "REVIEW_STAGE_VECTOR_MISMATCH"
+
+    def test_false_stage_reason_is_rejected(self) -> None:
+        reason = ReviewReason(
+            "DEFAULT_DEMAND_FACTOR",
+            "advisory",
+            "power",
+            "calculation_run",
+            "run-pow-001",
+        )
+        with pytest.raises(ReviewReasonSourceMismatch) as exc_info:
+            verify_source_mapping(_build_valid_mapping(review_reasons=(reason,)))
+        assert exc_info.value.code == "REVIEW_REASON_SOURCE_MISMATCH"
+
+    def test_reason_source_id_must_match_stage_calculation_id(self) -> None:
+        reason = ReviewReason("Z", "zone review", "zone", "calculation_run", "wrong-id")
+        with pytest.raises(ReviewReasonSourceMismatch) as exc_info:
+            verify_source_mapping(
+                _build_valid_mapping(
+                    requires_review_by_stage={
+                        "zone": True,
+                        "cooling_load": False,
+                        "equipment": False,
+                        "power": False,
+                        "investment": False,
+                    },
+                    warnings_by_stage={
+                        "zone": ({"code": "Z", "message": "zone review"},),
+                        "cooling_load": (),
+                        "equipment": (),
+                        "power": (),
+                        "investment": (),
+                    },
+                    review_reasons=(reason,),
+                )
+            )
+        assert exc_info.value.code == "REVIEW_REASON_SOURCE_MISMATCH"
+
+    def test_reason_set_must_match_producer_warning_evidence_exactly(self) -> None:
+        reason = ReviewReason("WRONG", "zone review", "zone", "calculation_run", "run-z-001")
+        with pytest.raises(ReviewReasonProjectionMismatch) as exc_info:
+            verify_source_mapping(
+                _build_valid_mapping(
+                    requires_review_by_stage={
+                        "zone": True,
+                        "cooling_load": False,
+                        "equipment": False,
+                        "power": False,
+                        "investment": False,
+                    },
+                    warnings_by_stage={
+                        "zone": ({"code": "Z", "message": "zone review"},),
+                        "cooling_load": (),
+                        "equipment": (),
+                        "power": (),
+                        "investment": (),
+                    },
+                    review_reasons=(reason,),
+                )
+            )
+        assert exc_info.value.code == "REVIEW_REASON_PROJECTION_MISMATCH"
 
     # ── Provenance (structural) ────────────────────────────────────────
 

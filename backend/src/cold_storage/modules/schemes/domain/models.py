@@ -6,7 +6,7 @@ Float is only permitted at the DB/JSON serialisation boundary.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -19,6 +19,10 @@ def _uuid() -> str:
 
 _REVIEW_REASON_FIELDS = frozenset({"code", "message", "stage", "source_type", "source_id"})
 _REVIEW_REASON_STAGES = frozenset({"zone", "cooling_load", "equipment", "power", "investment"})
+
+
+class LegacyWarningText(str):
+    """Opaque legacy warning text, never a canonical review authority."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -375,7 +379,9 @@ class SchemeRun:
     completed_at: datetime | None = None
     content_hash: str | None = None
     recommended_scheme_code: str | None = None
-    warning_messages: list[ReviewReason] = field(default_factory=list)
+    # The explicit legacy marker is limited to this general compatibility
+    # model.  Production ports/readback remain ReviewReason-only.
+    warning_messages: Sequence[ReviewReason | LegacyWarningText] = field(default_factory=list)
     # Phase 1 (Task 11B) schema contract: 0035+0036 made
     # ``scheme_runs.database_backend`` NOT NULL with **no**
     # column-level server_default. The domain model therefore

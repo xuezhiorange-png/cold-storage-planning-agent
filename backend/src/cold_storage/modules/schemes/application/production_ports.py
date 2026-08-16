@@ -209,6 +209,16 @@ class VerifiedSourceMapping:
     # Source-bound review reasons projected from the true producer stages.
     review_reasons: tuple[ReviewReason, ...] = ()
 
+    # The five producer booleans are retained independently of the aggregate
+    # review flag.  The fixed insertion order is part of the source-binding
+    # contract and is validated by the strict mapping verifier.
+    requires_review_by_stage: dict[str, bool] = field(default_factory=dict)
+
+    # Raw warning evidence is carried alongside the mapping so a caller that
+    # verifies this boundary can prove code/message identity without
+    # reconstructing producer evidence from the canonical reasons.
+    warnings_by_stage: dict[str, tuple[dict[str, Any], ...]] = field(default_factory=dict)
+
 
 # ── Production scheme run repository port ──────────────────────────────────
 

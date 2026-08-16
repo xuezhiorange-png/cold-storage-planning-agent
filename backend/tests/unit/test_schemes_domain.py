@@ -46,6 +46,7 @@ from cold_storage.modules.schemes.domain.models import (
     CoolingLoadResult,
     EquipmentResult,
     InvestmentResult,
+    LegacyWarningText,
     ReviewReason,
     SchemeCandidate,
     SchemeComparisonResult,
@@ -1388,3 +1389,13 @@ class TestReviewReason:
         )
 
         assert run.warning_messages == [reason]
+
+    def test_legacy_warning_marker_is_not_canonical_reason(self) -> None:
+        legacy = LegacyWarningText("historical warning")
+
+        assert isinstance(legacy, str)
+        assert not isinstance(legacy, ReviewReason)
+        with pytest.raises(ValueError, match="entries must be objects"):
+            from cold_storage.modules.schemes.domain.models import review_reasons_from_json
+
+            review_reasons_from_json(["historical warning"])
