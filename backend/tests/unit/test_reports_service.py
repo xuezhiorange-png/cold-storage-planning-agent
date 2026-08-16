@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, delete
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -14,13 +16,15 @@ from cold_storage.modules.reports.application.assembler import (
     ReportDataProvider,
 )
 from cold_storage.modules.reports.application.service import ReportService
-from cold_storage.modules.reports.domain.enums import ReportStatus, ReportType
+from cold_storage.modules.reports.domain.enums import ReportStatus, ReportType, ReviewAction
 from cold_storage.modules.reports.domain.errors import (
     InvalidStatusTransitionError,
     ReportNotFoundError,
 )
 from cold_storage.modules.reports.infrastructure.orm import Base
 from cold_storage.modules.reports.infrastructure.repository import SQLReportRepository
+from cold_storage.modules.schemes.application.query import SchemeReviewAuthority
+from cold_storage.modules.schemes.domain.models import ReviewReason
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -859,3 +863,199 @@ class TestIdempotencyAtomicClaim:
             db_session.rollback()
             # The duplicate key constraint fired — _claim_idempotency catches
             # this and converts to IdempotencyClaimError
+
+
+def _review_authority() -> SchemeReviewAuthority:
+    return SchemeReviewAuthority(
+        scheme_run_id="scheme-review-1",
+        project_id="p1",
+        project_version_id="v1",
+        requires_review=True,
+        review_reasons=(
+            ReviewReason(
+                code="ZONE_WARNING",
+                message="zone review",
+                stage="zone",
+                source_type="calculation_run",
+                source_id="calc-zone-1",
+            ),
+        ),
+        source_binding_id="binding-1",
+        combined_source_hash="combined-1",
+        content_hash="scheme-content-1",
+        recommended_scheme_code="s1",
+        generator_version="1.0.0",
+    )
+
+
+class _ReviewAuthorityProvider(_FakeDataProvider):
+    def __init__(self, authority: SchemeReviewAuthority) -> None:
+        self._authority = authority
+
+    def get_scheme_results(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        result = super().get_scheme_results(project_id, version_id)
+        assert result is not None
+        result["review_authority"] = self._authority.to_snapshot()
+        return result
+
+
+class _ReviewAuthorityQuery:
+    def __init__(self, authority: SchemeReviewAuthority) -> None:
+        self.authority = authority
+
+    def get_review_authority(self, project_id: str, version_id: str) -> SchemeReviewAuthority:
+        assert (project_id, version_id) == (
+            self.authority.project_id,
+            self.authority.project_version_id,
+        )
+        return self.authority
+
+
+def test_review_required_approval_requires_persisted_mark_reviewed(db_session) -> None:
+    authority = _review_authority()
+    repo = SQLReportRepository(db_session)
+    assembler = ReportAssembler(_ReviewAuthorityProvider(authority))
+    service = ReportService(
+        repo,
+        assembler,
+        scheme_review_query=_ReviewAuthorityQuery(authority),
+        trusted_operator=lambda actor: actor == "trusted-operator",
+    )
+    report = service.create_report(
+        project_id="p1",
+        project_version_id="v1",
+        report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+        actor="trusted-operator",
+    )
+    service.generate_revision(report.id, "trusted-operator")
+    service.submit_review(report.id, "trusted-operator")
+    service.mark_reviewed(report.id, "trusted-operator")
+
+    from cold_storage.modules.reports.infrastructure.orm import ReportReviewActionRecord
+
+    db_session.execute(delete(ReportReviewActionRecord))
+    db_session.commit()
+    with pytest.raises(ValueError, match="persisted mark_reviewed proof"):
+        service.approve(report.id, "trusted-operator")
+
+
+def test_review_required_approval_accepts_exact_persisted_proof(db_session) -> None:
+    authority = _review_authority()
+    repo = SQLReportRepository(db_session)
+    service = ReportService(
+        repo,
+        ReportAssembler(_ReviewAuthorityProvider(authority)),
+        scheme_review_query=_ReviewAuthorityQuery(authority),
+        trusted_operator=lambda actor: actor == "trusted-operator",
+    )
+    report = service.create_report(
+        project_id="p1",
+        project_version_id="v1",
+        report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+        actor="trusted-operator",
+    )
+    service.generate_revision(report.id, "trusted-operator")
+    service.submit_review(report.id, "trusted-operator")
+    service.mark_reviewed(report.id, "trusted-operator")
+
+    approved = service.approve(report.id, "trusted-operator")
+
+    assert approved.status == ReportStatus.APPROVED
+    actions = repo.list_review_actions(report.id)
+    assert [action.action.value for action in actions][-2:] == ["mark_reviewed", "approve"]
+
+
+def test_persisted_mark_reviewed_readback_uses_fresh_session(tmp_path) -> None:
+    """The review proof is readable after the writer session is discarded."""
+    from cold_storage.modules.reports.infrastructure.orm import (
+        ReportRecord,
+        ReportReviewActionRecord,
+        ReportRevisionRecord,
+    )
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'review-actions.db'}")
+    Base.metadata.create_all(engine)
+    SessionFactory = sessionmaker(bind=engine, expire_on_commit=False)
+    now = datetime.now(UTC)
+    report_id = "report-fresh-readback"
+    revision_id = "revision-fresh-readback"
+    action_id = "action-fresh-readback"
+    with SessionFactory() as writer:
+        writer.add(
+            ReportRecord(
+                id=report_id,
+                project_id="p1",
+                project_version_id="v1",
+                report_type="cold_storage_concept_design",
+                status="reviewed",
+                current_revision_number=1,
+                created_by="trusted-operator",
+                created_at=now,
+                updated_at=now,
+                version=2,
+            )
+        )
+        writer.add(
+            ReportRevisionRecord(
+                id=revision_id,
+                report_id=report_id,
+                revision_number=1,
+                schema_version="cold_storage_concept_design@1.0.0",
+                content_json={},
+                canonical_content_json={},
+                content_hash="revision-hash",
+                quality_status="reviewed",
+                quality_findings_json=[],
+                generated_by="trusted-operator",
+                generated_at=now,
+            )
+        )
+        writer.add(
+            ReportReviewActionRecord(
+                id=action_id,
+                report_id=report_id,
+                report_revision_id=revision_id,
+                action="mark_reviewed",
+                actor="trusted-operator",
+                comment="reviewed",
+                from_status="under_review",
+                to_status="reviewed",
+                created_at=now,
+            )
+        )
+        writer.commit()
+
+    with SessionFactory() as reader:
+        actions = SQLReportRepository(reader).list_review_actions(
+            report_id,
+            report_revision_id=revision_id,
+            action=ReviewAction.MARK_REVIEWED,
+        )
+
+    assert len(actions) == 1
+    assert actions[0].id == action_id
+    assert actions[0].report_revision_id == revision_id
+    assert actions[0].actor == "trusted-operator"
+
+
+def test_stale_scheme_review_snapshot_fails_closed(db_session) -> None:
+    authority = _review_authority()
+    changed_authority = replace(authority, combined_source_hash="changed-combined")
+    repo = SQLReportRepository(db_session)
+    service = ReportService(
+        repo,
+        ReportAssembler(_ReviewAuthorityProvider(authority)),
+        scheme_review_query=_ReviewAuthorityQuery(changed_authority),
+        trusted_operator=lambda actor: actor == "trusted-operator",
+    )
+    report = service.create_report(
+        project_id="p1",
+        project_version_id="v1",
+        report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+        actor="trusted-operator",
+    )
+    service.generate_revision(report.id, "trusted-operator")
+    service.submit_review(report.id, "trusted-operator")
+
+    with pytest.raises(ValueError, match="stale or mismatched"):
+        service.mark_reviewed(report.id, "trusted-operator")

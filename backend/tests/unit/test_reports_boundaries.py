@@ -10,6 +10,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
 REPORTS_MODULE = (
     Path(__file__).resolve().parents[2] / "src" / "cold_storage" / "modules" / "reports"
@@ -110,3 +112,22 @@ def test_reports_domain_has_no_infrastructure_imports() -> None:
     assert not violations, "Reports domain imports from infrastructure layers:\n" + "\n".join(
         violations
     )
+
+
+def test_create_app_report_composition_uses_public_scheme_authority_query() -> None:
+    """Exercise the real app factory's report service composition."""
+    from cold_storage.bootstrap.app import create_app
+    from cold_storage.modules.reports.api.routes import _get_service
+    from cold_storage.modules.reports.infrastructure.orm import Base
+
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    app = create_app()
+    factory = app.dependency_overrides[_get_service]
+
+    with Session(engine) as session:
+        service = factory(session)
+
+    provider = service._assembler._provider
+    assert service._scheme_review_query is provider._scheme_query
+    assert service._scheme_review_query.__class__.__name__ == "SchemeQueryService"

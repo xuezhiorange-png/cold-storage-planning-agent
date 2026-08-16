@@ -573,7 +573,40 @@ class RealReportDataProvider(ReportDataProvider):
         """
         if self._scheme_query is None:
             return None
+        authority_reader = getattr(self._scheme_query, "get_review_authority", None)
         try:
+            # Production composition exposes a strict typed authority query.
+            # The report boundary receives its closed JSON projection; it
+            # never decodes Scheme ORM rows or reconstructs review state.
+            authority = (
+                authority_reader(project_id, version_id) if callable(authority_reader) else None
+            )
+            if authority is not None:
+                candidates = self._scheme_query.get_candidates_for_run(authority.scheme_run_id)
+                authority_schemes = [
+                    {
+                        "scheme_id": c["id"],
+                        "name": c.get("scheme_code", c["id"]),
+                        "total_score": c.get("total_score", "0"),
+                        "rank": c.get("rank", 0),
+                    }
+                    for c in candidates
+                ]
+                return {
+                    "run_id": authority.scheme_run_id,
+                    "status": authority.status,
+                    "schemes": authority_schemes,
+                    "recommended_scheme": authority.to_snapshot().get(
+                        "recommended_scheme_code", ""
+                    ),
+                    "generator_version": authority.generator_version,
+                    "persisted_content_hash": authority.content_hash,
+                    "review_authority": authority.to_snapshot(),
+                    # The strict production reader already verified the full
+                    # SchemeRun content hash and source lineage.
+                    "source_hash_mismatch": False,
+                }
+
             runs = self._scheme_query.get_completed_runs_for_project_version(project_id, version_id)
             if not runs:
                 return None
@@ -628,6 +661,11 @@ class RealReportDataProvider(ReportDataProvider):
 
             return result
         except Exception:  # noqa: BLE001
+            # A configured strict authority reader must surface corruption or
+            # stale lineage.  Only the legacy dictionary-only adapter retains
+            # the historical empty-projection fallback.
+            if callable(authority_reader):
+                raise
             return None
 
     def get_knowledge_documents(self) -> list[dict[str, Any]]:

@@ -30,7 +30,10 @@ from cold_storage.modules.reports.application.render_service import (
 from cold_storage.modules.reports.domain.enums import (
     ArtifactStatus,
     ExportFormat,
+    RenderMode,
     ReportLocale,
+    ReportStatus,
+    ReviewAction,
     TemplateStatus,
 )
 from cold_storage.modules.reports.domain.errors import (
@@ -39,17 +42,20 @@ from cold_storage.modules.reports.domain.errors import (
     ReportNotFoundError,
     TemplateNotFoundError,
 )
+from cold_storage.modules.reports.domain.models import ReportReviewAction
 from cold_storage.modules.reports.domain.render_model import (
     CanonicalRenderTable,
     CanonicalRenderTableCell,
     LocalizedRenderTableCell,
 )
-from cold_storage.modules.reports.infrastructure.orm import Base
+from cold_storage.modules.reports.infrastructure.orm import Base, ReportRevisionRecord
 from cold_storage.modules.reports.infrastructure.repository import (
     SQLReportRepository,
 )
 from cold_storage.modules.reports.renderers.docx_renderer import DocxRenderer
 from cold_storage.modules.reports.renderers.pdf_renderer import PdfRenderer
+from cold_storage.modules.schemes.application.query import SchemeReviewAuthority
+from cold_storage.modules.schemes.domain.models import ReviewReason
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -1615,3 +1621,73 @@ class TestOwnerIsolation:
                 actor="user2",
                 locale=ReportLocale.ZH_CN,
             )
+
+
+def test_formal_render_rejects_approved_status_without_review_proof(
+    db_session, repo, render_service
+) -> None:
+    """A manually approved row cannot bypass the persisted review gate."""
+    authority = SchemeReviewAuthority(
+        scheme_run_id="scheme-render-1",
+        project_id="project-001",
+        project_version_id="version-001",
+        requires_review=True,
+        review_reasons=(
+            ReviewReason(
+                code="ZONE_WARNING",
+                message="zone review",
+                stage="zone",
+                source_type="calculation_run",
+                source_id="calc-zone-1",
+            ),
+        ),
+        source_binding_id="binding-render-1",
+        combined_source_hash="combined-render-1",
+        content_hash="scheme-render-content-1",
+    )
+    report_id, revision_id, _ = _seed_report(
+        db_session,
+        status="approved",
+        approved=True,
+    )
+    revision_record = db_session.get(ReportRevisionRecord, revision_id)
+    assert revision_record is not None
+    revision_record.content_json = {
+        "scheme_comparison": {"review_authority": authority.to_snapshot()}
+    }
+    db_session.commit()
+
+    _, _, storage = render_service
+
+    class _Query:
+        def get_review_authority(self, project_id: str, version_id: str):
+            return authority
+
+    gated = ReportRenderService(
+        uow=ReportRenderUnitOfWork(db_session, report_repo=repo, artifact_repo=repo),
+        storage=storage,
+        template_repo=repo,
+        scheme_review_query=_Query(),
+        trusted_operator=lambda actor: actor == "trusted-operator",
+    )
+    report = repo.get_report(report_id)
+    revision = repo.get_revision(report_id, 1)
+    assert report is not None
+    assert revision is not None
+
+    with pytest.raises(ExportPermissionError, match="mark_reviewed proof"):
+        gated._validate_export_mode(report, RenderMode.FORMAL, revision)
+
+    repo.save_review_action(
+        ReportReviewAction.create(
+            report_id=report_id,
+            report_revision_id=revision_id,
+            action=ReviewAction.MARK_REVIEWED,
+            actor="trusted-operator",
+            comment="reviewed",
+            from_status=ReportStatus.UNDER_REVIEW,
+            to_status=ReportStatus.REVIEWED,
+        )
+    )
+    repo.commit()
+    gated._validate_export_mode(report, RenderMode.FORMAL, revision)

@@ -15,6 +15,7 @@ from cold_storage.modules.reports.domain.enums import (
     ReportLocale,
     ReportStatus,
     ReportType,
+    ReviewAction,
     SourceType,
     TemplateStatus,
 )
@@ -276,6 +277,46 @@ class SQLReportRepository(ReportRepository):
             created_at=action.created_at,
         )
         self._session.add(rec)
+
+    def list_review_actions(
+        self,
+        report_id: str,
+        *,
+        report_revision_id: str | None = None,
+        action: ReviewAction | None = None,
+    ) -> list[ReportReviewAction]:
+        """Read review actions from the persisted audit table.
+
+        This query intentionally does not infer proof from the current report
+        status or approval columns.  Callers validate the returned immutable
+        audit records against the exact report revision and lineage.
+        """
+        stmt = sa.select(ReportReviewActionRecord).where(
+            ReportReviewActionRecord.report_id == report_id
+        )
+        if report_revision_id is not None:
+            stmt = stmt.where(ReportReviewActionRecord.report_revision_id == report_revision_id)
+        if action is not None:
+            stmt = stmt.where(ReportReviewActionRecord.action == action.value)
+        stmt = stmt.order_by(
+            ReportReviewActionRecord.created_at,
+            ReportReviewActionRecord.id,
+        )
+        records = self._session.execute(stmt).scalars().all()
+        return [
+            ReportReviewAction(
+                id=record.id,
+                report_id=record.report_id,
+                report_revision_id=record.report_revision_id,
+                action=ReviewAction(record.action),
+                actor=record.actor,
+                comment=record.comment or "",
+                from_status=ReportStatus(record.from_status),
+                to_status=ReportStatus(record.to_status),
+                created_at=_parse_dt(record.created_at),
+            )
+            for record in records
+        ]
 
     # --- Idempotency Records ---
 

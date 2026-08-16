@@ -47,6 +47,77 @@ def _measured_value(extra_props: dict[str, Any] | None = None) -> dict[str, Any]
     }
 
 
+def _scheme_review_authority_schema() -> dict[str, Any]:
+    """Closed report projection for the persisted SchemeRun authority."""
+    reason = {
+        "type": "object",
+        "required": ["code", "message", "stage", "source_type", "source_id"],
+        "properties": {
+            "code": {"type": "string"},
+            "message": {"type": "string"},
+            "stage": {
+                "type": "string",
+                "enum": ["zone", "cooling_load", "equipment", "power", "investment"],
+            },
+            "source_type": {"const": "calculation_run"},
+            "source_id": {"type": "string"},
+        },
+        "additionalProperties": False,
+    }
+    string_fields = (
+        "scheme_run_id",
+        "project_id",
+        "project_version_id",
+        "status",
+        "recommended_scheme_code",
+        "source_binding_id",
+        "combined_source_hash",
+        "content_hash",
+        "source_contract_version",
+        "binding_schema_version",
+        "execution_snapshot_id",
+        "coefficient_context_id",
+        "orchestration_identity_id",
+        "authoritative_attempt_id",
+        "orchestration_fingerprint",
+        "zone_calculation_id",
+        "cooling_load_calculation_id",
+        "equipment_calculation_id",
+        "power_calculation_id",
+        "investment_calculation_id",
+        "zone_result_hash",
+        "cooling_load_result_hash",
+        "equipment_result_hash",
+        "power_result_hash",
+        "investment_result_hash",
+        "weight_set_id",
+        "weight_set_revision_id",
+        "weight_set_content_hash",
+        "weight_set_generator_compatibility_version",
+        "generator_version",
+        "database_backend",
+    )
+    return {
+        "type": "object",
+        "required": [
+            "scheme_run_id",
+            "project_id",
+            "project_version_id",
+            "requires_review",
+            "review_reasons",
+            "source_binding_id",
+            "combined_source_hash",
+            "content_hash",
+        ],
+        "properties": {
+            **{field: {"type": "string"} for field in string_fields},
+            "requires_review": {"type": "boolean"},
+            "review_reasons": {"type": "array", "items": reason},
+        },
+        "additionalProperties": False,
+    }
+
+
 COLD_STORAGE_CONCEPT_DESIGN_V1: dict[str, Any] = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "cold_storage_concept_design@1.0.0",
@@ -165,6 +236,7 @@ COLD_STORAGE_CONCEPT_DESIGN_V1: dict[str, Any] = {
                 "persisted_content_hash": {"type": "string"},
                 "computed_content_hash": {"type": "string"},
                 "comparison_metrics": {"type": "array", "items": {"type": "object"}},
+                "review_authority": _scheme_review_authority_schema(),
             },
             "additionalProperties": False,
         },

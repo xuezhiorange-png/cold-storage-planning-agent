@@ -5,6 +5,7 @@ No ORM access, no LLM calls.  Uses repository port and assembler.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -47,6 +48,76 @@ def _parse_dt(val: Any) -> datetime | Any:
     return val
 
 
+def _default_trusted_operator(actor: str) -> bool:
+    """Reject framework/system identities at the controlled operator seam."""
+    normalized = actor.strip()
+    return bool(normalized) and normalized not in {"system", "api", "background", "llm"}
+
+
+def _embedded_review_authority(revision: ReportRevision) -> dict[str, Any] | None:
+    scheme = revision.content_json.get("scheme_comparison")
+    if not isinstance(scheme, dict):
+        return None
+    authority = scheme.get("review_authority")
+    return authority if isinstance(authority, dict) else None
+
+
+def _validate_scheme_review_lineage(
+    *,
+    report: Report,
+    revision: ReportRevision,
+    scheme_review_query: Any,
+) -> Any | None:
+    """Re-read and compare the exact persisted SchemeRun report snapshot."""
+    if scheme_review_query is None:
+        return None
+    authority = scheme_review_query.get_review_authority(
+        report.project_id, report.project_version_id
+    )
+    embedded = _embedded_review_authority(revision)
+    if authority is None:
+        if embedded is not None:
+            raise ValueError("Scheme review authority disappeared after report generation")
+        return None
+    if not hasattr(authority, "to_snapshot"):
+        raise ValueError("Scheme review query returned an untyped authority")
+    expected = authority.to_snapshot()
+    if embedded is None:
+        raise ValueError("Report revision has no Scheme review authority snapshot")
+    if embedded != expected:
+        raise ValueError("Report revision Scheme review authority is stale or mismatched")
+    return authority
+
+
+def _require_persisted_mark_reviewed(
+    *,
+    repository: ReportRepository,
+    report: Report,
+    revision: ReportRevision,
+    trusted_operator: Callable[[str], bool],
+) -> ReportReviewAction:
+    """Require one exact persisted, trusted mark_reviewed proof."""
+    actions = repository.list_review_actions(
+        report.id,
+        report_revision_id=revision.id,
+        action=ReviewAction.MARK_REVIEWED,
+    )
+    valid = [
+        action
+        for action in actions
+        if action.report_id == report.id
+        and action.report_revision_id == revision.id
+        and action.action == ReviewAction.MARK_REVIEWED
+        and action.from_status == ReportStatus.UNDER_REVIEW
+        and action.to_status == ReportStatus.REVIEWED
+        and bool(action.actor.strip())
+        and trusted_operator(action.actor)
+    ]
+    if len(valid) != 1:
+        raise ValueError("Exactly one valid persisted mark_reviewed proof is required")
+    return valid[0]
+
+
 class ReportRepository:
     """Port: persistence for reports, revisions, source refs, review actions."""
 
@@ -77,6 +148,16 @@ class ReportRepository:
         raise NotImplementedError
 
     def save_review_action(self, action: ReportReviewAction) -> None:
+        raise NotImplementedError
+
+    def list_review_actions(
+        self,
+        report_id: str,
+        *,
+        report_revision_id: str | None = None,
+        action: ReviewAction | None = None,
+    ) -> list[ReportReviewAction]:
+        """Read persisted review actions for authoritative lifecycle proof."""
         raise NotImplementedError
 
     def get_latest_revision(self, report_id: str) -> ReportRevision | None:
@@ -245,9 +326,14 @@ class ReportService:
         self,
         repository: ReportRepository,
         assembler: ReportAssembler,
+        *,
+        scheme_review_query: Any | None = None,
+        trusted_operator: Callable[[str], bool] | None = None,
     ) -> None:
         self._repo = repository
         self._assembler = assembler
+        self._scheme_review_query = scheme_review_query
+        self._trusted_operator = trusted_operator or _default_trusted_operator
 
     # --- CRUD ---
 
@@ -500,6 +586,18 @@ class ReportService:
             # Check blockers
             if has_blockers(latest_rev.quality_findings_json):
                 raise QualityBlockerError(get_blockers(latest_rev.quality_findings_json))
+            authority = _validate_scheme_review_lineage(
+                report=report,
+                revision=latest_rev,
+                scheme_review_query=self._scheme_review_query,
+            )
+            if authority is not None and authority.requires_review:
+                _require_persisted_mark_reviewed(
+                    repository=self._repo,
+                    report=report,
+                    revision=latest_rev,
+                    trusted_operator=self._trusted_operator,
+                )
             from datetime import datetime as _dt
 
             approval_fields = {
@@ -516,6 +614,17 @@ class ReportService:
                 "approved_by": None,
                 "approved_at": None,
             }
+
+        if action == ReviewAction.MARK_REVIEWED:
+            if not self._trusted_operator(actor):
+                raise ValueError("mark_reviewed requires a trusted operator actor")
+            if latest_rev is None:
+                raise ReportNotFoundError(f"No revision to review for report {report_id}")
+            _validate_scheme_review_lineage(
+                report=report,
+                revision=latest_rev,
+                scheme_review_query=self._scheme_review_query,
+            )
 
         # Record action with real revision UUID
         action_record = ReportReviewAction.create(
