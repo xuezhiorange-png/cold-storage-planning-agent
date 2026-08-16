@@ -900,6 +900,7 @@ SCHEME_ORM_ACCESS_FROM_REPORT_COMPOSITION=FORBIDDEN
 
 ```text
 backend/tests/unit/test_real_report_data_provider.py
+backend/tests/unit/test_reports_api.py
 backend/tests/unit/test_reports_boundaries.py
 backend/tests/unit/test_reports_service.py
 backend/tests/unit/test_reports_rendering.py
@@ -915,6 +916,12 @@ backend/tests/test_reports/test_waiter_concurrent.py
 backend/tests/test_reports/test_concurrent_activation.py
 backend/tests/test_reports/test_idempotency_failure_states.py
 backend/tests/test_reports/test_storage_recovery_and_atomic.py
+```
+
+```text
+LANE_B_REPORTS_API_TEST_CORRECTIVE_SCOPE=TEST_ONLY
+PRODUCTION_SCOPE_EXPANSION=NO
+FAIL_CLOSED_SEMANTICS_WEAKENING=NO
 ```
 
 ### P1_CONTROLLED_ACCEPTANCE_CODE_ALLOWLIST
@@ -1014,6 +1021,7 @@ backend/tests/integration/test_production_scheme_postgresql.py
 backend/tests/evaluation/test_path_a_adapter.py
 backend/tests/architecture/test_schemes_production_boundaries.py
 backend/tests/unit/test_real_report_data_provider.py
+backend/tests/unit/test_reports_api.py
 backend/tests/unit/test_reports_boundaries.py
 backend/tests/unit/test_reports_service.py
 backend/tests/unit/test_reports_rendering.py
