@@ -32,7 +32,9 @@ from cold_storage.modules.reports.application.assembler import (
     ReportDataProvider,
 )
 from cold_storage.modules.reports.application.render_service import (
-    ReportRenderService,
+    ReportRenderService as _ProductionReportRenderService,
+)
+from cold_storage.modules.reports.application.render_service import (
     ReportRenderUnitOfWork,
 )
 from cold_storage.modules.reports.application.service import ReportService
@@ -61,6 +63,7 @@ from cold_storage.modules.reports.infrastructure.repository import (
 from cold_storage.modules.reports.infrastructure.template_seed import (
     seed_default_templates,
 )
+from cold_storage.modules.schemes.application.query import SchemeReviewAuthority
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -104,6 +107,38 @@ class _MockDataProvider(ReportDataProvider):
         self, version_id: str, project_id: str | None = None
     ) -> dict[str, Any] | None:
         return {"version_id": version_id, "project_id": project_id}
+
+    def get_scheme_results(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        return {"review_authority": _no_review_authority().to_snapshot()}
+
+
+def _no_review_authority() -> SchemeReviewAuthority:
+    return SchemeReviewAuthority(
+        scheme_run_id="scheme-idempotency-no-review",
+        project_id="proj-1",
+        project_version_id="ver-1",
+        requires_review=False,
+        review_reasons=(),
+        source_binding_id="binding-idempotency-no-review",
+        combined_source_hash="combined-idempotency-no-review",
+        content_hash="content-idempotency-no-review",
+    )
+
+
+class _NoReviewQuery:
+    def get_review_authority(self, project_id: str, version_id: str):
+        authority = _no_review_authority()
+        if (project_id, version_id) != (authority.project_id, authority.project_version_id):
+            return None
+        return authority
+
+
+class ReportRenderService(_ProductionReportRenderService):
+    """Keep idempotency fixtures on an explicit no-review authority."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("scheme_review_query", _NoReviewQuery())
+        super().__init__(*args, **kwargs)
 
 
 class _MockAssembler:
@@ -232,8 +267,14 @@ def _approve_report(service: ReportService, report: Report) -> Report:
         report_id=report.id,
         revision_number=report.current_revision_number + 1,
         schema_version="cold_storage_concept_design@1.0.0",
-        content_json={"report_metadata": {"project_id": report.project_id}},
-        canonical_content_json={"report_metadata": {}},
+        content_json={
+            "report_metadata": {"project_id": report.project_id},
+            "scheme_comparison": {"review_authority": _no_review_authority().to_snapshot()},
+        },
+        canonical_content_json={
+            "report_metadata": {},
+            "scheme_comparison": {"review_authority": _no_review_authority().to_snapshot()},
+        },
         content_hash="abc123",
         quality_status=ReportStatus.APPROVED,
         quality_findings_json=[],
@@ -259,7 +300,11 @@ def _setup_approved(session_factory: Any) -> tuple[Report, ReportRevision]:
     with session_factory() as session:
         repo = SQLReportRepository(session)
         assembler = _MockAssembler(quality_status=ReportStatus.APPROVED)
-        service = ReportService(repository=repo, assembler=assembler)
+        service = ReportService(
+            repository=repo,
+            assembler=assembler,
+            scheme_review_query=_NoReviewQuery(),
+        )
         report = _create_report(repo, session)
         _generate_revision(service, report)
         report = repo.get_report(report.id)
@@ -3016,7 +3061,6 @@ class TestStaleReclaimFencing:
         - Old worker cannot delete new file or finalize idempotency
         """
         from cold_storage.modules.reports.application.render_service import (
-            ReportRenderService,
             ReportRenderUnitOfWork,
         )
 

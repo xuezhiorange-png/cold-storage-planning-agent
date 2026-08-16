@@ -1299,19 +1299,35 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         from cold_storage.modules.reports.application.assembler import (
             ReportAssembler,
         )
+        from cold_storage.modules.reports.application.service import _default_trusted_operator
         from cold_storage.modules.reports.infrastructure.real_data_provider import (
             RealReportDataProvider,
         )
+        from cold_storage.modules.schemes.application.query import (
+            build_sqlalchemy_scheme_query,
+        )
 
         repo = SQLReportRepository(db_session)
-        data_provider = RealReportDataProvider()
+        scheme_query = build_sqlalchemy_scheme_query(db_session)
+        data_provider = RealReportDataProvider(scheme_query=scheme_query)
         assembler = ReportAssembler(data_provider=data_provider)
-        return ReportService(repository=repo, assembler=assembler)
+        return ReportService(
+            repository=repo,
+            assembler=assembler,
+            scheme_review_query=scheme_query,
+            trusted_operator=_default_trusted_operator,
+        )
 
     def _get_report_render_service(
         db_session: SASession = Depends(_get_reports_db_session),  # noqa: B008
     ) -> ReportRenderService:
         repo = SQLReportRepository(db_session)
+        from cold_storage.modules.reports.application.service import _default_trusted_operator
+        from cold_storage.modules.schemes.application.query import (
+            build_sqlalchemy_scheme_query,
+        )
+
+        scheme_query = build_sqlalchemy_scheme_query(db_session)
         # D-S4-11: staging/production use canonical_settings() singleton.
         # local/test fall back to the app-factory-resolved settings so
         # that TestCreateAppE2E (which never initializes canonical_settings)
@@ -1341,6 +1357,8 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             uow=uow,
             storage=artifact_storage,
             template_repo=repo,
+            scheme_review_query=scheme_query,
+            trusted_operator=_default_trusted_operator,
         )
 
     def _get_report_template_repo(

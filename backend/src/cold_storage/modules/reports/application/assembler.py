@@ -143,12 +143,17 @@ class ReportAssembler:
             }
             if scheme_hash_mismatch is not None:
                 scheme_ref_data["hash_mismatch"] = scheme_hash_mismatch
+            review_authority = scheme_content.get("review_authority")
+            review_source_revision = ""
+            if isinstance(review_authority, dict):
+                review_source_revision = str(review_authority.get("combined_source_hash", ""))
             source_refs.append(
                 _make_source_ref(
                     section_key="scheme_comparison",
                     source_type=SourceType.SCHEME_RESULT,
                     source_id=scheme_data.get("run_id", ""),
                     data=scheme_ref_data,
+                    source_revision=review_source_revision,
                 )
             )
 

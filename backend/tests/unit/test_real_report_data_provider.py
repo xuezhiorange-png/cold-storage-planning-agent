@@ -32,6 +32,8 @@ from cold_storage.modules.reports.infrastructure.real_data_provider import (
     RealReportDataProvider,
     ReportProjectionError,
 )
+from cold_storage.modules.schemes.application.query import SchemeReviewAuthority
+from cold_storage.modules.schemes.domain.models import ReviewReason
 
 # ── Stub helpers (test-only, never used in production) ─────────────────────
 
@@ -616,3 +618,51 @@ def test_source_snapshot_is_not_mutated() -> None:
     # Specifically, the projection must not have removed / added
     # / overwritten any v0 key in the original snapshot dict.
     assert set(original.keys()) == set(snapshot_ref.keys())
+
+
+def test_scheme_review_authority_is_projected_as_typed_closed_json() -> None:
+    reason = ReviewReason(
+        code="ZONE_WARNING",
+        message="zone requires review",
+        stage="zone",
+        source_type="calculation_run",
+        source_id="calc-zone-1",
+    )
+    authority = SchemeReviewAuthority(
+        scheme_run_id="scheme-production-1",
+        project_id="project-1",
+        project_version_id="version-1",
+        requires_review=True,
+        review_reasons=(reason,),
+        source_binding_id="binding-1",
+        combined_source_hash="combined-1",
+        content_hash="content-1",
+        recommended_scheme_code="baseline",
+        generator_version="generator-1",
+    )
+
+    class _Query:
+        def get_review_authority(self, project_id: str, version_id: str):
+            assert (project_id, version_id) == ("project-1", "version-1")
+            return authority
+
+        def get_candidates_for_run(self, run_id: str):
+            assert run_id == "scheme-production-1"
+            return [
+                {
+                    "id": "baseline",
+                    "scheme_code": "baseline",
+                    "total_score": "1",
+                    "rank": 1,
+                }
+            ]
+
+    result = RealReportDataProvider(scheme_query=_Query()).get_scheme_results(
+        "project-1", "version-1"
+    )
+
+    assert result is not None
+    assert result["review_authority"]["review_reasons"] == [reason.to_json()]
+    assert result["review_authority"]["requires_review"] is True
+    assert result["review_authority"]["source_binding_id"] == "binding-1"
+    assert not isinstance(result["review_authority"]["review_reasons"][0], str)

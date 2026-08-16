@@ -111,6 +111,44 @@ def test_api_routes_do_not_import_calculation_details() -> None:
         assert imp not in content, f"app.py imports forbidden domain detail: {imp}"
 
 
+def test_lane_b_report_enforcement_stays_at_application_boundaries() -> None:
+    """Composition wires public query ports; business gates stay in services."""
+    app_content = (BACKEND_SRC / "bootstrap" / "app.py").read_text()
+    service_content = (
+        BACKEND_SRC / "modules" / "reports" / "application" / "service.py"
+    ).read_text()
+    render_content = (
+        BACKEND_SRC / "modules" / "reports" / "application" / "render_service.py"
+    ).read_text()
+
+    assert "build_sqlalchemy_scheme_query" in app_content
+    assert "SchemeRunRecord" not in app_content
+    assert "ReviewReason" not in app_content
+    assert "_validate_scheme_review_lineage" in service_content
+    assert "_require_persisted_mark_reviewed" in service_content
+    assert "_validate_scheme_review_lineage" in render_content
+    assert "_require_persisted_mark_reviewed" in render_content
+
+
+def test_lane_b_reports_do_not_import_scheme_orm_or_open_scheme_sessions() -> None:
+    """All report-side scheme access must go through the public query boundary."""
+    reports_path = BACKEND_SRC / "modules" / "reports"
+    forbidden = (
+        "cold_storage.modules.schemes.infrastructure",
+        "SchemeRunRecord",
+        "SchemeRepository",
+    )
+    violations: list[str] = []
+    for path in read_python_files(reports_path):
+        content = path.read_text()
+        for pattern in forbidden:
+            if pattern in content:
+                violations.append(f"{path.relative_to(reports_path)} contains {pattern}")
+    assert not violations, "Report module bypasses SchemeReviewAuthority query:\n" + "\n".join(
+        violations
+    )
+
+
 def test_no_import_time_database_connections() -> None:
     """No module should call create_engine at import time (outside factory functions)."""
     all_py_files = read_python_files(BACKEND_SRC)

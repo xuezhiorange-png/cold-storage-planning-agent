@@ -21,6 +21,7 @@ Verifies:
 
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 import pytest
@@ -40,6 +41,7 @@ from cold_storage.modules.reports.application.render_service import (
 from cold_storage.modules.reports.application.service import ReportService
 from cold_storage.modules.reports.domain.enums import (
     ArtifactStatus,
+    ExportFormat,
     ReportLocale,
     ReportStatus,
     ReportType,
@@ -58,6 +60,8 @@ from cold_storage.modules.reports.infrastructure.repository import (
 from cold_storage.modules.reports.infrastructure.template_seed import (
     seed_default_templates,
 )
+from cold_storage.modules.schemes.application.query import SchemeReviewAuthority
+from cold_storage.modules.schemes.domain.models import ReviewReason
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -109,6 +113,18 @@ class _MockDataProvider(ReportDataProvider):
     ) -> dict[str, Any] | None:
         return {"version_id": version_id, "project_id": project_id}
 
+    def get_scheme_results(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        authority = _formal_review_authority()
+        return {
+            "run_id": authority.scheme_run_id,
+            "status": authority.status,
+            "schemes": [{"scheme_id": "s1", "name": "Scheme A"}],
+            "recommended_scheme": authority.recommended_scheme_code,
+            "generator_version": authority.generator_version,
+            "persisted_content_hash": authority.content_hash,
+            "review_authority": authority.to_snapshot(),
+        }
+
 
 class _MockAssembler(ReportAssembler):
     """Assembler that returns GENERATED quality_status with no findings."""
@@ -126,6 +142,45 @@ class _MockAssembler(ReportAssembler):
             result.content["quality_summary"]["warning_count"] = 0
             result.content["quality_summary"]["info_count"] = 0
         return result
+
+
+def _formal_review_authority() -> SchemeReviewAuthority:
+    """Return the typed review authority used by the real formal pipeline."""
+    return SchemeReviewAuthority(
+        scheme_run_id="scheme-formal-review-1",
+        project_id="proj-1",
+        project_version_id="ver-1",
+        requires_review=True,
+        review_reasons=(
+            ReviewReason(
+                code="ZONE_WARNING",
+                message="zone requires review",
+                stage="zone",
+                source_type="calculation_run",
+                source_id="calc-zone-1",
+            ),
+        ),
+        source_binding_id="binding-formal-review-1",
+        combined_source_hash="combined-formal-review-1",
+        content_hash="scheme-formal-review-content-1",
+        recommended_scheme_code="s1",
+        generator_version="scheme-test@1.0.0",
+    )
+
+
+class _FormalReviewAuthorityQuery:
+    def __init__(self, authority: SchemeReviewAuthority) -> None:
+        self._authority = authority
+
+    def get_review_authority(
+        self, project_id: str, version_id: str
+    ) -> SchemeReviewAuthority | None:
+        if (project_id, version_id) != (
+            self._authority.project_id,
+            self._authority.project_version_id,
+        ):
+            return None
+        return self._authority
 
 
 # ---------------------------------------------------------------------------
@@ -168,7 +223,12 @@ def _setup_approved_report(
     with session_factory() as session:
         repo = SQLReportRepository(session)
         assembler = _MockAssembler()
-        service = ReportService(repository=repo, assembler=assembler)
+        authority = _formal_review_authority()
+        service = ReportService(
+            repository=repo,
+            assembler=assembler,
+            scheme_review_query=_FormalReviewAuthorityQuery(authority),
+        )
 
         report = _create_report(repo, session)
         _generate_revision(service, report)
@@ -177,6 +237,19 @@ def _setup_approved_report(
         # Approve via real service (sets approval fields)
         report = service.approve(report.id, "test-user")
         return report, repo.get_latest_revision(report.id)
+
+
+def _formal_render_service(
+    session: Any,
+    storage: ReportArtifactStorage,
+) -> ReportRenderService:
+    repo = SQLReportRepository(session)
+    return ReportRenderService(
+        uow=ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo),
+        storage=storage,
+        template_repo=repo,
+        scheme_review_query=_FormalReviewAuthorityQuery(_formal_review_authority()),
+    )
 
 
 def _reload_report(session_factory: sessionmaker, report_id: str) -> Report:
@@ -214,17 +287,10 @@ class TestRealApproveToFormal:
 
         # Render formal DOCX in a new session
         with session_factory() as s:
-            repo = SQLReportRepository(s)
-            uow = ReportRenderUnitOfWork(s, report_repo=repo, artifact_repo=repo)
-
             storage = ReportArtifactStorage(str(tmp_path / "artifacts"))
             template_repo = SQLReportRepository(s)
 
-            render_svc = ReportRenderService(
-                uow=uow,
-                storage=storage,
-                template_repo=template_repo,
-            )
+            render_svc = _formal_render_service(s, storage)
 
             artifact = render_svc.render(
                 locale=ReportLocale.ZH_CN,
@@ -255,16 +321,10 @@ class TestRealApproveToFormal:
 
         # Render formal PDF in a new session
         with session_factory() as s:
-            repo = SQLReportRepository(s)
-            uow = ReportRenderUnitOfWork(s, report_repo=repo, artifact_repo=repo)
             storage = ReportArtifactStorage(str(tmp_path / "artifacts"))
             template_repo = SQLReportRepository(s)
 
-            render_svc = ReportRenderService(
-                uow=uow,
-                storage=storage,
-                template_repo=template_repo,
-            )
+            render_svc = _formal_render_service(s, storage)
 
             artifact = render_svc.render(
                 locale=ReportLocale.ZH_CN,
@@ -277,6 +337,83 @@ class TestRealApproveToFormal:
             )
 
             assert artifact.status == ArtifactStatus.COMPLETED
+
+    def test_approved_formal_matrix_shares_revision_and_approval_identity(
+        self, session_factory, tmp_path
+    ) -> None:
+        """Render all approved locale/format combinations for one revision."""
+        report, approved_rev = _setup_approved_report(session_factory)
+        with session_factory() as s:
+            seed_default_templates(SQLReportRepository(s))
+            s.commit()
+
+        storage = ReportArtifactStorage(str(tmp_path / "matrix-artifacts"))
+        requests = (
+            (ReportLocale.ZH_CN, ExportFormat.DOCX),
+            (ReportLocale.ZH_CN, ExportFormat.PDF),
+            (ReportLocale.EN_US, ExportFormat.DOCX),
+            (ReportLocale.EN_US, ExportFormat.PDF),
+        )
+        artifact_ids: list[str] = []
+        for locale, export_format in requests:
+            # Each artifact is rendered with a new session and repository.
+            with session_factory() as s:
+                render_svc = _formal_render_service(s, storage)
+                artifact = render_svc.render(
+                    locale=locale,
+                    report_id=report.id,
+                    revision_number=approved_rev.revision_number,
+                    format=export_format.value,
+                    template_version=None,
+                    mode="formal",
+                    actor="test-user",
+                )
+                assert artifact.status == ArtifactStatus.COMPLETED
+                assert artifact.file_sha256
+                raw = storage.get(artifact.storage_key)
+                assert raw
+                assert artifact.file_sha256 == hashlib.sha256(raw).hexdigest()
+                artifact_ids.append(artifact.id)
+
+        with session_factory() as s:
+            repo = SQLReportRepository(s)
+            reloaded = [repo.get_artifact(artifact_id) for artifact_id in artifact_ids]
+            loaded_report = repo.get_report(report.id)
+            loaded_revision = repo.get_revision(report.id, approved_rev.revision_number)
+
+        assert all(artifact is not None for artifact in reloaded)
+        assert loaded_report is not None
+        assert loaded_revision is not None
+        assert len({artifact.id for artifact in reloaded if artifact is not None}) == 4
+        expected_authority = _formal_review_authority().to_snapshot()
+        assert loaded_revision.content_json["scheme_comparison"]["review_authority"] == (
+            expected_authority
+        )
+
+        approval_snapshots = []
+        for (locale, export_format), artifact in zip(requests, reloaded, strict=True):
+            assert artifact is not None
+            assert artifact.report_id == loaded_report.id == report.id
+            assert artifact.report_revision_id == loaded_revision.id == approved_rev.id
+            assert artifact.source_content_hash == loaded_revision.content_hash
+            assert artifact.locale == locale
+            assert artifact.format == export_format
+            assert artifact.file_sha256
+            manifest = artifact.render_manifest_json
+            approval_snapshots.append(
+                (
+                    manifest["approved_revision_id"],
+                    manifest["approved_content_hash"],
+                    manifest["approved_by"],
+                    manifest["approved_at"],
+                )
+            )
+
+        assert len(set(approval_snapshots)) == 1
+        assert approval_snapshots[0][0] == loaded_report.approved_revision_id
+        assert approval_snapshots[0][1] == loaded_report.approved_content_hash
+        assert approval_snapshots[0][2] == loaded_report.approved_by == "test-user"
+        assert approval_snapshots[0][3]
 
     def test_persisted_artifact_manifests_equal_report_approval_snapshot(
         self, session_factory, tmp_path
@@ -300,13 +437,8 @@ class TestRealApproveToFormal:
         # Render DOCX
         with session_factory() as s:
             repo = SQLReportRepository(s)
-            uow = ReportRenderUnitOfWork(s, report_repo=repo, artifact_repo=repo)
             template_repo = SQLReportRepository(s)
-            render_svc = ReportRenderService(
-                uow=uow,
-                storage=storage,
-                template_repo=template_repo,
-            )
+            render_svc = _formal_render_service(s, storage)
             docx_artifact = render_svc.render(
                 locale=ReportLocale.ZH_CN,
                 report_id=report.id,
@@ -320,13 +452,8 @@ class TestRealApproveToFormal:
         # Render PDF
         with session_factory() as s:
             repo = SQLReportRepository(s)
-            uow = ReportRenderUnitOfWork(s, report_repo=repo, artifact_repo=repo)
             template_repo = SQLReportRepository(s)
-            render_svc = ReportRenderService(
-                uow=uow,
-                storage=storage,
-                template_repo=template_repo,
-            )
+            render_svc = _formal_render_service(s, storage)
             pdf_artifact = render_svc.render(
                 locale=ReportLocale.ZH_CN,
                 report_id=report.id,

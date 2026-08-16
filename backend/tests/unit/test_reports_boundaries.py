@@ -10,6 +10,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
 REPORTS_MODULE = (
     Path(__file__).resolve().parents[2] / "src" / "cold_storage" / "modules" / "reports"
@@ -110,3 +112,41 @@ def test_reports_domain_has_no_infrastructure_imports() -> None:
     assert not violations, "Reports domain imports from infrastructure layers:\n" + "\n".join(
         violations
     )
+
+
+def test_create_app_report_composition_uses_public_scheme_authority_query() -> None:
+    """Exercise the real app factory's report service composition."""
+    import cold_storage.modules.schemes.application.query as schemes_query
+    from cold_storage.bootstrap.app import create_app
+    from cold_storage.modules.reports.api.routes import _get_render_service, _get_service
+    from cold_storage.modules.reports.application.service import _default_trusted_operator
+    from cold_storage.modules.reports.infrastructure.orm import Base
+    from cold_storage.modules.schemes.application.query import (
+        SqlAlchemySchemeReviewAuthorityReader,
+    )
+
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    app = create_app()
+    factory = app.dependency_overrides[_get_service]
+    render_factory = app.dependency_overrides[_get_render_service]
+
+    with Session(engine) as session:
+        service = factory(session)
+        render_service = render_factory(session)
+
+    provider = service._assembler._provider
+    assert service._scheme_review_query is provider._scheme_query
+    production_query_type = schemes_query._SCHEME_QUERY_SERVICE_IMPLEMENTATION
+    assert isinstance(service._scheme_review_query, production_query_type)
+    assert isinstance(
+        service._scheme_review_query._review_authority_reader,
+        SqlAlchemySchemeReviewAuthorityReader,
+    )
+
+    assert isinstance(render_service._scheme_review_query, production_query_type)
+    assert isinstance(
+        render_service._scheme_review_query._review_authority_reader,
+        SqlAlchemySchemeReviewAuthorityReader,
+    )
+    assert render_service._trusted_operator is _default_trusted_operator

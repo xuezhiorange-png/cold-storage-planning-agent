@@ -22,7 +22,12 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol
 
-from cold_storage.modules.reports.application.service import ReportRepository
+from cold_storage.modules.reports.application.service import (
+    ReportRepository,
+    _default_trusted_operator,
+    _require_persisted_mark_reviewed,
+    _validate_scheme_review_lineage,
+)
 from cold_storage.modules.reports.domain.enums import (
     DRAFT_EXPORT_STATUSES,
     FORMAL_EXPORT_STATUSES,
@@ -582,6 +587,8 @@ class ReportRenderService:
         clock: Callable[[], datetime] | None = None,
         idempotency_waiter: IdempotencyWaiterPort | None = None,
         canonical_observer: Any = None,
+        scheme_review_query: Any | None = None,
+        trusted_operator: Callable[[str], bool] | None = None,
     ) -> None:
         """Initialize the render service.
 
@@ -620,6 +627,8 @@ class ReportRenderService:
             session_factory=uow.session_factory,
         )
         self._canonical_observer = canonical_observer or NoopCanonicalObserver()
+        self._scheme_review_query = scheme_review_query
+        self._trusted_operator = trusted_operator or _default_trusted_operator
 
     # ------------------------------------------------------------------
     # P0-9: Two-phase cleanup executor
@@ -1443,6 +1452,28 @@ class ReportRenderService:
                         mode.value,
                         f"Revision has {len(blockers)} blocking findings",
                     )
+
+            # Formal export independently re-reads the persisted SchemeRun
+            # authority and review action.  Approval status alone is never a
+            # substitute for the exact source-bound audit proof.
+            try:
+                authority = _validate_scheme_review_lineage(
+                    report=report,
+                    revision=revision,
+                    scheme_review_query=self._scheme_review_query,
+                    required=True,
+                )
+                if authority is None:
+                    raise ValueError("Scheme review authority is missing")
+                if authority.requires_review:
+                    _require_persisted_mark_reviewed(
+                        repository=self._repo,
+                        report=report,
+                        revision=revision,
+                        trusted_operator=self._trusted_operator,
+                    )
+            except Exception as exc:  # noqa: BLE001
+                raise ExportPermissionError(report.id, mode.value, str(exc)) from exc
 
     def _find_template(
         self,
