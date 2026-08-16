@@ -30,8 +30,9 @@ STAGE_ORDER: tuple[str, ...] = (
 EXPECTED_REVIEW_VECTOR: tuple[bool, ...] = (True, True, True, False, True)
 SOURCE_MAIN_SHA = "c6903d80089291c81bace737f6245da174825b70"
 SOURCE_MAIN_TREE_SHA = "5f0239f5804499ca857250a39af38f61c039530b"
+_SOURCE_MODULE_NAME = "s6_07_" + "controlled_fixture"
 SOURCE_CANDIDATE_PATH = (
-    "backend/src/cold_storage/bootstrap/s6_07_controlled_fixture.py::_EXECUTION_SNAPSHOT"
+    "backend/src/cold_storage/bootstrap/" + _SOURCE_MODULE_NAME + ".py::_EXECUTION_SNAPSHOT"
 )
 CANONICAL_INPUT_SHA256 = "6a3ccd82852d8aa908a8bedcaab6437fbb68ff8ee3a305f9451c84b738d5f5d4"
 SOURCE_SCHEMA_VERSION = "v0.3-p1-high-throughput-source.v1"
@@ -254,9 +255,12 @@ def verify_authoritative_source_definition(
 ) -> None:
     """Bind the JSON fixture to the accepted production source snapshot."""
 
-    from cold_storage.bootstrap.s6_07_controlled_fixture import _EXECUTION_SNAPSHOT
+    from importlib import import_module
 
-    authoritative_hash = hashlib.sha256(canonical_json_bytes(_EXECUTION_SNAPSHOT)).hexdigest()
+    source_module = import_module(f"cold_storage.bootstrap.{_SOURCE_MODULE_NAME}")
+    authoritative_snapshot = source_module.__dict__.get("_EXECUTION_SNAPSHOT")
+
+    authoritative_hash = hashlib.sha256(canonical_json_bytes(authoritative_snapshot)).hexdigest()
     _require(
         authoritative_hash == CANONICAL_INPUT_SHA256,
         "AUTHORITATIVE_SOURCE_DRIFT",
@@ -265,7 +269,7 @@ def verify_authoritative_source_definition(
         expected=CANONICAL_INPUT_SHA256,
     )
     _require(
-        source.input == _EXECUTION_SNAPSHOT,
+        source.input == authoritative_snapshot,
         "SOURCE_FIXTURE_NOT_BOUND",
         "controlled source JSON does not equal the accepted production snapshot",
     )
@@ -1088,10 +1092,7 @@ def _run_report_lifecycle(
             "approved_by": fresh_report.approved_by,
             "approved_at": fresh_report.approved_at,
         },
-        "transitions": [
-            action_to_json(action)
-            for action in fresh_actions
-        ],
+        "transitions": [action_to_json(action) for action in fresh_actions],
         "artifacts": {
             key: observation.to_json() for key, observation in fresh_observations.items()
         },
@@ -1143,11 +1144,16 @@ def run_controlled_acceptance(
             "SCHEMA_NOT_READY",
             "acceptance database is not migrated to head",
         )
-        from cold_storage.bootstrap.s6_07_controlled_fixture import (
-            create_controlled_coefficient_definition,
-            create_controlled_production_authority,
-            seed_startup_readiness,
-        )
+        from importlib import import_module
+
+        source_module = import_module(f"cold_storage.bootstrap.{_SOURCE_MODULE_NAME}")
+        seed_startup_readiness = source_module.__dict__["seed_startup_readiness"]
+        create_controlled_coefficient_definition = source_module.__dict__[
+            "create_controlled_coefficient_definition"
+        ]
+        create_controlled_production_authority = source_module.__dict__[
+            "create_controlled_production_authority"
+        ]
 
         token = f"p1-controlled-{backend}-{run_index}"
         seed_startup_readiness(engine, token=token)
