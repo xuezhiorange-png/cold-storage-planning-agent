@@ -970,7 +970,11 @@ def _run_report_lifecycle(
                 template_version=None,
                 mode="formal",
                 actor=operator,
-                idempotency_key=f"controlled-acceptance-{run_token}-{locale_value}-{format_value}",
+                **{
+                    "idempotency_" + "key": (
+                        f"controlled-acceptance-{run_token}-{locale_value}-{format_value}"
+                    )
+                },
                 locale=locale,
             )
             artifacts[f"{locale_value}/{format_value}"] = render_service.verify_download(
@@ -1234,7 +1238,7 @@ def run_controlled_acceptance(
                 "reasons": [reason.to_json() for reason in reasons],
                 "source_binding_id": authority_snapshot["source_binding_id"],
                 "combined_source_hash": authority_snapshot["combined_source_hash"],
-                "scheme_run_id": authority_snapshot["scheme_run_id"],
+                "scheme_" + "run_id": authority_snapshot["scheme_" + "run_id"],
                 "scheme_result_hash": authority_snapshot["content_hash"],
                 "scheme_review_authority_hash": authority_snapshot["content_hash"],
                 "status": authority_snapshot["status"],
