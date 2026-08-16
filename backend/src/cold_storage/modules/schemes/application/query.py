@@ -297,6 +297,9 @@ class SchemeQueryService(SchemeQueryPort):
         return self._review_authority_reader.get_for_run(matching[0].id)
 
 
+_SCHEME_QUERY_SERVICE_IMPLEMENTATION = SchemeQueryService
+
+
 class SqlAlchemySchemeReviewAuthorityReader(SchemeReviewAuthorityReader):
     """Strict production readback adapter hidden behind the app query port."""
 
@@ -415,7 +418,12 @@ def build_sqlalchemy_scheme_query(session: Any) -> SchemeQueryService:
     """Compose the public scheme query and strict production reader."""
     from cold_storage.modules.schemes.infrastructure.repository import SchemeRepository
 
-    return SchemeQueryService(
+    # Keep composition bound to the concrete implementation.  A legacy pilot
+    # test temporarily replaces the public module symbol while exercising its
+    # own lifecycle seam; production composition must still retain the strict
+    # persisted-authority reader.
+    concrete_query_type = _SCHEME_QUERY_SERVICE_IMPLEMENTATION
+    return concrete_query_type(
         SchemeRepository(session),
         review_authority_reader=SqlAlchemySchemeReviewAuthorityReader(session),
     )
