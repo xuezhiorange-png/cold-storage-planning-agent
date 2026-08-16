@@ -23,17 +23,24 @@ The controlled source is the accepted S6-07 execution snapshot:
 
 ```text
 SOURCE_CANDIDATE_PATH=backend/src/cold_storage/bootstrap/s6_07_controlled_fixture.py::_EXECUTION_SNAPSHOT
-SOURCE_MAIN_SHA=c6903d80089291c81bace737f6245da174825b70
-SOURCE_MAIN_TREE_SHA=5f0239f5804499ca857250a39af38f61c039530b
+ACCEPTED_SOURCE_DEFINITION_BASE_SHA=c6903d80089291c81bace737f6245da174825b70
+ACCEPTED_SOURCE_DEFINITION_BASE_TREE_SHA=5f0239f5804499ca857250a39af38f61c039530b
+CONTROLLED_EXECUTION_SOURCE_SHA=<workflow-supplied exact main SHA>
+CONTROLLED_EXECUTION_SOURCE_TREE_SHA=<workflow-supplied exact main tree SHA>
 CANONICAL_INPUT_SHA256=6a3ccd82852d8aa908a8bedcaab6437fbb68ff8ee3a305f9451c84b738d5f5d4
 REVIEW_REQUIRED_VECTOR=true,true,true,false,true
 STAGE_ORDER=zone,cooling_load,equipment,power,investment
 ```
 
-The runner re-hashes the fixture with the production
-`canonical_json_bytes` implementation. A changed source hash, stage order,
-or review vector fails closed. The source module is read-only for this
-surface.
+The accepted source-definition base above is historical provenance for the
+frozen fixture; it is not the identity of the checkout that executes the
+controlled run. The workflow supplies the exact checked-out main commit and
+tree as `CONTROLLED_EXECUTION_SOURCE_SHA` and
+`CONTROLLED_EXECUTION_SOURCE_TREE_SHA`, and the runner records those values in
+the evidence. A missing execution identity fails closed. The runner
+re-hashes the fixture with the production `canonical_json_bytes`
+implementation. A changed source hash, stage order, or review vector fails
+closed. The source module is read-only for this surface.
 
 ## Authorized operator
 
@@ -59,6 +66,8 @@ uv run alembic upgrade head
 uv run python tests/pilot/run_task011_followup_acceptance.py run \
   --database-url sqlite:////tmp/v03-p1-sqlite-1.db \
   --source-json tests/pilot/data/task011-followup-high-throughput-source.v1.json \
+  --execution-source-sha "$(git rev-parse HEAD)" \
+  --execution-source-tree-sha "$(git rev-parse HEAD^{tree})" \
   --operator controlled.operator \
   --backend sqlite \
   --run-index 1 \
@@ -85,7 +94,11 @@ en-US PDF
 
 Each artifact is read back from storage and hashed independently. The four
 artifacts share the report/revision/content/source/approval identity while
-retaining independent locale, format, template, catalog, and file hashes.
+retaining independent locale and format plus persisted template ID/version,
+template content hash, template locale, translation catalog version/content
+hash, localized template hash, and file hash. Matrix labels must match the
+artifact metadata and artifact IDs/storage keys must be unique; any missing
+lineage or duplicate is a failure.
 
 Missing or ambiguous source authority, stale review snapshots, wrong-revision
 review actions, manual approval without persisted proof, content-hash

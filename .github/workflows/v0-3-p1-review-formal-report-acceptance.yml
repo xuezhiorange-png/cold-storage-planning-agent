@@ -127,6 +127,8 @@ jobs:
             PYTHONPATH=src uv run python tests/pilot/run_task011_followup_acceptance.py run \
               --database-url "sqlite:///${db}" \
               --source-json tests/pilot/data/task011-followup-high-throughput-source.v1.json \
+              --execution-source-sha "${SOURCE_SHA}" \
+              --execution-source-tree-sha "${SOURCE_TREE_SHA}" \
               --operator "${TRUSTED_OPERATOR}" \
               --backend sqlite \
               --run-index "${index}" \
@@ -137,6 +139,8 @@ jobs:
             PYTHONPATH=src uv run python tests/pilot/run_task011_followup_acceptance.py run \
               --database-url "postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/${db}" \
               --source-json tests/pilot/data/task011-followup-high-throughput-source.v1.json \
+              --execution-source-sha "${SOURCE_SHA}" \
+              --execution-source-tree-sha "${SOURCE_TREE_SHA}" \
               --operator "${TRUSTED_OPERATOR}" \
               --backend postgresql \
               --run-index "${index}" \

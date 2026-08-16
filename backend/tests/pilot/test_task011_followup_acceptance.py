@@ -15,12 +15,12 @@ from cold_storage.evaluation.followup_acceptance import (
     CANONICAL_INPUT_SHA256,
     EXPECTED_REVIEW_VECTOR,
     FORMAL_ARTIFACT_MATRIX,
-    SOURCE_CANDIDATE_PATH,
     STAGE_ORDER,
     ControlledAcceptanceError,
     compare_normalized_evidence,
     load_source_definition,
     project_source_warnings,
+    validate_execution_source_identity,
     validate_review_reason_continuity,
     validate_trusted_operator,
     verify_artifact_matrix,
@@ -29,6 +29,9 @@ from cold_storage.evaluation.followup_acceptance import (
 from cold_storage.modules.schemes.domain.models import ReviewReason
 
 SOURCE_PATH = Path(__file__).parent / "data/task011-followup-high-throughput-source.v1.json"
+SOURCE_CANDIDATE_PATH = (
+    "backend/src/cold_storage/bootstrap/s6_07_controlled_fixture.py::_EXECUTION_SNAPSHOT"
+)
 
 
 @dataclass
@@ -73,8 +76,15 @@ def _authority_for(records: dict[str, dict[str, object]]) -> _Authority:
 
 
 def test_fixture_is_bound_to_production_execution_snapshot() -> None:
-    source = load_source_definition(SOURCE_PATH)
-    verify_authoritative_source_definition(source)
+    source = load_source_definition(
+        SOURCE_PATH,
+        expected_source_candidate_path=SOURCE_CANDIDATE_PATH,
+    )
+    verify_authoritative_source_definition(
+        source,
+        authoritative_snapshot=_EXECUTION_SNAPSHOT,
+        expected_source_candidate_path=SOURCE_CANDIDATE_PATH,
+    )
 
     assert source.source_candidate_path == SOURCE_CANDIDATE_PATH
     assert source.canonical_input_sha256 == CANONICAL_INPUT_SHA256
@@ -89,7 +99,10 @@ def test_fixture_tamper_fails_hash_validation(tmp_path: Path) -> None:
     tampered.write_text(json.dumps(raw), encoding="utf-8")
 
     with pytest.raises(ControlledAcceptanceError, match="canonical input hash") as exc_info:
-        load_source_definition(tampered)
+        load_source_definition(
+            tampered,
+            expected_source_candidate_path=SOURCE_CANDIDATE_PATH,
+        )
     assert exc_info.value.code == "SOURCE_HASH_MISMATCH"
 
 
@@ -229,6 +242,25 @@ def test_artifact_matrix_reloads_bytes_and_requires_shared_identity() -> None:
             self.file_sha256 = f"hash-{locale}-{fmt}"
             self.file_size_bytes = len(self.file_sha256.encode())
             self.storage_key = f"storage-{locale}-{fmt}"
+            self.template_id = f"template-{locale}"
+            self.template_version = "1.0.0"
+            self.template_locale = SimpleNamespace(value=locale)
+            self.translation_catalog_version = "1.0.0"
+            self.translation_catalog_content_hash = f"catalog-hash-{locale}"
+            self.localized_template_content_hash = f"localized-hash-{locale}"
+            self.render_manifest_json = {
+                "render_mode": "formal",
+                "locale": locale,
+                "template_id": self.template_id,
+                "template_version": self.template_version,
+                "template_content_hash": f"template-content-hash-{locale}",
+                "source_content_hash": "content-hash",
+                "approved_revision_id": "revision-1",
+                "approved_content_hash": "content-hash",
+                "translation_catalog_version": self.translation_catalog_version,
+                "translation_catalog_content_hash": self.translation_catalog_content_hash,
+                "localized_template_content_hash": self.localized_template_content_hash,
+            }
 
     artifacts = {
         f"{locale}/{fmt}": Artifact(locale, fmt, f"artifact-{locale}-{fmt}")
@@ -252,6 +284,142 @@ def test_artifact_matrix_reloads_bytes_and_requires_shared_identity() -> None:
 
     assert set(observations) == {f"{locale}/{fmt}" for locale, fmt in FORMAL_ARTIFACT_MATRIX}
     assert len({observation.artifact_id for observation in observations.values()}) == 4
+
+    del artifacts["zh-CN/docx"].render_manifest_json["template_content_hash"]
+    with pytest.raises(ControlledAcceptanceError) as exc_info:
+        verify_artifact_matrix(
+            artifacts,
+            read_bytes=files.__getitem__,
+            report_id="report-1",
+            report_revision_id="revision-1",
+            approved_revision_id="revision-1",
+            approved_content_hash="content-hash",
+        )
+    assert exc_info.value.code == "ARTIFACT_TEMPLATE_LINEAGE_MISSING"
+
+
+def test_artifact_matrix_rejects_label_mismatch() -> None:
+    import hashlib
+
+    class Artifact:
+        id = "artifact-1"
+        report_id = "report-1"
+        report_revision_id = "revision-1"
+        source_content_hash = "content-hash"
+        locale = SimpleNamespace(value="en-US")
+        format = SimpleNamespace(value="pdf")
+        status = SimpleNamespace(value="completed")
+        file_sha256 = hashlib.sha256(b"x").hexdigest()
+        file_size_bytes = 1
+        storage_key = "storage-1"
+        template_id = "template-1"
+        template_version = "1.0.0"
+        template_locale = SimpleNamespace(value="en-US")
+        translation_catalog_version = "1.0.0"
+        translation_catalog_content_hash = "catalog-hash"
+        localized_template_content_hash = "localized-hash"
+        render_manifest_json = {
+            "render_mode": "formal",
+            "locale": "en-US",
+            "template_id": "template-1",
+            "template_version": "1.0.0",
+            "template_content_hash": "template-content-hash",
+            "source_content_hash": "content-hash",
+            "approved_revision_id": "revision-1",
+            "approved_content_hash": "content-hash",
+            "translation_catalog_version": "1.0.0",
+            "translation_catalog_content_hash": "catalog-hash",
+            "localized_template_content_hash": "localized-hash",
+        }
+
+    with pytest.raises(ControlledAcceptanceError) as exc_info:
+        verify_artifact_matrix(
+            {f"{locale}/{fmt}": Artifact() for locale, fmt in FORMAL_ARTIFACT_MATRIX},
+            read_bytes=lambda _: b"x",
+            report_id="report-1",
+            report_revision_id="revision-1",
+            approved_revision_id="revision-1",
+            approved_content_hash="content-hash",
+        )
+    assert exc_info.value.code == "ARTIFACT_LABEL_MISMATCH"
+
+
+def test_artifact_matrix_rejects_duplicate_artifact_ids() -> None:
+    class Artifact:
+        def __init__(self, locale: str, fmt: str) -> None:
+            self.id = "same-artifact"
+            self.report_id = "report-1"
+            self.report_revision_id = "revision-1"
+            self.source_content_hash = "content-hash"
+            self.locale = SimpleNamespace(value=locale)
+            self.format = SimpleNamespace(value=fmt)
+            self.status = SimpleNamespace(value="completed")
+            self.file_sha256 = ""
+            self.file_size_bytes = 0
+            self.storage_key = f"storage-{locale}-{fmt}"
+            self.template_id = f"template-{locale}"
+            self.template_version = "1.0.0"
+            self.template_locale = SimpleNamespace(value=locale)
+            self.translation_catalog_version = "1.0.0"
+            self.translation_catalog_content_hash = "catalog-hash"
+            self.localized_template_content_hash = "localized-hash"
+            self.render_manifest_json = {
+                "render_mode": "formal",
+                "locale": locale,
+                "template_id": self.template_id,
+                "template_version": self.template_version,
+                "template_content_hash": "template-content-hash",
+                "source_content_hash": "content-hash",
+                "approved_revision_id": "revision-1",
+                "approved_content_hash": "content-hash",
+                "translation_catalog_version": "1.0.0",
+                "translation_catalog_content_hash": "catalog-hash",
+                "localized_template_content_hash": "localized-hash",
+            }
+
+    artifacts = {f"{locale}/{fmt}": Artifact(locale, fmt) for locale, fmt in FORMAL_ARTIFACT_MATRIX}
+    files = {artifact.storage_key: b"x" for artifact in artifacts.values()}
+    for artifact in artifacts.values():
+        import hashlib
+
+        artifact.file_sha256 = hashlib.sha256(files[artifact.storage_key]).hexdigest()
+        artifact.file_size_bytes = 1
+
+    with pytest.raises(ControlledAcceptanceError) as exc_info:
+        verify_artifact_matrix(
+            artifacts,
+            read_bytes=files.__getitem__,
+            report_id="report-1",
+            report_revision_id="revision-1",
+            approved_revision_id="revision-1",
+            approved_content_hash="content-hash",
+        )
+    assert exc_info.value.code == "ARTIFACT_ID_DUPLICATE"
+
+
+def test_execution_source_identity_must_be_explicit() -> None:
+    with pytest.raises(ControlledAcceptanceError) as exc_info:
+        validate_execution_source_identity("", "runtime-tree")
+    assert exc_info.value.code == "EXECUTION_SOURCE_SHA_MISSING"
+
+    assert validate_execution_source_identity("runtime-sha", "runtime-tree") == (
+        "runtime-sha",
+        "runtime-tree",
+    )
+
+
+def test_acceptance_core_has_no_architecture_token_bypass() -> None:
+    core = (
+        Path(__file__).parents[2] / "src" / "cold_storage" / "evaluation" / "followup_acceptance.py"
+    ).read_text(encoding="utf-8")
+
+    assert '"idempotency_" + "key"' not in core
+    assert '"scheme_" + "run_id"' not in core
+    assert "**{" not in core
+    assert "import_module" not in core
+    assert "idempotency_key" not in core
+    assert "scheme_run_id" not in core
+    assert "s6_07_controlled_fixture" not in core
 
 
 def test_normalized_parity_ignores_runtime_source_ids() -> None:

@@ -20,10 +20,28 @@ for _path in (str(_SRC_ROOT), str(_BACKEND_ROOT)):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
+from cold_storage.bootstrap.s6_07_controlled_fixture import (  # noqa: E402
+    _EXECUTION_SNAPSHOT,
+    create_controlled_coefficient_definition,
+    create_controlled_production_authority,
+    seed_startup_readiness,
+)
 from cold_storage.evaluation.followup_acceptance import (  # noqa: E402
     ControlledAcceptanceError,
+    ControlledSourceRuntime,
     compare_normalized_evidence,
     run_controlled_acceptance,
+)
+
+_SOURCE_CANDIDATE_PATH = (
+    "backend/src/cold_storage/bootstrap/s6_07_controlled_fixture.py::_EXECUTION_SNAPSHOT"
+)
+_SOURCE_RUNTIME = ControlledSourceRuntime(
+    source_candidate_path=_SOURCE_CANDIDATE_PATH,
+    source_snapshot=_EXECUTION_SNAPSHOT,
+    seed_startup_readiness=seed_startup_readiness,
+    create_controlled_coefficient_definition=create_controlled_coefficient_definition,
+    create_controlled_production_authority=create_controlled_production_authority,
 )
 
 
@@ -42,6 +60,8 @@ def _build_parser() -> argparse.ArgumentParser:
     run = subparsers.add_parser("run", help="execute one isolated backend acceptance run")
     run.add_argument("--database-url", required=True)
     run.add_argument("--source-json", type=Path, required=True)
+    run.add_argument("--execution-source-sha", required=True)
+    run.add_argument("--execution-source-tree-sha", required=True)
     run.add_argument("--operator", required=True)
     run.add_argument("--output", type=Path, required=True)
     run.add_argument("--backend", choices=("sqlite", "postgresql"), required=True)
@@ -68,6 +88,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 or args.output.parent / f"{args.backend}-{args.run_index}",
                 backend=args.backend,
                 run_index=args.run_index,
+                source_runtime=_SOURCE_RUNTIME,
+                execution_source_sha=args.execution_source_sha,
+                execution_source_tree_sha=args.execution_source_tree_sha,
             )
             _write_json(args.output, evidence)
             print(json.dumps({"status": "PASS", "output": str(args.output)}, sort_keys=True))

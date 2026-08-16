@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -28,12 +28,10 @@ STAGE_ORDER: tuple[str, ...] = (
     "investment",
 )
 EXPECTED_REVIEW_VECTOR: tuple[bool, ...] = (True, True, True, False, True)
-SOURCE_MAIN_SHA = "c6903d80089291c81bace737f6245da174825b70"
-SOURCE_MAIN_TREE_SHA = "5f0239f5804499ca857250a39af38f61c039530b"
-_SOURCE_MODULE_NAME = "s6_07_" + "controlled_fixture"
-SOURCE_CANDIDATE_PATH = (
-    "backend/src/cold_storage/bootstrap/" + _SOURCE_MODULE_NAME + ".py::_EXECUTION_SNAPSHOT"
-)
+# These identify the accepted source-definition baseline.  They are not the
+# source identity of the checkout that executes a controlled run.
+ACCEPTED_SOURCE_DEFINITION_BASE_SHA = "c6903d80089291c81bace737f6245da174825b70"
+ACCEPTED_SOURCE_DEFINITION_BASE_TREE_SHA = "5f0239f5804499ca857250a39af38f61c039530b"
 CANONICAL_INPUT_SHA256 = "6a3ccd82852d8aa908a8bedcaab6437fbb68ff8ee3a305f9451c84b738d5f5d4"
 SOURCE_SCHEMA_VERSION = "v0.3-p1-high-throughput-source.v1"
 EVIDENCE_SCHEMA_VERSION = "v0.3-p1-controlled-acceptance-evidence.v1"
@@ -91,6 +89,17 @@ class ControlledSourceDefinition:
 
 
 @dataclass(frozen=True, slots=True)
+class ControlledSourceRuntime:
+    """Explicit pilot-owned access to the accepted production support surface."""
+
+    source_candidate_path: str
+    source_snapshot: Mapping[str, object]
+    seed_startup_readiness: Callable[..., object]
+    create_controlled_coefficient_definition: Callable[..., object]
+    create_controlled_production_authority: Callable[..., object]
+
+
+@dataclass(frozen=True, slots=True)
 class ArtifactObservation:
     """Persisted artifact metadata plus the independently read file hash."""
 
@@ -106,6 +115,13 @@ class ArtifactObservation:
     observed_file_sha256: str
     file_size_bytes: int
     storage_key: str
+    template_id: str
+    template_version: str
+    template_content_hash: str
+    template_locale: str
+    translation_catalog_version: str
+    translation_catalog_content_hash: str
+    localized_template_content_hash: str
 
     def to_json(self) -> dict[str, object]:
         return {
@@ -121,6 +137,13 @@ class ArtifactObservation:
             "observed_file_sha256": self.observed_file_sha256,
             "file_size_bytes": self.file_size_bytes,
             "storage_key": self.storage_key,
+            "template_id": self.template_id,
+            "template_version": self.template_version,
+            "template_content_hash": self.template_content_hash,
+            "template_locale": self.template_locale,
+            "translation_catalog_version": self.translation_catalog_version,
+            "translation_catalog_content_hash": self.translation_catalog_content_hash,
+            "localized_template_content_hash": self.localized_template_content_hash,
         }
 
 
@@ -152,6 +175,25 @@ def validate_trusted_operator(operator: str) -> str:
         operator=value,
     )
     return value
+
+
+def validate_execution_source_identity(
+    source_sha: str,
+    source_tree_sha: str,
+) -> tuple[str, str]:
+    """Require the workflow/runner to provide the actual executing checkout."""
+
+    _require(
+        isinstance(source_sha, str) and bool(source_sha.strip()),
+        "EXECUTION_SOURCE_SHA_MISSING",
+        "controlled execution source commit must be supplied explicitly",
+    )
+    _require(
+        isinstance(source_tree_sha, str) and bool(source_tree_sha.strip()),
+        "EXECUTION_SOURCE_TREE_SHA_MISSING",
+        "controlled execution source tree must be supplied explicitly",
+    )
+    return source_sha, source_tree_sha
 
 
 def _source_definition_from_mapping(raw: Mapping[str, object]) -> ControlledSourceDefinition:
@@ -203,7 +245,11 @@ def _source_definition_from_mapping(raw: Mapping[str, object]) -> ControlledSour
     )
 
 
-def load_source_definition(path: str | Path) -> ControlledSourceDefinition:
+def load_source_definition(
+    path: str | Path,
+    *,
+    expected_source_candidate_path: str,
+) -> ControlledSourceDefinition:
     """Load and hash the fixture with the production canonicalizer."""
 
     source_path = Path(path)
@@ -233,10 +279,11 @@ def load_source_definition(path: str | Path) -> ControlledSourceDefinition:
         "source label is not the frozen high-throughput scenario",
     )
     _require(
-        source.source_candidate_path == SOURCE_CANDIDATE_PATH,
+        source.source_candidate_path == expected_source_candidate_path,
         "SOURCE_CANDIDATE_MISMATCH",
         "source candidate is not the accepted production snapshot",
         observed=source.source_candidate_path,
+        expected=expected_source_candidate_path,
     )
     actual_hash = hashlib.sha256(canonical_json_bytes(source.input)).hexdigest()
     _require(
@@ -252,13 +299,19 @@ def load_source_definition(path: str | Path) -> ControlledSourceDefinition:
 
 def verify_authoritative_source_definition(
     source: ControlledSourceDefinition,
+    *,
+    authoritative_snapshot: Mapping[str, object],
+    expected_source_candidate_path: str,
 ) -> None:
     """Bind the JSON fixture to the accepted production source snapshot."""
 
-    from importlib import import_module
-
-    source_module = import_module(f"cold_storage.bootstrap.{_SOURCE_MODULE_NAME}")
-    authoritative_snapshot = source_module.__dict__.get("_EXECUTION_SNAPSHOT")
+    _require(
+        source.source_candidate_path == expected_source_candidate_path,
+        "SOURCE_CANDIDATE_MISMATCH",
+        "source candidate is not the accepted production snapshot",
+        observed=source.source_candidate_path,
+        expected=expected_source_candidate_path,
+    )
 
     authoritative_hash = hashlib.sha256(canonical_json_bytes(authoritative_snapshot)).hexdigest()
     _require(
@@ -672,6 +725,12 @@ def normalized_business_projection(evidence: Mapping[str, object]) -> dict[str, 
                 "locale": value.get("locale"),
                 "format": value.get("format"),
                 "status": value.get("status"),
+                "template_version": value.get("template_version"),
+                "template_content_hash": value.get("template_content_hash"),
+                "template_locale": value.get("template_locale"),
+                "translation_catalog_version": value.get("translation_catalog_version"),
+                "translation_catalog_content_hash": value.get("translation_catalog_content_hash"),
+                "localized_template_content_hash": value.get("localized_template_content_hash"),
             }
             for key, value in artifacts.items()
             if isinstance(value, Mapping)
@@ -716,7 +775,7 @@ def verify_artifact_matrix(
     approved_revision_id: str,
     approved_content_hash: str,
 ) -> dict[str, ArtifactObservation]:
-    """Read each formal artifact and compare its persisted SHA-256."""
+    """Read each formal artifact and verify its complete persisted lineage."""
 
     expected_keys = {f"{locale}/{fmt}" for locale, fmt in FORMAL_ARTIFACT_MATRIX}
     _require(
@@ -727,38 +786,152 @@ def verify_artifact_matrix(
     )
     observations: dict[str, ArtifactObservation] = {}
     shared: tuple[str, str, str, str] | None = None
+    seen_artifact_ids: set[str] = set()
+    seen_storage_keys: set[str] = set()
     for key in sorted(artifacts):
         artifact = artifacts[key]
-        artifact_id = str(getattr(artifact, "id", ""))
-        storage_key = str(getattr(artifact, "storage_key", ""))
-        declared_hash = str(getattr(artifact, "file_sha256", ""))
+        expected_locale, expected_format = key.split("/", 1)
+        artifact_id = getattr(artifact, "id", "")
+        storage_key = getattr(artifact, "storage_key", "")
+        declared_hash = getattr(artifact, "file_sha256", "")
         _require(bool(artifact_id), "ARTIFACT_ID_MISSING", "formal artifact id is missing", key=key)
         _require(
-            bool(storage_key),
+            isinstance(artifact_id, str),
+            "ARTIFACT_ID_INVALID",
+            "formal artifact id must be a string",
+            key=key,
+        )
+        _require(
+            isinstance(storage_key, str) and bool(storage_key),
             "ARTIFACT_STORAGE_KEY_MISSING",
             "formal artifact storage key is missing",
             key=key,
         )
         _require(
-            bool(declared_hash),
+            isinstance(declared_hash, str) and bool(declared_hash),
             "ARTIFACT_FILE_HASH_MISSING",
             "formal artifact file hash is missing",
             key=key,
         )
+        _require(
+            artifact_id not in seen_artifact_ids,
+            "ARTIFACT_ID_DUPLICATE",
+            "formal artifact ids must be unique across the matrix",
+            key=key,
+            artifact_id=artifact_id,
+        )
+        _require(
+            storage_key not in seen_storage_keys,
+            "ARTIFACT_STORAGE_KEY_DUPLICATE",
+            "formal artifact storage keys must be unique across the matrix",
+            key=key,
+            storage_key=storage_key,
+        )
+        seen_artifact_ids.add(artifact_id)
+        seen_storage_keys.add(storage_key)
         file_bytes = read_bytes(storage_key)
         observed_hash = hashlib.sha256(file_bytes).hexdigest()
         locale = getattr(
             getattr(artifact, "locale", None), "value", getattr(artifact, "locale", "")
         )
         fmt = getattr(getattr(artifact, "format", None), "value", getattr(artifact, "format", ""))
+        locale = locale if isinstance(locale, str) else ""
+        fmt = fmt if isinstance(fmt, str) else ""
+        _require(
+            locale == expected_locale and fmt == expected_format,
+            "ARTIFACT_LABEL_MISMATCH",
+            "formal artifact metadata does not match its matrix label",
+            key=key,
+            observed=f"{locale}/{fmt}",
+        )
+        report_id_value = getattr(artifact, "report_id", "")
+        report_revision_id_value = getattr(artifact, "report_revision_id", "")
+        source_content_hash = getattr(artifact, "source_content_hash", "")
+        template_id = getattr(artifact, "template_id", "")
+        template_version = getattr(artifact, "template_version", "")
+        template_locale = getattr(
+            getattr(artifact, "template_locale", None),
+            "value",
+            getattr(artifact, "template_locale", ""),
+        )
+        catalog_version = getattr(artifact, "translation_catalog_version", "")
+        catalog_hash = getattr(artifact, "translation_catalog_content_hash", "")
+        localized_template_hash = getattr(artifact, "localized_template_content_hash", "")
+        manifest = getattr(artifact, "render_manifest_json", None)
+        _require(
+            isinstance(manifest, Mapping),
+            "ARTIFACT_TEMPLATE_LINEAGE_MISSING",
+            "formal artifact render manifest is missing",
+            key=key,
+        )
+        manifest_mapping = cast(Mapping[str, object], manifest)
+        template_content_hash = manifest_mapping.get("template_content_hash")
+        _require(
+            isinstance(report_id_value, str) and bool(report_id_value),
+            "ARTIFACT_REPORT_ID_MISSING",
+            "formal artifact report id is missing",
+            key=key,
+        )
+        _require(
+            isinstance(report_revision_id_value, str) and bool(report_revision_id_value),
+            "ARTIFACT_REVISION_ID_MISSING",
+            "formal artifact revision id is missing",
+            key=key,
+        )
+        for field_name, field_value in (
+            ("source_content_hash", source_content_hash),
+            ("template_id", template_id),
+            ("template_version", template_version),
+            ("template_content_hash", template_content_hash),
+            ("template_locale", template_locale),
+            ("translation_catalog_version", catalog_version),
+            ("translation_catalog_content_hash", catalog_hash),
+            ("localized_template_content_hash", localized_template_hash),
+        ):
+            _require(
+                isinstance(field_value, str) and bool(field_value),
+                "ARTIFACT_TEMPLATE_LINEAGE_MISSING",
+                "formal artifact template/catalog lineage is incomplete",
+                key=key,
+                field=field_name,
+            )
+        template_content_hash = cast(str, template_content_hash)
+        template_id = cast(str, template_id)
+        template_version = cast(str, template_version)
+        template_locale = cast(str, template_locale)
+        catalog_version = cast(str, catalog_version)
+        catalog_hash = cast(str, catalog_hash)
+        localized_template_hash = cast(str, localized_template_hash)
+        _require(
+            template_locale == locale,
+            "ARTIFACT_TEMPLATE_LOCALE_MISMATCH",
+            "formal artifact template locale differs from artifact locale",
+            key=key,
+        )
+        _require(
+            manifest_mapping.get("template_id") == template_id
+            and manifest_mapping.get("template_version") == template_version
+            and manifest_mapping.get("template_content_hash") == template_content_hash
+            and manifest_mapping.get("source_content_hash") == source_content_hash
+            and manifest_mapping.get("approved_revision_id") == approved_revision_id
+            and manifest_mapping.get("approved_content_hash") == approved_content_hash
+            and manifest_mapping.get("render_mode") == "formal"
+            and manifest_mapping.get("locale") == locale
+            and manifest_mapping.get("translation_catalog_version") == catalog_version
+            and manifest_mapping.get("translation_catalog_content_hash") == catalog_hash
+            and manifest_mapping.get("localized_template_content_hash") == localized_template_hash,
+            "ARTIFACT_FORMAL_LINEAGE_MISMATCH",
+            "formal artifact manifest does not match persisted template/catalog/approval lineage",
+            key=key,
+        )
         observation = ArtifactObservation(
             artifact_id=artifact_id,
-            report_id=str(getattr(artifact, "report_id", "")),
-            report_revision_id=str(getattr(artifact, "report_revision_id", "")),
+            report_id=report_id_value,
+            report_revision_id=report_revision_id_value,
             approved_revision_id=approved_revision_id,
-            approved_content_hash=str(getattr(artifact, "source_content_hash", "")),
-            locale=str(locale),
-            format=str(fmt),
+            approved_content_hash=source_content_hash,
+            locale=locale,
+            format=fmt,
             status=str(
                 getattr(getattr(artifact, "status", None), "value", getattr(artifact, "status", ""))
             ),
@@ -766,6 +939,13 @@ def verify_artifact_matrix(
             observed_file_sha256=observed_hash,
             file_size_bytes=int(getattr(artifact, "file_size_bytes", 0)),
             storage_key=storage_key,
+            template_id=template_id,
+            template_version=template_version,
+            template_content_hash=template_content_hash,
+            template_locale=template_locale,
+            translation_catalog_version=catalog_version,
+            translation_catalog_content_hash=catalog_hash,
+            localized_template_content_hash=localized_template_hash,
         )
         _require(bool(file_bytes), "ARTIFACT_EMPTY", "formal artifact file is empty", key=key)
         _require(
@@ -886,6 +1066,31 @@ def _persisted_calculation_query(session_factory: Callable[[], Any]) -> object:
     return PersistedCalculationQuery()
 
 
+def _artifact_matrix_label(artifact: object) -> str:
+    locale = getattr(getattr(artifact, "locale", None), "value", getattr(artifact, "locale", ""))
+    fmt = getattr(getattr(artifact, "format", None), "value", getattr(artifact, "format", ""))
+    _require(
+        isinstance(locale, str) and isinstance(fmt, str) and bool(locale) and bool(fmt),
+        "ARTIFACT_LABEL_INVALID",
+        "formal artifact locale/format label is incomplete",
+    )
+    return f"{locale}/{fmt}"
+
+
+def _index_artifacts_for_matrix(artifacts: Sequence[object]) -> dict[str, object]:
+    indexed: dict[str, object] = {}
+    for artifact in artifacts:
+        label = _artifact_matrix_label(artifact)
+        _require(
+            label not in indexed,
+            "ARTIFACT_LABEL_DUPLICATE",
+            "formal artifact matrix contains duplicate locale/format labels",
+            label=label,
+        )
+        indexed[label] = artifact
+    return indexed
+
+
 def _run_report_lifecycle(
     *,
     engine: Any,
@@ -893,7 +1098,6 @@ def _run_report_lifecycle(
     project_version_id: str,
     operator: str,
     output_root: Path,
-    run_token: str,
 ) -> dict[str, object]:
     """Run the existing report lifecycle and independently verify artifacts."""
 
@@ -970,11 +1174,6 @@ def _run_report_lifecycle(
                 template_version=None,
                 mode="formal",
                 actor=operator,
-                **{
-                    "idempotency_" + "key": (
-                        f"controlled-acceptance-{run_token}-{locale_value}-{format_value}"
-                    )
-                },
                 locale=locale,
             )
             artifacts[f"{locale_value}/{format_value}"] = render_service.verify_download(
@@ -1024,10 +1223,7 @@ def _run_report_lifecycle(
         "FRESH_SESSION_APPROVAL_MISMATCH",
         "approval identity changed or disappeared after restart",
     )
-    fresh_artifact_map = {
-        f"{artifact.locale.value}/{artifact.format.value}": artifact
-        for artifact in fresh_repo.list_artifacts(report_id)
-    }
+    fresh_artifact_map = _index_artifacts_for_matrix(fresh_repo.list_artifacts(report_id))
     fresh_observations = verify_artifact_matrix(
         fresh_artifact_map,
         read_bytes=storage.get,
@@ -1113,6 +1309,9 @@ def run_controlled_acceptance(
     output_root: str | Path,
     backend: str,
     run_index: int,
+    source_runtime: ControlledSourceRuntime,
+    execution_source_sha: str,
+    execution_source_tree_sha: str,
 ) -> dict[str, object]:
     """Execute one isolated backend acceptance run.
 
@@ -1121,9 +1320,20 @@ def run_controlled_acceptance(
     URL and never touches a production endpoint.
     """
 
-    source = load_source_definition(source_json)
-    verify_authoritative_source_definition(source)
+    source = load_source_definition(
+        source_json,
+        expected_source_candidate_path=source_runtime.source_candidate_path,
+    )
+    verify_authoritative_source_definition(
+        source,
+        authoritative_snapshot=source_runtime.source_snapshot,
+        expected_source_candidate_path=source_runtime.source_candidate_path,
+    )
     trusted_operator = validate_trusted_operator(operator)
+    execution_source_sha, execution_source_tree_sha = validate_execution_source_identity(
+        execution_source_sha,
+        execution_source_tree_sha,
+    )
     _require(run_index > 0, "RUN_INDEX_INVALID", "run_index must be positive")
     _require(
         backend in {"sqlite", "postgresql"},
@@ -1148,28 +1358,29 @@ def run_controlled_acceptance(
             "SCHEMA_NOT_READY",
             "acceptance database is not migrated to head",
         )
-        from importlib import import_module
-
-        source_module = import_module(f"cold_storage.bootstrap.{_SOURCE_MODULE_NAME}")
-        seed_startup_readiness = source_module.__dict__["seed_startup_readiness"]
-        create_controlled_coefficient_definition = source_module.__dict__[
-            "create_controlled_coefficient_definition"
-        ]
-        create_controlled_production_authority = source_module.__dict__[
-            "create_controlled_production_authority"
-        ]
-
         token = f"p1-controlled-{backend}-{run_index}"
-        seed_startup_readiness(engine, token=token)
-        definition_id = create_controlled_coefficient_definition(engine, token=token)
-        persistence = create_controlled_production_authority(
+        source_runtime.seed_startup_readiness(engine, token=token)
+        definition_id = source_runtime.create_controlled_coefficient_definition(engine, token=token)
+        persistence_value = source_runtime.create_controlled_production_authority(
             engine,
             definition_id=definition_id,
             token=token,
         )
+        _require(
+            isinstance(persistence_value, Mapping),
+            "SOURCE_RUNTIME_INVALID",
+            "controlled source runtime returned no persistence mapping",
+        )
+        persistence = cast(Mapping[str, object], persistence_value)
         canonical_persistence = persistence["canonical_persistence"]
-        project_id = str(canonical_persistence["project_id"])
-        project_version_id = str(canonical_persistence["project_version_id"])
+        _require(
+            isinstance(canonical_persistence, Mapping),
+            "SOURCE_RUNTIME_INVALID",
+            "controlled source runtime omitted canonical persistence",
+        )
+        canonical_persistence_mapping = cast(Mapping[str, object], canonical_persistence)
+        project_id = str(canonical_persistence_mapping["project_id"])
+        project_version_id = str(canonical_persistence_mapping["project_version_id"])
         session_factory = sessionmaker(bind=engine, expire_on_commit=False)
         with session_factory() as session:
             from cold_storage.modules.schemes.application.query import build_sqlalchemy_scheme_query
@@ -1184,7 +1395,7 @@ def run_controlled_acceptance(
             records, reasons = _verify_persisted_authority(
                 session=session,
                 authority=authority,
-                canonical_persistence=canonical_persistence,
+                canonical_persistence=canonical_persistence_mapping,
             )
             authority_snapshot = dict(_authority_snapshot(authority))
         with session_factory() as fresh_session:
@@ -1207,21 +1418,21 @@ def run_controlled_acceptance(
             }
             for stage, record in records.items()
         }
-        run_token = f"{backend}-{run_index}"
         report = _run_report_lifecycle(
             engine=engine,
             project_id=project_id,
             project_version_id=project_version_id,
             operator=trusted_operator,
             output_root=output_path / "artifacts",
-            run_token=run_token,
         )
         evidence: dict[str, object] = {
             "schema_version": EVIDENCE_SCHEMA_VERSION,
             "source": {
-                "source_sha": SOURCE_MAIN_SHA,
-                "source_tree_sha": SOURCE_MAIN_TREE_SHA,
-                "source_candidate_path": SOURCE_CANDIDATE_PATH,
+                "accepted_source_definition_sha": ACCEPTED_SOURCE_DEFINITION_BASE_SHA,
+                "accepted_source_definition_tree_sha": ACCEPTED_SOURCE_DEFINITION_BASE_TREE_SHA,
+                "execution_source_sha": execution_source_sha,
+                "execution_source_tree_sha": execution_source_tree_sha,
+                "source_candidate_path": source_runtime.source_candidate_path,
                 "canonical_input_sha256": source.canonical_input_sha256,
                 "source_definition": source.to_json(),
             },
@@ -1238,7 +1449,6 @@ def run_controlled_acceptance(
                 "reasons": [reason.to_json() for reason in reasons],
                 "source_binding_id": authority_snapshot["source_binding_id"],
                 "combined_source_hash": authority_snapshot["combined_source_hash"],
-                "scheme_" + "run_id": authority_snapshot["scheme_" + "run_id"],
                 "scheme_result_hash": authority_snapshot["content_hash"],
                 "scheme_review_authority_hash": authority_snapshot["content_hash"],
                 "status": authority_snapshot["status"],
@@ -1265,15 +1475,15 @@ def run_controlled_acceptance(
 
 
 __all__ = [
+    "ACCEPTED_SOURCE_DEFINITION_BASE_SHA",
+    "ACCEPTED_SOURCE_DEFINITION_BASE_TREE_SHA",
     "CANONICAL_INPUT_SHA256",
     "ControlledAcceptanceError",
+    "ControlledSourceRuntime",
     "ControlledSourceDefinition",
     "EVIDENCE_SCHEMA_VERSION",
     "EXPECTED_REVIEW_VECTOR",
     "FORMAL_ARTIFACT_MATRIX",
-    "SOURCE_CANDIDATE_PATH",
-    "SOURCE_MAIN_SHA",
-    "SOURCE_MAIN_TREE_SHA",
     "STAGE_ORDER",
     "compare_normalized_evidence",
     "load_source_definition",
@@ -1282,6 +1492,7 @@ __all__ = [
     "run_controlled_acceptance",
     "verify_authoritative_source_definition",
     "validate_review_reason_continuity",
+    "validate_execution_source_identity",
     "validate_trusted_operator",
     "verify_artifact_matrix",
 ]
