@@ -190,6 +190,43 @@ def _build_measured_value(
     }
 
 
+def _project_throughput_zones(
+    *,
+    zones: list[Any],
+    section_key: str,
+    result_id: str,
+) -> list[Any]:
+    """Project persisted zone details without mutating the source snapshot.
+
+    The orchestration snapshot stores nested numeric values as canonical
+    strings.  Rehydrate only the report-owned ``area_basis.value`` field;
+    unrelated zone data remains source-shaped and untouched.
+    """
+    projected_zones: list[Any] = []
+    for index, zone in enumerate(zones):
+        if not isinstance(zone, dict):
+            projected_zones.append(zone)
+            continue
+
+        projected_zone = dict(zone)
+        area_basis = zone.get("area_basis")
+        if not isinstance(area_basis, dict) or "value" not in area_basis:
+            projected_zones.append(projected_zone)
+            continue
+
+        projected_area_basis = dict(area_basis)
+        projected_area_basis["value"] = _coerce_to_number(
+            value=area_basis["value"],
+            section_key=section_key,
+            result_id=result_id,
+            field_path=f"zones[{index}].area_basis.value",
+        )
+        projected_zone["area_basis"] = projected_area_basis
+        projected_zones.append(projected_zone)
+
+    return projected_zones
+
+
 # ── v0 → v1 strict projection (per section) ────────────────────────────────
 
 
@@ -331,7 +368,11 @@ def _project_v0_to_v1_section(
                     reason_code="UNSUPPORTED_SOURCE_TYPE",
                     detail=f"expected list, got {type(zones_value).__name__}",
                 )
-            projected["zone_details"] = zones_value
+            projected["zone_details"] = _project_throughput_zones(
+                zones=zones_value,
+                section_key=section_key,
+                result_id=result_id,
+            )
         return projected
 
     # cooling_load / equipment_selection / electrical_and_energy:
