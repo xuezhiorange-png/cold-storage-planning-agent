@@ -194,7 +194,22 @@ def _invoke_review_lifecycle_action(
             lifecycle_action=action,
         )
     diagnostics.lifecycle_action = action
-    return getattr(report_service, action)(report_id, operator, comment="controlled acceptance")
+    try:
+        result = getattr(report_service, action)(
+            report_id,
+            operator,
+            comment="controlled acceptance",
+        )
+    except InvalidStatusTransitionError:
+        # Preserve the targeted action for the outer diagnostic wrapper.
+        raise
+    except Exception:
+        # Other failures must not leave a stale review-action context behind.
+        diagnostics.lifecycle_action = None
+        raise
+    else:
+        diagnostics.lifecycle_action = None
+        return result
 
 
 def _status_detail(value: object) -> str:

@@ -11,13 +11,16 @@ from types import SimpleNamespace
 import pytest
 
 from cold_storage.bootstrap.s6_07_controlled_fixture import _EXECUTION_SNAPSHOT
+from cold_storage.evaluation import followup_acceptance as acceptance
 from cold_storage.evaluation.followup_acceptance import (
     CANONICAL_INPUT_SHA256,
     CONTROLLED_REVIEW_LIFECYCLE_ACTIONS,
+    EVIDENCE_SCHEMA_VERSION,
     EXPECTED_REVIEW_VECTOR,
     FORMAL_ARTIFACT_MATRIX,
     STAGE_ORDER,
     ControlledAcceptanceError,
+    ControlledSourceRuntime,
     _capture_post_generation_diagnostics,
     _invoke_review_lifecycle_action,
     _LifecycleDiagnosticContext,
@@ -25,6 +28,7 @@ from cold_storage.evaluation.followup_acceptance import (
     compare_normalized_evidence,
     load_source_definition,
     project_source_warnings,
+    run_controlled_acceptance,
     validate_execution_source_identity,
     validate_review_reason_continuity,
     validate_trusted_operator,
@@ -223,6 +227,52 @@ def test_lifecycle_action_is_set_before_each_review_service_call(action: str) ->
         _invoke_review_lifecycle_action(service, "report-1", "operator", action, diagnostics)
 
     assert diagnostics.lifecycle_action == action
+
+
+def test_successful_review_action_clears_context_before_later_work() -> None:
+    diagnostics = _LifecycleDiagnosticContext()
+    service = SimpleNamespace(approve=lambda *args, **kwargs: "approved")
+
+    result = _invoke_review_lifecycle_action(
+        service,
+        "report-1",
+        "operator",
+        "approve",
+        diagnostics,
+    )
+
+    assert result == "approved"
+    assert diagnostics.lifecycle_action is None
+
+    wrapped = _wrap_controlled_failure(
+        InvalidStatusTransitionError(ReportStatus.REVIEWED, ReportStatus.APPROVED),
+        backend="sqlite",
+        run_index=1,
+        diagnostics=diagnostics,
+    )
+    assert wrapped.details == {
+        "backend": "sqlite",
+        "run_index": 1,
+        "exception_type": "InvalidStatusTransitionError",
+    }
+
+
+def test_non_invalid_review_action_failure_clears_context() -> None:
+    diagnostics = _LifecycleDiagnosticContext()
+
+    def fail(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("review action failed")
+
+    with pytest.raises(RuntimeError, match="review action failed"):
+        _invoke_review_lifecycle_action(
+            SimpleNamespace(approve=fail),
+            "report-1",
+            "operator",
+            "approve",
+            diagnostics,
+        )
+
+    assert diagnostics.lifecycle_action is None
 
 
 def test_lifecycle_action_allowlist_is_closed() -> None:
@@ -644,3 +694,138 @@ def test_normalized_parity_does_not_ignore_business_hash_changes() -> None:
     result = compare_normalized_evidence({"a": first, "b": second})
 
     assert result["status"] == "FAIL"
+
+
+def test_success_evidence_compatibility_excludes_failure_diagnostics(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    class _Connection:
+        def __enter__(self) -> _Connection:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def execute(self, statement: object) -> None:
+            return None
+
+    class _Engine:
+        def connect(self) -> _Connection:
+            return _Connection()
+
+        def dispose(self) -> None:
+            return None
+
+    class _Session:
+        def __enter__(self) -> _Session:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+    class _Query:
+        def get_review_authority(self, project_id: str, project_version_id: str) -> object:
+            return object()
+
+    records = {
+        stage: {
+            "id": f"calculation-{stage}",
+            "requires_review": EXPECTED_REVIEW_VECTOR[index],
+            "warnings": [],
+            "result_hash": f"{stage}-hash",
+        }
+        for index, stage in enumerate(STAGE_ORDER)
+    }
+    authority_snapshot = {
+        "source_binding_id": "binding-1",
+        "combined_source_hash": "binding-hash",
+        "content_hash": "scheme-hash",
+        "status": "completed",
+        **{f"{stage}_result_hash": f"{stage}-hash" for stage in STAGE_ORDER},
+    }
+    source_runtime = ControlledSourceRuntime(
+        source_candidate_path=SOURCE_CANDIDATE_PATH,
+        source_snapshot=_EXECUTION_SNAPSHOT,
+        seed_startup_readiness=lambda engine, **kwargs: None,
+        create_controlled_coefficient_definition=lambda engine, **kwargs: "definition-1",
+        create_controlled_production_authority=lambda engine, **kwargs: {
+            "canonical_persistence": {
+                "project_id": "project-1",
+                "project_version_id": "version-1",
+            }
+        },
+    )
+
+    monkeypatch.setattr("sqlalchemy.create_engine", lambda *args, **kwargs: _Engine())
+    monkeypatch.setattr(
+        "sqlalchemy.inspect",
+        lambda engine: SimpleNamespace(has_table=lambda table_name: table_name == "projects"),
+    )
+    monkeypatch.setattr("sqlalchemy.orm.sessionmaker", lambda **kwargs: lambda: _Session())
+    monkeypatch.setattr(
+        "cold_storage.modules.schemes.application.query.build_sqlalchemy_scheme_query",
+        lambda session: _Query(),
+    )
+    monkeypatch.setattr(
+        acceptance,
+        "_verify_persisted_authority",
+        lambda **kwargs: (records, ()),
+    )
+    monkeypatch.setattr(acceptance, "_authority_snapshot", lambda authority: authority_snapshot)
+    monkeypatch.setattr(
+        acceptance,
+        "_run_report_lifecycle",
+        lambda **kwargs: {
+            "report_id": "report-1",
+            "report_revision_id": "revision-1",
+            "approved_revision_id": "revision-1",
+            "approved_content_hash": "report-hash",
+            "project_id": "project-1",
+            "project_version_id": "version-1",
+            "trusted_operator": "trusted-operator",
+            "approval": {"approved_by": "trusted-operator"},
+            "transitions": [],
+            "artifacts": {},
+            "fresh_session": True,
+            "restart": True,
+        },
+    )
+
+    evidence = run_controlled_acceptance(
+        database_url="sqlite:///:memory:",
+        source_json=SOURCE_PATH,
+        operator="trusted-operator",
+        output_root=tmp_path,
+        backend="sqlite",
+        run_index=1,
+        source_runtime=source_runtime,
+        execution_source_sha="runtime-sha",
+        execution_source_tree_sha="runtime-tree",
+    )
+
+    diagnostic_keys = {
+        "lifecycle_action",
+        "report_status_after_generate_revision",
+        "quality_blockers_after_generate_revision",
+        "invalid_from_status",
+        "invalid_to_status",
+    }
+
+    def contains_diagnostic_key(value: object) -> bool:
+        if isinstance(value, dict):
+            return bool(set(value) & diagnostic_keys) or any(
+                contains_diagnostic_key(child) for child in value.values()
+            )
+        if isinstance(value, list):
+            return any(contains_diagnostic_key(child) for child in value)
+        return False
+
+    assert evidence["schema_version"] == EVIDENCE_SCHEMA_VERSION
+    assert EVIDENCE_SCHEMA_VERSION == "v0.3-p1-controlled-acceptance-evidence.v1"
+    assert not contains_diagnostic_key(evidence)
+
+    parity = compare_normalized_evidence(
+        {"sqlite-1": evidence, "sqlite-2": copy.deepcopy(evidence)}
+    )
+    assert parity["status"] == "PASS"
