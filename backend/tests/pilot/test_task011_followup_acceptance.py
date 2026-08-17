@@ -13,10 +13,15 @@ import pytest
 from cold_storage.bootstrap.s6_07_controlled_fixture import _EXECUTION_SNAPSHOT
 from cold_storage.evaluation.followup_acceptance import (
     CANONICAL_INPUT_SHA256,
+    CONTROLLED_REVIEW_LIFECYCLE_ACTIONS,
     EXPECTED_REVIEW_VECTOR,
     FORMAL_ARTIFACT_MATRIX,
     STAGE_ORDER,
     ControlledAcceptanceError,
+    _capture_post_generation_diagnostics,
+    _invoke_review_lifecycle_action,
+    _LifecycleDiagnosticContext,
+    _wrap_controlled_failure,
     compare_normalized_evidence,
     load_source_definition,
     project_source_warnings,
@@ -26,6 +31,8 @@ from cold_storage.evaluation.followup_acceptance import (
     verify_artifact_matrix,
     verify_authoritative_source_definition,
 )
+from cold_storage.modules.reports.domain.enums import ReportStatus
+from cold_storage.modules.reports.domain.errors import InvalidStatusTransitionError
 from cold_storage.modules.schemes.domain.models import ReviewReason
 
 SOURCE_PATH = Path(__file__).parent / "data/task011-followup-high-throughput-source.v1.json"
@@ -162,6 +169,164 @@ def test_malformed_warning_fails_closed_without_string_laundering() -> None:
         project_source_warnings(records)
 
     assert exc_info.value.code == "PRODUCER_WARNING_INVALID"
+
+
+def test_invalid_status_transition_failure_preserves_direct_diagnostic_details() -> None:
+    blockers = [
+        {
+            "code": "MISSING_RECOMMENDATION",
+            "severity": "blocker",
+            "section_key": "scheme",
+            "field_path": "recommended_scheme_code",
+            "message": "no feasible scheme",
+        }
+    ]
+    diagnostics = _LifecycleDiagnosticContext(
+        lifecycle_action="approve",
+        report_status_after_generate_revision="generated",
+        quality_blockers_after_generate_revision=blockers,
+    )
+
+    wrapped = _wrap_controlled_failure(
+        InvalidStatusTransitionError(ReportStatus.REVIEWED, ReportStatus.APPROVED),
+        backend="sqlite",
+        run_index=1,
+        diagnostics=diagnostics,
+    )
+
+    assert wrapped.to_json() == {
+        "code": "CONTROLLED_ACCEPTANCE_FAILED",
+        "message": "controlled acceptance production path failed",
+        "details": {
+            "backend": "sqlite",
+            "run_index": 1,
+            "exception_type": "InvalidStatusTransitionError",
+            "lifecycle_action": "approve",
+            "report_status_after_generate_revision": "generated",
+            "quality_blockers_after_generate_revision": blockers,
+            "invalid_from_status": "reviewed",
+            "invalid_to_status": "approved",
+        },
+    }
+
+
+@pytest.mark.parametrize("action", CONTROLLED_REVIEW_LIFECYCLE_ACTIONS)
+def test_lifecycle_action_is_set_before_each_review_service_call(action: str) -> None:
+    diagnostics = _LifecycleDiagnosticContext()
+
+    class FailingReviewService:
+        def __call__(self, *args: object, **kwargs: object) -> None:
+            raise InvalidStatusTransitionError("unexpected", "target")
+
+    service = SimpleNamespace(**{action: FailingReviewService()})
+    with pytest.raises(InvalidStatusTransitionError):
+        _invoke_review_lifecycle_action(service, "report-1", "operator", action, diagnostics)
+
+    assert diagnostics.lifecycle_action == action
+
+
+def test_lifecycle_action_allowlist_is_closed() -> None:
+    assert CONTROLLED_REVIEW_LIFECYCLE_ACTIONS == (
+        "submit_review",
+        "mark_reviewed",
+        "approve",
+    )
+    with pytest.raises(ControlledAcceptanceError) as exc_info:
+        _invoke_review_lifecycle_action(
+            SimpleNamespace(),
+            "report-1",
+            "operator",
+            "request_changes",
+            _LifecycleDiagnosticContext(),
+        )
+    assert exc_info.value.code == "CONTROLLED_LIFECYCLE_ACTION_INVALID"
+
+
+def test_post_generation_diagnostics_use_persisted_report_readback_and_full_blockers() -> None:
+    blocker = {
+        "code": "MISSING_RECOMMENDATION",
+        "severity": "blocker",
+        "section_key": "scheme",
+        "field_path": "recommended_scheme_code",
+        "message": "no feasible scheme",
+    }
+    warning = {
+        "code": "ADVISORY",
+        "severity": "warning",
+        "section_key": "summary",
+        "field_path": "summary",
+        "message": "advisory",
+    }
+    calls: list[tuple[str, str]] = []
+
+    class ReportServiceReadback:
+        def get_report(self, report_id: str, operator: str) -> object:
+            calls.append((report_id, operator))
+            return SimpleNamespace(status=SimpleNamespace(value="generated"))
+
+    diagnostics = _capture_post_generation_diagnostics(
+        ReportServiceReadback(),
+        "report-1",
+        "operator",
+        SimpleNamespace(quality_findings_json=[blocker, warning]),
+        _LifecycleDiagnosticContext(),
+    )
+
+    assert calls == [("report-1", "operator")]
+    assert diagnostics.report_status_after_generate_revision == "generated"
+    assert diagnostics.quality_blockers_after_generate_revision == [blocker]
+
+
+def test_post_generation_diagnostics_use_empty_blocker_list_when_clear() -> None:
+    diagnostics = _capture_post_generation_diagnostics(
+        SimpleNamespace(
+            get_report=lambda report_id, operator: SimpleNamespace(
+                status=SimpleNamespace(value="generated")
+            )
+        ),
+        "report-1",
+        "operator",
+        SimpleNamespace(quality_findings_json=[]),
+        _LifecycleDiagnosticContext(),
+    )
+
+    assert diagnostics.quality_blockers_after_generate_revision == []
+
+
+def test_non_invalid_status_failure_keeps_generic_failure_contract() -> None:
+    diagnostics = _LifecycleDiagnosticContext(
+        lifecycle_action="approve",
+        report_status_after_generate_revision="generated",
+        quality_blockers_after_generate_revision=[],
+    )
+    wrapped = _wrap_controlled_failure(
+        RuntimeError("unrelated failure"),
+        backend="postgresql",
+        run_index=2,
+        diagnostics=diagnostics,
+    )
+
+    assert set(wrapped.details) == {"backend", "run_index", "exception_type"}
+    assert wrapped.details == {
+        "backend": "postgresql",
+        "run_index": 2,
+        "exception_type": "RuntimeError",
+    }
+
+
+def test_invalid_status_before_review_action_keeps_generic_failure_contract() -> None:
+    wrapped = _wrap_controlled_failure(
+        InvalidStatusTransitionError("draft", "generated"),
+        backend="sqlite",
+        run_index=1,
+        diagnostics=_LifecycleDiagnosticContext(),
+    )
+
+    assert wrapped.details == {
+        "backend": "sqlite",
+        "run_index": 1,
+        "exception_type": "InvalidStatusTransitionError",
+    }
 
 
 def test_authority_checks_source_id_stage_and_false_stage() -> None:

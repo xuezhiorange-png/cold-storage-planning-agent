@@ -18,6 +18,8 @@ from typing import Any, cast
 from urllib.parse import urlsplit
 
 from cold_storage.modules.orchestration.domain.fingerprint import canonical_json_bytes
+from cold_storage.modules.reports.domain.errors import InvalidStatusTransitionError
+from cold_storage.modules.reports.domain.quality import get_blockers
 from cold_storage.modules.schemes.domain.models import ReviewReason
 
 STAGE_ORDER: tuple[str, ...] = (
@@ -42,6 +44,11 @@ FORMAL_ARTIFACT_MATRIX: tuple[tuple[str, str], ...] = (
     ("en-US", "pdf"),
 )
 REJECTED_OPERATOR_NAMES = frozenset({"system", "api", "background", "llm"})
+CONTROLLED_REVIEW_LIFECYCLE_ACTIONS: tuple[str, ...] = (
+    "submit_review",
+    "mark_reviewed",
+    "approve",
+)
 
 
 class ControlledAcceptanceError(RuntimeError):
@@ -145,6 +152,92 @@ class ArtifactObservation:
             "translation_catalog_content_hash": self.translation_catalog_content_hash,
             "localized_template_content_hash": self.localized_template_content_hash,
         }
+
+
+@dataclass(slots=True)
+class _LifecycleDiagnosticContext:
+    lifecycle_action: str | None = None
+    report_status_after_generate_revision: str | None = None
+    quality_blockers_after_generate_revision: list[dict[str, Any]] | None = None
+
+
+def _capture_post_generation_diagnostics(
+    report_service: Any,
+    report_id: str,
+    operator: str,
+    revision: Any,
+    diagnostics: _LifecycleDiagnosticContext,
+) -> _LifecycleDiagnosticContext:
+    """Read the persisted report state and complete quality findings once."""
+
+    generated_report = report_service.get_report(report_id, operator)
+    diagnostics.report_status_after_generate_revision = generated_report.status.value
+    diagnostics.quality_blockers_after_generate_revision = get_blockers(
+        revision.quality_findings_json
+    )
+    return diagnostics
+
+
+def _invoke_review_lifecycle_action(
+    report_service: Any,
+    report_id: str,
+    operator: str,
+    action: str,
+    diagnostics: _LifecycleDiagnosticContext,
+) -> Any:
+    """Set the exact action before invoking the existing report service."""
+
+    if action not in CONTROLLED_REVIEW_LIFECYCLE_ACTIONS:
+        raise ControlledAcceptanceError(
+            "CONTROLLED_LIFECYCLE_ACTION_INVALID",
+            "controlled acceptance lifecycle action is not supported",
+            lifecycle_action=action,
+        )
+    diagnostics.lifecycle_action = action
+    return getattr(report_service, action)(report_id, operator, comment="controlled acceptance")
+
+
+def _status_detail(value: object) -> str:
+    """Serialize a status attribute without parsing the exception message."""
+
+    normalized = getattr(value, "value", value)
+    return normalized if isinstance(normalized, str) else str(normalized)
+
+
+def _wrap_controlled_failure(
+    exc: Exception,
+    *,
+    backend: str,
+    run_index: int,
+    diagnostics: _LifecycleDiagnosticContext,
+) -> ControlledAcceptanceError:
+    details: dict[str, object] = {
+        "backend": backend,
+        "run_index": run_index,
+        "exception_type": type(exc).__name__,
+    }
+    if (
+        isinstance(exc, InvalidStatusTransitionError)
+        and diagnostics.lifecycle_action in CONTROLLED_REVIEW_LIFECYCLE_ACTIONS
+    ):
+        details.update(
+            {
+                "lifecycle_action": diagnostics.lifecycle_action,
+                "report_status_after_generate_revision": (
+                    diagnostics.report_status_after_generate_revision
+                ),
+                "quality_blockers_after_generate_revision": (
+                    diagnostics.quality_blockers_after_generate_revision or []
+                ),
+                "invalid_from_status": _status_detail(exc.from_status),
+                "invalid_to_status": _status_detail(exc.to_status),
+            }
+        )
+    return ControlledAcceptanceError(
+        "CONTROLLED_ACCEPTANCE_FAILED",
+        "controlled acceptance production path failed",
+        **details,
+    )
 
 
 def _require(condition: bool, code: str, message: str, **details: object) -> None:
@@ -1098,6 +1191,7 @@ def _run_report_lifecycle(
     project_version_id: str,
     operator: str,
     output_root: Path,
+    diagnostics: _LifecycleDiagnosticContext,
 ) -> dict[str, object]:
     """Run the existing report lifecycle and independently verify artifacts."""
 
@@ -1161,9 +1255,34 @@ def _run_report_lifecycle(
             actor=operator,
         )
         revision = report_service.generate_revision(report.id, operator)
-        report_service.submit_review(report.id, operator, comment="controlled acceptance")
-        report_service.mark_reviewed(report.id, operator, comment="controlled acceptance")
-        approved = report_service.approve(report.id, operator, comment="controlled acceptance")
+        _capture_post_generation_diagnostics(
+            report_service,
+            report.id,
+            operator,
+            revision,
+            diagnostics,
+        )
+        _invoke_review_lifecycle_action(
+            report_service,
+            report.id,
+            operator,
+            "submit_review",
+            diagnostics,
+        )
+        _invoke_review_lifecycle_action(
+            report_service,
+            report.id,
+            operator,
+            "mark_reviewed",
+            diagnostics,
+        )
+        approved = _invoke_review_lifecycle_action(
+            report_service,
+            report.id,
+            operator,
+            "approve",
+            diagnostics,
+        )
         artifacts: dict[str, object] = {}
         for locale_value, format_value in FORMAL_ARTIFACT_MATRIX:
             locale = ReportLocale(locale_value)
@@ -1350,6 +1469,7 @@ def run_controlled_acceptance(
     engine = create_engine(database_url, **engine_kwargs)
     output_path = Path(output_root)
     output_path.mkdir(parents=True, exist_ok=True)
+    diagnostics = _LifecycleDiagnosticContext()
     try:
         with engine.connect() as connection:
             connection.execute(select(1))
@@ -1424,6 +1544,7 @@ def run_controlled_acceptance(
             project_version_id=project_version_id,
             operator=trusted_operator,
             output_root=output_path / "artifacts",
+            diagnostics=diagnostics,
         )
         evidence: dict[str, object] = {
             "schema_version": EVIDENCE_SCHEMA_VERSION,
@@ -1463,12 +1584,11 @@ def run_controlled_acceptance(
     except ControlledAcceptanceError:
         raise
     except Exception as exc:
-        raise ControlledAcceptanceError(
-            "CONTROLLED_ACCEPTANCE_FAILED",
-            "controlled acceptance production path failed",
+        raise _wrap_controlled_failure(
+            exc,
             backend=backend,
             run_index=run_index,
-            exception_type=type(exc).__name__,
+            diagnostics=diagnostics,
         ) from exc
     finally:
         engine.dispose()

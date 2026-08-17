@@ -153,6 +153,37 @@ review actions, manual approval without persisted proof, content-hash
 mismatch, blocker state, or file-hash mismatch are failures, not warnings.
 The runner exits non-zero and emits machine-readable error details.
 
+### Controlled lifecycle failure diagnostics
+
+The successful evidence schema remains
+`v0.3-p1-controlled-acceptance-evidence.v1`; successful evidence does not
+contain failure-diagnostic fields. The generic failure contract also remains
+unchanged: `CONTROLLED_ACCEPTANCE_FAILED` with the existing `backend`,
+`run_index`, and `exception_type` details.
+
+Only an `InvalidStatusTransitionError` raised by one of the controlled review
+lifecycle actions adds diagnostic details. The closed action set is
+`submit_review`, `mark_reviewed`, and `approve`. The boundary sets the action
+before calling the production service, reads the report status through a
+post-generation `ReportService.get_report(...)` readback, and takes the full
+ordered blocker objects from `get_blockers(revision.quality_findings_json)`.
+The additional details are:
+
+```text
+lifecycle_action
+report_status_after_generate_revision
+quality_blockers_after_generate_revision
+invalid_from_status
+invalid_to_status
+```
+
+The transition endpoints come directly from
+`InvalidStatusTransitionError.from_status` and `.to_status`, normalizing only
+Enum values to `.value`; the exception message is never parsed. An empty
+blocker set is recorded as `[]`. The CLI runner needs no change: the existing
+`ControlledAcceptanceError.to_json()` path writes these details into the
+failure artifact, and the workflow needs no change.
+
 The raw canonical input, SourceBinding, and SchemeRun hashes remain in every
 evidence file. The normalized comparison retains the canonical input hash,
 per-calculation result hashes, reason order, reason code/message, review
