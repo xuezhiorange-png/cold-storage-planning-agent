@@ -55,14 +55,40 @@ the exact Decimal residual. Existing strict hard-constraint comparisons and
 the established area/position split semantics remain unchanged. Genuine
 capacity shortfalls therefore remain infeasible.
 
-Report quality validation treats a
-`throughput_inventory_area.zone_details[*].area_basis` coefficient reference
-as provenance metadata, not as a measured report value. The canonical
-measured area-basis unit is `m2`; a non-`m2` measured value is a blocker.
-Known refrigeration/electrical/thermal units remain dimensionally strict,
-while a known unit on an otherwise unmapped measured-value path fails closed.
-This distinction keeps accepted coefficient provenance readable without
-allowing an unmapped measurement to pass the report quality gate.
+Report quality validation treats
+`throughput_inventory_area.zone_details[*].area_basis` as a polymorphic,
+fail-closed authority field.  Classification has strict precedence:
+
+1. Any coefficient discriminator (`code`, `category`, `source_type`,
+   `source_reference`, `version`, `validity_status`, `approval_status`,
+   `requires_review`, or `notes`) makes the value a coefficient-reference
+   candidate.
+2. Only a value with no discriminator and both `value` and `unit` is a plain
+   measured area value.
+3. Any other shape is a blocker; a partial coefficient reference must never
+   fall back to measured-value validation.
+
+A coefficient-reference candidate must have the exact production key set,
+non-empty `code`, `name`, `unit`, and `notes`, a finite numeric `value`, and
+the exact static demo provenance identity emitted by `DemoZoneCoefficient`.
+Only these seven code-bound unit pairs are authoritative at `area_basis`:
+
+```text
+office_area_per_t_day -> m2/(t/day)
+changing_area_per_t_day -> m2/(t/day)
+raw_area_loading -> kg/m2
+coating_area_loading -> kg/day/m2
+storage_area_loading -> kg/m2
+secondary_fruit_area_loading -> kg/m2
+frozen_area_loading -> kg/m2
+```
+
+Unknown or currently unreachable coefficient codes, wrong units, missing or
+extra keys, partial provenance, and wrong static provenance identity are
+blockers.  A plain measured area value must use canonical unit `m2`; any
+other unit is a blocker.  Known refrigeration/electrical/thermal/energy
+dimensions remain strict, and a known unit on an otherwise unmapped generic
+measured-value path continues to fail closed.
 
 ## Authorized operator
 
