@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import copy
 import json
+import os
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -43,6 +46,28 @@ SOURCE_PATH = Path(__file__).parent / "data/task011-followup-high-throughput-sou
 SOURCE_CANDIDATE_PATH = (
     "backend/src/cold_storage/bootstrap/s6_07_controlled_fixture.py::_EXECUTION_SNAPSHOT"
 )
+DATABASE_ENVIRONMENT_VARIABLES = (
+    "COLD_STORAGE_DATABASE_BACKEND",
+    "COLD_STORAGE_DATABASE_URL",
+    "COLD_STORAGE_DATABASE_SQLITE_PATH",
+)
+
+
+def _database_environment_snapshot() -> dict[str, str | None]:
+    return {name: os.environ.get(name) for name in DATABASE_ENVIRONMENT_VARIABLES}
+
+
+@contextmanager
+def _preserve_database_environment() -> Iterator[None]:
+    original = _database_environment_snapshot()
+    try:
+        yield
+    finally:
+        for name, value in original.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
 
 
 @dataclass
@@ -792,17 +817,28 @@ def test_success_evidence_compatibility_excludes_failure_diagnostics(
         },
     )
 
-    evidence = run_controlled_acceptance(
-        database_url="sqlite:///:memory:",
-        source_json=SOURCE_PATH,
-        operator="trusted-operator",
-        output_root=tmp_path,
-        backend="sqlite",
-        run_index=1,
-        source_runtime=source_runtime,
-        execution_source_sha="runtime-sha",
-        execution_source_tree_sha="runtime-tree",
-    )
+    before_environment = _database_environment_snapshot()
+    with _preserve_database_environment():
+        evidence = run_controlled_acceptance(
+            database_url="sqlite:///:memory:",
+            source_json=SOURCE_PATH,
+            operator="trusted-operator",
+            output_root=tmp_path,
+            backend="sqlite",
+            run_index=1,
+            source_runtime=source_runtime,
+            execution_source_sha="runtime-sha",
+            execution_source_tree_sha="runtime-tree",
+        )
+
+    after_environment = _database_environment_snapshot()
+    for name in DATABASE_ENVIRONMENT_VARIABLES:
+        expected = before_environment[name]
+        if expected is None:
+            assert name not in os.environ
+        else:
+            assert os.environ[name] == expected
+        assert after_environment[name] == expected
 
     diagnostic_keys = {
         "lifecycle_action",
