@@ -17,6 +17,8 @@ from cold_storage.evaluation.followup_acceptance import (
     FORMAL_ARTIFACT_MATRIX,
     STAGE_ORDER,
     ControlledAcceptanceError,
+    _controlled_scheme_candidate_evidence,
+    _lifecycle_failure_diagnostic,
     compare_normalized_evidence,
     load_source_definition,
     project_source_warnings,
@@ -26,6 +28,7 @@ from cold_storage.evaluation.followup_acceptance import (
     verify_artifact_matrix,
     verify_authoritative_source_definition,
 )
+from cold_storage.modules.reports.domain.errors import InvalidStatusTransitionError
 from cold_storage.modules.schemes.domain.models import ReviewReason
 
 SOURCE_PATH = Path(__file__).parent / "data/task011-followup-high-throughput-source.v1.json"
@@ -479,3 +482,69 @@ def test_normalized_parity_does_not_ignore_business_hash_changes() -> None:
     result = compare_normalized_evidence({"a": first, "b": second})
 
     assert result["status"] == "FAIL"
+
+
+def test_lifecycle_failure_diagnostic_preserves_production_root_cause() -> None:
+    revision = SimpleNamespace(
+        id="revision-1",
+        revision_number=1,
+        quality_status=SimpleNamespace(value="draft"),
+        quality_findings_json=[
+            {
+                "code": "EMPTY_REQUIRED_ENGINEERING_RESULT",
+                "severity": "blocker",
+                "section_key": "scheme_comparison",
+                "field_path": "scheme_comparison.recommended_scheme",
+                "message": "recommended scheme is empty",
+            }
+        ],
+    )
+    authority = {
+        "scheme_run_id": "scheme-run-1",
+        "recommended_scheme_code": "",
+        "requires_review": True,
+        "content_hash": "scheme-hash",
+        "source_binding_id": "binding-1",
+    }
+    candidates = _controlled_scheme_candidate_evidence(
+        [
+            {
+                "scheme_code": "balanced",
+                "feasible": False,
+                "rank": None,
+                "constraint_results": [{"code": "cooling_capacity_adequacy", "passed": False}],
+            },
+        ],
+        recommended_scheme_code=authority["recommended_scheme_code"],
+    )
+
+    details = _lifecycle_failure_diagnostic(
+        exception=InvalidStatusTransitionError("draft", "under_review"),
+        report_status_after_generate=SimpleNamespace(value="draft"),
+        revision=revision,
+        scheme_review_authority=authority,
+        scheme_candidate_evidence=candidates,
+    )
+
+    assert details["exception_type"] == "InvalidStatusTransitionError"
+    assert details["from_status"] == "draft"
+    assert details["to_status"] == "under_review"
+    assert details["report_status_after_generate_revision"] == "draft"
+    assert details["revision_quality_status"] == "draft"
+    assert details["quality_blocker_fields"] == [
+        {
+            "code": "EMPTY_REQUIRED_ENGINEERING_RESULT",
+            "section_key": "scheme_comparison",
+            "field_path": "scheme_comparison.recommended_scheme",
+        }
+    ]
+    assert details["scheme_review_authority"] == authority
+    assert details["controlled_scheme_candidates"] == [
+        {
+            "scheme_code": "balanced",
+            "feasible": False,
+            "rank": None,
+            "constraint_results": [{"code": "cooling_capacity_adequacy", "passed": False}],
+            "recommendation_status": "no_persisted_recommendation",
+        }
+    ]

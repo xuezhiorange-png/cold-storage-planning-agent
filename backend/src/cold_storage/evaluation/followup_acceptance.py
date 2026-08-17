@@ -1091,6 +1091,116 @@ def _index_artifacts_for_matrix(artifacts: Sequence[object]) -> dict[str, object
     return indexed
 
 
+def _status_value(value: object) -> object:
+    """Return an enum status as its persisted value without changing it."""
+
+    return getattr(value, "value", value)
+
+
+def _quality_diagnostic(revision: object | None) -> dict[str, object]:
+    """Capture persisted quality findings for a failed lifecycle attempt."""
+
+    raw_findings = getattr(revision, "quality_findings_json", []) if revision else []
+    findings = (
+        [dict(item) for item in raw_findings if isinstance(item, Mapping)]
+        if isinstance(raw_findings, list)
+        else []
+    )
+    blockers = [finding for finding in findings if finding.get("severity") == "blocker"]
+    blocker_fields = [
+        {
+            "code": finding.get("code"),
+            "section_key": finding.get("section_key"),
+            "field_path": finding.get("field_path"),
+        }
+        for finding in blockers
+    ]
+    return {
+        "quality_findings": findings,
+        "quality_blockers": blockers,
+        "quality_blocker_fields": blocker_fields,
+    }
+
+
+def _controlled_scheme_candidate_evidence(
+    candidates: Sequence[Mapping[str, object]],
+    *,
+    recommended_scheme_code: object,
+) -> list[dict[str, object]]:
+    """Project persisted candidate feasibility/rank/recommendation evidence."""
+
+    recommended = recommended_scheme_code if isinstance(recommended_scheme_code, str) else ""
+    evidence: list[dict[str, object]] = []
+    for candidate in candidates:
+        scheme_code = candidate.get("scheme_code")
+        if recommended:
+            recommendation_status = (
+                "recommended" if scheme_code == recommended else "not_recommended"
+            )
+        else:
+            recommendation_status = "no_persisted_recommendation"
+        evidence.append(
+            {
+                "scheme_code": scheme_code,
+                "feasible": candidate.get("feasible"),
+                "rank": candidate.get("rank"),
+                "constraint_results": candidate.get("constraint_results"),
+                "recommendation_status": recommendation_status,
+            }
+        )
+    return evidence
+
+
+def _lifecycle_state_diagnostic(
+    *,
+    report_status_after_generate: object,
+    revision: object | None,
+    scheme_review_authority: Mapping[str, object],
+    scheme_candidate_evidence: Sequence[Mapping[str, object]],
+) -> dict[str, object]:
+    """Capture persisted state after generation and before review actions."""
+
+    quality = _quality_diagnostic(revision)
+    return {
+        "report_status_after_generate_revision": _status_value(report_status_after_generate),
+        "revision_id": getattr(revision, "id", None),
+        "revision_number": getattr(revision, "revision_number", None),
+        "revision_quality_status": _status_value(getattr(revision, "quality_status", None)),
+        **quality,
+        "scheme_review_authority": dict(scheme_review_authority),
+        "controlled_scheme_candidates": [
+            dict(candidate) for candidate in scheme_candidate_evidence
+        ],
+    }
+
+
+def _lifecycle_failure_diagnostic(
+    *,
+    exception: BaseException,
+    report_status_after_generate: object,
+    revision: object | None,
+    scheme_review_authority: Mapping[str, object],
+    scheme_candidate_evidence: Sequence[Mapping[str, object]],
+) -> dict[str, object]:
+    """Build fail-closed evidence for a production lifecycle failure."""
+
+    diagnostic = _lifecycle_state_diagnostic(
+        report_status_after_generate=report_status_after_generate,
+        revision=revision,
+        scheme_review_authority=scheme_review_authority,
+        scheme_candidate_evidence=scheme_candidate_evidence,
+    )
+    diagnostic.update(
+        {
+            "exception_type": type(exception).__name__,
+            "exception_message": str(exception),
+            "from_status": getattr(exception, "from_status", None),
+            "to_status": getattr(exception, "to_status", None),
+        }
+    )
+    return diagnostic
+
+
 def _run_report_lifecycle(
     *,
     engine: Any,
@@ -1098,6 +1208,10 @@ def _run_report_lifecycle(
     project_version_id: str,
     operator: str,
     output_root: Path,
+    backend: str,
+    run_index: int,
+    scheme_review_authority: Mapping[str, object],
+    scheme_candidate_evidence: Sequence[Mapping[str, object]],
 ) -> dict[str, object]:
     """Run the existing report lifecycle and independently verify artifacts."""
 
@@ -1154,16 +1268,65 @@ def _run_report_lifecycle(
         )
         seed_default_templates(report_repo)
         report_repo.commit()
-        report = report_service.create_report(
-            project_id=project_id,
-            project_version_id=project_version_id,
-            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
-            actor=operator,
-        )
-        revision = report_service.generate_revision(report.id, operator)
-        report_service.submit_review(report.id, operator, comment="controlled acceptance")
-        report_service.mark_reviewed(report.id, operator, comment="controlled acceptance")
-        approved = report_service.approve(report.id, operator, comment="controlled acceptance")
+        lifecycle_diagnostic: dict[str, object] | None = None
+        generated_revision: object | None = None
+        try:
+            report = report_service.create_report(
+                project_id=project_id,
+                project_version_id=project_version_id,
+                report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+                actor=operator,
+            )
+            revision = report_service.generate_revision(report.id, operator)
+            generated_report = report_service.get_report(report.id, operator)
+            generated_revision = report_service.get_revision(
+                report.id, revision.revision_number, operator
+            )
+            _require(
+                generated_revision is not None,
+                "GENERATED_REVISION_READBACK_MISSING",
+                "generated report revision was not readable before review",
+            )
+            lifecycle_diagnostic = _lifecycle_state_diagnostic(
+                report_status_after_generate=generated_report.status,
+                revision=generated_revision,
+                scheme_review_authority=scheme_review_authority,
+                scheme_candidate_evidence=scheme_candidate_evidence,
+            )
+            report_service.submit_review(report.id, operator, comment="controlled acceptance")
+            report_service.mark_reviewed(report.id, operator, comment="controlled acceptance")
+            approved = report_service.approve(report.id, operator, comment="controlled acceptance")
+        except ControlledAcceptanceError:
+            raise
+        except Exception as exc:
+            if lifecycle_diagnostic is None:
+                lifecycle_diagnostic = _lifecycle_failure_diagnostic(
+                    exception=exc,
+                    report_status_after_generate=None,
+                    revision=None,
+                    scheme_review_authority=scheme_review_authority,
+                    scheme_candidate_evidence=scheme_candidate_evidence,
+                )
+            else:
+                lifecycle_diagnostic = dict(lifecycle_diagnostic)
+                lifecycle_diagnostic.update(
+                    _lifecycle_failure_diagnostic(
+                        exception=exc,
+                        report_status_after_generate=lifecycle_diagnostic.get(
+                            "report_status_after_generate_revision"
+                        ),
+                        revision=generated_revision,
+                        scheme_review_authority=scheme_review_authority,
+                        scheme_candidate_evidence=scheme_candidate_evidence,
+                    )
+                )
+            raise ControlledAcceptanceError(
+                "CONTROLLED_ACCEPTANCE_FAILED",
+                "controlled acceptance production path failed",
+                backend=backend,
+                run_index=run_index,
+                **lifecycle_diagnostic,
+            ) from exc
         artifacts: dict[str, object] = {}
         for locale_value, format_value in FORMAL_ARTIFACT_MATRIX:
             locale = ReportLocale(locale_value)
@@ -1392,12 +1555,35 @@ def run_controlled_acceptance(
                 "SCHEME_AUTHORITY_MISSING",
                 "persisted Scheme authority is missing",
             )
+            assert authority is not None
             records, reasons = _verify_persisted_authority(
                 session=session,
                 authority=authority,
                 canonical_persistence=canonical_persistence_mapping,
             )
             authority_snapshot = dict(_authority_snapshot(authority))
+            completed_runs = query.get_completed_runs_for_project_version(
+                project_id, project_version_id
+            )
+            matching_runs = [
+                run
+                for run in completed_runs
+                if run.get("persisted_content_hash") == authority_snapshot.get("content_hash")
+            ]
+            candidate_records: list[dict[str, object]] = []
+            recommended_scheme_code = authority_snapshot.get("recommended_scheme_code")
+            if len(matching_runs) == 1:
+                matching_run = matching_runs[0]
+                run_id = matching_run.get("run_id")
+                if isinstance(run_id, str) and run_id:
+                    candidate_records = query.get_candidates_for_run(run_id)
+                recommended_scheme_code = matching_run.get(
+                    "recommended_scheme_code", recommended_scheme_code
+                )
+            scheme_candidate_evidence = _controlled_scheme_candidate_evidence(
+                candidate_records,
+                recommended_scheme_code=recommended_scheme_code,
+            )
         with session_factory() as fresh_session:
             from cold_storage.modules.schemes.application.query import build_sqlalchemy_scheme_query
 
@@ -1424,6 +1610,10 @@ def run_controlled_acceptance(
             project_version_id=project_version_id,
             operator=trusted_operator,
             output_root=output_path / "artifacts",
+            backend=backend,
+            run_index=run_index,
+            scheme_review_authority=authority_snapshot,
+            scheme_candidate_evidence=scheme_candidate_evidence,
         )
         evidence: dict[str, object] = {
             "schema_version": EVIDENCE_SCHEMA_VERSION,

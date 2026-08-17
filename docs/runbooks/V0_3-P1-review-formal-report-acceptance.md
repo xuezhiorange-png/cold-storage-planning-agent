@@ -135,10 +135,23 @@ acceptance remain separate governance records.
    behavior.
 3. Inspect the first fail-closed code in the runner JSON; do not replace it
    with a warning or bypass it with a direct database update.
+   For a report-lifecycle failure, the JSON must also retain the exact
+   exception transition (`from_status`/`to_status`), report status after
+   `generate_revision`, revision quality status, complete quality blockers
+   with `code`/`section_key`/`field_path`, the persisted Scheme authority
+   `recommended_scheme_code`, and each controlled candidate's
+   `feasible`/`rank`/recommendation state.
 4. Confirm each backend used a new isolated database and a fresh session for
    authority, report revision, review action, and artifact readback.
 5. Treat ordinary PR CI and a skipped/manual workflow as separate evidence
    states.
+
+If the diagnostic proves that the accepted production source has no feasible
+Scheme candidate, no persisted recommendation, or quality blockers that keep
+the report in `draft`, the controlled run is `BLOCKED`. Do not alter the
+report state machine, scoring, formulas, source fixture, or thresholds in the
+acceptance wrapper; that evidence requires a separate production-authority
+amendment.
 
 No production operation, release, signing, deployment, autonomous approval,
 or post-merge action is authorized by this Stage25 implementation.
