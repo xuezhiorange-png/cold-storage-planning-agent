@@ -221,6 +221,19 @@ _ENERGY_FIELD_PATTERNS: list[str] = [
     r"_kwh$",
 ]
 
+_LEGACY_UNIT_STRINGS = frozenset({"kW(r)", "kW(e)", "kW(th)", "kWh"})
+_CANONICAL_MEASURED_UNITS = _LEGACY_UNIT_STRINGS | {"m2"}
+_AREA_BASIS_PATH = re.compile(r"^throughput_inventory_area\.zone_details\[\d+\]\.area_basis$")
+_COEFFICIENT_REFERENCE_KEYS = frozenset(
+    {
+        "code",
+        "source_type",
+        "source_reference",
+        "version",
+        "approval_status",
+    }
+)
+
 
 def _expected_unit_for_field(field_path: str) -> str | None:
     """Return the expected unit for a given base field path, or None."""
@@ -233,6 +246,26 @@ def _expected_unit_for_field(field_path: str) -> str | None:
     return None
 
 
+def _is_area_basis_path(field_path: str) -> bool:
+    return _AREA_BASIS_PATH.fullmatch(field_path) is not None
+
+
+def _is_coefficient_reference(value: dict[str, Any]) -> bool:
+    """Recognize the persisted coefficient reference used by zone planning.
+
+    The reference contains a value/unit pair, but it is provenance metadata,
+    not a report measured value.  It must not be validated as though its
+    coefficient unit were the canonical area measurement unit.
+    """
+    return _COEFFICIENT_REFERENCE_KEYS.issubset(value)
+
+
+def _measured_value_expected_unit(field_path: str) -> str | None:
+    if _is_area_basis_path(field_path):
+        return "m2"
+    return _expected_unit_for_field(field_path)
+
+
 def _check_units(obj: Any, path: str, findings: list[dict[str, Any]]) -> None:
     """Check that unit fields use correct dimension-specific units.
 
@@ -242,19 +275,18 @@ def _check_units(obj: Any, path: str, findings: list[dict[str, Any]]) -> None:
     """
     if not isinstance(obj, dict):
         return
-    VALID_UNITS = {"kW(r)", "kW(e)", "kW(th)", "kWh"}
     for key, val in obj.items():
         cur = f"{path}.{key}" if path else key
         section = path.split(".")[0] if path else "root"
         if key.endswith("_unit") and isinstance(val, str):
-            if val not in VALID_UNITS:
+            if val not in _LEGACY_UNIT_STRINGS:
                 findings.append(
                     _finding(
                         code="INVALID_UNIT",
                         severity=QualitySeverity.BLOCKER,
                         section_key=section,
                         field_path=cur,
-                        message=f"Invalid unit '{val}'; must be one of {VALID_UNITS}",
+                        message=f"Invalid unit '{val}'; must be one of {_LEGACY_UNIT_STRINGS}",
                     )
                 )
             else:
@@ -274,36 +306,61 @@ def _check_units(obj: Any, path: str, findings: list[dict[str, Any]]) -> None:
                             ),
                         )
                     )
+        elif isinstance(val, dict) and _is_area_basis_path(cur) and _is_coefficient_reference(val):
+            # Area-basis references are authoritative coefficient provenance,
+            # not canonical measured values.  Their source unit can be kg/m2,
+            # kg/day/m2, or another coefficient dimension.
+            continue
         elif isinstance(val, dict) and "value" in val and "unit" in val:
             # Measured-value object: {"value": <number>, "unit": "<string>"}
             # Validate the unit value against the parent field path.
             unit_val = val["unit"]
-            if isinstance(unit_val, str):
-                if unit_val not in VALID_UNITS:
-                    findings.append(
-                        _finding(
-                            code="INVALID_UNIT",
-                            severity=QualitySeverity.BLOCKER,
-                            section_key=section,
-                            field_path=f"{cur}.unit",
-                            message=(f"Invalid unit '{unit_val}'; must be one of {VALID_UNITS}"),
-                        )
+            expected = _measured_value_expected_unit(cur)
+            if not isinstance(unit_val, str):
+                findings.append(
+                    _finding(
+                        code="INVALID_UNIT",
+                        severity=QualitySeverity.BLOCKER,
+                        section_key=section,
+                        field_path=f"{cur}.unit",
+                        message="Measured-value unit must be a string",
                     )
-                else:
-                    expected = _expected_unit_for_field(cur)
-                    if expected is not None and unit_val != expected:
-                        findings.append(
-                            _finding(
-                                code="WRONG_UNIT_DIMENSION",
-                                severity=QualitySeverity.BLOCKER,
-                                section_key=section,
-                                field_path=f"{cur}.unit",
-                                message=(
-                                    f"Unit mismatch: field '{cur}' expects "
-                                    f"'{expected}' but got '{unit_val}'"
-                                ),
-                            )
-                        )
+                )
+            elif expected is not None and unit_val != expected:
+                findings.append(
+                    _finding(
+                        code="WRONG_UNIT_DIMENSION",
+                        severity=QualitySeverity.BLOCKER,
+                        section_key=section,
+                        field_path=f"{cur}.unit",
+                        message=(
+                            f"Unit mismatch: field '{cur}' expects "
+                            f"'{expected}' but got '{unit_val}'"
+                        ),
+                    )
+                )
+            elif expected is None and unit_val not in _CANONICAL_MEASURED_UNITS:
+                findings.append(
+                    _finding(
+                        code="INVALID_UNIT",
+                        severity=QualitySeverity.BLOCKER,
+                        section_key=section,
+                        field_path=f"{cur}.unit",
+                        message=(
+                            f"Invalid unit '{unit_val}'; must be one of {_CANONICAL_MEASURED_UNITS}"
+                        ),
+                    )
+                )
+            elif expected is None:
+                findings.append(
+                    _finding(
+                        code="UNMAPPED_MEASURED_VALUE_UNIT",
+                        severity=QualitySeverity.BLOCKER,
+                        section_key=section,
+                        field_path=f"{cur}.unit",
+                        message=(f"Measured-value field '{cur}' has no canonical unit mapping"),
+                    )
+                )
         elif isinstance(val, dict):
             _check_units(val, cur, findings)
         elif isinstance(val, list):

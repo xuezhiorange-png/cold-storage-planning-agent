@@ -212,8 +212,17 @@ def _compute_energy_proportional(
     room: SchemeRoomModule,
     total_area: Decimal,
     input_data: SchemeGenerationInput,
+    *,
+    cooling_load: Decimal | None = None,
+    compressor_operating_capacity: Decimal | None = None,
+    compressor_installed_capacity: Decimal | None = None,
 ) -> SchemeRoomModule:
-    """Distribute cooling/power proportionally by area."""
+    """Apply one proportional allocation to a room.
+
+    The optional overrides are supplied by ``_distribute_energy_proportionally``
+    for the final-room residual.  Keeping the room projection separate from
+    the allocation loop makes it explicit that no capacity is fabricated.
+    """
     if total_area <= 0:
         return room
     ratio = room.area_m2 / total_area
@@ -227,18 +236,84 @@ def _compute_energy_proportional(
         area_m2=room.area_m2,
         position_count=room.position_count,
         storage_capacity_kg=room.storage_capacity_kg,
-        design_cooling_load_kw_r=cl.design_cooling_load_kw_r * ratio,
-        compressor_operating_capacity_kw_r=er.compressor_operating_capacity_kw_r * ratio,
+        design_cooling_load_kw_r=(
+            cl.design_cooling_load_kw_r * ratio if cooling_load is None else cooling_load
+        ),
+        compressor_operating_capacity_kw_r=(
+            er.compressor_operating_capacity_kw_r * ratio
+            if compressor_operating_capacity is None
+            else compressor_operating_capacity
+        ),
         compressor_installed_capacity_kw_r=(
-            er.compressor_installed_capacity_kw_r * ratio
-            if er.compressor_installed_capacity_kw_r is not None
-            else room.compressor_installed_capacity_kw_r
+            (
+                er.compressor_installed_capacity_kw_r * ratio
+                if er.compressor_installed_capacity_kw_r is not None
+                else room.compressor_installed_capacity_kw_r
+            )
+            if compressor_installed_capacity is None
+            else compressor_installed_capacity
         ),
         process_compatibility=room.process_compatibility,
         hygiene_zone=room.hygiene_zone,
         door_count=room.door_count,
         partition_length_proxy_m=room.partition_length_proxy_m,
     )
+
+
+def _distribute_energy_proportionally(
+    rooms: list[SchemeRoomModule],
+    total_area: Decimal,
+    input_data: SchemeGenerationInput,
+) -> list[SchemeRoomModule]:
+    """Distribute authoritative cooling/compressor totals without loss.
+
+    Existing deterministic room order and proportional allocation are kept
+    for every room except the final room.  The final room receives the exact
+    authoritative total minus the allocations already made.  This closes
+    Decimal rounding loss without adding an epsilon or changing any hard
+    constraint comparator.
+    """
+    if not rooms or total_area <= 0:
+        return rooms
+
+    cooling_total = input_data.cooling_load_result.design_cooling_load_kw_r
+    operating_total = input_data.equipment_result.compressor_operating_capacity_kw_r
+    installed_total = input_data.equipment_result.compressor_installed_capacity_kw_r
+
+    allocated_cooling = Decimal("0")
+    allocated_operating = Decimal("0")
+    allocated_installed = Decimal("0")
+    distributed: list[SchemeRoomModule] = []
+
+    for index, room in enumerate(rooms):
+        is_final = index == len(rooms) - 1
+        if is_final:
+            cooling = cooling_total - allocated_cooling
+            operating = operating_total - allocated_operating
+            installed = (
+                installed_total - allocated_installed if installed_total is not None else None
+            )
+        else:
+            ratio = room.area_m2 / total_area
+            cooling = cooling_total * ratio
+            operating = operating_total * ratio
+            installed = installed_total * ratio if installed_total is not None else None
+
+        projected = _compute_energy_proportional(
+            room,
+            total_area,
+            input_data,
+            cooling_load=cooling,
+            compressor_operating_capacity=operating,
+            compressor_installed_capacity=installed,
+        )
+        distributed.append(projected)
+        allocated_cooling += projected.design_cooling_load_kw_r
+        allocated_operating += projected.compressor_operating_capacity_kw_r
+        if installed_total is not None:
+            allocated_installed += projected.compressor_installed_capacity_kw_r
+
+    return distributed
 
 
 # ---------------------------------------------------------------------------
@@ -284,14 +359,13 @@ def generate_balanced(
     rooms: list[SchemeRoomModule] = []
     for i, z in enumerate(zones):
         room = _zone_to_room(z, f"BAL-{i + 1:03d}", f"平衡-{z.zone_name}")
-        room = _compute_energy_proportional(room, total_area, input_data)
         rooms.append(room)
 
     return _build_candidate(
         scheme_code="balanced",
         scheme_name="平衡方案",
         profile_code="balanced",
-        rooms=rooms,
+        rooms=_distribute_energy_proportionally(rooms, total_area, input_data),
         input_data=input_data,
         assumptions=["Task 4 baseline preserved — one room per zone"],
     )
@@ -358,14 +432,13 @@ def generate_consolidated(
             door_count=1,
             partition_length_proxy_m=merged_area.sqrt() * 2 if merged_area > 0 else Decimal("0"),
         )
-        room = _compute_energy_proportional(room, total_area, input_data)
         rooms.append(room)
 
     return _build_candidate(
         scheme_code="consolidated_large_rooms",
         scheme_name="大冷间方案",
         profile_code="consolidated_large_rooms",
-        rooms=rooms,
+        rooms=_distribute_energy_proportionally(rooms, total_area, input_data),
         input_data=input_data,
         assumptions=["Compatible zones merged — requires review for total layout"],
         requires_review=True,
@@ -400,15 +473,21 @@ def generate_segmented(
 
         if not needs_split:
             room = _zone_to_room(z, f"SEG-{room_idx + 1:03d}", f"小冷间-{z.zone_name}")
-            room = _compute_energy_proportional(room, total_area, input_data)
             rooms.append(room)
             room_idx += 1
         else:
+            fraction = Decimal("1") / Decimal(str(split_parts))
+            allocated_capacity = Decimal("0")
             for part in range(split_parts):
                 room_idx += 1
-                frac = Decimal("1") / Decimal(str(split_parts))
-                sub_area = z.area_m2 * frac
-                sub_capacity = z.storage_capacity_kg * frac
+                # Preserve the established area/position split semantics;
+                # only storage capacity uses an authoritative final residual.
+                sub_area = z.area_m2 * fraction
+                if part == split_parts - 1:
+                    sub_capacity = z.storage_capacity_kg - allocated_capacity
+                else:
+                    sub_capacity = z.storage_capacity_kg * fraction
+                allocated_capacity += sub_capacity
                 # Distribute positions evenly, remainder to first parts
                 base_pos = z.position_count // split_parts
                 remainder = z.position_count % split_parts
@@ -429,14 +508,13 @@ def generate_segmented(
                     f"SEG-{room_idx:03d}",
                     f"小冷间-{z.zone_name}-段{part + 1}",
                 )
-                room = _compute_energy_proportional(room, total_area, input_data)
                 rooms.append(room)
 
     return _build_candidate(
         scheme_code="segmented_small_rooms",
         scheme_name="小冷间方案",
         profile_code="segmented_small_rooms",
-        rooms=rooms,
+        rooms=_distribute_energy_proportionally(rooms, total_area, input_data),
         input_data=input_data,
         assumptions=[
             f"max_positions_per_room={profile.max_positions_per_room}",
