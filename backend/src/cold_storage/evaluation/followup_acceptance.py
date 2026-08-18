@@ -797,12 +797,22 @@ def normalized_business_projection(evidence: Mapping[str, object]) -> dict[str, 
             }
         )
     authority = review_mapping.get("authority")
-    authority_mapping = (
-        cast(Mapping[str, object], authority) if isinstance(authority, Mapping) else {}
+    _require(
+        isinstance(authority, Mapping),
+        "EVIDENCE_AUTHORITY_MISSING",
+        "evidence has no persisted Scheme review authority",
     )
-    calculation_result_hashes = {
-        stage: authority_mapping.get(f"{stage}_result_hash") for stage in STAGE_ORDER
-    }
+    authority_mapping = cast(Mapping[str, object], authority)
+    calculation_result_hashes_present: dict[str, bool] = {}
+    for stage in STAGE_ORDER:
+        result_hash = authority_mapping.get(f"{stage}_result_hash")
+        _require(
+            isinstance(result_hash, str) and bool(result_hash.strip()),
+            "EVIDENCE_RESULT_HASH_INVALID",
+            "execution-bound CalculationRun result hash must be a non-empty string",
+            stage=stage,
+        )
+        calculation_result_hashes_present[stage] = True
     projection: dict[str, object] = {
         "source": {
             "source_candidate_path": source_mapping.get("source_candidate_path"),
@@ -814,7 +824,7 @@ def normalized_business_projection(evidence: Mapping[str, object]) -> dict[str, 
         ),
         "reasons": normalized_reasons,
         "recommended_scheme_code": authority_mapping.get("recommended_scheme_code"),
-        "calculation_result_hashes": calculation_result_hashes,
+        "calculation_result_hashes_present": calculation_result_hashes_present,
         # These hashes bind runtime identities by contract.  Preserve their
         # presence in each raw run, but do not compare their raw values across
         # independent databases where those identities are intentionally new.
