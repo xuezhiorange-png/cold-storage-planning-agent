@@ -14,12 +14,19 @@ from cold_storage.modules.planning_agent.domain.enums import (
     SessionStatus,
 )
 from cold_storage.modules.planning_agent.domain.errors import (
+    AgentProviderFailureCode,
     InvalidTransitionError,
+    ModelGatewayError,
     SessionCompletedError,
     SessionNotFoundError,
     ToolArgumentValidationError,
     UnregisteredToolError,
 )
+from cold_storage.modules.planning_agent.domain.gateways import (
+    AgentModelRequest,
+    GatewayMetadata,
+)
+from cold_storage.modules.planning_agent.domain.models import AgentDecision
 from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeAgentModelGateway
 from cold_storage.modules.planning_agent.infrastructure.orm import Base
 from cold_storage.modules.planning_agent.infrastructure.repository import AgentRepository
@@ -58,6 +65,17 @@ def orchestrator():
     return AgentOrchestrator()
 
 
+class _ClassifiedFailureGateway:
+    def generate_decision(self, request: AgentModelRequest) -> AgentDecision:
+        raise ModelGatewayError(
+            "safe provider failure",
+            code=AgentProviderFailureCode.AGENT_PROVIDER_TIMEOUT,
+        )
+
+    def get_metadata(self) -> GatewayMetadata:
+        return GatewayMetadata(provider="openai", model_name="gpt-test")
+
+
 @pytest.fixture()
 def service(repo, gateway, registry, orchestrator):
     return PlanningAgentService(
@@ -66,6 +84,22 @@ def service(repo, gateway, registry, orchestrator):
         registry=registry,
         orchestrator=orchestrator,
     )
+
+
+def test_orchestrator_preserves_classified_gateway_error(repo, registry, orchestrator):
+    service_with_failure = PlanningAgentService(
+        repository=repo,
+        gateway=_ClassifiedFailureGateway(),
+        registry=registry,
+        orchestrator=orchestrator,
+    )
+    session = service_with_failure.create_session()
+
+    with pytest.raises(ModelGatewayError) as exc_info:
+        service_with_failure.post_user_message(session.id, "hello")
+
+    assert exc_info.value.provider_failure_code is AgentProviderFailureCode.AGENT_PROVIDER_TIMEOUT
+    assert exc_info.value.safe_message == "agent provider request timed out"
 
 
 class TestSessionLifecycle:
