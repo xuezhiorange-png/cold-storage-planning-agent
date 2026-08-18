@@ -17,6 +17,7 @@ from cold_storage.modules.planning_agent.domain.gateways import AgentModelReques
 from cold_storage.modules.planning_agent.domain.models import AgentDecision
 from cold_storage.modules.planning_agent.infrastructure.real_gateways import (
     MAX_PROVIDER_ATTEMPTS,
+    OPENAI_OFFICIAL_BASE_URL,
     OpenAIAgentModelGateway,
 )
 
@@ -152,8 +153,94 @@ def test_sdk_retry_budget_is_disabled_at_client_construction() -> None:
         client_factory=factory,
     )
 
-    assert seen == {"api_key": "test-only-key", "timeout": 10, "max_retries": 0}
+    assert seen == {
+        "api_key": "test-only-key",
+        "base_url": OPENAI_OFFICIAL_BASE_URL,
+        "timeout": 10,
+        "max_retries": 0,
+    }
     assert MAX_PROVIDER_ATTEMPTS == 2
+
+
+def test_sdk_factory_ignores_openai_base_url_environment_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://example.invalid/v1")
+    seen: dict[str, Any] = {}
+    client = _FakeClient([_response(_decision_payload())])
+
+    def factory(**kwargs: Any) -> Any:
+        seen.update(kwargs)
+        return client
+
+    OpenAIAgentModelGateway(
+        api_key="test-only-key",
+        model_name="gpt-test",
+        timeout_seconds=10,
+        max_retries=0,
+        client_factory=factory,
+    )
+
+    assert seen["base_url"] == OPENAI_OFFICIAL_BASE_URL
+    assert seen["base_url"] != "https://example.invalid/v1"
+
+
+@pytest.mark.parametrize(
+    ("status_code", "expected_code"),
+    [
+        (408, AgentProviderFailureCode.AGENT_PROVIDER_TIMEOUT),
+        (409, AgentProviderFailureCode.AGENT_PROVIDER_UNAVAILABLE),
+    ],
+)
+def test_http_408_and_409_use_explicit_retryable_classification(
+    status_code: int, expected_code: AgentProviderFailureCode
+) -> None:
+    client = _FakeClient([_ProviderFailure(status_code)])
+    gateway = _gateway(client, max_retries=0)
+
+    with pytest.raises(ModelGatewayError) as exc_info:
+        gateway.generate_decision(AgentModelRequest())
+
+    assert exc_info.value.provider_failure_code is expected_code
+    assert exc_info.value.retryable is True
+    assert len(client.responses.calls) == 1
+
+
+def test_http_408_retries_once_then_succeeds() -> None:
+    client = _FakeClient([_ProviderFailure(408), _response(_decision_payload())])
+    gateway = _gateway(client, max_retries=1)
+
+    decision = gateway.generate_decision(AgentModelRequest())
+
+    assert decision.decision_type is DecisionType.PROPOSE_TOOLS
+    assert len(client.responses.calls) == 2
+
+
+def test_http_408_stops_after_two_attempts() -> None:
+    client = _FakeClient([_ProviderFailure(408), _ProviderFailure(408)])
+    gateway = _gateway(client, max_retries=1)
+
+    with pytest.raises(ModelGatewayError) as exc_info:
+        gateway.generate_decision(AgentModelRequest())
+
+    assert exc_info.value.provider_failure_code is AgentProviderFailureCode.AGENT_PROVIDER_TIMEOUT
+    assert len(client.responses.calls) == 2
+
+
+def test_http_409_stops_after_two_attempts() -> None:
+    client = _FakeClient(
+        [_ProviderFailure(409), _ProviderFailure(409), _response(_decision_payload())]
+    )
+    gateway = _gateway(client, max_retries=1)
+
+    with pytest.raises(ModelGatewayError) as exc_info:
+        gateway.generate_decision(AgentModelRequest())
+
+    assert (
+        exc_info.value.provider_failure_code is AgentProviderFailureCode.AGENT_PROVIDER_UNAVAILABLE
+    )
+    assert exc_info.value.retryable is True
+    assert len(client.responses.calls) == 2
 
 
 @pytest.mark.parametrize(

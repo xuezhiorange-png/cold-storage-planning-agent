@@ -48,6 +48,7 @@ from cold_storage.modules.planning_agent.domain.models import (
 
 OPENAI_SDK_VERSION: Final = "2.53.0"
 OPENAI_PROVIDER_ID: Final = "openai"
+OPENAI_OFFICIAL_BASE_URL: Final = "https://api.openai.com/v1"
 MAX_PROVIDER_RETRIES: Final = 1
 MAX_PROVIDER_ATTEMPTS: Final = 2
 MAX_OUTPUT_TOKENS: Final = 8192
@@ -119,6 +120,10 @@ def _classify_provider_exception(error: BaseException) -> AgentProviderFailureCo
     status = _status_code(error)
     if status in (401, 403):
         return AgentProviderFailureCode.AGENT_PROVIDER_CREDENTIAL_INVALID
+    if status == 408:
+        return AgentProviderFailureCode.AGENT_PROVIDER_TIMEOUT
+    if status == 409:
+        return AgentProviderFailureCode.AGENT_PROVIDER_UNAVAILABLE
     if status == 413:
         return AgentProviderFailureCode.AGENT_PROVIDER_RESPONSE_TOO_LARGE
     if status == 429:
@@ -210,10 +215,11 @@ class OpenAIAgentModelGateway(AgentModelGateway):
         else:
             factory = client_factory or OpenAI
             try:
-                # The official SDK is deliberately given no custom base URL and
-                # owns no retry budget; the application gateway owns retries.
+                # The official SDK is pinned to the official endpoint and owns
+                # no retry budget; the application gateway owns retries.
                 self._client = factory(
                     api_key=resolved_api_key,
+                    base_url=OPENAI_OFFICIAL_BASE_URL,
                     timeout=resolved_timeout,
                     max_retries=0,
                 )
