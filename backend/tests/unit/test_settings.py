@@ -227,6 +227,52 @@ def test_non_selection_agent_facts_do_not_create_enablement_intent(
 
     assert settings.agent_enablement_intent_present is False
     assert settings.agent_capability_state is AgentCapabilityState.DISABLED
+    assert settings.agent_configuration_valid is True
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {},
+        {"COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 1},
+        {"COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 30},
+        {"COLD_STORAGE_AGENT_MAX_RETRIES": 0},
+        {"COLD_STORAGE_AGENT_MAX_RETRIES": 1},
+    ],
+)
+def test_disabled_agent_accepts_valid_optional_bounds_without_enablement_intent(
+    extra: dict[str, int],
+) -> None:
+    settings = Settings.model_validate(extra)
+
+    assert settings.agent_enablement_intent_present is False
+    assert settings.agent_capability_state is AgentCapabilityState.DISABLED
+    assert settings.agent_configuration_valid is True
+    assert settings.agent_capability_resolution.failure_code is None
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("COLD_STORAGE_AGENT_TIMEOUT_SECONDS", 0),
+        ("COLD_STORAGE_AGENT_TIMEOUT_SECONDS", -1),
+        ("COLD_STORAGE_AGENT_TIMEOUT_SECONDS", 31),
+        ("COLD_STORAGE_AGENT_MAX_RETRIES", -1),
+        ("COLD_STORAGE_AGENT_MAX_RETRIES", 2),
+    ],
+)
+def test_invalid_disabled_optional_bounds_fail_closed_without_enablement_intent(
+    field: str, value: int
+) -> None:
+    settings = Settings.model_validate({field: value})
+
+    assert settings.agent_enablement_intent_present is False
+    assert settings.agent_capability_state is AgentCapabilityState.DISABLED
+    assert settings.agent_configuration_valid is False
+    assert (
+        settings.agent_capability_resolution.failure_code
+        is AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID
+    )
 
 
 @pytest.mark.parametrize(

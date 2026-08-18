@@ -79,6 +79,24 @@ def resolve_agent_capability(
     """Resolve P2-A configuration without claiming provider readiness."""
 
     enablement_intent_present = provider is not None or model is not None
+    optional_values_valid = (
+        timeout_seconds is None or (type(timeout_seconds) is int and 1 <= timeout_seconds <= 30)
+    ) and (max_retries is None or (type(max_retries) is int and 0 <= max_retries <= 1))
+    if not optional_values_valid:
+        return AgentCapabilityResolution(
+            enablement_intent_present=enablement_intent_present,
+            state=(
+                AgentCapabilityState.ENABLED_NOT_READY
+                if enablement_intent_present
+                else AgentCapabilityState.DISABLED
+            ),
+            configuration_valid=False,
+            provider=provider,
+            model=model,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
+            failure_code=AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID,
+        )
     if not enablement_intent_present:
         return AgentCapabilityResolution(
             enablement_intent_present=False,
@@ -108,23 +126,6 @@ def resolve_agent_capability(
         )
 
     if provider != "openai":
-        return AgentCapabilityResolution(
-            enablement_intent_present=True,
-            state=AgentCapabilityState.ENABLED_NOT_READY,
-            configuration_valid=False,
-            provider=provider,
-            model=model,
-            timeout_seconds=timeout_seconds,
-            max_retries=max_retries,
-            failure_code=AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID,
-        )
-
-    if (
-        type(timeout_seconds) is not int
-        or not 1 <= timeout_seconds <= 30
-        or type(max_retries) is not int
-        or not 0 <= max_retries <= 1
-    ):
         return AgentCapabilityResolution(
             enablement_intent_present=True,
             state=AgentCapabilityState.ENABLED_NOT_READY,
