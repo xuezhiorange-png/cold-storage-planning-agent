@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import os
+import re
+from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, PrivateAttr, model_validator
+from pydantic import Field, PrivateAttr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cold_storage.bootstrap.code_defaults import allowed_defaults
@@ -23,6 +26,140 @@ from cold_storage.bootstrap.environment_model import (
 )
 from cold_storage.bootstrap.mode import AppMode
 from cold_storage.bootstrap.resource_identity import validate_declared_resource_identity
+from cold_storage.modules.planning_agent.domain.errors import AgentProviderFailureCode
+
+
+class AgentCapabilityState(StrEnum):
+    """Closed P2 Agent capability states.
+
+    P2-A can resolve disabled and syntactically not-ready states. The ready
+    state remains unavailable until later provider and composition evidence is
+    supplied by P2-B/P2-C.
+    """
+
+    DISABLED = "AGENT_CAPABILITY_DISABLED"
+    ENABLED_READY = "AGENT_CAPABILITY_ENABLED_READY"
+    ENABLED_NOT_READY = "AGENT_CAPABILITY_ENABLED_NOT_READY"
+
+
+CapabilityState = AgentCapabilityState
+
+
+@dataclass(frozen=True, slots=True)
+class AgentCapabilityResolution:
+    """Provider-neutral result of P2-A configuration resolution."""
+
+    enablement_intent_present: bool
+    state: AgentCapabilityState
+    configuration_valid: bool
+    provider: str | None = None
+    model: str | None = None
+    timeout_seconds: int | None = None
+    max_retries: int | None = None
+    failure_code: AgentProviderFailureCode | None = None
+    provider_readiness_verified: bool = False
+    real_agent_routes_enabled: bool = False
+
+
+AgentConfigurationResolution = AgentCapabilityResolution
+
+
+def _non_empty(value: str | None) -> bool:
+    return value is not None and bool(value.strip())
+
+
+def resolve_agent_capability(
+    *,
+    provider: str | None,
+    model: str | None,
+    timeout_seconds: int | None,
+    max_retries: int | None,
+    openai_api_key: str | None,
+) -> AgentCapabilityResolution:
+    """Resolve P2-A configuration without claiming provider readiness."""
+
+    enablement_intent_present = provider is not None or model is not None
+    optional_values_valid = (
+        timeout_seconds is None or (type(timeout_seconds) is int and 1 <= timeout_seconds <= 30)
+    ) and (max_retries is None or (type(max_retries) is int and 0 <= max_retries <= 1))
+    if not optional_values_valid:
+        return AgentCapabilityResolution(
+            enablement_intent_present=enablement_intent_present,
+            state=(
+                AgentCapabilityState.ENABLED_NOT_READY
+                if enablement_intent_present
+                else AgentCapabilityState.DISABLED
+            ),
+            configuration_valid=False,
+            provider=provider,
+            model=model,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
+            failure_code=AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID,
+        )
+    if not enablement_intent_present:
+        return AgentCapabilityResolution(
+            enablement_intent_present=False,
+            state=AgentCapabilityState.DISABLED,
+            configuration_valid=True,
+            provider=provider,
+            model=model,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
+        )
+
+    if (
+        not _non_empty(provider)
+        or not _non_empty(model)
+        or timeout_seconds is None
+        or max_retries is None
+    ):
+        return AgentCapabilityResolution(
+            enablement_intent_present=True,
+            state=AgentCapabilityState.ENABLED_NOT_READY,
+            configuration_valid=False,
+            provider=provider,
+            model=model,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
+            failure_code=AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_MISSING,
+        )
+
+    if provider != "openai":
+        return AgentCapabilityResolution(
+            enablement_intent_present=True,
+            state=AgentCapabilityState.ENABLED_NOT_READY,
+            configuration_valid=False,
+            provider=provider,
+            model=model,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
+            failure_code=AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID,
+        )
+
+    if not _non_empty(openai_api_key):
+        return AgentCapabilityResolution(
+            enablement_intent_present=True,
+            state=AgentCapabilityState.ENABLED_NOT_READY,
+            configuration_valid=False,
+            provider=provider,
+            model=model,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
+            failure_code=AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_MISSING,
+        )
+
+    # P2-A proves syntax and completeness only. Provider/schema probes,
+    # composition, and route audit remain later-slice authority.
+    return AgentCapabilityResolution(
+        enablement_intent_present=True,
+        state=AgentCapabilityState.ENABLED_NOT_READY,
+        configuration_valid=True,
+        provider=provider,
+        model=model,
+        timeout_seconds=timeout_seconds,
+        max_retries=max_retries,
+    )
 
 
 class Settings(BaseSettings):
@@ -56,6 +193,14 @@ class Settings(BaseSettings):
     redis_url: str | None = Field(default=None, validation_alias="COLD_STORAGE_REDIS_URL")
     storage_dir: str | None = Field(default=None, validation_alias="COLD_STORAGE_STORAGE_DIR")
     openai_api_key: str | None = Field(default=None, validation_alias="COLD_STORAGE_OPENAI_API_KEY")
+    agent_provider: str | None = Field(default=None, validation_alias="COLD_STORAGE_AGENT_PROVIDER")
+    agent_model: str | None = Field(default=None, validation_alias="COLD_STORAGE_AGENT_MODEL")
+    agent_timeout_seconds: int | None = Field(
+        default=None, validation_alias="COLD_STORAGE_AGENT_TIMEOUT_SECONDS"
+    )
+    agent_max_retries: int | None = Field(
+        default=None, validation_alias="COLD_STORAGE_AGENT_MAX_RETRIES"
+    )
     postgres_host: str | None = Field(default=None, validation_alias="COLD_STORAGE_POSTGRES_HOST")
     postgres_port: int | None = Field(default=None, validation_alias="COLD_STORAGE_POSTGRES_PORT")
     postgres_db: str | None = Field(default=None, validation_alias="COLD_STORAGE_POSTGRES_DB")
@@ -91,6 +236,7 @@ class Settings(BaseSettings):
     _resolution_report: ConfigurationResolutionReport | None = PrivateAttr(default=None)
     _warnings: tuple[str, ...] = PrivateAttr(default=())
     _database_url_constructed_locally: bool = PrivateAttr(default=False)
+    _agent_capability_resolution: AgentCapabilityResolution | None = PrivateAttr(default=None)
 
     @property
     def app_env(self) -> str:
@@ -104,6 +250,51 @@ class Settings(BaseSettings):
     @property
     def warnings(self) -> tuple[str, ...]:
         return self._warnings
+
+    @property
+    def agent_enablement_intent_present(self) -> bool:
+        return self.agent_provider is not None or self.agent_model is not None
+
+    @property
+    def agent_capability_resolution(self) -> AgentCapabilityResolution:
+        if self._agent_capability_resolution is None:
+            return resolve_agent_capability(
+                provider=self.agent_provider,
+                model=self.agent_model,
+                timeout_seconds=self.agent_timeout_seconds,
+                max_retries=self.agent_max_retries,
+                openai_api_key=self.openai_api_key,
+            )
+        return self._agent_capability_resolution
+
+    @property
+    def agent_capability_state(self) -> AgentCapabilityState:
+        return self.agent_capability_resolution.state
+
+    @property
+    def capability_state(self) -> AgentCapabilityState:
+        """Compatibility alias for the canonical Agent capability state."""
+        return self.agent_capability_state
+
+    @property
+    def agent_configuration_valid(self) -> bool:
+        return self.agent_capability_resolution.configuration_valid
+
+    @property
+    def production_provider_ready(self) -> bool:
+        """P2-A never asserts provider readiness from configuration alone."""
+        return self.agent_capability_resolution.provider_readiness_verified
+
+    @field_validator("agent_timeout_seconds", "agent_max_retries", mode="before")
+    @classmethod
+    def _parse_agent_integer(cls, value: Any) -> Any:
+        if value is None or type(value) is int:
+            return value
+        if isinstance(value, str):
+            candidate = value.strip()
+            if re.fullmatch(r"[+-]?\d+", candidate):
+                return int(candidate)
+        raise ValueError("Agent configuration value must be an integer")
 
     @model_validator(mode="before")
     @classmethod
@@ -140,12 +331,12 @@ class Settings(BaseSettings):
         if unknown:
             source_for_resolution.update({k: source[k] for k in unknown})
         env_id, values, report = resolve_configuration(
-            {str(k): str(v) for k, v in source_for_resolution.items()}
+            {str(k): str(v) for k, v in source_for_resolution.items() if v is not None}
         )
         if unknown and env_id in (EnvironmentId.STAGING, EnvironmentId.PRODUCTION):
             raise ConfigurationError("unknown canonical configuration key")
         for key, value in normalized.items():
-            if key in CANONICAL_KEYS:
+            if key in CANONICAL_KEYS and value is not None:
                 values[key] = str(value)
         # Discrete PostgreSQL fields override DATABASE_URL only when they were
         # explicitly provided in the same input layer. Env-injected partial
@@ -218,6 +409,13 @@ class Settings(BaseSettings):
             and self.sqlite_path == "./cold_storage_dev.db"
         ):
             raise ConfigurationError("test SQLite path must be injected")
+        self._agent_capability_resolution = resolve_agent_capability(
+            provider=self.agent_provider,
+            model=self.agent_model,
+            timeout_seconds=self.agent_timeout_seconds,
+            max_retries=self.agent_max_retries,
+            openai_api_key=self.openai_api_key,
+        )
         self._resolution_report = getattr(type(self), "_pending_report", None)
         self._warnings = self._resolution_report.warning_codes if self._resolution_report else ()
         return self

@@ -7,11 +7,95 @@ when critical params (tons, hours) are missing.
 from __future__ import annotations
 
 from cold_storage.modules.planning_agent.domain.enums import DecisionType
+from cold_storage.modules.planning_agent.domain.errors import (
+    PROVIDER_FAILURE_METADATA,
+    AgentProviderFailureCode,
+    ModelGatewayError,
+    provider_failure_metadata,
+)
 from cold_storage.modules.planning_agent.domain.gateways import AgentModelRequest
 from cold_storage.modules.planning_agent.infrastructure.fake_gateways import (
     DefaultAgentModelGateway,
     FakeAgentModelGateway,
 )
+
+EXPECTED_PROVIDER_FAILURES = {
+    AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_MISSING: (
+        "agent provider configuration is missing",
+        False,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID: (
+        "agent provider configuration is invalid",
+        False,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_CREDENTIAL_INVALID: (
+        "agent provider credentials are invalid",
+        False,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_TIMEOUT: (
+        "agent provider request timed out",
+        True,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_CONNECTION_FAILED: (
+        "agent provider connection failed",
+        True,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_RATE_LIMITED: (
+        "agent provider rate limited",
+        True,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_UPSTREAM_5XX: (
+        "agent provider upstream failure",
+        True,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_RESPONSE_MALFORMED: (
+        "agent provider response is malformed",
+        False,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_RESPONSE_TOO_LARGE: (
+        "agent provider response is too large",
+        False,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_UNAVAILABLE: (
+        "agent provider is unavailable",
+        True,
+    ),
+}
+
+
+def test_provider_failure_metadata_is_exactly_frozen() -> None:
+    assert len(AgentProviderFailureCode) == 10
+    assert set(PROVIDER_FAILURE_METADATA) == set(EXPECTED_PROVIDER_FAILURES)
+
+    retryable = {
+        code for code, (_, is_retryable) in EXPECTED_PROVIDER_FAILURES.items() if is_retryable
+    }
+    assert retryable == {
+        AgentProviderFailureCode.AGENT_PROVIDER_TIMEOUT,
+        AgentProviderFailureCode.AGENT_PROVIDER_CONNECTION_FAILED,
+        AgentProviderFailureCode.AGENT_PROVIDER_RATE_LIMITED,
+        AgentProviderFailureCode.AGENT_PROVIDER_UPSTREAM_5XX,
+        AgentProviderFailureCode.AGENT_PROVIDER_UNAVAILABLE,
+    }
+
+    for code, (safe_message, is_retryable) in EXPECTED_PROVIDER_FAILURES.items():
+        metadata = provider_failure_metadata(code)
+        assert metadata.code is code
+        assert metadata.safe_message == safe_message
+        assert metadata.retryable is is_retryable
+        assert "raw" not in metadata.safe_message
+
+
+def test_model_gateway_error_exposes_only_frozen_safe_provider_metadata() -> None:
+    error = ModelGatewayError(
+        "raw provider response must not be projected",
+        code=AgentProviderFailureCode.AGENT_PROVIDER_TIMEOUT,
+    )
+
+    assert error.code is AgentProviderFailureCode.AGENT_PROVIDER_TIMEOUT
+    assert error.safe_message == "agent provider request timed out"
+    assert error.retryable is True
+    assert "raw provider response" not in error.safe_message
 
 
 class TestFakeAgentModelGateway:
