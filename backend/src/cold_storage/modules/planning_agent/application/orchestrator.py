@@ -114,6 +114,9 @@ class AgentOrchestrator:
         # Get decision from gateway
         try:
             decision = gateway.generate_decision(request)
+        except ModelGatewayError:
+            # Preserve the frozen provider classification and safe metadata.
+            raise
         except Exception as exc:
             raise ModelGatewayError(f"Gateway error: {exc}") from exc
 
