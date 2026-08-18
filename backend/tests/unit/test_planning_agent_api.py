@@ -17,6 +17,11 @@ from cold_storage.modules.planning_agent.api.routes import create_agent_router
 from cold_storage.modules.planning_agent.application.orchestrator import AgentOrchestrator
 from cold_storage.modules.planning_agent.application.service import PlanningAgentService
 from cold_storage.modules.planning_agent.application.tool_registry import build_default_registry
+from cold_storage.modules.planning_agent.domain.errors import (
+    AgentProviderFailureCode,
+    ModelGatewayError,
+    provider_failure_metadata,
+)
 from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeAgentModelGateway
 from cold_storage.modules.planning_agent.infrastructure.orm import Base
 from cold_storage.modules.planning_agent.infrastructure.repository import AgentRepository
@@ -625,6 +630,148 @@ class TestStrictAgentZeroConstructionProvedBySpies:
         assert _report_artifact_storage_init_count == 0, (
             f"ReportArtifactStorage.__init__ called {_report_artifact_storage_init_count} times"
         )
+
+
+@pytest.mark.parametrize("failure_code", tuple(AgentProviderFailureCode))
+def test_provider_failure_projection_uses_only_frozen_safe_metadata(
+    monkeypatch,
+    failure_code: AgentProviderFailureCode,
+):
+    """All provider failures use the same redacted, machine-readable envelope."""
+
+    class _FailingService:
+        def post_user_message(self, *_args, **_kwargs):
+            raise ModelGatewayError("raw provider body and api-key-secret", code=failure_code)
+
+    monkeypatch.setenv("PLANNING_AGENT_ALLOW_INSECURE_ACTOR", "true")
+    fastapi_app = FastAPI()
+    fastapi_app.include_router(create_agent_router(lambda: _FailingService()))
+    with TestClient(fastapi_app, headers={"X-Actor": "test-user"}) as client:
+        response = client.post(
+            "/api/v1/agent/sessions/session-1/messages",
+            json={"content": "hello"},
+        )
+
+    metadata = provider_failure_metadata(failure_code)
+    assert response.status_code == 503
+    assert response.json() == {
+        "error": {
+            "code": failure_code.value,
+            "message": metadata.safe_message,
+            "details": {"retryable": metadata.retryable},
+        }
+    }
+    response_text = response.text
+    assert "raw provider body" not in response_text
+    assert "api-key-secret" not in response_text
+
+
+def _configure_strict_agent_environment(monkeypatch, tmp_path, *, enabled: bool) -> None:
+    artifact_dir = tmp_path / "artifacts"
+    artifact_dir.mkdir()
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "production")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "postgresql")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_URL", "postgresql+psycopg2://x:y@localhost:5432/test")
+    monkeypatch.setenv("COLD_STORAGE_STORAGE_DIR", str(artifact_dir))
+    monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
+    monkeypatch.setenv("COLD_STORAGE_BUILD_COMMIT_SHA", "0" * 40)
+    monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", "v0.0.0-ci")
+    monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", "1")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "ci")
+    monkeypatch.setenv("COLD_STORAGE_SECRET_ENVIRONMENT_ID", "ci")
+    monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "ci")
+    if enabled:
+        monkeypatch.setenv("COLD_STORAGE_AGENT_PROVIDER", "openai")
+        monkeypatch.setenv("COLD_STORAGE_AGENT_MODEL", "gpt-test")
+        monkeypatch.setenv("COLD_STORAGE_AGENT_TIMEOUT_SECONDS", "10")
+        monkeypatch.setenv("COLD_STORAGE_AGENT_MAX_RETRIES", "0")
+        monkeypatch.setenv("COLD_STORAGE_OPENAI_API_KEY", "test-only-key")
+
+
+def _stub_strict_dependency_startup(monkeypatch):
+    from cold_storage.bootstrap import app as bootstrap_app
+
+    monkeypatch.setattr(
+        bootstrap_app,
+        "init_dependencies",
+        lambda settings, app=None, strict_runtime_authority=None: None,
+    )
+
+
+def test_strict_disabled_state_does_not_probe_or_construct_real_gateway(monkeypatch, tmp_path):
+    from cold_storage.bootstrap.app import create_app
+
+    _configure_strict_agent_environment(monkeypatch, tmp_path, enabled=False)
+    calls = 0
+
+    def _probe(_settings):
+        nonlocal calls
+        calls += 1
+        return True
+
+    app = create_app(agent_provider_probe=_probe)
+    evidence = app._agent_capability_evidence  # noqa: SLF001
+    assert evidence.state.value == "AGENT_CAPABILITY_DISABLED"
+    assert calls == 0
+    assert app.state.strict_capability_bindings[-1] == ("model_backed_agent", "disabled")
+    assert len(app.state.frozen_agent_endpoint_authority) == 10
+    assert all(
+        endpoint.__name__.startswith("disabled_agent_")
+        for _, _, endpoint in app.state.frozen_agent_endpoint_authority
+    )
+
+
+def test_strict_enabled_not_ready_keeps_disabled_routes_and_fails_closed(
+    monkeypatch,
+    tmp_path,
+):
+    from cold_storage.bootstrap.app import create_app
+
+    _configure_strict_agent_environment(monkeypatch, tmp_path, enabled=True)
+    _stub_strict_dependency_startup(monkeypatch)
+    app = create_app(agent_provider_probe=lambda _settings: False)
+    evidence = app._agent_capability_evidence  # noqa: SLF001
+    assert evidence.state.value == "AGENT_CAPABILITY_ENABLED_NOT_READY"
+    assert evidence.global_readiness == "FAIL"
+    assert app.state.strict_capability_bindings[-1] == (
+        "model_backed_agent",
+        "enabled_not_ready",
+    )
+    assert len(app.state.frozen_agent_endpoint_authority) == 10
+    assert all(
+        endpoint.__name__.startswith("disabled_agent_")
+        for _, _, endpoint in app.state.frozen_agent_endpoint_authority
+    )
+    with TestClient(app, headers={"X-Actor": "test-user"}) as client:
+        response = client.get("/api/v1/agent/sessions")
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "AGENT_PROVIDER_UNAVAILABLE"
+
+
+def test_strict_enabled_ready_exposes_only_real_agent_router(monkeypatch, tmp_path):
+    from cold_storage.bootstrap.app import create_app
+
+    _configure_strict_agent_environment(monkeypatch, tmp_path, enabled=True)
+    _stub_strict_dependency_startup(monkeypatch)
+    app = create_app(
+        agent_provider_probe=lambda _settings: True,
+        agent_client_factory=lambda **_kwargs: object(),
+    )
+    evidence = app._agent_capability_evidence  # noqa: SLF001
+    assert evidence.state.value == "AGENT_CAPABILITY_ENABLED_READY"
+    agent_routes = app.state.frozen_agent_endpoint_authority
+    assert len(agent_routes) == 10
+    assert all(
+        not endpoint.__name__.startswith("disabled_agent_") for _, _, endpoint in agent_routes
+    )
+    authority = app.state._strict_runtime_authority  # noqa: SLF001
+    assert authority.agent_capability_state == "AGENT_CAPABILITY_ENABLED_READY"
+    assert callable(authority.agent_service_factory)
+
+
+class TestStrictAgentZeroConstructionProvedBySpiesContinuation:
+    """Keep the original strict spy cases collected after the new cases."""
 
     def test_zero_construction_on_get_sessions(self, strict_client_with_spies):
         """GET /api/v1/agent/sessions → 503, zero construction."""

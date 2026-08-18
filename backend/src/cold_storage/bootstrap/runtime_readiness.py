@@ -60,7 +60,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from cold_storage.bootstrap.mode import AppMode, is_production_mode, resolve_app_mode
-from cold_storage.bootstrap.settings import Settings
+from cold_storage.bootstrap.settings import AgentCapabilityState, Settings
 
 logger = logging.getLogger("cold_storage.bootstrap.runtime_readiness")
 
@@ -193,6 +193,121 @@ READINESS_PROBE_TIMEOUT_MAX = 30
 # Local/test defaults per D-S2-03.b.
 LOCAL_TEST_STARTUP_PROBE_TIMEOUT_SECONDS = 30
 LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS = 5
+
+
+@dataclass(frozen=True, slots=True)
+class AgentCapabilityEvidence:
+    """Immutable P2-C capability and route-exposure evidence.
+
+    Configuration resolution remains owned by :mod:`bootstrap.settings`.
+    This record adds the later provider-probe and composition evidence without
+    allowing a route or a mutable ``app.state`` flag to become the authority.
+    """
+
+    state: AgentCapabilityState
+    provider: str | None
+    model: str | None
+    timeout_seconds: int | None
+    max_retries: int | None
+    provider_probe_passed: bool
+    composition_passed: bool
+    route_audit_passed: bool
+    failure_code: str | None
+    global_readiness: str
+    route_exposure: str
+
+    @property
+    def routes_enabled(self) -> bool:
+        return self.state is AgentCapabilityState.ENABLED_READY
+
+
+AgentProviderProbe = Callable[[Settings], bool]
+
+
+def resolve_agent_capability_evidence(
+    settings: Settings,
+    *,
+    provider_probe: AgentProviderProbe | None = None,
+    composition_passed: bool = True,
+    route_audit_passed: bool = True,
+) -> AgentCapabilityEvidence:
+    """Resolve the closed P2-C state using injected, non-network evidence.
+
+    A disabled configuration never invokes ``provider_probe``.  Any explicit
+    enablement intent that lacks complete configuration, probe evidence, or
+    composition/route evidence remains ``ENABLED_NOT_READY``.  The default
+    probe is deliberately fail-closed; production wiring must provide an
+    independently controlled probe rather than making configuration imply
+    provider readiness.
+    """
+
+    resolution = settings.agent_capability_resolution
+    if resolution.state is AgentCapabilityState.DISABLED:
+        return AgentCapabilityEvidence(
+            state=AgentCapabilityState.DISABLED,
+            provider=resolution.provider,
+            model=resolution.model,
+            timeout_seconds=resolution.timeout_seconds,
+            max_retries=resolution.max_retries,
+            provider_probe_passed=False,
+            composition_passed=True,
+            route_audit_passed=True,
+            failure_code=None,
+            global_readiness="PASS_IF_ALL_OTHER_MANDATORY_READINESS_GATES_PASS",
+            route_exposure="DISABLED_ROUTE_MATRIX",
+        )
+
+    failure_code = getattr(resolution.failure_code, "value", resolution.failure_code)
+    if not resolution.configuration_valid:
+        return AgentCapabilityEvidence(
+            state=AgentCapabilityState.ENABLED_NOT_READY,
+            provider=resolution.provider,
+            model=resolution.model,
+            timeout_seconds=resolution.timeout_seconds,
+            max_retries=resolution.max_retries,
+            provider_probe_passed=False,
+            composition_passed=False,
+            route_audit_passed=False,
+            failure_code=str(failure_code) if failure_code else None,
+            global_readiness="FAIL",
+            route_exposure="DISABLED_ROUTE_MATRIX",
+        )
+
+    probe_passed = False
+    if provider_probe is not None:
+        try:
+            probe_passed = provider_probe(settings) is True
+        except Exception:  # noqa: BLE001
+            probe_passed = False
+
+    if not probe_passed or not composition_passed or not route_audit_passed:
+        return AgentCapabilityEvidence(
+            state=AgentCapabilityState.ENABLED_NOT_READY,
+            provider=resolution.provider,
+            model=resolution.model,
+            timeout_seconds=resolution.timeout_seconds,
+            max_retries=resolution.max_retries,
+            provider_probe_passed=probe_passed,
+            composition_passed=composition_passed,
+            route_audit_passed=route_audit_passed,
+            failure_code="AGENT_PROVIDER_UNAVAILABLE",
+            global_readiness="FAIL",
+            route_exposure="DISABLED_ROUTE_MATRIX",
+        )
+
+    return AgentCapabilityEvidence(
+        state=AgentCapabilityState.ENABLED_READY,
+        provider=resolution.provider,
+        model=resolution.model,
+        timeout_seconds=resolution.timeout_seconds,
+        max_retries=resolution.max_retries,
+        provider_probe_passed=True,
+        composition_passed=True,
+        route_audit_passed=True,
+        failure_code=None,
+        global_readiness="PASS_IF_PROVIDER_AND_ALL_OTHER_MANDATORY_READINESS_GATES_PASS",
+        route_exposure="REAL_AGENT_ROUTES_ENABLED",
+    )
 
 
 class ReadinessError(Exception):
@@ -797,6 +912,27 @@ def _route_path_for(route: Any) -> str:
     return ""
 
 
+def _iter_registered_routes(routes: Iterable[Any]) -> tuple[Any, ...]:
+    """Flatten FastAPI route wrappers without changing route authority.
+
+    Recent FastAPI versions retain included routers as ``_IncludedRouter``
+    objects on the application.  Their ``original_router.routes`` contain the
+    concrete APIRoute objects and endpoint identities used by the strict
+    audit.  Older versions expose the concrete routes directly, so both forms
+    are handled without depending on a private wrapper type.
+    """
+    flattened: list[Any] = []
+    for route in routes:
+        original_router = getattr(route, "original_router", None)
+        if original_router is not None:
+            nested_routes = getattr(original_router, "routes", None)
+            if nested_routes is not None:
+                flattened.extend(_iter_registered_routes(nested_routes))
+                continue
+        flattened.append(route)
+    return tuple(flattened)
+
+
 def _validate_strict_binding_manifest(
     *,
     app: Any,
@@ -890,6 +1026,14 @@ _STRICT_EXPECTED_MANIFEST: tuple[tuple[str, str], ...] = (
     ("model_backed_agent", "disabled"),
 )
 
+_STRICT_AGENT_BINDING_BY_STATE = {
+    AgentCapabilityState.DISABLED.value: "disabled",
+    AgentCapabilityState.ENABLED_NOT_READY.value: "enabled_not_ready",
+    AgentCapabilityState.ENABLED_READY.value: "enabled_ready",
+}
+_COMPOSITION_TOKEN_REAL_AGENT_GATEWAY = "OPENAI_AGENT_MODEL_GATEWAY_INSTANTIATED"
+_COMPOSITION_TOKEN_REAL_AGENT_SERVICE = "REAL_PLANNING_AGENT_SERVICE_COMPOSED"
+
 
 # Audit spec: maps diagnostic name -> canonical capability + evidence requirements
 @dataclass(frozen=True)
@@ -922,6 +1066,30 @@ _STRICT_AUDIT_SPECS: dict[str, _StrictAuditSpec] = {
         route_prefixes=("/api/v1/coefficients",),
     ),
 }
+
+
+def _strict_expected_manifest(authority: Any) -> tuple[tuple[str, str], ...]:
+    """Return the expected immutable binding manifest for one authority."""
+    state = getattr(authority, "agent_capability_state", AgentCapabilityState.DISABLED.value)
+    binding = _STRICT_AGENT_BINDING_BY_STATE.get(state, "disabled")
+    return (
+        ("coefficient_http", "database_backed"),
+        ("model_backed_agent", binding),
+    )
+
+
+def _strict_agent_audit_evidence(
+    authority: Any,
+) -> tuple[frozenset[str], str]:
+    """Return forbidden and required composition evidence for agent routes."""
+    state = getattr(authority, "agent_capability_state", AgentCapabilityState.DISABLED.value)
+    if state == AgentCapabilityState.ENABLED_READY.value:
+        return (
+            frozenset({"FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED"}),
+            _COMPOSITION_TOKEN_REAL_AGENT_GATEWAY,
+        )
+    return frozenset({"FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED"}), ""
+
 
 # Frozen agent endpoint matrix (D-S4-06). The app factory registers
 # exactly these disabled routes in strict modes. Any additional
@@ -1007,7 +1175,7 @@ def enumerate_reachable_unsafe_strict_capabilities(
     # 1. Validate binding identity manifest
     manifest_errors = _validate_strict_binding_manifest(
         app=app,
-        expected_manifest=_STRICT_EXPECTED_MANIFEST,
+        expected_manifest=_strict_expected_manifest(_auth),
     )
     if manifest_errors:
         raise UnsafeStrictCapabilityWiring(
@@ -1024,20 +1192,40 @@ def enumerate_reachable_unsafe_strict_capabilities(
     reachable: list[str] = []
     for _diag_name, spec in _STRICT_AUDIT_SPECS.items():
         # Check composition evidence using the single snapshot
+        forbidden_tokens = spec.forbidden_composition_tokens
+        required_positive_token = spec.required_positive_composition_token
+        if spec.canonical_capability_name == "model_backed_agent":
+            forbidden_tokens, required_positive_token = _strict_agent_audit_evidence(_auth)
         evidence_errors: tuple[str, ...] = ()
         if "COMPOSITION_MANIFEST_PROVIDER_ERROR" in manifest_snapshot:
             evidence_errors = ("COMPOSITION_MANIFEST_PROVIDER_ERROR",)
         else:
-            for token in spec.forbidden_composition_tokens:
+            for token in forbidden_tokens:
                 if token in manifest_snapshot:
                     evidence_errors = (f"FORBIDDEN_TOKEN:{token}",)
                     break
             if (
                 not evidence_errors
-                and spec.required_positive_composition_token
-                and spec.required_positive_composition_token not in manifest_snapshot
+                and required_positive_token
+                and required_positive_token not in manifest_snapshot
             ):
                 evidence_errors = ("MISSING_POSITIVE_DB_TOKEN",)
+            if (
+                not evidence_errors
+                and spec.canonical_capability_name == "model_backed_agent"
+                and getattr(_auth, "agent_capability_state", None)
+                == AgentCapabilityState.ENABLED_READY.value
+                and _COMPOSITION_TOKEN_REAL_AGENT_SERVICE not in manifest_snapshot
+            ):
+                evidence_errors = ("MISSING_POSITIVE_AGENT_SERVICE_TOKEN",)
+            if (
+                not evidence_errors
+                and spec.canonical_capability_name == "model_backed_agent"
+                and getattr(_auth, "agent_capability_state", None)
+                == AgentCapabilityState.ENABLED_READY.value
+                and not callable(getattr(_auth, "agent_service_factory", None))
+            ):
+                evidence_errors = ("MISSING_AGENT_SERVICE_FACTORY",)
 
         if evidence_errors:
             reachable.append(spec.canonical_capability_name)
@@ -1048,7 +1236,7 @@ def enumerate_reachable_unsafe_strict_capabilities(
         app_routes = getattr(app, "routes", None)
         if app_routes is not None:
             try:
-                route_iter = list(app_routes)
+                route_iter = list(_iter_registered_routes(app_routes))
             except TypeError:
                 route_iter = []
             for r in route_iter:
@@ -2411,6 +2599,9 @@ def mandatory_readiness_probes() -> tuple[ProbeFn, ...]:
 
 __all__ = [
     "DATABASE_SCHEMA_HEAD_INVALID",
+    "AgentCapabilityEvidence",
+    "AgentCapabilityState",
+    "AgentProviderProbe",
     "BlockingProbeTimeout",
     "CONFIGURATION_IDENTITY_FAILURE",
     "LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS",
@@ -2468,4 +2659,5 @@ __all__ = [
     "set_readiness_state",
     "validate_probe_timeout_seconds",
     "resolve_probe_timeout_seconds",
+    "resolve_agent_capability_evidence",
 ]

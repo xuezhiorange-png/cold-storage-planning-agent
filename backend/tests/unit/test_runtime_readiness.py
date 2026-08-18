@@ -14,6 +14,8 @@ from cold_storage.bootstrap.runtime_readiness import (
     READINESS_PROBE_TIMEOUT_MIN,
     STARTUP_PROBE_TIMEOUT_MAX,
     STARTUP_PROBE_TIMEOUT_MIN,
+    AgentCapabilityEvidence,
+    AgentCapabilityState,
     ProbeOutcome,
     ReadinessError,
     StartupNonTimeoutProbeFailure,
@@ -22,11 +24,13 @@ from cold_storage.bootstrap.runtime_readiness import (
     assert_no_unsafe_strict_capabilities,
     registered_strict_capabilities,
     reset_readiness_state,
+    resolve_agent_capability_evidence,
     run_probe_with_timeout,
     run_readiness_phase,
     run_startup_phase,
     validate_probe_timeout_seconds,
 )
+from cold_storage.bootstrap.settings import Settings
 
 
 class _StubSettings:
@@ -5126,6 +5130,93 @@ def test_unknown_provider_rejected(monkeypatch):
         assert reachable == ("coefficient_http",)
     finally:
         set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_p2c_disabled_agent_does_not_invoke_provider_probe():
+    """DISABLED is configuration-only and never probes a provider."""
+    calls = 0
+
+    def _probe(_settings):
+        nonlocal calls
+        calls += 1
+        return True
+
+    evidence = resolve_agent_capability_evidence(
+        Settings.model_validate({}),
+        provider_probe=_probe,
+    )
+    assert isinstance(evidence, AgentCapabilityEvidence)
+    assert evidence.state is AgentCapabilityState.DISABLED
+    assert evidence.global_readiness == "PASS_IF_ALL_OTHER_MANDATORY_READINESS_GATES_PASS"
+    assert evidence.route_exposure == "DISABLED_ROUTE_MATRIX"
+    assert calls == 0
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"COLD_STORAGE_AGENT_PROVIDER": "openai"},
+        {"COLD_STORAGE_AGENT_MODEL": "gpt-test"},
+        {"COLD_STORAGE_AGENT_PROVIDER": "other", "COLD_STORAGE_AGENT_MODEL": "gpt-test"},
+    ],
+)
+def test_p2c_enablement_intent_without_valid_configuration_is_not_ready(values):
+    values = {
+        "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 10,
+        "COLD_STORAGE_AGENT_MAX_RETRIES": 0,
+        **values,
+    }
+    evidence = resolve_agent_capability_evidence(Settings.model_validate(values))
+    assert evidence.state is AgentCapabilityState.ENABLED_NOT_READY
+    assert evidence.global_readiness == "FAIL"
+    assert evidence.route_exposure == "DISABLED_ROUTE_MATRIX"
+
+
+def test_p2c_provider_probe_failure_is_not_ready():
+    settings = Settings.model_validate(
+        {
+            "COLD_STORAGE_AGENT_PROVIDER": "openai",
+            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 10,
+            "COLD_STORAGE_AGENT_MAX_RETRIES": 1,
+            "COLD_STORAGE_OPENAI_API_KEY": "test-only-key",
+        }
+    )
+    evidence = resolve_agent_capability_evidence(settings, provider_probe=lambda _s: False)
+    assert evidence.state is AgentCapabilityState.ENABLED_NOT_READY
+    assert evidence.provider_probe_passed is False
+    assert evidence.failure_code == "AGENT_PROVIDER_UNAVAILABLE"
+
+
+def test_p2c_provider_probe_and_composition_evidence_enable_ready_state():
+    settings = Settings.model_validate(
+        {
+            "COLD_STORAGE_AGENT_PROVIDER": "openai",
+            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 10,
+            "COLD_STORAGE_AGENT_MAX_RETRIES": 1,
+            "COLD_STORAGE_OPENAI_API_KEY": "test-only-key",
+        }
+    )
+    evidence = resolve_agent_capability_evidence(settings, provider_probe=lambda _s: True)
+    assert evidence.state is AgentCapabilityState.ENABLED_READY
+    assert evidence.global_readiness.startswith("PASS_IF_PROVIDER")
+    assert evidence.route_exposure == "REAL_AGENT_ROUTES_ENABLED"
+
+
+def test_p2c_preserves_canonical_eight_readiness_probes():
+    from cold_storage.bootstrap.runtime_readiness import mandatory_startup_probes
+
+    assert tuple(probe.__name__ for probe in mandatory_startup_probes()) == (
+        "probe_lifecycle_initialization_completed",
+        "probe_process_not_draining_or_shutting_down",
+        "probe_database_connectivity",
+        "probe_database_exact_alembic_head",
+        "probe_environment_and_resource_identities",
+        "probe_artifact_storage_isolated_exists_writable",
+        "probe_approved_coefficient_readiness_in_strict_modes",
+        "probe_build_and_deployment_identity",
+    )
 
 
 def test_forged_positive_token_cannot_bypass(monkeypatch):
