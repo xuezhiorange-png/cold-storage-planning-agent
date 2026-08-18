@@ -446,6 +446,34 @@ may supply an implicit default. Values outside the closed inclusive range
 range but may not redefine its type, bounds, default policy, or rejection
 semantics.
 
+The application retry count is frozen as a separate integer configuration
+contract:
+
+```text
+AGENT_MAX_RETRIES_CONFIGURATION_AUTHORITY=COLD_STORAGE_AGENT_MAX_RETRIES
+TYPE=integer
+MIN=0
+MAX=1
+ALLOWED_VALUES=0,1
+STAGING_PRODUCTION_EXPLICIT_REQUIRED=YES
+STAGING_PRODUCTION_DEFAULT_ALLOWED=NO
+ZERO_ALLOWED=YES
+NEGATIVE_ALLOWED=NO
+NON_INTEGER_ALLOWED=NO
+NAN_INF_ALLOWED=NO
+OUT_OF_RANGE_ALLOWED=NO
+MAX_PROVIDER_RETRIES=1
+MAX_PROVIDER_ATTEMPTS=2
+```
+
+The effective application rule is exact: configured retries `0` permits one
+provider attempt, while configured retries `1` permits two provider attempts.
+The application must never exceed one retry or two attempts. The official
+OpenAI SDK remains configured with `OPENAI_SDK_MAX_RETRIES=0`; the SDK never
+owns application retry policy. The retryable failure-code set in Section 8 is
+unchanged, and no retry is permitted after any tool side effect, confirmation
+claim, or mutation.
+
 The retry policy is finite:
 
 - maximum provider attempts: 2;
@@ -611,9 +639,11 @@ backend/src/cold_storage/modules/planning_agent/infrastructure/real_gateways.py
 backend/src/cold_storage/modules/planning_agent/application/orchestrator.py
 backend/src/cold_storage/modules/planning_agent/application/service.py
 backend/src/cold_storage/bootstrap/settings.py
+backend/src/cold_storage/bootstrap/environment_model.py
 backend/src/cold_storage/bootstrap/dependencies.py
 backend/src/cold_storage/bootstrap/app.py
 backend/src/cold_storage/bootstrap/runtime_readiness.py
+backend/src/cold_storage/modules/planning_agent/api/routes.py
 ```
 
 `real_gateways.py` is the single frozen infrastructure seam for the first
@@ -622,6 +652,20 @@ specific provider file. No provider adapter may be placed in domain or
 application code. The current fake gateway file is not a production-provider
 write target and its local/test behavior remains read-only under this
 contract.
+
+`environment_model.py` is the canonical strict environment-key authority for
+the four P2 keys named in Section 4. Its future P2 write authority is limited
+to registering those keys while preserving strict unknown-key rejection,
+legacy-key policy, resource/environment identity authority, and the existing
+redacted `COLD_STORAGE_OPENAI_API_KEY` classification. It is not authority for
+an unrelated configuration redesign.
+
+`routes.py` is the future P2 API projection owner. Its write authority is
+limited to projecting the ten frozen provider failure codes, their frozen safe
+messages, and frozen retryable booleans in the existing API/HTTP and
+actor/session boundaries. It must not expose provider-native bodies, headers,
+credentials, authorization material, or raw exception text, and it must not
+create an eleventh provider failure code or redesign unrelated API schemas.
 
 The following are deliberately excluded from the P2 production allowlist:
 
@@ -644,6 +688,7 @@ backend/tests/unit/test_planning_agent_api.py
 backend/tests/unit/test_planning_agent_comprehensive.py
 backend/tests/unit/test_runtime_readiness.py
 backend/tests/unit/test_planning_agent_real_gateway.py
+backend/tests/unit/test_settings.py
 backend/tests/architecture/test_architecture_boundaries.py
 ```
 
@@ -651,18 +696,27 @@ backend/tests/architecture/test_architecture_boundaries.py
 path. Provider transport must be mocked or replaced with a deterministic
 test transport; ordinary CI must never call a live provider.
 
+`test_settings.py` is the canonical P2 configuration test owner. It must cover
+the four canonical P2 environment keys, strict unknown-`COLD_STORAGE_*` key
+rejection, staging/production explicit configuration requirements,
+timeout/retry shape validation, and preservation of existing Slice-1
+configuration semantics. No broad `tests/**` wildcard is authorized.
+
 ### 15.3 Configuration/composition allowlist
 
 ```text
 backend/src/cold_storage/bootstrap/settings.py
+backend/src/cold_storage/bootstrap/environment_model.py
 backend/src/cold_storage/bootstrap/dependencies.py
 backend/src/cold_storage/bootstrap/app.py
 backend/src/cold_storage/bootstrap/runtime_readiness.py
 ```
 
 Configuration additions must be explicit, typed, redacted, bounded, and
-validated in strict modes. No environment variable alone may bypass the
-composition and readiness audit.
+validated in strict modes. `environment_model.py` may only register
+`COLD_STORAGE_AGENT_PROVIDER`, `COLD_STORAGE_AGENT_MODEL`,
+`COLD_STORAGE_AGENT_TIMEOUT_SECONDS`, and `COLD_STORAGE_AGENT_MAX_RETRIES`.
+No environment variable alone may bypass the composition and readiness audit.
 
 ### 15.4 Dependency allowlist
 
@@ -681,18 +735,34 @@ HTTPX_AS_ALTERNATIVE_PROVIDER_TRANSPORT=NO
 IMPLEMENTATION_MAY_SELECT_DIFFERENT_PROVIDER_PACKAGE=NO
 CONTRACT_AMENDMENT_REQUIRED_FOR_DIFFERENT_PROVIDER_TRANSPORT_OR_PACKAGE=YES
 CONTRACT_AMENDMENT_REQUIRED=YES
+OPENAI_DEPENDENCY_DIRECT_PACKAGE=openai
+OPENAI_DEPENDENCY_VERSION_POLICY=EXACT_PIN
+PYPROJECT_FLOATING_SPECIFIER_ALLOWED=NO
+PYPROJECT_WILDCARD_ALLOWED=NO
+PRERELEASE_ALLOWED=NO
+YANKED_RELEASE_ALLOWED=NO
+GIT_REF_DEPENDENCY_ALLOWED=NO
+DIRECT_URL_DEPENDENCY_ALLOWED=NO
+ALTERNATIVE_PROVIDER_PACKAGE_ALLOWED=NO
+HTTPX_AS_PROVIDER_TRANSPORT_ALLOWED=NO
+UV_LOCK_EXACT_RESOLUTION_REQUIRED=YES
+IMPLEMENTATION_MAY_CHANGE_VERSION_POLICY=NO
 ```
 
 The existing `httpx` development dependency is not a provider transport and
 must not be moved into the runtime dependency set for this purpose. A
 separately authorized implementation may add only the official `openai`
-Python package as the direct runtime dependency, with its exact resolved
-version locked in `backend/uv.lock`. It may not implement the provider through
-direct `httpx` calls or select a different provider package. Any different
-provider transport or package requires `CONTRACT_AMENDMENT_REQUIRED=YES`.
-The dependency change must name the package, version policy, reason, license
-review, and network-test boundary. No unreviewed provider SDK, floating
-dependency, or transitive package is implicitly authorized.
+Python package as the direct runtime dependency. It must audit a stable,
+non-prerelease `openai` release compatible with Python `>=3.12`, record
+`OPENAI_SDK_VERSION_SELECTED=<exact version>`, declare
+`openai==<exact version>`, and produce the matching resolved entry in
+`backend/uv.lock`. It must also record package/version/reason/license and
+network-test evidence. It must block rather than select a prerelease, yanked
+release, alternate package, direct Git dependency, direct URL dependency, or
+direct HTTP transport. A later OpenAI SDK upgrade requires its own dependency
+review and change authority; it is not implied by the original implementation
+authorization. No unreviewed provider SDK, floating dependency, or transitive
+package is implicitly authorized.
 
 ### 15.5 Documentation allowlist
 
@@ -703,6 +773,38 @@ docs/runbooks/V0_3-P2-production-agent-gateway.md
 The historical `docs/architecture/ADR-005-model-gateway.md` and this
 contract are read-only after this freeze. No documentation change may rewrite
 historical TASK-012 authority.
+
+### 15.6 Implementation slices
+
+The P2 implementation is divided into three independently reviewable slices.
+Each slice may write only paths already present in the amended future
+allowlists above; this section does not grant implementation authorization.
+
+#### P2-A_CONFIG_ERROR_FOUNDATION
+
+This slice covers canonical configuration, typed provider configuration,
+timeout/retry validation, the three-state capability-resolution foundation,
+the ten frozen provider error identities, and safe provider-error metadata
+foundation. It does not add the OpenAI SDK, a real provider adapter, a network
+call, or strict real-agent route enablement.
+
+#### P2-B_OPENAI_ADAPTER
+
+This slice covers the official `openai` dependency and matching
+`backend/uv.lock` entry, `real_gateways.py`, Responses API request/response
+mapping, strict `AgentDecision` decoding, frozen provider failure
+classification, bounded retry, provider metadata, and mocked transport tests.
+Ordinary CI must not call a live provider, and staging/production routes remain
+disabled.
+
+#### P2-C_STRICT_COMPOSITION_API
+
+This slice covers `dependencies.py`, `app.py`, `runtime_readiness.py`, and
+`planning_agent/api/routes.py` within their frozen allowlist roles. It
+implements the three capability states, strict readiness probing, strict
+composition evidence, route exposure mapping, and safe API provider-error
+projection. Controlled real-provider acceptance remains separately
+authorized.
 
 ## 16. Forbidden paths and changes
 
@@ -894,5 +996,82 @@ MERGE_AUTHORIZED=NO
 V03_P3_AUTHORIZED=NO
 V03_P4_AUTHORIZED=NO
 V03_P5_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+## 21. V0.3 P2 Implementation Authority Contract Amendment R1
+
+This record closes the five implementation-readiness gaps identified by the
+readiness review. It amends contract authority only; it does not authorize
+P2 implementation, dependency mutation, credentials, provider calls, or
+production enablement.
+
+```text
+AMENDMENT_NAME=V0.3 P2 Implementation Authority Contract Amendment R1
+AMENDMENT_BASE_MAIN_SHA=9647f4b6ec928e191bce798fc8eb1636ed26b610
+AMENDMENT_BASE_MAIN_TREE_SHA=c4a0efb01c05519bee8f5a9e1f419510ebb156fd
+AUTHORIZATION_RECORD_ID=5324209900
+READINESS_REVIEW_AUTHORIZATION_RECORD_ID=5324154144
+READINESS_REVIEW_RESULT_RECORD_ID=5324182799
+AUTHORIZATION_SCOPE=CONTRACT_AMENDMENT_ONLY
+
+FINDING_01_CANONICAL_ENVIRONMENT_AUTHORITY=CLOSED
+FINDING_02_SAFE_API_ERROR_PROJECTION=CLOSED
+FINDING_03_CANONICAL_CONFIGURATION_TEST_OWNER=CLOSED
+FINDING_04_AGENT_MAX_RETRIES_SEMANTICS=CLOSED
+FINDING_05_OPENAI_SDK_VERSION_POLICY=CLOSED
+
+ENVIRONMENT_MODEL_ALLOWLIST_GAP_CLOSED=YES
+AGENT_API_ROUTES_ALLOWLIST_GAP_CLOSED=YES
+SETTINGS_TEST_ALLOWLIST_GAP_CLOSED=YES
+AGENT_MAX_RETRIES_SEMANTICS_GAP_CLOSED=YES
+OPENAI_DEPENDENCY_VERSION_POLICY_GAP_CLOSED=YES
+
+ENVIRONMENT_MODEL_FUTURE_WRITE_AUTHORITY=REGISTER_ONLY_THE_FOUR_P2_CANONICAL_KEYS_AND_PRESERVE_STRICT_UNKNOWN_KEY_REJECTION_LEGACY_POLICY_RESOURCE_IDENTITY_AND_OPENAI_KEY_REDACTION
+AGENT_API_ROUTES_FUTURE_WRITE_AUTHORITY=PROJECT_THE_TEN_FROZEN_PROVIDER_FAILURE_CODES_SAFE_MESSAGES_AND_RETRYABLE_BOOLEANS_ONLY
+SETTINGS_TEST_FUTURE_WRITE_AUTHORITY=OWN_THE_FOUR_P2_KEYS_STRICT_UNKNOWN_KEY_REJECTION_EXPLICIT_STRICT_CONFIGURATION_AND_TIMEOUT_RETRY_SHAPE_TESTS
+
+AGENT_MAX_RETRIES_CONFIGURATION_AUTHORITY=COLD_STORAGE_AGENT_MAX_RETRIES
+AGENT_MAX_RETRIES_TYPE=integer
+AGENT_MAX_RETRIES_MIN=0
+AGENT_MAX_RETRIES_MAX=1
+AGENT_MAX_RETRIES_ALLOWED_VALUES=0,1
+AGENT_MAX_RETRIES_STRICT_EXPLICIT_REQUIRED=YES
+AGENT_MAX_RETRIES_STRICT_DEFAULT_ALLOWED=NO
+AGENT_MAX_RETRIES_ZERO_ALLOWED=YES
+AGENT_MAX_RETRIES_NEGATIVE_ALLOWED=NO
+AGENT_MAX_RETRIES_NON_INTEGER_ALLOWED=NO
+AGENT_MAX_RETRIES_NAN_INF_ALLOWED=NO
+AGENT_MAX_RETRIES_OUT_OF_RANGE_ALLOWED=NO
+MAX_PROVIDER_RETRIES=1
+MAX_PROVIDER_ATTEMPTS=2
+OPENAI_SDK_MAX_RETRIES=0
+
+OPENAI_DEPENDENCY_DIRECT_PACKAGE=openai
+OPENAI_DEPENDENCY_VERSION_POLICY=EXACT_PIN
+UV_LOCK_EXACT_RESOLUTION_REQUIRED=YES
+PYPROJECT_FLOATING_SPECIFIER_ALLOWED=NO
+PYPROJECT_WILDCARD_ALLOWED=NO
+PRERELEASE_ALLOWED=NO
+YANKED_RELEASE_ALLOWED=NO
+GIT_REF_DEPENDENCY_ALLOWED=NO
+DIRECT_URL_DEPENDENCY_ALLOWED=NO
+ALTERNATIVE_PROVIDER_PACKAGE_ALLOWED=NO
+HTTPX_AS_PROVIDER_TRANSPORT_ALLOWED=NO
+IMPLEMENTATION_MAY_CHANGE_VERSION_POLICY=NO
+
+IMPLEMENTATION_SLICE_A=P2-A_CONFIG_ERROR_FOUNDATION
+IMPLEMENTATION_SLICE_B=P2-B_OPENAI_ADAPTER
+IMPLEMENTATION_SLICE_C=P2-C_STRICT_COMPOSITION_API
+
+CONTRACT_AMENDMENT_CHANGED_FILE_COUNT=1
+AUTHORIZED_CONTRACT_PATH=docs/tasks/V0_3-P2-production-agent-gateway-contract.md
+P2_IMPLEMENTATION_EXECUTED=NO
+OPENAI_DEPENDENCY_ADDED=NO
+OPENAI_CREDENTIAL_CHANGED=NO
+OPENAI_REAL_API_CALL_EXECUTED=NO
+PRODUCTION_AGENT_ENABLEMENT=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
