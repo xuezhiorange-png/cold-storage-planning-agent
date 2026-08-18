@@ -1,6 +1,11 @@
-"""Planning agent domain errors."""
+"""Planning agent domain errors and frozen provider failure metadata."""
 
 from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass
+from enum import StrEnum
+from types import MappingProxyType
 
 
 class PlanningAgentError(Exception):
@@ -69,8 +74,120 @@ class ToolCallLimitExceededError(PlanningAgentError):
         self.limit = limit
 
 
+class AgentProviderFailureCode(StrEnum):
+    """The closed set of safe, machine-readable provider failure identities."""
+
+    AGENT_PROVIDER_CONFIGURATION_MISSING = "AGENT_PROVIDER_CONFIGURATION_MISSING"
+    AGENT_PROVIDER_CONFIGURATION_INVALID = "AGENT_PROVIDER_CONFIGURATION_INVALID"
+    AGENT_PROVIDER_CREDENTIAL_INVALID = "AGENT_PROVIDER_CREDENTIAL_INVALID"
+    AGENT_PROVIDER_TIMEOUT = "AGENT_PROVIDER_TIMEOUT"
+    AGENT_PROVIDER_CONNECTION_FAILED = "AGENT_PROVIDER_CONNECTION_FAILED"
+    AGENT_PROVIDER_RATE_LIMITED = "AGENT_PROVIDER_RATE_LIMITED"
+    AGENT_PROVIDER_UPSTREAM_5XX = "AGENT_PROVIDER_UPSTREAM_5XX"
+    AGENT_PROVIDER_RESPONSE_MALFORMED = "AGENT_PROVIDER_RESPONSE_MALFORMED"
+    AGENT_PROVIDER_RESPONSE_TOO_LARGE = "AGENT_PROVIDER_RESPONSE_TOO_LARGE"
+    AGENT_PROVIDER_UNAVAILABLE = "AGENT_PROVIDER_UNAVAILABLE"
+
+
+@dataclass(frozen=True, slots=True)
+class AgentProviderFailureMetadata:
+    """Safe external metadata for one frozen provider failure identity."""
+
+    code: AgentProviderFailureCode
+    safe_message: str
+    retryable: bool
+
+
+ProviderFailureCode = AgentProviderFailureCode
+ProviderFailureMetadata = AgentProviderFailureMetadata
+
+_PROVIDER_FAILURE_METADATA: dict[AgentProviderFailureCode, AgentProviderFailureMetadata] = {
+    AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_MISSING: AgentProviderFailureMetadata(
+        AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_MISSING,
+        "agent provider configuration is missing",
+        False,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID: AgentProviderFailureMetadata(
+        AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID,
+        "agent provider configuration is invalid",
+        False,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_CREDENTIAL_INVALID: AgentProviderFailureMetadata(
+        AgentProviderFailureCode.AGENT_PROVIDER_CREDENTIAL_INVALID,
+        "agent provider credentials are invalid",
+        False,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_TIMEOUT: AgentProviderFailureMetadata(
+        AgentProviderFailureCode.AGENT_PROVIDER_TIMEOUT,
+        "agent provider request timed out",
+        True,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_CONNECTION_FAILED: AgentProviderFailureMetadata(
+        AgentProviderFailureCode.AGENT_PROVIDER_CONNECTION_FAILED,
+        "agent provider connection failed",
+        True,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_RATE_LIMITED: AgentProviderFailureMetadata(
+        AgentProviderFailureCode.AGENT_PROVIDER_RATE_LIMITED,
+        "agent provider rate limited",
+        True,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_UPSTREAM_5XX: AgentProviderFailureMetadata(
+        AgentProviderFailureCode.AGENT_PROVIDER_UPSTREAM_5XX,
+        "agent provider upstream failure",
+        True,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_RESPONSE_MALFORMED: AgentProviderFailureMetadata(
+        AgentProviderFailureCode.AGENT_PROVIDER_RESPONSE_MALFORMED,
+        "agent provider response is malformed",
+        False,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_RESPONSE_TOO_LARGE: AgentProviderFailureMetadata(
+        AgentProviderFailureCode.AGENT_PROVIDER_RESPONSE_TOO_LARGE,
+        "agent provider response is too large",
+        False,
+    ),
+    AgentProviderFailureCode.AGENT_PROVIDER_UNAVAILABLE: AgentProviderFailureMetadata(
+        AgentProviderFailureCode.AGENT_PROVIDER_UNAVAILABLE,
+        "agent provider is unavailable",
+        True,
+    ),
+}
+PROVIDER_FAILURE_METADATA: Mapping[AgentProviderFailureCode, AgentProviderFailureMetadata] = (
+    MappingProxyType(_PROVIDER_FAILURE_METADATA)
+)
+PROVIDER_FAILURE_CODES = tuple(AgentProviderFailureCode)
+FROZEN_PROVIDER_FAILURE_CODES = PROVIDER_FAILURE_CODES
+
+
+def provider_failure_metadata(
+    code: AgentProviderFailureCode | str,
+) -> AgentProviderFailureMetadata:
+    """Return only the frozen safe metadata for a provider failure code."""
+
+    try:
+        normalized = AgentProviderFailureCode(code)
+    except ValueError as exc:
+        raise ValueError("unknown provider failure code") from exc
+    return PROVIDER_FAILURE_METADATA[normalized]
+
+
 class ModelGatewayError(PlanningAgentError):
-    def __init__(self, detail: str = "Model gateway unavailable") -> None:
+    def __init__(
+        self,
+        detail: str = "Model gateway unavailable",
+        *,
+        code: AgentProviderFailureCode | str | None = None,
+    ) -> None:
+        self.code = AgentProviderFailureCode(code) if code is not None else None
+        self.provider_failure_code = self.code
+        if self.code is None:
+            self.safe_message: str | None = None
+            self.retryable: bool | None = None
+        else:
+            metadata = provider_failure_metadata(self.code)
+            self.safe_message = metadata.safe_message
+            self.retryable = metadata.retryable
         super().__init__(detail)
 
 

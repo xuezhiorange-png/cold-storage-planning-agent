@@ -13,7 +13,8 @@ from cold_storage.bootstrap.environment_model import (
     EnvironmentId,
     resolve_configuration,
 )
-from cold_storage.bootstrap.settings import Settings
+from cold_storage.bootstrap.settings import AgentCapabilityState, Settings
+from cold_storage.modules.planning_agent.domain.errors import AgentProviderFailureCode
 
 
 @pytest.fixture(autouse=True)
@@ -177,3 +178,208 @@ def test_inherited_postgres_fields_infer_postgresql_when_backend_unset() -> None
     assert settings.database_backend == "postgresql"
     assert settings.database_url is not None
     assert settings.database_url.startswith("postgresql+psycopg2://")
+
+
+def test_p2_canonical_agent_keys_are_typed_and_configuration_is_not_provider_ready() -> None:
+    settings = Settings.model_validate(
+        {
+            "COLD_STORAGE_AGENT_PROVIDER": "openai",
+            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": "1",
+            "COLD_STORAGE_AGENT_MAX_RETRIES": "0",
+            "COLD_STORAGE_OPENAI_API_KEY": "test-only-secret",
+        }
+    )
+
+    assert settings.agent_provider == "openai"
+    assert settings.agent_model == "gpt-test"
+    assert settings.agent_timeout_seconds == 1
+    assert settings.agent_max_retries == 0
+    assert settings.agent_enablement_intent_present is True
+    assert settings.agent_capability_state is AgentCapabilityState.ENABLED_NOT_READY
+    assert settings.agent_configuration_valid is True
+    assert settings.production_provider_ready is False
+
+
+def test_strict_agent_disabled_configuration_does_not_require_agent_fields() -> None:
+    settings = Settings.model_validate(strict_env("production"))
+
+    assert settings.agent_enablement_intent_present is False
+    assert settings.agent_capability_state is AgentCapabilityState.DISABLED
+    assert settings.agent_configuration_valid is True
+    assert settings.agent_timeout_seconds is None
+    assert settings.agent_max_retries is None
+    assert settings.openai_api_key is None
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"COLD_STORAGE_OPENAI_API_KEY": "test-only-secret"},
+        {"COLD_STORAGE_AGENT_TIMEOUT_SECONDS": "10"},
+        {"COLD_STORAGE_AGENT_MAX_RETRIES": "1"},
+    ],
+)
+def test_non_selection_agent_facts_do_not_create_enablement_intent(
+    extra: dict[str, str],
+) -> None:
+    settings = Settings.model_validate(extra)
+
+    assert settings.agent_enablement_intent_present is False
+    assert settings.agent_capability_state is AgentCapabilityState.DISABLED
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"COLD_STORAGE_AGENT_PROVIDER": "openai"},
+        {"COLD_STORAGE_AGENT_MODEL": "gpt-test"},
+    ],
+)
+def test_partial_provider_model_selection_is_enabled_not_ready(
+    extra: dict[str, str],
+) -> None:
+    settings = Settings.model_validate(extra)
+
+    assert settings.agent_enablement_intent_present is True
+    assert settings.agent_capability_state is AgentCapabilityState.ENABLED_NOT_READY
+    assert settings.agent_configuration_valid is False
+    assert (
+        settings.agent_capability_resolution.failure_code
+        is AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_MISSING
+    )
+
+
+def test_enabled_configuration_requires_timeout_retry_and_openai_key() -> None:
+    base = {
+        "COLD_STORAGE_AGENT_PROVIDER": "openai",
+        "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+        "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": "10",
+        "COLD_STORAGE_AGENT_MAX_RETRIES": "1",
+    }
+
+    for missing_key in (
+        "COLD_STORAGE_AGENT_TIMEOUT_SECONDS",
+        "COLD_STORAGE_AGENT_MAX_RETRIES",
+        "COLD_STORAGE_OPENAI_API_KEY",
+    ):
+        values = dict(base)
+        values.pop(missing_key, None)
+        settings = Settings.model_validate(values)
+        assert settings.agent_capability_state is AgentCapabilityState.ENABLED_NOT_READY
+        assert settings.agent_configuration_valid is False
+        assert (
+            settings.agent_capability_resolution.failure_code
+            is AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_MISSING
+        )
+
+
+def test_unknown_provider_fails_closed_without_provider_fallback() -> None:
+    settings = Settings.model_validate(
+        {
+            "COLD_STORAGE_AGENT_PROVIDER": "unknown-provider",
+            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": "10",
+            "COLD_STORAGE_AGENT_MAX_RETRIES": "0",
+        }
+    )
+
+    assert settings.agent_capability_state is AgentCapabilityState.ENABLED_NOT_READY
+    assert settings.agent_configuration_valid is False
+    assert (
+        settings.agent_capability_resolution.failure_code
+        is AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID
+    )
+
+
+@pytest.mark.parametrize("timeout", [1, 30])
+def test_agent_timeout_accepts_closed_inclusive_boundaries(timeout: int) -> None:
+    settings = Settings.model_validate(
+        {
+            "COLD_STORAGE_AGENT_PROVIDER": "openai",
+            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": timeout,
+            "COLD_STORAGE_AGENT_MAX_RETRIES": 0,
+            "COLD_STORAGE_OPENAI_API_KEY": "test-only-secret",
+        }
+    )
+
+    assert settings.agent_timeout_seconds == timeout
+    assert settings.agent_configuration_valid is True
+
+
+@pytest.mark.parametrize("timeout", [0, -1, 31])
+def test_agent_timeout_out_of_range_is_enabled_not_ready(timeout: int) -> None:
+    settings = Settings.model_validate(
+        {
+            "COLD_STORAGE_AGENT_PROVIDER": "openai",
+            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": timeout,
+            "COLD_STORAGE_AGENT_MAX_RETRIES": 0,
+            "COLD_STORAGE_OPENAI_API_KEY": "test-only-secret",
+        }
+    )
+
+    assert settings.agent_capability_state is AgentCapabilityState.ENABLED_NOT_READY
+    assert settings.agent_configuration_valid is False
+    assert (
+        settings.agent_capability_resolution.failure_code
+        is AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID
+    )
+
+
+@pytest.mark.parametrize("retries", [0, 1])
+def test_agent_retries_accept_frozen_values(retries: int) -> None:
+    settings = Settings.model_validate(
+        {
+            "COLD_STORAGE_AGENT_PROVIDER": "openai",
+            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 10,
+            "COLD_STORAGE_AGENT_MAX_RETRIES": retries,
+            "COLD_STORAGE_OPENAI_API_KEY": "test-only-secret",
+        }
+    )
+
+    assert settings.agent_max_retries == retries
+    assert settings.agent_configuration_valid is True
+
+
+@pytest.mark.parametrize("retries", [-1, 2])
+def test_agent_retries_out_of_range_is_enabled_not_ready(retries: int) -> None:
+    settings = Settings.model_validate(
+        {
+            "COLD_STORAGE_AGENT_PROVIDER": "openai",
+            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 10,
+            "COLD_STORAGE_AGENT_MAX_RETRIES": retries,
+            "COLD_STORAGE_OPENAI_API_KEY": "test-only-secret",
+        }
+    )
+
+    assert settings.agent_capability_state is AgentCapabilityState.ENABLED_NOT_READY
+    assert settings.agent_configuration_valid is False
+    assert (
+        settings.agent_capability_resolution.failure_code
+        is AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("COLD_STORAGE_AGENT_TIMEOUT_SECONDS", "1.5"),
+        ("COLD_STORAGE_AGENT_MAX_RETRIES", "not-an-integer"),
+    ],
+)
+def test_agent_numeric_settings_reject_non_integer_values(field: str, value: str) -> None:
+    with pytest.raises((ConfigurationError, ValidationError)):
+        Settings.model_validate(
+            {
+                "COLD_STORAGE_AGENT_PROVIDER": "openai",
+                "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+                "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": "10",
+                "COLD_STORAGE_AGENT_MAX_RETRIES": "0",
+                "COLD_STORAGE_OPENAI_API_KEY": "test-only-secret",
+                field: value,
+            }
+        )
