@@ -470,9 +470,15 @@ NAN_INF_ALLOWED=NO
 OUT_OF_RANGE_ALLOWED=NO
 ```
 
-Staging and production must receive an explicit integer value; neither mode
-may supply an implicit default. Values outside the closed inclusive range
-`1..30` are configuration-invalid and map to
+In staging and production, an explicit `COLD_STORAGE_AGENT_TIMEOUT_SECONDS`
+value is required only when Agent enablement intent is present. When required,
+the value must be an integer in the closed inclusive range `1..30`, and no
+implicit default may be supplied. When the Agent is intentionally disabled
+because neither provider nor model is supplied, the timeout setting may be
+absent; that absence does not constitute `AGENT_PROVIDER_CONFIGURATION_MISSING`,
+`AGENT_PROVIDER_CONFIGURATION_INVALID`, or any other configuration failure,
+and does not fail global application readiness. Values outside the closed
+inclusive range `1..30` are configuration-invalid and map to
 `AGENT_PROVIDER_CONFIGURATION_INVALID`. Implementation may consume this
 range but may not redefine its type, bounds, default policy, or rejection
 semantics.
@@ -1231,5 +1237,45 @@ OPENAI_REAL_API_CALL_EXECUTED=NO
 PRODUCTION_AGENT_ENABLEMENT=NO
 READY_AUTHORIZED=NO
 MERGE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+## 23. V0.3 P2 Timeout Conditional Prose Correction R3
+
+This record corrects the timeout prose contradiction identified by the
+post-merge review. It changes no machine-readable authority and does not
+authorize P2 implementation, dependency mutation, credentials, provider
+calls, or production enablement.
+
+```text
+AMENDMENT_NAME=V0.3 P2 Timeout Conditional Prose Correction R3
+SOURCE_REVIEW_ID=4958508252
+SOURCE_P2_A_READINESS_AUTHORIZATION_RECORD_ID=5325112436
+SOURCE_P2_A_READINESS_RESULT_RECORD_ID=5325117239
+R3_AUTHORIZATION_RECORD_ID=5325192505
+R3_BASE_MAIN_SHA=9e1a48d449a8ac0a7a83b580512ad9b0fe7cc993
+R3_BASE_MAIN_TREE_SHA=f457694c637ebb566dae1206afd8ad8df9d4d376
+
+TIMEOUT_CONDITIONAL_MACHINE_AUTHORITY_PRESERVED=YES
+TIMEOUT_CONDITIONAL_PROSE_ALIGNED=YES
+DISABLED_TIMEOUT_OPTIONAL_SEMANTICS_PRESERVED=YES
+ENABLED_TIMEOUT_EXPLICIT_REQUIREMENT_PRESERVED=YES
+TIMEOUT_DEFAULT_WHEN_ENABLED_ALLOWED=NO
+DISABLED_TIMEOUT_ABSENCE_FAILS_CONFIGURATION=NO
+DISABLED_TIMEOUT_ABSENCE_FAILS_GLOBAL_READINESS=NO
+BLOCKER=MERGED_CONTRACT_TIMEOUT_PROSE_CONTRADICTS_CONDITIONAL_DISABLED_SEMANTICS
+BLOCKER_CLOSED=YES
+
+P2_IMPLEMENTATION_EXECUTED=NO
+P2_A_IMPLEMENTATION_EXECUTED=NO
+P2_B_IMPLEMENTATION_EXECUTED=NO
+P2_C_IMPLEMENTATION_EXECUTED=NO
+OPENAI_DEPENDENCY_ADDED=NO
+OPENAI_CREDENTIAL_CHANGED=NO
+OPENAI_REAL_API_CALL_EXECUTED=NO
+PRODUCTION_AGENT_ENABLEMENT=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+ISSUE_110_CLOSURE_EXECUTED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
