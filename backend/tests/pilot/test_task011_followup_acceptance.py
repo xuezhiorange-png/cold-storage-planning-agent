@@ -30,6 +30,7 @@ from cold_storage.evaluation.followup_acceptance import (
     _wrap_controlled_failure,
     compare_normalized_evidence,
     load_source_definition,
+    normalized_business_projection,
     project_source_warnings,
     run_controlled_acceptance,
     validate_execution_source_identity,
@@ -662,8 +663,8 @@ def test_acceptance_core_has_no_architecture_token_bypass() -> None:
     assert "s6_07_controlled_fixture" not in core
 
 
-def test_normalized_parity_ignores_runtime_source_ids() -> None:
-    def evidence(source_id: str) -> dict[str, object]:
+def test_normalized_parity_ignores_runtime_ids_and_execution_bound_hashes() -> None:
+    def evidence(source_id: str, hash_suffix: str) -> dict[str, object]:
         return {
             "source": {
                 "source_candidate_path": SOURCE_CANDIDATE_PATH,
@@ -684,19 +685,32 @@ def test_normalized_parity_ignores_runtime_source_ids() -> None:
                 "combined_source_hash": "binding-hash",
                 "scheme_result_hash": "scheme-hash",
                 "scheme_review_authority_hash": "scheme-hash",
-                "authority": {f"{stage}_result_hash": f"{stage}-hash" for stage in STAGE_ORDER},
+                "authority": {
+                    f"{stage}_result_hash": f"{stage}-{hash_suffix}" for stage in STAGE_ORDER
+                },
                 "status": "completed",
             },
         }
 
-    result = compare_normalized_evidence(
-        {"sqlite-1": evidence("sqlite-id"), "postgresql-1": evidence("postgres-id")}
-    )
+    first = evidence("sqlite-id", "run-a")
+    second = evidence("postgres-id", "run-b")
+    result = compare_normalized_evidence({"sqlite-1": first, "postgresql-1": second})
 
     assert result["status"] == "PASS"
+    assert first["review"]["authority"]["power_result_hash"] == "power-run-a"
+    assert second["review"]["authority"]["power_result_hash"] == "power-run-b"
+    assert normalized_business_projection(first)["calculation_result_hashes_present"] == {
+        stage: True for stage in STAGE_ORDER
+    }
 
 
-def test_normalized_parity_does_not_ignore_business_hash_changes() -> None:
+@pytest.mark.parametrize("invalid_stage", STAGE_ORDER)
+@pytest.mark.parametrize(
+    "invalid_hash", [None, "", "   ", 123], ids=["none", "empty", "blank", "non-string"]
+)
+def test_normalized_parity_requires_present_per_stage_result_hashes(
+    invalid_stage: str, invalid_hash: object
+) -> None:
     first = {
         "source": {
             "source_candidate_path": SOURCE_CANDIDATE_PATH,
@@ -713,12 +727,108 @@ def test_normalized_parity_does_not_ignore_business_hash_changes() -> None:
             "status": "completed",
         },
     }
+    first["review"]["authority"][f"{invalid_stage}_result_hash"] = invalid_hash
+
+    with pytest.raises(ControlledAcceptanceError) as exc_info:
+        normalized_business_projection(first)
+
+    assert exc_info.value.code == "EVIDENCE_RESULT_HASH_INVALID"
+
+
+def test_normalized_parity_rejects_missing_per_stage_result_hash() -> None:
+    evidence = {
+        "source": {
+            "source_candidate_path": SOURCE_CANDIDATE_PATH,
+            "canonical_input_sha256": CANONICAL_INPUT_SHA256,
+        },
+        "review": {
+            "stage_order": list(STAGE_ORDER),
+            "requires_review_vector": list(EXPECTED_REVIEW_VECTOR),
+            "reasons": [],
+            "authority": {f"{stage}_result_hash": f"{stage}-hash" for stage in STAGE_ORDER},
+            "status": "completed",
+        },
+    }
+    del evidence["review"]["authority"]["zone_result_hash"]
+
+    with pytest.raises(ControlledAcceptanceError) as exc_info:
+        normalized_business_projection(evidence)
+
+    assert exc_info.value.code == "EVIDENCE_RESULT_HASH_INVALID"
+
+
+def test_normalized_parity_ignores_execution_bound_hash_changes() -> None:
+    first = {
+        "source": {
+            "source_candidate_path": SOURCE_CANDIDATE_PATH,
+            "canonical_input_sha256": CANONICAL_INPUT_SHA256,
+        },
+        "review": {
+            "stage_order": list(STAGE_ORDER),
+            "requires_review_vector": list(EXPECTED_REVIEW_VECTOR),
+            "reasons": [],
+            "combined_source_hash": "binding-hash",
+            "scheme_result_hash": "scheme-hash",
+            "scheme_review_authority_hash": "scheme-hash",
+            "authority": {f"{stage}_result_hash": f"{stage}-hash" for stage in STAGE_ORDER},
+            "status": "completed",
+        },
+    }
     second = copy.deepcopy(first)
     second["review"]["authority"]["power_result_hash"] = "power-hash-tampered"
 
     result = compare_normalized_evidence({"a": first, "b": second})
 
-    assert result["status"] == "FAIL"
+    assert result["status"] == "PASS"
+
+
+def test_normalized_parity_still_rejects_business_changes() -> None:
+    first = {
+        "source": {
+            "source_candidate_path": SOURCE_CANDIDATE_PATH,
+            "canonical_input_sha256": CANONICAL_INPUT_SHA256,
+        },
+        "review": {
+            "stage_order": list(STAGE_ORDER),
+            "requires_review_vector": list(EXPECTED_REVIEW_VECTOR),
+            "reasons": [
+                {
+                    "code": "WARN",
+                    "message": "same",
+                    "stage": "zone",
+                    "source_type": "calculation_run",
+                    "source_id": "runtime-zone-id",
+                }
+            ],
+            "combined_source_hash": "binding-hash",
+            "scheme_result_hash": "scheme-hash",
+            "scheme_review_authority_hash": "scheme-hash",
+            "authority": {
+                **{f"{stage}_result_hash": f"{stage}-run-a" for stage in STAGE_ORDER},
+                "recommended_scheme_code": "balanced",
+            },
+            "status": "completed",
+        },
+    }
+    changes = (
+        ("recommended_scheme_code", "conservative"),
+        ("requires_review_vector", [False, True, True, False, True]),
+        ("status", "failed"),
+        ("canonical_input_sha256", "different-input-hash"),
+    )
+    for field, value in changes:
+        second = copy.deepcopy(first)
+        if field == "recommended_scheme_code":
+            second["review"]["authority"][field] = value
+        elif field == "requires_review_vector" or field == "status":
+            second["review"][field] = value
+        else:
+            second["source"][field] = value
+        assert compare_normalized_evidence({"a": first, "b": second})["status"] == "FAIL"
+
+    reason_changed = copy.deepcopy(first)
+    reason_changed["review"]["reasons"][0]["message"] = "changed"
+    assert compare_normalized_evidence({"a": first, "b": reason_changed})["status"] == "FAIL"
 
 
 def test_success_evidence_compatibility_excludes_failure_diagnostics(
