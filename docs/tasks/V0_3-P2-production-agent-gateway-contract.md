@@ -215,19 +215,45 @@ is valid and executable.
 ## 4. Explicit provider selection and readiness
 
 Provider selection is an explicit runtime decision. In staging and production,
-the application must require a provider identifier from an allow-listed
-configuration value and a model identifier. Availability of a package,
-environment variable, network route, or API key must never infer the provider.
+the Agent may be intentionally disabled without provider-specific
+configuration. Once enablement intent exists, the application must require a
+provider identifier from an allow-listed configuration value and a model
+identifier. Availability of a package, environment variable, network route,
+or API key must never infer the provider.
 
-The future configuration contract is:
+The effective future configuration contract is:
 
 ```text
-COLD_STORAGE_AGENT_PROVIDER       required, allow-listed provider id
-COLD_STORAGE_AGENT_MODEL          required for enabled provider
-COLD_STORAGE_AGENT_TIMEOUT_SECONDS required and bounded
-COLD_STORAGE_AGENT_MAX_RETRIES    required and bounded
-COLD_STORAGE_OPENAI_API_KEY       secret only if the selected adapter needs it
+COLD_STORAGE_AGENT_PROVIDER
+  optional when Agent intentionally disabled
+  required when Agent enablement intent exists
+  allow-listed provider id
+COLD_STORAGE_AGENT_MODEL
+  optional when Agent intentionally disabled
+  required when Agent enablement intent exists
+COLD_STORAGE_AGENT_TIMEOUT_SECONDS
+  optional when Agent intentionally disabled
+  required when Agent enablement intent exists
+  integer 1..30
+COLD_STORAGE_AGENT_MAX_RETRIES
+  optional when Agent intentionally disabled
+  required when Agent enablement intent exists
+  integer 0..1
+COLD_STORAGE_OPENAI_API_KEY
+  optional when Agent intentionally disabled
+  required only for enabled/openai provider readiness
 ```
+
+The enablement-intent authority is exact:
+
+```text
+AGENT_ENABLEMENT_INTENT_PRESENT=
+COLD_STORAGE_AGENT_PROVIDER is supplied OR COLD_STORAGE_AGENT_MODEL is supplied
+```
+
+Neither timeout configuration, retry configuration, credential presence,
+package installation, network availability, nor any other environmental fact
+creates enablement intent.
 
 The first concrete provider authority is frozen by Issue #110 record
 `5323439225`. The existing `COLD_STORAGE_OPENAI_API_KEY` field alone still
@@ -236,19 +262,23 @@ contract below is required.
 
 Rules for strict environments:
 
-1. no provider id and no model id means the capability is intentionally
-   `AGENT_CAPABILITY_DISABLED`;
-2. a provider id or model id supplied without the complete explicit selection
+1. if both provider id and model id are absent, enablement intent is absent and
+   the capability is intentionally `AGENT_CAPABILITY_DISABLED`; timeout,
+   retry, model, provider credential, and provider readiness evidence are not
+   required;
+2. if provider id or model id is supplied, enablement intent is present and
+   the complete Agent/provider configuration is mandatory;
+3. a provider id or model id supplied without the complete explicit selection
    is `AGENT_CAPABILITY_ENABLED_NOT_READY` and fails closed;
-3. an unknown provider id fails closed and does not try another provider;
-4. invalid or missing credentials fail closed and do not construct a fake;
-5. a real adapter is constructed only for the explicit provider id;
-6. a readiness probe must validate configuration, credentials, bounded
+4. an unknown provider id fails closed and does not try another provider;
+5. invalid or missing credentials fail closed and do not construct a fake;
+6. a real adapter is constructed only for the explicit provider id;
+7. a readiness probe must validate configuration, credentials, bounded
    timeout, response schema, and strict composition before routes are enabled;
-7. startup must bind the adapter/provider identity to the strict capability
+8. startup must bind the adapter/provider identity to the strict capability
    manifest and rerun the existing unsafe-capability audit;
-8. no configuration-only flag may bypass readiness or the strict route audit;
-9. if readiness is not verified, strict routes remain disabled.
+9. no configuration-only flag may bypass readiness or the strict route audit;
+10. if readiness is not verified, strict routes remain disabled.
 
 `FakeAgentModelGateway`, `DefaultAgentModelGateway` fake fallback, demo keyword
 routing, and test adapters remain permitted only when explicitly injected in
@@ -430,7 +460,8 @@ COLD_STORAGE_AGENT_TIMEOUT_SECONDS
 TYPE=integer
 MIN=1
 MAX=30
-STAGING_PRODUCTION_EXPLICIT_REQUIRED=YES
+STAGING_PRODUCTION_EXPLICIT_REQUIRED_WHEN_AGENT_ENABLEMENT_INTENT_PRESENT=YES
+STAGING_PRODUCTION_REQUIRED_WHEN_AGENT_DISABLED=NO
 STAGING_PRODUCTION_DEFAULT_ALLOWED=NO
 ZERO_ALLOWED=NO
 NEGATIVE_ALLOWED=NO
@@ -445,6 +476,35 @@ may supply an implicit default. Values outside the closed inclusive range
 `AGENT_PROVIDER_CONFIGURATION_INVALID`. Implementation may consume this
 range but may not redefine its type, bounds, default policy, or rejection
 semantics.
+
+The application retry count is frozen as a separate integer configuration
+contract:
+
+```text
+AGENT_MAX_RETRIES_CONFIGURATION_AUTHORITY=COLD_STORAGE_AGENT_MAX_RETRIES
+TYPE=integer
+MIN=0
+MAX=1
+ALLOWED_VALUES=0,1
+STAGING_PRODUCTION_EXPLICIT_REQUIRED_WHEN_AGENT_ENABLEMENT_INTENT_PRESENT=YES
+STAGING_PRODUCTION_REQUIRED_WHEN_AGENT_DISABLED=NO
+STAGING_PRODUCTION_DEFAULT_ALLOWED=NO
+ZERO_ALLOWED=YES
+NEGATIVE_ALLOWED=NO
+NON_INTEGER_ALLOWED=NO
+NAN_INF_ALLOWED=NO
+OUT_OF_RANGE_ALLOWED=NO
+MAX_PROVIDER_RETRIES=1
+MAX_PROVIDER_ATTEMPTS=2
+```
+
+The effective application rule is exact: configured retries `0` permits one
+provider attempt, while configured retries `1` permits two provider attempts.
+The application must never exceed one retry or two attempts. The official
+OpenAI SDK remains configured with `OPENAI_SDK_MAX_RETRIES=0`; the SDK never
+owns application retry policy. The retryable failure-code set in Section 8 is
+unchanged, and no retry is permitted after any tool side effect, confirmation
+claim, or mutation.
 
 The retry policy is finite:
 
@@ -469,6 +529,41 @@ collapsed into a single `enabled` boolean or inferred from route presence.
 | `AGENT_CAPABILITY_DISABLED` | Intentional capability-off state: neither provider id nor model id is configured; no provider is selected | `PASS_IF_ALL_OTHER_MANDATORY_READINESS_GATES_PASS` | `DISABLED_ROUTE_MATRIX` |
 | `AGENT_CAPABILITY_ENABLED_READY` | Explicit `openai` provider and model are configured; credentials, bounded settings, adapter/schema probe, strict composition, and route audit all pass | `PASS_IF_PROVIDER_AND_ALL_OTHER_MANDATORY_READINESS_GATES_PASS` | `REAL_AGENT_ROUTES_ENABLED` |
 | `AGENT_CAPABILITY_ENABLED_NOT_READY` | Explicit enablement intent exists, but configuration, credentials, provider availability, probe, composition, or route audit is invalid or unavailable | `FAIL` | `DISABLED_ROUTE_MATRIX` |
+
+The disabled-state contract is explicit:
+
+```text
+AGENT_ENABLEMENT_INTENT_PRESENT=NO
+CAPABILITY_STATE=AGENT_CAPABILITY_DISABLED
+COLD_STORAGE_AGENT_TIMEOUT_SECONDS_REQUIRED=NO
+COLD_STORAGE_AGENT_MAX_RETRIES_REQUIRED=NO
+COLD_STORAGE_OPENAI_API_KEY_REQUIRED=NO
+AGENT_SPECIFIC_CONFIG_ABSENCE_IS_CONFIGURATION_ERROR=NO
+AGENT_SPECIFIC_CONFIG_ABSENCE_FAILS_GLOBAL_READINESS=NO
+GLOBAL_APPLICATION_READINESS=PASS_IF_ALL_OTHER_MANDATORY_READINESS_GATES_PASS
+ROUTE_EXPOSURE=DISABLED_ROUTE_MATRIX
+REAL_PROVIDER_CONSTRUCTED=NO
+FAKE_PROVIDER_CONSTRUCTED_ON_STRICT_ROUTE=NO
+```
+
+An intentionally disabled Agent does not require provider-specific timeout,
+retry, model, provider credential, or provider-readiness evidence.
+
+The enabled-state contract is also explicit:
+
+```text
+AGENT_ENABLEMENT_INTENT_PRESENT=YES
+COLD_STORAGE_AGENT_PROVIDER_REQUIRED=YES
+COLD_STORAGE_AGENT_MODEL_REQUIRED=YES
+COLD_STORAGE_AGENT_TIMEOUT_SECONDS_REQUIRED=YES
+COLD_STORAGE_AGENT_MAX_RETRIES_REQUIRED=YES
+OPENAI_CREDENTIAL_REQUIRED_WHEN_PROVIDER=openai
+CAPABILITY_STATE_ON_MISSING_INVALID_UNSUPPORTED_OR_UNUSABLE_REQUIRED_FIELD=AGENT_CAPABILITY_ENABLED_NOT_READY
+GLOBAL_APPLICATION_READINESS_ON_ENABLED_NOT_READY=FAIL
+ROUTE_EXPOSURE_ON_ENABLED_NOT_READY=DISABLED_ROUTE_MATRIX
+REAL_AGENT_ROUTES_REACHABLE_ON_ENABLED_NOT_READY=NO
+FAKE_FALLBACK_ON_ENABLED_NOT_READY=NO
+```
 
 The state-selection rule is deterministic:
 
@@ -611,9 +706,11 @@ backend/src/cold_storage/modules/planning_agent/infrastructure/real_gateways.py
 backend/src/cold_storage/modules/planning_agent/application/orchestrator.py
 backend/src/cold_storage/modules/planning_agent/application/service.py
 backend/src/cold_storage/bootstrap/settings.py
+backend/src/cold_storage/bootstrap/environment_model.py
 backend/src/cold_storage/bootstrap/dependencies.py
 backend/src/cold_storage/bootstrap/app.py
 backend/src/cold_storage/bootstrap/runtime_readiness.py
+backend/src/cold_storage/modules/planning_agent/api/routes.py
 ```
 
 `real_gateways.py` is the single frozen infrastructure seam for the first
@@ -622,6 +719,20 @@ specific provider file. No provider adapter may be placed in domain or
 application code. The current fake gateway file is not a production-provider
 write target and its local/test behavior remains read-only under this
 contract.
+
+`environment_model.py` is the canonical strict environment-key authority for
+the four P2 keys named in Section 4. Its future P2 write authority is limited
+to registering those keys while preserving strict unknown-key rejection,
+legacy-key policy, resource/environment identity authority, and the existing
+redacted `COLD_STORAGE_OPENAI_API_KEY` classification. It is not authority for
+an unrelated configuration redesign.
+
+`routes.py` is the future P2 API projection owner. Its write authority is
+limited to projecting the ten frozen provider failure codes, their frozen safe
+messages, and frozen retryable booleans in the existing API/HTTP and
+actor/session boundaries. It must not expose provider-native bodies, headers,
+credentials, authorization material, or raw exception text, and it must not
+create an eleventh provider failure code or redesign unrelated API schemas.
 
 The following are deliberately excluded from the P2 production allowlist:
 
@@ -644,6 +755,7 @@ backend/tests/unit/test_planning_agent_api.py
 backend/tests/unit/test_planning_agent_comprehensive.py
 backend/tests/unit/test_runtime_readiness.py
 backend/tests/unit/test_planning_agent_real_gateway.py
+backend/tests/unit/test_settings.py
 backend/tests/architecture/test_architecture_boundaries.py
 ```
 
@@ -651,18 +763,27 @@ backend/tests/architecture/test_architecture_boundaries.py
 path. Provider transport must be mocked or replaced with a deterministic
 test transport; ordinary CI must never call a live provider.
 
+`test_settings.py` is the canonical P2 configuration test owner. It must cover
+the four canonical P2 environment keys, strict unknown-`COLD_STORAGE_*` key
+rejection, staging/production explicit configuration requirements,
+timeout/retry shape validation, and preservation of existing Slice-1
+configuration semantics. No broad `tests/**` wildcard is authorized.
+
 ### 15.3 Configuration/composition allowlist
 
 ```text
 backend/src/cold_storage/bootstrap/settings.py
+backend/src/cold_storage/bootstrap/environment_model.py
 backend/src/cold_storage/bootstrap/dependencies.py
 backend/src/cold_storage/bootstrap/app.py
 backend/src/cold_storage/bootstrap/runtime_readiness.py
 ```
 
 Configuration additions must be explicit, typed, redacted, bounded, and
-validated in strict modes. No environment variable alone may bypass the
-composition and readiness audit.
+validated in strict modes. `environment_model.py` may only register
+`COLD_STORAGE_AGENT_PROVIDER`, `COLD_STORAGE_AGENT_MODEL`,
+`COLD_STORAGE_AGENT_TIMEOUT_SECONDS`, and `COLD_STORAGE_AGENT_MAX_RETRIES`.
+No environment variable alone may bypass the composition and readiness audit.
 
 ### 15.4 Dependency allowlist
 
@@ -681,18 +802,34 @@ HTTPX_AS_ALTERNATIVE_PROVIDER_TRANSPORT=NO
 IMPLEMENTATION_MAY_SELECT_DIFFERENT_PROVIDER_PACKAGE=NO
 CONTRACT_AMENDMENT_REQUIRED_FOR_DIFFERENT_PROVIDER_TRANSPORT_OR_PACKAGE=YES
 CONTRACT_AMENDMENT_REQUIRED=YES
+OPENAI_DEPENDENCY_DIRECT_PACKAGE=openai
+OPENAI_DEPENDENCY_VERSION_POLICY=EXACT_PIN
+PYPROJECT_FLOATING_SPECIFIER_ALLOWED=NO
+PYPROJECT_WILDCARD_ALLOWED=NO
+PRERELEASE_ALLOWED=NO
+YANKED_RELEASE_ALLOWED=NO
+GIT_REF_DEPENDENCY_ALLOWED=NO
+DIRECT_URL_DEPENDENCY_ALLOWED=NO
+ALTERNATIVE_PROVIDER_PACKAGE_ALLOWED=NO
+HTTPX_AS_PROVIDER_TRANSPORT_ALLOWED=NO
+UV_LOCK_EXACT_RESOLUTION_REQUIRED=YES
+IMPLEMENTATION_MAY_CHANGE_VERSION_POLICY=NO
 ```
 
 The existing `httpx` development dependency is not a provider transport and
 must not be moved into the runtime dependency set for this purpose. A
 separately authorized implementation may add only the official `openai`
-Python package as the direct runtime dependency, with its exact resolved
-version locked in `backend/uv.lock`. It may not implement the provider through
-direct `httpx` calls or select a different provider package. Any different
-provider transport or package requires `CONTRACT_AMENDMENT_REQUIRED=YES`.
-The dependency change must name the package, version policy, reason, license
-review, and network-test boundary. No unreviewed provider SDK, floating
-dependency, or transitive package is implicitly authorized.
+Python package as the direct runtime dependency. It must audit a stable,
+non-prerelease `openai` release compatible with Python `>=3.12`, record
+`OPENAI_SDK_VERSION_SELECTED=<exact version>`, declare
+`openai==<exact version>`, and produce the matching resolved entry in
+`backend/uv.lock`. It must also record package/version/reason/license and
+network-test evidence. It must block rather than select a prerelease, yanked
+release, alternate package, direct Git dependency, direct URL dependency, or
+direct HTTP transport. A later OpenAI SDK upgrade requires its own dependency
+review and change authority; it is not implied by the original implementation
+authorization. No unreviewed provider SDK, floating dependency, or transitive
+package is implicitly authorized.
 
 ### 15.5 Documentation allowlist
 
@@ -703,6 +840,38 @@ docs/runbooks/V0_3-P2-production-agent-gateway.md
 The historical `docs/architecture/ADR-005-model-gateway.md` and this
 contract are read-only after this freeze. No documentation change may rewrite
 historical TASK-012 authority.
+
+### 15.6 Implementation slices
+
+The P2 implementation is divided into three independently reviewable slices.
+Each slice may write only paths already present in the amended future
+allowlists above; this section does not grant implementation authorization.
+
+#### P2-A_CONFIG_ERROR_FOUNDATION
+
+This slice covers canonical configuration, typed provider configuration,
+timeout/retry validation, the three-state capability-resolution foundation,
+the ten frozen provider error identities, and safe provider-error metadata
+foundation. It does not add the OpenAI SDK, a real provider adapter, a network
+call, or strict real-agent route enablement.
+
+#### P2-B_OPENAI_ADAPTER
+
+This slice covers the official `openai` dependency and matching
+`backend/uv.lock` entry, `real_gateways.py`, Responses API request/response
+mapping, strict `AgentDecision` decoding, frozen provider failure
+classification, bounded retry, provider metadata, and mocked transport tests.
+Ordinary CI must not call a live provider, and staging/production routes remain
+disabled.
+
+#### P2-C_STRICT_COMPOSITION_API
+
+This slice covers `dependencies.py`, `app.py`, `runtime_readiness.py`, and
+`planning_agent/api/routes.py` within their frozen allowlist roles. It
+implements the three capability states, strict readiness probing, strict
+composition evidence, route exposure mapping, and safe API provider-error
+projection. Controlled real-provider acceptance remains separately
+authorized.
 
 ## 16. Forbidden paths and changes
 
@@ -860,7 +1029,8 @@ TIMEOUT_CONFIGURATION_AUTHORITY=COLD_STORAGE_AGENT_TIMEOUT_SECONDS
 TIMEOUT_CONFIGURATION_TYPE=integer
 TIMEOUT_CONFIGURATION_MIN=1
 TIMEOUT_CONFIGURATION_MAX=30
-STAGING_PRODUCTION_TIMEOUT_EXPLICIT_REQUIRED=YES
+STAGING_PRODUCTION_EXPLICIT_REQUIRED_WHEN_AGENT_ENABLEMENT_INTENT_PRESENT=YES
+STAGING_PRODUCTION_REQUIRED_WHEN_AGENT_DISABLED=NO
 STAGING_PRODUCTION_TIMEOUT_DEFAULT_ALLOWED=NO
 TIMEOUT_ZERO_ALLOWED=NO
 TIMEOUT_NEGATIVE_ALLOWED=NO
@@ -894,5 +1064,172 @@ MERGE_AUTHORIZED=NO
 V03_P3_AUTHORIZED=NO
 V03_P4_AUTHORIZED=NO
 V03_P5_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+## 21. V0.3 P2 Implementation Authority Contract Amendment R1
+
+This record closes the five implementation-readiness gaps identified by the
+readiness review. It amends contract authority only; it does not authorize
+P2 implementation, dependency mutation, credentials, provider calls, or
+production enablement.
+
+```text
+AMENDMENT_NAME=V0.3 P2 Implementation Authority Contract Amendment R1
+AMENDMENT_BASE_MAIN_SHA=9647f4b6ec928e191bce798fc8eb1636ed26b610
+AMENDMENT_BASE_MAIN_TREE_SHA=c4a0efb01c05519bee8f5a9e1f419510ebb156fd
+AUTHORIZATION_RECORD_ID=5324209900
+READINESS_REVIEW_AUTHORIZATION_RECORD_ID=5324154144
+READINESS_REVIEW_RESULT_RECORD_ID=5324182799
+AUTHORIZATION_SCOPE=CONTRACT_AMENDMENT_ONLY
+
+FINDING_01_CANONICAL_ENVIRONMENT_AUTHORITY=CLOSED
+FINDING_02_SAFE_API_ERROR_PROJECTION=CLOSED
+FINDING_03_CANONICAL_CONFIGURATION_TEST_OWNER=CLOSED
+FINDING_04_AGENT_MAX_RETRIES_SEMANTICS=CLOSED
+FINDING_05_OPENAI_SDK_VERSION_POLICY=CLOSED
+
+ENVIRONMENT_MODEL_ALLOWLIST_GAP_CLOSED=YES
+AGENT_API_ROUTES_ALLOWLIST_GAP_CLOSED=YES
+SETTINGS_TEST_ALLOWLIST_GAP_CLOSED=YES
+AGENT_MAX_RETRIES_SEMANTICS_GAP_CLOSED=YES
+OPENAI_DEPENDENCY_VERSION_POLICY_GAP_CLOSED=YES
+
+ENVIRONMENT_MODEL_FUTURE_WRITE_AUTHORITY=REGISTER_ONLY_THE_FOUR_P2_CANONICAL_KEYS_AND_PRESERVE_STRICT_UNKNOWN_KEY_REJECTION_LEGACY_POLICY_RESOURCE_IDENTITY_AND_OPENAI_KEY_REDACTION
+AGENT_API_ROUTES_FUTURE_WRITE_AUTHORITY=PROJECT_THE_TEN_FROZEN_PROVIDER_FAILURE_CODES_SAFE_MESSAGES_AND_RETRYABLE_BOOLEANS_ONLY
+SETTINGS_TEST_FUTURE_WRITE_AUTHORITY=OWN_THE_FOUR_P2_KEYS_STRICT_UNKNOWN_KEY_REJECTION_EXPLICIT_STRICT_CONFIGURATION_AND_TIMEOUT_RETRY_SHAPE_TESTS
+
+AGENT_MAX_RETRIES_CONFIGURATION_AUTHORITY=COLD_STORAGE_AGENT_MAX_RETRIES
+AGENT_MAX_RETRIES_TYPE=integer
+AGENT_MAX_RETRIES_MIN=0
+AGENT_MAX_RETRIES_MAX=1
+AGENT_MAX_RETRIES_ALLOWED_VALUES=0,1
+AGENT_MAX_RETRIES_STRICT_EXPLICIT_REQUIRED_WHEN_AGENT_ENABLEMENT_INTENT_PRESENT=YES
+AGENT_MAX_RETRIES_STRICT_REQUIRED_WHEN_AGENT_DISABLED=NO
+AGENT_MAX_RETRIES_STRICT_DEFAULT_ALLOWED=NO
+AGENT_MAX_RETRIES_ZERO_ALLOWED=YES
+AGENT_MAX_RETRIES_NEGATIVE_ALLOWED=NO
+AGENT_MAX_RETRIES_NON_INTEGER_ALLOWED=NO
+AGENT_MAX_RETRIES_NAN_INF_ALLOWED=NO
+AGENT_MAX_RETRIES_OUT_OF_RANGE_ALLOWED=NO
+MAX_PROVIDER_RETRIES=1
+MAX_PROVIDER_ATTEMPTS=2
+OPENAI_SDK_MAX_RETRIES=0
+
+OPENAI_DEPENDENCY_DIRECT_PACKAGE=openai
+OPENAI_DEPENDENCY_VERSION_POLICY=EXACT_PIN
+UV_LOCK_EXACT_RESOLUTION_REQUIRED=YES
+PYPROJECT_FLOATING_SPECIFIER_ALLOWED=NO
+PYPROJECT_WILDCARD_ALLOWED=NO
+PRERELEASE_ALLOWED=NO
+YANKED_RELEASE_ALLOWED=NO
+GIT_REF_DEPENDENCY_ALLOWED=NO
+DIRECT_URL_DEPENDENCY_ALLOWED=NO
+ALTERNATIVE_PROVIDER_PACKAGE_ALLOWED=NO
+HTTPX_AS_PROVIDER_TRANSPORT_ALLOWED=NO
+IMPLEMENTATION_MAY_CHANGE_VERSION_POLICY=NO
+
+IMPLEMENTATION_SLICE_A=P2-A_CONFIG_ERROR_FOUNDATION
+IMPLEMENTATION_SLICE_B=P2-B_OPENAI_ADAPTER
+IMPLEMENTATION_SLICE_C=P2-C_STRICT_COMPOSITION_API
+
+CONTRACT_AMENDMENT_CHANGED_FILE_COUNT=1
+AUTHORIZED_CONTRACT_PATH=docs/tasks/V0_3-P2-production-agent-gateway-contract.md
+P2_IMPLEMENTATION_EXECUTED=NO
+OPENAI_DEPENDENCY_ADDED=NO
+OPENAI_CREDENTIAL_CHANGED=NO
+OPENAI_REAL_API_CALL_EXECUTED=NO
+PRODUCTION_AGENT_ENABLEMENT=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+## 22. V0.3 P2 Implementation Authority Contract Amendment Correction R2
+
+This record closes the disabled-versus-strict-configuration requirement
+identified by the independent review. It clarifies the existing contract
+without authorizing P2 implementation, dependency mutation, credentials,
+provider calls, or production enablement.
+
+```text
+AMENDMENT_NAME=V0.3 P2 Implementation Authority Contract Amendment Correction R2
+SOURCE_REVIEW_ID=4957909268
+PREVIOUS_HEAD_SHA=635548e32d86eb76218acde82d83f58166930ee6
+BLOCKER=DISABLED_VS_STRICT_AGENT_CONFIG_REQUIREMENT
+AUTHORIZATION_SCOPE=CONTRACT_AMENDMENT_ONLY
+
+AGENT_ENABLEMENT_INTENT_SEMANTICS_FROZEN=YES
+AGENT_ENABLEMENT_INTENT_TRIGGER=PROVIDER_OR_MODEL_SUPPLIED
+ONLY_PROVIDER_OR_MODEL_SELECTION_CREATES_ENABLEMENT_INTENT=YES
+OPENAI_API_KEY_EXISTENCE_IMPLIES_ENABLEMENT=NO
+OPENAI_PACKAGE_EXISTENCE_IMPLIES_ENABLEMENT=NO
+TIMEOUT_CONFIG_EXISTENCE_IMPLIES_ENABLEMENT=NO
+RETRY_CONFIG_EXISTENCE_IMPLIES_ENABLEMENT=NO
+NETWORK_AVAILABILITY_IMPLIES_ENABLEMENT=NO
+
+DISABLED_AGENT_OPTIONAL_CONFIG_SEMANTICS_FROZEN=YES
+DISABLED_PROVIDER_REQUIRED=NO
+DISABLED_MODEL_REQUIRED=NO
+DISABLED_TIMEOUT_REQUIRED=NO
+DISABLED_MAX_RETRIES_REQUIRED=NO
+DISABLED_OPENAI_CREDENTIAL_REQUIRED=NO
+DISABLED_AGENT_CONFIG_ABSENCE_FAILS_GLOBAL_READINESS=NO
+DISABLED_CAPABILITY_STATE=AGENT_CAPABILITY_DISABLED
+DISABLED_GLOBAL_READINESS=PASS_IF_ALL_OTHER_MANDATORY_READINESS_GATES_PASS
+DISABLED_ROUTE_EXPOSURE=DISABLED_ROUTE_MATRIX
+DISABLED_REAL_PROVIDER_CONSTRUCTED=NO
+DISABLED_FAKE_PROVIDER_CONSTRUCTED_ON_STRICT_ROUTE=NO
+
+ENABLED_AGENT_COMPLETE_CONFIG_REQUIREMENT_FROZEN=YES
+ENABLED_PROVIDER_REQUIRED=YES
+ENABLED_MODEL_REQUIRED=YES
+ENABLED_TIMEOUT_REQUIRED=YES
+ENABLED_MAX_RETRIES_REQUIRED=YES
+ENABLED_PROVIDER_CREDENTIAL_REQUIRED=YES_WHEN_PROVIDER_OPENAI
+ENABLED_NOT_READY_CAPABILITY_STATE=AGENT_CAPABILITY_ENABLED_NOT_READY
+ENABLED_NOT_READY_GLOBAL_READINESS=FAIL
+ENABLED_NOT_READY_ROUTE_EXPOSURE=DISABLED_ROUTE_MATRIX
+ENABLED_NOT_READY_REAL_AGENT_ROUTES_REACHABLE=NO
+ENABLED_NOT_READY_FAKE_FALLBACK=NO
+
+TIMEOUT_CONDITIONAL_STRICT_REQUIREMENT_FROZEN=YES
+TIMEOUT_CONFIGURATION_AUTHORITY=COLD_STORAGE_AGENT_TIMEOUT_SECONDS
+TIMEOUT_TYPE=integer
+TIMEOUT_MIN=1
+TIMEOUT_MAX=30
+STAGING_PRODUCTION_EXPLICIT_REQUIRED_WHEN_AGENT_ENABLEMENT_INTENT_PRESENT=YES
+STAGING_PRODUCTION_REQUIRED_WHEN_AGENT_DISABLED=NO
+STAGING_PRODUCTION_DEFAULT_ALLOWED=NO
+
+RETRY_CONDITIONAL_STRICT_REQUIREMENT_FROZEN=YES
+RETRY_CONFIGURATION_AUTHORITY=COLD_STORAGE_AGENT_MAX_RETRIES
+RETRY_TYPE=integer
+RETRY_MIN=0
+RETRY_MAX=1
+RETRY_ALLOWED_VALUES=0,1
+AGENT_MAX_RETRIES_STRICT_EXPLICIT_REQUIRED_WHEN_AGENT_ENABLEMENT_INTENT_PRESENT=YES
+AGENT_MAX_RETRIES_STRICT_REQUIRED_WHEN_AGENT_DISABLED=NO
+AGENT_MAX_RETRIES_STRICT_DEFAULT_ALLOWED=NO
+MAX_PROVIDER_RETRIES=1
+MAX_PROVIDER_ATTEMPTS=2
+OPENAI_SDK_MAX_RETRIES=0
+
+CAPABILITY_DISABLED_SEMANTICS_PRESERVED=YES
+CAPABILITY_ENABLED_NOT_READY_SEMANTICS_PRESERVED=YES
+CAPABILITY_ENABLED_READY_SEMANTICS_PRESERVED=YES
+GLOBAL_READINESS_MAPPING_FROZEN=YES
+ROUTE_EXPOSURE_MAPPING_FROZEN=YES
+PRIOR_R1_FINDING_COUNT=5
+PRIOR_R1_FINDINGS_REMAIN_CLOSED=YES
+BLOCKER_CLOSED=YES
+
+P2_IMPLEMENTATION_EXECUTED=NO
+OPENAI_DEPENDENCY_ADDED=NO
+OPENAI_CREDENTIAL_CHANGED=NO
+OPENAI_REAL_API_CALL_EXECUTED=NO
+PRODUCTION_AGENT_ENABLEMENT=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
