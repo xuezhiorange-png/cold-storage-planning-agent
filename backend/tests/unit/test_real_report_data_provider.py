@@ -23,11 +23,13 @@ slice-1 unblock authorization.
 from __future__ import annotations
 
 import math  # noqa: F401  # retained for explicit module-level import surface
+from copy import deepcopy
 from decimal import Decimal
 from typing import Any
 
 import pytest
 
+from cold_storage.modules.reports.domain.quality import evaluate_quality, get_blockers
 from cold_storage.modules.reports.infrastructure.real_data_provider import (
     RealReportDataProvider,
     ReportProjectionError,
@@ -159,6 +161,41 @@ def _throughput_section() -> _StubSection:
     )
 
 
+def _coefficient_area_basis(value: object) -> dict[str, object]:
+    return {
+        "code": "raw_area_loading",
+        "name": "raw area loading reference",
+        "value": value,
+        "unit": "kg/m2",
+        "category": "cold_room_zone_planning",
+        "source_type": "demo",
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "version": "demo-1",
+        "validity_status": "unverified",
+        "approval_status": "unverified",
+        "requires_review": True,
+        "notes": "coefficient reference",
+    }
+
+
+def _throughput_section_with_area_basis(area_basis: object) -> _StubSection:
+    source = _throughput_section()
+    result = dict(source.result)
+    zones = list(result["zones"])
+    zone = dict(zones[0])
+    zone["area_basis"] = area_basis
+    zones[0] = zone
+    result["zones"] = zones
+    return _StubSection(
+        id=source.id,
+        calculator_name=source.calculator_name,
+        calculator_version=source.calculator_version,
+        result=result,
+        content_hash=source.content_hash,
+        tool_call_status=source.tool_call_status,
+    )
+
+
 def _cooling_load_section() -> _StubSection:
     return _StubSection(
         id="run-cool-001",
@@ -235,6 +272,101 @@ def test_throughput_v0_to_v1_projection() -> None:
         "zones",
     ):
         assert forbidden not in data
+
+
+@pytest.mark.parametrize("source_value", ["1.2", "0.8"])
+def test_throughput_area_basis_coefficient_value_is_rehydrated(
+    source_value: str,
+) -> None:
+    area_basis = _coefficient_area_basis(source_value)
+    section = _throughput_section_with_area_basis(area_basis)
+    source_before = deepcopy(section.result)
+    provider = _build_provider(
+        _StubCalculationService(_StubOrchestrationResult(throughput=section))
+    )
+
+    [out] = provider.get_calculation_results("p", "v")
+    projected = out["data"]["zone_details"][0]["area_basis"]
+
+    assert projected["value"] == float(source_value)
+    assert isinstance(projected["value"], (int, float))
+    assert not isinstance(projected["value"], bool)
+    expected = dict(area_basis)
+    expected["value"] = float(source_value)
+    assert projected == expected
+    assert section.result == source_before
+
+
+def test_throughput_measured_area_basis_value_is_rehydrated() -> None:
+    section = _throughput_section_with_area_basis({"value": "200.0", "unit": "m2"})
+    provider = _build_provider(
+        _StubCalculationService(_StubOrchestrationResult(throughput=section))
+    )
+
+    [out] = provider.get_calculation_results("p", "v")
+    projected = out["data"]["zone_details"][0]["area_basis"]
+
+    assert projected == {"value": 200.0, "unit": "m2"}
+
+
+def test_throughput_zone_without_area_basis_remains_supported() -> None:
+    section = _throughput_section()
+    source_zone = section.result["zones"][0]
+    provider = _build_provider(
+        _StubCalculationService(_StubOrchestrationResult(throughput=section))
+    )
+
+    [out] = provider.get_calculation_results("p", "v")
+    projected_zone = out["data"]["zone_details"][0]
+
+    assert projected_zone == source_zone
+    assert "area_basis" not in projected_zone
+
+
+@pytest.mark.parametrize(
+    ("bad_value", "expected_reason"),
+    [
+        ("not-a-number", "NON_NUMERIC_STRING"),
+        ("", "EMPTY_STRING"),
+        (True, "BOOL_NOT_NUMERIC"),
+        (float("nan"), "NON_FINITE_NUMBER"),
+        (float("inf"), "NON_FINITE_NUMBER"),
+        (float("-inf"), "NON_FINITE_NUMBER"),
+    ],
+)
+def test_throughput_area_basis_invalid_value_fails_at_projection(
+    bad_value: object,
+    expected_reason: str,
+) -> None:
+    section = _throughput_section_with_area_basis(_coefficient_area_basis(bad_value))
+    provider = _build_provider(
+        _StubCalculationService(_StubOrchestrationResult(throughput=section))
+    )
+
+    with pytest.raises(ReportProjectionError) as excinfo:
+        provider.get_calculation_results("p", "v")
+
+    err = excinfo.value
+    assert err.section_key == "throughput_inventory_area"
+    assert err.result_id == "run-zone-001"
+    assert err.field_path == "zones[0].area_basis.value"
+    assert err.reason_code == expected_reason
+
+
+def test_projected_coefficient_area_basis_passes_report_quality() -> None:
+    section = _throughput_section_with_area_basis(_coefficient_area_basis("1.2"))
+    provider = _build_provider(
+        _StubCalculationService(_StubOrchestrationResult(throughput=section))
+    )
+
+    [out] = provider.get_calculation_results("p", "v")
+    findings = evaluate_quality(
+        {"throughput_inventory_area": out["data"]},
+        [],
+    )
+
+    assert "INVALID_AREA_BASIS_COEFFICIENT_VALUE" not in {finding["code"] for finding in findings}
+    assert not get_blockers(findings)
 
 
 # ── 2. cooling-load measured value ─────────────────────────────────────────
