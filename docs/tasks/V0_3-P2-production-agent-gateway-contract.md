@@ -229,24 +229,26 @@ COLD_STORAGE_AGENT_MAX_RETRIES    required and bounded
 COLD_STORAGE_OPENAI_API_KEY       secret only if the selected adapter needs it
 ```
 
-The exact provider id, endpoint fields, and credential source must be frozen
-by the separate P2 implementation authorization after the provider audit. The
-existing `COLD_STORAGE_OPENAI_API_KEY` field alone is insufficient and must
-not enable an agent.
+The first concrete provider authority is frozen by Issue #110 record
+`5323439225`. The existing `COLD_STORAGE_OPENAI_API_KEY` field alone still
+does not enable an agent; the complete explicit provider and readiness
+contract below is required.
 
 Rules for strict environments:
 
-1. no provider id or model id means `model_backed_agent=disabled` and
-   `PRODUCTION_AGENT_CAPABILITY=NOT_READY`;
-2. an unknown provider id fails closed and does not try another provider;
-3. invalid or missing credentials fail closed and do not construct a fake;
-4. a real adapter is constructed only for the explicit provider id;
-5. a readiness probe must validate configuration, credentials, bounded
+1. no provider id and no model id means the capability is intentionally
+   `AGENT_CAPABILITY_DISABLED`;
+2. a provider id or model id supplied without the complete explicit selection
+   is `AGENT_CAPABILITY_ENABLED_NOT_READY` and fails closed;
+3. an unknown provider id fails closed and does not try another provider;
+4. invalid or missing credentials fail closed and do not construct a fake;
+5. a real adapter is constructed only for the explicit provider id;
+6. a readiness probe must validate configuration, credentials, bounded
    timeout, response schema, and strict composition before routes are enabled;
-6. startup must bind the adapter/provider identity to the strict capability
+7. startup must bind the adapter/provider identity to the strict capability
    manifest and rerun the existing unsafe-capability audit;
-7. no configuration-only flag may bypass readiness or the strict route audit;
-8. if readiness is not verified, strict routes remain disabled.
+8. no configuration-only flag may bypass readiness or the strict route audit;
+9. if readiness is not verified, strict routes remain disabled.
 
 `FakeAgentModelGateway`, `DefaultAgentModelGateway` fake fallback, demo keyword
 routing, and test adapters remain permitted only when explicitly injected in
@@ -256,6 +258,40 @@ production model-backed route.
 There is no autonomous multi-provider routing. A provider change requires a
 new explicit configuration and readiness decision; it must not silently fall
 back to a second provider.
+
+### 4.1 Frozen first concrete provider authority
+
+The first production provider is explicitly frozen as follows. This freezes
+the provider contract only; it does not authorize implementation, dependency
+mutation, credential mutation, provider calls, or production enablement.
+
+```text
+FIRST_PROVIDER_ID=openai
+PROVIDER_API_SURFACE=OpenAI Responses API
+PROVIDER_TRANSPORT=official openai Python SDK
+PROVIDER_BASE_URL_POLICY=official OpenAI API endpoint only; custom base URL forbidden unless separately authorized
+PROVIDER_CREDENTIAL_SOURCE=COLD_STORAGE_OPENAI_API_KEY
+PROVIDER_MODEL_AUTHORITY=COLD_STORAGE_AGENT_MODEL; explicit configuration required; no production default model; no automatic model selection
+PROVIDER_TIMEOUT_AUTHORITY=COLD_STORAGE_AGENT_TIMEOUT_SECONDS
+PROVIDER_RETRY_AUTHORITY=application gateway policy
+OPENAI_SDK_MAX_RETRIES=0
+MAX_PROVIDER_ATTEMPTS=2
+MAX_PROVIDER_RETRIES=1
+OPENAI_STORE=false
+OPENAI_BACKGROUND_MODE=FORBIDDEN
+OPENAI_CONVERSATION_STATE=FORBIDDEN
+PROVIDER_TEST_TRANSPORT=mocked/injected OpenAI client transport; no live network in ordinary CI
+PROVIDER_DEPENDENCY_STRATEGY=official openai Python package as direct runtime dependency; exact resolved version locked in backend/uv.lock only during separately authorized implementation
+```
+
+The selected provider is `openai` only when
+`COLD_STORAGE_AGENT_PROVIDER=openai` and
+`COLD_STORAGE_AGENT_MODEL` is explicitly present. No other provider id is
+implicitly supported by this contract. The official endpoint policy forbids a
+custom base URL unless a later contract amendment explicitly authorizes it.
+The SDK's own retries are disabled; only the application gateway retry policy
+in Section 9 applies. The provider must not retain server-side state through
+store, background, or conversation-state features.
 
 ## 5. Provider adapter architecture
 
@@ -272,12 +308,12 @@ AgentModelGateway port
     -> strict canonical AgentDecision decoder
 ```
 
-At least one concrete real-provider adapter is required by a later P2
-implementation authorization. This definition freeze does not select a
-vendor, install an SDK, call a provider, or enable an adapter. The current
-dependency audit found no provider SDK; a later authorization must name the
-provider, transport, endpoint/credential policy, package policy, and test
-transport before production enablement.
+The first concrete provider adapter authority is frozen in Section 4.1. A
+later P2 implementation authorization may implement that exact adapter, but
+this definition freeze does not install the SDK, call OpenAI, or enable an
+adapter. The current dependency audit found no provider SDK, so the frozen
+runtime dependency strategy is prospective only and does not change the
+current dependency graph.
 
 No provider-specific business rules, prompt routing, engineering formulas,
 scheme scoring, or approval decisions may be placed in the adapter.
@@ -349,25 +385,31 @@ Confirmation remains:
 ## 8. Provider failure semantics
 
 The future adapter must classify failures without exposing provider secrets or
-raw credentials. The stable application-facing classifications are:
+raw credentials. The following exact machine-readable codes are the complete
+provider failure authority. `RETRYABLE=YES` means that the code is eligible
+for at most one application-gateway retry before any side effect; it does not
+authorize an unbounded client retry or a retry after a mutation.
 
-| Failure | Retry | Turn | Session | Readiness probe |
-| --- | --- | --- | --- | --- |
-| configuration missing | no | fail closed | reusable | NOT_READY |
-| credential missing or invalid | no | fail closed | reusable | NOT_READY |
-| provider timeout | at most one bounded retry before side effects | fail after retry exhaustion | reusable | probe fails |
-| connection failure | at most one bounded retry before side effects | fail after retry exhaustion | reusable | probe fails |
-| rate limited | at most one bounded retry, bounded by policy and capped server delay | fail after retry exhaustion | reusable | probe fails if observed by probe |
-| provider 5xx | at most one bounded retry before side effects | fail after retry exhaustion | reusable | probe fails |
-| malformed structured response | no | fail closed | reusable | probe fails contract validation |
-| unknown tool call | no | fail closed | reusable | probe fails contract validation |
-| invalid tool arguments | no | fail closed | reusable | probe fails contract validation |
-| response too large | no | fail closed | reusable | probe fails if probe response is oversized |
-| provider unavailable | at most one bounded retry before side effects | fail after retry exhaustion | reusable | NOT_READY or probe fails |
+| Code | Retryable | Turn outcome | Session outcome | Readiness impact | Safe external projection |
+| --- | --- | --- | --- | --- | --- |
+| `AGENT_PROVIDER_CONFIGURATION_MISSING` | NO | `FAIL_CLOSED` | `REUSABLE` | `NOT_READY` | `error.code` exact code; fixed message `agent provider configuration is missing`; `details.retryable=false` |
+| `AGENT_PROVIDER_CONFIGURATION_INVALID` | NO | `FAIL_CLOSED` | `REUSABLE` | `NOT_READY` | `error.code` exact code; fixed message `agent provider configuration is invalid`; `details.retryable=false` |
+| `AGENT_PROVIDER_CREDENTIAL_INVALID` | NO | `FAIL_CLOSED` | `REUSABLE` | `NOT_READY` | `error.code` exact code; fixed message `agent provider credentials are invalid`; `details.retryable=false` |
+| `AGENT_PROVIDER_TIMEOUT` | YES | `FAIL_CLOSED_AFTER_RETRY_EXHAUSTION` | `REUSABLE` | `PROBE_FAILS` | `error.code` exact code; fixed message `agent provider request timed out`; `details.retryable=true` |
+| `AGENT_PROVIDER_CONNECTION_FAILED` | YES | `FAIL_CLOSED_AFTER_RETRY_EXHAUSTION` | `REUSABLE` | `PROBE_FAILS` | `error.code` exact code; fixed message `agent provider connection failed`; `details.retryable=true` |
+| `AGENT_PROVIDER_RATE_LIMITED` | YES | `FAIL_CLOSED_AFTER_RETRY_EXHAUSTION` | `REUSABLE` | `PROBE_FAILS` | `error.code` exact code; fixed message `agent provider rate limited`; `details.retryable=true` |
+| `AGENT_PROVIDER_UPSTREAM_5XX` | YES | `FAIL_CLOSED_AFTER_RETRY_EXHAUSTION` | `REUSABLE` | `PROBE_FAILS` | `error.code` exact code; fixed message `agent provider upstream failure`; `details.retryable=true` |
+| `AGENT_PROVIDER_RESPONSE_MALFORMED` | NO | `FAIL_CLOSED` | `REUSABLE` | `PROBE_FAILS` | `error.code` exact code; fixed message `agent provider response is malformed`; `details.retryable=false` |
+| `AGENT_PROVIDER_RESPONSE_TOO_LARGE` | NO | `FAIL_CLOSED` | `REUSABLE` | `PROBE_FAILS` | `error.code` exact code; fixed message `agent provider response is too large`; `details.retryable=false` |
+| `AGENT_PROVIDER_UNAVAILABLE` | YES | `FAIL_CLOSED_AFTER_RETRY_EXHAUSTION` | `REUSABLE` | `PROBE_FAILS` | `error.code` exact code; fixed message `agent provider is unavailable`; `details.retryable=true` |
 
-The names above are contract classifications, not permission to silently
-convert an error into an answer. Every failed turn must retain a stable error
-classification and must not execute a tool as compensation.
+The safe projection is the complete external error shape for these failures:
+`{"error":{"code":"<frozen code>","message":"<frozen safe message>","details":{"retryable":<frozen boolean>}}}`.
+Provider response bodies, headers, credentials, endpoint details, raw
+exception text, and provider-native status payloads are never included. No
+other stable provider failure code may be invented by implementation without
+a contract amendment. Every failed turn retains the frozen classification and
+must not execute a tool as compensation.
 
 No provider error may instantiate or invoke `FakeAgentModelGateway`,
 `DefaultAgentModelGateway` fallback behavior, a demo adapter, or another
@@ -375,8 +417,9 @@ provider. Provider failures are not user confirmation.
 
 Provider configuration and credential failures are operational readiness
 failures. A transient ordinary turn failure must not silently change the
-strict capability binding. A readiness probe failure keeps the capability
-disabled until a fresh verified readiness phase succeeds.
+strict capability binding. A readiness probe failure places an explicitly
+enabled capability in `AGENT_CAPABILITY_ENABLED_NOT_READY` until a fresh
+verified readiness phase succeeds.
 
 ## 9. Timeout and retry boundary
 
@@ -399,35 +442,37 @@ The retry policy is finite:
 - no unbounded retry, background approval retry, or timestamp-based winner
   selection is permitted.
 
-## 10. Runtime readiness transition
+## 10. Runtime capability states and readiness transition
 
-The current strict state is:
+The capability state is a closed three-state authority. It must never be
+collapsed into a single `enabled` boolean or inferred from route presence.
 
-```text
-staging/production + model_backed_agent = disabled
-agent HTTP routes = disabled route matrix
-fake gateway on strict route = forbidden
-```
+| State | Meaning | Global application readiness | Route exposure |
+| --- | --- | --- | --- |
+| `AGENT_CAPABILITY_DISABLED` | Intentional capability-off state: neither provider id nor model id is configured; no provider is selected | `PASS_IF_ALL_OTHER_MANDATORY_READINESS_GATES_PASS` | `DISABLED_ROUTE_MATRIX` |
+| `AGENT_CAPABILITY_ENABLED_READY` | Explicit `openai` provider and model are configured; credentials, bounded settings, adapter/schema probe, strict composition, and route audit all pass | `PASS_IF_PROVIDER_AND_ALL_OTHER_MANDATORY_READINESS_GATES_PASS` | `REAL_AGENT_ROUTES_ENABLED` |
+| `AGENT_CAPABILITY_ENABLED_NOT_READY` | Explicit enablement intent exists, but configuration, credentials, provider availability, probe, composition, or route audit is invalid or unavailable | `FAIL` | `DISABLED_ROUTE_MATRIX` |
 
-The only future transition is:
+The state-selection rule is deterministic:
 
-```text
-strict mode
-  + explicit allow-listed provider
-  + explicit model
-  + valid secret source
-  + bounded timeout/retry configuration
-  + real adapter construction
-  + successful provider/schema readiness probe
-  + strict composition and route audit PASS
-  -> enabled provider-bound capability
-```
+1. neither `COLD_STORAGE_AGENT_PROVIDER` nor `COLD_STORAGE_AGENT_MODEL` is
+   supplied -> `AGENT_CAPABILITY_DISABLED`;
+2. either setting is supplied without the complete explicit selection, or the
+   selected provider/configuration cannot be validated ->
+   `AGENT_CAPABILITY_ENABLED_NOT_READY`;
+3. `COLD_STORAGE_AGENT_PROVIDER=openai` plus an explicit model, valid secret
+   source, bounded settings, successful provider/schema readiness probe, strict
+   composition, and route audit PASS -> `AGENT_CAPABILITY_ENABLED_READY`.
 
-The transition must be atomic from the application's readiness perspective.
-Before it completes, routes remain disabled. The capability manifest must
-record the exact provider identity and readiness evidence; a generic
-`enabled=true`, a configured API key, or a self-attested adapter is not
-sufficient.
+An intentionally disabled capability is therefore distinct from an explicitly
+enabled but misconfigured or unavailable provider. Disabled routes must use
+the existing stable disabled-route matrix and must not construct a fake
+gateway. Enabled-not-ready routes use the same disabled matrix, while global
+readiness fails. Only enabled-ready may expose real agent routes. The
+transition must be atomic from the application's readiness perspective. The
+capability manifest must record the exact provider identity and readiness
+evidence; a generic `enabled=true`, a configured API key, or a self-attested
+adapter is not sufficient.
 
 The existing startup/readiness phases, strict authority object, mandatory
 probes, disabled-route matrix, and unsafe-capability enumeration remain the
@@ -747,6 +792,33 @@ CURRENT_FAKE_GATEWAY_SCOPE=LOCAL_TEST_DEMO_EXPLICIT_INJECTION_ONLY
 CURRENT_REAL_PROVIDER_ADAPTER_EXISTS=NO
 CURRENT_STRUCTURED_TOOL_CALLING_EXISTS=YES
 CURRENT_CONFIRMATION_BOUNDARY_EXISTS=YES
+PROVIDER_AUTHORITY_RECORD_ID=5323439225
+FIRST_CONCRETE_PROVIDER_FROZEN=YES
+FIRST_PROVIDER_ID=openai
+PROVIDER_ID=openai
+PROVIDER_API_SURFACE=OpenAI Responses API
+PROVIDER_TRANSPORT_FROZEN=YES
+PROVIDER_ENDPOINT_POLICY_FROZEN=YES
+PROVIDER_CREDENTIAL_SOURCE_FROZEN=YES
+PROVIDER_MODEL_AUTHORITY_FROZEN=YES
+PROVIDER_DEPENDENCY_STRATEGY_FROZEN=YES
+PROVIDER_TEST_TRANSPORT_FROZEN=YES
+MACHINE_READABLE_PROVIDER_FAILURE_CODES_FROZEN=YES
+MACHINE_READABLE_PROVIDER_FAILURE_CODE_COUNT=10
+MACHINE_READABLE_FAILURE_CODES_FROZEN=YES
+FAILURE_CODE_COUNT=10
+CAPABILITY_STATES_FROZEN=YES
+CAPABILITY_DISABLED_SEMANTICS_FROZEN=YES
+CAPABILITY_ENABLED_READY_SEMANTICS_FROZEN=YES
+CAPABILITY_ENABLED_NOT_READY_SEMANTICS_FROZEN=YES
+GLOBAL_READINESS_MAPPING_FROZEN=YES
+ROUTE_EXPOSURE_MAPPING_FROZEN=YES
+CAPABILITY_DISABLED_GLOBAL_READINESS=PASS_IF_ALL_OTHER_MANDATORY_READINESS_GATES_PASS
+CAPABILITY_DISABLED_ROUTE_EXPOSURE=DISABLED_ROUTE_MATRIX
+CAPABILITY_ENABLED_READY_GLOBAL_READINESS=PASS_IF_PROVIDER_AND_ALL_OTHER_MANDATORY_READINESS_GATES_PASS
+CAPABILITY_ENABLED_READY_ROUTE_EXPOSURE=REAL_AGENT_ROUTES_ENABLED
+CAPABILITY_ENABLED_NOT_READY_GLOBAL_READINESS=FAIL
+CAPABILITY_ENABLED_NOT_READY_ROUTE_EXPOSURE=DISABLED_ROUTE_MATRIX
 PROVIDER_NEUTRAL_GATEWAY_FROZEN=YES
 NO_SILENT_FAKE_FALLBACK_FROZEN=YES
 REAL_PROVIDER_CONFIGURATION_FROZEN=YES
@@ -761,6 +833,7 @@ FUTURE_CONFIG_ALLOWLIST_FROZEN=YES
 FUTURE_DEPENDENCY_ALLOWLIST_FROZEN=YES
 FORBIDDEN_PATHS_FROZEN=YES
 TEST_MATRIX_FROZEN=YES
+IMPLEMENTATION_AUTHORIZATION_MAY_DEFINE_NEW_CONTRACT_SEMANTICS=NO
 STAGE_ORDER=zone,cooling_load,equipment,power,investment
 CONTRACT_FREEZE_SCOPE=CONTRACT_DEFINITION_FREEZE_ONLY
 CONTRACT_FREEZE_CHANGED_FILE_COUNT=1
