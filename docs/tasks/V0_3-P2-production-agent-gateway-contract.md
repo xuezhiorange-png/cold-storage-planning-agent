@@ -423,11 +423,28 @@ verified readiness phase succeeds.
 
 ## 9. Timeout and retry boundary
 
-Provider request timeout is required, finite, and configuration-bounded. The
-future settings contract must reject missing, zero, negative, non-numeric, or
-unbounded values. The implementation must freeze an exact maximum before
-enabling the provider; the maximum must not exceed 30 seconds per provider
-attempt.
+The provider request timeout is frozen as an integer configuration contract:
+
+```text
+COLD_STORAGE_AGENT_TIMEOUT_SECONDS
+TYPE=integer
+MIN=1
+MAX=30
+STAGING_PRODUCTION_EXPLICIT_REQUIRED=YES
+STAGING_PRODUCTION_DEFAULT_ALLOWED=NO
+ZERO_ALLOWED=NO
+NEGATIVE_ALLOWED=NO
+NON_INTEGER_ALLOWED=NO
+NAN_INF_ALLOWED=NO
+OUT_OF_RANGE_ALLOWED=NO
+```
+
+Staging and production must receive an explicit integer value; neither mode
+may supply an implicit default. Values outside the closed inclusive range
+`1..30` are configuration-invalid and map to
+`AGENT_PROVIDER_CONFIGURATION_INVALID`. Implementation may consume this
+range but may not redefine its type, bounds, default policy, or rejection
+semantics.
 
 The retry policy is finite:
 
@@ -654,10 +671,25 @@ backend/pyproject.toml
 backend/uv.lock
 ```
 
-No dependency is added by this freeze. The audit found no provider SDK. A
-future implementation may use the already locked `httpx` transport only
-after moving or confirming it as a runtime dependency, or may request an
-exactly named provider package through a separate dependency authorization.
+No dependency is added by this freeze. The first provider authority freezes
+the runtime dependency and transport as:
+
+```text
+PROVIDER_TRANSPORT=official openai Python SDK
+PROVIDER_RUNTIME_DEPENDENCY=openai Python package
+HTTPX_AS_ALTERNATIVE_PROVIDER_TRANSPORT=NO
+IMPLEMENTATION_MAY_SELECT_DIFFERENT_PROVIDER_PACKAGE=NO
+CONTRACT_AMENDMENT_REQUIRED_FOR_DIFFERENT_PROVIDER_TRANSPORT_OR_PACKAGE=YES
+CONTRACT_AMENDMENT_REQUIRED=YES
+```
+
+The existing `httpx` development dependency is not a provider transport and
+must not be moved into the runtime dependency set for this purpose. A
+separately authorized implementation may add only the official `openai`
+Python package as the direct runtime dependency, with its exact resolved
+version locked in `backend/uv.lock`. It may not implement the provider through
+direct `httpx` calls or select a different provider package. Any different
+provider transport or package requires `CONTRACT_AMENDMENT_REQUIRED=YES`.
 The dependency change must name the package, version policy, reason, license
 review, and network-test boundary. No unreviewed provider SDK, floating
 dependency, or transitive package is implicitly authorized.
@@ -803,6 +835,11 @@ PROVIDER_CREDENTIAL_SOURCE_FROZEN=YES
 PROVIDER_MODEL_AUTHORITY_FROZEN=YES
 PROVIDER_DEPENDENCY_STRATEGY_FROZEN=YES
 PROVIDER_TEST_TRANSPORT_FROZEN=YES
+PROVIDER_RUNTIME_DEPENDENCY=openai Python package
+HTTPX_AS_ALTERNATIVE_PROVIDER_TRANSPORT=NO
+IMPLEMENTATION_MAY_SELECT_DIFFERENT_PROVIDER_PACKAGE=NO
+CONTRACT_AMENDMENT_REQUIRED_FOR_DIFFERENT_PROVIDER_TRANSPORT_OR_PACKAGE=YES
+CONTRACT_AMENDMENT_REQUIRED=YES
 MACHINE_READABLE_PROVIDER_FAILURE_CODES_FROZEN=YES
 MACHINE_READABLE_PROVIDER_FAILURE_CODE_COUNT=10
 MACHINE_READABLE_FAILURE_CODES_FROZEN=YES
@@ -819,6 +856,17 @@ CAPABILITY_ENABLED_READY_GLOBAL_READINESS=PASS_IF_PROVIDER_AND_ALL_OTHER_MANDATO
 CAPABILITY_ENABLED_READY_ROUTE_EXPOSURE=REAL_AGENT_ROUTES_ENABLED
 CAPABILITY_ENABLED_NOT_READY_GLOBAL_READINESS=FAIL
 CAPABILITY_ENABLED_NOT_READY_ROUTE_EXPOSURE=DISABLED_ROUTE_MATRIX
+TIMEOUT_CONFIGURATION_AUTHORITY=COLD_STORAGE_AGENT_TIMEOUT_SECONDS
+TIMEOUT_CONFIGURATION_TYPE=integer
+TIMEOUT_CONFIGURATION_MIN=1
+TIMEOUT_CONFIGURATION_MAX=30
+STAGING_PRODUCTION_TIMEOUT_EXPLICIT_REQUIRED=YES
+STAGING_PRODUCTION_TIMEOUT_DEFAULT_ALLOWED=NO
+TIMEOUT_ZERO_ALLOWED=NO
+TIMEOUT_NEGATIVE_ALLOWED=NO
+TIMEOUT_NON_INTEGER_ALLOWED=NO
+TIMEOUT_NAN_INF_ALLOWED=NO
+TIMEOUT_OUT_OF_RANGE_ALLOWED=NO
 PROVIDER_NEUTRAL_GATEWAY_FROZEN=YES
 NO_SILENT_FAKE_FALLBACK_FROZEN=YES
 REAL_PROVIDER_CONFIGURATION_FROZEN=YES
