@@ -22,7 +22,7 @@ CANONICAL_KEYS = (
     "SQLITE_PATH",
     "REDIS_URL",
     "STORAGE_DIR",
-    "OPENAI_API_KEY",
+    "MIMO_API_KEY",
     "AGENT_PROVIDER",
     "AGENT_MODEL",
     "AGENT_TIMEOUT_SECONDS",
@@ -59,7 +59,15 @@ LEGACY_KEYS = (
     "STORAGE_DIR",
     "OPENAI_API_KEY",
 )
-_SENSITIVE_KEYS = frozenset({"DATABASE_URL", "REDIS_URL", "OPENAI_API_KEY", "POSTGRES_PASSWORD"})
+_SENSITIVE_KEYS = frozenset(
+    {
+        "DATABASE_URL",
+        "REDIS_URL",
+        "OPENAI_API_KEY",
+        "MIMO_API_KEY",
+        "POSTGRES_PASSWORD",
+    }
+)
 
 
 class EnvironmentId(StrEnum):

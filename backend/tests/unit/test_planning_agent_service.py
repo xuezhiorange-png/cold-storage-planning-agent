@@ -73,7 +73,7 @@ class _ClassifiedFailureGateway:
         )
 
     def get_metadata(self) -> GatewayMetadata:
-        return GatewayMetadata(provider="openai", model_name="gpt-test")
+        return GatewayMetadata(provider="mimo", model_name="mimo-v2.5")
 
 
 @pytest.fixture()

@@ -1,4 +1,4 @@
-"""Unit tests for the injected-transport OpenAI Responses adapter."""
+"""Unit tests for the injected-transport MiMo PAYG Responses adapter."""
 
 from __future__ import annotations
 
@@ -17,8 +17,9 @@ from cold_storage.modules.planning_agent.domain.gateways import AgentModelReques
 from cold_storage.modules.planning_agent.domain.models import AgentDecision
 from cold_storage.modules.planning_agent.infrastructure.real_gateways import (
     MAX_PROVIDER_ATTEMPTS,
-    OPENAI_OFFICIAL_BASE_URL,
-    OpenAIAgentModelGateway,
+    MIMO_MODEL_NAME,
+    MIMO_PAYG_BASE_URL,
+    MiMoAgentModelGateway,
 )
 
 
@@ -78,10 +79,11 @@ class _ProviderFailure(RuntimeError):
         self.status_code = status_code
 
 
-def _gateway(client: _FakeClient, *, max_retries: int = 0) -> OpenAIAgentModelGateway:
-    return OpenAIAgentModelGateway(
+def _gateway(client: _FakeClient, *, max_retries: int = 0) -> MiMoAgentModelGateway:
+    return MiMoAgentModelGateway(
         client=client,
-        model_name="gpt-test",
+        api_key="sk-test-only-key",
+        model_name=MIMO_MODEL_NAME,
         timeout_seconds=10,
         max_retries=max_retries,
     )
@@ -114,7 +116,7 @@ def test_responses_request_is_bounded_and_strictly_decoded() -> None:
     assert decision.decision_type is DecisionType.PROPOSE_TOOLS
     assert decision.tool_requests[0].arguments == {"daily_inbound_mass": 25.0}
     call = client.responses.calls[0]
-    assert call["model"] == "gpt-test"
+    assert call["model"] == MIMO_MODEL_NAME
     assert call["max_output_tokens"] == 321
     assert call["store"] is False
     assert call["instructions"] == "你是规划助手。"
@@ -125,13 +127,13 @@ def test_responses_request_is_bounded_and_strictly_decoded() -> None:
     assert "conversation" not in call
 
 
-def test_metadata_is_bounded_to_openai_and_explicit_model() -> None:
+def test_metadata_is_bounded_to_mimo_and_explicit_model() -> None:
     gateway = _gateway(_FakeClient([_response(_decision_payload())]))
 
     metadata = gateway.get_metadata()
 
-    assert metadata.provider == "openai"
-    assert metadata.model_name == "gpt-test"
+    assert metadata.provider == "mimo"
+    assert metadata.model_name == MIMO_MODEL_NAME
     assert metadata.production_ready is False
     assert metadata.requires_review is True
     assert len(metadata.model_name) <= 128
@@ -145,24 +147,24 @@ def test_sdk_retry_budget_is_disabled_at_client_construction() -> None:
         seen.update(kwargs)
         return client
 
-    OpenAIAgentModelGateway(
-        api_key="test-only-key",
-        model_name="gpt-test",
+    MiMoAgentModelGateway(
+        api_key="sk-test-only-key",
+        model_name=MIMO_MODEL_NAME,
         timeout_seconds=10,
         max_retries=1,
         client_factory=factory,
     )
 
     assert seen == {
-        "api_key": "test-only-key",
-        "base_url": OPENAI_OFFICIAL_BASE_URL,
+        "api_key": "sk-test-only-key",
+        "base_url": MIMO_PAYG_BASE_URL,
         "timeout": 10,
         "max_retries": 0,
     }
     assert MAX_PROVIDER_ATTEMPTS == 2
 
 
-def test_sdk_factory_ignores_openai_base_url_environment_override(
+def test_sdk_factory_ignores_ambient_base_url_environment_override(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("OPENAI_BASE_URL", "https://example.invalid/v1")
@@ -173,16 +175,41 @@ def test_sdk_factory_ignores_openai_base_url_environment_override(
         seen.update(kwargs)
         return client
 
-    OpenAIAgentModelGateway(
-        api_key="test-only-key",
-        model_name="gpt-test",
+    MiMoAgentModelGateway(
+        api_key="sk-test-only-key",
+        model_name=MIMO_MODEL_NAME,
         timeout_seconds=10,
         max_retries=0,
         client_factory=factory,
     )
 
-    assert seen["base_url"] == OPENAI_OFFICIAL_BASE_URL
+    assert seen["base_url"] == MIMO_PAYG_BASE_URL
     assert seen["base_url"] != "https://example.invalid/v1"
+
+
+@pytest.mark.parametrize("credential", ["tp-test-token", "not-a-runtime-key"])
+def test_non_payg_credentials_fail_before_transport_call(credential: str) -> None:
+    factory_calls = 0
+
+    def factory(**_kwargs: Any) -> Any:
+        nonlocal factory_calls
+        factory_calls += 1
+        return _FakeClient([])
+
+    with pytest.raises(ModelGatewayError) as exc_info:
+        MiMoAgentModelGateway(
+            api_key=credential,
+            model_name=MIMO_MODEL_NAME,
+            timeout_seconds=10,
+            max_retries=1,
+            client_factory=factory,
+        )
+
+    assert exc_info.value.provider_failure_code is (
+        AgentProviderFailureCode.AGENT_PROVIDER_CREDENTIAL_INVALID
+    )
+    assert exc_info.value.retryable is False
+    assert factory_calls == 0
 
 
 @pytest.mark.parametrize(
@@ -348,18 +375,18 @@ def test_unknown_response_fields_fail_closed() -> None:
         (
             {
                 "provider": "other",
-                "model_name": "gpt-test",
+                "model_name": MIMO_MODEL_NAME,
                 "timeout_seconds": 10,
                 "max_retries": 0,
             },
             AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID,
         ),
         (
-            {"model_name": "gpt-test", "timeout_seconds": 0, "max_retries": 0},
+            {"model_name": MIMO_MODEL_NAME, "timeout_seconds": 0, "max_retries": 0},
             AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID,
         ),
         (
-            {"model_name": "gpt-test", "timeout_seconds": 10, "max_retries": 2},
+            {"model_name": MIMO_MODEL_NAME, "timeout_seconds": 10, "max_retries": 2},
             AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID,
         ),
     ],
@@ -368,7 +395,7 @@ def test_configuration_failures_reuse_p2a_codes(
     kwargs: dict[str, Any], expected_code: AgentProviderFailureCode
 ) -> None:
     with pytest.raises(ModelGatewayError) as exc_info:
-        OpenAIAgentModelGateway(client=_FakeClient([]), **kwargs)
+        MiMoAgentModelGateway(api_key="sk-test-only-key", client=_FakeClient([]), **kwargs)
 
     assert exc_info.value.code is expected_code
 
