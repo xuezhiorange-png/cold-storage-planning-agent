@@ -50,10 +50,23 @@ OPENAI_SDK_VERSION: Final = "2.53.0"
 MIMO_PROVIDER_ID: Final = "mimo"
 MIMO_MODEL_NAME: Final = "mimo-v2.5"
 MIMO_PAYG_BASE_URL: Final = "https://api.xiaomimimo.com/v1"
+MIMO_RESPONSES_REASONING_EFFORT: Final = "none"
+MIMO_TEMPERATURE_MIN: Final = 0.0
+MIMO_TEMPERATURE_MAX: Final = 1.5
 MAX_PROVIDER_RETRIES: Final = 1
 MAX_PROVIDER_ATTEMPTS: Final = 2
 MAX_OUTPUT_TOKENS: Final = 8192
 MAX_RESPONSE_BYTES: Final = 1_000_000
+
+_MIMO_JSON_OBJECT_INSTRUCTION: Final = (
+    "Return exactly one JSON object. Do not return Markdown, code fences, or explanatory text. "
+    "The object must contain exactly these top-level fields: decision_type (string, one of "
+    "answer, ask_clarification, propose_tools), assistant_message (string), "
+    "missing_parameters (array of JSON objects), tool_requests (array of objects), "
+    "citations (array of JSON objects), requires_review (boolean), and warnings "
+    "(array of strings). Each tool_requests item must contain tool_name (string), "
+    "arguments (JSON object), and reason (string)."
+)
 
 _MISSING = object()
 
@@ -249,7 +262,7 @@ class MiMoAgentModelGateway(AgentModelGateway):
     def _generate_once(self, request: AgentModelRequest) -> AgentDecision:
         payload = self._request_payload(request)
         try:
-            response = self._client.responses.parse(**payload)
+            response = self._client.responses.create(**payload)
         except ModelGatewayError:
             raise
         except Exception as error:
@@ -267,7 +280,7 @@ class MiMoAgentModelGateway(AgentModelGateway):
             raise _failure(AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID)
         if type(request.temperature) is not float or not math.isfinite(request.temperature):
             raise _failure(AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID)
-        if not 0.0 <= request.temperature <= 2.0:
+        if not MIMO_TEMPERATURE_MIN <= request.temperature <= MIMO_TEMPERATURE_MAX:
             raise _failure(AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID)
 
         messages: list[dict[str, str]] = []
@@ -312,13 +325,14 @@ class MiMoAgentModelGateway(AgentModelGateway):
 
         return {
             "model": self._model_name,
-            "instructions": request.system_prompt,
+            "instructions": f"{request.system_prompt}\n\n{_MIMO_JSON_OBJECT_INSTRUCTION}",
             "input": messages,
             "tools": tools,
             "temperature": request.temperature,
             "max_output_tokens": request.max_tokens,
             "store": False,
-            "text_format": _AgentDecisionPayload,
+            "reasoning": {"effort": MIMO_RESPONSES_REASONING_EFFORT},
+            "text": {"format": {"type": "json_object"}},
         }
 
     def _decode_response(self, response: Any) -> AgentDecision:

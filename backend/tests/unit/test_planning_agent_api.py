@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -708,16 +709,17 @@ def _passed_provider_probe(settings):
 
 def _probe_response() -> SimpleNamespace:
     return SimpleNamespace(
-        output_parsed={
-            "decision_type": "answer",
-            "assistant_message": "ready",
-            "missing_parameters": [],
-            "tool_requests": [],
-            "citations": [],
-            "requires_review": False,
-            "warnings": [],
-        },
-        output_text=None,
+        output_text=json.dumps(
+            {
+                "decision_type": "answer",
+                "assistant_message": "ready",
+                "missing_parameters": [],
+                "tool_requests": [],
+                "citations": [],
+                "requires_review": False,
+                "warnings": [],
+            }
+        ),
         status="completed",
         incomplete_details=None,
         error=None,
@@ -729,7 +731,7 @@ class _ProbeResponses:
         self._outcome = outcome
         self.calls: list[dict[str, object]] = []
 
-    def parse(self, **kwargs):
+    def create(self, **kwargs):
         self.calls.append(kwargs)
         if isinstance(self._outcome, BaseException):
             raise self._outcome

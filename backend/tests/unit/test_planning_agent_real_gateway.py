@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 from typing import Any
 
+import httpx
 import pytest
+from openai import OpenAI
 
 from cold_storage.modules.planning_agent.domain.enums import DecisionType
 from cold_storage.modules.planning_agent.domain.errors import (
@@ -19,6 +22,9 @@ from cold_storage.modules.planning_agent.infrastructure.real_gateways import (
     MAX_PROVIDER_ATTEMPTS,
     MIMO_MODEL_NAME,
     MIMO_PAYG_BASE_URL,
+    MIMO_RESPONSES_REASONING_EFFORT,
+    MIMO_TEMPERATURE_MAX,
+    OPENAI_SDK_VERSION,
     MiMoAgentModelGateway,
 )
 
@@ -60,7 +66,7 @@ class _FakeResponses:
         self._outcomes = list(outcomes)
         self.calls: list[dict[str, Any]] = []
 
-    def parse(self, **kwargs: Any) -> Any:
+    def create(self, **kwargs: Any) -> Any:
         self.calls.append(kwargs)
         outcome = self._outcomes.pop(0)
         if isinstance(outcome, BaseException):
@@ -89,7 +95,7 @@ def _gateway(client: _FakeClient, *, max_retries: int = 0) -> MiMoAgentModelGate
     )
 
 
-def test_responses_request_is_bounded_and_strictly_decoded() -> None:
+def test_responses_create_request_is_bounded_and_strictly_decoded() -> None:
     client = _FakeClient([_response(_decision_payload())])
     gateway = _gateway(client)
     request = AgentModelRequest(
@@ -119,12 +125,18 @@ def test_responses_request_is_bounded_and_strictly_decoded() -> None:
     assert call["model"] == MIMO_MODEL_NAME
     assert call["max_output_tokens"] == 321
     assert call["store"] is False
-    assert call["instructions"] == "你是规划助手。"
+    assert call["instructions"].startswith("你是规划助手。")
+    assert "Return exactly one JSON object." in call["instructions"]
     assert call["input"] == [{"role": "user", "content": "请计算面积"}]
     assert call["tools"][0]["type"] == "function"
     assert call["tools"][0]["parameters"]["type"] == "object"
+    assert call["reasoning"] == {"effort": MIMO_RESPONSES_REASONING_EFFORT}
+    assert call["text"] == {"format": {"type": "json_object"}}
+    assert "text_format" not in call
     assert "background" not in call
     assert "conversation" not in call
+    assert "previous_response_id" not in call
+    assert "context_management" not in call
 
 
 def test_metadata_is_bounded_to_mimo_and_explicit_model() -> None:
@@ -185,6 +197,89 @@ def test_sdk_factory_ignores_ambient_base_url_environment_override(
 
     assert seen["base_url"] == MIMO_PAYG_BASE_URL
     assert seen["base_url"] != "https://example.invalid/v1"
+
+
+def _contains_key(value: Any, key: str) -> bool:
+    if isinstance(value, dict):
+        return key in value or any(_contains_key(item, key) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_key(item, key) for item in value)
+    return False
+
+
+def test_real_openai_sdk_serializes_mimo_json_object_wire_without_live_network() -> None:
+    captured: dict[str, Any] = {}
+
+    def handler(http_request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(http_request.url)
+        captured["body"] = json.loads(http_request.content)
+        return httpx.Response(
+            200,
+            json={
+                "id": "resp_mimo_wire_test",
+                "object": "response",
+                "created_at": 0,
+                "model": MIMO_MODEL_NAME,
+                "status": "completed",
+                "output": [
+                    {
+                        "id": "msg_mimo_wire_test",
+                        "type": "message",
+                        "status": "completed",
+                        "role": "assistant",
+                        "content": [
+                            {
+                                "type": "output_text",
+                                "text": json.dumps(_decision_payload(), ensure_ascii=False),
+                                "annotations": [],
+                            }
+                        ],
+                    }
+                ],
+                "parallel_tool_calls": False,
+                "tool_choice": "auto",
+                "tools": [],
+            },
+            request=http_request,
+        )
+
+    http_client = httpx.Client(transport=httpx.MockTransport(handler))
+
+    def factory(**kwargs: Any) -> Any:
+        captured["factory"] = kwargs
+        return OpenAI(**kwargs, http_client=http_client)
+
+    try:
+        gateway = MiMoAgentModelGateway(
+            api_key="sk-test-only-key",
+            model_name=MIMO_MODEL_NAME,
+            timeout_seconds=10,
+            max_retries=0,
+            client_factory=factory,
+        )
+        decision = gateway.generate_decision(AgentModelRequest())
+    finally:
+        http_client.close()
+
+    body = captured["body"]
+    assert OPENAI_SDK_VERSION == "2.53.0"
+    assert captured["url"] == f"{MIMO_PAYG_BASE_URL}/responses"
+    assert body["model"] == MIMO_MODEL_NAME
+    assert body["store"] is False
+    assert body["reasoning"] == {"effort": "none"}
+    assert body["text"]["format"] == {"type": "json_object"}
+    assert body["temperature"] == 0.0
+    assert 0.0 <= body["temperature"] <= MIMO_TEMPERATURE_MAX
+    assert captured["factory"]["max_retries"] == 0
+    for forbidden_key in (
+        "json_schema",
+        "background",
+        "conversation",
+        "previous_response_id",
+        "context_management",
+    ):
+        assert not _contains_key(body, forbidden_key)
+    assert decision.decision_type is DecisionType.PROPOSE_TOOLS
 
 
 @pytest.mark.parametrize("credential", ["tp-test-token", "not-a-runtime-key"])
@@ -398,6 +493,28 @@ def test_configuration_failures_reuse_p2a_codes(
         MiMoAgentModelGateway(api_key="sk-test-only-key", client=_FakeClient([]), **kwargs)
 
     assert exc_info.value.code is expected_code
+
+
+@pytest.mark.parametrize("temperature", [0.0, MIMO_TEMPERATURE_MAX])
+def test_mimo_temperature_boundaries_are_valid(temperature: float) -> None:
+    client = _FakeClient([_response(_decision_payload())])
+    gateway = _gateway(client)
+
+    decision = gateway.generate_decision(AgentModelRequest(temperature=temperature))
+
+    assert decision.decision_type is DecisionType.PROPOSE_TOOLS
+    assert client.responses.calls[0]["temperature"] == temperature
+
+
+def test_mimo_temperature_above_limit_fails_before_transport() -> None:
+    client = _FakeClient([])
+    gateway = _gateway(client)
+
+    with pytest.raises(ModelGatewayError) as exc_info:
+        gateway.generate_decision(AgentModelRequest(temperature=1.5001))
+
+    assert exc_info.value.code is AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID
+    assert client.responses.calls == []
 
 
 def test_strict_nested_tool_shape_rejects_non_object_arguments() -> None:
