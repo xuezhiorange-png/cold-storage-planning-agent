@@ -4,8 +4,8 @@ import json
 import logging
 from collections.abc import Callable, Generator
 from contextlib import asynccontextmanager
-from dataclasses import asdict, dataclass, field
-from typing import Annotated, Any
+from dataclasses import asdict, dataclass, field, replace
+from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
@@ -57,6 +57,9 @@ from cold_storage.modules.projects.domain.models import (
 )
 from cold_storage.modules.schemes.api.routes import register_scheme_routes
 from cold_storage.modules.schemes.application.service import SchemeService
+
+if TYPE_CHECKING:
+    from cold_storage.bootstrap.runtime_readiness import AgentProviderProbe
 
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 AgentServiceDep = Annotated[LegacyPlanningAgentService, Depends(get_agent_service)]
@@ -119,6 +122,7 @@ class StrictRuntimeAuthority:
     agent_capability_state: str = AgentCapabilityState.DISABLED.value
     agent_evidence: Any | None = None
     agent_service_factory: Callable[..., Any] | None = None
+    agent_candidate: bool = False
 
 
 def _build_strict_authority(
@@ -130,6 +134,7 @@ def _build_strict_authority(
     agent_capability_state: str = AgentCapabilityState.DISABLED.value,
     agent_evidence: Any | None = None,
     agent_service_factory: Callable[..., Any] | None = None,
+    agent_candidate: bool = False,
 ) -> StrictRuntimeAuthority:
     """Build the frozen strict authority.  Called once by create_app."""
     return StrictRuntimeAuthority(
@@ -140,6 +145,7 @@ def _build_strict_authority(
         agent_capability_state=agent_capability_state,
         agent_evidence=agent_evidence,
         agent_service_factory=agent_service_factory,
+        agent_candidate=agent_candidate,
     )
 
 
@@ -407,6 +413,48 @@ def _make_lifespan(
                     strict_runtime_authority=auth,
                     agent_client_factory=agent_client_factory,
                 )
+            if auth.agent_candidate:
+                from cold_storage.bootstrap.dependencies import (  # noqa: PLC0415
+                    create_capability_projection,
+                    publish_agent_capability_evidence,
+                )
+                from cold_storage.bootstrap.runtime_readiness import (  # noqa: PLC0415
+                    assert_no_unsafe_strict_capabilities,
+                    finalize_agent_capability_evidence,
+                )
+
+                # Re-run the immutable authority audit at the transition
+                # boundary.  READY is never inferred from the fact that a
+                # router was registered or that dependency initialization
+                # returned successfully.
+                audit_evidence = assert_no_unsafe_strict_capabilities(app=app, authority=auth)
+                if auth.agent_evidence is None:
+                    raise RuntimeError("strict agent startup is missing preflight evidence")
+                final_evidence = finalize_agent_capability_evidence(
+                    auth.agent_evidence,
+                    audit_evidence=audit_evidence,
+                )
+                if final_evidence.state is not AgentCapabilityState.ENABLED_READY:
+                    raise RuntimeError(
+                        "strict agent startup did not produce verified READY evidence"
+                    )
+                final_authority = replace(
+                    auth,
+                    agent_capability_state=final_evidence.state.value,
+                    agent_evidence=final_evidence,
+                )
+                authority_box[0] = final_authority
+                app.state._strict_runtime_authority = final_authority  # noqa: SLF001
+                app.state.strict_capability_bindings = (
+                    ("coefficient_http", "database_backed"),
+                    ("model_backed_agent", "enabled_ready"),
+                )
+                app._agent_capability_evidence = final_evidence  # type: ignore[attr-defined]
+                app._capability_projection = create_capability_projection(  # type: ignore[attr-defined]
+                    resolve_app_mode(get_settings()),
+                    evidence=final_evidence,
+                )
+                publish_agent_capability_evidence(final_evidence)
             yield
         finally:
             shutdown_dependencies()
@@ -421,7 +469,7 @@ def _make_lifespan(
 def create_app(
     project_service: ProjectService | None = None,
     *,
-    agent_provider_probe: Callable[[Any], bool] | None = None,
+    agent_provider_probe: "AgentProviderProbe | None" = None,
     agent_client_factory: Callable[..., Any] | None = None,
 ) -> FastAPI:
     configure_logging()
@@ -500,14 +548,22 @@ def create_app(
         resolve_agent_capability_evidence,
     )
 
+    if (
+        agent_provider_probe is None
+        and initial_mode in (AppMode.STAGING, AppMode.PRODUCTION)
+        and initial_settings.agent_enablement_intent_present
+    ):
+        from cold_storage.bootstrap.dependencies import (  # noqa: PLC0415
+            canonical_agent_provider_probe,
+        )
+
+        agent_provider_probe = canonical_agent_provider_probe(
+            client_factory=agent_client_factory,
+        )
+
     agent_evidence = resolve_agent_capability_evidence(
         initial_settings,
         provider_probe=agent_provider_probe,
-        # The composition root below creates either the complete frozen
-        # disabled matrix or the complete existing agent router.  Startup
-        # strict audit independently verifies the resulting objects/tokens.
-        composition_passed=True,
-        route_audit_passed=True,
     )
 
     # D-S4-04: Create immutable capability projection bound to this app.
@@ -1105,16 +1161,23 @@ def create_app(
     )
 
     # D-S4-02/P2-C: local/test keep the existing fake-backed router. Strict
-    # modes use the frozen disabled matrix unless all injected readiness and
-    # composition evidence resolves the capability to enabled-ready.
+    # modes use a real candidate router only after provider/schema preflight;
+    # the lifespan audit finalizes READY before serving begins.
     _frozen_agent_auth: list[AgentRouteAuthority] = []
     _agent_state = agent_evidence.state.value
+    _agent_candidate = initial_mode in (AppMode.STAGING, AppMode.PRODUCTION) and (
+        agent_evidence.state is AgentCapabilityState.ENABLED_READY
+        or (
+            agent_evidence.state is AgentCapabilityState.ENABLED_NOT_READY
+            and agent_evidence.provider_probe_passed
+        )
+    )
 
     if initial_mode in (AppMode.LOCAL, AppMode.TEST):
         app.include_router(_create_agent_router(_get_planning_agent_service))
         _agent_state = "LOCAL_TEST_AVAILABLE"
     else:
-        if agent_evidence.state is AgentCapabilityState.ENABLED_READY:
+        if _agent_candidate:
             _agent_router = _create_agent_router(_get_strict_planning_agent_service)
             app.include_router(_agent_router)
             for _registered_route in _agent_router.routes:
@@ -1224,11 +1287,8 @@ def create_app(
         ),
         agent_capability_state=_agent_state,
         agent_evidence=agent_evidence,
-        agent_service_factory=(
-            _get_strict_planning_agent_service
-            if agent_evidence.state is AgentCapabilityState.ENABLED_READY
-            else None
-        ),
+        agent_service_factory=(_get_strict_planning_agent_service if _agent_candidate else None),
+        agent_candidate=_agent_candidate,
     )
     app.state._strict_runtime_authority = _strict_authority  # noqa: SLF001
 

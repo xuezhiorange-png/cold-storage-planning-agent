@@ -16,12 +16,15 @@ from cold_storage.bootstrap.runtime_readiness import (
     STARTUP_PROBE_TIMEOUT_MIN,
     AgentCapabilityEvidence,
     AgentCapabilityState,
+    AgentProviderProbeEvidence,
     ProbeOutcome,
     ReadinessError,
     StartupNonTimeoutProbeFailure,
     StartupProbeFailure,
     StartupProbeTimeout,
+    StrictCapabilityAuditEvidence,
     assert_no_unsafe_strict_capabilities,
+    finalize_agent_capability_evidence,
     registered_strict_capabilities,
     reset_readiness_state,
     resolve_agent_capability_evidence,
@@ -31,6 +34,7 @@ from cold_storage.bootstrap.runtime_readiness import (
     validate_probe_timeout_seconds,
 )
 from cold_storage.bootstrap.settings import Settings
+from cold_storage.modules.planning_agent.domain.errors import AgentProviderFailureCode
 
 
 class _StubSettings:
@@ -5182,10 +5186,18 @@ def test_p2c_provider_probe_failure_is_not_ready():
             "COLD_STORAGE_OPENAI_API_KEY": "test-only-key",
         }
     )
-    evidence = resolve_agent_capability_evidence(settings, provider_probe=lambda _s: False)
+    evidence = resolve_agent_capability_evidence(
+        settings,
+        provider_probe=lambda _s: AgentProviderProbeEvidence(
+            passed=False,
+            failure_code=AgentProviderFailureCode.AGENT_PROVIDER_TIMEOUT,
+            provider="openai",
+            model="gpt-test",
+        ),
+    )
     assert evidence.state is AgentCapabilityState.ENABLED_NOT_READY
     assert evidence.provider_probe_passed is False
-    assert evidence.failure_code == "AGENT_PROVIDER_UNAVAILABLE"
+    assert evidence.failure_code == "AGENT_PROVIDER_TIMEOUT"
 
 
 def test_p2c_provider_probe_and_composition_evidence_enable_ready_state():
@@ -5198,10 +5210,31 @@ def test_p2c_provider_probe_and_composition_evidence_enable_ready_state():
             "COLD_STORAGE_OPENAI_API_KEY": "test-only-key",
         }
     )
-    evidence = resolve_agent_capability_evidence(settings, provider_probe=lambda _s: True)
-    assert evidence.state is AgentCapabilityState.ENABLED_READY
-    assert evidence.global_readiness.startswith("PASS_IF_PROVIDER")
-    assert evidence.route_exposure == "REAL_AGENT_ROUTES_ENABLED"
+    evidence = resolve_agent_capability_evidence(
+        settings,
+        provider_probe=lambda current: AgentProviderProbeEvidence(
+            passed=True,
+            provider=current.agent_provider,
+            model=current.agent_model,
+            schema_verified=True,
+            schema_identity="AgentDecision",
+        ),
+    )
+    assert evidence.state is AgentCapabilityState.ENABLED_NOT_READY
+    assert evidence.provider_probe_passed is True
+    assert evidence.composition_passed is False
+    assert evidence.route_audit_passed is False
+
+    final = finalize_agent_capability_evidence(
+        evidence,
+        audit_evidence=StrictCapabilityAuditEvidence(
+            composition_passed=True,
+            route_audit_passed=True,
+        ),
+    )
+    assert final.state is AgentCapabilityState.ENABLED_READY
+    assert final.global_readiness.startswith("PASS_IF_PROVIDER")
+    assert final.route_exposure == "REAL_AGENT_ROUTES_ENABLED"
 
 
 def test_p2c_preserves_canonical_eight_readiness_probes():

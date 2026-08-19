@@ -6,6 +6,7 @@ from collections.abc import Callable
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
+from sqlalchemy.orm import Session as SASession
 from sqlalchemy.orm import sessionmaker
 
 from cold_storage.bootstrap.database import create_engine_from_settings, dispose_engine
@@ -47,6 +48,92 @@ if TYPE_CHECKING:
 
 _singletons: dict[str, Any] = {}
 _composition_tokens: set[str] = set()
+
+
+def canonical_agent_provider_probe(
+    *,
+    client_factory: Callable[..., Any] | None = None,
+) -> Callable[[Settings], Any]:
+    """Build the production provider/schema probe through the P2-B gateway.
+
+    The returned callable is intentionally injected into the readiness
+    resolver.  It constructs the existing OpenAI Responses gateway and sends
+    one structured, no-tool probe request, so provider reachability and the
+    frozen ``AgentDecision`` schema are verified together.  Tests can inject
+    a deterministic client factory; the composition root never creates a
+    second transport or reads a provider-native response directly.
+    """
+
+    def _probe(settings: Settings) -> Any:
+        from cold_storage.bootstrap.runtime_readiness import (  # noqa: PLC0415
+            AgentProviderProbeEvidence,
+        )
+        from cold_storage.modules.planning_agent.domain.errors import (  # noqa: PLC0415
+            AgentProviderFailureCode,
+            ModelGatewayError,
+        )
+        from cold_storage.modules.planning_agent.domain.gateways import (  # noqa: PLC0415
+            AgentModelRequest,
+        )
+        from cold_storage.modules.planning_agent.domain.models import AgentDecision  # noqa: PLC0415
+        from cold_storage.modules.planning_agent.infrastructure.real_gateways import (  # noqa: PLC0415
+            OpenAIAgentModelGateway,
+        )
+
+        try:
+            gateway = OpenAIAgentModelGateway(
+                api_key=settings.openai_api_key,
+                model_name=settings.agent_model,
+                timeout_seconds=settings.agent_timeout_seconds,
+                max_retries=settings.agent_max_retries,
+                provider=settings.agent_provider,
+                client_factory=client_factory,
+            )
+            decision = gateway.generate_decision(
+                AgentModelRequest(
+                    system_prompt="Return a structured readiness decision.",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": "Readiness probe: return a no-op structured decision.",
+                        }
+                    ],
+                    max_tokens=256,
+                )
+            )
+            if not isinstance(decision, AgentDecision):
+                return AgentProviderProbeEvidence(
+                    passed=False,
+                    failure_code=AgentProviderFailureCode.AGENT_PROVIDER_RESPONSE_MALFORMED,
+                    provider=settings.agent_provider,
+                    model=settings.agent_model,
+                )
+            return AgentProviderProbeEvidence(
+                passed=True,
+                provider=settings.agent_provider,
+                model=settings.agent_model,
+                schema_verified=True,
+                schema_identity="AgentDecision",
+            )
+        except ModelGatewayError as error:
+            return AgentProviderProbeEvidence(
+                passed=False,
+                failure_code=(
+                    error.provider_failure_code
+                    or AgentProviderFailureCode.AGENT_PROVIDER_UNAVAILABLE
+                ),
+                provider=settings.agent_provider,
+                model=settings.agent_model,
+            )
+        except Exception:  # noqa: BLE001
+            return AgentProviderProbeEvidence(
+                passed=False,
+                failure_code=AgentProviderFailureCode.AGENT_PROVIDER_UNAVAILABLE,
+                provider=settings.agent_provider,
+                model=settings.agent_model,
+            )
+
+    return _probe
 
 
 def init_dependencies(
@@ -110,7 +197,8 @@ def init_dependencies(
             "agent_capability_state",
             "AGENT_CAPABILITY_DISABLED",
         )
-        if capability_state == "AGENT_CAPABILITY_ENABLED_READY":
+        agent_candidate = bool(getattr(strict_runtime_authority, "agent_candidate", False))
+        if capability_state == "AGENT_CAPABILITY_ENABLED_READY" or agent_candidate:
             evidence = getattr(strict_runtime_authority, "agent_evidence", None)
             if evidence is None or any(
                 (
@@ -140,13 +228,25 @@ def init_dependencies(
                 raise
             _singletons["agent_gateway"] = gateway
             _record_composition_token(_COMPOSITION_TOKEN_REAL_AGENT_GATEWAY)
+            service_factory = getattr(strict_runtime_authority, "agent_service_factory", None)
+            if not callable(service_factory):
+                shutdown_dependencies()
+                raise RuntimeError("strict agent composition factory is unavailable")
+            composition_session = SASession(bind=engine, expire_on_commit=False)
+            try:
+                agent_service = service_factory(composition_session)
+            except Exception:
+                composition_session.close()
+                shutdown_dependencies()
+                raise
+            finally:
+                composition_session.close()
+            _singletons["agent_service"] = agent_service
+            _singletons["agent_service_composition"] = agent_service
             _record_composition_token(_COMPOSITION_TOKEN_REAL_AGENT_SERVICE)
-            agent_service = _StrictModeAgentService(
-                capability_state=capability_state,
-                gateway=gateway,
-            )
         else:
             agent_service = _StrictModeAgentService(capability_state=capability_state)
+            _singletons["agent_service"] = agent_service
     else:
         from cold_storage.modules.planning_agent.application.agent_service import (  # noqa: PLC0415
             LegacyPlanningAgentService,
@@ -298,6 +398,11 @@ def get_agent_gateway() -> Any:
     if "agent_gateway" not in _singletons:
         raise RuntimeError("Agent gateway is not available in the current capability state.")
     return _singletons["agent_gateway"]
+
+
+def publish_agent_capability_evidence(evidence: Any) -> None:
+    """Publish final app-bound evidence after strict startup audit passes."""
+    _singletons["agent_evidence"] = evidence
 
 
 def get_engine() -> Any:
