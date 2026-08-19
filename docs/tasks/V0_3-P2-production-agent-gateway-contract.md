@@ -98,25 +98,73 @@ tests and is not a valid strict production selection mechanism. The future
 contract below forbids using that fallback in staging or production.
 
 In local and test modes, the active agent composition uses the fake-backed
-service. In staging and production:
+service. In staging and production, the strict runtime capability state is
+conditional on canonical Agent capability authority:
 
-- the active model-backed agent service is not constructed;
-- the agent HTTP surface is a frozen disabled-route matrix returning the
-  stable out-of-scope response;
-- the strict composition manifest binds `model_backed_agent` to `disabled`;
-- the strict runtime audit rejects reachable fake composition and unexpected
-  agent routes;
-- startup/readiness remains fail-closed when the strict audit or mandatory
-  probes fail.
+- `AGENT_CAPABILITY_DISABLED` exposes the frozen disabled-route matrix and
+  does not construct a real provider;
+- `AGENT_CAPABILITY_ENABLED_NOT_READY` keeps the same disabled-route matrix
+  and fails global readiness closed;
+- `AGENT_CAPABILITY_ENABLED_READY` exposes the real Agent routes only after
+  provider/schema preflight, final strict composition, and final route audit
+  all pass;
+- an evidence-bound candidate real composition may be constructed for the
+  strict audit, but candidate construction is not final READY authority and
+  does not grant route exposure;
+- startup/readiness remains fail-closed when any final strict audit, route
+  audit, or mandatory probe fails.
 
-There is no real provider adapter and no provider call path in the audited
-source. No provider SDK is present in the runtime dependency list. The only
-audited HTTP client is `httpx`, currently declared in the development group
-of `backend/pyproject.toml` and locked in `backend/uv.lock`.
+The current strict-state machine is therefore:
 
-`COLD_STORAGE_OPENAI_API_KEY` exists as a redacted settings field, but it is
-not provider selection, provider readiness, or evidence that a provider
-adapter is configured.
+```text
+CURRENT_STRICT_RUNTIME_CAPABILITY_STATE=CONDITIONAL_ON_CANONICAL_AGENT_CAPABILITY_AUTHORITY
+CURRENT_DISABLED_STATE_ROUTE_EXPOSURE=DISABLED_ROUTE_MATRIX
+CURRENT_ENABLED_NOT_READY_ROUTE_EXPOSURE=DISABLED_ROUTE_MATRIX
+CURRENT_ENABLED_READY_ROUTE_EXPOSURE=REAL_AGENT_ROUTES_ENABLED
+CURRENT_PROVIDER_PREFLIGHT_ALONE_GRANTS_READY=NO
+CURRENT_CANDIDATE_COMPOSITION_MAY_EXIST_FOR_STRICT_AUDIT=YES
+CURRENT_CANDIDATE_COMPOSITION_GRANTS_ROUTE_EXPOSURE=NO
+CURRENT_FINAL_READY_REQUIRES_STRICT_COMPOSITION_PASS=YES
+CURRENT_FINAL_READY_REQUIRES_ROUTE_AUDIT_PASS=YES
+CURRENT_ANY_FINAL_AUDIT_FAILURE_FAILS_CLOSED=YES
+```
+
+The following statements are retained only as the historical
+`HISTORICAL_PRE_P2_IMPLEMENTATION_STATE` captured by the original definition
+freeze. They are not claims about the current main implementation: at that
+point there was no real provider adapter or provider call path, no provider
+SDK in the runtime dependency list, and the only audited HTTP client was
+`httpx` in the development dependency group.
+
+The current main implementation audit must be read separately from that
+historical snapshot. It has completed the OpenAI P2-B adapter and the P2-C
+conditional strict composition, but implementation does not mean provider
+enablement, live acceptance, or production enablement:
+
+```text
+CURRENT_IMPLEMENTATION_AUDIT_SOURCE_SHA=0f1dd87344ee8dbd3512583195214e266f4290d5
+CURRENT_IMPLEMENTATION_AUDIT_SOURCE_TREE_SHA=74bae4b5ac41a005bd095cbb926db2d5ffeb8fba
+CURRENT_IMPLEMENTATION_PROVIDER=openai
+CURRENT_REAL_PROVIDER_ADAPTER_EXISTS=YES
+CURRENT_REAL_PROVIDER_GATEWAY_CLASS=OpenAIAgentModelGateway
+CURRENT_PROVIDER_RUNTIME_DEPENDENCY=openai==2.53.0
+CURRENT_OPENAI_BASE_URL=https://api.openai.com/v1
+CURRENT_IMPLEMENTATION_CREDENTIAL_SOURCE=COLD_STORAGE_OPENAI_API_KEY
+CURRENT_PROVIDER_PROBE_EXISTS=YES
+CURRENT_STRICT_COMPOSITION_SUPPORTS_CONDITIONAL_REAL_PROVIDER=YES
+CURRENT_REAL_AGENT_ROUTE_EXPOSURE=CONDITIONAL_ON_CANONICAL_READY_AUTHORITY
+CURRENT_FAKE_FALLBACK_IN_STRICT_MODE=FORBIDDEN
+CURRENT_PROVIDER_FAILURE_TAXONOMY_COUNT=10
+CURRENT_TASK012_CANONICAL_PROBE_COUNT=8
+IMPLEMENTED_IS_NOT_ENABLED=YES
+IMPLEMENTED_IS_NOT_LIVE_ACCEPTED=YES
+IMPLEMENTED_IS_NOT_PRODUCTION_ENABLED=YES
+```
+
+The target MiMo authority below is therefore not the provider currently
+implemented by main. The current OpenAI implementation remains the
+historical implementation baseline until a separately authorized migration
+implements and verifies the MiMo target.
 
 ### 2.3 Current application boundaries
 
@@ -239,9 +287,9 @@ COLD_STORAGE_AGENT_MAX_RETRIES
   optional when Agent intentionally disabled
   required when Agent enablement intent exists
   integer 0..1
-COLD_STORAGE_OPENAI_API_KEY
+COLD_STORAGE_MIMO_API_KEY
   optional when Agent intentionally disabled
-  required only for enabled/openai provider readiness
+  required only for enabled/mimo provider readiness
 ```
 
 The enablement-intent authority is exact:
@@ -255,9 +303,13 @@ Neither timeout configuration, retry configuration, credential presence,
 package installation, network availability, nor any other environmental fact
 creates enablement intent.
 
-The first concrete provider authority is frozen by Issue #110 record
-`5323439225`. The existing `COLD_STORAGE_OPENAI_API_KEY` field alone still
-does not enable an agent; the complete explicit provider and readiness
+The first concrete provider authority was originally frozen by Issue #110
+record `5323439225`. Its OpenAI selection is the completed historical
+implementation baseline, while the MiMo Token Plan provider amendment
+recorded as `5336787415` is the target authority for a future migration. The
+current implementation reads `COLD_STORAGE_OPENAI_API_KEY`; the target MiMo
+implementation must use `COLD_STORAGE_MIMO_API_KEY`. Neither credential alone
+creates enablement intent, and the complete explicit provider and readiness
 contract below is required.
 
 Rules for strict environments:
@@ -296,32 +348,47 @@ the provider contract only; it does not authorize implementation, dependency
 mutation, credential mutation, provider calls, or production enablement.
 
 ```text
-FIRST_PROVIDER_ID=openai
-PROVIDER_API_SURFACE=OpenAI Responses API
+FIRST_PROVIDER_ID=mimo
+PROVIDER_VENDOR=Xiaomi MiMo
+PROVIDER_MODEL=mimo-v2.5
+MIMO_V2_5_PRO_ALLOWED=NO
+PROVIDER_SUBSCRIPTION_MODE=TOKEN_PLAN
+PROVIDER_API_SURFACE=OpenAI-compatible Responses API
 PROVIDER_TRANSPORT=official openai Python SDK
-PROVIDER_BASE_URL_POLICY=official OpenAI API endpoint only; custom base URL forbidden unless separately authorized
-PROVIDER_CREDENTIAL_SOURCE=COLD_STORAGE_OPENAI_API_KEY
-PROVIDER_MODEL_AUTHORITY=COLD_STORAGE_AGENT_MODEL; explicit configuration required; no production default model; no automatic model selection
+MIMO_TOKEN_PLAN_BASE_URL=https://token-plan-sgp.xiaomimimo.com/v1
+PROVIDER_BASE_URL_POLICY=the frozen MiMo Token Plan endpoint only; custom arbitrary base URL forbidden
+CUSTOM_ARBITRARY_BASE_URL_ALLOWED=NO
+TOKEN_PLAN_CONSOLE_BASE_URL_MATCH_REQUIRED=YES
+PROVIDER_CREDENTIAL_SOURCE=COLD_STORAGE_MIMO_API_KEY
+TOKEN_PLAN_API_KEY_FORMAT=tp-xxxxx
+PROVIDER_MODEL_AUTHORITY=COLD_STORAGE_AGENT_MODEL; explicit configuration required; exact value mimo-v2.5; no production default model; no automatic model selection
 PROVIDER_TIMEOUT_AUTHORITY=COLD_STORAGE_AGENT_TIMEOUT_SECONDS
-PROVIDER_RETRY_AUTHORITY=application gateway policy
+PROVIDER_RETRY_AUTHORITY=COLD_STORAGE_AGENT_MAX_RETRIES
+TARGET_TIMEOUT_SECONDS=30
+TARGET_MAX_RETRIES=1
 OPENAI_SDK_MAX_RETRIES=0
 MAX_PROVIDER_ATTEMPTS=2
 MAX_PROVIDER_RETRIES=1
-OPENAI_STORE=false
-OPENAI_BACKGROUND_MODE=FORBIDDEN
-OPENAI_CONVERSATION_STATE=FORBIDDEN
-PROVIDER_TEST_TRANSPORT=mocked/injected OpenAI client transport; no live network in ordinary CI
+STORE=false
+BACKGROUND_MODE=FORBIDDEN
+CONVERSATION_STATE=FORBIDDEN
+PROVIDER_TEST_TRANSPORT=mocked/injected MiMo-compatible OpenAI client transport; no live network in ordinary CI
 PROVIDER_DEPENDENCY_STRATEGY=official openai Python package as direct runtime dependency; exact resolved version locked in backend/uv.lock only during separately authorized implementation
 ```
 
-The selected provider is `openai` only when
-`COLD_STORAGE_AGENT_PROVIDER=openai` and
-`COLD_STORAGE_AGENT_MODEL` is explicitly present. No other provider id is
-implicitly supported by this contract. The official endpoint policy forbids a
-custom base URL unless a later contract amendment explicitly authorizes it.
-The SDK's own retries are disabled; only the application gateway retry policy
-in Section 9 applies. The provider must not retain server-side state through
-store, background, or conversation-state features.
+The selected provider is `mimo` only when
+`COLD_STORAGE_AGENT_PROVIDER=mimo` and
+`COLD_STORAGE_AGENT_MODEL=mimo-v2.5` are explicitly present. `mimo-v2.5-pro`
+is not allowed. No other provider id is implicitly supported by this
+contract. Only `https://token-plan-sgp.xiaomimimo.com/v1` is allowed; if the
+Token Plan console supplies a different account-specific base URL, the
+provider selection is blocked pending a separate authority amendment and the
+implementation must not silently switch regions or endpoints. The official
+OpenAI Python SDK remains the transport dependency, but the API surface is
+the MiMo OpenAI-compatible Responses API. The SDK's own retries are
+disabled; only the application gateway retry policy in Section 9 applies.
+The provider must not retain server-side state through store, background, or
+conversation-state features.
 
 ## 5. Provider adapter architecture
 
@@ -338,12 +405,11 @@ AgentModelGateway port
     -> strict canonical AgentDecision decoder
 ```
 
-The first concrete provider adapter authority is frozen in Section 4.1. A
-later P2 implementation authorization may implement that exact adapter, but
-this definition freeze does not install the SDK, call OpenAI, or enable an
-adapter. The current dependency audit found no provider SDK, so the frozen
-runtime dependency strategy is prospective only and does not change the
-current dependency graph.
+The target MiMo provider adapter authority is frozen in Section 4.1. The
+completed historical OpenAI adapter is not a MiMo implementation. A later
+separately authorized migration may implement and verify the exact MiMo
+adapter; this contract correction does not install a second adapter, call a
+provider, or enable production routes.
 
 No provider-specific business rules, prompt routing, engineering formulas,
 scheme scoring, or approval decisions may be placed in the adapter.
@@ -533,7 +599,7 @@ collapsed into a single `enabled` boolean or inferred from route presence.
 | State | Meaning | Global application readiness | Route exposure |
 | --- | --- | --- | --- |
 | `AGENT_CAPABILITY_DISABLED` | Intentional capability-off state: neither provider id nor model id is configured; no provider is selected | `PASS_IF_ALL_OTHER_MANDATORY_READINESS_GATES_PASS` | `DISABLED_ROUTE_MATRIX` |
-| `AGENT_CAPABILITY_ENABLED_READY` | Explicit `openai` provider and model are configured; credentials, bounded settings, adapter/schema probe, strict composition, and route audit all pass | `PASS_IF_PROVIDER_AND_ALL_OTHER_MANDATORY_READINESS_GATES_PASS` | `REAL_AGENT_ROUTES_ENABLED` |
+| `AGENT_CAPABILITY_ENABLED_READY` | Explicit `mimo` provider and exact `mimo-v2.5` model are configured; MiMo Token Plan credentials, bounded settings, adapter/schema probe, strict composition, and route audit all pass | `PASS_IF_PROVIDER_AND_ALL_OTHER_MANDATORY_READINESS_GATES_PASS` | `REAL_AGENT_ROUTES_ENABLED` |
 | `AGENT_CAPABILITY_ENABLED_NOT_READY` | Explicit enablement intent exists, but configuration, credentials, provider availability, probe, composition, or route audit is invalid or unavailable | `FAIL` | `DISABLED_ROUTE_MATRIX` |
 
 The disabled-state contract is explicit:
@@ -543,7 +609,7 @@ AGENT_ENABLEMENT_INTENT_PRESENT=NO
 CAPABILITY_STATE=AGENT_CAPABILITY_DISABLED
 COLD_STORAGE_AGENT_TIMEOUT_SECONDS_REQUIRED=NO
 COLD_STORAGE_AGENT_MAX_RETRIES_REQUIRED=NO
-COLD_STORAGE_OPENAI_API_KEY_REQUIRED=NO
+COLD_STORAGE_MIMO_API_KEY_REQUIRED=NO
 AGENT_SPECIFIC_CONFIG_ABSENCE_IS_CONFIGURATION_ERROR=NO
 AGENT_SPECIFIC_CONFIG_ABSENCE_FAILS_GLOBAL_READINESS=NO
 GLOBAL_APPLICATION_READINESS=PASS_IF_ALL_OTHER_MANDATORY_READINESS_GATES_PASS
@@ -563,7 +629,7 @@ COLD_STORAGE_AGENT_PROVIDER_REQUIRED=YES
 COLD_STORAGE_AGENT_MODEL_REQUIRED=YES
 COLD_STORAGE_AGENT_TIMEOUT_SECONDS_REQUIRED=YES
 COLD_STORAGE_AGENT_MAX_RETRIES_REQUIRED=YES
-OPENAI_CREDENTIAL_REQUIRED_WHEN_PROVIDER=openai
+MIMO_CREDENTIAL_REQUIRED_WHEN_PROVIDER=mimo
 CAPABILITY_STATE_ON_MISSING_INVALID_UNSUPPORTED_OR_UNUSABLE_REQUIRED_FIELD=AGENT_CAPABILITY_ENABLED_NOT_READY
 GLOBAL_APPLICATION_READINESS_ON_ENABLED_NOT_READY=FAIL
 ROUTE_EXPOSURE_ON_ENABLED_NOT_READY=DISABLED_ROUTE_MATRIX
@@ -578,8 +644,9 @@ The state-selection rule is deterministic:
 2. either setting is supplied without the complete explicit selection, or the
    selected provider/configuration cannot be validated ->
    `AGENT_CAPABILITY_ENABLED_NOT_READY`;
-3. `COLD_STORAGE_AGENT_PROVIDER=openai` plus an explicit model, valid secret
-   source, bounded settings, successful provider/schema readiness probe, strict
+3. `COLD_STORAGE_AGENT_PROVIDER=mimo` plus
+   `COLD_STORAGE_AGENT_MODEL=mimo-v2.5`, valid MiMo Token Plan secret source,
+   bounded settings, successful provider/schema readiness probe, strict
    composition, and route audit PASS -> `AGENT_CAPABILITY_ENABLED_READY`.
 
 An intentionally disabled capability is therefore distinct from an explicitly
@@ -727,11 +794,13 @@ write target and its local/test behavior remains read-only under this
 contract.
 
 `environment_model.py` is the canonical strict environment-key authority for
-the four P2 keys named in Section 4. Its future P2 write authority is limited
-to registering those keys while preserving strict unknown-key rejection,
-legacy-key policy, resource/environment identity authority, and the existing
-redacted `COLD_STORAGE_OPENAI_API_KEY` classification. It is not authority for
-an unrelated configuration redesign.
+the four P2 selection and retry keys named in Section 4. Its future P2 write
+authority is limited to registering those keys while preserving strict
+unknown-key rejection, legacy-key policy, resource/environment identity
+authority, and redacted credential classification. The MiMo credential
+authority is the runtime-injected `COLD_STORAGE_MIMO_API_KEY`; it is not
+stored or logged and is not authority for an unrelated configuration
+redesign.
 
 `routes.py` is the future P2 API projection owner. Its write authority is
 limited to projecting the ten frozen provider failure codes, their frozen safe
@@ -863,12 +932,32 @@ call, or strict real-agent route enablement.
 
 #### P2-B_OPENAI_ADAPTER
 
-This slice covers the official `openai` dependency and matching
-`backend/uv.lock` entry, `real_gateways.py`, Responses API request/response
-mapping, strict `AgentDecision` decoding, frozen provider failure
-classification, bounded retry, provider metadata, and mocked transport tests.
-Ordinary CI must not call a live provider, and staging/production routes remain
-disabled.
+This is the completed historical OpenAI adapter slice. It covers the official
+`openai` dependency and matching `backend/uv.lock` entry,
+`OpenAIAgentModelGateway`, the official OpenAI endpoint and credential
+binding, OpenAI Responses API request/response mapping, strict
+`AgentDecision` decoding, frozen provider failure classification, bounded
+retry, provider metadata, and mocked transport tests. Ordinary CI did not
+call a live provider, and strict staging/production route exposure remained
+conditional on verified readiness.
+
+```text
+HISTORICAL_SLICE=P2-B_OPENAI_ADAPTER
+HISTORICAL_SLICE_STATUS=COMPLETED
+HISTORICAL_PROVIDER=openai
+```
+
+#### P2-MIMO_TOKEN_PLAN_ADAPTER_MIGRATION
+
+This future slice migrates the completed OpenAI implementation to the target
+MiMo Token Plan authority in Section 4.1. It is not part of the completed
+historical P2-B slice and is not authorized by this contract correction.
+
+```text
+P2_MIMO_TOKEN_PLAN_ADAPTER_MIGRATION_STATUS=NOT_IMPLEMENTED
+P2_MIMO_TOKEN_PLAN_ADAPTER_MIGRATION_AUTHORIZED=NO
+P2_MIMO_TOKEN_PLAN_ADAPTER_MIGRATION_REQUIRES_SEPARATE_AUTHORIZATION=YES
+```
 
 #### P2-C_STRICT_COMPOSITION_API
 
@@ -994,23 +1083,68 @@ This definition freeze does not authorize:
 ## 20. Governance record
 
 ```text
-CURRENT_AGENT_STRICT_MODE_STATE=STAGING_PRODUCTION_DISABLED_ROUTES_FAIL_CLOSED_READINESS
+CURRENT_AGENT_STRICT_MODE_STATE=CONDITIONAL_REAL_PROVIDER_WITH_FAIL_CLOSED_READINESS
 CURRENT_FAKE_GATEWAY_SCOPE=LOCAL_TEST_DEMO_EXPLICIT_INJECTION_ONLY
-CURRENT_REAL_PROVIDER_ADAPTER_EXISTS=NO
+CURRENT_IMPLEMENTATION_PROVIDER=openai
+CURRENT_REAL_PROVIDER_ADAPTER_EXISTS=YES
+CURRENT_REAL_PROVIDER_GATEWAY_CLASS=OpenAIAgentModelGateway
+CURRENT_PROVIDER_RUNTIME_DEPENDENCY=openai==2.53.0
+CURRENT_OPENAI_BASE_URL=https://api.openai.com/v1
+CURRENT_IMPLEMENTATION_CREDENTIAL_SOURCE=COLD_STORAGE_OPENAI_API_KEY
+CURRENT_PROVIDER_PROBE_EXISTS=YES
+CURRENT_STRICT_COMPOSITION_SUPPORTS_CONDITIONAL_REAL_PROVIDER=YES
+CURRENT_REAL_AGENT_ROUTE_EXPOSURE=CONDITIONAL_ON_CANONICAL_READY_AUTHORITY
+CURRENT_AGENT_DISABLED_STATE=DISABLED_ROUTE_MATRIX
+CURRENT_AGENT_ENABLED_NOT_READY_STATE=DISABLED_ROUTE_MATRIX
+CURRENT_AGENT_ENABLED_READY_STATE=REAL_AGENT_ROUTES_ENABLED
+CURRENT_PROVIDER_PREFLIGHT_ALONE_GRANTS_READY=NO
+CURRENT_CANDIDATE_COMPOSITION_MAY_EXIST_FOR_STRICT_AUDIT=YES
+CURRENT_CANDIDATE_COMPOSITION_GRANTS_ROUTE_EXPOSURE=NO
+CURRENT_CANDIDATE_COMPOSITION_IS_FINAL_ROUTE_AUTHORITY=NO
+CURRENT_FINAL_STRICT_AUDIT_REQUIRED=YES
+CURRENT_FINAL_ROUTE_AUDIT_REQUIRED=YES
+CURRENT_ANY_FINAL_AUDIT_FAILURE_FAILS_CLOSED=YES
+CURRENT_FAKE_FALLBACK_IN_STRICT_MODE=FORBIDDEN
+CURRENT_PROVIDER_FAILURE_TAXONOMY_COUNT=10
+CURRENT_TASK012_CANONICAL_PROBE_COUNT=8
+IMPLEMENTED_IS_NOT_ENABLED=YES
+IMPLEMENTED_IS_NOT_LIVE_ACCEPTED=YES
+IMPLEMENTED_IS_NOT_PRODUCTION_ENABLED=YES
+TARGET_PROVIDER_AUTHORITY=mimo
+TARGET_MODEL_AUTHORITY=mimo-v2.5
+CURRENT_IMPLEMENTATION_CONFORMS_TO_MIMO_TARGET_AUTHORITY=NO
+MIMO_TARGET_IMPLEMENTATION_STATUS=NOT_IMPLEMENTED
+MIMO_IMPLEMENTATION_REQUIRED_BEFORE_ENABLED_READY=YES
+MIMO_ENABLED_READY_BEFORE_IMPLEMENTATION=FORBIDDEN
+MIMO_LIVE_ACCEPTANCE_BEFORE_IMPLEMENTATION=FORBIDDEN
 CURRENT_STRUCTURED_TOOL_CALLING_EXISTS=YES
 CURRENT_CONFIRMATION_BOUNDARY_EXISTS=YES
-PROVIDER_AUTHORITY_RECORD_ID=5323439225
+PROVIDER_AUTHORITY_RECORD_ID=5336787415
+SUPERSEDED_PROVIDER_AUTHORITY_RECORD_ID=5323439225
 FIRST_CONCRETE_PROVIDER_FROZEN=YES
-FIRST_PROVIDER_ID=openai
-PROVIDER_ID=openai
-PROVIDER_API_SURFACE=OpenAI Responses API
+FIRST_PROVIDER_ID=mimo
+PROVIDER_ID=mimo
+PROVIDER_VENDOR=Xiaomi MiMo
+PROVIDER_MODEL=mimo-v2.5
+MIMO_V2_5_PRO_ALLOWED=NO
+PROVIDER_SUBSCRIPTION_MODE=TOKEN_PLAN
+PROVIDER_API_SURFACE=OpenAI-compatible Responses API
 PROVIDER_TRANSPORT_FROZEN=YES
 PROVIDER_ENDPOINT_POLICY_FROZEN=YES
 PROVIDER_CREDENTIAL_SOURCE_FROZEN=YES
 PROVIDER_MODEL_AUTHORITY_FROZEN=YES
 PROVIDER_DEPENDENCY_STRATEGY_FROZEN=YES
 PROVIDER_TEST_TRANSPORT_FROZEN=YES
+MIMO_TOKEN_PLAN_BASE_URL=https://token-plan-sgp.xiaomimimo.com/v1
+CUSTOM_ARBITRARY_BASE_URL_ALLOWED=NO
+TOKEN_PLAN_CONSOLE_BASE_URL_MATCH_REQUIRED=YES
+PROVIDER_CREDENTIAL_SOURCE=COLD_STORAGE_MIMO_API_KEY
+TOKEN_PLAN_API_KEY_FORMAT=tp-xxxxx
+PROVIDER_MODEL_AUTHORITY=COLD_STORAGE_AGENT_MODEL
+PROVIDER_TIMEOUT_AUTHORITY=COLD_STORAGE_AGENT_TIMEOUT_SECONDS
+PROVIDER_RETRY_AUTHORITY=COLD_STORAGE_AGENT_MAX_RETRIES
 PROVIDER_RUNTIME_DEPENDENCY=openai Python package
+OPENAI_SDK_MAX_RETRIES=0
 HTTPX_AS_ALTERNATIVE_PROVIDER_TRANSPORT=NO
 IMPLEMENTATION_MAY_SELECT_DIFFERENT_PROVIDER_PACKAGE=NO
 CONTRACT_AMENDMENT_REQUIRED_FOR_DIFFERENT_PROVIDER_TRANSPORT_OR_PACKAGE=YES
@@ -1043,6 +1177,7 @@ TIMEOUT_NEGATIVE_ALLOWED=NO
 TIMEOUT_NON_INTEGER_ALLOWED=NO
 TIMEOUT_NAN_INF_ALLOWED=NO
 TIMEOUT_OUT_OF_RANGE_ALLOWED=NO
+COLD_STORAGE_MIMO_API_KEY_REQUIRED_WHEN_PROVIDER=mimo
 PROVIDER_NEUTRAL_GATEWAY_FROZEN=YES
 NO_SILENT_FAKE_FALLBACK_FROZEN=YES
 REAL_PROVIDER_CONFIGURATION_FROZEN=YES
@@ -1277,5 +1412,102 @@ PRODUCTION_AGENT_ENABLEMENT=NO
 READY_AUTHORIZED=NO
 MERGE_AUTHORIZED=NO
 ISSUE_110_CLOSURE_EXECUTED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+## 24. V0.3 P2 MiMo Token Plan Provider Contract Amendment R1
+
+This amendment freezes the target provider authority as the explicitly
+selected MiMo Token Plan provider. It changes contract authority only; it does
+not retroactively rewrite the completed OpenAI implementation and does not
+authorize the MiMo migration, dependency mutation, credentials, provider
+calls, controlled acceptance, or production enablement. OpenAI-specific
+values retained in Sections 20-23 are historical implementation records;
+MiMo-specific values in this section are target authority and require a
+separately authorized migration before they can become the implemented
+provider.
+
+```text
+TASK=V03_P2_MIMO_TOKEN_PLAN_PROVIDER_CONTRACT_AMENDMENT_R1
+AUTHORIZATION_RECORD_ID=5336787415
+AMENDMENT_BASE_MAIN_SHA=0f1dd87344ee8dbd3512583195214e266f4290d5
+AMENDMENT_BASE_MAIN_TREE_SHA=74bae4b5ac41a005bd095cbb926db2d5ffeb8fba
+AUTHORIZATION_SCOPE=CONTRACT_AMENDMENT_ONLY
+
+TARGET_PROVIDER_AUTHORITY_STATUS=ACTIVE
+CURRENT_IMPLEMENTATION_PROVIDER=openai
+TARGET_PROVIDER_AUTHORITY=mimo
+CURRENT_IMPLEMENTATION_CONFORMS_TO_MIMO_TARGET_AUTHORITY=NO
+MIMO_TARGET_IMPLEMENTATION_STATUS=NOT_IMPLEMENTED
+MIMO_IMPLEMENTATION_REQUIRED_BEFORE_ENABLED_READY=YES
+MIMO_ENABLED_READY_BEFORE_IMPLEMENTATION=FORBIDDEN
+MIMO_LIVE_ACCEPTANCE_BEFORE_IMPLEMENTATION=FORBIDDEN
+SUPERSEDES_OPENAI_PROVIDER_SELECTION=YES
+FIRST_CONCRETE_PROVIDER_FROZEN=YES
+FIRST_PROVIDER_ID=mimo
+PROVIDER_ID=mimo
+PROVIDER_VENDOR=Xiaomi MiMo
+PROVIDER_MODEL=mimo-v2.5
+MIMO_V2_5_PRO_ALLOWED=NO
+PROVIDER_SUBSCRIPTION_MODE=TOKEN_PLAN
+TOKEN_PLAN=true
+PROVIDER_API_SURFACE=OpenAI-compatible Responses API
+MIMO_RESPONSES_API_COMPATIBILITY=REQUIRED
+P2_CANONICAL_PROVIDER_API=OpenAI-compatible Responses API
+PROVIDER_TRANSPORT=official openai Python SDK
+PROVIDER_RUNTIME_DEPENDENCY=openai
+MIMO_TOKEN_PLAN_BASE_URL=https://token-plan-sgp.xiaomimimo.com/v1
+CUSTOM_ARBITRARY_BASE_URL_ALLOWED=NO
+TOKEN_PLAN_CONSOLE_BASE_URL_MATCH_REQUIRED=YES
+PROVIDER_CREDENTIAL_SOURCE=COLD_STORAGE_MIMO_API_KEY
+TOKEN_PLAN_API_KEY_FORMAT=tp-xxxxx
+PROVIDER_MODEL_AUTHORITY=COLD_STORAGE_AGENT_MODEL
+PROVIDER_TIMEOUT_AUTHORITY=COLD_STORAGE_AGENT_TIMEOUT_SECONDS
+PROVIDER_RETRY_AUTHORITY=COLD_STORAGE_AGENT_MAX_RETRIES
+TARGET_TIMEOUT_SECONDS=30
+TARGET_MAX_RETRIES=1
+OPENAI_SDK_MAX_RETRIES=0
+MAX_PROVIDER_ATTEMPTS=2
+MAX_PROVIDER_RETRIES=1
+STORE=false
+BACKGROUND_MODE=FORBIDDEN
+CONVERSATION_STATE=FORBIDDEN
+PROVIDER_TEST_TRANSPORT=mocked/injected MiMo-compatible OpenAI client transport
+
+MACHINE_READABLE_PROVIDER_FAILURE_CODES_FROZEN=YES
+MACHINE_READABLE_PROVIDER_FAILURE_CODE_COUNT=10
+FROZEN_FAILURE_TAXONOMY_PRESERVED=YES
+NO_NEW_MIMO_FAILURE_CODES=YES
+
+CAPABILITY_STATES_FROZEN=YES
+CAPABILITY_DISABLED_SEMANTICS_FROZEN=YES
+CAPABILITY_ENABLED_READY_SEMANTICS_FROZEN=YES
+CAPABILITY_ENABLED_NOT_READY_SEMANTICS_FROZEN=YES
+GLOBAL_READINESS_MAPPING_FROZEN=YES
+ROUTE_EXPOSURE_MAPPING_FROZEN=YES
+ENGINEERING_AUTHORITY_SEPARATION_PRESERVED=YES
+NO_SILENT_FAKE_FALLBACK=YES
+NO_SECOND_PROVIDER_FALLBACK=YES
+
+CONTROLLED_REAL_PROVIDER=mimo
+CONTROLLED_REAL_MODEL=mimo-v2.5
+CONTROLLED_REAL_SUBSCRIPTION=TOKEN_PLAN
+CONTROLLED_REAL_PROVIDER_ACCEPTANCE_AUTHORIZED=NO
+MIMO_SPECIFIC_READINESS_REVIEW_REQUIRED=YES
+
+PRODUCTION_CODE_MUTATION=NO
+TEST_MUTATION=NO
+DEPENDENCY_MUTATION=NO
+WORKFLOW_MUTATION=NO
+CREDENTIAL_MUTATION=NO
+LIVE_MIMO_API_CALL=NO
+LIVE_OPENAI_API_CALL=NO
+PRODUCTION_ENABLEMENT=NO
+DEPLOYMENT=NO
+RELEASE=NO
+ISSUE_110_CLOSURE=NO
+P2_IMPLEMENTATION_AUTHORIZED=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
