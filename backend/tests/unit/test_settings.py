@@ -36,6 +36,7 @@ def clear_env(monkeypatch: pytest.MonkeyPatch) -> None:
             "REDIS_URL",
             "STORAGE_DIR",
             "OPENAI_API_KEY",
+            "MIMO_API_KEY",
         }:
             monkeypatch.delenv(key, raising=False)
 
@@ -86,6 +87,16 @@ def test_unknown_prefixed_key_policy() -> None:
         Settings.model_validate({**strict_env(), "COLD_STORAGE_TYPO": "x"})
     _, _, report = resolve_configuration({"COLD_STORAGE_TYPO": "x"})
     assert "UNKNOWN_COLD_STORAGE_KEY" in report.warning_codes
+
+
+def test_historical_openai_credential_key_is_not_a_current_mimo_canonical_key() -> None:
+    with pytest.raises((ConfigurationError, ValidationError)):
+        Settings.model_validate(
+            {
+                **strict_env("production"),
+                "COLD_STORAGE_OPENAI_API_KEY": "sk-historical-only",
+            }
+        )
 
 
 def test_discrete_postgresql_uses_psycopg2_and_redacts_password() -> None:
@@ -183,22 +194,87 @@ def test_inherited_postgres_fields_infer_postgresql_when_backend_unset() -> None
 def test_p2_canonical_agent_keys_are_typed_and_configuration_is_not_provider_ready() -> None:
     settings = Settings.model_validate(
         {
-            "COLD_STORAGE_AGENT_PROVIDER": "openai",
-            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_PROVIDER": "mimo",
+            "COLD_STORAGE_AGENT_MODEL": "mimo-v2.5",
             "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": "1",
             "COLD_STORAGE_AGENT_MAX_RETRIES": "0",
-            "COLD_STORAGE_OPENAI_API_KEY": "test-only-secret",
+            "COLD_STORAGE_MIMO_API_KEY": "sk-test-only-secret",
         }
     )
 
-    assert settings.agent_provider == "openai"
-    assert settings.agent_model == "gpt-test"
+    assert settings.agent_provider == "mimo"
+    assert settings.agent_model == "mimo-v2.5"
     assert settings.agent_timeout_seconds == 1
     assert settings.agent_max_retries == 0
     assert settings.agent_enablement_intent_present is True
     assert settings.agent_capability_state is AgentCapabilityState.ENABLED_NOT_READY
     assert settings.agent_configuration_valid is True
     assert settings.production_provider_ready is False
+
+
+def test_mimo_credential_is_redacted_and_does_not_create_enablement_intent() -> None:
+    secret = "sk-test-only-secret"
+    settings = Settings.model_validate({"COLD_STORAGE_MIMO_API_KEY": secret})
+
+    assert settings.agent_enablement_intent_present is False
+    assert settings.agent_capability_state is AgentCapabilityState.DISABLED
+    assert secret not in repr(settings)
+    assert settings.resolution_report is not None
+    report = settings.resolution_report.to_dict()
+    mimo_entries = [
+        entry for entry in report["entries"] if entry["canonical_key"] == "MIMO_API_KEY"
+    ]
+    assert mimo_entries == [
+        {
+            "canonical_key": "MIMO_API_KEY",
+            "source": "canonical_environment",
+            "environment_id": "local",
+            "legacy_key_used": False,
+            "default_used": False,
+            "redacted": True,
+            "validation_status": "PASS",
+            "warning_codes": [],
+        }
+    ]
+
+
+@pytest.mark.parametrize("credential", ["tp-test-only-token", "not-a-runtime-key"])
+def test_non_payg_mimo_credentials_fail_closed(credential: str) -> None:
+    settings = Settings.model_validate(
+        {
+            "COLD_STORAGE_AGENT_PROVIDER": "mimo",
+            "COLD_STORAGE_AGENT_MODEL": "mimo-v2.5",
+            "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 10,
+            "COLD_STORAGE_AGENT_MAX_RETRIES": 0,
+            "COLD_STORAGE_MIMO_API_KEY": credential,
+        }
+    )
+
+    assert settings.agent_capability_state is AgentCapabilityState.ENABLED_NOT_READY
+    assert settings.agent_configuration_valid is False
+    assert (
+        settings.agent_capability_resolution.failure_code
+        is AgentProviderFailureCode.AGENT_PROVIDER_CREDENTIAL_INVALID
+    )
+
+
+def test_mimo_v25_pro_is_not_an_allowed_runtime_model() -> None:
+    settings = Settings.model_validate(
+        {
+            "COLD_STORAGE_AGENT_PROVIDER": "mimo",
+            "COLD_STORAGE_AGENT_MODEL": "mimo-v2.5-pro",
+            "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 10,
+            "COLD_STORAGE_AGENT_MAX_RETRIES": 0,
+            "COLD_STORAGE_MIMO_API_KEY": "sk-test-only-key",
+        }
+    )
+
+    assert settings.agent_capability_state is AgentCapabilityState.ENABLED_NOT_READY
+    assert settings.agent_configuration_valid is False
+    assert (
+        settings.agent_capability_resolution.failure_code
+        is AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID
+    )
 
 
 def test_strict_agent_disabled_configuration_does_not_require_agent_fields() -> None:
@@ -209,13 +285,13 @@ def test_strict_agent_disabled_configuration_does_not_require_agent_fields() -> 
     assert settings.agent_configuration_valid is True
     assert settings.agent_timeout_seconds is None
     assert settings.agent_max_retries is None
-    assert settings.openai_api_key is None
+    assert settings.mimo_api_key is None
 
 
 @pytest.mark.parametrize(
     "extra",
     [
-        {"COLD_STORAGE_OPENAI_API_KEY": "test-only-secret"},
+        {"COLD_STORAGE_MIMO_API_KEY": "sk-test-only-secret"},
         {"COLD_STORAGE_AGENT_TIMEOUT_SECONDS": "10"},
         {"COLD_STORAGE_AGENT_MAX_RETRIES": "1"},
     ],
@@ -278,8 +354,8 @@ def test_invalid_disabled_optional_bounds_fail_closed_without_enablement_intent(
 @pytest.mark.parametrize(
     "extra",
     [
-        {"COLD_STORAGE_AGENT_PROVIDER": "openai"},
-        {"COLD_STORAGE_AGENT_MODEL": "gpt-test"},
+        {"COLD_STORAGE_AGENT_PROVIDER": "mimo"},
+        {"COLD_STORAGE_AGENT_MODEL": "mimo-v2.5"},
     ],
 )
 def test_partial_provider_model_selection_is_enabled_not_ready(
@@ -296,10 +372,10 @@ def test_partial_provider_model_selection_is_enabled_not_ready(
     )
 
 
-def test_enabled_configuration_requires_timeout_retry_and_openai_key() -> None:
+def test_enabled_configuration_requires_timeout_retry_and_mimo_key() -> None:
     base = {
-        "COLD_STORAGE_AGENT_PROVIDER": "openai",
-        "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+        "COLD_STORAGE_AGENT_PROVIDER": "mimo",
+        "COLD_STORAGE_AGENT_MODEL": "mimo-v2.5",
         "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": "10",
         "COLD_STORAGE_AGENT_MAX_RETRIES": "1",
     }
@@ -307,7 +383,7 @@ def test_enabled_configuration_requires_timeout_retry_and_openai_key() -> None:
     for missing_key in (
         "COLD_STORAGE_AGENT_TIMEOUT_SECONDS",
         "COLD_STORAGE_AGENT_MAX_RETRIES",
-        "COLD_STORAGE_OPENAI_API_KEY",
+        "COLD_STORAGE_MIMO_API_KEY",
     ):
         values = dict(base)
         values.pop(missing_key, None)
@@ -324,7 +400,7 @@ def test_unknown_provider_fails_closed_without_provider_fallback() -> None:
     settings = Settings.model_validate(
         {
             "COLD_STORAGE_AGENT_PROVIDER": "unknown-provider",
-            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_MODEL": "mimo-v2.5",
             "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": "10",
             "COLD_STORAGE_AGENT_MAX_RETRIES": "0",
         }
@@ -342,11 +418,11 @@ def test_unknown_provider_fails_closed_without_provider_fallback() -> None:
 def test_agent_timeout_accepts_closed_inclusive_boundaries(timeout: int) -> None:
     settings = Settings.model_validate(
         {
-            "COLD_STORAGE_AGENT_PROVIDER": "openai",
-            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_PROVIDER": "mimo",
+            "COLD_STORAGE_AGENT_MODEL": "mimo-v2.5",
             "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": timeout,
             "COLD_STORAGE_AGENT_MAX_RETRIES": 0,
-            "COLD_STORAGE_OPENAI_API_KEY": "test-only-secret",
+            "COLD_STORAGE_MIMO_API_KEY": "sk-test-only-secret",
         }
     )
 
@@ -358,11 +434,11 @@ def test_agent_timeout_accepts_closed_inclusive_boundaries(timeout: int) -> None
 def test_agent_timeout_out_of_range_is_enabled_not_ready(timeout: int) -> None:
     settings = Settings.model_validate(
         {
-            "COLD_STORAGE_AGENT_PROVIDER": "openai",
-            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_PROVIDER": "mimo",
+            "COLD_STORAGE_AGENT_MODEL": "mimo-v2.5",
             "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": timeout,
             "COLD_STORAGE_AGENT_MAX_RETRIES": 0,
-            "COLD_STORAGE_OPENAI_API_KEY": "test-only-secret",
+            "COLD_STORAGE_MIMO_API_KEY": "sk-test-only-secret",
         }
     )
 
@@ -378,11 +454,11 @@ def test_agent_timeout_out_of_range_is_enabled_not_ready(timeout: int) -> None:
 def test_agent_retries_accept_frozen_values(retries: int) -> None:
     settings = Settings.model_validate(
         {
-            "COLD_STORAGE_AGENT_PROVIDER": "openai",
-            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_PROVIDER": "mimo",
+            "COLD_STORAGE_AGENT_MODEL": "mimo-v2.5",
             "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 10,
             "COLD_STORAGE_AGENT_MAX_RETRIES": retries,
-            "COLD_STORAGE_OPENAI_API_KEY": "test-only-secret",
+            "COLD_STORAGE_MIMO_API_KEY": "sk-test-only-secret",
         }
     )
 
@@ -394,11 +470,11 @@ def test_agent_retries_accept_frozen_values(retries: int) -> None:
 def test_agent_retries_out_of_range_is_enabled_not_ready(retries: int) -> None:
     settings = Settings.model_validate(
         {
-            "COLD_STORAGE_AGENT_PROVIDER": "openai",
-            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_PROVIDER": "mimo",
+            "COLD_STORAGE_AGENT_MODEL": "mimo-v2.5",
             "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 10,
             "COLD_STORAGE_AGENT_MAX_RETRIES": retries,
-            "COLD_STORAGE_OPENAI_API_KEY": "test-only-secret",
+            "COLD_STORAGE_MIMO_API_KEY": "sk-test-only-secret",
         }
     )
 
@@ -421,11 +497,11 @@ def test_agent_numeric_settings_reject_non_integer_values(field: str, value: str
     with pytest.raises((ConfigurationError, ValidationError)):
         Settings.model_validate(
             {
-                "COLD_STORAGE_AGENT_PROVIDER": "openai",
-                "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+                "COLD_STORAGE_AGENT_PROVIDER": "mimo",
+                "COLD_STORAGE_AGENT_MODEL": "mimo-v2.5",
                 "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": "10",
                 "COLD_STORAGE_AGENT_MAX_RETRIES": "0",
-                "COLD_STORAGE_OPENAI_API_KEY": "test-only-secret",
+                "COLD_STORAGE_MIMO_API_KEY": "sk-test-only-secret",
                 field: value,
             }
         )

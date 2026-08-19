@@ -74,9 +74,9 @@ def resolve_agent_capability(
     model: str | None,
     timeout_seconds: int | None,
     max_retries: int | None,
-    openai_api_key: str | None,
+    mimo_api_key: str | None,
 ) -> AgentCapabilityResolution:
-    """Resolve P2-A configuration without claiming provider readiness."""
+    """Resolve MiMo PAYG configuration without claiming provider readiness."""
 
     enablement_intent_present = provider is not None or model is not None
     optional_values_valid = (
@@ -125,7 +125,7 @@ def resolve_agent_capability(
             failure_code=AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_MISSING,
         )
 
-    if provider != "openai":
+    if provider != "mimo" or model != "mimo-v2.5":
         return AgentCapabilityResolution(
             enablement_intent_present=True,
             state=AgentCapabilityState.ENABLED_NOT_READY,
@@ -137,7 +137,7 @@ def resolve_agent_capability(
             failure_code=AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID,
         )
 
-    if not _non_empty(openai_api_key):
+    if not _non_empty(mimo_api_key):
         return AgentCapabilityResolution(
             enablement_intent_present=True,
             state=AgentCapabilityState.ENABLED_NOT_READY,
@@ -147,6 +147,22 @@ def resolve_agent_capability(
             timeout_seconds=timeout_seconds,
             max_retries=max_retries,
             failure_code=AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_MISSING,
+        )
+
+    if (
+        not isinstance(mimo_api_key, str)
+        or not mimo_api_key.startswith("sk-")
+        or len(mimo_api_key) <= len("sk-")
+    ):
+        return AgentCapabilityResolution(
+            enablement_intent_present=True,
+            state=AgentCapabilityState.ENABLED_NOT_READY,
+            configuration_valid=False,
+            provider=provider,
+            model=model,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
+            failure_code=AgentProviderFailureCode.AGENT_PROVIDER_CREDENTIAL_INVALID,
         )
 
     # P2-A proves syntax and completeness only. Provider/schema probes,
@@ -192,7 +208,7 @@ class Settings(BaseSettings):
     )
     redis_url: str | None = Field(default=None, validation_alias="COLD_STORAGE_REDIS_URL")
     storage_dir: str | None = Field(default=None, validation_alias="COLD_STORAGE_STORAGE_DIR")
-    openai_api_key: str | None = Field(default=None, validation_alias="COLD_STORAGE_OPENAI_API_KEY")
+    mimo_api_key: str | None = Field(default=None, validation_alias="COLD_STORAGE_MIMO_API_KEY")
     agent_provider: str | None = Field(default=None, validation_alias="COLD_STORAGE_AGENT_PROVIDER")
     agent_model: str | None = Field(default=None, validation_alias="COLD_STORAGE_AGENT_MODEL")
     agent_timeout_seconds: int | None = Field(
@@ -263,7 +279,7 @@ class Settings(BaseSettings):
                 model=self.agent_model,
                 timeout_seconds=self.agent_timeout_seconds,
                 max_retries=self.agent_max_retries,
-                openai_api_key=self.openai_api_key,
+                mimo_api_key=self.mimo_api_key,
             )
         return self._agent_capability_resolution
 
@@ -414,7 +430,7 @@ class Settings(BaseSettings):
             model=self.agent_model,
             timeout_seconds=self.agent_timeout_seconds,
             max_retries=self.agent_max_retries,
-            openai_api_key=self.openai_api_key,
+            mimo_api_key=self.mimo_api_key,
         )
         self._resolution_report = getattr(type(self), "_pending_report", None)
         self._warnings = self._resolution_report.warning_codes if self._resolution_report else ()

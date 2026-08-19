@@ -1,4 +1,4 @@
-"""Official OpenAI Responses API adapter for the provider-neutral gateway port.
+"""MiMo PAYG Responses adapter for the provider-neutral gateway port.
 
 The adapter owns provider transport, strict response decoding, and the bounded
 application retry policy.  Provider-native objects never cross this module's
@@ -47,12 +47,26 @@ from cold_storage.modules.planning_agent.domain.models import (
 )
 
 OPENAI_SDK_VERSION: Final = "2.53.0"
-OPENAI_PROVIDER_ID: Final = "openai"
-OPENAI_OFFICIAL_BASE_URL: Final = "https://api.openai.com/v1"
+MIMO_PROVIDER_ID: Final = "mimo"
+MIMO_MODEL_NAME: Final = "mimo-v2.5"
+MIMO_PAYG_BASE_URL: Final = "https://api.xiaomimimo.com/v1"
+MIMO_RESPONSES_REASONING_EFFORT: Final = "none"
+MIMO_TEMPERATURE_MIN: Final = 0.0
+MIMO_TEMPERATURE_MAX: Final = 1.5
 MAX_PROVIDER_RETRIES: Final = 1
 MAX_PROVIDER_ATTEMPTS: Final = 2
 MAX_OUTPUT_TOKENS: Final = 8192
 MAX_RESPONSE_BYTES: Final = 1_000_000
+
+_MIMO_JSON_OBJECT_INSTRUCTION: Final = (
+    "Return exactly one JSON object. Do not return Markdown, code fences, or explanatory text. "
+    "The object must contain exactly these top-level fields: decision_type (string, one of "
+    "answer, ask_clarification, propose_tools), assistant_message (string), "
+    "missing_parameters (array of JSON objects), tool_requests (array of objects), "
+    "citations (array of JSON objects), requires_review (boolean), and warnings "
+    "(array of strings). Each tool_requests item must contain tool_name (string), "
+    "arguments (JSON object), and reason (string)."
+)
 
 _MISSING = object()
 
@@ -143,8 +157,8 @@ def _classify_provider_exception(error: BaseException) -> AgentProviderFailureCo
     return AgentProviderFailureCode.AGENT_PROVIDER_UNAVAILABLE
 
 
-class OpenAIAgentModelGateway(AgentModelGateway):
-    """Strict OpenAI Responses API implementation of ``AgentModelGateway``."""
+class MiMoAgentModelGateway(AgentModelGateway):
+    """Strict MiMo PAYG Responses implementation of ``AgentModelGateway``."""
 
     def __init__(
         self,
@@ -174,38 +188,31 @@ class OpenAIAgentModelGateway(AgentModelGateway):
         resolved_provider = provider
         if resolved_provider is None:
             resolved_provider = (
-                OPENAI_PROVIDER_ID if injected_transport else setting("agent_provider")
+                MIMO_PROVIDER_ID if injected_transport else setting("agent_provider")
             )
         resolved_model = model_name if model_name is not None else setting("agent_model")
         resolved_timeout = (
             timeout_seconds if timeout_seconds is not None else setting("agent_timeout_seconds")
         )
         resolved_retries = max_retries if max_retries is not None else setting("agent_max_retries")
-        resolved_api_key = api_key
-        if not injected_transport and resolved_api_key is None:
-            resolved_api_key = setting("openai_api_key")
+        resolved_api_key = api_key if api_key is not None else setting("mimo_api_key")
 
         if not isinstance(resolved_provider, str) or not resolved_provider.strip():
             raise _failure(AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_MISSING)
-        if resolved_provider != OPENAI_PROVIDER_ID:
+        if resolved_provider != MIMO_PROVIDER_ID:
             raise _failure(AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID)
         if not isinstance(resolved_model, str) or not resolved_model.strip():
             raise _failure(AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_MISSING)
+        if resolved_model != MIMO_MODEL_NAME:
+            raise _failure(AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID)
         if type(resolved_timeout) is not int or not 1 <= resolved_timeout <= 30:
             raise _failure(AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID)
         if type(resolved_retries) is not int or resolved_retries not in (0, 1):
             raise _failure(AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID)
-        if not injected_transport and (
-            not isinstance(resolved_api_key, str) or not resolved_api_key.strip()
-        ):
+        if not isinstance(resolved_api_key, str) or not resolved_api_key.strip():
             raise _failure(AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_MISSING)
-        if (
-            injected_transport
-            and resolved_api_key is not None
-            and (not isinstance(resolved_api_key, str) or not resolved_api_key.strip())
-        ):
-            raise _failure(AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID)
-
+        if not resolved_api_key.startswith("sk-") or len(resolved_api_key) <= len("sk-"):
+            raise _failure(AgentProviderFailureCode.AGENT_PROVIDER_CREDENTIAL_INVALID)
         self._model_name = resolved_model
         self._timeout_seconds = resolved_timeout
         self._max_retries = resolved_retries
@@ -219,7 +226,7 @@ class OpenAIAgentModelGateway(AgentModelGateway):
                 # no retry budget; the application gateway owns retries.
                 self._client = factory(
                     api_key=resolved_api_key,
-                    base_url=OPENAI_OFFICIAL_BASE_URL,
+                    base_url=MIMO_PAYG_BASE_URL,
                     timeout=resolved_timeout,
                     max_retries=0,
                 )
@@ -228,9 +235,9 @@ class OpenAIAgentModelGateway(AgentModelGateway):
 
     def get_metadata(self) -> GatewayMetadata:
         return GatewayMetadata(
-            provider=OPENAI_PROVIDER_ID,
+            provider=MIMO_PROVIDER_ID,
             model_name=self._model_name,
-            gateway_version=f"openai-sdk-{OPENAI_SDK_VERSION}",
+            gateway_version=f"mimo-openai-sdk-{OPENAI_SDK_VERSION}",
             production_ready=False,
             requires_review=True,
         )
@@ -255,7 +262,7 @@ class OpenAIAgentModelGateway(AgentModelGateway):
     def _generate_once(self, request: AgentModelRequest) -> AgentDecision:
         payload = self._request_payload(request)
         try:
-            response = self._client.responses.parse(**payload)
+            response = self._client.responses.create(**payload)
         except ModelGatewayError:
             raise
         except Exception as error:
@@ -273,7 +280,7 @@ class OpenAIAgentModelGateway(AgentModelGateway):
             raise _failure(AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID)
         if type(request.temperature) is not float or not math.isfinite(request.temperature):
             raise _failure(AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID)
-        if not 0.0 <= request.temperature <= 2.0:
+        if not MIMO_TEMPERATURE_MIN <= request.temperature <= MIMO_TEMPERATURE_MAX:
             raise _failure(AgentProviderFailureCode.AGENT_PROVIDER_CONFIGURATION_INVALID)
 
         messages: list[dict[str, str]] = []
@@ -318,13 +325,14 @@ class OpenAIAgentModelGateway(AgentModelGateway):
 
         return {
             "model": self._model_name,
-            "instructions": request.system_prompt,
+            "instructions": f"{request.system_prompt}\n\n{_MIMO_JSON_OBJECT_INSTRUCTION}",
             "input": messages,
             "tools": tools,
             "temperature": request.temperature,
             "max_output_tokens": request.max_tokens,
             "store": False,
-            "text_format": _AgentDecisionPayload,
+            "reasoning": {"effort": MIMO_RESPONSES_REASONING_EFFORT},
+            "text": {"format": {"type": "json_object"}},
         }
 
     def _decode_response(self, response: Any) -> AgentDecision:
@@ -397,7 +405,8 @@ class OpenAIAgentModelGateway(AgentModelGateway):
         )
 
 
-# Explicit aliases keep the infrastructure seam discoverable without creating
-# another provider-neutral or production composition surface.
-OpenAIModelGateway = OpenAIAgentModelGateway
-RealAgentModelGateway = OpenAIAgentModelGateway
+# Keep the historical symbol importable for already composed application code.
+# It is an alias for the MiMo implementation, never a provider-selection path.
+OpenAIAgentModelGateway = MiMoAgentModelGateway
+OpenAIModelGateway = MiMoAgentModelGateway
+RealAgentModelGateway = MiMoAgentModelGateway

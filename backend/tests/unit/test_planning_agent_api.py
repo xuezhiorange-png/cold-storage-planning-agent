@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -29,7 +30,7 @@ from cold_storage.modules.planning_agent.domain.errors import (
 from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeAgentModelGateway
 from cold_storage.modules.planning_agent.infrastructure.orm import Base
 from cold_storage.modules.planning_agent.infrastructure.real_gateways import (
-    OPENAI_OFFICIAL_BASE_URL,
+    MIMO_PAYG_BASE_URL,
 )
 from cold_storage.modules.planning_agent.infrastructure.repository import AgentRepository
 
@@ -689,11 +690,11 @@ def _configure_strict_agent_environment(monkeypatch, tmp_path, *, enabled: bool)
     monkeypatch.setenv("COLD_STORAGE_SECRET_ENVIRONMENT_ID", "ci")
     monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "ci")
     if enabled:
-        monkeypatch.setenv("COLD_STORAGE_AGENT_PROVIDER", "openai")
-        monkeypatch.setenv("COLD_STORAGE_AGENT_MODEL", "gpt-test")
+        monkeypatch.setenv("COLD_STORAGE_AGENT_PROVIDER", "mimo")
+        monkeypatch.setenv("COLD_STORAGE_AGENT_MODEL", "mimo-v2.5")
         monkeypatch.setenv("COLD_STORAGE_AGENT_TIMEOUT_SECONDS", "10")
         monkeypatch.setenv("COLD_STORAGE_AGENT_MAX_RETRIES", "0")
-        monkeypatch.setenv("COLD_STORAGE_OPENAI_API_KEY", "test-only-key")
+        monkeypatch.setenv("COLD_STORAGE_MIMO_API_KEY", "sk-test-only-key")
 
 
 def _passed_provider_probe(settings):
@@ -708,16 +709,17 @@ def _passed_provider_probe(settings):
 
 def _probe_response() -> SimpleNamespace:
     return SimpleNamespace(
-        output_parsed={
-            "decision_type": "answer",
-            "assistant_message": "ready",
-            "missing_parameters": [],
-            "tool_requests": [],
-            "citations": [],
-            "requires_review": False,
-            "warnings": [],
-        },
-        output_text=None,
+        output_text=json.dumps(
+            {
+                "decision_type": "answer",
+                "assistant_message": "ready",
+                "missing_parameters": [],
+                "tool_requests": [],
+                "citations": [],
+                "requires_review": False,
+                "warnings": [],
+            }
+        ),
         status="completed",
         incomplete_details=None,
         error=None,
@@ -729,7 +731,7 @@ class _ProbeResponses:
         self._outcome = outcome
         self.calls: list[dict[str, object]] = []
 
-    def parse(self, **kwargs):
+    def create(self, **kwargs):
         self.calls.append(kwargs)
         if isinstance(self._outcome, BaseException):
             raise self._outcome
@@ -916,7 +918,7 @@ def test_strict_default_probe_wiring_uses_canonical_gateway(monkeypatch, tmp_pat
     assert evidence.provider_probe_passed is True
     assert evidence.provider_schema_verified is True
     assert evidence.provider_schema_identity == "AgentDecision"
-    assert calls[0]["base_url"] == OPENAI_OFFICIAL_BASE_URL
+    assert calls[0]["base_url"] == MIMO_PAYG_BASE_URL
     assert app.state._strict_runtime_authority.agent_candidate is True  # noqa: SLF001
     assert len(app.state.frozen_agent_endpoint_authority) == 10
 
@@ -940,11 +942,11 @@ def test_canonical_probe_preserves_frozen_provider_failure_code(failure_code):
 
     settings = Settings.model_validate(
         {
-            "COLD_STORAGE_AGENT_PROVIDER": "openai",
-            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_PROVIDER": "mimo",
+            "COLD_STORAGE_AGENT_MODEL": "mimo-v2.5",
             "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 10,
             "COLD_STORAGE_AGENT_MAX_RETRIES": 0,
-            "COLD_STORAGE_OPENAI_API_KEY": "test-only-key",
+            "COLD_STORAGE_MIMO_API_KEY": "sk-test-only-key",
         }
     )
     probe = canonical_agent_provider_probe(
@@ -965,11 +967,11 @@ def test_canonical_probe_unknown_exception_fails_closed_without_raw_detail():
 
     settings = Settings.model_validate(
         {
-            "COLD_STORAGE_AGENT_PROVIDER": "openai",
-            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_PROVIDER": "mimo",
+            "COLD_STORAGE_AGENT_MODEL": "mimo-v2.5",
             "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 10,
             "COLD_STORAGE_AGENT_MAX_RETRIES": 0,
-            "COLD_STORAGE_OPENAI_API_KEY": "test-only-key",
+            "COLD_STORAGE_MIMO_API_KEY": "sk-test-only-key",
         }
     )
     probe = canonical_agent_provider_probe(
@@ -988,7 +990,7 @@ def test_strict_lifespan_finalizes_ready_only_after_real_composition_audit(monke
     from cold_storage.bootstrap import runtime_readiness as readiness
     from cold_storage.bootstrap.app import create_app
     from cold_storage.modules.planning_agent.infrastructure.real_gateways import (
-        OpenAIAgentModelGateway,
+        MiMoAgentModelGateway,
     )
     from cold_storage.modules.projects.infrastructure.database import DatabaseProjectService
 
@@ -1020,8 +1022,8 @@ def test_strict_lifespan_finalizes_ready_only_after_real_composition_audit(monke
         deps._clear_composition_tokens()  # noqa: SLF001
         deps._singletons["engine"] = engine  # noqa: SLF001
         deps._singletons["project_service"] = DatabaseProjectService(engine)  # noqa: SLF001
-        gateway = OpenAIAgentModelGateway(
-            api_key=settings.openai_api_key,
+        gateway = MiMoAgentModelGateway(
+            api_key=settings.mimo_api_key,
             model_name=settings.agent_model,
             timeout_seconds=settings.agent_timeout_seconds,
             max_retries=settings.agent_max_retries,
@@ -1029,7 +1031,7 @@ def test_strict_lifespan_finalizes_ready_only_after_real_composition_audit(monke
             client_factory=kwargs.get("agent_client_factory"),
         )
         deps._singletons["agent_gateway"] = gateway  # noqa: SLF001
-        deps._record_composition_token("OPENAI_AGENT_MODEL_GATEWAY_INSTANTIATED")  # noqa: SLF001
+        deps._record_composition_token("MIMO_AGENT_MODEL_GATEWAY_INSTANTIATED")  # noqa: SLF001
         deps._record_composition_token("DATABASE_COEFFICIENT_SERVICE_INSTANTIATED")  # noqa: SLF001
         session = Session(bind=engine)
         try:
@@ -1155,8 +1157,8 @@ def test_fresh_provider_failure_demotes_and_recovers_guarded_routes(monkeypatch,
     timeout_evidence = AgentProviderProbeEvidence(
         passed=False,
         failure_code=AgentProviderFailureCode.AGENT_PROVIDER_TIMEOUT,
-        provider="openai",
-        model="gpt-test",
+        provider="mimo",
+        model="mimo-v2.5",
     )
     probe_results = [_passed_provider_probe, timeout_evidence, _passed_provider_probe]
     probe_calls: list[int] = []
@@ -1186,7 +1188,7 @@ def test_fresh_provider_failure_demotes_and_recovers_guarded_routes(monkeypatch,
         )
         deps._clear_composition_tokens()  # noqa: SLF001
         deps._singletons["agent_gateway"] = object()  # noqa: SLF001
-        deps._record_composition_token("OPENAI_AGENT_MODEL_GATEWAY_INSTANTIATED")  # noqa: SLF001
+        deps._record_composition_token("MIMO_AGENT_MODEL_GATEWAY_INSTANTIATED")  # noqa: SLF001
         deps._record_composition_token("REAL_PLANNING_AGENT_SERVICE_COMPOSED")  # noqa: SLF001
         deps._record_composition_token("DATABASE_COEFFICIENT_SERVICE_INSTANTIATED")  # noqa: SLF001
         readiness.set_canonical_settings(settings)

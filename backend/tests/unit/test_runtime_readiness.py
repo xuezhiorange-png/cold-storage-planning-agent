@@ -5159,9 +5159,9 @@ def test_p2c_disabled_agent_does_not_invoke_provider_probe():
 @pytest.mark.parametrize(
     "values",
     [
-        {"COLD_STORAGE_AGENT_PROVIDER": "openai"},
-        {"COLD_STORAGE_AGENT_MODEL": "gpt-test"},
-        {"COLD_STORAGE_AGENT_PROVIDER": "other", "COLD_STORAGE_AGENT_MODEL": "gpt-test"},
+        {"COLD_STORAGE_AGENT_PROVIDER": "mimo"},
+        {"COLD_STORAGE_AGENT_MODEL": "mimo-v2.5"},
+        {"COLD_STORAGE_AGENT_PROVIDER": "other", "COLD_STORAGE_AGENT_MODEL": "mimo-v2.5"},
     ],
 )
 def test_p2c_enablement_intent_without_valid_configuration_is_not_ready(values):
@@ -5179,11 +5179,11 @@ def test_p2c_enablement_intent_without_valid_configuration_is_not_ready(values):
 def test_p2c_provider_probe_failure_is_not_ready():
     settings = Settings.model_validate(
         {
-            "COLD_STORAGE_AGENT_PROVIDER": "openai",
-            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_PROVIDER": "mimo",
+            "COLD_STORAGE_AGENT_MODEL": "mimo-v2.5",
             "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 10,
             "COLD_STORAGE_AGENT_MAX_RETRIES": 1,
-            "COLD_STORAGE_OPENAI_API_KEY": "test-only-key",
+            "COLD_STORAGE_MIMO_API_KEY": "sk-test-only-key",
         }
     )
     evidence = resolve_agent_capability_evidence(
@@ -5191,8 +5191,8 @@ def test_p2c_provider_probe_failure_is_not_ready():
         provider_probe=lambda _s: AgentProviderProbeEvidence(
             passed=False,
             failure_code=AgentProviderFailureCode.AGENT_PROVIDER_TIMEOUT,
-            provider="openai",
-            model="gpt-test",
+            provider="mimo",
+            model="mimo-v2.5",
         ),
     )
     assert evidence.state is AgentCapabilityState.ENABLED_NOT_READY
@@ -5203,11 +5203,11 @@ def test_p2c_provider_probe_failure_is_not_ready():
 def test_p2c_provider_probe_and_composition_evidence_enable_ready_state():
     settings = Settings.model_validate(
         {
-            "COLD_STORAGE_AGENT_PROVIDER": "openai",
-            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_PROVIDER": "mimo",
+            "COLD_STORAGE_AGENT_MODEL": "mimo-v2.5",
             "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 10,
             "COLD_STORAGE_AGENT_MAX_RETRIES": 1,
-            "COLD_STORAGE_OPENAI_API_KEY": "test-only-key",
+            "COLD_STORAGE_MIMO_API_KEY": "sk-test-only-key",
         }
     )
     evidence = resolve_agent_capability_evidence(

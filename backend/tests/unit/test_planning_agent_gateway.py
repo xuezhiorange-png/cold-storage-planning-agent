@@ -220,7 +220,7 @@ class TestDefaultAgentModelGateway:
         assert m.requires_review is True
 
     def test_custom_provider(self):
-        gw = DefaultAgentModelGateway(provider="openai", model_name="gpt-4")
+        gw = DefaultAgentModelGateway(provider="mimo", model_name="mimo-v2.5")
         m = gw.get_metadata()
-        assert m.provider == "openai"
-        assert m.model_name == "gpt-4"
+        assert m.provider == "mimo"
+        assert m.model_name == "mimo-v2.5"

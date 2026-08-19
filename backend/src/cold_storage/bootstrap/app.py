@@ -294,7 +294,7 @@ def _get_planning_agent_service(
 def _get_strict_planning_agent_service(
     db_session: SASession = Depends(_get_db_session),  # noqa: B008
 ) -> PlanningAgentService:
-    """FastAPI dependency for the enabled-ready OpenAI composition only."""
+    """FastAPI dependency for the enabled-ready MiMo composition only."""
     from cold_storage.bootstrap.dependencies import get_agent_gateway
 
     return _build_planning_agent_service(db_session, get_agent_gateway())

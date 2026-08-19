@@ -25,7 +25,7 @@ from cold_storage.modules.projects.infrastructure.database import DatabaseProjec
 # never constructed in strict modes without ``runtime_readiness``
 # having to import the business types themselves.
 _COMPOSITION_TOKEN_FAKE_AGENT_GATEWAY = "FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED"
-_COMPOSITION_TOKEN_REAL_AGENT_GATEWAY = "OPENAI_AGENT_MODEL_GATEWAY_INSTANTIATED"
+_COMPOSITION_TOKEN_REAL_AGENT_GATEWAY = "MIMO_AGENT_MODEL_GATEWAY_INSTANTIATED"
 _COMPOSITION_TOKEN_REAL_AGENT_SERVICE = "REAL_PLANNING_AGENT_SERVICE_COMPOSED"
 _COMPOSITION_TOKEN_PROCESS_LOCAL_COEFFICIENT = "PROCESS_LOCAL_COEFFICIENT_SERVICE_INSTANTIATED"
 _COMPOSITION_TOKEN_DATABASE_COEFFICIENT = "DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"
@@ -54,10 +54,10 @@ def canonical_agent_provider_probe(
     *,
     client_factory: Callable[..., Any] | None = None,
 ) -> Callable[[Settings], Any]:
-    """Build the production provider/schema probe through the P2-B gateway.
+    """Build the production provider/schema probe through the MiMo gateway.
 
     The returned callable is intentionally injected into the readiness
-    resolver.  It constructs the existing OpenAI Responses gateway and sends
+    resolver.  It constructs the existing MiMo Responses gateway and sends
     one structured, no-tool probe request, so provider reachability and the
     frozen ``AgentDecision`` schema are verified together.  Tests can inject
     a deterministic client factory; the composition root never creates a
@@ -77,12 +77,12 @@ def canonical_agent_provider_probe(
         )
         from cold_storage.modules.planning_agent.domain.models import AgentDecision  # noqa: PLC0415
         from cold_storage.modules.planning_agent.infrastructure.real_gateways import (  # noqa: PLC0415
-            OpenAIAgentModelGateway,
+            MiMoAgentModelGateway,
         )
 
         try:
-            gateway = OpenAIAgentModelGateway(
-                api_key=settings.openai_api_key,
+            gateway = MiMoAgentModelGateway(
+                api_key=settings.mimo_api_key,
                 model_name=settings.agent_model,
                 timeout_seconds=settings.agent_timeout_seconds,
                 max_retries=settings.agent_max_retries,
@@ -212,11 +212,11 @@ def init_dependencies(
                 raise RuntimeError("agent capability evidence does not match canonical settings")
             try:
                 from cold_storage.modules.planning_agent.infrastructure.real_gateways import (  # noqa: PLC0415
-                    OpenAIAgentModelGateway,
+                    MiMoAgentModelGateway,
                 )
 
-                gateway = OpenAIAgentModelGateway(
-                    api_key=settings.openai_api_key,
+                gateway = MiMoAgentModelGateway(
+                    api_key=settings.mimo_api_key,
                     model_name=settings.agent_model,
                     timeout_seconds=settings.agent_timeout_seconds,
                     max_retries=settings.agent_max_retries,
