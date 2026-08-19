@@ -109,16 +109,42 @@ service. In staging and production:
 - startup/readiness remains fail-closed when the strict audit or mandatory
   probes fail.
 
-There is no real provider adapter and no provider call path in the audited
-source. No provider SDK is present in the runtime dependency list. The only
-audited HTTP client is `httpx`, currently declared in the development group
-of `backend/pyproject.toml` and locked in `backend/uv.lock`.
+The following statements are retained only as the historical
+`HISTORICAL_PRE_P2_IMPLEMENTATION_STATE` captured by the original definition
+freeze. They are not claims about the current main implementation: at that
+point there was no real provider adapter or provider call path, no provider
+SDK in the runtime dependency list, and the only audited HTTP client was
+`httpx` in the development dependency group.
 
-`COLD_STORAGE_OPENAI_API_KEY` exists in the currently audited source as a
-redacted historical settings field, but it is not provider selection,
-provider readiness, or evidence that a provider adapter is configured. The
-current MiMo provider authority below uses the separately named,
-runtime-injected `COLD_STORAGE_MIMO_API_KEY` instead.
+The current main implementation audit must be read separately from that
+historical snapshot. It has completed the OpenAI P2-B adapter and the P2-C
+conditional strict composition, but implementation does not mean provider
+enablement, live acceptance, or production enablement:
+
+```text
+CURRENT_IMPLEMENTATION_AUDIT_SOURCE_SHA=0f1dd87344ee8dbd3512583195214e266f4290d5
+CURRENT_IMPLEMENTATION_AUDIT_SOURCE_TREE_SHA=74bae4b5ac41a005bd095cbb926db2d5ffeb8fba
+CURRENT_IMPLEMENTATION_PROVIDER=openai
+CURRENT_REAL_PROVIDER_ADAPTER_EXISTS=YES
+CURRENT_REAL_PROVIDER_GATEWAY_CLASS=OpenAIAgentModelGateway
+CURRENT_PROVIDER_RUNTIME_DEPENDENCY=openai==2.53.0
+CURRENT_OPENAI_BASE_URL=https://api.openai.com/v1
+CURRENT_IMPLEMENTATION_CREDENTIAL_SOURCE=COLD_STORAGE_OPENAI_API_KEY
+CURRENT_PROVIDER_PROBE_EXISTS=YES
+CURRENT_STRICT_COMPOSITION_SUPPORTS_CONDITIONAL_REAL_PROVIDER=YES
+CURRENT_REAL_AGENT_ROUTE_EXPOSURE=CONDITIONAL_ON_CANONICAL_READY_AUTHORITY
+CURRENT_FAKE_FALLBACK_IN_STRICT_MODE=FORBIDDEN
+CURRENT_PROVIDER_FAILURE_TAXONOMY_COUNT=10
+CURRENT_TASK012_CANONICAL_PROBE_COUNT=8
+IMPLEMENTED_IS_NOT_ENABLED=YES
+IMPLEMENTED_IS_NOT_LIVE_ACCEPTED=YES
+IMPLEMENTED_IS_NOT_PRODUCTION_ENABLED=YES
+```
+
+The target MiMo authority below is therefore not the provider currently
+implemented by main. The current OpenAI implementation remains the
+historical implementation baseline until a separately authorized migration
+implements and verifies the MiMo target.
 
 ### 2.3 Current application boundaries
 
@@ -258,11 +284,12 @@ package installation, network availability, nor any other environmental fact
 creates enablement intent.
 
 The first concrete provider authority was originally frozen by Issue #110
-record `5323439225`; its OpenAI provider selection is historical and is
-superseded by the MiMo Token Plan provider amendment recorded as
-`5336787415`. The existing `COLD_STORAGE_OPENAI_API_KEY` field alone still
-does not enable an agent, and the current MiMo credential is
-`COLD_STORAGE_MIMO_API_KEY`; the complete explicit provider and readiness
+record `5323439225`. Its OpenAI selection is the completed historical
+implementation baseline, while the MiMo Token Plan provider amendment
+recorded as `5336787415` is the target authority for a future migration. The
+current implementation reads `COLD_STORAGE_OPENAI_API_KEY`; the target MiMo
+implementation must use `COLD_STORAGE_MIMO_API_KEY`. Neither credential alone
+creates enablement intent, and the complete explicit provider and readiness
 contract below is required.
 
 Rules for strict environments:
@@ -358,12 +385,11 @@ AgentModelGateway port
     -> strict canonical AgentDecision decoder
 ```
 
-The first concrete provider adapter authority is frozen in Section 4.1. A
-later P2 implementation authorization may implement that exact MiMo adapter,
-but this definition freeze does not install the SDK, call a provider, or
-enable an adapter. The current dependency audit found no provider SDK, so the
-frozen runtime dependency strategy is prospective only and does not change
-the current dependency graph.
+The target MiMo provider adapter authority is frozen in Section 4.1. The
+completed historical OpenAI adapter is not a MiMo implementation. A later
+separately authorized migration may implement and verify the exact MiMo
+adapter; this contract correction does not install a second adapter, call a
+provider, or enable production routes.
 
 No provider-specific business rules, prompt routing, engineering formulas,
 scheme scoring, or approval decisions may be placed in the adapter.
@@ -884,14 +910,34 @@ the ten frozen provider error identities, and safe provider-error metadata
 foundation. It does not add the OpenAI SDK, a real provider adapter, a network
 call, or strict real-agent route enablement.
 
-#### P2-B_MIMO_TOKEN_PLAN_ADAPTER
+#### P2-B_OPENAI_ADAPTER
 
-This slice covers the existing official `openai` dependency and matching
-`backend/uv.lock` entry, `real_gateways.py`, MiMo Token Plan base URL and
-credential binding, OpenAI-compatible Responses API request/response mapping,
-strict `AgentDecision` decoding, frozen provider failure classification,
-bounded retry, provider metadata, and mocked transport tests. Ordinary CI
-must not call a live provider, and staging/production routes remain disabled.
+This is the completed historical OpenAI adapter slice. It covers the official
+`openai` dependency and matching `backend/uv.lock` entry,
+`OpenAIAgentModelGateway`, the official OpenAI endpoint and credential
+binding, OpenAI Responses API request/response mapping, strict
+`AgentDecision` decoding, frozen provider failure classification, bounded
+retry, provider metadata, and mocked transport tests. Ordinary CI did not
+call a live provider, and strict staging/production route exposure remained
+conditional on verified readiness.
+
+```text
+HISTORICAL_SLICE=P2-B_OPENAI_ADAPTER
+HISTORICAL_SLICE_STATUS=COMPLETED
+HISTORICAL_PROVIDER=openai
+```
+
+#### P2-MIMO_TOKEN_PLAN_ADAPTER_MIGRATION
+
+This future slice migrates the completed OpenAI implementation to the target
+MiMo Token Plan authority in Section 4.1. It is not part of the completed
+historical P2-B slice and is not authorized by this contract correction.
+
+```text
+P2_MIMO_TOKEN_PLAN_ADAPTER_MIGRATION_STATUS=NOT_IMPLEMENTED
+P2_MIMO_TOKEN_PLAN_ADAPTER_MIGRATION_AUTHORIZED=NO
+P2_MIMO_TOKEN_PLAN_ADAPTER_MIGRATION_REQUIRES_SEPARATE_AUTHORIZATION=YES
+```
 
 #### P2-C_STRICT_COMPOSITION_API
 
@@ -1019,7 +1065,28 @@ This definition freeze does not authorize:
 ```text
 CURRENT_AGENT_STRICT_MODE_STATE=STAGING_PRODUCTION_DISABLED_ROUTES_FAIL_CLOSED_READINESS
 CURRENT_FAKE_GATEWAY_SCOPE=LOCAL_TEST_DEMO_EXPLICIT_INJECTION_ONLY
-CURRENT_REAL_PROVIDER_ADAPTER_EXISTS=NO
+CURRENT_IMPLEMENTATION_PROVIDER=openai
+CURRENT_REAL_PROVIDER_ADAPTER_EXISTS=YES
+CURRENT_REAL_PROVIDER_GATEWAY_CLASS=OpenAIAgentModelGateway
+CURRENT_PROVIDER_RUNTIME_DEPENDENCY=openai==2.53.0
+CURRENT_OPENAI_BASE_URL=https://api.openai.com/v1
+CURRENT_IMPLEMENTATION_CREDENTIAL_SOURCE=COLD_STORAGE_OPENAI_API_KEY
+CURRENT_PROVIDER_PROBE_EXISTS=YES
+CURRENT_STRICT_COMPOSITION_SUPPORTS_CONDITIONAL_REAL_PROVIDER=YES
+CURRENT_REAL_AGENT_ROUTE_EXPOSURE=CONDITIONAL_ON_CANONICAL_READY_AUTHORITY
+CURRENT_FAKE_FALLBACK_IN_STRICT_MODE=FORBIDDEN
+CURRENT_PROVIDER_FAILURE_TAXONOMY_COUNT=10
+CURRENT_TASK012_CANONICAL_PROBE_COUNT=8
+IMPLEMENTED_IS_NOT_ENABLED=YES
+IMPLEMENTED_IS_NOT_LIVE_ACCEPTED=YES
+IMPLEMENTED_IS_NOT_PRODUCTION_ENABLED=YES
+TARGET_PROVIDER_AUTHORITY=mimo
+TARGET_MODEL_AUTHORITY=mimo-v2.5
+CURRENT_IMPLEMENTATION_CONFORMS_TO_MIMO_TARGET_AUTHORITY=NO
+MIMO_TARGET_IMPLEMENTATION_STATUS=NOT_IMPLEMENTED
+MIMO_IMPLEMENTATION_REQUIRED_BEFORE_ENABLED_READY=YES
+MIMO_ENABLED_READY_BEFORE_IMPLEMENTATION=FORBIDDEN
+MIMO_LIVE_ACCEPTANCE_BEFORE_IMPLEMENTATION=FORBIDDEN
 CURRENT_STRUCTURED_TOOL_CALLING_EXISTS=YES
 CURRENT_CONFIRMATION_BOUNDARY_EXISTS=YES
 PROVIDER_AUTHORITY_RECORD_ID=5336787415
@@ -1320,13 +1387,15 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 ## 24. V0.3 P2 MiMo Token Plan Provider Contract Amendment R1
 
-This amendment changes the current provider authority from the historical
-OpenAI selection to the explicitly selected MiMo Token Plan provider. It
-changes contract authority only; it does not authorize implementation,
-dependency mutation, credentials, provider calls, controlled acceptance, or
-production enablement. OpenAI-specific values retained in Sections 20-23 are
-historical records and are superseded for current provider selection,
-credential, endpoint, and controlled-acceptance identity by this section.
+This amendment freezes the target provider authority as the explicitly
+selected MiMo Token Plan provider. It changes contract authority only; it does
+not retroactively rewrite the completed OpenAI implementation and does not
+authorize the MiMo migration, dependency mutation, credentials, provider
+calls, controlled acceptance, or production enablement. OpenAI-specific
+values retained in Sections 20-23 are historical implementation records;
+MiMo-specific values in this section are target authority and require a
+separately authorized migration before they can become the implemented
+provider.
 
 ```text
 TASK=V03_P2_MIMO_TOKEN_PLAN_PROVIDER_CONTRACT_AMENDMENT_R1
@@ -1335,7 +1404,14 @@ AMENDMENT_BASE_MAIN_SHA=0f1dd87344ee8dbd3512583195214e266f4290d5
 AMENDMENT_BASE_MAIN_TREE_SHA=74bae4b5ac41a005bd095cbb926db2d5ffeb8fba
 AUTHORIZATION_SCOPE=CONTRACT_AMENDMENT_ONLY
 
-CURRENT_PROVIDER_AUTHORITY_STATUS=ACTIVE
+TARGET_PROVIDER_AUTHORITY_STATUS=ACTIVE
+CURRENT_IMPLEMENTATION_PROVIDER=openai
+TARGET_PROVIDER_AUTHORITY=mimo
+CURRENT_IMPLEMENTATION_CONFORMS_TO_MIMO_TARGET_AUTHORITY=NO
+MIMO_TARGET_IMPLEMENTATION_STATUS=NOT_IMPLEMENTED
+MIMO_IMPLEMENTATION_REQUIRED_BEFORE_ENABLED_READY=YES
+MIMO_ENABLED_READY_BEFORE_IMPLEMENTATION=FORBIDDEN
+MIMO_LIVE_ACCEPTANCE_BEFORE_IMPLEMENTATION=FORBIDDEN
 SUPERSEDES_OPENAI_PROVIDER_SELECTION=YES
 FIRST_CONCRETE_PROVIDER_FROZEN=YES
 FIRST_PROVIDER_ID=mimo
