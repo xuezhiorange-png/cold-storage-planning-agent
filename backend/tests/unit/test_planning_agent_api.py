@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -12,13 +14,23 @@ from sqlalchemy.pool import StaticPool
 from cold_storage.bootstrap.runtime_readiness import (
     LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS,
     LOCAL_TEST_STARTUP_PROBE_TIMEOUT_SECONDS,
+    AgentProviderProbeEvidence,
 )
+from cold_storage.bootstrap.settings import Settings
 from cold_storage.modules.planning_agent.api.routes import create_agent_router
 from cold_storage.modules.planning_agent.application.orchestrator import AgentOrchestrator
 from cold_storage.modules.planning_agent.application.service import PlanningAgentService
 from cold_storage.modules.planning_agent.application.tool_registry import build_default_registry
+from cold_storage.modules.planning_agent.domain.errors import (
+    AgentProviderFailureCode,
+    ModelGatewayError,
+    provider_failure_metadata,
+)
 from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeAgentModelGateway
 from cold_storage.modules.planning_agent.infrastructure.orm import Base
+from cold_storage.modules.planning_agent.infrastructure.real_gateways import (
+    OPENAI_OFFICIAL_BASE_URL,
+)
 from cold_storage.modules.planning_agent.infrastructure.repository import AgentRepository
 
 
@@ -626,6 +638,213 @@ class TestStrictAgentZeroConstructionProvedBySpies:
             f"ReportArtifactStorage.__init__ called {_report_artifact_storage_init_count} times"
         )
 
+
+@pytest.mark.parametrize("failure_code", tuple(AgentProviderFailureCode))
+def test_provider_failure_projection_uses_only_frozen_safe_metadata(
+    monkeypatch,
+    failure_code: AgentProviderFailureCode,
+):
+    """All provider failures use the same redacted, machine-readable envelope."""
+
+    class _FailingService:
+        def post_user_message(self, *_args, **_kwargs):
+            raise ModelGatewayError("raw provider body and api-key-secret", code=failure_code)
+
+    monkeypatch.setenv("PLANNING_AGENT_ALLOW_INSECURE_ACTOR", "true")
+    fastapi_app = FastAPI()
+    fastapi_app.include_router(create_agent_router(lambda: _FailingService()))
+    with TestClient(fastapi_app, headers={"X-Actor": "test-user"}) as client:
+        response = client.post(
+            "/api/v1/agent/sessions/session-1/messages",
+            json={"content": "hello"},
+        )
+
+    metadata = provider_failure_metadata(failure_code)
+    assert response.status_code == 503
+    assert response.json() == {
+        "error": {
+            "code": failure_code.value,
+            "message": metadata.safe_message,
+            "details": {"retryable": metadata.retryable},
+        }
+    }
+    response_text = response.text
+    assert "raw provider body" not in response_text
+    assert "api-key-secret" not in response_text
+
+
+def _configure_strict_agent_environment(monkeypatch, tmp_path, *, enabled: bool) -> None:
+    artifact_dir = tmp_path / "artifacts"
+    artifact_dir.mkdir()
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "production")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "postgresql")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_URL", "postgresql+psycopg2://x:y@localhost:5432/test")
+    monkeypatch.setenv("COLD_STORAGE_STORAGE_DIR", str(artifact_dir))
+    monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
+    monkeypatch.setenv("COLD_STORAGE_BUILD_COMMIT_SHA", "0" * 40)
+    monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", "v0.0.0-ci")
+    monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", "1")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "ci")
+    monkeypatch.setenv("COLD_STORAGE_SECRET_ENVIRONMENT_ID", "ci")
+    monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "ci")
+    if enabled:
+        monkeypatch.setenv("COLD_STORAGE_AGENT_PROVIDER", "openai")
+        monkeypatch.setenv("COLD_STORAGE_AGENT_MODEL", "gpt-test")
+        monkeypatch.setenv("COLD_STORAGE_AGENT_TIMEOUT_SECONDS", "10")
+        monkeypatch.setenv("COLD_STORAGE_AGENT_MAX_RETRIES", "0")
+        monkeypatch.setenv("COLD_STORAGE_OPENAI_API_KEY", "test-only-key")
+
+
+def _passed_provider_probe(settings):
+    return AgentProviderProbeEvidence(
+        passed=True,
+        provider=settings.agent_provider,
+        model=settings.agent_model,
+        schema_verified=True,
+        schema_identity="AgentDecision",
+    )
+
+
+def _probe_response() -> SimpleNamespace:
+    return SimpleNamespace(
+        output_parsed={
+            "decision_type": "answer",
+            "assistant_message": "ready",
+            "missing_parameters": [],
+            "tool_requests": [],
+            "citations": [],
+            "requires_review": False,
+            "warnings": [],
+        },
+        output_text=None,
+        status="completed",
+        incomplete_details=None,
+        error=None,
+    )
+
+
+class _ProbeResponses:
+    def __init__(self, outcome):
+        self._outcome = outcome
+        self.calls: list[dict[str, object]] = []
+
+    def parse(self, **kwargs):
+        self.calls.append(kwargs)
+        if isinstance(self._outcome, BaseException):
+            raise self._outcome
+        return self._outcome
+
+
+class _ProbeClient:
+    def __init__(self, outcome):
+        self.responses = _ProbeResponses(outcome)
+
+
+def _probe_factory(outcome, calls):
+    def _factory(**kwargs):
+        calls.append(kwargs)
+        return _ProbeClient(outcome)
+
+    return _factory
+
+
+def _stub_strict_dependency_startup(monkeypatch):
+    from cold_storage.bootstrap import app as bootstrap_app
+
+    monkeypatch.setattr(
+        bootstrap_app,
+        "init_dependencies",
+        lambda settings, app=None, strict_runtime_authority=None: None,
+    )
+
+
+def test_strict_disabled_state_does_not_probe_or_construct_real_gateway(monkeypatch, tmp_path):
+    from cold_storage.bootstrap.app import create_app
+
+    _configure_strict_agent_environment(monkeypatch, tmp_path, enabled=False)
+    calls = 0
+
+    def _probe(_settings):
+        nonlocal calls
+        calls += 1
+        return True
+
+    app = create_app(agent_provider_probe=_probe)
+    evidence = app._agent_capability_evidence  # noqa: SLF001
+    assert evidence.state.value == "AGENT_CAPABILITY_DISABLED"
+    assert calls == 0
+    assert app.state.strict_capability_bindings[-1] == ("model_backed_agent", "disabled")
+    assert len(app.state.frozen_agent_endpoint_authority) == 10
+    assert all(
+        endpoint.__name__.startswith("disabled_agent_")
+        for _, _, endpoint in app.state.frozen_agent_endpoint_authority
+    )
+
+
+def test_strict_enabled_not_ready_keeps_disabled_routes_and_fails_closed(
+    monkeypatch,
+    tmp_path,
+):
+    from cold_storage.bootstrap import runtime_readiness as readiness
+    from cold_storage.bootstrap.app import create_app
+
+    _configure_strict_agent_environment(monkeypatch, tmp_path, enabled=True)
+    _stub_strict_dependency_startup(monkeypatch)
+    monkeypatch.setattr(
+        readiness,
+        "assert_no_unsafe_strict_capabilities",
+        lambda **_kwargs: readiness.StrictCapabilityAuditEvidence(
+            composition_passed=True,
+            route_audit_passed=True,
+        ),
+    )
+    app = create_app(agent_provider_probe=lambda _settings: False)
+    evidence = app._agent_capability_evidence  # noqa: SLF001
+    assert evidence.state.value == "AGENT_CAPABILITY_ENABLED_NOT_READY"
+    assert evidence.global_readiness == "FAIL"
+    assert app.state.strict_capability_bindings[-1] == (
+        "model_backed_agent",
+        "enabled_not_ready",
+    )
+    assert len(app.state.frozen_agent_endpoint_authority) == 10
+    assert all(
+        not endpoint.__name__.startswith("disabled_agent_")
+        for _, _, endpoint in app.state.frozen_agent_endpoint_authority
+    )
+    with TestClient(app, headers={"X-Actor": "test-user"}) as client:
+        response = client.get("/api/v1/agent/sessions")
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "AGENT_PROVIDER_UNAVAILABLE"
+
+
+def test_strict_enabled_ready_exposes_only_real_agent_router(monkeypatch, tmp_path):
+    from cold_storage.bootstrap.app import create_app
+
+    _configure_strict_agent_environment(monkeypatch, tmp_path, enabled=True)
+    _stub_strict_dependency_startup(monkeypatch)
+    app = create_app(
+        agent_provider_probe=_passed_provider_probe,
+        agent_client_factory=lambda **_kwargs: object(),
+    )
+    evidence = app._agent_capability_evidence  # noqa: SLF001
+    assert evidence.state.value == "AGENT_CAPABILITY_ENABLED_NOT_READY"
+    assert evidence.provider_probe_passed is True
+    assert evidence.composition_passed is False
+    agent_routes = app.state.frozen_agent_endpoint_authority
+    assert len(agent_routes) == 10
+    assert all(
+        not endpoint.__name__.startswith("disabled_agent_") for _, _, endpoint in agent_routes
+    )
+    authority = app.state._strict_runtime_authority  # noqa: SLF001
+    assert authority.agent_capability_state == "AGENT_CAPABILITY_ENABLED_NOT_READY"
+    assert authority.agent_candidate is True
+    assert callable(authority.agent_service_factory)
+
+
+class TestStrictAgentZeroConstructionProvedBySpiesContinuation:
+    """Keep the original strict spy cases collected after the new cases."""
+
     def test_zero_construction_on_get_sessions(self, strict_client_with_spies):
         """GET /api/v1/agent/sessions → 503, zero construction."""
         resp = strict_client_with_spies.get("/api/v1/agent/sessions")
@@ -681,3 +900,339 @@ class TestStrictAgentZeroConstructionProvedBySpies:
         assert _report_artifact_storage_init_count == 0, (
             f"ReportArtifactStorage.__init__ called {_report_artifact_storage_init_count} times"
         )
+
+
+def test_strict_default_probe_wiring_uses_canonical_gateway(monkeypatch, tmp_path):
+    from cold_storage.bootstrap.app import create_app
+
+    _configure_strict_agent_environment(monkeypatch, tmp_path, enabled=True)
+    calls: list[dict[str, object]] = []
+    app = create_app(
+        agent_client_factory=_probe_factory(_probe_response(), calls),
+    )
+
+    evidence = app._agent_capability_evidence  # noqa: SLF001
+    assert evidence.state.value == "AGENT_CAPABILITY_ENABLED_NOT_READY"
+    assert evidence.provider_probe_passed is True
+    assert evidence.provider_schema_verified is True
+    assert evidence.provider_schema_identity == "AgentDecision"
+    assert calls[0]["base_url"] == OPENAI_OFFICIAL_BASE_URL
+    assert app.state._strict_runtime_authority.agent_candidate is True  # noqa: SLF001
+    assert len(app.state.frozen_agent_endpoint_authority) == 10
+
+
+def test_strict_default_probe_is_not_called_when_agent_is_disabled(monkeypatch, tmp_path):
+    from cold_storage.bootstrap.app import create_app
+
+    _configure_strict_agent_environment(monkeypatch, tmp_path, enabled=False)
+    calls: list[dict[str, object]] = []
+    app = create_app(
+        agent_client_factory=_probe_factory(_probe_response(), calls),
+    )
+
+    assert app._agent_capability_evidence.state.value == "AGENT_CAPABILITY_DISABLED"  # noqa: SLF001
+    assert calls == []
+
+
+@pytest.mark.parametrize("failure_code", list(AgentProviderFailureCode))
+def test_canonical_probe_preserves_frozen_provider_failure_code(failure_code):
+    from cold_storage.bootstrap.dependencies import canonical_agent_provider_probe
+
+    settings = Settings.model_validate(
+        {
+            "COLD_STORAGE_AGENT_PROVIDER": "openai",
+            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 10,
+            "COLD_STORAGE_AGENT_MAX_RETRIES": 0,
+            "COLD_STORAGE_OPENAI_API_KEY": "test-only-key",
+        }
+    )
+    probe = canonical_agent_provider_probe(
+        client_factory=_probe_factory(
+            ModelGatewayError("raw provider detail", code=failure_code),
+            [],
+        ),
+    )
+
+    evidence = probe(settings)
+    assert evidence.passed is False
+    assert evidence.failure_code is failure_code
+    assert "raw provider detail" not in repr(evidence)
+
+
+def test_canonical_probe_unknown_exception_fails_closed_without_raw_detail():
+    from cold_storage.bootstrap.dependencies import canonical_agent_provider_probe
+
+    settings = Settings.model_validate(
+        {
+            "COLD_STORAGE_AGENT_PROVIDER": "openai",
+            "COLD_STORAGE_AGENT_MODEL": "gpt-test",
+            "COLD_STORAGE_AGENT_TIMEOUT_SECONDS": 10,
+            "COLD_STORAGE_AGENT_MAX_RETRIES": 0,
+            "COLD_STORAGE_OPENAI_API_KEY": "test-only-key",
+        }
+    )
+    probe = canonical_agent_provider_probe(
+        client_factory=_probe_factory(RuntimeError("secret raw diagnostic"), []),
+    )
+
+    evidence = probe(settings)
+    assert evidence.passed is False
+    assert evidence.failure_code is AgentProviderFailureCode.AGENT_PROVIDER_UNAVAILABLE
+    assert "secret raw diagnostic" not in repr(evidence)
+
+
+def test_strict_lifespan_finalizes_ready_only_after_real_composition_audit(monkeypatch, tmp_path):
+    from cold_storage.bootstrap import app as bootstrap_app
+    from cold_storage.bootstrap import dependencies as deps
+    from cold_storage.bootstrap import runtime_readiness as readiness
+    from cold_storage.bootstrap.app import create_app
+    from cold_storage.modules.planning_agent.infrastructure.real_gateways import (
+        OpenAIAgentModelGateway,
+    )
+    from cold_storage.modules.projects.infrastructure.database import DatabaseProjectService
+
+    _configure_strict_agent_environment(monkeypatch, tmp_path, enabled=True)
+    calls: list[dict[str, object]] = []
+    audited_manifests: list[object] = []
+    app = create_app(
+        agent_client_factory=_probe_factory(_probe_response(), calls),
+    )
+
+    original_audit = readiness.assert_no_unsafe_strict_capabilities
+
+    def _capture_audit(*args, **kwargs):
+        audited_manifests.append(kwargs.get("binding_manifest"))
+        return original_audit(*args, **kwargs)
+
+    monkeypatch.setattr(readiness, "assert_no_unsafe_strict_capabilities", _capture_audit)
+
+    def _actual_candidate_init(settings, app=None, strict_runtime_authority=None, **kwargs):
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session
+        from sqlalchemy.pool import StaticPool
+
+        engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        deps._clear_composition_tokens()  # noqa: SLF001
+        deps._singletons["engine"] = engine  # noqa: SLF001
+        deps._singletons["project_service"] = DatabaseProjectService(engine)  # noqa: SLF001
+        gateway = OpenAIAgentModelGateway(
+            api_key=settings.openai_api_key,
+            model_name=settings.agent_model,
+            timeout_seconds=settings.agent_timeout_seconds,
+            max_retries=settings.agent_max_retries,
+            provider=settings.agent_provider,
+            client_factory=kwargs.get("agent_client_factory"),
+        )
+        deps._singletons["agent_gateway"] = gateway  # noqa: SLF001
+        deps._record_composition_token("OPENAI_AGENT_MODEL_GATEWAY_INSTANTIATED")  # noqa: SLF001
+        deps._record_composition_token("DATABASE_COEFFICIENT_SERVICE_INSTANTIATED")  # noqa: SLF001
+        session = Session(bind=engine)
+        try:
+            service = strict_runtime_authority.agent_service_factory(session)
+            assert isinstance(service, PlanningAgentService)
+        finally:
+            session.close()
+        deps._record_composition_token("REAL_PLANNING_AGENT_SERVICE_COMPOSED")  # noqa: SLF001
+        readiness.set_canonical_settings(settings)
+        readiness.set_composition_manifest_provider(deps._composition_manifest_provider)  # noqa: SLF001
+        readiness.assert_no_unsafe_strict_capabilities(
+            app=app,
+            authority=strict_runtime_authority,
+        )
+
+    monkeypatch.setattr(bootstrap_app, "init_dependencies", _actual_candidate_init)
+
+    with TestClient(app, headers={"X-Actor": "test-user"}):
+        evidence = app._agent_capability_evidence  # noqa: SLF001
+        assert evidence.state.value == "AGENT_CAPABILITY_ENABLED_READY"
+        assert evidence.provider_probe_passed is True
+        assert evidence.composition_passed is True
+        assert evidence.route_audit_passed is True
+        assert app.state._strict_runtime_authority.agent_candidate is True  # noqa: SLF001
+        assert audited_manifests[-1] == (
+            ("coefficient_http", "database_backed"),
+            ("model_backed_agent", "enabled_ready"),
+        )
+
+
+def test_strict_composition_failure_cannot_publish_ready(monkeypatch, tmp_path):
+    from cold_storage.bootstrap import app as bootstrap_app
+    from cold_storage.bootstrap.app import create_app
+
+    _configure_strict_agent_environment(monkeypatch, tmp_path, enabled=True)
+    app = create_app(
+        agent_client_factory=_probe_factory(_probe_response(), []),
+    )
+
+    def _composition_failure(*_args, **_kwargs):
+        raise RuntimeError("composition failure")
+
+    monkeypatch.setattr(bootstrap_app, "init_dependencies", _composition_failure)
+    with pytest.raises(RuntimeError, match="composition failure"), TestClient(app):
+        pass
+    assert app._agent_capability_evidence.state.value == "AGENT_CAPABILITY_ENABLED_NOT_READY"  # noqa: SLF001
+
+
+def test_strict_route_audit_failure_cannot_publish_ready(monkeypatch, tmp_path):
+    from cold_storage.bootstrap import app as bootstrap_app
+    from cold_storage.bootstrap import runtime_readiness as readiness
+    from cold_storage.bootstrap.app import create_app
+
+    _configure_strict_agent_environment(monkeypatch, tmp_path, enabled=True)
+    app = create_app(
+        agent_client_factory=_probe_factory(_probe_response(), []),
+    )
+
+    def _route_audit_failure(*_args, **_kwargs):
+        raise readiness.UnsafeStrictCapabilityWiring(
+            "route audit failed",
+            unsafe_capabilities=("model_backed_agent",),
+        )
+
+    monkeypatch.setattr(bootstrap_app, "init_dependencies", lambda *args, **kwargs: None)
+    monkeypatch.setattr(readiness, "assert_no_unsafe_strict_capabilities", _route_audit_failure)
+    with pytest.raises(readiness.UnsafeStrictCapabilityWiring), TestClient(app):
+        pass
+    assert app._agent_capability_evidence.state.value == "AGENT_CAPABILITY_ENABLED_NOT_READY"  # noqa: SLF001
+
+
+def test_final_ready_authority_and_manifest_are_audited_before_publish(monkeypatch, tmp_path):
+    """A READY projection cannot be self-attested after the last audit."""
+    from cold_storage.bootstrap import app as bootstrap_app
+    from cold_storage.bootstrap import runtime_readiness as readiness
+    from cold_storage.bootstrap.app import create_app
+
+    _configure_strict_agent_environment(monkeypatch, tmp_path, enabled=True)
+    app = create_app(
+        agent_provider_probe=_passed_provider_probe,
+        agent_client_factory=lambda **_kwargs: object(),
+    )
+    audited_manifests: list[object] = []
+
+    def _audit(*, binding_manifest=None, **_kwargs):
+        audited_manifests.append(binding_manifest)
+        if binding_manifest == (
+            ("coefficient_http", "database_backed"),
+            ("model_backed_agent", "enabled_ready"),
+        ):
+            raise readiness.UnsafeStrictCapabilityWiring(
+                "final binding audit failed",
+                unsafe_capabilities=("model_backed_agent",),
+            )
+        return readiness.StrictCapabilityAuditEvidence(
+            composition_passed=True,
+            route_audit_passed=True,
+        )
+
+    monkeypatch.setattr(bootstrap_app, "init_dependencies", lambda *args, **kwargs: None)
+    monkeypatch.setattr(readiness, "assert_no_unsafe_strict_capabilities", _audit)
+
+    with pytest.raises(readiness.UnsafeStrictCapabilityWiring), TestClient(app):
+        pass
+
+    assert audited_manifests[-1] == (
+        ("coefficient_http", "database_backed"),
+        ("model_backed_agent", "enabled_ready"),
+    )
+    assert app._agent_capability_evidence.state.value == "AGENT_CAPABILITY_ENABLED_NOT_READY"  # noqa: SLF001
+
+
+def test_fresh_provider_failure_demotes_and_recovers_guarded_routes(monkeypatch, tmp_path):
+    """READY -> NOT_READY -> READY uses one process and one app authority."""
+    from cold_storage.bootstrap import app as bootstrap_app
+    from cold_storage.bootstrap import dependencies as deps
+    from cold_storage.bootstrap import runtime_readiness as readiness
+    from cold_storage.bootstrap.app import create_app
+
+    _configure_strict_agent_environment(monkeypatch, tmp_path, enabled=True)
+    monkeypatch.setenv("PLANNING_AGENT_ALLOW_INSECURE_ACTOR", "true")
+
+    timeout_evidence = AgentProviderProbeEvidence(
+        passed=False,
+        failure_code=AgentProviderFailureCode.AGENT_PROVIDER_TIMEOUT,
+        provider="openai",
+        model="gpt-test",
+    )
+    probe_results = [_passed_provider_probe, timeout_evidence, _passed_provider_probe]
+    probe_calls: list[int] = []
+
+    def _sequenced_probe(settings):
+        result = probe_results[len(probe_calls)]
+        probe_calls.append(1)
+        return result(settings) if callable(result) else result
+
+    class _RequestService:
+        def list_sessions_by_actor(self, _actor):
+            return []
+
+    service_builds: list[object] = []
+
+    def _record_service_build(_db_session, gateway):
+        service_builds.append(gateway)
+        return _RequestService()
+
+    monkeypatch.setattr(bootstrap_app, "_build_planning_agent_service", _record_service_build)
+
+    def _candidate_init(settings, app=None, strict_runtime_authority=None):  # noqa: ARG001
+        deps._singletons["engine"] = create_engine(  # noqa: SLF001
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        deps._clear_composition_tokens()  # noqa: SLF001
+        deps._singletons["agent_gateway"] = object()  # noqa: SLF001
+        deps._record_composition_token("OPENAI_AGENT_MODEL_GATEWAY_INSTANTIATED")  # noqa: SLF001
+        deps._record_composition_token("REAL_PLANNING_AGENT_SERVICE_COMPOSED")  # noqa: SLF001
+        deps._record_composition_token("DATABASE_COEFFICIENT_SERVICE_INSTANTIATED")  # noqa: SLF001
+        readiness.set_canonical_settings(settings)
+        readiness.set_composition_manifest_provider(  # noqa: SLF001
+            deps._composition_manifest_provider,  # noqa: SLF001
+        )
+        readiness.set_readiness_state(readiness.ReadinessState(state="READY"))
+
+    monkeypatch.setattr(bootstrap_app, "init_dependencies", _candidate_init)
+
+    def _passing_readiness(**kwargs):
+        return tuple(
+            readiness.ProbeOutcome(
+                name=getattr(probe, "__name__", "probe"),
+                status="pass",
+            )
+            for probe in kwargs["readiness_probes"]
+        )
+
+    monkeypatch.setattr(readiness, "run_readiness_phase", _passing_readiness)
+    app = create_app(agent_provider_probe=_sequenced_probe)
+
+    with TestClient(app, headers={"X-Actor": "test-user"}) as client:
+        service_builds.clear()
+
+        demoted = client.get("/health/ready")
+        assert demoted.status_code == 503
+        assert demoted.json()["check_code"] == "AGENT_PROVIDER_TIMEOUT"
+        assert app._agent_capability_evidence.state.value == (  # noqa: SLF001
+            "AGENT_CAPABILITY_ENABLED_NOT_READY"
+        )
+
+        guarded = client.get("/api/v1/agent/sessions")
+        assert guarded.status_code == 503
+        assert guarded.json()["error"]["code"] == "AGENT_PROVIDER_TIMEOUT"
+        assert service_builds == []
+
+        recovered = client.get("/health/ready")
+        assert recovered.status_code == 200
+        assert app._agent_capability_evidence.state.value == (  # noqa: SLF001
+            "AGENT_CAPABILITY_ENABLED_READY"
+        )
+
+        available = client.get("/api/v1/agent/sessions")
+        assert available.status_code == 200
+        assert available.json() == []
+        assert len(service_builds) == 1
+
+    assert len(probe_calls) == 3

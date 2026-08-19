@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi.responses import JSONResponse
 
 from cold_storage.modules.planning_agent.api.schemas import (
     ConfirmToolCallRequest,
@@ -43,6 +44,7 @@ from cold_storage.modules.planning_agent.domain.errors import (
     ToolCallLimitExceededError,
     UnauthorizedError,
     UnregisteredToolError,
+    provider_failure_metadata,
 )
 
 
@@ -53,6 +55,25 @@ def _to_dict(obj: Any) -> dict[str, Any]:
     if isinstance(obj, dict):
         return obj
     return {}
+
+
+def _safe_provider_error_response(exc: ModelGatewayError) -> JSONResponse:
+    """Project only the frozen provider error identity to HTTP."""
+    code = getattr(exc, "provider_failure_code", None)
+    try:
+        metadata = provider_failure_metadata(code or "AGENT_PROVIDER_UNAVAILABLE")
+    except (TypeError, ValueError):
+        metadata = provider_failure_metadata("AGENT_PROVIDER_UNAVAILABLE")
+    return JSONResponse(
+        status_code=503,
+        content={
+            "error": {
+                "code": metadata.code.value,
+                "message": metadata.safe_message,
+                "details": {"retryable": metadata.retryable},
+            }
+        },
+    )
 
 
 @dataclass(frozen=True)
@@ -251,7 +272,7 @@ def create_agent_router(
         except InvalidStructuredOutputError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from None
         except ModelGatewayError as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from None
+            return _safe_provider_error_response(exc)
         except PlanningAgentError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from None
 

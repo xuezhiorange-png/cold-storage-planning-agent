@@ -6,6 +6,7 @@ from collections.abc import Callable
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
+from sqlalchemy.orm import Session as SASession
 from sqlalchemy.orm import sessionmaker
 
 from cold_storage.bootstrap.database import create_engine_from_settings, dispose_engine
@@ -24,6 +25,8 @@ from cold_storage.modules.projects.infrastructure.database import DatabaseProjec
 # never constructed in strict modes without ``runtime_readiness``
 # having to import the business types themselves.
 _COMPOSITION_TOKEN_FAKE_AGENT_GATEWAY = "FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED"
+_COMPOSITION_TOKEN_REAL_AGENT_GATEWAY = "OPENAI_AGENT_MODEL_GATEWAY_INSTANTIATED"
+_COMPOSITION_TOKEN_REAL_AGENT_SERVICE = "REAL_PLANNING_AGENT_SERVICE_COMPOSED"
 _COMPOSITION_TOKEN_PROCESS_LOCAL_COEFFICIENT = "PROCESS_LOCAL_COEFFICIENT_SERVICE_INSTANTIATED"
 _COMPOSITION_TOKEN_DATABASE_COEFFICIENT = "DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"
 _COMPOSITION_TOKEN_PROVIDER_ERROR = "COMPOSITION_MANIFEST_PROVIDER_ERROR"
@@ -47,11 +50,98 @@ _singletons: dict[str, Any] = {}
 _composition_tokens: set[str] = set()
 
 
+def canonical_agent_provider_probe(
+    *,
+    client_factory: Callable[..., Any] | None = None,
+) -> Callable[[Settings], Any]:
+    """Build the production provider/schema probe through the P2-B gateway.
+
+    The returned callable is intentionally injected into the readiness
+    resolver.  It constructs the existing OpenAI Responses gateway and sends
+    one structured, no-tool probe request, so provider reachability and the
+    frozen ``AgentDecision`` schema are verified together.  Tests can inject
+    a deterministic client factory; the composition root never creates a
+    second transport or reads a provider-native response directly.
+    """
+
+    def _probe(settings: Settings) -> Any:
+        from cold_storage.bootstrap.runtime_readiness import (  # noqa: PLC0415
+            AgentProviderProbeEvidence,
+        )
+        from cold_storage.modules.planning_agent.domain.errors import (  # noqa: PLC0415
+            AgentProviderFailureCode,
+            ModelGatewayError,
+        )
+        from cold_storage.modules.planning_agent.domain.gateways import (  # noqa: PLC0415
+            AgentModelRequest,
+        )
+        from cold_storage.modules.planning_agent.domain.models import AgentDecision  # noqa: PLC0415
+        from cold_storage.modules.planning_agent.infrastructure.real_gateways import (  # noqa: PLC0415
+            OpenAIAgentModelGateway,
+        )
+
+        try:
+            gateway = OpenAIAgentModelGateway(
+                api_key=settings.openai_api_key,
+                model_name=settings.agent_model,
+                timeout_seconds=settings.agent_timeout_seconds,
+                max_retries=settings.agent_max_retries,
+                provider=settings.agent_provider,
+                client_factory=client_factory,
+            )
+            decision = gateway.generate_decision(
+                AgentModelRequest(
+                    system_prompt="Return a structured readiness decision.",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": "Readiness probe: return a no-op structured decision.",
+                        }
+                    ],
+                    max_tokens=256,
+                )
+            )
+            if not isinstance(decision, AgentDecision):
+                return AgentProviderProbeEvidence(
+                    passed=False,
+                    failure_code=AgentProviderFailureCode.AGENT_PROVIDER_RESPONSE_MALFORMED,
+                    provider=settings.agent_provider,
+                    model=settings.agent_model,
+                )
+            return AgentProviderProbeEvidence(
+                passed=True,
+                provider=settings.agent_provider,
+                model=settings.agent_model,
+                schema_verified=True,
+                schema_identity="AgentDecision",
+            )
+        except ModelGatewayError as error:
+            return AgentProviderProbeEvidence(
+                passed=False,
+                failure_code=(
+                    error.provider_failure_code
+                    or AgentProviderFailureCode.AGENT_PROVIDER_UNAVAILABLE
+                ),
+                provider=settings.agent_provider,
+                model=settings.agent_model,
+            )
+        except Exception:  # noqa: BLE001
+            return AgentProviderProbeEvidence(
+                passed=False,
+                failure_code=AgentProviderFailureCode.AGENT_PROVIDER_UNAVAILABLE,
+                provider=settings.agent_provider,
+                model=settings.agent_model,
+            )
+
+    return _probe
+
+
 def init_dependencies(
     settings: Settings,
     *,
     app: Any = None,
     strict_runtime_authority: Any | None = None,
+    agent_client_factory: Callable[..., Any] | None = None,
 ) -> None:
     """Create and publish the canonical runtime dependency graph.
 
@@ -92,6 +182,8 @@ def init_dependencies(
 
     _singletons["engine"] = engine
     _singletons["app_mode"] = mode
+    _singletons.pop("agent_gateway", None)
+    _singletons["agent_evidence"] = getattr(strict_runtime_authority, "agent_evidence", None)
     try:
         project_service = DatabaseProjectService(engine)
     except Exception:
@@ -100,7 +192,61 @@ def init_dependencies(
     _singletons["project_service"] = project_service
 
     if mode in (AppMode.STAGING, AppMode.PRODUCTION):
-        agent_service: Any = _StrictModeAgentService()
+        capability_state = getattr(
+            strict_runtime_authority,
+            "agent_capability_state",
+            "AGENT_CAPABILITY_DISABLED",
+        )
+        agent_candidate = bool(getattr(strict_runtime_authority, "agent_candidate", False))
+        if capability_state == "AGENT_CAPABILITY_ENABLED_READY" or agent_candidate:
+            evidence = getattr(strict_runtime_authority, "agent_evidence", None)
+            if evidence is None or any(
+                (
+                    getattr(evidence, "provider", None) != settings.agent_provider,
+                    getattr(evidence, "model", None) != settings.agent_model,
+                    getattr(evidence, "timeout_seconds", None) != settings.agent_timeout_seconds,
+                    getattr(evidence, "max_retries", None) != settings.agent_max_retries,
+                )
+            ):
+                shutdown_dependencies()
+                raise RuntimeError("agent capability evidence does not match canonical settings")
+            try:
+                from cold_storage.modules.planning_agent.infrastructure.real_gateways import (  # noqa: PLC0415
+                    OpenAIAgentModelGateway,
+                )
+
+                gateway = OpenAIAgentModelGateway(
+                    api_key=settings.openai_api_key,
+                    model_name=settings.agent_model,
+                    timeout_seconds=settings.agent_timeout_seconds,
+                    max_retries=settings.agent_max_retries,
+                    provider=settings.agent_provider,
+                    client_factory=agent_client_factory,
+                )
+            except Exception:
+                shutdown_dependencies()
+                raise
+            _singletons["agent_gateway"] = gateway
+            _record_composition_token(_COMPOSITION_TOKEN_REAL_AGENT_GATEWAY)
+            service_factory = getattr(strict_runtime_authority, "agent_service_factory", None)
+            if not callable(service_factory):
+                shutdown_dependencies()
+                raise RuntimeError("strict agent composition factory is unavailable")
+            composition_session = SASession(bind=engine, expire_on_commit=False)
+            try:
+                agent_service = service_factory(composition_session)
+            except Exception:
+                composition_session.close()
+                shutdown_dependencies()
+                raise
+            finally:
+                composition_session.close()
+            _singletons["agent_service"] = agent_service
+            _singletons["agent_service_composition"] = agent_service
+            _record_composition_token(_COMPOSITION_TOKEN_REAL_AGENT_SERVICE)
+        else:
+            agent_service = _StrictModeAgentService(capability_state=capability_state)
+            _singletons["agent_service"] = agent_service
     else:
         from cold_storage.modules.planning_agent.application.agent_service import (  # noqa: PLC0415
             LegacyPlanningAgentService,
@@ -190,10 +336,18 @@ def init_dependencies(
     _ = canonical_settings
 
 
-def _StrictModeAgentService() -> Any:
-    """Return an import-free strict-mode placeholder agent service."""
+def _StrictModeAgentService(
+    *,
+    capability_state: str = "AGENT_CAPABILITY_DISABLED",
+    gateway: Any | None = None,
+) -> Any:
+    """Return a strict dependency marker without constructing a fake gateway."""
 
     class _Placeholder:
+        def __init__(self) -> None:
+            self.capability_state = capability_state
+            self.gateway = gateway
+
         def is_strict(self) -> bool:
             return True
 
@@ -237,6 +391,18 @@ def get_agent_service() -> Any:
     if "agent_service" not in _singletons:
         raise RuntimeError("Dependencies not initialized. Call init_dependencies(settings) first.")
     return _singletons["agent_service"]
+
+
+def get_agent_gateway() -> Any:
+    """Return the real strict gateway only after ready composition."""
+    if "agent_gateway" not in _singletons:
+        raise RuntimeError("Agent gateway is not available in the current capability state.")
+    return _singletons["agent_gateway"]
+
+
+def publish_agent_capability_evidence(evidence: Any) -> None:
+    """Publish final app-bound evidence after strict startup audit passes."""
+    _singletons["agent_evidence"] = evidence
 
 
 def get_engine() -> Any:
@@ -294,6 +460,61 @@ def get_startup_readiness_outcome() -> Any:
     return _singletons["startup_readiness_outcome"]
 
 
+def _capability_projection_entry(
+    *,
+    app_mode: Any,
+    evidence: Any | None = None,
+) -> MappingProxyType[str, object]:
+    from cold_storage.bootstrap.mode import AppMode
+
+    if app_mode in (AppMode.LOCAL, AppMode.TEST):
+        return MappingProxyType(
+            {
+                "name": _MODEL_BACKED_AGENT_CAPABILITY,
+                "status": "available",
+                "code": None,
+                "blocking": False,
+                "capability_state": "LOCAL_TEST_AVAILABLE",
+                "route_exposure": "LOCAL_TEST_ROUTES",
+            }
+        )
+
+    state = getattr(evidence, "state", None)
+    state_value = getattr(state, "value", state) or "AGENT_CAPABILITY_DISABLED"
+    if state_value == "AGENT_CAPABILITY_ENABLED_READY":
+        return MappingProxyType(
+            {
+                "name": _MODEL_BACKED_AGENT_CAPABILITY,
+                "status": "available",
+                "code": None,
+                "blocking": False,
+                "capability_state": state_value,
+                "route_exposure": "REAL_AGENT_ROUTES_ENABLED",
+            }
+        )
+    if state_value == "AGENT_CAPABILITY_ENABLED_NOT_READY":
+        return MappingProxyType(
+            {
+                "name": _MODEL_BACKED_AGENT_CAPABILITY,
+                "status": "not_ready",
+                "code": getattr(evidence, "failure_code", None) or "AGENT_PROVIDER_UNAVAILABLE",
+                "blocking": True,
+                "capability_state": state_value,
+                "route_exposure": "DISABLED_ROUTE_MATRIX",
+            }
+        )
+    return MappingProxyType(
+        {
+            "name": _MODEL_BACKED_AGENT_CAPABILITY,
+            "status": "disabled",
+            "code": "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
+            "blocking": False,
+            "capability_state": "AGENT_CAPABILITY_DISABLED",
+            "route_exposure": "DISABLED_ROUTE_MATRIX",
+        }
+    )
+
+
 def agent_capability_projection() -> tuple[MappingProxyType[str, object], ...]:
     """Return the canonical bounded capability projection for this app mode.
 
@@ -301,25 +522,20 @@ def agent_capability_projection() -> tuple[MappingProxyType[str, object], ...]:
     callers from mutating the shared singleton projection.  The tuple
     itself is already immutable.
     """
-    from types import MappingProxyType
-
-    from cold_storage.bootstrap.mode import AppMode
-
     mode = _singletons.get("app_mode")
-    available = mode in (AppMode.LOCAL, AppMode.TEST)
     return (
-        MappingProxyType(
-            {
-                "name": _MODEL_BACKED_AGENT_CAPABILITY,
-                "status": "available" if available else "disabled",
-                "code": None if available else "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
-                "blocking": False,
-            }
+        _capability_projection_entry(
+            app_mode=mode,
+            evidence=_singletons.get("agent_evidence"),
         ),
     )
 
 
-def create_capability_projection(app_mode: Any) -> tuple[MappingProxyType[str, object], ...]:
+def create_capability_projection(
+    app_mode: Any,
+    *,
+    evidence: Any | None = None,
+) -> tuple[MappingProxyType[str, object], ...]:
     """Create an immutable capability projection bound to the given app mode.
 
     D-S4-04: The projection is created once during app factory and bound
@@ -329,21 +545,7 @@ def create_capability_projection(app_mode: Any) -> tuple[MappingProxyType[str, o
     Each entry is a :class:`types.MappingProxyType` so callers cannot
     mutate the app-bound projection after creation.
     """
-    from types import MappingProxyType
-
-    from cold_storage.bootstrap.mode import AppMode
-
-    available = app_mode in (AppMode.LOCAL, AppMode.TEST)
-    return (
-        MappingProxyType(
-            {
-                "name": _MODEL_BACKED_AGENT_CAPABILITY,
-                "status": "available" if available else "disabled",
-                "code": None if available else "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
-                "blocking": False,
-            }
-        ),
-    )
+    return (_capability_projection_entry(app_mode=app_mode, evidence=evidence),)
 
 
 def shutdown_dependencies() -> None:
