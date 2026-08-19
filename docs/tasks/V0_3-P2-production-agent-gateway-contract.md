@@ -807,13 +807,13 @@ write target and its local/test behavior remains read-only under this
 contract.
 
 `environment_model.py` is the canonical strict environment-key authority for
-the four P2 selection and retry keys named in Section 4. Its future P2 write
-authority is limited to registering those keys while preserving strict
-unknown-key rejection, legacy-key policy, resource/environment identity
-authority, and redacted credential classification. The MiMo credential
-authority is the runtime-injected `COLD_STORAGE_MIMO_API_KEY`; it is not
-stored or logged and is not authority for an unrelated configuration
-redesign.
+the four P2 selection and retry keys and the MiMo credential key named in
+Section 4. Its future P2 write authority is limited to registering those keys
+while preserving strict unknown-key rejection, legacy-key policy,
+resource/environment identity authority, and redacted credential
+classification. The MiMo credential authority is the runtime-injected
+`COLD_STORAGE_MIMO_API_KEY`; it is not stored or logged and is not authority
+for an unrelated configuration redesign.
 
 `routes.py` is the future P2 API projection owner. Its write authority is
 limited to projecting the ten frozen provider failure codes, their frozen safe
@@ -852,10 +852,23 @@ path. Provider transport must be mocked or replaced with a deterministic
 test transport; ordinary CI must never call a live provider.
 
 `test_settings.py` is the canonical P2 configuration test owner. It must cover
-the four canonical P2 environment keys, strict unknown-`COLD_STORAGE_*` key
-rejection, staging/production explicit configuration requirements,
-timeout/retry shape validation, and preservation of existing Slice-1
-configuration semantics. No broad `tests/**` wildcard is authorized.
+the four Agent selection/retry canonical keys plus the MiMo provider
+credential canonical key, strict unknown-`COLD_STORAGE_*` key rejection,
+staging/production explicit configuration requirements, timeout/retry shape
+validation, and preservation of existing Slice-1 configuration semantics. No
+broad `tests/**` wildcard is authorized.
+
+The future `test_settings.py` authority must also prove that
+`COLD_STORAGE_MIMO_API_KEY` is a canonical known key and is marked redacted
+in the configuration-resolution report; its raw value must not appear in
+`repr`, diagnostics, errors, or any other emitted evidence. Credential
+presence alone must not create Agent enablement intent. Explicit
+`provider=mimo` plus `model=mimo-v2.5` without the credential must fail
+closed, a `tp-*` credential must fail before provider call with
+`AGENT_PROVIDER_CREDENTIAL_INVALID` and `retryable=false`, and an `sk-*`
+credential may pass only local configuration-shape validation. Ordinary CI
+must not call a live provider, and unknown other `COLD_STORAGE_*` keys must
+continue to fail closed in staging and production.
 
 ### 15.3 Configuration/composition allowlist
 
@@ -868,10 +881,47 @@ backend/src/cold_storage/bootstrap/runtime_readiness.py
 ```
 
 Configuration additions must be explicit, typed, redacted, bounded, and
-validated in strict modes. `environment_model.py` may only register
-`COLD_STORAGE_AGENT_PROVIDER`, `COLD_STORAGE_AGENT_MODEL`,
-`COLD_STORAGE_AGENT_TIMEOUT_SECONDS`, and `COLD_STORAGE_AGENT_MAX_RETRIES`.
-No environment variable alone may bypass the composition and readiness audit.
+validated in strict modes. `environment_model.py` may register only the
+following five canonical keys:
+
+```text
+COLD_STORAGE_AGENT_PROVIDER
+COLD_STORAGE_AGENT_MODEL
+COLD_STORAGE_AGENT_TIMEOUT_SECONDS
+COLD_STORAGE_AGENT_MAX_RETRIES
+COLD_STORAGE_MIMO_API_KEY
+```
+
+The first four keys are Agent selection, timeout, and retry configuration
+authority. `COLD_STORAGE_MIMO_API_KEY` is the MiMo provider credential
+authority; it is not a selection key and is not an enablement-intent source.
+
+```text
+MIMO_RUNTIME_CREDENTIAL_ENV_KEY=COLD_STORAGE_MIMO_API_KEY
+MIMO_RUNTIME_CREDENTIAL_CANONICAL_SUFFIX=MIMO_API_KEY
+MIMO_RUNTIME_CREDENTIAL_REGISTRATION_ALLOWED=YES
+MIMO_RUNTIME_CREDENTIAL_SENSITIVE=YES
+MIMO_RUNTIME_CREDENTIAL_REDACTION_REQUIRED=YES
+MIMO_RUNTIME_CREDENTIAL_RAW_VALUE_LOGGING_ALLOWED=NO
+MIMO_RUNTIME_CREDENTIAL_RAW_VALUE_ERROR_OUTPUT_ALLOWED=NO
+MIMO_RUNTIME_CREDENTIAL_RUNTIME_INJECTION_ONLY=YES
+MIMO_RUNTIME_CREDENTIAL_ENABLEMENT_INTENT_TRIGGER=NO
+MIMO_RUNTIME_CREDENTIAL_ALONE_ENABLES_AGENT=NO
+MIMO_RUNTIME_CREDENTIAL_ALONE_PROVES_READINESS=NO
+MIMO_RUNTIME_CREDENTIAL_EXPECTED_FAMILY=sk-xxxxx
+TOKEN_PLAN_CREDENTIAL_FAMILY=tp-xxxxx
+TOKEN_PLAN_CREDENTIAL_ALLOWED_FOR_APPLICATION_RUNTIME=NO
+COLD_STORAGE_MIMO_API_KEY_REDACTED=YES
+UNKNOWN_OTHER_COLD_STORAGE_KEYS_STRICT_REJECTION_PRESERVED=YES
+```
+
+`COLD_STORAGE_MIMO_API_KEY` is therefore a canonical known sensitive key, but
+provider and model must still be explicitly configured. The credential must
+not bypass provider readiness, strict composition, or final route audit. Its
+raw secret must not enter logs, `repr`, resolution-report values, error
+envelopes, or diagnostics. No other unknown `COLD_STORAGE_*` key is admitted
+by this correction, and no environment variable alone may bypass the
+composition and readiness audit.
 
 ### 15.4 Dependency allowlist
 
