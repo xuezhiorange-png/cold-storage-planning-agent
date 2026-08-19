@@ -305,9 +305,10 @@ creates enablement intent.
 
 The first concrete provider authority was originally frozen by Issue #110
 record `5323439225`. Its OpenAI selection is the completed historical
-implementation baseline, while the MiMo Token Plan provider amendment
-recorded as `5336787415` is the target authority for a future migration. The
-current implementation reads `COLD_STORAGE_OPENAI_API_KEY`; the target MiMo
+implementation baseline. The MiMo Token Plan provider amendment recorded as
+`5336787415` is retained as historical provenance and was superseded before
+implementation by the PAYG runtime scope in Section 25. The current
+implementation reads `COLD_STORAGE_OPENAI_API_KEY`; the future MiMo
 implementation must use `COLD_STORAGE_MIMO_API_KEY`. Neither credential alone
 creates enablement intent, and the complete explicit provider and readiness
 contract below is required.
@@ -352,15 +353,26 @@ FIRST_PROVIDER_ID=mimo
 PROVIDER_VENDOR=Xiaomi MiMo
 PROVIDER_MODEL=mimo-v2.5
 MIMO_V2_5_PRO_ALLOWED=NO
-PROVIDER_SUBSCRIPTION_MODE=TOKEN_PLAN
+PROVIDER_SUBSCRIPTION_MODE=PAY_AS_YOU_GO
+MIMO_RUNTIME_BILLING_MODE=PAY_AS_YOU_GO
 PROVIDER_API_SURFACE=OpenAI-compatible Responses API
 PROVIDER_TRANSPORT=official openai Python SDK
-MIMO_TOKEN_PLAN_BASE_URL=https://token-plan-sgp.xiaomimimo.com/v1
-PROVIDER_BASE_URL_POLICY=the frozen MiMo Token Plan endpoint only; custom arbitrary base URL forbidden
+MIMO_RUNTIME_BASE_URL=https://api.xiaomimimo.com/v1
+MIMO_RUNTIME_RESPONSES_ENDPOINT=https://api.xiaomimimo.com/v1/responses
+PROVIDER_BASE_URL_POLICY=official Xiaomi MiMo pay-as-you-go API endpoint only
 CUSTOM_ARBITRARY_BASE_URL_ALLOWED=NO
-TOKEN_PLAN_CONSOLE_BASE_URL_MATCH_REQUIRED=YES
+AMBIENT_BASE_URL_OVERRIDE_ALLOWED=NO
 PROVIDER_CREDENTIAL_SOURCE=COLD_STORAGE_MIMO_API_KEY
-TOKEN_PLAN_API_KEY_FORMAT=tp-xxxxx
+MIMO_RUNTIME_API_KEY_FORMAT=sk-xxxxx
+TOKEN_PLAN_KEY_ALLOWED_FOR_APPLICATION_RUNTIME=NO
+PAY_AS_YOU_GO_KEY_REQUIRED_FOR_APPLICATION_RUNTIME=YES
+TOKEN_PLAN_RUNTIME_ALLOWED=NO
+TOKEN_PLAN_CODING_TOOL_USE_REMAINS_ALLOWED=YES
+TOKEN_PLAN_CREDENTIAL_FAMILY_REJECTED=YES
+TOKEN_PLAN_CREDENTIAL_REJECTION_CODE=AGENT_PROVIDER_CREDENTIAL_INVALID
+TOKEN_PLAN_CREDENTIAL_REJECTION_RETRYABLE=NO
+TOKEN_PLAN_CREDENTIAL_REJECTION_BEFORE_PROVIDER_CALL=YES
+TOKEN_PLAN_ENDPOINT_ROUTING_ON_CREDENTIAL_MISMATCH=FORBIDDEN
 PROVIDER_MODEL_AUTHORITY=COLD_STORAGE_AGENT_MODEL; explicit configuration required; exact value mimo-v2.5; no production default model; no automatic model selection
 PROVIDER_TIMEOUT_AUTHORITY=COLD_STORAGE_AGENT_TIMEOUT_SECONDS
 PROVIDER_RETRY_AUTHORITY=COLD_STORAGE_AGENT_MAX_RETRIES
@@ -380,13 +392,13 @@ The selected provider is `mimo` only when
 `COLD_STORAGE_AGENT_PROVIDER=mimo` and
 `COLD_STORAGE_AGENT_MODEL=mimo-v2.5` are explicitly present. `mimo-v2.5-pro`
 is not allowed. No other provider id is implicitly supported by this
-contract. Only `https://token-plan-sgp.xiaomimimo.com/v1` is allowed; if the
-Token Plan console supplies a different account-specific base URL, the
-provider selection is blocked pending a separate authority amendment and the
-implementation must not silently switch regions or endpoints. The official
-OpenAI Python SDK remains the transport dependency, but the API surface is
-the MiMo OpenAI-compatible Responses API. The SDK's own retries are
-disabled; only the application gateway retry policy in Section 9 applies.
+contract. Only `https://api.xiaomimimo.com/v1` and its `/responses` endpoint
+are allowed; arbitrary or ambient base URL overrides are forbidden. A
+Token Plan key or endpoint cannot be used for application runtime, and the
+implementation must not silently switch subscription, region, or endpoint.
+The official OpenAI Python SDK remains the transport dependency, but the API
+surface is the MiMo OpenAI-compatible Responses API. The SDK's own retries
+are disabled; only the application gateway retry policy in Section 9 applies.
 The provider must not retain server-side state through store, background, or
 conversation-state features.
 
@@ -599,7 +611,7 @@ collapsed into a single `enabled` boolean or inferred from route presence.
 | State | Meaning | Global application readiness | Route exposure |
 | --- | --- | --- | --- |
 | `AGENT_CAPABILITY_DISABLED` | Intentional capability-off state: neither provider id nor model id is configured; no provider is selected | `PASS_IF_ALL_OTHER_MANDATORY_READINESS_GATES_PASS` | `DISABLED_ROUTE_MATRIX` |
-| `AGENT_CAPABILITY_ENABLED_READY` | Explicit `mimo` provider and exact `mimo-v2.5` model are configured; MiMo Token Plan credentials, bounded settings, adapter/schema probe, strict composition, and route audit all pass | `PASS_IF_PROVIDER_AND_ALL_OTHER_MANDATORY_READINESS_GATES_PASS` | `REAL_AGENT_ROUTES_ENABLED` |
+| `AGENT_CAPABILITY_ENABLED_READY` | Explicit `mimo` provider and exact `mimo-v2.5` model are configured; valid MiMo pay-as-you-go credentials in the `sk-xxxxx` family, bounded settings, adapter/schema probe, strict composition, and route audit all pass | `PASS_IF_PROVIDER_AND_ALL_OTHER_MANDATORY_READINESS_GATES_PASS` | `REAL_AGENT_ROUTES_ENABLED` |
 | `AGENT_CAPABILITY_ENABLED_NOT_READY` | Explicit enablement intent exists, but configuration, credentials, provider availability, probe, composition, or route audit is invalid or unavailable | `FAIL` | `DISABLED_ROUTE_MATRIX` |
 
 The disabled-state contract is explicit:
@@ -645,9 +657,10 @@ The state-selection rule is deterministic:
    selected provider/configuration cannot be validated ->
    `AGENT_CAPABILITY_ENABLED_NOT_READY`;
 3. `COLD_STORAGE_AGENT_PROVIDER=mimo` plus
-   `COLD_STORAGE_AGENT_MODEL=mimo-v2.5`, valid MiMo Token Plan secret source,
-   bounded settings, successful provider/schema readiness probe, strict
-   composition, and route audit PASS -> `AGENT_CAPABILITY_ENABLED_READY`.
+   `COLD_STORAGE_AGENT_MODEL=mimo-v2.5`, valid MiMo pay-as-you-go secret
+   source in the `sk-xxxxx` family, bounded settings, successful
+   provider/schema readiness probe, strict composition, and route audit PASS
+   -> `AGENT_CAPABILITY_ENABLED_READY`.
 
 An intentionally disabled capability is therefore distinct from an explicitly
 enabled but misconfigured or unavailable provider. Disabled routes must use
@@ -949,14 +962,34 @@ HISTORICAL_PROVIDER=openai
 
 #### P2-MIMO_TOKEN_PLAN_ADAPTER_MIGRATION
 
-This future slice migrates the completed OpenAI implementation to the target
-MiMo Token Plan authority in Section 4.1. It is not part of the completed
-historical P2-B slice and is not authorized by this contract correction.
+This prospective slice is retained as historical provenance for the superseded
+MiMo Token Plan target. It was never implemented or authorized and is
+superseded before implementation by the PAYG migration slice below.
 
 ```text
-P2_MIMO_TOKEN_PLAN_ADAPTER_MIGRATION_STATUS=NOT_IMPLEMENTED
+P2_MIMO_TOKEN_PLAN_ADAPTER_MIGRATION_STATUS=SUPERSEDED_BEFORE_IMPLEMENTATION
+P2_MIMO_TOKEN_PLAN_ADAPTER_MIGRATION_IMPLEMENTED=NO
 P2_MIMO_TOKEN_PLAN_ADAPTER_MIGRATION_AUTHORIZED=NO
 P2_MIMO_TOKEN_PLAN_ADAPTER_MIGRATION_REQUIRES_SEPARATE_AUTHORIZATION=YES
+P2_MIMO_TOKEN_PLAN_ADAPTER_MIGRATION_SUPERSEDED_BY=P2-MIMO_PAYG_ADAPTER_MIGRATION
+```
+
+#### P2-MIMO_PAYG_ADAPTER_MIGRATION
+
+This active prospective slice migrates the completed OpenAI implementation to
+the MiMo pay-as-you-go runtime authority in Section 25. It is not implemented
+or authorized by this contract amendment.
+
+```text
+P2_MIMO_PAYG_ADAPTER_MIGRATION_STATUS=NOT_IMPLEMENTED
+P2_MIMO_PAYG_ADAPTER_MIGRATION_AUTHORIZED=NO
+P2_MIMO_PAYG_ADAPTER_MIGRATION_REQUIRES_SEPARATE_AUTHORIZATION=YES
+P2_MIMO_PAYG_ADAPTER_MIGRATION_PROVIDER=mimo
+P2_MIMO_PAYG_ADAPTER_MIGRATION_MODEL=mimo-v2.5
+P2_MIMO_PAYG_ADAPTER_MIGRATION_BILLING=PAY_AS_YOU_GO
+P2_MIMO_PAYG_ADAPTER_MIGRATION_BASE_URL=https://api.xiaomimimo.com/v1
+P2_MIMO_PAYG_ADAPTER_MIGRATION_CREDENTIAL=COLD_STORAGE_MIMO_API_KEY
+P2_MIMO_PAYG_ADAPTER_MIGRATION_CREDENTIAL_FAMILY=sk-xxxxx
 ```
 
 #### P2-C_STRICT_COMPOSITION_API
@@ -1058,6 +1091,24 @@ separate authorization. It must prove, at minimum:
 10. strict readiness, lifecycle, persistence, and normalized results remain
     valid.
 
+The future controlled acceptance provider identity is the MiMo pay-as-you-go
+runtime, not the superseded Token Plan scope:
+
+```text
+CONTROLLED_REAL_PROVIDER=mimo
+CONTROLLED_REAL_MODEL=mimo-v2.5
+CONTROLLED_REAL_RUNTIME_BILLING=PAY_AS_YOU_GO
+CONTROLLED_REAL_RUNTIME_BASE_URL=https://api.xiaomimimo.com/v1
+CONTROLLED_REAL_RUNTIME_CREDENTIAL_SOURCE=COLD_STORAGE_MIMO_API_KEY
+CONTROLLED_REAL_RUNTIME_API_KEY_FORMAT=sk-xxxxx
+TOKEN_PLAN_RUNTIME_ALLOWED=NO
+PAY_AS_YOU_GO_KEY_REQUIRED_FOR_APPLICATION_RUNTIME=YES
+```
+
+Only a separately authorized runtime-injected PAYG credential may be used;
+Token Plan keys and Token Plan endpoints are not application-runtime
+acceptance inputs.
+
 This acceptance is not ordinary PR CI, is not authorized by this document,
 and must not be dispatched, retried, or treated as production operation
 without its own gate.
@@ -1112,6 +1163,10 @@ IMPLEMENTED_IS_NOT_LIVE_ACCEPTED=YES
 IMPLEMENTED_IS_NOT_PRODUCTION_ENABLED=YES
 TARGET_PROVIDER_AUTHORITY=mimo
 TARGET_MODEL_AUTHORITY=mimo-v2.5
+TARGET_RUNTIME_BILLING_AUTHORITY=PAY_AS_YOU_GO
+TARGET_RUNTIME_BASE_URL=https://api.xiaomimimo.com/v1
+TARGET_RUNTIME_CREDENTIAL_SOURCE=COLD_STORAGE_MIMO_API_KEY
+TARGET_RUNTIME_API_KEY_FORMAT=sk-xxxxx
 CURRENT_IMPLEMENTATION_CONFORMS_TO_MIMO_TARGET_AUTHORITY=NO
 MIMO_TARGET_IMPLEMENTATION_STATUS=NOT_IMPLEMENTED
 MIMO_IMPLEMENTATION_REQUIRED_BEFORE_ENABLED_READY=YES
@@ -1127,7 +1182,8 @@ PROVIDER_ID=mimo
 PROVIDER_VENDOR=Xiaomi MiMo
 PROVIDER_MODEL=mimo-v2.5
 MIMO_V2_5_PRO_ALLOWED=NO
-PROVIDER_SUBSCRIPTION_MODE=TOKEN_PLAN
+PROVIDER_SUBSCRIPTION_MODE=PAY_AS_YOU_GO
+MIMO_RUNTIME_BILLING_MODE=PAY_AS_YOU_GO
 PROVIDER_API_SURFACE=OpenAI-compatible Responses API
 PROVIDER_TRANSPORT_FROZEN=YES
 PROVIDER_ENDPOINT_POLICY_FROZEN=YES
@@ -1135,11 +1191,17 @@ PROVIDER_CREDENTIAL_SOURCE_FROZEN=YES
 PROVIDER_MODEL_AUTHORITY_FROZEN=YES
 PROVIDER_DEPENDENCY_STRATEGY_FROZEN=YES
 PROVIDER_TEST_TRANSPORT_FROZEN=YES
-MIMO_TOKEN_PLAN_BASE_URL=https://token-plan-sgp.xiaomimimo.com/v1
+MIMO_RUNTIME_BASE_URL=https://api.xiaomimimo.com/v1
+MIMO_RUNTIME_RESPONSES_ENDPOINT=https://api.xiaomimimo.com/v1/responses
+PROVIDER_BASE_URL_POLICY=official Xiaomi MiMo pay-as-you-go API endpoint only
 CUSTOM_ARBITRARY_BASE_URL_ALLOWED=NO
-TOKEN_PLAN_CONSOLE_BASE_URL_MATCH_REQUIRED=YES
+AMBIENT_BASE_URL_OVERRIDE_ALLOWED=NO
 PROVIDER_CREDENTIAL_SOURCE=COLD_STORAGE_MIMO_API_KEY
-TOKEN_PLAN_API_KEY_FORMAT=tp-xxxxx
+MIMO_RUNTIME_API_KEY_FORMAT=sk-xxxxx
+TOKEN_PLAN_KEY_ALLOWED_FOR_APPLICATION_RUNTIME=NO
+PAY_AS_YOU_GO_KEY_REQUIRED_FOR_APPLICATION_RUNTIME=YES
+TOKEN_PLAN_RUNTIME_ALLOWED=NO
+TOKEN_PLAN_CODING_TOOL_USE_REMAINS_ALLOWED=YES
 PROVIDER_MODEL_AUTHORITY=COLD_STORAGE_AGENT_MODEL
 PROVIDER_TIMEOUT_AUTHORITY=COLD_STORAGE_AGENT_TIMEOUT_SECONDS
 PROVIDER_RETRY_AUTHORITY=COLD_STORAGE_AGENT_MAX_RETRIES
@@ -1417,15 +1479,22 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 ## 24. V0.3 P2 MiMo Token Plan Provider Contract Amendment R1
 
-This amendment freezes the target provider authority as the explicitly
-selected MiMo Token Plan provider. It changes contract authority only; it does
-not retroactively rewrite the completed OpenAI implementation and does not
-authorize the MiMo migration, dependency mutation, credentials, provider
-calls, controlled acceptance, or production enablement. OpenAI-specific
-values retained in Sections 20-23 are historical implementation records;
-MiMo-specific values in this section are target authority and require a
-separately authorized migration before they can become the implemented
-provider.
+This section is retained as immutable historical provenance for PR #130 and
+its MiMo Token Plan amendment. It is not the current runtime provider
+authority. It changed contract authority only; it did not retroactively
+rewrite the completed OpenAI implementation and did not authorize the MiMo
+migration, dependency mutation, credentials, provider calls, controlled
+acceptance, or production enablement. Its Token Plan target was superseded
+before implementation by Section 25.
+
+```text
+HISTORICAL_PROVIDER_AMENDMENT_R1=MIMO_TOKEN_PLAN
+HISTORICAL_PROVIDER_AMENDMENT_R1_STATUS=SUPERSEDED_BEFORE_IMPLEMENTATION
+HISTORICAL_TOKEN_PLAN_RUNTIME_IMPLEMENTATION_EXECUTED=NO
+HISTORICAL_TOKEN_PLAN_LIVE_ACCEPTANCE_EXECUTED=NO
+HISTORICAL_TOKEN_PLAN_PRODUCTION_ENABLEMENT_EXECUTED=NO
+SUPERSEDED_BY=V03_P2_MIMO_RUNTIME_PROVIDER_SCOPE_CONTRACT_AMENDMENT_R2
+```
 
 ```text
 TASK=V03_P2_MIMO_TOKEN_PLAN_PROVIDER_CONTRACT_AMENDMENT_R1
@@ -1509,5 +1578,90 @@ ISSUE_110_CLOSURE=NO
 P2_IMPLEMENTATION_AUTHORIZED=NO
 READY_AUTHORIZED=NO
 MERGE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+## 25. V0.3 P2 MiMo Runtime Provider Scope Contract Amendment R2
+
+This amendment is the current active runtime provider scope. It supersedes
+the Token Plan target in Section 24 before implementation, while preserving
+that section as historical provenance. It changes contract authority only; it
+does not implement the MiMo adapter, add dependencies, change credentials,
+call a provider, enable production, or authorize controlled acceptance.
+
+```text
+TASK=V03_P2_MIMO_RUNTIME_PROVIDER_SCOPE_CONTRACT_AMENDMENT_R2
+AUTHORIZATION_RECORD_ID=5338560466
+SOURCE_BLOCKER_RESULT_RECORD_ID=5338511698
+AUTHORIZATION_SCOPE=CONTRACT_AMENDMENT_ONLY
+
+TARGET_PROVIDER_AUTHORITY_STATUS=ACTIVE
+TARGET_PROVIDER=mimo
+TARGET_MODEL=mimo-v2.5
+MIMO_V2_5_PRO_ALLOWED=NO
+TARGET_RUNTIME_BILLING=PAY_AS_YOU_GO
+TARGET_RUNTIME_BILLING_AUTHORITY=PAY_AS_YOU_GO
+TARGET_RUNTIME_BASE_URL=https://api.xiaomimimo.com/v1
+TARGET_RUNTIME_CREDENTIAL_SOURCE=COLD_STORAGE_MIMO_API_KEY
+TARGET_RUNTIME_API_KEY_FORMAT=sk-xxxxx
+PROVIDER_SUBSCRIPTION_MODE=PAY_AS_YOU_GO
+MIMO_RUNTIME_BILLING_MODE=PAY_AS_YOU_GO
+PROVIDER_API_SURFACE=OpenAI-compatible Responses API
+PROVIDER_TRANSPORT=official openai Python SDK
+PROVIDER_RUNTIME_DEPENDENCY=openai Python package
+OPENAI_SDK_MAX_RETRIES=0
+MAX_PROVIDER_ATTEMPTS=2
+MAX_PROVIDER_RETRIES=1
+MIMO_RUNTIME_BASE_URL=https://api.xiaomimimo.com/v1
+MIMO_RUNTIME_RESPONSES_ENDPOINT=https://api.xiaomimimo.com/v1/responses
+PROVIDER_BASE_URL_POLICY=official Xiaomi MiMo pay-as-you-go API endpoint only
+CUSTOM_ARBITRARY_BASE_URL_ALLOWED=NO
+AMBIENT_BASE_URL_OVERRIDE_ALLOWED=NO
+PROVIDER_CREDENTIAL_SOURCE=COLD_STORAGE_MIMO_API_KEY
+TARGET_RUNTIME_CREDENTIAL_SOURCE=COLD_STORAGE_MIMO_API_KEY
+MIMO_RUNTIME_API_KEY_FORMAT=sk-xxxxx
+TOKEN_PLAN_KEY_ALLOWED_FOR_APPLICATION_RUNTIME=NO
+PAY_AS_YOU_GO_KEY_REQUIRED_FOR_APPLICATION_RUNTIME=YES
+TOKEN_PLAN_RUNTIME_ALLOWED=NO
+TOKEN_PLAN_CODING_TOOL_USE_REMAINS_ALLOWED=YES
+TOKEN_PLAN_CREDENTIAL_FAMILY_REJECTED=YES
+TOKEN_PLAN_CREDENTIAL_REJECTION_CODE=AGENT_PROVIDER_CREDENTIAL_INVALID
+TOKEN_PLAN_CREDENTIAL_REJECTION_RETRYABLE=NO
+TOKEN_PLAN_CREDENTIAL_REJECTION_BEFORE_PROVIDER_CALL=YES
+TOKEN_PLAN_ENDPOINT_ROUTING_ON_CREDENTIAL_MISMATCH=FORBIDDEN
+STORE=false
+BACKGROUND_MODE=FORBIDDEN
+CONVERSATION_STATE=FORBIDDEN
+
+MIMO_TARGET_IMPLEMENTATION_STATUS=NOT_IMPLEMENTED
+CURRENT_IMPLEMENTATION_PROVIDER=openai
+CURRENT_IMPLEMENTATION_CONFORMS_TO_MIMO_TARGET_AUTHORITY=NO
+MIMO_IMPLEMENTATION_REQUIRED_BEFORE_ENABLED_READY=YES
+MIMO_ENABLED_READY_BEFORE_IMPLEMENTATION=FORBIDDEN
+MIMO_LIVE_ACCEPTANCE_BEFORE_IMPLEMENTATION=FORBIDDEN
+
+P2_MIMO_PAYG_ADAPTER_MIGRATION_STATUS=NOT_IMPLEMENTED
+P2_MIMO_PAYG_ADAPTER_MIGRATION_AUTHORIZED=NO
+P2_MIMO_PAYG_ADAPTER_MIGRATION_REQUIRES_SEPARATE_AUTHORIZATION=YES
+
+MACHINE_READABLE_PROVIDER_FAILURE_CODES_FROZEN=YES
+MACHINE_READABLE_PROVIDER_FAILURE_CODE_COUNT=10
+CAPABILITY_STATES_FROZEN=YES
+TASK012_CANONICAL_PROBE_COUNT=8
+AGENT_ROUTE_COUNT=10
+ENGINEERING_AUTHORITY_SEPARATION_PRESERVED=YES
+NO_SILENT_FAKE_FALLBACK=YES
+NO_SECOND_PROVIDER_FALLBACK=YES
+
+CONTROLLED_REAL_PROVIDER=mimo
+CONTROLLED_REAL_MODEL=mimo-v2.5
+CONTROLLED_REAL_RUNTIME_BILLING=PAY_AS_YOU_GO
+CONTROLLED_REAL_PROVIDER_ACCEPTANCE_AUTHORIZED=NO
+LIVE_PROVIDER_CALL_EXECUTED=NO
+PRODUCTION_CODE_MUTATION=NO
+PRODUCTION_ENABLEMENT=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+ISSUE_110_CLOSURE_EXECUTED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
