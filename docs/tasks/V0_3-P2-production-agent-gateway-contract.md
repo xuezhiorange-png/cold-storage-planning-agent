@@ -98,16 +98,36 @@ tests and is not a valid strict production selection mechanism. The future
 contract below forbids using that fallback in staging or production.
 
 In local and test modes, the active agent composition uses the fake-backed
-service. In staging and production:
+service. In staging and production, the strict runtime capability state is
+conditional on canonical Agent capability authority:
 
-- the active model-backed agent service is not constructed;
-- the agent HTTP surface is a frozen disabled-route matrix returning the
-  stable out-of-scope response;
-- the strict composition manifest binds `model_backed_agent` to `disabled`;
-- the strict runtime audit rejects reachable fake composition and unexpected
-  agent routes;
-- startup/readiness remains fail-closed when the strict audit or mandatory
-  probes fail.
+- `AGENT_CAPABILITY_DISABLED` exposes the frozen disabled-route matrix and
+  does not construct a real provider;
+- `AGENT_CAPABILITY_ENABLED_NOT_READY` keeps the same disabled-route matrix
+  and fails global readiness closed;
+- `AGENT_CAPABILITY_ENABLED_READY` exposes the real Agent routes only after
+  provider/schema preflight, final strict composition, and final route audit
+  all pass;
+- an evidence-bound candidate real composition may be constructed for the
+  strict audit, but candidate construction is not final READY authority and
+  does not grant route exposure;
+- startup/readiness remains fail-closed when any final strict audit, route
+  audit, or mandatory probe fails.
+
+The current strict-state machine is therefore:
+
+```text
+CURRENT_STRICT_RUNTIME_CAPABILITY_STATE=CONDITIONAL_ON_CANONICAL_AGENT_CAPABILITY_AUTHORITY
+CURRENT_DISABLED_STATE_ROUTE_EXPOSURE=DISABLED_ROUTE_MATRIX
+CURRENT_ENABLED_NOT_READY_ROUTE_EXPOSURE=DISABLED_ROUTE_MATRIX
+CURRENT_ENABLED_READY_ROUTE_EXPOSURE=REAL_AGENT_ROUTES_ENABLED
+CURRENT_PROVIDER_PREFLIGHT_ALONE_GRANTS_READY=NO
+CURRENT_CANDIDATE_COMPOSITION_MAY_EXIST_FOR_STRICT_AUDIT=YES
+CURRENT_CANDIDATE_COMPOSITION_GRANTS_ROUTE_EXPOSURE=NO
+CURRENT_FINAL_READY_REQUIRES_STRICT_COMPOSITION_PASS=YES
+CURRENT_FINAL_READY_REQUIRES_ROUTE_AUDIT_PASS=YES
+CURRENT_ANY_FINAL_AUDIT_FAILURE_FAILS_CLOSED=YES
+```
 
 The following statements are retained only as the historical
 `HISTORICAL_PRE_P2_IMPLEMENTATION_STATE` captured by the original definition
@@ -1063,7 +1083,7 @@ This definition freeze does not authorize:
 ## 20. Governance record
 
 ```text
-CURRENT_AGENT_STRICT_MODE_STATE=STAGING_PRODUCTION_DISABLED_ROUTES_FAIL_CLOSED_READINESS
+CURRENT_AGENT_STRICT_MODE_STATE=CONDITIONAL_REAL_PROVIDER_WITH_FAIL_CLOSED_READINESS
 CURRENT_FAKE_GATEWAY_SCOPE=LOCAL_TEST_DEMO_EXPLICIT_INJECTION_ONLY
 CURRENT_IMPLEMENTATION_PROVIDER=openai
 CURRENT_REAL_PROVIDER_ADAPTER_EXISTS=YES
@@ -1074,6 +1094,16 @@ CURRENT_IMPLEMENTATION_CREDENTIAL_SOURCE=COLD_STORAGE_OPENAI_API_KEY
 CURRENT_PROVIDER_PROBE_EXISTS=YES
 CURRENT_STRICT_COMPOSITION_SUPPORTS_CONDITIONAL_REAL_PROVIDER=YES
 CURRENT_REAL_AGENT_ROUTE_EXPOSURE=CONDITIONAL_ON_CANONICAL_READY_AUTHORITY
+CURRENT_AGENT_DISABLED_STATE=DISABLED_ROUTE_MATRIX
+CURRENT_AGENT_ENABLED_NOT_READY_STATE=DISABLED_ROUTE_MATRIX
+CURRENT_AGENT_ENABLED_READY_STATE=REAL_AGENT_ROUTES_ENABLED
+CURRENT_PROVIDER_PREFLIGHT_ALONE_GRANTS_READY=NO
+CURRENT_CANDIDATE_COMPOSITION_MAY_EXIST_FOR_STRICT_AUDIT=YES
+CURRENT_CANDIDATE_COMPOSITION_GRANTS_ROUTE_EXPOSURE=NO
+CURRENT_CANDIDATE_COMPOSITION_IS_FINAL_ROUTE_AUTHORITY=NO
+CURRENT_FINAL_STRICT_AUDIT_REQUIRED=YES
+CURRENT_FINAL_ROUTE_AUDIT_REQUIRED=YES
+CURRENT_ANY_FINAL_AUDIT_FAILURE_FAILS_CLOSED=YES
 CURRENT_FAKE_FALLBACK_IN_STRICT_MODE=FORBIDDEN
 CURRENT_PROVIDER_FAILURE_TAXONOMY_COUNT=10
 CURRENT_TASK012_CANONICAL_PROBE_COUNT=8
