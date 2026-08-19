@@ -2,12 +2,14 @@
 
 import json
 import logging
+import threading
 from collections.abc import Callable, Generator
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass, field, replace
 from typing import TYPE_CHECKING, Annotated, Any
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as SASession
 
@@ -298,6 +300,84 @@ def _get_strict_planning_agent_service(
     return _build_planning_agent_service(db_session, get_agent_gateway())
 
 
+class _AgentCapabilityNotReadyError(RuntimeError):
+    """Internal route-guard signal for a non-READY strict Agent."""
+
+    def __init__(self, failure_code: str | None = None) -> None:
+        self.failure_code = failure_code or "AGENT_PROVIDER_UNAVAILABLE"
+        super().__init__(self.failure_code)
+
+
+def _agent_capability_not_ready_response(
+    _request: Request,
+    exc: Exception,
+) -> JSONResponse:
+    """Return the frozen safe provider envelope for a guarded route."""
+    from cold_storage.modules.planning_agent.domain.errors import provider_failure_metadata
+
+    failure_code = (
+        exc.failure_code
+        if isinstance(exc, _AgentCapabilityNotReadyError)
+        else "AGENT_PROVIDER_UNAVAILABLE"
+    )
+    try:
+        metadata = provider_failure_metadata(failure_code)
+    except (TypeError, ValueError):
+        metadata = provider_failure_metadata("AGENT_PROVIDER_UNAVAILABLE")
+    return JSONResponse(
+        status_code=503,
+        content={
+            "error": {
+                "code": metadata.code.value,
+                "message": metadata.safe_message,
+                "details": {"retryable": metadata.retryable},
+            }
+        },
+    )
+
+
+def _make_guarded_strict_planning_agent_service(
+    authority_box: list[StrictRuntimeAuthority | None],
+    authority_lock: threading.RLock,
+) -> Callable[..., PlanningAgentService]:
+    """Build the request dependency that gates real Agent behavior.
+
+    Strict mode may retain a real route surface while provider readiness is
+    transiently unavailable.  The per-app immutable authority is the only
+    source consulted before resolving the real gateway; route presence and
+    ordinary ``app.state`` flags are deliberately not used.
+    """
+
+    def _ensure_ready() -> None:
+        with authority_lock:
+            authority = authority_box[0]
+            evidence = getattr(authority, "agent_evidence", None)
+            state = getattr(authority, "agent_capability_state", None)
+            verified_ready = (
+                state == AgentCapabilityState.ENABLED_READY.value
+                and getattr(getattr(evidence, "state", None), "value", None)
+                == AgentCapabilityState.ENABLED_READY.value
+                and bool(getattr(evidence, "provider_probe_passed", False))
+                and bool(getattr(evidence, "provider_schema_verified", False))
+                and bool(getattr(evidence, "composition_passed", False))
+                and bool(getattr(evidence, "route_audit_passed", False))
+            )
+            failure_code = getattr(evidence, "failure_code", None)
+        if not verified_ready:
+            raise _AgentCapabilityNotReadyError(failure_code)
+
+    def _get_guarded_service(
+        _verified: None = Depends(_ensure_ready),  # noqa: B008
+        db_session: SASession = Depends(_get_db_session),  # noqa: B008
+    ) -> PlanningAgentService:
+
+        from cold_storage.bootstrap.dependencies import get_agent_gateway
+
+        return _build_planning_agent_service(db_session, get_agent_gateway())
+
+    return _get_guarded_service
+
+
 # --------------------------------------------------------------------------- Request models (API
 # ---------------------------------------------------------------------------
 
@@ -379,6 +459,187 @@ class AgentMessageRequest(BaseModel):
 _authority_box: list[StrictRuntimeAuthority | None] = [None]
 
 
+def _strict_agent_binding_manifest(state: str) -> tuple[tuple[str, str], ...]:
+    """Return the immutable strict binding manifest for ``state``."""
+    binding = {
+        AgentCapabilityState.DISABLED.value: "disabled",
+        AgentCapabilityState.ENABLED_NOT_READY.value: "enabled_not_ready",
+        AgentCapabilityState.ENABLED_READY.value: "enabled_ready",
+    }.get(state, "disabled")
+    return (
+        ("coefficient_http", "database_backed"),
+        ("model_backed_agent", binding),
+    )
+
+
+def _publish_agent_runtime_state(
+    *,
+    app: FastAPI,
+    authority_box: list[StrictRuntimeAuthority | None],
+    authority: StrictRuntimeAuthority,
+    evidence: Any,
+    app_mode: AppMode,
+) -> None:
+    """Atomically publish one canonical authority/evidence projection."""
+    from cold_storage.bootstrap.dependencies import (
+        create_capability_projection,
+        publish_agent_capability_evidence,
+    )
+
+    authority_box[0] = authority
+    app.state._strict_runtime_authority = authority  # noqa: SLF001
+    app.state.strict_capability_bindings = _strict_agent_binding_manifest(
+        authority.agent_capability_state
+    )
+    app._agent_capability_evidence = evidence  # type: ignore[attr-defined]
+    app._capability_projection = create_capability_projection(  # type: ignore[attr-defined]
+        app_mode,
+        evidence=evidence,
+    )
+    publish_agent_capability_evidence(evidence)
+
+
+def _refresh_agent_capability_readiness(
+    *,
+    app: FastAPI,
+    authority_box: list[StrictRuntimeAuthority | None],
+    settings: Any,
+) -> Any:
+    """Run the conditional provider phase and publish a verified transition.
+
+    The mandatory readiness tuple remains the frozen eight-probe set.  This
+    conditional aggregate is executed separately for a strict, valid Agent
+    configuration so a transient provider failure can demote and later
+    recover the same process without rebuilding the FastAPI app.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (
+        UnsafeStrictCapabilityWiring,
+        assert_no_unsafe_strict_capabilities,
+        finalize_agent_capability_evidence,
+        resolve_agent_capability_evidence,
+    )
+
+    authority_lock: threading.RLock = app._agent_authority_lock  # type: ignore[attr-defined]
+    with authority_lock:
+        current_authority = authority_box[0]
+        current_evidence = getattr(app, "_agent_capability_evidence", None)
+        resolution = settings.agent_capability_resolution
+        if (
+            current_authority is None
+            or current_evidence is None
+            or current_authority.agent_candidate is False
+            or not resolution.enablement_intent_present
+            or not resolution.configuration_valid
+        ):
+            return current_evidence
+
+        provider_probe = getattr(app, "_agent_provider_probe", None)
+        preflight = resolve_agent_capability_evidence(
+            settings,
+            provider_probe=provider_probe,
+        )
+        if not preflight.provider_probe_passed:
+            not_ready_authority = replace(
+                current_authority,
+                agent_capability_state=AgentCapabilityState.ENABLED_NOT_READY.value,
+                agent_evidence=preflight,
+                agent_candidate=True,
+            )
+            _publish_agent_runtime_state(
+                app=app,
+                authority_box=authority_box,
+                authority=not_ready_authority,
+                evidence=preflight,
+                app_mode=app._agent_app_mode,  # type: ignore[attr-defined]
+            )
+            return preflight
+
+        candidate_authority = replace(
+            current_authority,
+            agent_capability_state=AgentCapabilityState.ENABLED_NOT_READY.value,
+            agent_evidence=preflight,
+            agent_candidate=True,
+        )
+        candidate_manifest = _strict_agent_binding_manifest(
+            AgentCapabilityState.ENABLED_NOT_READY.value
+        )
+        try:
+            candidate_audit = assert_no_unsafe_strict_capabilities(
+                app=app,
+                authority=candidate_authority,
+                binding_manifest=candidate_manifest,
+            )
+            final_evidence = finalize_agent_capability_evidence(
+                preflight,
+                audit_evidence=candidate_audit,
+            )
+            if final_evidence.state is not AgentCapabilityState.ENABLED_READY:
+                not_ready_authority = replace(
+                    candidate_authority,
+                    agent_capability_state=final_evidence.state.value,
+                    agent_evidence=final_evidence,
+                )
+                _publish_agent_runtime_state(
+                    app=app,
+                    authority_box=authority_box,
+                    authority=not_ready_authority,
+                    evidence=final_evidence,
+                    app_mode=app._agent_app_mode,  # type: ignore[attr-defined]
+                )
+                return final_evidence
+            final_authority = replace(
+                candidate_authority,
+                agent_capability_state=AgentCapabilityState.ENABLED_READY.value,
+                agent_evidence=final_evidence,
+            )
+            final_manifest = _strict_agent_binding_manifest(
+                AgentCapabilityState.ENABLED_READY.value
+            )
+            # Audit the exact final authority and final manifest before either
+            # is published.  This is deliberately a second, non-self-attested
+            # audit rather than a mutation followed by a readback.
+            final_audit = assert_no_unsafe_strict_capabilities(
+                app=app,
+                authority=final_authority,
+                binding_manifest=final_manifest,
+            )
+            if not (final_audit.composition_passed and final_audit.route_audit_passed):
+                raise RuntimeError("strict agent final authority audit did not pass")
+        except (UnsafeStrictCapabilityWiring, RuntimeError):
+            not_ready = replace(
+                preflight,
+                state=AgentCapabilityState.ENABLED_NOT_READY,
+                composition_passed=False,
+                route_audit_passed=False,
+                failure_code="AGENT_PROVIDER_UNAVAILABLE",
+                global_readiness="FAIL",
+                route_exposure="DISABLED_ROUTE_MATRIX",
+            )
+            not_ready_authority = replace(
+                current_authority,
+                agent_capability_state=AgentCapabilityState.ENABLED_NOT_READY.value,
+                agent_evidence=not_ready,
+                agent_candidate=True,
+            )
+            _publish_agent_runtime_state(
+                app=app,
+                authority_box=authority_box,
+                authority=not_ready_authority,
+                evidence=not_ready,
+                app_mode=app._agent_app_mode,  # type: ignore[attr-defined]
+            )
+            return not_ready
+
+        _publish_agent_runtime_state(
+            app=app,
+            authority_box=authority_box,
+            authority=final_authority,
+            evidence=final_evidence,
+            app_mode=app._agent_app_mode,  # type: ignore[attr-defined]
+        )
+        return final_evidence
+
+
 def _make_lifespan(
     authority_box: list[StrictRuntimeAuthority | None],
     agent_client_factory: Callable[..., Any] | None = None,
@@ -414,10 +675,6 @@ def _make_lifespan(
                     agent_client_factory=agent_client_factory,
                 )
             if auth.agent_candidate:
-                from cold_storage.bootstrap.dependencies import (  # noqa: PLC0415
-                    create_capability_projection,
-                    publish_agent_capability_evidence,
-                )
                 from cold_storage.bootstrap.runtime_readiness import (  # noqa: PLC0415
                     assert_no_unsafe_strict_capabilities,
                     finalize_agent_capability_evidence,
@@ -427,34 +684,43 @@ def _make_lifespan(
                 # boundary.  READY is never inferred from the fact that a
                 # router was registered or that dependency initialization
                 # returned successfully.
-                audit_evidence = assert_no_unsafe_strict_capabilities(app=app, authority=auth)
+                audit_evidence = assert_no_unsafe_strict_capabilities(
+                    app=app,
+                    authority=auth,
+                    binding_manifest=_strict_agent_binding_manifest(auth.agent_capability_state),
+                )
                 if auth.agent_evidence is None:
                     raise RuntimeError("strict agent startup is missing preflight evidence")
                 final_evidence = finalize_agent_capability_evidence(
                     auth.agent_evidence,
                     audit_evidence=audit_evidence,
                 )
-                if final_evidence.state is not AgentCapabilityState.ENABLED_READY:
-                    raise RuntimeError(
-                        "strict agent startup did not produce verified READY evidence"
-                    )
                 final_authority = replace(
                     auth,
                     agent_capability_state=final_evidence.state.value,
                     agent_evidence=final_evidence,
                 )
-                authority_box[0] = final_authority
-                app.state._strict_runtime_authority = final_authority  # noqa: SLF001
-                app.state.strict_capability_bindings = (
-                    ("coefficient_http", "database_backed"),
-                    ("model_backed_agent", "enabled_ready"),
-                )
-                app._agent_capability_evidence = final_evidence  # type: ignore[attr-defined]
-                app._capability_projection = create_capability_projection(  # type: ignore[attr-defined]
-                    resolve_app_mode(get_settings()),
-                    evidence=final_evidence,
-                )
-                publish_agent_capability_evidence(final_evidence)
+                if final_evidence.state is AgentCapabilityState.ENABLED_READY:
+                    final_manifest = _strict_agent_binding_manifest(
+                        AgentCapabilityState.ENABLED_READY.value
+                    )
+                    # Audit the exact final authority and binding manifest
+                    # before either is published or becomes request-visible.
+                    final_audit = assert_no_unsafe_strict_capabilities(
+                        app=app,
+                        authority=final_authority,
+                        binding_manifest=final_manifest,
+                    )
+                    if not (final_audit.composition_passed and final_audit.route_audit_passed):
+                        raise RuntimeError("strict agent final authority audit did not pass")
+                with app._agent_authority_lock:  # type: ignore[attr-defined]
+                    _publish_agent_runtime_state(
+                        app=app,
+                        authority_box=authority_box,
+                        authority=final_authority,
+                        evidence=final_evidence,
+                        app_mode=app._agent_app_mode,  # type: ignore[attr-defined]
+                    )
             yield
         finally:
             shutdown_dependencies()
@@ -480,6 +746,8 @@ def create_app(
         title="Cold Storage Planning Agent V1",
         lifespan=_make_lifespan(_app_authority_box, agent_client_factory),
     )
+    app._agent_authority_lock = threading.RLock()  # type: ignore[attr-defined]
+    app.add_exception_handler(_AgentCapabilityNotReadyError, _agent_capability_not_ready_response)
 
     # --- Observability middleware (must be first to capture all requests) ---
     # --- Metrics endpoint ---
@@ -565,6 +833,8 @@ def create_app(
         initial_settings,
         provider_probe=agent_provider_probe,
     )
+    app._agent_provider_probe = agent_provider_probe  # type: ignore[attr-defined]
+    app._agent_app_mode = initial_mode  # type: ignore[attr-defined]
 
     # D-S4-04: Create immutable capability projection bound to this app.
     from cold_storage.bootstrap.dependencies import create_capability_projection
@@ -730,6 +1000,16 @@ def create_app(
                     }
                 ),
             )
+
+        # The mandatory readiness tuple remains exactly the frozen eight
+        # probes.  Strict Agent provider/schema readiness is a separate,
+        # conditional phase so a transient provider failure can demote and
+        # later recover the same process without rebuilding the app.
+        _refresh_agent_capability_readiness(
+            app=app,
+            authority_box=_app_authority_box,
+            settings=probe_settings,
+        )
 
         outcomes = run_readiness_phase(
             settings=probe_settings,
@@ -1166,11 +1446,8 @@ def create_app(
     _frozen_agent_auth: list[AgentRouteAuthority] = []
     _agent_state = agent_evidence.state.value
     _agent_candidate = initial_mode in (AppMode.STAGING, AppMode.PRODUCTION) and (
-        agent_evidence.state is AgentCapabilityState.ENABLED_READY
-        or (
-            agent_evidence.state is AgentCapabilityState.ENABLED_NOT_READY
-            and agent_evidence.provider_probe_passed
-        )
+        initial_settings.agent_enablement_intent_present
+        and initial_settings.agent_capability_resolution.configuration_valid
     )
 
     if initial_mode in (AppMode.LOCAL, AppMode.TEST):
@@ -1178,7 +1455,11 @@ def create_app(
         _agent_state = "LOCAL_TEST_AVAILABLE"
     else:
         if _agent_candidate:
-            _agent_router = _create_agent_router(_get_strict_planning_agent_service)
+            _guarded_service_factory = _make_guarded_strict_planning_agent_service(
+                _app_authority_box,
+                app._agent_authority_lock,  # type: ignore[attr-defined]
+            )
+            _agent_router = _create_agent_router(_guarded_service_factory)
             app.include_router(_agent_router)
             for _registered_route in _agent_router.routes:
                 route_path = getattr(_registered_route, "path", "")

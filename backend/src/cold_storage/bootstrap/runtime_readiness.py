@@ -1062,13 +1062,21 @@ def _validate_strict_binding_manifest(
     *,
     app: Any,
     expected_manifest: tuple[tuple[str, str], ...],
+    binding_manifest: tuple[tuple[str, str], ...] | None = None,
 ) -> tuple[str, ...]:
-    """Validate the binding identity manifest on app.state.
+    """Validate an immutable binding identity manifest.
 
-    Returns a tuple of error codes. Empty tuple means valid.
+    ``binding_manifest`` is used for provisional authority audits before the
+    final manifest is published.  When omitted, the existing app-bound
+    manifest is the source of truth.  Returns a tuple of error codes; an
+    empty tuple means valid.
     """
 
-    bindings = getattr(getattr(app, "state", None), "strict_capability_bindings", None)
+    bindings = (
+        binding_manifest
+        if binding_manifest is not None
+        else getattr(getattr(app, "state", None), "strict_capability_bindings", None)
+    )
 
     # MANIFEST_MISSING
     if bindings is None:
@@ -1257,6 +1265,7 @@ def enumerate_reachable_unsafe_strict_capabilities(
     app: Any,
     routes: Iterable[Any] | None = None,
     authority: Any | None = None,
+    binding_manifest: tuple[tuple[str, str], ...] | None = None,
 ) -> tuple[str, ...]:
     """Return the subset of registered capabilities that are reachable.
 
@@ -1269,6 +1278,9 @@ def enumerate_reachable_unsafe_strict_capabilities(
     of from writable ``app.state``.  This eliminates the
     self-attestation pattern where a module writes to app.state
     and the audit trusts it.
+
+    ``binding_manifest`` allows the caller to audit a provisional final
+    manifest without first publishing it to ``app.state``.
     """
     _ = routes  # explicit non-use; ``app`` is the canonical input.
 
@@ -1302,6 +1314,7 @@ def enumerate_reachable_unsafe_strict_capabilities(
     manifest_errors = _validate_strict_binding_manifest(
         app=app,
         expected_manifest=_strict_expected_manifest(_auth),
+        binding_manifest=binding_manifest,
     )
     if manifest_errors:
         raise UnsafeStrictCapabilityWiring(
@@ -1527,6 +1540,7 @@ def assert_no_unsafe_strict_capabilities(
     *,
     app: Any = None,
     authority: Any | None = None,
+    binding_manifest: tuple[tuple[str, str], ...] | None = None,
 ) -> StrictCapabilityAuditEvidence:
     """Defense-in-depth assertion per D-S2-06.c.
 
@@ -1541,9 +1555,15 @@ def assert_no_unsafe_strict_capabilities(
     when no strict capability is wired into a real ``APIRoute``.
 
     R7: Accepts explicit authority parameter. When provided, the audit
-    reads from this frozen object instead of from app.state.
+    reads from this frozen object instead of from app.state.  A provisional
+    ``binding_manifest`` is audited directly instead of being self-attested
+    through a prior mutation of ``app.state``.
     """
-    reachable = enumerate_reachable_unsafe_strict_capabilities(app=app, authority=authority)
+    reachable = enumerate_reachable_unsafe_strict_capabilities(
+        app=app,
+        authority=authority,
+        binding_manifest=binding_manifest,
+    )
     if reachable:
         raise UnsafeStrictCapabilityWiring(
             f"unsafe strict capabilities reachable: {sorted(reachable)!r}",

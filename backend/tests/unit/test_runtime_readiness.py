@@ -5238,9 +5238,12 @@ def test_p2c_provider_probe_and_composition_evidence_enable_ready_state():
 
 
 def test_p2c_preserves_canonical_eight_readiness_probes():
-    from cold_storage.bootstrap.runtime_readiness import mandatory_startup_probes
+    from cold_storage.bootstrap.runtime_readiness import (
+        mandatory_readiness_probes,
+        mandatory_startup_probes,
+    )
 
-    assert tuple(probe.__name__ for probe in mandatory_startup_probes()) == (
+    expected = (
         "probe_lifecycle_initialization_completed",
         "probe_process_not_draining_or_shutting_down",
         "probe_database_connectivity",
@@ -5250,6 +5253,12 @@ def test_p2c_preserves_canonical_eight_readiness_probes():
         "probe_approved_coefficient_readiness_in_strict_modes",
         "probe_build_and_deployment_identity",
     )
+    startup_names = tuple(probe.__name__ for probe in mandatory_startup_probes())
+    readiness_names = tuple(probe.__name__ for probe in mandatory_readiness_probes())
+    assert len(startup_names) == 8
+    assert len(readiness_names) == 8
+    assert startup_names == expected
+    assert readiness_names == expected
 
 
 def test_forged_positive_token_cannot_bypass(monkeypatch):
