@@ -1,14 +1,16 @@
 # V0.3 P2 Production Agent Gateway Contract
 
-**Status:** Definition freeze only
+**Status:** Definition freeze with final implementation closure metadata
 **Authority:** Issue #108, tracked by Issue #110
 **Contract source SHA:** `8de42a7490d9e6c5cc3519b139e9daf154fd33cb`
 **Contract source tree SHA:** `be70aa7b8a504fd350233ac3cb1983a73bee7930`
 
 This document freezes the authority and implementation boundaries for the
-V0.3 P2 production agent gateway. It does not implement a provider, add a
-dependency, add credentials, enable the agent in staging or production, or
-change runtime behavior. The contract round is documentation-only.
+V0.3 P2 production agent gateway. The original contract-definition round was
+documentation-only; its historical status is preserved below. Separately
+authorized implementation completion is recorded in Section 27. This
+document does not authorize credentials, live provider acceptance, staging or
+production enablement, or a change to runtime authority.
 
 ## 1. Scope and authority
 
@@ -136,10 +138,13 @@ point there was no real provider adapter or provider call path, no provider
 SDK in the runtime dependency list, and the only audited HTTP client was
 `httpx` in the development dependency group.
 
-The current main implementation audit must be read separately from that
-historical snapshot. It has completed the OpenAI P2-B adapter and the P2-C
-conditional strict composition, but implementation does not mean provider
-enablement, live acceptance, or production enablement:
+The following block is a historical implementation audit captured at its
+recorded source SHA, before the later MiMo PAYG migration was merged. Its
+`CURRENT_*` names are source-snapshot labels, not current-main authority;
+Section 27 is the final current-state authority. At that historical source
+SHA, the OpenAI P2-B adapter and P2-C conditional strict composition were
+complete, but implementation did not mean provider enablement, live
+acceptance, or production enablement:
 
 ```text
 CURRENT_IMPLEMENTATION_AUDIT_SOURCE_SHA=0f1dd87344ee8dbd3512583195214e266f4290d5
@@ -161,10 +166,10 @@ IMPLEMENTED_IS_NOT_LIVE_ACCEPTED=YES
 IMPLEMENTED_IS_NOT_PRODUCTION_ENABLED=YES
 ```
 
-The target MiMo authority below is therefore not the provider currently
-implemented by main. The current OpenAI implementation remains the
-historical implementation baseline until a separately authorized migration
-implements and verifies the MiMo target.
+At that historical source SHA, the target MiMo authority was not the provider
+implemented by main. The OpenAI implementation remains historical baseline
+provenance; the separately authorized and merged MiMo PAYG implementation is
+recorded as the current state in Section 27.
 
 ### 2.3 Current application boundaries
 
@@ -1633,11 +1638,13 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 ## 25. V0.3 P2 MiMo Runtime Provider Scope Contract Amendment R2
 
-This amendment is the current active runtime provider scope. It supersedes
+This amendment is the historical active runtime-provider scope that superseded
 the Token Plan target in Section 24 before implementation, while preserving
-that section as historical provenance. It changes contract authority only; it
-does not implement the MiMo adapter, add dependencies, change credentials,
-call a provider, enable production, or authorize controlled acceptance.
+that section as historical provenance. Its pre-implementation status fields
+are retained as transition provenance and are superseded for current-state
+purposes by Section 27. It changed contract authority only; it did not
+implement the MiMo adapter, add dependencies, change credentials, call a
+provider, enable production, or authorize controlled acceptance.
 
 ```text
 TASK=V03_P2_MIMO_RUNTIME_PROVIDER_SCOPE_CONTRACT_AMENDMENT_R2
@@ -1718,11 +1725,13 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 ## 26. V0.3 P2 MiMo PAYG Responses Compatibility Correction R1
 
-This correction freezes the wire-compatibility boundary for the active MiMo
-pay-as-you-go runtime. It is contract authority only. It does not modify the
-adapter, add a dependency, add credentials, call MiMo, enable production, or
-authorize controlled acceptance. Section 24 remains historical provenance;
-Section 25 remains the active runtime provider scope.
+This correction is historical contract authority for the MiMo pay-as-you-go
+wire-compatibility boundary. It did not modify the adapter, add a dependency,
+add credentials, call MiMo, enable production, or authorize controlled
+acceptance. Section 24 remains historical Token Plan provenance and Section
+25 remains historical provider-scope provenance; Section 27 records the final
+current implementation state and supersedes their pre-implementation status
+claims without deleting that provenance.
 
 ```text
 TASK=V03_P2_MIMO_PAYG_ADAPTER_MIGRATION_COMPATIBILITY_CONTRACT_CORRECTION_R1_IMPLEMENTATION
@@ -1809,5 +1818,80 @@ PRODUCTION_ENABLEMENT=NO
 PR_133_MUTATION=NO
 READY_AUTHORIZED=NO
 MERGE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+## 27. V0.3 P2 Closure Metadata Correction R1: Final Current State
+
+This section is the sole current-state closure metadata authority for the
+merged V0.3 P2 implementation. It supersedes stale implementation-status
+fields in the historical OpenAI baseline, Token Plan amendment, MiMo PAYG
+provider-scope amendment, and Responses compatibility correction. It does
+not delete or rewrite those historical records, and it does not authorize
+live provider acceptance, production enablement, or Issue #110 closure.
+
+```text
+TASK=V03_P2_CLOSURE_METADATA_CORRECTION_R1_IMPLEMENTATION
+AUTHORIZATION_RECORD_ID=5358181416
+CODEX_EXECUTION_DIRECTIVE_RECORD_ID=5358186446
+CURRENT_STATE_AUTHORITY=SECTION_27
+
+CURRENT_MAIN_SHA=e40de849eb3cc82d54dfbdab1b3acc459c6f1bbc
+CURRENT_MAIN_TREE=e4876c2760d80974897a126f23e1251da6946c2a
+
+V03_P2_CONTRACT_FROZEN=YES
+V03_P2_IMPLEMENTATION_COMPLETE=YES
+ACTIVE_PROVIDER=mimo
+ACTIVE_MODEL=mimo-v2.5
+ACTIVE_GATEWAY=MiMoAgentModelGateway
+ACTIVE_RUNTIME_BILLING=PAY_AS_YOU_GO
+ACTIVE_RUNTIME_BASE_URL=https://api.xiaomimimo.com/v1
+ACTIVE_RUNTIME_RESPONSES_ENDPOINT=https://api.xiaomimimo.com/v1/responses
+ACTIVE_RUNTIME_CREDENTIAL_SOURCE=COLD_STORAGE_MIMO_API_KEY
+ACTIVE_RUNTIME_CREDENTIAL_FAMILY=sk-xxxxx
+
+P2_A_STATUS=PASS
+P2_B_STATUS=PASS_AFTER_COMPATIBILITY_CORRECTION_REVIEW
+P2_C_STATUS=PASS
+POST_COMPATIBILITY_CORRECTION_REVIEW_RESULT_RECORD_ID=5343787364
+MIMO_PAYG_READY_MERGE_RESULT_RECORD_ID=5343835962
+CURRENT_MAIN_CI_RUN_ID=32379853091
+CURRENT_MAIN_CI_CONCLUSION=success
+
+STRICT_CAPABILITY_READINESS_IMPLEMENTED=YES
+SILENT_FAKE_FALLBACK_ALLOWED=NO
+PROVIDER_FAILURE_TAXONOMY_COUNT=10
+TASK012_CANONICAL_PROBE_COUNT=8
+AGENT_ROUTE_COUNT=10
+
+ORIGINAL_CONTRACT_DEFINITION_PROVENANCE_PRESERVED=YES
+HISTORICAL_OPENAI_IMPLEMENTATION_PROVENANCE_PRESERVED=YES
+HISTORICAL_TOKEN_PLAN_PROVENANCE_PRESERVED=YES
+MIMO_PAYG_COMPATIBILITY_PROVENANCE_PRESERVED=YES
+HISTORICAL_CURRENT_PROVIDER_FIELDS_SUPERSEDED=YES
+HISTORICAL_MIMO_NOT_IMPLEMENTED_FIELDS_SUPERSEDED=YES
+
+CONTROLLED_REAL_PROVIDER_ACCEPTANCE_EXECUTED=NO
+CONTROLLED_REAL_PROVIDER_ACCEPTANCE_DEFERRED=YES
+CONTROLLED_REAL_PROVIDER_ACCEPTANCE_REQUIRED_FOR_P2_TRACKING_CLOSURE=NO
+PRODUCTION_ENABLEMENT_AUTHORIZED=NO
+ISSUE_110_CLOSURE_AUTHORIZED=NO
+ISSUE_110_CLOSURE_EXECUTED=NO
+
+CODE_MUTATION_EXECUTED=NO
+TEST_MUTATION_EXECUTED=NO
+DEPENDENCY_MUTATION_EXECUTED=NO
+LOCKFILE_MUTATION_EXECUTED=NO
+MIGRATION_MUTATION_EXECUTED=NO
+WORKFLOW_MUTATION_EXECUTED=NO
+FRONTEND_MUTATION_EXECUTED=NO
+LIVE_PROVIDER_CALL_EXECUTED=NO
+REAL_CREDENTIAL_MUTATION_EXECUTED=NO
+PRODUCTION_ENABLEMENT_EXECUTED=NO
+READY_EXECUTED=NO
+MERGE_EXECUTED=NO
+
+NEXT_REQUIRED_STAGE=V03_P2_CLOSURE_METADATA_CORRECTION_INDEPENDENT_REVIEW_AUTHORIZATION
+NEXT_STAGE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
