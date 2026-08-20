@@ -53,6 +53,14 @@ from cold_storage.modules.knowledge.infrastructure.ocr_adapter import (
     OcrAdapter,
     OcrPageResult,
 )
+from cold_storage.modules.knowledge.infrastructure.parsers import (
+    csv_parser,
+    docx_parser,
+    markdown_parser,
+    pdf_parser,
+    text_parser,
+    xlsx_parser,
+)
 from cold_storage.modules.knowledge.infrastructure.parsers.base import (
     PARSER_VERSION as PARSER_VER,
 )
@@ -66,6 +74,11 @@ from cold_storage.modules.knowledge.infrastructure.storage import (
     LocalDocumentStorage,
 )
 from cold_storage.modules.projects.infrastructure.orm import AuditEventRecord
+
+# Importing the concrete parser modules is part of the application composition:
+# each module registers its parser at import time. Keep the references alive so
+# clean processes do not depend on another test or module importing a parser.
+_PARSER_MODULES = (csv_parser, docx_parser, markdown_parser, pdf_parser, text_parser, xlsx_parser)
 
 # ---------------------------------------------------------------------------
 # Constants
