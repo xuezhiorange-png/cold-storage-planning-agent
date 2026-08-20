@@ -710,7 +710,26 @@ jobs:
           PYTHONPATH=src DATABASE_BACKEND=sqlite uv run alembic downgrade 0013_add_templates_artifacts
           PYTHONPATH=src DATABASE_BACKEND=sqlite uv run alembic upgrade head
       - name: Install CJK font
-        run: sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei
+        run: |
+          set -euo pipefail
+          for attempt in 1 2; do
+            if timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              update && \
+              timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              install -y fonts-wqy-zenhei; then
+              exit 0
+            fi
+            if [ "${attempt}" -lt 2 ]; then
+              sleep 5
+            fi
+          done
+          exit 1
       - name: Backend tests (SQLite)
         run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run pytest
       - name: Backend architecture tests
@@ -767,7 +786,26 @@ jobs:
           PYTHONPATH=src uv run alembic downgrade 0013_add_templates_artifacts
           PYTHONPATH=src uv run alembic upgrade head
       - name: Install CJK font
-        run: sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei
+        run: |
+          set -euo pipefail
+          for attempt in 1 2; do
+            if timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              update && \
+              timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              install -y fonts-wqy-zenhei; then
+              exit 0
+            fi
+            if [ "${attempt}" -lt 2 ]; then
+              sleep 5
+            fi
+          done
+          exit 1
       - name: S6-07 PostgreSQL persistence acceptance
         env:
           DATABASE_BACKEND: postgresql
@@ -852,7 +890,26 @@ jobs:
       - name: Backend install
         run: cd backend && uv sync
       - name: Install CJK font
-        run: sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei
+        run: |
+          set -euo pipefail
+          for attempt in 1 2; do
+            if timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              update && \
+              timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              install -y fonts-wqy-zenhei; then
+              exit 0
+            fi
+            if [ "${attempt}" -lt 2 ]; then
+              sleep 5
+            fi
+          done
+          exit 1
       - name: Release evidence lint
         run: cd backend && uv run ruff check src/cold_storage/release/ && uv run ruff format --check src/cold_storage/release/
       - name: Release evidence typecheck
@@ -1571,7 +1628,26 @@ jobs:
           fetch-depth: 0
       - uses: astral-sh/setup-uv@v4
       - name: Install PostgreSQL client and CJK font
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client fonts-wqy-zenhei
+        run: |
+          set -euo pipefail
+          for attempt in 1 2; do
+            if timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              update && \
+              timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              install -y postgresql-client fonts-wqy-zenhei; then
+              exit 0
+            fi
+            if [ "${attempt}" -lt 2 ]; then
+              sleep 5
+            fi
+          done
+          exit 1
       - name: Backend install
         run: cd backend && uv sync
       - name: Alembic upgrade (recovery service)
@@ -1701,7 +1777,26 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Install PostgreSQL client and CJK font
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client fonts-wqy-zenhei
+        run: |
+          set -euo pipefail
+          for attempt in 1 2; do
+            if timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              update && \
+              timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              install -y postgresql-client fonts-wqy-zenhei; then
+              exit 0
+            fi
+            if [ "${attempt}" -lt 2 ]; then
+              sleep 5
+            fi
+          done
+          exit 1
 
       - name: Backend install
         run: cd backend && uv sync
