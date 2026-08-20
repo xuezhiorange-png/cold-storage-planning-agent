@@ -889,6 +889,27 @@ jobs:
       - uses: astral-sh/setup-uv@v4
       - name: Backend install
         run: cd backend && uv sync
+      - name: Install CJK font
+        run: |
+          set -euo pipefail
+          for attempt in 1 2; do
+            if timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              update && \
+              timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              install -y fonts-wqy-zenhei; then
+              exit 0
+            fi
+            if [ "${attempt}" -lt 2 ]; then
+              sleep 5
+            fi
+          done
+          exit 1
       - name: Release evidence lint
         run: cd backend && uv run ruff check src/cold_storage/release/ && uv run ruff format --check src/cold_storage/release/
       - name: Release evidence typecheck
@@ -1606,7 +1627,7 @@ jobs:
         with:
           fetch-depth: 0
       - uses: astral-sh/setup-uv@v4
-      - name: Install PostgreSQL client
+      - name: Install PostgreSQL client and CJK font
         run: |
           set -euo pipefail
           for attempt in 1 2; do
@@ -1619,7 +1640,7 @@ jobs:
               -o Acquire::Retries=3 \
               -o Acquire::http::Timeout=30 \
               -o Acquire::https::Timeout=30 \
-              install -y postgresql-client; then
+              install -y postgresql-client fonts-wqy-zenhei; then
               exit 0
             fi
             if [ "${attempt}" -lt 2 ]; then
@@ -1755,7 +1776,7 @@ jobs:
       - name: Set up controlled recovery tools
         uses: astral-sh/setup-uv@v4
 
-      - name: Install PostgreSQL client
+      - name: Install PostgreSQL client and CJK font
         run: |
           set -euo pipefail
           for attempt in 1 2; do
@@ -1768,7 +1789,7 @@ jobs:
               -o Acquire::Retries=3 \
               -o Acquire::http::Timeout=30 \
               -o Acquire::https::Timeout=30 \
-              install -y postgresql-client; then
+              install -y postgresql-client fonts-wqy-zenhei; then
               exit 0
             fi
             if [ "${attempt}" -lt 2 ]; then
