@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -10,6 +11,21 @@ from uuid import uuid4
 
 def _uuid() -> str:
     return str(uuid4())
+
+
+def make_source_page_evidence_id(revision_id: str, page_number: int) -> str:
+    """Return the stable identity for one page in one immutable revision.
+
+    The original artifact and its content hash remain the authority.  This
+    identifier only names the derived page evidence slot and is therefore
+    stable across OCR retries while changing when a new revision is created.
+    """
+    if not revision_id:
+        raise ValueError("revision_id is required for page evidence identity")
+    if page_number < 1:
+        raise ValueError("page_number must be 1-based")
+    payload = f"{revision_id}:page:{page_number}".encode()
+    return f"spe-{hashlib.sha256(payload).hexdigest()}"
 
 
 # Document categories
@@ -100,6 +116,33 @@ class KnowledgeIngestionRun:
 
 
 @dataclass(frozen=True)
+class KnowledgePageEvidence:
+    """First-class, page-scoped evidence derived from an immutable revision."""
+
+    source_page_evidence_id: str = ""
+    revision_id: str = ""
+    document_id: str = ""
+    page_number: int = 0
+    extraction_method: str = "native"
+    extraction_status: str = "complete"
+    text: str = ""
+    text_sha256: str = ""
+    source_content_sha256: str = ""
+    source_authority: str = "original_artifact"
+    is_derived_evidence: bool = False
+    ocr_engine: str = ""
+    ocr_languages: str = ""
+    ocr_confidence: float | None = None
+    confidence_source: str = "unavailable"
+    requires_review: bool = True
+    is_complete: bool = False
+    error_code: str = ""
+    error_message: str = ""
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+
+@dataclass(frozen=True)
 class ParsedBlock:
     """A unit of extracted content from a parsed document."""
 
@@ -135,6 +178,9 @@ class KnowledgeChunk:
     row_start: int | None = None
     row_end: int | None = None
     source_locator: str = ""
+    source_page_evidence_id: str = ""
+    is_ocr_derived: bool = False
+    requires_review: bool = True
     embedding: list[float] = field(default_factory=list)
     embedding_dimension: int = 0
     embedding_version: str = ""
@@ -233,6 +279,10 @@ class KnowledgeCitation:
     row_start: int | None = None
     row_end: int | None = None
     source_locator: str = ""
+    source_page_evidence_id: str = ""
+    is_ocr_derived: bool = False
+    ocr_confidence: float | None = None
+    confidence_source: str = "unavailable"
     review_status: str = ""
     requires_review: bool = True
     excerpt: str = ""

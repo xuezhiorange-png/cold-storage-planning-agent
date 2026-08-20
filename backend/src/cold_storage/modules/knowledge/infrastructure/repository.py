@@ -11,12 +11,14 @@ from cold_storage.modules.knowledge.domain.models import (
     KnowledgeChunk,
     KnowledgeDocument,
     KnowledgeIngestionRun,
+    KnowledgePageEvidence,
     KnowledgeRevision,
 )
 from cold_storage.modules.knowledge.infrastructure.orm import (
     KnowledgeChunkRecord,
     KnowledgeDocumentRecord,
     KnowledgeIngestionRunRecord,
+    KnowledgePageEvidenceRecord,
     KnowledgeRevisionRecord,
 )
 
@@ -278,6 +280,100 @@ class KnowledgeRepository:
         return rec
 
     # ------------------------------------------------------------------
+    # Page evidence operations
+    # ------------------------------------------------------------------
+
+    def get_page_evidence(self, source_page_evidence_id: str) -> KnowledgePageEvidenceRecord | None:
+        """Retrieve one immutable revision/page evidence slot."""
+        return self._session.get(KnowledgePageEvidenceRecord, source_page_evidence_id)
+
+    def list_page_evidence(self, revision_id: str) -> list[KnowledgePageEvidenceRecord]:
+        """Retrieve page evidence in exact 1-based page order."""
+        stmt = (
+            select(KnowledgePageEvidenceRecord)
+            .where(KnowledgePageEvidenceRecord.revision_id == revision_id)
+            .order_by(KnowledgePageEvidenceRecord.page_number)
+        )
+        return list(self._session.execute(stmt).scalars().all())
+
+    def save_page_evidence(self, evidence: KnowledgePageEvidence) -> KnowledgePageEvidenceRecord:
+        """Insert or retry-update one non-approved page evidence slot.
+
+        The source identity and original content hash are immutable.  A retry
+        may replace a failed/empty derived result for the same revision/page,
+        but it can never mutate an approved revision or point at another
+        artifact.
+        """
+        existing = self.get_page_evidence(evidence.source_page_evidence_id)
+        if existing is not None:
+            if (
+                existing.revision_id != evidence.revision_id
+                or existing.document_id != evidence.document_id
+                or existing.page_number != evidence.page_number
+                or existing.source_content_sha256 != evidence.source_content_sha256
+            ):
+                raise ValueError("page evidence identity/source lineage mismatch")
+            revision = self.get_revision(evidence.revision_id)
+            if revision is not None and revision.review_status == "approved":
+                from cold_storage.modules.knowledge.domain.errors import (
+                    ApprovedRevisionImmutabilityError,
+                )
+
+                raise ApprovedRevisionImmutabilityError(
+                    f"Revision {evidence.revision_id} is approved and page evidence is immutable"
+                )
+            existing.extraction_method = evidence.extraction_method
+            existing.extraction_status = evidence.extraction_status
+            existing.text = evidence.text
+            existing.text_sha256 = evidence.text_sha256
+            existing.source_authority = evidence.source_authority
+            existing.is_derived_evidence = evidence.is_derived_evidence
+            existing.ocr_engine = evidence.ocr_engine
+            existing.ocr_languages = evidence.ocr_languages
+            existing.ocr_confidence = evidence.ocr_confidence
+            existing.confidence_source = evidence.confidence_source
+            existing.requires_review = evidence.requires_review
+            existing.is_complete = evidence.is_complete
+            existing.error_code = evidence.error_code
+            existing.error_message = evidence.error_message
+            existing.updated_at = evidence.updated_at
+            self._session.flush()
+            return existing
+
+        rec = KnowledgePageEvidenceRecord(
+            source_page_evidence_id=evidence.source_page_evidence_id,
+            revision_id=evidence.revision_id,
+            document_id=evidence.document_id,
+            page_number=evidence.page_number,
+            extraction_method=evidence.extraction_method,
+            extraction_status=evidence.extraction_status,
+            text=evidence.text,
+            text_sha256=evidence.text_sha256,
+            source_content_sha256=evidence.source_content_sha256,
+            source_authority=evidence.source_authority,
+            is_derived_evidence=evidence.is_derived_evidence,
+            ocr_engine=evidence.ocr_engine,
+            ocr_languages=evidence.ocr_languages,
+            ocr_confidence=evidence.ocr_confidence,
+            confidence_source=evidence.confidence_source,
+            requires_review=evidence.requires_review,
+            is_complete=evidence.is_complete,
+            error_code=evidence.error_code,
+            error_message=evidence.error_message,
+            created_at=evidence.created_at,
+            updated_at=evidence.updated_at,
+        )
+        self._session.add(rec)
+        self._session.flush()
+        return rec
+
+    def save_page_evidences(
+        self, evidences: list[KnowledgePageEvidence]
+    ) -> list[KnowledgePageEvidenceRecord]:
+        """Persist a deterministic page evidence set atomically."""
+        return [self.save_page_evidence(evidence) for evidence in evidences]
+
+    # ------------------------------------------------------------------
     # Chunk operations
     # ------------------------------------------------------------------
 
@@ -300,6 +396,7 @@ class KnowledgeRepository:
                 row_start=chunk.row_start,
                 row_end=chunk.row_end,
                 source_locator=chunk.source_locator,
+                source_page_evidence_id=chunk.source_page_evidence_id or None,
                 embedding=chunk.embedding,
                 embedding_dimension=chunk.embedding_dimension,
                 embedding_version=chunk.embedding_version,
@@ -309,6 +406,27 @@ class KnowledgeRepository:
             records.append(rec)
         self._session.flush()
         return records
+
+    def save_chunks_idempotent(self, chunks: list[KnowledgeChunk]) -> list[KnowledgeChunkRecord]:
+        """Persist chunks once and verify exact equality on retry."""
+        if not chunks:
+            return []
+        existing = self.get_chunks(chunks[0].revision_id)
+        if not existing:
+            return self.save_chunks(chunks)
+        if len(existing) != len(chunks):
+            raise ValueError("existing chunk set differs from deterministic retry")
+        for record, expected in zip(existing, chunks, strict=True):
+            if (
+                record.id != expected.id
+                or record.chunk_index != expected.chunk_index
+                or record.text_sha256 != expected.text_sha256
+                or (record.source_page_evidence_id or "")
+                != (expected.source_page_evidence_id or "")
+                or list(record.embedding or []) != list(expected.embedding or [])
+            ):
+                raise ValueError("existing chunk set does not match deterministic retry")
+        return existing
 
     def get_chunks(self, revision_id: str) -> list[KnowledgeChunkRecord]:
         """Retrieve all chunks for a revision, ordered by chunk index."""

@@ -16,8 +16,17 @@ try:
 except ImportError:
     pymupdf = None  # type: ignore[assignment]
 
-# If text on a page is below this threshold (in characters), flag as OCR-required
+# Native text is sufficient only when the normalized, non-whitespace character
+# count meets this threshold.  The policy is deliberately page-scoped and
+# deterministic so low-text pages cannot silently bypass OCR.
 OCR_TEXT_THRESHOLD: int = 50
+NATIVE_TEXT_SUFFICIENCY_POLICY: str = "non_whitespace_characters>=OCR_TEXT_THRESHOLD"
+
+
+def native_text_is_sufficient(text: str) -> bool:
+    """Return whether normalized native text is sufficient for this page."""
+    normalized = unicodedata.normalize("NFKC", text)
+    return len("".join(normalized.split())) >= OCR_TEXT_THRESHOLD
 
 
 class PdfParser:
@@ -55,7 +64,6 @@ class PdfParser:
             order = 0
             page_count = doc.page_count
             ocr_page_numbers: list[int] = []
-            ocr_image_counts: list[int] = []
 
             for page_idx in range(page_count):
                 page = doc.load_page(page_idx)  # type: ignore[no-untyped-call]
@@ -66,16 +74,11 @@ class PdfParser:
                 text = unicodedata.normalize("NFKC", text)
                 text = text.strip()
 
-                # Check for images before deciding what to do
-                image_list = page.get_images()
-
-                if not text:
-                    # Image-only page — do NOT generate a fake ParsedBlock.
-                    # Record in metadata; the application service will set
-                    # requires_ocr and warn about missing pages.
-                    if image_list:
-                        ocr_page_numbers.append(page_num)
-                        ocr_image_counts.append(len(image_list))
+                if not native_text_is_sufficient(text):
+                    # A page with no text, low native text, or only an image
+                    # is selected for OCR.  Do not publish a native block for
+                    # it: successful OCR must not duplicate full-page text.
+                    ocr_page_numbers.append(page_num)
                     continue
 
                 # Split page text into paragraphs
@@ -95,6 +98,8 @@ class PdfParser:
                             metadata={
                                 "parser_version": PARSER_VERSION,
                                 "page_number": page_num,
+                                "extraction_method": "native",
+                                "native_text_sufficient": True,
                             },
                         )
                     )
@@ -103,7 +108,11 @@ class PdfParser:
             # Build warnings
             warnings: list[str] = []
             if ocr_page_numbers:
-                warnings.append(f"OCR may be required for image-only pages: {ocr_page_numbers}")
+                warnings.append(
+                    "OCR required for pages below the deterministic native-text "
+                    f"sufficiency threshold ({OCR_TEXT_THRESHOLD} non-whitespace "
+                    f"characters): {ocr_page_numbers}"
+                )
 
             return ParseResult(
                 blocks=blocks,

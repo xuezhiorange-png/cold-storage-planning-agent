@@ -21,6 +21,7 @@ Covers 14 parser properties:
 
 from __future__ import annotations
 
+import base64
 import io
 
 import pytest
@@ -29,6 +30,24 @@ from cold_storage.modules.knowledge.infrastructure.parsers.base import get_parse
 from cold_storage.modules.knowledge.infrastructure.parsers.csv_parser import CsvParser
 from cold_storage.modules.knowledge.infrastructure.parsers.markdown_parser import MarkdownParser
 from cold_storage.modules.knowledge.infrastructure.parsers.text_parser import TextParser
+
+_ONE_PIXEL_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
+
+
+def _image_only_pdf(page_count: int = 1) -> bytes:
+    """Create a deterministic PDF whose pages contain only an image."""
+    import pymupdf
+
+    doc = pymupdf.open()
+    for _ in range(page_count):
+        page = doc.new_page()
+        page.insert_image(page.rect, stream=_ONE_PIXEL_PNG)
+    content = doc.tobytes()
+    doc.close()
+    return content
+
 
 # ---------------------------------------------------------------------------
 # 1-3. Text parser tests
@@ -265,11 +284,17 @@ class TestPdfParser:
         doc = pymupdf.open()
         doc.new_page()
         page0 = doc[0]
-        page0.insert_text((72, 72), "Page one content here with enough text to be meaningful")
+        page0.insert_text(
+            (72, 72),
+            "Page one content here with enough deterministic native text to be meaningful",
+        )
 
         doc.new_page()
         page1 = doc[1]
-        page1.insert_text((72, 72), "Page two content here with enough text to be meaningful")
+        page1.insert_text(
+            (72, 72),
+            "Page two content here with enough deterministic native text to be meaningful",
+        )
 
         pdf_bytes = doc.tobytes()
         doc.close()
@@ -282,6 +307,78 @@ class TestPdfParser:
         pages = {b.page_start for b in blocks if b.page_start is not None}
         assert 1 in pages
         assert 2 in pages
+        assert result.ocr_page_numbers == []
+
+    def test_pdf_image_only_selects_exact_one_based_pages(self) -> None:
+        """Image-only pages are selected in sorted, exact 1-based order."""
+        try:
+            import pymupdf
+        except ImportError:
+            pytest.skip("pymupdf not installed")
+
+        doc = pymupdf.open()
+        doc.new_page()
+        doc[0].insert_image(doc[0].rect, stream=_ONE_PIXEL_PNG)
+        doc.new_page()
+        doc[1].insert_image(doc[1].rect, stream=_ONE_PIXEL_PNG)
+        doc.new_page()
+        doc[2].insert_image(doc[2].rect, stream=_ONE_PIXEL_PNG)
+        pdf_bytes = doc.tobytes()
+        doc.close()
+
+        from cold_storage.modules.knowledge.infrastructure.parsers.pdf_parser import PdfParser
+
+        result = PdfParser().parse(pdf_bytes, "scan.pdf")
+        assert result.ocr_page_numbers == [1, 2, 3]
+        assert result.page_count == 3
+        assert result.blocks == []
+
+    def test_pdf_mixed_selects_only_low_native_pages(self) -> None:
+        """Mixed PDFs OCR only the insufficient page and retain native page identity."""
+        try:
+            import pymupdf
+        except ImportError:
+            pytest.skip("pymupdf not installed")
+
+        doc = pymupdf.open()
+        page1 = doc.new_page()
+        page1.insert_text((72, 72), "Native page one has sufficient deterministic text content")
+        page2 = doc.new_page()
+        page2.insert_image(page2.rect, stream=_ONE_PIXEL_PNG)
+        page3 = doc.new_page()
+        page3.insert_text((72, 72), "Native page three has sufficient deterministic text content")
+        pdf_bytes = doc.tobytes()
+        doc.close()
+
+        from cold_storage.modules.knowledge.infrastructure.parsers.pdf_parser import PdfParser
+
+        result = PdfParser().parse(pdf_bytes, "mixed.pdf")
+        assert result.ocr_page_numbers == [2]
+        assert [block.page_start for block in result.blocks] == [1, 3]
+
+    def test_pdf_low_native_text_uses_threshold(self) -> None:
+        """A page below the explicit non-whitespace threshold is OCR-selected."""
+        try:
+            import pymupdf
+        except ImportError:
+            pytest.skip("pymupdf not installed")
+
+        doc = pymupdf.open()
+        low_page = doc.new_page()
+        low_page.insert_text((72, 72), "short native")
+        sufficient_page = doc.new_page()
+        sufficient_page.insert_text(
+            (72, 72),
+            "This page has enough normalized native text to satisfy the deterministic threshold",
+        )
+        pdf_bytes = doc.tobytes()
+        doc.close()
+
+        from cold_storage.modules.knowledge.infrastructure.parsers.pdf_parser import PdfParser
+
+        result = PdfParser().parse(pdf_bytes, "low-native.pdf")
+        assert result.ocr_page_numbers == [1]
+        assert [block.page_start for block in result.blocks] == [2]
 
     def test_pdf_empty_scan(self) -> None:
         """Empty/image-only PDF flags requires_ocr detection."""
@@ -303,6 +400,7 @@ class TestPdfParser:
         # Empty page has no text and no images
         assert len(result.blocks) == 0
         assert result.page_count == 1
+        assert result.ocr_page_numbers == [1]
 
 
 # ---------------------------------------------------------------------------
@@ -336,7 +434,10 @@ class TestPdfParserStatelessness:
         doc = pymupdf.open()
         doc.new_page()
         page = doc[0]
-        page.insert_text((72, 72), "Test content for parse result verification")
+        page.insert_text(
+            (72, 72),
+            "Test content for parse result verification with enough native characters",
+        )
         pdf_bytes = doc.tobytes()
         doc.close()
 
@@ -363,7 +464,10 @@ class TestPdfParserStatelessness:
         doc1 = pymupdf.open()
         doc1.new_page()
         page1 = doc1[0]
-        page1.insert_text((72, 72), "First document content alpha")
+        page1.insert_text(
+            (72, 72),
+            "First document content alpha with enough native characters for deterministic parsing",
+        )
         pdf1 = doc1.tobytes()
         doc1.close()
 
@@ -371,7 +475,10 @@ class TestPdfParserStatelessness:
         doc2 = pymupdf.open()
         doc2.new_page()
         page2 = doc2[0]
-        page2.insert_text((72, 72), "Second document content beta")
+        page2.insert_text(
+            (72, 72),
+            "Second document content beta with enough native characters for deterministic parsing",
+        )
         pdf2 = doc2.tobytes()
         doc2.close()
 

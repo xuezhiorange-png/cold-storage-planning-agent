@@ -1,7 +1,8 @@
 """PostgreSQL integration tests for knowledge module.
 
 Verifies schema existence, JSONB column round-trips, foreign-key constraints,
-unique constraints, transaction behavior, and review status persistence.
+page evidence lineage, unique constraints, transaction behavior, and review
+status persistence.
 
 Requires: DATABASE_URL=postgresql+psycopg2://...
 Marker: postgresql
@@ -109,6 +110,10 @@ def _cleanup_knowledge(conn, doc_id: str) -> None:
     for (rev_id,) in revisions:
         conn.execute(text("DELETE FROM knowledge_chunks WHERE revision_id = :rid"), {"rid": rev_id})
         conn.execute(
+            text("DELETE FROM knowledge_page_evidence WHERE revision_id = :rid"),
+            {"rid": rev_id},
+        )
+        conn.execute(
             text("DELETE FROM knowledge_ingestion_runs WHERE revision_id = :rid"), {"rid": rev_id}
         )
     conn.execute(text("DELETE FROM knowledge_revisions WHERE document_id = :did"), {"did": doc_id})
@@ -135,12 +140,13 @@ class TestKnowledgeDialect:
 
 class TestKnowledgeMigrations:
     def test_migration_0007_tables_exist(self, pg_engine) -> None:
-        """All 4 knowledge tables exist after migration."""
+        """All 5 knowledge tables exist after migration."""
         expected = [
             "knowledge_documents",
             "knowledge_revisions",
             "knowledge_ingestion_runs",
             "knowledge_chunks",
+            "knowledge_page_evidence",
         ]
         with pg_engine.connect() as conn:
             for table in expected:
@@ -154,8 +160,8 @@ class TestKnowledgeMigrations:
                 )
                 assert result.scalar() is True, f"Table {table} not found"
 
-    def test_four_knowledge_tables_count(self, pg_engine) -> None:
-        """Exactly 4 knowledge tables exist."""
+    def test_five_knowledge_tables_count(self, pg_engine) -> None:
+        """Exactly 5 knowledge tables exist."""
         with pg_engine.connect() as conn:
             result = conn.execute(
                 text(
@@ -165,7 +171,41 @@ class TestKnowledgeMigrations:
                 )
             )
             count = result.scalar()
-            assert count == 4, f"Expected 4 knowledge tables, got {count}"
+            assert count == 5, f"Expected 5 knowledge tables, got {count}"
+
+    def test_page_evidence_schema_and_chunk_lineage_column(self, pg_engine) -> None:
+        """Page evidence is first-class and chunks expose its stable identity."""
+        with pg_engine.connect() as conn:
+            evidence_columns = {
+                row[0]
+                for row in conn.execute(
+                    text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name = 'knowledge_page_evidence'"
+                    )
+                ).fetchall()
+            }
+            assert {
+                "source_page_evidence_id",
+                "revision_id",
+                "document_id",
+                "page_number",
+                "source_content_sha256",
+                "is_derived_evidence",
+                "requires_review",
+                "is_complete",
+            }.issubset(evidence_columns)
+
+            chunk_columns = {
+                row[0]
+                for row in conn.execute(
+                    text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name = 'knowledge_chunks'"
+                    )
+                ).fetchall()
+            }
+            assert "source_page_evidence_id" in chunk_columns
 
 
 # ---------------------------------------------------------------------------

@@ -158,11 +158,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     COLD_STORAGE_APP_HOST=0.0.0.0 \
     COLD_STORAGE_APP_PORT=8000
 
-# Required system packages for psycopg2-binary wheels and font fallback used
-# by deterministic PDF rendering smoke checks. CJK font is intentionally NOT
-# installed here; it is shipped only via CI environment when needed.
+# Required system packages for psycopg2-binary wheels, font fallback used by
+# deterministic PDF rendering smoke checks, and the offline OCR authority.
+# The OCR language set is intentionally fixed to eng+chi_sim.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        tesseract-ocr \
+        tesseract-ocr-eng \
+        tesseract-ocr-chi-sim \
+    && tesseract --version \
+    && tesseract --list-langs | grep -Fx 'eng' \
+    && tesseract --list-langs | grep -Fx 'chi_sim' \
     && rm -rf /var/lib/apt/lists/*
 
 # Non-root user. The contract requires the image NOT to run as root.
