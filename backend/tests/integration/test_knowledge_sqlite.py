@@ -161,17 +161,27 @@ class TestPageEvidencePersistence:
             document_id="doc-evidence",
             page_number=1,
             extraction_method="ocr",
-            extraction_status="complete",
+            extraction_status="completed",
             text="OCR page evidence",
             text_sha256="evidence-text-hash",
             source_content_sha256="evidence-source-hash",
             source_authority="original_artifact",
             is_derived_evidence=True,
+            original_filename="test.pdf",
             ocr_engine="tesseract",
+            ocr_engine_version="5.3.0",
             ocr_languages="eng+chi_sim",
             ocr_confidence=None,
             confidence_source="unavailable",
             requires_review=True,
+            review_status="unverified",
+            warnings=["test-warning"],
+            errors=[],
+            ingestion_run_id=None,
+            ingestion_provenance={
+                "source_authority": "original_artifact",
+                "original_filename": "test.pdf",
+            },
             is_complete=True,
             error_code="",
             error_message="",
@@ -197,6 +207,8 @@ class TestPageEvidencePersistence:
             row_end=None,
             source_locator="page:1 | p.1",
             source_page_evidence_id="spe-evidence-1",
+            is_ocr_derived=True,
+            requires_review=True,
             embedding=[0.1] * 64,
             embedding_dimension=64,
             embedding_version="fake-hash-v1",
@@ -209,6 +221,10 @@ class TestPageEvidencePersistence:
         assert retrieved is not None
         assert retrieved.source_content_sha256 == "evidence-source-hash"
         assert retrieved.requires_review is True
+        assert retrieved.ocr_engine_version == "5.3.0"
+        assert retrieved.review_status == "unverified"
+        assert retrieved.warnings == ["test-warning"]
+        assert retrieved.ingestion_provenance["source_authority"] == "original_artifact"
         assert chunk.page_evidence is retrieved
 
 

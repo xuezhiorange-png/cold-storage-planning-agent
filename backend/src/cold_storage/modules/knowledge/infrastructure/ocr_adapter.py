@@ -3,16 +3,21 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import subprocess
 import unicodedata
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 
 import pymupdf
 
+from cold_storage.modules.knowledge.domain.models import make_source_page_evidence_id
+
 DEFAULT_OCR_LANGUAGES = "eng+chi_sim"
 DEFAULT_OCR_ENGINE = "tesseract"
+_CANONICAL_STATUSES = frozenset({"completed", "requires_ocr", "unavailable", "empty", "failed"})
 
 
 class OcrAdapterError(RuntimeError):
@@ -21,18 +26,73 @@ class OcrAdapterError(RuntimeError):
 
 @dataclass(frozen=True)
 class OcrPageResult:
-    """Deterministic result for exactly one 1-based source page."""
+    """Complete structured evidence for exactly one 1-based source page."""
 
-    page_number: int
+    source_page_evidence_id: str = ""
+    document_id: str = ""
+    revision_id: str = ""
+    page_number: int = 0
+    extraction_method: str = "ocr"
+    extraction_status: str = "empty"
     text: str = ""
     text_sha256: str = ""
-    status: str = "empty"
+    source_content_sha256: str = ""
+    ocr_engine: str = DEFAULT_OCR_ENGINE
+    ocr_engine_version: str = ""
+    ocr_languages: str = DEFAULT_OCR_LANGUAGES
     confidence: float | None = None
     confidence_source: str = "unavailable"
-    engine: str = DEFAULT_OCR_ENGINE
-    languages: str = DEFAULT_OCR_LANGUAGES
+    requires_review: bool = True
+    review_status: str = "unverified"
+    warnings: list[str] = field(default_factory=list)
+    errors: list[dict[str, str]] = field(default_factory=list)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    ingestion_run_id: str = ""
+    ingestion_provenance: dict[str, object] = field(default_factory=dict)
     error_code: str = ""
     error_message: str = ""
+
+    @property
+    def status(self) -> str:
+        """Backward-compatible read alias; persistence uses extraction_status."""
+        return self.extraction_status
+
+    @property
+    def engine(self) -> str:
+        """Backward-compatible read alias for the canonical OCR engine field."""
+        return self.ocr_engine
+
+    @property
+    def languages(self) -> str:
+        """Backward-compatible read alias for the canonical language field."""
+        return self.ocr_languages
+
+    @property
+    def ocr_confidence(self) -> float | None:
+        """Backward-compatible read alias for confidence."""
+        return self.confidence
+
+    @property
+    def is_complete(self) -> bool:
+        """Return whether this result is safe to publish as page evidence."""
+        return (
+            self.extraction_method == "ocr"
+            and self.extraction_status == "completed"
+            and bool(self.text)
+            and bool(self.text_sha256)
+            and bool(self.ocr_engine_version)
+        )
+
+    @staticmethod
+    def _stable_id(revision_id: str, page_number: int) -> str:
+        return make_source_page_evidence_id(revision_id, page_number) if revision_id else ""
+
+    @staticmethod
+    def _error_list(error_code: str, error_message: str) -> list[dict[str, str]]:
+        if not error_code and not error_message:
+            return []
+        return [{"code": error_code, "message": error_message}]
 
     @classmethod
     def from_text(
@@ -44,17 +104,58 @@ class OcrPageResult:
         confidence_source: str = "unavailable",
         engine: str = DEFAULT_OCR_ENGINE,
         languages: str = DEFAULT_OCR_LANGUAGES,
+        engine_version: str = "",
+        document_id: str = "",
+        revision_id: str = "",
+        source_content_sha256: str = "",
+        ingestion_run_id: str = "",
+        original_filename: str = "",
+        ingestion_provenance: dict[str, object] | None = None,
     ) -> OcrPageResult:
         normalized = unicodedata.normalize("NFKC", text).strip()
+        has_text = bool(normalized)
+        if has_text and not engine_version:
+            status = "unavailable"
+            error_code = "ocr_engine_version_unavailable"
+            error_message = "OCR engine version is required for completed evidence"
+        else:
+            status = "completed" if has_text else "empty"
+            error_code = "" if has_text else "ocr_empty"
+            error_message = "" if has_text else "OCR returned no text"
+        now = datetime.now(UTC)
+        provenance = dict(ingestion_provenance or {})
+        provenance.update(
+            {
+                "source_authority": "original_artifact",
+                "original_filename": original_filename,
+                "source_content_sha256": source_content_sha256,
+                "ocr_engine": engine,
+                "ocr_engine_version": engine_version,
+                "ocr_languages": languages,
+            }
+        )
         return cls(
+            source_page_evidence_id=cls._stable_id(revision_id, page_number),
+            document_id=document_id,
+            revision_id=revision_id,
             page_number=page_number,
+            extraction_status=status,
             text=normalized,
             text_sha256=hashlib.sha256(normalized.encode("utf-8")).hexdigest(),
-            status="complete" if normalized else "empty",
+            source_content_sha256=source_content_sha256,
+            ocr_engine=engine,
+            ocr_engine_version=engine_version,
+            ocr_languages=languages,
             confidence=confidence,
             confidence_source=confidence_source if confidence is not None else "unavailable",
-            engine=engine,
-            languages=languages,
+            warnings=[],
+            errors=cls._error_list(error_code, error_message),
+            created_at=now,
+            updated_at=now,
+            ingestion_run_id=ingestion_run_id,
+            ingestion_provenance=provenance,
+            error_code=error_code,
+            error_message=error_message,
         )
 
     @classmethod
@@ -62,22 +163,59 @@ class OcrPageResult:
         cls,
         *,
         page_number: int,
-        status: str,
+        status: str | None = None,
+        extraction_status: str | None = None,
         error_code: str,
         error_message: str,
         engine: str = DEFAULT_OCR_ENGINE,
         languages: str = DEFAULT_OCR_LANGUAGES,
+        engine_version: str = "",
+        document_id: str = "",
+        revision_id: str = "",
+        source_content_sha256: str = "",
+        ingestion_run_id: str = "",
+        original_filename: str = "",
+        ingestion_provenance: dict[str, object] | None = None,
     ) -> OcrPageResult:
+        canonical_status = extraction_status or status or "failed"
+        canonical_status = {
+            "complete": "completed",
+            "missing_native_text": "failed",
+            "hash_mismatch": "failed",
+        }.get(canonical_status, canonical_status)
+        if canonical_status not in _CANONICAL_STATUSES:
+            canonical_status = "failed"
         empty_hash = hashlib.sha256(b"").hexdigest()
+        now = datetime.now(UTC)
+        provenance = dict(ingestion_provenance or {})
+        provenance.update(
+            {
+                "source_authority": "original_artifact",
+                "original_filename": original_filename,
+                "source_content_sha256": source_content_sha256,
+                "ocr_engine": engine,
+                "ocr_engine_version": engine_version,
+                "ocr_languages": languages,
+            }
+        )
         return cls(
+            source_page_evidence_id=cls._stable_id(revision_id, page_number),
+            document_id=document_id,
+            revision_id=revision_id,
             page_number=page_number,
+            extraction_status=canonical_status,
             text="",
             text_sha256=empty_hash,
-            status=status,
-            confidence=None,
-            confidence_source="unavailable",
-            engine=engine,
-            languages=languages,
+            source_content_sha256=source_content_sha256,
+            ocr_engine=engine,
+            ocr_engine_version=engine_version,
+            ocr_languages=languages,
+            warnings=[],
+            errors=cls._error_list(error_code, error_message),
+            created_at=now,
+            updated_at=now,
+            ingestion_run_id=ingestion_run_id,
+            ingestion_provenance=provenance,
             error_code=error_code,
             error_message=error_message,
         )
@@ -110,14 +248,11 @@ class OcrAdapter:
         revision_id: str,
         source_content_sha256: str,
         page_numbers: list[int],
+        document_id: str = "",
+        ingestion_run_id: str = "",
+        original_filename: str = "",
     ) -> list[OcrPageResult]:
-        """OCR the exact requested pages, returning one result per page.
-
-        The source bytes are hashed before rendering.  Page numbering is
-        validated against the PDF and normalized to deterministic ascending
-        order; invalid, empty, duplicate, or out-of-range requests are
-        rejected before Tesseract is invoked.
-        """
+        """OCR exact requested pages and return complete structured evidence."""
         if not revision_id:
             raise OcrAdapterError("revision_id is required")
         actual_hash = hashlib.sha256(content).hexdigest()
@@ -146,6 +281,24 @@ class OcrAdapter:
                     f"PDF page_count={page_count}"
                 )
 
+            engine_version = self._runtime_engine_version()
+            if not engine_version:
+                return [
+                    OcrPageResult.failure(
+                        page_number=page_number,
+                        status="unavailable",
+                        error_code="ocr_engine_version_unavailable",
+                        error_message="Tesseract runtime version could not be verified",
+                        engine_version="",
+                        document_id=document_id,
+                        revision_id=revision_id,
+                        source_content_sha256=source_content_sha256,
+                        ingestion_run_id=ingestion_run_id,
+                        original_filename=original_filename,
+                    )
+                    for page_number in sorted(requested)
+                ]
+
             results: list[OcrPageResult] = []
             for page_number in sorted(requested):
                 page = doc.load_page(page_number - 1)  # type: ignore[no-untyped-call]
@@ -155,7 +308,18 @@ class OcrAdapter:
                         alpha=False,
                     )
                     image_bytes = pixmap.tobytes("png")
-                    results.append(self._ocr_one_page(page_number, image_bytes))
+                    results.append(
+                        self._ocr_one_page(
+                            page_number,
+                            image_bytes,
+                            engine_version=engine_version,
+                            document_id=document_id,
+                            revision_id=revision_id,
+                            source_content_sha256=source_content_sha256,
+                            ingestion_run_id=ingestion_run_id,
+                            original_filename=original_filename,
+                        )
+                    )
                 except Exception as exc:
                     results.append(
                         OcrPageResult.failure(
@@ -163,14 +327,50 @@ class OcrAdapter:
                             status="failed",
                             error_code=type(exc).__name__,
                             error_message=str(exc),
-                            languages=self.languages,
+                            engine_version=engine_version,
+                            document_id=document_id,
+                            revision_id=revision_id,
+                            source_content_sha256=source_content_sha256,
+                            ingestion_run_id=ingestion_run_id,
+                            original_filename=original_filename,
                         )
                     )
             return results
         finally:
             doc.close()  # type: ignore[no-untyped-call]
 
-    def _ocr_one_page(self, page_number: int, image_bytes: bytes) -> OcrPageResult:
+    def _runtime_engine_version(self) -> str | None:
+        """Read and validate the version from the local Tesseract binary."""
+        try:
+            completed = self._runner(
+                [self.tesseract_binary, "--version"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=self.timeout_seconds,
+                check=False,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+            return None
+        if completed.returncode != 0:
+            return None
+        output = b"\n".join(
+            part for part in (completed.stdout or b"", completed.stderr or b"") if part
+        ).decode("utf-8", errors="replace")
+        match = re.search(r"(?im)^\s*tesseract\s+([0-9]+(?:\.[0-9]+)+)\b", output)
+        return match.group(1) if match else None
+
+    def _ocr_one_page(
+        self,
+        page_number: int,
+        image_bytes: bytes,
+        *,
+        engine_version: str,
+        document_id: str,
+        revision_id: str,
+        source_content_sha256: str,
+        ingestion_run_id: str,
+        original_filename: str,
+    ) -> OcrPageResult:
         command = [
             self.tesseract_binary,
             "stdin",
@@ -181,6 +381,14 @@ class OcrAdapter:
             self.languages,
             "tsv",
         ]
+        common: dict[str, Any] = {
+            "engine_version": engine_version,
+            "document_id": document_id,
+            "revision_id": revision_id,
+            "source_content_sha256": source_content_sha256,
+            "ingestion_run_id": ingestion_run_id,
+            "original_filename": original_filename,
+        }
         try:
             completed = self._runner(
                 command,
@@ -196,7 +404,7 @@ class OcrAdapter:
                 status="unavailable",
                 error_code="tesseract_not_found",
                 error_message=str(exc),
-                languages=self.languages,
+                **common,
             )
         except subprocess.TimeoutExpired as exc:
             return OcrPageResult.failure(
@@ -204,7 +412,7 @@ class OcrAdapter:
                 status="failed",
                 error_code="tesseract_timeout",
                 error_message=str(exc),
-                languages=self.languages,
+                **common,
             )
         except Exception as exc:
             return OcrPageResult.failure(
@@ -212,7 +420,7 @@ class OcrAdapter:
                 status="failed",
                 error_code=type(exc).__name__,
                 error_message=str(exc),
-                languages=self.languages,
+                **common,
             )
 
         stdout = completed.stdout or b""
@@ -223,7 +431,7 @@ class OcrAdapter:
                 status="failed",
                 error_code="tesseract_nonzero_exit",
                 error_message=stderr or f"tesseract exited with {completed.returncode}",
-                languages=self.languages,
+                **common,
             )
 
         text, confidence = self._parse_tsv(stdout)
@@ -232,7 +440,10 @@ class OcrAdapter:
             text=text,
             confidence=confidence,
             confidence_source="tesseract_tsv" if confidence is not None else "unavailable",
+            engine_version=engine_version,
+            engine=DEFAULT_OCR_ENGINE,
             languages=self.languages,
+            **{key: value for key, value in common.items() if key != "engine_version"},
         )
 
     @staticmethod
@@ -257,9 +468,8 @@ class OcrAdapter:
                     confidences.append(numeric)
 
         if not words and decoded.strip() and "\t" not in decoded:
-            # Keep adapter tests and compatible Tesseract wrappers useful when
-            # a runner returns plain text instead of TSV; confidence remains
-            # explicitly unavailable in that mode.
+            # Keep adapter tests and compatible local wrappers useful when a
+            # runner returns plain text instead of TSV.
             return decoded.strip(), None
         confidence = sum(confidences) / len(confidences) if confidences else None
         return " ".join(words), confidence

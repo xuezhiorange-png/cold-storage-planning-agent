@@ -328,11 +328,18 @@ class KnowledgeRepository:
             existing.text_sha256 = evidence.text_sha256
             existing.source_authority = evidence.source_authority
             existing.is_derived_evidence = evidence.is_derived_evidence
+            existing.original_filename = evidence.original_filename
             existing.ocr_engine = evidence.ocr_engine
+            existing.ocr_engine_version = evidence.ocr_engine_version
             existing.ocr_languages = evidence.ocr_languages
-            existing.ocr_confidence = evidence.ocr_confidence
+            existing.ocr_confidence = evidence.confidence
             existing.confidence_source = evidence.confidence_source
             existing.requires_review = evidence.requires_review
+            existing.review_status = evidence.review_status
+            existing.warnings = list(evidence.warnings)
+            existing.errors = list(evidence.errors)
+            existing.ingestion_run_id = evidence.ingestion_run_id or None
+            existing.ingestion_provenance = dict(evidence.ingestion_provenance)
             existing.is_complete = evidence.is_complete
             existing.error_code = evidence.error_code
             existing.error_message = evidence.error_message
@@ -352,11 +359,18 @@ class KnowledgeRepository:
             source_content_sha256=evidence.source_content_sha256,
             source_authority=evidence.source_authority,
             is_derived_evidence=evidence.is_derived_evidence,
+            original_filename=evidence.original_filename,
             ocr_engine=evidence.ocr_engine,
+            ocr_engine_version=evidence.ocr_engine_version,
             ocr_languages=evidence.ocr_languages,
-            ocr_confidence=evidence.ocr_confidence,
+            ocr_confidence=evidence.confidence,
             confidence_source=evidence.confidence_source,
             requires_review=evidence.requires_review,
+            review_status=evidence.review_status,
+            warnings=list(evidence.warnings),
+            errors=list(evidence.errors),
+            ingestion_run_id=evidence.ingestion_run_id or None,
+            ingestion_provenance=dict(evidence.ingestion_provenance),
             is_complete=evidence.is_complete,
             error_code=evidence.error_code,
             error_message=evidence.error_message,
@@ -397,6 +411,8 @@ class KnowledgeRepository:
                 row_end=chunk.row_end,
                 source_locator=chunk.source_locator,
                 source_page_evidence_id=chunk.source_page_evidence_id or None,
+                is_ocr_derived=chunk.is_ocr_derived,
+                requires_review=chunk.requires_review,
                 embedding=chunk.embedding,
                 embedding_dimension=chunk.embedding_dimension,
                 embedding_version=chunk.embedding_version,
@@ -423,6 +439,8 @@ class KnowledgeRepository:
                 or record.text_sha256 != expected.text_sha256
                 or (record.source_page_evidence_id or "")
                 != (expected.source_page_evidence_id or "")
+                or record.is_ocr_derived != expected.is_ocr_derived
+                or record.requires_review != expected.requires_review
                 or list(record.embedding or []) != list(expected.embedding or [])
             ):
                 raise ValueError("existing chunk set does not match deterministic retry")

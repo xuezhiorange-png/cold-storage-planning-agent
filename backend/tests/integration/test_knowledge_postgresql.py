@@ -192,7 +192,14 @@ class TestKnowledgeMigrations:
                 "page_number",
                 "source_content_sha256",
                 "is_derived_evidence",
+                "original_filename",
+                "ocr_engine_version",
                 "requires_review",
+                "review_status",
+                "warnings",
+                "errors",
+                "ingestion_run_id",
+                "ingestion_provenance",
                 "is_complete",
             }.issubset(evidence_columns)
 
@@ -205,7 +212,11 @@ class TestKnowledgeMigrations:
                     )
                 ).fetchall()
             }
-            assert "source_page_evidence_id" in chunk_columns
+            assert {
+                "source_page_evidence_id",
+                "is_ocr_derived",
+                "requires_review",
+            }.issubset(chunk_columns)
 
 
 # ---------------------------------------------------------------------------

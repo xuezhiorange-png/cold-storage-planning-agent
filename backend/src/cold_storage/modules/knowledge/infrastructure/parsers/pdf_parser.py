@@ -98,7 +98,7 @@ class PdfParser:
                             metadata={
                                 "parser_version": PARSER_VERSION,
                                 "page_number": page_num,
-                                "extraction_method": "native",
+                                "extraction_method": "native_text",
                                 "native_text_sufficient": True,
                             },
                         )

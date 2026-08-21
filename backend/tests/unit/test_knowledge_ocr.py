@@ -75,8 +75,16 @@ class FakeOcrAdapter:
         self.calls.append(kwargs)
         pages = kwargs["page_numbers"]
         assert isinstance(pages, list)
+        common = {
+            "document_id": str(kwargs["document_id"]),
+            "revision_id": str(kwargs["revision_id"]),
+            "source_content_sha256": str(kwargs["source_content_sha256"]),
+            "ingestion_run_id": str(kwargs["ingestion_run_id"]),
+            "original_filename": str(kwargs["original_filename"]),
+            "engine_version": "fake-ocr-v1",
+        }
         if self.mode == "empty":
-            return [OcrPageResult.from_text(page_number=page, text="") for page in pages]
+            return [OcrPageResult.from_text(page_number=page, text="", **common) for page in pages]
         if self.mode == "failed":
             return [
                 OcrPageResult.failure(
@@ -84,6 +92,7 @@ class FakeOcrAdapter:
                     status="failed",
                     error_code="fake_failure",
                     error_message="offline test failure",
+                    **common,
                 )
                 for page in pages
             ]
@@ -93,6 +102,7 @@ class FakeOcrAdapter:
                 text="OCR derived page text with deterministic provenance and review required.",
                 confidence=88.5,
                 confidence_source="fake_tsv",
+                **common,
             )
             for page in pages
         ]
@@ -140,6 +150,8 @@ class TestOcrAdapter:
 
         def runner(command: list[str], **_: object) -> SimpleNamespace:
             calls.append(command)
+            if command[-1] == "--version":
+                return SimpleNamespace(returncode=0, stdout=b"tesseract 5.3.0\n", stderr=b"")
             return SimpleNamespace(returncode=0, stdout=tsv, stderr=b"")
 
         results = OcrAdapter(runner=runner).ocr_pages(
@@ -150,9 +162,13 @@ class TestOcrAdapter:
         )
         assert [result.page_number for result in results] == [1, 2]
         assert results[0].text == "Hello world"
+        assert results[0].extraction_method == "ocr"
+        assert results[0].extraction_status == "completed"
+        assert results[0].ocr_engine_version == "5.3.0"
+        assert results[0].source_page_evidence_id == make_source_page_evidence_id("revision-1", 1)
         assert results[0].confidence == pytest.approx(85.0)
         assert results[0].confidence_source == "tesseract_tsv"
-        assert calls and "eng+chi_sim" in calls[0]
+        assert any("eng+chi_sim" in call for call in calls)
 
     def test_invalid_requests_rejected_before_runner(self) -> None:
         content = _mixed_pdf()
@@ -175,6 +191,24 @@ class TestOcrAdapter:
                 source_content_sha256=hashlib.sha256(b"different source").hexdigest(),
                 page_numbers=[1],
             )
+
+    def test_missing_runtime_version_is_unavailable(self) -> None:
+        content = _mixed_pdf()
+        content_hash = hashlib.sha256(content).hexdigest()
+
+        def runner(_command: list[str], **_: object) -> SimpleNamespace:
+            return SimpleNamespace(returncode=0, stdout=b"not a version", stderr=b"")
+
+        results = OcrAdapter(runner=runner).ocr_pages(
+            content=content,
+            revision_id="revision-version-missing",
+            source_content_sha256=content_hash,
+            page_numbers=[2],
+        )
+        assert len(results) == 1
+        assert results[0].extraction_status == "unavailable"
+        assert results[0].ocr_engine_version == ""
+        assert results[0].errors[0]["code"] == "ocr_engine_version_unavailable"
 
 
 class TestPageEvidenceContract:
@@ -203,9 +237,15 @@ class TestPageEvidenceContract:
         evidence = repo.list_page_evidence(str(created["revision_id"]))
         chunks = repo.get_chunks(str(created["revision_id"]))
         assert [item.page_number for item in evidence] == [1, 2]
-        assert evidence[0].extraction_method == "native"
+        assert evidence[0].extraction_method == "native_text"
+        assert evidence[0].extraction_status == "completed"
         assert evidence[1].extraction_method == "ocr"
+        assert evidence[1].extraction_status == "completed"
         assert evidence[1].requires_review is True
+        assert evidence[1].review_status == "unverified"
+        assert evidence[1].ocr_engine_version == "fake-ocr-v1"
+        assert evidence[1].ingestion_run_id
+        assert evidence[1].ingestion_provenance["source_authority"] == "original_artifact"
         assert evidence[1].source_content_sha256 == content_hash
         assert all(chunk.source_page_evidence_id for chunk in chunks)
         assert all(len(chunk.id) == 36 for chunk in chunks)
@@ -219,6 +259,16 @@ class TestPageEvidenceContract:
             == evidence[1].source_page_evidence_id
         )
         assert ocr_results[0]["citation"]["content_sha256"] == content_hash
+        assert ocr_results[0]["citation"]["source_content_sha256"] == content_hash
+        assert ocr_results[0]["citation"]["extraction_method"] == "ocr"
+        assert ocr_results[0]["citation"]["extraction_status"] == "completed"
+        assert ocr_results[0]["citation"]["source_authority"] == "original_artifact"
+        assert ocr_results[0]["citation"]["ocr_engine"] == "tesseract"
+        assert ocr_results[0]["citation"]["ocr_engine_version"] == "fake-ocr-v1"
+        assert ocr_results[0]["citation"]["ocr_languages"] == "eng+chi_sim"
+        assert ocr_results[0]["citation"]["confidence"] == pytest.approx(88.5)
+        assert ocr_results[0]["citation"]["ocr_review_status"] == "unverified"
+        assert ocr_results[0]["citation"]["requires_review"] is True
 
         retry = service.ingest_revision(document_id=created["document_id"], revision_number=1)
         assert retry["chunk_count"] == first["chunk_count"]
@@ -273,7 +323,8 @@ class TestPageEvidenceContract:
         assert result["ingestion_status"] == "indexed"
         assert adapter.calls == []
         evidence = KnowledgeRepository(db_session).list_page_evidence(str(created["revision_id"]))
-        assert all(item.extraction_method == "native" for item in evidence)
+        assert all(item.extraction_method == "native_text" for item in evidence)
+        assert all(item.extraction_status == "completed" for item in evidence)
 
     def test_approved_revision_cannot_be_reocrated(self, session) -> None:
         db_session, _ = session

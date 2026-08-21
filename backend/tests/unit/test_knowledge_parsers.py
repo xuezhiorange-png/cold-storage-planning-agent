@@ -308,6 +308,7 @@ class TestPdfParser:
         assert 1 in pages
         assert 2 in pages
         assert result.ocr_page_numbers == []
+        assert {block.metadata["extraction_method"] for block in blocks} == {"native_text"}
 
     def test_pdf_image_only_selects_exact_one_based_pages(self) -> None:
         """Image-only pages are selected in sorted, exact 1-based order."""
@@ -355,6 +356,7 @@ class TestPdfParser:
         result = PdfParser().parse(pdf_bytes, "mixed.pdf")
         assert result.ocr_page_numbers == [2]
         assert [block.page_start for block in result.blocks] == [1, 3]
+        assert all(block.metadata["extraction_method"] == "native_text" for block in result.blocks)
 
     def test_pdf_low_native_text_uses_threshold(self) -> None:
         """A page below the explicit non-whitespace threshold is OCR-selected."""
