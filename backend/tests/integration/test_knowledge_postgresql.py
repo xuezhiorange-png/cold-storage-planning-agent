@@ -412,10 +412,7 @@ class TestPageEvidenceDurableProvenance:
                 assert read_evidence.extraction_method == "ocr"
                 assert read_evidence.ocr_engine_version == "5.3.0"
                 assert read_evidence.warnings == ["ocr-derived-page"]
-                assert (
-                    read_evidence.ingestion_provenance["source_authority"]
-                    == "original_artifact"
-                )
+                assert read_evidence.ingestion_provenance["source_authority"] == "original_artifact"
 
                 chunks = repo.get_chunks(rev_id)
                 assert len(chunks) == 1
@@ -489,10 +486,7 @@ class TestPageEvidenceDurableProvenance:
                 retry_session.commit()
 
                 evidence_count = retry_session.execute(
-                    text(
-                        "SELECT COUNT(*) FROM knowledge_page_evidence "
-                        "WHERE revision_id = :rid"
-                    ),
+                    text("SELECT COUNT(*) FROM knowledge_page_evidence WHERE revision_id = :rid"),
                     {"rid": rev_id},
                 ).scalar()
                 chunk_count = retry_session.execute(
