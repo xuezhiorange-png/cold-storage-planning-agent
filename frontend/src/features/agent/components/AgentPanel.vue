@@ -3,7 +3,7 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { useAgent } from '../composables/useAgent'
 
-const { isOpen, availability, toggle, close, setToggleRef } = useAgent()
+const { isOpen, availability, capabilityState, toggle, close, setToggleRef } = useAgent()
 
 const drawerRef = ref<HTMLElement | null>(null)
 const closeButtonRef = ref<HTMLButtonElement | null>(null)
@@ -95,9 +95,16 @@ function onDrawerKeydown(event: KeyboardEvent): void {
       type="button"
       :class="{
         'agent-panel__toggle--active': isOpen,
-        'agent-panel__toggle--unavailable': availability === 'unavailable'
+        'agent-panel__toggle--unavailable': availability !== 'available',
+        'agent-panel__toggle--not-ready': availability === 'not_ready'
       }"
-      :aria-label="availability === 'unavailable' ? '查看 AI 助手不可用说明' : '切换AI助手'"
+      :aria-label="
+        availability === 'available'
+          ? '切换AI助手'
+          : availability === 'not_ready'
+            ? '查看 AI 助手未就绪说明'
+            : '查看 AI 助手不可用说明'
+      "
       @click="toggle"
     >
       AI
@@ -119,7 +126,7 @@ function onDrawerKeydown(event: KeyboardEvent): void {
           >
             <header class="agent-panel__header">
               <strong
-                :class="{ 'agent-panel__header--disabled': availability === 'unavailable' }"
+                :class="{ 'agent-panel__header--disabled': availability !== 'available' }"
               >AI 助手</strong>
               <div class="agent-panel__header-actions">
                 <button
@@ -134,11 +141,22 @@ function onDrawerKeydown(event: KeyboardEvent): void {
               </div>
             </header>
 
-            <!-- Unavailable banner -->
-            <div class="agent-panel__unavailable" role="status" aria-live="polite">
-              <p>AI 助手当前不可用</p>
-              <p>后端尚未部署 Agent 服务。</p>
-              <p>当前无法发送消息或执行工具操作。</p>
+            <!-- Optional assistance status -->
+            <div
+              v-if="availability !== 'available'"
+              class="agent-panel__unavailable"
+              role="status"
+              aria-live="polite"
+            >
+              <p v-if="availability === 'not_ready'">AI 助手当前未就绪</p>
+              <p v-else>AI 助手当前不可用</p>
+              <p>能力状态：{{ capabilityState }}</p>
+              <p>Agent 为可选辅助，不会阻断核心规划流程。</p>
+              <p v-if="availability === 'unavailable'">当前无法发送消息或执行工具操作。</p>
+            </div>
+            <div v-else class="agent-panel__available" role="status">
+              <p>AI 助手可用（{{ capabilityState }}）。</p>
+              <p>可选辅助，不替代确定性计算与审批权威。</p>
             </div>
           </aside>
         </div>
@@ -173,6 +191,11 @@ function onDrawerKeydown(event: KeyboardEvent): void {
   border-color: #9ca3af;
   background: #6b7280;
   opacity: 0.6;
+}
+
+.agent-panel__toggle--not-ready {
+  border-color: #d97706;
+  background: #b45309;
 }
 
 /* ── Overlay ──────────────────────────────────────── */
@@ -244,6 +267,23 @@ function onDrawerKeydown(event: KeyboardEvent): void {
 }
 
 .agent-panel__unavailable p {
+  margin: 0;
+}
+
+.agent-panel__available {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: #1b5e20;
+  font-size: 14px;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.agent-panel__available p {
   margin: 0;
 }
 

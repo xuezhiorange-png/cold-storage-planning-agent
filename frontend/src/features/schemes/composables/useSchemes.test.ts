@@ -47,10 +47,47 @@ function makeResponse(overrides: Partial<Record<string, unknown>> = {}): Record<
   return {
     schemes: makeSchemes(2),
     recommended_scheme_code: 'S1',
-    weight_set_name: '默认权重集',
-    weight_set_status: 'verified',
+    weight_set_name: '项目持久化方案比选',
+    weight_set_status: 'persisted',
     ...overrides
   }
+}
+
+const PROJECT_ID = 'proj-1'
+const VERSION = 1
+
+function makeRunDetail(schemes: Array<Record<string, unknown>> = makeSchemes(2)) {
+  return {
+    run_id: 'run-1',
+    recommended_scheme_code: (schemes[0]?.scheme_code as string) ?? 'S1',
+    requires_review: false,
+    candidates: schemes.map((scheme, index) => ({
+      scheme_code: scheme.scheme_code,
+      feasible: scheme.feasible,
+      rank: index + 1,
+      total_score: scheme.total_score,
+      result_snapshot: {
+        total_area_m2: scheme.total_area_m2,
+        total_position_count: scheme.total_position_count,
+        room_module_count: scheme.room_module_count,
+        door_count: scheme.door_count,
+        investment_cny: scheme.investment_cny,
+        installed_power_kw_e: scheme.installed_power_kw_e,
+        requires_review: scheme.requires_review
+      },
+      constraint_results: []
+    }))
+  }
+}
+
+function mockListAndDetail(c: HttpClient, schemes: Array<Record<string, unknown>> = makeSchemes(2)) {
+  if (schemes.length === 0) {
+    vi.mocked(c.requestJson).mockResolvedValueOnce([])
+    return
+  }
+  vi.mocked(c.requestJson)
+    .mockResolvedValueOnce([{ run_id: 'run-1', status: 'completed' }])
+    .mockResolvedValueOnce(makeRunDetail(schemes))
 }
 
 // ---------------------------------------------------------------------------
@@ -77,20 +114,19 @@ describe('useSchemes', () => {
     const c = createClient()
     const api = createMockApi(c)
 
-    let resolveCall!: (v: unknown) => void
-    vi.mocked(c.requestJson).mockImplementation(
-      () => new Promise((resolve) => { resolveCall = resolve })
-    )
+    let resolveList!: (v: unknown) => void
+    vi.mocked(c.requestJson)
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveList = resolve }))
+      .mockResolvedValueOnce(makeRunDetail())
 
     const ctx = useSchemes(api)
 
-    const loadPromise = ctx.load()
+    const loadPromise = ctx.load(PROJECT_ID, VERSION)
 
     expect(ctx.state.value).toBe('loading' satisfies SchemesState)
     expect(ctx.error.value).toBe('')
 
-    // Resolve to avoid unhandled promise
-    resolveCall(makeResponse())
+    resolveList([{ run_id: 'run-1', status: 'completed' }])
     await loadPromise
   })
 
@@ -98,43 +134,43 @@ describe('useSchemes', () => {
 
   it('transitions to success after loading completes', async () => {
     const c = createClient()
-    vi.mocked(c.requestJson).mockResolvedValue(makeResponse())
+    mockListAndDetail(c)
     const api = createMockApi(c)
     const ctx = useSchemes(api)
 
-    await ctx.load()
+    await ctx.load(PROJECT_ID, VERSION)
 
     expect(ctx.state.value).toBe('success' satisfies SchemesState)
     expect(ctx.data.value).not.toBeNull()
     expect(ctx.data.value?.schemes).toHaveLength(2)
     expect(ctx.data.value?.recommended_scheme_code).toBe('S1')
-    expect(ctx.data.value?.weight_set_name).toBe('默认权重集')
-    expect(ctx.data.value?.weight_set_status).toBe('verified')
+    expect(ctx.data.value?.weight_set_name).toBe('项目持久化方案比选')
+    expect(ctx.data.value?.weight_set_status).toBe('persisted')
     expect(ctx.error.value).toBe('')
   })
 
   it('populates schemes computed from response', async () => {
     const c = createClient()
-    vi.mocked(c.requestJson).mockResolvedValue(makeResponse())
+    mockListAndDetail(c)
     const api = createMockApi(c)
     const ctx = useSchemes(api)
 
-    await ctx.load()
+    await ctx.load(PROJECT_ID, VERSION)
 
     expect(ctx.schemes.value).toHaveLength(2)
     expect(ctx.schemes.value[0].scheme_code).toBe('S1')
-    expect(ctx.schemes.value[1].scheme_name).toBe('方案 2')
+    expect(ctx.schemes.value[1].scheme_name).toBe('S2')
   })
 
   /* ── Empty state ───────────────────────────────────────────── */
 
   it('transitions to empty when response has zero schemes', async () => {
     const c = createClient()
-    vi.mocked(c.requestJson).mockResolvedValue(makeResponse({ schemes: [] }))
+    mockListAndDetail(c, [])
     const api = createMockApi(c)
     const ctx = useSchemes(api)
 
-    await ctx.load()
+    await ctx.load(PROJECT_ID, VERSION)
 
     expect(ctx.state.value).toBe('empty' satisfies SchemesState)
     expect(ctx.data.value?.schemes).toEqual([])
@@ -149,7 +185,7 @@ describe('useSchemes', () => {
     const api = createMockApi(c)
     const ctx = useSchemes(api)
 
-    await ctx.load()
+    await ctx.load(PROJECT_ID, VERSION)
 
     expect(ctx.state.value).toBe('error' satisfies SchemesState)
     expect(ctx.error.value).toBe('Network error')
@@ -163,7 +199,7 @@ describe('useSchemes', () => {
     const api = createMockApi(c)
     const ctx = useSchemes(api)
 
-    await ctx.load()
+    await ctx.load(PROJECT_ID, VERSION)
 
     expect(ctx.state.value).toBe('error' satisfies SchemesState)
     expect(ctx.error.value).toBe('超时')
@@ -176,16 +212,16 @@ describe('useSchemes', () => {
     const api = createMockApi(c)
 
     // First load succeeds
-    vi.mocked(c.requestJson).mockResolvedValueOnce(makeResponse())
+    mockListAndDetail(c)
     const ctx = useSchemes(api)
-    await ctx.load()
+    await ctx.load(PROJECT_ID, VERSION)
     expect(ctx.state.value).toBe('success')
 
     // Second load is aborted
     vi.mocked(c.requestJson).mockRejectedValueOnce(
       new DOMException('The operation was aborted', 'AbortError')
     )
-    await ctx.load()
+    await ctx.load(PROJECT_ID, VERSION)
 
     // State should remain as 'success' from the first load
     expect(ctx.state.value).toBe('success')
@@ -204,19 +240,27 @@ describe('useSchemes', () => {
     })
 
     vi.mocked(c.requestJson)
-      .mockResolvedValueOnce(firstPromise)  // first call — deferred
-      .mockResolvedValueOnce(makeResponse({ recommended_scheme_code: 'S2' }))  // second call
+      .mockImplementationOnce(() => firstPromise)
+      .mockResolvedValueOnce([{ run_id: 'run-1', status: 'completed' }])
+      .mockResolvedValueOnce(
+        makeRunDetail(
+          makeSchemes(2).map((scheme, index) => ({
+            ...scheme,
+            scheme_code: index === 0 ? 'S2' : scheme.scheme_code
+          }))
+        )
+      )
 
     const ctx = useSchemes(api)
 
     // Start first load
-    const firstLoad = ctx.load()
+    const firstLoad = ctx.load(PROJECT_ID, VERSION)
 
     // Start second load (aborts first via gate)
-    await ctx.load()
+    await ctx.load(PROJECT_ID, VERSION)
 
-    // Resolve first (stale) response
-    resolveFirst(makeResponse({ recommended_scheme_code: 'S1' }))
+    // Resolve first (stale) response — list only
+    resolveFirst([{ run_id: 'run-1', status: 'completed' }])
     await firstLoad
 
     // Data should be from the second (current) load
@@ -230,28 +274,22 @@ describe('useSchemes', () => {
     const c = createClient()
     const api = createMockApi(c)
 
-    let resolveCall!: (v: unknown) => void
-    vi.mocked(c.requestJson).mockImplementation(
-      () => new Promise((resolve) => { resolveCall = resolve })
-    )
+    let resolveList!: (v: unknown) => void
+    vi.mocked(c.requestJson)
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveList = resolve }))
+      .mockResolvedValueOnce(makeRunDetail())
 
     const ctx = useSchemes(api)
 
-    // Start loading
-    const loadPromise = ctx.load()
+    const loadPromise = ctx.load(PROJECT_ID, VERSION)
     expect(ctx.state.value).toBe('loading')
 
-    // Abort
     ctx.abort()
-
-    // State should go back to idle
     expect(ctx.state.value).toBe('idle' satisfies SchemesState)
 
-    // Resolve the underlying promise (should be discarded)
-    resolveCall(makeResponse())
+    resolveList([{ run_id: 'run-1', status: 'completed' }])
     await loadPromise
 
-    // State must remain idle — stale response was discarded
     expect(ctx.state.value).toBe('idle' satisfies SchemesState)
     expect(ctx.data.value).toBeNull()
   })
@@ -262,23 +300,21 @@ describe('useSchemes', () => {
     const c = createClient()
     const api = createMockApi(c)
 
-    let resolveCall!: (v: unknown) => void
-    vi.mocked(c.requestJson).mockImplementation(
-      () => new Promise((resolve) => { resolveCall = resolve })
-    )
+    let resolveList!: (v: unknown) => void
+    vi.mocked(c.requestJson)
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveList = resolve }))
+      .mockResolvedValueOnce(makeRunDetail())
 
     const ctx = useSchemes(api)
 
-    const loadPromise = ctx.load()
+    const loadPromise = ctx.load(PROJECT_ID, VERSION)
     expect(ctx.state.value).toBe('loading')
 
-    // Abort
     ctx.abort()
 
-    resolveCall(makeResponse())
+    resolveList([{ run_id: 'run-1', status: 'completed' }])
     await loadPromise
 
-    // State should not have been updated to success
     expect(ctx.state.value).toBe('idle' satisfies SchemesState)
     expect(ctx.data.value).toBeNull()
   })
@@ -287,18 +323,16 @@ describe('useSchemes', () => {
     const c = createClient()
     const api = createMockApi(c)
 
-    let resolveCall!: (v: unknown) => void
-    vi.mocked(c.requestJson).mockImplementation(
-      () => new Promise((resolve) => { resolveCall = resolve })
-    )
+    let resolveList!: (v: unknown) => void
+    vi.mocked(c.requestJson)
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveList = resolve }))
+      .mockResolvedValueOnce(makeRunDetail())
 
-    // Create a wrapper component that uses useSchemes
     const TestComponent = defineComponent({
       setup() {
         const ctx = useSchemes(api)
-        // Expose ctx for assertions after mount
         ;(window as unknown as Record<string, unknown>).__ctx = ctx
-        ctx.load()
+        ctx.load(PROJECT_ID, VERSION)
         return () => h('div', 'test')
       }
     })
@@ -313,18 +347,14 @@ describe('useSchemes', () => {
     const ctx = (window as unknown as Record<string, unknown>).__ctx as UseSchemesReturn
     expect(ctx.state.value).toBe('loading')
 
-    // Unmount the component (triggers onUnmounted → isAlive=false + gate.cancel)
     wrapper.unmount()
 
-    // Resolve the deferred promise — should be discarded
-    resolveCall(makeResponse())
+    resolveList([{ run_id: 'run-1', status: 'completed' }])
     await flushPromises()
 
-    // State should not have been updated — gate was cancelled on unmount
     expect(ctx.state.value).toBe('idle' satisfies SchemesState)
     expect(ctx.data.value).toBeNull()
 
-    // Clean up the window property
     delete (window as unknown as Record<string, unknown>).__ctx
   })
 
@@ -338,7 +368,7 @@ describe('useSchemes', () => {
     const api = createMockApi(c)
     const ctx = useSchemes(api)
 
-    await ctx.load()
+    await ctx.load(PROJECT_ID, VERSION)
 
     expect(ctx.state.value).toBe('unavailable' satisfies SchemesState)
     expect(ctx.error.value).toBe('方案比选服务当前不可用')
@@ -353,7 +383,7 @@ describe('useSchemes', () => {
     const api = createMockApi(c)
     const ctx = useSchemes(api)
 
-    await ctx.load()
+    await ctx.load(PROJECT_ID, VERSION)
 
     expect(ctx.state.value).toBe('unavailable' satisfies SchemesState)
     expect(ctx.error.value).toBe('方案比选服务当前不可用')
@@ -367,7 +397,7 @@ describe('useSchemes', () => {
     const api = createMockApi(c)
     const ctx = useSchemes(api)
 
-    await ctx.load()
+    await ctx.load(PROJECT_ID, VERSION)
 
     expect(ctx.state.value).toBe('unavailable' satisfies SchemesState)
     expect(ctx.error.value).toBe('方案比选服务当前不可用')
@@ -381,7 +411,7 @@ describe('useSchemes', () => {
     const api = createMockApi(c)
     const ctx = useSchemes(api)
 
-    await ctx.load()
+    await ctx.load(PROJECT_ID, VERSION)
 
     expect(ctx.state.value).toBe('error' satisfies SchemesState)
     expect(ctx.error.value).toBe('Internal server error')

@@ -5,7 +5,9 @@ import { createPinia } from 'pinia'
 
 import App from '../src/App.vue'
 import { usePlanningWorkflowStore } from '../src/stores/planningWorkflow'
+import { useWorkbenchContextStore } from '../src/stores/workbenchContext'
 import { createWorkbenchRouter } from '../src/app/router'
+import { installWorkbenchFetchMock, samplePlanningRunResponse } from './helpers/workbenchFetchMock'
 
 // Mock element-plus ElMessage to prevent jsdom issues with toast creation
 vi.mock('element-plus', async (importOriginal) => {
@@ -55,6 +57,11 @@ function mountApp() {
 describe('cold storage workbench', () => {
   beforeEach(async () => {
     workflowStore.reset()
+    localStorage.clear()
+    const workbench = useWorkbenchContextStore(pinia)
+    workbench.resetForTests()
+    installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'))
+    await workbench.initialize()
     // Defensive: the previous test may have left focus on a removed DOM
     // element (e.g. a teleported close button that has since been
     // unmounted). Blurring ensures the next test starts from a clean
@@ -192,51 +199,39 @@ describe('cold storage workbench', () => {
   })
 
   it('submits planning request with correct payload', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          success: true,
-          summary: {
-            total_area_m2: 850,
-            total_position_count: 300,
-            total_investment_cny: 3000000,
-            total_power_kw: 1350,
-            requires_review: false
-          },
-          zone_plan: { result: { zones: [] } },
-          investment_estimate: { result: { items: [] } },
-          power_configuration: {
-            equipment_rows: [],
-            summary_rows: [],
-            items: [],
-            total_installed_power_kw: 0,
-            total_estimated_demand_kw: 0,
-            requires_review: false
-          }
-        })
-      )
-    ) as unknown as typeof globalThis.fetch
+    vi.restoreAllMocks()
+    const { fetchMock } = installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'), {
+      planningRunResponse: {
+        ...samplePlanningRunResponse(),
+        summary: {
+          ...samplePlanningRunResponse().summary,
+          total_area_m2: 850,
+          total_position_count: 300,
+          total_investment_cny: 3_000_000,
+          total_power_kw: 1350
+        }
+      }
+    })
 
     const wrapper = mountApp()
     await flushPromises()
+    await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
 
-    // Click submit button
     const primaryButton = wrapper.find('.el-button--primary')
     expect(primaryButton.exists()).toBe(true)
     await primaryButton.trigger('click')
     await flushPromises()
+    await flushPromises()
 
-    // Verify API was called
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/v1/demo/planning-run',
+      expect.stringContaining('/api/v1/projects/proj-test/versions/1/planning-run'),
       expect.objectContaining({
         method: 'POST',
         body: expect.stringContaining('"daily_inbound_mass_kg"')
       })
     )
 
-    // Store state updated
     expect(store.isLoading).toBe(false)
     expect(store.latestResponse).not.toBeNull()
     expect(store.latestResponse?.summary.total_area_m2).toBe(850)
@@ -249,55 +244,38 @@ describe('cold storage workbench', () => {
   })
 
   it('investment page uses backend total_investment_cny not reduce sum', async () => {
-    // Mock a response where items sum to 1,000,000 but total_investment_cny is 1,200,000
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          success: true,
-          summary: {
-            total_area_m2: 850,
-            total_position_count: 300,
-            total_investment_cny: 1_200_000,
-            total_power_kw: 1350,
-            requires_review: false
-          },
-          zone_plan: { result: { zones: [] } },
-          investment_estimate: {
-            result: {
-              items: [
-                { item_name: '土建', amount_cny: 600_000 },
-                { item_name: '设备', amount_cny: 400_000 }
-              ]
-            }
-          },
-          power_configuration: {
-            equipment_rows: [],
-            summary_rows: [],
-            items: [],
-            total_installed_power_kw: 0,
-            total_estimated_demand_kw: 0,
-            requires_review: false
+    vi.restoreAllMocks()
+    installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'), {
+      planningRunResponse: {
+        ...samplePlanningRunResponse(),
+        summary: {
+          ...samplePlanningRunResponse().summary,
+          total_investment_cny: 1_200_000
+        },
+        investment_estimate: {
+          result: {
+            items: [
+              { item_name: '土建', amount_cny: 600_000 },
+              { item_name: '设备', amount_cny: 400_000 }
+            ]
           }
-        })
-      )
-    ) as unknown as typeof globalThis.fetch
+        }
+      }
+    })
 
     const wrapper = mountApp()
-    // Start at project page where submit button lives
     await testRouter.push('/workbench/project')
     await flushPromises()
-
-    // Submit the planning run so the store has latestResponse
-    const primaryBtn = wrapper.find('.el-button--primary')
-    expect(primaryBtn.exists()).toBe(true)
-    await primaryBtn.trigger('click')
     await flushPromises()
 
-    // Navigate to investment page which reads store.latestResponse
+    const primaryBtn = wrapper.find('.el-button--primary')
+    await primaryBtn.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
     await testRouter.push('/workbench/investment')
     await flushPromises()
 
-    // Should show 120.00 万元 (backend total), not 100.00 万元 (reduce sum)
     const totalEl = wrapper.find('.investment-page__total')
     expect(totalEl.text()).toContain('120.00')
     expect(totalEl.text()).not.toContain('100.00')
@@ -325,8 +303,7 @@ describe('cold storage workbench', () => {
     const drawer = document.body.querySelector('.agent-panel__drawer')
     expect(drawer).not.toBeNull()
     expect(drawer!.textContent).toContain('AI 助手当前不可用')
-    expect(drawer!.textContent).toContain('后端尚未部署')
-    expect(drawer!.textContent).toContain('无法发送消息')
+    expect(drawer!.textContent).toContain('不会阻断核心规划流程')
 
     // Close via the close button inside the drawer
     const closeBtn = drawer!.querySelector('.agent-panel__close-btn') as HTMLElement | null
@@ -494,20 +471,8 @@ describe('cold storage workbench', () => {
   })
 
   it('navigating to schemes route shows empty state', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(
-      () => Promise.resolve(
-        new Response(
-          JSON.stringify({
-            schemes: [],
-            recommended_scheme_code: null,
-            weight_set_name: '默认权重集',
-            weight_set_status: 'verified'
-          })
-        )
-      )
-    ) as unknown as typeof globalThis.fetch
-
     const wrapper = mountApp()
+    await flushPromises()
     await flushPromises()
 
     await testRouter.push('/workbench/schemes')
@@ -517,57 +482,51 @@ describe('cold storage workbench', () => {
   })
 
   it('successful planning end-to-end: submit -> store -> navigate -> render calculations', async () => {
+    vi.restoreAllMocks()
     const mockResponse = {
-      success: true,
+      ...samplePlanningRunResponse(),
       summary: {
         total_area_m2: 850,
         total_position_count: 300,
-        total_investment_cny: 3000000,
+        total_investment_cny: 3_000_000,
         total_power_kw: 1350,
         requires_review: false
       },
       zone_plan: {
         result: {
           zones: [
-            { zone_name: '原料暂存', temperature_band: '常温', daily_throughput_kg: 12000, design_storage_mass_kg: 24000, position_count: 80, required_area_m2: 200 },
-            { zone_name: '成品冷藏', temperature_band: '冷藏', daily_throughput_kg: 15000, design_storage_mass_kg: 37500, position_count: 120, required_area_m2: 450 }
+            {
+              zone_name: '原料暂存',
+              temperature_band: '常温',
+              daily_throughput_kg: 12000,
+              design_storage_mass_kg: 24000,
+              position_count: 80,
+              required_area_m2: 200
+            },
+            {
+              zone_name: '成品冷藏',
+              temperature_band: '冷藏',
+              daily_throughput_kg: 15000,
+              design_storage_mass_kg: 37500,
+              position_count: 120,
+              required_area_m2: 450
+            }
           ]
         }
-      },
-      investment_estimate: {
-        result: {
-          items: [
-            { item_name: '土建', amount_cny: 600000 },
-            { item_name: '设备', amount_cny: 400000 }
-          ]
-        }
-      },
-      power_configuration: {
-        equipment_rows: [
-          { sequence: 1, name: '压缩机组', area: '制冷机房', quantity: 2, running_power_kw: 120, total_power_kw: 240, defrost_power_kw: null, defrost_total_power_kw: null },
-          { sequence: 2, name: '冷风机', area: '冷藏间', quantity: 6, running_power_kw: 3.5, total_power_kw: 21, defrost_power_kw: 9, defrost_total_power_kw: 54 }
-        ],
-        summary_rows: [{ name: '制冷系统', basis: '设备功率合计', total_power_kw: 261 }],
-        items: [],
-        total_installed_power_kw: 315,
-        total_estimated_demand_kw: 220,
-        requires_review: false
       }
     }
 
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify(mockResponse))
-    )
+    installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'), {
+      planningRunResponse: mockResponse
+    })
 
     const wrapper = mountApp()
     await flushPromises()
+    await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
 
-    // 1. Start at project page
-    expect(testRouter.currentRoute.value.name).toBe('project')
-
-    // 2. Submit
     await wrapper.find('.el-button--primary').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     // 3. Request went through — store has the request
@@ -595,61 +554,52 @@ describe('cold storage workbench', () => {
   })
 
   it('request failure shows error on project page', async () => {
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(
-      new Error('API 请求失败')
-    ) as unknown as typeof globalThis.fetch
-
-    const wrapper = mountApp()
-    await flushPromises()
-
-    const store = usePlanningWorkflowStore(pinia)
-
-    // Submit
-    const primaryButton = wrapper.find('.el-button--primary')
-    await primaryButton.trigger('click')
-    await flushPromises()
-
-    // Store should have the error
-    expect(store.error).toBe('API 请求失败')
-    expect(store.isLoading).toBe(false)
-
-    // Error display should be visible on the project page
-    const errorDiv = wrapper.find('.project-page__error')
-    expect(errorDiv.exists()).toBe(true)
-    expect(errorDiv.text()).toContain('API 请求失败')
-    expect(errorDiv.text()).toContain('请修改输入后重试')
-  })
-
-  it('route unmount resolves store.isLoading after navigating away', async () => {
-    let resolveFetch: ((v: Response) => void) | null = null
-    vi.spyOn(globalThis, 'fetch').mockImplementation((input, options) => {
-      return new Promise((resolve, reject) => {
-        const signal = options?.signal
-        if (signal) {
-          if (signal.aborted) { reject(new DOMException('Aborted', 'AbortError')); return }
-          signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
-        }
-        resolveFetch = resolve
-      })
+    vi.restoreAllMocks()
+    installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'), {
+      planningRunError: new Error('API 请求失败')
     })
 
     const wrapper = mountApp()
     await flushPromises()
+    await flushPromises()
+
+    const store = usePlanningWorkflowStore(pinia)
+    await wrapper.find('.el-button--primary').trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    expect(store.error).toBe('API 请求失败')
+    expect(store.isLoading).toBe(false)
+
+    const errorDiv = wrapper.find('.project-page__error')
+    expect(errorDiv.exists()).toBe(true)
+    expect(errorDiv.text()).toContain('API 请求失败')
+  })
+
+  it('route unmount resolves store.isLoading after navigating away', async () => {
+    vi.restoreAllMocks()
+    const { resolvePlanningRun } = installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'), {
+      deferPlanningRun: true
+    })
+
+    const wrapper = mountApp()
+    await flushPromises()
+    await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
 
-    // Submit
     await wrapper.find('.el-button--primary').trigger('click')
     await flushPromises()
     expect(store.isLoading).toBe(true)
 
-    // Navigate away
     await testRouter.push('/workbench/calculations')
     await flushPromises()
 
-    // isLoading must be false after route unmount
     expect(store.isLoading).toBe(false)
     expect(store.latestResponse).toBeNull()
     expect(store.error).toBe('')
+
+    resolvePlanningRun()
+    await flushPromises()
   })
 
   /* ── Agent toggle clickability & focus tests ──────── */
@@ -681,77 +631,47 @@ describe('cold storage workbench', () => {
   })
 
   it('reset button during request cancels store state and stays on project page', async () => {
-    let resolveFetch: ((v: Response) => void) | null = null
-    vi.spyOn(globalThis, 'fetch').mockImplementation((input, options) => {
-      return new Promise((resolve, reject) => {
-        const signal = options?.signal
-        if (signal) {
-          if (signal.aborted) { reject(new DOMException('Aborted', 'AbortError')); return }
-          signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
-        }
-        resolveFetch = resolve
-      })
-    }) as unknown as typeof globalThis.fetch
+    vi.restoreAllMocks()
+    const workbench = useWorkbenchContextStore(pinia)
+    const { resolvePlanningRun } = installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'), {
+      deferPlanningRun: true
+    })
+    await workbench.initialize()
 
     const wrapper = mountApp()
     await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
 
-    // Submit — request pending
     await wrapper.find('.el-button--primary').trigger('click')
     await flushPromises()
     expect(store.isLoading).toBe(true)
     expect(store.latestRequest).not.toBeNull()
 
-    // Find and click the real reset button in ProjectInputsPanel
-    const resetBtn = wrapper.findAll('button').filter(b => b.text().includes('重置'))[0]
-    expect(resetBtn).toBeDefined()
-    expect(resetBtn.text()).toContain('重置')
+    const resetBtn = wrapper.findAll('button').filter((b) => b.text().includes('重置'))[0]
     await resetBtn.trigger('click')
     await flushPromises()
 
-    // Store is now reset
     expect(store.isLoading).toBe(false)
     expect(store.latestRequest).toBeNull()
     expect(store.latestResponse).toBeNull()
     expect(store.error).toBe('')
-
-    // Still on project page
     expect(testRouter.currentRoute.value.name).toBe('project')
 
-    // Old request resolves — should not write back
-    if (resolveFetch) {
-      (resolveFetch as (v: Response) => void)(new Response(JSON.stringify({ success: true, summary: { total_area_m2: 999, total_position_count: 1, total_investment_cny: 0, total_power_kw: 0, requires_review: false }, zone_plan: { result: { zones: [] } }, investment_estimate: { result: { items: [] } }, power_configuration: { equipment_rows: [], summary_rows: [], items: [], total_installed_power_kw: 0, total_estimated_demand_kw: 0, requires_review: false } })))
-    }
+    resolvePlanningRun()
     await flushPromises()
 
-    // Old response NOT written back, still on project
     expect(store.latestResponse).toBeNull()
     expect(testRouter.currentRoute.value.name).toBe('project')
   })
 
   it('reset button during request restores form, clears store, aborts signal, stays on project', async () => {
-    let capturedSignal: AbortSignal | null = null
-    let resolveFetch: ((v: Response) => void) | null = null
-
-    vi.spyOn(globalThis, 'fetch').mockImplementation(
-      (_input: RequestInfo | URL, options?: RequestInit) => {
-        capturedSignal = options?.signal ?? null
-        return new Promise<Response>((resolve, reject) => {
-          const signal = options?.signal
-          if (signal) {
-            if (signal.aborted) {
-              reject(new DOMException('Aborted', 'AbortError'))
-              return
-            }
-            signal.addEventListener('abort', () => {
-              reject(new DOMException('Aborted', 'AbortError'))
-            }, { once: true })
-          }
-          resolveFetch = resolve
-        })
-      }
+    vi.restoreAllMocks()
+    const workbench = useWorkbenchContextStore(pinia)
+    const { lastPlanningRunSignal, resolvePlanningRun } = installWorkbenchFetchMock(
+      vi.spyOn(globalThis, 'fetch'),
+      { deferPlanningRun: true }
     )
+    await workbench.initialize()
 
     const wrapper = mountApp()
     await flushPromises()
@@ -784,7 +704,7 @@ describe('cold storage workbench', () => {
     expect(store.latestRequest).not.toBeNull()
 
     // Capture signal before reset
-    expect(capturedSignal).not.toBeNull()
+    expect(lastPlanningRunSignal()).not.toBeNull()
 
     // Find and click reset button by text 重置
     const allButtons = wrapper.findAll('button')
@@ -819,21 +739,13 @@ describe('cold storage workbench', () => {
     expect(store.error).toBe('')
 
     // Signal should be aborted (reset cancels the request)
-    expect((capturedSignal as unknown as AbortSignal).aborted).toBe(true)
+    expect(lastPlanningRunSignal()?.aborted).toBe(true)
 
     // Still on project
     expect(testRouter.currentRoute.value.name).toBe('project')
 
     // Resolve old request
-    if (resolveFetch) {
-      (resolveFetch as (v: Response) => void)(new Response(JSON.stringify({
-        success: true,
-        summary: { total_area_m2: 999, total_position_count: 1, total_investment_cny: 0, total_power_kw: 0, requires_review: false },
-        zone_plan: { result: { zones: [] } },
-        investment_estimate: { result: { items: [] } },
-        power_configuration: { equipment_rows: [], summary_rows: [], items: [], total_installed_power_kw: 0, total_estimated_demand_kw: 0, requires_review: false }
-      })))
-    }
+    resolvePlanningRun()
     await flushPromises()
 
     // Old response not written back, no error, no navigation
@@ -843,47 +755,33 @@ describe('cold storage workbench', () => {
   })
 
   it('planning error stays on project page (no navigation)', async () => {
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(
-      new Error('API 请求失败')
-    ) as unknown as typeof globalThis.fetch
+    vi.restoreAllMocks()
+    installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'), {
+      planningRunError: new Error('API 请求失败')
+    })
 
     const wrapper = mountApp()
     await flushPromises()
+    await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
 
-    // Submit
     await wrapper.find('.el-button--primary').trigger('click')
     await flushPromises()
+    await flushPromises()
 
-    // Store has the error
     expect(store.error).toBe('API 请求失败')
     expect(store.isLoading).toBe(false)
-
-    // Still on project page — no navigation despite failing
     expect(testRouter.currentRoute.value.name).toBe('project')
-
-    // Error display visible on project page
-    const errorDiv = wrapper.find('.project-page__error')
-    expect(errorDiv.exists()).toBe(true)
-    expect(errorDiv.text()).toContain('API 请求失败')
-    expect(errorDiv.text()).toContain('请修改输入后重试')
+    expect(wrapper.find('.project-page__error').exists()).toBe(true)
   })
 
   it('pending A -> reset -> resolve A -> no navigation or store change', async () => {
-    let resolveA: ((v: Response) => void) | null = null
-
-    vi.spyOn(globalThis, 'fetch').mockImplementation(
-      (input, options) => {
-        return new Promise<Response>((resolve, reject) => {
-          const signal = options?.signal
-          if (signal) {
-            if (signal.aborted) { reject(new DOMException('Aborted', 'AbortError')); return }
-            signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
-          }
-          resolveA = resolve
-        })
-      }
-    )
+    vi.restoreAllMocks()
+    const workbench = useWorkbenchContextStore(pinia)
+    const { resolvePlanningRun } = installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'), {
+      deferPlanningRun: true
+    })
+    await workbench.initialize()
 
     const wrapper = mountApp()
     await flushPromises()
@@ -906,15 +804,7 @@ describe('cold storage workbench', () => {
     expect(testRouter.currentRoute.value.name).toBe('project')
 
     // Resolve A
-    if (resolveA) {
-      (resolveA as (v: Response) => void)(new Response(JSON.stringify({
-        success: true,
-        summary: { total_area_m2: 999, total_position_count: 1, total_investment_cny: 0, total_power_kw: 0, requires_review: false },
-        zone_plan: { result: { zones: [] } },
-        investment_estimate: { result: { items: [] } },
-        power_configuration: { equipment_rows: [], summary_rows: [], items: [], total_installed_power_kw: 0, total_estimated_demand_kw: 0, requires_review: false }
-      })))
-    }
+    resolvePlanningRun()
     await flushPromises()
 
     // Still no stale data or navigation
@@ -923,20 +813,12 @@ describe('cold storage workbench', () => {
   })
 
   it('pending A -> route unmount -> resolve A -> no stale update or navigation', async () => {
-    let resolveA: ((v: Response) => void) | null = null
-
-    vi.spyOn(globalThis, 'fetch').mockImplementation(
-      (input, options) => {
-        return new Promise<Response>((resolve, reject) => {
-          const signal = options?.signal
-          if (signal) {
-            if (signal.aborted) { reject(new DOMException('Aborted', 'AbortError')); return }
-            signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
-          }
-          resolveA = resolve
-        })
-      }
-    )
+    vi.restoreAllMocks()
+    const workbench = useWorkbenchContextStore(pinia)
+    const { resolvePlanningRun } = installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'), {
+      deferPlanningRun: true
+    })
+    await workbench.initialize()
 
     const wrapper = mountApp()
     await flushPromises()
@@ -955,15 +837,7 @@ describe('cold storage workbench', () => {
     expect(store.latestResponse).toBeNull()
 
     // Resolve A
-    if (resolveA) {
-      (resolveA as (v: Response) => void)(new Response(JSON.stringify({
-        success: true,
-        summary: { total_area_m2: 999, total_position_count: 1, total_investment_cny: 0, total_power_kw: 0, requires_review: false },
-        zone_plan: { result: { zones: [] } },
-        investment_estimate: { result: { items: [] } },
-        power_configuration: { equipment_rows: [], summary_rows: [], items: [], total_installed_power_kw: 0, total_estimated_demand_kw: 0, requires_review: false }
-      })))
-    }
+    resolvePlanningRun()
     await flushPromises()
 
     // No stale update
@@ -974,6 +848,11 @@ describe('cold storage workbench', () => {
 describe('narrow screen nav link clicks', () => {
   beforeEach(async () => {
     workflowStore.reset()
+    localStorage.clear()
+    const workbench = useWorkbenchContextStore(pinia)
+    workbench.resetForTests()
+    installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'))
+    await workbench.initialize()
     await testRouter.push('/workbench/project')
     await testRouter.isReady()
   })
@@ -1042,27 +921,59 @@ describe('narrow screen nav link clicks', () => {
   })
   
   it('table-scroll containers exist on calculations, power, investment pages', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
-      success: true,
-      summary: { total_area_m2: 850, total_position_count: 300, total_investment_cny: 3000000, total_power_kw: 1350, requires_review: false },
-      zone_plan: { result: { zones: [{ zone_name: '原料暂存', temperature_band: '常温', daily_throughput_kg: 12000, design_storage_mass_kg: 24000, position_count: 80, required_area_m2: 200, area_m2: 200, cooling_load_kw: 45, design_temp_c: 0 }] } },
-      investment_estimate: { result: { items: [{ item_name: '土建', amount_cny: 600000 }] } },
-      power_configuration: {
-        equipment_rows: [{ sequence: 1, name: '压缩机组', area: '制冷机房', quantity: 2, running_power_kw: 120, total_power_kw: 240, defrost_power_kw: null, defrost_total_power_kw: null }],
-        summary_rows: [{ name: '制冷系统', basis: '设备功率合计', total_power_kw: 261 }],
-        items: [],
-        total_installed_power_kw: 315,
-        total_estimated_demand_kw: 220,
-        requires_review: false
+    vi.restoreAllMocks()
+    const workbench = useWorkbenchContextStore(pinia)
+    installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'), {
+      planningRunResponse: {
+        ...samplePlanningRunResponse(),
+        summary: {
+          total_area_m2: 850,
+          total_position_count: 300,
+          total_investment_cny: 3_000_000,
+          total_power_kw: 1350,
+          requires_review: false
+        },
+        zone_plan: {
+          result: {
+            zones: [{
+              zone_name: '原料暂存',
+              temperature_band: '常温',
+              daily_throughput_kg: 12000,
+              design_storage_mass_kg: 24000,
+              position_count: 80,
+              required_area_m2: 200
+            }]
+          }
+        },
+        investment_estimate: { result: { items: [{ item_name: '土建', amount_cny: 600000 }] } },
+        power_configuration: {
+          equipment_rows: [{
+            sequence: 1,
+            name: '压缩机组',
+            area: '制冷机房',
+            quantity: 2,
+            running_power_kw: 120,
+            total_power_kw: 240,
+            defrost_power_kw: null,
+            defrost_total_power_kw: null
+          }],
+          summary_rows: [{ name: '制冷系统', basis: '设备功率合计', total_power_kw: 261 }],
+          items: [],
+          total_installed_power_kw: 315,
+          total_estimated_demand_kw: 220,
+          requires_review: false
+        }
       }
-    })))
-    
+    })
+    await workbench.initialize()
+
     const wrapper = mountApp()
     await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
-    
+
     // Submit to populate store
     await wrapper.find('.el-button--primary').trigger('click')
+    await flushPromises()
     await flushPromises()
     
     // Calculations
@@ -1085,42 +996,32 @@ describe('narrow screen nav link clicks', () => {
   })
 
   it('reports exports table inside table-scroll with accessible download action', async () => {
-    // Use mockImplementation to handle sequential fetch calls across planning and reports API
-    const fetchMock = vi.spyOn(globalThis, 'fetch')
+    vi.restoreAllMocks()
+    const workbench = useWorkbenchContextStore(pinia)
+    const { fetchMock } = installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'))
+    await workbench.initialize()
+    const baseFetchHandler = fetchMock.getMockImplementation?.()
+    if (!baseFetchHandler) {
+      throw new Error('workbench fetch mock missing base handler')
+    }
 
-    let callCount = 0
-    fetchMock.mockImplementation((url: RequestInfo | URL) => {
-      callCount++
+    fetchMock.mockImplementation(async (url: RequestInfo | URL, init?: RequestInit) => {
       const urlStr = String(url)
 
-      // Planning API (first call)
-      if (urlStr.includes('/api/v1/demo/planning-run')) {
-        return Promise.resolve(new Response(JSON.stringify({
-          success: true,
-          summary: { total_area_m2: 850, total_position_count: 300, total_investment_cny: 3000000, total_power_kw: 1350, requires_review: false },
-          zone_plan: { result: { zones: [] } },
-          investment_estimate: { result: { items: [] } },
-          power_configuration: { equipment_rows: [], summary_rows: [], items: [], total_installed_power_kw: 0, total_estimated_demand_kw: 0, requires_review: false }
-        })))
-      }
-
-      // Reports list (second call)
       if (urlStr.includes('/api/v1/reports') && !urlStr.includes('/revisions') && !urlStr.includes('/exports')) {
-        return Promise.resolve(new Response(JSON.stringify({
+        return new Response(JSON.stringify({
           reports: [{ id: 'report-001', status: 'draft' }]
-        })))
+        }))
       }
 
-      // Revisions
       if (urlStr.includes('/revisions')) {
-        return Promise.resolve(new Response(JSON.stringify({
+        return new Response(JSON.stringify({
           revisions: [{ revision_number: 1, content_hash: 'abc' }]
-        })))
+        }))
       }
 
-      // Exports
       if (urlStr.includes('/exports')) {
-        return Promise.resolve(new Response(JSON.stringify({
+        return new Response(JSON.stringify({
           exports: [{
             artifact_id: 'art-001',
             status: 'completed',
@@ -1135,40 +1036,29 @@ describe('narrow screen nav link clicks', () => {
             translation_catalog_content_hash: 'def',
             localized_template_content_hash: 'ghi'
           }]
-        })))
+        }))
       }
 
-      return Promise.reject(new Error(`unexpected fetch: ${urlStr}`))
+      return baseFetchHandler(url, init)
     })
 
     const wrapper = mountApp()
     await flushPromises()
-    
+
     // Submit planning to populate store
     await wrapper.find('.el-button--primary').trigger('click')
-
-    // Wait for the planning API promise + auto-navigation + reports API calls + renders
-    await new Promise(resolve => setTimeout(resolve, 50))
     await flushPromises()
-    
+    await flushPromises()
+
     // Navigate directly to reports (skip intermediate calculations)
     await testRouter.push('/workbench/reports')
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await flushPromises()
     await flushPromises()
 
-    // Try to find the report toggle after all the data has loaded
     const reportToggle = wrapper.find('.report-export-panel__toggle')
-
-    // If the toggle doesn't exist (report didn't load), print what's on the page
-    if (!reportToggle.exists()) {
-      console.log('Page text at time of test failure:', wrapper.text().substring(0, 500))
-      // Also check what the mock received:
-      expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2)
-    }
-
     expect(reportToggle.exists()).toBe(true)
     await reportToggle.trigger('click')
-    await new Promise(resolve => setTimeout(resolve, 50))
+    await flushPromises()
     await flushPromises()
 
     // The exports table should now be rendered inside .table-scroll

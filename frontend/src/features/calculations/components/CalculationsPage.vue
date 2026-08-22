@@ -11,7 +11,7 @@ const response = store.latestResponse
 
 <template>
   <div class="calculations-page">
-    <template v-if="response">
+    <template v-if="response?.summary && response.zone_plan?.result">
       <CalculationSummary :summary="response.summary" />
       <ElCard>
         <template #header>

@@ -41,7 +41,7 @@ const items = computed(() => [
 
 <template>
   <section class="calculation-summary" aria-label="计算结果概览">
-    <div v-if="summary.requires_review" class="calculation-summary__notice">
+    <div v-if="summary?.requires_review" class="calculation-summary__notice">
       ⚠️ 部分参数采用演示系数，结果未经工程复核，仅供参考。
     </div>
     <div class="calculation-summary__grid">

@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 
 import type { ArtifactListItemContract } from '../../../api/contracts/reports'
+import type { WorkflowBlocker } from '../../../api/contracts/workflow'
 
 import {
   createDefaultExportForm,
@@ -12,9 +13,13 @@ import type { ExportForm } from '../composables/useReportExport'
 const props = withDefaults(
   defineProps<{
     projectId?: string
+    formalExportEligible?: boolean
+    formalExportBlockers?: WorkflowBlocker[]
   }>(),
   {
-    projectId: undefined
+    projectId: undefined,
+    formalExportEligible: false,
+    formalExportBlockers: () => []
   }
 )
 
@@ -144,6 +149,19 @@ function reportStatusLabel(status: string): string {
       </button>
     </header>
 
+    <div
+      v-if="!formalExportEligible"
+      class="report-export-panel__formal-note"
+      role="status"
+    >
+      正式导出当前不可用（与工作流就绪独立判定）。后端 P1 权威将在渲染/下载时再次校验。
+      <ul v-if="formalExportBlockers.length">
+        <li v-for="(blocker, index) in formalExportBlockers" :key="`formal-${blocker.code}-${index}`">
+          {{ blocker.message }}
+        </li>
+      </ul>
+    </div>
+
     <!-- Error banner -->
     <div
       v-if="reportsError"
@@ -257,7 +275,7 @@ function reportStatusLabel(status: string): string {
                     <span>模式</span>
                     <select v-model="activeExportForm.mode">
                       <option value="draft">草稿</option>
-                      <option value="formal">正式</option>
+                      <option value="formal" :disabled="!formalExportEligible">正式</option>
                     </select>
                   </label>
 
@@ -388,6 +406,21 @@ function reportStatusLabel(status: string): string {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.report-export-panel__formal-note {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #fff4e5;
+  border: 1px solid #f5c26b;
+  color: #7a4d00;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.report-export-panel__formal-note ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
 }
 
 .report-export-panel__refresh {

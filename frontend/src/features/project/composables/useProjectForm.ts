@@ -2,12 +2,16 @@ import { reactive, ref, type Ref } from 'vue'
 
 import {
   createDefaultDesignInputs,
+  DEMO_MIGRATION_GAP_COEFFICIENTS,
   mapDesignInputsToPlanningRequest,
+  mapPersistedInputsToDesignInputs,
   validateDesignInputs,
   type DesignInputs,
   type DesignInputValidationError
 } from '../model/designInputs'
 import type { PlanningRunRequest } from '../../../api/contracts/planning'
+import { createProjectsApi } from '../../workflow/api/projectsApi'
+import { useWorkbenchContextStore } from '../../../stores/workbenchContext'
 
 export interface FactoryOverview {
   factoryName: string
@@ -40,6 +44,8 @@ export interface UseProjectFormReturn {
   submit: () => Promise<boolean>
   /** Reset all inputs to defaults */
   reset: () => void
+  /** Load persisted project inputs into the form when available */
+  loadPersistedInputs: () => Promise<void>
 }
 
 /**
@@ -54,6 +60,7 @@ export interface UseProjectFormReturn {
 export function useProjectForm(
   submitHandler?: (request: PlanningRunRequest) => Promise<void>
 ): UseProjectFormReturn {
+  const workbench = useWorkbenchContextStore()
   const designInputs = reactive<DesignInputs>({ ...createDefaultDesignInputs() })
   const factoryOverview = reactive<FactoryOverview>({ ...createDefaultFactoryOverview() })
 
@@ -63,6 +70,33 @@ export function useProjectForm(
 
   /** Monotonically increasing counter to identify the most recent submit call. */
   let currentRequestId = 0
+
+  async function hydrateFromPersistedInputs(): Promise<void> {
+    if (!workbench.projectId || workbench.versionNumber === null) return
+    try {
+      const version = await createProjectsApi().getVersion(
+        workbench.projectId,
+        workbench.versionNumber
+      )
+      const partial = mapPersistedInputsToDesignInputs(version.input_snapshot ?? {})
+      for (const key of Object.keys(partial) as Array<keyof DesignInputs>) {
+        const value = partial[key]
+        if (value !== undefined) {
+          designInputs[key] = value
+        }
+      }
+    } catch {
+      // Keep form defaults when persisted inputs are unavailable.
+    }
+  }
+
+  if (workbench.isReady) {
+    hydrateFromPersistedInputs()
+  }
+
+  async function loadPersistedInputs(): Promise<void> {
+    await hydrateFromPersistedInputs()
+  }
 
   function validate(): boolean {
     const errors = validateDesignInputs(designInputs)
@@ -127,6 +161,7 @@ export function useProjectForm(
     validationErrors,
     validate,
     submit,
-    reset
+    reset,
+    loadPersistedInputs
   }
 }

@@ -1,12 +1,28 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
+
+import { useWorkbenchContextStore } from '../../../stores/workbenchContext'
 import { useSchemes } from '../composables/useSchemes'
 
+const workbench = useWorkbenchContextStore()
 const { data, schemes, state, error, load } = useSchemes()
 
+function tryLoadSchemes() {
+  if (workbench.projectId && workbench.versionNumber !== null) {
+    load(workbench.projectId, workbench.versionNumber)
+  }
+}
+
 onMounted(() => {
-  load()
+  tryLoadSchemes()
 })
+
+watch(
+  () => [workbench.projectId, workbench.versionNumber],
+  () => {
+    tryLoadSchemes()
+  }
+)
 
 function formatNumber(value: number | null): string {
   if (value === null) return '—'
@@ -26,7 +42,7 @@ function formatWan(value: number | null): string {
       <button
         type="button"
         class="schemes-page__refresh"
-        @click="load"
+        @click="tryLoadSchemes"
       >
         重新加载
       </button>
@@ -34,11 +50,11 @@ function formatWan(value: number | null): string {
     <div v-if="state === 'empty'" class="schemes-page__empty">暂无方案数据</div>
     <div v-if="state === 'unavailable'" class="schemes-page__unavailable" role="status">
       方案比选服务当前不可用
-      <button class="schemes-page__retry" @click="load">重试</button>
+      <button class="schemes-page__retry" @click="tryLoadSchemes">重试</button>
     </div>
     <div v-if="state === 'error'" class="schemes-page__error">
       {{ error }}
-      <button class="schemes-page__retry" @click="load">重试</button>
+      <button class="schemes-page__retry" @click="tryLoadSchemes">重试</button>
     </div>
 
     <template v-if="state === 'success' && data">
@@ -52,7 +68,7 @@ function formatWan(value: number | null): string {
         <button
           type="button"
           class="schemes-page__refresh"
-          @click="load"
+          @click="tryLoadSchemes"
         >
           刷新
         </button>
@@ -80,47 +96,27 @@ function formatWan(value: number | null): string {
           <table class="scheme-card__table">
             <tbody>
               <tr>
-                <td>可行性</td>
-                <td>
-                  <span :class="scheme.feasible ? 'tag-feasible' : 'tag-infeasible'">
-                    {{ scheme.feasible ? '可行' : '不可行' }}
-                  </span>
-                </td>
-              </tr>
-              <tr>
-                <td>总分</td>
+                <th>总分</th>
                 <td>{{ scheme.total_score }}</td>
               </tr>
               <tr>
-                <td>面积</td>
+                <th>总面积</th>
                 <td>{{ formatNumber(scheme.total_area_m2) }} m²</td>
               </tr>
               <tr>
-                <td>板位</td>
-                <td>{{ scheme.total_position_count }} 个</td>
+                <th>总货位数</th>
+                <td>{{ formatNumber(scheme.total_position_count) }}</td>
               </tr>
               <tr>
-                <td>房间 / 门</td>
-                <td>{{ scheme.room_module_count }} 个 / {{ scheme.door_count }} 扇</td>
-              </tr>
-              <tr>
-                <td>投资</td>
+                <th>投资</th>
                 <td>{{ formatWan(scheme.investment_cny) }}</td>
               </tr>
               <tr>
-                <td>装机功率</td>
-                <td>{{ formatNumber(scheme.installed_power_kw_e) }} kW(e)</td>
-              </tr>
-              <tr v-if="scheme.requires_review">
-                <td>待复核</td>
-                <td><span class="tag-review">是</span></td>
+                <th>装机功率</th>
+                <td>{{ formatNumber(scheme.installed_power_kw_e) }} kW</td>
               </tr>
             </tbody>
           </table>
-
-          <div v-if="!scheme.feasible" class="scheme-card__overlay">
-            不可行
-          </div>
         </article>
       </div>
     </template>
@@ -132,135 +128,66 @@ function formatWan(value: number | null): string {
   max-width: 1200px;
 }
 
-.schemes-page__status {
-  color: #5d6f84;
+.schemes-page__loading-row,
+.schemes-page__empty,
+.schemes-page__unavailable,
+.schemes-page__error {
+  padding: 16px;
+  border-radius: 8px;
+  background: #f8f9fb;
+  color: #5f7a99;
   font-size: 14px;
-}
-
-.schemes-page__loading-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #5d6f84;
-  font-size: 14px;
-}
-
-.schemes-page__loading-row .schemes-page__refresh {
-  padding: 4px 12px;
-  border: 1px solid #5d6f84;
-  border-radius: 4px;
-  background: #fff;
-  color: #5d6f84;
-  font-size: 12px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.schemes-page__loading-row .schemes-page__refresh:hover {
-  background: #f0f4f8;
-}
-
-.schemes-page__empty {
-  padding: 48px 24px;
-  color: #6b7280;
-  font-size: 14px;
-  text-align: center;
-}
-
-.schemes-page__unavailable {
-  padding: 48px 24px;
-  color: #6b7280;
-  font-size: 14px;
-  text-align: center;
 }
 
 .schemes-page__error {
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
-  color: #991b1b;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.schemes-page__retry {
-  padding: 4px 12px;
-  border: 1px solid #991b1b;
-  border-radius: 4px;
-  background: #fff;
-  color: #991b1b;
-  font-size: 12px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.schemes-page__retry:hover {
-  background: #fef2f2;
+  color: #c0392b;
+  background: #fdf0ef;
 }
 
 .schemes-page__summary {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
+  align-items: center;
   margin-bottom: 16px;
-  padding: 10px 16px;
-  border: 1px solid #123a63;
-  border-radius: 8px;
-  background: #f3f7fb;
-}
-
-.schemes-page__summary strong {
-  font-size: 16px;
-}
-
-.schemes-page__summary span {
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.schemes-page__summary em {
-  border: 1px solid #c7d4e3;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-style: normal;
-  background: #fff;
-}
-
-.status-unverified {
-  color: #d97706;
-  border-color: #d97706;
+  font-size: 14px;
 }
 
 .schemes-page__no-recommendation {
-  border: 1px solid #9ca3af;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-style: normal;
-  background: #fff;
-  color: #6b7280;
+  color: #856404;
 }
 
-/* ── Scheme grid ──────────────────────────────────── */
+.status-unverified {
+  color: #9a6700;
+}
+
+.schemes-page__refresh,
+.schemes-page__retry {
+  border: 1px solid #b8cae0;
+  border-radius: 4px;
+  padding: 4px 10px;
+  background: #fff;
+  color: #123a63;
+  cursor: pointer;
+  font-size: 12px;
+}
+
 .schemes-page__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 }
 
 .scheme-card {
-  position: relative;
-  border: 1px solid #c7d4e3;
+  border: 1px solid #dbe8f6;
   border-radius: 8px;
+  padding: 12px;
   background: #fff;
-  overflow: hidden;
 }
 
 .scheme-card--recommended {
   border-color: #123a63;
-  box-shadow: 0 0 0 2px rgba(18, 58, 99, 0.15);
+  box-shadow: 0 0 0 1px #123a63;
 }
 
 .scheme-card--infeasible {
@@ -270,68 +197,31 @@ function formatWan(value: number | null): string {
 .scheme-card__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  border-bottom: 1px solid #e0e6ed;
-  background: #f0f4f8;
-}
-
-.scheme-card__header strong {
-  font-size: 15px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .scheme-card__badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
   background: #123a63;
   color: #fff;
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .scheme-card__table {
   width: 100%;
-  border-collapse: collapse;
-}
-
-.scheme-card__table td {
-  padding: 6px 14px;
-  border-bottom: 1px solid #eef2f6;
   font-size: 13px;
 }
 
-.scheme-card__table td:first-child {
-  color: #5d6f84;
+.scheme-card__table th {
+  text-align: left;
+  color: #5f7a99;
+  padding: 4px 8px 4px 0;
   width: 40%;
 }
 
-.scheme-card__overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.6);
-  color: #b91c1c;
-  font-size: 20px;
-  font-weight: 700;
-  pointer-events: none;
-}
-
-.tag-feasible {
-  color: #166534;
-  font-weight: 600;
-}
-
-.tag-infeasible {
-  color: #b91c1c;
-  font-weight: 600;
-}
-
-.tag-review {
-  color: #d97706;
-  font-weight: 600;
+.scheme-card__table td {
+  padding: 4px 0;
 }
 </style>
