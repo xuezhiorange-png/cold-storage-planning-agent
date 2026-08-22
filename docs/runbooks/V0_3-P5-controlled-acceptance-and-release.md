@@ -7,11 +7,15 @@ acceptance workflow, or the ordinary regression suite.
 ## Stage boundaries
 
 Implementation R1 adds only the harness, pilot runner, this runbook, and a
-dispatch-only workflow. Scenario A/B/C execution, fixture JSON creation, tag
-publication, and GitHub Release remain separately authorized later stages.
+dispatch-only workflow. Fixture source-definition R1 binds Scenario A/B/C
+fixture JSON and records SHA-256 evidence. Scenario execution, controlled
+acceptance dispatch, tag publication, and GitHub Release remain separately
+authorized later stages.
 
-Implementation R1 PASS does not authorize controlled acceptance execution. The
-workflow must not be dispatched from a pull request or from a feature branch.
+Implementation R1 PASS does not authorize controlled acceptance execution.
+Fixture source-definition R1 PASS does not authorize scenario execution or
+workflow dispatch. The workflow must not be dispatched from a pull request or
+from a feature branch.
 
 **Ordinary PR CI != Controlled Acceptance.** Ordinary CI validates the code;
 it is not evidence that the controlled workflow has run.
@@ -28,6 +32,8 @@ SCENARIO_A_RUN_AUTHORIZED=NO
 SCENARIO_B_RUN_AUTHORIZED=NO
 SCENARIO_C_RUN_AUTHORIZED=NO
 FIXTURE_JSON_CREATE_AUTHORIZED=NO
+FIXTURE_SOURCE_DEFINITION_BOUND=YES
+FIXTURE_SOURCE_DEFINITION_ROUND=FIXTURE_SOURCE_DEFINITION_R1
 V0_3_TAG_AUTHORIZED=NO
 GITHUB_RELEASE_AUTHORIZED=NO
 PRODUCTION_ENABLEMENT_AUTHORIZED=NO
@@ -53,8 +59,52 @@ Scenario execution requires all of the following:
    - workflow input `execution_authorized=YES`, plus CLI `--execution-authorized`, or
    - environment variable `V03_P5_CONTROLLED_ACCEPTANCE_EXECUTION_AUTHORIZED=YES`.
 
-Harness R1 still fails closed after these gates because scenario fixtures are
-not yet bound and scenario execution is not authorized.
+Harness R1 still fails closed after these gates because scenario execution is
+not authorized. Fixture source-definition R1 binds the scenario JSON files
+below but does not authorize planning runs or controlled acceptance execution.
+
+## Fixture source-definition evidence
+
+The following fixture files are bound at
+`FIXTURE_SOURCE_DEFINITION_ROUND=FIXTURE_SOURCE_DEFINITION_R1`. Each SHA-256
+is computed from the committed file bytes using SHA-256 over the exact file
+contents.
+
+```text
+SCENARIO_A_FIXTURE_PATH=backend/tests/pilot/data/v03-scenario-a-normal-formal-report.v1.json
+SCENARIO_A_FIXTURE_SHA256=b4227ea107c12571681d29ad7746175e73e05b0ffeb9e6d7fa5e61e0b9877d15
+SCENARIO_A_REVIEW_REQUIRED=false
+SCENARIO_A_UPSTREAM_MANIFEST=backend/tests/evaluation/data/task011-pilot-sqlite.v1.json
+SCENARIO_A_UPSTREAM_EXPECTED_OUTPUT=backend/tests/evaluation/data/expected/baseline_feasible.v1.json
+
+SCENARIO_B_FIXTURE_PATH=backend/tests/pilot/data/v03-scenario-b-review-required-formal-report.v1.json
+SCENARIO_B_FIXTURE_SHA256=ff462cbaff0fadc77c809cd0a28917dd09ba0cea1ed73066d6fa1100f8552bbb
+SCENARIO_B_REVIEW_REQUIRED=true
+SCENARIO_B_UPSTREAM_SOURCE=backend/tests/pilot/data/task011-followup-high-throughput-source.v1.json
+SCENARIO_B_FORMAL_EXPORT_BLOCKED_UNTIL_REVIEW_APPROVAL=YES
+
+SCENARIO_C_FIXTURE_PATH=backend/tests/pilot/data/v03-scenario-c-agent-knowledge-deterministic.v1.json
+SCENARIO_C_FIXTURE_SHA256=9ac8a43020bd6876909265e2e0e8286053bfb17c7152039d32b406f78fa9233a
+SCENARIO_C_AGENT_TRANSPORT=fake_or_mocked_gateway
+SCENARIO_C_LIVE_MIMO_REQUIRED=NO
+SCENARIO_C_AGENT_UNAVAILABLE_BLOCKS_CORE_WORKFLOW=NO
+SCENARIO_C_PAGE_LEVEL_PROVENANCE_REQUIRED=YES
+```
+
+Scenario A reuses the governed `baseline_feasible` pilot manifest and expected
+output with `review_required=false`. Scenario B reuses the governed P1
+high-throughput source fixture with structured review-required semantics.
+Scenario C reuses governed Agent gateway and knowledge OCR test authorities
+with optional Agent transport and page-level provenance requirements.
+
+```text
+CONTROLLED_ACCEPTANCE_AUTHORIZED=NO
+CONTROLLED_ACCEPTANCE_EXECUTED=NO
+WORKFLOW_DISPATCH_AUTHORIZED=NO
+SCENARIO_A_RUN_AUTHORIZED=NO
+SCENARIO_B_RUN_AUTHORIZED=NO
+SCENARIO_C_RUN_AUTHORIZED=NO
+```
 
 ## Local harness commands
 
@@ -95,8 +145,9 @@ PYTHONPATH=src uv run python tests/pilot/run_v03_controlled_acceptance.py run \
 
 Even with `--execution-authorized` or
 `V03_P5_CONTROLLED_ACCEPTANCE_EXECUTION_AUTHORIZED=YES`, harness R1 refuses
-scenario execution with `SCENARIO_EXECUTION_NOT_AUTHORIZED` because fixture
-source-definition evidence is not yet bound.
+scenario execution with `SCENARIO_EXECUTION_NOT_AUTHORIZED` because controlled
+acceptance execution remains separately unauthorized even after fixture
+source-definition binding.
 
 ## Workflow constraints
 

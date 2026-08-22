@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -11,7 +13,9 @@ import pytest
 
 from cold_storage.evaluation.v03_controlled_acceptance import (
     EXECUTION_AUTHORIZATION_ENV,
+    FIXTURE_PATHS,
     MAIN_REF,
+    RUNBOOK_PATH,
     WORKFLOW_DISPATCH_EVENT,
     WORKFLOW_PATH,
     V03ControlledAcceptanceError,
@@ -27,7 +31,84 @@ from cold_storage.evaluation.v03_controlled_acceptance import (
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 WORKFLOW_FILE = REPO_ROOT / WORKFLOW_PATH
+RUNBOOK_FILE = REPO_ROOT / RUNBOOK_PATH
 RUNNER = Path(__file__).resolve().parent / "run_v03_controlled_acceptance.py"
+FIXTURE_DATA_DIR = Path(__file__).resolve().parent / "data"
+
+FIXTURE_SOURCE_DEFINITION_EVIDENCE = {
+    "A": {
+        "path": "backend/tests/pilot/data/v03-scenario-a-normal-formal-report.v1.json",
+        "sha256": "b4227ea107c12571681d29ad7746175e73e05b0ffeb9e6d7fa5e61e0b9877d15",
+    },
+    "B": {
+        "path": "backend/tests/pilot/data/v03-scenario-b-review-required-formal-report.v1.json",
+        "sha256": "ff462cbaff0fadc77c809cd0a28917dd09ba0cea1ed73066d6fa1100f8552bbb",
+    },
+    "C": {
+        "path": "backend/tests/pilot/data/v03-scenario-c-agent-knowledge-deterministic.v1.json",
+        "sha256": "9ac8a43020bd6876909265e2e0e8286053bfb17c7152039d32b406f78fa9233a",
+    },
+}
+
+
+def _fixture_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _load_fixture(scenario: str) -> dict[str, object]:
+    fixture_path = FIXTURE_DATA_DIR / Path(FIXTURE_PATHS[scenario]).name
+    return json.loads(fixture_path.read_text(encoding="utf-8"))
+
+
+def _runbook_fixture_hashes() -> dict[str, str]:
+    text = RUNBOOK_FILE.read_text(encoding="utf-8")
+    return {
+        "A": re.search(r"SCENARIO_A_FIXTURE_SHA256=([0-9a-f]{64})", text).group(1),  # type: ignore[union-attr]
+        "B": re.search(r"SCENARIO_B_FIXTURE_SHA256=([0-9a-f]{64})", text).group(1),  # type: ignore[union-attr]
+        "C": re.search(r"SCENARIO_C_FIXTURE_SHA256=([0-9a-f]{64})", text).group(1),  # type: ignore[union-attr]
+    }
+
+
+def test_fixture_source_definition_files_exist_and_match_runbook() -> None:
+    runbook_hashes = _runbook_fixture_hashes()
+    for scenario, evidence in FIXTURE_SOURCE_DEFINITION_EVIDENCE.items():
+        fixture_path = REPO_ROOT / evidence["path"]
+        assert fixture_path.is_file()
+        assert FIXTURE_PATHS[scenario] == evidence["path"]
+        computed = _fixture_sha256(fixture_path)
+        assert computed == evidence["sha256"]
+        assert computed == runbook_hashes[scenario]
+
+
+def test_scenario_a_fixture_is_review_not_required_path() -> None:
+    fixture = _load_fixture("A")
+    assert fixture["review_required"] is False
+    assert fixture["workflow_goal"] == "FORMAL_REPORT"
+    assert all(value is False for value in fixture["expected_requires_review"].values())
+
+
+def test_scenario_b_fixture_requires_structured_review_and_blocks_formal_export() -> None:
+    fixture = _load_fixture("B")
+    assert fixture["review_required"] is True
+    contract = fixture["review_reason_contract"]
+    assert contract["structured_review_reason_required"] is True
+    assert contract["source_type"] == "calculation_run"
+    assert contract["formal_export_blocked_until_review_approval"] is True
+    assert fixture["upstream_bindings"][0]["path"].endswith(
+        "task011-followup-high-throughput-source.v1.json"
+    )
+
+
+def test_scenario_c_fixture_uses_fake_agent_and_page_level_provenance() -> None:
+    fixture = _load_fixture("C")
+    agent = fixture["agent_assistance"]
+    assert agent["transport"] == "fake_or_mocked_gateway"
+    assert agent["live_mimo_required"] is False
+    assert agent["unavailable_blocks_core_workflow"] is False
+    knowledge = fixture["knowledge_provenance"]
+    assert knowledge["page_level_evidence_required"] is True
+    assert "source_page_evidence_id" in knowledge["required_citation_fields"]
+    assert "knowledge.search" in fixture["tool_sequence"]
 
 
 def test_harness_status_is_not_authorized() -> None:
