@@ -11,6 +11,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +41,23 @@ AUTHORIZATION_RECORD_ENV = "V03_P5_CONTROLLED_ACCEPTANCE_AUTHORIZATION_RECORD_ID
 ALLOWED_EXECUTION_AUTHORIZED_VALUES = frozenset({"YES", "true", "True", "1"})
 MAIN_REF = "refs/heads/main"
 WORKFLOW_DISPATCH_EVENT = "workflow_dispatch"
+
+
+@dataclass(frozen=True, slots=True)
+class ScenarioAExecutionBinding:
+    """Pilot-injected baseline seed binding for Scenario A execution."""
+
+    source_binding_id: str
+    weight_set_revision_id: str
+    seed_prereqs: Callable[[Any], None]
+
+
+@dataclass(frozen=True, slots=True)
+class ScenarioExecutionSupport:
+    """Pilot-owned bootstrap bindings that must not live in production src."""
+
+    scenario_a: ScenarioAExecutionBinding | None = None
+    scenario_b_source_runtime: Any | None = None
 
 
 class V03ControlledAcceptanceError(RuntimeError):
@@ -584,17 +603,13 @@ def _execute_scenario_a(
     output_root: Path,
     fixture: dict[str, Any],
     backend: str,
+    scenario_a_binding: ScenarioAExecutionBinding,
 ) -> dict[str, object]:
     from sqlalchemy.orm import sessionmaker
 
     from cold_storage.evaluation.execute import run_scenario_via_markers
     from cold_storage.evaluation.followup_acceptance import _authority_snapshot
     from cold_storage.modules.schemes.application.query import build_sqlalchemy_scheme_query
-    from tests.evaluation._seed_helpers import (
-        SOURCE_BINDING_ID,
-        WEIGHT_REVISION_ID,
-        seed_a1_all_prereqs,
-    )
 
     _require(
         fixture.get("review_required") is False,
@@ -603,11 +618,11 @@ def _execute_scenario_a(
     )
     session_factory = sessionmaker(bind=engine, expire_on_commit=False)
     with session_factory() as seed_session:
-        seed_a1_all_prereqs(seed_session)
+        scenario_a_binding.seed_prereqs(seed_session)
     outcome = run_scenario_via_markers(
         session_factory,
-        source_binding_id=SOURCE_BINDING_ID,
-        weight_set_revision_id=WEIGHT_REVISION_ID,
+        source_binding_id=scenario_a_binding.source_binding_id,
+        weight_set_revision_id=scenario_a_binding.weight_set_revision_id,
         correlation_marker=BASELINE_CORRELATION_ID,
         backend_marker=backend,
     )
@@ -668,18 +683,11 @@ def _execute_scenario_b(
     execution_source_tree_sha: str,
     backend: str,
     run_index: int,
+    source_runtime: Any,
 ) -> dict[str, object]:
-    from sqlalchemy import select
     from sqlalchemy.orm import sessionmaker
 
-    from cold_storage.bootstrap.s6_07_controlled_fixture import (
-        _EXECUTION_SNAPSHOT,
-        create_controlled_coefficient_definition,
-        create_controlled_production_authority,
-        seed_startup_readiness,
-    )
     from cold_storage.evaluation.followup_acceptance import (
-        ControlledSourceRuntime,
         _authority_snapshot,
         _verify_persisted_authority,
         load_source_definition,
@@ -688,13 +696,6 @@ def _execute_scenario_b(
 
     binding = fixture["upstream_bindings"][0]
     source_path = repo_root / str(binding["path"])
-    source_runtime = ControlledSourceRuntime(
-        source_candidate_path=str(fixture.get("source_candidate_path")),
-        source_snapshot=_EXECUTION_SNAPSHOT,
-        seed_startup_readiness=seed_startup_readiness,
-        create_controlled_coefficient_definition=create_controlled_coefficient_definition,
-        create_controlled_production_authority=create_controlled_production_authority,
-    )
     source = load_source_definition(
         source_path,
         expected_source_candidate_path=source_runtime.source_candidate_path,
@@ -1156,6 +1157,7 @@ def execute_scenario(
     database_url: str,
     output_root: Path,
     repo_root: Path,
+    execution_support: ScenarioExecutionSupport | None = None,
 ) -> dict[str, object]:
     """Validate gates, then execute the bound Scenario A/B/C fixture."""
 
@@ -1197,14 +1199,31 @@ def execute_scenario(
             "acceptance database is not migrated to head",
         )
         if scenario_name == "A":
+            _require(
+                execution_support is not None and execution_support.scenario_a is not None,
+                "SCENARIO_EXECUTION_SUPPORT_MISSING",
+                "scenario A requires pilot-injected baseline seed support",
+                scenario=scenario_name,
+            )
+            assert execution_support is not None
+            assert execution_support.scenario_a is not None
             scenario_result = _execute_scenario_a(
                 engine=engine,
                 operator=operator,
                 output_root=output_path,
                 fixture=fixture,
                 backend=backend,
+                scenario_a_binding=execution_support.scenario_a,
             )
         elif scenario_name == "B":
+            _require(
+                execution_support is not None
+                and execution_support.scenario_b_source_runtime is not None,
+                "SCENARIO_EXECUTION_SUPPORT_MISSING",
+                "scenario B requires pilot-injected controlled source runtime",
+                scenario=scenario_name,
+            )
+            assert execution_support is not None
             scenario_result = _execute_scenario_b(
                 engine=engine,
                 operator=operator,
@@ -1215,6 +1234,7 @@ def execute_scenario(
                 execution_source_tree_sha=source_tree,
                 backend=backend,
                 run_index=run_index,
+                source_runtime=execution_support.scenario_b_source_runtime,
             )
         else:
             scenario_result = _execute_scenario_c(
@@ -1299,6 +1319,8 @@ __all__ = [
     "MAIN_REF",
     "RUNBOOK_PATH",
     "SCENARIO_NAMES",
+    "ScenarioAExecutionBinding",
+    "ScenarioExecutionSupport",
     "WORKFLOW_DISPATCH_EVENT",
     "WORKFLOW_PATH",
     "V03ControlledAcceptanceError",

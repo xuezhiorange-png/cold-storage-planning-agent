@@ -25,6 +25,8 @@ for _path in (str(_SRC_ROOT), str(_BACKEND_ROOT)):
         sys.path.insert(0, _path)
 
 from cold_storage.evaluation.v03_controlled_acceptance import (  # noqa: E402
+    ScenarioAExecutionBinding,
+    ScenarioExecutionSupport,
     V03ControlledAcceptanceError,
     build_harness_status,
     execute_scenario,
@@ -32,9 +34,42 @@ from cold_storage.evaluation.v03_controlled_acceptance import (  # noqa: E402
     refuse_scenario_execution,
     verify_harness_gates,
 )
+from cold_storage.evaluation.followup_acceptance import ControlledSourceRuntime  # noqa: E402
 
 SQLITE_URL_SCHEME = "sqlite:///"
 SQLITE_ALEMBIC_TIMEOUT_SECONDS = 180
+_SCENARIO_B_SOURCE_CANDIDATE_PATH = (
+    "backend/src/cold_storage/bootstrap/s6_07_controlled_fixture.py::_EXECUTION_SNAPSHOT"
+)
+
+
+def _build_scenario_execution_support() -> ScenarioExecutionSupport:
+    from cold_storage.bootstrap.s6_07_controlled_fixture import (  # noqa: PLC0415
+        _EXECUTION_SNAPSHOT,
+        create_controlled_coefficient_definition,
+        create_controlled_production_authority,
+        seed_startup_readiness,
+    )
+    from tests.evaluation._seed_helpers import (  # noqa: PLC0415
+        SOURCE_BINDING_ID,
+        WEIGHT_REVISION_ID,
+        seed_a1_all_prereqs,
+    )
+
+    return ScenarioExecutionSupport(
+        scenario_a=ScenarioAExecutionBinding(
+            source_binding_id=SOURCE_BINDING_ID,
+            weight_set_revision_id=WEIGHT_REVISION_ID,
+            seed_prereqs=seed_a1_all_prereqs,
+        ),
+        scenario_b_source_runtime=ControlledSourceRuntime(
+            source_candidate_path=_SCENARIO_B_SOURCE_CANDIDATE_PATH,
+            source_snapshot=_EXECUTION_SNAPSHOT,
+            seed_startup_readiness=seed_startup_readiness,
+            create_controlled_coefficient_definition=create_controlled_coefficient_definition,
+            create_controlled_production_authority=create_controlled_production_authority,
+        ),
+    )
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -198,6 +233,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 database_url=database_url,
                 output_root=output_root,
                 repo_root=_REPO_ROOT,
+                execution_support=_build_scenario_execution_support(),
             )
             _write_json(args.output, payload)
             print(json.dumps({"status": "PASS", "output": str(args.output)}, sort_keys=True))
@@ -215,4 +251,4 @@ if __name__ == "__main__":
     raise SystemExit(main())
 
 
-__all__ = ["main"]
+__all__ = ["_build_scenario_execution_support", "_provision_sqlite_database", "main"]
