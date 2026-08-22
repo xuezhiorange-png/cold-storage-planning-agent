@@ -1,0 +1,53 @@
+{
+  "agent_assistance": {
+    "applicability": "OPTIONAL",
+    "live_mimo_required": false,
+    "required_for_scenario": false,
+    "transport": "fake_or_mocked_gateway_allowed"
+  },
+  "expected_requires_review": {
+    "cooling_load": true,
+    "equipment": true,
+    "investment": true,
+    "power": false,
+    "zone": true
+  },
+  "formal_export_goal": true,
+  "knowledge_provenance": {
+    "applicability": "NOT_REQUIRED"
+  },
+  "review_reason_contract": {
+    "formal_export_blocked_until_review_approval": true,
+    "minimum_reason_count": 1,
+    "required_actions": [
+      "mark_reviewed",
+      "approve"
+    ],
+    "source_type": "calculation_run",
+    "structured_review_reason_required": true
+  },
+  "review_required": true,
+  "scenario_id": "B",
+  "scenario_label": "review_required_formal_export_blocked",
+  "schema_version": "v0.3-p5-scenario-b-source-definition.v1",
+  "source_candidate_path": "backend/src/cold_storage/bootstrap/s6_07_controlled_fixture.py::_EXECUTION_SNAPSHOT",
+  "source_definition_round": "FIXTURE_SOURCE_DEFINITION_R1",
+  "source_label": "high_throughput_review",
+  "stage_order": [
+    "zone",
+    "cooling_load",
+    "equipment",
+    "power",
+    "investment"
+  ],
+  "upstream_bindings": [
+    {
+      "binding_role": "deterministic_source_fixture",
+      "canonical_input_sha256": "6a3ccd82852d8aa908a8bedcaab6437fbb68ff8ee3a305f9451c84b738d5f5d4",
+      "path": "backend/tests/pilot/data/task011-followup-high-throughput-source.v1.json",
+      "sha256": "aaa965a9a5d679c7fe9399579c48c7d7c62484969c1ac82636b8fc7023cfad0d",
+      "source_label": "high_throughput_review"
+    }
+  ],
+  "workflow_goal": "FORMAL_REPORT"
+}

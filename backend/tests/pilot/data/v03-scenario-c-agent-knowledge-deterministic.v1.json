@@ -1,0 +1,54 @@
+{
+  "agent_assistance": {
+    "applicability": "OPTIONAL",
+    "live_mimo_required": false,
+    "required_for_scenario": true,
+    "transport": "fake_or_mocked_gateway",
+    "unavailable_blocks_core_workflow": false
+  },
+  "deterministic_calculation_authority": "application_tools_and_services",
+  "formal_export_goal": false,
+  "knowledge_provenance": {
+    "applicability": "CONDITIONAL",
+    "page_level_evidence_required": true,
+    "required_citation_fields": [
+      "document_id",
+      "revision_id",
+      "content_sha256",
+      "page_start",
+      "page_end",
+      "source_locator",
+      "source_page_evidence_id",
+      "requires_review",
+      "review_status"
+    ]
+  },
+  "review_required": false,
+  "scenario_id": "C",
+  "scenario_label": "agent_knowledge_deterministic_explanation",
+  "schema_version": "v0.3-p5-scenario-c-source-definition.v1",
+  "source_definition_round": "FIXTURE_SOURCE_DEFINITION_R1",
+  "tool_sequence": [
+    "ask_clarification",
+    "knowledge.search",
+    "planning.calculate_throughput_inventory_area"
+  ],
+  "upstream_bindings": [
+    {
+      "binding_role": "agent_gateway_tests",
+      "path": "backend/tests/unit/test_planning_agent_gateway.py",
+      "sha256": "5a54fa3890414ddb8bc23dae61cb60eb2b88ee438dd7ec1922fcf14794b3cd3c"
+    },
+    {
+      "binding_role": "knowledge_ocr_tests",
+      "path": "backend/tests/unit/test_knowledge_ocr.py",
+      "sha256": "1a6c496d6ad9a4db2e2eaba56b326eb1285183ce4fc61337e8f6d2982ecbe1cc"
+    },
+    {
+      "binding_role": "workflow_agent_optional_tests",
+      "path": "backend/tests/unit/test_workflow_aggregate_service.py",
+      "sha256": "b9fcda864daeff75a5d34aa0181cf8ad60d1cf68fdf1dfee63a429c6199b3ba9"
+    }
+  ],
+  "workflow_goal": "ORCHESTRATION_AND_DETERMINISTIC_CALCULATION"
+}

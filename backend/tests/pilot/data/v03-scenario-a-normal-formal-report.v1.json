@@ -1,0 +1,47 @@
+{
+  "agent_assistance": {
+    "applicability": "OPTIONAL",
+    "live_mimo_required": false,
+    "required_for_scenario": false,
+    "transport": "fake_or_mocked_gateway_allowed"
+  },
+  "expected_requires_review": {
+    "cooling_load": false,
+    "equipment": false,
+    "investment": false,
+    "power": false,
+    "zone": false
+  },
+  "formal_export_goal": true,
+  "knowledge_provenance": {
+    "applicability": "NOT_REQUIRED"
+  },
+  "review_required": false,
+  "scenario_id": "A",
+  "scenario_label": "normal_mainline_to_formal_report",
+  "schema_version": "v0.3-p5-scenario-a-source-definition.v1",
+  "source_definition_round": "FIXTURE_SOURCE_DEFINITION_R1",
+  "stage_order": [
+    "zone",
+    "cooling_load",
+    "equipment",
+    "power",
+    "investment"
+  ],
+  "upstream_bindings": [
+    {
+      "binding_role": "pilot_manifest",
+      "path": "backend/tests/evaluation/data/task011-pilot-sqlite.v1.json",
+      "scenario_id": "baseline_feasible",
+      "sha256": "381a7f2d7d981bff0ecaa01bd6e2e526f300420f086d41df091dec7dc35d9574"
+    },
+    {
+      "binding_role": "expected_output_authority",
+      "path": "backend/tests/evaluation/data/expected/baseline_feasible.v1.json",
+      "review_required": false,
+      "scenario_id": "baseline_feasible",
+      "sha256": "2d45ea2291c726460d80b0cbca0a771edda9812aa3a6cb017328af458b65ca73"
+    }
+  ],
+  "workflow_goal": "FORMAL_REPORT"
+}
