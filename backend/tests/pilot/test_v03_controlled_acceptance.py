@@ -20,6 +20,7 @@ from cold_storage.evaluation.v03_controlled_acceptance import (
     WORKFLOW_PATH,
     V03ControlledAcceptanceError,
     build_harness_status,
+    execute_scenario,
     execution_authorized_from_env,
     ordinary_ci_is_controlled_acceptance,
     refuse_scenario_execution,
@@ -121,7 +122,8 @@ def test_harness_status_is_not_authorized() -> None:
     assert authorization["SCENARIO_C_RUN_AUTHORIZED"] == "NO"
     assert authorization["FIXTURE_JSON_CREATE_AUTHORIZED"] == "NO"
     assert authorization["ORDINARY_PR_CI_IS_CONTROLLED_ACCEPTANCE"] == "NO"
-    assert status["scenario_execution_implemented"] == "NO"
+    assert status["scenario_execution_implemented"] == "YES"
+    assert status["scenario_execution_engine_round"] == "SCENARIO_EXECUTION_ENGINE_R1"
 
 
 def test_ordinary_ci_is_not_controlled_acceptance() -> None:
@@ -218,8 +220,7 @@ def test_refuse_scenario_execution_even_when_explicitly_authorized() -> None:
             backend="postgresql",
             run_index=1,
         )
-    assert exc_info.value.code == "SCENARIO_EXECUTION_NOT_AUTHORIZED"
-    assert exc_info.value.details["fixture_binding_required"] == "YES"
+    assert exc_info.value.code == "SCENARIO_DATABASE_URL_REQUIRED"
 
 
 def test_verify_harness_gates_returns_status_payload() -> None:
@@ -357,4 +358,29 @@ def test_runner_respects_env_execution_authorization_flag(tmp_path: Path, monkey
     )
     assert completed.returncode == 1
     payload = json.loads(output.read_text(encoding="utf-8"))
-    assert payload["error"]["code"] == "SCENARIO_EXECUTION_NOT_AUTHORIZED"
+    assert payload["error"]["code"] == "DATABASE_URL_REQUIRED"
+
+
+def test_execute_scenario_c_on_fresh_sqlite(tmp_path: Path) -> None:
+    from tests.pilot.run_v03_controlled_acceptance import _provision_sqlite_database
+
+    db_path = tmp_path / "scenario-c.db"
+    database_url = _provision_sqlite_database(f"sqlite:///{db_path}")
+    output_root = tmp_path / "scenario-c-output"
+    evidence = execute_scenario(
+        scenario="C",
+        authorization_record_id="auth-record-scenario-c",
+        trusted_operator="controlled.operator",
+        execution_source_sha="abc123",
+        execution_source_tree_sha="tree456",
+        execution_authorized=True,
+        backend="sqlite",
+        run_index=1,
+        database_url=database_url,
+        output_root=output_root,
+        repo_root=REPO_ROOT,
+    )
+    assert evidence["result"]["status"] == "PASS"
+    assert evidence["scenario"] == "C"
+    assert evidence["scenario_result"]["agent_assistance"]["clarification_observed"] is True
+    assert evidence["scenario_result"]["knowledge_provenance"]["search_result_count"] >= 1
