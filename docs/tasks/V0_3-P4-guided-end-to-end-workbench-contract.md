@@ -164,7 +164,7 @@ The principal integration gaps are:
   surfaced as a separate frontend readiness state;
 - current frontend engineering defaults are hidden input migration gaps, not
   P4-authoritative values;
-- P3 OCR page-evidence production remains a separate implementation lane.
+- P3 OCR page-evidence production is merged on main; P4 remains consumer-only.
 
 ## 3. Authority and dependency matrix
 
@@ -178,7 +178,7 @@ The principal integration gaps are:
 | scheme feasibility/comparison | persisted `SchemeRun` and `SchemeReviewAuthority` | read/project/explain |
 | human review actions | persisted review lifecycle/action records | display/guide |
 | knowledge source identity | original artifact and immutable revision/content hash | consume citations |
-| OCR evidence | P3 frozen producer/consumer boundary when implemented | consumer only |
+| OCR evidence | P3 frozen producer/consumer boundary merged on main | consumer only |
 | Agent capability | runtime capability/readiness projection | read/guide |
 | Agent engineering result | never Agent authority | display caveat only |
 | report formal eligibility | existing reports module and frozen P1 lifecycle | project/explain only |
@@ -244,13 +244,24 @@ Therefore:
 
 ```text
 P3_CONTRACT_FROZEN_AND_MERGED=YES
-P3_IMPLEMENTATION_CURRENTLY_AUTHORIZED_ON_SEPARATE_B_LANE=YES
-P3_OCR_PAGE_EVIDENCE_IMPLEMENTATION_COMPLETE=NO
+P3_IMPLEMENTATION_MERGED_ON_MAIN=YES
+P3_IMPLEMENTATION_MERGE_MAIN_SHA=3dc728d897ece0d3163d9aff7a5219a1dcb35332
+P3_IMPLEMENTATION_MERGE_MAIN_TREE=b9388021139439e2f94a63a9fb8b0ce3b524899e
+P3_IMPLEMENTATION_PR=139
+P3_IMPLEMENTATION_CURRENTLY_AUTHORIZED_ON_SEPARATE_B_LANE=NO
+P3_OCR_PAGE_EVIDENCE_IMPLEMENTATION_COMPLETE=YES
+CURRENT_ALEMBIC_HEAD_INCLUDES=0040_add_knowledge_page_evidence
 P4_MAY_CONSUME_FROZEN_P3_CONSUMER_BOUNDARY=YES
 P4_MAY_DEFINE_NEW_OCR_PRODUCER_SEMANTICS=NO
 P4_MAY_TREAT_OCR_DETECTION_AS_OCR_EVIDENCE=NO
 P4_MAY_TREAT_PARTIAL_OCR_AS_COMPLETE_PROVENANCE=NO
 ```
+
+P3 OCR and knowledge provenance implementation is merged on `main` at
+`3dc728d897ece0d3163d9aff7a5219a1dcb35332` (PR #139). At that main tree the
+Alembic head includes `0040_add_knowledge_page_evidence` (revision
+`0040_add_knowledge_page_evidence`, down revision
+`0039_widen_report_export_artifact_mime_type`).
 
 P4 may consume the frozen relationship:
 
@@ -258,8 +269,9 @@ P4 may consume the frozen relationship:
 original artifact -> page evidence -> chunk -> retrieval -> Agent/report citation
 ```
 
-P4 may expose pending or unavailable provenance when the producer is not
-complete. P4 may not add OCR fields, confidence rules, persistence rules,
+P4 may expose pending or unavailable provenance when required page evidence is
+incomplete, failed, unreviewed, or otherwise not a complete governed lineage.
+P4 may not add OCR fields, confidence rules, persistence rules,
 page-selection rules, or producer status meanings.
 
 ## 4. Contract-level workflow model
@@ -1088,28 +1100,31 @@ Automatic CI may run on the Draft PR. No manual CI rerun is authorized by this
 contract. CI status is evidence for the changed docs-only commit only; it does
 not authorize Ready, Merge, implementation, P3 closure, or Issue #112 closure.
 
-## 15. Parallel P3/P4 governance hold
+## 15. Post-P3-merge governance hold
 
-P3 implementation runs on separate lane B while P4 contract definition runs on
-lane C.
+P3 implementation lane B is closed on `main`. P4 contract definition remains on
+lane C as a Draft PR.
 
 ```text
 P3_IMPLEMENTATION_LANE=B
+P3_IMPLEMENTATION_MERGED_ON_MAIN=YES
 P4_CONTRACT_DEFINITION_LANE=C
 P4_CONTRACT_DRAFT_PR_MAY_BE_CREATED_IN_PARALLEL=YES
+P4_CONTRACT_POST_P3_ALIGNMENT_AMENDMENT=R1
 P4_CONTRACT_READY_AUTHORIZED=NO
 P4_CONTRACT_MERGE_AUTHORIZED=NO
-P4_CONTRACT_FINAL_MERGE_MUST_WAIT_FOR_P3_IMPLEMENTATION_MERGE_AND_POST_P3_MAIN_ALIGNMENT_REVIEW=YES
+P4_CONTRACT_FINAL_MERGE_MUST_WAIT_FOR_POST_P3_ALIGNMENT_INDEPENDENT_REVIEW_PASS=YES
 ```
 
 The P4 branch must not be marked Ready or merged before:
 
-1. P3 implementation is merged;
-2. the P4 branch is checked against the then-current `main`;
-3. the P4 contract is revalidated for P3 alignment;
-4. independent review authorization is obtained.
+1. post-P3 alignment independent review authorization is obtained;
+2. the P4 contract P3-merge alignment amendment R1 is accepted in review;
+3. any remaining consumer-boundary gaps against then-current `main` are closed
+   or explicitly deferred in review.
 
-The P3 merge does not automatically authorize P4 Ready or Merge.
+The P3 merge and this contract amendment do not automatically authorize P4 Ready
+or Merge.
 
 ## 16. Contract closure state
 
@@ -1132,7 +1147,7 @@ RELEASE_AUTHORIZED=NO
 DEPLOYMENT_AUTHORIZED=NO
 PRODUCTION_OPERATION_AUTHORIZED=NO
 
-NEXT_REQUIRED_STAGE=V03_P4_GUIDED_END_TO_END_WORKBENCH_CONTRACT_INDEPENDENT_REVIEW_AUTHORIZATION
+NEXT_REQUIRED_STAGE=V03_P4_POST_P3_ALIGNMENT_INDEPENDENT_REVIEW
 NEXT_STAGE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
@@ -1142,3 +1157,4 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 | Revision | Date | Scope | State |
 | --- | --- | --- | --- |
 | R1 | 2026-08-20 | P4 guided end-to-end workbench consumer/aggregation contract; corrected P2 facts, applicability, frontend default authority, report authority separation, P3 consumer boundary, and future scope revalidation | Draft for independent review |
+| P3-merge alignment R1 | 2026-08-22 | Record P3 implementation merge on main@3dc728d (PR #139), Alembic head `0040_add_knowledge_page_evidence`, closed lane-B authorization, and post-P3 alignment review gate | Draft for post-P3 alignment independent review |
