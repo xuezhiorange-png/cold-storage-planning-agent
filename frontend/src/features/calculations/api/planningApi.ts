@@ -5,17 +5,25 @@ import type {
 import { apiClient, type HttpClient } from '../../../api/httpClient'
 
 export interface PlanningApi {
-  run(request: PlanningRunRequest, signal?: AbortSignal): Promise<PlanningRunResponse>
+  runProject(
+    projectId: string,
+    version: number,
+    request: PlanningRunRequest,
+    signal?: AbortSignal
+  ): Promise<PlanningRunResponse>
 }
 
 export function createPlanningApi(client: HttpClient = apiClient): PlanningApi {
   return {
-    run(request: PlanningRunRequest, signal?: AbortSignal): Promise<PlanningRunResponse> {
-      return client.requestJson<PlanningRunResponse>('/api/v1/demo/planning-run', {
-        method: 'POST',
-        body: request,
-        signal
-      })
+    runProject(projectId, version, request, signal) {
+      return client.requestJson<PlanningRunResponse>(
+        `/api/v1/projects/${projectId}/versions/${version}/planning-run`,
+        {
+          method: 'POST',
+          body: request,
+          signal
+        }
+      )
     }
   }
 }

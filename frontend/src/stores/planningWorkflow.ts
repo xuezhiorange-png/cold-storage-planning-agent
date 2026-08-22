@@ -12,8 +12,12 @@ export const usePlanningWorkflowStore = defineStore('planningWorkflow', () => {
   let abortController: AbortController | null = null
   let requestId = 0
 
-  async function execute(request: PlanningRunRequest, api: PlanningApi = createPlanningApi()): Promise<PlanningRunResponse | null> {
-    // Cancel previous
+  async function execute(
+    projectId: string,
+    version: number,
+    request: PlanningRunRequest,
+    api: PlanningApi = createPlanningApi()
+  ): Promise<PlanningRunResponse | null> {
     abortController?.abort()
 
     const id = ++requestId
@@ -25,9 +29,8 @@ export const usePlanningWorkflowStore = defineStore('planningWorkflow', () => {
     isLoading.value = true
 
     try {
-      const response = await api.run(request, controller.signal)
+      const response = await api.runProject(projectId, version, request, controller.signal)
 
-      // Only current request writes state
       if (id !== requestId) return null
       if (controller.signal.aborted) return null
 

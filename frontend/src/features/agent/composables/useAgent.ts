@@ -1,21 +1,44 @@
-import { ref, onUnmounted } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
+
+import { resolveAgentAvailability } from '../../../api/contracts/capabilities'
+import { useWorkbenchContextStore } from '../../../stores/workbenchContext'
+
+export type AgentAvailability = 'available' | 'not_ready' | 'unavailable'
 
 export interface UseAgentReturn {
   isOpen: import('vue').Ref<boolean>
-  availability: 'unavailable'
+  availability: import('vue').ComputedRef<AgentAvailability>
+  capabilityState: import('vue').ComputedRef<string>
   toggle: () => void
   close: () => void
   setToggleRef: (el: HTMLElement | null) => void
 }
 
 /**
- * Composable for the AI agent chat panel.
- *
- * No agent backend exists — returns availability: 'unavailable' and provides
- * only UI state (open/close) for the drawer.
+ * Agent panel UI state. Availability follows backend capability projection;
+ * optional assistance must not block the core workflow.
  */
 export function useAgent(): UseAgentReturn {
+  const workbench = useWorkbenchContextStore()
   const isOpen = ref(false)
+
+  const availability = computed<AgentAvailability>(() => {
+    const fromWorkflow = workbench.agentAssistance
+    if (fromWorkflow) {
+      if (fromWorkflow.available) return 'available'
+      if (fromWorkflow.status === 'NOT_READY') return 'not_ready'
+      return 'unavailable'
+    }
+    return resolveAgentAvailability(workbench.capabilities)
+  })
+
+  const capabilityState = computed(() => {
+    if (workbench.agentAssistance?.capability_state) {
+      return workbench.agentAssistance.capability_state
+    }
+    const agent = workbench.capabilities.find((entry) => entry.name === 'model_backed_agent')
+    return agent?.capability_state ?? 'AGENT_CAPABILITY_DISABLED'
+  })
 
   let toggleButtonRef: HTMLElement | null = null
   let focusRestoreTimer: ReturnType<typeof setTimeout> | null = null
@@ -31,7 +54,6 @@ export function useAgent(): UseAgentReturn {
     cancelPendingFocusRestore()
     focusRestoreTimer = setTimeout(() => {
       focusRestoreTimer = null
-      // Only restore focus if drawer is closed
       if (!isOpen.value && toggleButtonRef) {
         toggleButtonRef.focus()
       }
@@ -47,10 +69,8 @@ export function useAgent(): UseAgentReturn {
     isOpen.value = willBeOpen
 
     if (willBeOpen) {
-      // Opening — cancel any pending restore from previous close
       cancelPendingFocusRestore()
     } else {
-      // Closing — schedule focus restore
       scheduleFocusRestore()
     }
   }
@@ -66,7 +86,8 @@ export function useAgent(): UseAgentReturn {
 
   return {
     isOpen,
-    availability: 'unavailable',
+    availability,
+    capabilityState,
     toggle,
     close,
     setToggleRef

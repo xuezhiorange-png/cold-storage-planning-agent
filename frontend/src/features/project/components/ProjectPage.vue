@@ -1,23 +1,46 @@
 <script setup lang="ts">
-import { onUnmounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { ElCard, ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 
 import ProjectInputsPanel from './ProjectInputsPanel.vue'
 import { usePlanningWorkflowStore } from '../../../stores/planningWorkflow'
+import { usePersistedPlanningResultsStore } from '../../../stores/persistedPlanningResults'
+import { useWorkbenchContextStore } from '../../../stores/workbenchContext'
 import type { PlanningRunRequest } from '../../../api/contracts/planning'
 
 const router = useRouter()
 const store = usePlanningWorkflowStore()
+const workbench = useWorkbenchContextStore()
+const persistedResults = usePersistedPlanningResultsStore()
+
+onMounted(async () => {
+  if (!workbench.isReady) {
+    await workbench.initialize()
+  }
+})
 
 onUnmounted(() => {
   store.cancel()
 })
 
 async function handleSubmit(request: PlanningRunRequest): Promise<void> {
-  const response = await store.execute(request)
+  if (!workbench.isReady) {
+    await workbench.initialize()
+  }
+  if (!workbench.projectId || workbench.versionNumber === null) {
+    throw new Error('项目上下文未就绪')
+  }
+
+  const response = await store.execute(
+    workbench.projectId,
+    workbench.versionNumber,
+    request
+  )
 
   if (response) {
+    await workbench.refreshWorkflow()
+    await persistedResults.load()
     ElMessage.success('规划计算完成')
     await router.push('/workbench/calculations')
   }

@@ -1,5 +1,9 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
+
+import WorkflowGuidancePanel from '../workflow/components/WorkflowGuidancePanel.vue'
+import { useWorkbenchContextStore } from '../../stores/workbenchContext'
 
 interface NavItem {
   path: string
@@ -14,6 +18,14 @@ const navItems: NavItem[] = [
   { path: '/workbench/power', label: '用电配置' },
   { path: '/workbench/reports', label: '报告输出' }
 ]
+
+const workbench = useWorkbenchContextStore()
+
+onMounted(() => {
+  if (!workbench.isReady) {
+    workbench.initialize()
+  }
+})
 </script>
 
 <template>
@@ -31,6 +43,7 @@ const navItems: NavItem[] = [
       </RouterLink>
     </nav>
     <section class="workbench-layout__content">
+      <WorkflowGuidancePanel />
       <RouterView />
     </section>
   </main>
@@ -44,7 +57,6 @@ const navItems: NavItem[] = [
   min-height: calc(100vh - 52px);
 }
 
-/* ── Nav bar ─────────────────────────────────────── */
 .workbench-layout__nav {
   display: flex;
   flex-wrap: wrap;
@@ -82,7 +94,6 @@ const navItems: NavItem[] = [
   color: #fff;
 }
 
-/* ── Content area ─────────────────────────────────── */
 .workbench-layout__content {
   padding: 16px;
   overflow-x: auto;

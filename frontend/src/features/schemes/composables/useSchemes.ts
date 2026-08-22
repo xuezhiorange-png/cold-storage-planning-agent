@@ -11,7 +11,7 @@ export interface UseSchemesReturn {
   schemes: Ref<SchemeItemContract[]>
   state: Ref<SchemesState>
   error: Ref<string>
-  load: () => Promise<void>
+  load: (projectId: string, version: number) => Promise<void>
   abort: () => void
 }
 
@@ -30,13 +30,13 @@ export function useSchemes(api: SchemesApi = createSchemesApi()): UseSchemesRetu
 
   const schemes = computed(() => data.value?.schemes ?? [])
 
-  async function load() {
+  async function load(projectId: string, version: number) {
     previousState = state.value
     state.value = 'loading'
     error.value = ''
     const handle = gate.begin()
     try {
-      const response = await api.getComparison(handle.signal)
+      const response = await api.getComparison(projectId, version, handle.signal)
       if (handle.isCurrent() && isAlive) {
         data.value = response
         state.value = response.schemes.length === 0 ? 'empty' : 'success'
@@ -44,13 +44,9 @@ export function useSchemes(api: SchemesApi = createSchemesApi()): UseSchemesRetu
       }
     } catch (err: unknown) {
       if (!isAlive || !handle.isCurrent()) {
-        // Stale or unmounted — restore the state that the current request or
-        // unmount set.
         return
       }
       if (err instanceof DOMException && err.name === 'AbortError') {
-        // The request was externally aborted (e.g. via abort() or a new load).
-        // Restore the state that was active before this load began.
         state.value = previousState
         return
       }
@@ -68,8 +64,6 @@ export function useSchemes(api: SchemesApi = createSchemesApi()): UseSchemesRetu
         error.value = err instanceof Error ? err.message : '加载方案数据失败'
       }
     } finally {
-      // If the handle is still current but loading was never progressed,
-      // the request was orphaned. If stale or unmounted, restore state.
       if (state.value === 'loading') {
         state.value = handle.isCurrent() && isAlive ? 'error' : previousState
       }

@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
 
 import { createDefaultDesignInputs } from '../model/designInputs'
 import {
@@ -8,6 +9,10 @@ import {
 } from './useProjectForm'
 
 describe('useProjectForm', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
   describe('createDefaultFactoryOverview', () => {
     it('returns the default factory overview values', () => {
       const overview = createDefaultFactoryOverview()

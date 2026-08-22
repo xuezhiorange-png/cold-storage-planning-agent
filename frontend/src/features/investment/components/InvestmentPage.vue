@@ -1,24 +1,39 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { ElCard, ElTable, ElTableColumn } from 'element-plus'
 
-import { usePlanningWorkflowStore } from '../../../stores/planningWorkflow'
+import { usePersistedPlanningResultsStore } from '../../../stores/persistedPlanningResults'
+import { useWorkbenchContextStore } from '../../../stores/workbenchContext'
 
-const store = usePlanningWorkflowStore()
+const workbench = useWorkbenchContextStore()
+const persisted = usePersistedPlanningResultsStore()
+
+onMounted(() => {
+  persisted.load()
+})
+
+watch(
+  () => [workbench.projectId, workbench.versionNumber] as const,
+  () => {
+    persisted.load()
+  }
+)
 
 interface InvestmentRow {
   item_name: string
   amount_cny: number
 }
 
+const response = computed(() => persisted.displayResponse)
+
 const investmentItems = computed<InvestmentRow[]>(() => {
-  const r = store.latestResponse
+  const r = response.value
   if (!r?.investment_estimate?.result?.items) return []
   return r.investment_estimate.result.items
 })
 
 const totalCny = computed(() => {
-  return store.latestResponse?.summary?.total_investment_cny ?? null
+  return response.value?.summary?.total_investment_cny ?? null
 })
 
 function formatWan(value: number): string {

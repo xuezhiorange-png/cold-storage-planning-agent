@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { ElButton, ElCard, ElForm, ElFormItem, ElInput, ElInputNumber } from 'element-plus'
 
 import { useProjectForm } from '../composables/useProjectForm'
+import { DEMO_MIGRATION_GAP_COEFFICIENTS } from '../model/designInputs'
 import type { PlanningRunRequest } from '../../../api/contracts/planning'
 
 const props = withDefaults(defineProps<{
@@ -21,8 +23,13 @@ const {
   submitError,
   validationErrors,
   submit,
-  reset
+  reset,
+  loadPersistedInputs
 } = useProjectForm(props.onSubmit)
+
+onMounted(() => {
+  loadPersistedInputs()
+})
 
 function handleReset() {
   reset()
@@ -72,6 +79,12 @@ function fieldError(field: string): string {
       <!-- Design Inputs -->
       <h3 class="project-inputs-panel__section-title">工艺参数</h3>
 
+      <div class="project-inputs-panel__migration-gap" role="note">
+        利用率系数与储备系数为历史 demo 迁移缺口默认值（
+        {{ DEMO_MIGRATION_GAP_COEFFICIENTS.utilization_factor }} /
+        {{ DEMO_MIGRATION_GAP_COEFFICIENTS.reserve_factor }}），须通过下方字段持久化保存后方可作为权威输入。
+      </div>
+
       <ElFormItem
         label="日入库量 (吨)"
         :error="fieldError('dailyInboundMassTons')"
@@ -96,6 +109,35 @@ function fieldError(field: string): string {
           :max="24"
           :step="1"
           :precision="0"
+          controls-position="right"
+          style="width: 100%"
+        />
+      </ElFormItem>
+
+      <ElFormItem
+        label="利用率系数"
+        :error="fieldError('utilizationFactor')"
+      >
+        <ElInputNumber
+          v-model="designInputs.utilizationFactor"
+          :min="0.01"
+          :max="1"
+          :step="0.01"
+          :precision="2"
+          controls-position="right"
+          style="width: 100%"
+        />
+      </ElFormItem>
+
+      <ElFormItem
+        label="储备系数"
+        :error="fieldError('reserveFactor')"
+      >
+        <ElInputNumber
+          v-model="designInputs.reserveFactor"
+          :min="0.01"
+          :step="0.01"
+          :precision="2"
           controls-position="right"
           style="width: 100%"
         />
@@ -306,6 +348,17 @@ function fieldError(field: string): string {
   color: #303133;
   border-bottom: 1px solid #e4e7ed;
   padding-bottom: 6px;
+}
+
+.project-inputs-panel__migration-gap {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fff4e5;
+  border: 1px solid #f5c26b;
+  color: #7a4d00;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .project-inputs-panel__error {

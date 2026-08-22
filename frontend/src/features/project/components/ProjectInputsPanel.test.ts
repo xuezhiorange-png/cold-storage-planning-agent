@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+import { createPinia, setActivePinia } from 'pinia'
 
 import ProjectInputsPanel from './ProjectInputsPanel.vue'
 
 describe('ProjectInputsPanel', () => {
   function createWrapper() {
+    const pinia = createPinia()
+    setActivePinia(pinia)
     return mount(ProjectInputsPanel, {
       global: {
-        plugins: [ElementPlus]
+        plugins: [ElementPlus, pinia]
       }
     })
   }

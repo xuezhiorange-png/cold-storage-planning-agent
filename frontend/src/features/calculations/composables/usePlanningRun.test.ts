@@ -41,7 +41,7 @@ function createMockResponse(overrides: Partial<PlanningRunResponse> = {}): Plann
 }
 
 function createMockApi(): PlanningApi {
-  return { run: vi.fn() }
+  return { runProject: vi.fn() }
 }
 
 const exampleRequest: PlanningRunRequest = {
@@ -76,10 +76,10 @@ describe('usePlanningRun', () => {
   it('returns the response on success and stores it in data', async () => {
     const api = createMockApi()
     const response = createMockResponse({ summary: { total_area_m2: 2000, total_position_count: 0, total_investment_cny: 0, total_power_kw: 0, requires_review: false } })
-    vi.mocked(api.run).mockResolvedValue(response)
+    vi.mocked(api.runProject).mockResolvedValue(response)
 
     const { data, loading, error, execute } = usePlanningRun(api)
-    const result = await execute(exampleRequest)
+    const result = await execute('proj-1', 1, exampleRequest)
 
     // Same reference returned directly
     expect(result).toBe(response)
@@ -92,10 +92,10 @@ describe('usePlanningRun', () => {
   it('sets loading to true during execution', async () => {
     const api = createMockApi()
     let resolve!: (r: PlanningRunResponse) => void
-    vi.mocked(api.run).mockReturnValue(new Promise((r) => { resolve = r }))
+    vi.mocked(api.runProject).mockReturnValue(new Promise((r) => { resolve = r }))
 
     const { execute, loading } = usePlanningRun(api)
-    const promise = execute(exampleRequest)
+    const promise = execute('proj-1', 1, exampleRequest)
 
     expect(loading.value).toBe(true)
 
@@ -107,10 +107,10 @@ describe('usePlanningRun', () => {
 
   it('captures a non-abort error', async () => {
     const api = createMockApi()
-    vi.mocked(api.run).mockRejectedValue(new Error('后端服务不可用'))
+    vi.mocked(api.runProject).mockRejectedValue(new Error('后端服务不可用'))
 
     const { data, loading, error, execute } = usePlanningRun(api)
-    const result = await execute(exampleRequest)
+    const result = await execute('proj-1', 1, exampleRequest)
 
     expect(result).toBeNull()
     expect(data.value).toBeNull()
@@ -123,15 +123,15 @@ describe('usePlanningRun', () => {
     const responseA = createMockResponse({ summary: { total_area_m2: 1500, total_position_count: 0, total_investment_cny: 0, total_power_kw: 0, requires_review: false } })
     const responseB = createMockResponse({ summary: { total_area_m2: 2500, total_position_count: 0, total_investment_cny: 0, total_power_kw: 0, requires_review: false } })
 
-    vi.mocked(api.run)
+    vi.mocked(api.runProject)
       .mockResolvedValueOnce(responseA)
       .mockResolvedValueOnce(responseB)
 
     const { data, execute } = usePlanningRun(api)
 
     // Start first request, then start second before it resolves
-    const promiseA = execute(exampleRequest)
-    const promiseB = execute(exampleRequest)
+    const promiseA = execute('proj-1', 1, exampleRequest)
+    const promiseB = execute('proj-1', 1, exampleRequest)
 
     await Promise.all([promiseA, promiseB])
 
@@ -141,8 +141,8 @@ describe('usePlanningRun', () => {
 
   it('aborts the active request', async () => {
     const api = createMockApi()
-    vi.mocked(api.run).mockImplementation(
-      (_, signal) =>
+    vi.mocked(api.runProject).mockImplementation(
+      (_projectId, _version, _request, signal) =>
         new Promise((_, reject) => {
           signal?.addEventListener('abort', () => {
             reject(new DOMException('aborted', 'AbortError'))
@@ -151,7 +151,7 @@ describe('usePlanningRun', () => {
     )
 
     const { data, loading, error, execute, abort } = usePlanningRun(api)
-    const promise = execute(exampleRequest)
+    const promise = execute('proj-1', 1, exampleRequest)
 
     abort()
 
@@ -163,10 +163,10 @@ describe('usePlanningRun', () => {
 
   it('reset clears all state', async () => {
     const api = createMockApi()
-    vi.mocked(api.run).mockResolvedValue(createMockResponse())
+    vi.mocked(api.runProject).mockResolvedValue(createMockResponse())
 
     const { data, loading, error, execute, reset } = usePlanningRun(api)
-    await execute(exampleRequest)
+    await execute('proj-1', 1, exampleRequest)
 
     expect(data.value).not.toBeNull()
 
