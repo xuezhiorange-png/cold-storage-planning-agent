@@ -13,11 +13,14 @@ function asNumber(value: unknown): number {
   return 0
 }
 
+/**
+ * API returns calculation runs in created_at ascending order; last entry per name wins.
+ */
 function latestByCalculatorName(records: CalculationRunRecord[]): Record<string, CalculationRunRecord> {
   const latest: Record<string, CalculationRunRecord> = {}
   for (const record of records) {
     const name = record.calculator_name
-    if (name && !latest[name]) {
+    if (name) {
       latest[name] = record
     }
   }

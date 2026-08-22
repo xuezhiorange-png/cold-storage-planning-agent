@@ -3,9 +3,12 @@ import { describe, expect, it } from 'vitest'
 import type { CalculationRunRecord } from '../../../api/contracts/calculations'
 import { mapPersistedCalculationsToPlanningResponse } from './mapPersistedCalculations'
 
-function zoneRecord(zones: Array<Record<string, unknown>>): CalculationRunRecord {
+function zoneRecord(
+  zones: Array<Record<string, unknown>>,
+  id = 'zone-1'
+): CalculationRunRecord {
   return {
-    id: 'zone-1',
+    id,
     project_id: 'proj-1',
     project_version_id: 'ver-1',
     calculator_name: 'cold_room_zone_plan',
@@ -23,10 +26,12 @@ function zoneRecord(zones: Array<Record<string, unknown>>): CalculationRunRecord
 
 function investmentRecord(
   items: Array<{ item_name: string; amount_cny: number }>,
-  totalPowerKw = 1350
+  totalPowerKw = 1350,
+  id = 'inv-1',
+  totalInvestmentCny = 1_200_000
 ): CalculationRunRecord {
   return {
-    id: 'inv-1',
+    id,
     project_id: 'proj-1',
     project_version_id: 'ver-1',
     calculator_name: 'investment_estimate',
@@ -41,7 +46,7 @@ function investmentRecord(
         position_count: 300
       },
       result: {
-        total_investment_cny: 1_200_000,
+        total_investment_cny: totalInvestmentCny,
         items
       }
     },
@@ -90,5 +95,45 @@ describe('mapPersistedCalculationsToPlanningResponse', () => {
     expect(mapPersistedCalculationsToPlanningResponse([
       investmentRecord([{ item_name: '土建', amount_cny: 100 }])
     ])).toBeNull()
+  })
+
+  it('uses the newest run per calculator_name when API lists runs in created_at ascending order', () => {
+    const mapped = mapPersistedCalculationsToPlanningResponse([
+      zoneRecord([{
+        zone_name: '旧区域',
+        temperature_band: '常温',
+        position_count: 10,
+        required_area_m2: 100,
+        daily_throughput_kg: 0,
+        design_storage_mass_kg: 0
+      }], 'zone-old'),
+      investmentRecord([{ item_name: '旧分项', amount_cny: 100_000 }], 1000, 'inv-old', 500_000),
+      zoneRecord([{
+        zone_name: '新区域',
+        temperature_band: '冷藏',
+        position_count: 40,
+        required_area_m2: 300,
+        daily_throughput_kg: 0,
+        design_storage_mass_kg: 0
+      }], 'zone-new'),
+      investmentRecord([{ item_name: '新分项', amount_cny: 900_000 }], 2000, 'inv-new', 2_000_000)
+    ])
+
+    expect(mapped).not.toBeNull()
+    expect(mapped!.summary.total_area_m2).toBe(300)
+    expect(mapped!.summary.total_position_count).toBe(40)
+    expect(mapped!.summary.total_investment_cny).toBe(2_000_000)
+    expect(mapped!.summary.total_power_kw).toBe(2000)
+    expect(mapped!.zone_plan.result.zones).toEqual([{
+      zone_name: '新区域',
+      temperature_band: '冷藏',
+      daily_throughput_kg: 0,
+      design_storage_mass_kg: 0,
+      position_count: 40,
+      required_area_m2: 300
+    }])
+    expect(mapped!.investment_estimate.result.items).toEqual([
+      { item_name: '新分项', amount_cny: 900_000 }
+    ])
   })
 })
