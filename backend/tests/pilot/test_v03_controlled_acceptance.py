@@ -319,6 +319,24 @@ def test_workflow_is_dispatch_only_main_bound_and_production_operation_free() ->
     assert "gh release" not in workflow_text
 
 
+def test_workflow_contains_scenario_backend_matrix_for_execution_authorized_yes() -> None:
+    workflow_text = WORKFLOW_FILE.read_text(encoding="utf-8")
+    assert 'default: "NO"' in workflow_text
+    assert 'if [ "${EXECUTION_AUTHORIZED_INPUT}" = "YES" ]; then' in workflow_text
+    assert 'for scenario in A B C; do' in workflow_text
+    for scenario in ("A", "B", "C"):
+        assert f'--scenario "${{scenario}}"' in workflow_text or f'--scenario "{scenario}"' in workflow_text
+    assert '--backend sqlite' in workflow_text
+    assert '--backend postgresql' in workflow_text
+    assert "--execution-authorized" in workflow_text
+    assert "--database-url" in workflow_text
+    assert "pgvector/pgvector:pg16" in workflow_text
+    assert "CONTROLLED_ACCEPTANCE_SCENARIO_MATRIX_EXECUTED=YES" in workflow_text
+    assert "CONTROLLED_ACCEPTANCE_EXECUTION_REFUSED=YES" in workflow_text
+    assert '--scenario A' in workflow_text
+    assert "scenario execution must fail closed without explicit authorization" in workflow_text
+
+
 def test_workflow_does_not_modify_p1_workflow_file() -> None:
     p1_workflow = (REPO_ROOT / ".github/workflows/v0-3-p1-review-formal-report-acceptance.yml").read_text(
         encoding="utf-8"
