@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 
 from cold_storage.modules.workflow.application.service import WorkflowAggregateService
 from cold_storage.modules.workflow.domain.errors import (
@@ -19,7 +19,7 @@ from cold_storage.modules.workflow.domain.steps import (
 router = APIRouter(tags=["workflow"])
 
 
-def register_workflow_routes(app: Any, get_service: Any) -> None:
+def register_workflow_routes(app: FastAPI, get_service: Any) -> None:
     """Register workflow routes on the FastAPI app."""
 
     @app.get("/api/v1/projects/{project_id}/versions/{version}/workflow")
