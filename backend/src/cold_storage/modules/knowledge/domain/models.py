@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -10,6 +11,21 @@ from uuid import uuid4
 
 def _uuid() -> str:
     return str(uuid4())
+
+
+def make_source_page_evidence_id(revision_id: str, page_number: int) -> str:
+    """Return the stable identity for one page in one immutable revision.
+
+    The original artifact and its content hash remain the authority.  This
+    identifier only names the derived page evidence slot and is therefore
+    stable across OCR retries while changing when a new revision is created.
+    """
+    if not revision_id:
+        raise ValueError("revision_id is required for page evidence identity")
+    if page_number < 1:
+        raise ValueError("page_number must be 1-based")
+    payload = f"{revision_id}:page:{page_number}".encode()
+    return f"spe-{hashlib.sha256(payload).hexdigest()}"
 
 
 # Document categories
@@ -25,6 +41,11 @@ DOCUMENT_CATEGORIES: frozenset[str] = frozenset(
         "spreadsheet",
         "other",
     }
+)
+
+CANONICAL_EXTRACTION_METHODS: frozenset[str] = frozenset({"native_text", "ocr"})
+CANONICAL_EXTRACTION_STATUSES: frozenset[str] = frozenset(
+    {"completed", "requires_ocr", "unavailable", "empty", "failed"}
 )
 
 
@@ -100,6 +121,72 @@ class KnowledgeIngestionRun:
 
 
 @dataclass(frozen=True)
+class KnowledgePageEvidence:
+    """First-class, page-scoped evidence derived from an immutable revision."""
+
+    source_page_evidence_id: str = ""
+    revision_id: str = ""
+    document_id: str = ""
+    page_number: int = 0
+    extraction_method: str = "native_text"
+    extraction_status: str = "completed"
+    text: str = ""
+    text_sha256: str = ""
+    source_content_sha256: str = ""
+    source_authority: str = "original_artifact"
+    is_derived_evidence: bool = False
+    original_filename: str = ""
+    ocr_engine: str = ""
+    ocr_engine_version: str = ""
+    ocr_languages: str = ""
+    confidence: float | None = None
+    # ocr_confidence is retained as a compatibility alias for the
+    # pre-conformance model and is normalized to confidence below.
+    ocr_confidence: float | None = None
+    confidence_source: str = "unavailable"
+    requires_review: bool = True
+    review_status: str = "unverified"
+    warnings: list[str] = field(default_factory=list)
+    errors: list[dict[str, str]] = field(default_factory=list)
+    ingestion_run_id: str = ""
+    ingestion_provenance: dict[str, object] = field(default_factory=dict)
+    is_complete: bool = False
+    error_code: str = ""
+    error_message: str = ""
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+    def __post_init__(self) -> None:
+        """Reject non-canonical persisted extraction semantics at the boundary."""
+        if self.extraction_method not in CANONICAL_EXTRACTION_METHODS:
+            raise ValueError(
+                "extraction_method must be one of native_text or ocr, "
+                f"got {self.extraction_method!r}"
+            )
+        if self.extraction_status not in CANONICAL_EXTRACTION_STATUSES:
+            raise ValueError(
+                "extraction_status must be one of completed, requires_ocr, "
+                "unavailable, empty, failed, "
+                f"got {self.extraction_status!r}"
+            )
+        if self.confidence is None and self.ocr_confidence is not None:
+            object.__setattr__(self, "confidence", self.ocr_confidence)
+        elif self.ocr_confidence is None and self.confidence is not None:
+            object.__setattr__(self, "ocr_confidence", self.confidence)
+        elif (
+            self.confidence is not None
+            and self.ocr_confidence is not None
+            and self.confidence != self.ocr_confidence
+        ):
+            raise ValueError("confidence and ocr_confidence must match when both are set")
+
+    @property
+    def confidence_value(self) -> float | None:
+        """Return the canonical confidence value without exposing storage naming."""
+        return self.confidence
+
+
+@dataclass(frozen=True)
 class ParsedBlock:
     """A unit of extracted content from a parsed document."""
 
@@ -135,6 +222,9 @@ class KnowledgeChunk:
     row_start: int | None = None
     row_end: int | None = None
     source_locator: str = ""
+    source_page_evidence_id: str = ""
+    is_ocr_derived: bool = False
+    requires_review: bool = True
     embedding: list[float] = field(default_factory=list)
     embedding_dimension: int = 0
     embedding_version: str = ""
@@ -233,6 +323,19 @@ class KnowledgeCitation:
     row_start: int | None = None
     row_end: int | None = None
     source_locator: str = ""
+    source_page_evidence_id: str = ""
+    is_ocr_derived: bool = False
+    extraction_method: str = ""
+    extraction_status: str = ""
+    source_authority: str = ""
+    source_content_sha256: str = ""
+    ocr_engine: str = ""
+    ocr_engine_version: str = ""
+    ocr_languages: str = ""
+    confidence: float | None = None
+    ocr_confidence: float | None = None
+    confidence_source: str = "unavailable"
+    ocr_review_status: str = ""
     review_status: str = ""
     requires_review: bool = True
     excerpt: str = ""

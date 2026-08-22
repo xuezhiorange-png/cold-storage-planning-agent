@@ -7,7 +7,9 @@ from datetime import UTC, datetime
 from sqlalchemy import JSON as _SA_JSON
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -73,7 +75,7 @@ class KnowledgeRevisionRecord(Base):
     document_id: Mapped[str] = mapped_column(String(36), ForeignKey("knowledge_documents.id"))
     revision_number: Mapped[int] = mapped_column(Integer)
     version_label: Mapped[str] = mapped_column(String(100), default="")
-    original_filename: Mapped[str] = mapped_column(String(255), default="")
+    original_filename: Mapped[str] = mapped_column(String(500), default="")
     safe_filename: Mapped[str] = mapped_column(String(255), default="")
     mime_type: Mapped[str] = mapped_column(String(100), default="")
     file_extension: Mapped[str] = mapped_column(String(20), default="")
@@ -110,6 +112,10 @@ class KnowledgeRevisionRecord(Base):
         back_populates="revision",
         order_by="KnowledgeChunkRecord.chunk_index",
     )
+    page_evidence: Mapped[list[KnowledgePageEvidenceRecord]] = relationship(
+        back_populates="revision",
+        order_by="KnowledgePageEvidenceRecord.page_number",
+    )
 
 
 class KnowledgeIngestionRunRecord(Base):
@@ -135,6 +141,77 @@ class KnowledgeIngestionRunRecord(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     revision: Mapped[KnowledgeRevisionRecord] = relationship(back_populates="ingestion_runs")
+
+
+class KnowledgePageEvidenceRecord(Base):
+    """Persistent page evidence tied to one immutable document revision."""
+
+    __tablename__ = "knowledge_page_evidence"
+    __table_args__ = (
+        UniqueConstraint(
+            "revision_id",
+            "page_number",
+            name="uq_knowledge_page_evidence_revision_page",
+        ),
+        CheckConstraint(
+            "extraction_method IN ('native_text', 'ocr')",
+            name="ck_knowledge_page_evidence_extraction_method",
+        ),
+        CheckConstraint(
+            "extraction_status IN ('completed', 'requires_ocr', 'unavailable', 'empty', 'failed')",
+            name="ck_knowledge_page_evidence_extraction_status",
+        ),
+    )
+
+    source_page_evidence_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    revision_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("knowledge_revisions.id", ondelete="CASCADE")
+    )
+    document_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("knowledge_documents.id", ondelete="CASCADE")
+    )
+    page_number: Mapped[int] = mapped_column(Integer)
+    extraction_method: Mapped[str] = mapped_column(String(32), default="native_text")
+    extraction_status: Mapped[str] = mapped_column(String(32), default="completed")
+    text: Mapped[str] = mapped_column(Text, default="")
+    text_sha256: Mapped[str] = mapped_column(String(64), default="")
+    source_content_sha256: Mapped[str] = mapped_column(String(64), default="")
+    source_authority: Mapped[str] = mapped_column(String(64), default="original_artifact")
+    is_derived_evidence: Mapped[bool] = mapped_column(Boolean, default=False)
+    original_filename: Mapped[str] = mapped_column(String(255), default="")
+    ocr_engine: Mapped[str] = mapped_column(String(100), default="")
+    ocr_engine_version: Mapped[str] = mapped_column(String(100), default="")
+    ocr_languages: Mapped[str] = mapped_column(String(100), default="")
+    ocr_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    confidence_source: Mapped[str] = mapped_column(String(50), default="unavailable")
+    requires_review: Mapped[bool] = mapped_column(Boolean, default=True)
+    review_status: Mapped[str] = mapped_column(String(50), default="unverified")
+    warnings: Mapped[list[object]] = mapped_column(FlexibleJSON(), default=list)
+    errors: Mapped[list[object]] = mapped_column(FlexibleJSON(), default=list)
+    ingestion_run_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    ingestion_provenance: Mapped[dict[str, object]] = mapped_column(FlexibleJSON(), default=dict)
+    is_complete: Mapped[bool] = mapped_column(Boolean, default=False)
+    error_code: Mapped[str] = mapped_column(String(100), default="")
+    error_message: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+
+    revision: Mapped[KnowledgeRevisionRecord] = relationship(back_populates="page_evidence")
+    document: Mapped[KnowledgeDocumentRecord] = relationship()
+    chunks: Mapped[list[KnowledgeChunkRecord]] = relationship(back_populates="page_evidence")
+
+    @property
+    def confidence(self) -> float | None:
+        """Expose the frozen contract name over the legacy storage column."""
+        return self.ocr_confidence
+
+    @confidence.setter
+    def confidence(self, value: float | None) -> None:
+        self.ocr_confidence = value
 
 
 class KnowledgeChunkRecord(Base):
@@ -165,6 +242,13 @@ class KnowledgeChunkRecord(Base):
     row_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
     row_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
     source_locator: Mapped[str] = mapped_column(Text, default="")
+    source_page_evidence_id: Mapped[str | None] = mapped_column(
+        String(128),
+        ForeignKey("knowledge_page_evidence.source_page_evidence_id"),
+        nullable=True,
+    )
+    is_ocr_derived: Mapped[bool] = mapped_column(Boolean, default=False)
+    requires_review: Mapped[bool] = mapped_column(Boolean, default=True)
     embedding: Mapped[list[float]] = mapped_column(FlexibleJSON(), default=list)
     embedding_dimension: Mapped[int] = mapped_column(Integer, default=0)
     embedding_version: Mapped[str] = mapped_column(String(50), default="")
@@ -173,3 +257,6 @@ class KnowledgeChunkRecord(Base):
     )
 
     revision: Mapped[KnowledgeRevisionRecord] = relationship(back_populates="chunks")
+    page_evidence: Mapped[KnowledgePageEvidenceRecord | None] = relationship(
+        back_populates="chunks"
+    )

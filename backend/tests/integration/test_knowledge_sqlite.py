@@ -1,5 +1,6 @@
 """SQLite integration tests for knowledge module — ORM persistence, migrations,
-JSON round-trips, foreign keys, unique constraints, and revision immutability.
+page evidence lineage, JSON round-trips, foreign keys, unique constraints, and
+revision immutability.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from cold_storage.modules.knowledge.infrastructure.orm import (
     KnowledgeChunkRecord,
     KnowledgeDocumentRecord,
     KnowledgeIngestionRunRecord,
+    KnowledgePageEvidenceRecord,
     KnowledgeRevisionRecord,
 )
 from cold_storage.modules.projects.infrastructure.orm import Base
@@ -116,7 +118,7 @@ def _insert_revision(
 
 
 # ---------------------------------------------------------------------------
-# 1. Migration — 4 knowledge tables exist
+# 1. Migration — knowledge tables exist
 # ---------------------------------------------------------------------------
 
 
@@ -125,16 +127,105 @@ def _table_names(engine) -> set[str]:
 
 
 class TestMigration:
-    def test_migration_0007_tables_exist(self, engine) -> None:
-        """All 4 knowledge tables must be created by Base.metadata.create_all."""
+    def test_migration_0040_tables_exist(self, engine) -> None:
+        """All 5 knowledge tables must be created by Base.metadata.create_all."""
         expected = {
             "knowledge_documents",
             "knowledge_revisions",
             "knowledge_ingestion_runs",
             "knowledge_chunks",
+            "knowledge_page_evidence",
         }
         actual = _table_names(engine)
         assert expected.issubset(actual), f"Missing tables: {expected - actual}"
+
+
+# ---------------------------------------------------------------------------
+# 2. First-class page evidence and chunk lineage
+# ---------------------------------------------------------------------------
+
+
+class TestPageEvidencePersistence:
+    def test_page_evidence_round_trip_and_chunk_lineage(self, session) -> None:
+        """Page identity/source hash persist and can be referenced by chunks."""
+        _insert_document(session, doc_id="doc-evidence", code="EVIDENCE-001")
+        _insert_revision(
+            session,
+            revision_id="rev-evidence",
+            doc_id="doc-evidence",
+            content_hash="evidence-source-hash",
+        )
+        evidence = KnowledgePageEvidenceRecord(
+            source_page_evidence_id="spe-evidence-1",
+            revision_id="rev-evidence",
+            document_id="doc-evidence",
+            page_number=1,
+            extraction_method="ocr",
+            extraction_status="completed",
+            text="OCR page evidence",
+            text_sha256="evidence-text-hash",
+            source_content_sha256="evidence-source-hash",
+            source_authority="original_artifact",
+            is_derived_evidence=True,
+            original_filename="test.pdf",
+            ocr_engine="tesseract",
+            ocr_engine_version="5.3.0",
+            ocr_languages="eng+chi_sim",
+            ocr_confidence=None,
+            confidence_source="unavailable",
+            requires_review=True,
+            review_status="unverified",
+            warnings=["test-warning"],
+            errors=[],
+            ingestion_run_id=None,
+            ingestion_provenance={
+                "source_authority": "original_artifact",
+                "original_filename": "test.pdf",
+            },
+            is_complete=True,
+            error_code="",
+            error_message="",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        session.add(evidence)
+        session.flush()
+
+        chunk = KnowledgeChunkRecord(
+            id="chunk-evidence-1",
+            revision_id="rev-evidence",
+            chunk_index=0,
+            text="OCR page evidence",
+            text_sha256="evidence-text-hash",
+            character_count=18,
+            token_count=3,
+            section_path="page:1",
+            page_start=1,
+            page_end=1,
+            sheet_name=None,
+            row_start=None,
+            row_end=None,
+            source_locator="page:1 | p.1",
+            source_page_evidence_id="spe-evidence-1",
+            is_ocr_derived=True,
+            requires_review=True,
+            embedding=[0.1] * 64,
+            embedding_dimension=64,
+            embedding_version="fake-hash-v1",
+            created_at=datetime.now(UTC),
+        )
+        session.add(chunk)
+        session.flush()
+
+        retrieved = session.get(KnowledgePageEvidenceRecord, "spe-evidence-1")
+        assert retrieved is not None
+        assert retrieved.source_content_sha256 == "evidence-source-hash"
+        assert retrieved.requires_review is True
+        assert retrieved.ocr_engine_version == "5.3.0"
+        assert retrieved.review_status == "unverified"
+        assert retrieved.warnings == ["test-warning"]
+        assert retrieved.ingestion_provenance["source_authority"] == "original_artifact"
+        assert chunk.page_evidence is retrieved
 
 
 # ---------------------------------------------------------------------------

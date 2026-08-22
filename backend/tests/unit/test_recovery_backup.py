@@ -64,7 +64,7 @@ def test_backup_publishes_exact_verified_bundle_without_secret_material(
         "collect_database_inventory_from_connection",
         lambda connection: {
             "schema_version": backup_bundle.DATABASE_INVENTORY_SCHEMA_VERSION,
-            "schema_head": "0039_widen_report_export_artifact_mime_type",
+            "schema_head": "0040_add_knowledge_page_evidence",
             "table_count": 0,
             "tables": [],
         },
@@ -121,7 +121,7 @@ def test_database_logical_digest_is_order_independent() -> None:
         connection.execute(
             text(
                 "INSERT INTO alembic_version(version_num) "
-                "VALUES ('0039_widen_report_export_artifact_mime_type')"
+                "VALUES ('0040_add_knowledge_page_evidence')"
             )
         )
         connection.execute(

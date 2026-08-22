@@ -1,7 +1,8 @@
 """PostgreSQL integration tests for knowledge module.
 
 Verifies schema existence, JSONB column round-trips, foreign-key constraints,
-unique constraints, transaction behavior, and review status persistence.
+page evidence lineage, unique constraints, transaction behavior, and review
+status persistence.
 
 Requires: DATABASE_URL=postgresql+psycopg2://...
 Marker: postgresql
@@ -9,9 +10,11 @@ Marker: postgresql
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import create_engine, text
@@ -20,6 +23,16 @@ from sqlalchemy.orm import Session
 
 from cold_storage.modules.knowledge.domain.errors import ApprovedRevisionImmutabilityError
 from cold_storage.modules.knowledge.domain.lifecycle import assert_not_approved
+from cold_storage.modules.knowledge.domain.models import (
+    KnowledgeChunk,
+    KnowledgePageEvidence,
+    make_source_page_evidence_id,
+)
+from cold_storage.modules.knowledge.infrastructure.orm import (
+    KnowledgeDocumentRecord,
+    KnowledgeRevisionRecord,
+)
+from cold_storage.modules.knowledge.infrastructure.repository import KnowledgeRepository
 
 pytestmark = pytest.mark.postgresql
 
@@ -109,10 +122,120 @@ def _cleanup_knowledge(conn, doc_id: str) -> None:
     for (rev_id,) in revisions:
         conn.execute(text("DELETE FROM knowledge_chunks WHERE revision_id = :rid"), {"rid": rev_id})
         conn.execute(
+            text("DELETE FROM knowledge_page_evidence WHERE revision_id = :rid"),
+            {"rid": rev_id},
+        )
+        conn.execute(
             text("DELETE FROM knowledge_ingestion_runs WHERE revision_id = :rid"), {"rid": rev_id}
         )
     conn.execute(text("DELETE FROM knowledge_revisions WHERE document_id = :did"), {"did": doc_id})
     conn.execute(text("DELETE FROM knowledge_documents WHERE id = :did"), {"did": doc_id})
+
+
+def _insert_revision_orm(
+    session: Session,
+    *,
+    doc_id: str,
+    rev_id: str,
+    content_hash: str,
+    review_status: str = "unverified",
+) -> None:
+    """Insert document + revision rows through the ORM for provenance tests."""
+    now = datetime.now(UTC)
+    session.add(
+        KnowledgeDocumentRecord(
+            id=doc_id,
+            code=f"pg-prov-{uuid.uuid4().hex[:8]}",
+            title="Provenance Test Doc",
+            document_category="standard",
+            source_type="upload",
+            source_reference="durable-test.pdf",
+            owner="tester",
+            current_revision_number=1,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+    session.add(
+        KnowledgeRevisionRecord(
+            id=rev_id,
+            document_id=doc_id,
+            revision_number=1,
+            version_label="v1",
+            original_filename="durable-test.pdf",
+            safe_filename="durable-test.pdf",
+            mime_type="application/pdf",
+            file_extension=".pdf",
+            file_size_bytes=2048,
+            content_sha256=content_hash,
+            storage_key=f"knowledge/{doc_id}/1",
+            ingestion_status="indexed",
+            review_status=review_status,
+            requires_ocr=True,
+            requires_review=True,
+            parser_name="pdf",
+            parser_version="parser-v1",
+            chunker_version="chunk-v1",
+            embedding_version="fake-hash-v1",
+            extracted_text_length=0,
+            page_count=2,
+            sheet_count=None,
+            metadata_snapshot={},
+            warning_messages=[],
+            created_at=now,
+            indexed_at=now,
+            reviewed_at=None,
+            approved_at=None,
+            withdrawn_at=None,
+        )
+    )
+    session.flush()
+
+
+def _build_ocr_page_evidence(
+    *,
+    rev_id: str,
+    doc_id: str,
+    content_hash: str,
+    page_number: int,
+) -> tuple[KnowledgePageEvidence, str, str]:
+    """Return OCR-derived page evidence with stable revision/page identity."""
+    evidence_id = make_source_page_evidence_id(rev_id, page_number)
+    ocr_text = f"OCR derived page {page_number} durable on PostgreSQL"
+    text_sha256 = hashlib.sha256(ocr_text.encode()).hexdigest()
+    now = datetime.now(UTC)
+    evidence = KnowledgePageEvidence(
+        source_page_evidence_id=evidence_id,
+        revision_id=rev_id,
+        document_id=doc_id,
+        page_number=page_number,
+        extraction_method="ocr",
+        extraction_status="completed",
+        text=ocr_text,
+        text_sha256=text_sha256,
+        source_content_sha256=content_hash,
+        is_derived_evidence=True,
+        original_filename="durable-test.pdf",
+        ocr_engine="tesseract",
+        ocr_engine_version="5.3.0",
+        ocr_languages="eng+chi_sim",
+        confidence=None,
+        confidence_source="unavailable",
+        requires_review=True,
+        review_status="unverified",
+        warnings=["ocr-derived-page"],
+        errors=[],
+        ingestion_run_id=str(uuid.uuid4()),
+        ingestion_provenance={
+            "source_authority": "original_artifact",
+            "original_filename": "durable-test.pdf",
+            "page_number": page_number,
+        },
+        is_complete=True,
+        created_at=now,
+        updated_at=now,
+    )
+    return evidence, ocr_text, text_sha256
 
 
 # ---------------------------------------------------------------------------
@@ -135,12 +258,13 @@ class TestKnowledgeDialect:
 
 class TestKnowledgeMigrations:
     def test_migration_0007_tables_exist(self, pg_engine) -> None:
-        """All 4 knowledge tables exist after migration."""
+        """All 5 knowledge tables exist after migration."""
         expected = [
             "knowledge_documents",
             "knowledge_revisions",
             "knowledge_ingestion_runs",
             "knowledge_chunks",
+            "knowledge_page_evidence",
         ]
         with pg_engine.connect() as conn:
             for table in expected:
@@ -154,8 +278,8 @@ class TestKnowledgeMigrations:
                 )
                 assert result.scalar() is True, f"Table {table} not found"
 
-    def test_four_knowledge_tables_count(self, pg_engine) -> None:
-        """Exactly 4 knowledge tables exist."""
+    def test_five_knowledge_tables_count(self, pg_engine) -> None:
+        """Exactly 5 knowledge tables exist."""
         with pg_engine.connect() as conn:
             result = conn.execute(
                 text(
@@ -165,7 +289,226 @@ class TestKnowledgeMigrations:
                 )
             )
             count = result.scalar()
-            assert count == 4, f"Expected 4 knowledge tables, got {count}"
+            assert count == 5, f"Expected 5 knowledge tables, got {count}"
+
+    def test_page_evidence_schema_and_chunk_lineage_column(self, pg_engine) -> None:
+        """Page evidence is first-class and chunks expose its stable identity."""
+        with pg_engine.connect() as conn:
+            evidence_columns = {
+                row[0]
+                for row in conn.execute(
+                    text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name = 'knowledge_page_evidence'"
+                    )
+                ).fetchall()
+            }
+            assert {
+                "source_page_evidence_id",
+                "revision_id",
+                "document_id",
+                "page_number",
+                "source_content_sha256",
+                "is_derived_evidence",
+                "original_filename",
+                "ocr_engine_version",
+                "requires_review",
+                "review_status",
+                "warnings",
+                "errors",
+                "ingestion_run_id",
+                "ingestion_provenance",
+                "is_complete",
+            }.issubset(evidence_columns)
+
+            chunk_columns = {
+                row[0]
+                for row in conn.execute(
+                    text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name = 'knowledge_chunks'"
+                    )
+                ).fetchall()
+            }
+            assert {
+                "source_page_evidence_id",
+                "is_ocr_derived",
+                "requires_review",
+            }.issubset(chunk_columns)
+
+
+# ---------------------------------------------------------------------------
+# 4b. Durable page-evidence provenance (fresh session / PostgreSQL)
+# ---------------------------------------------------------------------------
+
+
+class TestPageEvidenceDurableProvenance:
+    def test_page_evidence_durable_round_trip_fresh_session_and_citation_lineage(
+        self, pg_engine
+    ) -> None:
+        """Persist page evidence, read back on a new session, and verify lineage."""
+        doc_id = str(uuid.uuid4())
+        rev_id = str(uuid.uuid4())
+        content_hash = hashlib.sha256(b"pg-durable-original-artifact").hexdigest()
+        page_number = 1
+        chunk_id = str(uuid.uuid4())
+
+        try:
+            evidence, ocr_text, text_sha256 = _build_ocr_page_evidence(
+                rev_id=rev_id,
+                doc_id=doc_id,
+                content_hash=content_hash,
+                page_number=page_number,
+            )
+            evidence_id = evidence.source_page_evidence_id
+
+            with Session(pg_engine) as write_session:
+                _insert_revision_orm(
+                    write_session,
+                    doc_id=doc_id,
+                    rev_id=rev_id,
+                    content_hash=content_hash,
+                )
+                repo = KnowledgeRepository(write_session)
+                repo.save_page_evidence(evidence)
+                repo.save_chunks(
+                    [
+                        KnowledgeChunk(
+                            id=chunk_id,
+                            revision_id=rev_id,
+                            chunk_index=0,
+                            text=ocr_text,
+                            text_sha256=text_sha256,
+                            character_count=len(ocr_text),
+                            token_count=6,
+                            section_path=f"page:{page_number}",
+                            page_start=page_number,
+                            page_end=page_number,
+                            source_locator=f"page:{page_number} | p.{page_number}",
+                            source_page_evidence_id=evidence_id,
+                            is_ocr_derived=True,
+                            requires_review=True,
+                            embedding=[0.1] * 64,
+                            embedding_dimension=64,
+                            embedding_version="fake-hash-v1",
+                            created_at=datetime.now(UTC),
+                        )
+                    ]
+                )
+                write_session.commit()
+
+            with Session(pg_engine) as read_session:
+                repo = KnowledgeRepository(read_session)
+                read_evidence = repo.get_page_evidence(evidence_id)
+                assert read_evidence is not None
+                assert read_evidence.source_page_evidence_id == evidence_id
+                assert read_evidence.source_content_sha256 == content_hash
+                assert read_evidence.page_number == page_number
+                assert read_evidence.page_number >= 1
+                assert read_evidence.requires_review is True
+                assert read_evidence.review_status == "unverified"
+                assert read_evidence.review_status != "approved"
+                assert read_evidence.is_derived_evidence is True
+                assert read_evidence.extraction_method == "ocr"
+                assert read_evidence.ocr_engine_version == "5.3.0"
+                assert read_evidence.warnings == ["ocr-derived-page"]
+                assert read_evidence.ingestion_provenance["source_authority"] == "original_artifact"
+
+                chunks = repo.get_chunks(rev_id)
+                assert len(chunks) == 1
+                read_chunk = chunks[0]
+                assert read_chunk.source_page_evidence_id == evidence_id
+                assert read_chunk.page_evidence is not None
+                assert read_chunk.page_evidence.source_page_evidence_id == evidence_id
+
+                revision = repo.get_revision(rev_id)
+                assert revision is not None
+                assert read_evidence.source_content_sha256 == revision.content_sha256
+                assert read_chunk.page_start == read_evidence.page_number
+                assert read_chunk.is_ocr_derived is True
+                assert read_chunk.requires_review is True
+        finally:
+            with pg_engine.connect() as conn:
+                _cleanup_knowledge(conn, doc_id)
+                conn.commit()
+
+    def test_page_evidence_retry_idempotent_no_duplicate_rows(self, pg_engine) -> None:
+        """Retry on an unapproved revision must not duplicate evidence or chunks."""
+        doc_id = str(uuid.uuid4())
+        rev_id = str(uuid.uuid4())
+        content_hash = hashlib.sha256(b"pg-idempotent-original-artifact").hexdigest()
+        chunk_id = str(uuid.uuid4())
+
+        try:
+            evidence, ocr_text, text_sha256 = _build_ocr_page_evidence(
+                rev_id=rev_id,
+                doc_id=doc_id,
+                content_hash=content_hash,
+                page_number=2,
+            )
+            chunk = KnowledgeChunk(
+                id=chunk_id,
+                revision_id=rev_id,
+                chunk_index=0,
+                text=ocr_text,
+                text_sha256=text_sha256,
+                character_count=len(ocr_text),
+                token_count=6,
+                section_path="page:2",
+                page_start=2,
+                page_end=2,
+                source_locator="page:2 | p.2",
+                source_page_evidence_id=evidence.source_page_evidence_id,
+                is_ocr_derived=True,
+                requires_review=True,
+                embedding=[0.2] * 64,
+                embedding_dimension=64,
+                embedding_version="fake-hash-v1",
+                created_at=datetime.now(UTC),
+            )
+
+            with Session(pg_engine) as first_session:
+                _insert_revision_orm(
+                    first_session,
+                    doc_id=doc_id,
+                    rev_id=rev_id,
+                    content_hash=content_hash,
+                )
+                repo = KnowledgeRepository(first_session)
+                repo.save_page_evidence(evidence)
+                repo.save_chunks([chunk])
+                first_session.commit()
+
+            with Session(pg_engine) as retry_session:
+                repo = KnowledgeRepository(retry_session)
+                repo.save_page_evidence(evidence)
+                repo.save_chunks_idempotent([chunk])
+                retry_session.commit()
+
+                evidence_count = retry_session.execute(
+                    text("SELECT COUNT(*) FROM knowledge_page_evidence WHERE revision_id = :rid"),
+                    {"rid": rev_id},
+                ).scalar()
+                chunk_count = retry_session.execute(
+                    text("SELECT COUNT(*) FROM knowledge_chunks WHERE revision_id = :rid"),
+                    {"rid": rev_id},
+                ).scalar()
+                assert evidence_count == 1
+                assert chunk_count == 1
+
+            with Session(pg_engine) as read_session:
+                repo = KnowledgeRepository(read_session)
+                readback = repo.get_page_evidence(evidence.source_page_evidence_id)
+                assert readback is not None
+                assert readback.source_content_sha256 == content_hash
+                assert readback.page_number == 2
+                assert readback.requires_review is True
+                assert readback.review_status != "approved"
+                assert len(repo.get_chunks(rev_id)) == 1
+        finally:
+            with pg_engine.connect() as conn:
+                _cleanup_knowledge(conn, doc_id)
+                conn.commit()
 
 
 # ---------------------------------------------------------------------------

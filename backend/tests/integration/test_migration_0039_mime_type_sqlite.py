@@ -351,7 +351,7 @@ class TestMimeTypeMigrationSQLite:
 
     def test_upgrade_head_sets_mime_type_to_varchar_255(self, sqlite_db_path: str) -> None:
         """After real ``alembic upgrade head``, the production column is ``VARCHAR(255)``."""
-        result = _run_alembic(["upgrade", "head"], db_path=sqlite_db_path)
+        result = _run_alembic(["upgrade", REVISION_HEAD], db_path=sqlite_db_path)
         assert result.returncode == 0, f"upgrade head failed:\n{result.stderr}"
         assert _alembic_version(sqlite_db_path) == REVISION_HEAD
         type_str = _column_type(sqlite_db_path, TBL_ARTIFACTS, COL_MIME_TYPE)
@@ -363,7 +363,7 @@ class TestMimeTypeMigrationSQLite:
         self, sqlite_engine, sqlite_db_path
     ) -> None:
         """The 71-char DOCX MIME persists byte-exact on the real production column."""
-        assert _run_alembic(["upgrade", "head"], db_path=sqlite_db_path).returncode == 0
+        assert _run_alembic(["upgrade", REVISION_HEAD], db_path=sqlite_db_path).returncode == 0
         assert len(MIME_DOCX) == 71
 
         with sqlite_engine.begin() as conn:
@@ -386,7 +386,7 @@ class TestMimeTypeMigrationSQLite:
 
     def test_real_short_mime_round_trip(self, sqlite_engine, sqlite_db_path) -> None:
         """Short MIMEs (PDF/XLSX/DOCX) all round-trip verbatim after widening."""
-        assert _run_alembic(["upgrade", "head"], db_path=sqlite_db_path).returncode == 0
+        assert _run_alembic(["upgrade", REVISION_HEAD], db_path=sqlite_db_path).returncode == 0
 
         with sqlite_engine.begin() as conn:
             for v in (MIME_PDF, MIME_JSON, MIME_DOCX):
@@ -437,7 +437,7 @@ class TestMimeTypeMigrationSQLite:
         assert {"reports", "report_revisions", "report_templates"} <= pre_fk_targets
 
         # Step 4
-        up = _run_alembic(["upgrade", "head"], db_path=sqlite_db_path)
+        up = _run_alembic(["upgrade", REVISION_HEAD], db_path=sqlite_db_path)
         assert up.returncode == 0, f"upgrade 0039 failed:\n{up.stderr}"
 
         # Step 5: post-rebuild checks
@@ -488,7 +488,7 @@ class TestMimeTypeMigrationSQLite:
         - long row preserved
         - alembic_version stays at 0039
         """
-        assert _run_alembic(["upgrade", "head"], db_path=sqlite_db_path).returncode == 0
+        assert _run_alembic(["upgrade", REVISION_HEAD], db_path=sqlite_db_path).returncode == 0
 
         with sqlite_engine.begin() as conn:
             p = _insert_real_export_artifact(conn, mime_value=MIME_DOCX)
@@ -526,7 +526,7 @@ class TestMimeTypeMigrationSQLite:
         self, sqlite_engine, sqlite_db_path
     ) -> None:
         """Real clean downgrade 0039→0038 (with short MIMEs only) + re-upgrade."""
-        assert _run_alembic(["upgrade", "head"], db_path=sqlite_db_path).returncode == 0
+        assert _run_alembic(["upgrade", REVISION_HEAD], db_path=sqlite_db_path).returncode == 0
 
         with sqlite_engine.begin() as conn:
             p_pdf = _insert_real_export_artifact(conn, mime_value=MIME_PDF)
@@ -553,7 +553,7 @@ class TestMimeTypeMigrationSQLite:
                 assert v == expected
 
         # Re-upgrade
-        up = _run_alembic(["upgrade", "head"], db_path=sqlite_db_path)
+        up = _run_alembic(["upgrade", REVISION_HEAD], db_path=sqlite_db_path)
         assert up.returncode == 0
         assert _alembic_version(sqlite_db_path) == REVISION_HEAD
         type_str = _column_type(sqlite_db_path, TBL_ARTIFACTS, COL_MIME_TYPE)

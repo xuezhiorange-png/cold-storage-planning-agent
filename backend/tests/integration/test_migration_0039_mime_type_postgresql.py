@@ -422,7 +422,9 @@ class TestMimeTypeMigrationPostgreSQL:
         self, pg_engine, pg_test_db, pg_test_schema
     ) -> None:
         """After real ``alembic upgrade head``, the production column width is 255."""
-        result = _run_alembic(["upgrade", "head"], test_url=pg_test_db, schema=pg_test_schema)
+        result = _run_alembic(
+            ["upgrade", REVISION_HEAD], test_url=pg_test_db, schema=pg_test_schema
+        )
         assert result.returncode == 0, (
             f"alembic upgrade head failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
         )
@@ -448,7 +450,9 @@ class TestMimeTypeMigrationPostgreSQL:
         self, pg_engine, pg_test_db, pg_test_schema
     ) -> None:
         """The 71-char DOCX MIME persists byte-exact on the real production column."""
-        result = _run_alembic(["upgrade", "head"], test_url=pg_test_db, schema=pg_test_schema)
+        result = _run_alembic(
+            ["upgrade", REVISION_HEAD], test_url=pg_test_db, schema=pg_test_schema
+        )
         assert result.returncode == 0, f"upgrade head failed:\n{result.stderr}"
 
         assert len(MIME_DOCX) == 71
@@ -489,7 +493,9 @@ class TestMimeTypeMigrationPostgreSQL:
         - the long row is preserved with length 71
         - the production column is still VARCHAR(255)
         """
-        result = _run_alembic(["upgrade", "head"], test_url=pg_test_db, schema=pg_test_schema)
+        result = _run_alembic(
+            ["upgrade", REVISION_HEAD], test_url=pg_test_db, schema=pg_test_schema
+        )
         assert result.returncode == 0, f"upgrade head failed:\n{result.stderr}"
 
         with pg_engine.begin() as conn:
@@ -541,7 +547,9 @@ class TestMimeTypeMigrationPostgreSQL:
     ) -> None:
         """Real clean downgrade 0039→0038 (with short MIMEs only) + re-upgrade."""
         assert (
-            _run_alembic(["upgrade", "head"], test_url=pg_test_db, schema=pg_test_schema).returncode
+            _run_alembic(
+                ["upgrade", REVISION_HEAD], test_url=pg_test_db, schema=pg_test_schema
+            ).returncode
             == 0
         )
 
@@ -576,7 +584,7 @@ class TestMimeTypeMigrationPostgreSQL:
                 assert v == expected, f"Row {pid} changed: got {v!r}, expected {expected!r}"
 
         # Re-upgrade to head
-        up = _run_alembic(["upgrade", "head"], test_url=pg_test_db, schema=pg_test_schema)
+        up = _run_alembic(["upgrade", REVISION_HEAD], test_url=pg_test_db, schema=pg_test_schema)
         assert up.returncode == 0, f"Re-upgrade failed:\n{up.stderr}"
         assert _alembic_version(pg_engine) == REVISION_HEAD
         assert _get_column_max_length(pg_engine, TBL_ARTIFACTS, COL_MIME_TYPE) == 255
@@ -598,7 +606,9 @@ class TestMimeTypeMigrationPostgreSQL:
     ) -> None:
         """The alembic_version table must be in the per-test schema, NOT public."""
         assert (
-            _run_alembic(["upgrade", "head"], test_url=pg_test_db, schema=pg_test_schema).returncode
+            _run_alembic(
+                ["upgrade", REVISION_HEAD], test_url=pg_test_db, schema=pg_test_schema
+            ).returncode
             == 0
         )
         with pg_engine.connect() as conn:
