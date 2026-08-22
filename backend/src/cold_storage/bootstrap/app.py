@@ -897,6 +897,71 @@ def create_app(
 
     register_knowledge_routes(app, _knowledge_service_factory)
 
+    def _workflow_service_factory(request: Any) -> Any:
+        from cold_storage.bootstrap.dependencies import get_project_service
+
+        project_service = request.app.dependency_overrides.get(get_project_service, get_project_service)()
+        from cold_storage.modules.knowledge.infrastructure.repository import KnowledgeRepository
+        from cold_storage.modules.reports.application.service import _default_trusted_operator
+        from cold_storage.modules.reports.infrastructure.repository import SQLReportRepository
+        from cold_storage.modules.schemes.application.query import build_sqlalchemy_scheme_query
+        from cold_storage.modules.workflow.application.service import WorkflowAggregateService
+
+        engine = getattr(project_service, "engine", None)
+        if engine is None:
+            engine = get_engine()
+        session = SASession(bind=engine, expire_on_commit=False)
+        scheme_query = build_sqlalchemy_scheme_query(session)
+        report_repo = SQLReportRepository(session)
+        knowledge_repo = KnowledgeRepository(session)
+
+        def _read_revision(revision_id: str) -> dict[str, Any] | None:
+            record = knowledge_repo.get_revision(revision_id)
+            if record is None:
+                return None
+            return {
+                "id": record.id,
+                "document_id": record.document_id,
+                "content_sha256": record.content_sha256,
+                "requires_review": record.requires_review,
+                "requires_ocr": record.requires_ocr,
+                "ingestion_status": record.ingestion_status,
+            }
+
+        def _read_page_evidence(revision_id: str) -> list[dict[str, Any]]:
+            evidence_records = knowledge_repo.list_page_evidence(revision_id)
+            return [
+                {
+                    "source_page_evidence_id": evidence.source_page_evidence_id,
+                    "page_number": evidence.page_number,
+                    "extraction_status": evidence.extraction_status,
+                    "is_complete": evidence.is_complete,
+                    "is_ocr_derived": evidence.is_derived_evidence,
+                }
+                for evidence in evidence_records
+            ]
+
+        capability_projection = getattr(request.app, "_capability_projection", None)
+        agent_capabilities = (
+            [dict(entry) for entry in capability_projection]
+            if capability_projection is not None
+            else []
+        )
+
+        return WorkflowAggregateService(
+            project_service=project_service,
+            scheme_query=scheme_query,
+            report_repository=report_repo,
+            knowledge_revision_reader=_read_revision,
+            knowledge_page_evidence_reader=_read_page_evidence,
+            agent_capability_projection=agent_capabilities,
+            trusted_operator=_default_trusted_operator,
+        )
+
+    from cold_storage.modules.workflow.api.routes import register_workflow_routes
+
+    register_workflow_routes(app, _workflow_service_factory)
+
     if project_service is not None:
         app.dependency_overrides[get_project_service] = lambda: project_service
 
