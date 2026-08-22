@@ -148,7 +148,7 @@ class WorkflowAggregateService:
             revision_stale=revision_stale,
         )
 
-        blockers = _collect_blockers(steps, knowledge_projection, formal_eligibility)
+        blockers = _collect_blockers(steps)
         missing_inputs = _build_missing_inputs(inputs, validation)
         next_actions = _build_next_actions(steps, blockers)
         primary_action_id = next_actions[0]["action_id"] if next_actions else ""
@@ -266,21 +266,27 @@ class WorkflowAggregateService:
         capability_state = str(agent_entry.get("capability_state", "AGENT_CAPABILITY_DISABLED"))
         route_exposure = str(agent_entry.get("route_exposure", "DISABLED_ROUTE_MATRIX"))
         status_value = str(agent_entry.get("status", "unavailable"))
-        available = capability_state == "AGENT_CAPABILITY_ENABLED_READY" and status_value == "ready"
-        assistance_status = "AVAILABLE" if available else "UNAVAILABLE"
-        if capability_state == "AGENT_CAPABILITY_ENABLED_NOT_READY":
+        available = status_value == "available"
+        if capability_state == "AGENT_CAPABILITY_ENABLED_NOT_READY" or status_value == "not_ready":
             assistance_status = "NOT_READY"
+        elif available:
+            assistance_status = "AVAILABLE"
+        else:
+            assistance_status = "UNAVAILABLE"
 
-        return {
+        result: dict[str, Any] = {
             "available": available,
             "status": assistance_status,
             "blocking_core_workflow": False,
             "capability_state": capability_state,
             "route_exposure": route_exposure,
-            "active_provider": "mimo",
-            "active_model": "mimo-v2.5",
-            "unavailability_reason": agent_entry.get("code", ""),
+            "unavailability_reason": str(agent_entry.get("code") or ""),
         }
+        if "active_provider" in agent_entry:
+            result["active_provider"] = agent_entry["active_provider"]
+        if "active_model" in agent_entry:
+            result["active_model"] = agent_entry["active_model"]
+        return result
 
     def _build_steps(
         self,
@@ -585,23 +591,11 @@ def _collect_stale_reasons(
     return reasons
 
 
-def _collect_blockers(
-    steps: list[dict[str, Any]],
-    knowledge_projection: dict[str, Any],
-    formal_eligibility: dict[str, Any],
-) -> list[dict[str, Any]]:
+def _collect_blockers(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     blockers: list[dict[str, Any]] = []
     for step in steps:
         if step.get("blocking"):
             blockers.extend(step.get("blockers", []))
-    if knowledge_projection.get("required") and knowledge_projection.get("blockers"):
-        for blocker in knowledge_projection["blockers"]:
-            if blocker not in blockers:
-                blockers.append(blocker)
-    if not formal_eligibility.get("eligible"):
-        for blocker in formal_eligibility.get("blockers", []):
-            if blocker not in blockers:
-                blockers.append(blocker)
     return blockers
 
 

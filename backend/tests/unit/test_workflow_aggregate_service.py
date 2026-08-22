@@ -10,7 +10,10 @@ from cold_storage.modules.reports.domain.enums import ReportStatus, ReportType
 from cold_storage.modules.reports.domain.models import Report, ReportRevision
 from cold_storage.modules.schemes.application.query import SchemeReviewAuthority
 from cold_storage.modules.workflow.application.service import WorkflowAggregateService
-from cold_storage.modules.workflow.domain.steps import WORKFLOW_GOAL_FORMAL_REPORT
+from cold_storage.modules.workflow.domain.steps import (
+    WORKFLOW_GOAL_FORMAL_REPORT,
+    WORKFLOW_GOAL_PLANNING_PREVIEW,
+)
 
 
 class _SchemeQueryStub:
@@ -134,7 +137,7 @@ def test_agent_unavailable_does_not_block_core_workflow() -> None:
         agent_capability_projection=[
             {
                 "name": "model_backed_agent",
-                "status": "unavailable",
+                "status": "disabled",
                 "capability_state": "AGENT_CAPABILITY_DISABLED",
                 "route_exposure": "DISABLED_ROUTE_MATRIX",
                 "code": "AGENT_CAPABILITY_DISABLED",
@@ -146,10 +149,76 @@ def test_agent_unavailable_does_not_block_core_workflow() -> None:
     assert agent_step["applicability"] == "OPTIONAL"
     assert agent_step["blocking"] is False
     assert agent_step["status"] == "UNAVAILABLE"
-    assert aggregate["workflow_readiness"]["status"] != "BLOCKED" or any(
-        blocker.get("code") != "AGENT_UNAVAILABLE"
+    assert aggregate["agent_assistance"]["available"] is False
+    assert not any(
+        blocker.get("code") == "AGENT_UNAVAILABLE"
         for blocker in aggregate["workflow_readiness"]["blockers"]
     )
+
+
+def test_local_test_agent_capability_is_available_without_blocking_core() -> None:
+    project_service = ProjectService()
+    project_id, version_number, _ = _seed_project_with_inputs(project_service)
+    workflow = WorkflowAggregateService(
+        project_service=project_service,
+        scheme_query=_SchemeQueryStub(),
+        agent_capability_projection=[
+            {
+                "name": "model_backed_agent",
+                "status": "available",
+                "code": None,
+                "blocking": False,
+                "capability_state": "LOCAL_TEST_AVAILABLE",
+                "route_exposure": "LOCAL_TEST_ROUTES",
+            }
+        ],
+    )
+    aggregate = workflow.get_workflow_aggregate(project_id, version_number)
+    assert aggregate["agent_assistance"]["available"] is True
+    assert aggregate["agent_assistance"]["status"] == "AVAILABLE"
+    assert aggregate["agent_assistance"]["capability_state"] == "LOCAL_TEST_AVAILABLE"
+    assert "active_provider" not in aggregate["agent_assistance"]
+    assert "active_model" not in aggregate["agent_assistance"]
+    agent_step = next(step for step in aggregate["steps"] if step["step"] == "AGENT_ASSISTANCE")
+    assert agent_step["blocking"] is False
+    assert agent_step["status"] == "COMPLETED"
+    assert not any(
+        blocker.get("code") == "AGENT_UNAVAILABLE"
+        for blocker in aggregate["workflow_readiness"]["blockers"]
+    )
+
+
+def test_planning_preview_does_not_block_on_formal_export_blockers() -> None:
+    project_service = ProjectService()
+    project_id, version_number, _ = _seed_project_with_inputs(project_service)
+    workflow = WorkflowAggregateService(
+        project_service=project_service,
+        scheme_query=_SchemeQueryStub(),
+    )
+    aggregate = workflow.get_workflow_aggregate(
+        project_id,
+        version_number,
+        workflow_goal=WORKFLOW_GOAL_PLANNING_PREVIEW,
+    )
+    formal_step = next(step for step in aggregate["steps"] if step["step"] == "FORMAL_REPORT")
+    report_step = next(step for step in aggregate["steps"] if step["step"] == "REPORT_ELIGIBILITY")
+    assert formal_step["applicability"] == "NOT_APPLICABLE"
+    assert report_step["applicability"] == "NOT_APPLICABLE"
+    assert aggregate["formal_export_eligibility"]["eligible"] is False
+
+    aggregate_codes = {blocker.get("code") for blocker in aggregate["blockers"]}
+    readiness_codes = {
+        blocker.get("code") for blocker in aggregate["workflow_readiness"]["blockers"]
+    }
+    formal_codes = {
+        blocker.get("code") for blocker in aggregate["formal_export_eligibility"]["blockers"]
+    }
+
+    assert "REPORT_MISSING" not in aggregate_codes
+    assert "REPORT_MISSING" not in readiness_codes
+    for code in formal_codes:
+        assert code not in aggregate_codes
+        assert code not in readiness_codes
 
 
 def test_knowledge_provenance_not_required_without_dependency() -> None:

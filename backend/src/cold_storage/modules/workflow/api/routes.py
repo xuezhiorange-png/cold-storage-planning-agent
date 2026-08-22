@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 
 from cold_storage.modules.workflow.application.service import WorkflowAggregateService
 from cold_storage.modules.workflow.domain.errors import (
@@ -15,8 +15,6 @@ from cold_storage.modules.workflow.domain.steps import (
     WORKFLOW_GOAL_FORMAL_REPORT,
     WORKFLOW_GOAL_PLANNING_PREVIEW,
 )
-
-router = APIRouter(tags=["workflow"])
 
 
 def register_workflow_routes(app: FastAPI, get_service: Any) -> None:
