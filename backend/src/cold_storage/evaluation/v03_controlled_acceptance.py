@@ -81,6 +81,26 @@ def _require(condition: bool, code: str, message: str, **details: object) -> Non
         raise V03ControlledAcceptanceError(code, message, **details)
 
 
+_CONTROLLED_ACCEPTANCE_ENV_KEYS: tuple[str, ...] = (
+    "COLD_STORAGE_DATABASE_URL",
+    "COLD_STORAGE_DATABASE_BACKEND",
+    "COLD_STORAGE_SQLITE_PATH",
+    "KNOWLEDGE_STORAGE_DIR",
+)
+
+
+def _snapshot_process_environment(keys: tuple[str, ...]) -> dict[str, str | None]:
+    return {key: os.environ.get(key) for key in keys}
+
+
+def _restore_process_environment(snapshot: dict[str, str | None]) -> None:
+    for key, value in snapshot.items():
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
+
+
 def execution_authorized_from_env() -> bool:
     """Return whether the explicit execution-authorization env gate is set."""
 
@@ -665,7 +685,7 @@ def _execute_scenario_a(
         "workflow_goal": fixture.get("workflow_goal"),
         "project_id": project_id,
         "project_version_id": project_version_id,
-        "scheme_run_id": str(scheme_run.id),
+        "scheme_run": str(scheme_run.id),
         "scheme_authority": dict(_authority_snapshot(authority)),
         "calculator_versions": calculator_versions,
         "lifecycle": lifecycle,
@@ -992,7 +1012,6 @@ def _execute_scenario_c(
             session_record.id,
             "蓝莓加工厂规划",
             user=operator,
-            idempotency_key="scenario-c-clarify",
         )
         _require(
             clarification.get("decision_type") == DecisionType.ASK_CLARIFICATION.value,
@@ -1004,7 +1023,6 @@ def _execute_scenario_c(
             session_record.id,
             "25吨蓝莓，每天工作16小时",
             user=operator,
-            idempotency_key="scenario-c-tools",
         )
         _require(
             tool_turn.get("decision_type") == DecisionType.PROPOSE_TOOLS.value,
@@ -1181,82 +1199,86 @@ def execute_scenario(
     fixture = _load_bound_fixture(scenario_name, repo_root)
     from cold_storage.evaluation.followup_acceptance import _configure_database_environment
 
-    _configure_database_environment(database_url)
-    from sqlalchemy import create_engine, inspect
-
-    engine_kwargs: dict[str, object] = {"pool_pre_ping": True}
-    if backend == "sqlite":
-        engine_kwargs["connect_args"] = {"check_same_thread": False}
-    engine = create_engine(database_url, **engine_kwargs)
-    output_path = Path(output_root)
-    output_path.mkdir(parents=True, exist_ok=True)
+    env_snapshot = _snapshot_process_environment(_CONTROLLED_ACCEPTANCE_ENV_KEYS)
     try:
-        with engine.connect() as connection:
-            connection.execute(__import__("sqlalchemy", fromlist=["select"]).select(1))
-        _require(
-            inspect(engine).has_table("projects"),
-            "SCHEMA_NOT_READY",
-            "acceptance database is not migrated to head",
-        )
-        if scenario_name == "A":
+        _configure_database_environment(database_url)
+        from sqlalchemy import create_engine, inspect
+
+        engine_kwargs: dict[str, object] = {"pool_pre_ping": True}
+        if backend == "sqlite":
+            engine_kwargs["connect_args"] = {"check_same_thread": False}
+        engine = create_engine(database_url, **engine_kwargs)
+        output_path = Path(output_root)
+        output_path.mkdir(parents=True, exist_ok=True)
+        try:
+            with engine.connect() as connection:
+                connection.execute(__import__("sqlalchemy", fromlist=["select"]).select(1))
             _require(
-                execution_support is not None and execution_support.scenario_a is not None,
-                "SCENARIO_EXECUTION_SUPPORT_MISSING",
-                "scenario A requires pilot-injected baseline seed support",
+                inspect(engine).has_table("projects"),
+                "SCHEMA_NOT_READY",
+                "acceptance database is not migrated to head",
+            )
+            if scenario_name == "A":
+                _require(
+                    execution_support is not None and execution_support.scenario_a is not None,
+                    "SCENARIO_EXECUTION_SUPPORT_MISSING",
+                    "scenario A requires pilot-injected baseline seed support",
+                    scenario=scenario_name,
+                )
+                assert execution_support is not None
+                assert execution_support.scenario_a is not None
+                scenario_result = _execute_scenario_a(
+                    engine=engine,
+                    operator=operator,
+                    output_root=output_path,
+                    fixture=fixture,
+                    backend=backend,
+                    scenario_a_binding=execution_support.scenario_a,
+                )
+            elif scenario_name == "B":
+                _require(
+                    execution_support is not None
+                    and execution_support.scenario_b_source_runtime is not None,
+                    "SCENARIO_EXECUTION_SUPPORT_MISSING",
+                    "scenario B requires pilot-injected controlled source runtime",
+                    scenario=scenario_name,
+                )
+                assert execution_support is not None
+                scenario_result = _execute_scenario_b(
+                    engine=engine,
+                    operator=operator,
+                    output_root=output_path,
+                    fixture=fixture,
+                    repo_root=repo_root,
+                    execution_source_sha=source_sha,
+                    execution_source_tree_sha=source_tree,
+                    backend=backend,
+                    run_index=run_index,
+                    source_runtime=execution_support.scenario_b_source_runtime,
+                )
+            else:
+                scenario_result = _execute_scenario_c(
+                    engine=engine,
+                    operator=operator,
+                    fixture=fixture,
+                    output_root=output_path,
+                )
+            return _build_evidence_envelope(
                 scenario=scenario_name,
-            )
-            assert execution_support is not None
-            assert execution_support.scenario_a is not None
-            scenario_result = _execute_scenario_a(
-                engine=engine,
-                operator=operator,
-                output_root=output_path,
-                fixture=fixture,
-                backend=backend,
-                scenario_a_binding=execution_support.scenario_a,
-            )
-        elif scenario_name == "B":
-            _require(
-                execution_support is not None
-                and execution_support.scenario_b_source_runtime is not None,
-                "SCENARIO_EXECUTION_SUPPORT_MISSING",
-                "scenario B requires pilot-injected controlled source runtime",
-                scenario=scenario_name,
-            )
-            assert execution_support is not None
-            scenario_result = _execute_scenario_b(
-                engine=engine,
-                operator=operator,
-                output_root=output_path,
-                fixture=fixture,
-                repo_root=repo_root,
+                authorization_record_id=record,
+                trusted_operator=operator,
                 execution_source_sha=source_sha,
                 execution_source_tree_sha=source_tree,
                 backend=backend,
                 run_index=run_index,
-                source_runtime=execution_support.scenario_b_source_runtime,
-            )
-        else:
-            scenario_result = _execute_scenario_c(
-                engine=engine,
-                operator=operator,
+                database_url=database_url,
                 fixture=fixture,
-                output_root=output_path,
+                scenario_result=scenario_result,
             )
-        return _build_evidence_envelope(
-            scenario=scenario_name,
-            authorization_record_id=record,
-            trusted_operator=operator,
-            execution_source_sha=source_sha,
-            execution_source_tree_sha=source_tree,
-            backend=backend,
-            run_index=run_index,
-            database_url=database_url,
-            fixture=fixture,
-            scenario_result=scenario_result,
-        )
+        finally:
+            engine.dispose()
     finally:
-        engine.dispose()
+        _restore_process_environment(env_snapshot)
 
 
 def refuse_scenario_execution(
