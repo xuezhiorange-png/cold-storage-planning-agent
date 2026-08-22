@@ -11,12 +11,17 @@ dispatch-only workflow. Fixture source-definition R1 binds Scenario A/B/C
 fixture JSON and records SHA-256 evidence. Scenario execution engine R1 adds
 the bound A/B/C execution path behind explicit authorization gates while
 controlled acceptance dispatch, tag publication, and GitHub Release remain
-separately authorized later stages.
+separately authorized later stages. Controlled acceptance matrix runner R1
+expands the authorized `execution_authorized=YES` workflow path to execute
+Scenario A/B/C on sqlite and postgresql with fresh isolated databases per run
+while the default `execution_authorized=NO` path continues to fail closed.
 
 Implementation R1 PASS does not authorize controlled acceptance execution.
 Fixture source-definition R1 PASS does not authorize scenario execution or
 workflow dispatch. Scenario execution engine R1 PASS does not authorize
-workflow dispatch, tag publication, or GitHub Release. The workflow must not
+workflow dispatch, tag publication, or GitHub Release. Controlled acceptance
+matrix runner R1 PASS does not authorize workflow dispatch, tag publication,
+or GitHub Release. The workflow must not
 be dispatched from a pull request or from a feature branch.
 
 **Ordinary PR CI != Controlled Acceptance.** Ordinary CI validates the code;
@@ -32,6 +37,7 @@ CONTROLLED_ACCEPTANCE_AUTHORIZED=NO
 CONTROLLED_ACCEPTANCE_EXECUTED=NO
 SCENARIO_EXECUTION_ENGINE_ROUND=SCENARIO_EXECUTION_ENGINE_R1
 SCENARIO_EXECUTION_IMPLEMENTED=YES
+CONTROLLED_ACCEPTANCE_MATRIX_RUNNER_ROUND=CONTROLLED_ACCEPTANCE_MATRIX_RUNNER_R1
 SCENARIO_A_RUN_AUTHORIZED=NO
 SCENARIO_B_RUN_AUTHORIZED=NO
 SCENARIO_C_RUN_AUTHORIZED=NO
@@ -157,12 +163,33 @@ application services, and records evidence JSON with source SHA/tree, calculator
 versions, review flags, and artifact hashes. Controlled acceptance workflow
 dispatch, tag publication, and GitHub Release remain separately unauthorized.
 
+When the workflow input `execution_authorized=YES` is explicitly set, the
+dispatch-only workflow executes the full Scenario A/B/C matrix on sqlite and
+postgresql:
+
+```text
+SCENARIO_A_SQLITE=YES
+SCENARIO_B_SQLITE=YES
+SCENARIO_C_SQLITE=YES
+SCENARIO_A_POSTGRESQL=YES
+SCENARIO_B_POSTGRESQL=YES
+SCENARIO_C_POSTGRESQL=YES
+```
+
+Each matrix cell provisions a fresh isolated database. PostgreSQL cells use the
+workflow service container (`pgvector/pgvector:pg16`), create a dedicated
+`v03_p5_matrix_<scenario>` database, run `alembic upgrade head`, and pass an
+explicit `--database-url`. The default `execution_authorized=NO` path still
+refuses Scenario A on sqlite without `--execution-authorized`.
+
 ## Workflow constraints
 
 `.github/workflows/v0-3-p5-controlled-acceptance-and-release.yml` is
 `workflow_dispatch` only, runs on `main` only, requires explicit source SHA,
 source tree SHA, operator, authorization record, and execution authorization
-input. It uploads harness evidence with short retention.
+input. When `execution_authorized=YES`, it runs Scenario A/B/C on sqlite and
+postgresql with fresh isolated databases per cell. It uploads harness evidence
+with short retention.
 
 The workflow performs no deployment, release signing, registry mutation,
 production database write, Git push, tag creation, GitHub Release publication,
