@@ -2,8 +2,8 @@
 
 **Status:** Definition freeze R1 — contract only
 **Authority:** Issue #108, tracked by Issue #113
-**Contract definition source SHA:** `02f4b0e04f4178a2e9c3275a360d5047f0e5b7e2`
-**Contract definition source tree SHA:** `0d2112e61c63d1dd4d2ffa1ce7bcaeebb8579cf3`
+**Contract definition source SHA:** `d47d0ea9a41859879a14db9e1b158bf541df5725`
+**Contract definition source tree SHA:** `70fe379bafbacd76c9a49eec13a9b8619db0826d`
 **Target branch:** `cursor/v03-p5-controlled-acceptance-contract-r1-fdcf`
 
 This document freezes the V0.3 P5 controlled acceptance and release authority.
@@ -16,8 +16,9 @@ Release, deployment, or production operation.
 - Tracking issue: #113, "[V0.3][P5] Controlled Acceptance and Release".
 - Repository: `xuezhiorange-png/cold-storage-planning-agent`.
 - Audited branch: `main`.
-- Audited source SHA: `02f4b0e04f4178a2e9c3275a360d5047f0e5b7e2`.
-- Audited tree SHA: `0d2112e61c63d1dd4d2ffa1ce7bcaeebb8579cf3`.
+- Audited source SHA: `d47d0ea9a41859879a14db9e1b158bf541df5725`.
+- Audited tree SHA: `70fe379bafbacd76c9a49eec13a9b8619db0826d`.
+- Audited main subject: `[V03_P4] Frontend guided workbench R1 — WorkflowAggregateV1 consumer`.
 
 The source SHA and tree SHA above are the authority for this contract round.
 A later implementation or controlled-acceptance run must revalidate its own
@@ -33,10 +34,23 @@ P5 consumes frozen boundaries from upstream packages. It does not redefine them.
 | P1 runbook | `docs/runbooks/V0_3-P1-review-formal-report-acceptance.md` | existing P1 controlled-acceptance surface; read-only authority |
 | P2 | `docs/tasks/V0_3-P2-production-agent-gateway-contract.md` Section 27 | current provider/gateway state; live acceptance is separate |
 | P3 | `docs/tasks/V0_3-P3-ocr-knowledge-provenance-contract.md` | page-level OCR/knowledge provenance consumer boundary |
-| P4 | `docs/tasks/V0_3-P4-guided-end-to-end-workbench-contract.md` (PR #137) | workflow aggregation and frontend consumer boundary only |
+| P4 | `docs/tasks/V0_3-P4-guided-end-to-end-workbench-contract.md` | workflow aggregation and frontend consumer boundary only |
+
+Merged upstream implementation provenance at this contract base:
+
+```text
+P3_PAGE_EVIDENCE_MERGE_PR=139
+P4_CONTRACT_MERGE_PR=137
+P4_BACKEND_WORKFLOW_AGGREGATION_MERGE_PR=141
+P4_FRONTEND_GUIDED_WORKBENCH_R1_MERGE_PR=142
+P4_TRACKING_ISSUE_112=CLOSED
+P3_TRACKING_ISSUE_111=OPEN
+P5_TRACKING_ISSUE_113=OPEN
+```
 
 P5 must not modify any upstream contract file, the P1 acceptance runbook, the
-P1 acceptance workflow, or any file owned by open PR #137 or PR #139.
+P1 acceptance workflow, or merged upstream P1/P2/P3/P4 implementation files
+except through separately authorized P5 implementation allowlists.
 
 ### 1.2 Explicitly excluded from V0.3 mainline
 
@@ -85,12 +99,20 @@ SCHEME_SCORING_CHANGE_AUTHORIZED=NO
 P5_EXECUTES_CONTROLLED_ACCEPTANCE_NOW=NO
 P5_CREATES_TAG_NOW=NO
 P5_CREATES_GITHUB_RELEASE_NOW=NO
+V03_P5_READY_AUTHORIZED=NO
 P5_IMPLEMENTATION_AUTHORIZED=NO
 CONTROLLED_ACCEPTANCE_AUTHORIZED=NO
 V0_3_TAG_AUTHORIZED=NO
 GITHUB_RELEASE_AUTHORIZED=NO
 PRODUCTION_DEPLOYMENT_AUTHORIZED=NO
+PRODUCTION_ENABLEMENT_AUTHORIZED=NO
 REAL_PRODUCTION_OPERATION_AUTHORIZED=NO
+BACKEND_MUTATION_AUTHORIZED=NO
+FRONTEND_MUTATION_AUTHORIZED=NO
+SECOND_PR_AUTHORIZED=NO
+MARK_READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+ISSUE_CLOSE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
@@ -115,15 +137,19 @@ Additional frozen boundaries:
    contract only. Runner, workflow, evidence bundle, tag, and release work
    require separate later authorizations.
 
-5. **P4 implementation must exist before P5 may claim executability.** While PR
-   #137 remains unmerged and P4 implementation is absent from `main`, P5 must
-   be described as a planning contract only. P5 may not claim that V0.3
-   controlled acceptance is currently runnable.
+5. **Merged P3/P4 upstream work does not make P5 runnable.** At this contract
+   base, P3 page-evidence production and P4 backend/frontend guided-workbench
+   implementation are on `main`. That satisfies upstream producer prerequisites
+   only. P5 remains a contract-freeze round and must not claim that V0.3
+   controlled acceptance is currently runnable without separately authorized P5
+   implementation and controlled-acceptance execution.
 
 6. **Scenario C depends on P3 page-level provenance.** Knowledge-backed portions
-   of Scenario C require the frozen P3 page-evidence producer boundary to be
-   implemented and merged. OCR detection-only or partial-publication states are
-   not sufficient provenance evidence.
+   of Scenario C consume the merged P3 page-evidence producer on `main` through
+   the frozen P3 consumer boundary. OCR detection-only or partial-publication
+   states remain insufficient provenance evidence. Scenario C execution still
+   requires separately authorized P5 controlled acceptance; merged P3 does not
+   authorize that execution in this round.
 
 7. **P2 live real-provider acceptance is not a P4/P5 mainline gate.** P2
    Section 27 records `CONTROLLED_REAL_PROVIDER_ACCEPTANCE_EXECUTED=NO`. P5
@@ -164,15 +190,22 @@ P2_LIVE_PROVIDER_ACCEPTANCE_COMPLETE=NO
 P2_LIVE_PROVIDER_ACCEPTANCE_REQUIRED_FOR_P5_MAINLINE=NO
 
 P3_CONTRACT_FROZEN=YES
-P3_PAGE_EVIDENCE_IMPLEMENTATION_COMPLETE=NO
+P3_PAGE_EVIDENCE_IMPLEMENTATION_COMPLETE=YES
+P3_PAGE_EVIDENCE_ON_MAIN=YES
 P3_PAGE_EVIDENCE_REQUIRED_FOR_SCENARIO_C=YES
 
-P4_CONTRACT_FROZEN_IN_DRAFT_PR137=YES
-P4_IMPLEMENTATION_ON_MAIN=NO
+P4_CONTRACT_FROZEN=YES
+P4_CONTRACT_ON_MAIN=YES
+P4_BACKEND_WORKFLOW_AGGREGATION_ON_MAIN=YES
+P4_FRONTEND_GUIDED_WORKBENCH_R1_ON_MAIN=YES
+P4_IMPLEMENTATION_ON_MAIN=YES
 P4_REQUIRED_BEFORE_P5_EXECUTABLE=YES
+P4_UPSTREAM_PREREQUISITE_SATISFIED_AT_CONTRACT_BASE=YES
 
-P5_EXECUTABLE_WHILE_P4_UNMERGED=NO
-P5_EXECUTABLE_WHILE_P3_SCENARIO_C_PRODUCER_PENDING=NO_FOR_SCENARIO_C
+P5_UPSTREAM_P3_P4_IMPLEMENTATION_PREREQUISITE=YES
+P5_CONTROLLED_ACCEPTANCE_RUNNABLE_NOW=NO
+P5_EXECUTABLE_NOW=NO
+P5_SCENARIO_C_EXECUTION_AUTHORIZED=NO
 ```
 
 ### 4.3 Dependency order for future execution
@@ -185,16 +218,17 @@ V03-P2 -> V03-P4
 V03-P3 -> V03-P4
 ```
 
-Future P5 controlled acceptance therefore requires, at minimum:
+At this contract base, merged P3 page-evidence production and merged P4
+backend/frontend guided-workbench implementation are already on `main`. Future
+P5 controlled acceptance therefore still requires, at minimum:
 
-1. merged P1 review/formal-report closure needed for Scenarios A and B;
-2. merged P4 guided workbench aggregation/consumer implementation needed for
-   umbrella executability claims;
-3. merged P3 page-evidence implementation needed for Scenario C knowledge
-   portions;
-4. separately authorized P5 runner/workflow implementation;
-5. separately authorized controlled acceptance execution;
-6. separately authorized release/tag publication.
+1. revalidated P1 review/formal-report closure evidence needed for Scenarios A
+   and B;
+2. post-merge verification that P3/P4 interfaces consumed by P5 remain aligned
+   with then-current `main`;
+3. separately authorized P5 runner/workflow implementation;
+4. separately authorized controlled acceptance execution;
+5. separately authorized release/tag publication.
 
 No step above authorizes the next.
 
@@ -357,16 +391,18 @@ Future controlled acceptance for Scenario C must prove:
 
 ```text
 SCENARIO_C_KNOWLEDGE_PROVENANCE_AUTHORITY=P3_PAGE_LEVEL_EVIDENCE_PRODUCER
-SCENARIO_C_KNOWLEDGE_PROVENANCE_COMPLETE_WHILE_P3_PAGE_EVIDENCE_PENDING=NO
+P3_PAGE_EVIDENCE_ON_MAIN=YES
+SCENARIO_C_EXECUTION_AUTHORIZED=NO
+SCENARIO_C_REQUIRES_SEPARATELY_AUTHORIZED_P5_CONTROLLED_ACCEPTANCE=YES
 SCENARIO_C_AGENT_TRANSPORT_FOR_CONTROLLED_ACCEPTANCE=fake_or_mocked_gateway_allowed
 SCENARIO_C_LIVE_MIMO_PROVIDER_CALL_REQUIRED=NO
 SCENARIO_C_LIVE_PROVIDER_ACCEPTANCE_REQUIRED=NO
 ```
 
-Scenario C must not pass while P3 page-evidence production remains pending unless
-the contract is amended to narrow Scenario C to native-text-only knowledge with
-an explicit non-OCR fixture. The default frozen requirement is full page-level
-provenance readback for cited knowledge.
+Scenario C consumes merged P3 page-level provenance on `main` but does not
+authorize execution in this contract round. A future separately authorized P5
+controlled-acceptance run must still prove full page-level provenance readback
+for cited knowledge.
 
 #### Scenario C non-goals
 
@@ -374,8 +410,7 @@ Scenario C does not require:
 
 - live MiMo provider acceptance or production Agent enablement;
 - cloud OCR or external knowledge upload;
-- frontend workbench UI proof;
-- P4 workflow aggregate endpoint existence;
+- frontend workbench UI proof as the primary acceptance surface;
 - report formal export unless the selected scenario fixture also includes a
   formal-report goal; Scenario C default scope is orchestration plus deterministic
   calculation plus explanation, not a substitute for Scenario A or B formal-artifact proof;
@@ -683,8 +718,7 @@ docs/tasks/V0_3-P3-ocr-knowledge-provenance-contract.md
 docs/tasks/V0_3-P4-guided-end-to-end-workbench-contract.md
 backend/alembic/**
 TASK-019 contract files
-PR137_FILES=FORBIDDEN
-PR139_FILES=FORBIDDEN
+MERGED_UPSTREAM_P1_P2_P3_P4_PACKAGE_FILES_OUTSIDE_P5_ALLOWLIST=FORBIDDEN
 ```
 
 ## 11. Required future test and acceptance matrix
@@ -697,7 +731,7 @@ acceptance execution may be authorized:
 | 1 | Scenario A passes on fresh SQLite and PostgreSQL |
 | 2 | Scenario B proves visible structured review reason and formal export fail-closed until valid review/approval |
 | 3 | Scenario C proves clarification, cited knowledge provenance, structured tools, deterministic calculation, and non-overriding explanation |
-| 4 | Scenario C fails closed or remains blocked while P3 page-evidence producer is pending |
+| 4 | Scenario C remains unauthorized until separately authorized P5 controlled-acceptance execution, even with P3 page-evidence on `main` |
 | 5 | Restart readback preserves source/revision/coefficient lineage |
 | 6 | Restart readback preserves Agent session/tool-call records when Scenario C runs |
 | 7 | Multilingual formal artifacts match shared canonical identity with independent file hashes |
@@ -742,11 +776,13 @@ if it requires any of:
 4. OCR or knowledge producer semantic changes outside frozen P3;
 5. P4 workflow producer changes outside frozen P4;
 6. modification of the P1 acceptance workflow;
-7. mutation of PR #137 or PR #139 files;
+7. mutation of merged upstream P1/P2/P3/P4 package files outside the frozen P5
+   implementation allowlist;
 8. production deployment, registry push, signing, or release publication inside
    the acceptance run;
 9. treating TASK-019, Issue #17, or expired Issue #11/#13 as V0.3 mainline scope;
-10. claiming executability while P4 implementation remains unmerged.
+10. claiming P5 controlled acceptance is runnable without separately authorized
+    P5 implementation and controlled-acceptance execution.
 
 Every required source, review, approval, persistence, provenance, or artifact
 identity must fail closed on missing, stale, mismatched, or ambiguous evidence.
@@ -789,13 +825,14 @@ Until then, every `PASS` item above is planning vocabulary only.
 TASK=V03_P5_CONTROLLED_ACCEPTANCE_AND_RELEASE_CONTRACT_DEFINITION_R1
 PARENT_ISSUE=108
 TRACKING_ISSUE=113
-CONTRACT_DEFINITION_SOURCE_SHA=02f4b0e04f4178a2e9c3275a360d5047f0e5b7e2
-CONTRACT_DEFINITION_SOURCE_TREE=0d2112e61c63d1dd4d2ffa1ce7bcaeebb8579cf3
-CONTRACT_STATUS=DEFINITION_R1_DRAFT_FOR_INDEPENDENT_REVIEW
+CONTRACT_DEFINITION_SOURCE_SHA=d47d0ea9a41859879a14db9e1b158bf541df5725
+CONTRACT_DEFINITION_SOURCE_TREE=70fe379bafbacd76c9a49eec13a9b8619db0826d
+CONTRACT_STATUS=DEFINITION_R1_DRAFT_ALIGNED_TO_CURRENT_MAIN
 CONTRACT_CHANGED_FILE_COUNT=1
 AUTHORIZED_CONTRACT_PATH=docs/tasks/V0_3-P5-controlled-acceptance-and-release-contract.md
 
 V03_P5_CONTRACT_FROZEN=YES
+V03_P5_READY_AUTHORIZED=NO
 V03_P5_IMPLEMENTATION_AUTHORIZED=NO
 V03_P5_IMPLEMENTATION_EXECUTED=NO
 CONTROLLED_ACCEPTANCE_AUTHORIZED=NO
@@ -803,8 +840,23 @@ CONTROLLED_ACCEPTANCE_EXECUTED=NO
 V0_3_TAG_AUTHORIZED=NO
 GITHUB_RELEASE_AUTHORIZED=NO
 PRODUCTION_DEPLOYMENT_AUTHORIZED=NO
-P5_EXECUTABLE_WHILE_P4_UNMERGED=NO
-P5_SCENARIO_C_EXECUTABLE_WHILE_P3_PAGE_EVIDENCE_PENDING=NO
+PRODUCTION_ENABLEMENT_AUTHORIZED=NO
+BACKEND_MUTATION_AUTHORIZED=NO
+FRONTEND_MUTATION_AUTHORIZED=NO
+SECOND_PR_AUTHORIZED=NO
+MARK_READY_AUTHORIZED=NO
+ISSUE_CLOSE_AUTHORIZED=NO
+
+P3_PAGE_EVIDENCE_IMPLEMENTATION_COMPLETE=YES
+P3_PAGE_EVIDENCE_ON_MAIN=YES
+P4_CONTRACT_FROZEN=YES
+P4_CONTRACT_ON_MAIN=YES
+P4_IMPLEMENTATION_ON_MAIN=YES
+P4_UPSTREAM_PREREQUISITE_SATISFIED_AT_CONTRACT_BASE=YES
+P5_UPSTREAM_P3_P4_IMPLEMENTATION_PREREQUISITE=YES
+P5_CONTROLLED_ACCEPTANCE_RUNNABLE_NOW=NO
+P5_EXECUTABLE_NOW=NO
+P5_SCENARIO_C_EXECUTION_AUTHORIZED=NO
 P2_LIVE_PROVIDER_ACCEPTANCE_REQUIRED_FOR_P5_MAINLINE=NO
 
 READY_AUTHORIZED=NO
@@ -822,3 +874,4 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 | Revision | Date | Scope | State |
 | --- | --- | --- | --- |
 | R1 | 2026-08-21 | P5 controlled acceptance and release contract; scenarios A/B/C; SQLite/PostgreSQL; restart lineage; multilingual formal artifacts; SHA/tree and checksum evidence; failure diagnostics; cleanup; separate tag/release authorization; hard non-deployment boundary | Draft for independent review |
+| R1a | 2026-08-22 | Realign contract base to `main@d47d0ea9`; record merged P3 (#139) and P4 (#137/#141/#142) on main; preserve P5 contract-only / non-runnable posture | Draft aligned to current main |
