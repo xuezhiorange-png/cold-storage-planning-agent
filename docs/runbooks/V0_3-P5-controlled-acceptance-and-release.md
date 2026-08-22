@@ -8,14 +8,16 @@ acceptance workflow, or the ordinary regression suite.
 
 Implementation R1 adds only the harness, pilot runner, this runbook, and a
 dispatch-only workflow. Fixture source-definition R1 binds Scenario A/B/C
-fixture JSON and records SHA-256 evidence. Scenario execution, controlled
-acceptance dispatch, tag publication, and GitHub Release remain separately
-authorized later stages.
+fixture JSON and records SHA-256 evidence. Scenario execution engine R1 adds
+the bound A/B/C execution path behind explicit authorization gates while
+controlled acceptance dispatch, tag publication, and GitHub Release remain
+separately authorized later stages.
 
 Implementation R1 PASS does not authorize controlled acceptance execution.
 Fixture source-definition R1 PASS does not authorize scenario execution or
-workflow dispatch. The workflow must not be dispatched from a pull request or
-from a feature branch.
+workflow dispatch. Scenario execution engine R1 PASS does not authorize
+workflow dispatch, tag publication, or GitHub Release. The workflow must not
+be dispatched from a pull request or from a feature branch.
 
 **Ordinary PR CI != Controlled Acceptance.** Ordinary CI validates the code;
 it is not evidence that the controlled workflow has run.
@@ -28,6 +30,8 @@ CONTRACT_PATH=docs/tasks/V0_3-P5-controlled-acceptance-and-release-contract.md
 WORKFLOW_PATH=.github/workflows/v0-3-p5-controlled-acceptance-and-release.yml
 CONTROLLED_ACCEPTANCE_AUTHORIZED=NO
 CONTROLLED_ACCEPTANCE_EXECUTED=NO
+SCENARIO_EXECUTION_ENGINE_ROUND=SCENARIO_EXECUTION_ENGINE_R1
+SCENARIO_EXECUTION_IMPLEMENTED=YES
 SCENARIO_A_RUN_AUTHORIZED=NO
 SCENARIO_B_RUN_AUTHORIZED=NO
 SCENARIO_C_RUN_AUTHORIZED=NO
@@ -59,9 +63,11 @@ Scenario execution requires all of the following:
    - workflow input `execution_authorized=YES`, plus CLI `--execution-authorized`, or
    - environment variable `V03_P5_CONTROLLED_ACCEPTANCE_EXECUTION_AUTHORIZED=YES`.
 
-Harness R1 still fails closed after these gates because scenario execution is
-not authorized. Fixture source-definition R1 binds the scenario JSON files
-below but does not authorize planning runs or controlled acceptance execution.
+Harness R1 still fails closed without explicit execution authorization.
+Scenario execution engine R1 executes the bound fixture only after explicit
+execution authorization, authorization record id, trusted operator, and exact
+source SHA/tree gates pass. Controlled acceptance dispatch, tag publication,
+and GitHub Release remain separately unauthorized.
 
 ## Fixture source-definition evidence
 
@@ -143,11 +149,13 @@ PYTHONPATH=src uv run python tests/pilot/run_v03_controlled_acceptance.py run \
   --output /tmp/v03-p5-scenario-a-refusal.json
 ```
 
-Even with `--execution-authorized` or
-`V03_P5_CONTROLLED_ACCEPTANCE_EXECUTION_AUTHORIZED=YES`, harness R1 refuses
-scenario execution with `SCENARIO_EXECUTION_NOT_AUTHORIZED` because controlled
-acceptance execution remains separately unauthorized even after fixture
-source-definition binding.
+With `--execution-authorized` or
+`V03_P5_CONTROLLED_ACCEPTANCE_EXECUTION_AUTHORIZED=YES`, the runner provisions
+a fresh isolated database (sqlite by default; postgresql requires
+`--database-url`), executes the bound fixture through persisted production
+application services, and records evidence JSON with source SHA/tree, calculator
+versions, review flags, and artifact hashes. Controlled acceptance workflow
+dispatch, tag publication, and GitHub Release remain separately unauthorized.
 
 ## Workflow constraints
 
@@ -167,6 +175,8 @@ Harness failures use machine-readable JSON:
 ```text
 CONTROLLED_ACCEPTANCE_NOT_AUTHORIZED
 CONTROLLED_ACCEPTANCE_AUTHORIZATION_RECORD_MISSING
+DATABASE_URL_REQUIRED
+SCENARIO_DATABASE_URL_REQUIRED
 SCENARIO_EXECUTION_NOT_AUTHORIZED
 WORKFLOW_DISPATCH_REQUIRED
 WORKFLOW_MAIN_REF_REQUIRED

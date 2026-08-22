@@ -95,7 +95,7 @@ jobs:
           uv run python tests/pilot/run_v03_controlled_acceptance.py harness-status \
             --output "${evidence_root}/harness-status.json"
 
-      - name: Refuse unauthorized scenario execution
+      - name: Execute or refuse scenario per authorization gate
         if: always()
         working-directory: backend
         env:
@@ -114,16 +114,20 @@ jobs:
             --execution-source-tree-sha "${SOURCE_TREE_SHA}"
             --backend sqlite
             --run-index 1
-            --output "${evidence_root}/scenario-a-refusal.json"
+            --artifact-root "${evidence_root}/scenario-a"
+            --output "${evidence_root}/scenario-a-evidence.json"
           )
           if [ "${EXECUTION_AUTHORIZED_INPUT}" = "YES" ]; then
             args+=(--execution-authorized)
+            uv run python tests/pilot/run_v03_controlled_acceptance.py "${args[@]}"
+            echo "CONTROLLED_ACCEPTANCE_SCENARIO_EXECUTED=YES"
+          else
+            if uv run python tests/pilot/run_v03_controlled_acceptance.py "${args[@]}"; then
+              echo "scenario execution must fail closed without explicit authorization"
+              exit 1
+            fi
+            echo "CONTROLLED_ACCEPTANCE_EXECUTION_REFUSED=YES"
           fi
-          if uv run python tests/pilot/run_v03_controlled_acceptance.py "${args[@]}"; then
-            echo "scenario execution must fail closed in harness R1"
-            exit 1
-          fi
-          echo "CONTROLLED_ACCEPTANCE_EXECUTION_REFUSED=YES"
 
       - name: Upload harness evidence
         if: always()
