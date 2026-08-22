@@ -1,0 +1,134 @@
+name: V0.3 P5 Controlled Acceptance and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact main commit under controlled acceptance
+        required: true
+        type: string
+      source_tree_sha:
+        description: Exact main tree under controlled acceptance
+        required: true
+        type: string
+      trusted_operator:
+        description: Explicit trusted operator actor; never inferred from github.actor
+        required: true
+        type: string
+      authorization_record_id:
+        description: Separately authorized controlled-acceptance record
+        required: true
+        type: string
+      execution_authorized:
+        description: Must remain NO until a later stage explicitly authorizes execution
+        required: true
+        type: choice
+        options:
+          - "NO"
+          - "YES"
+        default: "NO"
+
+permissions:
+  contents: read
+
+jobs:
+  controlled-acceptance:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      SOURCE_TREE_SHA: ${{ inputs.source_tree_sha }}
+      TRUSTED_OPERATOR: ${{ inputs.trusted_operator }}
+      AUTHORIZATION_RECORD_ID: ${{ inputs.authorization_record_id }}
+      EXECUTION_AUTHORIZED_INPUT: ${{ inputs.execution_authorized }}
+    steps:
+      - name: Checkout exact main source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate dispatch gates
+        run: |
+          set -euo pipefail
+          test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test -n "${AUTHORIZATION_RECORD_ID}"
+          test -n "${TRUSTED_OPERATOR}"
+          test "${TRUSTED_OPERATOR}" != "system"
+          test "${TRUSTED_OPERATOR}" != "api"
+          test "${TRUSTED_OPERATOR}" != "background"
+          test "${TRUSTED_OPERATOR}" != "llm"
+          test "${GITHUB_SHA}" = "${SOURCE_SHA}"
+          test "$(git rev-parse HEAD)" = "${SOURCE_SHA}"
+          test "$(git rev-parse HEAD^{tree})" = "${SOURCE_TREE_SHA}"
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          echo "CONTROLLED_ACCEPTANCE_SOURCE_GATE=PASS"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install locked backend dependencies
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Verify harness gates
+        working-directory: backend
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/v03-p5-acceptance"
+          mkdir -p "${evidence_root}"
+          uv run python tests/pilot/run_v03_controlled_acceptance.py verify-gates \
+            --authorization-record-id "${AUTHORIZATION_RECORD_ID}" \
+            --trusted-operator "${TRUSTED_OPERATOR}" \
+            --execution-source-sha "${SOURCE_SHA}" \
+            --execution-source-tree-sha "${SOURCE_TREE_SHA}" \
+            --event-name "${GITHUB_EVENT_NAME}" \
+            --git-ref "${GITHUB_REF}" \
+            --checked-out-sha "$(git rev-parse HEAD)" \
+            --checked-out-tree-sha "$(git rev-parse HEAD^{tree})" \
+            --output "${evidence_root}/verify-gates.json"
+          uv run python tests/pilot/run_v03_controlled_acceptance.py harness-status \
+            --output "${evidence_root}/harness-status.json"
+
+      - name: Refuse unauthorized scenario execution
+        if: always()
+        working-directory: backend
+        env:
+          PYTHONPATH: src
+          V03_P5_CONTROLLED_ACCEPTANCE_EXECUTION_AUTHORIZED: ${{ inputs.execution_authorized == 'YES' && 'YES' || 'NO' }}
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/v03-p5-acceptance"
+          mkdir -p "${evidence_root}"
+          args=(
+            run
+            --scenario A
+            --authorization-record-id "${AUTHORIZATION_RECORD_ID}"
+            --trusted-operator "${TRUSTED_OPERATOR}"
+            --execution-source-sha "${SOURCE_SHA}"
+            --execution-source-tree-sha "${SOURCE_TREE_SHA}"
+            --backend sqlite
+            --run-index 1
+            --output "${evidence_root}/scenario-a-refusal.json"
+          )
+          if [ "${EXECUTION_AUTHORIZED_INPUT}" = "YES" ]; then
+            args+=(--execution-authorized)
+          fi
+          if uv run python tests/pilot/run_v03_controlled_acceptance.py "${args[@]}"; then
+            echo "scenario execution must fail closed in harness R1"
+            exit 1
+          fi
+          echo "CONTROLLED_ACCEPTANCE_EXECUTION_REFUSED=YES"
+
+      - name: Upload harness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v03-p5-controlled-acceptance-harness
+          path: ${{ runner.temp }}/v03-p5-acceptance
+          retention-days: 14
