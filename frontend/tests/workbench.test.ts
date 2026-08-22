@@ -5,6 +5,7 @@ import { createPinia } from 'pinia'
 
 import App from '../src/App.vue'
 import { usePlanningWorkflowStore } from '../src/stores/planningWorkflow'
+import { usePersistedPlanningResultsStore } from '../src/stores/persistedPlanningResults'
 import { useWorkbenchContextStore } from '../src/stores/workbenchContext'
 import { createWorkbenchRouter } from '../src/app/router'
 import { installWorkbenchFetchMock, samplePlanningRunResponse } from './helpers/workbenchFetchMock'
@@ -60,6 +61,7 @@ describe('cold storage workbench', () => {
     localStorage.clear()
     const workbench = useWorkbenchContextStore(pinia)
     workbench.resetForTests()
+    usePersistedPlanningResultsStore(pinia).resetForTests()
     installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'))
     await workbench.initialize()
     // Defensive: the previous test may have left focus on a removed DOM
@@ -544,9 +546,9 @@ describe('cold storage workbench', () => {
     await flushPromises()
     expect(testRouter.currentRoute.value.name).toBe('calculations')
 
-    // 6. Summary rendered
-    expect(wrapper.text()).toContain('850')
-    expect(wrapper.text()).toContain('300')
+    // 6. Summary rendered from persisted calculations authority
+    expect(wrapper.text()).toContain('650')
+    expect(wrapper.text()).toContain('200')
 
     // 7. Zone rows rendered
     expect(wrapper.text()).toContain('原料暂存')
@@ -851,6 +853,7 @@ describe('narrow screen nav link clicks', () => {
     localStorage.clear()
     const workbench = useWorkbenchContextStore(pinia)
     workbench.resetForTests()
+    usePersistedPlanningResultsStore(pinia).resetForTests()
     installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'))
     await workbench.initialize()
     await testRouter.push('/workbench/project')
@@ -986,7 +989,8 @@ describe('narrow screen nav link clicks', () => {
     await testRouter.push('/workbench/power')
     await flushPromises()
     const powerScrolls = wrapper.findAll('.table-scroll')
-    expect(powerScrolls.length).toBeGreaterThanOrEqual(2)
+    expect(powerScrolls.length).toBeGreaterThanOrEqual(1)
+    expect(wrapper.text()).toContain('装机总功率')
     
     // Investment
     await testRouter.push('/workbench/investment')

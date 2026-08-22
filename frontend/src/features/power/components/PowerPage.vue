@@ -1,13 +1,26 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { ElCard, ElTable, ElTableColumn } from 'element-plus'
 
-import { usePlanningWorkflowStore } from '../../../stores/planningWorkflow'
+import { usePersistedPlanningResultsStore } from '../../../stores/persistedPlanningResults'
+import { useWorkbenchContextStore } from '../../../stores/workbenchContext'
 import type { EquipmentPowerRowContract, PowerSummaryRowContract } from '../../../api/contracts/planning'
 
-const store = usePlanningWorkflowStore()
+const workbench = useWorkbenchContextStore()
+const persisted = usePersistedPlanningResultsStore()
 
-const response = computed(() => store.latestResponse)
+onMounted(() => {
+  persisted.load()
+})
+
+watch(
+  () => [workbench.projectId, workbench.versionNumber] as const,
+  () => {
+    persisted.load()
+  }
+)
+
+const response = computed(() => persisted.displayResponse)
 
 const equipmentRows = computed<(EquipmentPowerRowContract & { _key: string })[]>(() => {
   const pc = response.value?.power_configuration
@@ -39,6 +52,10 @@ const requiresReview = computed(() => {
   return response.value?.power_configuration?.requires_review ?? false
 })
 
+const hasPowerData = computed(() => {
+  return equipmentRows.value.length > 0 || totalInstalled.value > 0 || summaryRows.value.length > 0
+})
+
 function formatNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2)
 }
@@ -50,14 +67,13 @@ function formatOptionalPower(value: number | null): string {
 
 <template>
   <div class="power-page">
-    <template v-if="response && equipmentRows.length > 0">
+    <template v-if="response && hasPowerData">
       <ElCard>
         <template #header>
           <span>用电配置</span>
         </template>
 
-        <!-- Equipment table -->
-        <div class="table-scroll">
+        <div v-if="equipmentRows.length > 0" class="table-scroll">
           <ElTable :data="equipmentRows" stripe border size="small" max-height="480">
             <ElTableColumn prop="sequence" label="序号" width="60" align="center" />
             <ElTableColumn prop="name" label="名称" min-width="140" />
@@ -86,7 +102,14 @@ function formatOptionalPower(value: number | null): string {
           </ElTable>
         </div>
 
-        <!-- Summary table -->
+        <p
+          v-else-if="totalInstalled > 0"
+          class="power-page__persisted-note"
+          role="note"
+        >
+          设备明细未持久化；当前仅展示持久化投资测算输入中的装机总功率。运行规划后可在同会话内查看完整设备表直至刷新。
+        </p>
+
         <div v-if="summaryRows.length > 0" class="table-scroll" style="margin-top: 16px">
           <ElTable
             :data="summaryRows"
@@ -104,7 +127,6 @@ function formatOptionalPower(value: number | null): string {
           </ElTable>
         </div>
 
-        <!-- Totals -->
         <div class="power-page__totals">
           <div class="power-page__total-item">
             <span class="power-page__total-label">装机总功率</span>
@@ -132,6 +154,17 @@ function formatOptionalPower(value: number | null): string {
 <style scoped>
 .power-page {
   max-width: 1200px;
+}
+
+.power-page__persisted-note {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #eef4fb;
+  border: 1px solid #c7d4e3;
+  color: #40566f;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .power-page__totals {

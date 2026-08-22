@@ -67,17 +67,82 @@ export function samplePlanningRunResponse(): PlanningRunResponse {
       total_power_kw: 1350,
       requires_review: false
     },
-    zone_plan: { result: { zones: [] } },
-    investment_estimate: { result: { items: [] } },
+    zone_plan: {
+      result: {
+        zones: [{
+          zone_name: '原料暂存',
+          temperature_band: '常温',
+          daily_throughput_kg: 12000,
+          design_storage_mass_kg: 24000,
+          position_count: 80,
+          required_area_m2: 200
+        }]
+      }
+    },
+    investment_estimate: {
+      result: {
+        items: [{ item_name: '土建', amount_cny: 600_000 }]
+      }
+    },
     power_configuration: {
       equipment_rows: [],
       summary_rows: [],
       items: [],
-      total_installed_power_kw: 0,
+      total_installed_power_kw: 1350,
       total_estimated_demand_kw: 0,
       requires_review: false
     }
   }
+}
+
+function planningResponseToCalculationRuns(response: PlanningRunResponse): Array<Record<string, unknown>> {
+  const runs: Array<Record<string, unknown>> = []
+  const zones = response.zone_plan?.result?.zones ?? []
+  if (zones.length > 0) {
+    runs.push({
+      id: 'calc-zone-1',
+      project_id: 'proj-test',
+      project_version_id: 'ver-1',
+      calculator_name: 'cold_room_zone_plan',
+      calculator_version: '1.0.0',
+      result_snapshot: {
+        success: response.success,
+        calculator_name: 'cold_room_zone_plan',
+        calculator_version: '1.0.0',
+        input: {},
+        result: response.zone_plan?.result ?? { zones }
+      },
+      requires_review: response.summary?.requires_review ?? false
+    })
+  }
+
+  const investmentItems = response.investment_estimate?.result?.items ?? []
+  if (investmentItems.length > 0 || response.summary?.total_investment_cny) {
+    runs.push({
+      id: 'calc-investment-1',
+      project_id: 'proj-test',
+      project_version_id: 'ver-1',
+      calculator_name: 'investment_estimate',
+      calculator_version: '1.0.0',
+      result_snapshot: {
+        success: response.success,
+        calculator_name: 'investment_estimate',
+        calculator_version: '1.0.0',
+        input: {
+          total_area_m2: response.summary?.total_area_m2 ?? 0,
+          total_power_kw: response.summary?.total_power_kw ?? 0,
+          position_count: response.summary?.total_position_count ?? 0
+        },
+        result: {
+          total_investment_cny: response.summary?.total_investment_cny ?? 0,
+          items: investmentItems
+        }
+      },
+      requires_review: response.summary?.requires_review ?? false
+    })
+  }
+
+  return runs
 }
 
 export function installWorkbenchFetchMock(
@@ -87,11 +152,21 @@ export function installWorkbenchFetchMock(
     workflow?: WorkflowAggregateV1
     planningRunError?: Error
     planningRunResponse?: PlanningRunResponse
+    persistedPlanningResponse?: PlanningRunResponse
     deferPlanningRun?: boolean
   } = {}
 ) {
-  let resolvePlanningRun: ((response: Response) => void) | null = null
+  let resolveDeferredPlanningRun: ((response?: PlanningRunResponse) => void) | null = null
   let lastPlanningRunSignal: AbortSignal | null = null
+  let persistedCalculations: Array<Record<string, unknown>> = []
+
+  function recordPlanningResponse(response: PlanningRunResponse): void {
+    persistedCalculations = planningResponseToCalculationRuns(response)
+  }
+
+  if (options.persistedPlanningResponse) {
+    recordPlanningResponse(options.persistedPlanningResponse)
+  }
   const workflow = options.workflow ?? sampleWorkflowAggregate(
     options.agentAvailable
       ? {
@@ -150,7 +225,16 @@ export function installWorkbenchFetchMock(
       )
     }
 
-    if (url.includes('/versions/1') && !url.includes('planning-run') && method === 'GET') {
+    if (url.includes('/calculations') && method === 'GET' && !url.includes('/preview')) {
+      return new Response(JSON.stringify(persistedCalculations))
+    }
+
+    if (
+      url.includes('/versions/1') &&
+      !url.includes('planning-run') &&
+      !url.includes('/calculations') &&
+      method === 'GET'
+    ) {
       return new Response(
         JSON.stringify({
           id: 'ver-1',
@@ -166,10 +250,15 @@ export function installWorkbenchFetchMock(
       if (options.planningRunError) {
         throw options.planningRunError
       }
-      const body = JSON.stringify(options.planningRunResponse ?? samplePlanningRunResponse())
+      const planningResponse = options.planningRunResponse ?? samplePlanningRunResponse()
+      const body = JSON.stringify(planningResponse)
       if (options.deferPlanningRun) {
         return new Promise<Response>((resolve, reject) => {
-          resolvePlanningRun = resolve
+          resolveDeferredPlanningRun = (override?: PlanningRunResponse) => {
+            const response = override ?? planningResponse
+            recordPlanningResponse(response)
+            resolve(new Response(JSON.stringify(response)))
+          }
           const signal = init?.signal
           if (signal?.aborted) {
             reject(new DOMException('Aborted', 'AbortError'))
@@ -184,6 +273,7 @@ export function installWorkbenchFetchMock(
           }
         })
       }
+      recordPlanningResponse(planningResponse)
       return new Response(body)
     }
 
@@ -198,9 +288,7 @@ export function installWorkbenchFetchMock(
     fetchMock,
     lastPlanningRunSignal: () => lastPlanningRunSignal,
     resolvePlanningRun: (response?: PlanningRunResponse) => {
-      resolvePlanningRun?.(
-        new Response(JSON.stringify(response ?? samplePlanningRunResponse()))
-      )
+      resolveDeferredPlanningRun?.(response)
     }
   }
 }

@@ -5,12 +5,14 @@ import { useRouter } from 'vue-router'
 
 import ProjectInputsPanel from './ProjectInputsPanel.vue'
 import { usePlanningWorkflowStore } from '../../../stores/planningWorkflow'
+import { usePersistedPlanningResultsStore } from '../../../stores/persistedPlanningResults'
 import { useWorkbenchContextStore } from '../../../stores/workbenchContext'
 import type { PlanningRunRequest } from '../../../api/contracts/planning'
 
 const router = useRouter()
 const store = usePlanningWorkflowStore()
 const workbench = useWorkbenchContextStore()
+const persistedResults = usePersistedPlanningResultsStore()
 
 onMounted(async () => {
   if (!workbench.isReady) {
@@ -38,6 +40,7 @@ async function handleSubmit(request: PlanningRunRequest): Promise<void> {
 
   if (response) {
     await workbench.refreshWorkflow()
+    await persistedResults.load()
     ElMessage.success('规划计算完成')
     await router.push('/workbench/calculations')
   }

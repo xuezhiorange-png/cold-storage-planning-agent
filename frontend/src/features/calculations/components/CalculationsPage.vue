@@ -1,12 +1,27 @@
 <script setup lang="ts">
+import { onMounted, watch } from 'vue'
 import { ElCard } from 'element-plus'
 
 import CalculationSummary from './CalculationSummary.vue'
 import ZoneResultsTable from './ZoneResultsTable.vue'
-import { usePlanningWorkflowStore } from '../../../stores/planningWorkflow'
+import { usePersistedPlanningResultsStore } from '../../../stores/persistedPlanningResults'
+import { useWorkbenchContextStore } from '../../../stores/workbenchContext'
 
-const store = usePlanningWorkflowStore()
-const response = store.latestResponse
+const workbench = useWorkbenchContextStore()
+const persisted = usePersistedPlanningResultsStore()
+
+onMounted(() => {
+  persisted.load()
+})
+
+watch(
+  () => [workbench.projectId, workbench.versionNumber] as const,
+  () => {
+    persisted.load()
+  }
+)
+
+const response = persisted.displayResponse
 </script>
 
 <template>
