@@ -14,7 +14,7 @@ import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 HARNESS_SCHEMA_VERSION = "v0.3-p5-controlled-acceptance-harness.v1"
 EVIDENCE_SCHEMA_VERSION = "v0.3-p5-controlled-acceptance-evidence.v1"
@@ -347,7 +347,7 @@ def _load_bound_fixture(scenario: str, repo_root: Path) -> dict[str, Any]:
         "scenario fixture must be a JSON object",
         fixture_path=str(fixture_path),
     )
-    return payload
+    return cast(dict[str, Any], payload)
 
 
 def _build_evidence_envelope(
@@ -680,7 +680,7 @@ def _execute_scenario_a(
         from cold_storage.modules.projects.infrastructure.orm import CalculationRunRecord
 
         for record in session.query(CalculationRunRecord).all():
-            calculator_versions[str(record.stage)] = record.calculator_version
+            calculator_versions[str(record.calculation_type)] = record.calculator_version
     return {
         "workflow_goal": fixture.get("workflow_goal"),
         "project_id": project_id,
@@ -784,7 +784,7 @@ def _execute_scenario_b(
         from cold_storage.modules.projects.infrastructure.orm import CalculationRunRecord
 
         for record in session.query(CalculationRunRecord).all():
-            calculator_versions[str(record.stage)] = record.calculator_version
+            calculator_versions[str(record.calculation_type)] = record.calculator_version
     return {
         "workflow_goal": fixture.get("workflow_goal"),
         "project_id": project_id,
@@ -818,7 +818,7 @@ def _execute_scenario_c(
     from cold_storage.modules.calculations.domain.investment import InvestmentEstimator
     from cold_storage.modules.calculations.domain.zone_planning import ColdRoomZonePlanner
     from cold_storage.modules.knowledge.application.service import KnowledgeService
-    from cold_storage.modules.knowledge.infrastructure.ocr_adapter import OcrPageResult
+    from cold_storage.modules.knowledge.infrastructure.ocr_adapter import OcrAdapter, OcrPageResult
     from cold_storage.modules.knowledge.infrastructure.repository import KnowledgeRepository
     from cold_storage.modules.planning_agent.application.orchestrator import AgentOrchestrator
     from cold_storage.modules.planning_agent.application.service import PlanningAgentService
@@ -831,6 +831,7 @@ def _execute_scenario_c(
     from cold_storage.modules.planning_agent.infrastructure.tool_adapters.knowledge_adapter import (
         KnowledgeSearchAdapter,
     )
+    from cold_storage.modules.planning_agent.infrastructure.tool_adapters import ToolAdapter
     from cold_storage.modules.planning_agent.infrastructure.tool_adapters.planning_adapter import (
         ThroughputInventoryAreaAdapter,
     )
@@ -875,42 +876,48 @@ def _execute_scenario_c(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
     )
 
-    class _FakeOcrAdapter:
-        def ocr_pages(self, **kwargs: object) -> list[OcrPageResult]:
-            pages = kwargs["page_numbers"]
-            assert isinstance(pages, list)
-            common = {
-                "document_id": str(kwargs["document_id"]),
-                "revision_id": str(kwargs["revision_id"]),
-                "source_content_sha256": str(kwargs["source_content_sha256"]),
-                "ingestion_run_id": str(kwargs["ingestion_run_id"]),
-                "original_filename": str(kwargs["original_filename"]),
-                "engine_version": "fake-ocr-v1",
-            }
+    class _FakeOcrAdapter(OcrAdapter):
+        def ocr_pages(
+            self,
+            *,
+            content: bytes,
+            revision_id: str,
+            source_content_sha256: str,
+            page_numbers: list[int],
+            document_id: str = "",
+            ingestion_run_id: str = "",
+            original_filename: str = "",
+        ) -> list[OcrPageResult]:
+            _ = content
             return [
                 OcrPageResult.from_text(
                     page_number=page,
                     text="controlled acceptance OCR evidence with deterministic provenance.",
                     confidence=88.5,
                     confidence_source="fake_tsv",
-                    **common,
+                    document_id=document_id,
+                    revision_id=revision_id,
+                    source_content_sha256=source_content_sha256,
+                    ingestion_run_id=ingestion_run_id,
+                    original_filename=original_filename,
+                    engine_version="fake-ocr-v1",
                 )
-                for page in pages
+                for page in page_numbers
             ]
 
     knowledge_storage = output_root / "knowledge-storage"
     knowledge_storage.mkdir(parents=True, exist_ok=True)
     os.environ["KNOWLEDGE_STORAGE_DIR"] = str(knowledge_storage)
 
-    doc = pymupdf.open()
+    doc = pymupdf.open()  # type: ignore[no-untyped-call]
     doc.new_page().insert_text(
         (72, 72),
         "controlled acceptance native text with enough deterministic parser threshold.",
     )
     image_page = doc.new_page()
-    image_page.insert_image(image_page.rect, stream=one_pixel_png)
-    pdf_bytes = doc.tobytes()
-    doc.close()
+    image_page.insert_image(image_page.rect, stream=one_pixel_png)  # type: ignore[no-untyped-call]
+    pdf_bytes = doc.tobytes()  # type: ignore[no-untyped-call]
+    doc.close()  # type: ignore[no-untyped-call]
     content_hash = hashlib.sha256(pdf_bytes).hexdigest()
 
     session_factory = sessionmaker(bind=engine, expire_on_commit=False)
@@ -986,7 +993,7 @@ def _execute_scenario_c(
         registry = build_default_registry()
         zone_planner = ColdRoomZonePlanner()
         investment_estimator = InvestmentEstimator()
-        adapters = {
+        adapters: dict[str, ToolAdapter] = {
             "planning.calculate_throughput_inventory_area": ThroughputInventoryAreaAdapter(
                 zone_planner, investment_estimator
             ),
@@ -1109,7 +1116,7 @@ def _execute_scenario_c(
         fresh_project_service = DatabaseProjectService(engine)
         fresh_knowledge_service = KnowledgeService(fresh_session, ocr_adapter=_FakeOcrAdapter())
         fresh_registry = build_default_registry()
-        fresh_adapters = {
+        fresh_adapters: dict[str, ToolAdapter] = {
             "planning.calculate_throughput_inventory_area": ThroughputInventoryAreaAdapter(
                 ColdRoomZonePlanner(), InvestmentEstimator()
             ),
