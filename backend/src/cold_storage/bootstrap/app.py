@@ -900,7 +900,8 @@ def create_app(
     def _workflow_service_factory(request: Any) -> Any:
         from cold_storage.bootstrap.dependencies import get_project_service
 
-        project_service = request.app.dependency_overrides.get(get_project_service, get_project_service)()
+        override = request.app.dependency_overrides.get(get_project_service, get_project_service)
+        project_service = override()
         from cold_storage.modules.knowledge.infrastructure.repository import KnowledgeRepository
         from cold_storage.modules.reports.application.service import _default_trusted_operator
         from cold_storage.modules.reports.infrastructure.repository import SQLReportRepository

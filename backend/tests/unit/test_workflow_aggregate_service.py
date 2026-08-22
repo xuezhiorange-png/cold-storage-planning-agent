@@ -28,16 +28,14 @@ class _SchemeQueryStub:
     def get_completed_runs_for_project_version(
         self, project_id: str, version_id: str
     ) -> list[dict[str, Any]]:
-        return [
-            run
-            for run in self._runs
-            if run.get("project_version_id") == version_id
-        ]
+        return [run for run in self._runs if run.get("project_version_id") == version_id]
 
     def get_candidates_for_run(self, run_id: str) -> list[dict[str, Any]]:
         return []
 
-    def get_review_authority(self, project_id: str, version_id: str) -> SchemeReviewAuthority | None:
+    def get_review_authority(
+        self, project_id: str, version_id: str
+    ) -> SchemeReviewAuthority | None:
         return self._authority
 
 
@@ -84,7 +82,9 @@ class _ReportRepoStub:
         self._report = report
         self._revision = revision
 
-    def list_reports(self, project_id: str | None = None, created_by: str | None = None) -> list[Report]:
+    def list_reports(
+        self, project_id: str | None = None, created_by: str | None = None
+    ) -> list[Report]:
         if self._report is None or project_id != self._report.project_id:
             return []
         return [self._report]
@@ -234,7 +234,9 @@ def test_formal_export_projection_does_not_override_p1_gate() -> None:
         workflow_goal=WORKFLOW_GOAL_FORMAL_REPORT,
     )
     assert aggregate["formal_export_eligibility"]["eligible"] is False
-    assert aggregate["formal_export_eligibility"]["authority_owner"] == "reports_module_p1_lifecycle"
+    assert aggregate["formal_export_eligibility"]["authority_owner"] == (
+        "reports_module_p1_lifecycle"
+    )
     assert aggregate["formal_export_eligibility"]["revalidation_required"] is True
     assert aggregate["workflow_readiness"]["status"] in {"NOT_READY", "BLOCKED", "STALE"}
 
@@ -269,7 +271,9 @@ def test_partial_ocr_is_not_complete_provenance() -> None:
         },
     )
     assert projection["status"] in {"PENDING", "INVALID"}
-    assert any("Partial OCR is not complete provenance" in b["message"] for b in projection["blockers"])
+    assert any(
+        "Partial OCR is not complete provenance" in b["message"] for b in projection["blockers"]
+    )
 
 
 def test_workflow_service_is_read_only_surface() -> None:

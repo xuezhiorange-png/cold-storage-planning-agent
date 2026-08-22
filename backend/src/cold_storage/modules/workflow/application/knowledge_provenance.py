@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from cold_storage.modules.reports.domain.models import ReportRevision
-
 
 def content_depends_on_knowledge_source(content_json: dict[str, Any]) -> bool:
     """Return True when governed content embeds a knowledge revision dependency."""
@@ -105,9 +103,11 @@ def assess_knowledge_provenance(
                 )
 
     if blockers:
-        status = "INVALID" if any(
-            b.get("code") == "KNOWLEDGE_PROVENANCE_UNAVAILABLE" for b in blockers
-        ) else "PENDING"
+        status = (
+            "INVALID"
+            if any(b.get("code") == "KNOWLEDGE_PROVENANCE_UNAVAILABLE" for b in blockers)
+            else "PENDING"
+        )
         return {
             "required": True,
             "available": False,
@@ -136,9 +136,13 @@ def extract_knowledge_revision_ids(content_json: dict[str, Any]) -> list[str]:
                 if isinstance(source_id, str) and source_id:
                     ids.append(source_id)
             revision_id = value.get("revision_id")
-            if value.get("document_id") and isinstance(revision_id, str) and revision_id:
-                if value.get("content_sha256") or value.get("persisted_content_hash"):
-                    ids.append(revision_id)
+            if (
+                value.get("document_id")
+                and isinstance(revision_id, str)
+                and revision_id
+                and (value.get("content_sha256") or value.get("persisted_content_hash"))
+            ):
+                ids.append(revision_id)
     return sorted(set(ids))
 
 

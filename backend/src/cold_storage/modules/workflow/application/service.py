@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any, Callable
+from typing import Any
 
 from cold_storage.modules.projects.application.service import ProjectService
 from cold_storage.modules.projects.domain.models import ProjectVersion
@@ -246,7 +247,11 @@ class WorkflowAggregateService:
 
     def _project_agent_assistance(self) -> dict[str, Any]:
         agent_entry = next(
-            (entry for entry in self._agent_capability_projection if entry.get("name") == "model_backed_agent"),
+            (
+                entry
+                for entry in self._agent_capability_projection
+                if entry.get("name") == "model_backed_agent"
+            ),
             None,
         )
         if agent_entry is None:
@@ -448,9 +453,7 @@ def _evaluate_step(
             )
             return "NOT_STARTED", applicability == "REQUIRED", blockers
         review_required = [
-            name
-            for name, record in calc_by_name.items()
-            if record.get("requires_review")
+            name for name, record in calc_by_name.items() if record.get("requires_review")
         ]
         if review_required:
             blockers.append(
@@ -602,7 +605,10 @@ def _collect_blockers(
     return blockers
 
 
-def _build_missing_inputs(inputs: dict[str, Any], validation: dict[str, Any]) -> list[dict[str, Any]]:
+def _build_missing_inputs(
+    inputs: dict[str, Any],
+    validation: dict[str, Any],
+) -> list[dict[str, Any]]:
     missing_fields = list(validation.get("missing_fields", []))
     tentative_fields = list(validation.get("tentative_fields", []))
     items: list[dict[str, Any]] = []
@@ -665,7 +671,7 @@ def _build_next_actions(
         "FORMAL_REPORT",
     ]
     actions: list[dict[str, Any]] = []
-    for index, step_name in enumerate(priority):
+    for step_name in priority:
         step = next(item for item in steps if item["step"] == step_name)
         if step.get("status") in {"COMPLETED", "APPROVED", "NOT_APPLICABLE"}:
             continue
@@ -803,7 +809,11 @@ def _project_review(scheme_authority: Any | None, report: Report | None) -> dict
 def _project_approval(version: ProjectVersion, report: Report | None) -> dict[str, Any]:
     project_status = "APPROVED" if version.status == "approved" else "PENDING"
     report_status = report.status.value if report is not None else "NOT_REQUESTED"
-    effective = "APPROVED" if project_status == "APPROVED" and report_status == "approved" else project_status
+    effective = (
+        "APPROVED"
+        if project_status == "APPROVED" and report_status == "approved"
+        else project_status
+    )
     return {
         "project_version_approval_status": project_status,
         "report_approval_status": report_status,
