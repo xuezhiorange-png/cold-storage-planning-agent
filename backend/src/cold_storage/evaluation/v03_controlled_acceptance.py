@@ -1603,7 +1603,6 @@ def _extract_restart_readback_lineage(
             "approved_content_hash": lifecycle.get("approved_content_hash"),
             "scheme_run": scenario_result.get("scheme_run"),
             "scheme_authority": {
-                "scheme_run_id": scheme_authority.get("scheme_run_id"),
                 "combined_source_hash": scheme_authority.get("combined_source_hash"),
                 "content_hash": scheme_authority.get("content_hash"),
                 "source_binding_id": scheme_authority.get("source_binding_id"),
