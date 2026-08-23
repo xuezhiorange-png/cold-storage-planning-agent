@@ -37,12 +37,30 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+          POSTGRES_DB: cold_storage
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U cold_storage -d cold_storage"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
     env:
       SOURCE_SHA: ${{ inputs.source_sha }}
       SOURCE_TREE_SHA: ${{ inputs.source_tree_sha }}
       TRUSTED_OPERATOR: ${{ inputs.trusted_operator }}
       AUTHORIZATION_RECORD_ID: ${{ inputs.authorization_record_id }}
       EXECUTION_AUTHORIZED_INPUT: ${{ inputs.execution_authorized }}
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: cold_storage
+      PGPASSWORD: cold_storage
     steps:
       - name: Checkout exact main source
         uses: actions/checkout@v4
@@ -69,6 +87,10 @@ jobs:
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
+
+      - name: Install PostgreSQL client and CJK font
+        if: inputs.execution_authorized == 'YES'
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client fonts-wqy-zenhei
 
       - name: Install locked backend dependencies
         working-directory: backend
@@ -105,23 +127,58 @@ jobs:
           set -euo pipefail
           evidence_root="${RUNNER_TEMP}/v03-p5-acceptance"
           mkdir -p "${evidence_root}"
-          args=(
-            run
-            --scenario A
-            --authorization-record-id "${AUTHORIZATION_RECORD_ID}"
-            --trusted-operator "${TRUSTED_OPERATOR}"
-            --execution-source-sha "${SOURCE_SHA}"
-            --execution-source-tree-sha "${SOURCE_TREE_SHA}"
-            --backend sqlite
-            --run-index 1
-            --artifact-root "${evidence_root}/scenario-a"
-            --output "${evidence_root}/scenario-a-evidence.json"
-          )
           if [ "${EXECUTION_AUTHORIZED_INPUT}" = "YES" ]; then
-            args+=(--execution-authorized)
-            uv run python tests/pilot/run_v03_controlled_acceptance.py "${args[@]}"
-            echo "CONTROLLED_ACCEPTANCE_SCENARIO_EXECUTED=YES"
+            for scenario in A B C; do
+              artifact_root="${evidence_root}/scenario-${scenario,,}-sqlite"
+              output="${evidence_root}/scenario-${scenario,,}-sqlite-evidence.json"
+              uv run python tests/pilot/run_v03_controlled_acceptance.py run \
+                --scenario "${scenario}" \
+                --authorization-record-id "${AUTHORIZATION_RECORD_ID}" \
+                --trusted-operator "${TRUSTED_OPERATOR}" \
+                --execution-source-sha "${SOURCE_SHA}" \
+                --execution-source-tree-sha "${SOURCE_TREE_SHA}" \
+                --backend sqlite \
+                --run-index 1 \
+                --execution-authorized \
+                --artifact-root "${artifact_root}" \
+                --output "${output}"
+            done
+            for scenario in A B C; do
+              db="v03_p5_matrix_${scenario,,}"
+              psql -d cold_storage -v ON_ERROR_STOP=1 -c "CREATE DATABASE ${db};"
+              database_url="postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/${db}"
+              COLD_STORAGE_DATABASE_BACKEND=postgresql \
+              COLD_STORAGE_DATABASE_URL="${database_url}" \
+              uv run alembic upgrade head
+              artifact_root="${evidence_root}/scenario-${scenario,,}-postgresql"
+              output="${evidence_root}/scenario-${scenario,,}-postgresql-evidence.json"
+              uv run python tests/pilot/run_v03_controlled_acceptance.py run \
+                --scenario "${scenario}" \
+                --authorization-record-id "${AUTHORIZATION_RECORD_ID}" \
+                --trusted-operator "${TRUSTED_OPERATOR}" \
+                --execution-source-sha "${SOURCE_SHA}" \
+                --execution-source-tree-sha "${SOURCE_TREE_SHA}" \
+                --backend postgresql \
+                --run-index 1 \
+                --database-url "${database_url}" \
+                --execution-authorized \
+                --artifact-root "${artifact_root}" \
+                --output "${output}"
+            done
+            echo "CONTROLLED_ACCEPTANCE_SCENARIO_MATRIX_EXECUTED=YES"
           else
+            args=(
+              run
+              --scenario A
+              --authorization-record-id "${AUTHORIZATION_RECORD_ID}"
+              --trusted-operator "${TRUSTED_OPERATOR}"
+              --execution-source-sha "${SOURCE_SHA}"
+              --execution-source-tree-sha "${SOURCE_TREE_SHA}"
+              --backend sqlite
+              --run-index 1
+              --artifact-root "${evidence_root}/scenario-a-sqlite-refusal"
+              --output "${evidence_root}/scenario-a-sqlite-refusal.json"
+            )
             if uv run python tests/pilot/run_v03_controlled_acceptance.py "${args[@]}"; then
               echo "scenario execution must fail closed without explicit authorization"
               exit 1
