@@ -28,6 +28,7 @@ from cold_storage.evaluation.v03_controlled_acceptance import (  # noqa: E402
     ScenarioAExecutionBinding,
     ScenarioExecutionSupport,
     V03ControlledAcceptanceError,
+    assemble_release_evidence,
     build_harness_status,
     execute_scenario,
     execution_authorized_from_env,
@@ -192,6 +193,18 @@ def _build_parser() -> argparse.ArgumentParser:
         help="explicit opt-in required for scenario execution",
     )
     run.add_argument("--output", type=Path, required=True)
+
+    assemble = subparsers.add_parser(
+        "assemble-release-evidence",
+        help="assemble P5 STAGE_10 release evidence from an existing STAGE_9 artifact root",
+    )
+    assemble.add_argument(
+        "--stage9-evidence-root",
+        type=Path,
+        required=True,
+        help="directory containing locked STAGE_9 controlled acceptance evidence JSON",
+    )
+    assemble.add_argument("--output", type=Path, required=True)
     return parser
 
 
@@ -257,6 +270,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             _write_json(args.output, payload)
             print(json.dumps({"status": "PASS", "output": str(args.output)}, sort_keys=True))
             return 0
+
+        if args.command == "assemble-release-evidence":
+            payload = assemble_release_evidence(stage9_evidence_root=args.stage9_evidence_root)
+            _write_json(args.output, payload)
+            print(
+                json.dumps(
+                    {
+                        "status": payload["result"]["status"],
+                        "release_evidence_result": payload["release_evidence_result"],
+                        "output": str(args.output),
+                    },
+                    sort_keys=True,
+                )
+            )
+            return 0 if payload["result"]["status"] == "PASS" else 1
     except V03ControlledAcceptanceError as exc:
         payload = {"status": "BLOCKED", "error": exc.to_json()}
         output = getattr(args, "output", None)

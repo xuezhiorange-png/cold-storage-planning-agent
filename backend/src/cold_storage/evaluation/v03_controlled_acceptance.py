@@ -14,7 +14,7 @@ import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Mapping, cast
 
 HARNESS_SCHEMA_VERSION = "v0.3-p5-controlled-acceptance-harness.v1"
 EVIDENCE_SCHEMA_VERSION = "v0.3-p5-controlled-acceptance-evidence.v1"
@@ -1343,6 +1343,427 @@ def refuse_scenario_execution(
     )
 
 
+RELEASE_EVIDENCE_SCHEMA_VERSION = "v0.3-p5-release-evidence.v1"
+P5_STAGE_RELEASE_EVIDENCE_ASSEMBLY = "RELEASE_EVIDENCE_ASSEMBLY"
+
+LOCKED_STAGE9_CONTROLLED_ACCEPTANCE_AUTHORITY: dict[str, str] = {
+    "workflow_run_id": "32627831343",
+    "workflow_run_url": (
+        "https://github.com/xuezhiorange-png/cold-storage-planning-agent/actions/runs/32627831343"
+    ),
+    "job_id": "97165830132",
+    "artifact_id": "9490201526",
+    "artifact_name": "v03-p5-controlled-acceptance-harness",
+    "artifact_digest": (
+        "sha256:9633dbccae3cbfbc5c1b271d958c929a99f737a457768e659fd8639f2580ee12"
+    ),
+    "authorization_record_id": "V03-P5-CA-STAGE8-7029cd9e14b1b6ad50d726772ca114356d3018e7",
+    "trusted_operator": "xuezhiorange-png",
+    "execution_source_sha": "7029cd9e14b1b6ad50d726772ca114356d3018e7",
+    "execution_source_tree_sha": "71a5837411da249eb71b7014f4d951d25887f6d6",
+}
+
+MATRIX_EVIDENCE_FILENAMES: dict[tuple[str, str], str] = {
+    ("A", "sqlite"): "scenario-a-sqlite-evidence.json",
+    ("A", "postgresql"): "scenario-a-postgresql-evidence.json",
+    ("B", "sqlite"): "scenario-b-sqlite-evidence.json",
+    ("B", "postgresql"): "scenario-b-postgresql-evidence.json",
+    ("C", "sqlite"): "scenario-c-sqlite-evidence.json",
+    ("C", "postgresql"): "scenario-c-postgresql-evidence.json",
+}
+
+P5_IMPLEMENTATION_ALLOWLIST: dict[str, tuple[str, ...]] = {
+    "production_code": (
+        "backend/src/cold_storage/evaluation/v03_controlled_acceptance.py",
+    ),
+    "pilot_runner": ("backend/tests/pilot/run_v03_controlled_acceptance.py",),
+    "pilot_tests": ("backend/tests/pilot/test_v03_controlled_acceptance.py",),
+    "scenario_fixtures": (
+        "backend/tests/pilot/data/v03-scenario-a-normal-formal-report.v1.json",
+        "backend/tests/pilot/data/v03-scenario-b-review-required-formal-report.v1.json",
+        "backend/tests/pilot/data/v03-scenario-c-agent-knowledge-deterministic.v1.json",
+    ),
+    "runbook": ("docs/runbooks/V0_3-P5-controlled-acceptance-and-release.md",),
+    "workflow": (".github/workflows/v0-3-p5-controlled-acceptance-and-release.yml",),
+}
+
+UPSTREAM_DEPENDENCY_CLOSURE: dict[str, dict[str, object]] = {
+    "P1": {
+        "status": "MERGED_AND_VERIFIED",
+        "contract_path": "docs/tasks/V0_3-P1-review-formal-report-closure-contract.md",
+        "controlled_acceptance_runbook": "docs/runbooks/V0_3-P1-review-formal-report-acceptance.md",
+        "controlled_acceptance_workflow": (
+            ".github/workflows/v0-3-p1-review-formal-report-acceptance.yml"
+        ),
+    },
+    "P2": {
+        "status": "MERGED_AND_VERIFIED",
+        "contract_path": "docs/tasks/V0_3-P2-production-agent-gateway-contract.md",
+        "live_provider_acceptance_required_for_p5_mainline": "NO",
+    },
+    "P3": {
+        "status": "MERGED_AND_VERIFIED",
+        "contract_path": "docs/tasks/V0_3-P3-ocr-knowledge-provenance-contract.md",
+        "page_evidence_merge_pr": 139,
+        "page_evidence_required_for_scenario_c": "YES",
+    },
+    "P4": {
+        "status": "MERGED_AND_VERIFIED",
+        "contract_path": "docs/tasks/V0_3-P4-guided-end-to-end-workbench-contract.md",
+        "contract_merge_pr": 137,
+        "backend_workflow_aggregation_merge_pr": 141,
+        "frontend_guided_workbench_r1_merge_pr": 142,
+    },
+}
+
+NO_FORMULA_COEFFICIENT_SCHEME_SCORING_CHANGE_STATEMENT = (
+    "P5 STAGE_10 release evidence assembly references only the separately authorized "
+    "STAGE_9 controlled acceptance artifact. It does not recompute engineering "
+    "values and asserts no formula, coefficient, or scheme-scoring change occurred "
+    "during P5 controlled acceptance execution."
+)
+
+CONTROLLED_ACCEPTANCE_NOT_PRODUCTION_DEPLOYMENT_STATEMENT = (
+    "Passing P5 controlled acceptance and assembling P5 release evidence does not "
+    "authorize production deployment, registry mutation, signing attestation, tag "
+    "creation, GitHub Release publication, or production enablement."
+)
+
+
+def _matrix_cell_key(scenario: str, backend: str) -> str:
+    return f"{scenario.lower()}_{backend}"
+
+
+def _load_json_object(path: Path) -> dict[str, Any]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    _require(
+        isinstance(payload, dict),
+        "STAGE9_EVIDENCE_INVALID",
+        "stage-9 evidence file must be a JSON object",
+        path=str(path),
+    )
+    return cast(dict[str, Any], payload)
+
+
+def _validate_stage9_controlled_acceptance_root(
+    stage9_root: Path,
+    *,
+    authority: Mapping[str, str],
+) -> dict[str, dict[str, Any]]:
+    _require(
+        stage9_root.is_dir(),
+        "STAGE9_EVIDENCE_ROOT_MISSING",
+        "stage-9 controlled acceptance evidence root is required",
+        stage9_root=str(stage9_root),
+    )
+    verify_gates_path = stage9_root / "verify-gates.json"
+    harness_status_path = stage9_root / "harness-status.json"
+    _require(
+        verify_gates_path.is_file() and harness_status_path.is_file(),
+        "STAGE9_EVIDENCE_INCOMPLETE",
+        "stage-9 evidence root must include verify-gates.json and harness-status.json",
+        stage9_root=str(stage9_root),
+    )
+    verify_gates = _load_json_object(verify_gates_path)
+    harness_status = _load_json_object(harness_status_path)
+    _require(
+        verify_gates.get("status") == "PASS",
+        "STAGE9_VERIFY_GATES_FAILED",
+        "verify-gates.json must report PASS",
+        status=verify_gates.get("status"),
+    )
+    for key in (
+        "authorization_record_id",
+        "trusted_operator",
+        "execution_source_sha",
+        "execution_source_tree_sha",
+    ):
+        _require(
+            str(verify_gates.get(key, "")).strip() == authority[key],
+            "STAGE9_AUTHORITY_MISMATCH",
+            "verify-gates.json authority does not match locked STAGE_9 record",
+            field=key,
+            expected=authority[key],
+            observed=verify_gates.get(key),
+        )
+    harness_authorization = harness_status.get("authorization", {})
+    _require(
+        isinstance(harness_authorization, dict),
+        "STAGE9_HARNESS_STATUS_INVALID",
+        "harness-status.json must include authorization block",
+    )
+    for flag, expected in (
+        ("CONTROLLED_ACCEPTANCE_AUTHORIZED", "NO"),
+        ("V0_3_TAG_AUTHORIZED", "NO"),
+        ("GITHUB_RELEASE_AUTHORIZED", "NO"),
+        ("PRODUCTION_ENABLEMENT_AUTHORIZED", "NO"),
+    ):
+        _require(
+            harness_authorization.get(flag) == expected,
+            "STAGE9_HARNESS_FLAG_DRIFT",
+            "harness-status authorization flag must remain frozen",
+            flag=flag,
+            expected=expected,
+            observed=harness_authorization.get(flag),
+        )
+
+    loaded_cells: dict[str, dict[str, Any]] = {}
+    for (scenario, backend), filename in MATRIX_EVIDENCE_FILENAMES.items():
+        evidence_path = stage9_root / filename
+        _require(
+            evidence_path.is_file(),
+            "STAGE9_MATRIX_CELL_MISSING",
+            "stage-9 matrix evidence cell is missing",
+            scenario=scenario,
+            backend=backend,
+            path=str(evidence_path),
+        )
+        evidence = _load_json_object(evidence_path)
+        result = evidence.get("result", {})
+        _require(
+            isinstance(result, dict) and result.get("status") == "PASS",
+            "STAGE9_MATRIX_CELL_NOT_PASS",
+            "stage-9 matrix evidence cell must report PASS",
+            scenario=scenario,
+            backend=backend,
+            status=result.get("status") if isinstance(result, dict) else None,
+        )
+        for key in (
+            "authorization_record_id",
+            "trusted_operator",
+            "execution_source_sha",
+            "execution_source_tree_sha",
+            "scenario",
+        ):
+            observed = evidence.get(key)
+            expected = authority[key] if key != "scenario" else scenario
+            _require(
+                observed == expected,
+                "STAGE9_MATRIX_CELL_AUTHORITY_MISMATCH",
+                "matrix evidence cell authority identity mismatch",
+                scenario=scenario,
+                backend=backend,
+                field=key,
+                expected=expected,
+                observed=observed,
+            )
+        environment = evidence.get("environment", {})
+        _require(
+            isinstance(environment, dict) and environment.get("backend") == backend,
+            "STAGE9_MATRIX_CELL_BACKEND_MISMATCH",
+            "matrix evidence cell backend mismatch",
+            scenario=scenario,
+            backend=backend,
+            observed=environment.get("backend") if isinstance(environment, dict) else None,
+        )
+        loaded_cells[_matrix_cell_key(scenario, backend)] = {
+            "path": str(evidence_path),
+            "sha256": _sha256_file(evidence_path),
+            "evidence": evidence,
+        }
+    return {
+        "verify_gates": verify_gates,
+        "harness_status": harness_status,
+        "matrix_cells": loaded_cells,
+    }
+
+
+def _extract_restart_readback_lineage(
+    *,
+    scenario: str,
+    backend: str,
+    evidence: Mapping[str, Any],
+) -> dict[str, object]:
+    scenario_result = evidence.get("scenario_result", {})
+    _require(
+        isinstance(scenario_result, dict),
+        "STAGE9_SCENARIO_RESULT_INVALID",
+        "scenario evidence is missing scenario_result",
+        scenario=scenario,
+        backend=backend,
+    )
+    if scenario in {"A", "B"}:
+        lifecycle = scenario_result.get("lifecycle", {})
+        _require(
+            isinstance(lifecycle, dict),
+            "STAGE9_LIFECYCLE_MISSING",
+            "scenario A/B evidence must include lifecycle block",
+            scenario=scenario,
+            backend=backend,
+        )
+        scheme_authority = scenario_result.get("scheme_authority", {})
+        return {
+            "scenario": scenario,
+            "backend": backend,
+            "restart": lifecycle.get("restart"),
+            "fresh_session": lifecycle.get("fresh_session"),
+            "report_id": lifecycle.get("report_id"),
+            "report_revision_id": lifecycle.get("report_revision_id"),
+            "approved_revision_id": lifecycle.get("approved_revision_id"),
+            "approved_content_hash": lifecycle.get("approved_content_hash"),
+            "scheme_run": scenario_result.get("scheme_run"),
+            "scheme_authority": {
+                "combined_source_hash": scheme_authority.get("combined_source_hash"),
+                "content_hash": scheme_authority.get("content_hash"),
+                "source_binding_id": scheme_authority.get("source_binding_id"),
+                "weight_set_revision_id": scheme_authority.get("weight_set_revision_id"),
+                "requires_review": scheme_authority.get("requires_review"),
+            },
+            "review_actions": lifecycle.get("review_actions"),
+        }
+    fresh_session = scenario_result.get("fresh_session", {})
+    knowledge = scenario_result.get("knowledge_provenance", {})
+    agent = scenario_result.get("agent_assistance", {})
+    return {
+        "scenario": scenario,
+        "backend": backend,
+        "agent_session_preserved": fresh_session.get("agent_session_preserved"),
+        "message_count": fresh_session.get("message_count"),
+        "agent_session_id": agent.get("agent_session_id"),
+        "knowledge_document_id": knowledge.get("document_id"),
+        "knowledge_revision_id": knowledge.get("revision_id"),
+        "page_evidence_count": knowledge.get("page_evidence_count"),
+        "tool_sequence_observed": agent.get("tool_sequence_observed"),
+    }
+
+
+def _extract_multilingual_formal_artifact_checksums(
+    evidence: Mapping[str, Any],
+) -> list[dict[str, object]]:
+    scenario_result = evidence.get("scenario_result", {})
+    lifecycle = scenario_result.get("lifecycle", {}) if isinstance(scenario_result, dict) else {}
+    artifacts = lifecycle.get("artifacts", {}) if isinstance(lifecycle, dict) else {}
+    _require(
+        isinstance(artifacts, dict) and bool(artifacts),
+        "STAGE9_FORMAL_ARTIFACTS_MISSING",
+        "scenario A/B evidence must include formal artifact checksum table",
+    )
+    rows: list[dict[str, object]] = []
+    for label in sorted(artifacts):
+        artifact = artifacts[label]
+        _require(
+            isinstance(artifact, dict),
+            "STAGE9_FORMAL_ARTIFACT_INVALID",
+            "formal artifact observation must be an object",
+            label=label,
+        )
+        rows.append(
+            {
+                "matrix_label": label,
+                "locale": artifact.get("locale"),
+                "format": artifact.get("format"),
+                "approved_revision_id": artifact.get("approved_revision_id"),
+                "approved_content_hash": artifact.get("approved_content_hash"),
+                "file_sha256": artifact.get("file_sha256"),
+                "observed_file_sha256": artifact.get("observed_file_sha256"),
+                "report_revision_id": artifact.get("report_revision_id"),
+            }
+        )
+    return rows
+
+
+def assemble_release_evidence(
+    *,
+    stage9_evidence_root: Path,
+    authority: Mapping[str, str] | None = None,
+) -> dict[str, object]:
+    """Assemble P5 STAGE_10 release evidence from an existing STAGE_9 artifact root."""
+
+    locked_authority = dict(authority or LOCKED_STAGE9_CONTROLLED_ACCEPTANCE_AUTHORITY)
+    stage9 = _validate_stage9_controlled_acceptance_root(
+        stage9_evidence_root,
+        authority=locked_authority,
+    )
+    matrix_summary: dict[str, dict[str, str]] = {}
+    lineage_anchors: list[dict[str, object]] = []
+    formal_checksum_tables: list[dict[str, object]] = []
+    for (scenario, backend), _filename in MATRIX_EVIDENCE_FILENAMES.items():
+        cell = stage9["matrix_cells"][_matrix_cell_key(scenario, backend)]
+        evidence = cell["evidence"]
+        matrix_summary.setdefault(scenario, {})[backend] = "PASS"
+        lineage_anchors.append(
+            _extract_restart_readback_lineage(
+                scenario=scenario,
+                backend=backend,
+                evidence=evidence,
+            )
+        )
+        if scenario in {"A", "B"}:
+            formal_checksum_tables.append(
+                {
+                    "scenario": scenario,
+                    "backend": backend,
+                    "artifacts": _extract_multilingual_formal_artifact_checksums(evidence),
+                }
+            )
+
+    unresolved_blockers: list[dict[str, object]] = []
+    contract_section_7: dict[str, object] = {
+        "1_main_sha_tree": {
+            "execution_source_sha": locked_authority["execution_source_sha"],
+            "execution_source_tree_sha": locked_authority["execution_source_tree_sha"],
+        },
+        "2_scenario_backend_matrix": matrix_summary,
+        "3_restart_readback_lineage": lineage_anchors,
+        "4_multilingual_formal_artifact_checksums": formal_checksum_tables,
+        "5_no_formula_coefficient_scheme_scoring_change": {
+            "statement": NO_FORMULA_COEFFICIENT_SCHEME_SCORING_CHANGE_STATEMENT,
+            "engineering_formula_change": "NO",
+            "coefficient_change": "NO",
+            "scheme_scoring_change": "NO",
+            "stage9_rerun_performed": "NO",
+        },
+        "6_controlled_acceptance_not_production_deployment": {
+            "statement": CONTROLLED_ACCEPTANCE_NOT_PRODUCTION_DEPLOYMENT_STATEMENT,
+            "production_deployment_authorized": "NO",
+            "tag_creation_authorized": "NO",
+            "github_release_authorized": "NO",
+        },
+        "7_dependency_closure": UPSTREAM_DEPENDENCY_CLOSURE,
+        "8_p5_runner_workflow_identity": {
+            "contract_path": CONTRACT_PATH,
+            "runbook_path": RUNBOOK_PATH,
+            "workflow_path": WORKFLOW_PATH,
+            "harness_schema_version": HARNESS_SCHEMA_VERSION,
+            "evidence_schema_version": EVIDENCE_SCHEMA_VERSION,
+            "release_evidence_schema_version": RELEASE_EVIDENCE_SCHEMA_VERSION,
+            "implementation_allowlist": P5_IMPLEMENTATION_ALLOWLIST,
+            "harness_round": stage9["harness_status"].get("harness_round"),
+            "scenario_execution_engine_round": stage9["harness_status"].get(
+                "scenario_execution_engine_round"
+            ),
+        },
+        "9_operator_authorization_record": {
+            "authorization_record_id": locked_authority["authorization_record_id"],
+            "trusted_operator": locked_authority["trusted_operator"],
+            "stage9_workflow_run_id": locked_authority["workflow_run_id"],
+            "stage9_workflow_run_url": locked_authority["workflow_run_url"],
+            "stage9_job_id": locked_authority["job_id"],
+            "stage9_artifact_id": locked_authority["artifact_id"],
+            "stage9_artifact_name": locked_authority["artifact_name"],
+            "stage9_artifact_digest": locked_authority["artifact_digest"],
+        },
+        "10_unresolved_blockers": unresolved_blockers,
+    }
+    return {
+        "schema_version": RELEASE_EVIDENCE_SCHEMA_VERSION,
+        "p5_stage": P5_STAGE_RELEASE_EVIDENCE_ASSEMBLY,
+        "contract_path": CONTRACT_PATH,
+        "contract_section": "7",
+        "release_evidence_result": "PASS" if not unresolved_blockers else "BLOCKED",
+        "result": {
+            "status": "PASS" if not unresolved_blockers else "BLOCKED",
+            "blockers": unresolved_blockers,
+        },
+        "harness_authorization_flags_remain_no": build_harness_status()["authorization"],
+        "stage9_evidence_root": str(stage9_evidence_root),
+        "stage9_matrix_evidence_sha256": {
+            key: value["sha256"] for key, value in stage9["matrix_cells"].items()
+        },
+        "contract_section_7": contract_section_7,
+    }
+
+
 def ordinary_ci_is_controlled_acceptance() -> bool:
     """Ordinary PR CI must never be treated as controlled acceptance evidence."""
 
@@ -1357,7 +1778,11 @@ __all__ = [
     "EXECUTION_AUTHORIZATION_ENV",
     "FIXTURE_PATHS",
     "FIXTURE_SHA256",
-    "HARNESS_SCHEMA_VERSION",
+    "LOCKED_STAGE9_CONTROLLED_ACCEPTANCE_AUTHORITY",
+    "MATRIX_EVIDENCE_FILENAMES",
+    "P5_STAGE_RELEASE_EVIDENCE_ASSEMBLY",
+    "RELEASE_EVIDENCE_SCHEMA_VERSION",
+    "assemble_release_evidence",
     "MAIN_REF",
     "RUNBOOK_PATH",
     "SCENARIO_NAMES",

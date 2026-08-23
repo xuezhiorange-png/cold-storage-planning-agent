@@ -1,0 +1,32 @@
+{
+  "authorization": {
+    "CONTROLLED_ACCEPTANCE_AUTHORIZED": "NO",
+    "CONTROLLED_ACCEPTANCE_EXECUTED": "NO",
+    "FIXTURE_JSON_CREATE_AUTHORIZED": "NO",
+    "GITHUB_RELEASE_AUTHORIZED": "NO",
+    "NO_STEP_IMPLIES_THE_NEXT": "TRUE",
+    "ORDINARY_PR_CI_IS_CONTROLLED_ACCEPTANCE": "NO",
+    "PRODUCTION_ENABLEMENT_AUTHORIZED": "NO",
+    "SCENARIO_A_RUN_AUTHORIZED": "NO",
+    "SCENARIO_B_RUN_AUTHORIZED": "NO",
+    "SCENARIO_C_RUN_AUTHORIZED": "NO",
+    "V0_3_TAG_AUTHORIZED": "NO"
+  },
+  "contract_path": "docs/tasks/V0_3-P5-controlled-acceptance-and-release-contract.md",
+  "fixture_paths": {
+    "A": "backend/tests/pilot/data/v03-scenario-a-normal-formal-report.v1.json",
+    "B": "backend/tests/pilot/data/v03-scenario-b-review-required-formal-report.v1.json",
+    "C": "backend/tests/pilot/data/v03-scenario-c-agent-knowledge-deterministic.v1.json"
+  },
+  "harness_round": "SCENARIO_EXECUTION_ENGINE_R1",
+  "runbook_path": "docs/runbooks/V0_3-P5-controlled-acceptance-and-release.md",
+  "scenario_execution_engine_round": "SCENARIO_EXECUTION_ENGINE_R1",
+  "scenario_execution_implemented": "YES",
+  "scenarios": [
+    "A",
+    "B",
+    "C"
+  ],
+  "schema_version": "v0.3-p5-controlled-acceptance-harness.v1",
+  "workflow_path": ".github/workflows/v0-3-p5-controlled-acceptance-and-release.yml"
+}
