@@ -402,3 +402,84 @@ def test_execute_scenario_c_on_fresh_sqlite(tmp_path: Path) -> None:
     assert evidence["scenario"] == "C"
     assert evidence["scenario_result"]["agent_assistance"]["clarification_observed"] is True
     assert evidence["scenario_result"]["knowledge_provenance"]["search_result_count"] >= 1
+
+
+def test_resolve_database_url_auto_provisions_fresh_sqlite() -> None:
+    from sqlalchemy import create_engine, inspect
+
+    from tests.pilot.run_v03_controlled_acceptance import (
+        _provision_sqlite_database,
+        _resolve_database_url,
+    )
+
+    database_url = _resolve_database_url(backend="sqlite", database_url=None)
+    assert database_url.startswith("sqlite:///")
+    db_path = Path(database_url.removeprefix("sqlite:///"))
+    assert db_path.is_file()
+    engine = create_engine(database_url, connect_args={"check_same_thread": False})
+    try:
+        assert inspect(engine).has_table("projects")
+    finally:
+        engine.dispose()
+    with pytest.raises(V03ControlledAcceptanceError) as exc_info:
+        _provision_sqlite_database(database_url)
+    assert exc_info.value.code == "DATABASE_URL_INVALID"
+    assert "already exists" in str(exc_info.value)
+
+
+def test_provision_sqlite_database_rejects_existing_file(tmp_path: Path) -> None:
+    from tests.pilot.run_v03_controlled_acceptance import _provision_sqlite_database
+
+    db_path = tmp_path / "existing.db"
+    db_path.write_bytes(b"")
+    with pytest.raises(V03ControlledAcceptanceError) as exc_info:
+        _provision_sqlite_database(f"sqlite:///{db_path}")
+    assert exc_info.value.code == "DATABASE_URL_INVALID"
+    assert exc_info.value.details["database_path"] == str(db_path.resolve())
+
+
+def test_runner_sqlite_auto_provision_passes_database_url_resolution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests.pilot.run_v03_controlled_acceptance import main
+
+    captured: dict[str, str] = {}
+
+    def _fake_execute_scenario(**kwargs: object) -> dict[str, object]:
+        captured["database_url"] = str(kwargs["database_url"])
+        return {"result": {"status": "PASS"}}
+
+    monkeypatch.setattr(
+        "tests.pilot.run_v03_controlled_acceptance.execute_scenario",
+        _fake_execute_scenario,
+    )
+    output = tmp_path / "auto-provision.json"
+    result = main(
+        [
+            "run",
+            "--scenario",
+            "A",
+            "--authorization-record-id",
+            "auth-record-auto-provision",
+            "--trusted-operator",
+            "controlled.operator",
+            "--execution-source-sha",
+            "abc123",
+            "--execution-source-tree-sha",
+            "tree456",
+            "--backend",
+            "sqlite",
+            "--run-index",
+            "1",
+            "--execution-authorized",
+            "--output",
+            str(output),
+        ]
+    )
+    assert result == 0
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["result"]["status"] == "PASS"
+    database_url = captured["database_url"]
+    assert database_url.startswith("sqlite:///")
+    assert Path(database_url.removeprefix("sqlite:///")).is_file()

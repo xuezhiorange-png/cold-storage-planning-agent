@@ -129,9 +129,10 @@ def _resolve_database_url(*, backend: str, database_url: str | None) -> str:
     if database_url:
         return database_url
     if backend == "sqlite":
-        handle = tempfile.NamedTemporaryFile(prefix="v03-p5-", suffix=".db", delete=False)
-        handle.close()
-        return _provision_sqlite_database(f"{SQLITE_URL_SCHEME}{handle.name}")
+        fd, path = tempfile.mkstemp(prefix="v03-p5-", suffix=".db")
+        os.close(fd)
+        os.unlink(path)
+        return _provision_sqlite_database(f"{SQLITE_URL_SCHEME}{path}")
     raise V03ControlledAcceptanceError(
         "DATABASE_URL_REQUIRED",
         "postgresql scenario execution requires an explicit --database-url",
@@ -251,4 +252,9 @@ if __name__ == "__main__":
     raise SystemExit(main())
 
 
-__all__ = ["_build_scenario_execution_support", "_provision_sqlite_database", "main"]
+__all__ = [
+    "_build_scenario_execution_support",
+    "_provision_sqlite_database",
+    "_resolve_database_url",
+    "main",
+]
