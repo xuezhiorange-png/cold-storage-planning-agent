@@ -41,6 +41,25 @@ SQLITE_ALEMBIC_TIMEOUT_SECONDS = 180
 _SCENARIO_B_SOURCE_CANDIDATE_PATH = (
     "backend/src/cold_storage/bootstrap/s6_07_controlled_fixture.py::_EXECUTION_SNAPSHOT"
 )
+_SCENARIO_A_EQUIPMENT_OPERATING_CAPACITY_KW = "25.0"
+
+
+def _seed_scenario_a_prereqs(session: object) -> None:
+    """Seed Scenario A with feasible equipment capacity for formal report generation."""
+
+    from tests.evaluation import _seed_helpers as seed_helpers  # noqa: PLC0415
+
+    original_capacity = seed_helpers.EQUIPMENT_RESULT_SNAPSHOT.get("compressor_operating_capacity_kw")
+    seed_helpers.EQUIPMENT_RESULT_SNAPSHOT["compressor_operating_capacity_kw"] = (
+        _SCENARIO_A_EQUIPMENT_OPERATING_CAPACITY_KW
+    )
+    try:
+        seed_helpers.seed_a1_all_prereqs(session)  # type: ignore[arg-type]
+    finally:
+        if original_capacity is None:
+            seed_helpers.EQUIPMENT_RESULT_SNAPSHOT.pop("compressor_operating_capacity_kw", None)
+        else:
+            seed_helpers.EQUIPMENT_RESULT_SNAPSHOT["compressor_operating_capacity_kw"] = original_capacity
 
 
 def _build_scenario_execution_support() -> ScenarioExecutionSupport:
@@ -53,14 +72,13 @@ def _build_scenario_execution_support() -> ScenarioExecutionSupport:
     from tests.evaluation._seed_helpers import (  # noqa: PLC0415
         SOURCE_BINDING_ID,
         WEIGHT_REVISION_ID,
-        seed_a1_all_prereqs,
     )
 
     return ScenarioExecutionSupport(
         scenario_a=ScenarioAExecutionBinding(
             source_binding_id=SOURCE_BINDING_ID,
             weight_set_revision_id=WEIGHT_REVISION_ID,
-            seed_prereqs=seed_a1_all_prereqs,
+            seed_prereqs=_seed_scenario_a_prereqs,
         ),
         scenario_b_source_runtime=ControlledSourceRuntime(
             source_candidate_path=_SCENARIO_B_SOURCE_CANDIDATE_PATH,
@@ -246,6 +264,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             _write_json(output, payload)
         print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
         return 1
+    except Exception as exc:
+        payload = {
+            "status": "BLOCKED",
+            "error": {
+                "code": "CONTROLLED_ACCEPTANCE_FAILED",
+                "message": str(exc),
+                "details": {"exception_type": type(exc).__name__},
+            },
+        }
+        output = getattr(args, "output", None)
+        if output is not None:
+            _write_json(output, payload)
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+        return 1
 
 
 if __name__ == "__main__":
@@ -256,5 +288,6 @@ __all__ = [
     "_build_scenario_execution_support",
     "_provision_sqlite_database",
     "_resolve_database_url",
+    "_seed_scenario_a_prereqs",
     "main",
 ]

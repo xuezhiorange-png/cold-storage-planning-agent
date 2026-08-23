@@ -478,6 +478,16 @@ def _run_formal_report_lifecycle(
             revision,
             diagnostics,
         )
+        generated_report = report_service.get_report(report.id, operator)
+        _require(
+            generated_report.status.value == "generated",
+            "REPORT_NOT_GENERATED",
+            "report revision must reach generated status before submit_review",
+            report_status_after_generate_revision=diagnostics.report_status_after_generate_revision,
+            quality_blockers_after_generate_revision=(
+                diagnostics.quality_blockers_after_generate_revision or []
+            ),
+        )
         _invoke_review_lifecycle_action(
             report_service,
             report.id,
@@ -516,14 +526,13 @@ def _run_formal_report_lifecycle(
                 "blocked": True,
                 "detail": blocked_detail,
             }
-        if requires_review:
-            _invoke_review_lifecycle_action(
-                report_service,
-                report.id,
-                operator,
-                "mark_reviewed",
-                diagnostics,
-            )
+        _invoke_review_lifecycle_action(
+            report_service,
+            report.id,
+            operator,
+            "mark_reviewed",
+            diagnostics,
+        )
         approved = _invoke_review_lifecycle_action(
             report_service,
             report.id,
@@ -604,6 +613,10 @@ def _run_formal_report_lifecycle(
         "approved_revision_id": approved_revision_id,
         "approved_content_hash": approved_content_hash,
         "requires_review": requires_review,
+        "report_status_after_generate_revision": diagnostics.report_status_after_generate_revision,
+        "quality_blockers_after_generate_revision": (
+            diagnostics.quality_blockers_after_generate_revision or []
+        ),
         "artifacts": {
             key: observation.to_json() for key, observation in observations.items()
         },

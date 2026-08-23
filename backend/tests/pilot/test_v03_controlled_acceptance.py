@@ -379,6 +379,89 @@ def test_runner_respects_env_execution_authorization_flag(tmp_path: Path, monkey
     assert payload["error"]["code"] == "DATABASE_URL_REQUIRED"
 
 
+def test_execute_scenario_a_on_fresh_sqlite(tmp_path: Path) -> None:
+    from tests.pilot.run_v03_controlled_acceptance import (
+        _build_scenario_execution_support,
+        _provision_sqlite_database,
+    )
+
+    db_path = tmp_path / "scenario-a.db"
+    database_url = _provision_sqlite_database(f"sqlite:///{db_path}")
+    output_root = tmp_path / "scenario-a-output"
+    evidence = execute_scenario(
+        scenario="A",
+        authorization_record_id="auth-record-scenario-a",
+        trusted_operator="controlled.operator",
+        execution_source_sha="abc123",
+        execution_source_tree_sha="tree456",
+        execution_authorized=True,
+        backend="sqlite",
+        run_index=1,
+        database_url=database_url,
+        output_root=output_root,
+        repo_root=REPO_ROOT,
+        execution_support=_build_scenario_execution_support(),
+    )
+    assert evidence["result"]["status"] == "PASS"
+    assert evidence["scenario"] == "A"
+    lifecycle = evidence["scenario_result"]["lifecycle"]
+    assert lifecycle["review_actions"] == ["submit_review", "mark_reviewed", "approve"]
+    assert set(lifecycle["artifacts"]) == {
+        "zh-CN/docx",
+        "zh-CN/pdf",
+        "en-US/docx",
+        "en-US/pdf",
+    }
+    assert evidence["scenario_result"]["scheme_authority"]["requires_review"] is False
+
+
+def test_execute_scenario_a_fails_closed_when_report_stays_draft(tmp_path: Path) -> None:
+    from tests.evaluation._seed_helpers import (
+        SOURCE_BINDING_ID,
+        WEIGHT_REVISION_ID,
+        seed_a1_all_prereqs,
+    )
+    from tests.pilot.run_v03_controlled_acceptance import _provision_sqlite_database
+    from cold_storage.evaluation.v03_controlled_acceptance import (
+        ScenarioAExecutionBinding,
+        ScenarioExecutionSupport,
+        execute_scenario,
+    )
+
+    support = ScenarioExecutionSupport(
+        scenario_a=ScenarioAExecutionBinding(
+            source_binding_id=SOURCE_BINDING_ID,
+            weight_set_revision_id=WEIGHT_REVISION_ID,
+            seed_prereqs=seed_a1_all_prereqs,
+        ),
+        scenario_b_source_runtime=None,
+    )
+    db_path = tmp_path / "scenario-a-draft.db"
+    database_url = _provision_sqlite_database(f"sqlite:///{db_path}")
+    with pytest.raises(V03ControlledAcceptanceError) as exc_info:
+        execute_scenario(
+            scenario="A",
+            authorization_record_id="auth-record-scenario-a-draft",
+            trusted_operator="controlled.operator",
+            execution_source_sha="abc123",
+            execution_source_tree_sha="tree456",
+            execution_authorized=True,
+            backend="sqlite",
+            run_index=1,
+            database_url=database_url,
+            output_root=tmp_path / "scenario-a-draft-output",
+            repo_root=REPO_ROOT,
+            execution_support=support,
+        )
+    assert exc_info.value.code == "REPORT_NOT_GENERATED"
+    assert exc_info.value.details["report_status_after_generate_revision"] == "draft"
+    blockers = exc_info.value.details["quality_blockers_after_generate_revision"]
+    assert any(
+        blocker.get("field_path") == "scheme_comparison.recommended_scheme"
+        for blocker in blockers
+    )
+
+
 def test_execute_scenario_c_on_fresh_sqlite(tmp_path: Path) -> None:
     from tests.pilot.run_v03_controlled_acceptance import _provision_sqlite_database
 
