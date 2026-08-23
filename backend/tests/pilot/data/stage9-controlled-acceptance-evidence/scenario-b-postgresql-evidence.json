@@ -1,0 +1,401 @@
+{
+  "authorization_record_id": "V03-P5-CA-STAGE8-7029cd9e14b1b6ad50d726772ca114356d3018e7",
+  "environment": {
+    "backend": "postgresql",
+    "database_url": "postgresql+psycopg2://localhost:5432/v03_p5_matrix_b",
+    "run_index": 1
+  },
+  "execution_source_sha": "7029cd9e14b1b6ad50d726772ca114356d3018e7",
+  "execution_source_tree_sha": "71a5837411da249eb71b7014f4d951d25887f6d6",
+  "fixture": {
+    "path": "backend/tests/pilot/data/v03-scenario-b-review-required-formal-report.v1.json",
+    "scenario_id": "B",
+    "schema_version": "v0.3-p5-scenario-b-source-definition.v1",
+    "sha256": "ff462cbaff0fadc77c809cd0a28917dd09ba0cea1ed73066d6fa1100f8552bbb"
+  },
+  "harness_round": "SCENARIO_EXECUTION_ENGINE_R1",
+  "result": {
+    "blockers": [],
+    "status": "PASS"
+  },
+  "scenario": "B",
+  "scenario_result": {
+    "calculator_versions": {
+      "cooling_load": "1.0.0",
+      "equipment": "1.0.0",
+      "investment": "1.0.0",
+      "power": "1.0.0",
+      "zone": "1.0.0"
+    },
+    "lifecycle": {
+      "approved_content_hash": "250a1be1b72659db5db17bfb8d409cb3c8b3be6e33c4a60dff9f564d7e838b2b",
+      "approved_revision_id": "7b8b1a55-0213-4239-8b85-f70f9fe88be1",
+      "artifacts": {
+        "en-US/docx": {
+          "approved_content_hash": "250a1be1b72659db5db17bfb8d409cb3c8b3be6e33c4a60dff9f564d7e838b2b",
+          "approved_revision_id": "7b8b1a55-0213-4239-8b85-f70f9fe88be1",
+          "artifact_id": "dca30139-059a-4540-b6ca-533e86da5594",
+          "file_sha256": "5ab492e29664f18de83d6774fae4e54c22cb36284c8aef968120aa78c238c45f",
+          "file_size_bytes": 40313,
+          "format": "docx",
+          "locale": "en-US",
+          "localized_template_content_hash": "db7ac09565a9e47187a237a6efd075bc9c9d7ce6afbfb0f4f855968bce1336b7",
+          "observed_file_sha256": "5ab492e29664f18de83d6774fae4e54c22cb36284c8aef968120aa78c238c45f",
+          "report_id": "383823ed-108a-4b09-898c-b33fdbd4fd8c",
+          "report_revision_id": "7b8b1a55-0213-4239-8b85-f70f9fe88be1",
+          "status": "completed",
+          "storage_key": "1dfb286b-289f-4277-82d2-d1b126c66dde",
+          "template_content_hash": "d171e347b4fb9de437c9e620bbf9485a22deb3c647a732c8a7d842a23562685c",
+          "template_id": "e7803556-93a8-4c15-b704-940c5ce5672b",
+          "template_locale": "en-US",
+          "template_version": "1.0.0",
+          "translation_catalog_content_hash": "b0a7b1757a997014bb96340599aa837cd4b91377566f109b0cd81c1082c0eb32",
+          "translation_catalog_version": "1.0.0"
+        },
+        "en-US/pdf": {
+          "approved_content_hash": "250a1be1b72659db5db17bfb8d409cb3c8b3be6e33c4a60dff9f564d7e838b2b",
+          "approved_revision_id": "7b8b1a55-0213-4239-8b85-f70f9fe88be1",
+          "artifact_id": "4ff6922b-9960-4ab9-8d34-d58e771c3897",
+          "file_sha256": "adfdfedf4bf303a86bc24096c8850d8203d93088b0e9f4083e8e612606c902a8",
+          "file_size_bytes": 11709781,
+          "format": "pdf",
+          "locale": "en-US",
+          "localized_template_content_hash": "a892021c115a89de866dd7956da3da318b29defb63950892cf9f73a7eff24bde",
+          "observed_file_sha256": "adfdfedf4bf303a86bc24096c8850d8203d93088b0e9f4083e8e612606c902a8",
+          "report_id": "383823ed-108a-4b09-898c-b33fdbd4fd8c",
+          "report_revision_id": "7b8b1a55-0213-4239-8b85-f70f9fe88be1",
+          "status": "completed",
+          "storage_key": "0be88903-b249-4e08-a0c2-eca8b0ec238e",
+          "template_content_hash": "259923257c8add650acfb5870af0a528876f1cb538f4fd23cc5913aed4476616",
+          "template_id": "f2a02b3d-94f7-4034-85d9-e989aa07551e",
+          "template_locale": "en-US",
+          "template_version": "1.0.0",
+          "translation_catalog_content_hash": "b0a7b1757a997014bb96340599aa837cd4b91377566f109b0cd81c1082c0eb32",
+          "translation_catalog_version": "1.0.0"
+        },
+        "zh-CN/docx": {
+          "approved_content_hash": "250a1be1b72659db5db17bfb8d409cb3c8b3be6e33c4a60dff9f564d7e838b2b",
+          "approved_revision_id": "7b8b1a55-0213-4239-8b85-f70f9fe88be1",
+          "artifact_id": "a404dce6-b278-47f7-acf5-e35bbcc6d08b",
+          "file_sha256": "5acd834fb2ec4072f7a4a30e5ee30451adf422cf0d7a8c31885fb8c687662260",
+          "file_size_bytes": 40540,
+          "format": "docx",
+          "locale": "zh-CN",
+          "localized_template_content_hash": "8697db6995899ebccc00e5ce8dd5c210216ef930fc227532fe8644a38a733360",
+          "observed_file_sha256": "5acd834fb2ec4072f7a4a30e5ee30451adf422cf0d7a8c31885fb8c687662260",
+          "report_id": "383823ed-108a-4b09-898c-b33fdbd4fd8c",
+          "report_revision_id": "7b8b1a55-0213-4239-8b85-f70f9fe88be1",
+          "status": "completed",
+          "storage_key": "4387b745-3393-4638-bb79-479aded02233",
+          "template_content_hash": "0d82831ce8fc5b423bbb8d0ce78264e6cdbfb60811ab8ce2ac5a97bd8ae2946e",
+          "template_id": "142271e5-6786-4b64-9d58-36ee3f690e0f",
+          "template_locale": "zh-CN",
+          "template_version": "1.0.0",
+          "translation_catalog_content_hash": "a0ed86cb378f4fc44c6acda5b3ad14a6de2087b4dab2719ff7db1c21b7102d3a",
+          "translation_catalog_version": "1.0.0"
+        },
+        "zh-CN/pdf": {
+          "approved_content_hash": "250a1be1b72659db5db17bfb8d409cb3c8b3be6e33c4a60dff9f564d7e838b2b",
+          "approved_revision_id": "7b8b1a55-0213-4239-8b85-f70f9fe88be1",
+          "artifact_id": "f430b2ef-9604-4858-b440-ffa5d38a0212",
+          "file_sha256": "e8704c64b36178ad6d22eb9bb0bb50a34915c201b36f21d24fc72342d6bfcb66",
+          "file_size_bytes": 11706342,
+          "format": "pdf",
+          "locale": "zh-CN",
+          "localized_template_content_hash": "dbc9e178ecac9439ce6b4780a4a31cd54d254d9ba017ceb15047307eccb45498",
+          "observed_file_sha256": "e8704c64b36178ad6d22eb9bb0bb50a34915c201b36f21d24fc72342d6bfcb66",
+          "report_id": "383823ed-108a-4b09-898c-b33fdbd4fd8c",
+          "report_revision_id": "7b8b1a55-0213-4239-8b85-f70f9fe88be1",
+          "status": "completed",
+          "storage_key": "0d4ece32-2464-48a2-a709-31c91848c1a2",
+          "template_content_hash": "828a38d40f00e55306a09d6e03960284f8bf2638d9fbe6178a3e50810e808c96",
+          "template_id": "196d08f1-0d2d-491a-bb92-a15fc006bb28",
+          "template_locale": "zh-CN",
+          "template_version": "1.0.0",
+          "translation_catalog_content_hash": "a0ed86cb378f4fc44c6acda5b3ad14a6de2087b4dab2719ff7db1c21b7102d3a",
+          "translation_catalog_version": "1.0.0"
+        }
+      },
+      "formal_export_block_proof": {
+        "attempted_before_review_approval": true,
+        "blocked": true,
+        "detail": {
+          "code": "FORMAL_EXPORT_BLOCKED",
+          "mode": "formal",
+          "report_id": "383823ed-108a-4b09-898c-b33fdbd4fd8c"
+        }
+      },
+      "fresh_session": true,
+      "quality_blockers_after_generate_revision": [],
+      "report_id": "383823ed-108a-4b09-898c-b33fdbd4fd8c",
+      "report_revision_id": "7b8b1a55-0213-4239-8b85-f70f9fe88be1",
+      "report_status_after_generate_revision": "generated",
+      "requires_review": true,
+      "restart": true,
+      "review_actions": [
+        "submit_review",
+        "mark_reviewed",
+        "approve"
+      ]
+    },
+    "project_id": "e026f51c-c83d-463e-be74-1f98a7e1ce3a",
+    "project_version_id": "1108babe-616d-47de-ad0c-adef17e7aded",
+    "review_reasons": [
+      {
+        "code": "DEMO_ASSUMPTIONS_REQUIRE_REVIEW",
+        "message": "冷间分区规划使用未审核演示系数，不能作为正式设计依据。",
+        "source_id": "e79b2cb0-b2fa-406e-8704-e96da3570cef",
+        "source_type": "calculation_run",
+        "stage": "zone"
+      },
+      {
+        "code": "DEMO_COEFFICIENT",
+        "message": "Coefficient cooling.wall_u_value uses demo/unverified value",
+        "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+        "source_type": "calculation_run",
+        "stage": "cooling_load"
+      },
+      {
+        "code": "DEMO_COEFFICIENT",
+        "message": "Coefficient cooling.roof_u_value uses demo/unverified value",
+        "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+        "source_type": "calculation_run",
+        "stage": "cooling_load"
+      },
+      {
+        "code": "DEMO_COEFFICIENT",
+        "message": "Coefficient cooling.floor_u_value uses demo/unverified value",
+        "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+        "source_type": "calculation_run",
+        "stage": "cooling_load"
+      },
+      {
+        "code": "DEMO_COEFFICIENT",
+        "message": "Coefficient cooling.product_specific_heat uses demo/unverified value",
+        "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+        "source_type": "calculation_run",
+        "stage": "cooling_load"
+      },
+      {
+        "code": "DEMO_COEFFICIENT",
+        "message": "Coefficient cooling.respiration_heat uses demo/unverified value",
+        "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+        "source_type": "calculation_run",
+        "stage": "cooling_load"
+      },
+      {
+        "code": "DEMO_COEFFICIENT",
+        "message": "Coefficient cooling.air_change_rate uses demo/unverified value",
+        "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+        "source_type": "calculation_run",
+        "stage": "cooling_load"
+      },
+      {
+        "code": "SENSIBLE_ONLY_INFILTRATION",
+        "message": "Humidity inputs missing; sensible-only mode",
+        "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+        "source_type": "calculation_run",
+        "stage": "cooling_load"
+      },
+      {
+        "code": "DEMO_COEFFICIENT",
+        "message": "Coefficient cooling.worker_heat_gain uses demo/unverified value",
+        "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+        "source_type": "calculation_run",
+        "stage": "cooling_load"
+      },
+      {
+        "code": "DEMO_COEFFICIENT",
+        "message": "Coefficient power.motor_efficiency uses demo/unverified value",
+        "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+        "source_type": "calculation_run",
+        "stage": "cooling_load"
+      },
+      {
+        "code": "NO_COEFFICIENT_SOURCES",
+        "message": "No coefficient source metadata provided; all coefficients treated as demo",
+        "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+        "source_type": "calculation_run",
+        "stage": "cooling_load"
+      },
+      {
+        "code": "DEMO_COEFFICIENT",
+        "message": "Coefficient equipment.redundancy_ratio uses demo/unverified value",
+        "source_id": "f3c35882-362c-4d51-aff4-4f420cae022a",
+        "source_type": "calculation_run",
+        "stage": "equipment"
+      },
+      {
+        "code": "DEMO_COEFFICIENT",
+        "message": "Coefficient equipment.evaporator_capacity_margin uses demo/unverified value",
+        "source_id": "f3c35882-362c-4d51-aff4-4f420cae022a",
+        "source_type": "calculation_run",
+        "stage": "equipment"
+      },
+      {
+        "code": "DEMO_COEFFICIENT",
+        "message": "Coefficient equipment.condenser_capacity_margin uses demo/unverified value",
+        "source_id": "f3c35882-362c-4d51-aff4-4f420cae022a",
+        "source_type": "calculation_run",
+        "stage": "equipment"
+      },
+      {
+        "code": "DEMO_INVESTMENT_REQUIRES_REVIEW",
+        "message": "投资测算使用未审核演示单价，需造价和专业工程人员复核。",
+        "source_id": "08a8455e-e4fb-4430-bab9-f51b46ee6375",
+        "source_type": "calculation_run",
+        "stage": "investment"
+      }
+    ],
+    "scheme_authority": {
+      "authoritative_attempt_id": "ebe58af8-5f33-4656-bda6-247f7d441c7c",
+      "binding_schema_version": "1.0.0",
+      "coefficient_context_id": "633f8343-2638-433f-aeeb-8a4fc43ceb74",
+      "combined_source_hash": "d4b1d46bda21edebdf43fcdb12751724444f5de6045cddda98e514ee7ceaca20",
+      "content_hash": "184845ea8b0bd5526637746beda7df8e77f39c59fe14fcaedc3242aa5b4d69ac",
+      "cooling_load_calculation_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+      "cooling_load_result_hash": "58860e66bf3c3f8f7d6ae57647ce58be9f3334ee050988dd4d61dede15830eb0",
+      "database_backend": "postgresql",
+      "equipment_calculation_id": "f3c35882-362c-4d51-aff4-4f420cae022a",
+      "equipment_result_hash": "ae7b16c5cc762fd509226b1aad5568aad1571efb3c6f2760d138e7a2b54fed41",
+      "execution_snapshot_id": "99369a29-a39f-4626-8068-610670a29ce7",
+      "generator_version": "1.0.0",
+      "investment_calculation_id": "08a8455e-e4fb-4430-bab9-f51b46ee6375",
+      "investment_result_hash": "9e7ba8df9e259b9aae112072a92433bc9a27dc52245c2033a167d329049b4e48",
+      "orchestration_fingerprint": "b01c8c406c8cdeb3b11ba7828477a2be16912eb98ef8e065eeee18afcc468dc4",
+      "orchestration_identity_id": "45d0b123-8891-4c9a-8353-9d88dec5dfa6",
+      "power_calculation_id": "c8714f10-8146-4eaf-b60f-af51d631b2bd",
+      "power_result_hash": "0d2ba7acac5936b0e7e153d25e1a3dc3be431de9a402bf7223527e534cd0927f",
+      "project_id": "e026f51c-c83d-463e-be74-1f98a7e1ce3a",
+      "project_version_id": "1108babe-616d-47de-ad0c-adef17e7aded",
+      "recommended_scheme_code": "balanced",
+      "requires_review": true,
+      "review_reasons": [
+        {
+          "code": "DEMO_ASSUMPTIONS_REQUIRE_REVIEW",
+          "message": "冷间分区规划使用未审核演示系数，不能作为正式设计依据。",
+          "source_id": "e79b2cb0-b2fa-406e-8704-e96da3570cef",
+          "source_type": "calculation_run",
+          "stage": "zone"
+        },
+        {
+          "code": "DEMO_COEFFICIENT",
+          "message": "Coefficient cooling.wall_u_value uses demo/unverified value",
+          "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+          "source_type": "calculation_run",
+          "stage": "cooling_load"
+        },
+        {
+          "code": "DEMO_COEFFICIENT",
+          "message": "Coefficient cooling.roof_u_value uses demo/unverified value",
+          "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+          "source_type": "calculation_run",
+          "stage": "cooling_load"
+        },
+        {
+          "code": "DEMO_COEFFICIENT",
+          "message": "Coefficient cooling.floor_u_value uses demo/unverified value",
+          "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+          "source_type": "calculation_run",
+          "stage": "cooling_load"
+        },
+        {
+          "code": "DEMO_COEFFICIENT",
+          "message": "Coefficient cooling.product_specific_heat uses demo/unverified value",
+          "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+          "source_type": "calculation_run",
+          "stage": "cooling_load"
+        },
+        {
+          "code": "DEMO_COEFFICIENT",
+          "message": "Coefficient cooling.respiration_heat uses demo/unverified value",
+          "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+          "source_type": "calculation_run",
+          "stage": "cooling_load"
+        },
+        {
+          "code": "DEMO_COEFFICIENT",
+          "message": "Coefficient cooling.air_change_rate uses demo/unverified value",
+          "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+          "source_type": "calculation_run",
+          "stage": "cooling_load"
+        },
+        {
+          "code": "SENSIBLE_ONLY_INFILTRATION",
+          "message": "Humidity inputs missing; sensible-only mode",
+          "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+          "source_type": "calculation_run",
+          "stage": "cooling_load"
+        },
+        {
+          "code": "DEMO_COEFFICIENT",
+          "message": "Coefficient cooling.worker_heat_gain uses demo/unverified value",
+          "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+          "source_type": "calculation_run",
+          "stage": "cooling_load"
+        },
+        {
+          "code": "DEMO_COEFFICIENT",
+          "message": "Coefficient power.motor_efficiency uses demo/unverified value",
+          "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+          "source_type": "calculation_run",
+          "stage": "cooling_load"
+        },
+        {
+          "code": "NO_COEFFICIENT_SOURCES",
+          "message": "No coefficient source metadata provided; all coefficients treated as demo",
+          "source_id": "2dea934c-8f1d-4abb-9172-38e0cd85a660",
+          "source_type": "calculation_run",
+          "stage": "cooling_load"
+        },
+        {
+          "code": "DEMO_COEFFICIENT",
+          "message": "Coefficient equipment.redundancy_ratio uses demo/unverified value",
+          "source_id": "f3c35882-362c-4d51-aff4-4f420cae022a",
+          "source_type": "calculation_run",
+          "stage": "equipment"
+        },
+        {
+          "code": "DEMO_COEFFICIENT",
+          "message": "Coefficient equipment.evaporator_capacity_margin uses demo/unverified value",
+          "source_id": "f3c35882-362c-4d51-aff4-4f420cae022a",
+          "source_type": "calculation_run",
+          "stage": "equipment"
+        },
+        {
+          "code": "DEMO_COEFFICIENT",
+          "message": "Coefficient equipment.condenser_capacity_margin uses demo/unverified value",
+          "source_id": "f3c35882-362c-4d51-aff4-4f420cae022a",
+          "source_type": "calculation_run",
+          "stage": "equipment"
+        },
+        {
+          "code": "DEMO_INVESTMENT_REQUIRES_REVIEW",
+          "message": "投资测算使用未审核演示单价，需造价和专业工程人员复核。",
+          "source_id": "08a8455e-e4fb-4430-bab9-f51b46ee6375",
+          "source_type": "calculation_run",
+          "stage": "investment"
+        }
+      ],
+      "scheme_run_id": "prod-run-24efd3a30d8a",
+      "source_binding_id": "961ed009-9939-4922-83c6-3189fdc6c482",
+      "source_contract_version": "1.0.0",
+      "status": "completed",
+      "weight_set_content_hash": "92d55a19e608cd6f15876ac591344406e5225859cbbe0f30536d49df1ef0f9d4",
+      "weight_set_generator_compatibility_version": "1.0.0",
+      "weight_set_id": "6711f01f-d656-4ce7-8b46-4cae2e99f6d2",
+      "weight_set_revision_id": "348be178-0d06-40a5-8d53-1bdcd86daca0",
+      "zone_calculation_id": "e79b2cb0-b2fa-406e-8704-e96da3570cef",
+      "zone_result_hash": "9d8f683e43fb9cb51c4d98b672a036a859d4b1e1911183122b4bd839be80f279"
+    },
+    "source": {
+      "canonical_input_sha256": "6a3ccd82852d8aa908a8bedcaab6437fbb68ff8ee3a305f9451c84b738d5f5d4",
+      "execution_source_sha": "7029cd9e14b1b6ad50d726772ca114356d3018e7",
+      "execution_source_tree_sha": "71a5837411da249eb71b7014f4d951d25887f6d6",
+      "source_definition_path": "/home/runner/work/cold-storage-planning-agent/cold-storage-planning-agent/backend/tests/pilot/data/task011-followup-high-throughput-source.v1.json"
+    },
+    "workflow_goal": "FORMAL_REPORT"
+  },
+  "schema_version": "v0.3-p5-controlled-acceptance-evidence.v1",
+  "trusted_operator": "xuezhiorange-png"
+}

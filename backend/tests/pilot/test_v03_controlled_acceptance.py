@@ -566,3 +566,102 @@ def test_runner_sqlite_auto_provision_passes_database_url_resolution(
     database_url = captured["database_url"]
     assert database_url.startswith("sqlite:///")
     assert Path(database_url.removeprefix("sqlite:///")).is_file()
+
+
+STAGE9_EVIDENCE_FIXTURE_ROOT = (
+    Path(__file__).resolve().parent / "data" / "stage9-controlled-acceptance-evidence"
+)
+
+
+def test_assemble_release_evidence_from_locked_stage9_fixture() -> None:
+    from cold_storage.evaluation.v03_controlled_acceptance import (
+        LOCKED_STAGE9_CONTROLLED_ACCEPTANCE_AUTHORITY,
+        RELEASE_EVIDENCE_SCHEMA_VERSION,
+        assemble_release_evidence,
+    )
+
+    payload = assemble_release_evidence(stage9_evidence_root=STAGE9_EVIDENCE_FIXTURE_ROOT)
+    assert payload["schema_version"] == RELEASE_EVIDENCE_SCHEMA_VERSION
+    assert payload["release_evidence_result"] == "PASS"
+    assert payload["result"]["status"] == "PASS"
+    section_7 = payload["contract_section_7"]
+    assert (
+        section_7["1_main_sha_tree"]["execution_source_sha"]
+        == LOCKED_STAGE9_CONTROLLED_ACCEPTANCE_AUTHORITY["execution_source_sha"]
+    )
+    assert section_7["2_scenario_backend_matrix"] == {
+        "A": {"sqlite": "PASS", "postgresql": "PASS"},
+        "B": {"sqlite": "PASS", "postgresql": "PASS"},
+        "C": {"sqlite": "PASS", "postgresql": "PASS"},
+    }
+    assert section_7["10_unresolved_blockers"] == []
+    assert payload["harness_authorization_flags_remain_no"]["V0_3_TAG_AUTHORIZED"] == "NO"
+    assert (
+        section_7["9_operator_authorization_record"]["stage9_workflow_run_id"]
+        == "32627831343"
+    )
+
+
+def test_assemble_release_evidence_contains_contract_section_7_items() -> None:
+    from cold_storage.evaluation.v03_controlled_acceptance import assemble_release_evidence
+
+    section_7 = assemble_release_evidence(
+        stage9_evidence_root=STAGE9_EVIDENCE_FIXTURE_ROOT
+    )["contract_section_7"]
+    expected_keys = {
+        "1_main_sha_tree",
+        "2_scenario_backend_matrix",
+        "3_restart_readback_lineage",
+        "4_multilingual_formal_artifact_checksums",
+        "5_no_formula_coefficient_scheme_scoring_change",
+        "6_controlled_acceptance_not_production_deployment",
+        "7_dependency_closure",
+        "8_p5_runner_workflow_identity",
+        "9_operator_authorization_record",
+        "10_unresolved_blockers",
+    }
+    assert set(section_7) == expected_keys
+    assert len(section_7["3_restart_readback_lineage"]) == 6
+    assert len(section_7["4_multilingual_formal_artifact_checksums"]) == 4
+    for table in section_7["4_multilingual_formal_artifact_checksums"]:
+        assert len(table["artifacts"]) == 4
+
+
+def test_assemble_release_evidence_fails_on_missing_matrix_cell(tmp_path: Path) -> None:
+    from cold_storage.evaluation.v03_controlled_acceptance import assemble_release_evidence
+
+    incomplete_root = tmp_path / "incomplete-stage9"
+    incomplete_root.mkdir()
+    for name in (
+        "verify-gates.json",
+        "harness-status.json",
+        "scenario-a-sqlite-evidence.json",
+    ):
+        (STAGE9_EVIDENCE_FIXTURE_ROOT / name).read_bytes()
+        (incomplete_root / name).write_bytes((STAGE9_EVIDENCE_FIXTURE_ROOT / name).read_bytes())
+    with pytest.raises(V03ControlledAcceptanceError) as exc_info:
+        assemble_release_evidence(stage9_evidence_root=incomplete_root)
+    assert exc_info.value.code == "STAGE9_MATRIX_CELL_MISSING"
+
+
+def test_runner_assemble_release_evidence_command(tmp_path: Path) -> None:
+    output = tmp_path / "release-evidence.json"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(RUNNER),
+            "assemble-release-evidence",
+            "--stage9-evidence-root",
+            str(STAGE9_EVIDENCE_FIXTURE_ROOT),
+            "--output",
+            str(output),
+        ],
+        cwd=REPO_ROOT / "backend",
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["release_evidence_result"] == "PASS"
+    assert payload["contract_section_7"]["10_unresolved_blockers"] == []

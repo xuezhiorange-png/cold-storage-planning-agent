@@ -1,0 +1,72 @@
+{
+  "authorization_record_id": "V03-P5-CA-STAGE8-7029cd9e14b1b6ad50d726772ca114356d3018e7",
+  "environment": {
+    "backend": "postgresql",
+    "database_url": "postgresql+psycopg2://localhost:5432/v03_p5_matrix_c",
+    "run_index": 1
+  },
+  "execution_source_sha": "7029cd9e14b1b6ad50d726772ca114356d3018e7",
+  "execution_source_tree_sha": "71a5837411da249eb71b7014f4d951d25887f6d6",
+  "fixture": {
+    "path": "backend/tests/pilot/data/v03-scenario-c-agent-knowledge-deterministic.v1.json",
+    "scenario_id": "C",
+    "schema_version": "v0.3-p5-scenario-c-source-definition.v1",
+    "sha256": "9ac8a43020bd6876909265e2e0e8286053bfb17c7152039d32b406f78fa9233a"
+  },
+  "harness_round": "SCENARIO_EXECUTION_ENGINE_R1",
+  "result": {
+    "blockers": [],
+    "status": "PASS"
+  },
+  "scenario": "C",
+  "scenario_result": {
+    "agent_assistance": {
+      "agent_session_id": "b73f4326-3f75-4f67-b2e1-c3247f38b568",
+      "clarification_observed": true,
+      "live_mimo_required": false,
+      "proposed_tools": [
+        "planning.calculate_throughput_inventory_area"
+      ],
+      "tool_sequence_observed": [
+        "ask_clarification",
+        "knowledge.search",
+        "planning.calculate_throughput_inventory_area"
+      ],
+      "transport": "fake_or_mocked_gateway"
+    },
+    "deterministic_calculation": {
+      "calculator_version": "1.0.0",
+      "requires_review": false,
+      "source_tool": "planning.calculate_throughput_inventory_area",
+      "tool_version": "1.0.0"
+    },
+    "fresh_session": {
+      "agent_session_preserved": true,
+      "message_count": 5
+    },
+    "knowledge_provenance": {
+      "citation_fields_present": [
+        "content_sha256",
+        "document_id",
+        "page_end",
+        "page_start",
+        "requires_review",
+        "review_status",
+        "revision_id",
+        "source_locator",
+        "source_page_evidence_id"
+      ],
+      "document_id": "c0542093-fcca-4d1b-ac59-2e0c4f883328",
+      "page_evidence_count": 2,
+      "revision_id": "025bdde3-7ae7-4292-9536-fa11c4868b4b",
+      "search_result_count": 2
+    },
+    "workflow_aggregate": {
+      "agent_blocking": false,
+      "agent_unavailable_blocks_core": false
+    },
+    "workflow_goal": "ORCHESTRATION_AND_DETERMINISTIC_CALCULATION"
+  },
+  "schema_version": "v0.3-p5-controlled-acceptance-evidence.v1",
+  "trusted_operator": "xuezhiorange-png"
+}

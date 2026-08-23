@@ -38,6 +38,7 @@ CONTROLLED_ACCEPTANCE_EXECUTED=NO
 SCENARIO_EXECUTION_ENGINE_ROUND=SCENARIO_EXECUTION_ENGINE_R1
 SCENARIO_EXECUTION_IMPLEMENTED=YES
 CONTROLLED_ACCEPTANCE_MATRIX_RUNNER_ROUND=CONTROLLED_ACCEPTANCE_MATRIX_RUNNER_R1
+RELEASE_EVIDENCE_ASSEMBLY_ROUND=RELEASE_EVIDENCE_ASSEMBLY_R1
 SCENARIO_A_RUN_AUTHORIZED=NO
 SCENARIO_B_RUN_AUTHORIZED=NO
 SCENARIO_C_RUN_AUTHORIZED=NO
@@ -181,6 +182,40 @@ workflow service container (`pgvector/pgvector:pg16`), create a dedicated
 `v03_p5_matrix_<scenario>` database, run `alembic upgrade head`, and pass an
 explicit `--database-url`. The default `execution_authorized=NO` path still
 refuses Scenario A on sqlite without `--execution-authorized`.
+
+## STAGE_10 release evidence assembly
+
+`P5_STAGE_10=RELEASE_EVIDENCE_ASSEMBLY` assembles contract §7 release evidence
+from an existing STAGE_9 controlled acceptance artifact root. It does not rerun
+scenarios, recompute engineering values, create tags, publish GitHub Releases,
+or flip harness authorization flags to `YES`.
+
+Locked STAGE_9 authority for the first release-evidence assembly round:
+
+```text
+STAGE9_WORKFLOW_RUN_ID=32627831343
+STAGE9_JOB_ID=97165830132
+STAGE9_ARTIFACT_ID=9490201526
+STAGE9_ARTIFACT_NAME=v03-p5-controlled-acceptance-harness
+AUTHORIZATION_RECORD_ID=V03-P5-CA-STAGE8-7029cd9e14b1b6ad50d726772ca114356d3018e7
+TRUSTED_OPERATOR=xuezhiorange-png
+EXECUTION_SOURCE_SHA=7029cd9e14b1b6ad50d726772ca114356d3018e7
+EXECUTION_SOURCE_TREE_SHA=71a5837411da249eb71b7014f4d951d25887f6d6
+```
+
+Assemble release evidence locally from a downloaded STAGE_9 artifact directory:
+
+```bash
+cd backend
+PYTHONPATH=src uv run python tests/pilot/run_v03_controlled_acceptance.py assemble-release-evidence \
+  --stage9-evidence-root /path/to/v03-p5-controlled-acceptance-harness \
+  --output /tmp/v03-p5-release-evidence.json
+```
+
+The assembler verifies all six matrix cells (`A`/`B`/`C` × `sqlite`/`postgresql`)
+report `PASS`, frozen harness authorization flags remain `NO`, and
+`contract_section_7.10_unresolved_blockers` is empty before emitting
+`release_evidence_result=PASS`.
 
 ## Workflow constraints
 
