@@ -7,6 +7,51 @@ export interface WorkflowBlocker {
   severity?: string
 }
 
+export interface KnowledgePageEvidenceProjection {
+  source_page_evidence_id: string
+  page_number: number
+  extraction_method?: string
+  extraction_status: string
+  source_authority?: string
+  source_content_sha256?: string
+  original_filename?: string
+  is_complete: boolean
+  is_ocr_derived: boolean
+  requires_review?: boolean
+  review_status?: string
+  confidence?: number | null
+  confidence_source?: string
+  ocr_engine?: string
+  ingestion_provenance?: Record<string, unknown>
+  document_code?: string
+  document_title?: string
+}
+
+export interface KnowledgeSourceReferenceProjection {
+  revision_id: string
+  document_id: string
+  document_code?: string
+  document_title?: string
+  content_sha256: string
+  original_filename?: string
+  version_label?: string
+  revision_number?: number
+  review_status?: string
+  requires_review: boolean
+  requires_ocr: boolean
+  ingestion_status: string
+  page_evidence: KnowledgePageEvidenceProjection[]
+  page_evidence_available: boolean
+}
+
+export interface KnowledgeProvenanceProjection {
+  required: boolean
+  available?: boolean
+  status: string
+  blockers: WorkflowBlocker[]
+  source_references: KnowledgeSourceReferenceProjection[]
+}
+
 export interface WorkflowNextAction {
   action_id: string
   type: string
@@ -76,9 +121,5 @@ export interface WorkflowAggregateV1 {
   workflow_readiness: WorkflowReadiness
   formal_export_eligibility: FormalExportEligibility
   agent_assistance: AgentAssistanceProjection
-  knowledge_provenance?: {
-    required: boolean
-    status: string
-    blockers: WorkflowBlocker[]
-  }
+  knowledge_provenance?: KnowledgeProvenanceProjection
 }

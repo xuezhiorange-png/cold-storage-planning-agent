@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
 
 import WorkflowGuidancePanel from '../workflow/components/WorkflowGuidancePanel.vue'
+import KnowledgeProvenancePanel from '../workflow/components/KnowledgeProvenancePanel.vue'
 import { useWorkbenchContextStore } from '../../stores/workbenchContext'
 
 interface NavItem {
@@ -44,6 +45,7 @@ onMounted(() => {
     </nav>
     <section class="workbench-layout__content">
       <WorkflowGuidancePanel />
+      <KnowledgeProvenancePanel />
       <RouterView />
     </section>
   </main>

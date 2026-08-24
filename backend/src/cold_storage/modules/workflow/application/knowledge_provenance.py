@@ -125,6 +125,62 @@ def assess_knowledge_provenance(
     }
 
 
+def enrich_knowledge_provenance_projection(
+    projection: dict[str, Any],
+    *,
+    knowledge_revisions: list[dict[str, Any]],
+    page_evidence_by_revision: dict[str, list[dict[str, Any]]],
+    document_summaries: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Attach persisted page-evidence display fields without changing assessment semantics."""
+    enriched: dict[str, Any] = dict(projection)
+    summaries = document_summaries or {}
+    base_refs = {
+        str(ref.get("revision_id", "")): ref for ref in projection.get("source_references", [])
+    }
+
+    enriched_refs: list[dict[str, Any]] = []
+    for revision in knowledge_revisions:
+        revision_id = str(revision.get("id", ""))
+        document_id = str(revision.get("document_id", ""))
+        page_evidence = page_evidence_by_revision.get(revision_id, [])
+        doc_summary = summaries.get(document_id, {})
+        base = base_refs.get(revision_id, {})
+
+        enriched_refs.append(
+            {
+                **base,
+                "revision_id": revision_id,
+                "document_id": document_id,
+                "document_code": doc_summary.get("code", page_evidence[0].get("document_code", ""))
+                if page_evidence
+                else doc_summary.get("code", ""),
+                "document_title": doc_summary.get(
+                    "title", page_evidence[0].get("document_title", "")
+                )
+                if page_evidence
+                else doc_summary.get("title", ""),
+                "content_sha256": revision.get("content_sha256", base.get("content_sha256", "")),
+                "original_filename": revision.get("original_filename", ""),
+                "version_label": revision.get("version_label", ""),
+                "revision_number": revision.get("revision_number"),
+                "review_status": revision.get("review_status", ""),
+                "requires_review": revision.get(
+                    "requires_review", base.get("requires_review", True)
+                ),
+                "requires_ocr": revision.get("requires_ocr", base.get("requires_ocr", False)),
+                "ingestion_status": revision.get(
+                    "ingestion_status", base.get("ingestion_status", "")
+                ),
+                "page_evidence": page_evidence,
+                "page_evidence_available": bool(page_evidence),
+            }
+        )
+
+    enriched["source_references"] = enriched_refs
+    return enriched
+
+
 def extract_knowledge_revision_ids(content_json: dict[str, Any]) -> list[str]:
     """Collect knowledge revision IDs referenced in assembled report content."""
     ids: list[str] = []

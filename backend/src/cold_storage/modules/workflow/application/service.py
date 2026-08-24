@@ -20,6 +20,7 @@ from cold_storage.modules.workflow.application.knowledge_provenance import (
     assess_knowledge_provenance,
     canonical_json_hash,
     content_depends_on_knowledge_source,
+    enrich_knowledge_provenance_projection,
     extract_knowledge_revision_ids,
 )
 from cold_storage.modules.workflow.domain.errors import (
@@ -47,6 +48,7 @@ class WorkflowAggregateService:
         report_repository: Any | None = None,
         knowledge_revision_reader: Callable[[str], dict[str, Any] | None] | None = None,
         knowledge_page_evidence_reader: Callable[[str], list[dict[str, Any]]] | None = None,
+        knowledge_document_reader: Callable[[str], dict[str, Any] | None] | None = None,
         agent_capability_projection: list[dict[str, Any]] | None = None,
         trusted_operator: Callable[[str], bool] | None = None,
     ) -> None:
@@ -55,6 +57,7 @@ class WorkflowAggregateService:
         self._report_repository = report_repository
         self._knowledge_revision_reader = knowledge_revision_reader
         self._knowledge_page_evidence_reader = knowledge_page_evidence_reader
+        self._knowledge_document_reader = knowledge_document_reader
         self._agent_capability_projection = agent_capability_projection or []
         self._trusted_operator = trusted_operator
 
@@ -108,6 +111,20 @@ class WorkflowAggregateService:
             depends_on_knowledge=knowledge_depends,
             knowledge_revisions=knowledge_revisions,
             page_evidence_by_revision=page_evidence_by_revision,
+        )
+        document_summaries: dict[str, dict[str, Any]] = {}
+        if self._knowledge_document_reader is not None:
+            for revision in knowledge_revisions:
+                document_id = str(revision.get("document_id", ""))
+                if document_id and document_id not in document_summaries:
+                    summary = self._knowledge_document_reader(document_id)
+                    if summary is not None:
+                        document_summaries[document_id] = summary
+        knowledge_projection = enrich_knowledge_provenance_projection(
+            knowledge_projection,
+            knowledge_revisions=knowledge_revisions,
+            page_evidence_by_revision=page_evidence_by_revision,
+            document_summaries=document_summaries,
         )
 
         agent_projection = self._project_agent_assistance()

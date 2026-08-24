@@ -345,6 +345,121 @@ def test_partial_ocr_is_not_complete_provenance() -> None:
     )
 
 
+def test_enrich_knowledge_provenance_projection_attaches_page_evidence_display() -> None:
+    from cold_storage.modules.workflow.application.knowledge_provenance import (
+        assess_knowledge_provenance,
+        enrich_knowledge_provenance_projection,
+    )
+
+    revisions = [
+        {
+            "id": "krev-1",
+            "document_id": "doc-1",
+            "content_sha256": "sha-abc",
+            "requires_review": False,
+            "requires_ocr": True,
+            "ingestion_status": "indexed",
+            "original_filename": "manual.pdf",
+            "version_label": "v1",
+            "revision_number": 2,
+            "review_status": "approved",
+        }
+    ]
+    page_evidence = [
+        {
+            "source_page_evidence_id": "spe-1",
+            "page_number": 3,
+            "extraction_method": "ocr",
+            "extraction_status": "completed",
+            "is_complete": True,
+            "is_ocr_derived": True,
+            "requires_review": True,
+            "review_status": "unverified",
+            "confidence": 0.9,
+        }
+    ]
+    projection = assess_knowledge_provenance(
+        depends_on_knowledge=True,
+        knowledge_revisions=revisions,
+        page_evidence_by_revision={"krev-1": page_evidence},
+    )
+    enriched = enrich_knowledge_provenance_projection(
+        projection,
+        knowledge_revisions=revisions,
+        page_evidence_by_revision={"krev-1": page_evidence},
+        document_summaries={"doc-1": {"code": "KB-001", "title": "设计手册"}},
+    )
+
+    source = enriched["source_references"][0]
+    assert source["document_code"] == "KB-001"
+    assert source["document_title"] == "设计手册"
+    assert source["page_evidence_available"] is True
+    assert source["page_evidence"][0]["source_page_evidence_id"] == "spe-1"
+    assert enriched["status"] == projection["status"]
+
+
+def test_workflow_aggregate_includes_enriched_page_evidence_projection() -> None:
+    project_service = ProjectService()
+    project_id, version_number, version = _seed_project_with_inputs(project_service)
+    revision = _sample_revision(
+        report_id="report-1",
+        revision_id="rev-knowledge",
+        content_json={
+            "source_references": [
+                {
+                    "source_type": "knowledge_revision",
+                    "source_id": "krev-1",
+                }
+            ]
+        },
+    )
+    report = _sample_report(
+        project_id=project_id,
+        project_version_id=version.id,
+    )
+
+    def _revision_reader(revision_id: str) -> dict[str, Any] | None:
+        return {
+            "id": revision_id,
+            "document_id": "doc-1",
+            "content_sha256": "sha",
+            "requires_review": False,
+            "requires_ocr": True,
+            "ingestion_status": "indexed",
+            "original_filename": "scan.pdf",
+            "version_label": "v1",
+            "revision_number": 1,
+            "review_status": "approved",
+        }
+
+    workflow = WorkflowAggregateService(
+        project_service=project_service,
+        report_repository=_ReportRepoStub(report, revision),
+        knowledge_revision_reader=_revision_reader,
+        knowledge_page_evidence_reader=lambda _revision_id: [
+            {
+                "source_page_evidence_id": "spe-1",
+                "page_number": 1,
+                "extraction_method": "ocr",
+                "extraction_status": "completed",
+                "is_complete": True,
+                "is_ocr_derived": True,
+                "requires_review": True,
+                "review_status": "unverified",
+                "confidence": 0.75,
+            }
+        ],
+        knowledge_document_reader=lambda _doc_id: {"code": "KB-001", "title": "手册"},
+    )
+    aggregate = workflow.get_workflow_aggregate(project_id, version_number)
+    provenance = aggregate["knowledge_provenance"]
+    assert provenance["status"] == "AVAILABLE"
+    source = provenance["source_references"][0]
+    assert source["document_code"] == "KB-001"
+    assert source["page_evidence_available"] is True
+    assert source["page_evidence"][0]["extraction_method"] == "ocr"
+
+
 def test_workflow_service_is_read_only_surface() -> None:
     """Aggregation service exposes get_workflow_aggregate only for mutation-free use."""
     service = WorkflowAggregateService(project_service=ProjectService())
