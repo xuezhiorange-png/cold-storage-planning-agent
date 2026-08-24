@@ -145,9 +145,7 @@ def _resolve_database_url(database_url: str | None) -> str:
     if database_url is not None:
         return database_url
     default_sqlite_path = REPO_ROOT / "cold_storage_dev.db"
-    sqlite_path = Path(
-        os.environ.get("COLD_STORAGE_SQLITE_PATH", default_sqlite_path)
-    )
+    sqlite_path = Path(os.environ.get("COLD_STORAGE_SQLITE_PATH", default_sqlite_path))
     if not sqlite_path.is_absolute():
         sqlite_path = REPO_ROOT / sqlite_path
     return f"sqlite:///{sqlite_path}"
@@ -205,10 +203,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"V04_LOCAL_SAMPLE_PROJECT_CODE={seeded.project_code}")
         print(f"V04_LOCAL_SAMPLE_VERSION={seeded.version_number}")
         print(f"V04_LOCAL_SAMPLE_CREATED={'yes' if seeded.created else 'no'}")
-        print(
-            "V04_LOCAL_SAMPLE_PERSISTED="
-            + ",".join(seeded.persisted_calculator_names)
-        )
+        print("V04_LOCAL_SAMPLE_PERSISTED=" + ",".join(seeded.persisted_calculator_names))
     return 0
 
 
