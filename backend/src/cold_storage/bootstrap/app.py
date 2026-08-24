@@ -927,20 +927,49 @@ def create_app(
                 "requires_review": record.requires_review,
                 "requires_ocr": record.requires_ocr,
                 "ingestion_status": record.ingestion_status,
+                "original_filename": record.original_filename,
+                "version_label": record.version_label,
+                "revision_number": record.revision_number,
+                "review_status": record.review_status,
+            }
+
+        def _read_document(document_id: str) -> dict[str, Any] | None:
+            record = knowledge_repo.get_document(document_id)
+            if record is None:
+                return None
+            return {
+                "id": record.id,
+                "code": record.code,
+                "title": record.title,
             }
 
         def _read_page_evidence(revision_id: str) -> list[dict[str, Any]]:
             evidence_records = knowledge_repo.list_page_evidence(revision_id)
-            return [
-                {
-                    "source_page_evidence_id": evidence.source_page_evidence_id,
-                    "page_number": evidence.page_number,
-                    "extraction_status": evidence.extraction_status,
-                    "is_complete": evidence.is_complete,
-                    "is_ocr_derived": evidence.is_derived_evidence,
-                }
-                for evidence in evidence_records
-            ]
+            entries: list[dict[str, Any]] = []
+            for evidence in evidence_records:
+                doc = knowledge_repo.get_document(evidence.document_id)
+                entries.append(
+                    {
+                        "source_page_evidence_id": evidence.source_page_evidence_id,
+                        "page_number": evidence.page_number,
+                        "extraction_method": evidence.extraction_method,
+                        "extraction_status": evidence.extraction_status,
+                        "source_authority": evidence.source_authority,
+                        "source_content_sha256": evidence.source_content_sha256,
+                        "original_filename": evidence.original_filename,
+                        "is_complete": evidence.is_complete,
+                        "is_ocr_derived": evidence.is_derived_evidence,
+                        "requires_review": evidence.requires_review,
+                        "review_status": evidence.review_status,
+                        "confidence": evidence.ocr_confidence,
+                        "confidence_source": evidence.confidence_source,
+                        "ocr_engine": evidence.ocr_engine,
+                        "ingestion_provenance": dict(evidence.ingestion_provenance or {}),
+                        "document_code": doc.code if doc is not None else "",
+                        "document_title": doc.title if doc is not None else "",
+                    }
+                )
+            return entries
 
         capability_projection = getattr(request.app, "_capability_projection", None)
         agent_capabilities = (
@@ -955,6 +984,7 @@ def create_app(
             report_repository=report_repo,
             knowledge_revision_reader=_read_revision,
             knowledge_page_evidence_reader=_read_page_evidence,
+            knowledge_document_reader=_read_document,
             agent_capability_projection=agent_capabilities,
             trusted_operator=_default_trusted_operator,
         )
