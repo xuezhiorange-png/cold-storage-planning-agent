@@ -142,6 +142,25 @@ function planningResponseToCalculationRuns(response: PlanningRunResponse): Array
     })
   }
 
+  const powerConfiguration = response.power_configuration
+  if (powerConfiguration) {
+    runs.push({
+      id: 'calc-power-configuration-1',
+      project_id: 'proj-test',
+      project_version_id: 'ver-1',
+      calculator_name: 'power_configuration',
+      calculator_version: '1.0.0',
+      result_snapshot: {
+        success: response.success,
+        calculator_name: 'power_configuration',
+        calculator_version: '1.0.0',
+        input: {},
+        result: powerConfiguration
+      },
+      requires_review: powerConfiguration.requires_review ?? response.summary?.requires_review ?? false
+    })
+  }
+
   return runs
 }
 

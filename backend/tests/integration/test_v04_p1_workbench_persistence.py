@@ -38,7 +38,7 @@ def _create_project_with_inputs(client: TestClient) -> tuple[str, int]:
     return project_id, version
 
 
-def test_planning_run_persists_five_stage_runs_and_power_table(tmp_path: Path) -> None:
+def test_planning_run_persists_planning_helpers_and_power_table(tmp_path: Path) -> None:
     database_url = f"sqlite:///{tmp_path / 'v04-p1.db'}"
     service = create_database_project_service(database_url)
     Base.metadata.create_all(service.engine)
@@ -59,9 +59,6 @@ def test_planning_run_persists_five_stage_runs_and_power_table(tmp_path: Path) -
     calculator_names = {row["calculator_name"] for row in calculations}
     assert calculator_names == {
         "cold_room_zone_plan",
-        "cooling_load",
-        "equipment",
-        "installed_power",
         "investment_estimate",
         "power_configuration",
     }
@@ -71,14 +68,16 @@ def test_planning_run_persists_five_stage_runs_and_power_table(tmp_path: Path) -
     )
     assert power_configuration["result_snapshot"]["result"]["equipment_rows"][0]["name"] == "制冷压缩机组"
 
-    # Restart app instance — persisted rows must survive.
     second_client = TestClient(create_app(project_service=create_database_project_service(database_url)))
     reloaded = second_client.get(
         f"/api/v1/projects/{project_id}/versions/{version}/calculations"
     ).json()
     reloaded_names = {row["calculator_name"] for row in reloaded}
-    assert "power_configuration" in reloaded_names
-    assert "cooling_load" in reloaded_names
+    assert reloaded_names == {
+        "cold_room_zone_plan",
+        "investment_estimate",
+        "power_configuration",
+    }
 
 
 def test_missing_persisted_runs_do_not_inject_demo_planning_run(tmp_path: Path) -> None:

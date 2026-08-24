@@ -7,9 +7,6 @@ import type {
 } from '../../../api/contracts/planning'
 
 const ZONE_CALCULATOR = 'cold_room_zone_plan'
-const COOLING_LOAD_CALCULATOR = 'cooling_load'
-const EQUIPMENT_CALCULATOR = 'equipment'
-const POWER_CALCULATOR = 'installed_power'
 const INVESTMENT_CALCULATOR = 'investment_estimate'
 const POWER_CONFIGURATION_CALCULATOR = 'power_configuration'
 
@@ -78,7 +75,6 @@ function mapPowerItem(row: Record<string, unknown>): PowerItemContract {
 function powerConfigurationFromRecord(
   record: CalculationRunRecord | undefined,
   investmentRecord: CalculationRunRecord | undefined,
-  powerRecord: CalculationRunRecord | undefined,
   requiresReview: boolean
 ): PlanningRunResponse['power_configuration'] {
   const persisted = record?.result_snapshot?.result ?? {}
@@ -95,35 +91,24 @@ function powerConfigurationFromRecord(
     : []
 
   const investmentInput = investmentRecord?.result_snapshot?.input ?? {}
-  const powerResult = powerRecord?.result_snapshot?.result ?? {}
   const totalFromPowerTable = asNumber(persisted.total_installed_power_kw)
   const totalFromInvestment = asNumber(investmentInput.total_power_kw)
-  const totalFromInstalledPower = asNumber(
-    powerResult.total_installed_power_kw_e ?? powerResult.total_installed_power_kw
-  )
-  const totalInstalled = totalFromPowerTable > 0
-    ? totalFromPowerTable
-    : totalFromInvestment > 0
-      ? totalFromInvestment
-      : totalFromInstalledPower
-
-  const totalDemand = asNumber(
-    persisted.total_estimated_demand_kw ?? powerResult.estimated_peak_demand_kw_e ?? totalInstalled
-  )
+  const totalInstalled = totalFromPowerTable > 0 ? totalFromPowerTable : totalFromInvestment
+  const totalDemand = asNumber(persisted.total_estimated_demand_kw)
 
   return {
     equipment_rows: equipmentRows,
     summary_rows: summaryRows,
     items,
     total_installed_power_kw: totalInstalled,
-    total_estimated_demand_kw: totalDemand,
+    total_estimated_demand_kw: totalDemand > 0 ? totalDemand : totalInstalled,
     requires_review: Boolean(persisted.requires_review ?? record?.requires_review ?? requiresReview)
   }
 }
 
 /**
  * Map persisted calculation runs into the planning response view shape used by workbench pages.
- * Reads persisted five-stage runs only — no transient demo planning-run fallback.
+ * Reads persisted planning-helper outputs only — no transient demo planning-run fallback.
  */
 export function mapPersistedCalculationsToPlanningResponse(
   records: CalculationRunRecord[]
@@ -134,7 +119,6 @@ export function mapPersistedCalculationsToPlanningResponse(
 
   const investmentRecord = byName[INVESTMENT_CALCULATOR]
   const powerConfigurationRecord = byName[POWER_CONFIGURATION_CALCULATOR]
-  const powerRecord = byName[POWER_CALCULATOR]
   const zones = zoneRows(zoneRecord)
   if (zones.length === 0) return null
 
@@ -145,7 +129,6 @@ export function mapPersistedCalculationsToPlanningResponse(
   const powerConfiguration = powerConfigurationFromRecord(
     powerConfigurationRecord,
     investmentRecord,
-    powerRecord,
     Boolean(zoneRecord.requires_review) || Boolean(investmentRecord?.requires_review)
   )
 
@@ -153,9 +136,6 @@ export function mapPersistedCalculationsToPlanningResponse(
     Boolean(zoneRecord.requires_review)
     || Boolean(investmentRecord?.requires_review)
     || Boolean(powerConfigurationRecord?.requires_review)
-    || Boolean(byName[COOLING_LOAD_CALCULATOR]?.requires_review)
-    || Boolean(byName[EQUIPMENT_CALCULATOR]?.requires_review)
-    || Boolean(powerRecord?.requires_review)
 
   return {
     success: Boolean(zoneRecord.result_snapshot?.success),

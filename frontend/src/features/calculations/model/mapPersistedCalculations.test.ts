@@ -53,24 +53,6 @@ function powerConfigurationRecord(
   }
 }
 
-function coolingLoadRecord(id = 'cool-1'): CalculationRunRecord {
-  return {
-    id,
-    project_id: 'proj-1',
-    project_version_id: 'ver-1',
-    calculator_name: 'cooling_load',
-    calculator_version: '1.0.0',
-    result_snapshot: {
-      success: true,
-      calculator_name: 'cooling_load',
-      calculator_version: '1.0.0',
-      input: {},
-      result: { total_cooling_load_kw: '120.0' }
-    },
-    requires_review: true
-  }
-}
-
 function investmentRecord(
   items: Array<{ item_name: string; amount_cny: number }>,
   totalPowerKw = 1350,
@@ -194,8 +176,7 @@ describe('mapPersistedCalculationsToPlanningResponse', () => {
         daily_throughput_kg: 0,
         design_storage_mass_kg: 0
       }], 'zone-new'),
-      investmentRecord([{ item_name: '新分项', amount_cny: 900_000 }], 2000, 'inv-new', 2_000_000),
-      coolingLoadRecord('cool-new')
+      investmentRecord([{ item_name: '新分项', amount_cny: 900_000 }], 2000, 'inv-new', 2_000_000)
     ])
 
     expect(mapped).not.toBeNull()
