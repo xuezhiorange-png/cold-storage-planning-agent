@@ -1,5 +1,14 @@
 # Development Plan
 
+> **V0.5 governance truth-up (2026-08-24, `main@eec12b9d`):** Tasks 0–12 below
+> remain the original roadmap register. Delivered capabilities include modular
+> frontend features, coefficient registry, knowledge persistence, report
+> revisions, orchestration Transaction B, and V0.4 local workbench acceptance.
+> **Active umbrella:** V0.5 five-stage workbench (`docs/tasks/V0_5-P0-five-stage-workbench-contract.md`,
+> issue #163). **Remaining gap:** workbench still persists only
+> `cold_room_zone_plan`, `investment_estimate`, `power_configuration`; workflow,
+> scheme, and report consumers need canonical five-stage identity alignment.
+
 ## Task 0: Local Baseline, Repository Audit, And Governance
 
 - Goal: preserve the current local project safely and establish audit/governance artifacts.
