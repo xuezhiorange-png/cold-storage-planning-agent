@@ -155,7 +155,9 @@ def enrich_knowledge_provenance_projection(
                 "document_code": doc_summary.get("code", page_evidence[0].get("document_code", ""))
                 if page_evidence
                 else doc_summary.get("code", ""),
-                "document_title": doc_summary.get("title", page_evidence[0].get("document_title", ""))
+                "document_title": doc_summary.get(
+                    "title", page_evidence[0].get("document_title", "")
+                )
                 if page_evidence
                 else doc_summary.get("title", ""),
                 "content_sha256": revision.get("content_sha256", base.get("content_sha256", "")),
@@ -163,7 +165,9 @@ def enrich_knowledge_provenance_projection(
                 "version_label": revision.get("version_label", ""),
                 "revision_number": revision.get("revision_number"),
                 "review_status": revision.get("review_status", ""),
-                "requires_review": revision.get("requires_review", base.get("requires_review", True)),
+                "requires_review": revision.get(
+                    "requires_review", base.get("requires_review", True)
+                ),
                 "requires_ocr": revision.get("requires_ocr", base.get("requires_ocr", False)),
                 "ingestion_status": revision.get(
                     "ingestion_status", base.get("ingestion_status", "")
