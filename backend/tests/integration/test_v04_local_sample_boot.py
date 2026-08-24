@@ -71,8 +71,7 @@ def test_v04_local_sample_boot_and_load_smoke(migrated_sqlite_url: str) -> None:
             f"/api/v1/projects/{seeded.project_id}/versions/{seeded.version_number}/calculations"
         ).json()
         calculator_names = {item["calculator_name"] for item in calculations}
-        assert "cold_room_zone_plan" in calculator_names
-        assert "investment_estimate" in calculator_names
+        assert calculator_names >= set(EXPECTED_PERSISTED_CALCULATORS)
 
         workflow = client.get(
             f"/api/v1/projects/{seeded.project_id}/versions/{seeded.version_number}/workflow"

@@ -1,8 +1,8 @@
 # V0.4 Local Runnable Delivery
 
-This runbook is the operator path for **V04-P3**: run the app locally with
-SQLite (default) or optional Docker Compose dependencies, then open the
-bundled sample project in the workbench.
+This runbook is the operator path for the **V0.4 local persisted workbench**:
+run the app locally with SQLite (default) or optional Docker Compose
+dependencies, then open the bundled sample project in the workbench.
 
 ## Scope and boundaries
 
@@ -18,7 +18,7 @@ bundled sample project in the workbench.
 ## Prerequisites
 
 - Python tooling via `uv` and Node.js via `npm` (see `docs/DEVELOPMENT.md`).
-- Repository checkout at `main@ec4df9e` or later with V04-P3 assets present.
+- Repository checkout at `main@05b0fd0` or later with V04-P1/P2/P3 assets present.
 - Optional: Docker Engine for PostgreSQL/Redis support services only.
 
 ## Path A — SQLite (recommended)
@@ -60,11 +60,10 @@ Persisted calculation rows today:
 
 - `cold_room_zone_plan`
 - `investment_estimate`
+- `power_configuration`
 
-Power configuration is returned by planning-run but is not yet stored as its
-own persisted calculation row on `main`. Cooling load and equipment persistence
-are the **V04-P1 target**; this sample does not invent a second calculator or
-bypass public APIs.
+Cooling load and equipment persistence remain future scope. This sample does not
+invent a second calculator or bypass public APIs.
 
 #### Workbench binding options
 
@@ -100,8 +99,8 @@ Replace `<project-id>` from the seed output:
 curl -s "http://127.0.0.1:8000/api/v1/projects/<project-id>/versions/1/calculations" | jq '.[].calculator_name'
 ```
 
-Expected calculator names include `cold_room_zone_plan` and
-`investment_estimate`.
+Expected calculator names include `cold_room_zone_plan`,
+`investment_estimate`, and `power_configuration`.
 
 ## Path B — Docker Compose support services (optional)
 
@@ -164,4 +163,7 @@ schema is already at Alembic head — run ``make migrate`` first.
 - `docs/DEVELOPMENT.md` — install, quality gates, PostgreSQL testing notes
 - `docs/runbooks/V0_3-P1-review-formal-report-acceptance.md` — controlled
   five-stage production acceptance (separate from this local sample)
-- Parent tracking: GitHub issue #150 (V0.4 umbrella), package issue #153 (P3)
+- `docs/tasks/V0_4-P5-controlled-acceptance-contract.md` — V0.4 P5 controlled
+  acceptance matrix (sqlite; no tag/Release)
+- Parent tracking: GitHub issue #150 (V0.4 umbrella), package issues #153 (P3),
+  #155/#159 (P5)
