@@ -144,7 +144,10 @@ def seed_v04_local_sample(
 def _resolve_database_url(database_url: str | None) -> str:
     if database_url is not None:
         return database_url
-    sqlite_path = Path(os.environ.get("COLD_STORAGE_SQLITE_PATH", REPO_ROOT / "cold_storage_dev.db"))
+    default_sqlite_path = REPO_ROOT / "cold_storage_dev.db"
+    sqlite_path = Path(
+        os.environ.get("COLD_STORAGE_SQLITE_PATH", default_sqlite_path)
+    )
     if not sqlite_path.is_absolute():
         sqlite_path = REPO_ROOT / sqlite_path
     return f"sqlite:///{sqlite_path}"
@@ -159,7 +162,10 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--database-url",
-        help="Optional SQLAlchemy database URL. Defaults to COLD_STORAGE_SQLITE_PATH or ./cold_storage_dev.db.",
+        help=(
+            "Optional SQLAlchemy database URL. "
+            "Defaults to COLD_STORAGE_SQLITE_PATH or ./cold_storage_dev.db."
+        ),
     )
     parser.add_argument(
         "--json",
