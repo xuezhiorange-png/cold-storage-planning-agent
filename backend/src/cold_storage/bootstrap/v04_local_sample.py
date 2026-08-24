@@ -14,7 +14,7 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from fastapi.testclient import TestClient
 
@@ -52,13 +52,13 @@ def load_manifest(repo_root: Path | None = None) -> dict[str, Any]:
         manifest = json.load(handle)
     if manifest.get("sample_id") != SAMPLE_ID:
         raise ValueError(f"unexpected sample_id in manifest: {manifest.get('sample_id')!r}")
-    return manifest
+    return cast(dict[str, Any], manifest)
 
 
 def _find_project_by_name(client: TestClient, project_name: str) -> dict[str, Any] | None:
     for project in client.get("/api/v1/projects").json():
         if project.get("name") == project_name:
-            return project
+            return cast(dict[str, Any], project)
     return None
 
 
