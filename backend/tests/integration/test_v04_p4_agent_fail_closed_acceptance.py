@@ -44,7 +44,9 @@ def _create_sqlite_client(tmp_path: Path, db_name: str) -> TestClient:
 def _assert_no_fabricated_engineering_numbers(payload: dict[str, Any]) -> None:
     body = json.dumps(payload, ensure_ascii=False)
     for pattern in _FABRICATED_NUMBER_PATTERNS:
-        assert not pattern.search(body), f"unexpected fabricated engineering field: {pattern.pattern}"
+        assert not pattern.search(body), (
+            f"unexpected fabricated engineering field: {pattern.pattern}"
+        )
 
 
 def test_v04_p4_sample_seed_persists_required_calculators(tmp_path: Path) -> None:
