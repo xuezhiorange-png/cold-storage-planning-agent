@@ -62,7 +62,10 @@ def test_v04_local_sample_boot_and_load_smoke(migrated_sqlite_url: str) -> None:
         version = client.get(
             f"/api/v1/projects/{seeded.project_id}/versions/{seeded.version_number}"
         ).json()
-        assert version["input_snapshot"]["daily_inbound_mass_kg"] == manifest["inputs"]["daily_inbound_mass_kg"]
+        assert (
+            version["input_snapshot"]["daily_inbound_mass_kg"]
+            == manifest["inputs"]["daily_inbound_mass_kg"]
+        )
 
         calculations = client.get(
             f"/api/v1/projects/{seeded.project_id}/versions/{seeded.version_number}/calculations"
