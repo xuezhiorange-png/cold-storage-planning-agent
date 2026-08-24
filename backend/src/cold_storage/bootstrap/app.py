@@ -1628,9 +1628,7 @@ def create_app(
                 tags=["agent"],
                 operation_id=f"disabled_model_backed_agent_{_idx}",
             )
-            _frozen_agent_auth.append(
-                AgentRouteAuthority(method=_method, path=_path, endpoint=_ep)
-            )
+            _frozen_agent_auth.append(AgentRouteAuthority(method=_method, path=_path, endpoint=_ep))
 
     app.state.frozen_agent_endpoint_authority = tuple(
         (a.method, a.path, a.endpoint) for a in _frozen_agent_auth
