@@ -378,7 +378,7 @@ def test_health_ready_still_emits_timeout_code_on_real_readiness_timeout(monkeyp
 
 
 def test_capability_projection_bound_to_local_app(sqlite_env):
-    """LOCAL_ALL_BRANCHES_STATUS=available: capability projection shows 'available'."""
+    """LOCAL default: capability projection shows fail-closed disabled agent."""
     reset_readiness_state()
     set_readiness_state(ReadinessState(state="READY"))
     app = create_app()
@@ -388,13 +388,14 @@ def test_capability_projection_bound_to_local_app(sqlite_env):
     assert len(projection) == 1
     cap = projection[0]
     assert cap["name"] == "model_backed_agent"
-    assert cap["status"] == "available"
-    assert cap["code"] is None
+    assert cap["status"] == "disabled"
+    assert cap["code"] == "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE"
+    assert cap["capability_state"] == "AGENT_CAPABILITY_DISABLED"
     reset_readiness_state()
 
 
-def test_capability_projection_shows_available_in_ready_response(sqlite_env):
-    """Health endpoint uses app-bound projection."""
+def test_capability_projection_shows_disabled_in_ready_response(sqlite_env):
+    """Health endpoint uses app-bound fail-closed projection."""
     reset_readiness_state()
     set_readiness_state(ReadinessState(state="READY"))
     app = create_app()
@@ -405,5 +406,6 @@ def test_capability_projection_shows_available_in_ready_response(sqlite_env):
         capabilities = body.get("capabilities", [])
         assert len(capabilities) == 1
         assert capabilities[0]["name"] == "model_backed_agent"
-        assert capabilities[0]["status"] == "available"
+        assert capabilities[0]["status"] == "disabled"
+        assert capabilities[0]["capability_state"] == "AGENT_CAPABILITY_DISABLED"
     reset_readiness_state()

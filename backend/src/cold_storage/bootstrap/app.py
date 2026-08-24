@@ -1543,9 +1543,9 @@ def create_app(
         create_agent_router as _create_agent_router,
     )
 
-    # D-S4-02/P2-C: local/test keep the existing fake-backed router. Strict
-    # modes use a real candidate router only after provider/schema preflight;
-    # the lifespan audit finalizes READY before serving begins.
+    # D-S4-02/P2-C: strict modes use a real candidate router only after
+    # provider/schema preflight. Local/test and disabled strict paths expose
+    # the frozen disabled route matrix (V0.4 P4 fail-closed acceptance).
     _frozen_agent_auth: list[AgentRouteAuthority] = []
     _agent_state = agent_evidence.state.value
     _agent_candidate = initial_mode in (AppMode.STAGING, AppMode.PRODUCTION) and (
@@ -1553,92 +1553,86 @@ def create_app(
         and initial_settings.agent_capability_resolution.configuration_valid
     )
 
-    if initial_mode in (AppMode.LOCAL, AppMode.TEST):
-        app.include_router(_create_agent_router(_get_planning_agent_service))
-        _agent_state = "LOCAL_TEST_AVAILABLE"
-    else:
-        if _agent_candidate:
-            _guarded_service_factory = _make_guarded_strict_planning_agent_service(
-                _app_authority_box,
-                app._agent_authority_lock,  # type: ignore[attr-defined]
-            )
-            _agent_router = _create_agent_router(_guarded_service_factory)
-            app.include_router(_agent_router)
-            for _registered_route in _agent_router.routes:
-                route_path = getattr(_registered_route, "path", "")
-                if not isinstance(route_path, str) or not route_path.startswith("/api/v1/agent/"):
-                    continue
-                endpoint = getattr(_registered_route, "endpoint", None)
-                methods = getattr(_registered_route, "methods", None)
-                if endpoint is None or not methods:
-                    continue
-                for method in methods:
-                    _frozen_agent_auth.append(
-                        AgentRouteAuthority(method=method, path=route_path, endpoint=endpoint)
-                    )
-        else:
-            from fastapi.responses import JSONResponse as _JSONResponse  # noqa: PLC0415
-
-            if agent_evidence.state is AgentCapabilityState.DISABLED:
-                _agent_error = {
-                    "error": {
-                        "code": "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
-                        "message": "Model-backed agent not in V0.2 production scope.",
-                        "details": {"retryable": False},
-                    }
-                }
-            else:
-                from cold_storage.modules.planning_agent.domain.errors import (
-                    provider_failure_metadata,
-                )
-
-                _metadata = provider_failure_metadata(
-                    agent_evidence.failure_code or "AGENT_PROVIDER_UNAVAILABLE"
-                )
-                _agent_error = {
-                    "error": {
-                        "code": _metadata.code.value,
-                        "message": _metadata.safe_message,
-                        "details": {"retryable": _metadata.retryable},
-                    }
-                }
-            _agent_routes = (
-                ("POST", "/api/v1/agent/sessions"),
-                ("GET", "/api/v1/agent/sessions"),
-                ("GET", "/api/v1/agent/sessions/{session_id}"),
-                ("GET", "/api/v1/agent/sessions/{session_id}/messages"),
-                ("POST", "/api/v1/agent/sessions/{session_id}/messages"),
-                ("GET", "/api/v1/agent/sessions/{session_id}/turns/{turn_id}"),
-                ("GET", "/api/v1/agent/sessions/{session_id}/tool-calls"),
-                ("POST", "/api/v1/agent/tool-calls/{tool_call_id}/confirm"),
-                ("POST", "/api/v1/agent/tool-calls/{tool_call_id}/reject"),
-                ("POST", "/api/v1/agent/sessions/{session_id}/cancel"),
-            )
-
-            def _disabled_agent_endpoint(name: str) -> Callable[[], _JSONResponse]:
-                def _ep() -> _JSONResponse:
-                    return _JSONResponse(status_code=503, content=_agent_error)
-
-                _ep.__name__ = name
-                return _ep
-
-            for _idx, (_method, _path) in enumerate(_agent_routes, start=1):
-                _ep = _disabled_agent_endpoint(f"disabled_agent_{_idx}")
-                app.add_api_route(
-                    _path,
-                    _ep,
-                    methods=[_method],
-                    status_code=503,
-                    tags=["agent"],
-                    operation_id=f"disabled_model_backed_agent_{_idx}",
-                )
-                _frozen_agent_auth.append(
-                    AgentRouteAuthority(method=_method, path=_path, endpoint=_ep)
-                )
-
-        app.state.frozen_agent_endpoint_authority = tuple(
-            (a.method, a.path, a.endpoint) for a in _frozen_agent_auth
+    if _agent_candidate:
+        _guarded_service_factory = _make_guarded_strict_planning_agent_service(
+            _app_authority_box,
+            app._agent_authority_lock,  # type: ignore[attr-defined]
         )
+        _agent_router = _create_agent_router(_guarded_service_factory)
+        app.include_router(_agent_router)
+        for _registered_route in _agent_router.routes:
+            route_path = getattr(_registered_route, "path", "")
+            if not isinstance(route_path, str) or not route_path.startswith("/api/v1/agent/"):
+                continue
+            endpoint = getattr(_registered_route, "endpoint", None)
+            methods = getattr(_registered_route, "methods", None)
+            if endpoint is None or not methods:
+                continue
+            for method in methods:
+                _frozen_agent_auth.append(
+                    AgentRouteAuthority(method=method, path=route_path, endpoint=endpoint)
+                )
+    else:
+        from fastapi.responses import JSONResponse as _JSONResponse  # noqa: PLC0415
+
+        if agent_evidence.state is AgentCapabilityState.DISABLED:
+            _agent_error = {
+                "error": {
+                    "code": "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
+                    "message": "Model-backed agent not in V0.2 production scope.",
+                    "details": {"retryable": False},
+                }
+            }
+        else:
+            from cold_storage.modules.planning_agent.domain.errors import (
+                provider_failure_metadata,
+            )
+
+            _metadata = provider_failure_metadata(
+                agent_evidence.failure_code or "AGENT_PROVIDER_UNAVAILABLE"
+            )
+            _agent_error = {
+                "error": {
+                    "code": _metadata.code.value,
+                    "message": _metadata.safe_message,
+                    "details": {"retryable": _metadata.retryable},
+                }
+            }
+        _agent_routes = (
+            ("POST", "/api/v1/agent/sessions"),
+            ("GET", "/api/v1/agent/sessions"),
+            ("GET", "/api/v1/agent/sessions/{session_id}"),
+            ("GET", "/api/v1/agent/sessions/{session_id}/messages"),
+            ("POST", "/api/v1/agent/sessions/{session_id}/messages"),
+            ("GET", "/api/v1/agent/sessions/{session_id}/turns/{turn_id}"),
+            ("GET", "/api/v1/agent/sessions/{session_id}/tool-calls"),
+            ("POST", "/api/v1/agent/tool-calls/{tool_call_id}/confirm"),
+            ("POST", "/api/v1/agent/tool-calls/{tool_call_id}/reject"),
+            ("POST", "/api/v1/agent/sessions/{session_id}/cancel"),
+        )
+
+        def _disabled_agent_endpoint(name: str) -> Callable[[], _JSONResponse]:
+            def _ep() -> _JSONResponse:
+                return _JSONResponse(status_code=503, content=_agent_error)
+
+            _ep.__name__ = name
+            return _ep
+
+        for _idx, (_method, _path) in enumerate(_agent_routes, start=1):
+            _ep = _disabled_agent_endpoint(f"disabled_agent_{_idx}")
+            app.add_api_route(
+                _path,
+                _ep,
+                methods=[_method],
+                status_code=503,
+                tags=["agent"],
+                operation_id=f"disabled_model_backed_agent_{_idx}",
+            )
+            _frozen_agent_auth.append(AgentRouteAuthority(method=_method, path=_path, endpoint=_ep))
+
+    app.state.frozen_agent_endpoint_authority = tuple(
+        (a.method, a.path, a.endpoint) for a in _frozen_agent_auth
+    )
 
     # D-S4-06: Immutable binding manifest. Registered after route wiring,
     # before lifespan startup. The strict audit checks this manifest.
