@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "sample_id": "v04-local-workbench",
+  "description": "V0.4 local workbench sample — blueberry cold-storage planning with persisted zone and investment results via current main APIs.",
+  "project": {
+    "name": "V0.4 本地示例项目",
+    "location": "山东",
+    "product_category": "blueberry"
+  },
+  "inputs": {
+    "daily_inbound_mass_kg": 25000,
+    "working_time_h_per_day": 16,
+    "utilization_factor": 0.85,
+    "reserve_factor": 1.05,
+    "finished_storage_days": 2.5,
+    "packaging_storage_days": 3,
+    "main_packaging_storage_days": 3,
+    "auxiliary_packaging_storage_days": 30,
+    "precooling_required_ratio": 1,
+    "primary_precooling_working_hours_per_day": 6,
+    "secondary_precooling_working_hours_per_day": 16,
+    "raw_storage_ratio": 0.4,
+    "finished_goods_pallet_weight_kg": 400,
+    "frozen_fruit_ratio": 0.1,
+    "frozen_storage_days": 5,
+    "frozen_goods_pallet_weight_kg": 600
+  },
+  "planning_run_request": {}
+}
