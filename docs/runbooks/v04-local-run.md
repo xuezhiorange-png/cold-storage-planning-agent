@@ -147,7 +147,8 @@ Loader module:
 backend/src/cold_storage/bootstrap/v04_local_sample.py
 ```
 
-Re-run seeding safely; it is idempotent by project name.
+Re-run seeding safely; it is idempotent by project name. The loader assumes
+schema is already at Alembic head — run ``make migrate`` first.
 
 ## Troubleshooting
 

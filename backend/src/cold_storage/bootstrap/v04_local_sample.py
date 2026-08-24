@@ -2,6 +2,9 @@
 
 The loader uses the public project and planning-run endpoints only. It does not
 invoke a second calculator or the production orchestration fixture.
+
+Database schema must already be at Alembic head (for example via ``make migrate``)
+before running this module.
 """
 
 from __future__ import annotations
@@ -9,8 +12,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -23,7 +24,6 @@ from cold_storage.modules.projects.infrastructure.database import create_databas
 SAMPLE_ID = "v04-local-workbench"
 MANIFEST_RELATIVE_PATH = Path("samples") / SAMPLE_ID / "manifest.json"
 REPO_ROOT = Path(__file__).resolve().parents[4]
-BACKEND_DIR = REPO_ROOT / "backend"
 EXPECTED_PERSISTED_CALCULATORS = ("cold_room_zone_plan", "investment_estimate")
 
 
@@ -141,39 +141,25 @@ def seed_v04_local_sample(
     )
 
 
-def run_alembic_upgrade_head(*, sqlite_path: Path) -> None:
-    env = os.environ.copy()
-    env["SQLITE_PATH"] = str(sqlite_path)
-    env.setdefault("COLD_STORAGE_DATABASE_BACKEND", "sqlite")
-    env.setdefault("COLD_STORAGE_SQLITE_PATH", str(sqlite_path))
-    result = subprocess.run(
-        [sys.executable, "-m", "alembic", "upgrade", "head"],
-        cwd=BACKEND_DIR,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            "alembic upgrade head failed:\n"
-            f"{result.stderr}\n"
-            f"{result.stdout}"
-        )
+def _resolve_database_url(database_url: str | None) -> str:
+    if database_url is not None:
+        return database_url
+    sqlite_path = Path(os.environ.get("COLD_STORAGE_SQLITE_PATH", REPO_ROOT / "cold_storage_dev.db"))
+    if not sqlite_path.is_absolute():
+        sqlite_path = REPO_ROOT / sqlite_path
+    return f"sqlite:///{sqlite_path}"
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Seed the V0.4 local workbench sample project via current main APIs."
+        description=(
+            "Seed the V0.4 local workbench sample project via current main APIs. "
+            "Run `make migrate` first."
+        )
     )
     parser.add_argument(
         "--database-url",
         help="Optional SQLAlchemy database URL. Defaults to COLD_STORAGE_SQLITE_PATH or ./cold_storage_dev.db.",
-    )
-    parser.add_argument(
-        "--skip-migrate",
-        action="store_true",
-        help="Skip alembic upgrade head (use when migrations were already applied).",
     )
     parser.add_argument(
         "--json",
@@ -185,19 +171,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
-    sqlite_path: Path | None = None
-    database_url = args.database_url
-    if database_url is None:
-        sqlite_path = Path(
-            os.environ.get("COLD_STORAGE_SQLITE_PATH", REPO_ROOT / "cold_storage_dev.db")
-        )
-        if not sqlite_path.is_absolute():
-            sqlite_path = REPO_ROOT / sqlite_path
-        database_url = f"sqlite:///{sqlite_path}"
-
-    if sqlite_path is not None and not args.skip_migrate:
-        sqlite_path.parent.mkdir(parents=True, exist_ok=True)
-        run_alembic_upgrade_head(sqlite_path=sqlite_path)
+    database_url = _resolve_database_url(args.database_url)
 
     service = create_database_project_service(database_url)
     with TestClient(create_app(project_service=service)) as client:
