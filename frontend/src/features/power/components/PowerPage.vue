@@ -52,10 +52,6 @@ const requiresReview = computed(() => {
   return response.value?.power_configuration?.requires_review ?? false
 })
 
-const hasPowerData = computed(() => {
-  return equipmentRows.value.length > 0 || totalInstalled.value > 0 || summaryRows.value.length > 0
-})
-
 function formatNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2)
 }
@@ -67,14 +63,20 @@ function formatOptionalPower(value: number | null): string {
 
 <template>
   <div class="power-page">
-    <template v-if="response && hasPowerData">
+    <template v-if="response">
       <ElCard>
         <template #header>
           <span>用电配置</span>
         </template>
 
-        <div v-if="equipmentRows.length > 0" class="table-scroll">
-          <ElTable :data="equipmentRows" stripe border size="small" max-height="480">
+        <div class="table-scroll">
+          <ElTable
+            :data="equipmentRows"
+            stripe
+            border
+            size="small"
+            max-height="480"
+          >
             <ElTableColumn prop="sequence" label="序号" width="60" align="center" />
             <ElTableColumn prop="name" label="名称" min-width="140" />
             <ElTableColumn prop="area" label="区域" min-width="140" />
@@ -99,16 +101,11 @@ function formatOptionalPower(value: number | null): string {
                 {{ formatNumber((scope.row as EquipmentPowerRowContract).total_power_kw) }} kW
               </template>
             </ElTableColumn>
+            <template #empty>
+              <span class="power-page__table-empty">暂无持久化设备明细</span>
+            </template>
           </ElTable>
         </div>
-
-        <p
-          v-else-if="totalInstalled > 0"
-          class="power-page__persisted-note"
-          role="note"
-        >
-          设备明细未持久化；当前仅展示持久化投资测算输入中的装机总功率。运行规划后可在同会话内查看完整设备表直至刷新。
-        </p>
 
         <div v-if="summaryRows.length > 0" class="table-scroll" style="margin-top: 16px">
           <ElTable
@@ -127,7 +124,7 @@ function formatOptionalPower(value: number | null): string {
           </ElTable>
         </div>
 
-        <div class="power-page__totals">
+        <div v-if="totalInstalled > 0 || totalDemand > 0" class="power-page__totals">
           <div class="power-page__total-item">
             <span class="power-page__total-label">装机总功率</span>
             <span class="power-page__total-value">{{ formatNumber(totalInstalled) }} kW</span>
@@ -145,8 +142,14 @@ function formatOptionalPower(value: number | null): string {
     </template>
 
     <div v-else class="power-page__empty">
-      <p>暂无用电配置数据。</p>
-      <p>请在「基本信息」页面生成规划。</p>
+      <div class="table-scroll">
+        <ElTable :data="[]" stripe border size="small">
+          <ElTableColumn prop="name" label="名称" min-width="140" />
+          <template #empty>
+            <span>暂无用电配置数据。请在「基本信息」页面生成规划。</span>
+          </template>
+        </ElTable>
+      </div>
     </div>
   </div>
 </template>
@@ -156,15 +159,9 @@ function formatOptionalPower(value: number | null): string {
   max-width: 1200px;
 }
 
-.power-page__persisted-note {
-  margin: 0 0 12px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: #eef4fb;
-  border: 1px solid #c7d4e3;
-  color: #40566f;
-  font-size: 12px;
-  line-height: 1.45;
+.power-page__table-empty {
+  color: #6b7a8f;
+  font-size: 13px;
 }
 
 .power-page__totals {
@@ -206,16 +203,9 @@ function formatOptionalPower(value: number | null): string {
 }
 
 .power-page__empty {
-  padding: 48px 24px;
-  text-align: center;
-  color: #6b7a8f;
+  padding: 24px;
   border: 1px dashed #d0d7e2;
   border-radius: 8px;
   background: #f8f9fb;
-  font-size: 14px;
-}
-
-.power-page__empty p {
-  margin: 4px 0;
 }
 </style>

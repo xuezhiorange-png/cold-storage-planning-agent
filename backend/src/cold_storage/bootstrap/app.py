@@ -1477,22 +1477,29 @@ def create_app(
                         "details": {},
                     }
                 }
-        zone_result = build_zone_plan_from_inputs(inputs, zone_planner)
-        total_area = round(
-            sum(zone_number(zone, "required_area_m2") for zone in zone_result.result["zones"]),
-            2,
+        from cold_storage.modules.projects.application.workbench_planning import (
+            WorkbenchPlanningError,
+            run_persisted_workbench_planning,
         )
-        power_configuration = build_power_configuration(
-            zone_result.result["zones"], as_float(inputs["daily_inbound_mass_kg"]), total_area
-        )
-        investment_result = build_investment_from_zone_result(
-            zone_result,
-            investment_estimator,
-            as_float(power_configuration["total_installed_power_kw"]),
-        )
-        service.record_calculation(project_id, version, zone_result, actor="api")
-        service.record_calculation(project_id, version, investment_result, actor="api")
-        return planning_run_response(inputs, zone_result, investment_result)
+
+        try:
+            return run_persisted_workbench_planning(
+                project_service=service,
+                project_id=project_id,
+                version_number=version,
+                inputs=inputs,
+                zone_planner=zone_planner,
+                investment_estimator=investment_estimator,
+                actor="api",
+            )
+        except WorkbenchPlanningError as exc:
+            return {
+                "error": {
+                    "code": exc.code,
+                    "message": exc.message,
+                    "details": exc.details,
+                }
+            }
 
     @app.get("/api/v1/projects/{project_id}/audit-events")
     def list_audit_events(project_id: str, service: ProjectServiceDep) -> list[dict[str, Any]]:
