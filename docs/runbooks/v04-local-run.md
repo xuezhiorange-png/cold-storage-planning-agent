@@ -156,7 +156,7 @@ schema is already at Alembic head — run ``make migrate`` first.
 | `no such table` / migration errors | Run `make migrate` before `make seed-v04-sample`. |
 | Empty workbench project | Confirm backend is on `:8000` and frontend proxy is running. |
 | Missing persisted results | Re-run `make seed-v04-sample` and inspect `GET .../calculations`. |
-| Agent drawer unavailable | Expected without live MiMo; core planning path still works. |
+| Agent drawer unavailable | Expected without live MiMo; routes return `AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE`; core planning path still works. |
 
 ## Related docs
 
@@ -165,5 +165,7 @@ schema is already at Alembic head — run ``make migrate`` first.
   five-stage production acceptance (separate from this local sample)
 - `docs/tasks/V0_4-P5-controlled-acceptance-contract.md` — V0.4 P5 controlled
   acceptance matrix (sqlite; no tag/Release)
+- `docs/tasks/V0_4-P4-agent-fail-closed-acceptance-contract.md` — V0.4 P4
+  fail-closed Agent acceptance (no live MiMo)
 - Parent tracking: GitHub issue #150 (V0.4 umbrella), package issues #153 (P3),
-  #155/#159 (P5)
+  #154/#161 (P4), #155/#159 (P5)

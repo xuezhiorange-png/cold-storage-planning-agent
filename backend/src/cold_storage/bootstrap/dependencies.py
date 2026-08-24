@@ -467,15 +467,17 @@ def _capability_projection_entry(
 ) -> MappingProxyType[str, object]:
     from cold_storage.bootstrap.mode import AppMode
 
+    # V0.4 P4: local/test persisted workbench accepts fail-closed agent path.
+    # Live MiMo remains out of scope without explicit staging/production enablement.
     if app_mode in (AppMode.LOCAL, AppMode.TEST):
         return MappingProxyType(
             {
                 "name": _MODEL_BACKED_AGENT_CAPABILITY,
-                "status": "available",
-                "code": None,
+                "status": "disabled",
+                "code": "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
                 "blocking": False,
-                "capability_state": "LOCAL_TEST_AVAILABLE",
-                "route_exposure": "LOCAL_TEST_ROUTES",
+                "capability_state": "AGENT_CAPABILITY_DISABLED",
+                "route_exposure": "DISABLED_ROUTE_MATRIX",
             }
         )
 
