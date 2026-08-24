@@ -24,7 +24,11 @@ from cold_storage.modules.projects.infrastructure.database import create_databas
 SAMPLE_ID = "v04-local-workbench"
 MANIFEST_RELATIVE_PATH = Path("samples") / SAMPLE_ID / "manifest.json"
 REPO_ROOT = Path(__file__).resolve().parents[4]
-EXPECTED_PERSISTED_CALCULATORS = ("cold_room_zone_plan", "investment_estimate")
+EXPECTED_PERSISTED_CALCULATORS = (
+    "cold_room_zone_plan",
+    "investment_estimate",
+    "power_configuration",
+)
 
 
 @dataclass(frozen=True, slots=True)
