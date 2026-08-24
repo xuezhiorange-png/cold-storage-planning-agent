@@ -1,8 +1,17 @@
 import type { CalculationRunRecord } from '../../../api/contracts/calculations'
-import type { PlanningRunResponse } from '../../../api/contracts/planning'
+import type {
+  EquipmentPowerRowContract,
+  PlanningRunResponse,
+  PowerItemContract,
+  PowerSummaryRowContract
+} from '../../../api/contracts/planning'
 
 const ZONE_CALCULATOR = 'cold_room_zone_plan'
+const COOLING_LOAD_CALCULATOR = 'cooling_load'
+const EQUIPMENT_CALCULATOR = 'equipment'
+const POWER_CALCULATOR = 'installed_power'
 const INVESTMENT_CALCULATOR = 'investment_estimate'
+const POWER_CONFIGURATION_CALCULATOR = 'power_configuration'
 
 function asNumber(value: unknown): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -32,9 +41,89 @@ function zoneRows(record: CalculationRunRecord | undefined): Array<Record<string
   return Array.isArray(zones) ? zones.filter((zone) => zone && typeof zone === 'object') as Array<Record<string, unknown>> : []
 }
 
+function mapEquipmentRow(row: Record<string, unknown>, index: number): EquipmentPowerRowContract {
+  return {
+    sequence: asNumber(row.sequence) || index + 1,
+    name: String(row.name ?? ''),
+    area: String(row.area ?? ''),
+    quantity: asNumber(row.quantity),
+    defrost_power_kw: row.defrost_power_kw === null || row.defrost_power_kw === undefined
+      ? null
+      : asNumber(row.defrost_power_kw),
+    defrost_total_power_kw: row.defrost_total_power_kw === null || row.defrost_total_power_kw === undefined
+      ? null
+      : asNumber(row.defrost_total_power_kw),
+    running_power_kw: asNumber(row.running_power_kw),
+    total_power_kw: asNumber(row.total_power_kw)
+  }
+}
+
+function mapSummaryRow(row: Record<string, unknown>): PowerSummaryRowContract {
+  return {
+    name: String(row.name ?? ''),
+    basis: String(row.basis ?? ''),
+    total_power_kw: asNumber(row.total_power_kw)
+  }
+}
+
+function mapPowerItem(row: Record<string, unknown>): PowerItemContract {
+  return {
+    category: String(row.category ?? ''),
+    installed_power_kw: asNumber(row.installed_power_kw),
+    demand_factor: asNumber(row.demand_factor),
+    estimated_demand_kw: asNumber(row.estimated_demand_kw)
+  }
+}
+
+function powerConfigurationFromRecord(
+  record: CalculationRunRecord | undefined,
+  investmentRecord: CalculationRunRecord | undefined,
+  powerRecord: CalculationRunRecord | undefined,
+  requiresReview: boolean
+): PlanningRunResponse['power_configuration'] {
+  const persisted = record?.result_snapshot?.result ?? {}
+  const equipmentRows = Array.isArray(persisted.equipment_rows)
+    ? persisted.equipment_rows.map((row, idx) =>
+        mapEquipmentRow(row as Record<string, unknown>, idx)
+      )
+    : []
+  const summaryRows = Array.isArray(persisted.summary_rows)
+    ? persisted.summary_rows.map((row) => mapSummaryRow(row as Record<string, unknown>))
+    : []
+  const items = Array.isArray(persisted.items)
+    ? persisted.items.map((row) => mapPowerItem(row as Record<string, unknown>))
+    : []
+
+  const investmentInput = investmentRecord?.result_snapshot?.input ?? {}
+  const powerResult = powerRecord?.result_snapshot?.result ?? {}
+  const totalFromPowerTable = asNumber(persisted.total_installed_power_kw)
+  const totalFromInvestment = asNumber(investmentInput.total_power_kw)
+  const totalFromInstalledPower = asNumber(
+    powerResult.total_installed_power_kw_e ?? powerResult.total_installed_power_kw
+  )
+  const totalInstalled = totalFromPowerTable > 0
+    ? totalFromPowerTable
+    : totalFromInvestment > 0
+      ? totalFromInvestment
+      : totalFromInstalledPower
+
+  const totalDemand = asNumber(
+    persisted.total_estimated_demand_kw ?? powerResult.estimated_peak_demand_kw_e ?? totalInstalled
+  )
+
+  return {
+    equipment_rows: equipmentRows,
+    summary_rows: summaryRows,
+    items,
+    total_installed_power_kw: totalInstalled,
+    total_estimated_demand_kw: totalDemand,
+    requires_review: Boolean(persisted.requires_review ?? record?.requires_review ?? requiresReview)
+  }
+}
+
 /**
  * Map persisted calculation runs into the planning response view shape used by workbench pages.
- * Summaries aggregate persisted zone outputs only — no frontend engineering formulas.
+ * Reads persisted five-stage runs only — no transient demo planning-run fallback.
  */
 export function mapPersistedCalculationsToPlanningResponse(
   records: CalculationRunRecord[]
@@ -44,18 +133,29 @@ export function mapPersistedCalculationsToPlanningResponse(
   if (!zoneRecord) return null
 
   const investmentRecord = byName[INVESTMENT_CALCULATOR]
+  const powerConfigurationRecord = byName[POWER_CONFIGURATION_CALCULATOR]
+  const powerRecord = byName[POWER_CALCULATOR]
   const zones = zoneRows(zoneRecord)
   if (zones.length === 0) return null
 
   const totalAreaM2 = zones.reduce((sum, zone) => sum + asNumber(zone.required_area_m2), 0)
   const totalPositionCount = zones.reduce((sum, zone) => sum + asNumber(zone.position_count), 0)
   const investmentResult = investmentRecord?.result_snapshot?.result ?? {}
-  const investmentInput = investmentRecord?.result_snapshot?.input ?? {}
   const totalInvestmentCny = asNumber(investmentResult.total_investment_cny)
-  const totalPowerKw = asNumber(investmentInput.total_power_kw)
+  const powerConfiguration = powerConfigurationFromRecord(
+    powerConfigurationRecord,
+    investmentRecord,
+    powerRecord,
+    Boolean(zoneRecord.requires_review) || Boolean(investmentRecord?.requires_review)
+  )
 
   const requiresReview =
-    Boolean(zoneRecord.requires_review) || Boolean(investmentRecord?.requires_review)
+    Boolean(zoneRecord.requires_review)
+    || Boolean(investmentRecord?.requires_review)
+    || Boolean(powerConfigurationRecord?.requires_review)
+    || Boolean(byName[COOLING_LOAD_CALCULATOR]?.requires_review)
+    || Boolean(byName[EQUIPMENT_CALCULATOR]?.requires_review)
+    || Boolean(powerRecord?.requires_review)
 
   return {
     success: Boolean(zoneRecord.result_snapshot?.success),
@@ -63,7 +163,7 @@ export function mapPersistedCalculationsToPlanningResponse(
       total_area_m2: totalAreaM2,
       total_position_count: totalPositionCount,
       total_investment_cny: totalInvestmentCny,
-      total_power_kw: totalPowerKw,
+      total_power_kw: powerConfiguration.total_installed_power_kw,
       requires_review: requiresReview
     },
     zone_plan: {
@@ -91,20 +191,6 @@ export function mapPersistedCalculationsToPlanningResponse(
           : []
       }
     },
-    power_configuration: {
-      equipment_rows: [],
-      summary_rows:
-        totalPowerKw > 0
-          ? [{
-              name: '装机总功率',
-              basis: '持久化投资测算输入',
-              total_power_kw: totalPowerKw
-            }]
-          : [],
-      items: [],
-      total_installed_power_kw: totalPowerKw,
-      total_estimated_demand_kw: 0,
-      requires_review: requiresReview
-    }
+    power_configuration: powerConfiguration
   }
 }

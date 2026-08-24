@@ -107,7 +107,7 @@ function formatOptionalPower(value: number | null): string {
           class="power-page__persisted-note"
           role="note"
         >
-          设备明细未持久化；当前仅展示持久化投资测算输入中的装机总功率。运行规划后可在同会话内查看完整设备表直至刷新。
+          设备明细未持久化；当前仅展示装机总功率汇总。
         </p>
 
         <div v-if="summaryRows.length > 0" class="table-scroll" style="margin-top: 16px">

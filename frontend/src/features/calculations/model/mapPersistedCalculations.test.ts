@@ -24,6 +24,53 @@ function zoneRecord(
   }
 }
 
+function powerConfigurationRecord(
+  equipmentRows: Array<Record<string, unknown>>,
+  totalPowerKw = 1350,
+  id = 'pwr-1'
+): CalculationRunRecord {
+  return {
+    id,
+    project_id: 'proj-1',
+    project_version_id: 'ver-1',
+    calculator_name: 'power_configuration',
+    calculator_version: '1.0.0',
+    result_snapshot: {
+      success: true,
+      calculator_name: 'power_configuration',
+      calculator_version: '1.0.0',
+      input: {},
+      result: {
+        equipment_rows: equipmentRows,
+        summary_rows: [{ name: '合计', basis: '', total_power_kw: totalPowerKw }],
+        items: [],
+        total_installed_power_kw: totalPowerKw,
+        total_estimated_demand_kw: totalPowerKw,
+        requires_review: true
+      }
+    },
+    requires_review: true
+  }
+}
+
+function coolingLoadRecord(id = 'cool-1'): CalculationRunRecord {
+  return {
+    id,
+    project_id: 'proj-1',
+    project_version_id: 'ver-1',
+    calculator_name: 'cooling_load',
+    calculator_version: '1.0.0',
+    result_snapshot: {
+      success: true,
+      calculator_name: 'cooling_load',
+      calculator_version: '1.0.0',
+      input: {},
+      result: { total_cooling_load_kw: '120.0' }
+    },
+    requires_review: true
+  }
+}
+
 function investmentRecord(
   items: Array<{ item_name: string; amount_cny: number }>,
   totalPowerKw = 1350,
@@ -91,6 +138,37 @@ describe('mapPersistedCalculationsToPlanningResponse', () => {
     expect(mapped!.power_configuration.total_installed_power_kw).toBe(1350)
   })
 
+  it('maps persisted power_configuration equipment rows', () => {
+    const mapped = mapPersistedCalculationsToPlanningResponse([
+      zoneRecord([{
+        zone_name: '成品冷藏',
+        temperature_band: '冷藏',
+        position_count: 40,
+        required_area_m2: 300,
+        daily_throughput_kg: 0,
+        design_storage_mass_kg: 0
+      }]),
+      investmentRecord([{ item_name: '土建', amount_cny: 600_000 }]),
+      powerConfigurationRecord([
+        {
+          sequence: 1,
+          name: '冷风机',
+          area: '成品库',
+          quantity: 3,
+          defrost_power_kw: null,
+          defrost_total_power_kw: null,
+          running_power_kw: 2.5,
+          total_power_kw: 7.5
+        }
+      ])
+    ])
+
+    expect(mapped).not.toBeNull()
+    expect(mapped!.power_configuration.equipment_rows.length).toBe(1)
+    expect(mapped!.power_configuration.equipment_rows[0].name).toBe('冷风机')
+    expect(mapped!.power_configuration.total_installed_power_kw).toBe(1350)
+  })
+
   it('returns null when zone plan is missing', () => {
     expect(mapPersistedCalculationsToPlanningResponse([
       investmentRecord([{ item_name: '土建', amount_cny: 100 }])
@@ -116,7 +194,8 @@ describe('mapPersistedCalculationsToPlanningResponse', () => {
         daily_throughput_kg: 0,
         design_storage_mass_kg: 0
       }], 'zone-new'),
-      investmentRecord([{ item_name: '新分项', amount_cny: 900_000 }], 2000, 'inv-new', 2_000_000)
+      investmentRecord([{ item_name: '新分项', amount_cny: 900_000 }], 2000, 'inv-new', 2_000_000),
+      coolingLoadRecord('cool-new')
     ])
 
     expect(mapped).not.toBeNull()

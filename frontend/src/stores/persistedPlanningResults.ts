@@ -4,7 +4,6 @@ import { computed, ref } from 'vue'
 import type { PlanningRunResponse } from '../api/contracts/planning'
 import { createCalculationsApi, type CalculationsApi } from '../features/calculations/api/calculationsApi'
 import { mapPersistedCalculationsToPlanningResponse } from '../features/calculations/model/mapPersistedCalculations'
-import { usePlanningWorkflowStore } from './planningWorkflow'
 import { useWorkbenchContextStore } from './workbenchContext'
 
 export const usePersistedPlanningResultsStore = defineStore('persistedPlanningResults', () => {
@@ -15,16 +14,7 @@ export const usePersistedPlanningResultsStore = defineStore('persistedPlanningRe
   let loadAbort: AbortController | null = null
   let loadRequestId = 0
 
-  const displayResponse = computed<PlanningRunResponse | null>(() => {
-    if (persistedResponse.value) {
-      return persistedResponse.value
-    }
-    const planning = usePlanningWorkflowStore()
-    if (planning.isLoading && planning.latestResponse) {
-      return planning.latestResponse
-    }
-    return null
-  })
+  const displayResponse = computed<PlanningRunResponse | null>(() => persistedResponse.value)
 
   async function load(
     calculationsApi: CalculationsApi = createCalculationsApi()
