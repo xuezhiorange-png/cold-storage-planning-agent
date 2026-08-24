@@ -66,9 +66,11 @@ def test_planning_run_persists_planning_helpers_and_power_table(tmp_path: Path) 
     power_configuration = next(
         row for row in calculations if row["calculator_name"] == "power_configuration"
     )
-    assert power_configuration["result_snapshot"]["result"]["equipment_rows"][0]["name"] == "制冷压缩机组"
+    equipment_name = power_configuration["result_snapshot"]["result"]["equipment_rows"][0]["name"]
+    assert equipment_name == "制冷压缩机组"
 
-    second_client = TestClient(create_app(project_service=create_database_project_service(database_url)))
+    second_service = create_database_project_service(database_url)
+    second_client = TestClient(create_app(project_service=second_service))
     reloaded = second_client.get(
         f"/api/v1/projects/{project_id}/versions/{version}/calculations"
     ).json()
