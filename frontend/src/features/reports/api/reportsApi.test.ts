@@ -12,6 +12,74 @@ function createClient(): HttpClient {
 }
 
 describe('reportsApi', () => {
+  it('maps create request to POST /api/v1/reports', async () => {
+    const client = createClient()
+    vi.mocked(client.requestJson).mockResolvedValue({
+      report_id: 'report-1',
+      status: 'draft'
+    })
+
+    const api = createReportsApi(client)
+    await api.create({
+      project_id: 'proj-1',
+      project_version_id: 'ver-1'
+    })
+
+    expect(client.requestJson).toHaveBeenCalledWith('/api/v1/reports', {
+      method: 'POST',
+      body: {
+        project_id: 'proj-1',
+        project_version_id: 'ver-1',
+        report_type: 'cold_storage_concept_design',
+        idempotency_key: null
+      },
+      signal: undefined
+    })
+  })
+
+  it('maps generate request to POST /api/v1/reports/{id}/generate', async () => {
+    const client = createClient()
+    vi.mocked(client.requestJson).mockResolvedValue({
+      revision_number: 2,
+      content_hash: 'hash-2'
+    })
+
+    const api = createReportsApi(client)
+    await api.generate('report-1', { idempotency_key: 'gen-1' })
+
+    expect(client.requestJson).toHaveBeenCalledWith('/api/v1/reports/report-1/generate', {
+      method: 'POST',
+      body: { idempotency_key: 'gen-1' },
+      signal: undefined
+    })
+  })
+
+  it('maps review actions to backend trusted-operator endpoints', async () => {
+    const client = createClient()
+    vi.mocked(client.requestJson).mockResolvedValue({ status: 'under_review' })
+
+    const api = createReportsApi(client)
+    await api.submitReview('report-1', { comment: 'please review' })
+    await api.markReviewed('report-1')
+    await api.approve('report-1')
+
+    expect(client.requestJson).toHaveBeenNthCalledWith(
+      1,
+      '/api/v1/reports/report-1/submit-review',
+      { method: 'POST', body: { comment: 'please review' }, signal: undefined }
+    )
+    expect(client.requestJson).toHaveBeenNthCalledWith(
+      2,
+      '/api/v1/reports/report-1/mark-reviewed',
+      { method: 'POST', body: {}, signal: undefined }
+    )
+    expect(client.requestJson).toHaveBeenNthCalledWith(
+      3,
+      '/api/v1/reports/report-1/approve',
+      { method: 'POST', body: {}, signal: undefined }
+    )
+  })
+
   it('maps locale, format, mode, and idempotency into the render request', async () => {
     const client = createClient()
     vi.mocked(client.requestJson).mockResolvedValue({

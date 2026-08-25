@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import type { ArtifactListItemContract } from '../../../api/contracts/reports'
 import type { WorkflowBlocker } from '../../../api/contracts/workflow'
@@ -13,11 +13,13 @@ import type { ExportForm } from '../composables/useReportExport'
 const props = withDefaults(
   defineProps<{
     projectId?: string
+    projectVersionId?: string
     formalExportEligible?: boolean
     formalExportBlockers?: WorkflowBlocker[]
   }>(),
   {
     projectId: undefined,
+    projectVersionId: undefined,
     formalExportEligible: false,
     formalExportBlockers: () => []
   }
@@ -34,6 +36,19 @@ const {
   reports,
   reportsLoading,
   reportsError,
+
+  reportDetail,
+  reportDetailLoading,
+  reportDetailError,
+
+  createLoading,
+  createError,
+  generateLoading,
+  generateError,
+  actionBlockers,
+
+  reviewLoading,
+  reviewError,
 
   selectedReportId,
   selectedRevisionNumber,
@@ -54,6 +69,11 @@ const {
   downloadError,
 
   loadReports,
+  createAndGenerateReport,
+  generateRevision,
+  submitReview,
+  markReviewed,
+  approveReport,
   selectReport,
   renderReport,
   downloadArtifact,
@@ -65,13 +85,76 @@ const {
 const activeExportForm = ref<ExportForm>(createDefaultExportForm())
 const expandedReportId = ref<string | null>(null)
 
+const canCreateReport = computed(
+  () => Boolean(props.projectId && props.projectVersionId)
+)
+const workflowBusy = computed(
+  () => createLoading.value || generateLoading.value || reviewLoading.value
+)
+const displayedBlockers = computed(() => {
+  const fromActions = actionBlockers.value
+  if (fromActions.length > 0) return [...fromActions]
+  if (!props.formalExportEligible) {
+    return props.formalExportBlockers.map((b) => ({
+      code: b.code,
+      message: b.message,
+      stage: b.stage,
+      source_type: b.source_type,
+      source_id: b.source_id,
+      severity: b.severity
+    }))
+  }
+  return []
+})
+
 /* ── Lifecycle ─────────────────────────────────────── */
 
 onMounted(() => {
   loadReports(props.projectId)
 })
 
-/* ── Actions ───────────────────────────────────────── */
+watch(
+  () => props.projectId,
+  (projectId) => {
+    reset()
+    loadReports(projectId)
+  }
+)
+
+async function handleCreateAndGenerate(): Promise<void> {
+  if (!props.projectId || !props.projectVersionId) return
+  const reportId = await createAndGenerateReport({
+    projectId: props.projectId,
+    projectVersionId: props.projectVersionId
+  })
+  if (reportId) {
+    expandedReportId.value = reportId
+    emit('reportSelected', reportId)
+  }
+  if (createError.value || generateError.value) {
+    emit('error', createError.value || generateError.value)
+  }
+}
+
+async function handleGenerateRevision(reportId: string): Promise<void> {
+  const ok = await generateRevision(reportId)
+  if (!ok && generateError.value) {
+    emit('error', generateError.value)
+  }
+}
+
+async function handleReviewAction(
+  action: 'submit' | 'mark-reviewed' | 'approve',
+  reportId: string
+): Promise<void> {
+  let ok = false
+  if (action === 'submit') ok = await submitReview(reportId)
+  if (action === 'mark-reviewed') ok = await markReviewed(reportId)
+  if (action === 'approve') ok = await approveReport(reportId)
+  if (!ok && reviewError.value) {
+    emit('error', reviewError.value)
+  }
+}
 
 function toggleReport(reportId: string): void {
   if (expandedReportId.value === reportId) {
@@ -179,12 +262,37 @@ function reportStatusLabel(status: string): string {
       加载报告列表...
     </div>
 
-    <!-- Empty state -->
+    <!-- Empty state with guided create -->
     <div
       v-else-if="!reportsLoading && reports.length === 0 && !reportsError"
       class="report-export-panel__empty"
     >
-      暂无可用报告
+      <p>暂无可用报告。从已完成的五阶段结果创建报告并生成首版 JSON。</p>
+      <p v-if="!canCreateReport" class="report-export-panel__hint">
+        缺少项目版本标识，无法创建报告。请先在工作台完成项目初始化。
+      </p>
+      <button
+        type="button"
+        class="report-export-panel__create-btn"
+        :disabled="!canCreateReport || workflowBusy"
+        @click="handleCreateAndGenerate"
+      >
+        {{ createLoading || generateLoading ? '创建中...' : '创建并生成报告' }}
+      </button>
+      <div
+        v-if="createError"
+        class="report-export-panel__error report-export-panel__error--inline"
+        role="alert"
+      >
+        {{ createError }}
+      </div>
+      <div
+        v-if="generateError"
+        class="report-export-panel__error report-export-panel__error--inline"
+        role="alert"
+      >
+        {{ generateError }}
+      </div>
     </div>
 
     <!-- Report list -->
@@ -221,6 +329,99 @@ function reportStatusLabel(status: string): string {
           class="report-export-panel__detail"
           role="region"
         >
+          <!-- Status & review workflow -->
+          <div class="report-export-panel__section">
+            <strong class="report-export-panel__section-title">报告状态</strong>
+            <div
+              v-if="reportDetailLoading"
+              class="report-export-panel__loading"
+            >
+              加载报告状态...
+            </div>
+            <div
+              v-else-if="reportDetailError"
+              class="report-export-panel__error report-export-panel__error--inline"
+            >
+              {{ reportDetailError }}
+            </div>
+            <div
+              v-else-if="reportDetail && reportDetail.id === report.id"
+              class="report-export-panel__status-row"
+            >
+              <span>状态：{{ reportStatusLabel(reportDetail.status) }}</span>
+              <span>当前版本：v{{ reportDetail.revision_number }}</span>
+            </div>
+
+            <div class="report-export-panel__review-actions">
+              <p class="report-export-panel__review-note">
+                以下操作向后端发起受信任操作员审核请求；按钮本身不代表生产 RBAC 授权。
+              </p>
+              <button
+                type="button"
+                class="report-export-panel__review-btn"
+                :disabled="reviewLoading"
+                @click="handleReviewAction('submit', report.id)"
+              >
+                请求提交审核
+              </button>
+              <button
+                type="button"
+                class="report-export-panel__review-btn"
+                :disabled="reviewLoading"
+                @click="handleReviewAction('mark-reviewed', report.id)"
+              >
+                请求标记已审核
+              </button>
+              <button
+                type="button"
+                class="report-export-panel__review-btn"
+                :disabled="reviewLoading"
+                @click="handleReviewAction('approve', report.id)"
+              >
+                请求批准
+              </button>
+              <button
+                type="button"
+                class="report-export-panel__generate-btn"
+                :disabled="generateLoading"
+                @click="handleGenerateRevision(report.id)"
+              >
+                {{ generateLoading ? '生成中...' : '重新生成版本' }}
+              </button>
+            </div>
+            <div
+              v-if="reviewError"
+              class="report-export-panel__error report-export-panel__error--inline"
+              role="alert"
+            >
+              {{ reviewError }}
+            </div>
+            <div
+              v-if="generateError && selectedReportId === report.id"
+              class="report-export-panel__error report-export-panel__error--inline"
+              role="alert"
+            >
+              {{ generateError }}
+            </div>
+          </div>
+
+          <!-- Persisted blockers from workflow or backend actions -->
+          <div
+            v-if="displayedBlockers.length"
+            class="report-export-panel__blockers"
+            role="status"
+          >
+            <strong>阻塞项（后端权威）</strong>
+            <ul>
+              <li
+                v-for="(blocker, index) in displayedBlockers"
+                :key="`blocker-${blocker.code}-${index}`"
+              >
+                <code>{{ blocker.code }}</code> — {{ blocker.message }}
+              </li>
+            </ul>
+          </div>
+
           <!-- Revisions section -->
           <div class="report-export-panel__section">
             <strong class="report-export-panel__section-title">版本</strong>
@@ -406,6 +607,86 @@ function reportStatusLabel(status: string): string {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.report-export-panel__empty p {
+  margin: 0 0 8px;
+}
+
+.report-export-panel__hint {
+  color: #7a4d00;
+  font-size: 12px;
+}
+
+.report-export-panel__create-btn,
+.report-export-panel__generate-btn {
+  margin-top: 8px;
+  border: 1px solid #123a63;
+  border-radius: 4px;
+  padding: 6px 14px;
+  background: #123a63;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.report-export-panel__create-btn:disabled,
+.report-export-panel__generate-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.report-export-panel__status-row {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.report-export-panel__review-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.report-export-panel__review-note {
+  margin: 0;
+  font-size: 12px;
+  color: #5f7a99;
+  line-height: 1.45;
+}
+
+.report-export-panel__review-btn {
+  border: 1px solid #5f7a99;
+  border-radius: 4px;
+  padding: 4px 10px;
+  background: #fff;
+  color: #123a63;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.report-export-panel__review-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.report-export-panel__blockers {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #fdf0ef;
+  border: 1px solid #f5c6cb;
+  font-size: 12px;
+  color: #7a1f1f;
+}
+
+.report-export-panel__blockers ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.report-export-panel__blockers code {
+  font-size: 11px;
 }
 
 .report-export-panel__formal-note {
