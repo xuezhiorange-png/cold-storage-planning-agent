@@ -1904,6 +1904,9 @@ def create_app(
             ReportAssembler,
         )
         from cold_storage.modules.reports.application.service import _default_trusted_operator
+        from cold_storage.modules.reports.infrastructure.persisted_calculation_query import (
+            SqlAlchemyPersistedCalculationQuery,
+        )
         from cold_storage.modules.reports.infrastructure.real_data_provider import (
             RealReportDataProvider,
         )
@@ -1913,7 +1916,11 @@ def create_app(
 
         repo = SQLReportRepository(db_session)
         scheme_query = build_sqlalchemy_scheme_query(db_session)
-        data_provider = RealReportDataProvider(scheme_query=scheme_query)
+        calculation_query = SqlAlchemyPersistedCalculationQuery(db_session)
+        data_provider = RealReportDataProvider(
+            calculation_service=calculation_query,
+            scheme_query=scheme_query,
+        )
         assembler = ReportAssembler(data_provider=data_provider)
         return ReportService(
             repository=repo,

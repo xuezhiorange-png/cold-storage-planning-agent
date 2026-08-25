@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from cold_storage.modules.orchestration.domain.consumer_bindings import CANONICAL_STAGE_ORDER
 from cold_storage.modules.schemes.domain.models import (
     SchemeCandidate,
     SchemeConstraintResult,
@@ -12,14 +13,7 @@ from cold_storage.modules.schemes.domain.models import (
 )
 
 # Calculation types expected in source_calculation_ids / source_snapshot_hashes
-_REQUIRED_CALCULATION_TYPES = frozenset(
-    {
-        "zone",
-        "investment",
-        "cooling_load",
-        "equipment",
-    }
-)
+_REQUIRED_CALCULATION_TYPES = frozenset(CANONICAL_STAGE_ORDER)
 
 
 def _zone_map(zones: list[ZoneResult]) -> dict[str, ZoneResult]:
@@ -258,7 +252,7 @@ def check_project_version_consistency(
     """Verify input_data source calculations are internally consistent.
 
     Checks:
-    - All required calculation types (zone, investment, cooling_load, equipment)
+    - All required calculation types (zone, cooling_load, equipment, power, investment)
       are present in source_calculation_ids.
     - All required calculation types are present in source_snapshot_hashes.
     - All source snapshot hashes are non-empty (basic integrity check).

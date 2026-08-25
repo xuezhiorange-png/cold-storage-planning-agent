@@ -19,10 +19,19 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from cold_storage.bootstrap.settings import get_settings
+from cold_storage.modules.orchestration.domain.consumer_bindings import CANONICAL_STAGE_ORDER
 from cold_storage.modules.projects.infrastructure.orm import (
     CalculationRunRecord,
     ProjectRecord,
     ProjectVersionRecord,
+)
+from cold_storage.modules.schemes.application.canonical_source_reads import (
+    parse_cooling_load_result,
+    parse_equipment_result,
+    parse_investment_result,
+    parse_power_result,
+    parse_zone_results,
+    require_canonical_scheme_sources,
 )
 from cold_storage.modules.schemes.domain.errors import (
     ProjectNotFoundError,
@@ -33,13 +42,9 @@ from cold_storage.modules.schemes.domain.errors import (
 )
 from cold_storage.modules.schemes.domain.generator import GENERATOR_VERSION, generate_schemes
 from cold_storage.modules.schemes.domain.models import (
-    CoolingLoadResult,
-    EquipmentResult,
-    InvestmentResult,
     SchemeCandidate,
     SchemeGenerationInput,
     SchemeRun,
-    ZoneResult,
 )
 from cold_storage.modules.schemes.domain.scoring import (
     score_candidates,
@@ -62,10 +67,6 @@ def _cast_list_dict(val: object) -> list[dict[str, object]]:
     if isinstance(val, list):
         return val
     return []
-
-
-# Required calculation types for trust boundary
-_REQUIRED_CALC_TYPES = frozenset({"zone", "investment", "cooling_load", "equipment"})
 
 
 def require_snapshot_field(snapshot: dict[str, object], key: str, calc_type: str) -> object:
@@ -180,6 +181,15 @@ class SchemeService:
             if rec.calculator_name not in result:
                 result[rec.calculator_name] = rec
         return result
+
+    def _compute_snapshot_hash_by_stage(self, calculations: dict[str, CalculationRunRecord]) -> str:
+        """Compute a deterministic SHA-256 hash from persisted stage snapshots."""
+        parts: dict[str, object] = {}
+        for stage in CANONICAL_STAGE_ORDER:
+            calc = calculations[stage]
+            parts[stage] = calc.result_snapshot if calc.result_snapshot else {}
+        canonical = _canonical_json(parts)
+        return sha256(canonical.encode("utf-8")).hexdigest()
 
     def _compute_snapshot_hash(self, calculations: dict[str, CalculationRunRecord]) -> str:
         """Compute a deterministic SHA-256 hash from persisted calculation result snapshots."""
@@ -297,7 +307,7 @@ class SchemeService:
 
         # 3. Demo calculations (upsert)
         demo_calcs = {
-            "zone": {
+            "cold_room_zone_plan": {
                 "zone_results": [
                     {
                         "zone_code": "precooling-primary",
@@ -352,7 +362,7 @@ class SchemeService:
                 ],
                 "total_daily_throughput_kg_day": 25000.0,
             },
-            "investment": {
+            "investment_estimate": {
                 "total_investment_cny": 6150420.50,
                 "zone_investments": {},
             },
@@ -367,6 +377,14 @@ class SchemeService:
                 "compressor_installed_capacity_kw_r": 216.0,
                 "condenser_heat_rejection_kw": 240.0,
                 "installed_power_kw_e": 65.0,
+            },
+            "installed_power": {
+                "total_installed_power_kw_e": "200.0",
+                "total_estimated_demand_kw": "160.0",
+                "equipment_rows": [],
+                "summary_rows": [],
+                "items": [],
+                "assumptions": [],
             },
         }
 
@@ -424,108 +442,43 @@ class SchemeService:
         version_record = self._load_version(project_id, version)
         project_version_id = version_record.id
 
-        # 2. Load all required calculations from DB
-        calculations = self._load_all_calculations(project_version_id)
-
-        # Verify all required calculation types exist
-        for calc_type in _REQUIRED_CALC_TYPES:
-            if calc_type not in calculations:
-                raise SourceCalculationMissingError(calc_type)
-
-        zone_calc = calculations["zone"]
-        invest_calc = calculations["investment"]
-        cool_calc = calculations["cooling_load"]
-        equip_calc = calculations["equipment"]
-
-        # 3. Parse zone results from persisted snapshot
-        zone_snapshots_raw = zone_calc.result_snapshot.get("zone_results", [])
-        zone_snapshots = _cast_list_dict(zone_snapshots_raw)
-        if not zone_snapshots:
-            raise SourceCalculationMissingError("zone_results")
-
-        zone_results = [
-            ZoneResult(
-                zone_code=str(z["zone_code"]),
-                zone_name=str(z["zone_name"]),
-                temperature_level=str(z["temperature_level"]),
-                area_m2=_to_decimal(z["area_m2"]),
-                position_count=int(str(z["position_count"])),
-                storage_capacity_kg=_to_decimal(z["storage_capacity_kg"]),
-                process_compatibility=(
-                    str(z["process_compatibility"])
-                    if z.get("process_compatibility") is not None
-                    else None
-                ),
-                hygiene_zone=(
-                    str(z["hygiene_zone"]) if z.get("hygiene_zone") is not None else None
-                ),
+        # 2. Load canonical source calculations from DB
+        stmt = (
+            self._session.query(CalculationRunRecord)
+            .filter(
+                CalculationRunRecord.project_version_id == project_version_id,
             )
-            for z in zone_snapshots
-        ]
+            .order_by(
+                CalculationRunRecord.created_at.desc(),
+                CalculationRunRecord.id.desc(),
+            )
+        )
+        source_bundle = require_canonical_scheme_sources(
+            stmt.all(),
+            project_id=project_id,
+            project_version_id=project_version_id,
+        )
+        calculations = source_bundle.calculations_by_stage
 
-        # 4. Parse investment result
-        invest_snap = _cast_dict(invest_calc.result_snapshot)
-        total_investment = _to_decimal(
-            require_snapshot_field(invest_snap, "total_investment_cny", "investment")
+        zone_snap = _cast_dict(calculations["zone"].result_snapshot)
+        zone_results = parse_zone_results(zone_snap)
+        investment = parse_investment_result(_cast_dict(calculations["investment"].result_snapshot))
+        cooling_load = parse_cooling_load_result(
+            _cast_dict(calculations["cooling_load"].result_snapshot)
         )
-        zone_investments = {
-            str(k): _to_decimal(v)
-            for k, v in _cast_dict(invest_snap.get("zone_investments", {})).items()
-        }
-        investment = InvestmentResult(
-            total_investment_cny=total_investment,
-            zone_investments=zone_investments,
-        )
-
-        # 5. Parse cooling load result
-        cool_snap = _cast_dict(cool_calc.result_snapshot)
-        latent_raw = cool_snap.get("latent_load_kw_r")
-        cooling_load = CoolingLoadResult(
-            design_cooling_load_kw_r=_to_decimal(
-                require_snapshot_field(cool_snap, "design_cooling_load_kw_r", "cooling_load")
-            ),
-            sensible_load_kw_r=_to_decimal(
-                require_snapshot_field(cool_snap, "sensible_load_kw_r", "cooling_load")
-            ),
-            infiltration_load_kw_r=_to_decimal(
-                require_snapshot_field(cool_snap, "infiltration_load_kw_r", "cooling_load")
-            ),
-            latent_load_kw_r=_to_decimal(latent_raw) if latent_raw is not None else None,
-        )
-
-        # 6. Parse equipment result
-        equip_snap = _cast_dict(equip_calc.result_snapshot)
-        operating = _to_decimal(
-            require_snapshot_field(equip_snap, "compressor_operating_capacity_kw_r", "equipment")
-        )
-        installed_raw = equip_snap.get("compressor_installed_capacity_kw_r")
-        installed = _to_decimal(installed_raw) if installed_raw is not None else None
-        standby = (installed or Decimal("0")) - operating
-        equipment = EquipmentResult(
-            compressor_operating_capacity_kw_r=operating,
-            compressor_installed_capacity_kw_r=installed,
-            compressor_standby_capacity_kw_r=standby,
-            condenser_heat_rejection_kw=_to_decimal(
-                require_snapshot_field(equip_snap, "condenser_heat_rejection_kw", "equipment")
-            ),
-            installed_power_kw_e=_to_decimal(
-                require_snapshot_field(equip_snap, "installed_power_kw_e", "equipment")
-            ),
-        )
+        equipment = parse_equipment_result(_cast_dict(calculations["equipment"].result_snapshot))
+        power_result = parse_power_result(_cast_dict(calculations["power"].result_snapshot))
 
         # 7. Compute totals from zone results
         total_positions = sum(z.position_count for z in zone_results)
         total_capacity: Decimal = sum((z.storage_capacity_kg for z in zone_results), Decimal("0"))
 
         # 8. Compute source snapshot hash from DB data (not client-provided)
-        source_hash = self._compute_snapshot_hash(calculations)
+        source_hash = self._compute_snapshot_hash_by_stage(calculations)
 
         # 9. Build source calculation IDs from loaded records
-        source_calc_ids = {name: calc.id for name, calc in calculations.items()}
-        source_snap_hashes = {
-            name: self._compute_per_calc_hash(calc.result_snapshot or {})
-            for name, calc in calculations.items()
-        }
+        source_calc_ids = dict(source_bundle.source_calculation_ids)
+        source_snap_hashes = dict(source_bundle.source_snapshot_hashes)
 
         # 10. Build generation input
         input_data = SchemeGenerationInput(
@@ -540,10 +493,15 @@ class SchemeService:
             investment_result=investment,
             cooling_load_result=cooling_load,
             equipment_result=equipment,
+            power_result=power_result,
             generator_version=GENERATOR_VERSION,
             total_daily_throughput_kg_day=_to_decimal(
                 require_snapshot_field(
-                    zone_calc.result_snapshot, "total_daily_throughput_kg_day", "zone"
+                    zone_snap,
+                    "total_daily_throughput_kg_day"
+                    if "total_daily_throughput_kg_day" in zone_snap
+                    else "daily_inbound_mass_kg",
+                    "zone",
                 )
             ),
             total_storage_capacity_kg=total_capacity,
