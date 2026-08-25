@@ -39,6 +39,9 @@ def evaluate_quality(
     *,
     required_sections: list[str] | tuple[str, ...] | None = None,
     required_calc_fields: list[str] | None = None,
+    indexed_canonical_calculators: frozenset[str] | set[str] | None = None,
+    stale_lineage_reasons: tuple[str, ...] | list[str] | None = None,
+    canonical_calculator_to_section: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Evaluate report content and return quality findings."""
     findings: list[dict[str, Any]] = []
@@ -75,6 +78,25 @@ def evaluate_quality(
 
     # 5. Source reference completeness + verification
     _check_source_refs(source_refs, findings)
+
+    # 6. Canonical five-stage source coverage and lineage
+    if indexed_canonical_calculators and canonical_calculator_to_section:
+        _check_canonical_report_sources(
+            content,
+            indexed_canonical_calculators,
+            canonical_calculator_to_section,
+            findings,
+        )
+        _check_persisted_engineering_authority(
+            content,
+            indexed_canonical_calculators,
+            findings,
+        )
+
+    if stale_lineage_reasons:
+        _check_stale_lineage(stale_lineage_reasons, findings)
+
+    _check_supplemental_power_not_canonical(content, source_refs, findings)
 
     return findings
 
@@ -534,6 +556,147 @@ def _check_units(obj: Any, path: str, findings: list[dict[str, Any]]) -> None:
         elif isinstance(val, list):
             for i, item in enumerate(val):
                 _check_units(item, f"{cur}[{i}]", findings)
+
+
+# ---------------------------------------------------------------------------
+# Canonical five-stage report source coverage
+# ---------------------------------------------------------------------------
+
+
+def _check_canonical_report_sources(
+    content: dict[str, Any],
+    indexed_calculators: frozenset[str] | set[str],
+    calculator_to_section: dict[str, str],
+    findings: list[dict[str, Any]],
+) -> None:
+    """Missing persisted canonical projection for an indexed calculator is a blocker."""
+    for calculator_name in sorted(indexed_calculators):
+        section_key = calculator_to_section.get(calculator_name)
+        if section_key is None:
+            continue
+        section = content.get(section_key)
+        if section is None or (isinstance(section, dict) and not section):
+            findings.append(
+                _finding(
+                    code="MISSING_CANONICAL_SOURCE",
+                    severity=QualitySeverity.BLOCKER,
+                    section_key=section_key,
+                    field_path=section_key,
+                    message=(
+                        f"Persisted canonical calculator {calculator_name!r} "
+                        f"has no report section {section_key!r}"
+                    ),
+                    remediation=(
+                        f"Project persisted calculation {calculator_name!r} "
+                        f"must project to section {section_key!r}"
+                    ),
+                )
+            )
+
+
+def _check_persisted_engineering_authority(
+    content: dict[str, Any],
+    indexed_calculators: frozenset[str] | set[str],
+    findings: list[dict[str, Any]],
+) -> None:
+    """When canonical calculations exist, input/assumption authority must be present."""
+    if not indexed_calculators:
+        return
+    input_conditions = content.get("input_conditions")
+    if input_conditions is None or (isinstance(input_conditions, dict) and not input_conditions):
+        findings.append(
+            _finding(
+                code="REPORT_QUALITY_BLOCKER",
+                severity=QualitySeverity.BLOCKER,
+                section_key="input_conditions",
+                field_path="input_conditions",
+                message=(
+                    "Canonical calculations exist but persisted input_conditions "
+                    "authority is missing"
+                ),
+                remediation=(
+                    "Persist immutable engineering inputs on the project version "
+                    "or orchestration execution snapshot"
+                ),
+            )
+        )
+
+    assumptions = content.get("assumptions")
+    assumption_items = assumptions.get("items") if isinstance(assumptions, dict) else None
+    if not assumption_items:
+        findings.append(
+            _finding(
+                code="REPORT_QUALITY_BLOCKER",
+                severity=QualitySeverity.BLOCKER,
+                section_key="assumptions",
+                field_path="assumptions.items",
+                message=(
+                    "Canonical calculations exist but persisted assumptions authority is missing"
+                ),
+                remediation=(
+                    "Persist calculation or version assumption snapshots before "
+                    "formal report delivery"
+                ),
+            )
+        )
+
+
+def _check_stale_lineage(
+    stale_lineage_reasons: tuple[str, ...] | list[str],
+    findings: list[dict[str, Any]],
+) -> None:
+    for reason in stale_lineage_reasons:
+        findings.append(
+            _finding(
+                code="REPORT_QUALITY_BLOCKER",
+                severity=QualitySeverity.BLOCKER,
+                section_key="provenance",
+                field_path="canonical_lineage",
+                message=f"Canonical calculation lineage is stale: {reason}",
+                remediation="Re-run five-stage execution to refresh canonical lineage",
+            )
+        )
+
+
+def _check_supplemental_power_not_canonical(
+    content: dict[str, Any],
+    source_refs: list[dict[str, Any]],
+    findings: list[dict[str, Any]],
+) -> None:
+    """power_configuration must not satisfy electrical_and_energy authority."""
+    electrical = content.get("electrical_and_energy")
+    if isinstance(electrical, dict):
+        installed = electrical.get("total_installed_power")
+        if isinstance(installed, dict) and installed.get("source_tool") == "power_configuration":
+            findings.append(
+                _finding(
+                    code="REPORT_QUALITY_BLOCKER",
+                    severity=QualitySeverity.BLOCKER,
+                    section_key="electrical_and_energy",
+                    field_path="electrical_and_energy.total_installed_power.source_tool",
+                    message=(
+                        "Supplemental power_configuration cannot satisfy canonical "
+                        "installed_power report authority"
+                    ),
+                )
+            )
+
+    for ref in source_refs:
+        if ref.get("section_key") != "electrical_and_energy":
+            continue
+        if ref.get("tool_name") == "power_configuration":
+            findings.append(
+                _finding(
+                    code="REPORT_QUALITY_BLOCKER",
+                    severity=QualitySeverity.BLOCKER,
+                    section_key="electrical_and_energy",
+                    field_path=ref.get("field_path", "electrical_and_energy"),
+                    message=(
+                        "Report electrical authority cites supplemental "
+                        "power_configuration instead of installed_power"
+                    ),
+                )
+            )
 
 
 # ---------------------------------------------------------------------------

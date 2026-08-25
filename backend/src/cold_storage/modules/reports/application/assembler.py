@@ -9,6 +9,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from cold_storage.modules.reports.application.persisted_calculation_reads import (
+    CANONICAL_CALCULATOR_TO_REPORT_SECTION,
+)
 from cold_storage.modules.reports.domain.canonical import content_hash
 from cold_storage.modules.reports.domain.enums import (
     ReportType,
@@ -74,10 +77,48 @@ class ReportAssembler:
         project_version_data = self._provider.get_project_version(
             project_version_id, project_id=project_id
         )
-        calculation_data = self._provider.get_calculation_results(project_id, project_version_id)
+        if getattr(self._provider, "skip_unprojectable_sections", False):
+            calculation_data = self._provider.get_calculation_results(  # type: ignore[call-arg]
+                project_id,
+                project_version_id,
+                skip_projection_errors=True,
+            )
+        else:
+            calculation_data = self._provider.get_calculation_results(
+                project_id,
+                project_version_id,
+            )
         scheme_data = self._provider.get_scheme_results(project_id, project_version_id)
         agent_session_data = self._provider.get_agent_sessions(project_id, project_version_id)
         knowledge_data = self._provider.get_knowledge_documents()
+
+        get_input_conditions = getattr(self._provider, "get_input_conditions", None)
+        input_conditions = (
+            get_input_conditions(project_id, project_version_id)
+            if callable(get_input_conditions)
+            else None
+        )
+
+        get_assumptions = getattr(self._provider, "get_assumptions", None)
+        assumptions = (
+            get_assumptions(project_id, project_version_id) if callable(get_assumptions) else None
+        )
+
+        get_indexed_canonical_calculators = getattr(
+            self._provider, "get_indexed_canonical_calculators", None
+        )
+        indexed_calculators = (
+            get_indexed_canonical_calculators(project_id, project_version_id)
+            if callable(get_indexed_canonical_calculators)
+            else frozenset()
+        )
+
+        get_stale_lineage_reasons = getattr(self._provider, "get_stale_lineage_reasons", None)
+        stale_lineage_reasons = (
+            get_stale_lineage_reasons(project_id, project_version_id)
+            if callable(get_stale_lineage_reasons)
+            else ()
+        )
 
         # Build content sections
         content: dict[str, Any] = {}
@@ -109,6 +150,12 @@ class ReportAssembler:
                     data=project_data,
                 )
             )
+
+        if input_conditions:
+            content["input_conditions"] = input_conditions
+
+        if assumptions:
+            content["assumptions"] = assumptions
 
         # 3-8: Assemble sections from calculation results
         for calc in calculation_data:
@@ -242,6 +289,9 @@ class ReportAssembler:
             source_refs,
             required_sections=REQUIRED_SECTIONS,
             required_calc_fields=REQUIRED_ENGINEERING_RESULTS,
+            indexed_canonical_calculators=indexed_calculators,
+            stale_lineage_reasons=stale_lineage_reasons,
+            canonical_calculator_to_section=CANONICAL_CALCULATOR_TO_REPORT_SECTION,
         )
         from cold_storage.modules.reports.domain.enums import ReportStatus
         from cold_storage.modules.reports.domain.quality import has_blockers
@@ -389,6 +439,18 @@ class ReportDataProvider:
 
     def get_calculation_results(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
         return []
+
+    def get_input_conditions(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        return None
+
+    def get_assumptions(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        return None
+
+    def get_indexed_canonical_calculators(self, project_id: str, version_id: str) -> frozenset[str]:
+        return frozenset()
+
+    def get_stale_lineage_reasons(self, project_id: str, version_id: str) -> tuple[str, ...]:
+        return ()
 
     def get_scheme_results(self, project_id: str, version_id: str) -> dict[str, Any] | None:
         return None

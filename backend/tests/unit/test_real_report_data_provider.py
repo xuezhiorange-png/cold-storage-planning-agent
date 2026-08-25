@@ -78,13 +78,14 @@ class _StubSection:
 
 
 class _StubOrchestrationResult:
-    """Stub with the four attrs the data provider consumes."""
+    """Stub with the five attrs the data provider consumes."""
 
     __slots__ = (
         "throughput_result",
         "cooling_load_result",
         "equipment_result",
         "power_result",
+        "investment_result",
     )
 
     def __init__(
@@ -94,11 +95,13 @@ class _StubOrchestrationResult:
         cooling_load: _StubSection | None = None,
         equipment: _StubSection | None = None,
         power: _StubSection | None = None,
+        investment: _StubSection | None = None,
     ) -> None:
         self.throughput_result = throughput
         self.cooling_load_result = cooling_load
         self.equipment_result = equipment
         self.power_result = power
+        self.investment_result = investment
 
 
 class _StubCalculationService:
@@ -239,12 +242,29 @@ def _power_section() -> _StubSection:
     )
 
 
+def _investment_section() -> _StubSection:
+    return _StubSection(
+        id="run-invest-001",
+        calculator_name="investment_estimate",
+        calculator_version="1.0.0",
+        result={
+            "total_investment_cny": "5000000.0",
+            "items": [
+                {"item_name": "土建及钢结构", "amount_cny": 2000000.0},
+                {"item_name": "冷库制冷设备", "amount_cny": 3000000.0},
+            ],
+        },
+        content_hash="invest-hash-001",
+    )
+
+
 def _full_orchestration() -> _StubOrchestrationResult:
     return _StubOrchestrationResult(
         throughput=_throughput_section(),
         cooling_load=_cooling_load_section(),
         equipment=_equipment_section(),
         power=_power_section(),
+        investment=_investment_section(),
     )
 
 
@@ -449,7 +469,19 @@ def test_electrical_measured_value_kw_e() -> None:
     assert "total_estimated_demand_kw" not in data
 
 
-# ── 5. Decimal / string precise conversion ────────────────────────────────
+def test_investment_estimate_projection_preserves_persisted_provenance() -> None:
+    provider = _build_provider(_StubCalculationService(_full_orchestration()))
+
+    sections = {s["section_key"]: s for s in provider.get_calculation_results("p-1", "v-1")}
+    investment = sections["investment_estimate"]
+    assert investment["result_id"] == "run-invest-001"
+    assert investment["tool_name"] == "investment_estimate"
+    assert investment["tool_version"] == "1.0.0"
+    assert investment["persisted_content_hash"] == "invest-hash-001"
+    data = investment["data"]
+    assert data["total_investment"] == 5_000_000.0
+    assert data["breakdown"]["土建及钢结构"] == 2_000_000.0
+    assert data["breakdown"]["冷库制冷设备"] == 3_000_000.0
 
 
 @pytest.mark.parametrize(
@@ -718,7 +750,7 @@ def test_no_database_writes() -> None:
     provider = _build_provider(service)
 
     sections = provider.get_calculation_results("p", "v")
-    assert len(sections) == 4  # all four sections projected
+    assert len(sections) == 5  # all five canonical sections projected
     # The stub service was consulted exactly once — no second
     # callback that would imply a write-side helper.
     assert service.call_count == 1
