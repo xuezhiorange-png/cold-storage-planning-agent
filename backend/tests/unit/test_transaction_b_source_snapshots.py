@@ -224,9 +224,7 @@ class TestTypedResultSnapshots:
             evaporator_fan_load_kw=Decimal("15"),
             defrost_additional_load_kw=Decimal("10"),
             other_configuration_load_kw=Decimal("5.45"),
-            zones=(
-                CoolingLoadZoneResultV1(zone_code="Z1", subtotal_load_kw_r=Decimal("42.5")),
-            ),
+            zones=(CoolingLoadZoneResultV1(zone_code="Z1", subtotal_load_kw_r=Decimal("42.5")),),
         )
         assert snap.zones is not None
         assert snap.zones[0].zone_code == "Z1"
