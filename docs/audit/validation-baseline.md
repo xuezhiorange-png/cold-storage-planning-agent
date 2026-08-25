@@ -1,12 +1,11 @@
 # Validation Baseline
 
-> **V0.5 governance truth-up (2026-08-24):** The table below is the preserved
-> Task 5 validation snapshot (2026-06-20, 349 tests). Current CI on
-> `main@eec12b9d` runs a substantially larger suite including architecture,
-> integration, orchestration Transaction B, V0.4 controlled acceptance, and
-> workflow/report modules. Re-run `cd backend && PYTHONPATH=src pytest` and
-> frontend quality gates for authoritative counts; do not cite this file alone
-> as current CI truth.
+> **V0.6 governance truth-up (2026-08-25):** The table below is the preserved
+> Task 5 validation snapshot (2026-06-20, 349 tests). Do not invent a new
+> historic test count from this file. At release `v0.5.0` (`main@06a446501b83f75ba42b3920d912d980c51d7fe5`),
+> a sqlite/PostgreSQL V0.5 P5 controlled-acceptance matrix exists. V0.6 P0 is
+> contract-only (architecture tests + living-doc truth-up); re-run
+> `cd backend && PYTHONPATH=src pytest` for authoritative current counts.
 
 Validation was run against the current repository baseline on
 `codex/task-5-cooling-load-capability`, updated after Task 5 completion.
@@ -23,9 +22,10 @@ Last updated: 2026-06-20 (Task 5 completion — cooling load, equipment, power c
 | `backend/tests/integration/test_production_sourcebinding_e2e_*.py` | Production source-binding roundtrip |
 | `frontend/src/features/**` | Modular workbench feature tests |
 
-Remaining validation gap for V0.5: no integration matrix yet proves workbench
-persistence of all five canonical calculators; P0 contract freezes the target
-only.
+V0.5 validation: sqlite/PostgreSQL P5 controlled-acceptance matrix delivered at
+`v0.5.0`. Remaining validation gap for V0.6: no integration matrix yet proves
+five-stage → reviewable report JSON → formal DOCX/PDF closure; V0.6 P0
+contract freezes the target only.
 
 | Command | Result | Details | Blocking | Suggested Task |
 | --- | --- | --- | --- | --- |

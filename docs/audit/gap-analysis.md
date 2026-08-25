@@ -1,8 +1,10 @@
 # Gap Analysis
 
-> **V0.5 governance truth-up (2026-08-24, `main@eec12b9d`):** The tables
-> below retain the Task 0–5 preserved gap register. Rows marked below as
-> **SUPERSEDED** are no longer accurate. See §V0.5 for the active P0 gap.
+> **V0.6 governance truth-up (2026-08-25, `main@06a446501b83f75ba42b3920d912d980c51d7fe5`,
+> release `v0.5.0`):** The tables below retain the Task 0–5 preserved gap
+> register. Rows marked **SUPERSEDED** are no longer accurate. V0.5 P0 gaps
+> V05-P0-001/002/003 are **delivered** at `v0.5.0`. See §V0.6 for the active
+> report-delivery gap register.
 
 ## P0
 
@@ -39,11 +41,22 @@ push and is not a remaining repository state issue.
 | P3-002 | P3 | ~~Backend formatting drift remains in two files~~ **RESOLVED in Task 0** — `ruff format` applied to `demo_overview.py` and `investment.py` | `backend/src/cold_storage/bootstrap/demo_overview.py`, `backend/src/cold_storage/modules/calculations/domain/investment.py` | ~~CI truthfully fails formatting gate~~ | ~~Reformat in dedicated quality task~~ | Task 0 | ~~No~~ |
 | P3-003 | P3 | Frontend production bundle is large and emits chunk-size warning | `frontend/package.json` toolchain output | DevEx and initial load can degrade as features grow | Introduce route/feature splitting and chunk strategy | Task 10 | No |
 
-## V0.5 (active P0 gap register)
+## V0.5 (delivered at `v0.5.0`)
+
+| ID | Priority | Problem Description | Status at `v0.5.0` | Evidence |
+| --- | --- | --- | --- | --- |
+| V05-P0-001 | P0 | Local workbench persisted only three helper calculators, not the canonical five-stage chain | **DELIVERED** | V0.5 P1–P5 controlled acceptance at `06a446501b83f75ba42b3920d912d980c51d7fe5` |
+| V05-P0-002 | P0 | `power_configuration` supplemental vs canonical `installed_power` identity separation | **DELIVERED** | `consumer_bindings.SUPPLEMENTAL_ONLY_CALCULATOR_NAMES` |
+| V05-P0-003 | P0 | Workflow/scheme/report consumers used inconsistent calculator identities | **DELIVERED** | Canonical mapping aligned in V0.5 P1–P3 |
+| V05-P0-004 | P0 | Demo coefficient conflicts remain documented but unresolved | **OPEN** | `docs/audit/coefficient-inventory.md` — must not be silently resolved |
+
+## V0.6 (active report-delivery gap register)
 
 | ID | Priority | Problem Description | File Location | Impact | Suggested Fix | Suggested Task | Blocks Later Work |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| V05-P0-001 | P0 | Local workbench persists only three helper calculators (`cold_room_zone_plan`, `investment_estimate`, `power_configuration`), not the canonical five-stage chain | `backend/src/cold_storage/modules/planning/`, `backend/src/cold_storage/bootstrap/v04_local_sample.py` | Workflow/scheme/report cannot treat workbench as five-stage authoritative | Execute and persist canonical chain per `docs/tasks/V0_5-P0-five-stage-workbench-contract.md` | V0.5 P1 | Yes |
-| V05-P0-002 | P0 | `power_configuration` is supplemental/demo but can be mistaken for canonical `installed_power` | `backend/src/cold_storage/modules/planning/application/service.py` | Power authority drift between V0.4 read path and orchestration DAG | Keep identity separation; wire canonical `installed_power` in P1+ | V0.5 P1 | Yes |
-| V05-P0-003 | P0 | Workflow/scheme/report consumers use inconsistent calculator identities and snapshot shapes vs orchestration DAG | `backend/src/cold_storage/modules/workflow/domain/steps.py`, `backend/src/cold_storage/modules/schemes/application/source_binding_verifier.py` | Stale-lineage and source-binding verification failures across modules | Unify canonical mapping on `ORCHESTRATION_STAGE_ORDER` / `CALCULATOR_BINDINGS` | V0.5 P1–P3 | Yes |
-| V05-P0-004 | P0 | Demo coefficient conflicts remain documented but unresolved | `docs/audit/coefficient-inventory.md` | Silent promotion would violate review governance | Explicit review/promotion only; never auto-resolve conflicts | V0.5+ | No |
+| V06-P0-001 | P0 | Report assembly skips investment stage; `OrchestratedCalculationResult` lacks `investment_result` | `backend/src/cold_storage/modules/reports/application/persisted_calculation_reads.py` | Five-stage report JSON incomplete; formal export cannot bind investment provenance | Wire `investment_estimate` → `investment_result` → `investment_estimate` section per V0.6 P0 contract | V0.6 P1 | Yes |
+| V06-P0-002 | P0 | `real_data_provider._REPORT_SECTIONS` omits `investment_estimate` | `backend/src/cold_storage/modules/reports/infrastructure/real_data_provider.py` | Investment section never reaches assembler | Add fifth calculation section mapping | V0.6 P1 | Yes |
+| V06-P0-003 | P0 | Assembler does not populate `input_conditions` / `assumptions` from immutable version snapshot | `backend/src/cold_storage/modules/reports/application/assembler.py` | Report JSON lacks authoritative input/assumption authority | Read `EngineeringInputBundleV1` leaves and assumption snapshots | V0.6 P1 | Yes |
+| V06-P0-004 | P0 | Report rendering hardening for Issue #17 items not yet under V0.6 evaluation matrix | `backend/src/cold_storage/modules/reports/renderers/` | Formal DOCX/PDF display gaps remain | P2 rendering + P3 evaluation goldens | V0.6 P2–P3 | No |
+| V06-P0-005 | P0 | Review/formal-export evaluation bridge not yet proven end-to-end for V0.6 | `backend/src/cold_storage/modules/reports/application/service.py` | Formal closure lacks V0.6 controlled-acceptance evidence | P5 controlled acceptance after P1–P4B | V0.6 P5 | No |
+| V06-P0-006 | P0 | Demo coefficient conflicts remain documented but unresolved | `docs/audit/coefficient-inventory.md` | Silent promotion would violate review governance | Explicit review/promotion only; never auto-resolve conflicts | V0.6+ | No |
