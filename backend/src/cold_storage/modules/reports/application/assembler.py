@@ -77,11 +77,17 @@ class ReportAssembler:
         project_version_data = self._provider.get_project_version(
             project_version_id, project_id=project_id
         )
-        calculation_data = self._provider.get_calculation_results(
-            project_id,
-            project_version_id,
-            skip_projection_errors=True,
-        )
+        if getattr(self._provider, "skip_unprojectable_sections", False):
+            calculation_data = self._provider.get_calculation_results(  # type: ignore[call-arg]
+                project_id,
+                project_version_id,
+                skip_projection_errors=True,
+            )
+        else:
+            calculation_data = self._provider.get_calculation_results(
+                project_id,
+                project_version_id,
+            )
         scheme_data = self._provider.get_scheme_results(project_id, project_version_id)
         agent_session_data = self._provider.get_agent_sessions(project_id, project_version_id)
         knowledge_data = self._provider.get_knowledge_documents()
@@ -411,13 +417,7 @@ class ReportDataProvider:
     ) -> dict[str, Any] | None:
         return None
 
-    def get_calculation_results(
-        self,
-        project_id: str,
-        version_id: str,
-        *,
-        skip_projection_errors: bool = False,
-    ) -> list[dict[str, Any]]:
+    def get_calculation_results(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
         return []
 
     def get_input_conditions(self, project_id: str, version_id: str) -> dict[str, Any] | None:

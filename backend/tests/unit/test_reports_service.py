@@ -62,8 +62,6 @@ class _FakeDataProvider(ReportDataProvider):
         self,
         project_id: str,
         version_id: str,
-        *,
-        skip_projection_errors: bool = False,
     ) -> list[dict[str, Any]]:
         return [
             {
@@ -1244,8 +1242,6 @@ def test_v06_p1_missing_canonical_source_adds_blocker_finding() -> None:
             self,
             project_id: str,
             version_id: str,
-            *,
-            skip_projection_errors: bool = False,
         ) -> list[dict[str, Any]]:
             return super().get_calculation_results(project_id, version_id)[:1]
 

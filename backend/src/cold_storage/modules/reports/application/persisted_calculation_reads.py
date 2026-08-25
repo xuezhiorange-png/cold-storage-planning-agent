@@ -14,6 +14,7 @@ from cold_storage.modules.orchestration.domain.consumer_bindings import (
     resolve_canonical_calculator_name,
     stage_for_canonical_calculator,
 )
+from cold_storage.modules.orchestration.domain.dag import STAGE_UPSTREAM_PROVENANCE_KEYS
 from cold_storage.modules.projects.application.engineering_input_bundle import (
     BUNDLE_SCHEMA_ID,
 )
@@ -116,9 +117,6 @@ class ProjectServicePersistedCalculationQuery:
         )
         if not indexed:
             return None
-        from cold_storage.modules.workflow.application.canonical_calculation_reads import (
-            detect_canonical_lineage_stale_reasons,
-        )
 
         input_conditions = _input_conditions_from_version_snapshot(
             dict(getattr(version, "input_snapshot", {}) or {})
@@ -177,6 +175,40 @@ def build_orchestrated_result_from_indexed(
             tool_call_status=None,
         )
     return OrchestratedCalculationResult(**sections)
+
+
+def detect_canonical_lineage_stale_reasons(
+    indexed: dict[str, dict[str, Any]],
+) -> list[str]:
+    """Detect upstream calculation_id drift per P0 §4.4."""
+    by_stage: dict[str, dict[str, Any]] = {}
+    for calculator_name, record in indexed.items():
+        stage = stage_for_canonical_calculator(calculator_name)
+        if stage is not None:
+            by_stage[stage] = record
+
+    reasons: list[str] = []
+    for stage in CANONICAL_STAGE_ORDER:
+        if stage == "zone":
+            continue
+        stage_record = by_stage.get(stage)
+        if stage_record is None:
+            continue
+        upstream_ids = stage_record.get("upstream_calculation_ids")
+        if not isinstance(upstream_ids, dict):
+            continue
+        expected_upstream = STAGE_UPSTREAM_PROVENANCE_KEYS.get(stage, frozenset())
+        for upstream_stage in expected_upstream:
+            upstream_record = by_stage.get(upstream_stage)
+            if upstream_record is None:
+                continue
+            upstream_calc_id = str(
+                upstream_record.get("calculation_id") or upstream_record.get("id", "")
+            )
+            bound_id = str(upstream_ids.get(upstream_stage, ""))
+            if bound_id and upstream_calc_id and bound_id != upstream_calc_id:
+                reasons.append(f"calculation_upstream_id_mismatch:{stage}:{upstream_stage}")
+    return reasons
 
 
 def resolve_report_stage_for_calculator(calculator_name: str) -> str | None:
@@ -346,10 +378,6 @@ def _assumptions_from_persisted_sources(
                     or validity_status in {"unverified", "conflict"}
                 ):
                     description = coefficient.get("notes") or coefficient.get("name")
-                    if description is None:
-                        code = coefficient.get("code")
-                        if isinstance(code, str):
-                            description = f"Coefficient {code} requires review"
                     _append_item(description, f"coefficient:{calculator_name}")
 
     if not items:

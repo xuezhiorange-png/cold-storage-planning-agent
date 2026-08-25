@@ -499,6 +499,8 @@ class RealReportDataProvider(ReportDataProvider):
     are silently skipped (returns empty data for that section).
     """
 
+    skip_unprojectable_sections = True
+
     def __init__(
         self,
         *,

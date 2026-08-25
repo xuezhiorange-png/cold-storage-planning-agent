@@ -25,8 +25,6 @@ from cold_storage.modules.reports.application.persisted_calculation_reads import
     _input_conditions_from_engineering_bundle,
     build_input_conditions_from_execution_snapshot_and_coefficients,
     build_orchestrated_result_from_indexed,
-)
-from cold_storage.modules.workflow.application.canonical_calculation_reads import (
     detect_canonical_lineage_stale_reasons,
 )
 
