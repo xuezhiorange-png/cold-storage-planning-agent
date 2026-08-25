@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+from cold_storage.modules.orchestration.domain.consumer_bindings import (
+    CANONICAL_CALCULATOR_NAMES,
+)
+
 WORKFLOW_CONTRACT_VERSION = "WorkflowAggregateV1"
+
+REQUIRED_SCHEME_CALCULATOR_NAMES = CANONICAL_CALCULATOR_NAMES
 
 WORKFLOW_STEPS: tuple[str, ...] = (
     "PROJECT_INPUT",
@@ -36,7 +42,3 @@ STEP_APPLICABILITY_VALUES: frozenset[str] = frozenset(
 
 WORKFLOW_GOAL_FORMAL_REPORT = "formal_report"
 WORKFLOW_GOAL_PLANNING_PREVIEW = "planning_preview"
-
-REQUIRED_SCHEME_CALCULATOR_NAMES: frozenset[str] = frozenset(
-    {"zone", "investment", "cooling_load", "equipment"}
-)

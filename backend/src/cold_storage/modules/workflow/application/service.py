@@ -13,6 +13,12 @@ from cold_storage.modules.projects.domain.models import ProjectVersion
 from cold_storage.modules.reports.domain.enums import ReportStatus
 from cold_storage.modules.reports.domain.models import Report, ReportRevision
 from cold_storage.modules.schemes.application.query import SchemeQueryPort
+from cold_storage.modules.workflow.application.canonical_calculation_reads import (
+    canonical_runs_requiring_review,
+    detect_canonical_lineage_stale_reasons,
+    index_canonical_calculation_runs,
+    missing_canonical_calculator_names,
+)
 from cold_storage.modules.workflow.application.formal_export_projection import (
     project_formal_export_eligibility,
 )
@@ -29,7 +35,6 @@ from cold_storage.modules.workflow.domain.errors import (
 )
 from cold_storage.modules.workflow.domain.steps import (
     MAINLINE_STEPS,
-    REQUIRED_SCHEME_CALCULATOR_NAMES,
     WORKFLOW_CONTRACT_VERSION,
     WORKFLOW_GOAL_FORMAL_REPORT,
     WORKFLOW_GOAL_PLANNING_PREVIEW,
@@ -79,7 +84,11 @@ class WorkflowAggregateService:
         inputs = dict(version.input_snapshot or {})
         validation = self._project_service.validate_inputs(inputs)
         calculations = self._project_service.list_calculations(project_id, version_number)
-        calc_by_name = _latest_calculations_by_name(calculations)
+        calc_by_name = index_canonical_calculation_runs(
+            calculations,
+            project_id=project_id,
+            project_version_id=version.id,
+        )
 
         scheme_runs: list[dict[str, Any]] = []
         scheme_authority: Any | None = None
@@ -466,7 +475,7 @@ def _evaluate_step(
         return "COMPLETED", False, blockers
 
     if step == "DETERMINISTIC_CALCULATION":
-        missing_calcs = sorted(REQUIRED_SCHEME_CALCULATOR_NAMES - set(calc_by_name))
+        missing_calcs = missing_canonical_calculator_names(calc_by_name)
         if missing_calcs:
             blockers.append(
                 _blocker(
@@ -475,9 +484,7 @@ def _evaluate_step(
                 )
             )
             return "NOT_STARTED", applicability == "REQUIRED", blockers
-        review_required = [
-            name for name, record in calc_by_name.items() if record.get("requires_review")
-        ]
+        review_required = canonical_runs_requiring_review(calc_by_name)
         if review_required:
             blockers.append(
                 _blocker(
@@ -579,6 +586,7 @@ def _collect_stale_reasons(
     report_revision: ReportRevision | None,
 ) -> list[str]:
     reasons: list[str] = []
+    reasons.extend(detect_canonical_lineage_stale_reasons(calculations))
     for name, record in calculations.items():
         snapshot = record.get("input_snapshot")
         if isinstance(snapshot, dict) and snapshot:

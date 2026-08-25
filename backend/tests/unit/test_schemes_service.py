@@ -31,6 +31,7 @@ from cold_storage.modules.schemes.domain.errors import (
 )
 from cold_storage.modules.schemes.domain.models import ReviewReason
 from cold_storage.modules.schemes.infrastructure.repository import SchemeRepository
+from tests.integration.v05_p3_canonical_fixtures import INSTALLED_POWER_SNAPSHOT
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -173,10 +174,11 @@ def _seed_standard_calculations(
         "zone_results": zone_results or _zone_results_raw(),
         "total_daily_throughput_kg_day": total_daily_throughput_kg_day,
     }
-    _seed_calculation(session, "zone", zone_snap)
-    _seed_calculation(session, "investment", investment or _investment_snapshot())
+    _seed_calculation(session, "cold_room_zone_plan", zone_snap)
+    _seed_calculation(session, "investment_estimate", investment or _investment_snapshot())
     _seed_calculation(session, "cooling_load", cooling_load or _cooling_load_snapshot())
     _seed_calculation(session, "equipment", equipment or _equipment_snapshot())
+    _seed_calculation(session, "installed_power", INSTALLED_POWER_SNAPSHOT)
     session.commit()
 
 
