@@ -567,8 +567,9 @@ class DatabaseProjectService(ProjectService):
         )
 
     def _calculation_to_dict(self, record: CalculationRunRecord) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "id": record.id,
+            "calculation_id": record.id,
             "project_id": record.project_id,
             "project_version_id": record.project_version_id,
             "calculator_name": record.calculator_name,
@@ -581,8 +582,18 @@ class DatabaseProjectService(ProjectService):
             "warnings": record.warnings,
             "source_references": record.source_references,
             "requires_review": record.requires_review,
+            "review_status": "requires_review" if record.requires_review else "verified",
             "created_at": record.created_at.isoformat(),
         }
+        if record.result_hash is not None:
+            payload["result_hash"] = record.result_hash
+        if record.provenance and isinstance(record.provenance, dict):
+            upstream = record.provenance.get("upstream_calculation_ids")
+            if upstream is not None:
+                payload["upstream_calculation_ids"] = upstream
+        if record.calculation_type is not None:
+            payload["calculation_type"] = record.calculation_type
+        return payload
 
     def _audit_to_dict(self, record: AuditEventRecord) -> dict[str, Any]:
         return {

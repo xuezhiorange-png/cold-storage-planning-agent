@@ -443,6 +443,11 @@ class PlanningRunRequest(BaseModel):
     packaging_area_factor: float | None = None
 
 
+class FiveStageExecutionRequest(BaseModel):
+    engineering_input_bundle: dict[str, Any]
+    idempotency_key: str
+
+
 class AgentMessageRequest(BaseModel):
     message: str
 
@@ -1530,6 +1535,61 @@ def create_app(
                     "details": exc.details,
                 }
             }
+
+    @app.post("/api/v1/projects/{project_id}/versions/{version}/five-stage-execution")
+    def run_five_stage_execution(
+        project_id: str,
+        version: int,
+        request: FiveStageExecutionRequest,
+        service: ProjectServiceDep,
+    ) -> dict[str, Any]:
+        from cold_storage.bootstrap.database import create_session_factory
+        from cold_storage.bootstrap.dependencies import get_engine
+        from cold_storage.modules.projects.application.five_stage_execution import (
+            FiveStageExecutionRejected,
+            WorkbenchFiveStageExecutionService,
+        )
+
+        project_version = service.get_version(project_id, version)
+        engine = service.engine if hasattr(service, "engine") else get_engine()
+        session_factory = (
+            service.session_factory
+            if hasattr(service, "session_factory")
+            else create_session_factory(engine)
+        )
+        executor = WorkbenchFiveStageExecutionService(session_factory)
+        try:
+            outcome = executor.execute(
+                project_id=project_id,
+                version=project_version,
+                bundle=request.engineering_input_bundle,
+                idempotency_key=request.idempotency_key,
+                actor="api",
+            )
+        except FiveStageExecutionRejected as exc:
+            return {
+                "error": {
+                    "code": exc.error.code,
+                    "message": exc.error.message,
+                    "field_path": exc.error.field_path,
+                    "details": exc.error.details,
+                }
+            }
+        return {
+            "success": True,
+            "idempotent_replay": outcome.idempotent_replay,
+            "source_binding_id": outcome.source_binding_id,
+            "calculation_ids": outcome.calculation_ids,
+            "result_hashes": outcome.result_hashes,
+            "requires_review": outcome.requires_review,
+            "canonical_calculator_names": [
+                "cold_room_zone_plan",
+                "cooling_load",
+                "equipment",
+                "installed_power",
+                "investment_estimate",
+            ],
+        }
 
     @app.get("/api/v1/projects/{project_id}/audit-events")
     def list_audit_events(project_id: str, service: ProjectServiceDep) -> list[dict[str, Any]]:
