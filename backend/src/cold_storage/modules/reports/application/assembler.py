@@ -91,13 +91,35 @@ class ReportAssembler:
         scheme_data = self._provider.get_scheme_results(project_id, project_version_id)
         agent_session_data = self._provider.get_agent_sessions(project_id, project_version_id)
         knowledge_data = self._provider.get_knowledge_documents()
-        input_conditions = self._provider.get_input_conditions(project_id, project_version_id)
-        assumptions = self._provider.get_assumptions(project_id, project_version_id)
-        indexed_calculators = self._provider.get_indexed_canonical_calculators(
-            project_id, project_version_id
+
+        get_input_conditions = getattr(self._provider, "get_input_conditions", None)
+        input_conditions = (
+            get_input_conditions(project_id, project_version_id)
+            if callable(get_input_conditions)
+            else None
         )
-        stale_lineage_reasons = self._provider.get_stale_lineage_reasons(
-            project_id, project_version_id
+
+        get_assumptions = getattr(self._provider, "get_assumptions", None)
+        assumptions = (
+            get_assumptions(project_id, project_version_id)
+            if callable(get_assumptions)
+            else None
+        )
+
+        get_indexed_canonical_calculators = getattr(
+            self._provider, "get_indexed_canonical_calculators", None
+        )
+        indexed_calculators = (
+            get_indexed_canonical_calculators(project_id, project_version_id)
+            if callable(get_indexed_canonical_calculators)
+            else frozenset()
+        )
+
+        get_stale_lineage_reasons = getattr(self._provider, "get_stale_lineage_reasons", None)
+        stale_lineage_reasons = (
+            get_stale_lineage_reasons(project_id, project_version_id)
+            if callable(get_stale_lineage_reasons)
+            else ()
         )
 
         # Build content sections

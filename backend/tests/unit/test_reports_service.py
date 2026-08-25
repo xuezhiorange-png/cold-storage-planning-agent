@@ -1257,3 +1257,69 @@ def test_v06_p1_missing_canonical_source_adds_blocker_finding() -> None:
     assert "MISSING_CANONICAL_SOURCE" in codes
     assert assembled.quality_status == ReportStatus.DRAFT
 
+
+class _LegacyDuckTypedProvider:
+    """Duck-typed provider with only the original six report read methods."""
+
+    def get_project(self, project_id: str) -> dict[str, Any] | None:
+        return {"name": "Legacy Project", "location": "Test Location"}
+
+    def get_project_version(
+        self, version_id: str, *, project_id: str | None = None
+    ) -> dict[str, Any] | None:
+        return {"id": version_id, "version_number": 1}
+
+    def get_calculation_results(
+        self,
+        project_id: str,
+        version_id: str,
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "section_key": "cooling_load",
+                "result_id": "calc-legacy-001",
+                "tool_name": "cooling_load",
+                "tool_version": "1.0.0",
+                "data": {
+                    "total_design_refrigeration_load": {
+                        "value": 100.0,
+                        "unit": "kW(r)",
+                        "source_result_id": "calc-legacy-001",
+                        "source_tool": "cooling_load",
+                        "source_tool_version": "1.0.0",
+                    }
+                },
+            }
+        ]
+
+    def get_scheme_results(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        return {
+            "run_id": "scheme-legacy-001",
+            "status": "completed",
+            "schemes": [{"scheme_id": "s1", "name": "Scheme A", "total_investment_cny": 1000}],
+            "recommended_scheme": "s1",
+            "generator_version": "1.0.0",
+            "review_authority": _default_no_review_authority().to_snapshot(),
+        }
+
+    def get_agent_sessions(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
+        return []
+
+    def get_knowledge_documents(self) -> list[dict[str, Any]]:
+        return []
+
+
+def test_v06_p1_assembler_accepts_duck_typed_provider_without_engineering_methods() -> None:
+    assembled = ReportAssembler(_LegacyDuckTypedProvider()).assemble(
+        report_id="report-legacy-duck",
+        project_id="p1",
+        project_version_id="v1",
+        report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+        revision_number=1,
+        generated_by="user1",
+    )
+    assert assembled.content["project_summary"]["project_name"] == "Legacy Project"
+    assert "input_conditions" not in assembled.content
+    assert "assumptions" not in assembled.content
+    assert "quality_summary" in assembled.content
+
