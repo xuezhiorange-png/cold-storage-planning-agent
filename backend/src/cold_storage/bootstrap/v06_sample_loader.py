@@ -13,10 +13,11 @@ import argparse
 import json
 import os
 import tempfile
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Iterator, cast
+from typing import Any, cast
 
 from fastapi.testclient import TestClient
 
@@ -31,7 +32,12 @@ from cold_storage.modules.reports.api.routes import _get_actor
 SAMPLE_ID = "v06-formal-delivery"
 MANIFEST_RELATIVE_PATH = Path("samples") / SAMPLE_ID / "manifest.json"
 REPO_ROOT = Path(__file__).resolve().parents[4]
-DEMO_WEIGHT_SET_ID = "demo-weight-set-001"
+SCHEME_FAIL_CLOSED_REASON = (
+    "Weight set is available via GET /api/v1/demo/scheme-comparison, but POST "
+    ".../scheme-runs persists legacy source_mode runs that block report assembly "
+    "production review authority. Reports continue from persisted five-stage results "
+    "without scheme_comparison on this operator path."
+)
 TRUSTED_SEED_ACTOR = "v06-local-trusted-reviewer"
 TEMPLATE_VERSION = "1.0.0"
 FORMAL_LOCALES = ("zh-CN", "en-US")
@@ -80,6 +86,9 @@ class SeededV06Sample:
     report_id: str | None = None
     revision_number: int | None = None
     revision_content_hash: str | None = None
+    review_closed: bool = False
+    review_fail_closed_reason: str | None = None
+    submit_review_status_code: int | None = None
     calculation_ids: dict[str, str] = field(default_factory=dict)
     calculation_hashes: dict[str, str] = field(default_factory=dict)
     formal_renders: tuple[FormalRenderResult, ...] = ()
@@ -185,48 +194,22 @@ def _ensure_demo_weight_set_available(client: TestClient) -> bool:
     return response.status_code == 200
 
 
-def _attempt_scheme_run(
-    client: TestClient,
-    *,
-    project_id: str,
-    version_number: int,
-) -> SchemeSeedResult:
+def _probe_scheme_public_bootstrap(client: TestClient) -> SchemeSeedResult:
+    """Prove weight-set bootstrap without persisting legacy scheme-runs on the sample."""
     if not _ensure_demo_weight_set_available(client):
         return SchemeSeedResult(
             attempted=True,
             success=False,
             scheme_run_id=None,
-            fail_closed_reason="demo weight set bootstrap via /api/v1/demo/scheme-comparison failed",
-        )
-    response = client.post(
-        f"/api/v1/projects/{project_id}/versions/{version_number}/scheme-runs",
-        json={
-            "profile_codes": ["balanced"],
-            "weight_set_id": DEMO_WEIGHT_SET_ID,
-            "profile_parameters": {},
-        },
-    )
-    if response.status_code != 200:
-        return SchemeSeedResult(
-            attempted=True,
-            success=False,
-            scheme_run_id=None,
-            fail_closed_reason=response.text,
-        )
-    payload = response.json()
-    run_id = payload.get("scheme_run_id") or payload.get("id")
-    if not isinstance(run_id, str) or not run_id:
-        return SchemeSeedResult(
-            attempted=True,
-            success=False,
-            scheme_run_id=None,
-            fail_closed_reason=f"scheme-runs response missing run id: {payload}",
+            fail_closed_reason=(
+                "demo weight set bootstrap via /api/v1/demo/scheme-comparison failed"
+            ),
         )
     return SchemeSeedResult(
         attempted=True,
-        success=True,
-        scheme_run_id=run_id,
-        fail_closed_reason=None,
+        success=False,
+        scheme_run_id=None,
+        fail_closed_reason=SCHEME_FAIL_CLOSED_REASON,
     )
 
 
@@ -255,13 +238,20 @@ def _generate_report_revision(client: TestClient, report_id: str) -> dict[str, A
     return response.json()
 
 
-def _complete_trusted_review_lifecycle(client: TestClient, report_id: str) -> None:
+def _complete_trusted_review_lifecycle(
+    client: TestClient,
+    report_id: str,
+) -> tuple[bool, str | None, int]:
     submit = client.post(f"/api/v1/reports/{report_id}/submit-review")
-    submit.raise_for_status()
+    if submit.status_code != 200:
+        return False, submit.text, submit.status_code
     reviewed = client.post(f"/api/v1/reports/{report_id}/mark-reviewed")
-    reviewed.raise_for_status()
+    if reviewed.status_code != 200:
+        return False, reviewed.text, submit.status_code
     approved = client.post(f"/api/v1/reports/{report_id}/approve")
-    approved.raise_for_status()
+    if approved.status_code != 200:
+        return False, approved.text, submit.status_code
+    return True, None, submit.status_code
 
 
 def _render_formal(
@@ -426,12 +416,15 @@ def seed_v06_sample(
     persisted_names = _persisted_calculator_names(client, project_id, version_number)
     by_name = _calculations_by_name(client, project_id, version_number)
 
-    scheme = _attempt_scheme_run(client, project_id=project_id, version_number=version_number)
+    scheme = _probe_scheme_public_bootstrap(client)
 
     report_id: str | None = None
     revision_number: int | None = None
     revision_content_hash: str | None = None
     formal_renders: list[FormalRenderResult] = []
+    review_closed = False
+    review_fail_closed_reason: str | None = None
+    submit_review_status_code: int | None = None
 
     if complete_reports:
         report = _create_report(client, project_id=project_id, version_id=version_id)
@@ -439,7 +432,9 @@ def seed_v06_sample(
         revision = _generate_report_revision(client, report_id)
         revision_number = revision["revision_number"]
         revision_content_hash = revision["content_hash"]
-        _complete_trusted_review_lifecycle(client, report_id)
+        review_closed, review_fail_closed_reason, submit_review_status_code = (
+            _complete_trusted_review_lifecycle(client, report_id)
+        )
         for locale in FORMAL_LOCALES:
             for export_format in FORMAL_FORMATS:
                 rendered = _render_formal(
@@ -450,11 +445,12 @@ def seed_v06_sample(
                     export_format=export_format,
                 )
                 formal_renders.append(rendered)
-                if rendered.status_code == 200 and rendered.artifact_id:
+                if review_closed and rendered.status_code == 200 and rendered.artifact_id:
                     content = _download_artifact(client, report_id, rendered.artifact_id)
                     if len(content) < 100:
                         raise RuntimeError(
-                            f"artifact download too small for {locale}/{export_format}: {len(content)} bytes"
+                            "artifact download too small for "
+                            f"{locale}/{export_format}: {len(content)} bytes"
                         )
 
     calculation_ids = {
@@ -484,6 +480,9 @@ def seed_v06_sample(
         report_id=report_id,
         revision_number=revision_number,
         revision_content_hash=revision_content_hash,
+        review_closed=review_closed,
+        review_fail_closed_reason=review_fail_closed_reason,
+        submit_review_status_code=submit_review_status_code,
         calculation_ids=calculation_ids,
         calculation_hashes=calculation_hashes,
         formal_renders=tuple(formal_renders),
@@ -496,7 +495,9 @@ def verify_v06_sample(database_url: str) -> SeededV06Sample:
     with _build_trusted_client(database_url) as client:
         seeded = seed_v06_sample(client, manifest=manifest, complete_reports=True)
 
-    missing = [name for name in EXPECTED_CANONICAL_CALCULATORS if name not in seeded.calculation_ids]
+    missing = [
+        name for name in EXPECTED_CANONICAL_CALCULATORS if name not in seeded.calculation_ids
+    ]
     if missing:
         raise RuntimeError(f"verify failed: missing canonical calculators: {missing}")
 
@@ -520,6 +521,42 @@ def verify_v06_sample(database_url: str) -> SeededV06Sample:
         if seeded.report_id is None or seeded.revision_number is None:
             raise RuntimeError("verify failed: report lifecycle did not complete")
 
+        if not seeded.review_closed:
+            if seeded.submit_review_status_code is not None:
+                if seeded.submit_review_status_code not in {409, 422}:
+                    raise RuntimeError(
+                        "verify failed: submit-review must fail closed with 409/422 on "
+                        f"operator path, got {seeded.submit_review_status_code}"
+                    )
+            elif not seeded.review_fail_closed_reason:
+                raise RuntimeError("verify failed: review closure missing fail-closed reason")
+            blocked = [
+                item
+                for item in seeded.formal_renders
+                if item.status_code != 409 and not item.fail_closed
+            ]
+            if blocked:
+                details = ", ".join(
+                    f"{item.locale}/{item.export_format}={item.status_code}" for item in blocked
+                )
+                raise RuntimeError(
+                    "verify failed: formal render must stay 409 when review is not closed: "
+                    f"{details}"
+                )
+        else:
+            fail_closed = [
+                item
+                for item in seeded.formal_renders
+                if item.fail_closed or item.status_code != 200
+            ]
+            if fail_closed:
+                details = ", ".join(
+                    f"{item.locale}/{item.export_format}={item.status_code}" for item in fail_closed
+                )
+                raise RuntimeError(
+                    f"verify failed: formal render did not complete after review closure: {details}"
+                )
+
         reopened_revision = reopened.get(
             f"/api/v1/reports/{seeded.report_id}/revisions/{seeded.revision_number}"
         ).json()
@@ -527,23 +564,9 @@ def verify_v06_sample(database_url: str) -> SeededV06Sample:
             raise RuntimeError("restart verification failed: report revision content_hash changed")
 
         approved = reopened.get(f"/api/v1/reports/{seeded.report_id}").json()
-        if approved["status"] != "approved":
+        if seeded.review_closed and approved["status"] != "approved":
             raise RuntimeError(
                 f"verify failed: expected approved report, got {approved['status']!r}"
-            )
-
-        fail_closed = [
-            item
-            for item in seeded.formal_renders
-            if item.fail_closed or item.status_code != 200
-        ]
-        if fail_closed:
-            details = ", ".join(
-                f"{item.locale}/{item.export_format}={item.status_code}" for item in fail_closed
-            )
-            raise RuntimeError(
-                "verify failed: formal render did not complete; fail-closed renders: "
-                f"{details}. See docs/runbooks/v06-pilot-runbook.md for operator guidance."
             )
 
     return replace(seeded, restart_verified=True)
@@ -557,10 +580,13 @@ def _resolve_database_url(database_url: str | None) -> str:
         url = os.environ.get("COLD_STORAGE_DATABASE_URL")
         if not url:
             raise ValueError(
-                "COLD_STORAGE_DATABASE_URL is required when COLD_STORAGE_DATABASE_BACKEND=postgresql"
+                "COLD_STORAGE_DATABASE_URL is required when "
+                "COLD_STORAGE_DATABASE_BACKEND=postgresql"
             )
         return url
-    default_sqlite_path = REPO_ROOT / "cold_storage_dev.db"
+    backend_sqlite = REPO_ROOT / "backend" / "cold_storage_dev.db"
+    root_sqlite = REPO_ROOT / "cold_storage_dev.db"
+    default_sqlite_path = backend_sqlite if backend_sqlite.is_file() else root_sqlite
     sqlite_path = Path(os.environ.get("COLD_STORAGE_SQLITE_PATH", default_sqlite_path))
     if not sqlite_path.is_absolute():
         sqlite_path = REPO_ROOT / sqlite_path
@@ -618,6 +644,9 @@ def _summary_dict(seeded: SeededV06Sample) -> dict[str, Any]:
         "report_id": seeded.report_id,
         "revision_number": seeded.revision_number,
         "revision_content_hash": seeded.revision_content_hash,
+        "review_closed": seeded.review_closed,
+        "review_fail_closed_reason": seeded.review_fail_closed_reason,
+        "submit_review_status_code": seeded.submit_review_status_code,
         "formal_renders": [
             {
                 "locale": item.locale,

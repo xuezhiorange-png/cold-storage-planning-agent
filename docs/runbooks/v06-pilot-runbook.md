@@ -57,11 +57,10 @@ persists the canonical five-stage chain through current public APIs:
 
 1. `POST /api/v1/projects`
 2. `POST /api/v1/projects/{id}/versions/{version}/five-stage-execution`
-3. `GET /api/v1/demo/scheme-comparison` (bootstraps the demo weight set only)
-4. `POST /api/v1/projects/{id}/versions/{version}/scheme-runs` when available
-5. `POST /api/v1/reports` → `generate` → `submit-review` → `mark-reviewed` → `approve`
+3. `GET /api/v1/demo/scheme-comparison` (bootstraps demo weight set only — does **not** run `scheme-runs` on the sample project)
+4. `POST /api/v1/reports` → `generate` → `submit-review` → (`mark-reviewed` → `approve` when production scheme authority exists)
 6. `POST /api/v1/reports/{id}/revisions/{n}/render` for formal `zh-CN` / `en-US`
-   `docx` + `pdf`, then artifact download
+   `docx` + `pdf` when review is closed, otherwise documented **409** fail-closed
 
 Persisted canonical calculation rows:
 
@@ -142,8 +141,10 @@ The loader assumes schema is already at Alembic head — run `make migrate` firs
 
 | Condition | Expected behavior |
 | --- | --- |
-| Scheme weight set unavailable | `scheme-runs` skipped or fails; five-stage report APIs still run from persisted calculators |
-| `mark-reviewed` without trusted actor | Rejected; formal render returns **409** |
+| Scheme weight set unavailable | `GET /api/v1/demo/scheme-comparison` fails; five-stage report APIs still run |
+| Public `scheme-runs` on sample project | **Do not run** — persists `legacy` `source_mode` rows that block report `generate` |
+| `submit-review` with quality blockers | **409** when `project_summary` / `scheme_comparison` are absent on unmodified `create_app` |
+| `mark-reviewed` without production scheme authority | Rejected; formal render returns **409** (expected on this operator path) |
 | Formal render before approval | **409 ExportPermissionError** |
 | Missing `COLD_STORAGE_STORAGE_DIR` at render time | Render service fails closed (configure storage for formal artifacts) |
 | Production report seam blocks formal generate | Documented fail-closed; do not patch reports production from this package |
