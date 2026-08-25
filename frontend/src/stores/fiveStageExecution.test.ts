@@ -3,21 +3,21 @@ import { createPinia, setActivePinia } from 'pinia'
 
 import {
   buildEngineeringInputBundle,
+  buildWorkbenchSubmitContext,
   createDefaultEngineeringInputFormState,
   stableBundlePayloadJson
 } from '../features/five-stage/model/engineeringInputForm'
 import { useFiveStageExecutionStore } from '../stores/fiveStageExecution'
 import { useWorkbenchContextStore } from '../stores/workbenchContext'
 
-const BUNDLE_CONTEXT = {
+const SUBMIT_CONTEXT = buildWorkbenchSubmitContext({
   projectId: 'proj-1',
   projectVersionId: 'ver-1',
   versionNumber: 1,
   versionStatus: 'draft',
   isArchived: false,
-  actorPrincipal: 'test',
-  correlationId: 'corr-1'
-}
+  actorPrincipal: 'test'
+})
 
 function filledForm() {
   const form = createDefaultEngineeringInputFormState()
@@ -50,9 +50,10 @@ describe('fiveStageExecution store', () => {
     useFiveStageExecutionStore().resetForTests()
     sessionStorage.clear()
     vi.spyOn(crypto, 'randomUUID')
+      .mockReturnValueOnce('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
       .mockReturnValueOnce('11111111-1111-4111-8111-111111111111')
       .mockReturnValueOnce('22222222-2222-4222-8222-222222222222')
-      .mockReturnValueOnce('33333333-3333-4333-8333-333333333333')
+      .mockReturnValueOnce('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')
   })
 
   it('posts five-stage-execution and surfaces field_path errors', async () => {
@@ -71,7 +72,7 @@ describe('fiveStageExecution store', () => {
     const store = useFiveStageExecutionStore()
     const outcome = await store.execute(
       createDefaultEngineeringInputFormState(),
-      BUNDLE_CONTEXT,
+      SUBMIT_CONTEXT,
       { execute }
     )
 
@@ -83,8 +84,9 @@ describe('fiveStageExecution store', () => {
 
   it('reuses idempotency key when bundle payload is unchanged', () => {
     const store = useFiveStageExecutionStore()
+    const bundleContext = store.buildBundleContext(filledForm(), SUBMIT_CONTEXT)
     const bundleJson = stableBundlePayloadJson(
-      buildEngineeringInputBundle(filledForm(), BUNDLE_CONTEXT)
+      buildEngineeringInputBundle(filledForm(), bundleContext)
     )
 
     const key1 = store.resolveIdempotencyKey('proj-1', 1, bundleJson)
@@ -92,6 +94,35 @@ describe('fiveStageExecution store', () => {
 
     expect(key1).toBe('11111111-1111-4111-8111-111111111111')
     expect(key2).toBe('11111111-1111-4111-8111-111111111111')
+  })
+
+  it('reuses correlation_id and idempotency_key on retry with unchanged form', async () => {
+    const workbench = useWorkbenchContextStore()
+    workbench.projectId = 'proj-1'
+    workbench.versionNumber = 1
+
+    const execute = vi.fn().mockResolvedValue({ success: true, idempotent_replay: false })
+    const store = useFiveStageExecutionStore()
+    const form = filledForm()
+
+    await store.execute(form, SUBMIT_CONTEXT, { execute })
+    await store.execute(form, SUBMIT_CONTEXT, { execute })
+
+    const bundle1 = execute.mock.calls[0][2].engineering_input_bundle
+    const bundle2 = execute.mock.calls[1][2].engineering_input_bundle
+
+    expect(bundle1.project_version_identity.correlation_id.value).toBe(
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    )
+    expect(bundle2.project_version_identity.correlation_id.value).toBe(
+      bundle1.project_version_identity.correlation_id.value
+    )
+    expect(execute.mock.calls[0][2].idempotency_key).toBe(
+      '11111111-1111-4111-8111-111111111111'
+    )
+    expect(execute.mock.calls[1][2].idempotency_key).toBe(
+      execute.mock.calls[0][2].idempotency_key
+    )
   })
 
   it('rotates idempotency key when bundle payload changes', async () => {
@@ -103,17 +134,20 @@ describe('fiveStageExecution store', () => {
     const store = useFiveStageExecutionStore()
 
     const formA = filledForm()
-    await store.execute(formA, BUNDLE_CONTEXT, { execute })
+    await store.execute(formA, SUBMIT_CONTEXT, { execute })
     const firstKey = execute.mock.calls[0][2].idempotency_key
 
     const formB = filledForm()
     formB.zonePlanning.dailyInboundMassKg = 25000
-    await store.execute(formB, BUNDLE_CONTEXT, { execute })
+    await store.execute(formB, SUBMIT_CONTEXT, { execute })
     const secondKey = execute.mock.calls[1][2].idempotency_key
+    const secondCorrelationId =
+      execute.mock.calls[1][2].engineering_input_bundle.project_version_identity.correlation_id.value
 
     expect(firstKey).toBe('11111111-1111-4111-8111-111111111111')
-    expect(secondKey).toBe('22222222-2222-4222-8222-222222222222')
+    expect(secondKey).toBe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')
     expect(secondKey).not.toBe(firstKey)
+    expect(secondCorrelationId).toBe('22222222-2222-4222-8222-222222222222')
   })
 
   it('sends rotated key on second execute of edited form', async () => {
@@ -125,11 +159,11 @@ describe('fiveStageExecution store', () => {
     const store = useFiveStageExecutionStore()
     const form = filledForm()
 
-    await store.execute(form, BUNDLE_CONTEXT, { execute })
+    await store.execute(form, SUBMIT_CONTEXT, { execute })
     form.installedPower.compressorInputPowerKwE = 130
-    await store.execute(form, BUNDLE_CONTEXT, { execute })
+    await store.execute(form, SUBMIT_CONTEXT, { execute })
 
     expect(execute.mock.calls[0][2].idempotency_key).toBe('11111111-1111-4111-8111-111111111111')
-    expect(execute.mock.calls[1][2].idempotency_key).toBe('22222222-2222-4222-8222-222222222222')
+    expect(execute.mock.calls[1][2].idempotency_key).toBe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')
   })
 })

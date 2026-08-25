@@ -87,6 +87,9 @@ export interface BuildBundleContext {
   correlationId: string
 }
 
+/** Caller-supplied context before request-scoped correlation_id is resolved. */
+export type SubmitBundleContext = Omit<BuildBundleContext, 'correlationId'>
+
 /** Demo coefficient leaves — coefficient source only, never authoritative user input. */
 const DEMO_COOLING_COEFFICIENTS: Record<string, string> = {
   design_margin_ratio: '1.1',
@@ -402,6 +405,29 @@ export function buildEngineeringInputBundle(
 
 export function stableBundlePayloadJson(bundle: EngineeringInputBundleV1): string {
   return JSON.stringify(bundle)
+}
+
+/** Canonical JSON of user-entered engineering fields only (excludes request identity). */
+export function stableEngineeringFieldsJson(form: EngineeringInputFormState): string {
+  return JSON.stringify(form)
+}
+
+export function buildWorkbenchSubmitContext(params: {
+  projectId: string
+  projectVersionId: string
+  versionNumber: number
+  versionStatus: string
+  isArchived: boolean
+  actorPrincipal?: string
+}): SubmitBundleContext {
+  return {
+    projectId: params.projectId,
+    projectVersionId: params.projectVersionId,
+    versionNumber: params.versionNumber,
+    versionStatus: params.versionStatus,
+    isArchived: params.isArchived,
+    actorPrincipal: params.actorPrincipal ?? 'workbench-user'
+  }
 }
 
 export function fieldPathToFormKey(fieldPath: string): string | null {

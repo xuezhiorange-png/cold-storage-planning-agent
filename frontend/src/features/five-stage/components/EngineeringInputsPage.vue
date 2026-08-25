@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router'
 
 import EngineeringInputBundleForm from './EngineeringInputBundleForm.vue'
 import { createProjectsApi } from '../../workflow/api/projectsApi'
-import { createDefaultEngineeringInputFormState } from '../model/engineeringInputForm'
+import { createDefaultEngineeringInputFormState, buildWorkbenchSubmitContext } from '../model/engineeringInputForm'
 import { isVersionLocked } from '../model/mapFiveStageCalculations'
 import { useFiveStageExecutionStore } from '../../../stores/fiveStageExecution'
 import { usePersistedPlanningResultsStore } from '../../../stores/persistedPlanningResults'
@@ -51,15 +51,16 @@ async function handleSubmit(): Promise<void> {
     return
   }
 
-  const outcome = await execution.execute(formState.value, {
-    projectId: workbench.projectId,
-    projectVersionId: projectVersionId.value,
-    versionNumber: workbench.versionNumber,
-    versionStatus: versionStatus.value,
-    isArchived: isArchived.value,
-    actorPrincipal: 'workbench-user',
-    correlationId: crypto.randomUUID()
-  })
+  const outcome = await execution.execute(
+    formState.value,
+    buildWorkbenchSubmitContext({
+      projectId: workbench.projectId,
+      projectVersionId: projectVersionId.value,
+      versionNumber: workbench.versionNumber,
+      versionStatus: versionStatus.value,
+      isArchived: isArchived.value
+    })
+  )
 
   if (outcome) {
     await workbench.refreshWorkflow()

@@ -11,12 +11,16 @@ import {
   type BuildBundleContext,
   type EngineeringInputFormState,
   fieldPathToFormKey,
-  stableBundlePayloadJson
+  stableBundlePayloadJson,
+  stableEngineeringFieldsJson,
+  type SubmitBundleContext
 } from '../features/five-stage/model/engineeringInputForm'
 import { useWorkbenchContextStore } from './workbenchContext'
 
 const IDEM_STORAGE_PREFIX = 'five_stage_idem_key'
 const LAST_BUNDLE_STORAGE_PREFIX = 'five_stage_last_bundle'
+const CORRELATION_ID_STORAGE_PREFIX = 'five_stage_correlation_id'
+const ENGINEERING_FIELDS_STORAGE_PREFIX = 'five_stage_engineering_fields'
 
 export interface FiveStageFieldError {
   fieldPath: string
@@ -44,11 +48,39 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
     return `${LAST_BUNDLE_STORAGE_PREFIX}:${projectId}:${version}`
   }
 
+  function correlationIdStorageKey(projectId: string, version: number): string {
+    return `${CORRELATION_ID_STORAGE_PREFIX}:${projectId}:${version}`
+  }
+
+  function engineeringFieldsStorageKey(projectId: string, version: number): string {
+    return `${ENGINEERING_FIELDS_STORAGE_PREFIX}:${projectId}:${version}`
+  }
+
   function readStoredBundleJson(projectId: string, version: number): string | null {
     return (
       sessionStorage.getItem(lastBundleStorageKey(projectId, version)) ??
       lastSubmittedBundleJson.value
     )
+  }
+
+  function resolveCorrelationId(
+    projectId: string,
+    version: number,
+    engineeringFieldsJson: string
+  ): string {
+    const correlationStorage = correlationIdStorageKey(projectId, version)
+    const fieldsStorage = engineeringFieldsStorageKey(projectId, version)
+    const storedCorrelationId = sessionStorage.getItem(correlationStorage)
+    const storedFieldsJson = sessionStorage.getItem(fieldsStorage)
+
+    if (storedCorrelationId && storedFieldsJson === engineeringFieldsJson) {
+      return storedCorrelationId
+    }
+
+    const correlationId = crypto.randomUUID()
+    sessionStorage.setItem(correlationStorage, correlationId)
+    sessionStorage.setItem(fieldsStorage, engineeringFieldsJson)
+    return correlationId
   }
 
   function resolveIdempotencyKey(projectId: string, version: number, bundleJson: string): string {
@@ -67,6 +99,21 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
     return newKey
   }
 
+  function buildBundleContext(
+    form: EngineeringInputFormState,
+    submitContext: SubmitBundleContext
+  ): BuildBundleContext {
+    const engineeringFieldsJson = stableEngineeringFieldsJson(form)
+    return {
+      ...submitContext,
+      correlationId: resolveCorrelationId(
+        submitContext.projectId,
+        submitContext.versionNumber,
+        engineeringFieldsJson
+      )
+    }
+  }
+
   function clearErrors(): void {
     fieldError.value = null
     generalError.value = ''
@@ -74,7 +121,7 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
 
   async function execute(
     form: EngineeringInputFormState,
-    bundleContext: BuildBundleContext,
+    submitContext: SubmitBundleContext,
     fiveStageApi: FiveStageApi = createFiveStageApi()
   ): Promise<FiveStageExecutionSuccess | null> {
     const workbench = useWorkbenchContextStore()
@@ -89,6 +136,7 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
     isExecuting.value = true
     clearErrors()
 
+    const bundleContext = buildBundleContext(form, submitContext)
     const bundle = buildEngineeringInputBundle(form, bundleContext)
     const bundleJson = stableBundlePayloadJson(bundle)
     const idempotencyKey = resolveIdempotencyKey(
@@ -159,7 +207,12 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
     lastSubmittedBundleJson.value = null
     for (let index = sessionStorage.length - 1; index >= 0; index -= 1) {
       const key = sessionStorage.key(index)
-      if (key?.startsWith(IDEM_STORAGE_PREFIX) || key?.startsWith(LAST_BUNDLE_STORAGE_PREFIX)) {
+      if (
+        key?.startsWith(IDEM_STORAGE_PREFIX) ||
+        key?.startsWith(LAST_BUNDLE_STORAGE_PREFIX) ||
+        key?.startsWith(CORRELATION_ID_STORAGE_PREFIX) ||
+        key?.startsWith(ENGINEERING_FIELDS_STORAGE_PREFIX)
+      ) {
         sessionStorage.removeItem(key)
       }
     }
@@ -175,6 +228,8 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
     execute,
     cancel,
     clearErrors,
+    buildBundleContext,
+    resolveCorrelationId,
     resolveIdempotencyKey,
     resetForTests
   }
