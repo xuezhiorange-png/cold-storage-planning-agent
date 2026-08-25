@@ -161,6 +161,10 @@ backend/tests/fixtures/v06/**
 docs/tasks/V0_6-P3-evaluation-contract.md
 ```
 
+P3 evaluation helpers must snapshot and restore process-global state
+(`os.environ`, `dependencies._singletons`, localization `_CATALOGS`) around
+every client/engine fixture so full-suite sqlite CI is not poisoned.
+
 Forbidden in P3 (unchanged from dispatch):
 
 ```text
@@ -188,3 +192,4 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 | Rev | Date | Change |
 | --- | --- | --- |
 | R1 | 2026-08-25 | Initial P3 evaluation contract and public-API lifecycle evidence |
+| R2 | 2026-08-25 | Isolate process-global env/singleton/catalog side effects in P3 helpers |

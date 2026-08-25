@@ -8,6 +8,8 @@ import os
 import subprocess
 import sys
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +48,72 @@ TEMPLATE_VERSION = "1.0.0"
 FORMAL_LOCALES = ("zh-CN", "en-US")
 FORMAL_FORMATS = ("docx", "pdf")
 
+_ENV_KEYS_TO_ISOLATE = (
+    "SQLITE_PATH",
+    "COLD_STORAGE_SQLITE_PATH",
+    "COLD_STORAGE_DATABASE_BACKEND",
+    "COLD_STORAGE_STORAGE_DIR",
+    "COLD_STORAGE_ENVIRONMENT_ID",
+    "DATABASE_BACKEND",
+)
+
+_SINGLETON_KEYS_TO_ISOLATE = ("engine", "project_service")
+
+
+def _snapshot_env() -> dict[str, str | None]:
+    return {key: os.environ.get(key) for key in _ENV_KEYS_TO_ISOLATE}
+
+
+def _restore_env(snapshot: dict[str, str | None]) -> None:
+    for key, value in snapshot.items():
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
+
+
+def _snapshot_singletons() -> dict[str, Any]:
+    from cold_storage.bootstrap.dependencies import _singletons
+
+    return {key: _singletons.get(key) for key in _SINGLETON_KEYS_TO_ISOLATE}
+
+
+def _restore_singletons(snapshot: dict[str, Any]) -> None:
+    from cold_storage.bootstrap.dependencies import _singletons
+
+    for key in _SINGLETON_KEYS_TO_ISOLATE:
+        if snapshot[key] is not None:
+            _singletons[key] = snapshot[key]
+        else:
+            _singletons.pop(key, None)
+
+
+def _snapshot_catalogs() -> dict[Any, Any]:
+    from cold_storage.modules.reports.localization.catalog import _CATALOGS
+
+    return dict(_CATALOGS)
+
+
+def _restore_catalogs(snapshot: dict[Any, Any]) -> None:
+    from cold_storage.modules.reports.localization.catalog import _CATALOGS
+
+    _CATALOGS.clear()
+    _CATALOGS.update(snapshot)
+
+
+@contextmanager
+def isolated_p3_process_state() -> Iterator[None]:
+    """Snapshot and restore process-global state touched by P3 evaluation tests."""
+    env_snapshot = _snapshot_env()
+    singleton_snapshot = _snapshot_singletons()
+    catalog_snapshot = _snapshot_catalogs()
+    try:
+        yield
+    finally:
+        _restore_env(env_snapshot)
+        _restore_singletons(singleton_snapshot)
+        _restore_catalogs(catalog_snapshot)
+
 
 def fixture_path(name: str) -> Path:
     path = FIXTURES_DIR / name
@@ -63,21 +131,8 @@ def fixture_sha256(name: str) -> str:
     return hashlib.sha256(fixture_path(name).read_bytes()).hexdigest()
 
 
-def _set_sqlite_env(db_path: Path) -> None:
-    """Pin sqlite path for alembic, Settings, and injected project service.
-
-    When ``COLD_STORAGE_STORAGE_DIR`` is set, legacy ``SQLITE_PATH`` alone is
-    ignored by Settings resolution; canonical ``COLD_STORAGE_SQLITE_PATH`` is
-    required so reports ``get_engine()`` and the test database stay aligned.
-    """
-    os.environ["SQLITE_PATH"] = str(db_path)
-    os.environ["COLD_STORAGE_SQLITE_PATH"] = str(db_path)
-    os.environ["COLD_STORAGE_DATABASE_BACKEND"] = "sqlite"
-
-
-def _run_alembic_sqlite(db_path: Path) -> None:
-    env = os.environ.copy()
-    _set_sqlite_env(db_path)
+def _sqlite_subprocess_env(db_path: Path, base: dict[str, str] | None = None) -> dict[str, str]:
+    env = (base or os.environ).copy()
     env["SQLITE_PATH"] = str(db_path)
     env["COLD_STORAGE_SQLITE_PATH"] = str(db_path)
     env["COLD_STORAGE_DATABASE_BACKEND"] = "sqlite"
@@ -85,6 +140,11 @@ def _run_alembic_sqlite(db_path: Path) -> None:
     existing_pp = env.get("PYTHONPATH", "")
     pp_parts = [str(src_path)] + ([existing_pp] if existing_pp else [])
     env["PYTHONPATH"] = os.pathsep.join(pp_parts)
+    return env
+
+
+def _run_alembic_sqlite(db_path: Path) -> None:
+    env = _sqlite_subprocess_env(db_path)
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"],
         cwd=BACKEND_DIR,
@@ -100,7 +160,6 @@ def _run_alembic_sqlite(db_path: Path) -> None:
 def create_sqlite_engine(db_path: Path) -> Engine:
     import sqlalchemy
 
-    _set_sqlite_env(db_path)
     _run_alembic_sqlite(db_path)
     engine = sqlalchemy.create_engine(
         f"sqlite:///{db_path}",
@@ -189,6 +248,18 @@ def _apply_v05_investment_translation_overlay() -> None:
         )
 
 
+def _configure_sqlite_env_for_client(db_path: Path) -> None:
+    """Pin sqlite paths for Settings while a P3 client is active.
+
+    When ``COLD_STORAGE_STORAGE_DIR`` is set, legacy ``SQLITE_PATH`` alone is
+    ignored by Settings resolution; canonical ``COLD_STORAGE_SQLITE_PATH`` is
+    required so reports ``get_engine()`` and the test database stay aligned.
+    """
+    os.environ["SQLITE_PATH"] = str(db_path)
+    os.environ["COLD_STORAGE_SQLITE_PATH"] = str(db_path)
+    os.environ["COLD_STORAGE_DATABASE_BACKEND"] = "sqlite"
+
+
 def _seed_report_templates(engine: Engine) -> None:
     from sqlalchemy.orm import Session as SASession
 
@@ -203,29 +274,37 @@ def _seed_report_templates(engine: Engine) -> None:
         session.close()
 
 
+@contextmanager
 def make_evaluation_client(
     service: DatabaseProjectService,
     *,
     artifact_dir: Path,
     actor: str = TRUSTED_ACTOR,
-) -> TestClient:
+    sqlite_path: Path | None = None,
+) -> Iterator[TestClient]:
+    """Build a P3 TestClient without leaking process-global state."""
     artifact_dir.mkdir(parents=True, exist_ok=True)
-    os.environ["COLD_STORAGE_STORAGE_DIR"] = str(artifact_dir)
-    os.environ.setdefault("COLD_STORAGE_ENVIRONMENT_ID", "local")
-    app = create_app(project_service=service)
+    with isolated_p3_process_state():
+        os.environ["COLD_STORAGE_STORAGE_DIR"] = str(artifact_dir)
+        if "COLD_STORAGE_ENVIRONMENT_ID" not in os.environ:
+            os.environ["COLD_STORAGE_ENVIRONMENT_ID"] = "local"
+        if sqlite_path is not None:
+            _configure_sqlite_env_for_client(sqlite_path)
 
-    from cold_storage.bootstrap.dependencies import _singletons, get_engine, get_project_service
+        from cold_storage.bootstrap.dependencies import _singletons, get_engine, get_project_service
 
-    engine = service.engine
-    _singletons["engine"] = engine
-    _singletons["project_service"] = service
-    app.dependency_overrides[get_engine] = lambda: engine
-    app.dependency_overrides[get_project_service] = lambda: service
-    app.dependency_overrides[_get_actor] = lambda: actor
-    _wire_report_service_with_project(app, service)
-    _apply_v05_investment_translation_overlay()
-    _seed_report_templates(engine)
-    return TestClient(app)
+        engine = service.engine
+        app = create_app(project_service=service)
+        _singletons["engine"] = engine
+        _singletons["project_service"] = service
+        app.dependency_overrides[get_engine] = lambda: engine
+        app.dependency_overrides[get_project_service] = lambda: service
+        app.dependency_overrides[_get_actor] = lambda: actor
+        _wire_report_service_with_project(app, service)
+        _apply_v05_investment_translation_overlay()
+        _seed_report_templates(engine)
+        with TestClient(app) as client:
+            yield client
 
 
 def seed_five_stage_project(client: TestClient) -> Any:
@@ -484,6 +563,7 @@ __all__ = [
     "generate_production_scheme",
     "generate_report_revision",
     "invalidate_canonical_projection",
+    "isolated_p3_process_state",
     "load_fixture",
     "make_evaluation_client",
     "mark_reviewed",

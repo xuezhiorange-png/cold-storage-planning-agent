@@ -86,10 +86,16 @@ def evaluation_client(database_backend: str, tmp_path, request):
         db_path = tmp_path / f"v06_p3_eval_{uuid.uuid4().hex[:8]}.db"
         engine = create_sqlite_engine(db_path)
         service = DatabaseProjectService(engine)
-        with make_evaluation_client(service, artifact_dir=artifact_dir) as client:
-            yield client, service, engine, artifact_dir
-        engine.dispose()
-        db_path.unlink(missing_ok=True)
+        try:
+            with make_evaluation_client(
+                service,
+                artifact_dir=artifact_dir,
+                sqlite_path=db_path,
+            ) as client:
+                yield client, service, engine, artifact_dir
+        finally:
+            engine.dispose()
+            db_path.unlink(missing_ok=True)
         return
 
     pg_engine = request.getfixturevalue("pg_engine")
@@ -256,7 +262,9 @@ def test_p3_formal_render_without_mark_reviewed_fails_closed(evaluation_client) 
 
     # Untrusted actor cannot satisfy mark_reviewed even if invoked directly.
     with make_evaluation_client(
-        service, artifact_dir=artifact_dir, actor=UNTRUSTED_ACTOR
+        service,
+        artifact_dir=artifact_dir,
+        actor=UNTRUSTED_ACTOR,
     ) as untrusted_client:
         untrusted_mark = untrusted_client.post(f"/api/v1/reports/{report['id']}/mark-reviewed")
         assert untrusted_mark.status_code in {404, 409, 422, 500}
