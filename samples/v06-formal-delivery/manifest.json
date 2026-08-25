@@ -1,0 +1,493 @@
+{
+  "schema_version": "1.0",
+  "sample_id": "v06-formal-delivery",
+  "description": "V0.6 formal delivery sample — five-stage persist, scheme comparison, and report review closure via public APIs.",
+  "project": {
+    "name": "V0.6 正式交付示例项目",
+    "location": "山东",
+    "product_category": "blueberry"
+  },
+  "five_stage_execution": {
+    "idempotency_key": "v06-formal-delivery-initial"
+  },
+  "engineering_input_bundle": {
+    "schema_id": "EngineeringInputBundleV1",
+    "schema_version": "1.0.0",
+    "zone_planning_inputs": {
+      "daily_inbound_mass_kg": {
+        "value": "20000",
+        "unit": "kg/day",
+        "state": "provided",
+        "source_type": "user",
+        "validity_status": "unverified",
+        "requires_review": true
+      },
+      "working_time_h_per_day": {
+        "value": "16",
+        "unit": "h/day",
+        "state": "provided",
+        "source_type": "user",
+        "validity_status": "unverified",
+        "requires_review": true
+      },
+      "finished_storage_days": {
+        "value": "7",
+        "unit": "day",
+        "state": "provided",
+        "source_type": "user",
+        "validity_status": "unverified",
+        "requires_review": true
+      },
+      "packaging_storage_days": {
+        "value": "1",
+        "unit": "day",
+        "state": "provided",
+        "source_type": "user",
+        "validity_status": "unverified",
+        "requires_review": true
+      },
+      "precooling_required_ratio": {
+        "value": "0.6",
+        "unit": "ratio",
+        "state": "provided",
+        "source_type": "user",
+        "validity_status": "unverified",
+        "requires_review": true
+      },
+      "raw_holding_hours": {
+        "value": "4",
+        "unit": "h",
+        "state": "provided",
+        "source_type": "demo",
+        "validity_status": "unverified",
+        "requires_review": true
+      },
+      "storage_position_capacity_kg": {
+        "value": "400",
+        "unit": "kg",
+        "state": "provided",
+        "source_type": "demo",
+        "validity_status": "conflict",
+        "requires_review": true
+      }
+    },
+    "cooling_load_inputs": {
+      "zones": [
+        {
+          "zone_code": {
+            "value": "Z1",
+            "unit": null,
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "zone_name": {
+            "value": "Freezer",
+            "unit": null,
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "temperature_level": {
+            "value": "low_temperature",
+            "unit": null,
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "zone_area": {
+            "value": "100.0",
+            "unit": "m2",
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "room_height": {
+            "value": "5.0",
+            "unit": "m",
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "wall_area": {
+            "value": "200.0",
+            "unit": "m2",
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "roof_area": {
+            "value": "100.0",
+            "unit": "m2",
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "floor_area": {
+            "value": "100.0",
+            "unit": "m2",
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "outdoor_design_temperature": {
+            "value": "30.0",
+            "unit": "C",
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "room_design_temperature": {
+            "value": "-18.0",
+            "unit": "C",
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "operating_hours_per_day": {
+            "value": "16.0",
+            "unit": "h/day",
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "product_mass_per_day": {
+            "value": "20000.0",
+            "unit": "kg/day",
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "product_entry_temperature": {
+            "value": "20.0",
+            "unit": "C",
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "product_target_temperature": {
+            "value": "-18.0",
+            "unit": "C",
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "cooling_duration": {
+            "value": "8.0",
+            "unit": "h",
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "u_value_wall": {
+            "value": "0.25",
+            "unit": "W/(m2·K)",
+            "state": "provided",
+            "source_type": "coefficient",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "u_value_roof": {
+            "value": "0.20",
+            "unit": "W/(m2·K)",
+            "state": "provided",
+            "source_type": "coefficient",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "u_value_floor": {
+            "value": "0.30",
+            "unit": "W/(m2·K)",
+            "state": "provided",
+            "source_type": "coefficient",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "product_specific_heat": {
+            "value": "3.6",
+            "unit": "kJ/(kg·K)",
+            "state": "provided",
+            "source_type": "coefficient",
+            "validity_status": "unverified",
+            "requires_review": true
+          }
+        }
+      ],
+      "coefficients": {
+        "value": {
+          "design_margin_ratio": "1.1",
+          "diversity_factor": "0.85",
+          "air_change_rate": "0.5",
+          "respiration_heat": "0.0",
+          "worker_heat_gain": "0.275",
+          "motor_efficiency": "0.85"
+        },
+        "unit": null,
+        "state": "provided",
+        "source_type": "coefficient",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    },
+    "equipment_inputs": {
+      "condensing_temperature_c": {
+        "value": "40.0",
+        "unit": "C",
+        "state": "provided",
+        "source_type": "user",
+        "validity_status": "unverified",
+        "requires_review": true
+      },
+      "systems": [
+        {
+          "system_code": {
+            "value": "S1",
+            "unit": null,
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "system_name": {
+            "value": "Frozen system",
+            "unit": null,
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "design_evaporating_temperature": {
+            "value": "-25.0",
+            "unit": "C",
+            "state": "provided",
+            "source_type": "user",
+            "validity_status": "unverified",
+            "requires_review": true
+          },
+          "zones": [
+            {
+              "zone_code": {
+                "value": "Z1",
+                "unit": null,
+                "state": "provided",
+                "source_type": "user",
+                "validity_status": "unverified",
+                "requires_review": true
+              },
+              "zone_name": {
+                "value": "Freezer",
+                "unit": null,
+                "state": "provided",
+                "source_type": "user",
+                "validity_status": "unverified",
+                "requires_review": true
+              },
+              "evaporator_count": {
+                "value": 2,
+                "unit": "count",
+                "state": "provided",
+                "source_type": "user",
+                "validity_status": "unverified",
+                "requires_review": true
+              },
+              "defrost_method": {
+                "value": "electric",
+                "unit": null,
+                "state": "provided",
+                "source_type": "user",
+                "validity_status": "unverified",
+                "requires_review": true
+              },
+              "design_cooling_load_kw_r": {
+                "value": "120.0",
+                "unit": "kW(r)",
+                "state": "provided",
+                "source_type": "persisted",
+                "validity_status": "unverified",
+                "requires_review": true
+              }
+            }
+          ]
+        }
+      ],
+      "coefficients": {
+        "value": {
+          "redundancy_ratio": "1.0",
+          "evaporator_capacity_margin": "1.1",
+          "condenser_capacity_margin": "1.1",
+          "compressor_cop": "2.5"
+        },
+        "unit": null,
+        "state": "provided",
+        "source_type": "coefficient",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    },
+    "installed_power_inputs": {
+      "compressor_input_power_kw_e": {
+        "value": "120.0",
+        "unit": "kW(e)",
+        "state": "provided",
+        "source_type": "user",
+        "validity_status": "unverified",
+        "requires_review": true
+      },
+      "evaporator_fan_power_kw_e": {
+        "value": "10.0",
+        "unit": "kW(e)",
+        "state": "provided",
+        "source_type": "user",
+        "validity_status": "unverified",
+        "requires_review": true
+      },
+      "condenser_fan_power_kw_e": {
+        "value": "8.0",
+        "unit": "kW(e)",
+        "state": "provided",
+        "source_type": "user",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    },
+    "investment_inputs": {
+      "total_area_m2": {
+        "value": "1000.0",
+        "unit": "m2",
+        "state": "provided",
+        "source_type": "persisted",
+        "validity_status": "unverified",
+        "requires_review": true
+      },
+      "refrigerated_area_m2": {
+        "value": "800.0",
+        "unit": "m2",
+        "state": "provided",
+        "source_type": "persisted",
+        "validity_status": "unverified",
+        "requires_review": true
+      },
+      "frozen_area_m2": {
+        "value": "200.0",
+        "unit": "m2",
+        "state": "provided",
+        "source_type": "persisted",
+        "validity_status": "unverified",
+        "requires_review": true
+      },
+      "position_count": {
+        "value": 100,
+        "unit": "count",
+        "state": "provided",
+        "source_type": "persisted",
+        "validity_status": "unverified",
+        "requires_review": true
+      },
+      "total_power_kw": {
+        "value": "150.0",
+        "unit": "kW(e)",
+        "state": "provided",
+        "source_type": "persisted",
+        "validity_status": "unverified",
+        "requires_review": true
+      }
+    },
+    "coefficient_context": {
+      "coefficient_context_id": {
+        "value": "coeff-demo-001",
+        "unit": null,
+        "state": "provided",
+        "source_type": "coefficient",
+        "validity_status": "unverified",
+        "requires_review": true
+      },
+      "approved_revision_ids": {
+        "value": [
+          "rev-001"
+        ],
+        "unit": null,
+        "state": "provided",
+        "source_type": "coefficient",
+        "validity_status": "unverified",
+        "requires_review": true
+      },
+      "demo_coefficient_leaves": [
+        {
+          "code": "storage_position_capacity_kg",
+          "value": "400",
+          "unit": "kg",
+          "state": "provided",
+          "source_type": "demo",
+          "validity_status": "conflict",
+          "requires_review": true
+        }
+      ]
+    },
+    "units_metadata": {
+      "leaf_unit_by_path": {
+        "zone_planning_inputs.daily_inbound_mass_kg": "kg/day",
+        "cooling_load_inputs.zones[0].zone_area": "m2",
+        "installed_power_inputs.compressor_input_power_kw_e": "kW(e)"
+      }
+    },
+    "source_metadata": {
+      "input_group_provenance": {
+        "zone_planning_inputs": "user_entry",
+        "cooling_load_inputs": "user_entry",
+        "equipment_inputs": "user_entry",
+        "installed_power_inputs": "user_entry",
+        "investment_inputs": "persisted_upstream_confirmed"
+      }
+    },
+    "review_metadata": {
+      "overall_requires_review": {
+        "value": true,
+        "unit": null,
+        "state": "provided",
+        "source_type": "user",
+        "validity_status": "unverified",
+        "requires_review": true
+      },
+      "per_group_requires_review": {
+        "zone_planning_inputs": true,
+        "cooling_load_inputs": true,
+        "equipment_inputs": true,
+        "installed_power_inputs": true,
+        "investment_inputs": true
+      }
+    },
+    "project_version_identity": {
+      "actor_principal": {
+        "value": "test-actor",
+        "unit": null,
+        "state": "provided",
+        "source_type": "user",
+        "validity_status": "unverified",
+        "requires_review": false
+      },
+      "correlation_id": {
+        "value": "corr-v06-p4b-001",
+        "unit": null,
+        "state": "provided",
+        "source_type": "user",
+        "validity_status": "unverified",
+        "requires_review": false
+      }
+    }
+  }
+}
