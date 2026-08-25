@@ -2,10 +2,10 @@
 
 This audit records the repository exactly as found on the preserved baseline.
 
-> **V0.5 governance truth-up (2026-08-24, `main@eec12b9d`):** Sections 1–30
-> below remain the Task 0 preserved snapshot. They are **not** current truth
-> for delivered capabilities. See §31 for the post–V0.4 delta and the remaining
-> V0.5 workbench gap.
+> **V0.6 governance truth-up (2026-08-25, `main@06a446501b83f75ba42b3920d912d980c51d7fe5`,
+> release `v0.5.0`):** Sections 1–30 below remain the Task 0 preserved snapshot.
+> They are **not** current truth for delivered capabilities. See §31 for the
+> post–V0.5 delta and the remaining V0.6 report-delivery gap.
 
 ## 1. Current Directory Tree
 
@@ -380,7 +380,7 @@ Suggested handling:
    Impact: change cost and drift risk are high.
    Suggested handling: modularize in Task 10.
 
-## 31. V0.5 governance truth-up (`main@eec12b9d`)
+## 31. V0.6 governance truth-up (`main@06a446501b83f75ba42b3920d912d980c51d7fe5`, release `v0.5.0`)
 
 The following capabilities are **delivered** and must not be described as
 baseline-only in new governance work:
@@ -393,17 +393,31 @@ baseline-only in new governance work:
 | Coefficients | Governed registry with Definition/Revision, review metadata, and persistence | `backend/src/cold_storage/modules/coefficients/` |
 | Calculations | Deterministic five-stage orchestration registry and Transaction B execution path | `backend/src/cold_storage/modules/orchestration/domain/dag.py`, `transaction_b.py` |
 | V0.4 local workbench | Persisted sqlite sample + controlled acceptance for zone, investment, supplemental power | `docs/tasks/V0_4-P5-controlled-acceptance-contract.md` |
+| V0.5 five-stage workbench | Canonical five-stage persistence, consumer identity alignment, sqlite/PostgreSQL controlled acceptance | `docs/tasks/V0_5-P0-five-stage-workbench-contract.md`, tag `v0.5.0` |
 
-**Remaining V0.5 gap (P0 contract freeze):** the local workbench planning path
-still persists only `cold_room_zone_plan`, `investment_estimate`, and
-`power_configuration`. It does **not** persist the full canonical five-stage
-chain (`cooling_load`, `equipment`, `installed_power`). Workflow, scheme, and
-report consumers still use inconsistent calculator identities and snapshot
-shapes relative to the orchestration DAG (for example workflow
-`REQUIRED_SCHEME_CALCULATOR_NAMES` uses stage aliases, not canonical calculator
-names). See `docs/tasks/V0_5-P0-five-stage-workbench-contract.md`.
+**V0.5 delivered (do not reopen as active gap):** five-stage workbench
+persistence and consumer canonical mapping are complete at `v0.5.0`. Gaps
+V05-P0-001/002/003 from the V0.5 P0 contract are closed.
+
+**Remaining V0.6 gap (report delivery):** five-stage persisted results are not
+yet fully mapped into reviewable report JSON and formal DOCX/PDF closure.
+Known gaps at `BASE_MAIN_SHA`:
+
+- `persisted_calculation_reads.py` skips investment; `OrchestratedCalculationResult`
+  has no `investment_result`.
+- `real_data_provider._REPORT_SECTIONS` has only four calculation sections.
+- `assembler` does not populate `input_conditions` / `assumptions` from immutable
+  version snapshot.
+
+See `docs/tasks/V0_6-P0-five-stage-report-delivery-contract.md` (issue #176).
+
+**Issue #20** (Task 11 evaluation baseline) is **CLOSED** (2026-07-22). Do not
+describe it as open in new governance work.
 
 **Demo coefficient conflicts** documented in `docs/audit/coefficient-inventory.md`
 (for example `storage_position_capacity_kg`, `frozen_fruit_ratio`,
 `frozen_storage_days`) remain **unresolved** and must not be silently marked
 resolved.
+
+**Not in V0.6 scope:** Task 12 productionization and live Agent production
+enablement remain outside the V0.6 umbrella unless separately authorized.

@@ -1,10 +1,10 @@
 # Technical Debt
 
-> **V0.5 governance truth-up (2026-08-24, `main@eec12b9d`):** TD-003,
-> TD-005, TD-006, and TD-007 are superseded by delivered modules but retained
-> for history. Demo coefficient conflicts (TD-003 note) remain open. See
-> `docs/tasks/V0_5-P0-five-stage-workbench-contract.md` for the active workbench
-> five-stage gap.
+> **V0.6 governance truth-up (2026-08-25, `main@06a446501b83f75ba42b3920d912d980c51d7fe5`,
+> release `v0.5.0`):** TD-007 and TD-015 are **delivered** by V0.5 at `v0.5.0`.
+> Demo coefficient conflicts (TD-003 note) remain open. See
+> `docs/tasks/V0_6-P0-five-stage-report-delivery-contract.md` (issue #176) for
+> the active report assembly/rendering closure gap.
 
 | ID | Status | Priority | Module | Cause | Current Impact | Temporary Approach | Permanent Resolution | Target Task / Version |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -14,7 +14,7 @@
 | TD-004 | Open | Medium | planning_agent | Only `ModelGateway` exists; embedding gateway/session workflow is missing | Agent feature scope is narrower than target architecture | Keep fake extraction behavior and explicit limitations | Add `EmbeddingGateway`, session state, and tool confirmation flow | Task 8 |
 | TD-005 | **Superseded** | High | knowledge | Knowledge service was in-memory substring search only | Durable ingestion/chunking/retrieval delivered; production retrieval hardening continues | Consumer-only workflow provenance remains separate authority | Continue ops/quality hardening | Task 7 follow-up |
 | TD-006 | **Superseded** | High | reports | Report generation wrote files directly without persisted report versions | Persisted revisions and API delivery exist; assembler reads persisted results only | Reports must not recalculate formulas | Align report consumers with five-stage canonical mapping | V0.5 P3 |
-| TD-007 | **Superseded** | Medium | frontend | `App.vue` was a monolith | Feature modules under `frontend/src/features/` delivered | Remaining work is five-stage workbench wiring | Wire canonical five-stage persisted results | V0.5 P2 |
+| TD-007 | **Resolved** | Medium | frontend | ~~`App.vue` was a monolith~~ | ~~UI maintenance cost is high~~ | Delivered at `v0.5.0` | Five-stage workbench wiring complete | V0.5 |
 | TD-008 | Open | Medium | frontend/backend demo | Demo defaults and power/equipment reference data are duplicated between backend and frontend | Drift risk between API and UI samples | Maintain both copies only as interim baseline | Source demo data from backend APIs or shared typed fixtures | Task 10 |
 | TD-009 | Resolved | Medium | quality | Backend formatting check failed on two files | CI truthfully shows formatting drift | Do not suppress the check | Reformatted `demo_overview.py` and `investment.py` via `ruff format` in Task 0 completion | Task 0 |
 || TD-010 | **Resolved** | Medium | dependencies/bootstrap | ~~Global singleton services are created at import time~~ | ~~Startup side effects complicate testing and environment changes~~ | ~~Keep current dependency wiring for baseline stability~~ | Import-time singletons removed; lifecycle managed via FastAPI lifespan | Task 1 |
@@ -22,4 +22,5 @@
 || TD-012 | **Resolved** | High | coefficients | ~~Engineering coefficients hardcoded across modules without governance~~ | ~~No audit trail, inconsistent values, no versioning~~ | ~~Keep hardcoded values with demo markers~~ | Implemented coefficient registry with Definition/Revision split, state machine, scope resolution, and snapshot integration | Task 3 |
 || TD-013 | **Resolved** | High | calculations | ~~Core calculations scattered across modules with inconsistent input handling~~ | ~~No traceability, no Decimal precision, no coefficient integration~~ | ~~Keep existing calculation logic~~ | Implemented deterministic calculation kernel with Decimal, CoefficientSet integration, and step-by-step traceability | Task 4 |
 | TD-014 | **Resolved** | High | calculations/cooling | ~~Cooling load and equipment capability used float arithmetic with hardcoded factors~~ | ~~No step traceability, kW(r)/kW(e) mixed, no temperature-level grouping~~ | ~~Keep legacy run_cooling_load and run_equipment_requirement~~ | Deterministic cooling load (envelope/product/infiltration/internal/defrost), equipment capability (evaporator/compressor/condenser), and installed power calculators with Decimal, CoefficientSet, and step traceability | Task 5 |
-| TD-015 | Open | High | workbench/orchestration | V0.4 local workbench persists only `cold_room_zone_plan`, `investment_estimate`, `power_configuration`; canonical five-stage chain not wired to workbench consumers | Workflow/scheme/report identity drift; `power_configuration` can be mistaken for `installed_power` | P0 contract freeze only | Persist and expose full canonical chain per V0.5 P1+ | V0.5 P1 |
+| TD-015 | **Resolved** | High | workbench/orchestration | ~~V0.4 local workbench persisted only three helper calculators; canonical five-stage chain not wired~~ | ~~Workflow/scheme/report identity drift~~ | Delivered at `v0.5.0` | Five-stage persistence and consumer alignment complete | V0.5 |
+| TD-016 | Open | High | reports/assembly | Five-stage persisted results not fully mapped to reviewable report JSON; investment section skipped; `input_conditions`/`assumptions` unfilled | Formal DOCX/PDF closure blocked; report provenance incomplete | P0 contract freeze only | Close per `docs/tasks/V0_6-P0-five-stage-report-delivery-contract.md` | V0.6 P1–P5 (#176) |

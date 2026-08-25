@@ -1,13 +1,13 @@
 # Development Plan
 
-> **V0.5 governance truth-up (2026-08-24, `main@eec12b9d`):** Tasks 0–12 below
-> remain the original roadmap register. Delivered capabilities include modular
-> frontend features, coefficient registry, knowledge persistence, report
-> revisions, orchestration Transaction B, and V0.4 local workbench acceptance.
-> **Active umbrella:** V0.5 five-stage workbench (`docs/tasks/V0_5-P0-five-stage-workbench-contract.md`,
-> issue #163). **Remaining gap:** workbench still persists only
-> `cold_room_zone_plan`, `investment_estimate`, `power_configuration`; workflow,
-> scheme, and report consumers need canonical five-stage identity alignment.
+> **V0.6 governance truth-up (2026-08-25, `main@06a446501b83f75ba42b3920d912d980c51d7fe5`,
+> release `v0.5.0`):** Tasks 0–12 below remain the original roadmap register.
+> V0.5 five-stage workbench delivery is **complete** at tag `v0.5.0` — canonical
+> five-stage persistence, consumer identity alignment, and controlled acceptance
+> are delivered. **Active umbrella:** V0.6 report delivery (`docs/tasks/V0_6-P0-five-stage-report-delivery-contract.md`,
+> issue #176). **Remaining gap:** five-stage persisted results → reviewable report
+> JSON → formal DOCX/PDF closure (investment report mapping, input/assumptions
+> assembly, rendering hardening). This is **not** a five-stage persistence gap.
 
 ## Task 0: Local Baseline, Repository Audit, And Governance
 
