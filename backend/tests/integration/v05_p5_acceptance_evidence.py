@@ -172,9 +172,7 @@ def evidence_workflow_scheme_report_consume_persisted_installed_power(
         f"/api/v1/projects/{project_id}/versions/{version_number}/calculations"
     ).json()
     assert_canonical_five_persisted(calculations)
-    version_id = client.get(
-        f"/api/v1/projects/{project_id}/versions/{version_number}"
-    ).json()["id"]
+    version_id = client.get(f"/api/v1/projects/{project_id}/versions/{version_number}").json()["id"]
 
     assert_workflow_not_blocked_by_missing_canonical_slots(client, project_id, version_number)
 
