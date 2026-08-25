@@ -1,6 +1,6 @@
 # V0.6 P0 Five-Stage Report Delivery Contract
 
-**Status:** Definition freeze R1 — report source mapping + governance truth-up
+**Status:** Definition freeze R2 — report source mapping + package test allowlist correction
 **Authority:** Issue #176 (umbrella), tracked by Issue #180, dispatched by Issue #184
 **Contract definition source SHA:** `06a446501b83f75ba42b3920d912d980c51d7fe5`
 **Contract definition source tree:** `633c9712a5a558bc6d6df183303733d90540dc24`
@@ -27,7 +27,7 @@ TARGET_BRANCH=cursor/v06-p0-report-delivery-contract-6c68
 TARGET_FILE=docs/tasks/V0_6-P0-five-stage-report-delivery-contract.md
 TARGET_PR_STATE=DRAFT
 
-CONTRACT_STATUS=DEFINITION_R1_DRAFT_FOR_INDEPENDENT_REVIEW
+CONTRACT_STATUS=DEFINITION_R2_DRAFT_FOR_INDEPENDENT_REVIEW
 V06_P0_IMPLEMENTATION_AUTHORIZED=YES
 V06_P1_IMPLEMENTATION_AUTHORIZED=NO
 V06_P2_IMPLEMENTATION_AUTHORIZED=NO
@@ -284,9 +284,8 @@ backend/src/cold_storage/modules/reports/infrastructure/real_data_provider.py
 backend/src/cold_storage/modules/reports/application/assembler.py
 backend/src/cold_storage/modules/reports/domain/quality.py
 backend/alembic/**
-backend/tests/unit/modules/reports/test_persisted_calculation_reads.py
-backend/tests/unit/modules/reports/test_assembler.py
-backend/tests/unit/modules/reports/test_real_data_provider.py
+backend/tests/unit/test_real_report_data_provider.py
+backend/tests/unit/test_reports_service.py
 backend/tests/integration/test_v06_p1_report_assembly.py
 ```
 
@@ -301,7 +300,10 @@ backend/src/cold_storage/modules/reports/renderers/**
 backend/src/cold_storage/modules/reports/localization/**
 backend/src/cold_storage/modules/reports/application/render_model_localizer.py
 backend/src/cold_storage/modules/reports/application/canonical_render_model_builder.py
-backend/tests/unit/modules/reports/renderers/**
+backend/src/cold_storage/modules/reports/application/render_service.py
+backend/tests/unit/test_reports_rendering.py
+backend/tests/pilot/test_multilingual_report_pilot.py
+backend/tests/pilot/run_multilingual_report_pilot.py
 backend/tests/integration/test_v06_p2_report_rendering.py
 ```
 
@@ -478,3 +480,4 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 | Rev | Date | Change |
 | --- | --- | --- |
 | R1 | 2026-08-25 | Initial P0 report delivery contract freeze at `06a446501b83f75ba42b3920d912d980c51d7fe5` |
+| R2 | 2026-08-25 | Correct P1/P2 package test allowlists to name existing repository test files |

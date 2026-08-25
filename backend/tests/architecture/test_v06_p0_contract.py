@@ -59,7 +59,7 @@ REQUIRED_GOVERNANCE_FLAGS: tuple[str, ...] = (
     "PREVIOUS_RELEASE=v0.5.0",
     "TARGET_BRANCH=cursor/v06-p0-report-delivery-contract-6c68",
     "TARGET_PR_STATE=DRAFT",
-    "CONTRACT_STATUS=DEFINITION_R1_DRAFT_FOR_INDEPENDENT_REVIEW",
+    "CONTRACT_STATUS=DEFINITION_R2_DRAFT_FOR_INDEPENDENT_REVIEW",
     "V06_P0_IMPLEMENTATION_AUTHORIZED=YES",
     "V06_P1_IMPLEMENTATION_AUTHORIZED=NO",
     "V06_P2_IMPLEMENTATION_AUTHORIZED=NO",
@@ -97,6 +97,25 @@ KNOWN_BASELINE_GAP_FRAGMENTS: tuple[str, ...] = (
 FORBIDDEN_CONTRACT_FRAGMENTS: tuple[str, ...] = (
     "utilization_factor",
     "reserve_factor",
+)
+
+P1_ALLOWLIST_EXISTING_TEST_PATHS: tuple[str, ...] = (
+    "backend/tests/unit/test_real_report_data_provider.py",
+    "backend/tests/unit/test_reports_service.py",
+)
+
+P1_ALLOWLIST_FUTURE_TEST_PATHS: tuple[str, ...] = (
+    "backend/tests/integration/test_v06_p1_report_assembly.py",
+)
+
+P2_ALLOWLIST_EXISTING_TEST_PATHS: tuple[str, ...] = (
+    "backend/tests/unit/test_reports_rendering.py",
+    "backend/tests/pilot/test_multilingual_report_pilot.py",
+    "backend/tests/pilot/run_multilingual_report_pilot.py",
+)
+
+P2_ALLOWLIST_FUTURE_TEST_PATHS: tuple[str, ...] = (
+    "backend/tests/integration/test_v06_p2_report_rendering.py",
 )
 
 # Patterns that would indicate engineering formula values leaked into tests.
@@ -246,6 +265,18 @@ def test_v06_p0_p1_and_p2_allowlists_are_parseable_and_disjoint() -> None:
     assert len(p2_paths) >= 4, f"P2 allowlist too small: {p2_paths!r}"
     overlap = p1_paths & p2_paths
     assert not overlap, f"P1/P2 allowlists overlap: {sorted(overlap)!r}"
+
+    for path in (*P1_ALLOWLIST_EXISTING_TEST_PATHS, *P1_ALLOWLIST_FUTURE_TEST_PATHS):
+        assert path in p1_paths, f"P1 allowlist missing test path: {path!r}"
+    for path in P1_ALLOWLIST_EXISTING_TEST_PATHS:
+        assert (REPO_ROOT / path).is_file(), f"P1 existing test file missing on disk: {path!r}"
+
+    for path in (*P2_ALLOWLIST_EXISTING_TEST_PATHS, *P2_ALLOWLIST_FUTURE_TEST_PATHS):
+        assert path in p2_paths, f"P2 allowlist missing test path: {path!r}"
+    for path in P2_ALLOWLIST_EXISTING_TEST_PATHS:
+        assert (REPO_ROOT / path).is_file(), f"P2 existing test file missing on disk: {path!r}"
+
+    assert "backend/src/cold_storage/modules/reports/application/render_service.py" in p2_paths
 
 
 def test_v06_p0_contract_documents_issue_mapping() -> None:
