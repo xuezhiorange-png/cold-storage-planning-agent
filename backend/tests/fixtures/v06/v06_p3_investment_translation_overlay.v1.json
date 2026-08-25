@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "overlay_id": "v06_p3_v05_investment_breakdown_labels",
+  "description": "Evaluation-only translation overlay for persisted v05 investment_estimate item_name labels required by formal render localization.",
+  "source_calculator": "investment_estimate",
+  "source_manifest_sha256": "f12f37294c52b63f7a8779a86ed89403108974c437576a8ebd64d4af3190c337",
+  "reviewer_evidence": {
+    "overlay_role": "evaluation_render_support_only",
+    "does_not_change_review_rules": true,
+    "does_not_change_calculator_output": true
+  },
+  "locales": {
+    "zh-CN": {
+      "investment.土建及钢结构": "土建及钢结构",
+      "investment.冷库制冷设备": "冷库制冷设备",
+      "investment.高低压配电": "高低压配电",
+      "investment.住宿及生活区": "住宿及生活区",
+      "investment.监控及开厂物资": "监控及开厂物资"
+    },
+    "en-US": {
+      "investment.土建及钢结构": "Civil Works and Steel Structure",
+      "investment.冷库制冷设备": "Cold Storage Refrigeration Equipment",
+      "investment.高低压配电": "High and Low Voltage Distribution",
+      "investment.住宿及生活区": "Accommodation and Living Area",
+      "investment.监控及开厂物资": "Monitoring and Startup Supplies"
+    }
+  }
+}

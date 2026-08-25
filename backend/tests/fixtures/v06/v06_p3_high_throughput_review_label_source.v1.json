@@ -1,0 +1,31 @@
+{
+  "schema_version": "v06-p3-high-throughput-label-source.v1",
+  "scenario_label": "high_throughput_review",
+  "label_role": "scenario_label_only",
+  "upstream_reference": {
+    "path": "backend/tests/pilot/data/task011-followup-high-throughput-source.v1.json",
+    "sha256": "aaa965a9a5d679c7fe9399579c48c7d7c62484969c1ac82636b8fc7023cfad0d",
+    "source_label": "high_throughput_review",
+    "canonical_input_sha256": "6a3ccd82852d8aa908a8bedcaab6437fbb68ff8ee3a305f9451c84b738d5f5d4"
+  },
+  "reviewer_evidence": {
+    "review_rule_authority": "cold_storage.modules.schemes.application.source_binding_verifier.project_review_reasons",
+    "formal_export_authority": "cold_storage.modules.reports.application.render_service.ReportRenderService._validate_export_permission",
+    "trusted_operator_seam": "cold_storage.modules.reports.application.service._require_persisted_mark_reviewed",
+    "label_does_not_override": true
+  },
+  "expected_requires_review_by_stage": {
+    "zone": true,
+    "cooling_load": true,
+    "equipment": true,
+    "power": false,
+    "investment": true
+  },
+  "stage_order": [
+    "zone",
+    "cooling_load",
+    "equipment",
+    "power",
+    "investment"
+  ]
+}
