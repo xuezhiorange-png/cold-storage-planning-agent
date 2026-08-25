@@ -1,48 +1,30 @@
-"""Anti-corruption helpers for workflow canonical calculation reads (V0.5 P3)."""
+"""Workflow-specific canonical calculation read helpers (V0.5 P3)."""
 
 from __future__ import annotations
 
 from typing import Any
 
+from cold_storage.modules.orchestration.application.canonical_calculation_index import (
+    index_canonical_calculation_runs,
+)
 from cold_storage.modules.orchestration.domain.consumer_bindings import (
     CANONICAL_CALCULATOR_NAMES,
     CANONICAL_STAGE_ORDER,
     STAGE_TO_CALCULATOR_NAME,
-    resolve_canonical_calculator_name,
     stage_for_canonical_calculator,
 )
 from cold_storage.modules.orchestration.domain.dag import STAGE_UPSTREAM_PROVENANCE_KEYS
 
 REQUIRED_SCHEME_CALCULATOR_NAMES = CANONICAL_CALCULATOR_NAMES
 
-
-def index_canonical_calculation_runs(
-    calculations: list[dict[str, Any]],
-    *,
-    project_id: str,
-    project_version_id: str,
-) -> dict[str, dict[str, Any]]:
-    """Index latest canonical calculation runs keyed by calculator identity.
-
-    Rows with project/version mismatch are ignored. Supplemental calculators
-    such as ``power_configuration`` are never indexed as canonical slots.
-    """
-    indexed: dict[str, dict[str, Any]] = {}
-    for record in calculations:
-        record_project_id = str(record.get("project_id", ""))
-        record_version_id = str(record.get("project_version_id", ""))
-        if record_project_id and record_project_id != project_id:
-            continue
-        if record_version_id and record_version_id != project_version_id:
-            continue
-
-        raw_name = str(record.get("calculator_name", ""))
-        canonical_name = resolve_canonical_calculator_name(raw_name)
-        if canonical_name is None:
-            continue
-        if canonical_name not in indexed:
-            indexed[canonical_name] = record
-    return indexed
+__all__ = [
+    "REQUIRED_SCHEME_CALCULATOR_NAMES",
+    "canonical_runs_requiring_review",
+    "canonical_stage_calculator_names",
+    "detect_canonical_lineage_stale_reasons",
+    "index_canonical_calculation_runs",
+    "missing_canonical_calculator_names",
+]
 
 
 def missing_canonical_calculator_names(
@@ -62,7 +44,7 @@ def canonical_runs_requiring_review(
 def detect_canonical_lineage_stale_reasons(
     indexed: dict[str, dict[str, Any]],
 ) -> list[str]:
-    """Detect upstream calculation_id / result_hash drift per P0 §4.4."""
+    """Detect upstream calculation_id drift per P0 §4.4."""
     by_stage: dict[str, dict[str, Any]] = {}
     for calculator_name, record in indexed.items():
         stage = stage_for_canonical_calculator(calculator_name)
@@ -84,14 +66,12 @@ def detect_canonical_lineage_stale_reasons(
             upstream_record = by_stage.get(upstream_stage)
             if upstream_record is None:
                 continue
-            upstream_calc_id = str(upstream_record.get("calculation_id") or upstream_record.get("id", ""))
+            upstream_calc_id = str(
+                upstream_record.get("calculation_id") or upstream_record.get("id", "")
+            )
             bound_id = str(upstream_ids.get(upstream_stage, ""))
             if bound_id and upstream_calc_id and bound_id != upstream_calc_id:
                 reasons.append(f"calculation_upstream_id_mismatch:{stage}:{upstream_stage}")
-            upstream_hash = str(upstream_record.get("result_hash", ""))
-            bound_hash = str(upstream_ids.get(f"{upstream_stage}_result_hash", ""))
-            if bound_hash and upstream_hash and bound_hash != upstream_hash:
-                reasons.append(f"calculation_upstream_hash_mismatch:{stage}:{upstream_stage}")
     return reasons
 
 

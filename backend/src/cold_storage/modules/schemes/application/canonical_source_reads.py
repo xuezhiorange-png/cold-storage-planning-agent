@@ -7,12 +7,13 @@ from decimal import Decimal, InvalidOperation
 from hashlib import sha256
 from typing import Any
 
+from cold_storage.modules.orchestration.application.canonical_calculation_index import (
+    index_canonical_calculation_records,
+)
 from cold_storage.modules.orchestration.domain.consumer_bindings import (
     CANONICAL_CALCULATOR_NAMES,
     CANONICAL_STAGE_ORDER,
     STAGE_TO_CALCULATOR_NAME,
-    resolve_canonical_calculator_name,
-    stage_for_canonical_calculator,
 )
 from cold_storage.modules.schemes.application.source_domain_mapping import (
     map_cooling_load_snapshot,
@@ -56,14 +57,12 @@ def _per_calc_hash(snapshot: dict[str, object]) -> str:
     return sha256(_canonical_json(snapshot).encode("utf-8")).hexdigest()
 
 
-def index_canonical_calculation_records(
+def require_canonical_scheme_sources(
     records: list[Any],
     *,
     project_id: str,
     project_version_id: str,
-) -> dict[str, Any]:
-    """Index latest canonical calculation ORM rows keyed by stage."""
-    indexed: dict[str, Any] = {}
+) -> CanonicalSchemeSourceBundle:
     for record in records:
         if str(record.project_id) != project_id:
             raise VersionConflictError(
@@ -74,23 +73,6 @@ def index_canonical_calculation_records(
                 f"calculation run {record.id!r} project_version_id mismatch for "
                 f"{project_version_id!r}"
             )
-
-        canonical_name = resolve_canonical_calculator_name(str(record.calculator_name))
-        if canonical_name is None:
-            continue
-        stage = stage_for_canonical_calculator(canonical_name)
-        if stage is None or stage in indexed:
-            continue
-        indexed[stage] = record
-    return indexed
-
-
-def require_canonical_scheme_sources(
-    records: list[Any],
-    *,
-    project_id: str,
-    project_version_id: str,
-) -> CanonicalSchemeSourceBundle:
     indexed = index_canonical_calculation_records(
         records,
         project_id=project_id,

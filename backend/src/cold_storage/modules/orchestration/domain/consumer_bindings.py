@@ -23,25 +23,20 @@ CALCULATOR_NAME_TO_STAGE: dict[str, str] = {
     calculator_name: stage for stage, calculator_name in CALCULATOR_BINDINGS.items()
 }
 
-# Legacy V0.4/local workbench persisted calculator_name aliases (read-only).
-LEGACY_CALCULATOR_NAME_ALIASES: dict[str, str] = {
-    "zone": "cold_room_zone_plan",
-    "investment": "investment_estimate",
-}
-
 SUPPLEMENTAL_ONLY_CALCULATOR_NAMES: frozenset[str] = frozenset({"power_configuration"})
 
 
 def resolve_canonical_calculator_name(calculator_name: str) -> str | None:
     """Resolve a persisted calculator_name to its canonical identity.
 
-  Returns ``None`` for supplemental-only rows that must not satisfy canonical slots.
+    Returns ``None`` for supplemental-only rows and unknown short-name aliases
+    that must not satisfy canonical slots.
     """
     if calculator_name in SUPPLEMENTAL_ONLY_CALCULATOR_NAMES:
         return None
     if calculator_name in CANONICAL_CALCULATOR_NAMES:
         return calculator_name
-    return LEGACY_CALCULATOR_NAME_ALIASES.get(calculator_name)
+    return None
 
 
 def stage_for_canonical_calculator(calculator_name: str) -> str | None:

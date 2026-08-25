@@ -1900,14 +1900,13 @@ def create_app(
     def _get_report_service(
         db_session: SASession = Depends(_get_reports_db_session),  # noqa: B008
     ) -> ReportService:
-        from cold_storage.bootstrap.dependencies import get_project_service
-        from cold_storage.modules.reports.application.persisted_calculation_reads import (
-            ProjectServicePersistedCalculationQuery,
-        )
         from cold_storage.modules.reports.application.assembler import (
             ReportAssembler,
         )
         from cold_storage.modules.reports.application.service import _default_trusted_operator
+        from cold_storage.modules.reports.infrastructure.persisted_calculation_query import (
+            SqlAlchemyPersistedCalculationQuery,
+        )
         from cold_storage.modules.reports.infrastructure.real_data_provider import (
             RealReportDataProvider,
         )
@@ -1917,10 +1916,8 @@ def create_app(
 
         repo = SQLReportRepository(db_session)
         scheme_query = build_sqlalchemy_scheme_query(db_session)
-        project_service = get_project_service()
-        calculation_query = ProjectServicePersistedCalculationQuery(project_service)
+        calculation_query = SqlAlchemyPersistedCalculationQuery(db_session)
         data_provider = RealReportDataProvider(
-            project_service=project_service,
             calculation_service=calculation_query,
             scheme_query=scheme_query,
         )

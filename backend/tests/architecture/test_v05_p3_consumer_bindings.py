@@ -44,3 +44,18 @@ def test_report_and_scheme_assembly_do_not_import_calculator_functions() -> None
             if forbidden_pattern in content:
                 violations.append(str(path.relative_to(BACKEND_SRC.parent)))
     assert not violations, "Calculator domain imports found:\n" + "\n".join(violations)
+
+
+def test_reports_application_and_infrastructure_do_not_import_workflow() -> None:
+    forbidden_pattern = "cold_storage.modules.workflow"
+    checked_roots = (
+        BACKEND_SRC / "modules" / "reports" / "application",
+        BACKEND_SRC / "modules" / "reports" / "infrastructure",
+    )
+    violations: list[str] = []
+    for root in checked_roots:
+        for path in _read_python_files(root):
+            content = path.read_text(encoding="utf-8")
+            if forbidden_pattern in content:
+                violations.append(str(path.relative_to(BACKEND_SRC.parent)))
+    assert not violations, "Reports module imports workflow:\n" + "\n".join(violations)
