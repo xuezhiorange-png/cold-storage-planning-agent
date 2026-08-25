@@ -1217,9 +1217,7 @@ class _EngineeringAwareDataProvider(_FakeDataProvider):
             ]
         }
 
-    def get_indexed_canonical_calculators(
-        self, project_id: str, version_id: str
-    ) -> frozenset[str]:
+    def get_indexed_canonical_calculators(self, project_id: str, version_id: str) -> frozenset[str]:
         return frozenset({"cooling_load", "equipment", "installed_power"})
 
 
@@ -1322,4 +1320,3 @@ def test_v06_p1_assembler_accepts_duck_typed_provider_without_engineering_method
     assert "input_conditions" not in assembled.content
     assert "assumptions" not in assembled.content
     assert "quality_summary" in assembled.content
-

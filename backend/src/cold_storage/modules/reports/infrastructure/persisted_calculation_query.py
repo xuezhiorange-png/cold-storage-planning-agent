@@ -111,19 +111,11 @@ class SqlAlchemyPersistedCalculationQuery:
             input_conditions = _input_conditions_from_engineering_bundle(version_input_snapshot)
 
         execution_snapshot_id = next(
-            (
-                row.execution_snapshot_id
-                for row in rows
-                if row.execution_snapshot_id is not None
-            ),
+            (row.execution_snapshot_id for row in rows if row.execution_snapshot_id is not None),
             None,
         )
         coefficient_context_id = next(
-            (
-                row.coefficient_context_id
-                for row in rows
-                if row.coefficient_context_id is not None
-            ),
+            (row.coefficient_context_id for row in rows if row.coefficient_context_id is not None),
             None,
         )
         if input_conditions is None and execution_snapshot_id is not None:
@@ -137,9 +129,7 @@ class SqlAlchemyPersistedCalculationQuery:
             )
             if execution_record is not None:
                 coefficient_content = (
-                    dict(coefficient_record.content)
-                    if coefficient_record is not None
-                    else None
+                    dict(coefficient_record.content) if coefficient_record is not None else None
                 )
                 input_conditions = build_input_conditions_from_execution_snapshot_and_coefficients(
                     dict(execution_record.input_snapshot),

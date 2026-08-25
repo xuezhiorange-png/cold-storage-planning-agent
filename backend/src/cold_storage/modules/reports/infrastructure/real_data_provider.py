@@ -687,9 +687,7 @@ class RealReportDataProvider(ReportDataProvider):
             return None
         return context.assumptions
 
-    def get_indexed_canonical_calculators(
-        self, project_id: str, version_id: str
-    ) -> frozenset[str]:
+    def get_indexed_canonical_calculators(self, project_id: str, version_id: str) -> frozenset[str]:
         context = self.get_report_engineering_context(project_id, version_id)
         if context is None:
             return frozenset()

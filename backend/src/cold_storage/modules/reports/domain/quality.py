@@ -575,10 +575,7 @@ def _check_canonical_report_sources(
         if section_key is None:
             continue
         section = content.get(section_key)
-        if (
-            section is None
-            or (isinstance(section, dict) and not section)
-        ):
+        if section is None or (isinstance(section, dict) and not section):
             findings.append(
                 _finding(
                     code="MISSING_CANONICAL_SOURCE",
@@ -606,10 +603,7 @@ def _check_persisted_engineering_authority(
     if not indexed_calculators:
         return
     input_conditions = content.get("input_conditions")
-    if (
-        input_conditions is None
-        or (isinstance(input_conditions, dict) and not input_conditions)
-    ):
+    if input_conditions is None or (isinstance(input_conditions, dict) and not input_conditions):
         findings.append(
             _finding(
                 code="REPORT_QUALITY_BLOCKER",
@@ -637,8 +631,7 @@ def _check_persisted_engineering_authority(
                 section_key="assumptions",
                 field_path="assumptions.items",
                 message=(
-                    "Canonical calculations exist but persisted assumptions "
-                    "authority is missing"
+                    "Canonical calculations exist but persisted assumptions authority is missing"
                 ),
                 remediation=(
                     "Persist calculation or version assumption snapshots before "

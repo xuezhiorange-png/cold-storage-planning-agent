@@ -101,9 +101,7 @@ class ReportAssembler:
 
         get_assumptions = getattr(self._provider, "get_assumptions", None)
         assumptions = (
-            get_assumptions(project_id, project_version_id)
-            if callable(get_assumptions)
-            else None
+            get_assumptions(project_id, project_version_id) if callable(get_assumptions) else None
         )
 
         get_indexed_canonical_calculators = getattr(
@@ -448,9 +446,7 @@ class ReportDataProvider:
     def get_assumptions(self, project_id: str, version_id: str) -> dict[str, Any] | None:
         return None
 
-    def get_indexed_canonical_calculators(
-        self, project_id: str, version_id: str
-    ) -> frozenset[str]:
+    def get_indexed_canonical_calculators(self, project_id: str, version_id: str) -> frozenset[str]:
         return frozenset()
 
     def get_stale_lineage_reasons(self, project_id: str, version_id: str) -> tuple[str, ...]:
