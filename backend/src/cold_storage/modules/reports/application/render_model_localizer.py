@@ -119,8 +119,7 @@ def _localized_risks_cover_missing(
         if not desc:
             continue
         covered = any(
-            desc in risk.canonical.description.lower()
-            or risk.canonical.description.lower() in desc
+            desc in risk.canonical.description.lower() or risk.canonical.description.lower() in desc
             for risk in localized_risks
         )
         if not covered:
@@ -193,9 +192,7 @@ def _localize_scheme_comparison_long_table(
             raw = metric_cell.raw_value
             if metric_cell.unit_code and _is_numeric(raw):
                 num_val = raw if isinstance(raw, (Decimal, int)) else Decimal(str(raw))
-                display_val = _format_display_value(
-                    num_val, metric_cell.unit_code, locale, catalog
-                )
+                display_val = _format_display_value(num_val, metric_cell.unit_code, locale, catalog)
                 display_val = _append_provenance_suffix(display_val, metric_cell, locale)
                 localized_unit = (
                     format_unit_label(metric_cell.unit_code, locale)
@@ -355,9 +352,7 @@ def _localize_section(
     if (
         not display_text
         and localized_missing
-        and not _localized_risks_cover_missing(
-            tuple(localized_risks), tuple(localized_missing)
-        )
+        and not _localized_risks_cover_missing(tuple(localized_risks), tuple(localized_missing))
     ):
         missing_display_text = _build_missing_information_display_text(
             tuple(localized_missing), locale
@@ -448,9 +443,7 @@ def _localize_section(
                         )
                     elif cell.unit_code and _is_numeric(raw):
                         # Numeric metric cell — canonical model guarantees Decimal | int
-                        num_val = (
-                            raw if isinstance(raw, (Decimal, int)) else Decimal(str(raw))
-                        )
+                        num_val = raw if isinstance(raw, (Decimal, int)) else Decimal(str(raw))
                         display_val = _format_display_value(
                             num_val, cell.unit_code, locale, catalog
                         )

@@ -219,9 +219,7 @@ def test_p2_provenance_renders_when_present_and_omits_when_absent(locale: Report
 
     scheme_section = next(s for s in model.sections if s.section_key == "scheme_comparison")
     total_score_label = translate(locale, "header.total_score")
-    provenance_row = _scheme_metric_row(
-        scheme_section.table, "Scheme Alpha", total_score_label
-    )
+    provenance_row = _scheme_metric_row(scheme_section.table, "Scheme Alpha", total_score_label)
     provenance_cell = provenance_row[2]
     assert "3.0.0" in provenance_cell.display_value
     assert "scorehash99" in provenance_cell.display_value
