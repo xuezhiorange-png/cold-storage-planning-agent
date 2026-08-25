@@ -296,10 +296,20 @@ def _canonical_cooling_snapshot_payload(
         "evaporator_fan_load_kw": Decimal("0"),
         "defrost_additional_load_kw": Decimal("0"),
     }
+    zone_snapshots: list[dict[str, str]] = []
     steps = list(getattr(result, "steps", []) or [])
     for zone in payload["zones"]:
         if not isinstance(zone, Mapping):
             continue
+        zone_code = zone.get("zone_code")
+        subtotal_load = zone.get("subtotal_load_kw_r")
+        if zone_code is not None and subtotal_load is not None:
+            zone_snapshots.append(
+                {
+                    "zone_code": str(zone_code),
+                    "subtotal_load_kw_r": text(decimal(subtotal_load)),
+                }
+            )
         totals["envelope_heat_transfer_load_kw"] += decimal(zone.get("transmission_load_kw_r", 0))
         product_total = decimal(zone.get("product_load_kw_r", 0))
         packaging = Decimal("0")
@@ -336,6 +346,7 @@ def _canonical_cooling_snapshot_payload(
         "evaporator_fan_load_kw": text(totals["evaporator_fan_load_kw"]),
         "defrost_additional_load_kw": text(totals["defrost_additional_load_kw"]),
         "other_configuration_load_kw": "0",
+        "zones": zone_snapshots,
     }
 
 

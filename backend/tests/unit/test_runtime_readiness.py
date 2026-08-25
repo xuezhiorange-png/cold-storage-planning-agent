@@ -2969,7 +2969,7 @@ def test_ast_parser_real_repository_unique_head():
     assert reason is None, (
         f"real graph classified as {reason}; AST parser MUST handle annotated assignments"
     )
-    assert head == "0040_add_knowledge_page_evidence"
+    assert head == "0041_workbench_five_stage_idempotency"
 
 
 def test_ast_parser_init_file_is_ignored(tmp_path):
@@ -3264,7 +3264,7 @@ def test_ast_parser_no_database_connection(tmp_path, monkeypatch):
 
     head, reason = _load_packaged_alembic_head()
     assert reason is None
-    assert head == "0040_add_knowledge_page_evidence"
+    assert head == "0041_workbench_five_stage_idempotency"
     assert created == []
 
 
@@ -3286,7 +3286,7 @@ def test_ast_parser_no_subprocess(tmp_path, monkeypatch):
 
     head, reason = _load_packaged_alembic_head()
     assert reason is None
-    assert head == "0040_add_knowledge_page_evidence"
+    assert head == "0041_workbench_five_stage_idempotency"
     assert spawned == []
 
 

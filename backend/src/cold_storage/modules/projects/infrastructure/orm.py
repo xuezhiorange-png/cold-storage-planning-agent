@@ -169,6 +169,30 @@ class EngineeringCoefficientRecord(Base):
     requires_review: Mapped[bool] = mapped_column(Boolean)
 
 
+class WorkbenchFiveStageIdempotencyRecord(Base):
+    __tablename__ = "workbench_five_stage_idempotency"
+    __table_args__ = (
+        UniqueConstraint(
+            "database_backend",
+            "idempotency_key",
+            name="uq_workbench_five_stage_idempotency_db_key",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    database_backend: Mapped[str] = mapped_column(String(32), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    project_version_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("project_versions.id"), nullable=False
+    )
+    bundle_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_binding_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    outcome_payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+
+
 class AuditEventRecord(Base):
     __tablename__ = "audit_events"
 
