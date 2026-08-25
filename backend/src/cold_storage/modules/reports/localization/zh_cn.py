@@ -90,6 +90,8 @@ _MESSAGES: dict[str, str] = {
     "header.recommended": "推荐",
     "header.rank": "排名",
     "header.scheme_id": "方案ID",
+    "header.metric_label": "指标",
+    "header.metric_value": "数值",
     "header.total_score": "综合评分",
     "header.total_investment_cny": "总投资(CNY)",
     "header.total_area_m2": "总面积(m²)",
@@ -129,6 +131,7 @@ _MESSAGES: dict[str, str] = {
     "header.code": "代码",
     "header.severity": "严重性",
     "header.message": "消息",
+    "header.field_path": "字段",
     "header.source": "来源",
     "header.quality_findings": "质量发现",
     # ── Citation table headers ──

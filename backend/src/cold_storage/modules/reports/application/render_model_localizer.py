@@ -43,6 +43,7 @@ from cold_storage.modules.reports.localization.catalog import (
     translate_format,
 )
 from cold_storage.modules.reports.localization.formatter import (
+    format_provenance_suffix,
     format_unit_label,
 )
 
@@ -89,6 +90,146 @@ def _format_display_value(
     return format_decimal(value, locale)
 
 
+_SCHEME_TABLE_SKIP_COLUMNS: frozenset[str] = frozenset({"scheme_name"})
+
+
+def _append_provenance_suffix(
+    display_value: str,
+    cell: CanonicalRenderMetric | CanonicalRenderTableCell,
+    locale: ReportLocale,
+) -> str:
+    """Append provenance suffix when version/hash are present on the canonical cell."""
+    suffix = format_provenance_suffix(
+        source_tool_version=cell.source_tool_version,
+        source_content_hash=cell.source_content_hash,
+        locale=locale,
+    )
+    return display_value + suffix if suffix else display_value
+
+
+def _localized_risks_cover_missing(
+    localized_risks: tuple[LocalizedRisk, ...],
+    localized_missing: tuple[LocalizedMissingInformation, ...],
+) -> bool:
+    """Return True when every missing-information entry is already represented by risks."""
+    if not localized_risks or not localized_missing:
+        return False
+    for mi_entry in localized_missing:
+        desc = mi_entry.canonical.description.strip().lower()
+        if not desc:
+            continue
+        covered = any(
+            desc in risk.canonical.description.lower() or risk.canonical.description.lower() in desc
+            for risk in localized_risks
+        )
+        if not covered:
+            return False
+    return True
+
+
+def _build_risk_display_text(
+    localized_risks: tuple[LocalizedRisk, ...],
+    locale: ReportLocale,
+) -> str:
+    """Build display text for localized risks."""
+    if not localized_risks:
+        return ""
+    lines: list[str] = [translate(locale, "label.risks_items")]
+    for index, risk in enumerate(localized_risks, 1):
+        line = f"  {index}. [{risk.severity_label}] {risk.canonical.description}"
+        if risk.mitigation_label:
+            line += translate_format(
+                locale, "format.mitigation_suffix", value=risk.mitigation_label
+            )
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _build_missing_information_display_text(
+    localized_missing: tuple[LocalizedMissingInformation, ...],
+    locale: ReportLocale,
+) -> str:
+    """Build display text for localized missing-information entries."""
+    if not localized_missing:
+        return ""
+    lines: list[str] = [translate(locale, "label.missing_information")]
+    for index, mi_entry in enumerate(localized_missing, 1):
+        line = f"  {index}. {mi_entry.canonical.description}"
+        if mi_entry.impact_label:
+            line += f" \u2014 {translate(locale, 'label.impact')}{mi_entry.impact_label}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _localize_scheme_comparison_long_table(
+    ct: CanonicalRenderTable,
+    locale: ReportLocale,
+    catalog: TranslationCatalog,
+) -> LocalizedRenderTable:
+    """Pivot wide scheme comparison tables to scheme | metric | value rows."""
+    table_title = translate(locale, ct.title_key) if ct.title_key else ""
+    scheme_hdr = translate(locale, "header.scheme")
+    metric_hdr = translate(locale, "header.metric_label")
+    value_hdr = translate(locale, "header.metric_value")
+
+    column_keys = list(ct.column_keys)
+    try:
+        scheme_name_idx = column_keys.index("scheme_name")
+    except ValueError:
+        scheme_name_idx = 0
+
+    long_rows: list[tuple[LocalizedRenderTableCell, ...]] = []
+    for row in ct.rows:
+        scheme_cell = row[scheme_name_idx]
+        scheme_display = str(scheme_cell.raw_value) if scheme_cell.raw_value else "\u2014"
+        scheme_name_cell = _make_text_cell(scheme_display, align="left")
+
+        for col_idx, col_key in enumerate(column_keys):
+            if col_key in _SCHEME_TABLE_SKIP_COLUMNS:
+                continue
+            metric_cell = row[col_idx]
+            metric_label = translate(locale, f"header.{col_key}")
+            raw = metric_cell.raw_value
+            if metric_cell.unit_code and _is_numeric(raw):
+                num_val = raw if isinstance(raw, (Decimal, int)) else Decimal(str(raw))
+                display_val = _format_display_value(num_val, metric_cell.unit_code, locale, catalog)
+                display_val = _append_provenance_suffix(display_val, metric_cell, locale)
+                localized_unit = (
+                    format_unit_label(metric_cell.unit_code, locale)
+                    if metric_cell.unit_code
+                    else ""
+                )
+                value_cell = LocalizedRenderTableCell(
+                    canonical=metric_cell,
+                    display_value=display_val,
+                    display_unit=localized_unit,
+                    align="right",
+                )
+            else:
+                display_val = str(raw) if raw else "\u2014"
+                display_val = _append_provenance_suffix(display_val, metric_cell, locale)
+                value_cell = LocalizedRenderTableCell(
+                    canonical=metric_cell,
+                    display_value=display_val,
+                    align="left",
+                )
+            long_rows.append(
+                (
+                    scheme_name_cell,
+                    _make_text_cell(metric_label, align="left"),
+                    value_cell,
+                )
+            )
+
+    return LocalizedRenderTable(
+        canonical=ct,
+        title=table_title,
+        headers=(scheme_hdr, metric_hdr, value_hdr),
+        rows=tuple(long_rows),
+        unit_row=("", "", ""),
+    )
+
+
 def _localize_section(
     section: CanonicalRenderSection,
     locale: ReportLocale,
@@ -111,6 +252,7 @@ def _localize_section(
     for m in section.metrics:
         label = translate(locale, m.field_key) if m.field_key else ""
         display_value = _format_display_value(m.raw_value, m.unit_code, locale, catalog)
+        display_value = _append_provenance_suffix(display_value, m, locale)
         display_unit = format_unit_label(m.unit_code, locale) if m.unit_code else ""
         localized_metrics.append(
             LocalizedRenderMetric(
@@ -126,6 +268,7 @@ def _localize_section(
     if section.number is not None:
         num: CanonicalRenderMetric = section.number
         display = _format_display_value(num.raw_value, num.unit_code, locale, catalog)
+        display = _append_provenance_suffix(display, num, locale)
         unit = format_unit_label(num.unit_code, locale) if num.unit_code else ""
         localized_number = LocalizedRenderNumber(
             canonical=num,
@@ -203,15 +346,27 @@ def _localize_section(
             )
         )
 
-    # -- Build text from missing_information if no text ---------------------
-    if not display_text and localized_missing:
-        mi_parts: list[str] = [translate(locale, "label.missing_information")]
-        for i, mi_entry in enumerate(localized_missing, 1):
-            line = f"  {i}. {mi_entry.canonical.description}"
-            if mi_entry.impact_label:
-                line += f" \u2014 {translate(locale, 'label.impact')}{mi_entry.impact_label}"
-            mi_parts.append(line)
-        display_text = "\n".join(mi_parts)
+    # -- Build text from missing_information when appropriate ----------------
+    risk_display_text = _build_risk_display_text(tuple(localized_risks), locale)
+    missing_display_text = ""
+    if (
+        not display_text
+        and localized_missing
+        and not _localized_risks_cover_missing(tuple(localized_risks), tuple(localized_missing))
+    ):
+        missing_display_text = _build_missing_information_display_text(
+            tuple(localized_missing), locale
+        )
+
+    display_parts: list[str] = []
+    if display_text:
+        display_parts.append(display_text)
+    if risk_display_text:
+        display_parts.append(risk_display_text)
+    if missing_display_text:
+        display_parts.append(missing_display_text)
+    if display_parts:
+        display_text = "\n".join(display_parts)
 
     # -- Build paragraphs from section ----------------------------------------
     localized_paragraphs: list[str] = list(section.paragraphs)
@@ -225,21 +380,23 @@ def _localize_section(
         severity_hdr = translate(locale, "header.severity")
         message_hdr = translate(locale, "header.message")
         section_hdr = translate(locale, "header.section")
+        field_hdr = translate(locale, "header.field_path")
         table_title = translate(locale, "header.quality_findings")
         findings_rows: list[tuple[LocalizedRenderTableCell, ...]] = []
         for fd in localized_findings:
             findings_rows.append(
                 (
-                    _make_text_cell(fd.canonical.code),
                     _make_text_cell(fd.severity_label),
-                    _make_text_cell(fd.canonical.message),
+                    _make_text_cell(fd.canonical.code),
                     _make_text_cell(fd.section_label),
+                    _make_text_cell(fd.canonical.field_path),
+                    _make_text_cell(fd.canonical.message),
                 )
             )
         localized_table = LocalizedRenderTable(
             canonical=CanonicalRenderTable(table_key="quality_findings"),
             title=table_title,
-            headers=(code_hdr, severity_hdr, message_hdr, section_hdr),
+            headers=(severity_hdr, code_hdr, section_hdr, field_hdr, message_hdr),
             rows=tuple(findings_rows),
         )
 
@@ -250,67 +407,75 @@ def _localize_section(
         )
 
         ct: _CRT = section.table
-        # Translate table title
-        table_title = translate(locale, ct.title_key) if ct.title_key else ""
-        # Translate column headers
-        scheme_hdr = translate(locale, "header.scheme")
-        table_headers: list[str] = []
-        for col in ct.column_keys:
-            if col == "scheme_name":
-                table_headers.append(scheme_hdr)
-            elif ct.table_key == "investment_breakdown":
-                table_headers.append(translate(locale, f"investment.{col}"))
-            else:
-                table_headers.append(translate(locale, f"header.{col}"))
-        # Build unit row
-        table_unit_row: list[str] = [
-            format_unit_label(code, locale) if code else "" for code in ct.unit_codes
-        ]
-        # Build rows
-        table_rows: list[tuple[LocalizedRenderTableCell, ...]] = []
-        for row in ct.rows:
-            cells: list[LocalizedRenderTableCell] = []
-            for cell in row:
-                raw = cell.raw_value
-                # Determine if this is a scheme_name cell (first column) or a metric
-                if cell.field_key == "header.scheme" or cell.field_path.endswith("scheme_name"):
-                    display_val = str(raw) if raw else "\u2014"
-                    cells.append(
-                        LocalizedRenderTableCell(
-                            canonical=cell, display_value=display_val, align="left"
-                        )
-                    )
-                elif cell.unit_code and _is_numeric(raw):
-                    # Numeric metric cell — canonical model guarantees Decimal | int
-                    num_val = raw if isinstance(raw, (Decimal, int)) else Decimal(str(raw))
-                    display_val = _format_display_value(num_val, cell.unit_code, locale, catalog)
-                    localized_unit = (
-                        format_unit_label(cell.unit_code, locale) if cell.unit_code else ""
-                    )
-                    cells.append(
-                        LocalizedRenderTableCell(
-                            canonical=cell,
-                            display_value=display_val,
-                            display_unit=localized_unit,
-                            align="right",
-                        )
-                    )
+        if ct.table_key == "scheme_comparison":
+            localized_table = _localize_scheme_comparison_long_table(ct, locale, catalog)
+        else:
+            # Translate table title
+            table_title = translate(locale, ct.title_key) if ct.title_key else ""
+            # Translate column headers
+            scheme_hdr = translate(locale, "header.scheme")
+            table_headers: list[str] = []
+            for col in ct.column_keys:
+                if col == "scheme_name":
+                    table_headers.append(scheme_hdr)
+                elif ct.table_key == "investment_breakdown":
+                    table_headers.append(translate(locale, f"investment.{col}"))
                 else:
-                    # Text cell (citations, etc.)
-                    display_val = str(raw) if raw else "\u2014"
-                    cells.append(
-                        LocalizedRenderTableCell(
-                            canonical=cell, display_value=display_val, align="left"
+                    table_headers.append(translate(locale, f"header.{col}"))
+            # Build unit row
+            table_unit_row: list[str] = [
+                format_unit_label(code, locale) if code else "" for code in ct.unit_codes
+            ]
+            # Build rows
+            table_rows: list[tuple[LocalizedRenderTableCell, ...]] = []
+            for row in ct.rows:
+                cells: list[LocalizedRenderTableCell] = []
+                for cell in row:
+                    raw = cell.raw_value
+                    # Determine if this is a scheme_name cell (first column) or a metric
+                    if cell.field_key == "header.scheme" or cell.field_path.endswith("scheme_name"):
+                        display_val = str(raw) if raw else "\u2014"
+                        display_val = _append_provenance_suffix(display_val, cell, locale)
+                        cells.append(
+                            LocalizedRenderTableCell(
+                                canonical=cell, display_value=display_val, align="left"
+                            )
                         )
-                    )
-            table_rows.append(tuple(cells))
-        localized_table = LocalizedRenderTable(
-            canonical=ct,
-            title=table_title,
-            headers=tuple(table_headers),
-            rows=tuple(table_rows),
-            unit_row=tuple(table_unit_row),
-        )
+                    elif cell.unit_code and _is_numeric(raw):
+                        # Numeric metric cell — canonical model guarantees Decimal | int
+                        num_val = raw if isinstance(raw, (Decimal, int)) else Decimal(str(raw))
+                        display_val = _format_display_value(
+                            num_val, cell.unit_code, locale, catalog
+                        )
+                        display_val = _append_provenance_suffix(display_val, cell, locale)
+                        localized_unit = (
+                            format_unit_label(cell.unit_code, locale) if cell.unit_code else ""
+                        )
+                        cells.append(
+                            LocalizedRenderTableCell(
+                                canonical=cell,
+                                display_value=display_val,
+                                display_unit=localized_unit,
+                                align="right",
+                            )
+                        )
+                    else:
+                        # Text cell (citations, etc.)
+                        display_val = str(raw) if raw else "\u2014"
+                        display_val = _append_provenance_suffix(display_val, cell, locale)
+                        cells.append(
+                            LocalizedRenderTableCell(
+                                canonical=cell, display_value=display_val, align="left"
+                            )
+                        )
+                table_rows.append(tuple(cells))
+            localized_table = LocalizedRenderTable(
+                canonical=ct,
+                title=table_title,
+                headers=tuple(table_headers),
+                rows=tuple(table_rows),
+                unit_row=tuple(table_unit_row),
+            )
 
     return LocalizedRenderSection(
         section_key=section.section_key,

@@ -220,6 +220,31 @@ def format_unit_label(unit_code: str, locale: ReportLocale) -> str:
 # ---------------------------------------------------------------------------
 
 
+def format_provenance_suffix(
+    *,
+    source_tool_version: str,
+    source_content_hash: str,
+    locale: ReportLocale,
+) -> str:
+    """Append provenance labels when version/hash are present on the render model.
+
+    Returns an empty string when both inputs are absent. Never fabricates values.
+    """
+    parts: list[str] = []
+    if source_tool_version:
+        parts.append(f"{translate(locale, 'provenance.version')}: {source_tool_version}")
+    if source_content_hash:
+        hash_display = (
+            source_content_hash[:16] + "\u2026"
+            if len(source_content_hash) > 16
+            else source_content_hash
+        )
+        parts.append(f"{translate(locale, 'provenance.content_hash')}: {hash_display}")
+    if not parts:
+        return ""
+    return f" ({'; '.join(parts)})"
+
+
 def format_enum(
     enum_value: Any,
     locale: ReportLocale,
