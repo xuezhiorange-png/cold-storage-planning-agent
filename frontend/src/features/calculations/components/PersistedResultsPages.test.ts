@@ -53,6 +53,7 @@ describe('persisted planning result pages', () => {
     const power = mount(PowerPage, { global: { plugins: [pinia] } })
     await flushPromises()
     expect(power.text()).toContain('1350')
-    expect(power.find('.power-page__empty').exists()).toBe(false)
+    expect(power.text()).toContain('power_configuration')
+    expect(power.find('.power-page__supplemental').exists()).toBe(true)
   })
 })

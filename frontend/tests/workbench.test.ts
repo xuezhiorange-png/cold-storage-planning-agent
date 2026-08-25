@@ -129,7 +129,7 @@ describe('cold storage workbench', () => {
     await flushPromises()
 
     expect(testRouter.currentRoute.value.name).toBe('calculations')
-    expect(wrapper.text()).toContain('暂无计算结果')
+    expect(wrapper.text()).toContain('暂无完整五阶段计算结果')
   })
 
   it('navigates to schemes route', async () => {
@@ -157,7 +157,7 @@ describe('cold storage workbench', () => {
 
     const empty = wrapper.find('.calculations-page__empty')
     expect(empty.exists()).toBe(true)
-    expect(wrapper.text()).toContain('暂无计算结果')
+    expect(wrapper.text()).toContain('暂无完整五阶段计算结果')
   })
 
   it('toggles agent panel on AI button click', async () => {
@@ -879,7 +879,7 @@ describe('narrow screen nav link clicks', () => {
       expect(nav.exists()).toBe(true)
       
       const links = nav.findAll('a')
-      expect(links.length).toBe(6)
+      expect(links.length).toBe(7)
       
       // Click each link by label and verify route via real link clicks.
       const expected: Record<string, string> = {
