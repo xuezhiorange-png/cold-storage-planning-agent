@@ -12,6 +12,7 @@ const props = defineProps<{
   errorCode?: string | null
   errorMessage?: string | null
   disabled?: boolean
+  placeholder?: string
 }>()
 
 const emit = defineEmits<{
@@ -41,6 +42,7 @@ function onNumberChange(value: number | undefined): void {
       v-if="type === 'number'"
       :model-value="typeof modelValue === 'number' ? modelValue : undefined"
       :precision="precision ?? 2"
+      :placeholder="placeholder"
       :disabled="disabled"
       controls-position="right"
       style="width: 100%"
@@ -49,6 +51,7 @@ function onNumberChange(value: number | undefined): void {
     <ElInput
       v-else
       :model-value="modelValue === null ? '' : String(modelValue)"
+      :placeholder="placeholder"
       :disabled="disabled"
       @update:model-value="emit('update:modelValue', $event)"
     />

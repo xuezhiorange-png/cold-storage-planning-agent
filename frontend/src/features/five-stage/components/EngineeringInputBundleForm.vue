@@ -173,7 +173,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor('zonePlanning.dailyInboundMassKg')"
-          @update:model-value="updateZonePlanning('dailyInboundMassKg', $event as number)"
+          @update:model-value="updateZonePlanning('dailyInboundMassKg', $event as number | null)"
         />
         <BundleLeafField
           label="日工作时长"
@@ -183,7 +183,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor('zonePlanning.workingTimeHPerDay')"
-          @update:model-value="updateZonePlanning('workingTimeHPerDay', $event as number)"
+          @update:model-value="updateZonePlanning('workingTimeHPerDay', $event as number | null)"
         />
         <BundleLeafField
           label="成品储存天数"
@@ -193,7 +193,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor('zonePlanning.finishedStorageDays')"
-          @update:model-value="updateZonePlanning('finishedStorageDays', $event as number)"
+          @update:model-value="updateZonePlanning('finishedStorageDays', $event as number | null)"
         />
         <BundleLeafField
           label="包装储存天数"
@@ -203,7 +203,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor('zonePlanning.packagingStorageDays')"
-          @update:model-value="updateZonePlanning('packagingStorageDays', $event as number)"
+          @update:model-value="updateZonePlanning('packagingStorageDays', $event as number | null)"
         />
         <BundleLeafField
           label="预冷需求比例"
@@ -214,7 +214,7 @@ const unmappedFieldError = computed(() => {
           :precision="3"
           :disabled="disabled"
           v-bind="fieldErrorFor('zonePlanning.precoolingRequiredRatio')"
-          @update:model-value="updateZonePlanning('precoolingRequiredRatio', $event as number)"
+          @update:model-value="updateZonePlanning('precoolingRequiredRatio', $event as number | null)"
         />
       </ElCard>
 
@@ -257,7 +257,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor(`coolingZones.${zoneIndex}.zoneArea`)"
-          @update:model-value="updateCoolingZone(zoneIndex, 'zone_area', $event as number)"
+          @update:model-value="updateCoolingZone(zoneIndex, 'zone_area', $event as number | null)"
         />
         <BundleLeafField
           label="库房高度"
@@ -267,7 +267,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor(`coolingZones.${zoneIndex}.roomHeight`)"
-          @update:model-value="updateCoolingZone(zoneIndex, 'room_height', $event as number)"
+          @update:model-value="updateCoolingZone(zoneIndex, 'room_height', $event as number | null)"
         />
         <BundleLeafField
           label="墙体面积"
@@ -277,7 +277,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor(`coolingZones.${zoneIndex}.wallArea`)"
-          @update:model-value="updateCoolingZone(zoneIndex, 'wall_area', $event as number)"
+          @update:model-value="updateCoolingZone(zoneIndex, 'wall_area', $event as number | null)"
         />
         <BundleLeafField
           label="屋顶面积"
@@ -287,7 +287,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor(`coolingZones.${zoneIndex}.roofArea`)"
-          @update:model-value="updateCoolingZone(zoneIndex, 'roof_area', $event as number)"
+          @update:model-value="updateCoolingZone(zoneIndex, 'roof_area', $event as number | null)"
         />
         <BundleLeafField
           label="地面面积"
@@ -297,7 +297,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor(`coolingZones.${zoneIndex}.floorArea`)"
-          @update:model-value="updateCoolingZone(zoneIndex, 'floor_area', $event as number)"
+          @update:model-value="updateCoolingZone(zoneIndex, 'floor_area', $event as number | null)"
         />
         <BundleLeafField
           label="室外设计温度"
@@ -307,7 +307,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor(`coolingZones.${zoneIndex}.outdoorDesignTemperature`)"
-          @update:model-value="updateCoolingZone(zoneIndex, 'outdoor_design_temperature', $event as number)"
+          @update:model-value="updateCoolingZone(zoneIndex, 'outdoor_design_temperature', $event as number | null)"
         />
         <BundleLeafField
           label="室内设计温度"
@@ -317,7 +317,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor(`coolingZones.${zoneIndex}.roomDesignTemperature`)"
-          @update:model-value="updateCoolingZone(zoneIndex, 'room_design_temperature', $event as number)"
+          @update:model-value="updateCoolingZone(zoneIndex, 'room_design_temperature', $event as number | null)"
         />
         <BundleLeafField
           label="日运行小时"
@@ -327,7 +327,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor(`coolingZones.${zoneIndex}.operatingHoursPerDay`)"
-          @update:model-value="updateCoolingZone(zoneIndex, 'operating_hours_per_day', $event as number)"
+          @update:model-value="updateCoolingZone(zoneIndex, 'operating_hours_per_day', $event as number | null)"
         />
         <BundleLeafField
           label="日产品处理量"
@@ -337,7 +337,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor(`coolingZones.${zoneIndex}.productMassPerDay`)"
-          @update:model-value="updateCoolingZone(zoneIndex, 'product_mass_per_day', $event as number)"
+          @update:model-value="updateCoolingZone(zoneIndex, 'product_mass_per_day', $event as number | null)"
         />
         <BundleLeafField
           label="产品入库温度"
@@ -347,7 +347,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor(`coolingZones.${zoneIndex}.productEntryTemperature`)"
-          @update:model-value="updateCoolingZone(zoneIndex, 'product_entry_temperature', $event as number)"
+          @update:model-value="updateCoolingZone(zoneIndex, 'product_entry_temperature', $event as number | null)"
         />
         <BundleLeafField
           label="产品目标温度"
@@ -357,7 +357,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor(`coolingZones.${zoneIndex}.productTargetTemperature`)"
-          @update:model-value="updateCoolingZone(zoneIndex, 'product_target_temperature', $event as number)"
+          @update:model-value="updateCoolingZone(zoneIndex, 'product_target_temperature', $event as number | null)"
         />
         <BundleLeafField
           label="冷却时长"
@@ -367,7 +367,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor(`coolingZones.${zoneIndex}.coolingDuration`)"
-          @update:model-value="updateCoolingZone(zoneIndex, 'cooling_duration', $event as number)"
+          @update:model-value="updateCoolingZone(zoneIndex, 'cooling_duration', $event as number | null)"
         />
         <BundleLeafField
           label="墙体传热系数"
@@ -378,7 +378,7 @@ const unmappedFieldError = computed(() => {
           :precision="3"
           :disabled="disabled"
           v-bind="fieldErrorFor(`coolingZones.${zoneIndex}.uValueWall`)"
-          @update:model-value="updateCoolingZone(zoneIndex, 'u_value_wall', $event as number)"
+          @update:model-value="updateCoolingZone(zoneIndex, 'u_value_wall', $event as number | null)"
         />
         <BundleLeafField
           label="屋顶传热系数"
@@ -389,7 +389,7 @@ const unmappedFieldError = computed(() => {
           :precision="3"
           :disabled="disabled"
           v-bind="fieldErrorFor(`coolingZones.${zoneIndex}.uValueRoof`)"
-          @update:model-value="updateCoolingZone(zoneIndex, 'u_value_roof', $event as number)"
+          @update:model-value="updateCoolingZone(zoneIndex, 'u_value_roof', $event as number | null)"
         />
         <BundleLeafField
           label="地面传热系数"
@@ -400,7 +400,7 @@ const unmappedFieldError = computed(() => {
           :precision="3"
           :disabled="disabled"
           v-bind="fieldErrorFor(`coolingZones.${zoneIndex}.uValueFloor`)"
-          @update:model-value="updateCoolingZone(zoneIndex, 'u_value_floor', $event as number)"
+          @update:model-value="updateCoolingZone(zoneIndex, 'u_value_floor', $event as number | null)"
         />
         <BundleLeafField
           label="产品比热"
@@ -411,7 +411,7 @@ const unmappedFieldError = computed(() => {
           :precision="2"
           :disabled="disabled"
           v-bind="fieldErrorFor(`coolingZones.${zoneIndex}.productSpecificHeat`)"
-          @update:model-value="updateCoolingZone(zoneIndex, 'product_specific_heat', $event as number)"
+          @update:model-value="updateCoolingZone(zoneIndex, 'product_specific_heat', $event as number | null)"
         />
       </ElCard>
       <ElButton :disabled="disabled" @click="addCoolingZone">添加冷负荷分区</ElButton>
@@ -428,7 +428,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor('equipment.condensingTemperatureC')"
-          @update:model-value="updateEquipmentRoot('condensing_temperature_c', $event as number)"
+          @update:model-value="updateEquipmentRoot('condensing_temperature_c', $event as number | null)"
         />
 
         <div
@@ -461,7 +461,7 @@ const unmappedFieldError = computed(() => {
             type="number"
             :disabled="disabled"
             v-bind="fieldErrorFor(`equipment.systems.${systemIndex}.designEvaporatingTemperature`)"
-            @update:model-value="updateEquipmentSystem(systemIndex, 'design_evaporating_temperature', $event as number)"
+            @update:model-value="updateEquipmentSystem(systemIndex, 'design_evaporating_temperature', $event as number | null)"
           />
           <div
             v-for="(eqZone, zoneIndex) in system.zones"
@@ -494,7 +494,7 @@ const unmappedFieldError = computed(() => {
               :precision="0"
               :disabled="disabled"
               v-bind="fieldErrorFor(`equipment.systems.${systemIndex}.zones.${zoneIndex}.evaporatorCount`)"
-              @update:model-value="updateEquipmentZone(systemIndex, zoneIndex, 'evaporator_count', $event as number)"
+              @update:model-value="updateEquipmentZone(systemIndex, zoneIndex, 'evaporator_count', $event as number | null)"
             />
             <BundleLeafField
               label="化霜方式"
@@ -512,7 +512,7 @@ const unmappedFieldError = computed(() => {
               type="number"
               :disabled="disabled"
               v-bind="fieldErrorFor(`equipment.systems.${systemIndex}.zones.${zoneIndex}.designCoolingLoadKwR`)"
-              @update:model-value="updateEquipmentZone(systemIndex, zoneIndex, 'design_cooling_load_kw_r', $event as number)"
+              @update:model-value="updateEquipmentZone(systemIndex, zoneIndex, 'design_cooling_load_kw_r', $event as number | null)"
             />
           </div>
         </div>
@@ -529,7 +529,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor('installedPower.compressorInputPowerKwE')"
-          @update:model-value="updateInstalledPower('compressor_input_power_kw_e', $event as number)"
+          @update:model-value="updateInstalledPower('compressor_input_power_kw_e', $event as number | null)"
         />
         <BundleLeafField
           label="蒸发风机功率"
@@ -539,7 +539,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor('installedPower.evaporatorFanPowerKwE')"
-          @update:model-value="updateInstalledPower('evaporator_fan_power_kw_e', $event as number)"
+          @update:model-value="updateInstalledPower('evaporator_fan_power_kw_e', $event as number | null)"
         />
         <BundleLeafField
           label="冷凝风机功率"
@@ -549,7 +549,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor('installedPower.condenserFanPowerKwE')"
-          @update:model-value="updateInstalledPower('condenser_fan_power_kw_e', $event as number)"
+          @update:model-value="updateInstalledPower('condenser_fan_power_kw_e', $event as number | null)"
         />
       </ElCard>
 
@@ -571,7 +571,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor('investment.totalAreaM2')"
-          @update:model-value="updateInvestment('total_area_m2', $event as number)"
+          @update:model-value="updateInvestment('total_area_m2', $event as number | null)"
         />
         <BundleLeafField
           label="冷藏面积"
@@ -581,7 +581,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor('investment.refrigeratedAreaM2')"
-          @update:model-value="updateInvestment('refrigerated_area_m2', $event as number)"
+          @update:model-value="updateInvestment('refrigerated_area_m2', $event as number | null)"
         />
         <BundleLeafField
           label="冷冻面积"
@@ -591,7 +591,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor('investment.frozenAreaM2')"
-          @update:model-value="updateInvestment('frozen_area_m2', $event as number)"
+          @update:model-value="updateInvestment('frozen_area_m2', $event as number | null)"
         />
         <BundleLeafField
           label="货位数"
@@ -602,7 +602,7 @@ const unmappedFieldError = computed(() => {
           :precision="0"
           :disabled="disabled"
           v-bind="fieldErrorFor('investment.positionCount')"
-          @update:model-value="updateInvestment('position_count', $event as number)"
+          @update:model-value="updateInvestment('position_count', $event as number | null)"
         />
         <BundleLeafField
           label="总装机功率"
@@ -612,7 +612,7 @@ const unmappedFieldError = computed(() => {
           type="number"
           :disabled="disabled"
           v-bind="fieldErrorFor('investment.totalPowerKw')"
-          @update:model-value="updateInvestment('total_power_kw', $event as number)"
+          @update:model-value="updateInvestment('total_power_kw', $event as number | null)"
         />
       </ElCard>
 

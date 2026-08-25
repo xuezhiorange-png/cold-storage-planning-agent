@@ -1,10 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-import type {
-  EngineeringInputBundleV1,
-  FiveStageExecutionSuccess
-} from '../api/contracts/fiveStage'
+import type { FiveStageExecutionSuccess } from '../api/contracts/fiveStage'
 import {
   createFiveStageApi,
   type FiveStageApi
@@ -47,13 +44,27 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
     return `${LAST_BUNDLE_STORAGE_PREFIX}:${projectId}:${version}`
   }
 
-  function getOrCreateIdempotencyKey(projectId: string, version: number): string {
-    const storageKey = idempotencyStorageKey(projectId, version)
-    const existing = sessionStorage.getItem(storageKey)
-    if (existing) return existing
-    const created = crypto.randomUUID()
-    sessionStorage.setItem(storageKey, created)
-    return created
+  function readStoredBundleJson(projectId: string, version: number): string | null {
+    return (
+      sessionStorage.getItem(lastBundleStorageKey(projectId, version)) ??
+      lastSubmittedBundleJson.value
+    )
+  }
+
+  function resolveIdempotencyKey(projectId: string, version: number, bundleJson: string): string {
+    const keyStorage = idempotencyStorageKey(projectId, version)
+    const bundleStorage = lastBundleStorageKey(projectId, version)
+    const storedKey = sessionStorage.getItem(keyStorage)
+    const storedBundleJson = readStoredBundleJson(projectId, version)
+
+    if (storedKey && storedBundleJson === bundleJson) {
+      return storedKey
+    }
+
+    const newKey = crypto.randomUUID()
+    sessionStorage.setItem(keyStorage, newKey)
+    sessionStorage.setItem(bundleStorage, bundleJson)
+    return newKey
   }
 
   function clearErrors(): void {
@@ -80,7 +91,11 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
 
     const bundle = buildEngineeringInputBundle(form, bundleContext)
     const bundleJson = stableBundlePayloadJson(bundle)
-    const idempotencyKey = getOrCreateIdempotencyKey(workbench.projectId, workbench.versionNumber)
+    const idempotencyKey = resolveIdempotencyKey(
+      workbench.projectId,
+      workbench.versionNumber,
+      bundleJson
+    )
 
     try {
       const response = await fiveStageApi.execute(
@@ -111,6 +126,10 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
       sessionStorage.setItem(
         lastBundleStorageKey(workbench.projectId, workbench.versionNumber),
         bundleJson
+      )
+      sessionStorage.setItem(
+        idempotencyStorageKey(workbench.projectId, workbench.versionNumber),
+        idempotencyKey
       )
       return response
     } catch (err: unknown) {
@@ -156,7 +175,7 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
     execute,
     cancel,
     clearErrors,
-    getOrCreateIdempotencyKey,
+    resolveIdempotencyKey,
     resetForTests
   }
 })

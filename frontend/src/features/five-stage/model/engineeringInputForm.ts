@@ -1,62 +1,62 @@
 import type { EngineeringInputBundleV1 } from '../../../api/contracts/fiveStage'
-import { bundleLeaf, bundleNumericLeaf } from './bundleLeaf'
+import { bundleLeaf, bundleLeafFromInput, bundleNumericLeaf } from './bundleLeaf'
 
 export interface CoolingZoneFormState {
   zoneCode: string
   zoneName: string
   temperatureLevel: string
-  zoneArea: number
-  roomHeight: number
-  wallArea: number
-  roofArea: number
-  floorArea: number
-  outdoorDesignTemperature: number
-  roomDesignTemperature: number
-  operatingHoursPerDay: number
-  productMassPerDay: number
-  productEntryTemperature: number
-  productTargetTemperature: number
-  coolingDuration: number
-  uValueWall: number
-  uValueRoof: number
-  uValueFloor: number
-  productSpecificHeat: number
+  zoneArea: number | null
+  roomHeight: number | null
+  wallArea: number | null
+  roofArea: number | null
+  floorArea: number | null
+  outdoorDesignTemperature: number | null
+  roomDesignTemperature: number | null
+  operatingHoursPerDay: number | null
+  productMassPerDay: number | null
+  productEntryTemperature: number | null
+  productTargetTemperature: number | null
+  coolingDuration: number | null
+  uValueWall: number | null
+  uValueRoof: number | null
+  uValueFloor: number | null
+  productSpecificHeat: number | null
 }
 
 export interface EquipmentZoneFormState {
   zoneCode: string
   zoneName: string
-  evaporatorCount: number
+  evaporatorCount: number | null
   defrostMethod: string
-  designCoolingLoadKwR: number
+  designCoolingLoadKwR: number | null
 }
 
 export interface EquipmentSystemFormState {
   systemCode: string
   systemName: string
-  designEvaporatingTemperature: number
+  designEvaporatingTemperature: number | null
   zones: EquipmentZoneFormState[]
 }
 
 export interface EngineeringInputFormState {
   zonePlanning: {
-    dailyInboundMassKg: number
-    workingTimeHPerDay: number
-    finishedStorageDays: number
-    packagingStorageDays: number
-    precoolingRequiredRatio: number
+    dailyInboundMassKg: number | null
+    workingTimeHPerDay: number | null
+    finishedStorageDays: number | null
+    packagingStorageDays: number | null
+    precoolingRequiredRatio: number | null
   }
   coolingZones: CoolingZoneFormState[]
   coolingCoefficients: Record<string, string>
   equipment: {
-    condensingTemperatureC: number
+    condensingTemperatureC: number | null
     systems: EquipmentSystemFormState[]
     coefficients: Record<string, string>
   }
   installedPower: {
-    compressorInputPowerKwE: number
-    evaporatorFanPowerKwE: number
-    condenserFanPowerKwE: number
+    compressorInputPowerKwE: number | null
+    evaporatorFanPowerKwE: number | null
+    condenserFanPowerKwE: number | null
     pumpPowerKwE: number | null
     defrostPowerKwE: number | null
     processingEquipmentPowerKwE: number | null
@@ -64,11 +64,11 @@ export interface EngineeringInputFormState {
     otherAuxiliaryPowerKwE: number | null
   }
   investment: {
-    totalAreaM2: number
-    refrigeratedAreaM2: number
-    frozenAreaM2: number
-    positionCount: number
-    totalPowerKw: number
+    totalAreaM2: number | null
+    refrigeratedAreaM2: number | null
+    frozenAreaM2: number | null
+    positionCount: number | null
+    totalPowerKw: number | null
   }
   coefficientContext: {
     coefficientContextId: string
@@ -87,7 +87,8 @@ export interface BuildBundleContext {
   correlationId: string
 }
 
-const DEFAULT_COOLING_COEFFICIENTS: Record<string, string> = {
+/** Demo coefficient leaves — coefficient source only, never authoritative user input. */
+const DEMO_COOLING_COEFFICIENTS: Record<string, string> = {
   design_margin_ratio: '1.1',
   diversity_factor: '0.85',
   air_change_rate: '0.5',
@@ -96,52 +97,58 @@ const DEFAULT_COOLING_COEFFICIENTS: Record<string, string> = {
   motor_efficiency: '0.85'
 }
 
-const DEFAULT_EQUIPMENT_COEFFICIENTS: Record<string, string> = {
+const DEMO_EQUIPMENT_COEFFICIENTS: Record<string, string> = {
   redundancy_ratio: '1.0',
   evaporator_capacity_margin: '1.1',
   condenser_capacity_margin: '1.1',
   compressor_cop: '2.5'
 }
 
+const COEFFICIENT_LEAF_OPTIONS = {
+  source_type: 'coefficient' as const,
+  validity_status: 'unverified' as const,
+  requires_review: true
+}
+
 function createDefaultCoolingZone(): CoolingZoneFormState {
   return {
-    zoneCode: 'Z1',
-    zoneName: '冷冻库',
-    temperatureLevel: 'low_temperature',
-    zoneArea: 100,
-    roomHeight: 5,
-    wallArea: 200,
-    roofArea: 100,
-    floorArea: 100,
-    outdoorDesignTemperature: 30,
-    roomDesignTemperature: -18,
-    operatingHoursPerDay: 16,
-    productMassPerDay: 20000,
-    productEntryTemperature: 20,
-    productTargetTemperature: -18,
-    coolingDuration: 8,
-    uValueWall: 0.25,
-    uValueRoof: 0.2,
-    uValueFloor: 0.3,
-    productSpecificHeat: 3.6
+    zoneCode: '',
+    zoneName: '',
+    temperatureLevel: '',
+    zoneArea: null,
+    roomHeight: null,
+    wallArea: null,
+    roofArea: null,
+    floorArea: null,
+    outdoorDesignTemperature: null,
+    roomDesignTemperature: null,
+    operatingHoursPerDay: null,
+    productMassPerDay: null,
+    productEntryTemperature: null,
+    productTargetTemperature: null,
+    coolingDuration: null,
+    uValueWall: null,
+    uValueRoof: null,
+    uValueFloor: null,
+    productSpecificHeat: null
   }
 }
 
 function createDefaultEquipmentZone(): EquipmentZoneFormState {
   return {
-    zoneCode: 'Z1',
-    zoneName: '冷冻库',
-    evaporatorCount: 2,
-    defrostMethod: 'electric',
-    designCoolingLoadKwR: 120
+    zoneCode: '',
+    zoneName: '',
+    evaporatorCount: null,
+    defrostMethod: '',
+    designCoolingLoadKwR: null
   }
 }
 
 function createDefaultEquipmentSystem(): EquipmentSystemFormState {
   return {
-    systemCode: 'S1',
-    systemName: '冷冻系统',
-    designEvaporatingTemperature: -25,
+    systemCode: '',
+    systemName: '',
+    designEvaporatingTemperature: null,
     zones: [createDefaultEquipmentZone()]
   }
 }
@@ -149,23 +156,23 @@ function createDefaultEquipmentSystem(): EquipmentSystemFormState {
 export function createDefaultEngineeringInputFormState(): EngineeringInputFormState {
   return {
     zonePlanning: {
-      dailyInboundMassKg: 20000,
-      workingTimeHPerDay: 16,
-      finishedStorageDays: 7,
-      packagingStorageDays: 1,
-      precoolingRequiredRatio: 0.6
+      dailyInboundMassKg: null,
+      workingTimeHPerDay: null,
+      finishedStorageDays: null,
+      packagingStorageDays: null,
+      precoolingRequiredRatio: null
     },
     coolingZones: [createDefaultCoolingZone()],
-    coolingCoefficients: { ...DEFAULT_COOLING_COEFFICIENTS },
+    coolingCoefficients: { ...DEMO_COOLING_COEFFICIENTS },
     equipment: {
-      condensingTemperatureC: 40,
+      condensingTemperatureC: null,
       systems: [createDefaultEquipmentSystem()],
-      coefficients: { ...DEFAULT_EQUIPMENT_COEFFICIENTS }
+      coefficients: { ...DEMO_EQUIPMENT_COEFFICIENTS }
     },
     installedPower: {
-      compressorInputPowerKwE: 120,
-      evaporatorFanPowerKwE: 10,
-      condenserFanPowerKwE: 8,
+      compressorInputPowerKwE: null,
+      evaporatorFanPowerKwE: null,
+      condenserFanPowerKwE: null,
       pumpPowerKwE: null,
       defrostPowerKwE: null,
       processingEquipmentPowerKwE: null,
@@ -173,11 +180,11 @@ export function createDefaultEngineeringInputFormState(): EngineeringInputFormSt
       otherAuxiliaryPowerKwE: null
     },
     investment: {
-      totalAreaM2: 1000,
-      refrigeratedAreaM2: 800,
-      frozenAreaM2: 200,
-      positionCount: 100,
-      totalPowerKw: 150
+      totalAreaM2: null,
+      refrigeratedAreaM2: null,
+      frozenAreaM2: null,
+      positionCount: null,
+      totalPowerKw: null
     },
     coefficientContext: {
       coefficientContextId: 'coeff-demo-001',
@@ -189,9 +196,9 @@ export function createDefaultEngineeringInputFormState(): EngineeringInputFormSt
 
 function buildCoolingZoneLeaves(zone: CoolingZoneFormState): Record<string, ReturnType<typeof bundleLeaf>> {
   return {
-    zone_code: bundleLeaf(zone.zoneCode, { unit: null }),
-    zone_name: bundleLeaf(zone.zoneName, { unit: null }),
-    temperature_level: bundleLeaf(zone.temperatureLevel, { unit: null }),
+    zone_code: bundleLeafFromInput(zone.zoneCode, { unit: null }),
+    zone_name: bundleLeafFromInput(zone.zoneName, { unit: null }),
+    temperature_level: bundleLeafFromInput(zone.temperatureLevel, { unit: null }),
     zone_area: bundleNumericLeaf(zone.zoneArea, { unit: 'm2' }),
     room_height: bundleNumericLeaf(zone.roomHeight, { unit: 'm' }),
     wall_area: bundleNumericLeaf(zone.wallArea, { unit: 'm2' }),
@@ -206,19 +213,19 @@ function buildCoolingZoneLeaves(zone: CoolingZoneFormState): Record<string, Retu
     cooling_duration: bundleNumericLeaf(zone.coolingDuration, { unit: 'h' }),
     u_value_wall: bundleNumericLeaf(zone.uValueWall, {
       unit: 'W/(m2·K)',
-      source_type: 'coefficient'
+      ...COEFFICIENT_LEAF_OPTIONS
     }),
     u_value_roof: bundleNumericLeaf(zone.uValueRoof, {
       unit: 'W/(m2·K)',
-      source_type: 'coefficient'
+      ...COEFFICIENT_LEAF_OPTIONS
     }),
     u_value_floor: bundleNumericLeaf(zone.uValueFloor, {
       unit: 'W/(m2·K)',
-      source_type: 'coefficient'
+      ...COEFFICIENT_LEAF_OPTIONS
     }),
     product_specific_heat: bundleNumericLeaf(zone.productSpecificHeat, {
       unit: 'kJ/(kg·K)',
-      source_type: 'coefficient'
+      ...COEFFICIENT_LEAF_OPTIONS
     })
   }
 }
@@ -234,9 +241,10 @@ export function buildEngineeringInputBundle(
   form: EngineeringInputFormState,
   context: BuildBundleContext
 ): EngineeringInputBundleV1 {
-  const investmentProvenance = form.confirmPersistedLineage
+  const lineageProvenance = form.confirmPersistedLineage
     ? 'persisted_upstream_confirmed'
     : 'user_entry'
+  const persistedLineageSource = form.confirmPersistedLineage ? 'persisted' : 'user'
 
   return {
     schema_id: 'EngineeringInputBundleV1',
@@ -287,29 +295,29 @@ export function buildEngineeringInputBundle(
       zones: form.coolingZones.map(buildCoolingZoneLeaves),
       coefficients: bundleLeaf(form.coolingCoefficients, {
         unit: null,
-        source_type: 'coefficient'
+        ...COEFFICIENT_LEAF_OPTIONS
       })
     },
     equipment_inputs: {
       condensing_temperature_c: bundleNumericLeaf(form.equipment.condensingTemperatureC, { unit: 'C' }),
       systems: form.equipment.systems.map((system) => ({
-        system_code: bundleLeaf(system.systemCode, { unit: null }),
-        system_name: bundleLeaf(system.systemName, { unit: null }),
+        system_code: bundleLeafFromInput(system.systemCode, { unit: null }),
+        system_name: bundleLeafFromInput(system.systemName, { unit: null }),
         design_evaporating_temperature: bundleNumericLeaf(system.designEvaporatingTemperature, { unit: 'C' }),
         zones: system.zones.map((zone) => ({
-          zone_code: bundleLeaf(zone.zoneCode, { unit: null }),
-          zone_name: bundleLeaf(zone.zoneName, { unit: null }),
-          evaporator_count: bundleLeaf(zone.evaporatorCount, { unit: 'count' }),
-          defrost_method: bundleLeaf(zone.defrostMethod, { unit: null }),
+          zone_code: bundleLeafFromInput(zone.zoneCode, { unit: null }),
+          zone_name: bundleLeafFromInput(zone.zoneName, { unit: null }),
+          evaporator_count: bundleNumericLeaf(zone.evaporatorCount, { unit: 'count' }),
+          defrost_method: bundleLeafFromInput(zone.defrostMethod, { unit: null }),
           design_cooling_load_kw_r: bundleNumericLeaf(zone.designCoolingLoadKwR, {
             unit: 'kW(r)',
-            source_type: 'persisted'
+            source_type: persistedLineageSource
           })
         }))
       })),
       coefficients: bundleLeaf(form.equipment.coefficients, {
         unit: null,
-        source_type: 'coefficient'
+        ...COEFFICIENT_LEAF_OPTIONS
       })
     },
     installed_power_inputs: {
@@ -334,31 +342,31 @@ export function buildEngineeringInputBundle(
     investment_inputs: {
       total_area_m2: bundleNumericLeaf(form.investment.totalAreaM2, {
         unit: 'm2',
-        source_type: form.confirmPersistedLineage ? 'persisted' : 'user'
+        source_type: persistedLineageSource
       }),
       refrigerated_area_m2: bundleNumericLeaf(form.investment.refrigeratedAreaM2, {
         unit: 'm2',
-        source_type: form.confirmPersistedLineage ? 'persisted' : 'user'
+        source_type: persistedLineageSource
       }),
       frozen_area_m2: bundleNumericLeaf(form.investment.frozenAreaM2, {
         unit: 'm2',
-        source_type: form.confirmPersistedLineage ? 'persisted' : 'user'
+        source_type: persistedLineageSource
       }),
-      position_count: bundleLeaf(form.investment.positionCount, {
+      position_count: bundleNumericLeaf(form.investment.positionCount, {
         unit: 'count',
-        source_type: form.confirmPersistedLineage ? 'persisted' : 'user'
+        source_type: persistedLineageSource
       }),
       total_power_kw: bundleNumericLeaf(form.investment.totalPowerKw, {
         unit: 'kW(e)',
-        source_type: form.confirmPersistedLineage ? 'persisted' : 'user'
+        source_type: persistedLineageSource
       })
     },
     coefficient_context: {
       coefficient_context_id: bundleLeaf(form.coefficientContext.coefficientContextId, {
-        source_type: 'coefficient'
+        ...COEFFICIENT_LEAF_OPTIONS
       }),
       approved_revision_ids: bundleLeaf(form.coefficientContext.approvedRevisionIds, {
-        source_type: 'coefficient'
+        ...COEFFICIENT_LEAF_OPTIONS
       }),
       demo_coefficient_leaves: []
     },
@@ -374,9 +382,9 @@ export function buildEngineeringInputBundle(
       input_group_provenance: {
         zone_planning_inputs: 'user_entry',
         cooling_load_inputs: 'user_entry',
-        equipment_inputs: 'user_entry',
+        equipment_inputs: lineageProvenance,
         installed_power_inputs: 'user_entry',
-        investment_inputs: investmentProvenance
+        investment_inputs: lineageProvenance
       }
     },
     review_metadata: {

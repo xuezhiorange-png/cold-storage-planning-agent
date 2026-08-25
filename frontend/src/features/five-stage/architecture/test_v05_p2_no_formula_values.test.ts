@@ -64,6 +64,22 @@ describe('V0.5 P2 architecture guards', () => {
     expect(engineeringPage.includes('fiveStageExecution')).toBe(true)
   })
 
+  it('default engineering form state does not pre-fill KEY user numeric leaves', () => {
+    const content = readFileSync(
+      join(FIVE_STAGE_DIR, 'model/engineeringInputForm.ts'),
+      'utf8'
+    )
+    const defaultBlock = content.slice(
+      content.indexOf('export function createDefaultEngineeringInputFormState'),
+      content.indexOf('function buildCoolingZoneLeaves')
+    )
+    expect(defaultBlock).not.toMatch(/dailyInboundMassKg:\s*\d/)
+    expect(defaultBlock).not.toMatch(/condensingTemperatureC:\s*\d/)
+    expect(defaultBlock).not.toMatch(/compressorInputPowerKwE:\s*\d/)
+    expect(defaultBlock).not.toMatch(/designCoolingLoadKwR:\s*\d/)
+    expect(defaultBlock).not.toMatch(/zoneArea:\s*\d/)
+  })
+
   it('planning-run references remain only on legacy paths', () => {
     const files = collectTsVueFiles(FRONTEND_SRC)
     for (const file of files) {
