@@ -1,7 +1,7 @@
 UV_CACHE_DIR ?= .uv-cache
 RC_BUILD_CONTEXT ?= .
 
-.PHONY: install dev up down migrate seed seed-v04-sample smoke-v04-local test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests verify-live-evidence-runner verify-artifact-transport recovery-foundation-test recovery-foundation-lint recovery-foundation-typecheck verify-recovery-foundation release-failure-recovery-test release-failure-recovery-lint release-failure-recovery-typecheck verify-release-failure-recovery final-release-evidence-test final-release-evidence-lint final-release-evidence-typecheck verify-final-release-evidence test-s6-07-operational-acceptance s6-07-operational-acceptance-test s6-07-operational-acceptance-lint s6-07-operational-acceptance-typecheck verify-s6-07-operational-acceptance
+.PHONY: install dev up down migrate seed seed-v04-sample seed-v05-sample smoke-v04-local smoke-v05-local test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests verify-live-evidence-runner verify-artifact-transport recovery-foundation-test recovery-foundation-lint recovery-foundation-typecheck verify-recovery-foundation release-failure-recovery-test release-failure-recovery-lint release-failure-recovery-typecheck verify-release-failure-recovery final-release-evidence-test final-release-evidence-lint final-release-evidence-typecheck verify-final-release-evidence test-s6-07-operational-acceptance s6-07-operational-acceptance-test s6-07-operational-acceptance-lint s6-07-operational-acceptance-typecheck verify-s6-07-operational-acceptance
 
 install:
 	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv sync
@@ -25,8 +25,14 @@ seed:
 seed-v04-sample:
 	cd backend && PYTHONPATH=src UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run python -m cold_storage.bootstrap.v04_local_sample
 
+seed-v05-sample:
+	cd backend && PYTHONPATH=src UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run python -m cold_storage.bootstrap.v05_local_sample
+
 smoke-v04-local:
 	cd backend && PYTHONPATH=src UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run pytest tests/integration/test_v04_local_sample_boot.py -q
+
+smoke-v05-local:
+	cd backend && PYTHONPATH=src UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run pytest tests/integration/test_v05_p4_local_sample_smoke.py -q
 
 test:
 	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run pytest
