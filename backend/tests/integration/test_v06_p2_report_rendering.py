@@ -13,8 +13,24 @@ from cold_storage.modules.reports.application.canonical_render_model_builder imp
 )
 from cold_storage.modules.reports.application.render_model_localizer import localize_render_model
 from cold_storage.modules.reports.domain.enums import ReportLocale
+from cold_storage.modules.reports.localization.catalog import translate
 from cold_storage.modules.reports.renderers.docx_renderer import DocxRenderer
 from cold_storage.modules.reports.renderers.pdf_renderer import PdfRenderer
+
+
+def _scheme_metric_row(
+    table: object,
+    scheme_name: str,
+    metric_label: str,
+) -> tuple:
+    """Return the long-format row matching scheme name and metric label."""
+    for row in table.rows:
+        if row[0].display_value == scheme_name and row[1].display_value == metric_label:
+            return row
+    raise AssertionError(
+        f"No row for scheme={scheme_name!r}, metric={metric_label!r}; "
+        f"rows={[(r[0].display_value, r[1].display_value) for r in table.rows]!r}"
+    )
 
 
 def _build_p2_fixture_content() -> dict:
@@ -202,10 +218,15 @@ def test_p2_provenance_renders_when_present_and_omits_when_absent(locale: Report
     assert "abc123hashvalue" in metric.display_value
 
     scheme_section = next(s for s in model.sections if s.section_key == "scheme_comparison")
-    provenance_cell = scheme_section.table.rows[0][2]
+    total_score_label = translate(locale, "header.total_score")
+    provenance_row = _scheme_metric_row(
+        scheme_section.table, "Scheme Alpha", total_score_label
+    )
+    provenance_cell = provenance_row[2]
     assert "3.0.0" in provenance_cell.display_value
     assert "scorehash99" in provenance_cell.display_value
-    plain_cell = scheme_section.table.rows[1][2]
+    plain_row = _scheme_metric_row(scheme_section.table, "Scheme Beta", total_score_label)
+    plain_cell = plain_row[2]
     assert "72.0" in plain_cell.display_value
     assert "Version:" not in plain_cell.display_value
     assert "Content Hash:" not in plain_cell.display_value

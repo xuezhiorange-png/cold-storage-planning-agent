@@ -90,7 +90,7 @@ def _format_display_value(
     return format_decimal(value, locale)
 
 
-_SCHEME_TABLE_SKIP_COLUMNS: frozenset[str] = frozenset({"scheme_id", "scheme_name", "rank"})
+_SCHEME_TABLE_SKIP_COLUMNS: frozenset[str] = frozenset({"scheme_name"})
 
 
 def _append_provenance_suffix(

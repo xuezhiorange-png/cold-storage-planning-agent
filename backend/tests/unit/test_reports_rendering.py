@@ -1652,10 +1652,12 @@ class TestV06P2LocalizerHardening:
         section = next(s for s in model.sections if s.section_key == "scheme_comparison")
         assert section.table is not None
         assert section.table.headers == ("Scheme", "Metric", "Value")
-        assert len(section.table.rows) == 1
+        assert len(section.table.rows) == 3
+        metrics = {row[1].display_value: row[2].display_value for row in section.table.rows}
+        assert metrics["Scheme ID"] == "s1"
+        assert metrics["Rank"] == "1"
+        assert metrics["Total Score"] == "85.5"
         assert section.table.rows[0][0].display_value == "Scheme A"
-        assert section.table.rows[0][1].display_value == "Total Score"
-        assert section.table.rows[0][2].display_value == "85.5"
 
     def test_quality_findings_include_field_path_column(self) -> None:
         from cold_storage.modules.reports.application.canonical_render_model_builder import (
