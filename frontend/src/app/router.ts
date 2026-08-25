@@ -29,6 +29,11 @@ export function createWorkbenchRouter(history: RouterHistory = createWebHistory(
             component: () => import('../features/project/components/ProjectPage.vue')
           },
           {
+            path: 'engineering-inputs',
+            name: 'engineering-inputs',
+            component: () => import('../features/five-stage/components/EngineeringInputsPage.vue')
+          },
+          {
             path: 'calculations',
             name: 'calculations',
             component: () => import('../features/calculations/components/CalculationsPage.vue')

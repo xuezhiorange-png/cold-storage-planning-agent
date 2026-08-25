@@ -164,6 +164,49 @@ function planningResponseToCalculationRuns(response: PlanningRunResponse): Array
   return runs
 }
 
+export function sampleFiveStageCalculationRuns(): Array<Record<string, unknown>> {
+  const calculators = [
+    'cold_room_zone_plan',
+    'cooling_load',
+    'equipment',
+    'installed_power',
+    'investment_estimate'
+  ]
+  return calculators.map((name, index) => ({
+    id: `calc-${name}`,
+    calculation_id: `calc-${name}`,
+    project_id: 'proj-test',
+    project_version_id: 'ver-1',
+    calculator_name: name,
+    calculator_version: '1.0.0',
+    result_snapshot: {
+      success: true,
+      calculator_name: name,
+      calculator_version: '1.0.0',
+      input: {},
+      result: name === 'installed_power'
+        ? { total_installed_power_kw_e: 150 }
+        : name === 'investment_estimate'
+          ? { total_investment_cny: 3_000_000, items: [{ item_name: '土建', amount_cny: 600_000 }] }
+          : name === 'cold_room_zone_plan'
+            ? {
+                zones: [{
+                  zone_name: '原料暂存',
+                  temperature_band: '常温',
+                  daily_throughput_kg: 12000,
+                  design_storage_mass_kg: 24000,
+                  position_count: 80,
+                  required_area_m2: 200
+                }]
+              }
+            : {}
+    },
+    result_hash: `hash-${name}`,
+    requires_review: false,
+    upstream_calculation_ids: index > 0 ? { upstream: `calc-${calculators[index - 1]}` } : undefined
+  }))
+}
+
 export function installWorkbenchFetchMock(
   fetchMock: FetchMock,
   options: {
@@ -172,6 +215,8 @@ export function installWorkbenchFetchMock(
     planningRunError?: Error
     planningRunResponse?: PlanningRunResponse
     persistedPlanningResponse?: PlanningRunResponse
+    persistedFiveStage?: boolean
+    fiveStageExecutionError?: Record<string, unknown>
     deferPlanningRun?: boolean
   } = {}
 ) {
@@ -185,6 +230,8 @@ export function installWorkbenchFetchMock(
 
   if (options.persistedPlanningResponse) {
     recordPlanningResponse(options.persistedPlanningResponse)
+  } else if (options.persistedFiveStage) {
+    persistedCalculations = sampleFiveStageCalculationRuns()
   }
   const workflow = options.workflow ?? sampleWorkflowAggregate(
     options.agentAvailable
@@ -251,6 +298,7 @@ export function installWorkbenchFetchMock(
     if (
       url.includes('/versions/1') &&
       !url.includes('planning-run') &&
+      !url.includes('five-stage-execution') &&
       !url.includes('/calculations') &&
       method === 'GET'
     ) {
@@ -260,6 +308,50 @@ export function installWorkbenchFetchMock(
           version_number: 1,
           status: 'draft',
           input_snapshot: {}
+        })
+      )
+    }
+
+    if (url.includes('/five-stage-execution') && method === 'POST') {
+      if (options.fiveStageExecutionError) {
+        return new Response(JSON.stringify(options.fiveStageExecutionError))
+      }
+      const fiveStageRecords = sampleFiveStageCalculationRuns()
+      persistedCalculations = [
+        ...persistedCalculations.filter(
+          (row) => !fiveStageRecords.some(
+            (canonical) => canonical.calculator_name === row.calculator_name
+          )
+        ),
+        ...fiveStageRecords
+      ]
+      return new Response(
+        JSON.stringify({
+          success: true,
+          idempotent_replay: false,
+          source_binding_id: 'binding-1',
+          calculation_ids: {
+            zone: 'calc-cold_room_zone_plan',
+            cooling_load: 'calc-cooling_load',
+            equipment: 'calc-equipment',
+            power: 'calc-installed_power',
+            investment: 'calc-investment_estimate'
+          },
+          result_hashes: {
+            zone: 'hash-cold_room_zone_plan',
+            cooling_load: 'hash-cooling_load',
+            equipment: 'hash-equipment',
+            power: 'hash-installed_power',
+            investment: 'hash-investment_estimate'
+          },
+          requires_review: true,
+          canonical_calculator_names: [
+            'cold_room_zone_plan',
+            'cooling_load',
+            'equipment',
+            'installed_power',
+            'investment_estimate'
+          ]
         })
       )
     }

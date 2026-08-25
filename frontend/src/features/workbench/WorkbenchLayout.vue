@@ -13,6 +13,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { path: '/workbench/project', label: '基本信息' },
+  { path: '/workbench/engineering-inputs', label: '工程输入' },
   { path: '/workbench/calculations', label: '计算结果' },
   { path: '/workbench/schemes', label: '方案比选' },
   { path: '/workbench/investment', label: '投资估算' },

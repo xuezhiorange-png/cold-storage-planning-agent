@@ -4,6 +4,7 @@ import { ElCard } from 'element-plus'
 
 import CalculationSummary from './CalculationSummary.vue'
 import ZoneResultsTable from './ZoneResultsTable.vue'
+import FiveStageProgressPanel from '../../five-stage/components/FiveStageProgressPanel.vue'
 import { usePersistedPlanningResultsStore } from '../../../stores/persistedPlanningResults'
 import { useWorkbenchContextStore } from '../../../stores/workbenchContext'
 
@@ -20,25 +21,28 @@ watch(
     persisted.load()
   }
 )
-
-const response = persisted.displayResponse
 </script>
 
 <template>
   <div class="calculations-page">
-    <template v-if="response?.summary && response.zone_plan?.result">
-      <CalculationSummary :summary="response.summary" />
+    <FiveStageProgressPanel :progress="persisted.fiveStageProgress" />
+
+    <template v-if="persisted.displayResponse?.summary && persisted.displayResponse.zone_plan?.result">
+      <CalculationSummary :summary="persisted.displayResponse.summary" />
       <ElCard>
         <template #header>
           <span>区域规划结果</span>
         </template>
-        <ZoneResultsTable :zones="response.zone_plan.result.zones" />
+        <ZoneResultsTable :zones="persisted.displayResponse.zone_plan.result.zones" />
       </ElCard>
     </template>
 
-    <div v-else class="calculations-page__empty">
-      <p>暂无计算结果。</p>
-      <p>请在「基本信息」页面输入参数并生成规划。</p>
+    <div
+      v-else-if="!persisted.fiveStageProgress.chainComplete"
+      class="calculations-page__empty"
+    >
+      <p>暂无完整五阶段计算结果。</p>
+      <p>请在「工程输入」页面填写 EngineeringInputBundleV1 并提交五阶段执行。</p>
     </div>
   </div>
 </template>

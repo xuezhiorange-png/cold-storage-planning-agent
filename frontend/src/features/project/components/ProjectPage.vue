@@ -57,8 +57,14 @@ function handleReset() {
       <template #header>
         <div class="project-page__header">
           <span>项目设计输入</span>
+          <span class="project-page__legacy-badge">V0.4 遗留路径 (planning-run)</span>
         </div>
       </template>
+
+      <p class="project-page__legacy-note">
+        此页面调用 V0.4 <code>planning-run</code> 辅助路径，不执行规范五阶段链。
+        请使用「工程输入」页面提交 EngineeringInputBundleV1 五阶段执行。
+      </p>
 
       <div v-if="store.error" role="alert" class="project-page__error">
         <p>{{ store.error }}</p>
@@ -79,6 +85,26 @@ function handleReset() {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+}
+
+.project-page__legacy-badge {
+  font-size: 12px;
+  color: #856404;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.project-page__legacy-note {
+  margin: 0 16px 12px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: #f3f7fb;
+  color: #163f68;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .project-page__error {
