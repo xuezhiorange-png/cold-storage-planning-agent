@@ -1611,6 +1611,133 @@ class TestCreateAppE2E:
         assert a1["artifact_id"] == a2["artifact_id"]
 
 
+# ---------------------------------------------------------------------------
+# Group 12: V0.6 P2 rendering hardening (localizer)
+# ---------------------------------------------------------------------------
+
+
+class TestV06P2LocalizerHardening:
+    def test_scheme_comparison_pivots_to_long_format(self) -> None:
+        from cold_storage.modules.reports.application.canonical_render_model_builder import (
+            build_canonical_render_model,
+        )
+        from cold_storage.modules.reports.application.render_model_localizer import (
+            localize_render_model,
+        )
+
+        content = {
+            "report_metadata": {
+                "project_id": "p1",
+                "schema_version": "cold_storage_concept_design@1.0.0",
+            },
+            "scheme_comparison": {
+                "run_id": "run-001",
+                "schemes": [
+                    {"scheme_id": "s1", "name": "Scheme A", "rank": 1, "total_score": "85.5"},
+                ],
+                "recommended_scheme": "s1",
+            },
+        }
+        canonical = build_canonical_render_model(
+            content=content,
+            report_id="r1",
+            revision_number=1,
+            content_hash="a" * 64,
+            generated_by="test",
+            generated_at="2025-01-01T00:00:00Z",
+            template_code="cold_storage_concept_design",
+            template_version="1.0.0",
+        )
+        model = localize_render_model(canonical, locale=ReportLocale.EN_US)
+        section = next(s for s in model.sections if s.section_key == "scheme_comparison")
+        assert section.table is not None
+        assert section.table.headers == ("Scheme", "Metric", "Value")
+        assert len(section.table.rows) == 1
+        assert section.table.rows[0][0].display_value == "Scheme A"
+        assert section.table.rows[0][1].display_value == "Total Score"
+        assert section.table.rows[0][2].display_value == "85.5"
+
+    def test_quality_findings_include_field_path_column(self) -> None:
+        from cold_storage.modules.reports.application.canonical_render_model_builder import (
+            build_canonical_render_model,
+        )
+        from cold_storage.modules.reports.application.render_model_localizer import (
+            localize_render_model,
+        )
+
+        content = {
+            "report_metadata": {"project_id": "p1"},
+            "quality_summary": {
+                "findings": [
+                    {
+                        "code": "DUP",
+                        "severity": "warning",
+                        "message": "Msg A",
+                        "section_key": "cooling_load",
+                        "field_path": "cooling_load.a",
+                    },
+                    {
+                        "code": "DUP",
+                        "severity": "warning",
+                        "message": "Msg B",
+                        "section_key": "equipment_selection",
+                        "field_path": "equipment_selection.b",
+                    },
+                ],
+            },
+        }
+        canonical = build_canonical_render_model(
+            content=content,
+            report_id="r1",
+            revision_number=1,
+            content_hash="a" * 64,
+            generated_by="test",
+            generated_at="2025-01-01T00:00:00Z",
+            template_code="cold_storage_concept_design",
+            template_version="1.0.0",
+        )
+        model = localize_render_model(canonical, locale=ReportLocale.EN_US)
+        section = next(s for s in model.sections if s.section_key == "quality_summary")
+        assert section.table is not None
+        assert len(section.table.headers) == 5
+        assert section.table.rows[0][3].display_value == "cooling_load.a"
+        assert section.table.rows[1][3].display_value == "equipment_selection.b"
+
+    def test_missing_information_skipped_when_risks_cover_content(self) -> None:
+        from cold_storage.modules.reports.application.canonical_render_model_builder import (
+            build_canonical_render_model,
+        )
+        from cold_storage.modules.reports.application.render_model_localizer import (
+            localize_render_model,
+        )
+
+        content = {
+            "report_metadata": {"project_id": "p1"},
+            "risks_and_missing_information": {
+                "risks": [{"description": "Same text", "severity": "high", "mitigation": ""}],
+                "missing_information": [
+                    {"description": "Same text", "impact": "foundation_design"}
+                ],
+            },
+        }
+        canonical = build_canonical_render_model(
+            content=content,
+            report_id="r1",
+            revision_number=1,
+            content_hash="a" * 64,
+            generated_by="test",
+            generated_at="2025-01-01T00:00:00Z",
+            template_code="cold_storage_concept_design",
+            template_version="1.0.0",
+        )
+        model = localize_render_model(canonical, locale=ReportLocale.EN_US)
+        section = next(
+            s for s in model.sections if s.section_key == "risks_and_missing_information"
+        )
+        assert "Same text" in section.text
+        assert "Missing Information:" not in section.text
+
+
 def _create_all_tables(engine):
     """Create tables from all module Base classes."""
     from cold_storage.modules.planning_agent.infrastructure.orm import Base as AgentBase

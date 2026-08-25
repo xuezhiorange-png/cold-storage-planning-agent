@@ -90,6 +90,8 @@ _MESSAGES: dict[str, str] = {
     "header.recommended": "Recommended",
     "header.rank": "Rank",
     "header.scheme_id": "Scheme ID",
+    "header.metric_label": "Metric",
+    "header.metric_value": "Value",
     "header.total_score": "Total Score",
     "header.total_investment_cny": "Total Investment (CNY)",
     "header.total_area_m2": "Total Area (m²)",
@@ -129,6 +131,7 @@ _MESSAGES: dict[str, str] = {
     "header.code": "Code",
     "header.severity": "Severity",
     "header.message": "Message",
+    "header.field_path": "Field",
     "header.source": "Source",
     "header.quality_findings": "Quality Findings",
     # ── Citation table headers ──
