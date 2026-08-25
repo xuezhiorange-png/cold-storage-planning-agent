@@ -506,7 +506,6 @@ class LineageAwareCalculatorPort:
         self._execution_snapshot = execution_snapshot
         self._input_group_provenance = dict(input_group_provenance)
         self._stage_payloads: dict[str, dict[str, Any]] = {}
-        self._cooling_zone_loads_by_code: dict[str, str] | None = None
 
     def execute_stage(
         self,
@@ -563,32 +562,12 @@ class LineageAwareCalculatorPort:
         correlation_id: str,
     ) -> None:
         if stage_name == "equipment" and self._lineage_confirmed("equipment_inputs"):
-            self._bind_equipment_from_cooling_load(
-                execution_snapshot=execution_snapshot,
-                coefficient_context=coefficient_context,
-            )
+            self._bind_equipment_from_cooling_load()
         if stage_name == "investment" and self._lineage_confirmed("investment_inputs"):
             self._bind_investment_from_zone_and_power()
 
-    def _bind_equipment_from_cooling_load(
-        self,
-        *,
-        execution_snapshot: dict[str, Any],
-        coefficient_context: dict[str, Any],
-    ) -> None:
-        zone_loads = self._cooling_zone_loads_by_code
-        if zone_loads is None:
-            zone_loads = self._capture_cooling_zone_loads(
-                execution_snapshot=execution_snapshot,
-                coefficient_context=coefficient_context,
-            )
-        if not zone_loads:
-            raise TransactionBFailure(
-                "UPSTREAM_LINEAGE_BIND_FAILED",
-                "equipment lineage binding requires per-zone cooling load results",
-                field="equipment_inputs.systems[].zones[].design_cooling_load_kw_r",
-                details={"reason": "missing_cooling_zone_loads"},
-            )
+    def _bind_equipment_from_cooling_load(self) -> None:
+        zone_loads = self._zone_loads_from_persisted_cooling_payload()
         equipment_stage = self._execution_snapshot.setdefault("equipment", {})
         systems = equipment_stage.get("systems")
         if not isinstance(systems, list):
@@ -645,80 +624,44 @@ class LineageAwareCalculatorPort:
         if total_power is not None:
             investment_stage["total_power_kw"] = _decimalize(total_power)
 
-    def _capture_cooling_zone_loads(
-        self,
-        *,
-        execution_snapshot: dict[str, Any],
-        coefficient_context: dict[str, Any],
-    ) -> dict[str, str]:
-        if self._cooling_zone_loads_by_code is not None:
-            return self._cooling_zone_loads_by_code
-        from dataclasses import replace
-
-        from cold_storage.modules.calculations.application.cooling_load_api import (
-            build_cooling_load_input,
-        )
-        from cold_storage.modules.calculations.domain.cooling_load import (
-            ZoneCoolingLoadInput,
-            calculate_cooling_load,
-        )
-        from cold_storage.modules.calculations.domain.errors import CoreCalculationError
-
-        stage_data = execution_snapshot.get("cooling_load", {})
-        if not isinstance(stage_data, dict):
-            self._cooling_zone_loads_by_code = {}
-            return self._cooling_zone_loads_by_code
-        raw_inputs = dict(stage_data)
-        try:
-            typed_input = build_cooling_load_input(raw_inputs)
-            coeff_data_raw: object = raw_inputs.get("coefficients", {})
-            coeff_data: dict[str, object] = (
-                coeff_data_raw if isinstance(coeff_data_raw, dict) else {}
-            )
-            worker_heat_gain: object = coeff_data.get("worker_heat_gain")
-            motor_efficiency: object = coeff_data.get("motor_efficiency")
-            if worker_heat_gain is not None or motor_efficiency is not None:
-                new_zones: list[ZoneCoolingLoadInput] = []
-                for zone in typed_input.zones:
-                    new_zones.append(
-                        replace(
-                            zone,
-                            worker_heat_gain=(
-                                _decimalize(worker_heat_gain)
-                                if worker_heat_gain is not None
-                                else zone.worker_heat_gain
-                            ),
-                            motor_efficiency=(
-                                _decimalize(motor_efficiency)
-                                if motor_efficiency is not None
-                                else zone.motor_efficiency
-                            ),
-                        )
-                    )
-                typed_input = replace(typed_input, zones=new_zones)
-            result = calculate_cooling_load(typed_input)
-        except (CoreCalculationError, TypeError, ValueError) as exc:
+    def _zone_loads_from_persisted_cooling_payload(self) -> dict[str, str]:
+        cooling_payload = self._stage_payloads.get("cooling_load")
+        if not isinstance(cooling_payload, dict):
             raise TransactionBFailure(
                 "UPSTREAM_LINEAGE_BIND_FAILED",
-                f"could not derive per-zone cooling loads for lineage binding: {exc}",
-                field="cooling_load_inputs.zones",
-                details={"error": str(exc)},
-            ) from exc
-        del coefficient_context  # stage-local coefficients drive lineage capture
-        payload = result.result
-        if not isinstance(payload, Mapping) or not isinstance(payload.get("zones"), list):
-            self._cooling_zone_loads_by_code = {}
-            return self._cooling_zone_loads_by_code
+                "equipment lineage binding requires persisted cooling_load result",
+                field="cooling_load.result_snapshot.zones",
+                details={"reason": "missing_cooling_load_payload"},
+            )
+        zones_raw = cooling_payload.get("zones")
+        if not isinstance(zones_raw, list) or not zones_raw:
+            raise TransactionBFailure(
+                "UPSTREAM_LINEAGE_BIND_FAILED",
+                "equipment lineage binding requires per-zone cooling load results",
+                field="cooling_load.result_snapshot.zones",
+                details={"reason": "missing_cooling_zone_loads"},
+            )
         zone_loads: dict[str, str] = {}
-        for zone in payload["zones"]:
-            if not isinstance(zone, Mapping):
+        for zone in zones_raw:
+            if not isinstance(zone, dict):
                 continue
             zone_code = zone.get("zone_code")
             load = zone.get("subtotal_load_kw_r")
             if zone_code is None or load is None:
-                continue
+                raise TransactionBFailure(
+                    "UPSTREAM_LINEAGE_BIND_FAILED",
+                    "equipment lineage binding requires zone_code and subtotal_load_kw_r",
+                    field="cooling_load.result_snapshot.zones",
+                    details={"zone": zone},
+                )
             zone_loads[str(zone_code)] = str(_decimalize(load))
-        self._cooling_zone_loads_by_code = zone_loads
+        if not zone_loads:
+            raise TransactionBFailure(
+                "UPSTREAM_LINEAGE_BIND_FAILED",
+                "equipment lineage binding requires per-zone cooling load results",
+                field="cooling_load.result_snapshot.zones",
+                details={"reason": "empty_cooling_zone_loads"},
+            )
         return zone_loads
 
 

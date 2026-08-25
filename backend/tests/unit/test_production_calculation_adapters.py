@@ -230,6 +230,12 @@ class TestCoolingLoadAdapter:
         # Cooling load calculator surfaces demo warnings → requires_review=True
         assert result.requires_review is True
         assert result.content_hash == _expected_hash(result.payload)
+        zones = result.payload.get("zones")
+        assert zones
+        assert zones[0]["zone_code"] == "Z1"
+        assert "subtotal_load_kw_r" in zones[0]
+        assert "total_cooling_load_kw" in result.payload
+        assert "envelope_heat_transfer_load_kw" in result.payload
 
     def test_rejects_missing_zones(self) -> None:
         adapter = adapters.CoolingLoadAdapter()

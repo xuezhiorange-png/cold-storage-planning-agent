@@ -1,8 +1,8 @@
-"""Unit tests for LineageAwareCalculatorPort fail-closed lineage (V0.5 P1 R2)."""
+"""Unit tests for LineageAwareCalculatorPort fail-closed lineage (V0.5 P1 R2/R3)."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -22,8 +22,16 @@ from cold_storage.modules.projects.application.five_stage_execution import (
 from tests.integration.v05_p1_bundle_fixtures import build_valid_engineering_input_bundle
 
 
+def _default_cooling_snapshot() -> dict[str, Any]:
+    return {
+        "total_cooling_load_kw": "999.0",
+        "zones": [{"zone_code": "Z1", "subtotal_load_kw_r": "42.5"}],
+    }
+
+
 @dataclass
 class _FakeInnerPort:
+    cooling_result_snapshot: dict[str, Any] = field(default_factory=_default_cooling_snapshot)
     last_equipment_snapshot: dict[str, Any] | None = None
 
     def execute_stage(
@@ -41,7 +49,7 @@ class _FakeInnerPort:
                 calculator_name="cooling_load",
                 calculator_version="1.0.0",
                 calculation_type="cooling_load",
-                result_snapshot={"total_cooling_load_kw": "999.0"},
+                result_snapshot=dict(self.cooling_result_snapshot),
                 formulas=[],
                 coefficients=[],
                 assumptions=[],
@@ -113,6 +121,7 @@ def _build_port(
     *,
     equipment_lineage_confirmed: bool = False,
     investment_lineage_confirmed: bool = True,
+    cooling_result_snapshot: dict[str, Any] | None = None,
 ) -> tuple[LineageAwareCalculatorPort, _FakeInnerPort, dict[str, Any]]:
     bundle = build_valid_engineering_input_bundle(
         project_id="p-1",
@@ -128,7 +137,9 @@ def _build_port(
     )
     execution_snapshot = project_execution_snapshot_from_bundle(bundle)
     coefficient_context = coefficient_context_from_bundle(bundle)
-    inner = _FakeInnerPort()
+    inner = _FakeInnerPort(
+        cooling_result_snapshot=cooling_result_snapshot or _default_cooling_snapshot()
+    )
     port = LineageAwareCalculatorPort(
         inner=inner,  # type: ignore[arg-type]
         execution_snapshot=execution_snapshot,
@@ -172,8 +183,28 @@ def test_equipment_binds_per_zone_cooling_load_when_lineage_confirmed() -> None:
     )
     assert inner.last_equipment_snapshot is not None
     zone = inner.last_equipment_snapshot["systems"][0]["zones"][0]
-    assert zone["design_cooling_load_kw_r"] != "120.0"
-    assert zone["design_cooling_load_kw_r"] != "999.0"
+    assert str(zone["design_cooling_load_kw_r"]) in {"42.5", "42.500"}
+
+
+def test_equipment_lineage_bind_fails_closed_when_zones_missing_from_snapshot() -> None:
+    port, _, coefficient_context = _build_port(
+        equipment_lineage_confirmed=True,
+        cooling_result_snapshot={"total_cooling_load_kw": "999.0"},
+    )
+    port.execute_stage(
+        stage_name="cooling_load",
+        execution_snapshot=dict(port._execution_snapshot),
+        coefficient_context=coefficient_context,
+        upstream_results={},
+    )
+    with pytest.raises(TransactionBFailure) as exc_info:
+        port.execute_stage(
+            stage_name="equipment",
+            execution_snapshot=dict(port._execution_snapshot),
+            coefficient_context=coefficient_context,
+            upstream_results={},
+        )
+    assert exc_info.value.code == "UPSTREAM_LINEAGE_BIND_FAILED"
 
 
 def test_equipment_lineage_bind_fails_closed_on_zone_code_mismatch() -> None:

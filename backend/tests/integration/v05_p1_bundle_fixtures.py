@@ -61,13 +61,21 @@ def build_valid_engineering_input_bundle(
         "schema_id": "EngineeringInputBundleV1",
         "schema_version": "1.0.0",
         "project_version_identity": {
-            "project_id": bundle_leaf(project_id, unit=None, source_type="persisted", requires_review=False),
+            "project_id": bundle_leaf(
+                project_id, unit=None, source_type="persisted", requires_review=False
+            ),
             "project_version_id": bundle_leaf(
                 project_version_id, unit=None, source_type="persisted", requires_review=False
             ),
-            "version_number": bundle_leaf(version_number, unit=None, source_type="persisted", requires_review=False),
-            "version_status": bundle_leaf(version_status, unit=None, source_type="persisted", requires_review=False),
-            "is_archived": bundle_leaf(False, unit=None, source_type="persisted", requires_review=False),
+            "version_number": bundle_leaf(
+                version_number, unit=None, source_type="persisted", requires_review=False
+            ),
+            "version_status": bundle_leaf(
+                version_status, unit=None, source_type="persisted", requires_review=False
+            ),
+            "is_archived": bundle_leaf(
+                False, unit=None, source_type="persisted", requires_review=False
+            ),
             "actor_principal": bundle_leaf(actor_principal, unit=None, requires_review=False),
             "correlation_id": bundle_leaf(correlation_id, unit=None, requires_review=False),
         },
@@ -137,7 +145,9 @@ def build_valid_engineering_input_bundle(
             "total_power_kw": bundle_leaf("150.0", unit="kW(e)", source_type="persisted"),
         },
         "coefficient_context": {
-            "coefficient_context_id": bundle_leaf("coeff-demo-001", unit=None, source_type="coefficient"),
+            "coefficient_context_id": bundle_leaf(
+                "coeff-demo-001", unit=None, source_type="coefficient"
+            ),
             "approved_revision_ids": bundle_leaf(["rev-001"], unit=None, source_type="coefficient"),
             "demo_coefficient_leaves": [],
         },

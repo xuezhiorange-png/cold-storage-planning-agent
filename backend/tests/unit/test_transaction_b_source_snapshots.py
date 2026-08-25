@@ -18,6 +18,7 @@ from cold_storage.modules.orchestration.application.source_snapshots import (
     CoefficientEntry,
     CoolingLoadResultSnapshotV1,
     CoolingLoadSourceSnapshotV1,
+    CoolingLoadZoneResultV1,
     EquipmentResultSnapshotV1,
     EquipmentSourceSnapshotV1,
     FormulaEntry,
@@ -208,6 +209,28 @@ class TestTypedResultSnapshots:
         snap = _make_cooling_load_result_snapshot()
         assert snap.total_cooling_load_kw == "120.5"
         assert snap.safety_margin_load_kw == "12.05"
+        assert snap.zones is None
+
+    def test_cooling_load_result_snapshot_accepts_optional_zones(self) -> None:
+        snap = CoolingLoadResultSnapshotV1(
+            total_cooling_load_kw=Decimal("120.5"),
+            safety_margin_load_kw=Decimal("12.05"),
+            envelope_heat_transfer_load_kw=Decimal("30"),
+            product_sensible_heat_load_kw=Decimal("40"),
+            packaging_load_kw=Decimal("5"),
+            infiltration_load_kw=Decimal("10"),
+            personnel_load_kw=Decimal("3"),
+            lighting_load_kw=Decimal("2"),
+            evaporator_fan_load_kw=Decimal("15"),
+            defrost_additional_load_kw=Decimal("10"),
+            other_configuration_load_kw=Decimal("5.45"),
+            zones=(
+                CoolingLoadZoneResultV1(zone_code="Z1", subtotal_load_kw_r=Decimal("42.5")),
+            ),
+        )
+        assert snap.zones is not None
+        assert snap.zones[0].zone_code == "Z1"
+        assert snap.zones[0].subtotal_load_kw_r == "42.5"
 
     def test_equipment_result_snapshot_valid(self) -> None:
         snap = _make_equipment_result_snapshot()

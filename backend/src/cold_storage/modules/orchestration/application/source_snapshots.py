@@ -469,6 +469,20 @@ class ZoneResultSnapshotV1(BaseModel):
         return _coerce_numeric_deep(v)  # type: ignore[return-value]
 
 
+class CoolingLoadZoneResultV1(BaseModel):
+    """Per-zone cooling load persisted for downstream lineage binding."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    zone_code: str
+    subtotal_load_kw_r: str
+
+    @field_validator("subtotal_load_kw_r", mode="before")
+    @classmethod
+    def _coerce_zone_subtotal(cls, v: object) -> str:
+        return _coerce_to_canonical_string(v)
+
+
 class CoolingLoadResultSnapshotV1(BaseModel):
     """Cooling load calculator result — explicit allowlist, extra='forbid'.
 
@@ -476,6 +490,7 @@ class CoolingLoadResultSnapshotV1(BaseModel):
     - total_cooling_load_kw
     - safety_margin_load_kw
     - Individual component load fields
+    - Optional per-zone subtotals for equipment lineage binding
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -494,6 +509,7 @@ class CoolingLoadResultSnapshotV1(BaseModel):
 
     # Optional legacy field used by source-domain mapping
     latent_load_kw: str | None = None
+    zones: tuple[CoolingLoadZoneResultV1, ...] | None = None
 
     @field_validator(
         "total_cooling_load_kw",

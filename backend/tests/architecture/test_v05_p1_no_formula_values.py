@@ -14,6 +14,13 @@ _ENGINEERING_VALUE_PATTERNS = (
     re.compile(r"\breserve_factor\s*=\s*0\.\d+"),
 )
 
+_FORBIDDEN_COOLING_CALCULATOR_IMPORTS = (
+    re.compile(r"calculations\.domain\.cooling_load"),
+    re.compile(r"calculations\.application\.cooling_load_api"),
+    re.compile(r"\bcalculate_cooling_load\b"),
+    re.compile(r"\bbuild_cooling_load_input\b"),
+)
+
 P1_FILES = (
     P1_PACKAGE / "engineering_input_bundle.py",
     P1_PACKAGE / "five_stage_execution.py",
@@ -27,6 +34,19 @@ def test_v05_p1_package_contains_no_engineering_formula_literals() -> None:
             match = pattern.search(content)
             assert match is None, (
                 f"Engineering formula literal pattern {pattern.pattern!r} "
+                f"found in {path.relative_to(REPO_ROOT)}: {match.group()!r}"
+                if match
+                else ""
+            )
+
+
+def test_v05_p1_application_must_not_import_cooling_load_calculator() -> None:
+    for path in P1_FILES:
+        content = path.read_text(encoding="utf-8")
+        for pattern in _FORBIDDEN_COOLING_CALCULATOR_IMPORTS:
+            match = pattern.search(content)
+            assert match is None, (
+                f"Forbidden cooling-load calculator import {pattern.pattern!r} "
                 f"found in {path.relative_to(REPO_ROOT)}: {match.group()!r}"
                 if match
                 else ""
