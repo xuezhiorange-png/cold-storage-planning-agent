@@ -23,6 +23,7 @@ from tests.integration.v05_p1_bundle_fixtures import build_valid_engineering_inp
         "cooling_load_inputs.zones[0].outdoor_design_temperature",
         "cooling_load_inputs.zones[0].product_entry_temperature",
         "equipment_inputs.systems[0].zones[0].evaporator_count",
+        "equipment_inputs.condensing_temperature_c",
         "installed_power_inputs.compressor_input_power_kw_e",
         "investment_inputs.total_area_m2",
     ),
@@ -44,6 +45,8 @@ def test_missing_key_fields_fail_closed(field_path: str) -> None:
         bundle["cooling_load_inputs"]["zones"][0].pop("product_entry_temperature")
     elif field_path == "equipment_inputs.systems[0].zones[0].evaporator_count":
         bundle["equipment_inputs"]["systems"][0]["zones"][0].pop("evaporator_count")
+    elif field_path == "equipment_inputs.condensing_temperature_c":
+        bundle["equipment_inputs"].pop("condensing_temperature_c")
     elif field_path == "installed_power_inputs.compressor_input_power_kw_e":
         bundle["installed_power_inputs"].pop("compressor_input_power_kw_e")
     elif field_path == "investment_inputs.total_area_m2":
@@ -52,7 +55,8 @@ def test_missing_key_fields_fail_closed(field_path: str) -> None:
     with pytest.raises(EngineeringInputBundleValidationError) as exc_info:
         validate_engineering_input_bundle(bundle)
     assert exc_info.value.error.code == "MISSING_ENGINEERING_PARAMETER"
-    assert field_path.split("[")[0] in exc_info.value.error.field_path or field_path in exc_info.value.error.field_path
+    error_path = exc_info.value.error.field_path
+    assert field_path.split("[")[0] in error_path or field_path in error_path
 
 
 def test_missing_numeric_unit_fails_closed() -> None:

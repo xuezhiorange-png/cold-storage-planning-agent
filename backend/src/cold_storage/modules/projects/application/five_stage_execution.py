@@ -54,6 +54,7 @@ from cold_storage.modules.orchestration.infrastructure.repositories import (
 )
 from cold_storage.modules.projects.application.engineering_input_bundle import (
     EngineeringInputBundleValidationError,
+    assert_canonical_power_slot,
     bundle_payload_hash,
     coefficient_context_from_bundle,
     project_execution_snapshot_from_bundle,
@@ -171,6 +172,7 @@ class WorkbenchFiveStageExecutionService:
 
             execution_snapshot = project_execution_snapshot_from_bundle(bundle)
             coefficient_context = coefficient_context_from_bundle(bundle)
+            input_group_provenance = _input_group_provenance_from_bundle(bundle)
             outcome = self._run_transaction_b(
                 session,
                 project_id=project_id,
@@ -178,6 +180,7 @@ class WorkbenchFiveStageExecutionService:
                 version_number=version.version_number,
                 execution_snapshot=execution_snapshot,
                 coefficient_context=coefficient_context,
+                input_group_provenance=input_group_provenance,
                 actor=actor_principal or actor,
                 correlation_id=correlation_id,
                 idempotency_key=idempotency_key,
@@ -203,6 +206,7 @@ class WorkbenchFiveStageExecutionService:
         version_number: int,
         execution_snapshot: dict[str, Any],
         coefficient_context: dict[str, Any],
+        input_group_provenance: dict[str, str],
         actor: str,
         correlation_id: str,
         idempotency_key: str,
@@ -288,6 +292,7 @@ class WorkbenchFiveStageExecutionService:
         calculator_port = LineageAwareCalculatorPort(
             inner=compose_phase2_adapter_calculator_port(),
             execution_snapshot=execution_snapshot,
+            input_group_provenance=input_group_provenance,
         )
         executor = TransactionBExecutor(
             calculation_run_repo=calc_run_repo,
@@ -488,15 +493,20 @@ class FiveStageExecutionRejected(Exception):
 class LineageAwareCalculatorPort:
     """Bind persisted upstream results into downstream typed inputs at execution time."""
 
+    _LINEAGE_CONFIRMED = "persisted_upstream_confirmed"
+
     def __init__(
         self,
         *,
         inner: Phase2AdapterCalculatorPort,
         execution_snapshot: dict[str, Any],
+        input_group_provenance: Mapping[str, str],
     ) -> None:
         self._inner = inner
         self._execution_snapshot = execution_snapshot
+        self._input_group_provenance = dict(input_group_provenance)
         self._stage_payloads: dict[str, dict[str, Any]] = {}
+        self._cooling_zone_loads_by_code: dict[str, str] | None = None
 
     def execute_stage(
         self,
@@ -508,7 +518,14 @@ class LineageAwareCalculatorPort:
         actor: str = "",
         correlation_id: str = "",
     ) -> StageExecutionResult:
-        self._bind_lineage(stage_name)
+        self._bind_lineage(
+            stage_name,
+            execution_snapshot=execution_snapshot,
+            coefficient_context=coefficient_context,
+            upstream_results=upstream_results,
+            actor=actor,
+            correlation_id=correlation_id,
+        )
         merged_snapshot = dict(execution_snapshot)
         merged_snapshot.update(self._execution_snapshot)
         result = self._inner.execute_stage(
@@ -519,25 +536,68 @@ class LineageAwareCalculatorPort:
             actor=actor,
             correlation_id=correlation_id,
         )
+        if stage_name == "power":
+            try:
+                assert_canonical_power_slot(result.calculator_name)
+            except EngineeringInputBundleValidationError as exc:
+                raise TransactionBFailure(
+                    exc.error.code,
+                    exc.error.message,
+                    field=exc.error.field_path,
+                    details={},
+                ) from exc
         self._stage_payloads[stage_name] = dict(result.result_snapshot)
         return result
 
-    def _bind_lineage(self, stage_name: str) -> None:
-        if stage_name == "equipment":
-            self._bind_equipment_from_cooling_load()
-        if stage_name == "investment":
+    def _lineage_confirmed(self, input_group: str) -> bool:
+        return self._input_group_provenance.get(input_group) == self._LINEAGE_CONFIRMED
+
+    def _bind_lineage(
+        self,
+        stage_name: str,
+        *,
+        execution_snapshot: dict[str, Any],
+        coefficient_context: dict[str, Any],
+        upstream_results: dict[str, StagePersistedResult],
+        actor: str,
+        correlation_id: str,
+    ) -> None:
+        if stage_name == "equipment" and self._lineage_confirmed("equipment_inputs"):
+            self._bind_equipment_from_cooling_load(
+                execution_snapshot=execution_snapshot,
+                coefficient_context=coefficient_context,
+            )
+        if stage_name == "investment" and self._lineage_confirmed("investment_inputs"):
             self._bind_investment_from_zone_and_power()
 
-    def _bind_equipment_from_cooling_load(self) -> None:
-        cooling_payload = self._stage_payloads.get("cooling_load", {})
-        total_kw = cooling_payload.get("total_cooling_load_kw")
-        if total_kw is None:
-            return
+    def _bind_equipment_from_cooling_load(
+        self,
+        *,
+        execution_snapshot: dict[str, Any],
+        coefficient_context: dict[str, Any],
+    ) -> None:
+        zone_loads = self._cooling_zone_loads_by_code
+        if zone_loads is None:
+            zone_loads = self._capture_cooling_zone_loads(
+                execution_snapshot=execution_snapshot,
+                coefficient_context=coefficient_context,
+            )
+        if not zone_loads:
+            raise TransactionBFailure(
+                "UPSTREAM_LINEAGE_BIND_FAILED",
+                "equipment lineage binding requires per-zone cooling load results",
+                field="equipment_inputs.systems[].zones[].design_cooling_load_kw_r",
+                details={"reason": "missing_cooling_zone_loads"},
+            )
         equipment_stage = self._execution_snapshot.setdefault("equipment", {})
         systems = equipment_stage.get("systems")
         if not isinstance(systems, list):
-            return
-        bound = str(_decimalize(total_kw))
+            raise TransactionBFailure(
+                "UPSTREAM_LINEAGE_BIND_FAILED",
+                "equipment lineage binding requires equipment systems",
+                field="equipment_inputs.systems",
+                details={},
+            )
         for system in systems:
             if not isinstance(system, dict):
                 continue
@@ -545,8 +605,31 @@ class LineageAwareCalculatorPort:
             if not isinstance(zones, list):
                 continue
             for zone in zones:
-                if isinstance(zone, dict):
-                    zone["design_cooling_load_kw_r"] = bound
+                if not isinstance(zone, dict):
+                    continue
+                zone_code = str(zone.get("zone_code", ""))
+                if not zone_code:
+                    raise TransactionBFailure(
+                        "UPSTREAM_LINEAGE_BIND_FAILED",
+                        "equipment lineage binding requires zone_code on every zone",
+                        field="equipment_inputs.systems[].zones[].zone_code",
+                        details={},
+                    )
+                load = zone_loads.get(zone_code)
+                if load is None:
+                    raise TransactionBFailure(
+                        "UPSTREAM_LINEAGE_BIND_FAILED",
+                        (
+                            "equipment lineage binding could not match cooling load "
+                            f"for zone_code {zone_code!r}"
+                        ),
+                        field="equipment_inputs.systems[].zones[].design_cooling_load_kw_r",
+                        details={
+                            "zone_code": zone_code,
+                            "available_zone_codes": sorted(zone_loads),
+                        },
+                    )
+                zone["design_cooling_load_kw_r"] = load
 
     def _bind_investment_from_zone_and_power(self) -> None:
         investment_stage = self._execution_snapshot.setdefault("investment", {})
@@ -554,12 +637,6 @@ class LineageAwareCalculatorPort:
         total_area = zone_payload.get("total_area_m2") or zone_payload.get("total_required_area_m2")
         if total_area is not None:
             investment_stage["total_area_m2"] = _decimalize(total_area)
-        refrigerated = _sum_zone_area(zone_payload, exclude_frozen=True)
-        frozen = _sum_zone_area(zone_payload, frozen_only=True)
-        if refrigerated is not None:
-            investment_stage["refrigerated_area_m2"] = refrigerated
-        if frozen is not None:
-            investment_stage["frozen_area_m2"] = frozen
         position_count = _sum_position_count(zone_payload)
         if position_count is not None:
             investment_stage["position_count"] = position_count
@@ -568,11 +645,97 @@ class LineageAwareCalculatorPort:
         if total_power is not None:
             investment_stage["total_power_kw"] = _decimalize(total_power)
 
+    def _capture_cooling_zone_loads(
+        self,
+        *,
+        execution_snapshot: dict[str, Any],
+        coefficient_context: dict[str, Any],
+    ) -> dict[str, str]:
+        if self._cooling_zone_loads_by_code is not None:
+            return self._cooling_zone_loads_by_code
+        from dataclasses import replace
+
+        from cold_storage.modules.calculations.application.cooling_load_api import (
+            build_cooling_load_input,
+        )
+        from cold_storage.modules.calculations.domain.cooling_load import (
+            ZoneCoolingLoadInput,
+            calculate_cooling_load,
+        )
+        from cold_storage.modules.calculations.domain.errors import CoreCalculationError
+
+        stage_data = execution_snapshot.get("cooling_load", {})
+        if not isinstance(stage_data, dict):
+            self._cooling_zone_loads_by_code = {}
+            return self._cooling_zone_loads_by_code
+        raw_inputs = dict(stage_data)
+        try:
+            typed_input = build_cooling_load_input(raw_inputs)
+            coeff_data_raw: object = raw_inputs.get("coefficients", {})
+            coeff_data: dict[str, object] = (
+                coeff_data_raw if isinstance(coeff_data_raw, dict) else {}
+            )
+            worker_heat_gain: object = coeff_data.get("worker_heat_gain")
+            motor_efficiency: object = coeff_data.get("motor_efficiency")
+            if worker_heat_gain is not None or motor_efficiency is not None:
+                new_zones: list[ZoneCoolingLoadInput] = []
+                for zone in typed_input.zones:
+                    new_zones.append(
+                        replace(
+                            zone,
+                            worker_heat_gain=(
+                                _decimalize(worker_heat_gain)
+                                if worker_heat_gain is not None
+                                else zone.worker_heat_gain
+                            ),
+                            motor_efficiency=(
+                                _decimalize(motor_efficiency)
+                                if motor_efficiency is not None
+                                else zone.motor_efficiency
+                            ),
+                        )
+                    )
+                typed_input = replace(typed_input, zones=new_zones)
+            result = calculate_cooling_load(typed_input)
+        except (CoreCalculationError, TypeError, ValueError) as exc:
+            raise TransactionBFailure(
+                "UPSTREAM_LINEAGE_BIND_FAILED",
+                f"could not derive per-zone cooling loads for lineage binding: {exc}",
+                field="cooling_load_inputs.zones",
+                details={"error": str(exc)},
+            ) from exc
+        del coefficient_context  # stage-local coefficients drive lineage capture
+        payload = result.result
+        if not isinstance(payload, Mapping) or not isinstance(payload.get("zones"), list):
+            self._cooling_zone_loads_by_code = {}
+            return self._cooling_zone_loads_by_code
+        zone_loads: dict[str, str] = {}
+        for zone in payload["zones"]:
+            if not isinstance(zone, Mapping):
+                continue
+            zone_code = zone.get("zone_code")
+            load = zone.get("subtotal_load_kw_r")
+            if zone_code is None or load is None:
+                continue
+            zone_loads[str(zone_code)] = str(_decimalize(load))
+        self._cooling_zone_loads_by_code = zone_loads
+        return zone_loads
+
 
 def compose_workbench_five_stage_execution_service(
     session_factory: sessionmaker[Session],
 ) -> WorkbenchFiveStageExecutionService:
     return WorkbenchFiveStageExecutionService(session_factory)
+
+
+def _input_group_provenance_from_bundle(bundle: Mapping[str, Any]) -> dict[str, str]:
+    source_metadata = bundle.get("source_metadata")
+    if not isinstance(source_metadata, dict):
+        return {}
+    provenance = source_metadata.get("input_group_provenance")
+    if not isinstance(provenance, dict):
+        return {}
+    return {str(key): str(value) for key, value in provenance.items()}
 
 
 def _leaf(section: Mapping[str, Any], field_name: str) -> Any:
@@ -586,31 +749,6 @@ def _decimalize(value: Any) -> Decimal:
     if isinstance(value, Decimal):
         return value
     return Decimal(str(value))
-
-
-def _sum_zone_area(
-    zone_payload: dict[str, Any], *, frozen_only: bool = False, exclude_frozen: bool = False
-) -> Decimal | None:
-    zones = zone_payload.get("zones")
-    if not isinstance(zones, list):
-        return None
-    total = Decimal("0")
-    found = False
-    for zone in zones:
-        if not isinstance(zone, dict):
-            continue
-        band = str(zone.get("temperature_band", ""))
-        is_frozen = "-18" in band or "冷冻" in band
-        if frozen_only and not is_frozen:
-            continue
-        if exclude_frozen and is_frozen:
-            continue
-        area = zone.get("required_area_m2")
-        if area is None:
-            continue
-        total += Decimal(str(area))
-        found = True
-    return total if found else None
 
 
 def _sum_position_count(zone_payload: dict[str, Any]) -> int | None:

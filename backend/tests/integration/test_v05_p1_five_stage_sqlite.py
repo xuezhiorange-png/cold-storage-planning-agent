@@ -167,3 +167,59 @@ def test_idempotent_replay_returns_existing_outcome(migrated_client) -> None:
     assert second["idempotent_replay"] is True
     assert second["source_binding_id"] == first["source_binding_id"]
     assert second["calculation_ids"] == first["calculation_ids"]
+
+
+def test_idempotency_payload_conflict_fails_closed(migrated_client) -> None:
+    client, _service, engine = migrated_client
+    project_id, version_number, version_id = _create_project(client)
+    bundle = build_valid_engineering_input_bundle(
+        project_id=project_id,
+        project_version_id=version_id,
+        version_number=version_number,
+    )
+    first = client.post(
+        f"/api/v1/projects/{project_id}/versions/{version_number}/five-stage-execution",
+        json={"engineering_input_bundle": bundle, "idempotency_key": "idem-v05-p1-conflict"},
+    ).json()
+    assert "error" not in first, first
+
+    conflicting = build_valid_engineering_input_bundle(
+        project_id=project_id,
+        project_version_id=version_id,
+        version_number=version_number,
+    )
+    conflicting["zone_planning_inputs"]["daily_inbound_mass_kg"]["value"] = "25000"
+    response = client.post(
+        f"/api/v1/projects/{project_id}/versions/{version_number}/five-stage-execution",
+        json={"engineering_input_bundle": conflicting, "idempotency_key": "idem-v05-p1-conflict"},
+    ).json()
+    assert response["error"]["code"] == "IDEMPOTENCY_PAYLOAD_CONFLICT"
+
+    with sessionmaker(bind=engine, expire_on_commit=False)() as session:
+        binding_count = session.scalar(select(func.count()).select_from(SourceBindingRecord))
+        assert binding_count == 1
+
+
+def test_approved_version_rejects_five_stage_execution(migrated_client) -> None:
+    client, _service, engine = migrated_client
+    project_id, version_number, version_id = _create_project(client)
+    bundle = build_valid_engineering_input_bundle(
+        project_id=project_id,
+        project_version_id=version_id,
+        version_number=version_number,
+    )
+    client.post(f"/api/v1/projects/{project_id}/versions/{version_number}/submit")
+    client.post(f"/api/v1/projects/{project_id}/versions/{version_number}/review")
+    client.post(f"/api/v1/projects/{project_id}/versions/{version_number}/approve")
+
+    response = client.post(
+        f"/api/v1/projects/{project_id}/versions/{version_number}/five-stage-execution",
+        json={"engineering_input_bundle": bundle, "idempotency_key": "idem-v05-p1-locked"},
+    ).json()
+    assert response["error"]["code"] == "PROJECT_VERSION_LOCKED"
+
+    with sessionmaker(bind=engine, expire_on_commit=False)() as session:
+        calc_count = session.scalar(select(func.count()).select_from(CalculationRunRecord))
+        binding_count = session.scalar(select(func.count()).select_from(SourceBindingRecord))
+        assert calc_count == 0
+        assert binding_count == 0

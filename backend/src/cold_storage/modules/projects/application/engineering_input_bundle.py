@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, NoReturn, cast
+from typing import Any, NoReturn
 
 from cold_storage.modules.orchestration.domain.dag import CALCULATOR_BINDINGS
 from cold_storage.shared.errors import MissingEngineeringParameterError
@@ -208,20 +208,7 @@ def _validate_cooling_load_inputs(bundle: Mapping[str, Any]) -> None:
             "temperature_level",
         ):
             _required_leaf(zone, field_name, f"{prefix}.{field_name}")
-        for field_name in (
-            "zone_area",
-            "room_height",
-            "wall_area",
-            "roof_area",
-            "floor_area",
-            "outdoor_design_temperature",
-            "room_design_temperature",
-            "operating_hours_per_day",
-            "product_mass_per_day",
-            "product_entry_temperature",
-            "product_target_temperature",
-            "cooling_duration",
-        ):
+        for field_name in _KEY_COOLING_ZONE_FIELDS[3:]:
             _required_numeric_leaf(zone, field_name, f"{prefix}.{field_name}")
         for coeff_name in _OPTIONAL_COEFFICIENT_LEAVES:
             _require_explicit_or_coefficient_context(
@@ -240,18 +227,23 @@ def _validate_equipment_inputs(bundle: Mapping[str, Any]) -> None:
             "equipment_inputs.systems", "equipment_inputs.systems must be a non-empty array"
         )
     _required_leaf(section, "coefficients", "equipment_inputs.coefficients")
+    _required_numeric_leaf(
+        section,
+        "condensing_temperature_c",
+        "equipment_inputs.condensing_temperature_c",
+    )
     for sys_index, system in enumerate(systems):
         if not isinstance(system, dict):
             _raise_missing(
                 f"equipment_inputs.systems[{sys_index}]", "system entry must be an object"
             )
         prefix = f"equipment_inputs.systems[{sys_index}]"
-        for field_name in ("system_code", "system_name"):
+        for field_name in _KEY_EQUIPMENT_SYSTEM_FIELDS[:2]:
             _required_leaf(system, field_name, f"{prefix}.{field_name}")
         _required_numeric_leaf(
             system,
-            "design_evaporating_temperature",
-            f"{prefix}.design_evaporating_temperature",
+            _KEY_EQUIPMENT_SYSTEM_FIELDS[2],
+            f"{prefix}.{_KEY_EQUIPMENT_SYSTEM_FIELDS[2]}",
         )
         zones = system.get("zones")
         if not isinstance(zones, list) or not zones:
@@ -260,13 +252,16 @@ def _validate_equipment_inputs(bundle: Mapping[str, Any]) -> None:
             if not isinstance(zone, dict):
                 _raise_missing(f"{prefix}.zones[{zone_index}]", "zone entry must be an object")
             zone_prefix = f"{prefix}.zones[{zone_index}]"
-            for field_name in ("zone_code", "zone_name", "defrost_method"):
-                _required_leaf(zone, field_name, f"{zone_prefix}.{field_name}")
-            _required_numeric_leaf(zone, "evaporator_count", f"{zone_prefix}.evaporator_count")
+            for field_name in _KEY_EQUIPMENT_ZONE_FIELDS[:3]:
+                if field_name == "evaporator_count":
+                    _required_numeric_leaf(zone, field_name, f"{zone_prefix}.{field_name}")
+                else:
+                    _required_leaf(zone, field_name, f"{zone_prefix}.{field_name}")
+            _required_leaf(zone, _KEY_EQUIPMENT_ZONE_FIELDS[3], f"{zone_prefix}.defrost_method")
             _required_numeric_leaf(
                 zone,
-                "design_cooling_load_kw_r",
-                f"{zone_prefix}.design_cooling_load_kw_r",
+                _KEY_EQUIPMENT_ZONE_FIELDS[4],
+                f"{zone_prefix}.{_KEY_EQUIPMENT_ZONE_FIELDS[4]}",
             )
 
 
@@ -341,20 +336,7 @@ def _cooling_load_stage_payload(
             "zone_name": _leaf_text(zone, "zone_name"),
             "temperature_level": _leaf_text(zone, "temperature_level"),
         }
-        for field_name in (
-            "zone_area",
-            "room_height",
-            "wall_area",
-            "roof_area",
-            "floor_area",
-            "outdoor_design_temperature",
-            "room_design_temperature",
-            "operating_hours_per_day",
-            "product_mass_per_day",
-            "product_entry_temperature",
-            "product_target_temperature",
-            "cooling_duration",
-        ):
+        for field_name in _KEY_COOLING_ZONE_FIELDS[3:]:
             zone_out[field_name] = _decimalize(_required_numeric_leaf(zone, field_name, field_name))
         for coeff_name in _OPTIONAL_COEFFICIENT_LEAVES:
             value = _optional_leaf_value(zone, coeff_name, coefficient_context)
@@ -422,9 +404,7 @@ def _equipment_stage_payload(
                 "condensing_temperature_c",
                 "equipment_inputs.condensing_temperature_c",
             )
-        )
-        if "condensing_temperature_c" in section
-        else "40.0",
+        ),
         "systems": systems_out,
         "coefficients": coeff_payload,
     }
