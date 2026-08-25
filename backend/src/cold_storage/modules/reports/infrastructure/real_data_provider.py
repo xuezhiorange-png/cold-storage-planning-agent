@@ -27,6 +27,9 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from cold_storage.modules.reports.application.assembler import ReportDataProvider
+from cold_storage.modules.reports.application.persisted_calculation_reads import (
+    ReportEngineeringContext,
+)
 from cold_storage.modules.reports.domain.errors import ReportError
 
 # ── Projection error type ──────────────────────────────────────────────────
@@ -318,6 +321,42 @@ def _project_v0_to_v1_section(
             reason_code="MISSING_PROVENANCE",
         )
 
+    if section_key == "investment_estimate":
+        if "total_investment_cny" not in section_data:
+            raise ReportProjectionError(
+                section_key=section_key,
+                result_id=result_id,
+                field_path="total_investment_cny",
+                reason_code="REQUIRED_SOURCE_FIELD_MISSING",
+            )
+        projected["total_investment"] = _coerce_to_number(
+            value=section_data["total_investment_cny"],
+            section_key=section_key,
+            result_id=result_id,
+            field_path="total_investment_cny",
+        )
+        items = section_data.get("items")
+        if isinstance(items, list):
+            breakdown: dict[str, Any] = {}
+            for index, item in enumerate(items):
+                if not isinstance(item, dict):
+                    continue
+                item_name = item.get("item_name")
+                amount = item.get("amount_cny")
+                if not isinstance(item_name, str) or not item_name.strip():
+                    continue
+                if amount is None:
+                    continue
+                breakdown[item_name] = _coerce_to_number(
+                    value=amount,
+                    section_key=section_key,
+                    result_id=result_id,
+                    field_path=f"items[{index}].amount_cny",
+                )
+            if breakdown:
+                projected["breakdown"] = breakdown
+        return projected
+
     if section_key == "throughput_inventory_area":
         # throughput_inventory_area v1 fields: daily_inbound_mass_kg
         # (number), storage_capacity_kg (number, optional — only when
@@ -449,6 +488,7 @@ _REPORT_SECTIONS: tuple[tuple[str, str], ...] = (
     ("cooling_load_result", "cooling_load"),
     ("equipment_result", "equipment_selection"),
     ("power_result", "electrical_and_energy"),
+    ("investment_result", "investment_estimate"),
 )
 
 
@@ -513,7 +553,13 @@ class RealReportDataProvider(ReportDataProvider):
             pass
         return None
 
-    def get_calculation_results(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
+    def get_calculation_results(
+        self,
+        project_id: str,
+        version_id: str,
+        *,
+        skip_projection_errors: bool = False,
+    ) -> list[dict[str, Any]]:
         """Project persisted v0 calculation rows into v1 report sections.
 
         The supplied ``calculation_service`` must expose
@@ -573,14 +619,19 @@ class RealReportDataProvider(ReportDataProvider):
                 )
             # Project v0 → v1 with strict typing.  Any unknown / missing
             # / invalid source field raises ReportProjectionError.
-            projected = _project_v0_to_v1_section(
-                calc_result=calc_result,
-                section_key=section_key,
-                section_data=section_data,
-                result_id=result_id,
-                calculator_name=calculator_name,
-                calculator_version=calculator_version,
-            )
+            try:
+                projected = _project_v0_to_v1_section(
+                    calc_result=calc_result,
+                    section_key=section_key,
+                    section_data=section_data,
+                    result_id=result_id,
+                    calculator_name=calculator_name,
+                    calculator_version=calculator_version,
+                )
+            except ReportProjectionError:
+                if skip_projection_errors:
+                    continue
+                raise
 
             entry: dict[str, Any] = {
                 "section_key": section_key,
@@ -606,6 +657,47 @@ class RealReportDataProvider(ReportDataProvider):
             sections.append(entry)
 
         return sections
+
+    def get_report_engineering_context(
+        self, project_id: str, version_id: str
+    ) -> ReportEngineeringContext | None:
+        """Read persisted engineering input/assumption authority for assembly."""
+        if self._calculation_service is None:
+            return None
+        reader = getattr(self._calculation_service, "get_report_engineering_context", None)
+        if not callable(reader):
+            return None
+        try:
+            context = reader(project_id, version_id)
+        except (AttributeError, KeyError):
+            return None
+        return context if isinstance(context, ReportEngineeringContext) else None
+
+    def get_input_conditions(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        context = self.get_report_engineering_context(project_id, version_id)
+        if context is None:
+            return None
+        return context.input_conditions
+
+    def get_assumptions(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        context = self.get_report_engineering_context(project_id, version_id)
+        if context is None:
+            return None
+        return context.assumptions
+
+    def get_indexed_canonical_calculators(
+        self, project_id: str, version_id: str
+    ) -> frozenset[str]:
+        context = self.get_report_engineering_context(project_id, version_id)
+        if context is None:
+            return frozenset()
+        return context.indexed_calculator_names
+
+    def get_stale_lineage_reasons(self, project_id: str, version_id: str) -> tuple[str, ...]:
+        context = self.get_report_engineering_context(project_id, version_id)
+        if context is None:
+            return ()
+        return context.stale_lineage_reasons
 
     def get_scheme_results(self, project_id: str, version_id: str) -> dict[str, Any] | None:
         """Read scheme comparison results via SchemeQueryPort.

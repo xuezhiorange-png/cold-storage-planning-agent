@@ -58,7 +58,13 @@ class _FakeDataProvider(ReportDataProvider):
     ) -> dict[str, Any] | None:
         return {"id": version_id, "version_number": 1}
 
-    def get_calculation_results(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
+    def get_calculation_results(
+        self,
+        project_id: str,
+        version_id: str,
+        *,
+        skip_projection_errors: bool = False,
+    ) -> list[dict[str, Any]]:
         return [
             {
                 "section_key": "cooling_load",
@@ -1193,3 +1199,65 @@ def test_different_revision_mark_reviewed_proof_fails_closed_for_approval(db_ses
     assert len(old_actions) == 1
     assert old_actions[0].report_revision_id == revision_one.id
     assert revision_two.id != revision_one.id
+
+
+class _EngineeringAwareDataProvider(_FakeDataProvider):
+    def get_input_conditions(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        return {
+            "zones": [{"zone_code": "Z1", "temperature_level": "low_temperature"}],
+            "temperature_levels": [{"level": "low_temperature"}],
+            "coefficients_used": ["raw_area_loading"],
+        }
+
+    def get_assumptions(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        return {
+            "items": [
+                {
+                    "description": "Persisted calculation assumption",
+                    "source": "calculation:cooling_load",
+                }
+            ]
+        }
+
+    def get_indexed_canonical_calculators(
+        self, project_id: str, version_id: str
+    ) -> frozenset[str]:
+        return frozenset({"cooling_load", "equipment", "installed_power"})
+
+
+def test_v06_p1_assembler_populates_input_conditions_and_assumptions() -> None:
+    assembled = ReportAssembler(_EngineeringAwareDataProvider()).assemble(
+        report_id="report-1",
+        project_id="p1",
+        project_version_id="v1",
+        report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+        revision_number=1,
+        generated_by="user1",
+    )
+    assert assembled.content["input_conditions"]["zones"]
+    assert assembled.content["assumptions"]["items"]
+
+
+def test_v06_p1_missing_canonical_source_adds_blocker_finding() -> None:
+    class _PartialCanonicalProvider(_EngineeringAwareDataProvider):
+        def get_calculation_results(
+            self,
+            project_id: str,
+            version_id: str,
+            *,
+            skip_projection_errors: bool = False,
+        ) -> list[dict[str, Any]]:
+            return super().get_calculation_results(project_id, version_id)[:1]
+
+    assembled = ReportAssembler(_PartialCanonicalProvider()).assemble(
+        report_id="report-2",
+        project_id="p1",
+        project_version_id="v1",
+        report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+        revision_number=1,
+        generated_by="user1",
+    )
+    codes = {finding["code"] for finding in assembled.findings}
+    assert "MISSING_CANONICAL_SOURCE" in codes
+    assert assembled.quality_status == ReportStatus.DRAFT
+
