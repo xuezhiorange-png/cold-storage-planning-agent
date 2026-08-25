@@ -1,0 +1,18 @@
+{
+  "schema_version": "v06-p3-v05-seed-manifest-ref.v1",
+  "sample_id": "v05-local-workbench",
+  "manifest_path": "samples/v05-local-workbench/manifest.json",
+  "manifest_sha256": "f12f37294c52b63f7a8779a86ed89403108974c437576a8ebd64d4af3190c337",
+  "seed_entrypoint": "cold_storage.bootstrap.v05_local_sample.seed_v05_local_sample",
+  "execution_api": "POST /api/v1/projects/{project_id}/versions/{version_number}/five-stage-execution",
+  "expected_canonical_calculators": [
+    "cold_room_zone_plan",
+    "cooling_load",
+    "equipment",
+    "installed_power",
+    "investment_estimate"
+  ],
+  "supplemental_only_calculators": [
+    "power_configuration"
+  ]
+}

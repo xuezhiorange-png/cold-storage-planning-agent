@@ -1,0 +1,41 @@
+{
+  "schema_version": "v06-p3-scenario-registry.v1",
+  "parent_contract": "docs/tasks/V0_6-P3-evaluation-contract.md",
+  "frozen_scenario_labels": {
+    "primary": "five_stage_persisted_formal_evaluation",
+    "deferred_pilot_scope": "high_throughput_review"
+  },
+  "label_authority": {
+    "high_throughput_review": {
+      "role": "scenario_label_only",
+      "mutates_review_rules": false,
+      "mutates_review_thresholds": false,
+      "mutates_calculator_formulas": false,
+      "source_definition_fixture": "backend/tests/fixtures/v06/v06_p3_high_throughput_review_label_source.v1.json",
+      "source_definition_sha256": "2c99808ba2f34bb052324707fd48b01bb13b294f9af1683afe1fb15eadb42cf8"
+    }
+  },
+  "seed_authority": {
+    "module": "cold_storage.bootstrap.v05_local_sample",
+    "entrypoint": "seed_v05_local_sample",
+    "execution_api": "POST /api/v1/projects/{project_id}/versions/{version_number}/five-stage-execution",
+    "manifest_fixture": "backend/tests/fixtures/v06/v06_p3_v05_seed_manifest_ref.v1.json",
+    "forbidden_paths": [
+      "planning-run",
+      "formula_recalculation",
+      "silent_default_engineering_values"
+    ]
+  },
+  "public_api_sequence": [
+    "POST /api/v1/reports",
+    "POST /api/v1/reports/{id}/generate",
+    "POST /api/v1/reports/{id}/submit-review",
+    "POST /api/v1/reports/{id}/mark-reviewed",
+    "POST /api/v1/reports/{id}/approve",
+    "POST /api/v1/reports/{id}/revisions/{n}/render"
+  ],
+  "database_backends": [
+    "sqlite",
+    "postgresql"
+  ]
+}
