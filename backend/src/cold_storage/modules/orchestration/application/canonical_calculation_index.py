@@ -18,8 +18,9 @@ from cold_storage.modules.orchestration.domain.consumer_bindings import (
 def _normalize_created_at(value: Any) -> str:
     if value is None:
         return ""
-    if hasattr(value, "isoformat"):
-        return value.isoformat()
+    iso = getattr(value, "isoformat", None)
+    if callable(iso):
+        return str(iso())
     return str(value)
 
 

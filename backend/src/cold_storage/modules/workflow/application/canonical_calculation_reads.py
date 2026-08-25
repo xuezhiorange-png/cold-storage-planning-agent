@@ -53,10 +53,10 @@ def detect_canonical_lineage_stale_reasons(
     for stage in CANONICAL_STAGE_ORDER:
         if stage == "zone":
             continue
-        record = by_stage.get(stage)
-        if record is None:
+        stage_record = by_stage.get(stage)
+        if stage_record is None:
             continue
-        upstream_ids = record.get("upstream_calculation_ids")
+        upstream_ids = stage_record.get("upstream_calculation_ids")
         if not isinstance(upstream_ids, dict):
             continue
         expected_upstream = STAGE_UPSTREAM_PROVENANCE_KEYS.get(stage, frozenset())
