@@ -10,7 +10,6 @@ from __future__ import annotations
 from cold_storage.modules.orchestration.domain.dag import (
     CALCULATOR_BINDINGS,
     ORCHESTRATION_STAGE_ORDER,
-    STAGE_UPSTREAM_PROVENANCE_KEYS,
 )
 
 CANONICAL_CALCULATOR_NAMES: frozenset[str] = frozenset(CALCULATOR_BINDINGS.values())

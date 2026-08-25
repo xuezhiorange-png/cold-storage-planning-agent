@@ -36,9 +36,7 @@ def missing_canonical_calculator_names(
 def canonical_runs_requiring_review(
     indexed: dict[str, dict[str, Any]],
 ) -> list[str]:
-    return sorted(
-        name for name, record in indexed.items() if bool(record.get("requires_review"))
-    )
+    return sorted(name for name, record in indexed.items() if bool(record.get("requires_review")))
 
 
 def detect_canonical_lineage_stale_reasons(

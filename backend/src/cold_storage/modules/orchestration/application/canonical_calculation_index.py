@@ -51,9 +51,7 @@ def _matches_project_context(
         record_version_id = str(getattr(record, "project_version_id", ""))
     if record_project_id and record_project_id != project_id:
         return False
-    if record_version_id and record_version_id != project_version_id:
-        return False
-    return True
+    return not (record_version_id and record_version_id != project_version_id)
 
 
 def index_canonical_calculation_runs(

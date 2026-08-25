@@ -40,18 +40,11 @@ from cold_storage.modules.schemes.domain.errors import (
     SourceSnapshotInvalidError,
     WeightSetError,
 )
-from cold_storage.modules.orchestration.domain.consumer_bindings import (
-    CANONICAL_STAGE_ORDER,
-)
 from cold_storage.modules.schemes.domain.generator import GENERATOR_VERSION, generate_schemes
 from cold_storage.modules.schemes.domain.models import (
-    CoolingLoadResult,
-    EquipmentResult,
-    InvestmentResult,
     SchemeCandidate,
     SchemeGenerationInput,
     SchemeRun,
-    ZoneResult,
 )
 from cold_storage.modules.schemes.domain.scoring import (
     score_candidates,
@@ -74,7 +67,6 @@ def _cast_list_dict(val: object) -> list[dict[str, object]]:
     if isinstance(val, list):
         return val
     return []
-
 
 
 def require_snapshot_field(snapshot: dict[str, object], key: str, calc_type: str) -> object:
@@ -470,15 +462,11 @@ class SchemeService:
 
         zone_snap = _cast_dict(calculations["zone"].result_snapshot)
         zone_results = parse_zone_results(zone_snap)
-        investment = parse_investment_result(
-            _cast_dict(calculations["investment"].result_snapshot)
-        )
+        investment = parse_investment_result(_cast_dict(calculations["investment"].result_snapshot))
         cooling_load = parse_cooling_load_result(
             _cast_dict(calculations["cooling_load"].result_snapshot)
         )
-        equipment = parse_equipment_result(
-            _cast_dict(calculations["equipment"].result_snapshot)
-        )
+        equipment = parse_equipment_result(_cast_dict(calculations["equipment"].result_snapshot))
         power_result = parse_power_result(_cast_dict(calculations["power"].result_snapshot))
 
         # 7. Compute totals from zone results

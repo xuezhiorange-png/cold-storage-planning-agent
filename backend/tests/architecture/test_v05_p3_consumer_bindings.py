@@ -20,13 +20,13 @@ def _read_python_files(path: Path) -> list[Path]:
 
 
 def test_canonical_consumer_calculator_names_match_dag_bindings() -> None:
-    assert CANONICAL_CALCULATOR_NAMES == frozenset(CALCULATOR_BINDINGS.values())
-    assert REQUIRED_SCHEME_CALCULATOR_NAMES == CANONICAL_CALCULATOR_NAMES
+    assert frozenset(CALCULATOR_BINDINGS.values()) == CANONICAL_CALCULATOR_NAMES
+    assert CANONICAL_CALCULATOR_NAMES == REQUIRED_SCHEME_CALCULATOR_NAMES
 
 
 def test_workflow_schemes_required_identity_sets_equal_canonical_five() -> None:
-    assert REQUIRED_SCHEME_CALCULATOR_NAMES == CANONICAL_CALCULATOR_NAMES
-    assert schemes_validation._REQUIRED_CALCULATION_TYPES == frozenset(CANONICAL_STAGE_ORDER)
+    assert CANONICAL_CALCULATOR_NAMES == REQUIRED_SCHEME_CALCULATOR_NAMES
+    assert frozenset(CANONICAL_STAGE_ORDER) == schemes_validation._REQUIRED_CALCULATION_TYPES
 
 
 def test_report_and_scheme_assembly_do_not_import_calculator_functions() -> None:

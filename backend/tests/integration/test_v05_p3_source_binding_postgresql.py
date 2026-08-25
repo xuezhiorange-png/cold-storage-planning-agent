@@ -7,8 +7,6 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
-from sqlalchemy.orm import sessionmaker
 
 if os.environ.get("DATABASE_BACKEND") != "postgresql":
     pytest.skip(
@@ -18,7 +16,6 @@ if os.environ.get("DATABASE_BACKEND") != "postgresql":
 
 from cold_storage.bootstrap.app import create_app
 from cold_storage.modules.projects.infrastructure.database import DatabaseProjectService
-from cold_storage.modules.projects.infrastructure.orm import CalculationRunRecord
 from cold_storage.modules.reports.application.persisted_calculation_reads import (
     ProjectServicePersistedCalculationQuery,
 )
@@ -67,7 +64,9 @@ def test_p3_pg_happy_path_canonical_five_accepted(pg_client) -> None:
     ).json()
     assert CANONICAL_CALCULATORS.issubset({row["calculator_name"] for row in calculations})
 
-    workflow = client.get(f"/api/v1/projects/{project_id}/versions/{version_number}/workflow").json()
+    workflow = client.get(
+        f"/api/v1/projects/{project_id}/versions/{version_number}/workflow"
+    ).json()
     calc_step = next(
         step for step in workflow["steps"] if step["step"] == "DETERMINISTIC_CALCULATION"
     )

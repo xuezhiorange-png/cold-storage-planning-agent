@@ -22,6 +22,7 @@ if os.environ.get("DATABASE_BACKEND") == "postgresql":
     )
 
 from cold_storage.bootstrap.app import create_app
+from cold_storage.bootstrap.scheme_seed import demo_weight_set
 from cold_storage.modules.projects.infrastructure.database import DatabaseProjectService
 from cold_storage.modules.projects.infrastructure.orm import CalculationRunRecord
 from cold_storage.modules.reports.application.persisted_calculation_reads import (
@@ -30,7 +31,6 @@ from cold_storage.modules.reports.application.persisted_calculation_reads import
 from cold_storage.modules.schemes.application.service import SchemeService
 from cold_storage.modules.schemes.domain.errors import SourceCalculationMissingError
 from cold_storage.modules.schemes.infrastructure.repository import SchemeRepository
-from cold_storage.bootstrap.scheme_seed import demo_weight_set
 from tests.integration.v05_p1_bundle_fixtures import build_valid_engineering_input_bundle
 from tests.integration.v05_p3_canonical_fixtures import (
     CANONICAL_CALCULATORS,
@@ -116,8 +116,7 @@ def test_p3_happy_path_workflow_scheme_report_accept_canonical_five(migrated_cli
     calc_step = _workflow_calc_step(client, project_id, version_number)
     assert calc_step["status"] in {"COMPLETED", "REVIEW_REQUIRED"}
     assert not any(
-        blocker.get("code") == "CALCULATION_MISSING"
-        for blocker in calc_step.get("blockers", [])
+        blocker.get("code") == "CALCULATION_MISSING" for blocker in calc_step.get("blockers", [])
     )
 
     calculations = client.get(
@@ -181,7 +180,8 @@ def test_p3_missing_installed_power_with_power_configuration_fails_closed(
     calc_step = _workflow_calc_step(client, project_id, version_number)
     assert calc_step["status"] == "NOT_STARTED"
     assert any(
-        blocker.get("code") == "CALCULATION_MISSING" and "installed_power" in blocker.get("message", "")
+        blocker.get("code") == "CALCULATION_MISSING"
+        and "installed_power" in blocker.get("message", "")
         for blocker in calc_step["blockers"]
     )
 
