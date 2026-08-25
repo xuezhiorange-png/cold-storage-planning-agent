@@ -2,6 +2,11 @@
 
 This audit records the repository exactly as found on the preserved baseline.
 
+> **V0.5 governance truth-up (2026-08-24, `main@eec12b9d`):** Sections 1–30
+> below remain the Task 0 preserved snapshot. They are **not** current truth
+> for delivered capabilities. See §31 for the post–V0.4 delta and the remaining
+> V0.5 workbench gap.
+
 ## 1. Current Directory Tree
 
 Core tracked tree:
@@ -374,3 +379,31 @@ Suggested handling:
    `frontend/src/App.vue`
    Impact: change cost and drift risk are high.
    Suggested handling: modularize in Task 10.
+
+## 31. V0.5 governance truth-up (`main@eec12b9d`)
+
+The following capabilities are **delivered** and must not be described as
+baseline-only in new governance work:
+
+| Area | Delivered state (not baseline-only) | Evidence |
+| --- | --- | --- |
+| Knowledge | Durable document/revision persistence, chunking, embedding, and retrieval service | `backend/src/cold_storage/modules/knowledge/` |
+| Reports | Persisted report/revision lifecycle, assembler reads persisted results (no recalculation) | `backend/src/cold_storage/modules/reports/` |
+| Frontend | Feature-modular workbench (`frontend/src/features/*`), not a single `App.vue` monolith | `frontend/src/features/` |
+| Coefficients | Governed registry with Definition/Revision, review metadata, and persistence | `backend/src/cold_storage/modules/coefficients/` |
+| Calculations | Deterministic five-stage orchestration registry and Transaction B execution path | `backend/src/cold_storage/modules/orchestration/domain/dag.py`, `transaction_b.py` |
+| V0.4 local workbench | Persisted sqlite sample + controlled acceptance for zone, investment, supplemental power | `docs/tasks/V0_4-P5-controlled-acceptance-contract.md` |
+
+**Remaining V0.5 gap (P0 contract freeze):** the local workbench planning path
+still persists only `cold_room_zone_plan`, `investment_estimate`, and
+`power_configuration`. It does **not** persist the full canonical five-stage
+chain (`cooling_load`, `equipment`, `installed_power`). Workflow, scheme, and
+report consumers still use inconsistent calculator identities and snapshot
+shapes relative to the orchestration DAG (for example workflow
+`REQUIRED_SCHEME_CALCULATOR_NAMES` uses stage aliases, not canonical calculator
+names). See `docs/tasks/V0_5-P0-five-stage-workbench-contract.md`.
+
+**Demo coefficient conflicts** documented in `docs/audit/coefficient-inventory.md`
+(for example `storage_position_capacity_kg`, `frozen_fruit_ratio`,
+`frozen_storage_days`) remain **unresolved** and must not be silently marked
+resolved.

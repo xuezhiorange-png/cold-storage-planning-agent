@@ -1,9 +1,31 @@
 # Validation Baseline
 
+> **V0.5 governance truth-up (2026-08-24):** The table below is the preserved
+> Task 5 validation snapshot (2026-06-20, 349 tests). Current CI on
+> `main@eec12b9d` runs a substantially larger suite including architecture,
+> integration, orchestration Transaction B, V0.4 controlled acceptance, and
+> workflow/report modules. Re-run `cd backend && PYTHONPATH=src pytest` and
+> frontend quality gates for authoritative counts; do not cite this file alone
+> as current CI truth.
+
 Validation was run against the current repository baseline on
 `codex/task-5-cooling-load-capability`, updated after Task 5 completion.
 
 Last updated: 2026-06-20 (Task 5 completion — cooling load, equipment, power calculators)
+
+## Post–V0.4 delivered validation surfaces (not in table below)
+
+| Surface | Role |
+| --- | --- |
+| `backend/tests/architecture/` | Module boundary and contract enforcement (includes V0.5 P0 contract tests) |
+| `backend/tests/integration/test_v04_p5_controlled_acceptance.py` | V0.4 local workbench controlled acceptance |
+| `backend/tests/integration/test_transaction_b_*.py` | Five-stage Transaction B sqlite/PostgreSQL parity |
+| `backend/tests/integration/test_production_sourcebinding_e2e_*.py` | Production source-binding roundtrip |
+| `frontend/src/features/**` | Modular workbench feature tests |
+
+Remaining validation gap for V0.5: no integration matrix yet proves workbench
+persistence of all five canonical calculators; P0 contract freezes the target
+only.
 
 | Command | Result | Details | Blocking | Suggested Task |
 | --- | --- | --- | --- | --- |
