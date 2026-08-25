@@ -1,6 +1,8 @@
 import { computed, readonly, ref, type DeepReadonly, type Ref } from 'vue'
 
+import type { ReportStatus } from '../../../api/contracts/reports'
 import { LatestRequestGate } from '../../../shared/composables/latestRequestGate'
+import { formatReportError, extractBlockersFromError } from '../api/errorMessages'
 import { reportsApi, type ReportsApi } from '../api/reportsApi'
 
 import type {
@@ -13,6 +15,7 @@ import type {
   ReportLocale,
   RenderReportRequest
 } from '../../../api/contracts/reports'
+import type { ReportBlocker, ReportDetailState, ReportWorkflowContext } from '../types'
 
 /**
  * Form values for initiating a report render/export.
@@ -58,6 +61,8 @@ export function useReportExport(api: ReportsApi = reportsApi) {
   const detailGate = new LatestRequestGate()
   const renderGate = new LatestRequestGate()
   const downloadGate = new LatestRequestGate()
+  const workflowGate = new LatestRequestGate()
+  const reviewGate = new LatestRequestGate()
 
   /* ── Reports list ────────────────────────────────────────── */
 
@@ -65,7 +70,24 @@ export function useReportExport(api: ReportsApi = reportsApi) {
   const reportsLoading = ref(false)
   const reportsError = ref('')
 
-  /* ── Revision list for the selected report ───────────────── */
+  /* ── Report detail (authoritative status from GET) ───────── */
+
+  const reportDetail = ref<ReportDetailState | null>(null)
+  const reportDetailLoading = ref(false)
+  const reportDetailError = ref('')
+
+  /* ── Create + generate workflow ──────────────────────────── */
+
+  const createLoading = ref(false)
+  const createError = ref('')
+  const generateLoading = ref(false)
+  const generateError = ref('')
+  const actionBlockers = ref<ReportBlocker[]>([])
+
+  /* ── Review workflow ─────────────────────────────────────── */
+
+  const reviewLoading = ref(false)
+  const reviewError = ref('')
 
   const revisions = ref<Array<{ revision_number: number; content_hash: string }>>([])
   const revisionsLoading = ref(false)
@@ -118,10 +140,195 @@ export function useReportExport(api: ReportsApi = reportsApi) {
       }
     } catch (err: unknown) {
       if (!isStale(err, handle)) {
-        reportsError.value = extractMessage(err, '加载报告列表失败')
+        reportsError.value = formatReportError(err, '加载报告列表失败')
       }
     } finally {
       if (handle.isCurrent()) reportsLoading.value = false
+      handle.finish()
+    }
+  }
+
+  /**
+   * Load authoritative report detail (status + current revision) from GET.
+   */
+  async function loadReportDetail(reportId: string): Promise<void> {
+    const handle = detailGate.begin()
+    reportDetailLoading.value = true
+    reportDetailError.value = ''
+
+    try {
+      const response = await api.get(reportId, handle.signal)
+      if (handle.isCurrent()) {
+        reportDetail.value = {
+          id: response.id,
+          status: response.status,
+          revision_number: response.revision_number
+        }
+        syncReportStatusInList(reportId, response.status)
+      }
+    } catch (err: unknown) {
+      if (!isStale(err, handle)) {
+        reportDetailError.value = formatReportError(err, '加载报告详情失败')
+      }
+    } finally {
+      if (handle.isCurrent()) reportDetailLoading.value = false
+      handle.finish()
+    }
+  }
+
+  function syncReportStatusInList(reportId: string, status: ReportStatus): void {
+    const item = reports.value.find((r) => r.id === reportId)
+    if (item) item.status = status
+  }
+
+  /**
+   * Create a report for the current workbench project/version, then generate
+   * the first revision. Does not call the legacy V0.4 planning helper API.
+   */
+  async function createAndGenerateReport(context: ReportWorkflowContext): Promise<string | null> {
+    if (!context.projectId || !context.projectVersionId) {
+      createError.value = '缺少项目或版本标识，无法创建报告'
+      return null
+    }
+
+    const handle = workflowGate.begin()
+    createLoading.value = true
+    generateLoading.value = true
+    createError.value = ''
+    generateError.value = ''
+    actionBlockers.value = []
+
+    try {
+      const created = await api.create(
+        {
+          project_id: context.projectId,
+          project_version_id: context.projectVersionId,
+          report_type: context.reportType ?? 'cold_storage_concept_design'
+        },
+        handle.signal
+      )
+
+      if (!handle.isCurrent()) return null
+
+      createLoading.value = false
+
+      const generated = await api.generate(created.report_id, undefined, handle.signal)
+
+      if (!handle.isCurrent()) return null
+
+      generateLoading.value = false
+
+      await loadReports(context.projectId)
+      await selectReport(created.report_id)
+      reportDetail.value = {
+        id: created.report_id,
+        status: created.status,
+        revision_number: generated.revision_number
+      }
+      syncReportStatusInList(created.report_id, created.status)
+
+      return created.report_id
+    } catch (err: unknown) {
+      if (!isStale(err, handle)) {
+        const blockers = extractBlockersFromError(err)
+        if (blockers.length > 0) {
+          actionBlockers.value = blockers
+        }
+        const message = formatReportError(err, '创建或生成报告失败')
+        if (createLoading.value) {
+          createError.value = message
+        } else {
+          generateError.value = message
+        }
+      }
+      return null
+    } finally {
+      if (handle.isCurrent()) {
+        createLoading.value = false
+        generateLoading.value = false
+      }
+      handle.finish()
+    }
+  }
+
+  /**
+   * Generate a new revision for an existing report.
+   */
+  async function generateRevision(reportId: string): Promise<boolean> {
+    const handle = workflowGate.begin()
+    generateLoading.value = true
+    generateError.value = ''
+    actionBlockers.value = []
+
+    try {
+      const generated = await api.generate(reportId, undefined, handle.signal)
+      if (handle.isCurrent()) {
+        if (reportDetail.value?.id === reportId) {
+          reportDetail.value = {
+            ...reportDetail.value,
+            revision_number: generated.revision_number
+          }
+        }
+        await loadRevisions(reportId)
+        await loadReportDetail(reportId)
+        return true
+      }
+      return false
+    } catch (err: unknown) {
+      if (!isStale(err, handle)) {
+        const blockers = extractBlockersFromError(err)
+        if (blockers.length > 0) actionBlockers.value = blockers
+        generateError.value = formatReportError(err, '生成报告版本失败')
+      }
+      return false
+    } finally {
+      if (handle.isCurrent()) generateLoading.value = false
+      handle.finish()
+    }
+  }
+
+  async function submitReview(reportId: string, comment = ''): Promise<boolean> {
+    return runReviewAction('submitReview', reportId, comment)
+  }
+
+  async function markReviewed(reportId: string, comment = ''): Promise<boolean> {
+    return runReviewAction('markReviewed', reportId, comment)
+  }
+
+  async function approveReport(reportId: string, comment = ''): Promise<boolean> {
+    return runReviewAction('approve', reportId, comment)
+  }
+
+  async function runReviewAction(
+    method: 'submitReview' | 'markReviewed' | 'approve',
+    reportId: string,
+    comment: string
+  ): Promise<boolean> {
+    const handle = reviewGate.begin()
+    reviewLoading.value = true
+    reviewError.value = ''
+    actionBlockers.value = []
+
+    try {
+      const response = await api[method](reportId, { comment }, handle.signal)
+      if (handle.isCurrent()) {
+        syncReportStatusInList(reportId, response.status)
+        if (reportDetail.value?.id === reportId) {
+          reportDetail.value = { ...reportDetail.value, status: response.status }
+        }
+        await loadReportDetail(reportId)
+        return true
+      }
+      return false
+    } catch (err: unknown) {
+      if (!isStale(err, handle)) {
+        const blockers = extractBlockersFromError(err)
+        if (blockers.length > 0) actionBlockers.value = blockers
+        reviewError.value = formatReportError(err, '审核操作请求失败')
+      }
+      return false
+    } finally {
+      if (handle.isCurrent()) reviewLoading.value = false
       handle.finish()
     }
   }
@@ -140,28 +347,41 @@ export function useReportExport(api: ReportsApi = reportsApi) {
     selectedRevisionNumber.value = null
     renderResult.value = null
     exports.value = []
+    reportDetail.value = null
 
     revisionsLoading.value = true
     revisionsError.value = ''
     exportsLoading.value = true
     exportsError.value = ''
 
-    const [revResult, expResult] = await Promise.allSettled([
+    const [revResult, expResult, detailResult] = await Promise.allSettled([
       api.listRevisions(reportId, handle.signal),
-      api.listExports(reportId, undefined, handle.signal)
+      api.listExports(reportId, undefined, handle.signal),
+      api.get(reportId, handle.signal)
     ])
 
     if (handle.isCurrent()) {
       if (revResult.status === 'fulfilled') {
         revisions.value = revResult.value.revisions
       } else if (!isStale(revResult.reason, handle)) {
-        revisionsError.value = extractMessage(revResult.reason, '加载版本列表失败')
+        revisionsError.value = formatReportError(revResult.reason, '加载版本列表失败')
       }
 
       if (expResult.status === 'fulfilled') {
         exports.value = expResult.value.exports
       } else if (!isStale(expResult.reason, handle)) {
-        exportsError.value = extractMessage(expResult.reason, '加载导出列表失败')
+        exportsError.value = formatReportError(expResult.reason, '加载导出列表失败')
+      }
+
+      if (detailResult.status === 'fulfilled') {
+        reportDetail.value = {
+          id: detailResult.value.id,
+          status: detailResult.value.status,
+          revision_number: detailResult.value.revision_number
+        }
+        syncReportStatusInList(reportId, detailResult.value.status)
+      } else if (!isStale(detailResult.reason, handle)) {
+        reportDetailError.value = formatReportError(detailResult.reason, '加载报告详情失败')
       }
 
       revisionsLoading.value = false
@@ -186,7 +406,7 @@ export function useReportExport(api: ReportsApi = reportsApi) {
       }
     } catch (err: unknown) {
       if (!isStale(err, handle)) {
-        revisionsError.value = extractMessage(err, '加载版本列表失败')
+        revisionsError.value = formatReportError(err, '加载版本列表失败')
       }
     } finally {
       if (handle.isCurrent()) revisionsLoading.value = false
@@ -244,7 +464,9 @@ export function useReportExport(api: ReportsApi = reportsApi) {
       }
     } catch (err: unknown) {
       if (!isStale(err, handle)) {
-        renderError.value = extractMessage(err, '渲染报告失败')
+        const blockers = extractBlockersFromError(err)
+        if (blockers.length > 0) actionBlockers.value = blockers
+        renderError.value = formatReportError(err, '渲染报告失败')
       }
     } finally {
       if (handle.isCurrent()) renderLoading.value = false
@@ -267,7 +489,7 @@ export function useReportExport(api: ReportsApi = reportsApi) {
       }
     } catch (err: unknown) {
       if (!isStale(err, handle)) {
-        exportsError.value = extractMessage(err, '加载导出列表失败')
+        exportsError.value = formatReportError(err, '加载导出列表失败')
       }
     } finally {
       if (handle.isCurrent()) exportsLoading.value = false
@@ -293,7 +515,7 @@ export function useReportExport(api: ReportsApi = reportsApi) {
       }
     } catch (err: unknown) {
       if (!isStale(err, handle)) {
-        downloadError.value = extractMessage(err, '下载文件失败')
+        downloadError.value = formatReportError(err, '下载文件失败')
       }
     } finally {
       if (handle.isCurrent()) downloadLoading.value = false
@@ -309,10 +531,25 @@ export function useReportExport(api: ReportsApi = reportsApi) {
     detailGate.cancel()
     renderGate.cancel()
     downloadGate.cancel()
+    workflowGate.cancel()
+    reviewGate.cancel()
 
     reports.value = []
     reportsLoading.value = false
     reportsError.value = ''
+
+    reportDetail.value = null
+    reportDetailLoading.value = false
+    reportDetailError.value = ''
+
+    createLoading.value = false
+    createError.value = ''
+    generateLoading.value = false
+    generateError.value = ''
+    actionBlockers.value = []
+
+    reviewLoading.value = false
+    reviewError.value = ''
 
     selectedReportId.value = null
     selectedRevisionNumber.value = null
@@ -340,6 +577,19 @@ export function useReportExport(api: ReportsApi = reportsApi) {
     reportsLoading,
     reportsError,
 
+    reportDetail: readonly(reportDetail) as DeepReadonly<Ref<ReportDetailState | null>>,
+    reportDetailLoading,
+    reportDetailError,
+
+    createLoading,
+    createError,
+    generateLoading,
+    generateError,
+    actionBlockers: readonly(actionBlockers) as DeepReadonly<Ref<ReportBlocker[]>>,
+
+    reviewLoading,
+    reviewError,
+
     selectedReportId,
     selectedRevisionNumber,
     selectedReport,
@@ -362,6 +612,12 @@ export function useReportExport(api: ReportsApi = reportsApi) {
 
     /* actions */
     loadReports,
+    loadReportDetail,
+    createAndGenerateReport,
+    generateRevision,
+    submitReview,
+    markReviewed,
+    approveReport,
     selectReport,
     loadRevisions,
     renderReport,
@@ -381,13 +637,6 @@ function isStale(err: unknown, handle: { isCurrent(): boolean }): boolean {
     !handle.isCurrent() ||
     (err instanceof DOMException && err.name === 'AbortError')
   )
-}
-
-/**
- * Safely extract an error message, falling back to a generic string.
- */
-function extractMessage(err: unknown, fallback: string): string {
-  return err instanceof Error ? err.message : fallback
 }
 
 /**

@@ -11,10 +11,31 @@ import type {
 } from '../../../api/contracts/reports'
 import { apiClient, type HttpClient } from '../../../api/httpClient'
 
+import type {
+  CreateReportRequest,
+  CreateReportResponse,
+  GenerateRevisionRequest,
+  GenerateRevisionResponse,
+  ReportJsonExportResponse,
+  ReviewActionRequest,
+  ReviewActionResponse
+} from '../types'
+
 export interface ReportsApi {
+  create(request: CreateReportRequest, signal?: AbortSignal): Promise<CreateReportResponse>
   list(projectId?: string, signal?: AbortSignal): Promise<ListReportsResponse>
   get(reportId: string, signal?: AbortSignal): Promise<ReportDetailResponse>
+  generate(
+    reportId: string,
+    request?: GenerateRevisionRequest,
+    signal?: AbortSignal
+  ): Promise<GenerateRevisionResponse>
   listRevisions(reportId: string, signal?: AbortSignal): Promise<ListRevisionsResponse>
+  exportJson(
+    reportId: string,
+    revisionNumber: number,
+    signal?: AbortSignal
+  ): Promise<ReportJsonExportResponse>
   render(
     reportId: string,
     revisionNumber: number,
@@ -36,6 +57,21 @@ export interface ReportsApi {
     artifactId: string,
     signal?: AbortSignal
   ): Promise<ArtifactDownload>
+  submitReview(
+    reportId: string,
+    request?: ReviewActionRequest,
+    signal?: AbortSignal
+  ): Promise<ReviewActionResponse>
+  markReviewed(
+    reportId: string,
+    request?: ReviewActionRequest,
+    signal?: AbortSignal
+  ): Promise<ReviewActionResponse>
+  approve(
+    reportId: string,
+    request?: ReviewActionRequest,
+    signal?: AbortSignal
+  ): Promise<ReviewActionResponse>
 }
 
 function segment(value: string): string {
@@ -75,6 +111,19 @@ function reportPath(reportId: string): string {
 
 export function createReportsApi(client: HttpClient = apiClient): ReportsApi {
   return {
+    create(request: CreateReportRequest, signal?: AbortSignal): Promise<CreateReportResponse> {
+      return client.requestJson<CreateReportResponse>('/api/v1/reports', {
+        method: 'POST',
+        body: {
+          project_id: request.project_id,
+          project_version_id: request.project_version_id,
+          report_type: request.report_type ?? 'cold_storage_concept_design',
+          idempotency_key: request.idempotency_key ?? null
+        },
+        signal
+      })
+    },
+
     list(projectId?: string, signal?: AbortSignal): Promise<ListReportsResponse> {
       const query = projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''
       return client.requestJson<ListReportsResponse>(`/api/v1/reports${query}`, { signal })
@@ -84,10 +133,34 @@ export function createReportsApi(client: HttpClient = apiClient): ReportsApi {
       return client.requestJson<ReportDetailResponse>(reportPath(reportId), { signal })
     },
 
+    generate(
+      reportId: string,
+      request?: GenerateRevisionRequest,
+      signal?: AbortSignal
+    ): Promise<GenerateRevisionResponse> {
+      return client.requestJson<GenerateRevisionResponse>(`${reportPath(reportId)}/generate`, {
+        method: 'POST',
+        body: request ?? {},
+        signal
+      })
+    },
+
     listRevisions(reportId: string, signal?: AbortSignal): Promise<ListRevisionsResponse> {
       return client.requestJson<ListRevisionsResponse>(`${reportPath(reportId)}/revisions`, {
         signal
       })
+    },
+
+    exportJson(
+      reportId: string,
+      revisionNumber: number,
+      signal?: AbortSignal
+    ): Promise<ReportJsonExportResponse> {
+      const query = `?revision_number=${revisionNumber}&format=json`
+      return client.requestJson<ReportJsonExportResponse>(
+        `${reportPath(reportId)}/export${query}`,
+        { signal }
+      )
     },
 
     render(
@@ -104,6 +177,48 @@ export function createReportsApi(client: HttpClient = apiClient): ReportsApi {
           signal
         }
       )
+    },
+
+    submitReview(
+      reportId: string,
+      request?: ReviewActionRequest,
+      signal?: AbortSignal
+    ): Promise<ReviewActionResponse> {
+      return client.requestJson<ReviewActionResponse>(
+        `${reportPath(reportId)}/submit-review`,
+        {
+          method: 'POST',
+          body: request ?? {},
+          signal
+        }
+      )
+    },
+
+    markReviewed(
+      reportId: string,
+      request?: ReviewActionRequest,
+      signal?: AbortSignal
+    ): Promise<ReviewActionResponse> {
+      return client.requestJson<ReviewActionResponse>(
+        `${reportPath(reportId)}/mark-reviewed`,
+        {
+          method: 'POST',
+          body: request ?? {},
+          signal
+        }
+      )
+    },
+
+    approve(
+      reportId: string,
+      request?: ReviewActionRequest,
+      signal?: AbortSignal
+    ): Promise<ReviewActionResponse> {
+      return client.requestJson<ReviewActionResponse>(`${reportPath(reportId)}/approve`, {
+        method: 'POST',
+        body: request ?? {},
+        signal
+      })
     },
 
     listExports(

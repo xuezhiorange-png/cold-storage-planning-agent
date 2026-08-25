@@ -56,6 +56,10 @@ function makeRevisions(count: number, idPrefix = 'r'): Array<Record<string, unkn
   return items
 }
 
+function makeReportDetail(reportId = 'r1', revision = 1) {
+  return { id: reportId, status: 'draft', revision_number: revision }
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -176,6 +180,7 @@ describe('useReportExport', () => {
       .mockResolvedValueOnce({
         exports: makeExports(1, 'a')
       })
+      .mockResolvedValueOnce(makeReportDetail('r1'))
 
     const api = createMockApi(c)
     const ctx = useReportExport(api)
@@ -198,6 +203,7 @@ describe('useReportExport', () => {
         revisions: makeRevisions(1, 'r')
       })
       .mockRejectedValueOnce(new Error('Export API unavailable'))
+      .mockResolvedValueOnce(makeReportDetail('r1'))
 
     const api = createMockApi(c)
     const ctx = useReportExport(api)
@@ -223,6 +229,7 @@ describe('useReportExport', () => {
       .mockResolvedValueOnce({
         exports: makeExports(2, 'x')
       })
+      .mockResolvedValueOnce(makeReportDetail('r1'))
 
     const api = createMockApi(c)
     const ctx = useReportExport(api)
@@ -262,20 +269,25 @@ describe('useReportExport', () => {
   it('quick switch report A -> B, A response does not overwrite B', async () => {
     const c = createClient()
 
-    // Deferred promises for A's two parallel requests
+    // Deferred promises for A's three parallel requests
     let resolveARev!: (v: unknown) => void
     let resolveAExp!: (v: unknown) => void
+    let resolveADetail!: (v: unknown) => void
     const promARev = new Promise((resolve) => {
       resolveARev = resolve
     })
     const promAExp = new Promise((resolve) => {
       resolveAExp = resolve
     })
+    const promADetail = new Promise((resolve) => {
+      resolveADetail = resolve
+    })
 
     vi.mocked(c.requestJson)
       // A's calls — deferred
       .mockResolvedValueOnce(promARev as Promise<unknown>)
       .mockResolvedValueOnce(promAExp as Promise<unknown>)
+      .mockResolvedValueOnce(promADetail as Promise<unknown>)
       // B's calls — resolve immediately
       .mockResolvedValueOnce({
         revisions: makeRevisions(1, 'b')
@@ -283,6 +295,7 @@ describe('useReportExport', () => {
       .mockResolvedValueOnce({
         exports: makeExports(1, 'b')
       })
+      .mockResolvedValueOnce(makeReportDetail('B', 1))
 
     const api = createMockApi(c)
     const ctx = useReportExport(api)
@@ -304,6 +317,7 @@ describe('useReportExport', () => {
     // Now resolve A's stale responses
     resolveARev({ revisions: makeRevisions(3, 'a') })
     resolveAExp({ exports: makeExports(3, 'a') })
+    resolveADetail(makeReportDetail('A', 3))
     await promiseA
 
     // A's stale response must NOT have overwritten B's data
@@ -326,16 +340,21 @@ describe('useReportExport', () => {
     // Deferred promises for selectReport
     let resolveRev!: (v: unknown) => void
     let resolveExp!: (v: unknown) => void
+    let resolveDetail!: (v: unknown) => void
     const promRev = new Promise((resolve) => {
       resolveRev = resolve
     })
     const promExp = new Promise((resolve) => {
       resolveExp = resolve
     })
+    const promDetail = new Promise((resolve) => {
+      resolveDetail = resolve
+    })
 
     vi.mocked(c.requestJson)
       .mockResolvedValueOnce(promRev as Promise<unknown>)
       .mockResolvedValueOnce(promExp as Promise<unknown>)
+      .mockResolvedValueOnce(promDetail as Promise<unknown>)
 
     const api = createMockApi(c)
     const ctx = useReportExport(api)
@@ -381,6 +400,7 @@ describe('useReportExport', () => {
     // Complete selectReport
     resolveRev({ revisions: makeRevisions(1, 'r') })
     resolveExp({ exports: makeExports(1, 'r') })
+    resolveDetail(makeReportDetail('r1'))
     await selectCall
 
     expect(ctx.revisionsLoading.value).toBe(false)
@@ -487,6 +507,8 @@ describe('useReportExport', () => {
       .mockResolvedValueOnce({
         exports: makeExports(1, 'b')
       })
+      // #4: B's detail
+      .mockResolvedValueOnce(makeReportDetail('B', 1))
 
     await ctx.selectReport('B')
 
@@ -533,9 +555,9 @@ describe('useReportExport', () => {
     expect(ctx.revisionsLoading.value).toBe(false)
     expect(ctx.exportsLoading.value).toBe(false)
 
-    // Verify loadExports was NOT called for report A (only 3 calls:
-    // render A, B revisions, B exports)
-    expect(mockJson).toHaveBeenCalledTimes(3)
+    // Verify loadExports was NOT called for report A (only 4 calls:
+    // render A, B revisions, B exports, B detail)
+    expect(mockJson).toHaveBeenCalledTimes(4)
   })
 
   /* ── renderReport ──────────────────────────────────────────── */

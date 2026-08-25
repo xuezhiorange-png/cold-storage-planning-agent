@@ -1,27 +1,70 @@
 /**
  * @vitest-environment jsdom
- *
- * Component tests for ReportExportPanel.
- *
- * Instead of using vi.mock (which breaks scope in vitest 2.1.9),
- * we test the component logic by mounting a wrapper that provides
- * a mock ReportsApi through the composable's dependency injection.
- *
- * Since the component hard-imports the composable singleton, we work
- * around this by verifying the template structure, events, and
- * integration through the composable's exposed interface.
  */
-import { describe, expect, it, vi } from 'vitest'
+import { ref, computed } from 'vue'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
 import ReportExportPanel from '../components/ReportExportPanel.vue'
+import { useReportExport } from '../composables/useReportExport'
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+vi.mock('../composables/useReportExport', () => ({
+  createDefaultExportForm: vi.fn(() => ({
+    format: 'pdf',
+    mode: 'draft',
+    locale: 'zh-CN',
+    templateVersion: null,
+    idempotencyKey: null
+  })),
+  useReportExport: vi.fn()
+}))
 
-function flush(): Promise<void> {
-  return new Promise((r) => setTimeout(r, 50))
+function mockExportContext(overrides: Record<string, unknown> = {}) {
+  const defaults = {
+    reports: ref([]),
+    reportsLoading: ref(false),
+    reportsError: ref(''),
+    reportDetail: ref(null),
+    reportDetailLoading: ref(false),
+    reportDetailError: ref(''),
+    createLoading: ref(false),
+    createError: ref(''),
+    generateLoading: ref(false),
+    generateError: ref(''),
+    actionBlockers: ref([]),
+    reviewLoading: ref(false),
+    reviewError: ref(''),
+    selectedReportId: ref(null),
+    selectedRevisionNumber: ref(null),
+    selectedReport: computed(() => null),
+    revisions: ref([]),
+    revisionsLoading: ref(false),
+    revisionsError: ref(''),
+    exports: ref([]),
+    exportsLoading: ref(false),
+    exportsError: ref(''),
+    renderLoading: ref(false),
+    renderError: ref(''),
+    renderResult: ref(null),
+    downloadLoading: ref(false),
+    downloadError: ref(''),
+    downloadResult: ref(null),
+    loadReports: vi.fn(),
+    loadReportDetail: vi.fn(),
+    createAndGenerateReport: vi.fn(),
+    generateRevision: vi.fn(),
+    submitReview: vi.fn(),
+    markReviewed: vi.fn(),
+    approveReport: vi.fn(),
+    selectReport: vi.fn(),
+    loadRevisions: vi.fn(),
+    loadExports: vi.fn(),
+    renderReport: vi.fn(),
+    downloadArtifact: vi.fn(),
+    reset: vi.fn()
+  }
+
+  return { ...defaults, ...overrides }
 }
 
 // ---------------------------------------------------------------------------
@@ -29,6 +72,10 @@ function flush(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 describe('ReportExportPanel', () => {
+  beforeEach(() => {
+    vi.mocked(useReportExport).mockReturnValue(mockExportContext() as unknown as ReturnType<typeof useReportExport>)
+  })
+
   /* ── Structural rendering ─────────────────────────────── */
 
   it('renders the panel header', () => {
@@ -46,16 +93,9 @@ describe('ReportExportPanel', () => {
     expect(wrapper.attributes('aria-label')).toBe('报告导出面板')
   })
 
-  /* ── State rendering (without API mock) ──────────────── */
-  // Without mocking the API, the component will either show
-  // a loading state, an error, or an empty state. We verify
-  // that it renders one of the expected state UI elements.
-
   it('renders the correct structural sections', () => {
     const wrapper = mount(ReportExportPanel)
-    // The component always renders these top-level elements
     expect(wrapper.find('.report-export-panel__header').exists()).toBe(true)
-    // One of: list (has data), error, loading, or empty state
     const states = [
       '.report-export-panel__list',
       '.report-export-panel__error',
@@ -66,13 +106,81 @@ describe('ReportExportPanel', () => {
     expect(found).toBe(true)
   })
 
-  /* ── Accepts projectId prop ──────────────────────────── */
+  it('accepts projectId and projectVersionId props', () => {
+    const wrapper = mount(ReportExportPanel, {
+      props: { projectId: 'proj-1', projectVersionId: 'ver-1' }
+    })
+    expect(wrapper.exists()).toBe(true)
+  })
 
-  it('accepts a projectId prop', () => {
+  it('shows guided create button in empty state when version id is present', () => {
+    const wrapper = mount(ReportExportPanel, {
+      props: { projectId: 'proj-1', projectVersionId: 'ver-1' }
+    })
+    expect(wrapper.find('.report-export-panel__create-btn').exists()).toBe(true)
+    expect(wrapper.text()).toContain('创建并生成报告')
+  })
+
+  it('disables create when project_version_id is missing', () => {
     const wrapper = mount(ReportExportPanel, {
       props: { projectId: 'proj-1' }
     })
-    // The prop is passed to loadReports; verify the component renders
-    expect(wrapper.exists()).toBe(true)
+    const btn = wrapper.find('.report-export-panel__create-btn')
+    expect(btn.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('缺少项目版本标识')
+  })
+
+  it('shows trusted-operator copy for review actions', async () => {
+    vi.mocked(useReportExport).mockReturnValue(
+      mockExportContext({
+        reports: ref([{ id: 'report-1', status: 'draft' }]),
+        revisions: ref([{ revision_number: 1, content_hash: 'h1' }])
+      }) as unknown as ReturnType<typeof useReportExport>
+    )
+
+    const wrapper = mount(ReportExportPanel, {
+      props: { projectId: 'proj-1', projectVersionId: 'ver-1' }
+    })
+
+    await wrapper.find('.report-export-panel__toggle').trigger('click')
+
+    expect(wrapper.text()).toContain('受信任操作员审核请求')
+    expect(wrapper.text()).toContain('请求提交审核')
+    expect(wrapper.text()).toContain('请求批准')
+  })
+
+  it('shows workflow formal export blocker messages when ineligible', () => {
+    const wrapper = mount(ReportExportPanel, {
+      props: {
+        projectId: 'proj-1',
+        projectVersionId: 'ver-1',
+        formalExportEligible: false,
+        formalExportBlockers: [{ code: 'STAGE_INCOMPLETE', message: 'Cooling load missing' }]
+      }
+    })
+
+    expect(wrapper.text()).toContain('Cooling load missing')
+  })
+
+  it('disables formal mode option when formal export ineligible', async () => {
+    vi.mocked(useReportExport).mockReturnValue(
+      mockExportContext({
+        reports: ref([{ id: 'report-1', status: 'draft' }]),
+        revisions: ref([{ revision_number: 1, content_hash: 'h1' }])
+      }) as unknown as ReturnType<typeof useReportExport>
+    )
+
+    const wrapper = mount(ReportExportPanel, {
+      props: {
+        projectId: 'proj-1',
+        projectVersionId: 'ver-1',
+        formalExportEligible: false
+      }
+    })
+
+    await wrapper.find('.report-export-panel__toggle').trigger('click')
+    const formalOption = wrapper.find('option[value="formal"]')
+    expect(formalOption.exists()).toBe(true)
+    expect(formalOption.attributes('disabled')).toBeDefined()
   })
 })

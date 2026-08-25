@@ -8,6 +8,9 @@ import { useWorkbenchContextStore } from '../../../stores/workbenchContext'
 const workbench = useWorkbenchContextStore()
 
 const projectId = computed(() => workbench.projectId ?? undefined)
+const projectVersionId = computed(
+  () => workbench.workflow?.project_context.project_version_id ?? undefined
+)
 const formalExportEligible = computed(
   () => workbench.formalExportEligibility?.eligible ?? false
 )
@@ -25,6 +28,7 @@ const formalExportBlockers = computed(
 
       <ReportExportPanel
         :project-id="projectId"
+        :project-version-id="projectVersionId"
         :formal-export-eligible="formalExportEligible"
         :formal-export-blockers="formalExportBlockers"
       />
