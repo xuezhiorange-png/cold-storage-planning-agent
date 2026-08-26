@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "sample_id": "v08-process-input",
+  "description": "V0.8 operator-minimal process-input sample — five OperatorProcessInputV1 KEY leaves only; backend assembler expands to EngineeringInputBundleV1 on unmodified create_app.",
+  "project": {
+    "name": "V0.8 算子最小输入示例项目",
+    "location": "山东",
+    "product_category": "blueberry"
+  },
+  "five_stage_execution": {
+    "idempotency_key": "v08-process-input-initial"
+  },
+  "operator_process_input": {
+    "schema_id": "OperatorProcessInputV1",
+    "schema_version": "1.0.0",
+    "zone_planning_inputs": {
+      "daily_inbound_mass_kg": {
+        "value": "20000",
+        "unit": "kg/day",
+        "state": "provided"
+      },
+      "working_time_h_per_day": {
+        "value": "16",
+        "unit": "h/day",
+        "state": "provided"
+      },
+      "finished_storage_days": {
+        "value": "7",
+        "unit": "day",
+        "state": "provided"
+      },
+      "packaging_storage_days": {
+        "value": "1",
+        "unit": "day",
+        "state": "provided"
+      },
+      "precooling_required_ratio": {
+        "value": "0.6",
+        "unit": "ratio",
+        "state": "provided"
+      }
+    }
+  }
+}
