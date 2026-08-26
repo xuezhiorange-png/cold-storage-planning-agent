@@ -56,9 +56,7 @@ def test_five_field_assembly_succeeds() -> None:
     assert bundle["schema_id"] == "EngineeringInputBundleV1"
     assert len(bundle["cooling_load_inputs"]["zones"]) == 8
     assert len(bundle["equipment_inputs"]["systems"]) == 3
-    assert (
-        bundle["cooling_load_inputs"]["zones"][0]["zone_area"]["state"] == LINEAGE_PENDING_STATE
-    )
+    assert bundle["cooling_load_inputs"]["zones"][0]["zone_area"]["state"] == LINEAGE_PENDING_STATE
     first_zone = bundle["cooling_load_inputs"]["zones"][0]
     assert first_zone["room_design_temperature"]["value"] in {"-18", "-18.0"}
     assert first_zone["product_target_temperature"]["value"] in {"-18", "-18.0"}

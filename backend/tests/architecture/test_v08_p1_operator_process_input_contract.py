@@ -58,21 +58,21 @@ def test_app_py_has_no_engineering_formula_literals() -> None:
 
 
 def test_v05_no_formula_guard_still_passes_on_bundle_and_execution_modules() -> None:
-  result = subprocess.run(
-      [
-          "python3",
-          "-m",
-          "pytest",
-          "tests/architecture/test_v05_p1_no_formula_values.py",
-          "-q",
-      ],
-      cwd=REPO_ROOT / "backend",
-      env={"PYTHONPATH": "src", **os.environ},
-      capture_output=True,
-      text=True,
-      timeout=120,
-  )
-  assert result.returncode == 0, result.stdout + result.stderr
+    result = subprocess.run(
+        [
+            "python3",
+            "-m",
+            "pytest",
+            "tests/architecture/test_v05_p1_no_formula_values.py",
+            "-q",
+        ],
+        cwd=REPO_ROOT / "backend",
+        env={"PYTHONPATH": "src", **os.environ},
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_operator_minimal_bundle_allows_lineage_pending_downstream_keys() -> None:

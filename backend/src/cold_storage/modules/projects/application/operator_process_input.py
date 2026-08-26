@@ -131,9 +131,7 @@ def validate_operator_process_input(payload: Mapping[str, Any]) -> None:
         _raise_missing("schema_id", f"unsupported operator schema_id {schema_id!r}")
     schema_version = payload.get("schema_version")
     if schema_version is not None and schema_version != OPERATOR_PROCESS_SCHEMA_VERSION:
-        _raise_missing(
-            "schema_version", f"unsupported operator schema_version {schema_version!r}"
-        )
+        _raise_missing("schema_version", f"unsupported operator schema_version {schema_version!r}")
     section = payload.get("zone_planning_inputs")
     if not isinstance(section, dict):
         _raise_missing("zone_planning_inputs", "missing zone_planning_inputs section")
@@ -248,8 +246,7 @@ def _cooling_load_inputs_section(
                     code="UPSTREAM_LINEAGE_BIND_FAILED",
                     field_path="cooling_load_inputs.zones",
                     message=(
-                        f"temperature_band {temperature_band!r} has no "
-                        "TemperatureLevel mapping"
+                        f"temperature_band {temperature_band!r} has no TemperatureLevel mapping"
                     ),
                 )
             )
@@ -478,9 +475,7 @@ def _installed_power_defaults() -> dict[str, str]:
         "evaporator_fan_power_kw_e": _decimalize(
             InstalledPowerCalcInput().evaporator_fan_power_kw_e
         ),
-        "condenser_fan_power_kw_e": _decimalize(
-            InstalledPowerCalcInput().condenser_fan_power_kw_e
-        ),
+        "condenser_fan_power_kw_e": _decimalize(InstalledPowerCalcInput().condenser_fan_power_kw_e),
     }
 
 

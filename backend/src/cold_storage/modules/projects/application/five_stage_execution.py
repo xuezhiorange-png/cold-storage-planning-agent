@@ -830,10 +830,7 @@ class LineageAwareCalculatorPort:
         if compressor_power is None:
             raise TransactionBFailure(
                 "UPSTREAM_LINEAGE_BIND_FAILED",
-                (
-                    "power lineage binding requires equipment "
-                    "total_compressor_input_power_kw_e"
-                ),
+                ("power lineage binding requires equipment total_compressor_input_power_kw_e"),
                 field="equipment.result_snapshot.total_compressor_input_power_kw_e",
                 details={},
             )

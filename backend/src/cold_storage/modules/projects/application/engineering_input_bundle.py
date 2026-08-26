@@ -455,9 +455,7 @@ def _cooling_load_stage_payload(
             "temperature_level": _leaf_text(zone, "temperature_level"),
         }
         for field_name in _KEY_COOLING_ZONE_FIELDS[3:]:
-            zone_out[field_name] = _decimalize(
-                _snapshot_numeric_leaf(zone, field_name, field_name)
-            )
+            zone_out[field_name] = _decimalize(_snapshot_numeric_leaf(zone, field_name, field_name))
         for coeff_name in _OPTIONAL_COEFFICIENT_LEAVES:
             value = _optional_leaf_value(zone, coeff_name, coefficient_context)
             if value is not None:
@@ -545,9 +543,7 @@ def _investment_stage_payload(bundle: Mapping[str, Any]) -> dict[str, Any]:
     payload: dict[str, Any] = {}
     for field_name in _KEY_INVESTMENT_FIELDS:
         if field_name == "position_count":
-            payload[field_name] = int(
-                _snapshot_numeric_leaf(section, field_name, field_name)
-            )
+            payload[field_name] = int(_snapshot_numeric_leaf(section, field_name, field_name))
         else:
             payload[field_name] = _decimalize(
                 _snapshot_numeric_leaf(section, field_name, field_name)
