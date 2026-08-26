@@ -1,13 +1,15 @@
 # Development Plan
 
-> **V0.6 governance truth-up (2026-08-25, `main@06a446501b83f75ba42b3920d912d980c51d7fe5`,
-> release `v0.5.0`):** Tasks 0–12 below remain the original roadmap register.
-> V0.5 five-stage workbench delivery is **complete** at tag `v0.5.0` — canonical
-> five-stage persistence, consumer identity alignment, and controlled acceptance
-> are delivered. **Active umbrella:** V0.6 report delivery (`docs/tasks/V0_6-P0-five-stage-report-delivery-contract.md`,
-> issue #176). **Remaining gap:** five-stage persisted results → reviewable report
-> JSON → formal DOCX/PDF closure (investment report mapping, input/assumptions
-> assembly, rendering hardening). This is **not** a five-stage persistence gap.
+> **V0.7 governance truth-up (2026-08-26, `main@f8a4b80a8a8fab26113b57d9f4ea666b8bc699ba`,
+> release `v0.6.0`):** Tasks 0–12 below remain the original roadmap register.
+> V0.5 five-stage workbench delivery is **complete** at tag `v0.5.0`. V0.6
+> report assembly/rendering/evaluation is **complete** at tag `v0.6.0` on the
+> evaluation surface; the operator public-API formal path remains fail-closed
+> by design. **Active umbrella:** V0.7 data and logic trust loop
+> (`docs/tasks/V0_7-P0-trust-loop-contract.md`). **Remaining gap:** operator
+> composition + production-scheme public path + input/coefficient
+> traceability + cross-consumer consistency. This is **not** a five-stage
+> persistence gap and **not** a V0.6 report mapping gap.
 
 ## Task 0: Local Baseline, Repository Audit, And Governance
 

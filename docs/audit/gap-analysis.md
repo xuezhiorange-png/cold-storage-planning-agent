@@ -1,10 +1,11 @@
 # Gap Analysis
 
-> **V0.6 governance truth-up (2026-08-25, `main@06a446501b83f75ba42b3920d912d980c51d7fe5`,
-> release `v0.5.0`):** The tables below retain the Task 0–5 preserved gap
+> **V0.7 governance truth-up (2026-08-26, `main@f8a4b80a8a8fab26113b57d9f4ea666b8bc699ba`,
+> release `v0.6.0`):** The tables below retain the Task 0–5 preserved gap
 > register. Rows marked **SUPERSEDED** are no longer accurate. V0.5 P0 gaps
-> V05-P0-001/002/003 are **delivered** at `v0.5.0`. See §V0.6 for the active
-> report-delivery gap register.
+> V05-P0-001/002/003 are **delivered** at `v0.5.0`. V0.6 report source mapping
+> gaps V06-P0-001/002/003/004/005 are **delivered** at `v0.6.0`. See §V0.7 and
+> `docs/tasks/V0_7-P0-trust-loop-contract.md` for the active trust-loop register.
 
 ## P0
 
@@ -50,13 +51,29 @@ push and is not a remaining repository state issue.
 | V05-P0-003 | P0 | Workflow/scheme/report consumers used inconsistent calculator identities | **DELIVERED** | Canonical mapping aligned in V0.5 P1–P3 |
 | V05-P0-004 | P0 | Demo coefficient conflicts remain documented but unresolved | **OPEN** | `docs/audit/coefficient-inventory.md` — must not be silently resolved |
 
-## V0.6 (active report-delivery gap register)
+## V0.6 (report-delivery gap register — delivered at `v0.6.0` except coefficient conflicts)
+
+| ID | Priority | Problem Description | Status at `v0.6.0` | Evidence |
+| --- | --- | --- | --- | --- |
+| V06-P0-001 | P0 | Report assembly skips investment stage; `OrchestratedCalculationResult` lacks `investment_result` | **DELIVERED** | V0.6 P1 report assembly + P5 controlled acceptance |
+| V06-P0-002 | P0 | `real_data_provider._REPORT_SECTIONS` omits `investment_estimate` | **DELIVERED** | V0.6 P1 `_REPORT_SECTIONS` mapping |
+| V06-P0-003 | P0 | Assembler does not populate `input_conditions` / `assumptions` from immutable version snapshot | **DELIVERED** | V0.6 P1 assembler + P3 evaluation |
+| V06-P0-004 | P0 | Report rendering hardening for Issue #17 items not yet under V0.6 evaluation matrix | **DELIVERED as V0.6 scope** | V0.6 P2 rendering + P3 goldens; leftover display items remain on #17 |
+| V06-P0-005 | P0 | Review/formal-export evaluation bridge not yet proven end-to-end for V0.6 | **DELIVERED (evaluation surface)** | V0.6 P3 + P5 Surface B; operator Surface A remain fail-closed by design |
+| V06-P0-006 | P0 | Demo coefficient conflicts remain documented but unresolved | **OPEN** | `docs/audit/coefficient-inventory.md` — must not be silently resolved |
+
+## V0.7 (active data and logic trust-loop gap register)
+
+See `docs/tasks/V0_7-P0-trust-loop-contract.md`. Do not reopen V0.6 mapping gaps as unfinished umbrellas.
 
 | ID | Priority | Problem Description | File Location | Impact | Suggested Fix | Suggested Task | Blocks Later Work |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| V06-P0-001 | P0 | Report assembly skips investment stage; `OrchestratedCalculationResult` lacks `investment_result` | `backend/src/cold_storage/modules/reports/application/persisted_calculation_reads.py` | Five-stage report JSON incomplete; formal export cannot bind investment provenance | Wire `investment_estimate` → `investment_result` → `investment_estimate` section per V0.6 P0 contract | V0.6 P1 | Yes |
-| V06-P0-002 | P0 | `real_data_provider._REPORT_SECTIONS` omits `investment_estimate` | `backend/src/cold_storage/modules/reports/infrastructure/real_data_provider.py` | Investment section never reaches assembler | Add fifth calculation section mapping | V0.6 P1 | Yes |
-| V06-P0-003 | P0 | Assembler does not populate `input_conditions` / `assumptions` from immutable version snapshot | `backend/src/cold_storage/modules/reports/application/assembler.py` | Report JSON lacks authoritative input/assumption authority | Read `EngineeringInputBundleV1` leaves and assumption snapshots | V0.6 P1 | Yes |
-| V06-P0-004 | P0 | Report rendering hardening for Issue #17 items not yet under V0.6 evaluation matrix | `backend/src/cold_storage/modules/reports/renderers/` | Formal DOCX/PDF display gaps remain | P2 rendering + P3 evaluation goldens | V0.6 P2–P3 | No |
-| V06-P0-005 | P0 | Review/formal-export evaluation bridge not yet proven end-to-end for V0.6 | `backend/src/cold_storage/modules/reports/application/service.py` | Formal closure lacks V0.6 controlled-acceptance evidence | P5 controlled acceptance after P1–P4B | V0.6 P5 | No |
-| V06-P0-006 | P0 | Demo coefficient conflicts remain documented but unresolved | `docs/audit/coefficient-inventory.md` | Silent promotion would violate review governance | Explicit review/promotion only; never auto-resolve conflicts | V0.6+ | No |
+| V07-GAP-001 | P0 | Operator `create_app` report DI omits `project_service`, so `project_summary` is absent | `backend/src/cold_storage/bootstrap/app.py` `_get_report_service` | Operator generate stays `draft`; `submit-review` HTTP 409 | Inject `project_service` into `RealReportDataProvider` | V0.7 P3A | Yes |
+| V07-GAP-002 | P0 | No public API persists `source_mode=production` scheme runs on the five-stage version | `backend/src/cold_storage/modules/schemes/api/routes.py` | Operator `scheme_comparison` missing | Add `POST .../production-scheme-runs` | V0.7 P3B | Yes |
+| V07-GAP-003 | P0 | Evaluation happy path ≠ operator path | V0.6 P3 helpers vs `v06_sample_loader` | Dual-surface evidence; #11/#13 remain OPEN | Align operator public API after P3A+P3B | V0.7 P5 | Yes |
+| V07-GAP-004 | P0 | Coefficient metadata / optional bundle leaves can diverge from effective calculator inputs | `zone_planning.py`, `engineering_input_bundle.py` | Traceability failure without formula bug | Integrity matrix; expert decisions E1–E8 | V0.7 P1 | No |
+| V07-GAP-005 | P0 | Workflow/scheme hash helpers may not equal persisted `result_hash` | `workflow/application/service.py`, `canonical_source_reads.py` | Cross-consumer identity drift | Consistency matrix; optional later P2b | V0.7 P2 | No |
+| V07-GAP-006 | P0 | Complete `EngineeringInputBundleV1` is not default version snapshot on operator sample | `five_stage_execution.py`, `persisted_calculation_query.py` | Report input authority fallback | Snapshot-authority proof | V0.7 P1 | No |
+| V07-GAP-007 | P1 | Registry seed and embedded calculator coefficients remain dual-track | `modules/coefficients/` vs embedded maps | Dual authority | Seed-authority tests; no silent merge | V0.7 P1 | No |
+| V07-GAP-008 | P1 | No Feishu Aily integration boundary | docs | Future integration would bypass trust rules | P6 docs + schema contract | V0.7 P6 | No |
+| V07-GAP-010 | P0 | Demo coefficient conflicts remain unresolved | `docs/audit/coefficient-inventory.md` | Silent promotion forbidden | Keep `requires_review=true` | V0.7+ expert | No |

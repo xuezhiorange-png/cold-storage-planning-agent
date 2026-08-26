@@ -1,10 +1,12 @@
 # Validation Baseline
 
-> **V0.6 governance truth-up (2026-08-25):** The table below is the preserved
+> **V0.7 governance truth-up (2026-08-26):** The table below is the preserved
 > Task 5 validation snapshot (2026-06-20, 349 tests). Do not invent a new
-> historic test count from this file. At release `v0.5.0` (`main@06a446501b83f75ba42b3920d912d980c51d7fe5`),
-> a sqlite/PostgreSQL V0.5 P5 controlled-acceptance matrix exists. V0.6 P0 is
-> contract-only (architecture tests + living-doc truth-up); re-run
+> historic test count from this file. Release `v0.6.0`
+> (`main@f8a4b80a8a8fab26113b57d9f4ea666b8bc699ba`) delivered V0.6 P5
+> sqlite/PostgreSQL controlled acceptance, including operator fail-closed
+> evidence. V0.7 P0 is contract-only (architecture tests + living-doc
+> truth-up); see `docs/tasks/V0_7-P0-trust-loop-contract.md`. Re-run
 > `cd backend && PYTHONPATH=src pytest` for authoritative current counts.
 
 Validation was run against the current repository baseline on
@@ -23,9 +25,10 @@ Last updated: 2026-06-20 (Task 5 completion — cooling load, equipment, power c
 | `frontend/src/features/**` | Modular workbench feature tests |
 
 V0.5 validation: sqlite/PostgreSQL P5 controlled-acceptance matrix delivered at
-`v0.5.0`. Remaining validation gap for V0.6: no integration matrix yet proves
-five-stage → reviewable report JSON → formal DOCX/PDF closure; V0.6 P0
-contract freezes the target only.
+`v0.5.0`. V0.6 validation: sqlite/PostgreSQL P5 controlled-acceptance matrix
+delivered at `v0.6.0`, with operator formal export recorded as fail-closed
+PASS. Remaining validation gap for V0.7: operator public-API happy path and
+cross-consumer numeric/hash matrix; V0.7 P0 contract freezes the target only.
 
 | Command | Result | Details | Blocking | Suggested Task |
 | --- | --- | --- | --- | --- |
