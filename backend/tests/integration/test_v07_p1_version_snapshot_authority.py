@@ -98,12 +98,7 @@ def test_engineering_input_bundle_is_required_schema_for_execution() -> None:
 
 def test_project_version_input_snapshot_is_not_bundle_complete(migrated_client) -> None:
     client, _service, engine = migrated_client
-    project_id, version_number, version_id = _create_project(client)
-    bundle = build_valid_engineering_input_bundle(
-        project_id=project_id,
-        project_version_id=version_id,
-        version_number=version_number,
-    )
+    _project_id, _version_number, version_id = _create_project(client)
     with sessionmaker(bind=engine, expire_on_commit=False)() as session:
         version = session.get(ProjectVersionRecord, version_id)
         assert version is not None

@@ -121,8 +121,7 @@ def test_e1_e3_demo_metadata_differs_from_input_defaults_without_p1_resolution()
 
 def test_e8_raw_holding_hours_is_non_consumer_in_formula_body() -> None:
     source = Path(
-        REPO_ROOT
-        / "backend/src/cold_storage/modules/calculations/domain/zone_planning.py"
+        REPO_ROOT / "backend/src/cold_storage/modules/calculations/domain/zone_planning.py"
     ).read_text(encoding="utf-8")
     assert "data.raw_holding_hours" not in source
     assert "E8" in _matrix_text()

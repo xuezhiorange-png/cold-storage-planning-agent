@@ -86,7 +86,8 @@ def test_e7_catalog_and_demo_seed_share_codes_but_remain_separate_tracks() -> No
     catalog_codes = {entry["code"] for entry in COEFFICIENT_CATALOG}
     assert catalog_codes == set(DEMO_SEED_CODES)
     electrical_catalog = next(
-        entry for entry in COEFFICIENT_CATALOG
+        entry
+        for entry in COEFFICIENT_CATALOG
         if entry["code"] == "investment.electrical_installation_ratio"
     )
     assert electrical_catalog["canonical_unit"] == "ratio"
