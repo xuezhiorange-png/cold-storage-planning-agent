@@ -344,7 +344,9 @@ def _validate_equipment_inputs(
                 and provenance.get("equipment_inputs") == "persisted_upstream_confirmed"
                 and load_field == "design_cooling_load_kw_r"
             ):
-                _require_lineage_pending_or_provided(zone, load_field, f"{zone_prefix}.{load_field}")
+                _require_lineage_pending_or_provided(
+                    zone, load_field, f"{zone_prefix}.{load_field}"
+                )
             else:
                 _required_numeric_leaf(zone, load_field, f"{zone_prefix}.{load_field}")
 
@@ -694,9 +696,14 @@ def _require_lineage_pending_or_provided(
     state = leaf.get("state")
     if state == LINEAGE_PENDING_STATE:
         unit = leaf.get("unit")
-        if unit in (None, "") and field_name != "zone_code" and field_name != "zone_name":
-            if field_name not in {"zone_code", "zone_name", "temperature_level", "defrost_method"}:
-                _raise_missing(f"{field_path}.unit")
+        unit_optional = field_name in {
+            "zone_code",
+            "zone_name",
+            "temperature_level",
+            "defrost_method",
+        }
+        if unit in (None, "") and not unit_optional:
+            _raise_missing(f"{field_path}.unit")
         return
     if state == "missing":
         _raise_missing(field_path)

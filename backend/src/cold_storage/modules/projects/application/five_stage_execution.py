@@ -25,6 +25,9 @@ from cold_storage.modules.orchestration.application.service import (
     _SNAPSHOT_SCHEMA_VERSION,
     _compute_orchestration_fingerprint,
 )
+from cold_storage.modules.orchestration.application.production_calculation.adapters import (
+    EquipmentCapabilityAdapter,
+)
 from cold_storage.modules.orchestration.application.source_binding_assembly import (
     Phase2AdapterCalculatorPort,
 )
@@ -316,7 +319,7 @@ class WorkbenchFiveStageExecutionService:
         )
 
         calculator_port = LineageAwareCalculatorPort(
-            inner=compose_phase2_adapter_calculator_port(),
+            inner=_compose_lineage_aware_calculator_port(),
             execution_snapshot=execution_snapshot,
             input_group_provenance=input_group_provenance,
         )
@@ -516,6 +519,77 @@ class FiveStageExecutionRejected(Exception):
         super().__init__(error.message)
 
 
+_ELECTRICAL_COMPRESSOR_POWER_KEYS: frozenset[str] = frozenset(
+    {
+        "total_compressor_input_power_kw_e",
+        "compressor_input_power_kw_e",
+    }
+)
+
+
+class _ElectricalCapturingEquipmentAdapter(EquipmentCapabilityAdapter):
+    """Preserve typed electrical totals from equipment calculator output."""
+
+    last_total_compressor_input_power_kw_e: str | None = None
+
+    def execute(self, projection):  # type: ignore[no-untyped-def]
+        from cold_storage.modules.calculations.domain.equipment import (
+            calculate_equipment_capability,
+        )
+        from cold_storage.modules.calculations.domain.errors import CoreCalculationError
+        from cold_storage.modules.orchestration.application.production_calculation.adapters import (
+            _build_adapter_result,
+        )
+        from cold_storage.modules.orchestration.application.production_calculation.errors import (
+            CalculatorRejectedInputError,
+        )
+        from cold_storage.modules.orchestration.domain.contracts import CalculationType
+
+        if projection.calculation_type is not CalculationType.EQUIPMENT:
+            return super().execute(projection)
+
+        self.last_total_compressor_input_power_kw_e = None
+        try:
+            typed_input = self._build_equipment_input(projection.raw_inputs)
+        except CoreCalculationError as exc:
+            raise CalculatorRejectedInputError(
+                calculation_type=CalculationType.EQUIPMENT.value,
+                reason=f"equipment capability input rejected: {exc}",
+            ) from exc
+        except (TypeError, KeyError, ValueError) as exc:
+            raise CalculatorRejectedInputError(
+                calculation_type=CalculationType.EQUIPMENT.value,
+                reason=f"equipment capability input rejected: {exc}",
+            ) from exc
+
+        try:
+            result = calculate_equipment_capability(typed_input)
+        except CoreCalculationError as exc:
+            raise CalculatorRejectedInputError(
+                calculation_type=CalculationType.EQUIPMENT.value,
+                reason=f"equipment capability input rejected: {exc}",
+            ) from exc
+
+        raw_result = result.result
+        if isinstance(raw_result, Mapping):
+            electrical = raw_result.get("total_compressor_input_power_kw_e")
+            if electrical is not None:
+                self.last_total_compressor_input_power_kw_e = str(_decimalize(electrical))
+
+        return _build_adapter_result(
+            calculation_type=CalculationType.EQUIPMENT,
+            result=result,
+            snapshot_context=projection.raw_inputs,
+            execution_input_snapshot=projection.raw_inputs,
+        )
+
+
+def _compose_lineage_aware_calculator_port() -> Phase2AdapterCalculatorPort:
+    return Phase2AdapterCalculatorPort(
+        equipment_adapter=_ElectricalCapturingEquipmentAdapter(),
+    )
+
+
 class LineageAwareCalculatorPort:
     """Bind persisted upstream results into downstream typed inputs at execution time."""
 
@@ -571,7 +645,11 @@ class LineageAwareCalculatorPort:
                     field=exc.error.field_path,
                     details={},
                 ) from exc
-        self._stage_payloads[stage_name] = dict(result.result_snapshot)
+        self._stage_payloads[stage_name] = _stage_payload_for_lineage(
+            stage_name=stage_name,
+            result=result,
+            inner=self._inner,
+        )
         return result
 
     def _lineage_confirmed(self, input_group: str) -> bool:
@@ -751,32 +829,17 @@ class LineageAwareCalculatorPort:
             )
         compressor_power = equipment_payload.get("total_compressor_input_power_kw_e")
         if compressor_power is None:
-            operating = equipment_payload.get("compressor_operating_capacity_kw")
-            if operating is None:
-                raise TransactionBFailure(
-                    "UPSTREAM_LINEAGE_BIND_FAILED",
-                    "power lineage binding requires compressor_operating_capacity_kw",
-                    field="equipment.result_snapshot.compressor_operating_capacity_kw",
-                    details={},
-                )
-            cop = self._equipment_compressor_cop()
-            compressor_power = _decimalize(operating) / cop
+            raise TransactionBFailure(
+                "UPSTREAM_LINEAGE_BIND_FAILED",
+                (
+                    "power lineage binding requires equipment "
+                    "total_compressor_input_power_kw_e"
+                ),
+                field="equipment.result_snapshot.total_compressor_input_power_kw_e",
+                details={},
+            )
         power_stage = self._execution_snapshot.setdefault("power", {})
         power_stage["compressor_input_power_kw_e"] = str(_decimalize(compressor_power))
-
-    def _equipment_compressor_cop(self) -> Decimal:
-        equipment_stage = self._execution_snapshot.get("equipment", {})
-        coefficients = equipment_stage.get("coefficients")
-        if isinstance(coefficients, dict):
-            cop = coefficients.get("compressor_cop")
-            if cop is not None:
-                return _decimalize(cop)
-        raise TransactionBFailure(
-            "UPSTREAM_LINEAGE_BIND_FAILED",
-            "power lineage binding requires equipment compressor_cop coefficient leaf",
-            field="equipment_inputs.coefficients.compressor_cop",
-            details={},
-        )
 
     def _bind_investment_from_zone_and_power(self) -> None:
         investment_stage = self._execution_snapshot.setdefault("investment", {})
@@ -844,6 +907,60 @@ class LineageAwareCalculatorPort:
                 details={"reason": "empty_cooling_zone_loads"},
             )
         return zone_loads
+
+
+def _stage_payload_for_lineage(
+    *,
+    stage_name: str,
+    result: StageExecutionResult,
+    inner: Phase2AdapterCalculatorPort,
+) -> dict[str, Any]:
+    payload = dict(result.result_snapshot)
+    if stage_name != "equipment":
+        return payload
+    electrical = payload.get("total_compressor_input_power_kw_e")
+    if electrical is None:
+        electrical = _equipment_electrical_compressor_input_power_kw_e(result)
+    if electrical is None:
+        adapter = getattr(inner, "_equipment_adapter", None)
+        if isinstance(adapter, _ElectricalCapturingEquipmentAdapter):
+            electrical = adapter.last_total_compressor_input_power_kw_e
+    if electrical is not None:
+        payload["total_compressor_input_power_kw_e"] = str(_decimalize(electrical))
+    return payload
+
+
+def _equipment_electrical_compressor_input_power_kw_e(
+    result: StageExecutionResult,
+) -> str | None:
+    for collection in (
+        result.formulas,
+        result.coefficients,
+        result.warnings,
+        result.source_references,
+    ):
+        found = _find_electrical_compressor_power_kw_e(collection)
+        if found is not None:
+            return found
+    return None
+
+
+def _find_electrical_compressor_power_kw_e(nodes: object) -> str | None:
+    if isinstance(nodes, Mapping):
+        for key, value in nodes.items():
+            if str(key) in _ELECTRICAL_COMPRESSOR_POWER_KEYS and value is not None:
+                return str(_decimalize(value))
+            found = _find_electrical_compressor_power_kw_e(value)
+            if found is not None:
+                return found
+        return None
+    if isinstance(nodes, (list, tuple)):
+        for node in nodes:
+            found = _find_electrical_compressor_power_kw_e(node)
+            if found is not None:
+                return found
+        return None
+    return None
 
 
 def compose_workbench_five_stage_execution_service(

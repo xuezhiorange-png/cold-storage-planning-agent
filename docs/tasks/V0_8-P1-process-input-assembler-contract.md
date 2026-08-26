@@ -48,7 +48,7 @@ AGENT_TO_ENGINEERING_VALUE=NO
 | --- | --- | --- |
 | `cooling_load` | after `zone` persist | zone `zones[].zone_code` / `zone_name` / `temperature_band` / `required_area_m2` → cooling `zone_code` / `zone_name` / `temperature_level` / `zone_area` / `floor_area` |
 | `equipment` | after `cooling_load` persist | cooling `zones[].subtotal_load_kw_r` → equipment `design_cooling_load_kw_r` |
-| `power` | after `equipment` persist | equipment `compressor_operating_capacity_kw` with catalog `compressor_cop` (or `total_compressor_input_power_kw_e` when present) → installed power `compressor_input_power_kw_e` |
+| `power` | after `equipment` persist | equipment `total_compressor_input_power_kw_e` → installed power `compressor_input_power_kw_e` |
 | `investment` | after `zone` + `power` persist | zone totals + power `total_installed_power_kw_e` → investment area / position / power; operator-minimal also binds `refrigerated_area_m2` / `frozen_area_m2` by summing persisted zone `required_area_m2` grouped by `temperature_band` |
 
 Type mismatch or `zone_code` mismatch → `UPSTREAM_LINEAGE_BIND_FAILED` (fail-closed).
@@ -103,9 +103,9 @@ Applied per refrigerated zone; **not scaled** by `required_area_m2`:
 | `roof_area` | 100.0 m² | manifest |
 | `outdoor_design_temperature` | 30.0 °C | manifest |
 | `operating_hours_per_day` | operator `working_time_h_per_day` | user KEY |
-| `product_mass_per_day` | operator `daily_inbound_mass_kg` | user KEY |
+| `product_mass_per_day` | 20000.0 kg/day | v05 workbench manifest (explicit demo leaf per zone; not operator daily inbound) |
 | `product_entry_temperature` | 20.0 °C | manifest |
-| `product_target_temperature` | band table (9.0 / 2.0 / -18.0 °C) | demo mapping |
+| `room_design_temperature` / `product_target_temperature` | v05 manifest values when catalog exists for band (`-18℃` → -18.0 °C identity); otherwise fail-closed | manifest |
 | `cooling_duration` | 8.0 h | manifest |
 | `u_value_wall` | 0.25 | manifest |
 | `u_value_roof` | 0.20 | manifest |
@@ -124,10 +124,11 @@ Equipment coefficients from v05 workbench manifest (`redundancy_ratio` 1.0, marg
 ### 5.6 Installed power
 
 `compressor_input_power_kw_e` lineage-bound after equipment stage from persisted
-`compressor_operating_capacity_kw` and explicit catalog `compressor_cop` (equipment
-calculator relationship; canonical equipment snapshot may omit
-`total_compressor_input_power_kw_e`). When the typed electrical total is present on
-the equipment snapshot, bind that field directly.
+`total_compressor_input_power_kw_e` on the equipment result. When canonical
+`result_snapshot` omits the typed electrical total, lineage reads the same
+field from remaining electrical leaves on the equipment
+:class:`StageExecutionResult` (fail-closed if absent). Application layer
+must not recompute compressor input power from operating capacity and COP.
 `evaporator_fan_power_kw_e` / `condenser_fan_power_kw_e` copied from `InstalledPowerCalcInput` defaults (0).
 
 ### 5.7 Investment

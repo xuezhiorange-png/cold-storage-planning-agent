@@ -50,10 +50,13 @@ TEMPERATURE_BAND_TO_LEVEL: dict[str, str] = {
     "-18℃": "low_temperature",
 }
 
-TEMPERATURE_BAND_TO_ROOM_DESIGN_TEMP_C: dict[str, str] = {
-    "8~10℃": "9.0",
-    "1~3℃": "2.0",
-    "-18℃": "-18.0",
+# v05 workbench single-zone thermal catalog (samples/v05-local-workbench/manifest.json).
+_WORKBENCH_PRODUCT_MASS_PER_DAY = "20000.0"
+_WORKBENCH_THERMAL_CATALOG_BY_BAND: dict[str, dict[str, str]] = {
+    "-18℃": {
+        "room_design_temperature": "-18.0",
+        "product_target_temperature": "-18.0",
+    },
 }
 
 SYSTEM_GROUP_BY_BAND: dict[str, tuple[str, str]] = {
@@ -153,7 +156,8 @@ def assemble_engineering_input_bundle(
     validate_operator_process_input(operator_input)
     zone_section = operator_input["zone_planning_inputs"]
     operator_values = {
-        field_name: _operator_numeric_value(zone_section, field_name) for field_name in OPERATOR_FIVE_KEY_FIELDS
+        field_name: _operator_numeric_value(zone_section, field_name)
+        for field_name in OPERATOR_FIVE_KEY_FIELDS
     }
     corr_id = correlation_id or str(uuid4())
     zone_defaults = _zone_plan_input_defaults()
@@ -173,7 +177,6 @@ def assemble_engineering_input_bundle(
             zone_defaults=zone_defaults,
         ),
         "cooling_load_inputs": _cooling_load_inputs_section(
-            daily_inbound_mass_kg=operator_values["daily_inbound_mass_kg"],
             working_time_h_per_day=operator_values["working_time_h_per_day"],
         ),
         "equipment_inputs": _equipment_inputs_section(),
@@ -238,7 +241,6 @@ def _zone_planning_inputs_section(
 
 def _cooling_load_inputs_section(
     *,
-    daily_inbound_mass_kg: str,
     working_time_h_per_day: str,
 ) -> dict[str, Any]:
     zones: list[dict[str, Any]] = []
@@ -254,23 +256,41 @@ def _cooling_load_inputs_section(
                     ),
                 )
             )
-        room_design_temp = TEMPERATURE_BAND_TO_ROOM_DESIGN_TEMP_C[temperature_band]
+        thermal_catalog = _WORKBENCH_THERMAL_CATALOG_BY_BAND.get(temperature_band)
+        if thermal_catalog is None:
+            raise EngineeringInputBundleValidationError(
+                BundleValidationError(
+                    code=MissingEngineeringParameterError.code,
+                    field_path="cooling_load_inputs.zones",
+                    message=(
+                        "missing workbench thermal catalog for temperature_band "
+                        f"{temperature_band!r}; room_design_temperature and "
+                        "product_target_temperature require explicit catalog leaves"
+                    ),
+                )
+            )
         zone_entry: dict[str, Any] = {
             "zone_code": _lineage_pending_leaf(unit=None),
             "zone_name": _lineage_pending_leaf(unit=None),
             "temperature_level": _lineage_pending_leaf(unit=None),
             "zone_area": _lineage_pending_leaf(unit="m2"),
             "floor_area": _lineage_pending_leaf(unit="m2"),
-            "room_height": _catalog_leaf("5.0", unit="m", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE),
-            "wall_area": _catalog_leaf("200.0", unit="m2", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE),
-            "roof_area": _catalog_leaf("100.0", unit="m2", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE),
+            "room_height": _catalog_leaf(
+                "5.0", unit="m", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE
+            ),
+            "wall_area": _catalog_leaf(
+                "200.0", unit="m2", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE
+            ),
+            "roof_area": _catalog_leaf(
+                "100.0", unit="m2", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE
+            ),
             "outdoor_design_temperature": _catalog_leaf(
                 "30.0", unit="C", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE
             ),
             "room_design_temperature": _catalog_leaf(
-                room_design_temp,
+                thermal_catalog["room_design_temperature"],
                 unit="C",
-                source_path=f"temperature_band:{temperature_band}",
+                source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE,
             ),
             "operating_hours_per_day": _catalog_leaf(
                 working_time_h_per_day,
@@ -278,14 +298,18 @@ def _cooling_load_inputs_section(
                 source_path="zone_planning_inputs.working_time_h_per_day",
                 source_type="user",
             ),
-            "product_mass_per_day": _user_leaf(daily_inbound_mass_kg, unit="kg/day"),
+            "product_mass_per_day": _catalog_leaf(
+                _WORKBENCH_PRODUCT_MASS_PER_DAY,
+                unit="kg/day",
+                source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE,
+            ),
             "product_entry_temperature": _catalog_leaf(
                 "20.0", unit="C", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE
             ),
             "product_target_temperature": _catalog_leaf(
-                room_design_temp,
+                thermal_catalog["product_target_temperature"],
                 unit="C",
-                source_path=f"temperature_band:{temperature_band}",
+                source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE,
             ),
             "cooling_duration": _catalog_leaf(
                 "8.0", unit="h", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE
@@ -343,8 +367,12 @@ def _equipment_inputs_section() -> dict[str, Any]:
         )
         system["zones"].append(
             {
-                "zone_code": _demo_leaf(zone_code, unit=None, source_path="REFRIGERATED_ZONE_REGISTRY"),
-                "zone_name": _demo_leaf(zone_name, unit=None, source_path="REFRIGERATED_ZONE_REGISTRY"),
+                "zone_code": _demo_leaf(
+                    zone_code, unit=None, source_path="REFRIGERATED_ZONE_REGISTRY"
+                ),
+                "zone_name": _demo_leaf(
+                    zone_name, unit=None, source_path="REFRIGERATED_ZONE_REGISTRY"
+                ),
                 "evaporator_count": _demo_leaf(
                     equipment_defaults["evaporator_count"],
                     unit="count",
@@ -463,8 +491,12 @@ def _zone_equipment_input_defaults() -> dict[str, str]:
 
 def _installed_power_defaults() -> dict[str, str]:
     return {
-        "evaporator_fan_power_kw_e": _decimalize(InstalledPowerCalcInput().evaporator_fan_power_kw_e),
-        "condenser_fan_power_kw_e": _decimalize(InstalledPowerCalcInput().condenser_fan_power_kw_e),
+        "evaporator_fan_power_kw_e": _decimalize(
+            InstalledPowerCalcInput().evaporator_fan_power_kw_e
+        ),
+        "condenser_fan_power_kw_e": _decimalize(
+            InstalledPowerCalcInput().condenser_fan_power_kw_e
+        ),
     }
 
 
@@ -603,10 +635,7 @@ def _required_operator_numeric_leaf(
 
 def _operator_numeric_value(section: Mapping[str, Any], field_name: str) -> str:
     leaf = section[field_name]
-    if isinstance(leaf, dict):
-        value = leaf.get("value")
-    else:
-        value = leaf
+    value = leaf.get("value") if isinstance(leaf, dict) else leaf
     return _decimalize(value)
 
 

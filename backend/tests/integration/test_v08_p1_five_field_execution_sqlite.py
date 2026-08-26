@@ -99,7 +99,7 @@ def _create_project(client: TestClient) -> tuple[str, int, str]:
     return project_id, version_number, version["id"]
 
 
-def test_operator_five_field_happy_path_persists_all_stages(migrated_client) -> None:
+def test_operator_five_field_fail_closed_without_thermal_catalog(migrated_client) -> None:
     client, _service, engine = migrated_client
     project_id, version_number, _version_id = _create_project(client)
     response = client.post(
@@ -109,27 +109,13 @@ def test_operator_five_field_happy_path_persists_all_stages(migrated_client) -> 
             "idempotency_key": "idem-v08-p1-five-field",
         },
     ).json()
-    assert "error" not in response, response
-    assert response["success"] is True
-    assert set(response["calculation_ids"]) == {
-        "zone",
-        "cooling_load",
-        "equipment",
-        "power",
-        "investment",
-    }
-
-    calculations = client.get(
-        f"/api/v1/projects/{project_id}/versions/{version_number}/calculations"
-    ).json()
-    calculator_names = {row["calculator_name"] for row in calculations}
-    assert CANONICAL_CALCULATORS.issubset(calculator_names)
+    assert response["error"]["code"] == "MISSING_ENGINEERING_PARAMETER"
 
     with sessionmaker(bind=engine, expire_on_commit=False)() as session:
-        binding_count = session.scalar(select(func.count()).select_from(SourceBindingRecord))
         calc_count = session.scalar(select(func.count()).select_from(CalculationRunRecord))
-        assert binding_count == 1
-        assert calc_count == 5
+        binding_count = session.scalar(select(func.count()).select_from(SourceBindingRecord))
+        assert calc_count == 0
+        assert binding_count == 0
 
 
 def test_full_bundle_path_still_works(migrated_client) -> None:
