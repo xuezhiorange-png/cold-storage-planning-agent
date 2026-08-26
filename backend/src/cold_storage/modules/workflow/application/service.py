@@ -152,6 +152,7 @@ class WorkflowAggregateService:
             input_hash=input_hash,
             calculations=calc_by_name,
             scheme_runs=scheme_runs,
+            scheme_authority=scheme_authority,
             report=report,
             report_revision=report_revision,
         )
@@ -582,6 +583,7 @@ def _collect_stale_reasons(
     input_hash: str,
     calculations: dict[str, dict[str, Any]],
     scheme_runs: list[dict[str, Any]],
+    scheme_authority: Any | None = None,
     report: Report | None,
     report_revision: ReportRevision | None,
 ) -> list[str]:
@@ -593,20 +595,14 @@ def _collect_stale_reasons(
             calc_input_hash = canonical_json_hash(snapshot)
             if calc_input_hash != input_hash:
                 reasons.append(f"calculation_input_mismatch:{name}")
-    if scheme_runs and calculations:
-        current_hash = hashlib.sha256(
-            json.dumps(
-                {
-                    name: calculations[name].get("result_snapshot", {})
-                    for name in sorted(calculations)
-                },
-                sort_keys=True,
-                separators=(",", ":"),
-                default=str,
-            ).encode("utf-8")
-        ).hexdigest()
-        run_hash = str(scheme_runs[0].get("source_snapshot_hash", ""))
-        if run_hash and run_hash != current_hash:
+    production_combined = _production_combined_source_hash(scheme_runs, scheme_authority)
+    if production_combined and scheme_runs:
+        run_combined = str(
+            scheme_runs[0].get("combined_source_hash")
+            or scheme_runs[0].get("source_snapshot_hash")
+            or ""
+        )
+        if run_combined and run_combined != production_combined:
             reasons.append("scheme_source_snapshot_mismatch")
     if report is not None and report_revision is not None:
         if report_revision.revision_number != report.current_revision_number:
@@ -767,9 +763,32 @@ def _build_workflow_readiness(
     }
 
 
+def _production_combined_source_hash(
+    scheme_runs: list[dict[str, Any]],
+    scheme_authority: Any | None,
+) -> str | None:
+    """Return production combined_source_hash when exposed by scheme read ports."""
+    if scheme_authority is not None:
+        combined = str(getattr(scheme_authority, "combined_source_hash", "") or "")
+        if combined:
+            return combined
+    if scheme_runs:
+        combined = str(
+            scheme_runs[0].get("combined_source_hash")
+            or scheme_runs[0].get("source_snapshot_hash")
+            or ""
+        )
+        return combined or None
+    return None
+
+
 def _project_calculations(calc_by_name: dict[str, dict[str, Any]]) -> dict[str, Any]:
     runs = []
     for name, record in sorted(calc_by_name.items()):
+        persisted_hash = record.get("result_hash")
+        result_hash = (
+            str(persisted_hash) if persisted_hash else _result_hash(record.get("result_snapshot"))
+        )
         runs.append(
             {
                 "calculation_run_id": record.get("id", ""),
@@ -777,7 +796,7 @@ def _project_calculations(calc_by_name: dict[str, dict[str, Any]]) -> dict[str, 
                 "calculator_version": record.get("calculator_version", ""),
                 "requires_review": record.get("requires_review", False),
                 "engineering_numeric_authority": True,
-                "result_hash": _result_hash(record.get("result_snapshot")),
+                "result_hash": result_hash,
             }
         )
     return {"runs": runs}
