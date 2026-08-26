@@ -1,7 +1,8 @@
 # Coefficient Inventory
 
-> **Audit date:** 2026-06-20
-> **Branch:** `codex/task-3-coefficient-registry`
+> **Audit date:** 2026-06-20 (baseline); **V0.7 P1 update:** 2026-08-26
+> **Branch:** `cursor/v07-p1-data-integrity-6c68`
+> **P1 matrix authority:** `docs/audit/data-integrity-matrix.md`
 > **Purpose:** Comprehensive inventory of all hardcoded engineering coefficients,
 > default parameters, cost factors, and equipment specifications in the Cold
 > Storage Planning Agent codebase. This document serves as the baseline for
@@ -461,3 +462,26 @@ Calculated using `demo_inputs()` → `build_zone_plan_from_inputs` → `build_po
 6. **Frontend defaults**: The frontend `App.vue` hardcodes demo values that
    should be fetched from the API or a shared configuration source (gap
    P2-002 in gap-analysis.md).
+
+---
+
+## V0.7 P1 — KNOWN_CONFLICT register (E1–E8)
+
+V0.7 P1 registers expert conflicts from `V0_7-P0-trust-loop-contract.md` §6.
+P1 does **not** resolve them. Each row names either a `consumer` or
+`non_consumer` per `data-integrity-matrix.md`.
+
+| ID | Leaf / topic | consumer | non_consumer | P1 resolution |
+| --- | --- | --- | --- | --- |
+| E1 | `frozen_fruit_ratio` | `ColdRoomZonePlanInput` default in zone formula | `DemoZoneCoefficient` metadata output | `KNOWN_CONFLICT` only |
+| E2 | `frozen_storage_days` | `ColdRoomZonePlanInput` default in zone formula | `DemoZoneCoefficient` metadata output | `KNOWN_CONFLICT` only |
+| E3 | `storage_position_capacity_kg` | `ColdRoomZonePlanInput` default in position math | `DemoZoneCoefficient` metadata output | `KNOWN_CONFLICT` only |
+| E4 | `packaging_storage_days` | bundle KEY → execution snapshot → zone adapter | `build_zone_plan_from_inputs` fallback `7` | `KNOWN_CONFLICT` only |
+| E5 | `precooling_required_ratio` | bundle KEY → execution snapshot | `build_zone_plan_from_inputs` fallback `0.8` | `KNOWN_CONFLICT` only |
+| E6 | investment electrical cost | `InvestmentEstimator._coefficients.power_distribution_cost_cny_kw` | `investment.electrical_installation_ratio` demo seed | `KNOWN_CONFLICT` only |
+| E7 | coefficient seed authority | — | dual track: `seed_catalog` vs `seed_demo_coefficients` | `KNOWN_CONFLICT` only |
+| E8 | `raw_holding_hours` | — | input + demo metadata; unused in zone formula body | `non_consumer` |
+
+All demo/conflict leaves in the matrix MUST carry `requires_review=true` and
+`source_type=demo` (or `unverified` revision status for demo seed rows) until
+an authorized owner promotes them outside V0.7 P1.
