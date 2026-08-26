@@ -26,6 +26,7 @@ from cold_storage.bootstrap.v06_sample_loader import (
     trusted_sample_client,
     verify_v06_sample,
 )
+from cold_storage.modules.projects.infrastructure.database import create_database_project_service
 from cold_storage.modules.reports.api.routes import _get_actor
 from cold_storage.modules.reports.application.persisted_calculation_reads import (
     ProjectServicePersistedCalculationQuery,
@@ -112,7 +113,17 @@ def _restore_env(snapshot: dict[str, str | None]) -> None:
             os.environ[key] = value
 
 
-_SINGLETON_KEYS = ("engine", "project_service")
+def _snapshot_singletons() -> dict[str, Any]:
+    import cold_storage.bootstrap.dependencies as deps
+
+    return dict(deps._singletons)
+
+
+def _restore_singletons(snapshot: dict[str, Any]) -> None:
+    import cold_storage.bootstrap.dependencies as deps
+
+    deps._singletons.clear()
+    deps._singletons.update(snapshot)
 
 
 def _snapshot_catalogs() -> dict[Any, Any]:
@@ -130,43 +141,61 @@ def _restore_catalogs(snapshot: dict[Any, Any]) -> None:
 
 @contextmanager
 def _isolated_process_state() -> Iterator[None]:
-    import cold_storage.bootstrap.dependencies as deps
-
     env_snapshot = _snapshot_env()
-    singleton_snapshot = {key: deps._singletons.get(key) for key in _SINGLETON_KEYS}
+    singleton_snapshot = _snapshot_singletons()
     catalog_snapshot = _snapshot_catalogs()
-    deps._singletons.clear()
+    _restore_singletons({})
     try:
         yield
     finally:
         _restore_env(env_snapshot)
-        deps._singletons.clear()
-        for key in _SINGLETON_KEYS:
-            if singleton_snapshot[key] is not None:
-                deps._singletons[key] = singleton_snapshot[key]
+        _restore_singletons(singleton_snapshot)
         _restore_catalogs(catalog_snapshot)
 
 
 def _configure_sqlite_env(db_path: Path, artifact_dir: Path) -> None:
+    database_url = f"sqlite:///{db_path}"
     os.environ["SQLITE_PATH"] = str(db_path)
     os.environ["COLD_STORAGE_SQLITE_PATH"] = str(db_path)
     os.environ["DATABASE_BACKEND"] = "sqlite"
+    os.environ["COLD_STORAGE_DATABASE_BACKEND"] = "sqlite"
+    os.environ["DATABASE_URL"] = database_url
+    os.environ["COLD_STORAGE_DATABASE_URL"] = database_url
     os.environ["COLD_STORAGE_STORAGE_DIR"] = str(artifact_dir)
     if "COLD_STORAGE_ENVIRONMENT_ID" not in os.environ:
         os.environ["COLD_STORAGE_ENVIRONMENT_ID"] = "local"
 
 
-def _configure_postgresql_env(artifact_dir: Path) -> None:
+def _configure_postgresql_env(database_url: str, artifact_dir: Path) -> None:
+    os.environ.pop("SQLITE_PATH", None)
+    os.environ.pop("COLD_STORAGE_SQLITE_PATH", None)
     os.environ["DATABASE_BACKEND"] = "postgresql"
+    os.environ["COLD_STORAGE_DATABASE_BACKEND"] = "postgresql"
+    os.environ["DATABASE_URL"] = database_url
+    os.environ["COLD_STORAGE_DATABASE_URL"] = database_url
     os.environ["COLD_STORAGE_STORAGE_DIR"] = str(artifact_dir)
     if "COLD_STORAGE_ENVIRONMENT_ID" not in os.environ:
         os.environ["COLD_STORAGE_ENVIRONMENT_ID"] = "local"
+
+
+def _assert_reports_engine_dialect(expected: str) -> None:
+    from cold_storage.bootstrap.dependencies import get_engine
+
+    engine = get_engine()
+    assert engine.dialect.name == expected, (
+        f"reports get_engine() dialect {engine.dialect.name!r} != {expected!r}"
+    )
 
 
 def _run_alembic_sqlite(db_path: Path) -> None:
+    database_url = f"sqlite:///{db_path}"
     env = os.environ.copy()
     env["SQLITE_PATH"] = str(db_path)
+    env["COLD_STORAGE_SQLITE_PATH"] = str(db_path)
     env["DATABASE_BACKEND"] = "sqlite"
+    env["COLD_STORAGE_DATABASE_BACKEND"] = "sqlite"
+    env["DATABASE_URL"] = database_url
+    env["COLD_STORAGE_DATABASE_URL"] = database_url
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"],
         cwd=BACKEND_DIR,
@@ -367,7 +396,8 @@ def sqlite_operator_client(tmp_path):
     with _isolated_process_state():
         _configure_sqlite_env(db_path, artifact_dir)
         with trusted_sample_client(database_url, storage_dir=artifact_dir) as (client, service):
-            yield client, service, database_url, db_path
+            _assert_reports_engine_dialect("sqlite")
+            yield client, service, database_url, db_path, artifact_dir
 
 
 @pytest.fixture()
@@ -375,18 +405,22 @@ def pg_operator_client(pg_database, tmp_path):
     artifact_dir = tmp_path / "pg-artifacts"
     artifact_dir.mkdir()
     with _isolated_process_state():
-        _configure_postgresql_env(artifact_dir)
+        _configure_postgresql_env(pg_database, artifact_dir)
         with trusted_sample_client(pg_database, storage_dir=artifact_dir) as (client, service):
-            yield client, service, pg_database
+            _assert_reports_engine_dialect("postgresql")
+            yield client, service, pg_database, artifact_dir
 
 
 @pytest.fixture()
-def pg_missing_key_client(pg_engine):
-    from cold_storage.modules.projects.infrastructure.database import DatabaseProjectService
-
-    service = DatabaseProjectService(pg_engine)
-    client = TestClient(create_app(project_service=service))
-    return client, service, pg_engine
+def pg_missing_key_client(pg_database, tmp_path):
+    artifact_dir = tmp_path / "pg-missing-key-artifacts"
+    artifact_dir.mkdir()
+    with _isolated_process_state():
+        _configure_postgresql_env(pg_database, artifact_dir)
+        service = create_database_project_service(pg_database)
+        with TestClient(create_app(project_service=service)) as client:
+            _assert_reports_engine_dialect("postgresql")
+            yield client, service, service.engine
 
 
 def test_p5_contract_records_source_identity_and_forbids_tag_release() -> None:
@@ -468,7 +502,7 @@ def test_p5_frontend_report_workflow_binds_public_report_apis() -> None:
     reason="SQLite P5 operator tests cannot run on PostgreSQL backend",
 )
 def test_p5_sqlite_operator_sample_canonical_five_and_lineage(sqlite_operator_client) -> None:
-    client, service, _database_url, _db_path = sqlite_operator_client
+    client, service, _database_url, _db_path, _artifact_dir = sqlite_operator_client
     seeded, by_name = _operator_seed(client)
 
     assert seeded.five_stage_success is True
@@ -495,7 +529,7 @@ def test_p5_sqlite_operator_sample_canonical_five_and_lineage(sqlite_operator_cl
     reason="SQLite P5 operator tests cannot run on PostgreSQL backend",
 )
 def test_p5_sqlite_restart_preserves_hashes(sqlite_operator_client) -> None:
-    client, _service, database_url, _db_path = sqlite_operator_client
+    client, _service, database_url, db_path, artifact_dir = sqlite_operator_client
     seeded, first_by_name = _operator_seed(client)
     report_id, revision_number, _revision = _create_and_generate_report(
         client,
@@ -504,7 +538,12 @@ def test_p5_sqlite_restart_preserves_hashes(sqlite_operator_client) -> None:
     )
     first_revision = client.get(f"/api/v1/reports/{report_id}/revisions/{revision_number}").json()
 
-    with trusted_sample_client(database_url) as (reopened, _reopened_service):
+    _configure_sqlite_env(db_path, artifact_dir)
+    with trusted_sample_client(database_url, storage_dir=artifact_dir) as (
+        reopened,
+        _reopened_service,
+    ):
+        _assert_reports_engine_dialect("sqlite")
         second_calculations = reopened.get(
             f"/api/v1/projects/{seeded.project_id}/versions/{seeded.version_number}/calculations"
         ).json()
@@ -525,9 +564,9 @@ def test_p5_sqlite_restart_preserves_hashes(sqlite_operator_client) -> None:
     reason="SQLite P5 operator tests cannot run on PostgreSQL backend",
 )
 def test_p5_sqlite_report_lifecycle_fail_closed_or_formal_artifacts(
-    sqlite_operator_client, tmp_path
+    sqlite_operator_client,
 ) -> None:
-    client, _service, database_url, db_path = sqlite_operator_client
+    client, _service, database_url, db_path, artifact_dir = sqlite_operator_client
     seeded, _by_name = _operator_seed(client)
     report_id, revision_number, _revision = _create_and_generate_report(
         client,
@@ -541,8 +580,6 @@ def test_p5_sqlite_report_lifecycle_fail_closed_or_formal_artifacts(
     )
     assert fail_closed is True
 
-    artifact_dir = tmp_path / "verify-artifacts"
-    artifact_dir.mkdir(exist_ok=True)
     _configure_sqlite_env(db_path, artifact_dir)
     summary = verify_v06_sample(database_url)
     assert summary["verify_status"] == "ok"
@@ -556,7 +593,7 @@ def test_p5_sqlite_report_lifecycle_fail_closed_or_formal_artifacts(
     reason="SQLite P5 operator tests cannot run on PostgreSQL backend",
 )
 def test_p5_sqlite_formal_without_mark_reviewed_is_409(sqlite_operator_client) -> None:
-    client, _service, _database_url, _db_path = sqlite_operator_client
+    client, _service, _database_url, _db_path, _artifact_dir = sqlite_operator_client
     seeded, _by_name = _operator_seed(client)
     report_id, revision_number, _revision = _create_and_generate_report(
         client,
@@ -581,7 +618,7 @@ def test_p5_sqlite_formal_without_mark_reviewed_is_409(sqlite_operator_client) -
     reason="SQLite P5 operator tests cannot run on PostgreSQL backend",
 )
 def test_p5_sqlite_untrusted_actor_cannot_mark_reviewed(sqlite_operator_client) -> None:
-    client, service, _database_url, _db_path = sqlite_operator_client
+    client, service, _database_url, _db_path, _artifact_dir = sqlite_operator_client
     seeded, _by_name = _operator_seed(client)
     report_id, _revision_number, _revision = _create_and_generate_report(
         client,
@@ -611,7 +648,7 @@ def test_p5_sqlite_demo_coefficients_remain_unverified() -> None:
     reason="SQLite P5 operator tests cannot run on PostgreSQL backend",
 )
 def test_p5_sqlite_agent_assistance_not_fake_available(sqlite_operator_client) -> None:
-    client, _service, _database_url, _db_path = sqlite_operator_client
+    client, _service, _database_url, _db_path, _artifact_dir = sqlite_operator_client
     seeded, _by_name = _operator_seed(client)
     evidence_agent_assistance_not_fake_available(client, seeded.project_id, seeded.version_number)
 
@@ -655,7 +692,7 @@ def test_p5_pg_operator_sample_canonical_five_and_lineage(pg_operator_client) ->
     reason="PostgreSQL P5 operator tests require DATABASE_BACKEND=postgresql",
 )
 def test_p5_pg_restart_preserves_hashes(pg_operator_client) -> None:
-    client, _service, database_url = pg_operator_client
+    client, _service, database_url, artifact_dir = pg_operator_client
     seeded, first_by_name = _operator_seed(client)
     report_id, revision_number, _revision = _create_and_generate_report(
         client,
@@ -664,7 +701,9 @@ def test_p5_pg_restart_preserves_hashes(pg_operator_client) -> None:
     )
     first_revision = client.get(f"/api/v1/reports/{report_id}/revisions/{revision_number}").json()
 
-    with trusted_sample_client(database_url) as (reopened, _service):
+    _configure_postgresql_env(database_url, artifact_dir)
+    with trusted_sample_client(database_url, storage_dir=artifact_dir) as (reopened, _service):
+        _assert_reports_engine_dialect("postgresql")
         second = reopened.get(
             f"/api/v1/projects/{seeded.project_id}/versions/{seeded.version_number}/calculations"
         ).json()
@@ -686,7 +725,7 @@ def test_p5_pg_restart_preserves_hashes(pg_operator_client) -> None:
 def test_p5_pg_report_lifecycle_fail_closed_or_formal_artifacts(
     pg_operator_client, tmp_path
 ) -> None:
-    client, _service, database_url = pg_operator_client
+    client, _service, database_url, _fixture_artifact_dir = pg_operator_client
     seeded, _by_name = _operator_seed(client)
     report_id, revision_number, _revision = _create_and_generate_report(
         client,
@@ -702,7 +741,7 @@ def test_p5_pg_report_lifecycle_fail_closed_or_formal_artifacts(
 
     artifact_dir = tmp_path / "pg-verify-artifacts"
     artifact_dir.mkdir(exist_ok=True)
-    _configure_postgresql_env(artifact_dir)
+    _configure_postgresql_env(database_url, artifact_dir)
     summary = verify_v06_sample(database_url)
     assert summary["verify_status"] == "ok"
     assert summary.get("report_lifecycle_fail_closed") is True
