@@ -2,10 +2,11 @@
 
 This audit records the repository exactly as found on the preserved baseline.
 
-> **V0.6 governance truth-up (2026-08-25, `main@06a446501b83f75ba42b3920d912d980c51d7fe5`,
-> release `v0.5.0`):** Sections 1–30 below remain the Task 0 preserved snapshot.
+> **V0.7 governance truth-up (2026-08-26, `main@f8a4b80a8a8fab26113b57d9f4ea666b8bc699ba`,
+> release `v0.6.0`):** Sections 1–30 below remain the Task 0 preserved snapshot.
 > They are **not** current truth for delivered capabilities. See §31 for the
-> post–V0.5 delta and the remaining V0.6 report-delivery gap.
+> post–V0.5 delta and §32 for the V0.7 trust-loop gap. Active contract:
+> `docs/tasks/V0_7-P0-trust-loop-contract.md`.
 
 ## 1. Current Directory Tree
 
@@ -421,3 +422,32 @@ resolved.
 
 **Not in V0.6 scope:** Task 12 productionization and live Agent production
 enablement remain outside the V0.6 umbrella unless separately authorized.
+
+## 32. V0.7 governance truth-up (`main@f8a4b80a8a8fab26113b57d9f4ea666b8bc699ba`, release `v0.6.0`)
+
+The following V0.6 capabilities are **delivered** at tag `v0.6.0` and must not
+be reopened as unfinished mapping gaps:
+
+| Area | Delivered state at `v0.6.0` | Evidence |
+| --- | --- | --- |
+| Report five-stage mapping | `investment_result` and five calculation sections bind persisted runs | V0.6 P1 |
+| `input_conditions` / `assumptions` | Assembler reads persisted version/calculation authority | V0.6 P1 |
+| Formal rendering | zh-CN/en-US DOCX/PDF rendering path exists | V0.6 P2 |
+| Evaluation review/formal bridge | P3 Surface B happy path under evaluation DI | V0.6 P3 |
+| Guided report UI | Reports page binds `projectVersionId` and public report APIs | V0.6 P4A |
+| Operator sample / runbook | Public-API sample; operator formal path honestly fail-closed | V0.6 P4B/P5 |
+
+**Active umbrella:** V0.7 data and logic trust loop
+(`docs/tasks/V0_7-P0-trust-loop-contract.md`).
+
+**Remaining V0.7 gaps:** operator `create_app` composition for
+`project_summary`; public production-scheme persistence for
+`scheme_comparison`; input/coefficient traceability matrix; cross-consumer
+hash/numeric consistency; Aily boundary freeze only.
+
+**Demo coefficient conflicts** in `docs/audit/coefficient-inventory.md` remain
+**unresolved** and must not be silently marked resolved.
+
+**Not in V0.7 scope:** formula recut, live Aily implementation, production
+RBAC, Task 12 productionization, CAD/construction drawings, field equipment
+control.

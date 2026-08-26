@@ -1,10 +1,11 @@
 # Technical Debt
 
-> **V0.6 governance truth-up (2026-08-25, `main@06a446501b83f75ba42b3920d912d980c51d7fe5`,
-> release `v0.5.0`):** TD-007 and TD-015 are **delivered** by V0.5 at `v0.5.0`.
-> Demo coefficient conflicts (TD-003 note) remain open. See
-> `docs/tasks/V0_6-P0-five-stage-report-delivery-contract.md` (issue #176) for
-> the active report assembly/rendering closure gap.
+> **V0.7 governance truth-up (2026-08-26, `main@f8a4b80a8a8fab26113b57d9f4ea666b8bc699ba`,
+> release `v0.6.0`):** TD-007 and TD-015 are **delivered** by V0.5. V0.6 P1–P5
+> delivered report assembly/rendering/evaluation on the evaluation surface;
+> operator formal closure remains the V0.7 seam. Demo coefficient conflicts
+> (TD-003 note) remain open. Active contract:
+> `docs/tasks/V0_7-P0-trust-loop-contract.md`.
 
 | ID | Status | Priority | Module | Cause | Current Impact | Temporary Approach | Permanent Resolution | Target Task / Version |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -23,4 +24,7 @@
 || TD-013 | **Resolved** | High | calculations | ~~Core calculations scattered across modules with inconsistent input handling~~ | ~~No traceability, no Decimal precision, no coefficient integration~~ | ~~Keep existing calculation logic~~ | Implemented deterministic calculation kernel with Decimal, CoefficientSet integration, and step-by-step traceability | Task 4 |
 | TD-014 | **Resolved** | High | calculations/cooling | ~~Cooling load and equipment capability used float arithmetic with hardcoded factors~~ | ~~No step traceability, kW(r)/kW(e) mixed, no temperature-level grouping~~ | ~~Keep legacy run_cooling_load and run_equipment_requirement~~ | Deterministic cooling load (envelope/product/infiltration/internal/defrost), equipment capability (evaporator/compressor/condenser), and installed power calculators with Decimal, CoefficientSet, and step traceability | Task 5 |
 | TD-015 | **Resolved** | High | workbench/orchestration | ~~V0.4 local workbench persisted only three helper calculators; canonical five-stage chain not wired~~ | ~~Workflow/scheme/report identity drift~~ | Delivered at `v0.5.0` | Five-stage persistence and consumer alignment complete | V0.5 |
-| TD-016 | Open | High | reports/assembly | Five-stage persisted results not fully mapped to reviewable report JSON; investment section skipped; `input_conditions`/`assumptions` unfilled | Formal DOCX/PDF closure blocked; report provenance incomplete | P0 contract freeze only | Close per `docs/tasks/V0_6-P0-five-stage-report-delivery-contract.md` | V0.6 P1–P5 (#176) |
+| TD-016 | **Superseded** | High | reports/assembly | Five-stage persisted results were not fully mapped to reviewable report JSON at V0.6 P0 freeze | V0.6 P1–P5 delivered mapping/rendering/evaluation; **operator `create_app` still fail-closed** on `project_summary` / `scheme_comparison` | Keep V0.6 P5 fail-closed evidence | Close operator path per `docs/tasks/V0_7-P0-trust-loop-contract.md` | V0.7 P3A/P3B/P5 |
+| TD-017 | Open | High | reports/bootstrap | `_get_report_service` does not inject `project_service` | Operator reports omit `project_summary` and stay `draft` | Evaluation tests wire `project_service` only | Production composition fix | V0.7 P3A |
+| TD-018 | Open | High | schemes/api | Public `scheme-runs` persist legacy `source_mode`; no production route | Operator `scheme_comparison` cannot bind review authority | Loader avoids legacy scheme-runs | Public `production-scheme-runs` API | V0.7 P3B |
+| TD-019 | Open | Medium | coefficients/inputs | Metadata, bundle optional leaves, and embedded defaults can diverge | Traceability and display can disagree with effective inputs | Keep demo/unverified markers; do not silent-merge | Integrity matrix + expert decisions E1–E8 | V0.7 P1/P4 |
