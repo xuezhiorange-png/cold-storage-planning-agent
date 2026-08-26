@@ -16,17 +16,16 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from cold_storage.bootstrap.production_composition import compose_phase2_adapter_calculator_port
 from cold_storage.bootstrap.settings import get_settings
+from cold_storage.modules.orchestration.application.production_calculation.adapters import (
+    EquipmentCapabilityAdapter,
+)
 from cold_storage.modules.orchestration.application.service import (
     _CALCULATOR_VERSION_VECTOR,
     _COEFFICIENT_SCHEMA_VERSION,
     _ORCHESTRATION_DEFINITION_VERSION,
     _SNAPSHOT_SCHEMA_VERSION,
     _compute_orchestration_fingerprint,
-)
-from cold_storage.modules.orchestration.application.production_calculation.adapters import (
-    EquipmentCapabilityAdapter,
 )
 from cold_storage.modules.orchestration.application.source_binding_assembly import (
     Phase2AdapterCalculatorPort,
