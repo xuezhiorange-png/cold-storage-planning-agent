@@ -50,6 +50,7 @@ from cold_storage.modules.schemes.application.weight_revision_governance import 
 )
 from cold_storage.modules.schemes.domain.errors import (
     SchemeDomainError,
+    SourceCalculationMissingError,
 )
 from cold_storage.modules.schemes.domain.generator import (
     GENERATOR_VERSION,
@@ -310,6 +311,25 @@ class ProductionSchemeService:
         self._binding_port = binding_read_port
         self._weight_port = weight_revision_read_port
         self._run_repo = run_repository
+
+    def resolve_newest_five_stage_source_binding_id(
+        self,
+        *,
+        project_id: str,
+        project_version_id: str,
+    ) -> str:
+        """Return the newest persisted five-stage SourceBinding for a version."""
+        with self._uow_factory() as uow:
+            binding = self._binding_port.load_newest_binding_for_project_version(
+                uow.session,
+                project_id=project_id,
+                project_version_id=project_version_id,
+            )
+        if binding is None:
+            raise SourceCalculationMissingError(
+                "Five-stage SourceBinding is missing for this project version",
+            )
+        return binding.id
 
     def generate_production_scheme_run(
         self,

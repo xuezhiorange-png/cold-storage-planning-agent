@@ -116,6 +116,15 @@ class SourceBindingReadPort(Protocol):
 
     def load_binding(self, session: Any, /, *, binding_id: str) -> SourceBindingSnapshot | None: ...
 
+    def load_newest_binding_for_project_version(
+        self,
+        session: Any,
+        /,
+        *,
+        project_id: str,
+        project_version_id: str,
+    ) -> SourceBindingSnapshot | None: ...
+
     def load_calculation_run(
         self, session: Any, /, *, run_id: str
     ) -> CalculationRunSnapshot | None: ...
