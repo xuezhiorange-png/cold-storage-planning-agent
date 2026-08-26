@@ -672,7 +672,7 @@ def test_p5_sqlite_missing_key_leaf_fails_closed_atomically(
     reason="PostgreSQL P5 operator tests require DATABASE_BACKEND=postgresql",
 )
 def test_p5_pg_operator_sample_canonical_five_and_lineage(pg_operator_client) -> None:
-    client, service, _database_url = pg_operator_client
+    client, service, _database_url, _artifact_dir = pg_operator_client
     seeded, by_name = _operator_seed(client)
 
     assert seeded.five_stage_success is True
@@ -753,7 +753,7 @@ def test_p5_pg_report_lifecycle_fail_closed_or_formal_artifacts(
     reason="PostgreSQL P5 operator tests require DATABASE_BACKEND=postgresql",
 )
 def test_p5_pg_formal_without_mark_reviewed_is_409(pg_operator_client) -> None:
-    client, _service, _database_url = pg_operator_client
+    client, _service, _database_url, _artifact_dir = pg_operator_client
     seeded, _by_name = _operator_seed(client)
     report_id, revision_number, _revision = _create_and_generate_report(
         client,
@@ -780,7 +780,7 @@ def test_p5_pg_formal_without_mark_reviewed_is_409(pg_operator_client) -> None:
     reason="PostgreSQL P5 operator tests require DATABASE_BACKEND=postgresql",
 )
 def test_p5_pg_untrusted_actor_cannot_mark_reviewed(pg_operator_client) -> None:
-    client, service, _database_url = pg_operator_client
+    client, service, _database_url, _artifact_dir = pg_operator_client
     seeded, _by_name = _operator_seed(client)
     report_id, _revision_number, _revision = _create_and_generate_report(
         client,
@@ -809,7 +809,7 @@ def test_p5_pg_demo_coefficients_remain_unverified() -> None:
     reason="PostgreSQL P5 operator tests require DATABASE_BACKEND=postgresql",
 )
 def test_p5_pg_agent_assistance_not_fake_available(pg_operator_client) -> None:
-    client, _service, _database_url = pg_operator_client
+    client, _service, _database_url, _artifact_dir = pg_operator_client
     seeded, _by_name = _operator_seed(client)
     evidence_agent_assistance_not_fake_available(client, seeded.project_id, seeded.version_number)
 

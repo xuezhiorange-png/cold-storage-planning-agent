@@ -200,8 +200,9 @@ Database matrix:
 - Contract/frontend scans: unmarked, no database required.
 - PostgreSQL operator fixtures bind `COLD_STORAGE_DATABASE_BACKEND=postgresql`
   and `COLD_STORAGE_DATABASE_URL` to the isolated `pg_database` URL before
-  `trusted_sample_client` / `verify_v06_sample` so reports `get_engine()` matches
-  five-stage persistence (test-harness only; not a production change).
+  `trusted_sample_client` / `verify_v06_sample` / `create_app` so reports
+  `get_engine()` matches five-stage persistence (test-harness only; not a
+  production change).
 
 P5 reuses read-only fixtures:
 
