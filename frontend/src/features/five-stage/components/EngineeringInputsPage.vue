@@ -76,7 +76,7 @@ async function handleSubmit(): Promise<void> {
     <ElCard>
       <template #header>
         <div class="engineering-inputs-page__header">
-          <span>五阶段工程输入 (EngineeringInputBundleV1)</span>
+          <span>操作员过程输入 (OperatorProcessInputV1)</span>
         </div>
       </template>
 
