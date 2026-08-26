@@ -2,11 +2,13 @@
 
 This audit records the repository exactly as found on the preserved baseline.
 
-> **V0.7 governance truth-up (2026-08-26, `main@f8a4b80a8a8fab26113b57d9f4ea666b8bc699ba`,
-> release `v0.6.0`):** Sections 1–30 below remain the Task 0 preserved snapshot.
+> **V0.8 governance truth-up (2026-08-26, `main@0330d9be36db94a62190d5775612b361fff6da8d`,
+> release `v0.7.0`):** Sections 1–30 below remain the Task 0 preserved snapshot.
 > They are **not** current truth for delivered capabilities. See §31 for the
-> post–V0.5 delta and §32 for the V0.7 trust-loop gap. Active contract:
-> `docs/tasks/V0_7-P0-trust-loop-contract.md`.
+> post–V0.5 delta, §32 for the V0.7 trust-loop (delivered at `v0.7.0`), and
+> §33 for the V0.8 operator-minimal input recut. Prior contract:
+> `docs/tasks/V0_7-P0-trust-loop-contract.md`. Active contract:
+> `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`.
 
 ## 1. Current Directory Tree
 
@@ -451,3 +453,20 @@ hash/numeric consistency; Aily boundary freeze only.
 **Not in V0.7 scope:** formula recut, live Aily implementation, production
 RBAC, Task 12 productionization, CAD/construction drawings, field equipment
 control.
+
+## 33. V0.8 governance truth-up (`main@0330d9be36db94a62190d5775612b361fff6da8d`, release `v0.7.0`)
+
+The V0.7 trust loop is **delivered** at tag `v0.7.0` and must not be reopened
+as an unfinished umbrella. Remaining operator pain is the **input surface**:
+the workbench still requires a full `EngineeringInputBundleV1` KEY form.
+
+**Active umbrella:** V0.8 operator-minimal process input
+(`docs/tasks/V0_8-P0-operator-minimal-input-contract.md`,
+`docs/architecture/ADR-028-operator-minimal-process-input.md`).
+
+**V0.8 target:** operator types only the five `zone_planning_inputs` KEY
+leaves; application assembler writes catalog/lineage leaves into the full
+bundle; Vue does not compute engineering values.
+
+**Not in V0.8 scope:** formula recut, coefficient promotion, E1–E8 conflict
+resolution, live Aily, production RBAC, production deployment.

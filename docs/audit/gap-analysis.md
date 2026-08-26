@@ -1,11 +1,13 @@
 # Gap Analysis
 
-> **V0.7 governance truth-up (2026-08-26, `main@f8a4b80a8a8fab26113b57d9f4ea666b8bc699ba`,
-> release `v0.6.0`):** The tables below retain the Task 0–5 preserved gap
+> **V0.8 governance truth-up (2026-08-26, `main@0330d9be36db94a62190d5775612b361fff6da8d`,
+> release `v0.7.0`):** The tables below retain the Task 0–5 preserved gap
 > register. Rows marked **SUPERSEDED** are no longer accurate. V0.5 P0 gaps
 > V05-P0-001/002/003 are **delivered** at `v0.5.0`. V0.6 report source mapping
-> gaps V06-P0-001/002/003/004/005 are **delivered** at `v0.6.0`. See §V0.7 and
-> `docs/tasks/V0_7-P0-trust-loop-contract.md` for the active trust-loop register.
+> gaps V06-P0-001/002/003/004/005 are **delivered** at `v0.6.0`. V0.7 trust-loop
+> delivery is **complete** at `v0.7.0`. See `docs/tasks/V0_7-P0-trust-loop-contract.md`
+> for the delivered V0.7 register. **Active umbrella:** V0.8 operator-minimal
+> process input (`docs/tasks/V0_8-P0-operator-minimal-input-contract.md`).
 
 ## P0
 
@@ -62,9 +64,22 @@ push and is not a remaining repository state issue.
 | V06-P0-005 | P0 | Review/formal-export evaluation bridge not yet proven end-to-end for V0.6 | **DELIVERED (evaluation surface)** | V0.6 P3 + P5 Surface B; operator Surface A remain fail-closed by design |
 | V06-P0-006 | P0 | Demo coefficient conflicts remain documented but unresolved | **OPEN** | `docs/audit/coefficient-inventory.md` — must not be silently resolved |
 
-## V0.7 (active data and logic trust-loop gap register)
+## V0.8 (active operator-minimal process-input gap register)
 
-See `docs/tasks/V0_7-P0-trust-loop-contract.md`. Do not reopen V0.6 mapping gaps as unfinished umbrellas.
+See `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`. Do not reopen V0.7
+trust-loop delivery as unfinished work.
+
+| ID | Priority | Problem Description | File Location | Impact | Suggested Fix | Suggested Task | Blocks Later Work |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| V08-GAP-001 | P0 | Operator 工程输入 form requires the full bundle KEY surface | `EngineeringInputBundleForm.vue` | Operator substitutes for calculators | `OperatorProcessInputV1` five KEY leaves only | V0.8 P2 | Yes |
+| V08-GAP-002 | P0 | Bundle KEY validation runs before lineage bind | `engineering_input_bundle.py`, `five_stage_execution.py` | Downstream KEY must be typed at submit | Assemble then validate; bind typed upstream results | V0.8 P1 | Yes |
+| V08-GAP-003 | P0 | Cooling envelope/thermal KEY have no operator-minimal source | `ZoneCoolingLoadInput`; V0.5 geometry auto-feed forbidden | Cannot run cooling from five process leaves alone | Explicit demo catalog leaves, not silent defaults | V0.8 P1 | Yes |
+| V08-GAP-004 | P0 | Installed-power KEY are operator-typed despite equipment electrical output | equipment result vs `installed_power_inputs` | Duplicate operator entry | Lineage bind compressor electrical input | V0.8 P1 | Yes |
+| V08-GAP-005 | P1 | 基本信息 page still looks like the primary operator form | `ProjectPage.vue` | Wrong path looks authoritative | Keep V0.4 leftover label; V0.8 authority is 工程输入 | V0.8 P2 | No |
+
+## V0.7 (delivered data and logic trust-loop gap register)
+
+See `docs/tasks/V0_7-P0-trust-loop-contract.md`. Delivered at `v0.7.0`. Do not reopen V0.6 mapping gaps as unfinished umbrellas.
 
 | ID | Priority | Problem Description | File Location | Impact | Suggested Fix | Suggested Task | Blocks Later Work |
 | --- | --- | --- | --- | --- | --- | --- | --- |
