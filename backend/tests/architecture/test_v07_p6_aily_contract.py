@@ -15,9 +15,7 @@ import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-CONTRACT_PATH = (
-    REPO_ROOT / "docs" / "tasks" / "V0_7-P6-aily-integration-boundary-contract.md"
-)
+CONTRACT_PATH = REPO_ROOT / "docs" / "tasks" / "V0_7-P6-aily-integration-boundary-contract.md"
 ADR_PATH = REPO_ROOT / "docs" / "architecture" / "ADR-027-aily-integration-boundary.md"
 P0_CONTRACT_PATH = REPO_ROOT / "docs" / "tasks" / "V0_7-P0-trust-loop-contract.md"
 AILY_CONTRACTS_DIR = REPO_ROOT / "docs" / "contracts" / "aily" / "v0.7"
@@ -216,9 +214,12 @@ def test_v07_p6_confirmation_tokens_forbidden_from_model_context() -> None:
     """confirmation_token must be denied across callback and forbidden surfaces."""
     callback = _read_json_artifact("confirmation-callback.v1.json")
     assert "confirmation_token" in callback["callbacks"][0]["forbidden_fields"]
-    assert callback["callbacks"][0]["server_side_token_handling"][
-        "confirmation_token_in_model_context"
-    ] == "FORBIDDEN"
+    assert (
+        callback["callbacks"][0]["server_side_token_handling"][
+            "confirmation_token_in_model_context"
+        ]
+        == "FORBIDDEN"
+    )
 
     forbidden = _read_json_artifact("forbidden-model-surfaces.v1.json")
     assert "confirmation_token" in forbidden["forbidden_model_fields"]
