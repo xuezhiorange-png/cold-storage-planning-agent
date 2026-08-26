@@ -444,8 +444,19 @@ class PlanningRunRequest(BaseModel):
 
 
 class FiveStageExecutionRequest(BaseModel):
-    engineering_input_bundle: dict[str, Any]
+    engineering_input_bundle: dict[str, Any] | None = None
+    operator_process_input: dict[str, Any] | None = None
     idempotency_key: str
+
+    def resolved_payload(self) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+        """Return (bundle, operator_process_input) for the execution service."""
+        if self.engineering_input_bundle is not None and self.operator_process_input is not None:
+            raise ValueError("provide either engineering_input_bundle or operator_process_input")
+        if self.operator_process_input is not None:
+            return None, self.operator_process_input
+        if self.engineering_input_bundle is not None:
+            return self.engineering_input_bundle, None
+        raise ValueError("engineering_input_bundle or operator_process_input is required")
 
 
 class AgentMessageRequest(BaseModel):
@@ -1559,10 +1570,22 @@ def create_app(
         )
         executor = WorkbenchFiveStageExecutionService(session_factory)
         try:
+            bundle_payload, operator_payload = request.resolved_payload()
+        except ValueError as exc:
+            return {
+                "error": {
+                    "code": "INVALID_FIVE_STAGE_REQUEST",
+                    "message": str(exc),
+                    "field_path": "request",
+                    "details": {},
+                }
+            }
+        try:
             outcome = executor.execute(
                 project_id=project_id,
                 version=project_version,
-                bundle=request.engineering_input_bundle,
+                bundle=bundle_payload or {},
+                operator_process_input=operator_payload,
                 idempotency_key=request.idempotency_key,
                 actor="api",
             )

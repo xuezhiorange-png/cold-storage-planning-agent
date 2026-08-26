@@ -16,8 +16,10 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from cold_storage.bootstrap.production_composition import compose_phase2_adapter_calculator_port
 from cold_storage.bootstrap.settings import get_settings
+from cold_storage.modules.orchestration.application.production_calculation.adapters import (
+    EquipmentCapabilityAdapter,
+)
 from cold_storage.modules.orchestration.application.service import (
     _CALCULATOR_VERSION_VECTOR,
     _COEFFICIENT_SCHEMA_VERSION,
@@ -60,6 +62,12 @@ from cold_storage.modules.projects.application.engineering_input_bundle import (
     project_execution_snapshot_from_bundle,
     validate_engineering_input_bundle,
 )
+from cold_storage.modules.projects.application.operator_process_input import (
+    TEMPERATURE_BAND_TO_LEVEL,
+    assemble_engineering_input_bundle,
+    is_operator_process_input_payload,
+    validate_operator_process_input,
+)
 from cold_storage.modules.projects.domain.models import ProjectVersion
 from cold_storage.modules.projects.infrastructure.orm import (
     WorkbenchFiveStageIdempotencyRecord,
@@ -99,6 +107,7 @@ class WorkbenchFiveStageExecutionService:
         bundle: Mapping[str, Any],
         idempotency_key: str | None,
         actor: str,
+        operator_process_input: Mapping[str, Any] | None = None,
     ) -> FiveStageExecutionOutcome:
         if not idempotency_key or not idempotency_key.strip():
             raise FiveStageExecutionRejected(
@@ -114,7 +123,26 @@ class WorkbenchFiveStageExecutionService:
             raise FiveStageExecutionRejected(lock_error)
 
         try:
-            validate_engineering_input_bundle(bundle)
+            if operator_process_input is not None:
+                validate_operator_process_input(operator_process_input)
+                bundle = assemble_engineering_input_bundle(
+                    operator_input=operator_process_input,
+                    project_id=project_id,
+                    version=version,
+                    actor=actor,
+                )
+                validate_engineering_input_bundle(bundle, validation_mode="operator_minimal")
+            elif is_operator_process_input_payload(bundle):
+                validate_operator_process_input(bundle)
+                bundle = assemble_engineering_input_bundle(
+                    operator_input=bundle,
+                    project_id=project_id,
+                    version=version,
+                    actor=actor,
+                )
+                validate_engineering_input_bundle(bundle, validation_mode="operator_minimal")
+            else:
+                validate_engineering_input_bundle(bundle, validation_mode="full")
         except EngineeringInputBundleValidationError as exc:
             raise FiveStageExecutionRejected(
                 FiveStageExecutionError(
@@ -290,7 +318,7 @@ class WorkbenchFiveStageExecutionService:
         )
 
         calculator_port = LineageAwareCalculatorPort(
-            inner=compose_phase2_adapter_calculator_port(),
+            inner=_compose_lineage_aware_calculator_port(),
             execution_snapshot=execution_snapshot,
             input_group_provenance=input_group_provenance,
         )
@@ -490,6 +518,77 @@ class FiveStageExecutionRejected(Exception):
         super().__init__(error.message)
 
 
+_ELECTRICAL_COMPRESSOR_POWER_KEYS: frozenset[str] = frozenset(
+    {
+        "total_compressor_input_power_kw_e",
+        "compressor_input_power_kw_e",
+    }
+)
+
+
+class _ElectricalCapturingEquipmentAdapter(EquipmentCapabilityAdapter):
+    """Preserve typed electrical totals from equipment calculator output."""
+
+    last_total_compressor_input_power_kw_e: str | None = None
+
+    def execute(self, projection):  # type: ignore[no-untyped-def]
+        from cold_storage.modules.calculations.domain.equipment import (
+            calculate_equipment_capability,
+        )
+        from cold_storage.modules.calculations.domain.errors import CoreCalculationError
+        from cold_storage.modules.orchestration.application.production_calculation.adapters import (
+            _build_adapter_result,
+        )
+        from cold_storage.modules.orchestration.application.production_calculation.errors import (
+            CalculatorRejectedInputError,
+        )
+        from cold_storage.modules.orchestration.domain.contracts import CalculationType
+
+        if projection.calculation_type is not CalculationType.EQUIPMENT:
+            return super().execute(projection)
+
+        self.last_total_compressor_input_power_kw_e = None
+        try:
+            typed_input = self._build_equipment_input(projection.raw_inputs)
+        except CoreCalculationError as exc:
+            raise CalculatorRejectedInputError(
+                calculation_type=CalculationType.EQUIPMENT.value,
+                reason=f"equipment capability input rejected: {exc}",
+            ) from exc
+        except (TypeError, KeyError, ValueError) as exc:
+            raise CalculatorRejectedInputError(
+                calculation_type=CalculationType.EQUIPMENT.value,
+                reason=f"equipment capability input rejected: {exc}",
+            ) from exc
+
+        try:
+            result = calculate_equipment_capability(typed_input)
+        except CoreCalculationError as exc:
+            raise CalculatorRejectedInputError(
+                calculation_type=CalculationType.EQUIPMENT.value,
+                reason=f"equipment capability input rejected: {exc}",
+            ) from exc
+
+        raw_result = result.result
+        if isinstance(raw_result, Mapping):
+            electrical = raw_result.get("total_compressor_input_power_kw_e")
+            if electrical is not None:
+                self.last_total_compressor_input_power_kw_e = str(_decimalize(electrical))
+
+        return _build_adapter_result(
+            calculation_type=CalculationType.EQUIPMENT,
+            result=result,
+            snapshot_context=projection.raw_inputs,
+            execution_input_snapshot=projection.raw_inputs,
+        )
+
+
+def _compose_lineage_aware_calculator_port() -> Phase2AdapterCalculatorPort:
+    return Phase2AdapterCalculatorPort(
+        equipment_adapter=_ElectricalCapturingEquipmentAdapter(),
+    )
+
+
 class LineageAwareCalculatorPort:
     """Bind persisted upstream results into downstream typed inputs at execution time."""
 
@@ -545,7 +644,11 @@ class LineageAwareCalculatorPort:
                     field=exc.error.field_path,
                     details={},
                 ) from exc
-        self._stage_payloads[stage_name] = dict(result.result_snapshot)
+        self._stage_payloads[stage_name] = _stage_payload_for_lineage(
+            stage_name=stage_name,
+            result=result,
+            inner=self._inner,
+        )
         return result
 
     def _lineage_confirmed(self, input_group: str) -> bool:
@@ -561,10 +664,114 @@ class LineageAwareCalculatorPort:
         actor: str,
         correlation_id: str,
     ) -> None:
+        if stage_name == "cooling_load" and self._lineage_confirmed("cooling_load_inputs"):
+            self._bind_cooling_identity_and_plan_area_from_zone()
         if stage_name == "equipment" and self._lineage_confirmed("equipment_inputs"):
             self._bind_equipment_from_cooling_load()
+        if stage_name == "power" and self._lineage_confirmed("installed_power_inputs"):
+            self._bind_power_from_equipment()
         if stage_name == "investment" and self._lineage_confirmed("investment_inputs"):
             self._bind_investment_from_zone_and_power()
+
+    def _bind_cooling_identity_and_plan_area_from_zone(self) -> None:
+        zone_payload = self._stage_payloads.get("zone")
+        if not isinstance(zone_payload, dict):
+            raise TransactionBFailure(
+                "UPSTREAM_LINEAGE_BIND_FAILED",
+                "cooling lineage binding requires persisted zone result",
+                field="zone.result_snapshot",
+                details={"reason": "missing_zone_payload"},
+            )
+        zones_raw = zone_payload.get("zones")
+        if not isinstance(zones_raw, (list, tuple)) or not zones_raw:
+            raise TransactionBFailure(
+                "UPSTREAM_LINEAGE_BIND_FAILED",
+                "cooling lineage binding requires zone-plan zones",
+                field="zone.result_snapshot.zones",
+                details={"reason": "missing_zone_zones"},
+            )
+        cooling_stage = self._execution_snapshot.setdefault("cooling_load", {})
+        cooling_zones = cooling_stage.get("zones")
+        if not isinstance(cooling_zones, (list, tuple)):
+            raise TransactionBFailure(
+                "UPSTREAM_LINEAGE_BIND_FAILED",
+                "cooling lineage binding requires cooling_load zones",
+                field="cooling_load_inputs.zones",
+                details={},
+            )
+        templates_by_code: dict[str, dict[str, Any]] = {}
+        for template in cooling_zones:
+            if not isinstance(template, dict):
+                continue
+            expected = template.get("_assembler_expected_zone_code") or template.get("zone_code")
+            if expected:
+                templates_by_code[str(expected)] = template
+        bound_zones: list[dict[str, Any]] = []
+        for zone in zones_raw:
+            if not isinstance(zone, dict):
+                continue
+            temperature_band = str(zone.get("temperature_band", ""))
+            if temperature_band == "常温":
+                continue
+            zone_code = zone.get("zone_code")
+            if zone_code is None:
+                raise TransactionBFailure(
+                    "UPSTREAM_LINEAGE_BIND_FAILED",
+                    "cooling lineage binding requires zone_code on zone-plan zones",
+                    field="zone.result_snapshot.zones[].zone_code",
+                    details={"zone": zone},
+                )
+            zone_code_str = str(zone_code)
+            temperature_level = TEMPERATURE_BAND_TO_LEVEL.get(temperature_band)
+            if temperature_level is None:
+                raise TransactionBFailure(
+                    "UPSTREAM_LINEAGE_BIND_FAILED",
+                    (
+                        "cooling lineage binding could not map temperature_band "
+                        f"{temperature_band!r} to TemperatureLevel"
+                    ),
+                    field="cooling_load_inputs.zones[].temperature_level",
+                    details={"temperature_band": temperature_band, "zone_code": zone_code_str},
+                )
+            template = templates_by_code.get(zone_code_str)
+            if template is None:
+                raise TransactionBFailure(
+                    "UPSTREAM_LINEAGE_BIND_FAILED",
+                    (
+                        "cooling lineage binding could not match zone-plan zone_code "
+                        f"{zone_code_str!r}"
+                    ),
+                    field="cooling_load_inputs.zones[].zone_code",
+                    details={
+                        "zone_code": zone_code_str,
+                        "available_zone_codes": sorted(templates_by_code),
+                    },
+                )
+            required_area = zone.get("required_area_m2")
+            if required_area is None:
+                raise TransactionBFailure(
+                    "UPSTREAM_LINEAGE_BIND_FAILED",
+                    "cooling lineage binding requires required_area_m2 on zone-plan zones",
+                    field="zone.result_snapshot.zones[].required_area_m2",
+                    details={"zone_code": zone_code_str},
+                )
+            bound_zone = dict(template)
+            bound_zone["zone_code"] = zone_code_str
+            bound_zone["zone_name"] = str(zone.get("zone_name", ""))
+            bound_zone["temperature_level"] = temperature_level
+            area_text = str(_decimalize(required_area))
+            bound_zone["zone_area"] = area_text
+            bound_zone["floor_area"] = area_text
+            bound_zone.pop("_assembler_expected_zone_code", None)
+            bound_zones.append(bound_zone)
+        if not bound_zones:
+            raise TransactionBFailure(
+                "UPSTREAM_LINEAGE_BIND_FAILED",
+                "cooling lineage binding requires at least one refrigerated zone",
+                field="cooling_load_inputs.zones",
+                details={"reason": "no_refrigerated_zones"},
+            )
+        cooling_stage["zones"] = bound_zones
 
     def _bind_equipment_from_cooling_load(self) -> None:
         zone_loads = self._zone_loads_from_persisted_cooling_payload()
@@ -610,6 +817,26 @@ class LineageAwareCalculatorPort:
                     )
                 zone["design_cooling_load_kw_r"] = load
 
+    def _bind_power_from_equipment(self) -> None:
+        equipment_payload = self._stage_payloads.get("equipment")
+        if not isinstance(equipment_payload, dict):
+            raise TransactionBFailure(
+                "UPSTREAM_LINEAGE_BIND_FAILED",
+                "power lineage binding requires persisted equipment result",
+                field="equipment.result_snapshot",
+                details={"reason": "missing_equipment_payload"},
+            )
+        compressor_power = equipment_payload.get("total_compressor_input_power_kw_e")
+        if compressor_power is None:
+            raise TransactionBFailure(
+                "UPSTREAM_LINEAGE_BIND_FAILED",
+                ("power lineage binding requires equipment total_compressor_input_power_kw_e"),
+                field="equipment.result_snapshot.total_compressor_input_power_kw_e",
+                details={},
+            )
+        power_stage = self._execution_snapshot.setdefault("power", {})
+        power_stage["compressor_input_power_kw_e"] = str(_decimalize(compressor_power))
+
     def _bind_investment_from_zone_and_power(self) -> None:
         investment_stage = self._execution_snapshot.setdefault("investment", {})
         zone_payload = self._stage_payloads.get("zone", {})
@@ -623,6 +850,19 @@ class LineageAwareCalculatorPort:
         total_power = power_payload.get("total_installed_power_kw_e")
         if total_power is not None:
             investment_stage["total_power_kw"] = _decimalize(total_power)
+        if self._operator_minimal_investment_lineage():
+            refrigerated_area = _sum_required_area_by_bands(
+                zone_payload,
+                ("8~10℃", "1~3℃"),
+            )
+            frozen_area = _sum_required_area_by_bands(zone_payload, ("-18℃",))
+            if refrigerated_area is not None:
+                investment_stage["refrigerated_area_m2"] = _decimalize(refrigerated_area)
+            if frozen_area is not None:
+                investment_stage["frozen_area_m2"] = _decimalize(frozen_area)
+
+    def _operator_minimal_investment_lineage(self) -> bool:
+        return self._input_group_provenance.get("cooling_load_inputs") == self._LINEAGE_CONFIRMED
 
     def _zone_loads_from_persisted_cooling_payload(self) -> dict[str, str]:
         cooling_payload = self._stage_payloads.get("cooling_load")
@@ -634,7 +874,7 @@ class LineageAwareCalculatorPort:
                 details={"reason": "missing_cooling_load_payload"},
             )
         zones_raw = cooling_payload.get("zones")
-        if not isinstance(zones_raw, list) or not zones_raw:
+        if not isinstance(zones_raw, (list, tuple)) or not zones_raw:
             raise TransactionBFailure(
                 "UPSTREAM_LINEAGE_BIND_FAILED",
                 "equipment lineage binding requires per-zone cooling load results",
@@ -663,6 +903,60 @@ class LineageAwareCalculatorPort:
                 details={"reason": "empty_cooling_zone_loads"},
             )
         return zone_loads
+
+
+def _stage_payload_for_lineage(
+    *,
+    stage_name: str,
+    result: StageExecutionResult,
+    inner: Phase2AdapterCalculatorPort,
+) -> dict[str, Any]:
+    payload = dict(result.result_snapshot)
+    if stage_name != "equipment":
+        return payload
+    electrical = payload.get("total_compressor_input_power_kw_e")
+    if electrical is None:
+        electrical = _equipment_electrical_compressor_input_power_kw_e(result)
+    if electrical is None:
+        adapter = getattr(inner, "_equipment_adapter", None)
+        if isinstance(adapter, _ElectricalCapturingEquipmentAdapter):
+            electrical = adapter.last_total_compressor_input_power_kw_e
+    if electrical is not None:
+        payload["total_compressor_input_power_kw_e"] = str(_decimalize(electrical))
+    return payload
+
+
+def _equipment_electrical_compressor_input_power_kw_e(
+    result: StageExecutionResult,
+) -> str | None:
+    for collection in (
+        result.formulas,
+        result.coefficients,
+        result.warnings,
+        result.source_references,
+    ):
+        found = _find_electrical_compressor_power_kw_e(collection)
+        if found is not None:
+            return found
+    return None
+
+
+def _find_electrical_compressor_power_kw_e(nodes: object) -> str | None:
+    if isinstance(nodes, Mapping):
+        for key, value in nodes.items():
+            if str(key) in _ELECTRICAL_COMPRESSOR_POWER_KEYS and value is not None:
+                return str(_decimalize(value))
+            found = _find_electrical_compressor_power_kw_e(value)
+            if found is not None:
+                return found
+        return None
+    if isinstance(nodes, (list, tuple)):
+        for node in nodes:
+            found = _find_electrical_compressor_power_kw_e(node)
+            if found is not None:
+                return found
+        return None
+    return None
 
 
 def compose_workbench_five_stage_execution_service(
@@ -696,7 +990,7 @@ def _decimalize(value: Any) -> Decimal:
 
 def _sum_position_count(zone_payload: dict[str, Any]) -> int | None:
     zones = zone_payload.get("zones")
-    if not isinstance(zones, list):
+    if not isinstance(zones, (list, tuple)):
         return None
     total = 0
     found = False
@@ -707,5 +1001,28 @@ def _sum_position_count(zone_payload: dict[str, Any]) -> int | None:
         if count is None:
             continue
         total += int(count)
+        found = True
+    return total if found else None
+
+
+def _sum_required_area_by_bands(
+    zone_payload: dict[str, Any],
+    bands: tuple[str, ...],
+) -> Decimal | None:
+    zones = zone_payload.get("zones")
+    if not isinstance(zones, (list, tuple)):
+        return None
+    total = Decimal("0")
+    found = False
+    for zone in zones:
+        if not isinstance(zone, dict):
+            continue
+        band = str(zone.get("temperature_band", ""))
+        if band not in bands:
+            continue
+        area = zone.get("required_area_m2")
+        if area is None:
+            continue
+        total += _decimalize(area)
         found = True
     return total if found else None

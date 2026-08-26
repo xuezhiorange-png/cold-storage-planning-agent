@@ -18,13 +18,29 @@ from cold_storage.shared.errors import MissingEngineeringParameterError
 BUNDLE_SCHEMA_ID = "EngineeringInputBundleV1"
 BUNDLE_SCHEMA_VERSION = "1.0.0"
 
-_KEY_ZONE_FIELDS: tuple[str, ...] = (
+OPERATOR_PROCESS_SCHEMA_ID = "OperatorProcessInputV1"
+OPERATOR_PROCESS_SCHEMA_VERSION = "1.0.0"
+LINEAGE_PENDING_STATE = "lineage_pending"
+
+OPERATOR_FIVE_KEY_FIELDS: tuple[str, ...] = (
     "daily_inbound_mass_kg",
     "working_time_h_per_day",
     "finished_storage_days",
     "packaging_storage_days",
     "precooling_required_ratio",
 )
+
+_LINEAGE_DEFERRED_COOLING_FIELDS: frozenset[str] = frozenset(
+    {
+        "zone_code",
+        "zone_name",
+        "temperature_level",
+        "zone_area",
+        "floor_area",
+    }
+)
+
+_KEY_ZONE_FIELDS: tuple[str, ...] = OPERATOR_FIVE_KEY_FIELDS
 
 _KEY_COOLING_ZONE_FIELDS: tuple[str, ...] = (
     "zone_code",
@@ -105,15 +121,43 @@ class EngineeringInputBundleValidationError(Exception):
         super().__init__(error.message)
 
 
-def validate_engineering_input_bundle(bundle: Mapping[str, Any]) -> None:
-    """Validate ``EngineeringInputBundleV1`` and fail closed on KEY gaps."""
+def validate_engineering_input_bundle(
+    bundle: Mapping[str, Any],
+    *,
+    validation_mode: str = "full",
+) -> None:
+    """Validate ``EngineeringInputBundleV1`` and fail closed on KEY gaps.
+
+    ``validation_mode``:
+    - ``full``: require every KEY leaf at submit (V0.5/V0.6/V0.7 compatibility path).
+    - ``operator_minimal``: allow lineage-pending leaves for operator-minimal assembly.
+    """
+    if validation_mode not in {"full", "operator_minimal"}:
+        raise ValueError(f"unsupported validation_mode {validation_mode!r}")
+    provenance = _input_group_provenance(bundle)
     _validate_schema_identity(bundle)
     _validate_project_version_identity(bundle)
-    _validate_zone_planning_inputs(bundle)
-    _validate_cooling_load_inputs(bundle)
-    _validate_equipment_inputs(bundle)
-    _validate_installed_power_inputs(bundle)
-    _validate_investment_inputs(bundle)
+    _validate_zone_planning_inputs(bundle, validation_mode=validation_mode)
+    _validate_cooling_load_inputs(
+        bundle,
+        validation_mode=validation_mode,
+        provenance=provenance,
+    )
+    _validate_equipment_inputs(
+        bundle,
+        validation_mode=validation_mode,
+        provenance=provenance,
+    )
+    _validate_installed_power_inputs(
+        bundle,
+        validation_mode=validation_mode,
+        provenance=provenance,
+    )
+    _validate_investment_inputs(
+        bundle,
+        validation_mode=validation_mode,
+        provenance=provenance,
+    )
     _validate_coefficient_context(bundle)
     _validate_units_metadata(bundle)
     _validate_source_metadata(bundle)
@@ -129,7 +173,13 @@ def bundle_payload_hash(bundle: Mapping[str, Any]) -> str:
 
 def project_execution_snapshot_from_bundle(bundle: Mapping[str, Any]) -> dict[str, Any]:
     """Project bundle sections onto the five-stage execution snapshot shape."""
-    validate_engineering_input_bundle(bundle)
+    validation_mode = (
+        "operator_minimal"
+        if _input_group_provenance(bundle).get("cooling_load_inputs")
+        == "persisted_upstream_confirmed"
+        else "full"
+    )
+    validate_engineering_input_bundle(bundle, validation_mode=validation_mode)
     coefficient_context = _coefficient_context_payload(bundle)
     return {
         "zone": _zone_stage_payload(bundle),
@@ -141,7 +191,13 @@ def project_execution_snapshot_from_bundle(bundle: Mapping[str, Any]) -> dict[st
 
 
 def coefficient_context_from_bundle(bundle: Mapping[str, Any]) -> dict[str, Any]:
-    validate_engineering_input_bundle(bundle)
+    validation_mode = (
+        "operator_minimal"
+        if _input_group_provenance(bundle).get("cooling_load_inputs")
+        == "persisted_upstream_confirmed"
+        else "full"
+    )
+    validate_engineering_input_bundle(bundle, validation_mode=validation_mode)
     return _coefficient_context_payload(bundle)
 
 
@@ -183,13 +239,22 @@ def _validate_project_version_identity(bundle: Mapping[str, Any]) -> None:
         _required_leaf(identity, field_name, f"project_version_identity.{field_name}")
 
 
-def _validate_zone_planning_inputs(bundle: Mapping[str, Any]) -> None:
+def _validate_zone_planning_inputs(
+    bundle: Mapping[str, Any],
+    *,
+    validation_mode: str,
+) -> None:
     section = _require_section(bundle, "zone_planning_inputs")
     for field_name in _KEY_ZONE_FIELDS:
         _required_numeric_leaf(section, field_name, f"zone_planning_inputs.{field_name}")
 
 
-def _validate_cooling_load_inputs(bundle: Mapping[str, Any]) -> None:
+def _validate_cooling_load_inputs(
+    bundle: Mapping[str, Any],
+    *,
+    validation_mode: str,
+    provenance: dict[str, str],
+) -> None:
     section = _require_section(bundle, "cooling_load_inputs")
     zones = _required_leaf(section, "zones", "cooling_load_inputs.zones")
     if not isinstance(zones, list) or not zones:
@@ -198,6 +263,10 @@ def _validate_cooling_load_inputs(bundle: Mapping[str, Any]) -> None:
         )
     _required_leaf(section, "coefficients", "cooling_load_inputs.coefficients")
     coefficient_context = bundle.get("coefficient_context", {})
+    lineage_deferred = (
+        validation_mode == "operator_minimal"
+        and provenance.get("cooling_load_inputs") == "persisted_upstream_confirmed"
+    )
     for index, zone in enumerate(zones):
         if not isinstance(zone, dict):
             _raise_missing(f"cooling_load_inputs.zones[{index}]", "zone entry must be an object")
@@ -207,9 +276,15 @@ def _validate_cooling_load_inputs(bundle: Mapping[str, Any]) -> None:
             "zone_name",
             "temperature_level",
         ):
-            _required_leaf(zone, field_name, f"{prefix}.{field_name}")
+            if lineage_deferred and field_name in _LINEAGE_DEFERRED_COOLING_FIELDS:
+                _require_lineage_pending_or_provided(zone, field_name, f"{prefix}.{field_name}")
+            else:
+                _required_leaf(zone, field_name, f"{prefix}.{field_name}")
         for field_name in _KEY_COOLING_ZONE_FIELDS[3:]:
-            _required_numeric_leaf(zone, field_name, f"{prefix}.{field_name}")
+            if lineage_deferred and field_name in _LINEAGE_DEFERRED_COOLING_FIELDS:
+                _require_lineage_pending_or_provided(zone, field_name, f"{prefix}.{field_name}")
+            else:
+                _required_numeric_leaf(zone, field_name, f"{prefix}.{field_name}")
         for coeff_name in _OPTIONAL_COEFFICIENT_LEAVES:
             _require_explicit_or_coefficient_context(
                 zone,
@@ -219,7 +294,12 @@ def _validate_cooling_load_inputs(bundle: Mapping[str, Any]) -> None:
             )
 
 
-def _validate_equipment_inputs(bundle: Mapping[str, Any]) -> None:
+def _validate_equipment_inputs(
+    bundle: Mapping[str, Any],
+    *,
+    validation_mode: str,
+    provenance: dict[str, str],
+) -> None:
     section = _require_section(bundle, "equipment_inputs")
     systems = _required_leaf(section, "systems", "equipment_inputs.systems")
     if not isinstance(systems, list) or not systems:
@@ -258,23 +338,61 @@ def _validate_equipment_inputs(bundle: Mapping[str, Any]) -> None:
                 else:
                     _required_leaf(zone, field_name, f"{zone_prefix}.{field_name}")
             _required_leaf(zone, _KEY_EQUIPMENT_ZONE_FIELDS[3], f"{zone_prefix}.defrost_method")
-            _required_numeric_leaf(
-                zone,
-                _KEY_EQUIPMENT_ZONE_FIELDS[4],
-                f"{zone_prefix}.{_KEY_EQUIPMENT_ZONE_FIELDS[4]}",
-            )
+            load_field = _KEY_EQUIPMENT_ZONE_FIELDS[4]
+            if (
+                validation_mode == "operator_minimal"
+                and provenance.get("equipment_inputs") == "persisted_upstream_confirmed"
+                and load_field == "design_cooling_load_kw_r"
+            ):
+                _require_lineage_pending_or_provided(
+                    zone, load_field, f"{zone_prefix}.{load_field}"
+                )
+            else:
+                _required_numeric_leaf(zone, load_field, f"{zone_prefix}.{load_field}")
 
 
-def _validate_installed_power_inputs(bundle: Mapping[str, Any]) -> None:
+def _validate_installed_power_inputs(
+    bundle: Mapping[str, Any],
+    *,
+    validation_mode: str,
+    provenance: dict[str, str],
+) -> None:
     section = _require_section(bundle, "installed_power_inputs")
     for field_name in _KEY_POWER_FIELDS:
-        _required_numeric_leaf(section, field_name, f"installed_power_inputs.{field_name}")
+        if (
+            validation_mode == "operator_minimal"
+            and provenance.get("installed_power_inputs") == "persisted_upstream_confirmed"
+            and field_name == "compressor_input_power_kw_e"
+        ):
+            _require_lineage_pending_or_provided(
+                section,
+                field_name,
+                f"installed_power_inputs.{field_name}",
+            )
+        else:
+            _required_numeric_leaf(section, field_name, f"installed_power_inputs.{field_name}")
 
 
-def _validate_investment_inputs(bundle: Mapping[str, Any]) -> None:
+def _validate_investment_inputs(
+    bundle: Mapping[str, Any],
+    *,
+    validation_mode: str,
+    provenance: dict[str, str],
+) -> None:
     section = _require_section(bundle, "investment_inputs")
+    lineage_deferred = (
+        validation_mode == "operator_minimal"
+        and provenance.get("investment_inputs") == "persisted_upstream_confirmed"
+    )
     for field_name in _KEY_INVESTMENT_FIELDS:
-        _required_numeric_leaf(section, field_name, f"investment_inputs.{field_name}")
+        if lineage_deferred:
+            _require_lineage_pending_or_provided(
+                section,
+                field_name,
+                f"investment_inputs.{field_name}",
+            )
+        else:
+            _required_numeric_leaf(section, field_name, f"investment_inputs.{field_name}")
 
 
 def _validate_coefficient_context(bundle: Mapping[str, Any]) -> None:
@@ -337,7 +455,7 @@ def _cooling_load_stage_payload(
             "temperature_level": _leaf_text(zone, "temperature_level"),
         }
         for field_name in _KEY_COOLING_ZONE_FIELDS[3:]:
-            zone_out[field_name] = _decimalize(_required_numeric_leaf(zone, field_name, field_name))
+            zone_out[field_name] = _decimalize(_snapshot_numeric_leaf(zone, field_name, field_name))
         for coeff_name in _OPTIONAL_COEFFICIENT_LEAVES:
             value = _optional_leaf_value(zone, coeff_name, coefficient_context)
             if value is not None:
@@ -371,8 +489,10 @@ def _equipment_stage_payload(
                     ),
                     "defrost_method": _leaf_text(zone, "defrost_method"),
                     "design_cooling_load_kw_r": _decimalize(
-                        _required_numeric_leaf(
-                            zone, "design_cooling_load_kw_r", "design_cooling_load_kw_r"
+                        _snapshot_numeric_leaf(
+                            zone,
+                            "design_cooling_load_kw_r",
+                            "design_cooling_load_kw_r",
                         )
                     ),
                 }
@@ -413,7 +533,7 @@ def _equipment_stage_payload(
 def _power_stage_payload(bundle: Mapping[str, Any]) -> dict[str, Any]:
     section = bundle["installed_power_inputs"]
     return {
-        field_name: _decimalize(_required_numeric_leaf(section, field_name, field_name))
+        field_name: _decimalize(_snapshot_numeric_leaf(section, field_name, field_name))
         for field_name in _KEY_POWER_FIELDS
     }
 
@@ -423,10 +543,10 @@ def _investment_stage_payload(bundle: Mapping[str, Any]) -> dict[str, Any]:
     payload: dict[str, Any] = {}
     for field_name in _KEY_INVESTMENT_FIELDS:
         if field_name == "position_count":
-            payload[field_name] = int(_required_numeric_leaf(section, field_name, field_name))
+            payload[field_name] = int(_snapshot_numeric_leaf(section, field_name, field_name))
         else:
             payload[field_name] = _decimalize(
-                _required_numeric_leaf(section, field_name, field_name)
+                _snapshot_numeric_leaf(section, field_name, field_name)
             )
     return payload
 
@@ -536,12 +656,65 @@ def _leaf_value(node: Any) -> Any:
 
 
 def _leaf_text(section: Mapping[str, Any], field_name: str) -> str:
+    if field_name in section:
+        leaf = section[field_name]
+        if _is_bundle_leaf(leaf) and leaf.get("state") == LINEAGE_PENDING_STATE:
+            expected = section.get("_assembler_expected_zone_code")
+            if isinstance(expected, str) and field_name == "zone_code":
+                return expected
+            return ""
     value = _required_leaf(section, field_name, field_name)
     return str(value)
 
 
+def _snapshot_numeric_leaf(section: Mapping[str, Any], field_name: str, field_path: str) -> Any:
+    if field_name in section:
+        leaf = section[field_name]
+        if _is_bundle_leaf(leaf) and leaf.get("state") == LINEAGE_PENDING_STATE:
+            return "0"
+    return _required_numeric_leaf(section, field_name, field_path)
+
+
 def _is_bundle_leaf(node: Any) -> bool:
     return isinstance(node, dict) and "state" in node and "value" in node
+
+
+def _require_lineage_pending_or_provided(
+    section: Mapping[str, Any],
+    field_name: str,
+    field_path: str,
+) -> None:
+    if field_name not in section:
+        _raise_missing(field_path)
+    leaf = section[field_name]
+    if not _is_bundle_leaf(leaf):
+        _raise_missing(field_path)
+    state = leaf.get("state")
+    if state == LINEAGE_PENDING_STATE:
+        unit = leaf.get("unit")
+        unit_optional = field_name in {
+            "zone_code",
+            "zone_name",
+            "temperature_level",
+            "defrost_method",
+        }
+        if unit in (None, "") and not unit_optional:
+            _raise_missing(f"{field_path}.unit")
+        return
+    if state == "missing":
+        _raise_missing(field_path)
+    if leaf.get("value") is None:
+        _raise_missing(field_path)
+
+
+def _input_group_provenance(bundle: Mapping[str, Any]) -> dict[str, str]:
+    source_metadata = bundle.get("source_metadata")
+    if not isinstance(source_metadata, dict):
+        return {}
+    provenance = source_metadata.get("input_group_provenance")
+    if not isinstance(provenance, dict):
+        return {}
+    return {str(key): str(value) for key, value in provenance.items()}
 
 
 def _decimalize(value: Any) -> str | Any:
