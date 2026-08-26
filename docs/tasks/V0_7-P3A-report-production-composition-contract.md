@@ -1,6 +1,6 @@
 # V0.7 P3A Report Production Composition Contract
 
-**Status:** Definition freeze R1 — operator `create_app` report DI composition
+**Status:** Definition freeze R2 — operator `create_app` report DI composition + CI regression fix
 **Authority:** Parent contract `docs/tasks/V0_7-P0-trust-loop-contract.md`
 **Previous release:** `v0.6.0`
 **Target branch:** `cursor/v07-p3a-report-production-composition-6c68`
@@ -14,7 +14,7 @@ recalculate formulas.
 ## 0. Contract identity and governance
 
 ```text
-TASK=V07_P3A_REPORT_PRODUCTION_COMPOSITION_R1
+TASK=V07_P3A_REPORT_PRODUCTION_COMPOSITION_R2
 PARENT_ISSUE=PENDING
 P3A_TRACKING_ISSUE=PENDING
 DISPATCH_ISSUE=PENDING
@@ -102,6 +102,7 @@ docs/tasks/V0_7-P3A-report-production-composition-contract.md
 backend/src/cold_storage/bootstrap/app.py
 backend/tests/integration/test_v07_p3a_report_project_summary_sqlite.py
 backend/tests/integration/test_v07_p3a_report_project_summary_postgresql.py
+backend/tests/unit/test_reports_boundaries.py
 ```
 
 ## 5. Test matrix
@@ -110,6 +111,7 @@ backend/tests/integration/test_v07_p3a_report_project_summary_postgresql.py
 | --- | --- | --- |
 | `test_v07_p3a_report_project_summary_sqlite.py` | SQLite | generate → export JSON contains `project_summary`; name matches seed |
 | `test_v07_p3a_report_project_summary_postgresql.py` | PostgreSQL | same; env vars set before `create_app`; `_singletons` isolated |
+| `test_reports_boundaries.py` | SQLite (unit) | `_get_report_service` factory without lifespan initializes/restores `_singletons` |
 
 Test setup must follow V0.6 P5 PostgreSQL conventions:
 
@@ -123,6 +125,7 @@ Test setup must follow V0.6 P5 PostgreSQL conventions:
 ```text
 P3A_CONTRACT_EXISTS=PASS
 PROJECT_SERVICE_INJECTED_IN_GET_REPORT_SERVICE=PASS
+REPORT_BOUNDARIES_FACTORY_INITS_DEPENDENCIES=PASS
 PROJECT_SUMMARY_PRESENT_AFTER_GENERATE_SQLITE=PASS
 PROJECT_SUMMARY_PRESENT_AFTER_GENERATE_POSTGRESQL=PASS
 PROJECT_NAME_MATCHES_SEED=PASS
@@ -136,7 +139,7 @@ DRAFT=YES
 ## 7. Contract closure state
 
 ```text
-TASK=V07_P3A_REPORT_PRODUCTION_COMPOSITION_R1
+TASK=V07_P3A_REPORT_PRODUCTION_COMPOSITION_R2
 AUTHORIZED_CONTRACT_PATH=docs/tasks/V0_7-P3A-report-production-composition-contract.md
 V07_P3A_CONTRACT_FROZEN=YES
 V07_P3A_IMPLEMENTATION_AUTHORIZED=YES
@@ -151,3 +154,4 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 | Rev | Date | Change |
 | --- | --- | --- |
 | R1 | 2026-08-26 | Initial P3A report production composition contract |
+| R2 | 2026-08-26 | CI regression: boundary test initializes/restores `_singletons` for `_get_report_service` |

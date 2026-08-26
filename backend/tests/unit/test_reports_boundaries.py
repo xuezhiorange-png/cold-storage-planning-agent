@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
+from sqlalchemy.pool import StaticPool
 
 REPORTS_MODULE = (
     Path(__file__).resolve().parents[2] / "src" / "cold_storage" / "modules" / "reports"
@@ -118,6 +119,8 @@ def test_create_app_report_composition_uses_public_scheme_authority_query() -> N
     """Exercise the real app factory's report service composition."""
     import cold_storage.modules.schemes.application.query as schemes_query
     from cold_storage.bootstrap.app import create_app
+    from cold_storage.bootstrap.dependencies import _singletons
+    from cold_storage.modules.projects.infrastructure.database import DatabaseProjectService
     from cold_storage.modules.reports.api.routes import _get_render_service, _get_service
     from cold_storage.modules.reports.application.service import _default_trusted_operator
     from cold_storage.modules.reports.infrastructure.orm import Base
@@ -125,28 +128,44 @@ def test_create_app_report_composition_uses_public_scheme_authority_query() -> N
         SqlAlchemySchemeReviewAuthorityReader,
     )
 
-    engine = create_engine("sqlite://")
-    Base.metadata.create_all(engine)
-    app = create_app()
-    factory = app.dependency_overrides[_get_service]
-    render_factory = app.dependency_overrides[_get_render_service]
-
-    with Session(engine) as session:
-        service = factory(session)
-        render_service = render_factory(session)
-
-    provider = service._assembler._provider
-    assert service._scheme_review_query is provider._scheme_query
-    production_query_type = schemes_query._SCHEME_QUERY_SERVICE_IMPLEMENTATION
-    assert isinstance(service._scheme_review_query, production_query_type)
-    assert isinstance(
-        service._scheme_review_query._review_authority_reader,
-        SqlAlchemySchemeReviewAuthorityReader,
+    singleton_snapshot = dict(_singletons)
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
     )
+    try:
+        _singletons.clear()
+        Base.metadata.create_all(engine)
+        project_service = DatabaseProjectService(engine)
+        _singletons["engine"] = engine
+        _singletons["project_service"] = project_service
 
-    assert isinstance(render_service._scheme_review_query, production_query_type)
-    assert isinstance(
-        render_service._scheme_review_query._review_authority_reader,
-        SqlAlchemySchemeReviewAuthorityReader,
-    )
-    assert render_service._trusted_operator is _default_trusted_operator
+        app = create_app()
+        factory = app.dependency_overrides[_get_service]
+        render_factory = app.dependency_overrides[_get_render_service]
+
+        with Session(engine) as session:
+            service = factory(session)
+            render_service = render_factory(session)
+
+        provider = service._assembler._provider
+        assert provider._project_service is project_service
+        assert service._scheme_review_query is provider._scheme_query
+        production_query_type = schemes_query._SCHEME_QUERY_SERVICE_IMPLEMENTATION
+        assert isinstance(service._scheme_review_query, production_query_type)
+        assert isinstance(
+            service._scheme_review_query._review_authority_reader,
+            SqlAlchemySchemeReviewAuthorityReader,
+        )
+
+        assert isinstance(render_service._scheme_review_query, production_query_type)
+        assert isinstance(
+            render_service._scheme_review_query._review_authority_reader,
+            SqlAlchemySchemeReviewAuthorityReader,
+        )
+        assert render_service._trusted_operator is _default_trusted_operator
+    finally:
+        _singletons.clear()
+        _singletons.update(singleton_snapshot)
+        engine.dispose()

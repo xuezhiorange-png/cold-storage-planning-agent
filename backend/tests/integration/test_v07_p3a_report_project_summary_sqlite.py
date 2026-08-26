@@ -40,7 +40,7 @@ def _assert_project_summary_matches_seed(
 def test_v07_p3a_contract_exists() -> None:
     assert P3A_CONTRACT.is_file()
     text = P3A_CONTRACT.read_text(encoding="utf-8")
-    assert "TASK=V07_P3A_REPORT_PRODUCTION_COMPOSITION_R1" in text
+    assert "TASK=V07_P3A_REPORT_PRODUCTION_COMPOSITION_R2" in text
     assert "TARGET_BRANCH=cursor/v07-p3a-report-production-composition-6c68" in text
     assert "MERGE_AUTHORIZED=NO" in text
     assert "project_service=get_project_service()" not in text
