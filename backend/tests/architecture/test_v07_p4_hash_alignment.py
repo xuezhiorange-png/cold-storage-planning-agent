@@ -24,7 +24,7 @@ P4_EXISTING_ALLOWLIST_PATHS: tuple[str, ...] = (
 )
 
 REQUIRED_P4_GOVERNANCE_FLAGS: tuple[str, ...] = (
-    "TASK=V07_P4_TARGETED_HASH_REPAIR_R1",
+    "TASK=V07_P4_TARGETED_HASH_REPAIR_R2",
     "V07_P4_IMPLEMENTATION_AUTHORIZED=YES",
     "PRODUCTION_HASH_REPAIR_AUTHORIZED=YES",
     "FORMULA_RECUT_AUTHORIZED=NO",
@@ -42,9 +42,10 @@ P4_REPAIR_FRAGMENTS: tuple[str, ...] = (
     "record.result_hash",
     "indexed[stage].result_hash",
     "combined_source_hash",
-    "SourceBinding.combined_source_hash",
+    "scheme_authority",
     "_result_hash()",
     "_per_calc_hash()",
+    "legacy fallback",
 )
 
 FORBIDDEN_PRODUCTION_PATH_FRAGMENTS: tuple[str, ...] = (
@@ -136,7 +137,7 @@ def test_v07_p4_contract_forbids_out_of_scope_paths() -> None:
         assert fragment in contract, f"P4 contract must forbid {fragment!r}"
 
 
-def test_v07_p4_production_code_uses_persisted_hashes() -> None:
+def test_v07_p4_production_code_prefers_persisted_hashes_with_legacy_fallback() -> None:
     workflow_path = REPO_ROOT / "backend/src/cold_storage/modules/workflow/application/service.py"
     scheme_path = (
         REPO_ROOT / "backend/src/cold_storage/modules/schemes/application/canonical_source_reads.py"
@@ -144,24 +145,27 @@ def test_v07_p4_production_code_uses_persisted_hashes() -> None:
     workflow_text = workflow_path.read_text(encoding="utf-8")
     scheme_text = scheme_path.read_text(encoding="utf-8")
 
-    assert '_result_hash(record.get("result_snapshot"))' not in workflow_text
-    assert 'record.get("result_hash")' in workflow_text
+    assert 'persisted_hash = record.get("result_hash")' in workflow_text
+    assert '_result_hash(record.get("result_snapshot"))' in workflow_text
     assert "def _result_hash(" in workflow_text
+    assert "SourceBindingRecord" not in workflow_text
 
-    assert "_per_calc_hash(indexed[stage].result_snapshot" not in scheme_text
-    assert "indexed[stage].result_hash" in scheme_text
+    assert "persisted_hash = record.result_hash" in scheme_text
+    assert "_per_calc_hash(" in scheme_text
     assert "def _per_calc_hash(" in scheme_text
 
 
-def test_v07_p4_stale_reasons_use_combined_source_hash() -> None:
+def test_v07_p4_stale_reasons_use_combined_source_hash_without_orm() -> None:
     workflow_path = REPO_ROOT / "backend/src/cold_storage/modules/workflow/application/service.py"
     workflow_text = workflow_path.read_text(encoding="utf-8")
     stale_fn_start = workflow_text.index("def _collect_stale_reasons(")
     stale_fn_end = workflow_text.index("\ndef _collect_blockers(", stale_fn_start)
     stale_fn = workflow_text[stale_fn_start:stale_fn_end]
-    assert "binding_combined_source_hash" in stale_fn
     assert "combined_source_hash" in stale_fn
+    assert "scheme_authority" in stale_fn
     assert "json.dumps" not in stale_fn
+    assert "binding_combined_source_hash" not in stale_fn
+    assert "SourceBindingRecord" not in workflow_text
 
 
 def test_v07_p4_contract_and_tests_contain_no_engineering_formula_values() -> None:

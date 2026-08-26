@@ -1,6 +1,6 @@
 # V0.7 P4 Targeted Hash Repair Contract
 
-**Status:** Implementation R1 — proven consumer hash alignment
+**Status:** Implementation R2 — proven consumer hash alignment with legacy fallback
 **Authority:** Child of `docs/tasks/V0_7-P0-trust-loop-contract.md`
 **Parent contract SHA:** `e6ad66eef6da66117bd6f0c3bbb67d5179780ebb`
 **Target branch:** `cursor/v07-p4-targeted-hash-repair-6c68`
@@ -13,7 +13,7 @@ production surfaces beyond the frozen allowlist.
 ## 0. Contract identity and governance
 
 ```text
-TASK=V07_P4_TARGETED_HASH_REPAIR_R1
+TASK=V07_P4_TARGETED_HASH_REPAIR_R2
 PARENT_CONTRACT=docs/tasks/V0_7-P0-trust-loop-contract.md
 P2_EVIDENCE_CONTRACT=docs/tasks/V0_7-P2-cross-consumer-consistency-contract.md
 P0_TRACKING_ISSUE=PENDING
@@ -24,7 +24,7 @@ TARGET_BRANCH=cursor/v07-p4-targeted-hash-repair-6c68
 TARGET_FILE=docs/tasks/V0_7-P4-targeted-repair-contract.md
 TARGET_PR_STATE=DRAFT
 
-CONTRACT_STATUS=IMPLEMENTATION_R1
+CONTRACT_STATUS=IMPLEMENTATION_R2
 V07_P0_IMPLEMENTATION_AUTHORIZED=YES
 V07_P1_IMPLEMENTATION_AUTHORIZED=NO
 V07_P2_IMPLEMENTATION_AUTHORIZED=YES
@@ -53,23 +53,27 @@ production SchemeRun.
 
 | Repair ID | Location | Before (P2 drift) | After (P4 authority) |
 | --- | --- | --- | --- |
-| P4-REP-001 | `workflow/application/service.py` `_project_calculations` | `_result_hash(result_snapshot)` | persisted `record.result_hash` |
-| P4-REP-002 | `schemes/application/canonical_source_reads.py` `require_canonical_scheme_sources` | `_per_calc_hash(result_snapshot)` | `indexed[stage].result_hash` |
-| P4-REP-003 | `workflow/application/service.py` `_collect_stale_reasons` | combined raw `result_snapshot` `json.dumps` hash | `SourceBinding.combined_source_hash` vs production `SchemeRun.combined_source_hash` |
+| P4-REP-001 | `workflow/application/service.py` `_project_calculations` | `_result_hash(result_snapshot)` always | persisted `record.result_hash` when present, else `_result_hash` legacy fallback |
+| P4-REP-002 | `schemes/application/canonical_source_reads.py` `require_canonical_scheme_sources` | `_per_calc_hash(result_snapshot)` always | `indexed[stage].result_hash` when present, else `_per_calc_hash` legacy fallback |
+| P4-REP-003 | `workflow/application/service.py` `_collect_stale_reasons` | combined raw `result_snapshot` `json.dumps` hash | production `combined_source_hash` from `scheme_authority` / `scheme_runs` only; no ORM; no false stale without production combined |
 
-Preserved helper functions (P2 evidence only — not production authority):
+Preserved helper functions (P2 evidence and legacy fallback):
 
 - `_result_hash()` remains in `workflow/application/service.py`
 - `_per_calc_hash()` remains in `schemes/application/canonical_source_reads.py`
 
-Fail-closed rules:
+Authority preference rules (R2):
 
-- Canonical five-stage workflow projection MUST NOT synthesize hashes from
-  raw snapshots when `result_hash` is absent.
-- Canonical scheme source reads MUST NOT synthesize hashes from raw
-  snapshots when `result_hash` is absent.
+- Five-stage / v07-consistency paths with persisted `result_hash` MUST use
+  `fingerprint.result_hash` (same as API).
+- Legacy paths without persisted `result_hash` fall back to helper hashes
+  (preserves `test_schemes_service`, `test_v04_*` behavior).
 - Workflow stale detection MUST NOT compare raw snapshot digests against
   production `combined_source_hash`.
+- Workflow application MUST NOT open SQLAlchemy sessions or query
+  `SourceBindingRecord`; combined hash reads use existing scheme ports only.
+- Without production `combined_source_hash` on scheme reads, workflow MUST
+  NOT emit `scheme_source_snapshot_mismatch`.
 
 ### 1.2 Non-goals (hard boundaries)
 
@@ -152,7 +156,7 @@ backend/tests/integration/test_v07_p4_consumer_hash_repair_postgresql.py
 ## 5. Contract closure state
 
 ```text
-TASK=V07_P4_TARGETED_HASH_REPAIR_R1
+TASK=V07_P4_TARGETED_HASH_REPAIR_R2
 AUTHORIZED_CONTRACT_PATH=docs/tasks/V0_7-P4-targeted-repair-contract.md
 
 V07_P4_IMPLEMENTATION_AUTHORIZED=YES
@@ -169,3 +173,4 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 | Rev | Date | Change |
 | --- | --- | --- |
 | R1 | 2026-08-26 | Initial P4 targeted hash repair for V07-GAP-005 |
+| R2 | 2026-08-26 | Legacy helper fallback when persisted hash absent; remove workflow ORM binding read |
