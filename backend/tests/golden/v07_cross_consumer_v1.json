@@ -1,0 +1,22 @@
+{
+  "sample_id": "v07-consistency",
+  "schema_version": "1.0",
+  "payload_result_hashes": {
+    "zone": "d31ea8d6748a58c4f38cf4ec822ba54058feacdb5a92be9c08fe307e85bf605c",
+    "cooling_load": "90eecb3da28637398383fba25c73bdb3dfc7d7b57de62435591d817be259bf02",
+    "equipment": "bb54f88af8c95a510f6dec9e1c7521b91e327a58aa040598b1685d478e0f5769",
+    "power": "26be7ed586e997654857a6dcc16dddcfa0d16dc28b24c9687bbda1421ab1b58e",
+    "investment": "be90d639ce907cd8f001b822cb2cb3569971d168b01f0f9d778a718dadbbb215"
+  },
+  "selected_numeric_projections": {
+    "cold_room_zone_plan.daily_inbound_mass_kg": "20000",
+    "cold_room_zone_plan.total_area_m2": "1913.24",
+    "cooling_load.total_design_refrigeration_load.value": "97.075",
+    "equipment.total_compressor_capacity.value": "120",
+    "equipment.condenser_heat_rejection.value": "184.8",
+    "installed_power.total_installed_power.value": "138",
+    "investment_estimate.total_investment": "5590152"
+  },
+  "known_drift_expected": true,
+  "hash_parity_note": "payload_result_hashes are raw snapshot hashes (stable cross-backend); authoritative fingerprint.result_hash binds execution provenance per run"
+}
