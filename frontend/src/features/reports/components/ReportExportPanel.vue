@@ -77,7 +77,10 @@ const {
   selectReport,
   renderReport,
   downloadArtifact,
-  reset
+  reset,
+  revisionContent,
+  revisionContentLoading,
+  revisionContentError
 } = useReportExport()
 
 /* ── Local UI state ────────────────────────────────── */
@@ -329,6 +332,76 @@ function reportStatusLabel(status: string): string {
           class="report-export-panel__detail"
           role="region"
         >
+          <!-- Persisted report sections (read-only JSON projection) -->
+          <div class="report-export-panel__section">
+            <strong class="report-export-panel__section-title">已持久化报告摘要</strong>
+            <div
+              v-if="revisionContentLoading"
+              class="report-export-panel__loading"
+            >
+              加载报告 JSON...
+            </div>
+            <div
+              v-else-if="revisionContentError"
+              class="report-export-panel__error report-export-panel__error--inline"
+            >
+              {{ revisionContentError }}
+            </div>
+            <div
+              v-else-if="revisionContent"
+              class="report-export-panel__persisted-sections"
+            >
+              <div
+                v-if="revisionContent.project_summary"
+                class="report-export-panel__persisted-block"
+              >
+                <strong>project_summary</strong>
+                <dl>
+                  <div v-if="revisionContent.project_summary.project_name">
+                    <dt>project_name</dt>
+                    <dd>{{ revisionContent.project_summary.project_name }}</dd>
+                  </div>
+                  <div v-if="revisionContent.project_summary.location">
+                    <dt>location</dt>
+                    <dd>{{ revisionContent.project_summary.location }}</dd>
+                  </div>
+                  <div v-if="revisionContent.project_summary.product_category">
+                    <dt>product_category</dt>
+                    <dd>{{ revisionContent.project_summary.product_category }}</dd>
+                  </div>
+                </dl>
+              </div>
+              <div
+                v-if="revisionContent.scheme_comparison?.review_authority"
+                class="report-export-panel__persisted-block"
+              >
+                <strong>scheme_comparison.review_authority</strong>
+                <dl>
+                  <div v-if="revisionContent.scheme_comparison.review_authority.scheme_run_id">
+                    <dt>scheme_run_id</dt>
+                    <dd>{{ revisionContent.scheme_comparison.review_authority.scheme_run_id }}</dd>
+                  </div>
+                  <div v-if="revisionContent.scheme_comparison.review_authority.source_binding_id">
+                    <dt>source_binding_id</dt>
+                    <dd>{{ revisionContent.scheme_comparison.review_authority.source_binding_id }}</dd>
+                  </div>
+                  <div v-if="revisionContent.scheme_comparison.review_authority.combined_source_hash">
+                    <dt>combined_source_hash</dt>
+                    <dd class="report-export-panel__hash">
+                      {{ revisionContent.scheme_comparison.review_authority.combined_source_hash }}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+            <div
+              v-else
+              class="report-export-panel__empty report-export-panel__empty--inline"
+            >
+              生成报告后将从此处展示已持久化的 project_summary / scheme_comparison。
+            </div>
+          </div>
+
           <!-- Status & review workflow -->
           <div class="report-export-panel__section">
             <strong class="report-export-panel__section-title">报告状态</strong>
@@ -941,5 +1014,45 @@ function reportStatusLabel(status: string): string {
   background: #eaf7ea;
   color: #27ae60;
   font-size: 13px;
+}
+
+.report-export-panel__persisted-sections {
+  display: grid;
+  gap: 12px;
+}
+
+.report-export-panel__persisted-block {
+  padding: 8px 12px;
+  border: 1px solid #dbe8f6;
+  border-radius: 6px;
+  background: #fafcfe;
+  font-size: 12px;
+}
+
+.report-export-panel__persisted-block dl {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+}
+
+.report-export-panel__persisted-block div {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px;
+}
+
+.report-export-panel__persisted-block dt {
+  margin: 0;
+  color: #6b7a8f;
+}
+
+.report-export-panel__persisted-block dd {
+  margin: 0;
+  word-break: break-all;
+}
+
+.report-export-panel__hash {
+  font-family: monospace;
+  font-size: 11px;
 }
 </style>

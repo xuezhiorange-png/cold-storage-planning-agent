@@ -15,7 +15,7 @@ import type {
   ReportLocale,
   RenderReportRequest
 } from '../../../api/contracts/reports'
-import type { ReportBlocker, ReportDetailState, ReportWorkflowContext } from '../types'
+import type { ReportBlocker, ReportDetailState, ReportWorkflowContext, PersistedReportRevisionContent } from '../types'
 
 /**
  * Form values for initiating a report render/export.
@@ -63,6 +63,7 @@ export function useReportExport(api: ReportsApi = reportsApi) {
   const downloadGate = new LatestRequestGate()
   const workflowGate = new LatestRequestGate()
   const reviewGate = new LatestRequestGate()
+  const revisionContentGate = new LatestRequestGate()
 
   /* ── Reports list ────────────────────────────────────────── */
 
@@ -92,6 +93,10 @@ export function useReportExport(api: ReportsApi = reportsApi) {
   const revisions = ref<Array<{ revision_number: number; content_hash: string }>>([])
   const revisionsLoading = ref(false)
   const revisionsError = ref('')
+
+  const revisionContent = ref<PersistedReportRevisionContent | null>(null)
+  const revisionContentLoading = ref(false)
+  const revisionContentError = ref('')
 
   /* ── Selected report / revision identity ─────────────────── */
 
@@ -220,6 +225,7 @@ export function useReportExport(api: ReportsApi = reportsApi) {
 
       await loadReports(context.projectId)
       await selectReport(created.report_id)
+      await loadRevisionContent(created.report_id, generated.revision_number)
       reportDetail.value = {
         id: created.report_id,
         status: created.status,
@@ -271,6 +277,9 @@ export function useReportExport(api: ReportsApi = reportsApi) {
         }
         await loadRevisions(reportId)
         await loadReportDetail(reportId)
+        if (reportDetail.value?.revision_number) {
+          await loadRevisionContent(reportId, reportDetail.value.revision_number)
+        }
         return true
       }
       return false
@@ -348,6 +357,7 @@ export function useReportExport(api: ReportsApi = reportsApi) {
     renderResult.value = null
     exports.value = []
     reportDetail.value = null
+    revisionContent.value = null
 
     revisionsLoading.value = true
     revisionsError.value = ''
@@ -380,6 +390,9 @@ export function useReportExport(api: ReportsApi = reportsApi) {
           revision_number: detailResult.value.revision_number
         }
         syncReportStatusInList(reportId, detailResult.value.status)
+        if (detailResult.value.revision_number > 0) {
+          await loadRevisionContent(reportId, detailResult.value.revision_number)
+        }
       } else if (!isStale(detailResult.reason, handle)) {
         reportDetailError.value = formatReportError(detailResult.reason, '加载报告详情失败')
       }
@@ -389,6 +402,29 @@ export function useReportExport(api: ReportsApi = reportsApi) {
     }
 
     handle.finish()
+  }
+
+  async function loadRevisionContent(reportId: string, revisionNumber: number): Promise<void> {
+    const handle = revisionContentGate.begin()
+    revisionContentLoading.value = true
+    revisionContentError.value = ''
+
+    try {
+      const exported = await api.exportJson(reportId, revisionNumber, handle.signal)
+      if (handle.isCurrent()) {
+        const content = (exported.content ?? exported) as PersistedReportRevisionContent
+        revisionContent.value = content
+        selectedRevisionNumber.value = revisionNumber
+      }
+    } catch (err: unknown) {
+      if (!isStale(err, handle)) {
+        revisionContentError.value = formatReportError(err, '加载报告 JSON 内容失败')
+        revisionContent.value = null
+      }
+    } finally {
+      if (handle.isCurrent()) revisionContentLoading.value = false
+      handle.finish()
+    }
   }
 
   /**
@@ -558,6 +594,10 @@ export function useReportExport(api: ReportsApi = reportsApi) {
     revisionsLoading.value = false
     revisionsError.value = ''
 
+    revisionContent.value = null
+    revisionContentLoading.value = false
+    revisionContentError.value = ''
+
     exports.value = []
     exportsLoading.value = false
     exportsError.value = ''
@@ -598,6 +638,10 @@ export function useReportExport(api: ReportsApi = reportsApi) {
     revisionsLoading,
     revisionsError,
 
+    revisionContent: readonly(revisionContent) as DeepReadonly<Ref<PersistedReportRevisionContent | null>>,
+    revisionContentLoading,
+    revisionContentError,
+
     exports: readonly(exports) as DeepReadonly<Ref<ArtifactListItemContract[]>>,
     exportsLoading,
     exportsError,
@@ -620,6 +664,7 @@ export function useReportExport(api: ReportsApi = reportsApi) {
     approveReport,
     selectReport,
     loadRevisions,
+    loadRevisionContent,
     renderReport,
     loadExports,
     downloadArtifact,

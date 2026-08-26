@@ -57,3 +57,33 @@ export interface ReportDetailState {
   status: ReportStatus
   revision_number: number
 }
+
+export interface PersistedProjectSummary {
+  project_name?: string
+  project_code?: string
+  location?: string
+  product_category?: string
+  [key: string]: unknown
+}
+
+export interface PersistedSchemeReviewAuthority {
+  scheme_run_id?: string
+  source_binding_id?: string
+  combined_source_hash?: string
+  requires_review?: boolean
+  review_reasons?: Array<Record<string, unknown>>
+  [key: string]: unknown
+}
+
+export interface PersistedSchemeComparison {
+  review_authority?: PersistedSchemeReviewAuthority
+  recommended_scheme?: Record<string, unknown> | null
+  schemes?: Array<Record<string, unknown>>
+  [key: string]: unknown
+}
+
+export interface PersistedReportRevisionContent {
+  project_summary?: PersistedProjectSummary
+  scheme_comparison?: PersistedSchemeComparison
+  [key: string]: unknown
+}

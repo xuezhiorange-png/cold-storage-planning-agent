@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { ElAlert, ElCard, ElTag } from 'element-plus'
 
 import type { FiveStageProgressView, FiveStageSlotView } from '../model/mapFiveStageCalculations'
+import ProductionSchemeRunPanel from './ProductionSchemeRunPanel.vue'
 
 const props = defineProps<{
   progress: FiveStageProgressView
@@ -104,6 +105,8 @@ const progressSummary = computed(() => {
       description="此为补充/演示表，不能替代规范 installed_power 阶段。"
       class="five-stage-progress-panel__alert"
     />
+
+    <ProductionSchemeRunPanel class="five-stage-progress-panel__production-scheme" />
   </ElCard>
 </template>
 
@@ -187,5 +190,9 @@ const progressSummary = computed(() => {
 
 .five-stage-progress-panel__stale {
   color: #c45656;
+}
+
+.five-stage-progress-panel__production-scheme {
+  margin-top: 12px;
 }
 </style>
