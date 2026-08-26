@@ -14,6 +14,7 @@ from cold_storage.modules.reports.domain.enums import ReportStatus
 from cold_storage.modules.reports.domain.models import Report, ReportRevision
 from cold_storage.modules.schemes.application.query import SchemeQueryPort
 from cold_storage.modules.workflow.application.canonical_calculation_reads import (
+    REQUIRED_SCHEME_CALCULATOR_NAMES,
     canonical_runs_requiring_review,
     detect_canonical_lineage_stale_reasons,
     index_canonical_calculation_runs,
@@ -146,12 +147,15 @@ class WorkflowAggregateService:
         )
 
         input_hash = canonical_json_hash(inputs)
+        binding_combined_source_hash = self._load_binding_combined_source_hash(version.id)
         revision_stale_reasons = _collect_stale_reasons(
             version=version,
             inputs=inputs,
             input_hash=input_hash,
             calculations=calc_by_name,
             scheme_runs=scheme_runs,
+            scheme_authority=scheme_authority,
+            binding_combined_source_hash=binding_combined_source_hash,
             report=report,
             report_revision=report_revision,
         )
@@ -236,6 +240,26 @@ class WorkflowAggregateService:
                 "planning_agent_capability_projection",
             ],
         }
+
+    def _load_binding_combined_source_hash(self, project_version_id: str) -> str | None:
+        engine = getattr(self._project_service, "engine", None)
+        if engine is None:
+            return None
+        from sqlalchemy import select
+        from sqlalchemy.orm import sessionmaker
+
+        from cold_storage.modules.orchestration.infrastructure.orm import SourceBindingRecord
+
+        with sessionmaker(bind=engine, expire_on_commit=False)() as session:
+            binding = session.scalar(
+                select(SourceBindingRecord).where(
+                    SourceBindingRecord.project_version_id == project_version_id
+                )
+            )
+            if binding is None:
+                return None
+            combined = str(binding.combined_source_hash or "")
+            return combined or None
 
     def _safe_get_project(self, project_id: str) -> Any | None:
         try:
@@ -582,6 +606,8 @@ def _collect_stale_reasons(
     input_hash: str,
     calculations: dict[str, dict[str, Any]],
     scheme_runs: list[dict[str, Any]],
+    scheme_authority: Any | None = None,
+    binding_combined_source_hash: str | None = None,
     report: Report | None,
     report_revision: ReportRevision | None,
 ) -> list[str]:
@@ -593,20 +619,20 @@ def _collect_stale_reasons(
             calc_input_hash = canonical_json_hash(snapshot)
             if calc_input_hash != input_hash:
                 reasons.append(f"calculation_input_mismatch:{name}")
-    if scheme_runs and calculations:
-        current_hash = hashlib.sha256(
-            json.dumps(
-                {
-                    name: calculations[name].get("result_snapshot", {})
-                    for name in sorted(calculations)
-                },
-                sort_keys=True,
-                separators=(",", ":"),
-                default=str,
-            ).encode("utf-8")
-        ).hexdigest()
-        run_hash = str(scheme_runs[0].get("source_snapshot_hash", ""))
-        if run_hash and run_hash != current_hash:
+    if scheme_runs and binding_combined_source_hash:
+        scheme_combined: str | None = None
+        if scheme_authority is not None:
+            scheme_combined = str(getattr(scheme_authority, "combined_source_hash", "") or "")
+            scheme_combined = scheme_combined or None
+        if scheme_combined is None:
+            latest_run = scheme_runs[0]
+            scheme_combined = str(
+                latest_run.get("combined_source_hash")
+                or latest_run.get("source_snapshot_hash")
+                or ""
+            )
+            scheme_combined = scheme_combined or None
+        if scheme_combined and scheme_combined != binding_combined_source_hash:
             reasons.append("scheme_source_snapshot_mismatch")
     if report is not None and report_revision is not None:
         if report_revision.revision_number != report.current_revision_number:
@@ -770,6 +796,12 @@ def _build_workflow_readiness(
 def _project_calculations(calc_by_name: dict[str, dict[str, Any]]) -> dict[str, Any]:
     runs = []
     for name, record in sorted(calc_by_name.items()):
+        persisted_hash = record.get("result_hash")
+        if name in REQUIRED_SCHEME_CALCULATOR_NAMES and not persisted_hash:
+            raise ValueError(
+                f"canonical calculation {name!r} missing persisted result_hash "
+                "(fail-closed; must match API fingerprint.result_hash)"
+            )
         runs.append(
             {
                 "calculation_run_id": record.get("id", ""),
@@ -777,7 +809,7 @@ def _project_calculations(calc_by_name: dict[str, dict[str, Any]]) -> dict[str, 
                 "calculator_version": record.get("calculator_version", ""),
                 "requires_review": record.get("requires_review", False),
                 "engineering_numeric_authority": True,
-                "result_hash": _result_hash(record.get("result_snapshot")),
+                "result_hash": str(persisted_hash or ""),
             }
         )
     return {"runs": runs}

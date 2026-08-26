@@ -84,10 +84,16 @@ def require_canonical_scheme_sources(
             raise SourceCalculationMissingError(calculator_name)
 
     source_calc_ids = {stage: str(indexed[stage].id) for stage in CANONICAL_STAGE_ORDER}
-    source_snapshot_hashes = {
-        stage: _per_calc_hash(indexed[stage].result_snapshot or {})
-        for stage in CANONICAL_STAGE_ORDER
-    }
+    source_snapshot_hashes: dict[str, str] = {}
+    for stage in CANONICAL_STAGE_ORDER:
+        persisted_hash = indexed[stage].result_hash
+        if not persisted_hash:
+            calculator_name = STAGE_TO_CALCULATOR_NAME[stage]
+            raise SourceSnapshotInvalidError(
+                f"missing persisted result_hash for canonical stage {stage!r} "
+                f"({calculator_name!r}); fail-closed"
+            )
+        source_snapshot_hashes[stage] = str(persisted_hash)
     return CanonicalSchemeSourceBundle(
         project_id=project_id,
         project_version_id=project_version_id,
