@@ -1,0 +1,87 @@
+{
+  "schema_id": "AilyConfirmationCallbackV1",
+  "schema_version": "1.0.0",
+  "contract_family": "aily/v0.7",
+  "model_visible": false,
+  "description": "Trusted human confirmation callback. Not exposed as a model tool and not replayable into model context.",
+  "transport": {
+    "family": "connector_or_operator_ui_callback",
+    "actor_source": "trusted_transport_only",
+    "forbidden_actor_sources": [
+      "model_json",
+      "tool_arguments",
+      "assistant_message"
+    ]
+  },
+  "callbacks": [
+    {
+      "name": "tool_call.confirm",
+      "model_visible": false,
+      "description": "Confirm a previously proposed tool call after human approval.",
+      "input_schema": {
+        "type": "object",
+        "required": ["tool_call_id"],
+        "properties": {
+          "tool_call_id": { "type": "string", "minLength": 1 },
+          "comment": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "transport_metadata_required": [
+        "actor_principal",
+        "transport_identity_proof"
+      ],
+      "forbidden_fields": [
+        "confirmation_token",
+        "actor",
+        "confirmed_by",
+        "operator_id"
+      ],
+      "server_side_token_handling": {
+        "confirmation_token_in_model_context": "FORBIDDEN",
+        "confirmation_token_in_callback_body": "FORBIDDEN",
+        "confirmation_record_lookup": "server_issued_record_bound_to_tool_call_id"
+      },
+      "execution_rules": [
+        "Re-authorize project/version binding before execution.",
+        "Execute only the previously proposed tool call.",
+        "Persist audit messages for tool result and assistant summary.",
+        "Never expose confirmation secrets back to model context."
+      ]
+    },
+    {
+      "name": "tool_call.reject",
+      "model_visible": false,
+      "description": "Reject a previously proposed tool call.",
+      "input_schema": {
+        "type": "object",
+        "required": ["tool_call_id"],
+        "properties": {
+          "tool_call_id": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "transport_metadata_required": [
+        "actor_principal",
+        "transport_identity_proof"
+      ],
+      "forbidden_fields": [
+        "confirmation_token",
+        "actor",
+        "confirmed_by",
+        "operator_id"
+      ],
+      "execution_rules": [
+        "Leave proposal unexecuted.",
+        "Persist rejection audit trail.",
+        "Never expose confirmation secrets back to model context."
+      ]
+    }
+  ],
+  "not_production_boundary": {
+    "surface": "/api/v1/agent/tool-calls/{tool_call_id}/confirm",
+    "status": "v0.6_internal_compatibility_only",
+    "extend_for_aily": "FORBIDDEN"
+  }
+}

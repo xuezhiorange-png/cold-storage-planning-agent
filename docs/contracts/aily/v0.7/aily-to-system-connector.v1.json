@@ -1,0 +1,70 @@
+{
+  "schema_id": "AilyToSystemConnectorV1",
+  "schema_version": "1.0.0",
+  "contract_family": "aily/v0.7",
+  "direction": "aily_to_system",
+  "transport_family": "custom_mcp_or_feishu_connector",
+  "aily_live_implementation": "NO",
+  "description": "Inbound connector operation map from Feishu Aily to this system. Each operation maps to exactly one frozen model-visible tool.",
+  "not_production_boundary": {
+    "surface": "/api/v1/agent/**",
+    "status": "v0.6_internal_compatibility_only",
+    "extend_for_aily": "FORBIDDEN"
+  },
+  "actor_identity": {
+    "source": "trusted_transport_metadata",
+    "forbidden_sources": [
+      "model_json",
+      "tool_arguments.actor",
+      "tool_arguments.actor_principal"
+    ]
+  },
+  "operations": [
+    {
+      "connector_operation": "cold_storage.planning_context.get",
+      "tool_name": "planning_context.get",
+      "tool_version": "1.0.0",
+      "model_visible": true,
+      "requires_confirmation": false
+    },
+    {
+      "connector_operation": "cold_storage.engineering_inputs.validate",
+      "tool_name": "engineering_inputs.validate",
+      "tool_version": "1.0.0",
+      "model_visible": true,
+      "requires_confirmation": false
+    },
+    {
+      "connector_operation": "cold_storage.five_stage_execution.propose",
+      "tool_name": "five_stage_execution.propose",
+      "tool_version": "1.0.0",
+      "model_visible": true,
+      "requires_confirmation": true
+    },
+    {
+      "connector_operation": "cold_storage.report_delivery.propose",
+      "tool_name": "report_delivery.propose",
+      "tool_version": "1.0.0",
+      "model_visible": true,
+      "requires_confirmation": true
+    }
+  ],
+  "confirmation_callbacks": {
+    "model_visible": false,
+    "contract": "docs/contracts/aily/v0.7/confirmation-callback.v1.json",
+    "operations": [
+      "cold_storage.tool_call.confirm",
+      "cold_storage.tool_call.reject"
+    ]
+  },
+  "fail_closed_rules": [
+    "Reject unlisted connector operations.",
+    "Reject tool argument fields listed in forbidden-model-surfaces.v1.json.",
+    "Reject write execution without prior proposal and trusted confirmation.",
+    "Never return confirmation tokens to model-visible responses."
+  ],
+  "engineering_authority": {
+    "agent_to_engineering_value": "NO",
+    "reports_must_not_recalculate_formulas": true
+  }
+}

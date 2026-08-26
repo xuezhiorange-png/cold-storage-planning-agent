@@ -1,0 +1,165 @@
+openapi: 3.1.0
+info:
+  title: Cold Storage Planning Agent → Feishu Aily Outbound Stub
+  version: 1.0.0
+  description: >
+    Frozen outbound boundary stub for this system calling Feishu Aily
+    skill/session/run APIs. Contract-only artifact; AILY_LIVE_IMPLEMENTATION=NO.
+    Aily responses are untrusted natural-language hints only.
+  x-contract-family: aily/v0.7
+  x-direction: system_to_aily
+  x-aily-live-implementation: "NO"
+
+servers:
+  - url: https://aily.example.feishu.cn
+    description: Placeholder Feishu Aily host — not a live endpoint in V0.7 P6
+
+paths:
+  /open-api/v1/skills/{skill_id}/sessions:
+    post:
+      operationId: createAilySession
+      summary: Create an Aily session for operator assistance
+      tags: [aily-session]
+      parameters:
+        - name: skill_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+
+  /open-api/v1/skills/{skill_id}/sessions/{session_id}/runs:
+    post:
+      operationId: createAilyRun
+      summary: Create a run within an existing Aily session
+      tags: [aily-run]
+      parameters:
+        - name: skill_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRunRequest'
+      responses:
+        '201':
+          description: Run created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunResponse'
+
+components:
+  schemas:
+    CreateSessionRequest:
+      type: object
+      required: [operator_context]
+      additionalProperties: false
+      properties:
+        operator_context:
+          type: object
+          required: [project_id, project_version_id]
+          additionalProperties: false
+          properties:
+            project_id:
+              type: string
+            project_version_id:
+              type: string
+            workflow_goal:
+              type: string
+              enum: [guided_planning, formal_report]
+        locale:
+          type: string
+          enum: [zh-CN, en-US]
+      description: >
+        Outbound payload must not include confirmation_token, mark_reviewed proofs,
+        or model self-attested actor fields.
+
+    SessionResponse:
+      type: object
+      required: [session_id, status]
+      additionalProperties: false
+      properties:
+        session_id:
+          type: string
+        status:
+          type: string
+          enum: [active]
+
+    CreateRunRequest:
+      type: object
+      required: [user_message]
+      additionalProperties: false
+      properties:
+        user_message:
+          type: string
+          description: Operator natural-language input for Aily dialogue
+        persisted_context_refs:
+          type: array
+          items:
+            type: object
+            required: [ref_type, ref_id]
+            additionalProperties: false
+            properties:
+              ref_type:
+                type: string
+                enum: [calculation_id, report_id, source_binding_id]
+              ref_id:
+                type: string
+      description: >
+        Must not send confirmation tokens or trusted-operator proofs for model replay.
+
+    RunResponse:
+      type: object
+      required: [run_id, status]
+      additionalProperties: false
+      properties:
+        run_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, completed, failed]
+
+  securitySchemes:
+    FeishuServiceAuth:
+      type: http
+      scheme: bearer
+      description: Service credential for outbound Aily OpenAPI — not configured in V0.7 P6
+
+security:
+  - FeishuServiceAuth: []
+
+x-forbidden-outbound-fields:
+  - confirmation_token
+  - actor
+  - actor_principal
+  - confirmed_by
+  - operator_id
+  - mark_reviewed_proof
+  - trusted_operator_proof
+
+x-authority-rules:
+  agent_to_engineering_value: "NO"
+  aily_response_authority: untrusted_natural_language_only
+  engineering_authority: this_system_only
