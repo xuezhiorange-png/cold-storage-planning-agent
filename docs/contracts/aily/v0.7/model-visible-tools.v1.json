@@ -1,0 +1,336 @@
+{
+  "schema_id": "AilyModelVisibleToolsV1",
+  "schema_version": "1.0.0",
+  "contract_family": "aily/v0.7",
+  "aily_live_implementation": "NO",
+  "model_visible_tool_count": 4,
+  "tools": [
+    {
+      "name": "planning_context.get",
+      "version": "1.0.0",
+      "authorization_level": "read",
+      "requires_confirmation": false,
+      "requires_project": true,
+      "requires_project_version": true,
+      "description": "Read persisted project/version/workflow context for dialogue. Does not execute calculations or expose write capability.",
+      "input_schema": {
+        "type": "object",
+        "required": ["project_id", "project_version_id"],
+        "properties": {
+          "project_id": { "type": "string", "minLength": 1 },
+          "project_version_id": { "type": "string", "minLength": 1 },
+          "include_workflow_projection": { "type": "boolean", "default": true },
+          "include_persisted_summary": { "type": "boolean", "default": true }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "source_tool",
+          "tool_version",
+          "result_id",
+          "payload",
+          "warnings",
+          "requires_review"
+        ],
+        "properties": {
+          "source_tool": { "const": "planning_context.get" },
+          "tool_version": { "const": "1.0.0" },
+          "result_id": { "type": "string" },
+          "payload": {
+            "type": "object",
+            "required": [
+              "project_id",
+              "project_version_id",
+              "version_number",
+              "version_status"
+            ],
+            "properties": {
+              "project_id": { "type": "string" },
+              "project_version_id": { "type": "string" },
+              "version_number": { "type": "integer" },
+              "version_status": { "type": "string" },
+              "workflow_projection": { "type": "object" },
+              "persisted_summary": { "type": "object" }
+            },
+            "additionalProperties": false
+          },
+          "warnings": { "type": "array", "items": { "type": "string" } },
+          "requires_review": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "forbidden_input_fields": [
+        "actor",
+        "actor_principal",
+        "confirmation_token",
+        "confirmed_by",
+        "operator_id"
+      ],
+      "forbidden_output_fields": [
+        "confirmation_token",
+        "engineering_totals_computed_by_model"
+      ]
+    },
+    {
+      "name": "engineering_inputs.validate",
+      "version": "1.0.0",
+      "authorization_level": "read",
+      "requires_confirmation": false,
+      "requires_project": false,
+      "requires_project_version": false,
+      "description": "Validate EngineeringInputBundleV1 without persisting or executing calculations.",
+      "input_schema": {
+        "type": "object",
+        "required": ["engineering_input_bundle"],
+        "properties": {
+          "engineering_input_bundle": {
+            "type": "object",
+            "required": ["schema_id", "schema_version"],
+            "properties": {
+              "schema_id": { "const": "EngineeringInputBundleV1" },
+              "schema_version": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "source_tool",
+          "tool_version",
+          "result_id",
+          "payload",
+          "warnings",
+          "requires_review"
+        ],
+        "properties": {
+          "source_tool": { "const": "engineering_inputs.validate" },
+          "tool_version": { "const": "1.0.0" },
+          "result_id": { "type": "string" },
+          "payload": {
+            "type": "object",
+            "required": ["valid", "field_states", "errors"],
+            "properties": {
+              "valid": { "type": "boolean" },
+              "field_states": { "type": "object" },
+              "errors": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["field_path", "code", "message"],
+                  "properties": {
+                    "field_path": { "type": "string" },
+                    "code": { "type": "string" },
+                    "message": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "warnings": { "type": "array", "items": { "type": "string" } },
+          "requires_review": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "forbidden_input_fields": [
+        "actor",
+        "actor_principal",
+        "confirmation_token",
+        "confirmed_by",
+        "operator_id"
+      ],
+      "forbidden_output_fields": [
+        "confirmation_token",
+        "persisted_calculation_ids"
+      ]
+    },
+    {
+      "name": "five_stage_execution.propose",
+      "version": "1.0.0",
+      "authorization_level": "write",
+      "requires_confirmation": true,
+      "requires_project": true,
+      "requires_project_version": true,
+      "description": "Propose five-stage execution. Execution occurs only after trusted human confirmation on the non-model callback path.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "project_version_id",
+          "engineering_input_bundle",
+          "idempotency_key"
+        ],
+        "properties": {
+          "project_id": { "type": "string", "minLength": 1 },
+          "project_version_id": { "type": "string", "minLength": 1 },
+          "engineering_input_bundle": {
+            "type": "object",
+            "required": ["schema_id", "schema_version"],
+            "properties": {
+              "schema_id": { "const": "EngineeringInputBundleV1" },
+              "schema_version": { "type": "string" }
+            },
+            "additionalProperties": true
+          },
+          "idempotency_key": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "source_tool",
+          "tool_version",
+          "result_id",
+          "payload",
+          "warnings",
+          "requires_review"
+        ],
+        "properties": {
+          "source_tool": { "const": "five_stage_execution.propose" },
+          "tool_version": { "const": "1.0.0" },
+          "result_id": { "type": "string" },
+          "payload": {
+            "type": "object",
+            "required": [
+              "proposal_id",
+              "tool_call_id",
+              "status",
+              "confirmation_required"
+            ],
+            "properties": {
+              "proposal_id": { "type": "string" },
+              "tool_call_id": { "type": "string" },
+              "status": { "const": "awaiting_confirmation" },
+              "confirmation_required": { "const": true }
+            },
+            "additionalProperties": false
+          },
+          "warnings": { "type": "array", "items": { "type": "string" } },
+          "requires_review": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "forbidden_input_fields": [
+        "actor",
+        "actor_principal",
+        "confirmation_token",
+        "confirmed_by",
+        "operator_id",
+        "execute_immediately"
+      ],
+      "forbidden_output_fields": [
+        "confirmation_token",
+        "calculation_ids",
+        "result_hashes"
+      ],
+      "post_confirmation_execution_may_return": [
+        "source_binding_id",
+        "calculation_ids",
+        "result_hashes",
+        "requires_review"
+      ]
+    },
+    {
+      "name": "report_delivery.propose",
+      "version": "1.0.0",
+      "authorization_level": "write",
+      "requires_confirmation": true,
+      "requires_project": true,
+      "requires_project_version": true,
+      "description": "Propose report create/generate/submit-review steps that read persisted calculation results. Does not expose mark_reviewed, approve, formal render, or archive.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "project_version_id",
+          "delivery_action"
+        ],
+        "properties": {
+          "project_id": { "type": "string", "minLength": 1 },
+          "project_version_id": { "type": "string", "minLength": 1 },
+          "report_id": { "type": "string" },
+          "delivery_action": {
+            "type": "string",
+            "enum": [
+              "report.create",
+              "report.generate",
+              "report.submit_review"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "source_tool",
+          "tool_version",
+          "result_id",
+          "payload",
+          "warnings",
+          "requires_review"
+        ],
+        "properties": {
+          "source_tool": { "const": "report_delivery.propose" },
+          "tool_version": { "const": "1.0.0" },
+          "result_id": { "type": "string" },
+          "payload": {
+            "type": "object",
+            "required": [
+              "proposal_id",
+              "tool_call_id",
+              "status",
+              "confirmation_required",
+              "delivery_action"
+            ],
+            "properties": {
+              "proposal_id": { "type": "string" },
+              "tool_call_id": { "type": "string" },
+              "status": { "const": "awaiting_confirmation" },
+              "confirmation_required": { "const": true },
+              "delivery_action": {
+                "type": "string",
+                "enum": [
+                  "report.create",
+                  "report.generate",
+                  "report.submit_review"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "warnings": { "type": "array", "items": { "type": "string" } },
+          "requires_review": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "forbidden_input_fields": [
+        "actor",
+        "actor_principal",
+        "confirmation_token",
+        "confirmed_by",
+        "operator_id",
+        "mode",
+        "mark_reviewed",
+        "approve"
+      ],
+      "forbidden_output_fields": [
+        "confirmation_token",
+        "formal_export_artifacts"
+      ],
+      "forbidden_delivery_actions": [
+        "report.mark_reviewed",
+        "report.approve",
+        "report.render",
+        "report.archive"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "schema_id": "AilyForbiddenModelSurfacesV1",
+  "schema_version": "1.0.0",
+  "contract_family": "aily/v0.7",
+  "description": "Deny list for Aily model context, tool registration, and model replay payloads.",
+  "forbidden_tool_names": [
+    "mark_reviewed",
+    "approve",
+    "archive",
+    "report.mark_reviewed",
+    "report.approve",
+    "report.archive",
+    "report.render",
+    "planning.calculate_throughput_inventory_area",
+    "planning.calculate_cooling_load_and_equipment",
+    "scheme.generate_and_compare",
+    "knowledge.search",
+    "project.get",
+    "project_version.get",
+    "report.create",
+    "report.generate",
+    "report.get",
+    "report.compare_revisions",
+    "report.list_exports",
+    "report.get_export",
+    "tool_call.confirm",
+    "tool_call.reject"
+  ],
+  "forbidden_model_fields": [
+    "confirmation_token",
+    "actor",
+    "actor_principal",
+    "confirmed_by",
+    "operator_id",
+    "trusted_operator_proof",
+    "mark_reviewed_proof"
+  ],
+  "forbidden_model_context_categories": [
+    "confirmation_tokens",
+    "trusted_operator_proofs",
+    "model_self_attested_actor",
+    "raw_orm_records",
+    "database_session_handles",
+    "internal_service_ports"
+  ],
+  "forbidden_api_extension": {
+    "namespace": "/api/v1/agent/**",
+    "status": "v0.6_internal_compatibility_only",
+    "extend_for_aily": "FORBIDDEN"
+  },
+  "agent_to_engineering_value": "NO",
+  "report_formula_recalculation": "NO"
+}
