@@ -41,12 +41,8 @@ from cold_storage.modules.schemes.infrastructure.orm import (
 class SqlAlchemySourceBindingReadPort:
     """Read-only adapter for SourceBinding and CalculationRun loading."""
 
-    def load_binding(self, session: Session, /, *, binding_id: str) -> SourceBindingSnapshot | None:
-        record = session.execute(
-            select(SourceBindingRecord).where(SourceBindingRecord.id == binding_id)
-        ).scalar_one_or_none()
-        if record is None:
-            return None
+    @staticmethod
+    def _binding_snapshot_from_record(record: SourceBindingRecord) -> SourceBindingSnapshot:
         return SourceBindingSnapshot(
             id=record.id,
             project_id=record.project_id,
@@ -65,6 +61,34 @@ class SqlAlchemySourceBindingReadPort:
             combined_source_hash=record.combined_source_hash,
             schema_version=record.schema_version,
         )
+
+    def load_binding(self, session: Session, /, *, binding_id: str) -> SourceBindingSnapshot | None:
+        record = session.execute(
+            select(SourceBindingRecord).where(SourceBindingRecord.id == binding_id)
+        ).scalar_one_or_none()
+        if record is None:
+            return None
+        return self._binding_snapshot_from_record(record)
+
+    def load_newest_binding_for_project_version(
+        self,
+        session: Session,
+        /,
+        *,
+        project_id: str,
+        project_version_id: str,
+    ) -> SourceBindingSnapshot | None:
+        record = session.scalar(
+            select(SourceBindingRecord)
+            .where(
+                SourceBindingRecord.project_id == project_id,
+                SourceBindingRecord.project_version_id == project_version_id,
+            )
+            .order_by(SourceBindingRecord.created_at.desc())
+        )
+        if record is None:
+            return None
+        return self._binding_snapshot_from_record(record)
 
     def load_calculation_run(
         self, session: Session, /, *, run_id: str

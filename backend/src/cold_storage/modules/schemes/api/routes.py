@@ -13,14 +13,9 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
 
-from cold_storage.bootstrap.dependencies import (
-    get_production_scheme_service,
-    get_production_session_factory,
-)
+from cold_storage.bootstrap.dependencies import get_production_scheme_service
 from cold_storage.bootstrap.settings import get_settings
-from cold_storage.modules.orchestration.infrastructure.orm import SourceBindingRecord
 from cold_storage.modules.schemes.application.production_ports import (
     GenerateProductionSchemeCommand,
 )
@@ -66,28 +61,6 @@ class ProductionSchemeRunRequest(BaseModel):
     profile_codes: list[str]
     weight_set_revision_id: str
     profile_parameters: dict[str, dict[str, Any]] = Field(default_factory=dict)
-
-
-def _resolve_five_stage_source_binding_id(
-    *,
-    project_id: str,
-    project_version_id: str,
-) -> str:
-    session_factory = get_production_session_factory()
-    with session_factory() as session:
-        binding = session.scalar(
-            select(SourceBindingRecord)
-            .where(
-                SourceBindingRecord.project_id == project_id,
-                SourceBindingRecord.project_version_id == project_version_id,
-            )
-            .order_by(SourceBindingRecord.created_at.desc())
-        )
-    if binding is None:
-        raise SourceCalculationMissingError(
-            "Five-stage SourceBinding is missing for this project version",
-        )
-    return str(binding.id)
 
 
 def _serialize_production_scheme_run(
@@ -184,15 +157,15 @@ def register_scheme_routes(app: FastAPI, get_service: Any) -> None:
         except ProjectVersionNotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
 
+        production_service = get_production_scheme_service()
         try:
-            source_binding_id = _resolve_five_stage_source_binding_id(
+            source_binding_id = production_service.resolve_newest_five_stage_source_binding_id(
                 project_id=project_id,
                 project_version_id=project_version_id,
             )
         except SourceCalculationMissingError as e:
             raise HTTPException(status_code=409, detail=str(e)) from e
 
-        production_service = get_production_scheme_service()
         command = GenerateProductionSchemeCommand(
             source_binding_id=source_binding_id,
             weight_set_revision_id=request.weight_set_revision_id,

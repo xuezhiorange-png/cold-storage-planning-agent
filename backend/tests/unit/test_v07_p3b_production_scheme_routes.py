@@ -51,16 +51,13 @@ def test_production_scheme_route_persists_via_production_service(
     scheme_service: MagicMock,
 ) -> None:
     production_service = MagicMock()
+    production_service.resolve_newest_five_stage_source_binding_id.return_value = "binding-1"
     production_service.generate_production_scheme_run.return_value = _mock_production_run()
 
     with (
         patch(
             "cold_storage.modules.schemes.api.routes.get_production_scheme_service",
             return_value=production_service,
-        ),
-        patch(
-            "cold_storage.modules.schemes.api.routes._resolve_five_stage_source_binding_id",
-            return_value="binding-1",
         ),
         patch(
             "cold_storage.modules.schemes.api.routes.get_settings",
@@ -108,9 +105,14 @@ def test_production_scheme_route_returns_404_for_missing_version(
 
 
 def test_production_scheme_route_returns_409_without_source_binding(client: TestClient) -> None:
+    production_service = MagicMock()
+    production_service.resolve_newest_five_stage_source_binding_id.side_effect = (
+        SourceCalculationMissingError("missing binding")
+    )
+
     with patch(
-        "cold_storage.modules.schemes.api.routes._resolve_five_stage_source_binding_id",
-        side_effect=SourceCalculationMissingError("missing binding"),
+        "cold_storage.modules.schemes.api.routes.get_production_scheme_service",
+        return_value=production_service,
     ):
         response = client.post(
             "/api/v1/projects/proj-1/versions/1/production-scheme-runs",
@@ -125,6 +127,7 @@ def test_production_scheme_route_returns_409_without_source_binding(client: Test
 
 def test_production_scheme_route_maps_weight_governance_to_422(client: TestClient) -> None:
     production_service = MagicMock()
+    production_service.resolve_newest_five_stage_source_binding_id.return_value = "binding-1"
     production_service.generate_production_scheme_run.side_effect = ProductionSchemeError(
         "revision_not_found",
         "revision missing",
@@ -134,10 +137,6 @@ def test_production_scheme_route_maps_weight_governance_to_422(client: TestClien
         patch(
             "cold_storage.modules.schemes.api.routes.get_production_scheme_service",
             return_value=production_service,
-        ),
-        patch(
-            "cold_storage.modules.schemes.api.routes._resolve_five_stage_source_binding_id",
-            return_value="binding-1",
         ),
         patch(
             "cold_storage.modules.schemes.api.routes.get_settings",

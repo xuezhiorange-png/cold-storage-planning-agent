@@ -1,6 +1,6 @@
 # V0.7 P3B Production Scheme Public API Contract
 
-**Status:** Implementation R1 — public production-scheme write path only
+**Status:** Implementation R2 — remove SQLAlchemy from scheme API routes
 **Authority:** `docs/tasks/V0_7-P0-trust-loop-contract.md` §5.5
 **Parent contract:** `docs/tasks/V0_7-P0-trust-loop-contract.md`
 **Base (P3B branch from):** `origin/cursor/v07-p0-trust-loop-contract-6c68`
@@ -113,10 +113,17 @@ P3A. Operator sample closure remains P5.
 V07_P3B_FILE_ALLOWLIST
 docs/tasks/V0_7-P3B-production-scheme-public-api-contract.md
 backend/src/cold_storage/modules/schemes/api/routes.py
+backend/src/cold_storage/modules/schemes/application/production_ports.py
+backend/src/cold_storage/modules/schemes/application/production_service.py
+backend/src/cold_storage/modules/schemes/infrastructure/production_read_ports.py
 backend/tests/integration/test_v07_p3b_production_scheme_public_api_sqlite.py
 backend/tests/integration/test_v07_p3b_production_scheme_public_api_postgresql.py
 backend/tests/unit/test_v07_p3b_production_scheme_routes.py
 ```
+
+R2 moves newest-`SourceBinding` lookup behind `SourceBindingReadPort` and
+`ProductionSchemeService.resolve_newest_five_stage_source_binding_id()`.
+Scheme API routes MUST NOT import SQLAlchemy or ORM models.
 
 ## 8. Acceptance criteria
 
@@ -143,3 +150,4 @@ DRAFT=YES
 | Rev | Date | Change |
 | --- | --- | --- |
 | R1 | 2026-08-26 | Initial P3B public production-scheme API contract |
+| R2 | 2026-08-26 | Move SourceBinding lookup off API routes; expand allowlist |
