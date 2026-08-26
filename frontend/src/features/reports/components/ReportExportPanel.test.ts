@@ -59,9 +59,13 @@ function mockExportContext(overrides: Record<string, unknown> = {}) {
     selectReport: vi.fn(),
     loadRevisions: vi.fn(),
     loadExports: vi.fn(),
+    loadRevisionContent: vi.fn(),
     renderReport: vi.fn(),
     downloadArtifact: vi.fn(),
-    reset: vi.fn()
+    reset: vi.fn(),
+    revisionContent: ref(null),
+    revisionContentLoading: ref(false),
+    revisionContentError: ref('')
   }
 
   return { ...defaults, ...overrides }

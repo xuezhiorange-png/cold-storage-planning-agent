@@ -509,12 +509,14 @@ describe('useReportExport', () => {
       })
       // #4: B's detail
       .mockResolvedValueOnce(makeReportDetail('B', 1))
+      // #5: B's persisted JSON export for revision content
+      .mockResolvedValueOnce({ content: { project_summary: { project_name: 'B' } } })
 
     await ctx.selectReport('B')
 
     // B's state is fully set
     expect(ctx.selectedReportId.value).toBe('B')
-    expect(ctx.selectedRevisionNumber.value).toBeNull()
+    expect(ctx.selectedRevisionNumber.value).toBe(1)
     expect(ctx.renderResult.value).toBeNull()
     expect(ctx.revisions.value).toHaveLength(1)
     expect(ctx.revisions.value[0].content_hash).toBe('b1')
@@ -541,7 +543,7 @@ describe('useReportExport', () => {
 
     // B's state must remain unchanged
     expect(ctx.selectedReportId.value).toBe('B')
-    expect(ctx.selectedRevisionNumber.value).toBeNull()
+    expect(ctx.selectedRevisionNumber.value).toBe(1)
     expect(ctx.renderResult.value).toBeNull()
 
     // B's revisions/exports must be intact
@@ -555,9 +557,9 @@ describe('useReportExport', () => {
     expect(ctx.revisionsLoading.value).toBe(false)
     expect(ctx.exportsLoading.value).toBe(false)
 
-    // Verify loadExports was NOT called for report A (only 4 calls:
-    // render A, B revisions, B exports, B detail)
-    expect(mockJson).toHaveBeenCalledTimes(4)
+    // Verify loadExports was NOT called for report A (5 calls:
+    // render A, B revisions, B exports, B detail, B revision JSON)
+    expect(mockJson).toHaveBeenCalledTimes(5)
   })
 
   /* ── renderReport ──────────────────────────────────────────── */
