@@ -1918,6 +1918,7 @@ def create_app(
         scheme_query = build_sqlalchemy_scheme_query(db_session)
         calculation_query = SqlAlchemyPersistedCalculationQuery(db_session)
         data_provider = RealReportDataProvider(
+            project_service=get_project_service(),
             calculation_service=calculation_query,
             scheme_query=scheme_query,
         )
