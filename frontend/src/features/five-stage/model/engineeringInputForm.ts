@@ -1,4 +1,4 @@
-import type { EngineeringInputBundleV1 } from '../../../api/contracts/fiveStage'
+import type { EngineeringInputBundleV1, OperatorProcessInputV1 } from '../../../api/contracts/fiveStage'
 import { bundleLeaf, bundleLeafFromInput, bundleNumericLeaf } from './bundleLeaf'
 
 export interface CoolingZoneFormState {
@@ -238,6 +238,35 @@ function optionalPowerLeaf(value: number | null, unit: string): ReturnType<typeo
     return bundleLeaf(null, { unit, state: 'tentative' })
   }
   return bundleNumericLeaf(value, { unit })
+}
+
+export function buildOperatorProcessInput(form: EngineeringInputFormState): OperatorProcessInputV1 {
+  return {
+    schema_id: 'OperatorProcessInputV1',
+    schema_version: '1.0.0',
+    zone_planning_inputs: {
+      daily_inbound_mass_kg: bundleNumericLeaf(form.zonePlanning.dailyInboundMassKg, { unit: 'kg/day' }),
+      working_time_h_per_day: bundleNumericLeaf(form.zonePlanning.workingTimeHPerDay, { unit: 'h/day' }),
+      finished_storage_days: bundleNumericLeaf(form.zonePlanning.finishedStorageDays, { unit: 'day' }),
+      packaging_storage_days: bundleNumericLeaf(form.zonePlanning.packagingStorageDays, { unit: 'day' }),
+      precooling_required_ratio: bundleNumericLeaf(form.zonePlanning.precoolingRequiredRatio, { unit: 'ratio' })
+    }
+  }
+}
+
+export function stableOperatorProcessFieldsJson(form: EngineeringInputFormState): string {
+  const zonePlanning = form.zonePlanning
+  return JSON.stringify({
+    daily_inbound_mass_kg: zonePlanning.dailyInboundMassKg,
+    working_time_h_per_day: zonePlanning.workingTimeHPerDay,
+    finished_storage_days: zonePlanning.finishedStorageDays,
+    packaging_storage_days: zonePlanning.packagingStorageDays,
+    precooling_required_ratio: zonePlanning.precoolingRequiredRatio
+  })
+}
+
+export function stableOperatorProcessPayloadJson(payload: OperatorProcessInputV1): string {
+  return JSON.stringify(payload)
 }
 
 export function buildEngineeringInputBundle(

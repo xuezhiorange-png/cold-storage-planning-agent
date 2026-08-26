@@ -49,10 +49,27 @@ export interface EngineeringInputBundleV1 {
   }
 }
 
-export interface FiveStageExecutionRequest {
-  engineering_input_bundle: EngineeringInputBundleV1
-  idempotency_key: string
+export interface OperatorProcessInputV1 {
+  schema_id: 'OperatorProcessInputV1'
+  schema_version: '1.0.0'
+  zone_planning_inputs: {
+    daily_inbound_mass_kg: BundleLeaf
+    working_time_h_per_day: BundleLeaf
+    finished_storage_days: BundleLeaf
+    packaging_storage_days: BundleLeaf
+    precooling_required_ratio: BundleLeaf
+  }
 }
+
+export type FiveStageExecutionRequest =
+  | {
+      engineering_input_bundle: EngineeringInputBundleV1
+      idempotency_key: string
+    }
+  | {
+      operator_process_input: OperatorProcessInputV1
+      idempotency_key: string
+    }
 
 export interface FiveStageExecutionSuccess {
   success: true

@@ -7,20 +7,18 @@ import {
   type FiveStageApi
 } from '../features/five-stage/api/fiveStageApi'
 import {
-  buildEngineeringInputBundle,
-  type BuildBundleContext,
+  buildOperatorProcessInput,
   type EngineeringInputFormState,
   fieldPathToFormKey,
-  stableBundlePayloadJson,
-  stableEngineeringFieldsJson,
+  stableOperatorProcessFieldsJson,
+  stableOperatorProcessPayloadJson,
   type SubmitBundleContext
 } from '../features/five-stage/model/engineeringInputForm'
 import { useWorkbenchContextStore } from './workbenchContext'
 
 const IDEM_STORAGE_PREFIX = 'five_stage_idem_key'
-const LAST_BUNDLE_STORAGE_PREFIX = 'five_stage_last_bundle'
-const CORRELATION_ID_STORAGE_PREFIX = 'five_stage_correlation_id'
-const ENGINEERING_FIELDS_STORAGE_PREFIX = 'five_stage_engineering_fields'
+const LAST_OPERATOR_INPUT_STORAGE_PREFIX = 'five_stage_last_operator_input'
+const OPERATOR_FIELDS_STORAGE_PREFIX = 'five_stage_operator_fields'
 
 export interface FiveStageFieldError {
   fieldPath: string
@@ -34,7 +32,7 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
   const lastSuccess = ref<FiveStageExecutionSuccess | null>(null)
   const fieldError = ref<FiveStageFieldError | null>(null)
   const generalError = ref('')
-  const lastSubmittedBundleJson = ref<string | null>(null)
+  const lastSubmittedOperatorInputJson = ref<string | null>(null)
 
   let executeAbort: AbortController | null = null
 
@@ -44,74 +42,74 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
     return `${IDEM_STORAGE_PREFIX}:${projectId}:${version}`
   }
 
-  function lastBundleStorageKey(projectId: string, version: number): string {
-    return `${LAST_BUNDLE_STORAGE_PREFIX}:${projectId}:${version}`
+  function lastOperatorInputStorageKey(projectId: string, version: number): string {
+    return `${LAST_OPERATOR_INPUT_STORAGE_PREFIX}:${projectId}:${version}`
   }
 
-  function correlationIdStorageKey(projectId: string, version: number): string {
-    return `${CORRELATION_ID_STORAGE_PREFIX}:${projectId}:${version}`
+  function operatorFieldsStorageKey(projectId: string, version: number): string {
+    return `${OPERATOR_FIELDS_STORAGE_PREFIX}:${projectId}:${version}`
   }
 
-  function engineeringFieldsStorageKey(projectId: string, version: number): string {
-    return `${ENGINEERING_FIELDS_STORAGE_PREFIX}:${projectId}:${version}`
-  }
-
-  function readStoredBundleJson(projectId: string, version: number): string | null {
+  function readStoredOperatorInputJson(projectId: string, version: number): string | null {
     return (
-      sessionStorage.getItem(lastBundleStorageKey(projectId, version)) ??
-      lastSubmittedBundleJson.value
+      sessionStorage.getItem(lastOperatorInputStorageKey(projectId, version)) ??
+      lastSubmittedOperatorInputJson.value
     )
   }
 
-  function resolveCorrelationId(
+  function resolveIdempotencyKey(
     projectId: string,
     version: number,
-    engineeringFieldsJson: string
+    fieldsOrPayloadJson: string,
+    operatorPayloadJson?: string
   ): string {
-    const correlationStorage = correlationIdStorageKey(projectId, version)
-    const fieldsStorage = engineeringFieldsStorageKey(projectId, version)
-    const storedCorrelationId = sessionStorage.getItem(correlationStorage)
-    const storedFieldsJson = sessionStorage.getItem(fieldsStorage)
+    if (operatorPayloadJson === undefined) {
+      const keyStorage = idempotencyStorageKey(projectId, version)
+      const bundleStorage = `five_stage_last_bundle:${projectId}:${version}`
+      const storedKey = sessionStorage.getItem(keyStorage)
+      const storedBundleJson =
+        sessionStorage.getItem(bundleStorage) ?? lastSubmittedOperatorInputJson.value
 
-    if (storedCorrelationId && storedFieldsJson === engineeringFieldsJson) {
-      return storedCorrelationId
+      if (storedKey && storedBundleJson === fieldsOrPayloadJson) {
+        return storedKey
+      }
+
+      const newKey = crypto.randomUUID()
+      sessionStorage.setItem(keyStorage, newKey)
+      sessionStorage.setItem(bundleStorage, fieldsOrPayloadJson)
+      return newKey
     }
 
-    const correlationId = crypto.randomUUID()
-    sessionStorage.setItem(correlationStorage, correlationId)
-    sessionStorage.setItem(fieldsStorage, engineeringFieldsJson)
-    return correlationId
+    return resolveIdempotencyKeyForOperator(
+      projectId,
+      version,
+      fieldsOrPayloadJson,
+      operatorPayloadJson
+    )
   }
 
-  function resolveIdempotencyKey(projectId: string, version: number, bundleJson: string): string {
+  function resolveIdempotencyKeyForOperator(
+    projectId: string,
+    version: number,
+    operatorFieldsJson: string,
+    operatorPayloadJson: string
+  ): string {
     const keyStorage = idempotencyStorageKey(projectId, version)
-    const bundleStorage = lastBundleStorageKey(projectId, version)
+    const payloadStorage = lastOperatorInputStorageKey(projectId, version)
+    const fieldsStorage = operatorFieldsStorageKey(projectId, version)
     const storedKey = sessionStorage.getItem(keyStorage)
-    const storedBundleJson = readStoredBundleJson(projectId, version)
+    const storedFieldsJson = sessionStorage.getItem(fieldsStorage)
+    const storedPayloadJson = readStoredOperatorInputJson(projectId, version)
 
-    if (storedKey && storedBundleJson === bundleJson) {
+    if (storedKey && storedFieldsJson === operatorFieldsJson && storedPayloadJson === operatorPayloadJson) {
       return storedKey
     }
 
     const newKey = crypto.randomUUID()
     sessionStorage.setItem(keyStorage, newKey)
-    sessionStorage.setItem(bundleStorage, bundleJson)
+    sessionStorage.setItem(fieldsStorage, operatorFieldsJson)
+    sessionStorage.setItem(payloadStorage, operatorPayloadJson)
     return newKey
-  }
-
-  function buildBundleContext(
-    form: EngineeringInputFormState,
-    submitContext: SubmitBundleContext
-  ): BuildBundleContext {
-    const engineeringFieldsJson = stableEngineeringFieldsJson(form)
-    return {
-      ...submitContext,
-      correlationId: resolveCorrelationId(
-        submitContext.projectId,
-        submitContext.versionNumber,
-        engineeringFieldsJson
-      )
-    }
   }
 
   function clearErrors(): void {
@@ -121,7 +119,7 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
 
   async function execute(
     form: EngineeringInputFormState,
-    submitContext: SubmitBundleContext,
+    _submitContext: SubmitBundleContext,
     fiveStageApi: FiveStageApi = createFiveStageApi()
   ): Promise<FiveStageExecutionSuccess | null> {
     const workbench = useWorkbenchContextStore()
@@ -136,13 +134,14 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
     isExecuting.value = true
     clearErrors()
 
-    const bundleContext = buildBundleContext(form, submitContext)
-    const bundle = buildEngineeringInputBundle(form, bundleContext)
-    const bundleJson = stableBundlePayloadJson(bundle)
-    const idempotencyKey = resolveIdempotencyKey(
+    const operatorProcessInput = buildOperatorProcessInput(form)
+    const operatorFieldsJson = stableOperatorProcessFieldsJson(form)
+    const operatorPayloadJson = stableOperatorProcessPayloadJson(operatorProcessInput)
+    const idempotencyKey = resolveIdempotencyKeyForOperator(
       workbench.projectId,
       workbench.versionNumber,
-      bundleJson
+      operatorFieldsJson,
+      operatorPayloadJson
     )
 
     try {
@@ -150,7 +149,7 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
         workbench.projectId,
         workbench.versionNumber,
         {
-          engineering_input_bundle: bundle,
+          operator_process_input: operatorProcessInput,
           idempotency_key: idempotencyKey
         },
         controller.signal
@@ -170,14 +169,18 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
       }
 
       lastSuccess.value = response
-      lastSubmittedBundleJson.value = bundleJson
+      lastSubmittedOperatorInputJson.value = operatorPayloadJson
       sessionStorage.setItem(
-        lastBundleStorageKey(workbench.projectId, workbench.versionNumber),
-        bundleJson
+        lastOperatorInputStorageKey(workbench.projectId, workbench.versionNumber),
+        operatorPayloadJson
       )
       sessionStorage.setItem(
         idempotencyStorageKey(workbench.projectId, workbench.versionNumber),
         idempotencyKey
+      )
+      sessionStorage.setItem(
+        operatorFieldsStorageKey(workbench.projectId, workbench.versionNumber),
+        operatorFieldsJson
       )
       return response
     } catch (err: unknown) {
@@ -204,14 +207,13 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
     lastSuccess.value = null
     fieldError.value = null
     generalError.value = ''
-    lastSubmittedBundleJson.value = null
+    lastSubmittedOperatorInputJson.value = null
     for (let index = sessionStorage.length - 1; index >= 0; index -= 1) {
       const key = sessionStorage.key(index)
       if (
         key?.startsWith(IDEM_STORAGE_PREFIX) ||
-        key?.startsWith(LAST_BUNDLE_STORAGE_PREFIX) ||
-        key?.startsWith(CORRELATION_ID_STORAGE_PREFIX) ||
-        key?.startsWith(ENGINEERING_FIELDS_STORAGE_PREFIX)
+        key?.startsWith(LAST_OPERATOR_INPUT_STORAGE_PREFIX) ||
+        key?.startsWith(OPERATOR_FIELDS_STORAGE_PREFIX)
       ) {
         sessionStorage.removeItem(key)
       }
@@ -224,12 +226,10 @@ export const useFiveStageExecutionStore = defineStore('fiveStageExecution', () =
     fieldError,
     generalError,
     hasFieldError,
-    lastSubmittedBundleJson,
+    lastSubmittedOperatorInputJson,
     execute,
     cancel,
     clearErrors,
-    buildBundleContext,
-    resolveCorrelationId,
     resolveIdempotencyKey,
     resetForTests
   }
