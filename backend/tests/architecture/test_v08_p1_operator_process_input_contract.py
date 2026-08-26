@@ -75,58 +75,44 @@ def test_v05_no_formula_guard_still_passes_on_bundle_and_execution_modules() -> 
   assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_operator_minimal_bundle_requires_thermal_catalog_for_cooling_zones() -> None:
+def test_operator_minimal_bundle_allows_lineage_pending_downstream_keys() -> None:
     from cold_storage.modules.projects.application.engineering_input_bundle import (
-        EngineeringInputBundleValidationError,
+        LINEAGE_PENDING_STATE,
     )
     from cold_storage.modules.projects.application.operator_process_input import (
         assemble_engineering_input_bundle,
     )
     from cold_storage.modules.projects.domain.models import ProjectVersion
 
-    with pytest.raises(EngineeringInputBundleValidationError) as exc_info:
-        assemble_engineering_input_bundle(
-            operator_input={
-                "schema_id": "OperatorProcessInputV1",
-                "schema_version": "1.0.0",
-                "zone_planning_inputs": {
-                    "daily_inbound_mass_kg": {
-                        "value": "20000",
-                        "unit": "kg/day",
-                        "state": "provided",
-                    },
-                    "working_time_h_per_day": {
-                        "value": "16",
-                        "unit": "h/day",
-                        "state": "provided",
-                    },
-                    "finished_storage_days": {
-                        "value": "7",
-                        "unit": "day",
-                        "state": "provided",
-                    },
-                    "packaging_storage_days": {
-                        "value": "1",
-                        "unit": "day",
-                        "state": "provided",
-                    },
-                    "precooling_required_ratio": {
-                        "value": "0.6",
-                        "unit": "ratio",
-                        "state": "provided",
-                    },
-                },
+    bundle = assemble_engineering_input_bundle(
+        operator_input={
+            "schema_id": "OperatorProcessInputV1",
+            "schema_version": "1.0.0",
+            "zone_planning_inputs": {
+                "daily_inbound_mass_kg": {"value": "20000", "unit": "kg/day", "state": "provided"},
+                "working_time_h_per_day": {"value": "16", "unit": "h/day", "state": "provided"},
+                "finished_storage_days": {"value": "7", "unit": "day", "state": "provided"},
+                "packaging_storage_days": {"value": "1", "unit": "day", "state": "provided"},
+                "precooling_required_ratio": {"value": "0.6", "unit": "ratio", "state": "provided"},
             },
+        },
+        project_id="p-arch",
+        version=ProjectVersion(
             project_id="p-arch",
-            version=ProjectVersion(
-                project_id="p-arch",
-                version_number=1,
-                change_summary="v1",
-                id="pv-arch",
-            ),
-            actor="arch-test",
-        )
-    assert exc_info.value.error.code == "MISSING_ENGINEERING_PARAMETER"
+            version_number=1,
+            change_summary="v1",
+            id="pv-arch",
+        ),
+        actor="arch-test",
+    )
+    assert (
+        bundle["equipment_inputs"]["systems"][0]["zones"][0]["design_cooling_load_kw_r"]["state"]
+        == LINEAGE_PENDING_STATE
+    )
+    assert (
+        bundle["installed_power_inputs"]["compressor_input_power_kw_e"]["state"]
+        == LINEAGE_PENDING_STATE
+    )
 
 
 def test_full_bundle_still_requires_all_keys_at_submit() -> None:

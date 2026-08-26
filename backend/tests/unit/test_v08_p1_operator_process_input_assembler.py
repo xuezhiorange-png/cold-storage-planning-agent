@@ -5,7 +5,9 @@ from __future__ import annotations
 import pytest
 
 from cold_storage.modules.projects.application.engineering_input_bundle import (
+    LINEAGE_PENDING_STATE,
     EngineeringInputBundleValidationError,
+    validate_engineering_input_bundle,
 )
 from cold_storage.modules.projects.application.operator_process_input import (
     _zone_plan_input_defaults,
@@ -41,28 +43,28 @@ def _version() -> ProjectVersion:
     )
 
 
-def test_five_field_assembly_fail_closed_without_thermal_catalog() -> None:
+def test_five_field_assembly_succeeds() -> None:
     payload = _operator_payload()
     validate_operator_process_input(payload)
-    with pytest.raises(EngineeringInputBundleValidationError) as exc_info:
-        assemble_engineering_input_bundle(
-            operator_input=payload,
-            project_id="p-1",
-            version=_version(),
-            actor="test-actor",
-        )
-    assert exc_info.value.error.code == "MISSING_ENGINEERING_PARAMETER"
-    assert "thermal catalog" in exc_info.value.error.message
-
-
-def test_frozen_band_thermal_catalog_values() -> None:
-    catalog = {
-        "-18℃": {
-            "room_design_temperature": "-18.0",
-            "product_target_temperature": "-18.0",
-        },
-    }
-    assert catalog["-18℃"]["room_design_temperature"] == "-18.0"
+    bundle = assemble_engineering_input_bundle(
+        operator_input=payload,
+        project_id="p-1",
+        version=_version(),
+        actor="test-actor",
+    )
+    validate_engineering_input_bundle(bundle, validation_mode="operator_minimal")
+    assert bundle["schema_id"] == "EngineeringInputBundleV1"
+    assert len(bundle["cooling_load_inputs"]["zones"]) == 8
+    assert len(bundle["equipment_inputs"]["systems"]) == 3
+    assert (
+        bundle["cooling_load_inputs"]["zones"][0]["zone_area"]["state"] == LINEAGE_PENDING_STATE
+    )
+    first_zone = bundle["cooling_load_inputs"]["zones"][0]
+    assert first_zone["room_design_temperature"]["value"] in {"-18", "-18.0"}
+    assert first_zone["product_target_temperature"]["value"] in {"-18", "-18.0"}
+    assert first_zone["product_mass_per_day"]["value"] in {"20000", "20000.0"}
+    assert first_zone["room_design_temperature"]["source_type"] == "demo"
+    assert first_zone["room_design_temperature"]["requires_review"] is True
 
 
 @pytest.mark.parametrize(
@@ -85,13 +87,15 @@ def test_missing_operator_key_fails_closed(missing_field: str) -> None:
 
 def test_catalog_hole_fails_closed_after_assembly() -> None:
     payload = _operator_payload()
+    bundle = assemble_engineering_input_bundle(
+        operator_input=payload,
+        project_id="p-1",
+        version=_version(),
+        actor="test-actor",
+    )
+    bundle["cooling_load_inputs"]["zones"][0].pop("room_height")
     with pytest.raises(EngineeringInputBundleValidationError) as exc_info:
-        assemble_engineering_input_bundle(
-            operator_input=payload,
-            project_id="p-1",
-            version=_version(),
-            actor="test-actor",
-        )
+        validate_engineering_input_bundle(bundle, validation_mode="operator_minimal")
     assert exc_info.value.error.code == "MISSING_ENGINEERING_PARAMETER"
 
 

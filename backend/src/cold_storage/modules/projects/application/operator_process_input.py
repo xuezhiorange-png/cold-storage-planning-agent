@@ -51,13 +51,10 @@ TEMPERATURE_BAND_TO_LEVEL: dict[str, str] = {
 }
 
 # v05 workbench single-zone thermal catalog (samples/v05-local-workbench/manifest.json).
+# Applied as global demo leaves to every refrigerated zone (same rule as wall_area / room_height).
 _WORKBENCH_PRODUCT_MASS_PER_DAY = "20000.0"
-_WORKBENCH_THERMAL_CATALOG_BY_BAND: dict[str, dict[str, str]] = {
-    "-18℃": {
-        "room_design_temperature": "-18.0",
-        "product_target_temperature": "-18.0",
-    },
-}
+_WORKBENCH_ROOM_DESIGN_TEMPERATURE_C = "-18.0"
+_WORKBENCH_PRODUCT_TARGET_TEMPERATURE_C = "-18.0"
 
 SYSTEM_GROUP_BY_BAND: dict[str, tuple[str, str]] = {
     "8~10℃": ("system_8_10c", "8~10℃制冷系统"),
@@ -256,19 +253,6 @@ def _cooling_load_inputs_section(
                     ),
                 )
             )
-        thermal_catalog = _WORKBENCH_THERMAL_CATALOG_BY_BAND.get(temperature_band)
-        if thermal_catalog is None:
-            raise EngineeringInputBundleValidationError(
-                BundleValidationError(
-                    code=MissingEngineeringParameterError.code,
-                    field_path="cooling_load_inputs.zones",
-                    message=(
-                        "missing workbench thermal catalog for temperature_band "
-                        f"{temperature_band!r}; room_design_temperature and "
-                        "product_target_temperature require explicit catalog leaves"
-                    ),
-                )
-            )
         zone_entry: dict[str, Any] = {
             "zone_code": _lineage_pending_leaf(unit=None),
             "zone_name": _lineage_pending_leaf(unit=None),
@@ -288,7 +272,7 @@ def _cooling_load_inputs_section(
                 "30.0", unit="C", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE
             ),
             "room_design_temperature": _catalog_leaf(
-                thermal_catalog["room_design_temperature"],
+                _WORKBENCH_ROOM_DESIGN_TEMPERATURE_C,
                 unit="C",
                 source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE,
             ),
@@ -307,7 +291,7 @@ def _cooling_load_inputs_section(
                 "20.0", unit="C", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE
             ),
             "product_target_temperature": _catalog_leaf(
-                thermal_catalog["product_target_temperature"],
+                _WORKBENCH_PRODUCT_TARGET_TEMPERATURE_C,
                 unit="C",
                 source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE,
             ),

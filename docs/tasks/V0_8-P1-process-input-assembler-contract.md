@@ -105,7 +105,7 @@ Applied per refrigerated zone; **not scaled** by `required_area_m2`:
 | `operating_hours_per_day` | operator `working_time_h_per_day` | user KEY |
 | `product_mass_per_day` | 20000.0 kg/day | v05 workbench manifest (explicit demo leaf per zone; not operator daily inbound) |
 | `product_entry_temperature` | 20.0 °C | manifest |
-| `room_design_temperature` / `product_target_temperature` | v05 manifest values when catalog exists for band (`-18℃` → -18.0 °C identity); otherwise fail-closed | manifest |
+| `room_design_temperature` / `product_target_temperature` | -18.0 °C each | v05 workbench manifest (global demo leaf per refrigerated zone; not band midpoint) |
 | `cooling_duration` | 8.0 h | manifest |
 | `u_value_wall` | 0.25 | manifest |
 | `u_value_roof` | 0.20 | manifest |

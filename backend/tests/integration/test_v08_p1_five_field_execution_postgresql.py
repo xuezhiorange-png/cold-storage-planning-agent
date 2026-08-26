@@ -66,7 +66,7 @@ def _create_project(client: TestClient) -> tuple[str, int, str]:
     return project_id, version_number, version["id"]
 
 
-def test_postgresql_operator_five_field_fail_closed_without_thermal_catalog(pg_client) -> None:
+def test_postgresql_operator_five_field_happy_path(pg_client) -> None:
     client, _service, engine = pg_client
     project_id, version_number, _version_id = _create_project(client)
     response = client.post(
@@ -76,11 +76,25 @@ def test_postgresql_operator_five_field_fail_closed_without_thermal_catalog(pg_c
             "idempotency_key": "idem-v08-p1-pg-five-field",
         },
     ).json()
-    assert response["error"]["code"] == "MISSING_ENGINEERING_PARAMETER"
+    assert "error" not in response, response
+    assert response["success"] is True
+    assert set(response["calculation_ids"]) == {
+        "zone",
+        "cooling_load",
+        "equipment",
+        "power",
+        "investment",
+    }
+
+    calculations = client.get(
+        f"/api/v1/projects/{project_id}/versions/{version_number}/calculations"
+    ).json()
+    calculator_names = {row["calculator_name"] for row in calculations}
+    assert CANONICAL_CALCULATORS.issubset(calculator_names)
 
     with sessionmaker(bind=engine, expire_on_commit=False)() as session:
-        assert session.scalar(select(func.count()).select_from(SourceBindingRecord)) == 0
-        assert session.scalar(select(func.count()).select_from(CalculationRunRecord)) == 0
+        assert session.scalar(select(func.count()).select_from(SourceBindingRecord)) == 1
+        assert session.scalar(select(func.count()).select_from(CalculationRunRecord)) == 5
 
 
 def test_postgresql_full_bundle_path_still_works(pg_client) -> None:
