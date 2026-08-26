@@ -22,9 +22,7 @@ _NUMERIC_PROJECTIONS: dict[str, tuple[tuple[str, tuple[str, ...], str], ...]] = 
         ("total_area_m2", (), "total_area_m2"),
         ("storage_capacity_kg", (), "storage_capacity_kg"),
     ),
-    "cooling_load": (
-        ("total_cooling_load_kw", (), "total_design_refrigeration_load.value"),
-    ),
+    "cooling_load": (("total_cooling_load_kw", (), "total_design_refrigeration_load.value"),),
     "equipment_selection": (
         (
             "compressor_installed_capacity_kw",
@@ -44,9 +42,7 @@ _NUMERIC_PROJECTIONS: dict[str, tuple[tuple[str, tuple[str, ...], str], ...]] = 
             "total_installed_power.value",
         ),
     ),
-    "investment_estimate": (
-        ("total_investment_cny", (), "total_investment"),
-    ),
+    "investment_estimate": (("total_investment_cny", (), "total_investment"),),
 }
 
 _CALCULATOR_TO_SECTION: dict[str, str] = {

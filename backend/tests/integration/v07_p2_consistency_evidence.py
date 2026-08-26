@@ -52,9 +52,7 @@ from tests.integration.v07_p2_numeric_projection_map import (
 REPO_ROOT = Path(__file__).resolve().parents[3]
 V07_SAMPLE_ID = "v07-consistency"
 V07_MANIFEST_PATH = REPO_ROOT / "samples" / V07_SAMPLE_ID / "manifest.json"
-GOLDEN_PATH = (
-    Path(__file__).resolve().parent.parent / "golden" / "v07_cross_consumer_v1.json"
-)
+GOLDEN_PATH = Path(__file__).resolve().parent.parent / "golden" / "v07_cross_consumer_v1.json"
 
 CANONICAL_CALCULATORS = frozenset(EXPECTED_CANONICAL_CALCULATORS)
 
@@ -324,8 +322,7 @@ def assert_authoritative_hash_parity(evidence: CrossConsumerEvidence) -> None:
         assert report_section is not None, f"report section missing for {calculator!r}"
         report_hash = report_section.get("persisted_content_hash")
         assert report_hash == authoritative, (
-            f"report hash mismatch for {calculator!r}: "
-            f"report={report_hash!r} api={authoritative!r}"
+            f"report hash mismatch for {calculator!r}: report={report_hash!r} api={authoritative!r}"
         )
 
         if evidence.production_scheme_hashes:
@@ -348,8 +345,7 @@ def assert_identity_parity(evidence: CrossConsumerEvidence) -> None:
 
         scheme_id = evidence.scheme_slot_ids[stage]
         assert scheme_id == api_id, (
-            f"scheme canonical read id mismatch for {stage!r}: "
-            f"scheme={scheme_id!r} api={api_id!r}"
+            f"scheme canonical read id mismatch for {stage!r}: scheme={scheme_id!r} api={api_id!r}"
         )
 
         workflow_run = evidence.workflow_runs.get(calculator)
