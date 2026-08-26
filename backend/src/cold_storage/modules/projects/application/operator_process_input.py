@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import MISSING, fields
 from decimal import Decimal
-from typing import Any
+from typing import Any, NoReturn
 from uuid import uuid4
 
 from cold_storage.modules.calculations.domain.equipment import ZoneEquipmentInput
@@ -631,7 +631,7 @@ def _decimalize(value: Any) -> str:
     return str(normalized)
 
 
-def _raise_missing(field_path: str, message: str | None = None) -> None:
+def _raise_missing(field_path: str, message: str | None = None) -> NoReturn:
     raise EngineeringInputBundleValidationError(
         BundleValidationError(
             code=MissingEngineeringParameterError.code,
