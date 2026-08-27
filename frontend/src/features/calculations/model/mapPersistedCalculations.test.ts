@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import type { CalculationRunRecord } from '../../../api/contracts/calculations'
-import { mapPersistedCalculationsToPlanningResponse } from './mapPersistedCalculations'
+import {
+  mapPersistedCalculationsToPlanningResponse,
+  readPersistedFormulas,
+  readPersistedResultPayload
+} from './mapPersistedCalculations'
 
 function zoneRecord(
   zones: Array<Record<string, unknown>>,
@@ -298,6 +302,42 @@ describe('mapPersistedCalculationsToPlanningResponse', () => {
     expect(mapped!.summary.total_area_m2_8_position_scheme).toBeUndefined()
   })
 
+  it('dual-reads zone snapshot when zones are nested under result.result', () => {
+    const mapped = mapPersistedCalculationsToPlanningResponse([
+      {
+        id: 'zone-nested',
+        project_id: 'proj-1',
+        project_version_id: 'ver-1',
+        calculator_name: 'cold_room_zone_plan',
+        calculator_version: '1.0.0',
+        result_snapshot: {
+          success: true,
+          calculator_name: 'cold_room_zone_plan',
+          calculator_version: '1.0.0',
+          input: {},
+          result: {
+            result: {
+              zones: [{
+                zone_name: '嵌套区域',
+                temperature_band: '冷藏',
+                daily_throughput_kg: 0,
+                design_storage_mass_kg: 0,
+                position_count: 12,
+                required_area_m2: 120
+              }],
+              total_area_m2: 120
+            }
+          }
+        },
+        requires_review: false
+      }
+    ])
+
+    expect(mapped).not.toBeNull()
+    expect(mapped!.zone_plan.result.zones[0].zone_name).toBe('嵌套区域')
+    expect(mapped!.summary.total_area_m2).toBe(120)
+  })
+
   it('passes through packed layout fields when present', () => {
     const mapped = mapPersistedCalculationsToPlanningResponse([
       zoneRecord([{
@@ -326,5 +366,41 @@ describe('mapPersistedCalculationsToPlanningResponse', () => {
     expect(zone.unused_cells).toBe(4)
     expect(zone.aisle_layout).toBe('three_side_3m')
     expect(zone.layout).toEqual({ n_long: 7, n_short: 4, aspect_ratio: 1.75 })
+  })
+
+  it('reads formulas from record.formulas when present', () => {
+    const record: CalculationRunRecord = {
+      id: 'calc-cooling',
+      project_id: 'proj-1',
+      project_version_id: 'ver-1',
+      calculator_name: 'cooling_load',
+      calculator_version: '1.0.0',
+      result_snapshot: {
+        success: true,
+        calculator_name: 'cooling_load',
+        calculator_version: '1.0.0',
+        input: {},
+        result: { total_cooling_load_kw: '10' }
+      },
+      formulas: [
+        {
+          formula_id: 'F1',
+          formula_version: '1.0',
+          expression: 'Q = m * cp * dT',
+          description: 'Sensible heat'
+        }
+      ],
+      requires_review: false
+    }
+
+    expect(readPersistedFormulas(record)).toEqual([
+      {
+        formula_id: 'F1',
+        formula_version: '1.0',
+        expression: 'Q = m * cp * dT',
+        description: 'Sensible heat'
+      }
+    ])
+    expect(readPersistedResultPayload(record)?.total_cooling_load_kw).toBe('10')
   })
 })
