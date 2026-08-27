@@ -17,6 +17,20 @@ export interface PlanningRunRequest {
   frozen_goods_pallet_weight_kg: number
 }
 
+export interface ZoneSchemeContract {
+  scheme_id: string
+  room_count: number
+  position_count: number
+  required_area_m2: number
+  positions_per_room?: number
+}
+
+export interface ZoneLayoutContract {
+  n_long?: number
+  n_short?: number
+  aspect_ratio?: number
+}
+
 export interface ZoneResultContract {
   zone_name: string
   temperature_band: string
@@ -25,6 +39,19 @@ export interface ZoneResultContract {
   design_storage_mass_kg: number
   position_count: number
   required_area_m2: number
+  zone_code?: string
+  n_need?: number
+  n_long?: number
+  n_short?: number
+  n_actual?: number
+  unused_cells?: number
+  layout?: ZoneLayoutContract
+  aisle_layout?: string
+  reporting_scheme_id?: string
+  schemes?: ZoneSchemeContract[]
+  pallet_count?: number
+  truck_count?: number
+  platform_count?: number
 }
 
 export interface InvestmentItemContract {
@@ -64,6 +91,7 @@ export interface PlanningRunResponse {
     total_investment_cny: number
     total_power_kw: number
     requires_review: boolean
+    total_area_m2_8_position_scheme?: number
   }
   zone_plan: {
     result: {

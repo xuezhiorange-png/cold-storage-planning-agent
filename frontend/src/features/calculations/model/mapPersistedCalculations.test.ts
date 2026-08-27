@@ -5,6 +5,7 @@ import { mapPersistedCalculationsToPlanningResponse } from './mapPersistedCalcul
 
 function zoneRecord(
   zones: Array<Record<string, unknown>>,
+  resultExtras: Record<string, unknown> = {},
   id = 'zone-1'
 ): CalculationRunRecord {
   return {
@@ -18,7 +19,7 @@ function zoneRecord(
       calculator_name: 'cold_room_zone_plan',
       calculator_version: '1.0.0',
       input: {},
-      result: { zones }
+      result: { zones, ...resultExtras }
     },
     requires_review: false
   }
@@ -166,7 +167,7 @@ describe('mapPersistedCalculationsToPlanningResponse', () => {
         required_area_m2: 100,
         daily_throughput_kg: 0,
         design_storage_mass_kg: 0
-      }], 'zone-old'),
+      }], {}, 'zone-old'),
       investmentRecord([{ item_name: '旧分项', amount_cny: 100_000 }], 1000, 'inv-old', 500_000),
       zoneRecord([{
         zone_name: '新区域',
@@ -175,7 +176,7 @@ describe('mapPersistedCalculationsToPlanningResponse', () => {
         required_area_m2: 300,
         daily_throughput_kg: 0,
         design_storage_mass_kg: 0
-      }], 'zone-new'),
+      }], {}, 'zone-new'),
       investmentRecord([{ item_name: '新分项', amount_cny: 900_000 }], 2000, 'inv-new', 2_000_000)
     ])
 
@@ -195,5 +196,135 @@ describe('mapPersistedCalculationsToPlanningResponse', () => {
     expect(mapped!.investment_estimate.result.items).toEqual([
       { item_name: '新分项', amount_cny: 900_000 }
     ])
+  })
+
+  it('passes through P2 zone layout and scheme fields', () => {
+    const mapped = mapPersistedCalculationsToPlanningResponse([
+      zoneRecord([
+        {
+          zone_name: '一级预冷间',
+          temperature_band: '8~10℃',
+          daily_throughput_kg_day: 20000,
+          design_storage_mass_kg: 0,
+          position_count: 18,
+          required_area_m2: 270,
+          zone_code: 'primary_precool',
+          n_need: 16,
+          reporting_scheme_id: '6_position',
+          schemes: [
+            {
+              scheme_id: '6_position',
+              room_count: 3,
+              position_count: 18,
+              required_area_m2: 270
+            },
+            {
+              scheme_id: '8_position',
+              room_count: 2,
+              position_count: 16,
+              required_area_m2: 272
+            }
+          ]
+        },
+        {
+          zone_name: '出货通道',
+          temperature_band: '1~3℃',
+          design_storage_mass_kg: 0,
+          position_count: 2,
+          required_area_m2: 110,
+          zone_code: 'shipping_channel',
+          pallet_count: 42,
+          truck_count: 3,
+          platform_count: 2
+        }
+      ], {
+        total_area_m2: 900,
+        total_area_m2_8_position_scheme: 950
+      })
+    ])
+
+    expect(mapped).not.toBeNull()
+    const precool = mapped!.zone_plan.result.zones[0]
+    expect(precool.zone_code).toBe('primary_precool')
+    expect(precool.n_need).toBe(16)
+    expect(precool.reporting_scheme_id).toBe('6_position')
+    expect(precool.schemes).toEqual([
+      {
+        scheme_id: '6_position',
+        room_count: 3,
+        position_count: 18,
+        required_area_m2: 270
+      },
+      {
+        scheme_id: '8_position',
+        room_count: 2,
+        position_count: 16,
+        required_area_m2: 272
+      }
+    ])
+    expect(precool.daily_throughput_kg_day).toBe(20000)
+
+    const shipping = mapped!.zone_plan.result.zones[1]
+    expect(shipping.pallet_count).toBe(42)
+    expect(shipping.truck_count).toBe(3)
+    expect(shipping.platform_count).toBe(2)
+
+    expect(mapped!.summary.total_area_m2).toBe(900)
+    expect(mapped!.summary.total_area_m2_8_position_scheme).toBe(950)
+  })
+
+  it('keeps absent optional zone fields undefined instead of fabricating zero', () => {
+    const mapped = mapPersistedCalculationsToPlanningResponse([
+      zoneRecord([{
+        zone_name: '成品间',
+        temperature_band: '1~3℃',
+        position_count: 20,
+        required_area_m2: 300,
+        daily_throughput_kg: 0,
+        design_storage_mass_kg: 0
+      }])
+    ])
+
+    expect(mapped).not.toBeNull()
+    const zone = mapped!.zone_plan.result.zones[0]
+    expect(zone.n_need).toBeUndefined()
+    expect(zone.n_actual).toBeUndefined()
+    expect(zone.unused_cells).toBeUndefined()
+    expect(zone.pallet_count).toBeUndefined()
+    expect(zone.truck_count).toBeUndefined()
+    expect(zone.platform_count).toBeUndefined()
+    expect(zone.schemes).toBeUndefined()
+    expect(zone.reporting_scheme_id).toBeUndefined()
+    expect(mapped!.summary.total_area_m2_8_position_scheme).toBeUndefined()
+  })
+
+  it('passes through packed layout fields when present', () => {
+    const mapped = mapPersistedCalculationsToPlanningResponse([
+      zoneRecord([{
+        zone_name: '成品间',
+        temperature_band: '1~3℃',
+        position_count: 28,
+        required_area_m2: 400,
+        daily_throughput_kg: 0,
+        design_storage_mass_kg: 5000,
+        n_need: 24,
+        n_long: 7,
+        n_short: 4,
+        n_actual: 28,
+        unused_cells: 4,
+        aisle_layout: 'three_side_3m',
+        layout: { n_long: 7, n_short: 4, aspect_ratio: 1.75 }
+      }])
+    ])
+
+    expect(mapped).not.toBeNull()
+    const zone = mapped!.zone_plan.result.zones[0]
+    expect(zone.n_need).toBe(24)
+    expect(zone.n_long).toBe(7)
+    expect(zone.n_short).toBe(4)
+    expect(zone.n_actual).toBe(28)
+    expect(zone.unused_cells).toBe(4)
+    expect(zone.aisle_layout).toBe('three_side_3m')
+    expect(zone.layout).toEqual({ n_long: 7, n_short: 4, aspect_ratio: 1.75 })
   })
 })
