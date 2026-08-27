@@ -31,6 +31,7 @@ P2_ALLOWLIST = (
     "frontend/src/features/calculations/components/InvestmentResultsTable.vue",
     "frontend/src/features/calculations/components/InvestmentResultsTable.test.ts",
     "frontend/src/features/calculations/architecture/test_post_v09_p2_stage_result_display.test.ts",
+    "backend/tests/test_reports/test_idempotency_failure_states.py",
 )
 
 _INTERESTING_PREFIXES = (

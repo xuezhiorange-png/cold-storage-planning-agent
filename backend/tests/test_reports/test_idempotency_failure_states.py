@@ -1833,7 +1833,29 @@ class TestIdempotencyFailureStates:
         # Advance clock past stale threshold
         clock.advance(2)
 
-        # Concurrent retries — two independent sessions on file-based DB
+        # Concurrent retries — two independent sessions on file-based DB.
+        # Hold the CAS winner inside _render_bytes so the loser observes an
+        # in-flight fresh claim. Without this hold, SQLite can serialize the
+        # winner through a full DOCX render before the loser looks; the loser
+        # then replays the completed artifact (correct idempotency) and this
+        # test spuriously sees two successes of the same artifact.
+        entered_render = threading.Event()
+        release_render = threading.Event()
+        loser_conflict = threading.Event()
+        original_render_bytes = _ProductionReportRenderService._render_bytes
+
+        def gated_render_bytes(self, *args, **kwargs):
+            entered_render.set()
+            if not release_render.wait(timeout=30):
+                raise TimeoutError("stale-claim concurrent render hold timed out")
+            return original_render_bytes(self, *args, **kwargs)
+
+        monkeypatch.setattr(
+            _ProductionReportRenderService,
+            "_render_bytes",
+            gated_render_bytes,
+        )
+
         barrier = threading.Barrier(2)
         results: list[tuple[int, object]] = []
         errors: list[tuple[int, Exception]] = []
@@ -1865,6 +1887,7 @@ class TestIdempotencyFailureStates:
                     results.append((worker_id, art))
                 except IdempotencyClaimError:
                     errors.append((worker_id, IdempotencyClaimError("conflict")))
+                    loser_conflict.set()
                 except Exception as exc:
                     errors.append((worker_id, exc))
 
@@ -1874,8 +1897,14 @@ class TestIdempotencyFailureStates:
         ]
         for t in threads:
             t.start()
+        assert entered_render.wait(timeout=15), "winner never entered _render_bytes"
+        loser_saw_conflict = loser_conflict.wait(timeout=15)
+        release_render.set()
         for t in threads:
             t.join(timeout=30)
+        assert loser_saw_conflict, (
+            "loser never observed the in-flight claim as IdempotencyClaimError"
+        )
 
         # Exactly one worker succeeded, exactly one got IdempotencyClaimError
         assert len(results) == 1, f"Expected exactly 1 success, got {len(results)}: {results}"

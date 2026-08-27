@@ -199,6 +199,7 @@ frontend/src/features/calculations/components/InstalledPowerResultsTable.test.ts
 frontend/src/features/calculations/components/InvestmentResultsTable.vue
 frontend/src/features/calculations/components/InvestmentResultsTable.test.ts
 frontend/src/features/calculations/architecture/test_post_v09_p2_stage_result_display.test.ts
+backend/tests/test_reports/test_idempotency_failure_states.py
 ```
 
 New `*ResultsTable.vue` names are the expected split. If the implementer
@@ -255,3 +256,4 @@ Revert this PR. 计算结果 returns to zone table + hash progress panel.
 | Rev | Date | Notes |
 | --- | --- | --- |
 | R1 | 2026-08-27 | Charles 可以派发: each stage shows persisted results |
+| R2 | 2026-08-27 | CI leftover: hold stale-claim retry winner in `_render_bytes` so the loser observes an in-flight claim. Does not change product fencing or the one-artifact invariant. |
