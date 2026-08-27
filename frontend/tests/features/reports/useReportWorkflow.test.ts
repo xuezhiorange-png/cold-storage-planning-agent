@@ -5,6 +5,14 @@ import type { HttpClient } from '../../../src/api/httpClient'
 import { createReportsApi, type ReportsApi } from '../../../src/features/reports/api/reportsApi'
 import {
   createDefaultExportForm,
+  DRAFT_EXPORT_POLICY_COPY,
+  DRAFT_EXPORT_STATUSES,
+  FORMAL_EXPORT_BLOCKER_CODE,
+  FORMAL_EXPORT_POLICY_COPY,
+  FORMAL_EXPORT_STATUSES,
+  isDraftExportStatus,
+  isFormalExportStatus,
+  selectDisplayedExportBlockers,
   useReportExport
 } from '../../../src/features/reports/composables/useReportExport'
 
@@ -184,5 +192,119 @@ describe('useReportExport guided workflow', () => {
 
     URL.createObjectURL = origCreate
     URL.revokeObjectURL = origRevoke
+  })
+})
+
+describe('draft export independent of review (V0.9 P4)', () => {
+  it('defaults export mode to draft and keeps FORMAL_EXPORT_STATUSES approved/archived only', () => {
+    const form = createDefaultExportForm()
+    expect(form.mode).toBe('draft')
+    expect([...DRAFT_EXPORT_STATUSES].sort()).toEqual(
+      ['draft', 'generated', 'reviewed', 'under_review'].sort()
+    )
+    expect([...FORMAL_EXPORT_STATUSES].sort()).toEqual(['approved', 'archived'].sort())
+    expect(isDraftExportStatus('under_review')).toBe(true)
+    expect(isDraftExportStatus('approved')).toBe(false)
+    expect(isFormalExportStatus('approved')).toBe(true)
+    expect(isFormalExportStatus('reviewed')).toBe(false)
+    expect(`${FORMAL_EXPORT_POLICY_COPY}，${DRAFT_EXPORT_POLICY_COPY}`).toBe(
+      '正式导出需要已批准/归档，草稿导出不需要审核'
+    )
+  })
+
+  it('selectDisplayedExportBlockers ignores formal eligibility on the draft path', () => {
+    const displayed = selectDisplayedExportBlockers({
+      mode: 'draft',
+      actionBlockers: [],
+      formalExportEligible: false,
+      formalExportBlockers: [
+        { code: FORMAL_EXPORT_BLOCKER_CODE, message: 'Report not approved' },
+        { code: 'FORMAL_REPORT_NOT_APPROVED', message: "Report status 'draft' is not formal-exportable" }
+      ]
+    })
+
+    expect(displayed).toEqual([])
+  })
+
+  it('selectDisplayedExportBlockers strips FORMAL_EXPORT_BLOCKED from draft action blockers', () => {
+    const displayed = selectDisplayedExportBlockers({
+      mode: 'draft',
+      actionBlockers: [
+        { code: FORMAL_EXPORT_BLOCKER_CODE, message: 'Report not approved' },
+        { code: 'MISSING_CANONICAL_SOURCE', message: 'Zone result missing' }
+      ],
+      formalExportEligible: false,
+      formalExportBlockers: [{ code: FORMAL_EXPORT_BLOCKER_CODE, message: 'Report not approved' }]
+    })
+
+    expect(displayed).toEqual([
+      { code: 'MISSING_CANONICAL_SOURCE', message: 'Zone result missing' }
+    ])
+  })
+
+  it('selectDisplayedExportBlockers may show formal blockers only in formal mode', () => {
+    const displayed = selectDisplayedExportBlockers({
+      mode: 'formal',
+      actionBlockers: [],
+      formalExportEligible: false,
+      formalExportBlockers: [
+        { code: FORMAL_EXPORT_BLOCKER_CODE, message: 'Report not approved' }
+      ]
+    })
+
+    expect(displayed).toEqual([
+      { code: FORMAL_EXPORT_BLOCKER_CODE, message: 'Report not approved' }
+    ])
+  })
+
+  it('renderReport in draft mode does not present FORMAL_EXPORT_BLOCKED as the draft-path error', async () => {
+    const c = createClient()
+    const mockJson = c.requestJson as ReturnType<typeof vi.fn>
+
+    mockJson.mockRejectedValueOnce(
+      new ApiError({
+        status: 409,
+        message: 'Cannot export report report-1 in formal mode',
+        details: [{ code: 'FORMAL_EXPORT_BLOCKED', message: 'Report not approved' }]
+      })
+    )
+
+    const api = createMockApi(c)
+    const ctx = useReportExport(api)
+    const form = createDefaultExportForm()
+    expect(form.mode).toBe('draft')
+
+    await ctx.renderReport('report-1', 1, form)
+
+    expect(ctx.renderError.value).not.toContain('FORMAL_EXPORT_BLOCKED')
+    expect(ctx.actionBlockers.value).toEqual([])
+    expect(mockJson).toHaveBeenCalledWith(
+      expect.stringContaining('/render'),
+      expect.objectContaining({
+        body: expect.objectContaining({ mode: 'draft' })
+      })
+    )
+  })
+
+  it('markReviewed fail-closed does not populate export actionBlockers', async () => {
+    const c = createClient()
+    const mockJson = c.requestJson as ReturnType<typeof vi.fn>
+
+    mockJson.mockRejectedValueOnce(
+      new ApiError({
+        status: 403,
+        message: 'Trusted operator required',
+        details: [{ code: 'UNTRUSTED_OPERATOR', message: 'actor is system' }]
+      })
+    )
+
+    const api = createMockApi(c)
+    const ctx = useReportExport(api)
+
+    const ok = await ctx.markReviewed('report-1')
+
+    expect(ok).toBe(false)
+    expect(ctx.reviewError.value).toContain('UNTRUSTED_OPERATOR')
+    expect(ctx.actionBlockers.value).toEqual([])
   })
 })

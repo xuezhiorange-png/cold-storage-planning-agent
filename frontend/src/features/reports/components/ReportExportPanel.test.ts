@@ -6,18 +6,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
 import ReportExportPanel from '../components/ReportExportPanel.vue'
-import { useReportExport } from '../composables/useReportExport'
+import {
+  DRAFT_EXPORT_POLICY_COPY,
+  FORMAL_EXPORT_POLICY_COPY,
+  useReportExport
+} from '../composables/useReportExport'
 
-vi.mock('../composables/useReportExport', () => ({
-  createDefaultExportForm: vi.fn(() => ({
-    format: 'pdf',
-    mode: 'draft',
-    locale: 'zh-CN',
-    templateVersion: null,
-    idempotencyKey: null
-  })),
-  useReportExport: vi.fn()
-}))
+vi.mock('../composables/useReportExport', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../composables/useReportExport')>()
+  return {
+    ...actual,
+    createDefaultExportForm: vi.fn(() => actual.createDefaultExportForm()),
+    useReportExport: vi.fn()
+  }
+})
 
 function mockExportContext(overrides: Record<string, unknown> = {}) {
   const defaults = {
@@ -153,7 +155,7 @@ describe('ReportExportPanel', () => {
     expect(wrapper.text()).toContain('请求批准')
   })
 
-  it('shows workflow formal export blocker messages when ineligible', () => {
+  it('shows workflow formal export blocker messages as formal-only, not a global export stop', () => {
     const wrapper = mount(ReportExportPanel, {
       props: {
         projectId: 'proj-1',
@@ -164,13 +166,66 @@ describe('ReportExportPanel', () => {
     })
 
     expect(wrapper.text()).toContain('Cooling load missing')
+    expect(wrapper.text()).toContain('不影响草稿导出')
+    expect(wrapper.find('.report-export-panel__blockers').exists()).toBe(false)
+    expect(wrapper.find('[data-export-scope="formal"]').exists()).toBe(true)
   })
 
-  it('disables formal mode option when formal export ineligible', async () => {
+  it('disables formal export when ineligible but keeps draft export enabled', async () => {
     vi.mocked(useReportExport).mockReturnValue(
       mockExportContext({
         reports: ref([{ id: 'report-1', status: 'draft' }]),
         revisions: ref([{ revision_number: 1, content_hash: 'h1' }])
+      }) as unknown as ReturnType<typeof useReportExport>
+    )
+
+    const wrapper = mount(ReportExportPanel, {
+      props: {
+        projectId: 'proj-1',
+        projectVersionId: 'ver-1',
+        formalExportEligible: false,
+        formalExportBlockers: [
+          { code: 'FORMAL_EXPORT_BLOCKED', message: 'Report not approved' }
+        ]
+      }
+    })
+
+    await wrapper.find('.report-export-panel__toggle').trigger('click')
+
+    const draftBtn = wrapper.find('[data-export-mode="draft"]')
+    const formalBtn = wrapper.find('[data-export-mode="formal"]')
+    expect(draftBtn.exists()).toBe(true)
+    expect(formalBtn.exists()).toBe(true)
+    expect(draftBtn.attributes('disabled')).toBeUndefined()
+    expect(formalBtn.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain(FORMAL_EXPORT_POLICY_COPY)
+    expect(wrapper.text()).toContain(DRAFT_EXPORT_POLICY_COPY)
+    expect(wrapper.find('.report-export-panel__blockers').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('FORMAL_EXPORT_BLOCKED')
+    expect(wrapper.text()).toContain('不影响草稿导出')
+  })
+
+  it('does not disable completed artifact download when formal export is ineligible', async () => {
+    vi.mocked(useReportExport).mockReturnValue(
+      mockExportContext({
+        reports: ref([{ id: 'report-1', status: 'draft' }]),
+        revisions: ref([{ revision_number: 1, content_hash: 'h1' }]),
+        exports: ref([
+          {
+            artifact_id: 'art-1',
+            status: 'completed',
+            format: 'pdf',
+            file_name: 'draft.pdf',
+            file_size_bytes: 12,
+            revision_number: 1,
+            generated_at: '2026-08-27T00:00:00Z',
+            locale: 'zh-CN',
+            template_locale: 'zh-CN',
+            translation_catalog_version: '1.0.0',
+            translation_catalog_content_hash: 'ch',
+            localized_template_content_hash: 'lh'
+          }
+        ])
       }) as unknown as ReturnType<typeof useReportExport>
     )
 
@@ -183,8 +238,8 @@ describe('ReportExportPanel', () => {
     })
 
     await wrapper.find('.report-export-panel__toggle').trigger('click')
-    const formalOption = wrapper.find('option[value="formal"]')
-    expect(formalOption.exists()).toBe(true)
-    expect(formalOption.attributes('disabled')).toBeDefined()
+    const downloadBtn = wrapper.find('[data-export-action="download"]')
+    expect(downloadBtn.exists()).toBe(true)
+    expect(downloadBtn.attributes('disabled')).toBeUndefined()
   })
 })

@@ -18,6 +18,40 @@ import type {
 import type { ReportBlocker, ReportDetailState, ReportWorkflowContext, PersistedReportRevisionContent } from '../types'
 
 /**
+ * Mirrors backend DRAFT_EXPORT_STATUSES. Draft export does not require review.
+ * Frontend must not add a review gate on this path.
+ */
+export const DRAFT_EXPORT_STATUSES: ReadonlySet<ReportStatus> = new Set([
+  'draft',
+  'generated',
+  'under_review',
+  'reviewed'
+])
+
+/**
+ * Mirrors backend FORMAL_EXPORT_STATUSES. Formal export stays approved/archived
+ * only. Do not weaken this set.
+ */
+export const FORMAL_EXPORT_STATUSES: ReadonlySet<ReportStatus> = new Set([
+  'approved',
+  'archived'
+])
+
+export const FORMAL_EXPORT_BLOCKER_CODE = 'FORMAL_EXPORT_BLOCKED'
+export const FORMAL_REPORT_NOT_APPROVED_CODE = 'FORMAL_REPORT_NOT_APPROVED'
+
+const FORMAL_PATH_BLOCKER_CODES: ReadonlySet<string> = new Set([
+  FORMAL_EXPORT_BLOCKER_CODE,
+  FORMAL_REPORT_NOT_APPROVED_CODE
+])
+
+/** Operator-visible policy: formal export stays gated. */
+export const FORMAL_EXPORT_POLICY_COPY = '正式导出需要已批准/归档'
+
+/** Operator-visible policy: draft export is independent of review. */
+export const DRAFT_EXPORT_POLICY_COPY = '草稿导出不需要审核'
+
+/**
  * Form values for initiating a report render/export.
  */
 export interface ExportForm {
@@ -39,6 +73,85 @@ export function createDefaultExportForm(): ExportForm {
     templateVersion: null,
     idempotencyKey: null
   }
+}
+
+export function isDraftExportStatus(status: ReportStatus): boolean {
+  return DRAFT_EXPORT_STATUSES.has(status)
+}
+
+export function isFormalExportStatus(status: ReportStatus): boolean {
+  return FORMAL_EXPORT_STATUSES.has(status)
+}
+
+export function isFormalPathBlocker(blocker: { code: string }): boolean {
+  return FORMAL_PATH_BLOCKER_CODES.has(blocker.code)
+}
+
+/**
+ * Strip formal-only codes so they cannot become the draft-path error banner.
+ */
+export function filterDraftPathBlockers<T extends { code: string }>(
+  blockers: readonly T[]
+): T[] {
+  return blockers.filter((blocker) => !isFormalPathBlocker(blocker))
+}
+
+/**
+ * Format a render/download error for the active export mode.
+ * Draft path must not present FORMAL_EXPORT_BLOCKED as its only/global error.
+ */
+export function formatExportError(
+  error: unknown,
+  fallback: string,
+  mode: RenderMode
+): string {
+  const blockers = extractBlockersFromError(error)
+  const relevant = mode === 'draft' ? filterDraftPathBlockers(blockers) : blockers
+  if (relevant.length > 0) {
+    return relevant.map((blocker) => `${blocker.code}: ${blocker.message}`).join('; ')
+  }
+  if (mode === 'draft' && blockers.length > 0) {
+    return fallback
+  }
+  return formatReportError(error, fallback)
+}
+
+export interface DisplayedExportBlockersInput {
+  mode: RenderMode
+  actionBlockers: readonly ReportBlocker[]
+  formalExportEligible: boolean
+  formalExportBlockers: readonly ReportBlocker[]
+}
+
+function cloneBlocker(blocker: ReportBlocker): ReportBlocker {
+  const cloned: ReportBlocker = {
+    code: blocker.code,
+    message: blocker.message
+  }
+  if (blocker.stage !== undefined) cloned.stage = blocker.stage
+  if (blocker.source_type !== undefined) cloned.source_type = blocker.source_type
+  if (blocker.source_id !== undefined) cloned.source_id = blocker.source_id
+  if (blocker.severity !== undefined) cloned.severity = blocker.severity
+  return cloned
+}
+
+/**
+ * Draft path ignores formal eligibility. Formal blockers must not be copied
+ * into the generic export banner while the operator is on draft mode.
+ */
+export function selectDisplayedExportBlockers(
+  input: DisplayedExportBlockersInput
+): ReportBlocker[] {
+  if (input.mode === 'draft') {
+    return filterDraftPathBlockers(input.actionBlockers).map(cloneBlocker)
+  }
+
+  const fromActions = input.actionBlockers.map(cloneBlocker)
+  if (fromActions.length > 0) return fromActions
+  if (!input.formalExportEligible) {
+    return input.formalExportBlockers.map(cloneBlocker)
+  }
+  return []
 }
 
 /**
@@ -331,8 +444,8 @@ export function useReportExport(api: ReportsApi = reportsApi) {
       return false
     } catch (err: unknown) {
       if (!isStale(err, handle)) {
-        const blockers = extractBlockersFromError(err)
-        if (blockers.length > 0) actionBlockers.value = blockers
+        // Review failures stay in reviewError. Browser mark_reviewed fail-closes
+        // (actor is system) and must not become the default "cannot export" banner.
         reviewError.value = formatReportError(err, '审核操作请求失败')
       }
       return false
@@ -501,8 +614,12 @@ export function useReportExport(api: ReportsApi = reportsApi) {
     } catch (err: unknown) {
       if (!isStale(err, handle)) {
         const blockers = extractBlockersFromError(err)
-        if (blockers.length > 0) actionBlockers.value = blockers
-        renderError.value = formatReportError(err, '渲染报告失败')
+        if (form.mode === 'draft') {
+          actionBlockers.value = filterDraftPathBlockers(blockers)
+        } else if (blockers.length > 0) {
+          actionBlockers.value = blockers
+        }
+        renderError.value = formatExportError(err, '渲染报告失败', form.mode)
       }
     } finally {
       if (handle.isCurrent()) renderLoading.value = false
