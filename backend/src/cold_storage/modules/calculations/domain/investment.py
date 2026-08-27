@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 
 from cold_storage.modules.calculations.domain.result import (
@@ -9,6 +10,29 @@ from cold_storage.modules.calculations.domain.result import (
 from cold_storage.modules.calculations.domain.zone_planning import DemoZoneCoefficient
 
 VERSION = "1.0.0"
+
+# Stable report-localization keys for investment breakdown columns.
+# item_name remains the Chinese display label for calculator/UI output.
+INVESTMENT_ITEM_SPECS: tuple[tuple[str, str], ...] = (
+    ("civil_works_and_steel_structure", "土建及钢结构"),
+    ("cold_storage_refrigeration_equipment", "冷库制冷设备"),
+    ("high_low_voltage_distribution", "高低压配电"),
+    ("accommodation_and_living_area", "住宿及生活区"),
+    ("monitoring_and_startup_supplies", "监控及开厂物资"),
+)
+
+LEGACY_ITEM_NAME_TO_KEY: dict[str, str] = {name: key for key, name in INVESTMENT_ITEM_SPECS}
+
+
+def resolve_investment_item_key(item: Mapping[str, object]) -> str | None:
+    """Resolve a stable investment breakdown key from a persisted item row."""
+    raw_key = item.get("item_key")
+    if isinstance(raw_key, str) and raw_key.strip():
+        return raw_key.strip()
+    item_name = item.get("item_name")
+    if isinstance(item_name, str):
+        return LEGACY_ITEM_NAME_TO_KEY.get(item_name.strip())
+    return None
 
 
 @dataclass(frozen=True)
@@ -79,11 +103,15 @@ class InvestmentEstimator:
         dormitory_living = 0
         monitoring_opening_supplies = self._value("monitoring_opening_supplies_cny")
         items = [
-            self._item("土建及钢结构", civil_structure),
-            self._item("冷库制冷设备", refrigeration),
-            self._item("高低压配电", power_distribution),
-            self._item("住宿及生活区", dormitory_living),
-            self._item("监控及开厂物资", monitoring_opening_supplies),
+            self._item("civil_works_and_steel_structure", "土建及钢结构", civil_structure),
+            self._item("cold_storage_refrigeration_equipment", "冷库制冷设备", refrigeration),
+            self._item("high_low_voltage_distribution", "高低压配电", power_distribution),
+            self._item("accommodation_and_living_area", "住宿及生活区", dormitory_living),
+            self._item(
+                "monitoring_and_startup_supplies",
+                "监控及开厂物资",
+                monitoring_opening_supplies,
+            ),
         ]
         return CalculationResult(
             success=True,
@@ -122,8 +150,12 @@ class InvestmentEstimator:
             requires_review=True,
         )
 
-    def _item(self, item_name: str, amount_cny: float) -> dict[str, object]:
-        return {"item_name": item_name, "amount_cny": round(amount_cny, 2)}
+    def _item(self, item_key: str, item_name: str, amount_cny: float) -> dict[str, object]:
+        return {
+            "item_key": item_key,
+            "item_name": item_name,
+            "amount_cny": round(amount_cny, 2),
+        }
 
     def _value(self, code: str) -> float:
         return self._coefficients[code].value
