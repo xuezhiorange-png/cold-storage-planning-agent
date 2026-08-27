@@ -62,7 +62,7 @@ function handleReset() {
       </template>
 
       <p class="project-page__legacy-note">
-        此页面为 V0.4 <code>planning-run</code> 遗留辅助路径，不是 V0.9 五阶段权威输入。
+        此页面为 V0.4 <code>planning-run</code> 遗留辅助路径，不是 V0.8 五阶段权威输入。
         规范五阶段执行请使用「工程输入」页面，仅填写五个过程 KEY 并提交
         <code>OperatorProcessInputV1</code>；后端装配完整 bundle，本页不得作为工程输入来源。
       </p>

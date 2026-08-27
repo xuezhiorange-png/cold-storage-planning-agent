@@ -991,7 +991,7 @@ describe('cold storage workbench', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('V0.4 遗留路径 (planning-run)')
-    expect(wrapper.text()).toContain('不是 V0.9 五阶段权威输入')
+    expect(wrapper.text()).toContain('不是 V0.8 五阶段权威输入')
   })
 
   it('P5 page shells use content-column width instead of 960px/760px cards', async () => {
