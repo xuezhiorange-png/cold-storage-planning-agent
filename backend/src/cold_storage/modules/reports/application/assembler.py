@@ -154,6 +154,24 @@ class ReportAssembler:
         if input_conditions:
             content["input_conditions"] = input_conditions
 
+        get_calculation_logic = getattr(self._provider, "get_calculation_logic", None)
+        calculation_logic = (
+            get_calculation_logic(project_id, project_version_id)
+            if callable(get_calculation_logic)
+            else None
+        )
+        if calculation_logic:
+            content["calculation_logic"] = calculation_logic
+            calc_by_id = {
+                str(calc.get("result_id")): calc
+                for calc in calculation_data
+                if isinstance(calc, dict) and calc.get("result_id")
+            }
+            for stage_entry in calculation_logic.get("stages", []):
+                source_ref = _calculation_logic_source_ref(stage_entry, calc_by_id)
+                if source_ref is not None:
+                    source_refs.append(source_ref)
+
         if assumptions:
             content["assumptions"] = assumptions
 
@@ -363,6 +381,44 @@ class ReportAssembler:
         )
 
 
+def _calculation_logic_source_ref(
+    stage_entry: object,
+    calc_by_id: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Cite calculation_logic from the matching persisted calculation row.
+
+    Quality evaluation treats ``calculation_result`` citations without
+    ``content_hash`` as blockers, which leaves the report in ``draft``
+    and blocks ``submit-review``. Copy hash/version from the already
+    projected calculation row. Omit the citation when that provenance
+    is missing — do not fabricate a hash.
+    """
+    if not isinstance(stage_entry, dict):
+        return None
+    calculation_id = stage_entry.get("calculation_id")
+    if not calculation_id:
+        return None
+    calc = calc_by_id.get(str(calculation_id), {})
+    persisted_hash = calc.get("persisted_content_hash", "")
+    tool_version = stage_entry.get("calculator_version") or calc.get("tool_version") or ""
+    if not persisted_hash or not tool_version:
+        return None
+    source_data: dict[str, Any] = {
+        "result_id": str(calculation_id),
+        "tool_name": stage_entry.get("calculator_name") or calc.get("tool_name", ""),
+        "tool_version": tool_version,
+        "persisted_content_hash": persisted_hash,
+    }
+    if "tool_call_status" in calc:
+        source_data["tool_call_status"] = calc["tool_call_status"]
+    return _make_source_ref(
+        section_key="calculation_logic",
+        source_type=SourceType.CALCULATION_RESULT,
+        source_id=str(calculation_id),
+        data=source_data,
+    )
+
+
 def _make_source_ref(
     *,
     section_key: str,
@@ -441,6 +497,9 @@ class ReportDataProvider:
         return []
 
     def get_input_conditions(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        return None
+
+    def get_calculation_logic(self, project_id: str, version_id: str) -> dict[str, Any] | None:
         return None
 
     def get_assumptions(self, project_id: str, version_id: str) -> dict[str, Any] | None:

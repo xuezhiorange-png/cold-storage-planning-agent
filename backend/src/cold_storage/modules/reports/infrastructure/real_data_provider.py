@@ -681,6 +681,12 @@ class RealReportDataProvider(ReportDataProvider):
             return None
         return context.input_conditions
 
+    def get_calculation_logic(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        context = self.get_report_engineering_context(project_id, version_id)
+        if context is None:
+            return None
+        return context.calculation_logic
+
     def get_assumptions(self, project_id: str, version_id: str) -> dict[str, Any] | None:
         context = self.get_report_engineering_context(project_id, version_id)
         if context is None:

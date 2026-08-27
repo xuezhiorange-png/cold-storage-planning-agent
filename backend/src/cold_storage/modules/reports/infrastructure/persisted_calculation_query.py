@@ -23,6 +23,8 @@ from cold_storage.modules.reports.application.persisted_calculation_reads import
     ReportEngineeringContext,
     _assumptions_from_persisted_sources,
     _input_conditions_from_engineering_bundle,
+    _merge_v09_operator_keys_into_input_conditions,
+    build_calculation_logic_from_indexed,
     build_input_conditions_from_execution_snapshot_and_coefficients,
     build_orchestrated_result_from_indexed,
     detect_canonical_lineage_stale_reasons,
@@ -42,6 +44,7 @@ def _calculation_run_to_dict(record: CalculationRunRecord) -> dict[str, Any]:
         "requires_review": record.requires_review,
         "assumptions": record.assumptions,
         "coefficients": record.coefficients,
+        "formulas": record.formulas,
         "created_at": record.created_at.isoformat() if record.created_at else "",
     }
     if record.result_hash is not None:
@@ -118,6 +121,7 @@ class SqlAlchemyPersistedCalculationQuery:
             (row.coefficient_context_id for row in rows if row.coefficient_context_id is not None),
             None,
         )
+        execution_snapshot: dict[str, Any] | None = None
         if input_conditions is None and execution_snapshot_id is not None:
             execution_record = self._session.get(
                 ProjectVersionExecutionSnapshotRecord, execution_snapshot_id
@@ -128,14 +132,22 @@ class SqlAlchemyPersistedCalculationQuery:
                 else None
             )
             if execution_record is not None:
+                execution_snapshot = dict(execution_record.input_snapshot)
                 coefficient_content = (
                     dict(coefficient_record.content) if coefficient_record is not None else None
                 )
                 input_conditions = build_input_conditions_from_execution_snapshot_and_coefficients(
-                    dict(execution_record.input_snapshot),
+                    execution_snapshot,
                     coefficient_content,
                 )
 
+        input_conditions = _merge_v09_operator_keys_into_input_conditions(
+            input_conditions,
+            indexed_calculations=indexed,
+            version_input_snapshot=version_input_snapshot,
+            execution_snapshot=execution_snapshot,
+        )
+        calculation_logic = build_calculation_logic_from_indexed(indexed)
         assumptions = _assumptions_from_persisted_sources(
             version_assumption_snapshot=version_assumption_snapshot,
             indexed_calculations=indexed,
@@ -143,6 +155,7 @@ class SqlAlchemyPersistedCalculationQuery:
         return ReportEngineeringContext(
             input_conditions=input_conditions,
             assumptions=assumptions,
+            calculation_logic=calculation_logic,
             indexed_calculator_names=frozenset(indexed),
             stale_lineage_reasons=tuple(detect_canonical_lineage_stale_reasons(indexed)),
         )
