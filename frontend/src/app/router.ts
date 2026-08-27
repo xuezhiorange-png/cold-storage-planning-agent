@@ -13,7 +13,7 @@ export function createWorkbenchRouter(history: RouterHistory = createWebHistory(
     routes: [
       {
         path: '/',
-        redirect: '/workbench/project'
+        redirect: '/workbench/engineering-inputs'
       },
       {
         path: '/workbench',
@@ -21,7 +21,7 @@ export function createWorkbenchRouter(history: RouterHistory = createWebHistory(
         children: [
           {
             path: '',
-            redirect: '/workbench/project'
+            redirect: '/workbench/engineering-inputs'
           },
           {
             path: 'project',
@@ -62,7 +62,7 @@ export function createWorkbenchRouter(history: RouterHistory = createWebHistory(
       },
       {
         path: '/:pathMatch(.*)*',
-        redirect: '/workbench/project'
+        redirect: '/workbench/engineering-inputs'
       }
     ]
   })

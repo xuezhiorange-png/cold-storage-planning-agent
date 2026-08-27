@@ -32,7 +32,7 @@ const testRouter = createWorkbenchRouter(createMemoryHistory())
 const pinia = createPinia()
 const workflowStore = usePlanningWorkflowStore(pinia)
 
-testRouter.push('/workbench/project')
+testRouter.push('/workbench/engineering-inputs')
 await testRouter.isReady()
 
 /* ── Test isolation helpers ────────────────────────────
@@ -76,7 +76,7 @@ describe('cold storage workbench', () => {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur()
     }
-    await testRouter.push('/workbench/project')
+    await testRouter.push('/workbench/engineering-inputs')
     await testRouter.isReady()
   })
 
@@ -102,9 +102,9 @@ describe('cold storage workbench', () => {
     }
   })
 
-  it('redirects root to project page', () => {
-    expect(testRouter.currentRoute.value.name).toBe('project')
-    expect(testRouter.currentRoute.value.fullPath).toBe('/workbench/project')
+  it('redirects root to engineering inputs page', () => {
+    expect(testRouter.currentRoute.value.name).toBe('engineering-inputs')
+    expect(testRouter.currentRoute.value.fullPath).toBe('/workbench/engineering-inputs')
   })
 
   it('renders the workbench navigation links', async () => {
@@ -112,7 +112,8 @@ describe('cold storage workbench', () => {
 
     const nav = wrapper.find('nav[aria-label="主流程导航"]')
     expect(nav.exists()).toBe(true)
-    expect(nav.text()).toContain('基本信息')
+    expect(nav.text()).toContain('工程输入')
+    expect(nav.text()).not.toContain('基本信息')
     expect(nav.text()).toContain('计算结果')
     expect(nav.text()).toContain('方案比选')
     expect(nav.text()).toContain('投资估算')
@@ -120,11 +121,11 @@ describe('cold storage workbench', () => {
     expect(nav.text()).toContain('报告输出')
   })
 
-  it('renders the project input page by default', async () => {
+  it('renders the engineering inputs page by default', async () => {
     const wrapper = mountApp()
 
-    expect(wrapper.text()).toContain('项目设计输入')
-    expect(wrapper.text()).toContain('工厂概况')
+    expect(wrapper.text()).toContain('OperatorProcessInputV1')
+    expect(wrapper.text()).toContain('仅填写五个过程 KEY')
   })
 
   it('navigates to calculations route', async () => {
@@ -186,6 +187,8 @@ describe('cold storage workbench', () => {
   })
 
   it('renders project input form sections', async () => {
+    await testRouter.push('/workbench/project')
+    await flushPromises()
     const wrapper = mountApp()
 
     expect(wrapper.text()).toContain('工厂名称')
@@ -197,6 +200,8 @@ describe('cold storage workbench', () => {
   })
 
   it('renders submit button on project page', async () => {
+    await testRouter.push('/workbench/project')
+    await flushPromises()
     const wrapper = mountApp()
 
     const primaryButton = wrapper.find('.el-button--primary')
@@ -220,6 +225,7 @@ describe('cold storage workbench', () => {
     })
 
     const wrapper = mountApp()
+    await testRouter.push('/workbench/project')
     await flushPromises()
     await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
@@ -527,6 +533,7 @@ describe('cold storage workbench', () => {
     })
 
     const wrapper = mountApp()
+    await testRouter.push('/workbench/project')
     await flushPromises()
     await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
@@ -566,6 +573,7 @@ describe('cold storage workbench', () => {
     })
 
     const wrapper = mountApp()
+    await testRouter.push('/workbench/project')
     await flushPromises()
     await flushPromises()
 
@@ -589,6 +597,7 @@ describe('cold storage workbench', () => {
     })
 
     const wrapper = mountApp()
+    await testRouter.push('/workbench/project')
     await flushPromises()
     await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
@@ -645,6 +654,7 @@ describe('cold storage workbench', () => {
     await workbench.initialize()
 
     const wrapper = mountApp()
+    await testRouter.push('/workbench/project')
     await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
 
@@ -680,6 +690,7 @@ describe('cold storage workbench', () => {
     await workbench.initialize()
 
     const wrapper = mountApp()
+    await testRouter.push('/workbench/project')
     await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
 
@@ -767,6 +778,7 @@ describe('cold storage workbench', () => {
     })
 
     const wrapper = mountApp()
+    await testRouter.push('/workbench/project')
     await flushPromises()
     await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
@@ -790,6 +802,7 @@ describe('cold storage workbench', () => {
     await workbench.initialize()
 
     const wrapper = mountApp()
+    await testRouter.push('/workbench/project')
     await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
 
@@ -827,6 +840,7 @@ describe('cold storage workbench', () => {
     await workbench.initialize()
 
     const wrapper = mountApp()
+    await testRouter.push('/workbench/project')
     await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
 
@@ -987,6 +1001,8 @@ describe('cold storage workbench', () => {
   })
 
   it('keeps V0.4 planning-run leftover labeled as non-authority', async () => {
+    await testRouter.push('/workbench/project')
+    await flushPromises()
     const wrapper = mountApp()
     await flushPromises()
 
@@ -1021,7 +1037,7 @@ describe('narrow screen nav link clicks', () => {
     usePersistedPlanningResultsStore(pinia).resetForTests()
     installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'))
     await workbench.initialize()
-    await testRouter.push('/workbench/project')
+    await testRouter.push('/workbench/engineering-inputs')
     await testRouter.isReady()
   })
 
@@ -1044,11 +1060,11 @@ describe('narrow screen nav link clicks', () => {
       expect(nav.exists()).toBe(true)
       
       const links = nav.findAll('a')
-      expect(links.length).toBe(7)
+      expect(links.length).toBe(6)
       
       // Click each link by label and verify route via real link clicks.
       const expected: Record<string, string> = {
-        '基本信息': '/workbench/project',
+        '工程输入': '/workbench/engineering-inputs',
         '计算结果': '/workbench/calculations',
         '方案比选': '/workbench/schemes',
         '投资估算': '/workbench/investment',
@@ -1136,6 +1152,7 @@ describe('narrow screen nav link clicks', () => {
     await workbench.initialize()
 
     const wrapper = mountApp()
+    await testRouter.push('/workbench/project')
     await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
 
@@ -1212,6 +1229,7 @@ describe('narrow screen nav link clicks', () => {
     })
 
     const wrapper = mountApp()
+    await testRouter.push('/workbench/project')
     await flushPromises()
 
     // Submit planning to populate store
@@ -1253,6 +1271,7 @@ describe('narrow screen nav link clicks', () => {
       window.dispatchEvent(new Event('resize'))
       
       const wrapper = mountApp()
+      await testRouter.push('/workbench/project')
       await flushPromises()
       
       const submitBtn = wrapper.find('.el-button--primary')
