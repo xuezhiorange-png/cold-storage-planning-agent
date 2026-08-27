@@ -1,4 +1,7 @@
-import type { CalculationRunRecord } from '../../../api/contracts/calculations'
+import type {
+  CalculationRunRecord,
+  PersistedFormulaEntry
+} from '../../../api/contracts/calculations'
 import type {
   EquipmentPowerRowContract,
   PlanningRunResponse,
@@ -12,6 +15,128 @@ import type {
 const ZONE_CALCULATOR = 'cold_room_zone_plan'
 const INVESTMENT_CALCULATOR = 'investment_estimate'
 const POWER_CONFIGURATION_CALCULATOR = 'power_configuration'
+
+const EMPTY_STAGE_COPY = '本阶段尚无持久化结果'
+
+/**
+ * Dual-read persisted snapshot payload (V0.9 P6): unwrap `.result` when present.
+ */
+export function readPersistedResultPayload(
+  record: CalculationRunRecord | null | undefined
+): Record<string, unknown> | null {
+  if (!record?.result_snapshot || typeof record.result_snapshot !== 'object') {
+    return null
+  }
+  return readResultPayloadFromSnapshot(record.result_snapshot)
+}
+
+export function readResultPayloadFromSnapshot(snapshot: unknown): Record<string, unknown> {
+  if (!snapshot || typeof snapshot !== 'object') return {}
+  const snap = snapshot as Record<string, unknown>
+  const result = snap.result
+  if (result && typeof result === 'object' && !Array.isArray(result)) {
+    const resultDict = result as Record<string, unknown>
+    const nested = resultDict.result
+    if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+      return nested as Record<string, unknown>
+    }
+    return resultDict
+  }
+  return snap
+}
+
+export function readPersistedFormulas(
+  record: CalculationRunRecord | null | undefined
+): PersistedFormulaEntry[] {
+  const fromRecord = record?.formulas
+  if (Array.isArray(fromRecord) && fromRecord.length > 0) {
+    return fromRecord.filter((entry) => entry && typeof entry === 'object')
+  }
+  const snapshot = record?.result_snapshot
+  if (snapshot && typeof snapshot === 'object') {
+    const formulas = (snapshot as Record<string, unknown>).formulas
+    if (Array.isArray(formulas) && formulas.length > 0) {
+      return formulas.filter((entry) => entry && typeof entry === 'object') as PersistedFormulaEntry[]
+    }
+  }
+  return []
+}
+
+export function readPersistedAssumptions(
+  record: CalculationRunRecord | null | undefined
+): string[] {
+  const fromRecord = record?.assumptions
+  if (Array.isArray(fromRecord) && fromRecord.length > 0) {
+    return fromRecord.filter((item): item is string => typeof item === 'string')
+  }
+  const payload = readPersistedResultPayload(record)
+  const assumptions = payload?.assumptions
+  if (Array.isArray(assumptions)) {
+    return assumptions.filter((item): item is string => typeof item === 'string')
+  }
+  return []
+}
+
+export function readPersistedWarnings(
+  record: CalculationRunRecord | null | undefined
+): string[] {
+  const fromRecord = record?.warnings
+  if (Array.isArray(fromRecord) && fromRecord.length > 0) {
+    return fromRecord.map((item) => {
+      if (typeof item === 'string') return item
+      if (item && typeof item === 'object' && 'message' in item) {
+        return String((item as Record<string, unknown>).message ?? item)
+      }
+      return String(item)
+    })
+  }
+  const payload = readPersistedResultPayload(record)
+  const warnings = payload?.warnings
+  if (Array.isArray(warnings)) {
+    return warnings.map((item) => {
+      if (typeof item === 'string') return item
+      if (item && typeof item === 'object' && 'message' in item) {
+        return String((item as Record<string, unknown>).message ?? item)
+      }
+      return String(item)
+    })
+  }
+  return []
+}
+
+export function formatPersistedNumber(value: unknown): string {
+  if (value === null || value === undefined) return '—'
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Number.isInteger(value) ? String(value) : value.toFixed(2)
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) {
+      return Number.isInteger(parsed) ? String(parsed) : parsed.toFixed(2)
+    }
+    return value
+  }
+  return '—'
+}
+
+export function formatPersistedWan(value: unknown): string {
+  if (value === null || value === undefined) return '—'
+  const parsed =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && value.trim()
+        ? Number(value)
+        : NaN
+  if (!Number.isFinite(parsed)) return '—'
+  return `${(parsed / 10000).toFixed(2)} 万元`
+}
+
+export function persistedObjectRows(value: unknown): Array<Record<string, unknown>> {
+  if (!Array.isArray(value)) return []
+  return value.filter((row) => row && typeof row === 'object') as Array<Record<string, unknown>>
+}
+
+export { EMPTY_STAGE_COPY }
 
 function asNumber(value: unknown): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -43,6 +168,14 @@ function asOptionalString(value: unknown): string | undefined {
   return text ? text : undefined
 }
 
+function snapshotInput(snapshot: unknown): Record<string, unknown> {
+  if (!snapshot || typeof snapshot !== 'object') return {}
+  const input = (snapshot as Record<string, unknown>).input
+  return input && typeof input === 'object' && !Array.isArray(input)
+    ? (input as Record<string, unknown>)
+    : {}
+}
+
 /**
  * API returns calculation runs in created_at ascending order; last entry per name wins.
  */
@@ -58,8 +191,11 @@ function latestByCalculatorName(records: CalculationRunRecord[]): Record<string,
 }
 
 function zoneRows(record: CalculationRunRecord | undefined): Array<Record<string, unknown>> {
-  const zones = record?.result_snapshot?.result?.zones
-  return Array.isArray(zones) ? zones.filter((zone) => zone && typeof zone === 'object') as Array<Record<string, unknown>> : []
+  const payload = readResultPayloadFromSnapshot(record?.result_snapshot)
+  const zones = payload.zones
+  return Array.isArray(zones)
+    ? zones.filter((zone) => zone && typeof zone === 'object') as Array<Record<string, unknown>>
+    : []
 }
 
 function mapZoneScheme(row: Record<string, unknown>): ZoneSchemeContract {
@@ -187,7 +323,7 @@ function powerConfigurationFromRecord(
   investmentRecord: CalculationRunRecord | undefined,
   requiresReview: boolean
 ): PlanningRunResponse['power_configuration'] {
-  const persisted = record?.result_snapshot?.result ?? {}
+  const persisted = readResultPayloadFromSnapshot(record?.result_snapshot)
   const equipmentRows = Array.isArray(persisted.equipment_rows)
     ? persisted.equipment_rows.map((row, idx) =>
         mapEquipmentRow(row as Record<string, unknown>, idx)
@@ -200,7 +336,7 @@ function powerConfigurationFromRecord(
     ? persisted.items.map((row) => mapPowerItem(row as Record<string, unknown>))
     : []
 
-  const investmentInput = investmentRecord?.result_snapshot?.input ?? {}
+  const investmentInput = snapshotInput(investmentRecord?.result_snapshot)
   const totalFromPowerTable = asNumber(persisted.total_installed_power_kw)
   const totalFromInvestment = asNumber(investmentInput.total_power_kw)
   const totalInstalled = totalFromPowerTable > 0 ? totalFromPowerTable : totalFromInvestment
@@ -232,7 +368,7 @@ export function mapPersistedCalculationsToPlanningResponse(
   const zones = zoneRows(zoneRecord)
   if (zones.length === 0) return null
 
-  const zoneResult = zoneRecord.result_snapshot?.result ?? {}
+  const zoneResult = readResultPayloadFromSnapshot(zoneRecord.result_snapshot)
   const persistedTotalArea = asOptionalNumber(zoneResult.total_area_m2)
   const totalAreaM2 =
     persistedTotalArea !== undefined
@@ -240,7 +376,7 @@ export function mapPersistedCalculationsToPlanningResponse(
       : zones.reduce((sum, zone) => sum + asNumber(zone.required_area_m2), 0)
   const totalPositionCount = zones.reduce((sum, zone) => sum + asNumber(zone.position_count), 0)
   const totalArea8PositionScheme = asOptionalNumber(zoneResult.total_area_m2_8_position_scheme)
-  const investmentResult = investmentRecord?.result_snapshot?.result ?? {}
+  const investmentResult = readResultPayloadFromSnapshot(investmentRecord?.result_snapshot)
   const totalInvestmentCny = asNumber(investmentResult.total_investment_cny)
   const powerConfiguration = powerConfigurationFromRecord(
     powerConfigurationRecord,
@@ -264,8 +400,14 @@ export function mapPersistedCalculationsToPlanningResponse(
     summary.total_area_m2_8_position_scheme = totalArea8PositionScheme
   }
 
+  const zoneSnapshot = zoneRecord.result_snapshot
+  const snapshotSuccess =
+    zoneSnapshot && typeof zoneSnapshot === 'object'
+      ? (zoneSnapshot as Record<string, unknown>).success
+      : undefined
+
   return {
-    success: Boolean(zoneRecord.result_snapshot?.success),
+    success: Boolean(snapshotSuccess),
     summary,
     zone_plan: {
       result: {
