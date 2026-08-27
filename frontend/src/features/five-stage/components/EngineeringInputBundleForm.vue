@@ -77,16 +77,6 @@ const unmappedFieldError = computed(() => {
           @update:model-value="updateZonePlanning('dailyInboundMassKg', $event as number | null)"
         />
         <BundleLeafField
-          label="日工作时长"
-          field-key="zonePlanning.workingTimeHPerDay"
-          :model-value="form.zonePlanning.workingTimeHPerDay"
-          unit="h/day"
-          type="number"
-          :disabled="disabled"
-          v-bind="fieldErrorFor('zonePlanning.workingTimeHPerDay')"
-          @update:model-value="updateZonePlanning('workingTimeHPerDay', $event as number | null)"
-        />
-        <BundleLeafField
           label="成品储存天数"
           field-key="zonePlanning.finishedStorageDays"
           :model-value="form.zonePlanning.finishedStorageDays"
@@ -97,25 +87,34 @@ const unmappedFieldError = computed(() => {
           @update:model-value="updateZonePlanning('finishedStorageDays', $event as number | null)"
         />
         <BundleLeafField
-          label="包装储存天数"
-          field-key="zonePlanning.packagingStorageDays"
-          :model-value="form.zonePlanning.packagingStorageDays"
+          label="冻果储存天数"
+          field-key="zonePlanning.frozenStorageDays"
+          :model-value="form.zonePlanning.frozenStorageDays"
           unit="day"
           type="number"
           :disabled="disabled"
-          v-bind="fieldErrorFor('zonePlanning.packagingStorageDays')"
-          @update:model-value="updateZonePlanning('packagingStorageDays', $event as number | null)"
+          v-bind="fieldErrorFor('zonePlanning.frozenStorageDays')"
+          @update:model-value="updateZonePlanning('frozenStorageDays', $event as number | null)"
         />
         <BundleLeafField
-          label="预冷需求比例"
-          field-key="zonePlanning.precoolingRequiredRatio"
-          :model-value="form.zonePlanning.precoolingRequiredRatio"
-          unit="ratio"
+          label="主包材储存天数"
+          field-key="zonePlanning.mainPackagingStorageDays"
+          :model-value="form.zonePlanning.mainPackagingStorageDays"
+          unit="day"
           type="number"
-          :precision="3"
           :disabled="disabled"
-          v-bind="fieldErrorFor('zonePlanning.precoolingRequiredRatio')"
-          @update:model-value="updateZonePlanning('precoolingRequiredRatio', $event as number | null)"
+          v-bind="fieldErrorFor('zonePlanning.mainPackagingStorageDays')"
+          @update:model-value="updateZonePlanning('mainPackagingStorageDays', $event as number | null)"
+        />
+        <BundleLeafField
+          label="辅包材储存天数"
+          field-key="zonePlanning.auxiliaryPackagingStorageDays"
+          :model-value="form.zonePlanning.auxiliaryPackagingStorageDays"
+          unit="day"
+          type="number"
+          :disabled="disabled"
+          v-bind="fieldErrorFor('zonePlanning.auxiliaryPackagingStorageDays')"
+          @update:model-value="updateZonePlanning('auxiliaryPackagingStorageDays', $event as number | null)"
         />
       </ElCard>
     </ElForm>

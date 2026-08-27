@@ -444,6 +444,13 @@ class PlanningRunRequest(BaseModel):
 
 
 class FiveStageExecutionRequest(BaseModel):
+    """Accept full bundle or compact operator payload; assembler expands compact input.
+
+    Compact ``operator_process_input`` may be OperatorProcessInputV1 schema 1.0.0
+    (V0.8 KEY) or 1.1.0 (V0.9 KEY). This model must not contain formulas or
+    catalog numeric literals.
+    """
+
     engineering_input_bundle: dict[str, Any] | None = None
     operator_process_input: dict[str, Any] | None = None
     idempotency_key: str
