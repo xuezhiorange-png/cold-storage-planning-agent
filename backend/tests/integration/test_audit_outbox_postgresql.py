@@ -163,7 +163,7 @@ def _make_event(
         attempt_id=kwargs.get("attempt_id"),
         calculation_run_id=kwargs.get("calculation_run_id"),
         source_binding_id=kwargs.get("source_binding_id"),
-        next_retry_at=kwargs.get("next_retry_at", now),
+        next_retry_at=kwargs.get("next_retry_at", now - timedelta(seconds=1)),
     )
     if status == "PROCESSING":
         rec.claimed_by = kwargs.get("claimed_by", "w1")
@@ -305,6 +305,7 @@ class TestPGOutboxLifecycle:
             lease_seconds=300,
             now=now,
         )
+        assert len(claimed) == 3
         tokens = {c.claim_token for c in claimed}
         assert len(tokens) == 3
         sess.commit()
