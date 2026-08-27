@@ -51,13 +51,16 @@ export interface EngineeringInputBundleV1 {
 
 export interface OperatorProcessInputV1 {
   schema_id: 'OperatorProcessInputV1'
-  schema_version: '1.0.0'
+  schema_version: '1.0.0' | '1.1.0'
   zone_planning_inputs: {
     daily_inbound_mass_kg: BundleLeaf
-    working_time_h_per_day: BundleLeaf
     finished_storage_days: BundleLeaf
-    packaging_storage_days: BundleLeaf
-    precooling_required_ratio: BundleLeaf
+    frozen_storage_days?: BundleLeaf
+    main_packaging_storage_days?: BundleLeaf
+    auxiliary_packaging_storage_days?: BundleLeaf
+    working_time_h_per_day?: BundleLeaf
+    packaging_storage_days?: BundleLeaf
+    precooling_required_ratio?: BundleLeaf
   }
 }
 

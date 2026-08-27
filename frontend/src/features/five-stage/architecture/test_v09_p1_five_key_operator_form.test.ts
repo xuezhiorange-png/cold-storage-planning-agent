@@ -6,6 +6,7 @@ const FRONTEND_SRC = join(process.cwd(), 'src')
 const FIVE_STAGE_DIR = join(FRONTEND_SRC, 'features/five-stage')
 const FIVE_STAGE_STORE = join(FRONTEND_SRC, 'stores/fiveStageExecution.ts')
 const FORM_COMPONENT = join(FIVE_STAGE_DIR, 'components/EngineeringInputBundleForm.vue')
+const FORM_PAGE = join(FIVE_STAGE_DIR, 'components/EngineeringInputsPage.vue')
 const FORM_MODEL = join(FIVE_STAGE_DIR, 'model/engineeringInputForm.ts')
 
 const OPERATOR_KEY_FIELD_KEYS = [
@@ -62,8 +63,8 @@ function collectTsVueFiles(dir: string): string[] {
   return files
 }
 
-describe('V0.8 P2 operator five-KEY workbench guards', () => {
-  it('engineering input form exposes only five operator KEY field-key controls', () => {
+describe('V0.9 P1 operator five-KEY workbench guards', () => {
+  it('engineering input form exposes only V0.9 five operator KEY field-key controls', () => {
     const content = readFileSync(FORM_COMPONENT, 'utf8')
     const fieldKeyMatches = [...content.matchAll(/field-key="([^"]+)"/g)].map((match) => match[1])
 
@@ -76,11 +77,14 @@ describe('V0.8 P2 operator five-KEY workbench guards', () => {
     }
   })
 
-  it('engineering inputs page titles OperatorProcessInputV1', () => {
-    const page = readFileSync(join(FIVE_STAGE_DIR, 'components/EngineeringInputsPage.vue'), 'utf8')
+  it('engineering inputs page titles OperatorProcessInputV1 and does not ask for full bundle', () => {
+    const page = readFileSync(FORM_PAGE, 'utf8')
     expect(page).toContain('OperatorProcessInputV1')
     expect(page).toContain('操作员过程输入')
+    expect(page).toContain('operator_process_input')
     expect(page).not.toContain('EngineeringInputBundleV1')
+    expect(page).not.toContain('workingTimeHPerDay')
+    expect(page).not.toContain('precoolingRequiredRatio')
   })
 
   it('five-stage submit path posts operator_process_input not engineering_input_bundle', () => {
@@ -92,21 +96,28 @@ describe('V0.8 P2 operator five-KEY workbench guards', () => {
     expect(store).toContain('stableOperatorProcessFieldsJson')
   })
 
-  it('operator process input builder only serializes five zone_planning KEY leaves', () => {
+  it('operator process input builder serializes V0.9 five KEY at schema 1.1.0', () => {
     const content = readFileSync(FORM_MODEL, 'utf8')
     const builderBlock = content.slice(
       content.indexOf('export function buildOperatorProcessInput'),
       content.indexOf('export function stableOperatorProcessFieldsJson')
     )
     expect(builderBlock).toContain('OperatorProcessInputV1')
+    expect(builderBlock).toContain("schema_version: '1.1.0'")
     expect(builderBlock).toContain('zone_planning_inputs')
+    expect(builderBlock).toContain('frozen_storage_days')
+    expect(builderBlock).toContain('main_packaging_storage_days')
+    expect(builderBlock).toContain('auxiliary_packaging_storage_days')
+    expect(builderBlock).not.toContain('working_time_h_per_day')
+    expect(builderBlock).not.toContain('precooling_required_ratio')
+    expect(builderBlock).not.toMatch(/^\s*packaging_storage_days:/m)
     expect(builderBlock).not.toContain('cooling_load_inputs')
     expect(builderBlock).not.toContain('equipment_inputs')
     expect(builderBlock).not.toContain('installed_power_inputs')
     expect(builderBlock).not.toContain('investment_inputs')
   })
 
-  it('default operator form state does not pre-fill KEY user numeric leaves', () => {
+  it('default operator form state does not pre-fill V0.9 KEY user numeric leaves', () => {
     const content = readFileSync(FORM_MODEL, 'utf8')
     const defaultBlock = content.slice(
       content.indexOf('export function createDefaultEngineeringInputFormState'),
@@ -117,10 +128,6 @@ describe('V0.8 P2 operator five-KEY workbench guards', () => {
     expect(defaultBlock).not.toMatch(/frozenStorageDays:\s*\d/)
     expect(defaultBlock).not.toMatch(/mainPackagingStorageDays:\s*\d/)
     expect(defaultBlock).not.toMatch(/auxiliaryPackagingStorageDays:\s*\d/)
-    expect(defaultBlock).not.toMatch(/workingTimeHPerDay:\s*\d/)
-    expect(defaultBlock).not.toMatch(/packagingStorageDays:\s*\d/)
-    expect(defaultBlock).not.toMatch(/precoolingRequiredRatio:\s*0\.\d+/)
-    expect(defaultBlock).not.toMatch(/precoolingRequiredRatio:\s*\d/)
   })
 
   it('five-stage UI package does not embed engineering formula literals', () => {
@@ -133,12 +140,5 @@ describe('V0.8 P2 operator five-KEY workbench guards', () => {
         )
       }
     }
-  })
-
-  it('legacy project page remains labeled non-authority for V0.8', () => {
-    const page = readFileSync(join(FRONTEND_SRC, 'features/project/components/ProjectPage.vue'), 'utf8')
-    expect(page).toContain('V0.4 遗留路径 (planning-run)')
-    expect(page).toContain('不是 V0.8 五阶段权威输入')
-    expect(page).toContain('OperatorProcessInputV1')
   })
 })

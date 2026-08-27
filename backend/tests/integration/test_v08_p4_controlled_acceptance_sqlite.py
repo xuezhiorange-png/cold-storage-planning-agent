@@ -72,10 +72,10 @@ OPERATOR_KEY_LEAVES: frozenset[str] = frozenset(
 
 OPERATOR_KEY_FIELD_KEYS: tuple[str, ...] = (
     "zonePlanning.dailyInboundMassKg",
-    "zonePlanning.workingTimeHPerDay",
     "zonePlanning.finishedStorageDays",
-    "zonePlanning.packagingStorageDays",
-    "zonePlanning.precoolingRequiredRatio",
+    "zonePlanning.frozenStorageDays",
+    "zonePlanning.mainPackagingStorageDays",
+    "zonePlanning.auxiliaryPackagingStorageDays",
 )
 
 MISSING_OPERATOR_KEY_CASES: tuple[tuple[str, str], ...] = (

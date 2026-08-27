@@ -81,6 +81,15 @@ async function handleSubmit(): Promise<void> {
       </template>
 
       <ElAlert
+        type="info"
+        :closable="false"
+        show-icon
+        title="仅填写五个过程 KEY"
+        description="日入库量、成品储存天数、冻果储存天数、主包材储存天数、辅包材储存天数。提交 operator_process_input；不要填写下游冷负荷/设备/电量/投资 KEY。"
+        class="engineering-inputs-page__alert"
+      />
+
+      <ElAlert
         v-if="versionLocked"
         type="warning"
         :closable="false"

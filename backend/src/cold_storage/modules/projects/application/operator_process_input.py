@@ -1,7 +1,12 @@
-"""Assemble OperatorProcessInputV1 into EngineeringInputBundleV1 (V0.8 P1).
+"""Assemble OperatorProcessInputV1 into EngineeringInputBundleV1 (V0.9 P1).
+
+V0.9 compact path: five operator KEY (schema_version 1.1.0) expanded with
+catalog/derived leftovers. V0.8 compact path (schema_version 1.0.0 or
+omitted-as-V0.8) assembles as today.
 
 Copies existing production authority (dataclass defaults, demo catalog envelopes)
 into explicit bundle leaves. Does not invent engineering numbers or recut formulas.
+Does not add shipping_channel to REFRIGERATED_ZONE_REGISTRY (deferred to P2).
 """
 
 from __future__ import annotations
@@ -22,9 +27,11 @@ from cold_storage.modules.projects.application.engineering_input_bundle import (
     BUNDLE_SCHEMA_ID,
     BUNDLE_SCHEMA_VERSION,
     LINEAGE_PENDING_STATE,
-    OPERATOR_FIVE_KEY_FIELDS,
     OPERATOR_PROCESS_SCHEMA_ID,
-    OPERATOR_PROCESS_SCHEMA_VERSION,
+    OPERATOR_PROCESS_SCHEMA_VERSION_V08,
+    OPERATOR_PROCESS_SCHEMA_VERSION_V09,
+    OPERATOR_V08_FIVE_KEY_FIELDS,
+    OPERATOR_V09_FIVE_KEY_FIELDS,
     BundleValidationError,
     EngineeringInputBundleValidationError,
 )
@@ -32,6 +39,8 @@ from cold_storage.modules.projects.domain.models import ProjectVersion
 from cold_storage.shared.errors import MissingEngineeringParameterError
 
 # Refrigerated zone codes produced by cold_room_zone_plan (常温 zones excluded).
+# shipping_channel is deferred to P2: the planner does not emit it until the
+# formula recut. Do not register it here in P1.
 REFRIGERATED_ZONE_REGISTRY: tuple[tuple[str, str, str], ...] = (
     ("primary_precooling_room", "一级预冷间", "8~10℃"),
     ("secondary_precooling_room", "二级预冷间", "1~3℃"),
@@ -42,6 +51,13 @@ REFRIGERATED_ZONE_REGISTRY: tuple[tuple[str, str, str], ...] = (
     ("secondary_fruit_buffer", "次果暂存间", "8~10℃"),
     ("frozen_fruit_room", "冻果间", "-18℃"),
 )
+
+# V0.9 catalog copies of planner-required leaves that are no longer operator KEY.
+# Numbers are existing repo authority (V0.8 sample / V09-E1), not invented.
+_V09_WORKING_TIME_H_PER_DAY_CATALOG = "16"
+_V09_WORKING_TIME_CATALOG_SOURCE = "samples/v08-process-input/manifest.json"
+_V09_PRECOOLING_REQUIRED_RATIO_CATALOG = "1.0"
+_V09_PRECOOLING_RATIO_CATALOG_SOURCE = "docs/tasks/V0_9-version-plan.md#V09-E1"
 
 # source_type=demo mapping table; targets are existing TemperatureLevel enum members.
 TEMPERATURE_BAND_TO_LEVEL: dict[str, str] = {
@@ -121,22 +137,63 @@ def is_operator_process_input_payload(payload: Mapping[str, Any]) -> bool:
     zone_section = payload.get("zone_planning_inputs")
     if not isinstance(zone_section, dict):
         return False
-    return all(field_name in zone_section for field_name in OPERATOR_FIVE_KEY_FIELDS)
+    return _has_all_operator_keys(
+        zone_section, OPERATOR_V08_FIVE_KEY_FIELDS
+    ) or _has_all_operator_keys(zone_section, OPERATOR_V09_FIVE_KEY_FIELDS)
+
+
+def detect_operator_process_path(payload: Mapping[str, Any]) -> str:
+    """Return ``v08`` or ``v09`` from schema_version / KEY set. Fail-closed if neither."""
+    schema_version = payload.get("schema_version")
+    section = payload.get("zone_planning_inputs")
+    if not isinstance(section, dict):
+        _raise_missing("zone_planning_inputs", "missing zone_planning_inputs section")
+    has_v08 = _has_all_operator_keys(section, OPERATOR_V08_FIVE_KEY_FIELDS)
+    has_v09 = _has_all_operator_keys(section, OPERATOR_V09_FIVE_KEY_FIELDS)
+    if schema_version == OPERATOR_PROCESS_SCHEMA_VERSION_V09:
+        return "v09"
+    if schema_version == OPERATOR_PROCESS_SCHEMA_VERSION_V08:
+        return "v08"
+    if schema_version is None:
+        if has_v08:
+            return "v08"
+        if has_v09:
+            return "v09"
+        _raise_missing(
+            "zone_planning_inputs",
+            "neither V0.8 nor V0.9 operator five KEY set is complete",
+        )
+    _raise_missing("schema_version", f"unsupported operator schema_version {schema_version!r}")
+
+
+def operator_key_fields_for_path(path: str) -> tuple[str, ...]:
+    if path == "v09":
+        return OPERATOR_V09_FIVE_KEY_FIELDS
+    return OPERATOR_V08_FIVE_KEY_FIELDS
 
 
 def validate_operator_process_input(payload: Mapping[str, Any]) -> None:
-    """Validate the five operator KEY leaves before assembly."""
+    """Validate the five operator KEY leaves before assembly (V0.8 or V0.9 path)."""
     schema_id = payload.get("schema_id")
     if schema_id is not None and schema_id != OPERATOR_PROCESS_SCHEMA_ID:
         _raise_missing("schema_id", f"unsupported operator schema_id {schema_id!r}")
     schema_version = payload.get("schema_version")
-    if schema_version is not None and schema_version != OPERATOR_PROCESS_SCHEMA_VERSION:
+    if schema_version is not None and schema_version not in {
+        OPERATOR_PROCESS_SCHEMA_VERSION_V08,
+        OPERATOR_PROCESS_SCHEMA_VERSION_V09,
+    }:
         _raise_missing("schema_version", f"unsupported operator schema_version {schema_version!r}")
     section = payload.get("zone_planning_inputs")
     if not isinstance(section, dict):
         _raise_missing("zone_planning_inputs", "missing zone_planning_inputs section")
-    for field_name in OPERATOR_FIVE_KEY_FIELDS:
+    path = detect_operator_process_path(payload)
+    for field_name in operator_key_fields_for_path(path):
         _required_operator_numeric_leaf(section, field_name, f"zone_planning_inputs.{field_name}")
+    if path == "v09" and "precooling_required_ratio" in section:
+        _raise_missing(
+            "zone_planning_inputs.precooling_required_ratio",
+            "OPERATOR_PRECOOLING_RATIO_KEY is forbidden on the V0.9 operator path",
+        )
 
 
 def assemble_engineering_input_bundle(
@@ -149,14 +206,23 @@ def assemble_engineering_input_bundle(
 ) -> dict[str, Any]:
     """Expand operator-minimal input into a complete EngineeringInputBundleV1."""
     validate_operator_process_input(operator_input)
+    path = detect_operator_process_path(operator_input)
+    key_fields = operator_key_fields_for_path(path)
     zone_section = operator_input["zone_planning_inputs"]
     operator_values = {
-        field_name: _operator_numeric_value(zone_section, field_name)
-        for field_name in OPERATOR_FIVE_KEY_FIELDS
+        field_name: _operator_numeric_value(zone_section, field_name) for field_name in key_fields
     }
     corr_id = correlation_id or str(uuid4())
     zone_defaults = _zone_plan_input_defaults()
     demo_coefficient_leaves = _demo_zone_coefficient_leaves()
+    zone_planning_inputs = _zone_planning_inputs_section(
+        operator_values=operator_values,
+        zone_defaults=zone_defaults,
+        operator_key_fields=key_fields,
+    )
+    working_time_h_per_day, operating_hours_source_type, operating_hours_source_path = (
+        _operating_hours_catalog(path, operator_values, zone_planning_inputs)
+    )
 
     bundle: dict[str, Any] = {
         "schema_id": BUNDLE_SCHEMA_ID,
@@ -167,12 +233,11 @@ def assemble_engineering_input_bundle(
             actor=actor,
             correlation_id=corr_id,
         ),
-        "zone_planning_inputs": _zone_planning_inputs_section(
-            operator_values=operator_values,
-            zone_defaults=zone_defaults,
-        ),
+        "zone_planning_inputs": zone_planning_inputs,
         "cooling_load_inputs": _cooling_load_inputs_section(
-            working_time_h_per_day=operator_values["working_time_h_per_day"],
+            working_time_h_per_day=working_time_h_per_day,
+            operating_hours_source_type=operating_hours_source_type,
+            operating_hours_source_path=operating_hours_source_path,
         ),
         "equipment_inputs": _equipment_inputs_section(),
         "installed_power_inputs": _installed_power_inputs_section(),
@@ -215,15 +280,17 @@ def _zone_planning_inputs_section(
     *,
     operator_values: dict[str, str],
     zone_defaults: dict[str, str],
+    operator_key_fields: tuple[str, ...] | None = None,
 ) -> dict[str, Any]:
+    key_fields = operator_key_fields or OPERATOR_V08_FIVE_KEY_FIELDS
     section: dict[str, Any] = {}
-    for field_name in OPERATOR_FIVE_KEY_FIELDS:
+    for field_name in key_fields:
         section[field_name] = _user_leaf(
             operator_values[field_name],
             unit=_operator_field_unit(field_name),
         )
     for field_name, value in zone_defaults.items():
-        if field_name in OPERATOR_FIVE_KEY_FIELDS:
+        if field_name in key_fields or field_name in section:
             continue
         validity = "conflict" if field_name in _CONFLICT_ZONE_DEFAULT_FIELDS else "unverified"
         section[field_name] = _demo_leaf(
@@ -231,12 +298,57 @@ def _zone_planning_inputs_section(
             unit=_ZONE_DEFAULT_FIELD_UNITS.get(field_name),
             validity_status=validity,
         )
+    if "working_time_h_per_day" not in section:
+        section["working_time_h_per_day"] = _demo_leaf(
+            _V09_WORKING_TIME_H_PER_DAY_CATALOG,
+            unit="h/day",
+            source_path=_V09_WORKING_TIME_CATALOG_SOURCE,
+        )
+    if "precooling_required_ratio" not in section:
+        section["precooling_required_ratio"] = _demo_leaf(
+            _V09_PRECOOLING_REQUIRED_RATIO_CATALOG,
+            unit="ratio",
+            source_path=_V09_PRECOOLING_RATIO_CATALOG_SOURCE,
+        )
+    if "packaging_storage_days" not in section:
+        if "main_packaging_storage_days" not in operator_values:
+            _raise_missing(
+                "zone_planning_inputs.main_packaging_storage_days",
+                "V0.9 packaging_storage_days is derived from main_packaging_storage_days",
+            )
+        section["packaging_storage_days"] = _user_leaf(
+            operator_values["main_packaging_storage_days"],
+            unit="day",
+            source_path="zone_planning_inputs.main_packaging_storage_days",
+        )
     return section
+
+
+def _operating_hours_catalog(
+    path: str,
+    operator_values: dict[str, str],
+    zone_planning_inputs: Mapping[str, Any],
+) -> tuple[str, str, str]:
+    if path == "v08":
+        return (
+            operator_values["working_time_h_per_day"],
+            "user",
+            "zone_planning_inputs.working_time_h_per_day",
+        )
+    leaf = zone_planning_inputs["working_time_h_per_day"]
+    value = leaf.get("value") if isinstance(leaf, dict) else leaf
+    return (
+        _decimalize(value),
+        "demo",
+        _V09_WORKING_TIME_CATALOG_SOURCE,
+    )
 
 
 def _cooling_load_inputs_section(
     *,
     working_time_h_per_day: str,
+    operating_hours_source_type: str = "user",
+    operating_hours_source_path: str = "zone_planning_inputs.working_time_h_per_day",
 ) -> dict[str, Any]:
     zones: list[dict[str, Any]] = []
     for zone_code, _zone_name, temperature_band in REFRIGERATED_ZONE_REGISTRY:
@@ -276,8 +388,8 @@ def _cooling_load_inputs_section(
             "operating_hours_per_day": _catalog_leaf(
                 working_time_h_per_day,
                 unit="h/day",
-                source_path="zone_planning_inputs.working_time_h_per_day",
-                source_type="user",
+                source_path=operating_hours_source_path,
+                source_type=operating_hours_source_type,
             ),
             "product_mass_per_day": _catalog_leaf(
                 _WORKBENCH_PRODUCT_MASS_PER_DAY,
@@ -482,7 +594,7 @@ def _installed_power_defaults() -> dict[str, str]:
 def _leaf_unit_by_path(operator_values: dict[str, str]) -> dict[str, str]:
     units = {
         f"zone_planning_inputs.{field_name}": _operator_field_unit(field_name)
-        for field_name in OPERATOR_FIVE_KEY_FIELDS
+        for field_name in operator_values
     }
     units["installed_power_inputs.compressor_input_power_kw_e"] = "kW(e)"
     return units
@@ -495,11 +607,14 @@ def _operator_field_unit(field_name: str) -> str:
         "finished_storage_days": "day",
         "packaging_storage_days": "day",
         "precooling_required_ratio": "ratio",
+        "frozen_storage_days": "day",
+        "main_packaging_storage_days": "day",
+        "auxiliary_packaging_storage_days": "day",
     }[field_name]
 
 
-def _user_leaf(value: Any, *, unit: str | None) -> dict[str, Any]:
-    return {
+def _user_leaf(value: Any, *, unit: str | None, source_path: str | None = None) -> dict[str, Any]:
+    leaf = {
         "value": _decimalize(value),
         "unit": unit,
         "state": "provided",
@@ -507,6 +622,9 @@ def _user_leaf(value: Any, *, unit: str | None) -> dict[str, Any]:
         "validity_status": "unverified",
         "requires_review": True,
     }
+    if source_path is not None:
+        leaf["source_path"] = source_path
+    return leaf
 
 
 def _persisted_leaf(value: Any, *, unit: str | None) -> dict[str, Any]:
@@ -591,6 +709,10 @@ def _lineage_pending_leaf(*, unit: str | None) -> dict[str, Any]:
         "validity_status": "unverified",
         "requires_review": True,
     }
+
+
+def _has_all_operator_keys(section: Mapping[str, Any], field_names: tuple[str, ...]) -> bool:
+    return all(field_name in section for field_name in field_names)
 
 
 def _required_operator_numeric_leaf(

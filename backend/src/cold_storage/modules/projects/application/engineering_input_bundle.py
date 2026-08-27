@@ -20,14 +20,35 @@ BUNDLE_SCHEMA_VERSION = "1.0.0"
 
 OPERATOR_PROCESS_SCHEMA_ID = "OperatorProcessInputV1"
 OPERATOR_PROCESS_SCHEMA_VERSION = "1.0.0"
+OPERATOR_PROCESS_SCHEMA_VERSION_V08 = OPERATOR_PROCESS_SCHEMA_VERSION
+OPERATOR_PROCESS_SCHEMA_VERSION_V09 = "1.1.0"
 LINEAGE_PENDING_STATE = "lineage_pending"
 
+# V0.8 compact OperatorProcessInputV1 KEY set (kept for Path A / V0.8 tests).
 OPERATOR_FIVE_KEY_FIELDS: tuple[str, ...] = (
     "daily_inbound_mass_kg",
     "working_time_h_per_day",
     "finished_storage_days",
     "packaging_storage_days",
     "precooling_required_ratio",
+)
+OPERATOR_V08_FIVE_KEY_FIELDS: tuple[str, ...] = OPERATOR_FIVE_KEY_FIELDS
+
+# V0.9 compact OperatorProcessInputV1 KEY set (schema_version 1.1.0).
+OPERATOR_V09_FIVE_KEY_FIELDS: tuple[str, ...] = (
+    "daily_inbound_mass_kg",
+    "finished_storage_days",
+    "frozen_storage_days",
+    "main_packaging_storage_days",
+    "auxiliary_packaging_storage_days",
+)
+
+# Extra zone leaves that must reach ColdRoomZonePlanInput when present on the
+# assembled bundle (V0.9 user KEY). Path A still only requires the V0.8 five.
+_ZONE_SNAPSHOT_EXTENDED_FIELDS: tuple[str, ...] = (
+    "frozen_storage_days",
+    "main_packaging_storage_days",
+    "auxiliary_packaging_storage_days",
 )
 
 _LINEAGE_DEFERRED_COOLING_FIELDS: frozenset[str] = frozenset(
@@ -435,10 +456,18 @@ def _validate_review_metadata(bundle: Mapping[str, Any]) -> None:
 
 def _zone_stage_payload(bundle: Mapping[str, Any]) -> dict[str, Any]:
     section = bundle["zone_planning_inputs"]
-    return {
+    payload = {
         field_name: _decimalize(_required_numeric_leaf(section, field_name, field_name))
         for field_name in _KEY_ZONE_FIELDS
     }
+    for field_name in _ZONE_SNAPSHOT_EXTENDED_FIELDS:
+        if field_name not in section:
+            continue
+        leaf = section[field_name]
+        if not _is_bundle_leaf(leaf) or leaf.get("value") is None:
+            continue
+        payload[field_name] = _decimalize(_required_numeric_leaf(section, field_name, field_name))
+    return payload
 
 
 def _cooling_load_stage_payload(

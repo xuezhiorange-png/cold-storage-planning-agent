@@ -41,8 +41,11 @@ export interface EquipmentSystemFormState {
 export interface EngineeringInputFormState {
   zonePlanning: {
     dailyInboundMassKg: number | null
-    workingTimeHPerDay: number | null
     finishedStorageDays: number | null
+    frozenStorageDays: number | null
+    mainPackagingStorageDays: number | null
+    auxiliaryPackagingStorageDays: number | null
+    workingTimeHPerDay: number | null
     packagingStorageDays: number | null
     precoolingRequiredRatio: number | null
   }
@@ -160,8 +163,11 @@ export function createDefaultEngineeringInputFormState(): EngineeringInputFormSt
   return {
     zonePlanning: {
       dailyInboundMassKg: null,
-      workingTimeHPerDay: null,
       finishedStorageDays: null,
+      frozenStorageDays: null,
+      mainPackagingStorageDays: null,
+      auxiliaryPackagingStorageDays: null,
+      workingTimeHPerDay: null,
       packagingStorageDays: null,
       precoolingRequiredRatio: null
     },
@@ -243,13 +249,18 @@ function optionalPowerLeaf(value: number | null, unit: string): ReturnType<typeo
 export function buildOperatorProcessInput(form: EngineeringInputFormState): OperatorProcessInputV1 {
   return {
     schema_id: 'OperatorProcessInputV1',
-    schema_version: '1.0.0',
+    schema_version: '1.1.0',
     zone_planning_inputs: {
       daily_inbound_mass_kg: bundleNumericLeaf(form.zonePlanning.dailyInboundMassKg, { unit: 'kg/day' }),
-      working_time_h_per_day: bundleNumericLeaf(form.zonePlanning.workingTimeHPerDay, { unit: 'h/day' }),
       finished_storage_days: bundleNumericLeaf(form.zonePlanning.finishedStorageDays, { unit: 'day' }),
-      packaging_storage_days: bundleNumericLeaf(form.zonePlanning.packagingStorageDays, { unit: 'day' }),
-      precooling_required_ratio: bundleNumericLeaf(form.zonePlanning.precoolingRequiredRatio, { unit: 'ratio' })
+      frozen_storage_days: bundleNumericLeaf(form.zonePlanning.frozenStorageDays, { unit: 'day' }),
+      main_packaging_storage_days: bundleNumericLeaf(form.zonePlanning.mainPackagingStorageDays, {
+        unit: 'day'
+      }),
+      auxiliary_packaging_storage_days: bundleNumericLeaf(
+        form.zonePlanning.auxiliaryPackagingStorageDays,
+        { unit: 'day' }
+      )
     }
   }
 }
@@ -258,10 +269,10 @@ export function stableOperatorProcessFieldsJson(form: EngineeringInputFormState)
   const zonePlanning = form.zonePlanning
   return JSON.stringify({
     daily_inbound_mass_kg: zonePlanning.dailyInboundMassKg,
-    working_time_h_per_day: zonePlanning.workingTimeHPerDay,
     finished_storage_days: zonePlanning.finishedStorageDays,
-    packaging_storage_days: zonePlanning.packagingStorageDays,
-    precooling_required_ratio: zonePlanning.precoolingRequiredRatio
+    frozen_storage_days: zonePlanning.frozenStorageDays,
+    main_packaging_storage_days: zonePlanning.mainPackagingStorageDays,
+    auxiliary_packaging_storage_days: zonePlanning.auxiliaryPackagingStorageDays
   })
 }
 
