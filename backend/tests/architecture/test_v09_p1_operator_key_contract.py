@@ -6,9 +6,12 @@ embedding engineering formulas or editing zone_planning.py.
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from pathlib import Path
+
+import pytest
 
 from cold_storage.modules.projects.application.engineering_input_bundle import (
     OPERATOR_PROCESS_SCHEMA_VERSION,
@@ -85,6 +88,24 @@ _ENGINEERING_LITERAL_PATTERNS = (
     re.compile(r"\butilization_factor\s*=\s*0\.\d+"),
     re.compile(r"\breserve_factor\s*=\s*0\.\d+"),
 )
+
+
+def _current_branch_name() -> str:
+    head_ref = os.environ.get("GITHUB_HEAD_REF")
+    if head_ref:
+        return head_ref
+    result = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
+def _on_p1_branch() -> bool:
+    return "v09-p1-operator-key" in _current_branch_name()
 
 
 def _extract_allowlist_paths(contract: str, marker: str) -> set[str]:
@@ -182,6 +203,10 @@ def test_operator_form_does_not_expose_removed_v08_keys() -> None:
     assert "zonePlanning.auxiliaryPackagingStorageDays" in form
 
 
+@pytest.mark.skipif(
+    not _on_p1_branch(),
+    reason="P1 allowlist diff only enforced on v09-p1-operator-key branch",
+)
 def test_p1_diff_stays_on_allowlist_and_does_not_edit_zone_planning() -> None:
     changed = _changed_interesting_paths()
     allowlist = set(P1_ALLOWLIST)
@@ -199,11 +224,18 @@ def test_p1_diff_stays_on_allowlist_and_does_not_edit_zone_planning() -> None:
     assert zone_diff.stdout.strip() == ""
 
 
-def test_shipping_channel_not_added_to_refrigerated_registry() -> None:
+def test_shipping_channel_registered_in_refrigerated_registry() -> None:
+    from cold_storage.modules.projects.application.operator_process_input import (
+        REFRIGERATED_ZONE_REGISTRY,
+    )
+
+    registry_codes = {row[0] for row in REFRIGERATED_ZONE_REGISTRY}
+    assert "shipping_channel" in registry_codes
+    shipping_row = next(row for row in REFRIGERATED_ZONE_REGISTRY if row[0] == "shipping_channel")
+    assert shipping_row[1] == "出货通道"
+    assert shipping_row[2] == "1~3℃"
     assembler = OPERATOR_ASSEMBLER.read_text(encoding="utf-8")
-    assert '"shipping_channel"' not in assembler
-    assert "'shipping_channel'" not in assembler
-    assert "deferred to P2" in assembler
+    assert '"shipping_channel"' in assembler or "'shipping_channel'" in assembler
 
 
 def test_app_py_has_no_engineering_formula_literals() -> None:

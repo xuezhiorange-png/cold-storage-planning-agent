@@ -82,7 +82,11 @@ def test_v09_five_key_assembly_succeeds() -> None:
     assert zone["main_packaging_storage_days"]["source_type"] == "user"
     assert zone["auxiliary_packaging_storage_days"]["value"] in {"12", "12.0"}
     assert zone["auxiliary_packaging_storage_days"]["source_type"] == "user"
-    assert len(bundle["cooling_load_inputs"]["zones"]) == 8
+    assert len(bundle["cooling_load_inputs"]["zones"]) == 9
+    zone_codes = [
+        z["_assembler_expected_zone_code"] for z in bundle["cooling_load_inputs"]["zones"]
+    ]
+    assert "shipping_channel" in zone_codes
     assert bundle["cooling_load_inputs"]["zones"][0]["zone_area"]["state"] == LINEAGE_PENDING_STATE
 
 

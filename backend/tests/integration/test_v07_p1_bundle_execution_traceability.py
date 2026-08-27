@@ -200,4 +200,4 @@ def test_zone_gold_numeric_expectations_remain_stable() -> None:
     assert zones[2]["raw_position_count"] == 19
     assert zones[2]["position_count"] == 24
     assert zones[7]["design_storage_mass_kg"] == 62_500
-    assert result.result["total_area_m2"] == pytest.approx(1813.57, abs=0.01)
+    assert result.result["total_area_m2"] == pytest.approx(2744.24, abs=0.01)

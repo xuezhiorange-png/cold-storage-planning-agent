@@ -54,7 +54,11 @@ def test_five_field_assembly_succeeds() -> None:
     )
     validate_engineering_input_bundle(bundle, validation_mode="operator_minimal")
     assert bundle["schema_id"] == "EngineeringInputBundleV1"
-    assert len(bundle["cooling_load_inputs"]["zones"]) == 8
+    assert len(bundle["cooling_load_inputs"]["zones"]) == 9
+    zone_codes = [
+        z["_assembler_expected_zone_code"] for z in bundle["cooling_load_inputs"]["zones"]
+    ]
+    assert "shipping_channel" in zone_codes
     assert len(bundle["equipment_inputs"]["systems"]) == 3
     assert bundle["cooling_load_inputs"]["zones"][0]["zone_area"]["state"] == LINEAGE_PENDING_STATE
     first_zone = bundle["cooling_load_inputs"]["zones"][0]

@@ -172,9 +172,10 @@ def test_real_production_zone_details_references_pass_quality() -> None:
     assert result.success is True
     zones = result.result["zones"]
     assert isinstance(zones, list)
+    # V0.9 P2 §4 recut: formula-native zones no longer carry unused demo loading as area_basis.
     zone_details = [zone for zone in zones if isinstance(zone, dict) and "area_basis" in zone]
-    assert {zone["area_basis"]["code"] for zone in zone_details} == set(_AREA_BASIS_CODE_UNITS)
+    assert zone_details == []
 
-    findings = evaluate_quality({"throughput_inventory_area": {"zone_details": zone_details}}, [])
+    findings = evaluate_quality({"throughput_inventory_area": {"zone_details": zones}}, [])
 
     assert not get_blockers(findings)
