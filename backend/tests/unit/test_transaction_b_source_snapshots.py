@@ -14,6 +14,10 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
+from cold_storage.modules.calculations.domain.zone_planning import (
+    ColdRoomZonePlanInput,
+    ColdRoomZonePlanner,
+)
 from cold_storage.modules.orchestration.application.source_snapshots import (
     CoefficientEntry,
     CoolingLoadResultSnapshotV1,
@@ -204,6 +208,46 @@ class TestTypedResultSnapshots:
                 zones=[],
                 bogus_field="should_fail",
             )
+
+    def test_live_planner_output_parses_as_zone_result_snapshot(self) -> None:
+        """P2 §4 live planner output must parse under extra='forbid' schema."""
+        planner = ColdRoomZonePlanner()
+        result_obj = planner.plan(
+            ColdRoomZonePlanInput(
+                daily_inbound_mass_kg=25_000,
+                working_time_h_per_day=16,
+                finished_storage_days=2.5,
+                packaging_storage_days=3,
+                precooling_required_ratio=1,
+                frozen_storage_days=5,
+            )
+        )
+        assert result_obj.success is True
+        snap = ZoneResultSnapshotV1(**result_obj.result)
+        assert snap.total_area_m2_8_position_scheme is not None
+        zone_codes = {zone.zone_code for zone in snap.zones}
+        assert "shipping_channel" in zone_codes
+
+    def test_live_planner_output_parses_as_zone_source_snapshot(self) -> None:
+        planner = ColdRoomZonePlanner()
+        result_obj = planner.plan(
+            ColdRoomZonePlanInput(
+                daily_inbound_mass_kg=25_000,
+                working_time_h_per_day=16,
+                finished_storage_days=2.5,
+                packaging_storage_days=3,
+                precooling_required_ratio=1,
+                frozen_storage_days=5,
+            )
+        )
+        # ZoneResultSnapshotV1 coerces live planner numerics (same path as persisted re-parse).
+        zone_result = ZoneResultSnapshotV1(**result_obj.result)
+        snap = ZoneSourceSnapshotV1(
+            **_stage_base_kwargs(zone_result.model_dump()),
+        )
+        assert snap.result_snapshot.total_area_m2_8_position_scheme is not None
+        zone_codes = {zone.zone_code for zone in snap.result_snapshot.zones}
+        assert "shipping_channel" in zone_codes
 
     def test_cooling_load_result_snapshot_valid(self) -> None:
         snap = _make_cooling_load_result_snapshot()

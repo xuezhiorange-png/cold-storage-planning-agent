@@ -397,6 +397,25 @@ class ZoneEntry(BaseModel):
     person_daily_capacity_kg_day: str | None = None
     packing_table_area_m2: str | None = None
 
+    # P2 §4 zone planner fields (optional — golden/minimal fixtures omit them)
+    n_need: int | None = None
+    n_long: int | None = None
+    n_short: int | None = None
+    n_actual: int | None = None
+    unused_cells: int | None = None
+    layout: dict[str, Any] | None = None
+    aisle_layout: str | None = None
+    reporting_scheme_id: str | None = None
+    schemes: list[dict[str, Any]] | None = None
+    secondary_fruit_ratio: str | None = None
+    secondary_fruit_storage_days: int | None = None
+    frozen_fruit_ratio: str | None = None
+    frozen_storage_days: int | None = None
+    packaging_position_area_m2: str | None = None
+    pallet_count: int | None = None
+    truck_count: int | None = None
+    platform_count: int | None = None
+
     @field_validator(
         "daily_throughput_kg_day",
         "design_storage_mass_kg",
@@ -415,6 +434,9 @@ class ZoneEntry(BaseModel):
         "position_daily_capacity_kg_day",
         "person_daily_capacity_kg_day",
         "packing_table_area_m2",
+        "secondary_fruit_ratio",
+        "frozen_fruit_ratio",
+        "packaging_position_area_m2",
         mode="before",
     )
     @classmethod
@@ -423,9 +445,16 @@ class ZoneEntry(BaseModel):
             return None
         return _coerce_to_canonical_string(v)
 
-    @field_validator("area_basis", mode="before")
+    @field_validator("area_basis", "layout", mode="before")
     @classmethod
-    def _coerce_area_basis(cls, v: object) -> dict[str, Any] | None:
+    def _coerce_zone_nested_dict(cls, v: object) -> dict[str, Any] | None:
+        if v is None:
+            return None
+        return _coerce_numeric_deep(v)  # type: ignore[return-value]
+
+    @field_validator("schemes", mode="before")
+    @classmethod
+    def _coerce_zone_schemes(cls, v: object) -> list[dict[str, Any]] | None:
         if v is None:
             return None
         return _coerce_numeric_deep(v)  # type: ignore[return-value]
@@ -451,6 +480,7 @@ class ZoneResultSnapshotV1(BaseModel):
     total_area_m2: str
     planning_parameters: dict[str, Any]
     zones: list[ZoneEntry]
+    total_area_m2_8_position_scheme: str | None = None
 
     @field_validator(
         "daily_inbound_mass_kg",
@@ -461,6 +491,13 @@ class ZoneResultSnapshotV1(BaseModel):
     )
     @classmethod
     def _coerce_decimal_field(cls, v: object) -> str:
+        return _coerce_to_canonical_string(v)
+
+    @field_validator("total_area_m2_8_position_scheme", mode="before")
+    @classmethod
+    def _coerce_optional_total_area_8_position(cls, v: object) -> str | None:
+        if v is None:
+            return None
         return _coerce_to_canonical_string(v)
 
     @field_validator("planning_parameters", mode="before")

@@ -10,6 +10,7 @@ P2_CONTRACT = REPO_ROOT / "docs" / "tasks" / "V0_9-P2-zone-formula-recut-contrac
 P0_CONTRACT = REPO_ROOT / "docs" / "tasks" / "V0_9-P0-version-contract.md"
 ZONE_PLANNING = REPO_ROOT / "backend/src/cold_storage/modules/calculations/domain/zone_planning.py"
 
+# P2 allowlist = P0 §7.3 ∪ living-test files ∪ snapshot-schema files.
 P2_ALLOWLIST = (
     "docs/tasks/V0_9-P2-zone-formula-recut-contract.md",
     "backend/src/cold_storage/modules/calculations/domain/zone_planning.py",
@@ -20,6 +21,8 @@ P2_ALLOWLIST = (
     "backend/tests/test_v03_p1_report_unit_quality.py",
     "backend/tests/integration/test_project_api_persistence.py",
     "backend/tests/unit/test_demo_overview.py",
+    "backend/src/cold_storage/modules/orchestration/application/source_snapshots.py",
+    "backend/tests/unit/test_transaction_b_source_snapshots.py",
 )
 
 _INTERESTING_PREFIXES = (
@@ -103,12 +106,17 @@ def test_p2_diff_stays_on_allowlist() -> None:
 
 def test_zone_planning_is_only_production_formula_file_changed() -> None:
     changed = _changed_interesting_paths()
+    # P2 snapshot-schema admit may also touch source_snapshots.py (off formula recut).
+    allowed_non_formula_src = {
+        "backend/src/cold_storage/modules/orchestration/application/source_snapshots.py",
+    }
     production_formula_files = {
         path
         for path in changed
         if path.startswith("backend/src/")
         and path.endswith(".py")
         and "zone_planning.py" not in path
+        and path not in allowed_non_formula_src
     }
     assert production_formula_files == set()
     assert "backend/src/cold_storage/modules/calculations/domain/zone_planning.py" in changed

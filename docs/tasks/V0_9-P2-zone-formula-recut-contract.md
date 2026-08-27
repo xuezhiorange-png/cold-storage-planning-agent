@@ -74,7 +74,7 @@ Implement version-plan §4 in `zone_planning.py`:
 - Demo coefficients not used in `required_area_m2` must not appear as
   `area_basis` on zone rows.
 
-## 2. Exclusive allowlist (P0 §7.3 ∪ Charles-authorized living-test files)
+## 2. Exclusive allowlist (P0 §7.3 ∪ living-test files ∪ snapshot-schema files)
 
 ```text
 V09_P2_FILE_ALLOWLIST
@@ -87,6 +87,8 @@ backend/tests/integration/test_v07_p1_bundle_execution_traceability.py
 backend/tests/test_v03_p1_report_unit_quality.py
 backend/tests/integration/test_project_api_persistence.py
 backend/tests/unit/test_demo_overview.py
+backend/src/cold_storage/modules/orchestration/application/source_snapshots.py
+backend/tests/unit/test_transaction_b_source_snapshots.py
 ```
 
 **Out of scope for P2 (do not edit):**
@@ -112,13 +114,29 @@ backend/tests/integration/test_project_api_persistence.py
 backend/tests/unit/test_demo_overview.py
 IDENTITY_DECISION=VERSION stays 1.0.0; formula recut does not bump calculator identity
 LEFTOVER=shipping_channel still absent from REFRIGERATED_ZONE_REGISTRY
-LEFTOVER_ZONE_SOURCE_SNAPSHOT=ZoneSourceSnapshotV1 rejects P2 §4 zone row fields (n_need, schemes, layout, shipping_channel, total_area_m2_8_position_scheme); five-stage persistence test blocked until schema follow-on
 ```
 
 Living tests retargeted to V0.9 §4 live planner output. §4 formulas not
 weakened.
 
-## 4. Verification
+## 4. Charles-authorized snapshot schema admit (2026-08-27)
+
+Charles replied `授权` to coordinator's P2 snapshot-schema authorization request.
+
+```text
+CHARLES_V09_P2_SNAPSHOT_SCHEMA_AUTHORIZED=YES
+DATE=2026-08-27
+AUTHORIZED_FILES
+backend/src/cold_storage/modules/orchestration/application/source_snapshots.py
+backend/tests/unit/test_transaction_b_source_snapshots.py
+IDENTITY_DECISION=VERSION stays 1.0.0; schema admit does not bump calculator identity
+LEFTOVER=shipping_channel still absent from REFRIGERATED_ZONE_REGISTRY
+```
+
+`ZoneSourceSnapshotV1` / `ZoneResultSnapshotV1` / `ZoneEntry` now admit all
+P2 §4 planner fields as optional typed fields (`extra="forbid"` preserved).
+
+## 5. Verification
 
 ```text
 cd backend
@@ -134,7 +152,7 @@ PYTHONPATH=src uv run pytest -q \
   tests/integration/test_project_api_persistence.py
 ```
 
-## 5. Leftover registry note
+## 6. Leftover registry note
 
 `shipping_channel` is **emitted** by `cold_room_zone_plan` v1.0.0 but is
 **not** added to `REFRIGERATED_ZONE_REGISTRY` in this package (off
