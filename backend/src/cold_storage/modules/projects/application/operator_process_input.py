@@ -6,7 +6,7 @@ omitted-as-V0.8) assembles as today.
 
 Copies existing production authority (dataclass defaults, demo catalog envelopes)
 into explicit bundle leaves. Does not invent engineering numbers or recut formulas.
-Does not add shipping_channel to REFRIGERATED_ZONE_REGISTRY (deferred to P2).
+V0.9 P2 registers shipping_channel in REFRIGERATED_ZONE_REGISTRY (1~3℃ demo envelope).
 """
 
 from __future__ import annotations
@@ -39,8 +39,6 @@ from cold_storage.modules.projects.domain.models import ProjectVersion
 from cold_storage.shared.errors import MissingEngineeringParameterError
 
 # Refrigerated zone codes produced by cold_room_zone_plan (常温 zones excluded).
-# shipping_channel is deferred to P2: the planner does not emit it until the
-# formula recut. Do not register it here in P1.
 REFRIGERATED_ZONE_REGISTRY: tuple[tuple[str, str, str], ...] = (
     ("primary_precooling_room", "一级预冷间", "8~10℃"),
     ("secondary_precooling_room", "二级预冷间", "1~3℃"),
@@ -50,6 +48,7 @@ REFRIGERATED_ZONE_REGISTRY: tuple[tuple[str, str, str], ...] = (
     ("finished_goods_room", "成品间", "1~3℃"),
     ("secondary_fruit_buffer", "次果暂存间", "8~10℃"),
     ("frozen_fruit_room", "冻果间", "-18℃"),
+    ("shipping_channel", "出货通道", "1~3℃"),
 )
 
 # V0.9 catalog copies of planner-required leaves that are no longer operator KEY.

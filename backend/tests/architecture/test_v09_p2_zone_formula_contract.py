@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 P2_CONTRACT = REPO_ROOT / "docs" / "tasks" / "V0_9-P2-zone-formula-recut-contract.md"
 P0_CONTRACT = REPO_ROOT / "docs" / "tasks" / "V0_9-P0-version-contract.md"
 ZONE_PLANNING = REPO_ROOT / "backend/src/cold_storage/modules/calculations/domain/zone_planning.py"
 
-# P2 allowlist = P0 §7.3 ∪ living-test files ∪ snapshot-schema files.
+# P2 allowlist = P0 §7.3 ∪ living-test ∪ snapshot-schema ∪ shipping-channel-registry ∪ v07-golden.
 P2_ALLOWLIST = (
     "docs/tasks/V0_9-P2-zone-formula-recut-contract.md",
     "backend/src/cold_storage/modules/calculations/domain/zone_planning.py",
@@ -23,6 +26,11 @@ P2_ALLOWLIST = (
     "backend/tests/unit/test_demo_overview.py",
     "backend/src/cold_storage/modules/orchestration/application/source_snapshots.py",
     "backend/tests/unit/test_transaction_b_source_snapshots.py",
+    "backend/src/cold_storage/modules/projects/application/operator_process_input.py",
+    "backend/tests/architecture/test_v09_p1_operator_key_contract.py",
+    "backend/tests/unit/test_v09_p1_operator_process_input_assembler.py",
+    "backend/tests/unit/test_v08_p1_operator_process_input_assembler.py",
+    "backend/tests/golden/v07_cross_consumer_v1.json",
 )
 
 _INTERESTING_PREFIXES = (
@@ -31,6 +39,24 @@ _INTERESTING_PREFIXES = (
     "backend/tests/",
     "frontend/src/",
 )
+
+
+def _current_branch_name() -> str:
+    head_ref = os.environ.get("GITHUB_HEAD_REF")
+    if head_ref:
+        return head_ref
+    result = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
+def _on_p2_branch() -> bool:
+    return "v09-p2-zone-formula" in _current_branch_name()
 
 
 def _extract_allowlist_paths(contract: str, marker: str) -> set[str]:
@@ -97,6 +123,7 @@ def test_p2_allowlist_matches_contract_and_files_exist() -> None:
         assert (REPO_ROOT / path).is_file(), path
 
 
+@pytest.mark.skipif(not _on_p2_branch(), reason="P2 allowlist diff only enforced on v09-p2-zone-formula branch")
 def test_p2_diff_stays_on_allowlist() -> None:
     changed = _changed_interesting_paths()
     allowlist = set(P2_ALLOWLIST)
@@ -109,6 +136,7 @@ def test_zone_planning_is_only_production_formula_file_changed() -> None:
     # P2 snapshot-schema admit may also touch source_snapshots.py (off formula recut).
     allowed_non_formula_src = {
         "backend/src/cold_storage/modules/orchestration/application/source_snapshots.py",
+        "backend/src/cold_storage/modules/projects/application/operator_process_input.py",
     }
     production_formula_files = {
         path

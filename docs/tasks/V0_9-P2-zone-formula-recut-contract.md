@@ -74,7 +74,7 @@ Implement version-plan §4 in `zone_planning.py`:
 - Demo coefficients not used in `required_area_m2` must not appear as
   `area_basis` on zone rows.
 
-## 2. Exclusive allowlist (P0 §7.3 ∪ living-test files ∪ snapshot-schema files)
+## 2. Exclusive allowlist (P0 §7.3 ∪ living-test ∪ snapshot-schema ∪ shipping-channel-registry ∪ v07-golden)
 
 ```text
 V09_P2_FILE_ALLOWLIST
@@ -89,13 +89,15 @@ backend/tests/integration/test_project_api_persistence.py
 backend/tests/unit/test_demo_overview.py
 backend/src/cold_storage/modules/orchestration/application/source_snapshots.py
 backend/tests/unit/test_transaction_b_source_snapshots.py
+backend/src/cold_storage/modules/projects/application/operator_process_input.py
+backend/tests/architecture/test_v09_p1_operator_key_contract.py
+backend/tests/unit/test_v09_p1_operator_process_input_assembler.py
+backend/tests/unit/test_v08_p1_operator_process_input_assembler.py
+backend/tests/golden/v07_cross_consumer_v1.json
 ```
 
 **Out of scope for P2 (do not edit):**
 
-- `operator_process_input.py` (P1)
-- `REFRIGERATED_ZONE_REGISTRY` — `shipping_channel` registry add is a
-  **Charles-authorized follow-on**; P2 emits the zone from the planner only.
 - `cooling_load.py`, equipment, power, investment, Vue, sample loaders
 - `test_v05_*` / `test_v06_*` / `test_v08_*` assertion bodies (unless a
   specific test calls the live planner and fails for zone version/area/index)
@@ -113,11 +115,30 @@ backend/tests/test_v03_p1_report_unit_quality.py
 backend/tests/integration/test_project_api_persistence.py
 backend/tests/unit/test_demo_overview.py
 IDENTITY_DECISION=VERSION stays 1.0.0; formula recut does not bump calculator identity
-LEFTOVER=shipping_channel still absent from REFRIGERATED_ZONE_REGISTRY
+LEFTOVER=shipping_channel registry alignment pending (Charles follow-on)
 ```
 
 Living tests retargeted to V0.9 §4 live planner output. §4 formulas not
 weakened.
+
+## 3b. Charles-authorized shipping-channel registry + CI red repair (2026-08-27)
+
+Charles message: 红了不修？
+
+```text
+CHARLES_V09_P2_SHIPPING_CHANNEL_REGISTRY_AUTHORIZED=YES
+CHARLES_V09_P2_CI_RED_REPAIR_AUTHORIZED=YES
+DATE=2026-08-27
+AUTHORIZED_FILES
+backend/src/cold_storage/modules/projects/application/operator_process_input.py
+backend/tests/architecture/test_v09_p1_operator_key_contract.py
+backend/tests/unit/test_v09_p1_operator_process_input_assembler.py
+backend/tests/unit/test_v08_p1_operator_process_input_assembler.py
+backend/tests/golden/v07_cross_consumer_v1.json
+IDENTITY_DECISION=VERSION stays 1.0.0
+COOLING_LOAD_FORMULA_RECUT=NO
+LEFTOVER=none for shipping_channel registry; cooling uses demo workbench envelope
+```
 
 ## 4. Charles-authorized snapshot schema admit (2026-08-27)
 
@@ -130,7 +151,7 @@ AUTHORIZED_FILES
 backend/src/cold_storage/modules/orchestration/application/source_snapshots.py
 backend/tests/unit/test_transaction_b_source_snapshots.py
 IDENTITY_DECISION=VERSION stays 1.0.0; schema admit does not bump calculator identity
-LEFTOVER=shipping_channel still absent from REFRIGERATED_ZONE_REGISTRY
+LEFTOVER=shipping_channel registry alignment pending (Charles follow-on)
 ```
 
 `ZoneSourceSnapshotV1` / `ZoneResultSnapshotV1` / `ZoneEntry` now admit all
@@ -154,7 +175,8 @@ PYTHONPATH=src uv run pytest -q \
 
 ## 6. Leftover registry note
 
-`shipping_channel` is **emitted** by `cold_room_zone_plan` v1.0.0 but is
-**not** added to `REFRIGERATED_ZONE_REGISTRY` in this package (off
-allowlist). Cooling-identity registry alignment is deferred to a later
-Charles-authorized follow-on.
+`shipping_channel` is **emitted** by `cold_room_zone_plan` v1.0.0 and is
+**registered** in `REFRIGERATED_ZONE_REGISTRY` (Charles-authorized P2 CI repair,
+2026-08-27). Cooling assembly applies the existing workbench demo envelope to
+the zone (same 1~3℃ loop as other medium-temperature zones); this is **not** a
+`cooling_load.py` formula recut (`COOLING_LOAD_FORMULA_RECUT=NO`).
