@@ -1,13 +1,14 @@
 # Technical Debt
 
-> **V0.8 governance truth-up (2026-08-26, `main@0330d9be36db94a62190d5775612b361fff6da8d`,
-> release `v0.7.0`; previous release `v0.6.0`):** TD-007 and TD-015 are
-> **delivered** by V0.5. V0.6 P1–P5 delivered report assembly/rendering/evaluation
+> **V0.9 P0 freeze (2026-08-27, `main@0dc8de5b3c711aaa662b0bbda3988def037fda3b`,
+> release `v0.8.0`; previous releases `v0.7.0`, `v0.6.0`):** TD-007 and TD-015
+> are **delivered** by V0.5. V0.6 P1–P5 delivered report assembly/rendering/evaluation
 > on the evaluation surface.
-> V0.7 closed the operator trust-loop seam at `v0.7.0`. Demo coefficient
-> conflicts (TD-003 note) remain open. Prior contract:
-> `docs/tasks/V0_7-P0-trust-loop-contract.md`. Active contract:
-> `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`.
+> V0.7 closed the operator trust-loop seam at `v0.7.0`. V0.8 closed the
+> five-KEY operator path at `v0.8.0`. Demo coefficient conflicts (TD-003 note)
+> remain open. Prior contracts: `docs/tasks/V0_7-P0-trust-loop-contract.md`,
+> `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`. Active contract:
+> `docs/tasks/V0_9-P0-version-contract.md`.
 
 | ID | Status | Priority | Module | Cause | Current Impact | Temporary Approach | Permanent Resolution | Target Task / Version |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -30,4 +31,5 @@
 | TD-017 | **Resolved** | High | reports/bootstrap | `_get_report_service` does not inject `project_service` | Delivered at `v0.7.0` | Evaluation tests wired `project_service` only | Production composition fix | V0.7 P3A |
 | TD-018 | **Resolved** | High | schemes/api | Public `scheme-runs` persist legacy `source_mode`; no production route | Delivered at `v0.7.0` | Loader avoided legacy scheme-runs | Public `production-scheme-runs` API | V0.7 P3B |
 | TD-019 | Open | Medium | coefficients/inputs | Metadata, bundle optional leaves, and embedded defaults can diverge | Traceability and display can disagree with effective inputs | Keep demo/unverified markers; do not silent-merge | Integrity matrix + expert decisions E1–E8 | V0.7 P1 / V0.8 |
-| TD-020 | Open | High | workbench/inputs | Operator 工程输入 requires full `EngineeringInputBundleV1` KEY form | Operator must type cooling/equipment/power/investment KEY | Keep V0.7 full-bundle path as compatibility | `OperatorProcessInputV1` five KEY leaves + assembler | V0.8 |
+| TD-020 | **Resolved** | High | workbench/inputs | Operator 工程输入 required full `EngineeringInputBundleV1` KEY form | Delivered at `v0.8.0` | Keep V0.7 full-bundle path as compatibility | `OperatorProcessInputV1` five KEY leaves + assembler | V0.8 |
+| TD-021 | Open | High | zone_planning / workbench | V0.8 KEY and planner/UI/export do not match the V0.9 lock | Unused KEY, no shipping_channel, review mixed with export, layout | P0 contract only; do not implement off-plan | V0.9 P1–P7 after dispatch | V0.9 |

@@ -2,13 +2,14 @@
 
 This audit records the repository exactly as found on the preserved baseline.
 
-> **V0.8 governance truth-up (2026-08-26, `main@0330d9be36db94a62190d5775612b361fff6da8d`,
-> release `v0.7.0`):** Sections 1–30 below remain the Task 0 preserved snapshot.
+> **V0.9 P0 freeze (2026-08-27, `main@0dc8de5b3c711aaa662b0bbda3988def037fda3b`,
+> release `v0.8.0`):** Sections 1–30 below remain the Task 0 preserved snapshot.
 > They are **not** current truth for delivered capabilities. See §31 for the
-> post–V0.5 delta, §32 for the V0.7 trust-loop (delivered at `v0.7.0`), and
-> §33 for the V0.8 operator-minimal input recut. Prior contract:
-> `docs/tasks/V0_7-P0-trust-loop-contract.md`. Active contract:
-> `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`.
+> post–V0.5 delta, §32 for the V0.7 trust-loop (delivered at `v0.7.0`),
+> §33 for the V0.8 operator-minimal input recut (delivered at `v0.8.0`,
+> `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`), and §34 for V0.9.
+> Prior contract: `docs/tasks/V0_7-P0-trust-loop-contract.md`.
+> Active contract: `docs/tasks/V0_9-P0-version-contract.md`.
 
 ## 1. Current Directory Tree
 
@@ -457,16 +458,34 @@ control.
 ## 33. V0.8 governance truth-up (`main@0330d9be36db94a62190d5775612b361fff6da8d`, release `v0.7.0`)
 
 The V0.7 trust loop is **delivered** at tag `v0.7.0` and must not be reopened
-as an unfinished umbrella. Remaining operator pain is the **input surface**:
-the workbench still requires a full `EngineeringInputBundleV1` KEY form.
-
-**Active umbrella:** V0.8 operator-minimal process input
-(`docs/tasks/V0_8-P0-operator-minimal-input-contract.md`,
+as an unfinished umbrella. V0.8 operator-minimal process input is **delivered**
+at tag `v0.8.0` (`docs/tasks/V0_8-P0-operator-minimal-input-contract.md`,
 `docs/architecture/ADR-028-operator-minimal-process-input.md`).
 
-**V0.8 target:** operator types only the five `zone_planning_inputs` KEY
+**V0.8 delivered:** operator types only the five `zone_planning_inputs` KEY
 leaves; application assembler writes catalog/lineage leaves into the full
 bundle; Vue does not compute engineering values.
 
-**Not in V0.8 scope:** formula recut, coefficient promotion, E1–E8 conflict
-resolution, live Aily, production RBAC, production deployment.
+**Not in V0.8 scope (honest leftovers):** formula recut, coefficient
+promotion, E1–E8 conflict resolution, live Aily, production RBAC, production
+deployment.
+
+## 34. V0.9 governance truth-up (`main@0dc8de5b3c711aaa662b0bbda3988def037fda3b`, release `v0.8.0`)
+
+V0.8 is **complete** at `v0.8.0`. V0.9 P0 freezes the next umbrella:
+operator KEY recut, zone-planning formula recut (one package), workbench
+layout, draft-versus-formal export, banner recut, and persisted zone result
+display.
+
+**Active umbrella:** V0.9 (`docs/tasks/V0_9-P0-version-contract.md`,
+`docs/tasks/V0_9-version-plan.md`,
+`docs/architecture/ADR-029-v09-operator-key-and-workbench-recut.md`).
+
+P0 does **not** change application behavior. Wave 1 (`P1 ∥ P4 ∥ P5`) and
+formula recut (P2) stay `IMPLEMENTATION_AUTHORIZED=NO` until separately
+dispatched.
+
+**Not in V0.9 scope:** cooling/equipment/power/investment formula recut,
+live Aily, production RBAC, Feishu review, coefficient promotion, tag
+without separate `授权`.
+

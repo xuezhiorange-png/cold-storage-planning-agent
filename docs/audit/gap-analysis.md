@@ -1,13 +1,14 @@
 # Gap Analysis
 
-> **V0.8 governance truth-up (2026-08-26, `main@0330d9be36db94a62190d5775612b361fff6da8d`,
-> release `v0.7.0`):** The tables below retain the Task 0–5 preserved gap
+> **V0.9 P0 freeze (2026-08-27, `main@0dc8de5b3c711aaa662b0bbda3988def037fda3b`,
+> release `v0.8.0`):** The tables below retain the Task 0–5 preserved gap
 > register. Rows marked **SUPERSEDED** are no longer accurate. V0.5 P0 gaps
 > V05-P0-001/002/003 are **delivered** at `v0.5.0`. V0.6 report source mapping
 > gaps V06-P0-001/002/003/004/005 are **delivered** at `v0.6.0`. V0.7 trust-loop
 > delivery is **complete** at `v0.7.0`. See `docs/tasks/V0_7-P0-trust-loop-contract.md`
-> for the delivered V0.7 register. **Active umbrella:** V0.8 operator-minimal
-> process input (`docs/tasks/V0_8-P0-operator-minimal-input-contract.md`).
+> for the delivered V0.7 register. V0.8 operator-minimal process input is
+> **complete** at `v0.8.0` (`docs/tasks/V0_8-P0-operator-minimal-input-contract.md`).
+> **Active umbrella:** V0.9 (`docs/tasks/V0_9-P0-version-contract.md`).
 
 ## P0
 
@@ -92,3 +93,6 @@ See `docs/tasks/V0_7-P0-trust-loop-contract.md`. Delivered at `v0.7.0`. Do not r
 | V07-GAP-007 | P1 | Registry seed and embedded calculator coefficients remain dual-track | `modules/coefficients/` vs embedded maps | Dual authority | Seed-authority tests; no silent merge | V0.7 P1 | No |
 | V07-GAP-008 | P1 | No Feishu Aily integration boundary | docs | Future integration would bypass trust rules | P6 docs + schema contract | V0.7 P6 | No |
 | V07-GAP-010 | P0 | Demo coefficient conflicts remain unresolved | `docs/audit/coefficient-inventory.md` | Silent promotion forbidden | Keep `requires_review=true` | V0.7+ expert | No |
+| V09-GAP-001 | P0 | Zone planner does not match the V0.9 formula lock (including 出货通道) | `calculations/domain/zone_planning.py` | Operator KEY unused; aisle factors fixed; no shipping_channel | P2 formula recut after dispatch | V0.9 P2 | Yes |
+| V09-GAP-002 | P0 | Operator KEY still the V0.8 five (includes precooling ratio and working time) | `OperatorProcessInputV1` | KEY do not match locked planner inputs | P1 assembler + form | V0.9 P1 | Yes |
+| V09-GAP-004 | P0 | Stacked workbench blockers and review/export confusion | `WorkflowGuidancePanel.vue`, `ReportExportPanel.vue` | Draft work looks blocked | P4 + P5 | V0.9 P4/P5 | No |
