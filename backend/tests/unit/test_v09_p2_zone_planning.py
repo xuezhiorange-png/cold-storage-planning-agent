@@ -179,7 +179,7 @@ def test_v09_p2_zone_planning_matches_section4_oracles(
     )
 
     assert result.success is True
-    assert result.calculator_version == "1.1.0"
+    assert result.calculator_version == "1.0.0"
     zones = result.result["zones"]
 
     primary = _precool_oracle(daily_mass_kg, q_d_kg_day=220 * 6)

@@ -10,8 +10,8 @@ def test_demo_overview_contains_sample_data_for_all_modules() -> None:
     )
     assert overview["overall_status"]["module_count"] == 13
     assert overview["overall_status"]["requires_review_count"] >= 5
-    assert overview["overall_status"]["total_area_m2"] == 1813.57
-    assert overview["overall_status"]["total_investment_cny"] == 6_150_420.50
+    assert overview["overall_status"]["total_area_m2"] == 2744.24
+    assert overview["overall_status"]["total_investment_cny"] == 8296109.5
     assert [module["module"] for module in overview["modules"]] == [
         "项目管理",
         "设计参数",
@@ -41,8 +41,8 @@ def test_demo_overview_contains_sample_data_for_all_modules() -> None:
         for row in overview["modules"][6]["sample"]["equipment_rows"]
         if row["name"] == "轴流风机"
     )
-    assert axial_fan_row["quantity"] == (24 + 8) * 4
-    assert axial_fan_row["total_power_kw"] == 70.4
+    assert axial_fan_row["quantity"] == (24 + 12) * 4
+    assert axial_fan_row["total_power_kw"] == 79.2
     assert (
         "planning.calculate_throughput_inventory_area"
         in overview["modules"][9]["sample"]["tool_calls"]

@@ -49,6 +49,7 @@ MERGE_AUTHORIZED=NO
 TAG_PUBLICATION_AUTHORIZED=NO
 RELEASE_PUBLICATION_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
+CHARLES_V09_P2_LIVING_TEST_UPDATE_AUTHORIZED=YES
 ```
 
 Formula numbers are authoritative in version-plan §4, not in this contract
@@ -59,7 +60,9 @@ for the zone planner package only.
 
 Implement version-plan §4 in `zone_planning.py`:
 
-- Calculator name remains `cold_room_zone_plan`; `VERSION` bumps to `1.1.0`.
+- Calculator name remains `cold_room_zone_plan`; `VERSION` stays `1.0.0`
+  (frozen calculator identity per P0-6 — formula recut does not bump
+  calculator identity).
 - Shared pallet/table rectangle packing with aspect target 1.67–2.40.
 - Dual precooling schemes (6-position and 8-position); scalar
   `position_count` / `required_area_m2` project the **6-position** scheme
@@ -71,7 +74,7 @@ Implement version-plan §4 in `zone_planning.py`:
 - Demo coefficients not used in `required_area_m2` must not appear as
   `area_basis` on zone rows.
 
-## 2. Exclusive allowlist (P0 §7.3)
+## 2. Exclusive allowlist (P0 §7.3 ∪ Charles-authorized living-test files)
 
 ```text
 V09_P2_FILE_ALLOWLIST
@@ -80,6 +83,10 @@ backend/src/cold_storage/modules/calculations/domain/zone_planning.py
 backend/tests/unit/test_zone_planner.py
 backend/tests/unit/test_v09_p2_zone_planning.py
 backend/tests/architecture/test_v09_p2_zone_formula_contract.py
+backend/tests/integration/test_v07_p1_bundle_execution_traceability.py
+backend/tests/test_v03_p1_report_unit_quality.py
+backend/tests/integration/test_project_api_persistence.py
+backend/tests/unit/test_demo_overview.py
 ```
 
 **Out of scope for P2 (do not edit):**
@@ -88,19 +95,28 @@ backend/tests/architecture/test_v09_p2_zone_formula_contract.py
 - `REFRIGERATED_ZONE_REGISTRY` — `shipping_channel` registry add is a
   **Charles-authorized follow-on**; P2 emits the zone from the planner only.
 - `cooling_load.py`, equipment, power, investment, Vue, sample loaders
-- `test_v05_*` / `test_v06_*` / `test_v07_*` / `test_v08_*` assertion bodies
+- `test_v05_*` / `test_v06_*` / `test_v08_*` assertion bodies (unless a
+  specific test calls the live planner and fails for zone version/area/index)
 
-## 3. Known living-test pressure (record only)
+## 3. Charles-authorized living-test retarget (2026-08-27)
 
-These tests may fail after P2 without violating §4. Do **not** weaken §4
-or edit off-allowlist tests to restore old gold values:
+Charles replied `授权` to coordinator's P2 living-test authorization request.
 
-| Test | Pinned expectation | P2 impact |
-|---|---|---|
-| `backend/tests/integration/test_v07_p1_bundle_execution_traceability.py` | `position_count==24`, `total_area_m2==1813.57` | Precool reporting scalar + full §4 recut |
-| `backend/tests/test_v03_p1_report_unit_quality.py` | exact `area_basis` code set | `area_basis` removed from recut zones |
-| `backend/tests/integration/test_project_api_persistence.py` | legacy planning-run position_count / fan quantity | downstream scalar drift |
-| Any `test_v08_*` pinning old planner gold | v0.8 area/position totals | §4 replaces demo formulas |
+```text
+CHARLES_V09_P2_LIVING_TEST_UPDATE_AUTHORIZED=YES
+DATE=2026-08-27
+AUTHORIZED_FILES
+backend/tests/integration/test_v07_p1_bundle_execution_traceability.py
+backend/tests/test_v03_p1_report_unit_quality.py
+backend/tests/integration/test_project_api_persistence.py
+backend/tests/unit/test_demo_overview.py
+IDENTITY_DECISION=VERSION stays 1.0.0; formula recut does not bump calculator identity
+LEFTOVER=shipping_channel still absent from REFRIGERATED_ZONE_REGISTRY
+LEFTOVER_ZONE_SOURCE_SNAPSHOT=ZoneSourceSnapshotV1 rejects P2 §4 zone row fields (n_need, schemes, layout, shipping_channel, total_area_m2_8_position_scheme); five-stage persistence test blocked until schema follow-on
+```
+
+Living tests retargeted to V0.9 §4 live planner output. §4 formulas not
+weakened.
 
 ## 4. Verification
 
@@ -111,12 +127,16 @@ uv run ruff check <P2 py files>
 PYTHONPATH=src uv run pytest -q \
   tests/architecture/test_v09_p2_zone_formula_contract.py \
   tests/unit/test_v09_p2_zone_planning.py \
-  tests/unit/test_zone_planner.py
+  tests/unit/test_zone_planner.py \
+  tests/unit/test_demo_overview.py \
+  tests/test_v03_p1_report_unit_quality.py \
+  tests/integration/test_v07_p1_bundle_execution_traceability.py \
+  tests/integration/test_project_api_persistence.py
 ```
 
 ## 5. Leftover registry note
 
-`shipping_channel` is **emitted** by `cold_room_zone_plan` v1.1.0 but is
+`shipping_channel` is **emitted** by `cold_room_zone_plan` v1.0.0 but is
 **not** added to `REFRIGERATED_ZONE_REGISTRY` in this package (off
 allowlist). Cooling-identity registry alignment is deferred to a later
 Charles-authorized follow-on.

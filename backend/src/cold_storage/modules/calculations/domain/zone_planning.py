@@ -8,7 +8,7 @@ from cold_storage.modules.calculations.domain.result import (
     FormulaReference,
 )
 
-VERSION = "1.1.0"
+VERSION = "1.0.0"
 
 PALLET_PITCH_ALONG_WALL_M = 1.2
 PALLET_PITCH_DEPTH_M = 1.3

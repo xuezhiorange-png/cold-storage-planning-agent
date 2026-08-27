@@ -21,7 +21,7 @@ def test_zone_planner_converts_known_production_to_room_capacities_and_areas() -
 
     assert result.success is True
     assert result.calculator_name == "cold_room_zone_plan"
-    assert result.calculator_version == "1.1.0"
+    assert result.calculator_version == "1.0.0"
     assert result.requires_review is True
     zones = result.result["zones"]
 
