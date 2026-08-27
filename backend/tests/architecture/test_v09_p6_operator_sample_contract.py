@@ -31,6 +31,7 @@ P6_ALLOWLIST = (
     "backend/tests/integration/test_v09_p6_operator_sample_sqlite.py",
     "backend/tests/integration/test_v09_p6_operator_sample_postgresql.py",
     "backend/tests/architecture/test_v09_p6_operator_sample_contract.py",
+    "backend/tests/integration/test_audit_outbox_postgresql.py",
 )
 
 _INTERESTING_PREFIXES = (

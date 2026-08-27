@@ -175,6 +175,7 @@ backend/tests/integration/v09_p6_operator_fixtures.py
 backend/tests/integration/test_v09_p6_operator_sample_sqlite.py
 backend/tests/integration/test_v09_p6_operator_sample_postgresql.py
 backend/tests/architecture/test_v09_p6_operator_sample_contract.py
+backend/tests/integration/test_audit_outbox_postgresql.py
 ```
 
 `samples/v09-process-input/**` in P0 is this manifest (and only this
@@ -227,6 +228,11 @@ targets, fix on this PR (standing 红了就修). If a merged architecture
 test still requires a previous package’s diff shape, skipif-gate it to
 that package’s branch and add the file to this allowlist in the same
 commit.
+
+PostgreSQL CI uses `--maxfail=1`. If `test_per_row_claim_tokens`
+fails because `_make_event` truncates `next_retry_at` to whole seconds
+while the claim clock still has microseconds, fix that helper in this
+PR (do not weaken the unique-token assertion).
 
 ## 6. Tests required
 
