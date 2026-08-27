@@ -31,7 +31,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="workbench-layout">
+  <div class="workbench-layout">
     <nav class="workbench-layout__nav" aria-label="主流程导航">
       <RouterLink
         v-for="item in navItems"
@@ -44,20 +44,25 @@ onMounted(() => {
         {{ item.label }}
       </RouterLink>
     </nav>
-    <section class="workbench-layout__content">
-      <WorkflowGuidancePanel />
-      <KnowledgeProvenancePanel />
-      <RouterView />
-    </section>
-  </main>
+    <div class="workbench-layout__body">
+      <aside class="workbench-layout__aside" aria-label="工作流与溯源">
+        <WorkflowGuidancePanel />
+        <KnowledgeProvenancePanel />
+      </aside>
+      <section class="workbench-layout__main">
+        <RouterView />
+      </section>
+    </div>
+  </div>
 </template>
 
 <style scoped>
 .workbench-layout {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  gap: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
   min-height: calc(100vh - 52px);
+  box-sizing: border-box;
 }
 
 .workbench-layout__nav {
@@ -65,7 +70,7 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 4px 8px;
   align-items: center;
-  padding: 10px 16px;
+  padding: 10px 20px;
   background: #f3f7fb;
   border-bottom: 1px solid #c7d4e3;
 }
@@ -97,9 +102,48 @@ onMounted(() => {
   color: #fff;
 }
 
-.workbench-layout__content {
-  padding: 16px;
-  overflow-x: auto;
+.workbench-layout__body {
+  display: grid;
+  grid-template-columns: minmax(260px, 22rem) minmax(0, 1fr);
+  gap: 16px 20px;
+  align-items: start;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
+  padding: 16px 20px 24px;
+  box-sizing: border-box;
+}
+
+.workbench-layout__aside {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.workbench-layout__main {
+  min-width: 0;
+  width: 100%;
+}
+
+@media (min-width: 961px) {
+  .workbench-layout__aside {
+    position: sticky;
+    top: 12px;
+  }
+}
+
+@media (max-width: 960px) {
+  .workbench-layout__body {
+    grid-template-columns: 1fr;
+  }
+
+  .workbench-layout__nav {
+    padding: 10px 12px;
+  }
+
+  .workbench-layout__body {
+    padding: 12px;
+  }
 }
 </style>

@@ -125,7 +125,8 @@ function formatWan(value: number | null): string {
 
 <style scoped>
 .schemes-page {
-  max-width: 1200px;
+  width: 100%;
+  max-width: 1400px;
 }
 
 .schemes-page__loading-row,

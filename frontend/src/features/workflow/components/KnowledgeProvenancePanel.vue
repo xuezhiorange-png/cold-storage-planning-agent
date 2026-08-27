@@ -20,6 +20,20 @@ const sourceReferences = computed<KnowledgeSourceReferenceProjection[]>(
 )
 const blockers = computed<WorkflowBlocker[]>(() => provenance.value?.blockers ?? [])
 
+const isQuiet = computed(() => {
+  if (!provenance.value) return true
+  if (provenance.value.required === false) return true
+  if (status.value === 'NOT_REQUIRED') return true
+  if (
+    (status.value === 'UNKNOWN' || status.value === '') &&
+    sourceReferences.value.length === 0 &&
+    blockers.value.length === 0
+  ) {
+    return true
+  }
+  return false
+})
+
 function statusLabel(value: string): string {
   const labels: Record<string, string> = {
     NOT_REQUIRED: '无需溯源',
@@ -48,6 +62,7 @@ function formatConfidence(page: KnowledgePageEvidenceProjection): string {
 <template>
   <section
     class="knowledge-provenance"
+    :class="{ 'knowledge-provenance--quiet': isQuiet }"
     aria-label="知识溯源"
     :aria-busy="workbench.isRefreshingWorkflow"
   >
@@ -55,13 +70,13 @@ function formatConfidence(page: KnowledgePageEvidenceProjection): string {
       <strong>知识溯源</strong>
       <span
         class="knowledge-provenance__badge"
-        :class="`knowledge-provenance__badge--${status.toLowerCase()}`"
+        :class="`knowledge-provenance__badge--${(isQuiet ? 'NOT_REQUIRED' : status).toLowerCase()}`"
       >
-        {{ statusLabel(status) }}
+        {{ isQuiet ? statusLabel('NOT_REQUIRED') : statusLabel(status) }}
       </span>
     </header>
 
-    <p v-if="status === 'NOT_REQUIRED'" class="knowledge-provenance__note" role="status">
+    <p v-if="isQuiet" class="knowledge-provenance__note" role="status">
       当前工作流输出未引用知识库修订，无需展示 OCR/页面溯源。
     </p>
 
@@ -80,7 +95,7 @@ function formatConfidence(page: KnowledgePageEvidenceProjection): string {
       </ul>
     </div>
 
-    <div v-if="sourceReferences.length" class="knowledge-provenance__sources">
+    <div v-if="!isQuiet && sourceReferences.length" class="knowledge-provenance__sources">
       <article
         v-for="source in sourceReferences"
         :key="source.revision_id"
@@ -159,7 +174,7 @@ function formatConfidence(page: KnowledgePageEvidenceProjection): string {
     </div>
 
     <p
-      v-else-if="status !== 'NOT_REQUIRED' && !sourceReferences.length"
+      v-else-if="!isQuiet && status !== 'NOT_REQUIRED' && !sourceReferences.length"
       class="knowledge-provenance__missing"
       role="status"
     >
@@ -171,14 +186,26 @@ function formatConfidence(page: KnowledgePageEvidenceProjection): string {
 <style scoped>
 .knowledge-provenance {
   display: grid;
-  gap: 10px;
-  margin-bottom: 16px;
-  padding: 12px 14px;
+  gap: 8px;
+  margin-bottom: 0;
+  padding: 10px 12px;
   border: 1px solid #d8e2ec;
   border-radius: 8px;
   background: #fafcfe;
   font-size: 13px;
   line-height: 1.45;
+}
+
+.knowledge-provenance--quiet {
+  padding: 8px 12px;
+  background: #f7f9fb;
+  border-color: #e4ebf3;
+  color: #5f7a99;
+}
+
+.knowledge-provenance--quiet .knowledge-provenance__note {
+  margin: 0;
+  font-size: 12px;
 }
 
 .knowledge-provenance__header {
@@ -222,6 +249,14 @@ function formatConfidence(page: KnowledgePageEvidenceProjection): string {
 
 .knowledge-provenance__note,
 .knowledge-provenance__missing {
+  color: #40566f;
+}
+
+.knowledge-provenance__blockers {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px solid #e4ebf3;
   color: #40566f;
 }
 
