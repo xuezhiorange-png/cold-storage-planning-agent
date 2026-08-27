@@ -6985,3 +6985,108 @@ class TestCondenserHeatRejectionLocalization:
         with pytest.raises(MissingTranslationError) as exc_info:
             translate(ReportLocale.ZH_CN, "field.this_key_does_not_exist_xyz")
         assert exc_info.value.key == "field.this_key_does_not_exist_xyz"
+
+
+# ===========================================================================
+# Investment calculator item_name labels as catalog keys (draft export)
+# ===========================================================================
+
+_INVESTMENT_CALCULATOR_ITEM_NAMES: tuple[str, ...] = (
+    "土建及钢结构",
+    "冷库制冷设备",
+    "高低压配电",
+    "住宿及生活区",
+    "监控及开厂物资",
+)
+
+_INVESTMENT_ITEM_LABELS_ZH_CN: dict[str, str] = {
+    "土建及钢结构": "土建及钢结构",
+    "冷库制冷设备": "冷库制冷设备",
+    "高低压配电": "高低压配电",
+    "住宿及生活区": "住宿及生活区",
+    "监控及开厂物资": "监控及开厂物资",
+}
+
+_INVESTMENT_ITEM_LABELS_EN_US: dict[str, str] = {
+    "土建及钢结构": "Civil Works and Steel Structure",
+    "冷库制冷设备": "Cold Storage Refrigeration Equipment",
+    "高低压配电": "High and Low Voltage Distribution",
+    "住宿及生活区": "Accommodation and Living Area",
+    "监控及开厂物资": "Monitoring and Startup Supplies",
+}
+
+
+class TestInvestmentCalculatorItemNameLocalization:
+    """Draft export localizes investment_breakdown from calculator item_name.
+
+    ``InvestmentEstimator`` persists Chinese ``item_name`` values. The report
+    provider copies those strings into ``breakdown`` keys, and the localizer
+    looks up ``investment.{item_name}``. Those keys belong in the production
+    catalogs so zh-CN draft export does not depend on the V0.6 evaluation
+    overlay.
+    """
+
+    def test_catalog_contains_calculator_item_name_keys(self) -> None:
+        for item_name, zh_label in _INVESTMENT_ITEM_LABELS_ZH_CN.items():
+            key = f"investment.{item_name}"
+            assert translate(ReportLocale.ZH_CN, key) == zh_label
+            assert translate(ReportLocale.EN_US, key) == _INVESTMENT_ITEM_LABELS_EN_US[item_name]
+
+    def test_investment_breakdown_localizes_without_overlay(self) -> None:
+        content = {
+            "report_metadata": {
+                "schema_version": "cold_storage_concept_design@1.0.0",
+                "report_type": "cold_storage_concept_design",
+            },
+            "investment_estimate": {
+                "total_investment": 5_000_000,
+                "breakdown": {name: 1_000_000 for name in _INVESTMENT_CALCULATOR_ITEM_NAMES},
+            },
+        }
+        canonical = build_canonical_render_model(
+            content=content,
+            report_id="r-invest-i18n",
+            revision_number=1,
+            content_hash="h" * 64,
+            generated_by="test",
+            generated_at="2026-01-01T00:00:00Z",
+            template_code="cold_storage_concept_design",
+            template_version="1.0.0",
+        )
+        for locale, expected in (
+            (ReportLocale.ZH_CN, _INVESTMENT_ITEM_LABELS_ZH_CN),
+            (ReportLocale.EN_US, _INVESTMENT_ITEM_LABELS_EN_US),
+        ):
+            localized = localize_render_model(canonical, locale=locale)
+            [section] = [s for s in localized.sections if s.section_key == "investment_estimate"]
+            assert section.table is not None
+            assert section.table.canonical.table_key == "investment_breakdown"
+            assert section.table.canonical.column_keys == _INVESTMENT_CALCULATOR_ITEM_NAMES
+            assert section.table.headers == tuple(
+                expected[name] for name in _INVESTMENT_CALCULATOR_ITEM_NAMES
+            )
+
+    def test_unknown_investment_item_name_still_fails_closed(self) -> None:
+        content = {
+            "report_metadata": {
+                "schema_version": "cold_storage_concept_design@1.0.0",
+                "report_type": "cold_storage_concept_design",
+            },
+            "investment_estimate": {
+                "total_investment": 1,
+                "breakdown": {"不存在的分项": 1},
+            },
+        }
+        canonical = build_canonical_render_model(
+            content=content,
+            report_id="r-invest-unknown",
+            revision_number=1,
+            content_hash="h" * 64,
+            generated_by="test",
+            generated_at="2026-01-01T00:00:00Z",
+            template_code="cold_storage_concept_design",
+            template_version="1.0.0",
+        )
+        with pytest.raises(MissingTranslationError) as exc_info:
+            localize_render_model(canonical, locale=ReportLocale.ZH_CN)
+        assert exc_info.value.key == "investment.不存在的分项"
