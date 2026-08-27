@@ -74,7 +74,7 @@ function formatWan(value: number): string {
 
     <div v-else class="investment-page__empty">
       <p>暂无投资估算数据。</p>
-      <p>请在「基本信息」页面生成规划。</p>
+      <p>请在「工程输入」填写五个过程 KEY 并提交 OperatorProcessInputV1。</p>
     </div>
   </div>
 </template>
