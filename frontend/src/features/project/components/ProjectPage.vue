@@ -79,7 +79,8 @@ function handleReset() {
 
 <style scoped>
 .project-page {
-  max-width: 960px;
+  width: 100%;
+  max-width: 1400px;
 }
 
 .project-page__header {

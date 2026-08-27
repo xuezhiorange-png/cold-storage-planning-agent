@@ -81,7 +81,8 @@ function formatWan(value: number): string {
 
 <style scoped>
 .investment-page {
-  max-width: 760px;
+  width: 100%;
+  max-width: 1400px;
 }
 
 .investment-page__total {

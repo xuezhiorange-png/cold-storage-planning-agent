@@ -8,7 +8,11 @@ import { usePlanningWorkflowStore } from '../src/stores/planningWorkflow'
 import { usePersistedPlanningResultsStore } from '../src/stores/persistedPlanningResults'
 import { useWorkbenchContextStore } from '../src/stores/workbenchContext'
 import { createWorkbenchRouter } from '../src/app/router'
-import { installWorkbenchFetchMock, samplePlanningRunResponse } from './helpers/workbenchFetchMock'
+import {
+  installWorkbenchFetchMock,
+  samplePlanningRunResponse,
+  sampleWorkflowAggregate
+} from './helpers/workbenchFetchMock'
 
 // Mock element-plus ElMessage to prevent jsdom issues with toast creation
 vi.mock('element-plus', async (importOriginal) => {
@@ -844,6 +848,167 @@ describe('cold storage workbench', () => {
 
     // No stale update
     expect(store.latestResponse).toBeNull()
+  })
+
+  it('uses nav plus two-column body (aside + main) instead of a single stacked column', async () => {
+    const wrapper = mountApp()
+    await flushPromises()
+
+    const layout = wrapper.find('.workbench-layout')
+    expect(layout.exists()).toBe(true)
+    expect(wrapper.find('nav[aria-label="主流程导航"]').exists()).toBe(true)
+    expect(wrapper.find('aside[aria-label="工作流与溯源"]').exists()).toBe(true)
+    expect(wrapper.find('.workbench-layout__main').exists()).toBe(true)
+    expect(wrapper.find('.workbench-layout__body').exists()).toBe(true)
+
+    const { readFileSync } = await import('fs')
+    const { resolve } = await import('path')
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/features/workbench/WorkbenchLayout.vue'),
+      'utf-8'
+    )
+    const normalized = source.replace(/\s+/g, ' ')
+    expect(normalized).toMatch(
+      /grid-template-columns:\s*minmax\(260px,\s*22rem\)\s*minmax\(0,\s*1fr\)/
+    )
+    expect(normalized).toMatch(/@media \(max-width:\s*960px\)/)
+    expect(normalized).toMatch(/grid-template-columns:\s*1fr/)
+    expect(normalized).toMatch(/flex-wrap:\s*wrap/)
+  })
+
+  it('does not treat formal-export ineligibility or demo review as 核心阻断', async () => {
+    vi.restoreAllMocks()
+    const workbench = useWorkbenchContextStore(pinia)
+    installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'), {
+      workflow: sampleWorkflowAggregate({
+        blockers: [
+          {
+            code: 'REPORT_MISSING',
+            message: 'No report exists for this project version',
+            stage: 'FORMAL_REPORT'
+          },
+          {
+            code: 'CALCULATION_REQUIRES_REVIEW',
+            message: 'Calculations require review: investment_estimate',
+            stage: 'DETERMINISTIC_CALCULATION'
+          }
+        ],
+        workflow_readiness: {
+          status: 'BLOCKED',
+          blockers: [
+            {
+              code: 'REPORT_MISSING',
+              message: 'No report exists for this project version',
+              stage: 'FORMAL_REPORT'
+            }
+          ],
+          reasons: [],
+          next_required_actions: []
+        },
+        formal_export_eligibility: {
+          eligible: false,
+          status: 'INELIGIBLE',
+          blockers: [
+            {
+              code: 'REPORT_MISSING',
+              message: 'No report exists for this project version',
+              stage: 'FORMAL_REPORT'
+            },
+            {
+              code: 'FORMAL_REPORT_NOT_APPROVED',
+              message: "Report status 'draft' is not formal-exportable",
+              stage: 'FORMAL_REPORT'
+            }
+          ],
+          authority_owner: 'reports_module_p1_lifecycle',
+          revalidation_required: true
+        },
+        knowledge_provenance: {
+          required: false,
+          available: false,
+          status: 'NOT_REQUIRED',
+          blockers: [],
+          source_references: []
+        }
+      })
+    })
+    workbench.resetForTests()
+    await workbench.initialize()
+
+    const wrapper = mountApp()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('正式导出与草稿导出不是同一件事；本条不阻止继续填写/计算')
+    expect(wrapper.find('.workflow-guidance__blockers').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('核心阻断')
+    expect(wrapper.text()).not.toContain('FORMAL_REPORT_NOT_APPROVED')
+    expect(wrapper.find('.knowledge-provenance--quiet').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('溯源阻断')
+    expect(wrapper.text()).toContain('无需溯源')
+  })
+
+  it('keeps real operator NOT_READY blockers visible as 核心阻断', async () => {
+    vi.restoreAllMocks()
+    const workbench = useWorkbenchContextStore(pinia)
+    installWorkbenchFetchMock(vi.spyOn(globalThis, 'fetch'), {
+      workflow: sampleWorkflowAggregate({
+        workflow_readiness: {
+          status: 'NOT_READY',
+          blockers: [
+            {
+              code: 'INPUT_MISSING',
+              message: 'Project inputs have not been saved',
+              stage: 'PROJECT_INPUT'
+            }
+          ],
+          reasons: ['Project inputs have not been saved'],
+          next_required_actions: []
+        },
+        blockers: [
+          {
+            code: 'INPUT_MISSING',
+            message: 'Project inputs have not been saved',
+            stage: 'PROJECT_INPUT'
+          }
+        ]
+      })
+    })
+    workbench.resetForTests()
+    await workbench.initialize()
+
+    const wrapper = mountApp()
+    await flushPromises()
+
+    const core = wrapper.find('.workflow-guidance__blockers')
+    expect(core.exists()).toBe(true)
+    expect(core.text()).toContain('核心阻断')
+    expect(core.text()).toContain('INPUT_MISSING')
+    expect(wrapper.text()).toContain('正式导出与草稿导出不是同一件事；本条不阻止继续填写/计算')
+  })
+
+  it('keeps V0.4 planning-run leftover labeled as non-authority', async () => {
+    const wrapper = mountApp()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('V0.4 遗留路径 (planning-run)')
+    expect(wrapper.text()).toContain('不是 V0.8 五阶段权威输入')
+  })
+
+  it('P5 page shells use content-column width instead of 960px/760px cards', async () => {
+    const { readFileSync } = await import('fs')
+    const { resolve } = await import('path')
+    const files = [
+      'src/features/project/components/ProjectPage.vue',
+      'src/features/schemes/components/SchemesPage.vue',
+      'src/features/power/components/PowerPage.vue',
+      'src/features/investment/components/InvestmentPage.vue'
+    ]
+    for (const relative of files) {
+      const source = readFileSync(resolve(process.cwd(), relative), 'utf-8')
+      expect(source, relative).not.toMatch(/max-width:\s*960px/)
+      expect(source, relative).not.toMatch(/max-width:\s*760px/)
+      expect(source, relative).toMatch(/max-width:\s*1400px/)
+    }
   })
 })
 

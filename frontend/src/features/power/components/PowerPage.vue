@@ -201,7 +201,8 @@ function formatOptionalPower(value: number | null): string {
 
 <style scoped>
 .power-page {
-  max-width: 1200px;
+  width: 100%;
+  max-width: 1400px;
   display: grid;
   gap: 16px;
 }
