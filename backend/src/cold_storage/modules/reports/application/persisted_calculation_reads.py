@@ -17,6 +17,7 @@ from cold_storage.modules.orchestration.domain.consumer_bindings import (
 from cold_storage.modules.orchestration.domain.dag import STAGE_UPSTREAM_PROVENANCE_KEYS
 from cold_storage.modules.projects.application.engineering_input_bundle import (
     BUNDLE_SCHEMA_ID,
+    OPERATOR_V09_FIVE_KEY_FIELDS,
 )
 
 CANONICAL_STAGE_TO_REPORT_ATTR: dict[str, str] = {
@@ -42,6 +43,7 @@ class ReportEngineeringContext:
 
     input_conditions: dict[str, Any] | None
     assumptions: dict[str, Any] | None
+    calculation_logic: dict[str, Any] | None
     indexed_calculator_names: frozenset[str]
     stale_lineage_reasons: tuple[str, ...]
 
@@ -121,6 +123,12 @@ class ProjectServicePersistedCalculationQuery:
         input_conditions = _input_conditions_from_version_snapshot(
             dict(getattr(version, "input_snapshot", {}) or {})
         )
+        input_conditions = _merge_v09_operator_keys_into_input_conditions(
+            input_conditions,
+            indexed_calculations=indexed,
+            version_input_snapshot=dict(getattr(version, "input_snapshot", {}) or {}),
+        )
+        calculation_logic = build_calculation_logic_from_indexed(indexed)
         assumptions = _assumptions_from_persisted_sources(
             version_assumption_snapshot=dict(getattr(version, "assumption_snapshot", {}) or {}),
             indexed_calculations=indexed,
@@ -128,6 +136,7 @@ class ProjectServicePersistedCalculationQuery:
         return ReportEngineeringContext(
             input_conditions=input_conditions,
             assumptions=assumptions,
+            calculation_logic=calculation_logic,
             indexed_calculator_names=frozenset(indexed),
             stale_lineage_reasons=tuple(detect_canonical_lineage_stale_reasons(indexed)),
         )
@@ -414,3 +423,213 @@ def _collect_coefficient_codes_from_context(coefficient_context: dict[str, Any])
                 if isinstance(code, str) and code:
                     codes.add(code)
     return sorted(codes)
+
+
+def _coerce_scalar_number(value: object) -> float | None:
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        try:
+            return float(stripped)
+        except ValueError:
+            return None
+    return None
+
+
+def _scalar_from_bundle_leaf(leaf: object) -> float | None:
+    if isinstance(leaf, dict) and "value" in leaf:
+        return _coerce_scalar_number(leaf.get("value"))
+    return _coerce_scalar_number(leaf)
+
+
+def _five_key_scalars_from_mapping(source: dict[str, Any]) -> dict[str, float]:
+    scalars: dict[str, float] = {}
+    for field_name in OPERATOR_V09_FIVE_KEY_FIELDS:
+        if field_name not in source:
+            continue
+        numeric = _scalar_from_bundle_leaf(source[field_name])
+        if numeric is not None:
+            scalars[field_name] = numeric
+    return scalars
+
+
+def _five_key_scalars_from_operator_process_input(snapshot: dict[str, Any]) -> dict[str, float]:
+    operator_input = snapshot.get("operator_process_input")
+    if not isinstance(operator_input, dict):
+        return {}
+    zone_inputs = operator_input.get("zone_planning_inputs")
+    if not isinstance(zone_inputs, dict):
+        return {}
+    return _five_key_scalars_from_mapping(zone_inputs)
+
+
+def _five_key_scalars_from_execution_snapshot(snapshot: dict[str, Any]) -> dict[str, float]:
+    from_operator = _five_key_scalars_from_operator_process_input(snapshot)
+    if len(from_operator) == len(OPERATOR_V09_FIVE_KEY_FIELDS):
+        return from_operator
+    zone_stage = snapshot.get("zone")
+    if isinstance(zone_stage, dict):
+        from_zone = _five_key_scalars_from_mapping(zone_stage)
+        if from_zone:
+            return from_zone
+    return from_operator
+
+
+def _five_key_scalars_from_zone_calculation(indexed: dict[str, dict[str, Any]]) -> dict[str, float]:
+    zone_record = indexed.get("cold_room_zone_plan")
+    if zone_record is None:
+        return {}
+    input_snapshot = zone_record.get("input_snapshot")
+    if not isinstance(input_snapshot, dict):
+        return {}
+    return _five_key_scalars_from_mapping(input_snapshot)
+
+
+def _five_key_scalars_from_engineering_bundle(bundle: dict[str, Any]) -> dict[str, float]:
+    if bundle.get("schema_id") != BUNDLE_SCHEMA_ID:
+        return {}
+    zone_inputs = bundle.get("zone_planning_inputs")
+    if not isinstance(zone_inputs, dict):
+        return {}
+    return _five_key_scalars_from_mapping(zone_inputs)
+
+
+def resolve_v09_operator_key_scalars(
+    *,
+    execution_snapshot: dict[str, Any] | None,
+    indexed_calculations: dict[str, dict[str, Any]],
+    version_input_snapshot: dict[str, Any] | None = None,
+) -> dict[str, float]:
+    if execution_snapshot:
+        from_execution = _five_key_scalars_from_execution_snapshot(execution_snapshot)
+        if from_execution:
+            return from_execution
+    if version_input_snapshot:
+        from_bundle = _five_key_scalars_from_engineering_bundle(version_input_snapshot)
+        if from_bundle:
+            return from_bundle
+    return _five_key_scalars_from_zone_calculation(indexed_calculations)
+
+
+def _merge_v09_operator_keys_into_input_conditions(
+    input_conditions: dict[str, Any] | None,
+    *,
+    indexed_calculations: dict[str, dict[str, Any]],
+    version_input_snapshot: dict[str, Any] | None = None,
+    execution_snapshot: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    key_scalars = resolve_v09_operator_key_scalars(
+        execution_snapshot=execution_snapshot,
+        indexed_calculations=indexed_calculations,
+        version_input_snapshot=version_input_snapshot,
+    )
+    if not key_scalars and input_conditions is None:
+        return None
+    merged = dict(input_conditions or {})
+    merged.update(key_scalars)
+    if not merged:
+        return None
+    return merged
+
+
+def _project_formula_entry(entry: dict[str, Any]) -> dict[str, str] | None:
+    formula_id = entry.get("formula_id")
+    formula_version = entry.get("formula_version")
+    expression = entry.get("expression")
+    description = entry.get("description")
+    if not all(
+        isinstance(value, str) and value.strip()
+        for value in (formula_id, formula_version, expression, description)
+    ):
+        return None
+    return {
+        "formula_id": str(formula_id),
+        "formula_version": str(formula_version),
+        "expression": str(expression),
+        "description": str(description),
+    }
+
+
+def _extract_formulas_from_record(record: dict[str, Any]) -> list[dict[str, str]]:
+    formulas = record.get("formulas")
+    if isinstance(formulas, list):
+        projected = [_project_formula_entry(item) for item in formulas if isinstance(item, dict)]
+        return [item for item in projected if item is not None]
+    snapshot = record.get("result_snapshot")
+    if isinstance(snapshot, dict):
+        refs = snapshot.get("formula_references")
+        if isinstance(refs, list):
+            projected = [_project_formula_entry(item) for item in refs if isinstance(item, dict)]
+            return [item for item in projected if item is not None]
+    return []
+
+
+def _project_step_entry(entry: dict[str, Any]) -> dict[str, Any] | None:
+    required = ("step_id", "formula", "description", "inputs", "output_name", "output_value")
+    if not all(key in entry for key in required):
+        return None
+    inputs = entry.get("inputs")
+    if not isinstance(inputs, dict):
+        return None
+    for key in required:
+        if not isinstance(entry.get(key), str):
+            return None
+    return {
+        "step_id": str(entry["step_id"]),
+        "formula": str(entry["formula"]),
+        "description": str(entry["description"]),
+        "inputs": dict(inputs),
+        "output_name": str(entry["output_name"]),
+        "output_value": str(entry["output_value"]),
+    }
+
+
+def _extract_steps_from_record(record: dict[str, Any]) -> list[dict[str, Any]]:
+    snapshot = record.get("result_snapshot")
+    if not isinstance(snapshot, dict):
+        return []
+    steps = snapshot.get("steps")
+    if steps is None:
+        inner = snapshot.get("result")
+        if isinstance(inner, dict):
+            steps = inner.get("steps")
+    if not isinstance(steps, list):
+        return []
+    projected = [_project_step_entry(item) for item in steps if isinstance(item, dict)]
+    return [item for item in projected if item is not None]
+
+
+def build_calculation_logic_from_indexed(
+    indexed: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    stages: list[dict[str, Any]] = []
+    for stage in CANONICAL_STAGE_ORDER:
+        calculator_name = STAGE_TO_CALCULATOR_NAME[stage]
+        record = indexed.get(calculator_name)
+        if record is None:
+            continue
+        formulas = _extract_formulas_from_record(record)
+        if not formulas:
+            continue
+        calculation_id = str(record.get("calculation_id") or record.get("id", ""))
+        if not calculation_id:
+            continue
+        stage_entry: dict[str, Any] = {
+            "stage": stage,
+            "calculator_name": calculator_name,
+            "calculator_version": str(record.get("calculator_version", "1.0.0")),
+            "calculation_id": calculation_id,
+            "formulas": formulas,
+        }
+        steps = _extract_steps_from_record(record)
+        if steps:
+            stage_entry["steps"] = steps
+        stages.append(stage_entry)
+    if not stages:
+        return None
+    return {"stages": stages}

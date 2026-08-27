@@ -82,8 +82,40 @@ export interface PersistedSchemeComparison {
   [key: string]: unknown
 }
 
+export interface PersistedInputConditions {
+  daily_inbound_mass_kg?: number
+  finished_storage_days?: number
+  frozen_storage_days?: number
+  main_packaging_storage_days?: number
+  auxiliary_packaging_storage_days?: number
+  [key: string]: unknown
+}
+
+export interface PersistedCalculationLogicFormula {
+  formula_id?: string
+  formula_version?: string
+  expression?: string
+  description?: string
+}
+
+export interface PersistedCalculationLogicStage {
+  stage?: string
+  calculator_name?: string
+  calculator_version?: string
+  calculation_id?: string
+  formulas?: PersistedCalculationLogicFormula[]
+  [key: string]: unknown
+}
+
+export interface PersistedCalculationLogic {
+  stages?: PersistedCalculationLogicStage[]
+  [key: string]: unknown
+}
+
 export interface PersistedReportRevisionContent {
   project_summary?: PersistedProjectSummary
+  input_conditions?: PersistedInputConditions
+  calculation_logic?: PersistedCalculationLogic
   scheme_comparison?: PersistedSchemeComparison
   [key: string]: unknown
 }

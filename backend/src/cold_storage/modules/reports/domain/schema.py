@@ -164,6 +164,87 @@ COLD_STORAGE_CONCEPT_DESIGN_V1: dict[str, Any] = {
                 "zones": {"type": "array", "items": {"type": "object"}},
                 "temperature_levels": {"type": "array", "items": {"type": "object"}},
                 "coefficients_used": {"type": "array", "items": {"type": "string"}},
+                "daily_inbound_mass_kg": {"type": "number"},
+                "finished_storage_days": {"type": "number"},
+                "frozen_storage_days": {"type": "number"},
+                "main_packaging_storage_days": {"type": "number"},
+                "auxiliary_packaging_storage_days": {"type": "number"},
+            },
+            "additionalProperties": False,
+        },
+        "calculation_logic": {
+            "type": "object",
+            "properties": {
+                "stages": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "stage",
+                            "calculator_name",
+                            "calculator_version",
+                            "calculation_id",
+                        ],
+                        "properties": {
+                            "stage": {
+                                "type": "string",
+                                "enum": [
+                                    "zone",
+                                    "cooling_load",
+                                    "equipment",
+                                    "power",
+                                    "investment",
+                                ],
+                            },
+                            "calculator_name": {"type": "string"},
+                            "calculator_version": {"type": "string"},
+                            "calculation_id": {"type": "string"},
+                            "formulas": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "required": [
+                                        "formula_id",
+                                        "formula_version",
+                                        "expression",
+                                        "description",
+                                    ],
+                                    "properties": {
+                                        "formula_id": {"type": "string"},
+                                        "formula_version": {"type": "string"},
+                                        "expression": {"type": "string"},
+                                        "description": {"type": "string"},
+                                    },
+                                    "additionalProperties": False,
+                                },
+                            },
+                            "steps": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "required": [
+                                        "step_id",
+                                        "formula",
+                                        "description",
+                                        "inputs",
+                                        "output_name",
+                                        "output_value",
+                                    ],
+                                    "properties": {
+                                        "step_id": {"type": "string"},
+                                        "formula": {"type": "string"},
+                                        "description": {"type": "string"},
+                                        "inputs": {"type": "object"},
+                                        "output_name": {"type": "string"},
+                                        "output_value": {"type": "string"},
+                                    },
+                                    "additionalProperties": False,
+                                },
+                            },
+                        },
+                        "additionalProperties": False,
+                    },
+                },
             },
             "additionalProperties": False,
         },

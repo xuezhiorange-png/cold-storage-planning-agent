@@ -154,6 +154,33 @@ class ReportAssembler:
         if input_conditions:
             content["input_conditions"] = input_conditions
 
+        get_calculation_logic = getattr(self._provider, "get_calculation_logic", None)
+        calculation_logic = (
+            get_calculation_logic(project_id, project_version_id)
+            if callable(get_calculation_logic)
+            else None
+        )
+        if calculation_logic:
+            content["calculation_logic"] = calculation_logic
+            for stage_entry in calculation_logic.get("stages", []):
+                if not isinstance(stage_entry, dict):
+                    continue
+                calculation_id = stage_entry.get("calculation_id")
+                if not calculation_id:
+                    continue
+                source_refs.append(
+                    _make_source_ref(
+                        section_key="calculation_logic",
+                        source_type=SourceType.CALCULATION_RESULT,
+                        source_id=str(calculation_id),
+                        data={
+                            "result_id": str(calculation_id),
+                            "tool_name": stage_entry.get("calculator_name", ""),
+                            "tool_version": stage_entry.get("calculator_version", ""),
+                        },
+                    )
+                )
+
         if assumptions:
             content["assumptions"] = assumptions
 
@@ -441,6 +468,9 @@ class ReportDataProvider:
         return []
 
     def get_input_conditions(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        return None
+
+    def get_calculation_logic(self, project_id: str, version_id: str) -> dict[str, Any] | None:
         return None
 
     def get_assumptions(self, project_id: str, version_id: str) -> dict[str, Any] | None:

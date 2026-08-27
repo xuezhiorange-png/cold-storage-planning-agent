@@ -110,6 +110,13 @@ const formalRenderDisabled = computed(
   () => renderLoading.value || !props.formalExportEligible
 )
 const exportPolicyCopy = `${FORMAL_EXPORT_POLICY_COPY}，${DRAFT_EXPORT_POLICY_COPY}`
+const operatorKeyFields = [
+  'daily_inbound_mass_kg',
+  'finished_storage_days',
+  'frozen_storage_days',
+  'main_packaging_storage_days',
+  'auxiliary_packaging_storage_days'
+] as const
 
 /* ── Lifecycle ─────────────────────────────────────── */
 
@@ -396,6 +403,45 @@ function reportStatusLabel(status: string): string {
                 </dl>
               </div>
               <div
+                v-if="revisionContent.input_conditions"
+                class="report-export-panel__persisted-block"
+              >
+                <strong>input_conditions</strong>
+                <dl>
+                  <div
+                    v-for="field in operatorKeyFields"
+                    :key="field"
+                  >
+                    <template v-if="revisionContent.input_conditions[field] !== undefined">
+                      <dt>{{ field }}</dt>
+                      <dd>{{ revisionContent.input_conditions[field] }}</dd>
+                    </template>
+                  </div>
+                </dl>
+              </div>
+              <div
+                v-if="revisionContent.calculation_logic?.stages?.length"
+                class="report-export-panel__persisted-block"
+              >
+                <strong>calculation_logic</strong>
+                <ul class="report-export-panel__formula-list">
+                  <li
+                    v-for="(stage, stageIndex) in revisionContent.calculation_logic.stages"
+                    :key="`${stage.stage ?? 'stage'}-${stageIndex}`"
+                  >
+                    <span>{{ stage.stage }} ({{ stage.calculation_id }})</span>
+                    <ul v-if="stage.formulas?.length">
+                      <li
+                        v-for="(formula, formulaIndex) in stage.formulas"
+                        :key="`${formula.formula_id ?? 'formula'}-${formulaIndex}`"
+                      >
+                        {{ formula.formula_id }}: {{ formula.expression }}
+                      </li>
+                    </ul>
+                  </li>
+                </ul>
+              </div>
+              <div
                 v-if="revisionContent.scheme_comparison?.review_authority"
                 class="report-export-panel__persisted-block"
               >
@@ -422,7 +468,7 @@ function reportStatusLabel(status: string): string {
               v-else
               class="report-export-panel__empty report-export-panel__empty--inline"
             >
-              生成报告后将从此处展示已持久化的 project_summary / scheme_comparison。
+              生成报告后将从此处展示已持久化的 project_summary / input_conditions / calculation_logic / scheme_comparison。
             </div>
           </div>
 
@@ -1125,5 +1171,10 @@ function reportStatusLabel(status: string): string {
 .report-export-panel__hash {
   font-family: monospace;
   font-size: 11px;
+}
+
+.report-export-panel__formula-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
 }
 </style>

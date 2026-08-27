@@ -17,6 +17,9 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+from cold_storage.modules.projects.application.engineering_input_bundle import (
+    OPERATOR_V09_FIVE_KEY_FIELDS,
+)
 from cold_storage.modules.reports.domain.models import ApprovalSnapshot
 from cold_storage.modules.reports.domain.render_model import (
     CanonicalCitation,
@@ -40,6 +43,7 @@ _SECTION_KEYS: tuple[str, ...] = (
     "report_metadata",
     "project_summary",
     "input_conditions",
+    "calculation_logic",
     "assumptions",
     "throughput_inventory_area",
     "cooling_load",
@@ -58,6 +62,7 @@ _REPORT_SCHEMA_PROPERTIES: frozenset[str] = frozenset(
         "report_metadata",
         "project_summary",
         "input_conditions",
+        "calculation_logic",
         "assumptions",
         "throughput_inventory_area",
         "cooling_load",
@@ -825,6 +830,125 @@ def _build_throughput_inventory_area_section(
     )
 
 
+def _build_input_conditions_section(
+    data: dict[str, Any],
+) -> CanonicalRenderSection:
+    section_key = "input_conditions"
+    level = _section_level(section_key)
+    text_fields: dict[str, str] = {}
+    for field_name in OPERATOR_V09_FIVE_KEY_FIELDS:
+        value = data.get(field_name)
+        if isinstance(value, (int, float, Decimal)) and not isinstance(value, bool):
+            text_fields[field_name] = str(value)
+    if text_fields:
+        return CanonicalRenderSection(
+            section_key=section_key,
+            title=section_key,
+            level=level,
+            content_type_code="text",
+            text_fields=text_fields,
+        )
+    return CanonicalRenderSection(
+        section_key=section_key,
+        title=section_key,
+        level=level,
+        content_type_code="empty",
+        empty_reason_code="not_provided",
+    )
+
+
+def _build_calculation_logic_section(
+    data: dict[str, Any],
+) -> CanonicalRenderSection:
+    section_key = "calculation_logic"
+    level = _section_level(section_key)
+    stages = data.get("stages")
+    if not isinstance(stages, list) or not stages:
+        return CanonicalRenderSection(
+            section_key=section_key,
+            title=section_key,
+            level=level,
+            content_type_code="empty",
+            empty_reason_code="not_provided",
+        )
+    formula_col_keys = (
+        "stage",
+        "calculation_id",
+        "formula_id",
+        "formula_version",
+        "expression",
+        "description",
+    )
+    formula_rows: list[tuple[CanonicalRenderTableCell, ...]] = []
+    for stage_entry in stages:
+        if not isinstance(stage_entry, dict):
+            continue
+        stage_name = str(stage_entry.get("stage", ""))
+        calculation_id = str(stage_entry.get("calculation_id", ""))
+        formulas = stage_entry.get("formulas")
+        if not isinstance(formulas, list):
+            continue
+        for formula in formulas:
+            if not isinstance(formula, dict):
+                continue
+            formula_rows.append(
+                (
+                    CanonicalRenderTableCell(
+                        field_path="calculation_logic.stage",
+                        field_key="header.stage",
+                        raw_value=stage_name,
+                    ),
+                    CanonicalRenderTableCell(
+                        field_path="calculation_logic.calculation_id",
+                        field_key="header.calculation_id",
+                        raw_value=calculation_id,
+                    ),
+                    CanonicalRenderTableCell(
+                        field_path="calculation_logic.formula_id",
+                        field_key="header.formula_id",
+                        raw_value=formula.get("formula_id", ""),
+                    ),
+                    CanonicalRenderTableCell(
+                        field_path="calculation_logic.formula_version",
+                        field_key="header.formula_version",
+                        raw_value=formula.get("formula_version", ""),
+                    ),
+                    CanonicalRenderTableCell(
+                        field_path="calculation_logic.expression",
+                        field_key="header.expression",
+                        raw_value=formula.get("expression", ""),
+                    ),
+                    CanonicalRenderTableCell(
+                        field_path="calculation_logic.description",
+                        field_key="header.description",
+                        raw_value=formula.get("description", ""),
+                    ),
+                )
+            )
+    if not formula_rows:
+        return CanonicalRenderSection(
+            section_key=section_key,
+            title=section_key,
+            level=level,
+            content_type_code="empty",
+            empty_reason_code="not_provided",
+        )
+    table = CanonicalRenderTable(
+        table_key="calculation_logic_formulas",
+        title_key="section.calculation_logic",
+        column_keys=formula_col_keys,
+        rows=tuple(formula_rows),
+        unit_codes=("",) * len(formula_col_keys),
+    )
+    return CanonicalRenderSection(
+        section_key=section_key,
+        title=section_key,
+        level=level,
+        content_type_code="table",
+        table=table,
+    )
+
+
 def _build_canonical_section(
     section_key: str,
     data: dict[str, Any] | Any,
@@ -844,6 +968,12 @@ def _build_canonical_section(
 
     if section_key == "throughput_inventory_area" and isinstance(data, dict):
         return _build_throughput_inventory_area_section(data)
+
+    if section_key == "input_conditions" and isinstance(data, dict):
+        return _build_input_conditions_section(data)
+
+    if section_key == "calculation_logic" and isinstance(data, dict):
+        return _build_calculation_logic_section(data)
 
     if section_key == "quality_summary" and isinstance(data, dict):
         return _build_quality_summary_section(data)
@@ -944,6 +1074,7 @@ def build_canonical_render_model(
         "report_metadata",
         "project_summary",
         "input_conditions",
+        "calculation_logic",
         "assumptions",
         "throughput_inventory_area",
         "cooling_load",
