@@ -172,7 +172,7 @@ def test_real_production_zone_details_references_pass_quality() -> None:
     assert result.success is True
     zones = result.result["zones"]
     assert isinstance(zones, list)
-  # V0.9 P2 §4 recut: formula-native zones no longer carry unused demo loading as area_basis.
+    # V0.9 P2 §4 recut: formula-native zones no longer carry unused demo loading as area_basis.
     zone_details = [zone for zone in zones if isinstance(zone, dict) and "area_basis" in zone]
     assert zone_details == []
 
