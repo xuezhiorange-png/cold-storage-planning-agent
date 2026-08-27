@@ -134,6 +134,10 @@ def test_p2_diff_stays_on_allowlist() -> None:
     assert extra == [], f"P2 diff off allowlist: {extra}"
 
 
+@pytest.mark.skipif(
+    not _on_p2_branch(),
+    reason=("P2 formula-file and Vue-diff assertions only run on v09-p2-zone-formula"),
+)
 def test_zone_planning_is_only_production_formula_file_changed() -> None:
     changed = _changed_interesting_paths()
     # P2 snapshot-schema admit may also touch source_snapshots.py (off formula recut).
@@ -153,6 +157,10 @@ def test_zone_planning_is_only_production_formula_file_changed() -> None:
     assert "backend/src/cold_storage/modules/calculations/domain/zone_planning.py" in changed
 
 
+@pytest.mark.skipif(
+    not _on_p2_branch(),
+    reason=("P2 formula-file and Vue-diff assertions only run on v09-p2-zone-formula"),
+)
 def test_no_vue_changes_in_p2_diff() -> None:
     changed = _changed_interesting_paths()
     vue_changes = {path for path in changed if path.startswith("frontend/src/")}

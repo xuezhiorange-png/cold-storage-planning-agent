@@ -177,6 +177,7 @@ frontend/src/features/calculations/model/mapPersistedCalculations.test.ts
 frontend/src/api/contracts/planning.ts
 frontend/src/features/calculations/architecture/test_v09_p3_zone_result_display.test.ts
 backend/tests/architecture/test_v09_p3_zone_result_display_contract.py
+backend/tests/architecture/test_v09_p2_zone_formula_contract.py
 ```
 
 Architecture tests:
@@ -224,6 +225,22 @@ carry optional fields, retarget that file on this PR (standing CI-red
 repair). Do not pre-edit it unless the test fails. If it must change,
 add it to the allowlist in the same commit and keep this contract in
 sync — then ruff-format / skipif-wrap without a new 授权 round.
+
+### 5.1 Charles-authorized CI-red repair (2026-08-27)
+
+Charles standing: 红了就修. sqlite failed because merged P2 architecture
+tests `test_zone_planning_is_only_production_formula_file_changed` and
+`test_no_vue_changes_in_p2_diff` still asserted against `origin/main`
+on the P3 branch. Gate those two to `v09-p2-zone-formula`. Do not weaken
+P2 formula identity checks that read `zone_planning.py` on disk.
+
+```text
+CHARLES_V09_P3_CI_RED_REPAIR_AUTHORIZED=YES
+DATE=2026-08-27
+AUTHORIZED_FILES
+backend/tests/architecture/test_v09_p2_zone_formula_contract.py
+IDENTITY_DECISION=P2 formula recut stays merged; Vue display is P3
+```
 
 ## 6. Tests required
 
@@ -299,3 +316,4 @@ test. Frontend also run existing `PersistedResultsPages.test.ts` and
 | Rev | Date | Change |
 | --- | --- | --- |
 | R1 | 2026-08-27 | P3 zone result display at `808cbfd` / P2 #217 / `v0.8.0` |
+| R2 | 2026-08-27 | Gate P2 origin/main Vue/formula-diff tests to the P2 branch |

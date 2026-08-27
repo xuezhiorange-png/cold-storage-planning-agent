@@ -27,6 +27,7 @@ P3_ALLOWLIST = (
     "frontend/src/api/contracts/planning.ts",
     "frontend/src/features/calculations/architecture/test_v09_p3_zone_result_display.test.ts",
     "backend/tests/architecture/test_v09_p3_zone_result_display_contract.py",
+    "backend/tests/architecture/test_v09_p2_zone_formula_contract.py",
 )
 
 _INTERESTING_PREFIXES = (
