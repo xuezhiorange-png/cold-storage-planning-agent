@@ -15,9 +15,9 @@ BASE_MAIN_SHA=0dc8de5b3c711aaa662b0bbda3988def037fda3b
 BASE_TREE=db5c9298c1be7a922b0cacaf84a8c9f176c87838
 TARGET_FILE=docs/tasks/V0_9-version-plan.md
 
-PLAN_STATUS=OVERALL_PLAN_FROZEN_DISPATCH_NO
+PLAN_STATUS=OVERALL_PLAN_FROZEN_P0_CONTRACT_IN_PROGRESS
 DISPATCH_AUTHORIZED=NO
-V09_P0_IMPLEMENTATION_AUTHORIZED=NO
+V09_P0_IMPLEMENTATION_AUTHORIZED=YES
 V09_P1_IMPLEMENTATION_AUTHORIZED=NO
 V09_P2_IMPLEMENTATION_AUTHORIZED=NO
 V09_P3_IMPLEMENTATION_AUTHORIZED=NO
@@ -358,13 +358,10 @@ Issues **#11 / #13 / #17 / #176 / #20 stay CLOSED**. Do not reopen.
 
 ## 9. Next step (not done by this document)
 
-1. Charles replies **可以派发** for **P0 only** (contract + architecture
-   tests + ADR for the KEY recut).
-2. After P0 merge, Charles replies **可以派发** for Wave 1
-   (`P1 ∥ P4 ∥ P5`) with per-package prompts.
-3. P2 formula recut is **not** Wave 1. It waits for P1 KEY authority.
-4. Merge still needs **可以ready合并** (or `绿了`) per package.
-5. Tag `v0.9.0` / GitHub Release need separate **授权**.
+P0 contract freeze is the current dispatched docs package
+(`docs/tasks/V0_9-P0-version-contract.md`). P1–P7 stay
+`IMPLEMENTATION_AUTHORIZED=NO`.
 
-Until step 1, do not implement `zone_planning.py`, Vue, or export
-behavior, and do not open implementation PRs for P1–P7.
+After P0 merge, Charles replies **可以派发** for Wave 1 (`P1 ∥ P4 ∥ P5`).
+P2 formula recut waits for P1. Merge still needs **可以ready合并**.
+Tag `v0.9.0` needs separate **授权**.

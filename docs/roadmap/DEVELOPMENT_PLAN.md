@@ -1,18 +1,18 @@
 # Development Plan
 
-> **V0.9 plan freeze (2026-08-27, `main@0dc8de5b3c711aaa662b0bbda3988def037fda3b`,
+> **V0.9 P0 freeze (2026-08-27, `main@0dc8de5b3c711aaa662b0bbda3988def037fda3b`,
 > release `v0.8.0`):** Tasks 0–12 below remain the original roadmap register.
 > V0.5 five-stage workbench is **complete** at tag `v0.5.0`. V0.6 report
 > assembly is **complete** at tag `v0.6.0`. V0.7 trust loop is **complete**
 > at tag `v0.7.0` (`docs/tasks/V0_7-P0-trust-loop-contract.md`). V0.8
 > operator-minimal process input is **complete** at tag `v0.8.0`
-> (`docs/tasks/V0_8-P0-operator-minimal-input-contract.md`). **Next umbrella
-> (not dispatched):** V0.9 overall plan (`docs/tasks/V0_9-version-plan.md`).
-> Formula recut is one package inside V0.9, together with KEY recut,
-> workbench layout, draft-vs-formal export, banner recut, and zone result
-> display. `DISPATCH_AUTHORIZED=NO` until Charles says `可以派发` for P0.
-> This is **not** a V0.7 trust-loop gap and **not** a cooling/equipment
-> formula rewrite.
+> (`docs/tasks/V0_8-P0-operator-minimal-input-contract.md`). **Active
+> umbrella:** V0.9 P0 contract (`docs/tasks/V0_9-P0-version-contract.md`)
+> plus overall plan (`docs/tasks/V0_9-version-plan.md`). Formula recut is
+> one package inside V0.9, together with KEY recut, workbench layout,
+> draft-vs-formal export, banner recut, and zone result display. P1–P7 remain
+> `IMPLEMENTATION_AUTHORIZED=NO`. This is **not** a V0.7 trust-loop gap and
+> **not** a cooling/equipment formula rewrite.
 
 ## Task 0: Local Baseline, Repository Audit, And Governance
 

@@ -1,14 +1,16 @@
 # Validation Baseline
 
-> **V0.8 governance truth-up (2026-08-26):** The table below is the preserved
+> **V0.9 P0 freeze (2026-08-27):** The table below is the preserved
 > Task 5 validation snapshot (2026-06-20, 349 tests). Do not invent a new
 > historic test count from this file. Release `v0.6.0`
 > (`main@f8a4b80a8a8fab26113b57d9f4ea666b8bc699ba`) delivered V0.6 P5
 > sqlite/PostgreSQL controlled acceptance, including operator fail-closed
 > evidence. Release `v0.7.0` (`main@0330d9be36db94a62190d5775612b361fff6da8d`)
-> delivered the V0.7 trust loop. V0.8 P0 is contract-only (architecture tests +
-> living-doc truth-up); see `docs/tasks/V0_7-P0-trust-loop-contract.md` and
-> `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`. Re-run
+> delivered the V0.7 trust loop. Release `v0.8.0` delivered the operator-minimal
+> five-KEY path. V0.9 P0 is contract-only (architecture tests + living-doc
+> truth-up); see `docs/tasks/V0_7-P0-trust-loop-contract.md`,
+> `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`, and
+> `docs/tasks/V0_9-P0-version-contract.md`. Re-run
 > `cd backend && PYTHONPATH=src pytest` for authoritative current counts.
 
 Validation was run against the current repository baseline on
@@ -33,7 +35,10 @@ PASS. Remaining validation gap for V0.7: operator public-API happy path and
 cross-consumer numeric/hash matrix; V0.7 P0 contract freezes the target only.
 V0.7 controlled acceptance later closed that operator path at `v0.7.0`.
 Remaining validation gap for V0.8: five-KEY operator process input on
-unmodified `create_app`; V0.8 P0 contract freezes the target only.
+unmodified `create_app`; closed at `v0.8.0`. Remaining validation gap for
+V0.9: KEY recut, zone formula recut, draft-vs-formal export, layout, and
+zone result display on unmodified `create_app`; V0.9 P0 contract freezes
+the target only.
 
 | Command | Result | Details | Blocking | Suggested Task |
 | --- | --- | --- | --- | --- |
