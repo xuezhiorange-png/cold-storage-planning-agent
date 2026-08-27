@@ -1,7 +1,7 @@
 UV_CACHE_DIR ?= .uv-cache
 RC_BUILD_CONTEXT ?= .
 
-.PHONY: install dev up down migrate seed seed-v04-sample seed-v05-sample seed-v06-sample seed-v07-sample seed-v08-sample smoke-v04-local smoke-v05-local verify-v06-sample verify-v07-sample verify-v08-sample smoke-v06-local smoke-v07-local smoke-v08-local verify-v05-p5-controlled-acceptance verify-v07-p7-controlled-acceptance test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests verify-live-evidence-runner verify-artifact-transport recovery-foundation-test recovery-foundation-lint recovery-foundation-typecheck verify-recovery-foundation release-failure-recovery-test release-failure-recovery-lint release-failure-recovery-typecheck verify-release-failure-recovery final-release-evidence-test final-release-evidence-lint final-release-evidence-typecheck verify-final-release-evidence test-s6-07-operational-acceptance s6-07-operational-acceptance-test s6-07-operational-acceptance-lint s6-07-operational-acceptance-typecheck verify-s6-07-operational-acceptance
+.PHONY: install dev up down migrate seed seed-v04-sample seed-v05-sample seed-v06-sample seed-v07-sample seed-v08-sample seed-v09-sample smoke-v04-local smoke-v05-local verify-v06-sample verify-v07-sample verify-v08-sample verify-v09-sample smoke-v06-local smoke-v07-local smoke-v08-local smoke-v09-local verify-v05-p5-controlled-acceptance verify-v07-p7-controlled-acceptance test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests verify-live-evidence-runner verify-artifact-transport recovery-foundation-test recovery-foundation-lint recovery-foundation-typecheck verify-recovery-foundation release-failure-recovery-test release-failure-recovery-lint release-failure-recovery-typecheck verify-release-failure-recovery final-release-evidence-test final-release-evidence-lint final-release-evidence-typecheck verify-final-release-evidence test-s6-07-operational-acceptance s6-07-operational-acceptance-test s6-07-operational-acceptance-lint s6-07-operational-acceptance-typecheck verify-s6-07-operational-acceptance
 
 install:
 	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv sync
@@ -51,6 +51,14 @@ smoke-v06-local: verify-v06-sample
 smoke-v07-local: verify-v07-sample
 
 smoke-v08-local: verify-v08-sample
+
+seed-v09-sample:
+	cd backend && PYTHONPATH=src UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run python -m cold_storage.bootstrap.v09_sample_loader
+
+verify-v09-sample:
+	cd backend && PYTHONPATH=src UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run python -m cold_storage.bootstrap.v09_sample_loader --verify
+
+smoke-v09-local: verify-v09-sample
 
 smoke-v04-local:
 	cd backend && PYTHONPATH=src UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run pytest tests/integration/test_v04_local_sample_boot.py -q
