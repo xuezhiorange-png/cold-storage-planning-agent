@@ -1,16 +1,14 @@
 # Development Plan
 
-> **V0.8 governance truth-up (2026-08-26, `main@0330d9be36db94a62190d5775612b361fff6da8d`,
-> release `v0.7.0`):** Tasks 0–12 below remain the original roadmap register.
-> V0.5 five-stage workbench delivery is **complete** at tag `v0.5.0`. V0.6
-> report assembly/rendering/evaluation is **complete** at tag `v0.6.0` on the
-> evaluation surface. V0.7 trust loop is **complete** at tag `v0.7.0`
-> (`docs/tasks/V0_7-P0-trust-loop-contract.md`). **Active umbrella:** V0.8
-> operator-minimal process input
-> (`docs/tasks/V0_8-P0-operator-minimal-input-contract.md`). **Remaining gap:**
-> operator currently types the full bundle KEY surface; V0.8 recuts that to
-> five process KEY leaves plus assembler/lineage. This is **not** a five-stage
-> persistence gap and **not** a V0.7 trust-loop gap.
+> **V0.9 plan freeze (2026-08-27, `main@0dc8de5b3c711aaa662b0bbda3988def037fda3b`,
+> release `v0.8.0`):** Tasks 0–12 below remain the original roadmap register.
+> V0.5–V0.8 are **complete** (`v0.5.0` … `v0.8.0`). **Next umbrella (not
+> dispatched):** V0.9 overall plan
+> (`docs/tasks/V0_9-version-plan.md`). Formula recut is one package inside
+> V0.9, together with KEY recut, workbench layout, draft-vs-formal export,
+> banner recut, and zone result display. `DISPATCH_AUTHORIZED=NO` until
+> Charles says `可以派发` for P0. This is **not** a V0.7 trust-loop gap and
+> **not** a cooling/equipment formula rewrite.
 
 ## Task 0: Local Baseline, Repository Audit, And Governance
 
