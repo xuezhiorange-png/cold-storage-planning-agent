@@ -137,6 +137,12 @@ def test_p3_diff_stays_on_allowlist() -> None:
     assert extra == [], f"P3 diff off allowlist: {extra}"
 
 
+@pytest.mark.skipif(
+    not _on_p3_branch(),
+    reason=(
+        "P3 backend-src freeze only enforced on branches whose name contains v09-p3-zone-result"
+    ),
+)
 def test_no_backend_src_changes_in_p3_diff() -> None:
     changed = _changed_interesting_paths()
     backend_src_changes = {
