@@ -203,7 +203,10 @@ def test_operator_form_does_not_expose_removed_v08_keys() -> None:
     assert "zonePlanning.auxiliaryPackagingStorageDays" in form
 
 
-@pytest.mark.skipif(not _on_p1_branch(), reason="P1 allowlist diff only enforced on v09-p1-operator-key branch")
+@pytest.mark.skipif(
+    not _on_p1_branch(),
+    reason="P1 allowlist diff only enforced on v09-p1-operator-key branch",
+)
 def test_p1_diff_stays_on_allowlist_and_does_not_edit_zone_planning() -> None:
     changed = _changed_interesting_paths()
     allowlist = set(P1_ALLOWLIST)

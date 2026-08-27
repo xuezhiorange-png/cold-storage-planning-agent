@@ -123,7 +123,10 @@ def test_p2_allowlist_matches_contract_and_files_exist() -> None:
         assert (REPO_ROOT / path).is_file(), path
 
 
-@pytest.mark.skipif(not _on_p2_branch(), reason="P2 allowlist diff only enforced on v09-p2-zone-formula branch")
+@pytest.mark.skipif(
+    not _on_p2_branch(),
+    reason="P2 allowlist diff only enforced on v09-p2-zone-formula branch",
+)
 def test_p2_diff_stays_on_allowlist() -> None:
     changed = _changed_interesting_paths()
     allowlist = set(P2_ALLOWLIST)
