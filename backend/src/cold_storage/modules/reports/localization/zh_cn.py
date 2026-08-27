@@ -236,6 +236,12 @@ _MESSAGES: dict[str, str] = {
     "investment.installation": "安装",
     "investment.design": "设计",
     "investment.commissioning": "调试",
+    # Calculator item_name labels used as investment_breakdown column keys.
+    "investment.土建及钢结构": "土建及钢结构",
+    "investment.冷库制冷设备": "冷库制冷设备",
+    "investment.高低压配电": "高低压配电",
+    "investment.住宿及生活区": "住宿及生活区",
+    "investment.监控及开厂物资": "监控及开厂物资",
     # ── Impact labels ──
     "impact.not_provided": "未提供",
     "impact.not_calculated": "未计算",
