@@ -6,6 +6,9 @@ import type { WorkflowBlocker } from '../../../api/contracts/workflow'
 
 import {
   createDefaultExportForm,
+  DRAFT_EXPORT_POLICY_COPY,
+  FORMAL_EXPORT_POLICY_COPY,
+  selectDisplayedExportBlockers,
   useReportExport
 } from '../composables/useReportExport'
 import type { ExportForm } from '../composables/useReportExport'
@@ -94,21 +97,19 @@ const canCreateReport = computed(
 const workflowBusy = computed(
   () => createLoading.value || generateLoading.value || reviewLoading.value
 )
-const displayedBlockers = computed(() => {
-  const fromActions = actionBlockers.value
-  if (fromActions.length > 0) return [...fromActions]
-  if (!props.formalExportEligible) {
-    return props.formalExportBlockers.map((b) => ({
-      code: b.code,
-      message: b.message,
-      stage: b.stage,
-      source_type: b.source_type,
-      source_id: b.source_id,
-      severity: b.severity
-    }))
-  }
-  return []
-})
+const displayedBlockers = computed(() =>
+  selectDisplayedExportBlockers({
+    mode: activeExportForm.value.mode,
+    actionBlockers: [...actionBlockers.value],
+    formalExportEligible: props.formalExportEligible,
+    formalExportBlockers: props.formalExportBlockers
+  })
+)
+const draftRenderDisabled = computed(() => renderLoading.value)
+const formalRenderDisabled = computed(
+  () => renderLoading.value || !props.formalExportEligible
+)
+const exportPolicyCopy = `${FORMAL_EXPORT_POLICY_COPY}，${DRAFT_EXPORT_POLICY_COPY}`
 
 /* ── Lifecycle ─────────────────────────────────────── */
 
@@ -121,6 +122,15 @@ watch(
   (projectId) => {
     reset()
     loadReports(projectId)
+  }
+)
+
+watch(
+  () => props.formalExportEligible,
+  (eligible) => {
+    if (!eligible && activeExportForm.value.mode === 'formal') {
+      activeExportForm.value.mode = 'draft'
+    }
   }
 )
 
@@ -177,6 +187,17 @@ async function handleRender(reportId: string, revisionNumber: number): Promise<v
   }
 }
 
+async function handleDraftRender(reportId: string, revisionNumber: number): Promise<void> {
+  activeExportForm.value.mode = 'draft'
+  await handleRender(reportId, revisionNumber)
+}
+
+async function handleFormalRender(reportId: string, revisionNumber: number): Promise<void> {
+  if (!props.formalExportEligible) return
+  activeExportForm.value.mode = 'formal'
+  await handleRender(reportId, revisionNumber)
+}
+
 async function handleDownload(reportId: string, artifact: ArtifactListItemContract): Promise<void> {
   emit('downloadStarted', artifact.artifact_id)
   await downloadArtifact(reportId, artifact.artifact_id)
@@ -224,6 +245,7 @@ function reportStatusLabel(status: string): string {
   <section class="report-export-panel" aria-label="报告导出面板">
     <header class="report-export-panel__header">
       <strong>报告导出</strong>
+      <span class="report-export-panel__policy">{{ exportPolicyCopy }}。</span>
       <span v-if="reports.length">共 {{ reports.length }} 个报告</span>
       <button
         type="button"
@@ -239,8 +261,10 @@ function reportStatusLabel(status: string): string {
       v-if="!formalExportEligible"
       class="report-export-panel__formal-note"
       role="status"
+      data-export-scope="formal"
     >
-      正式导出当前不可用（与工作流就绪独立判定）。后端 P1 权威将在渲染/下载时再次校验。
+      正式导出当前不可用，不影响草稿导出。{{ exportPolicyCopy }}。
+      后端将在正式渲染/下载时再次校验。浏览器内标记已审核不是生产 RBAC。
       <ul v-if="formalExportBlockers.length">
         <li v-for="(blocker, index) in formalExportBlockers" :key="`formal-${blocker.code}-${index}`">
           {{ blocker.message }}
@@ -478,13 +502,18 @@ function reportStatusLabel(status: string): string {
             </div>
           </div>
 
-          <!-- Persisted blockers from workflow or backend actions -->
+          <!-- Persisted blockers from workflow or backend actions (draft path ignores formal gates) -->
           <div
             v-if="displayedBlockers.length"
             class="report-export-panel__blockers"
             role="status"
+            data-export-scope="draft"
           >
-            <strong>阻塞项（后端权威）</strong>
+            <strong>{{
+              activeExportForm.mode === 'draft'
+                ? '草稿导出阻塞项（不含正式导出门槛）'
+                : '正式导出阻塞项（后端权威）'
+            }}</strong>
             <ul>
               <li
                 v-for="(blocker, index) in displayedBlockers"
@@ -546,14 +575,6 @@ function reportStatusLabel(status: string): string {
                   </label>
 
                   <label class="report-export-panel__field">
-                    <span>模式</span>
-                    <select v-model="activeExportForm.mode">
-                      <option value="draft">草稿</option>
-                      <option value="formal" :disabled="!formalExportEligible">正式</option>
-                    </select>
-                  </label>
-
-                  <label class="report-export-panel__field">
                     <span>语言</span>
                     <select v-model="activeExportForm.locale">
                       <option value="zh-CN">中文</option>
@@ -563,12 +584,38 @@ function reportStatusLabel(status: string): string {
 
                   <button
                     type="button"
-                    class="report-export-panel__render-btn"
-                    :disabled="renderLoading"
-                    @click="handleRender(report.id, rev.revision_number)"
+                    class="report-export-panel__render-btn report-export-panel__render-btn--draft"
+                    data-export-mode="draft"
+                    :disabled="draftRenderDisabled"
+                    @click="handleDraftRender(report.id, rev.revision_number)"
                   >
-                    {{ renderLoading && selectedRevisionNumber === rev.revision_number ? '渲染中...' : '导出' }}
+                    {{
+                      renderLoading
+                        && selectedRevisionNumber === rev.revision_number
+                        && activeExportForm.mode === 'draft'
+                        ? '草稿导出中...'
+                        : '草稿导出'
+                    }}
                   </button>
+                  <button
+                    type="button"
+                    class="report-export-panel__render-btn report-export-panel__render-btn--formal"
+                    data-export-mode="formal"
+                    :disabled="formalRenderDisabled"
+                    :title="exportPolicyCopy"
+                    @click="handleFormalRender(report.id, rev.revision_number)"
+                  >
+                    {{
+                      renderLoading
+                        && selectedRevisionNumber === rev.revision_number
+                        && activeExportForm.mode === 'formal'
+                        ? '正式导出中...'
+                        : '正式导出'
+                    }}
+                  </button>
+                  <p class="report-export-panel__export-hint">
+                    {{ exportPolicyCopy }}。
+                  </p>
                 </div>
               </li>
             </ul>
@@ -591,6 +638,9 @@ function reportStatusLabel(status: string): string {
           <!-- Exports (artifacts) section -->
           <div class="report-export-panel__section">
             <strong class="report-export-panel__section-title">已导出文件</strong>
+            <p class="report-export-panel__export-hint">
+              已完成的草稿文件可直接下载，不依赖审核或正式导出资格。
+            </p>
 
             <div
               v-if="exportsLoading"
@@ -640,6 +690,7 @@ function reportStatusLabel(status: string): string {
                       <button
                         type="button"
                         class="report-export-panel__download-btn"
+                        data-export-action="download"
                         :disabled="downloadLoading || artifact.status !== 'completed'"
                         @click="handleDownload(report.id, artifact)"
                       >
@@ -679,7 +730,14 @@ function reportStatusLabel(status: string): string {
 .report-export-panel__header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
+}
+
+.report-export-panel__policy {
+  font-size: 12px;
+  color: #2d4a6f;
+  font-weight: 400;
 }
 
 .report-export-panel__empty p {
@@ -939,6 +997,19 @@ function reportStatusLabel(status: string): string {
 .report-export-panel__render-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.report-export-panel__render-btn--formal {
+  background: #fff;
+  color: #123a63;
+}
+
+.report-export-panel__export-hint {
+  margin: 0;
+  flex-basis: 100%;
+  font-size: 12px;
+  color: #5f7a99;
+  line-height: 1.45;
 }
 
 /* ── Exports table ────────────────────────────────── */

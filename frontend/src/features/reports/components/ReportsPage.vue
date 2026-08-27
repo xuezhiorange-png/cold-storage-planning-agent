@@ -3,6 +3,10 @@ import { computed } from 'vue'
 import { ElCard } from 'element-plus'
 
 import ReportExportPanel from '../../reports/components/ReportExportPanel.vue'
+import {
+  DRAFT_EXPORT_POLICY_COPY,
+  FORMAL_EXPORT_POLICY_COPY
+} from '../../reports/composables/useReportExport'
 import { useWorkbenchContextStore } from '../../../stores/workbenchContext'
 
 const workbench = useWorkbenchContextStore()
@@ -17,6 +21,7 @@ const formalExportEligible = computed(
 const formalExportBlockers = computed(
   () => workbench.formalExportEligibility?.blockers ?? []
 )
+const exportPolicyCopy = `${FORMAL_EXPORT_POLICY_COPY}，${DRAFT_EXPORT_POLICY_COPY}`
 </script>
 
 <template>
@@ -25,6 +30,10 @@ const formalExportBlockers = computed(
       <template #header>
         <span>报告输出</span>
       </template>
+
+      <p class="reports-page__policy">
+        {{ exportPolicyCopy }}。浏览器审核请求不是生产 RBAC。
+      </p>
 
       <ReportExportPanel
         :project-id="projectId"
@@ -39,5 +48,12 @@ const formalExportBlockers = computed(
 <style scoped>
 .reports-page {
   max-width: 960px;
+}
+
+.reports-page__policy {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #2d4a6f;
+  line-height: 1.5;
 }
 </style>
