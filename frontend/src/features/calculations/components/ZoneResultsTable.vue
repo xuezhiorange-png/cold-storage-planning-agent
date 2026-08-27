@@ -19,6 +19,31 @@ function formatThroughput(value: number | undefined | null): string {
   if (value == null || value <= 0) return '-'
   return `${formatNumber(value)} kg/day`
 }
+
+function formatOptionalInt(value: number | undefined): string {
+  return value == null ? '—' : String(value)
+}
+
+function packedDimensions(zone: ZoneResultContract): string | null {
+  const nLong = zone.n_long ?? zone.layout?.n_long
+  const nShort = zone.n_short ?? zone.layout?.n_short
+  if (nLong == null || nShort == null) return null
+  return `${nLong}×${nShort}`
+}
+
+function hasExtendedDetails(zone: ZoneResultContract): boolean {
+  return Boolean(
+  zone.schemes?.length
+    || zone.n_need != null
+    || zone.pallet_count != null
+    || zone.truck_count != null
+    || zone.platform_count != null
+  )
+}
+
+function hasShippingDocks(zone: ZoneResultContract): boolean {
+  return zone.pallet_count != null || zone.truck_count != null || zone.platform_count != null
+}
 </script>
 
 <template>
@@ -34,19 +59,56 @@ function formatThroughput(value: number | undefined | null): string {
             <th scope="col">温区</th>
             <th scope="col">日处理量</th>
             <th scope="col">存储质量</th>
-            <th scope="col">板位</th>
-            <th scope="col">面积</th>
+            <th scope="col">板位 (6位汇报)</th>
+            <th scope="col">面积 (6位汇报)</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="zone in zones" :key="zone.zone_name">
-            <td>{{ zone.zone_name }}</td>
-            <td>{{ zone.temperature_band }}</td>
-            <td>{{ formatThroughput(zone.daily_throughput_kg_day ?? zone.daily_throughput_kg) }}</td>
-            <td>{{ formatMass(zone.design_storage_mass_kg) }}</td>
-            <td>{{ zone.position_count }}</td>
-            <td>{{ formatNumber(zone.required_area_m2) }} m²</td>
-          </tr>
+          <template v-for="zone in zones" :key="zone.zone_code ?? zone.zone_name">
+            <tr>
+              <td>
+                {{ zone.zone_name }}
+                <span v-if="zone.zone_code" class="zone-results-table__zone-code">{{ zone.zone_code }}</span>
+              </td>
+              <td>{{ zone.temperature_band }}</td>
+              <td>{{ formatThroughput(zone.daily_throughput_kg_day ?? zone.daily_throughput_kg) }}</td>
+              <td>{{ formatMass(zone.design_storage_mass_kg) }}</td>
+              <td>{{ zone.position_count }}</td>
+              <td>{{ formatNumber(zone.required_area_m2) }} m²</td>
+            </tr>
+            <tr v-if="hasExtendedDetails(zone)" class="zone-results-table__detail-row">
+              <td colspan="6">
+                <div class="zone-results-table__details">
+                  <div v-if="zone.schemes?.length" class="zone-results-table__detail-block">
+                    <strong>预冷方案</strong>
+                    <ul class="zone-results-table__scheme-list">
+                      <li v-for="scheme in zone.schemes" :key="scheme.scheme_id">
+                        {{ scheme.scheme_id }}：间数 {{ scheme.room_count }}，板位
+                        {{ scheme.position_count }}，面积 {{ formatNumber(scheme.required_area_m2) }} m²
+                      </li>
+                    </ul>
+                    <span v-if="zone.reporting_scheme_id" class="zone-results-table__reporting-scheme">
+                      6位汇报方案：{{ zone.reporting_scheme_id }}
+                    </span>
+                  </div>
+                  <div v-if="zone.n_need != null" class="zone-results-table__detail-block">
+                    <strong>板位排布</strong>
+                    <span>需求 {{ formatOptionalInt(zone.n_need) }}</span>
+                    <span v-if="zone.n_actual != null">，实际 {{ zone.n_actual }}</span>
+                    <span v-if="zone.unused_cells != null">，空余 {{ zone.unused_cells }}</span>
+                    <span v-if="packedDimensions(zone)">，排布 {{ packedDimensions(zone) }}</span>
+                    <span v-if="zone.aisle_layout">，通道 {{ zone.aisle_layout }}</span>
+                  </div>
+                  <div v-if="hasShippingDocks(zone)" class="zone-results-table__detail-block">
+                    <strong>出货通道</strong>
+                    <span v-if="zone.pallet_count != null">托盘 {{ zone.pallet_count }}</span>
+                    <span v-if="zone.truck_count != null">，车数 {{ zone.truck_count }}</span>
+                    <span v-if="zone.platform_count != null">，月台 {{ zone.platform_count }}</span>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -100,5 +162,49 @@ function formatThroughput(value: number | undefined | null): string {
 
 .zone-results-table__table tbody tr:hover {
   background: #f6f9fc;
+}
+
+.zone-results-table__zone-code {
+  display: block;
+  font-size: 12px;
+  color: #6b7a8f;
+  margin-top: 2px;
+}
+
+.zone-results-table__detail-row td {
+  background: #f8f9fb;
+  border-bottom: 1px solid #e8ecf0;
+  padding-top: 6px;
+  padding-bottom: 10px;
+}
+
+.zone-results-table__details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  font-size: 13px;
+  color: #4a5a6a;
+}
+
+.zone-results-table__detail-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.zone-results-table__scheme-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.zone-results-table__scheme-list li {
+  margin: 2px 0;
+}
+
+.zone-results-table__reporting-scheme {
+  font-size: 12px;
+  color: #6b7a8f;
 }
 </style>
