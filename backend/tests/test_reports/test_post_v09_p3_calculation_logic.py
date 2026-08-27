@@ -5,13 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from fastapi.testclient import TestClient
 
 from cold_storage.bootstrap.v09_sample_loader import seed_v09_sample, trusted_sample_client
 from cold_storage.modules.projects.application.engineering_input_bundle import (
     OPERATOR_V09_FIVE_KEY_FIELDS,
 )
-from cold_storage.modules.reports.application.assembler import ReportAssembler
+from cold_storage.modules.reports.application.assembler import ReportAssembler, ReportDataProvider
 from cold_storage.modules.reports.application.canonical_render_model_builder import (
     build_canonical_render_model,
 )
@@ -20,25 +19,14 @@ from cold_storage.modules.reports.application.persisted_calculation_reads import
     resolve_v09_operator_key_scalars,
 )
 from cold_storage.modules.reports.application.render_model_localizer import localize_render_model
-from cold_storage.modules.reports.domain.enums import ReportLocale
-from cold_storage.modules.reports.infrastructure.persisted_calculation_query import (
-    SqlAlchemyPersistedCalculationQuery,
-)
+from cold_storage.modules.reports.domain.enums import ReportLocale, ReportType
 from cold_storage.modules.reports.infrastructure.real_data_provider import RealReportDataProvider
 from tests.integration.v09_p6_operator_fixtures import (
-    assert_canonical_five_persisted,
     configure_sqlite_env,
     export_report_json,
     isolated_process_state,
     sqlite_database_url,
 )
-
-
-def _indexed_from_client(client: TestClient, project_id: str, version_number: int) -> dict[str, Any]:
-    calculations = client.get(
-        f"/api/v1/projects/{project_id}/versions/{version_number}/calculations"
-    ).json()
-    return assert_canonical_five_persisted(calculations)
 
 
 @pytest.mark.sqlite
@@ -79,7 +67,20 @@ def test_p3_draft_json_contains_five_key_and_calculation_logic(tmp_path) -> None
             zone_stage = next(stage for stage in stages if stage.get("stage") == "zone")
             assert zone_stage.get("calculation_id")
             assert zone_stage.get("formulas")
-            assert content["report_metadata"]["schema_version"] == "cold_storage_concept_design@1.0.0"
+            assert (
+                content["report_metadata"]["schema_version"] == "cold_storage_concept_design@1.0.0"
+            )
+
+            findings = (content.get("quality_summary") or {}).get("findings") or []
+            hash_blockers = [
+                item
+                for item in findings
+                if item.get("code") == "SOURCE_MISSING_CONTENT_HASH"
+                and item.get("section_key") == "calculation_logic"
+            ]
+            assert hash_blockers == []
+            submit = client.post(f"/api/v1/reports/{report_id}/submit-review")
+            assert submit.status_code == 200, submit.text
 
 
 def test_build_calculation_logic_copies_persisted_formulas_only() -> None:
@@ -245,11 +246,81 @@ def test_assembler_does_not_recalculate_engineering_values() -> None:
         report_id="r1",
         project_id="p1",
         project_version_id="v1",
-        report_type=__import__(
-            "cold_storage.modules.reports.domain.enums", fromlist=["ReportType"]
-        ).ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+        report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
         revision_number=1,
         generated_by="tester",
     )
     assert assembled.content["input_conditions"]["daily_inbound_mass_kg"] == 12345
-    assert assembled.content["calculation_logic"]["stages"][0]["formulas"][0]["expression"] == "daily_mass"
+    zone_formula = assembled.content["calculation_logic"]["stages"][0]["formulas"][0]
+    assert zone_formula["expression"] == "daily_mass"
+    logic_citations = [
+        ref for ref in assembled.source_refs if ref.get("section_key") == "calculation_logic"
+    ]
+    assert logic_citations == []
+    hash_blockers = [
+        item
+        for item in assembled.findings
+        if item.get("code") == "SOURCE_MISSING_CONTENT_HASH"
+        and item.get("section_key") == "calculation_logic"
+    ]
+    assert hash_blockers == []
+
+
+class _LogicCitationProvider(ReportDataProvider):
+    def get_calculation_results(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
+        return [
+            {
+                "section_key": "throughput_inventory_area",
+                "result_id": "zone-1",
+                "tool_name": "cold_room_zone_plan",
+                "tool_version": "1.0.0",
+                "persisted_content_hash": "abc123hash",
+                "data": {"daily_inbound_mass_kg": 12345},
+            }
+        ]
+
+    def get_calculation_logic(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        return {
+            "stages": [
+                {
+                    "stage": "zone",
+                    "calculator_name": "cold_room_zone_plan",
+                    "calculator_version": "1.0.0",
+                    "calculation_id": "zone-1",
+                    "formulas": [
+                        {
+                            "formula_id": "ZP-001",
+                            "formula_version": "1.0.0",
+                            "expression": "daily_mass",
+                            "description": "日处理量",
+                        }
+                    ],
+                }
+            ]
+        }
+
+
+def test_calculation_logic_citation_copies_persisted_content_hash() -> None:
+    assembler = ReportAssembler(_LogicCitationProvider())
+    assembled = assembler.assemble(
+        report_id="r1",
+        project_id="p1",
+        project_version_id="v1",
+        report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+        revision_number=1,
+        generated_by="tester",
+    )
+    logic_citations = [
+        ref for ref in assembled.source_refs if ref.get("section_key") == "calculation_logic"
+    ]
+    assert len(logic_citations) == 1
+    assert logic_citations[0]["content_hash"] == "abc123hash"
+    assert logic_citations[0]["result_id"] == "zone-1"
+    assert logic_citations[0]["tool_version"] == "1.0.0"
+    hash_blockers = [
+        item
+        for item in assembled.findings
+        if item.get("code") == "SOURCE_MISSING_CONTENT_HASH"
+        and item.get("section_key") == "calculation_logic"
+    ]
+    assert hash_blockers == []
