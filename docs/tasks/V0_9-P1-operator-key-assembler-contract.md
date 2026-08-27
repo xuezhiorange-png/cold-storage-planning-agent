@@ -33,6 +33,7 @@ TAG_PUBLICATION_AUTHORIZED=NO
 RELEASE_PUBLICATION_AUTHORIZED=NO
 READY_AUTHORIZED=NO
 MERGE_AUTHORIZED=NO
+CHARLES_V09_P1_LIVING_TEST_UPDATE_AUTHORIZED=YES
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
@@ -216,6 +217,9 @@ backend/tests/unit/test_v09_p1_operator_process_input_assembler.py
 backend/tests/integration/test_v09_p1_five_field_execution_sqlite.py
 backend/tests/integration/test_v09_p1_five_field_execution_postgresql.py
 frontend/src/features/five-stage/architecture/test_v09_p1_five_key_operator_form.test.ts
+frontend/src/features/five-stage/architecture/test_v08_p2_five_key_operator_form.test.ts
+frontend/src/stores/fiveStageExecution.test.ts
+backend/tests/integration/test_v08_p4_controlled_acceptance_sqlite.py
 ```
 
 **Forbidden in this package:**
@@ -237,19 +241,22 @@ cooling_load.py / equipment.py / installed_power.py / investment.py
 | Integration sqlite + postgresql | V0.9 five-field five-stage-execution on unmodified `create_app` persists canonical five; missing KEY zero canonical rows |
 | Frontend architecture | Form fields + submit `operator_process_input` |
 
-### 7.1 Allowlist pressure (do not resolve in P1)
+### 7.1 Living-test retarget (Charles 2026-08-27 authorized)
 
-The V0.9 工程输入 recut uses the same Vue files that V0.8 P2
-`test_v08_p2_five_key_operator_form.test.ts` file-scans. P1 MUST NOT
-mutate that test's assertion bodies. Those scans fail until a later
-authorized package updates them. Unversioned
-`frontend/src/stores/fiveStageExecution.test.ts` still expects
-`schema_version` `1.0.0` and V0.8 KEY rotation; it is off this allowlist.
+Charles 2026-08-27 authorized retargeting V0.8 living tests that
+file-scan Vue operator `field-key` controls and store submit expectations
+to the V0.9 five KEY at `schema_version` `1.1.0`. This package resolves
+that pressure in P1:
 
-`five_stage_execution.py`, `fiveStageExecution.ts`, and `fiveStageApi.ts`
-needed no production edits: compact payload already reaches the assembler.
+```text
+frontend/src/features/five-stage/architecture/test_v08_p2_five_key_operator_form.test.ts
+frontend/src/stores/fiveStageExecution.test.ts
+backend/tests/integration/test_v08_p4_controlled_acceptance_sqlite.py (Vue scan only)
+```
 
-`shipping_channel` is not registered on `REFRIGERATED_ZONE_REGISTRY` (P2).
+V0.8 backend assembler tests, V0.8 sample manifests, and
+`OPERATOR_KEY_LEAVES` in the sqlite P4 controlled acceptance remain on
+the V0.8 compact path. `MERGE_AUTHORIZED=NO`.
 
 ## 8. Acceptance criteria
 
@@ -284,3 +291,4 @@ DRAFT=YES
 | Rev | Date | Change |
 | --- | --- | --- |
 | R1 | 2026-08-27 | V0.9 P1 assembler + 工程输入 five KEY at `d847485` / `v0.8.0` |
+| R2 | 2026-08-27 | Charles-authorized living-test retarget for V0.9 Vue KEY scans |

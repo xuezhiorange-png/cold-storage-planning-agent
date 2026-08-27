@@ -10,10 +10,18 @@ const FORM_MODEL = join(FIVE_STAGE_DIR, 'model/engineeringInputForm.ts')
 
 const OPERATOR_KEY_FIELD_KEYS = [
   'zonePlanning.dailyInboundMassKg',
-  'zonePlanning.workingTimeHPerDay',
   'zonePlanning.finishedStorageDays',
-  'zonePlanning.packagingStorageDays',
-  'zonePlanning.precoolingRequiredRatio'
+  'zonePlanning.frozenStorageDays',
+  'zonePlanning.mainPackagingStorageDays',
+  'zonePlanning.auxiliaryPackagingStorageDays'
+]
+
+const FORBIDDEN_OPERATOR_FORM_FRAGMENTS = [
+  'workingTimeHPerDay',
+  'precoolingRequiredRatio',
+  'packagingStorageDays',
+  'working_time_h_per_day',
+  'precooling_required_ratio'
 ]
 
 const FORBIDDEN_KEYPAD_PATTERNS = [
@@ -60,6 +68,9 @@ describe('V0.8 P2 operator five-KEY workbench guards', () => {
     const fieldKeyMatches = [...content.matchAll(/field-key="([^"]+)"/g)].map((match) => match[1])
 
     expect(fieldKeyMatches).toEqual(OPERATOR_KEY_FIELD_KEYS)
+    for (const fragment of FORBIDDEN_OPERATOR_FORM_FRAGMENTS) {
+      expect(content.includes(fragment), `form contained removed KEY ${fragment}`).toBe(false)
+    }
     for (const pattern of FORBIDDEN_KEYPAD_PATTERNS) {
       expect(pattern.test(content), `form matched forbidden keypad ${pattern}`).toBe(false)
     }
@@ -102,8 +113,11 @@ describe('V0.8 P2 operator five-KEY workbench guards', () => {
       content.indexOf('function buildCoolingZoneLeaves')
     )
     expect(defaultBlock).not.toMatch(/dailyInboundMassKg:\s*\d/)
-    expect(defaultBlock).not.toMatch(/workingTimeHPerDay:\s*\d/)
     expect(defaultBlock).not.toMatch(/finishedStorageDays:\s*\d/)
+    expect(defaultBlock).not.toMatch(/frozenStorageDays:\s*\d/)
+    expect(defaultBlock).not.toMatch(/mainPackagingStorageDays:\s*\d/)
+    expect(defaultBlock).not.toMatch(/auxiliaryPackagingStorageDays:\s*\d/)
+    expect(defaultBlock).not.toMatch(/workingTimeHPerDay:\s*\d/)
     expect(defaultBlock).not.toMatch(/packagingStorageDays:\s*\d/)
     expect(defaultBlock).not.toMatch(/precoolingRequiredRatio:\s*0\.\d+/)
     expect(defaultBlock).not.toMatch(/precoolingRequiredRatio:\s*\d/)

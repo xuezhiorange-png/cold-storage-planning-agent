@@ -47,6 +47,15 @@ P1_ALLOWLIST = (
     "backend/tests/integration/test_v09_p1_five_field_execution_sqlite.py",
     "backend/tests/integration/test_v09_p1_five_field_execution_postgresql.py",
     "frontend/src/features/five-stage/architecture/test_v09_p1_five_key_operator_form.test.ts",
+    "frontend/src/features/five-stage/architecture/test_v08_p2_five_key_operator_form.test.ts",
+    "frontend/src/stores/fiveStageExecution.test.ts",
+    "backend/tests/integration/test_v08_p4_controlled_acceptance_sqlite.py",
+)
+
+P1_LIVING_TEST_ALLOWLIST_EXTENSION = (
+    "frontend/src/features/five-stage/architecture/test_v08_p2_five_key_operator_form.test.ts",
+    "frontend/src/stores/fiveStageExecution.test.ts",
+    "backend/tests/integration/test_v08_p4_controlled_acceptance_sqlite.py",
 )
 
 OPERATOR_V09_KEY_LEAVES: tuple[str, ...] = (
@@ -131,8 +140,9 @@ def test_p1_allowlist_matches_p0_and_files_exist() -> None:
     p1 = P1_CONTRACT.read_text(encoding="utf-8")
     p0_paths = _extract_allowlist_paths(p0, "V09_P1_FILE_ALLOWLIST")
     p1_paths = _extract_allowlist_paths(p1, "V09_P1_FILE_ALLOWLIST")
-    assert p0_paths == p1_paths
+    assert p1_paths == p0_paths | set(P1_LIVING_TEST_ALLOWLIST_EXTENSION)
     assert set(P1_ALLOWLIST) == p1_paths
+    assert "CHARLES_V09_P1_LIVING_TEST_UPDATE_AUTHORIZED=YES" in p1
     for path in P1_ALLOWLIST:
         assert (REPO_ROOT / path).is_file(), path
 

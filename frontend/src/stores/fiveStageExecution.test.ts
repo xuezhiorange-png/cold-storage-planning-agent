@@ -23,10 +23,10 @@ const SUBMIT_CONTEXT = buildWorkbenchSubmitContext({
 function filledOperatorForm() {
   const form = createDefaultEngineeringInputFormState()
   form.zonePlanning.dailyInboundMassKg = 20000
-  form.zonePlanning.workingTimeHPerDay = 16
   form.zonePlanning.finishedStorageDays = 7
-  form.zonePlanning.packagingStorageDays = 1
-  form.zonePlanning.precoolingRequiredRatio = 0.6
+  form.zonePlanning.frozenStorageDays = 30
+  form.zonePlanning.mainPackagingStorageDays = 3
+  form.zonePlanning.auxiliaryPackagingStorageDays = 30
   return form
 }
 
@@ -67,7 +67,7 @@ describe('fiveStageExecution store', () => {
     expect(execute.mock.calls[0][2]).toMatchObject({
       operator_process_input: {
         schema_id: 'OperatorProcessInputV1',
-        schema_version: '1.0.0'
+        schema_version: '1.1.0'
       },
       idempotency_key: '11111111-1111-4111-8111-111111111111'
     })
@@ -143,7 +143,7 @@ describe('fiveStageExecution store', () => {
     const form = filledOperatorForm()
 
     await store.execute(form, SUBMIT_CONTEXT, { execute })
-    form.zonePlanning.workingTimeHPerDay = 18
+    form.zonePlanning.frozenStorageDays = 45
     await store.execute(form, SUBMIT_CONTEXT, { execute })
 
     expect(execute.mock.calls[0][2].idempotency_key).toBe('11111111-1111-4111-8111-111111111111')
