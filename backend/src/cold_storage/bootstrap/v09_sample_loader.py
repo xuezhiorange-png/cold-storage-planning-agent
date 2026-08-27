@@ -301,7 +301,7 @@ def _assert_v09_zone_snapshot(by_name: dict[str, dict[str, Any]]) -> None:
     if "shipping_channel" not in zone_codes:
         raise RuntimeError("persisted zone plan must include shipping_channel")
     for precool_code in ("primary_precooling_room", "secondary_precooling_room"):
-        precool_zone = _zone_by_code(cast(list[dict[str, Any]], zones), precool_code)
+        precool_zone = _zone_by_code(zones, precool_code)
         schemes = precool_zone.get("schemes")
         if not isinstance(schemes, list) or len(schemes) != 2:
             raise RuntimeError(f"{precool_code} must have exactly two schemes")
