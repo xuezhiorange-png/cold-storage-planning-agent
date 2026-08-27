@@ -237,6 +237,20 @@ cooling_load.py / equipment.py / installed_power.py / investment.py
 | Integration sqlite + postgresql | V0.9 five-field five-stage-execution on unmodified `create_app` persists canonical five; missing KEY zero canonical rows |
 | Frontend architecture | Form fields + submit `operator_process_input` |
 
+### 7.1 Allowlist pressure (do not resolve in P1)
+
+The V0.9 工程输入 recut uses the same Vue files that V0.8 P2
+`test_v08_p2_five_key_operator_form.test.ts` file-scans. P1 MUST NOT
+mutate that test's assertion bodies. Those scans fail until a later
+authorized package updates them. Unversioned
+`frontend/src/stores/fiveStageExecution.test.ts` still expects
+`schema_version` `1.0.0` and V0.8 KEY rotation; it is off this allowlist.
+
+`five_stage_execution.py`, `fiveStageExecution.ts`, and `fiveStageApi.ts`
+needed no production edits: compact payload already reaches the assembler.
+
+`shipping_channel` is not registered on `REFRIGERATED_ZONE_REGISTRY` (P2).
+
 ## 8. Acceptance criteria
 
 ```text
