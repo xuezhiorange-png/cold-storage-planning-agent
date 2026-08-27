@@ -8,6 +8,9 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
+from cold_storage.modules.projects.application.engineering_input_bundle import (
+    OPERATOR_V09_FIVE_KEY_FIELDS,
+)
 from cold_storage.modules.projects.application.service import ProjectService
 from cold_storage.modules.projects.domain.models import ProjectVersion
 from cold_storage.modules.reports.domain.enums import ReportStatus
@@ -82,12 +85,17 @@ class WorkflowAggregateService:
             raise ProjectVersionNotFoundForWorkflowError(project_id, version_number)
 
         inputs = dict(version.input_snapshot or {})
-        validation = self._project_service.validate_inputs(inputs)
         calculations = self._project_service.list_calculations(project_id, version_number)
         calc_by_name = index_canonical_calculation_runs(
             calculations,
             project_id=project_id,
             project_version_id=version.id,
+        )
+        five_stage_complete = not missing_canonical_calculator_names(calc_by_name)
+        validation = _operator_input_validation(
+            inputs=inputs,
+            five_stage_complete=five_stage_complete,
+            validate_inputs=self._project_service.validate_inputs,
         )
 
         scheme_runs: list[dict[str, Any]] = []
@@ -147,9 +155,6 @@ class WorkflowAggregateService:
 
         input_hash = canonical_json_hash(inputs)
         revision_stale_reasons = _collect_stale_reasons(
-            version=version,
-            inputs=inputs,
-            input_hash=input_hash,
             calculations=calc_by_name,
             scheme_runs=scheme_runs,
             scheme_authority=scheme_authority,
@@ -173,10 +178,11 @@ class WorkflowAggregateService:
             agent_projection=agent_projection,
             formal_eligibility=formal_eligibility,
             revision_stale=revision_stale,
+            five_stage_complete=five_stage_complete,
         )
 
         blockers = _collect_blockers(steps)
-        missing_inputs = _build_missing_inputs(inputs, validation)
+        missing_inputs = _build_missing_inputs(validation, five_stage_complete)
         next_actions = _build_next_actions(steps, blockers)
         primary_action_id = next_actions[0]["action_id"] if next_actions else ""
         current_step = _select_current_step(steps)
@@ -331,6 +337,7 @@ class WorkflowAggregateService:
         agent_projection: dict[str, Any],
         formal_eligibility: dict[str, Any],
         revision_stale: bool,
+        five_stage_complete: bool,
     ) -> list[dict[str, Any]]:
         steps: list[dict[str, Any]] = []
         for step in WORKFLOW_STEPS:
@@ -350,6 +357,7 @@ class WorkflowAggregateService:
                 agent_projection=agent_projection,
                 formal_eligibility=formal_eligibility,
                 revision_stale=revision_stale,
+                five_stage_complete=five_stage_complete,
             )
             steps.append(
                 {
@@ -440,16 +448,22 @@ def _evaluate_step(
     agent_projection: dict[str, Any],
     formal_eligibility: dict[str, Any],
     revision_stale: bool,
+    five_stage_complete: bool,
 ) -> tuple[str, bool, list[dict[str, Any]]]:
     blockers: list[dict[str, Any]] = []
     if applicability == "NOT_APPLICABLE":
         return "NOT_APPLICABLE", False, blockers
 
     if step == "PROJECT_INPUT":
-        if not inputs:
-            blockers.append(_blocker("INPUT_MISSING", "Project inputs have not been saved"))
-            return "NOT_STARTED", applicability == "REQUIRED", blockers
-        return "COMPLETED", False, blockers
+        if five_stage_complete or inputs:
+            return "COMPLETED", False, blockers
+        blockers.append(
+            _blocker(
+                "INPUT_MISSING",
+                "OperatorProcessInputV1 five KEY have not been submitted via 工程输入",
+            )
+        )
+        return "NOT_STARTED", applicability == "REQUIRED", blockers
 
     if step == "INPUT_COMPLETENESS":
         missing = list(validation.get("missing_fields", []))
@@ -578,9 +592,6 @@ def _evaluate_step(
 
 def _collect_stale_reasons(
     *,
-    version: ProjectVersion,
-    inputs: dict[str, Any],
-    input_hash: str,
     calculations: dict[str, dict[str, Any]],
     scheme_runs: list[dict[str, Any]],
     scheme_authority: Any | None = None,
@@ -589,12 +600,6 @@ def _collect_stale_reasons(
 ) -> list[str]:
     reasons: list[str] = []
     reasons.extend(detect_canonical_lineage_stale_reasons(calculations))
-    for name, record in calculations.items():
-        snapshot = record.get("input_snapshot")
-        if isinstance(snapshot, dict) and snapshot:
-            calc_input_hash = canonical_json_hash(snapshot)
-            if calc_input_hash != input_hash:
-                reasons.append(f"calculation_input_mismatch:{name}")
     production_combined = _production_combined_source_hash(scheme_runs, scheme_authority)
     if production_combined and scheme_runs:
         run_combined = str(
@@ -620,10 +625,30 @@ def _collect_blockers(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return blockers
 
 
-def _build_missing_inputs(
+def _operator_input_validation(
+    *,
     inputs: dict[str, Any],
+    five_stage_complete: bool,
+    validate_inputs: Callable[..., dict[str, Any]],
+) -> dict[str, Any]:
+    """Operator completeness: five-stage canonical runs, else V0.9 KEY, else leftover snapshot."""
+    if five_stage_complete:
+        return {"valid": True, "missing_fields": [], "tentative_fields": []}
+    if not inputs:
+        return {
+            "valid": False,
+            "missing_fields": list(OPERATOR_V09_FIVE_KEY_FIELDS),
+            "tentative_fields": [],
+        }
+    return validate_inputs(inputs)
+
+
+def _build_missing_inputs(
     validation: dict[str, Any],
+    five_stage_complete: bool,
 ) -> list[dict[str, Any]]:
+    if five_stage_complete:
+        return []
     missing_fields = list(validation.get("missing_fields", []))
     tentative_fields = list(validation.get("tentative_fields", []))
     items: list[dict[str, Any]] = []
@@ -635,9 +660,9 @@ def _build_missing_inputs(
                 "unit": "",
                 "required": True,
                 "status": "missing",
-                "source": "persisted_project_input",
-                "reason": "Required engineering parameter is missing",
-                "remediation": "Provide the field through persisted project inputs",
+                "source": "operator_process_input",
+                "reason": "Required OperatorProcessInputV1 KEY is missing",
+                "remediation": "Submit the five KEY on 工程输入",
             }
         )
     for field in tentative_fields:
@@ -648,22 +673,9 @@ def _build_missing_inputs(
                 "unit": "",
                 "required": True,
                 "status": "tentative",
-                "source": "persisted_project_input",
+                "source": "operator_process_input",
                 "reason": "Input is tentative and requires review",
                 "remediation": "Confirm or replace tentative input values",
-            }
-        )
-    if not items and not inputs:
-        items.append(
-            {
-                "field": "inputs",
-                "label": "inputs",
-                "unit": "",
-                "required": True,
-                "status": "missing",
-                "source": "persisted_project_input",
-                "reason": "No persisted inputs saved for this version",
-                "remediation": "Save project inputs before continuing",
             }
         )
     return items

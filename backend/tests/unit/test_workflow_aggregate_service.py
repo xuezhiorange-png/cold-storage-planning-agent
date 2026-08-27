@@ -469,3 +469,82 @@ def test_workflow_service_is_read_only_surface() -> None:
         if not name.startswith("_") and callable(getattr(service, name))
     ]
     assert public_methods == ["get_workflow_aggregate"]
+
+
+def _seed_canonical_five(service: ProjectService, project_id: str, version_number: int) -> None:
+    from cold_storage.modules.calculations.domain.result import CalculationResult
+    from cold_storage.modules.orchestration.domain.consumer_bindings import (
+        CANONICAL_CALCULATOR_NAMES,
+    )
+
+    for name in sorted(CANONICAL_CALCULATOR_NAMES):
+        service.record_calculation(
+            project_id,
+            version_number,
+            CalculationResult(
+                success=True,
+                calculator_name=name,
+                calculator_version="1.0.0",
+                input={"calculator": name, "not_version_snapshot": True},
+                result={"ok": True},
+                formula_references=[],
+                requires_review=False,
+            ),
+            actor="operator",
+        )
+
+
+def test_empty_version_lists_v09_operator_keys_not_v04_planning_fields() -> None:
+    project_service = ProjectService()
+    project = project_service.create_project("蓝莓冷库规划", "山东", "blueberry")
+    version = project_service.create_version(project.id, "initial", created_by="operator")
+    workflow = WorkflowAggregateService(
+        project_service=project_service,
+        scheme_query=_SchemeQueryStub(),
+    )
+    aggregate = workflow.get_workflow_aggregate(project.id, version.version_number)
+
+    missing_fields = [item["field"] for item in aggregate["missing_inputs"]]
+    assert missing_fields == [
+        "daily_inbound_mass_kg",
+        "finished_storage_days",
+        "frozen_storage_days",
+        "main_packaging_storage_days",
+        "auxiliary_packaging_storage_days",
+    ]
+    assert "working_time_h_per_day" not in missing_fields
+    assert "packaging_storage_days" not in missing_fields
+    assert "utilization_factor" not in missing_fields
+    assert "reserve_factor" not in missing_fields
+    assert aggregate["current_step"] == "PROJECT_INPUT"
+    assert any(blocker["code"] == "INPUT_MISSING" for blocker in aggregate["blockers"])
+
+
+def test_five_stage_runs_complete_input_steps_without_version_snapshot() -> None:
+    project_service = ProjectService()
+    project = project_service.create_project("蓝莓冷库规划", "山东", "blueberry")
+    version = project_service.create_version(project.id, "initial", created_by="operator")
+    _seed_canonical_five(project_service, project.id, version.version_number)
+
+    workflow = WorkflowAggregateService(
+        project_service=project_service,
+        scheme_query=_SchemeQueryStub(),
+    )
+    aggregate = workflow.get_workflow_aggregate(project.id, version.version_number)
+
+    project_input = next(step for step in aggregate["steps"] if step["step"] == "PROJECT_INPUT")
+    completeness = next(step for step in aggregate["steps"] if step["step"] == "INPUT_COMPLETENESS")
+    calculation = next(
+        step for step in aggregate["steps"] if step["step"] == "DETERMINISTIC_CALCULATION"
+    )
+    assert project_input["status"] == "COMPLETED"
+    assert completeness["status"] == "COMPLETED"
+    assert calculation["status"] == "COMPLETED"
+    assert aggregate["missing_inputs"] == []
+    assert not any(blocker["code"] == "INPUT_MISSING" for blocker in aggregate["blockers"])
+    assert aggregate["project_context"]["revision_stale"] is False
+    assert "calculation_input_mismatch" not in " ".join(
+        aggregate["project_context"]["revision_stale_reasons"]
+    )
+    assert aggregate["current_step"] == "SCHEME_COMPARISON"
+    assert any(blocker["code"] == "SCHEME_MISSING" for blocker in aggregate["blockers"])
