@@ -454,12 +454,13 @@ class TestGoldenSerializerMutation:
         missing_manifest = expected_manifest_keys - manifest_keys
         assert not missing_manifest, f"Manifest is missing keys: {missing_manifest}"
 
-        # Verify sections list has all 11 expected section keys + provenance
+        # Verify sections list includes inherited keys plus optional calculation_logic
         section_keys = [s["section_key"] for s in gdict["sections"]]
         expected_sections = {
             "report_metadata",
             "project_summary",
             "input_conditions",
+            "calculation_logic",
             "assumptions",
             "throughput_inventory_area",
             "cooling_load",

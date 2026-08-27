@@ -33,6 +33,9 @@ P3_ALLOWLIST = (
     "backend/tests/test_reports/test_post_v09_p3_calculation_logic.py",
     "backend/tests/test_reports/test_localization.py",
     "backend/tests/unit/test_reports_rendering.py",
+    "backend/tests/test_reports/test_real_production_e2e.py",
+    "backend/tests/test_reports/test_real_storage_e2e.py",
+    "backend/tests/test_reports/test_scheme_provenance_golden_e2e.py",
     "frontend/src/features/reports/architecture/test_post_v09_p3_report_preview.test.ts",
 )
 

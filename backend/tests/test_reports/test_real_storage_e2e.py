@@ -1441,6 +1441,7 @@ class TestRealStorageE2E:
             "report_metadata",
             "project_summary",
             "input_conditions",
+            "calculation_logic",
             "assumptions",
             "throughput_inventory_area",
             "cooling_load",
