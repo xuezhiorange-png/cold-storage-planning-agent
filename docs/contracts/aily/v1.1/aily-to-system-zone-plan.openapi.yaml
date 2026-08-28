@@ -1,0 +1,106 @@
+openapi: 3.1.0
+info:
+  title: Cold Storage Planning Agent → 豆包工作伙伴 zone-plan connector
+  version: 1.1.0
+  description: >
+    Inbound connector. 豆包 owns chat semantics (吨 = per day) and sends the
+    five operator KEY already converted. This system does not parse utterances.
+    It runs cold_room_zone_plan and returns a table. AILY_OUTBOUND_LIVE_SESSION=NO.
+  x-contract-family: aily/v1.1
+  x-direction: aily_to_system
+
+paths:
+  /api/v1/aily/v1/zone-plan:
+    post:
+      operationId: previewZonePlan
+      summary: 用五个过程参数跑分区内核并返回表格
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ZonePlanRequest'
+            examples:
+              five_key_flat:
+                value:
+                  daily_inbound_mass_kg: 20000
+                  finished_storage_days: 7
+                  frozen_storage_days: 10
+                  main_packaging_storage_days: 4
+                  auxiliary_packaging_storage_days: 12
+      responses:
+        '200':
+          description: Zone plan table for 豆包 to render
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZonePlanResponse'
+        '400':
+          description: Missing or invalid KEY; ask the user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorError'
+
+components:
+  schemas:
+    ZonePlanRequest:
+      type: object
+      additionalProperties: true
+      properties:
+        daily_inbound_mass_kg:
+          description: kg/day. 豆包 converts spoken 吨 (always per day) to kg/day.
+        finished_storage_days: {}
+        frozen_storage_days: {}
+        main_packaging_storage_days: {}
+        auxiliary_packaging_storage_days: {}
+        zone_planning_inputs:
+          type: object
+      description: Flat five KEY or OperatorProcessInputV1 envelope
+    ZonePlanResponse:
+      type: object
+      required:
+        - reply_kind
+        - calculator_name
+        - calculator_version
+        - table
+        - markdown_table
+      properties:
+        reply_kind:
+          const: zone_plan_table
+        calculator_name:
+          const: cold_room_zone_plan
+        calculator_version:
+          const: "1.0.0"
+        persisted:
+          type: boolean
+        requires_review:
+          type: boolean
+        table:
+          type: object
+        extra_tables:
+          type: array
+        markdown_table:
+          type: string
+        warnings:
+          type: array
+          items:
+            type: string
+    ConnectorError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            missing_keys:
+              type: array
+              items:
+                type: string
+            ask_operator:
+              type: string

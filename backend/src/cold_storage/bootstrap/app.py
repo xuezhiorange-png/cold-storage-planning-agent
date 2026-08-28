@@ -2026,6 +2026,10 @@ def create_app(
     # Register report routes
     app.include_router(reports_router)
 
+    from cold_storage.modules.aily.api.routes import router as aily_router
+
+    app.include_router(aily_router)
+
     # Seed default templates (P0-3) — lazy, only if engine is available
     _seeded = False
 
