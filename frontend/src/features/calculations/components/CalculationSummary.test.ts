@@ -90,4 +90,13 @@ describe('CalculationSummary', () => {
 
     expect(wrapper.find('.calculation-summary__notice').exists()).toBe(false)
   })
+
+  it('does not render emoji icons on metric cards', () => {
+    const wrapper = mount(CalculationSummary, {
+      props: { summary: createSummary() }
+    })
+
+    expect(wrapper.find('.calculation-summary__icon').exists()).toBe(false)
+    expect(wrapper.text()).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u)
+  })
 })

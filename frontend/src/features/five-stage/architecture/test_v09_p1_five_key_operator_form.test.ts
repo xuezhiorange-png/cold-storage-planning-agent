@@ -77,11 +77,12 @@ describe('V0.9 P1 operator five-KEY workbench guards', () => {
     }
   })
 
-  it('engineering inputs page titles OperatorProcessInputV1 and does not ask for full bundle', () => {
+  it('engineering inputs page titles 工程输入 and does not ask for full bundle', () => {
     const page = readFileSync(FORM_PAGE, 'utf8')
-    expect(page).toContain('OperatorProcessInputV1')
-    expect(page).toContain('操作员过程输入')
-    expect(page).toContain('operator_process_input')
+    expect(page).toContain('工程输入')
+    expect(page).toContain('仅填写五个过程 KEY')
+    expect(page).not.toContain('OperatorProcessInputV1')
+    expect(page).not.toContain('操作员过程输入')
     expect(page).not.toContain('EngineeringInputBundleV1')
     expect(page).not.toContain('workingTimeHPerDay')
     expect(page).not.toContain('precoolingRequiredRatio')

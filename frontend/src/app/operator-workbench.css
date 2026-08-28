@@ -1,0 +1,46 @@
+/* Operator workbench shared tokens — navy identity #071a31 / #123a63 */
+
+:root {
+  --owb-navy-deep: #071a31;
+  --owb-navy-mid: #123a63;
+  --owb-navy-text: #163f68;
+  --owb-surface: #f3f7fb;
+  --owb-border: #c7d4e3;
+  --owb-border-light: #dbe8f6;
+  --owb-muted: #6b7a8f;
+  --owb-muted-soft: #8aa3c2;
+  --owb-page-max-width: 960px;
+  --owb-page-wide-max-width: 1400px;
+  --owb-card-radius: 8px;
+  --owb-page-gap: 16px;
+}
+
+/* Shared page chrome for operator workbench routes */
+.owb-page {
+  width: 100%;
+  max-width: var(--owb-page-max-width);
+}
+
+.owb-page--wide {
+  max-width: var(--owb-page-wide-max-width);
+}
+
+.owb-page__empty {
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--owb-muted);
+  border-radius: var(--owb-card-radius);
+  background: var(--owb-surface);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.owb-page__empty p {
+  margin: 0;
+}
+
+.owb-page__empty p + p {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--owb-muted-soft);
+}

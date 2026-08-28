@@ -25,10 +25,10 @@ const exportPolicyCopy = `${FORMAL_EXPORT_POLICY_COPY}，${DRAFT_EXPORT_POLICY_C
 </script>
 
 <template>
-  <div class="reports-page">
+  <div class="reports-page owb-page">
     <ElCard>
       <template #header>
-        <span>报告输出</span>
+        <span class="reports-page__title">报告输出</span>
       </template>
 
       <p class="reports-page__policy">
@@ -46,8 +46,10 @@ const exportPolicyCopy = `${FORMAL_EXPORT_POLICY_COPY}，${DRAFT_EXPORT_POLICY_C
 </template>
 
 <style scoped>
-.reports-page {
-  max-width: 960px;
+.reports-page__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--owb-navy-deep);
 }
 
 .reports-page__policy {

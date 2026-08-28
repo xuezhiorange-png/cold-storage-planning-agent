@@ -51,14 +51,14 @@ describe('POST-V0.9 P1 hide planning-run nav guards', () => {
     expect(shell).not.toContain('to="/workbench/project"')
   })
 
-  it('investment empty state points operators to 工程输入 and OperatorProcessInputV1', () => {
+  it('investment empty state points operators to 工程输入', () => {
     const content = readFileSync(
       join(FRONTEND_SRC, 'features/investment/components/InvestmentPage.vue'),
       'utf8'
     )
-    expect(content).toContain('暂无投资估算数据。')
+    expect(content).toContain('暂无投资估算数据')
     expect(content).toContain('工程输入')
-    expect(content).toContain('OperatorProcessInputV1')
     expect(content).not.toContain('基本信息')
+    expect(content).not.toContain('OperatorProcessInputV1')
   })
 })

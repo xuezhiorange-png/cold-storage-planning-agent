@@ -72,12 +72,10 @@ async function handleSubmit(): Promise<void> {
 </script>
 
 <template>
-  <div class="engineering-inputs-page">
+  <div class="engineering-inputs-page owb-page">
     <ElCard>
       <template #header>
-        <div class="engineering-inputs-page__header">
-          <span>操作员过程输入 (OperatorProcessInputV1)</span>
-        </div>
+        <span class="engineering-inputs-page__title">工程输入</span>
       </template>
 
       <ElAlert
@@ -85,7 +83,7 @@ async function handleSubmit(): Promise<void> {
         :closable="false"
         show-icon
         title="仅填写五个过程 KEY"
-        description="日入库量、成品储存天数、冻果储存天数、主包材储存天数、辅包材储存天数。提交 operator_process_input；不要填写下游冷负荷/设备/电量/投资 KEY。"
+        description="日入库量、成品储存天数、冻果储存天数、主包材储存天数、辅包材储存天数。提交后将执行五阶段计算。"
         class="engineering-inputs-page__alert"
       />
 
@@ -121,7 +119,7 @@ async function handleSubmit(): Promise<void> {
           :disabled="versionLocked"
           @click="handleSubmit"
         >
-          提交五阶段执行
+          提交
         </ElButton>
       </div>
     </ElCard>
@@ -129,14 +127,10 @@ async function handleSubmit(): Promise<void> {
 </template>
 
 <style scoped>
-.engineering-inputs-page {
-  max-width: 960px;
-}
-
-.engineering-inputs-page__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.engineering-inputs-page__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--owb-navy-deep);
 }
 
 .engineering-inputs-page__alert {
@@ -144,7 +138,7 @@ async function handleSubmit(): Promise<void> {
 }
 
 .engineering-inputs-page__actions {
-  margin-top: 16px;
+  margin-top: 20px;
   display: flex;
   gap: 8px;
 }

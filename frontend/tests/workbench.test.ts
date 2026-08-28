@@ -124,7 +124,7 @@ describe('cold storage workbench', () => {
   it('renders the engineering inputs page by default', async () => {
     const wrapper = mountApp()
 
-    expect(wrapper.text()).toContain('OperatorProcessInputV1')
+    expect(wrapper.text()).toContain('工程输入')
     expect(wrapper.text()).toContain('仅填写五个过程 KEY')
   })
 
