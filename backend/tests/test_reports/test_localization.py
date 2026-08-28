@@ -3706,28 +3706,28 @@ class TestUnitLocalization:
     def test_zh_cn_metric_has_localized_display_unit(self) -> None:
         """Render with zh-CN, check display_unit is Chinese for CNY."""
         model = self._build_model_with_unit(ReportLocale.ZH_CN, "CNY")
-        # Find the cooling_load section which has the metric
         section = next(s for s in model.sections if s.section_key == "cooling_load")
-        assert len(section.metrics) > 0
-        metric = section.metrics[0]
-        assert metric.canonical.unit_code == "CNY"
-        # The display_unit should be the localized label from catalog
+        assert section.table is not None
+        value_cell = section.table.rows[0][1]
+        unit_cell = section.table.rows[0][2]
+        assert value_cell.canonical.unit_code == "CNY"
         zh_display_unit = format_unit_label("CNY", ReportLocale.ZH_CN)
-        assert metric.display_unit == zh_display_unit
-        # zh-CN: 元
-        assert metric.display_unit == "元"
+        assert value_cell.display_unit == zh_display_unit
+        assert unit_cell.display_value == zh_display_unit
+        assert value_cell.display_unit == "元"
 
     def test_en_us_metric_has_localized_display_unit(self) -> None:
         """Render with en-US, check display_unit is English for CNY."""
         model = self._build_model_with_unit(ReportLocale.EN_US, "CNY")
         section = next(s for s in model.sections if s.section_key == "cooling_load")
-        assert len(section.metrics) > 0
-        metric = section.metrics[0]
-        assert metric.canonical.unit_code == "CNY"
+        assert section.table is not None
+        value_cell = section.table.rows[0][1]
+        unit_cell = section.table.rows[0][2]
+        assert value_cell.canonical.unit_code == "CNY"
         en_display_unit = format_unit_label("CNY", ReportLocale.EN_US)
-        assert metric.display_unit == en_display_unit
-        # en-US: CNY
-        assert metric.display_unit == "CNY"
+        assert value_cell.display_unit == en_display_unit
+        assert unit_cell.display_value == en_display_unit
+        assert value_cell.display_unit == "CNY"
 
     def test_unit_code_is_identical_across_locales(self) -> None:
         """Same unit_code for both locales."""
@@ -3736,10 +3736,10 @@ class TestUnitLocalization:
 
         zh_section = next(s for s in zh_model.sections if s.section_key == "cooling_load")
         en_section = next(s for s in en_model.sections if s.section_key == "cooling_load")
-        zh_metric = zh_section.metrics[0]
-        en_metric = en_section.metrics[0]
-        assert zh_metric.canonical.unit_code == en_metric.canonical.unit_code
-        assert zh_metric.canonical.unit_code == "kW(r)"
+        zh_value_cell = zh_section.table.rows[0][1]
+        en_value_cell = en_section.table.rows[0][1]
+        assert zh_value_cell.canonical.unit_code == en_value_cell.canonical.unit_code
+        assert zh_value_cell.canonical.unit_code == "kW(r)"
 
     def test_renderer_uses_display_unit_not_unit_code(self, session_factory) -> None:
         """DOCX contains display_unit text, not raw unit_code for CNY."""
