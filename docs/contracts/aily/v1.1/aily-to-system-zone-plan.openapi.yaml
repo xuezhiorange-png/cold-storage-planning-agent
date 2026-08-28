@@ -28,6 +28,15 @@ paths:
                   frozen_storage_days: 10
                   main_packaging_storage_days: 4
                   auxiliary_packaging_storage_days: 12
+              tonne_unit_leaf:
+                value:
+                  daily_inbound_mass_kg:
+                    value: 20
+                    unit: 吨
+                  finished_storage_days: 7
+                  frozen_storage_days: 10
+                  main_packaging_storage_days: 4
+                  auxiliary_packaging_storage_days: 12
       responses:
         '200':
           description: Zone plan table for 豆包 to render
@@ -41,6 +50,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConnectorError'
+              examples:
+                missing_frozen_storage_days:
+                  value:
+                    error:
+                      code: MISSING_ENGINEERING_PARAMETER
+                      message: OperatorProcessInputV1 five KEY are incomplete
+                      missing_keys:
+                        - frozen_storage_days
+                      ask_operator: 请提供：冻果储存天数
 
 components:
   schemas:
