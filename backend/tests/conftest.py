@@ -80,7 +80,7 @@ def sample_client(sample_app):
 
 @pytest.fixture(autouse=True, scope="session")
 def ensure_cjk_font():
-    """Fail fast if the CJK font (fonts-wqy-zenhei) is not installed."""
+    """Fail fast if no CJK-capable font can be resolved for PDF rendering."""
     try:
         import fitz
 
@@ -98,5 +98,5 @@ def ensure_cjk_font():
     except Exception as exc:
         pytest.fail(
             f"CJK font not available: {exc}. "
-            "Install fonts-wqy-zenhei (apt-get install -y fonts-wqy-zenhei)."
+            "Install fonts-wqy-zenhei, or rely on the PyMuPDF builtin china-s fallback."
         )

@@ -164,9 +164,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
+        fonts-wqy-zenhei \
         tesseract-ocr \
         tesseract-ocr-eng \
         tesseract-ocr-chi-sim \
+    && test -f /usr/share/fonts/truetype/wqy/wqy-zenhei.ttc \
     && tesseract --version \
     && tesseract --list-langs | grep -Fx 'eng' \
     && tesseract --list-langs | grep -Fx 'chi_sim' \
