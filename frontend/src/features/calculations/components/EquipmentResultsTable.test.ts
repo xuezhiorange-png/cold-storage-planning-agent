@@ -50,6 +50,7 @@ describe('EquipmentResultsTable', () => {
     expect(wrapper.text()).toContain('150')
     expect(wrapper.text()).toContain('electric')
     expect(wrapper.text()).toContain('蒸发器总制冷量')
+    expect(wrapper.text()).toContain('项目')
   })
 
   it('lists persisted systems array without deriving capacities', () => {
@@ -74,5 +75,7 @@ describe('EquipmentResultsTable', () => {
 
     expect(wrapper.text()).toContain('S1')
     expect(wrapper.text()).toContain('冷冻系统')
+    expect(wrapper.text()).toContain('系统编码')
+    expect(wrapper.text()).toContain('系统名称')
   })
 })

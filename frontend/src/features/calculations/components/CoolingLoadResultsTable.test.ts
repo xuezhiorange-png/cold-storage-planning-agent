@@ -55,6 +55,8 @@ describe('CoolingLoadResultsTable', () => {
 
     expect(wrapper.text()).toContain('120.5')
     expect(wrapper.text()).toContain('总冷负荷')
+    expect(wrapper.text()).toContain('项目')
+    expect(wrapper.text()).toContain('数值')
     expect(wrapper.text()).not.toContain('0.00 kW(r)')
   })
 
@@ -129,5 +131,6 @@ describe('CoolingLoadResultsTable', () => {
 
     expect(wrapper.text()).toContain('Q = m * cp * dT')
     expect(wrapper.text()).toContain('Q_sensible')
+    expect(wrapper.text()).toContain('计算依据')
   })
 })

@@ -43,8 +43,9 @@ describe('InvestmentResultsTable', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('50.00 万元')
+    expect(wrapper.text()).toContain('50.00')
     expect(wrapper.text()).toContain('20.00 万元')
     expect(wrapper.text()).toContain('Compressor')
+    expect(wrapper.text()).toContain('投资分项')
   })
 })

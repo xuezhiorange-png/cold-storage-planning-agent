@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ZoneResultContract } from '../../../api/contracts/planning'
+import { formatAisleLayout, formatSchemeId } from './persistedResultLabels'
 
 defineProps<{
   zones: ZoneResultContract[]
@@ -83,12 +84,12 @@ function hasShippingDocks(zone: ZoneResultContract): boolean {
                     <strong>预冷方案</strong>
                     <ul class="zone-results-table__scheme-list">
                       <li v-for="scheme in zone.schemes" :key="scheme.scheme_id">
-                        {{ scheme.scheme_id }}：间数 {{ scheme.room_count }}，板位
+                        {{ formatSchemeId(scheme.scheme_id) }}：间数 {{ scheme.room_count }}，板位
                         {{ scheme.position_count }}，面积 {{ formatNumber(scheme.required_area_m2) }} m²
                       </li>
                     </ul>
                     <span v-if="zone.reporting_scheme_id" class="zone-results-table__reporting-scheme">
-                      6位汇报方案：{{ zone.reporting_scheme_id }}
+                      6位汇报方案：{{ formatSchemeId(zone.reporting_scheme_id) }}
                     </span>
                   </div>
                   <div v-if="zone.n_need != null" class="zone-results-table__detail-block">
@@ -97,7 +98,7 @@ function hasShippingDocks(zone: ZoneResultContract): boolean {
                     <span v-if="zone.n_actual != null">，实际 {{ zone.n_actual }}</span>
                     <span v-if="zone.unused_cells != null">，空余 {{ zone.unused_cells }}</span>
                     <span v-if="packedDimensions(zone)">，排布 {{ packedDimensions(zone) }}</span>
-                    <span v-if="zone.aisle_layout">，通道 {{ zone.aisle_layout }}</span>
+                    <span v-if="zone.aisle_layout">，通道 {{ formatAisleLayout(zone.aisle_layout) }}</span>
                   </div>
                   <div v-if="hasShippingDocks(zone)" class="zone-results-table__detail-block">
                     <strong>出货通道</strong>

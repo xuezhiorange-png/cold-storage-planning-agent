@@ -197,13 +197,13 @@ describe('ZoneResultsTable', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('6_position')
-    expect(wrapper.text()).toContain('8_position')
+    expect(wrapper.text()).toContain('6位间')
+    expect(wrapper.text()).toContain('8位间')
     expect(wrapper.text()).toContain('间数 3')
     expect(wrapper.text()).toContain('间数 2')
     expect(wrapper.text()).toContain('270 m²')
     expect(wrapper.text()).toContain('272 m²')
-    expect(wrapper.text()).toContain('6位汇报方案：6_position')
+    expect(wrapper.text()).toContain('6位汇报方案：6位间')
     expect(wrapper.text()).toContain('18')
     expect(wrapper.text()).not.toContain('16 m²')
   })
@@ -235,7 +235,7 @@ describe('ZoneResultsTable', () => {
     expect(wrapper.text()).toContain('实际 28')
     expect(wrapper.text()).toContain('空余 4')
     expect(wrapper.text()).toContain('7×4')
-    expect(wrapper.text()).toContain('three_side_3m')
+    expect(wrapper.text()).toContain('三面通道')
   })
 
   it('reads packed dimensions from layout object when top-level n_long/n_short absent', () => {
