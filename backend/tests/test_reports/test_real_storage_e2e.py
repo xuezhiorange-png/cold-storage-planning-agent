@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import tempfile
+import unicodedata
 from dataclasses import replace
 from io import BytesIO
 from typing import Any
@@ -367,6 +368,11 @@ def _extract_pdf_text(pdf_bytes: bytes) -> str:
         return "\n".join(text_parts)
     finally:
         doc.close()
+
+
+def _pdf_contains(haystack: str, needle: str) -> bool:
+    """Compare after NFKC so PDF CJK compatibility glyphs match catalog headings."""
+    return unicodedata.normalize("NFKC", needle) in unicodedata.normalize("NFKC", haystack)
 
 
 def _render_artifact(
@@ -1092,7 +1098,7 @@ class TestRealStorageE2E:
 
         # Section titles (zh-CN localized)
         for title in EXPECTED_ZH_CN["section_titles"]:
-            assert title in text, f"zh-CN PDF missing section title: {title!r}"
+            assert _pdf_contains(text, title), f"zh-CN PDF missing section title: {title!r}"
 
         # Business content — exact expected values from data provider
         assert "Blueberry Cold Storage" in text, (
@@ -1116,9 +1122,9 @@ class TestRealStorageE2E:
         assert "500" in text, "zh-CN PDF should contain compressor capacity 500"
         assert "350" in text, "zh-CN PDF should contain installed power 350"
 
-        # Field labels — exact Chinese localized labels
+        # Field labels — exact Chinese localized labels (NFKC: PDF CJK 量 glyphs)
         for field_key, field_label in EXPECTED_ZH_CN["field_labels"].items():
-            assert field_label in text, (
+            assert _pdf_contains(text, field_label), (
                 f"zh-CN PDF should contain field label {field_label!r} (field.{field_key})"
             )
 
@@ -1210,7 +1216,7 @@ class TestRealStorageE2E:
 
         # Section titles (en-US localized)
         for title in EXPECTED_EN_US["section_titles"]:
-            assert title in text, f"en-US PDF missing section title: {title!r}"
+            assert _pdf_contains(text, title), f"en-US PDF missing section title: {title!r}"
 
         # Business content — exact expected values from data provider
         assert "Blueberry Cold Storage" in text, (
@@ -1876,7 +1882,9 @@ class TestRealStorageE2E:
 
         pdf_text = _extract_pdf_text(reloaded_bytes)
         for title in ZH_CN_TITLES:
-            assert title in pdf_text, f"zh-CN PDF (reloaded) missing section title: {title!r}"
+            assert _pdf_contains(pdf_text, title), (
+                f"zh-CN PDF (reloaded) missing section title: {title!r}"
+            )
 
     def test_real_storage_artifact_survives_database_reload_en_us_pdf(
         self,
@@ -1971,4 +1979,6 @@ class TestRealStorageE2E:
 
         pdf_text = _extract_pdf_text(reloaded_bytes)
         for title in EN_US_TITLES:
-            assert title in pdf_text, f"en-US PDF (reloaded) missing section title: {title!r}"
+            assert _pdf_contains(pdf_text, title), (
+                f"en-US PDF (reloaded) missing section title: {title!r}"
+            )

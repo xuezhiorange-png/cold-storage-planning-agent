@@ -412,6 +412,8 @@ class ZoneEntry(BaseModel):
     frozen_fruit_ratio: str | None = None
     frozen_storage_days: int | None = None
     packaging_position_area_m2: str | None = None
+    packaging_area_factor_k: str | None = None
+    frozen_deduction_ratio: str | None = None
     pallet_count: int | None = None
     truck_count: int | None = None
     platform_count: int | None = None
@@ -437,6 +439,8 @@ class ZoneEntry(BaseModel):
         "secondary_fruit_ratio",
         "frozen_fruit_ratio",
         "packaging_position_area_m2",
+        "packaging_area_factor_k",
+        "frozen_deduction_ratio",
         mode="before",
     )
     @classmethod

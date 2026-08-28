@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import re
+import unicodedata
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -162,19 +163,29 @@ def _fold_whitespace(text: str) -> str:
     Permitted per the P1-3 contract:
         - remove leading/trailing whitespace
         - collapse pure-typographic runs of whitespace
+        - Unicode NFKC so CJK compatibility ideographs from PDF
+          font round-trips (e.g. U+F97E → 量) match the catalog
+          heading and cell text
     NOT permitted:
         - rewriting decimal/thousands separators
         - fuzzy numeric tolerance
         - dropping sign or unit
     """
 
-    return " ".join(text.split())
+    return " ".join(unicodedata.normalize("NFKC", text).split())
 
 
 def _strings_equal_folded(a: str, b: str) -> bool:
     """Compare two strings after whitespace folding only."""
 
     return _fold_whitespace(a) == _fold_whitespace(b)
+
+
+def _is_pdf_draft_watermark_text(text: str) -> bool:
+    """True for renderer draft watermarks, which must not bound sections."""
+
+    compact = "".join(_fold_whitespace(text).split()).casefold()
+    return compact in {"draft", "草稿"}
 
 
 # ── DOCX observation ──────────────────────────────────────────────────────
@@ -536,6 +547,7 @@ _PAGE_DECORATION_MARGIN_FRACTION = 0.10
 _Y_TOLERANCE = 2.0  # pixels for clustering lines into rows
 _GRID_Y_TOLERANCE = 1.5  # grid line clustering (sub-pixel)
 _GRID_X_TOLERANCE = 1.5
+_PDF_VISUAL_HEADING_SIZE = 13.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -681,7 +693,10 @@ def _observe_pdf(data: bytes) -> _PdfObservation:
                     # Image block — skip text extraction.
                     continue
                 for line_index, line in enumerate(block.get("lines", [])):
-                    line_text = "".join(span.get("text", "") for span in line.get("spans", []))
+                    line_text = unicodedata.normalize(
+                        "NFKC",
+                        "".join(span.get("text", "") for span in line.get("spans", [])),
+                    )
                     line_bbox_tuple = line.get("bbox", (0.0, 0.0, 0.0, 0.0))
                     line_max_font_size = max(
                         (float(span.get("size", 0.0)) for span in line.get("spans", [])),
@@ -704,7 +719,7 @@ def _observe_pdf(data: bytes) -> _PdfObservation:
                             )
                         )
                     for span in line.get("spans", []):
-                        span_text = span.get("text", "")
+                        span_text = unicodedata.normalize("NFKC", span.get("text", ""))
                         if not span_text:
                             continue
                         span_bbox = span.get("bbox", (0.0, 0.0, 0.0, 0.0))
@@ -1587,12 +1602,70 @@ def _is_pdf_table_continuation(
     return current.page_number in section_page_set
 
 
+def _section_lines_without_next_section_pages(
+    *,
+    pdf_observation: _PdfObservation,
+    section_lines: tuple[_PdfLine, ...] | list[_PdfLine],
+    known_section_headings: frozenset[str] = frozenset(),
+    current_heading_text: str = "",
+) -> tuple[_PdfLine, ...]:
+    """Drop lines that sit on a later page that already starts another section.
+
+    ``PdfRenderer`` emits each section on a new page. Observation
+    order puts that next page's running header/footer *before* the
+    next section heading, so the previous section's line range can
+    leak onto the next page. Compact engineering tables share the
+    same headers (``项目``/``数值``/``单位``), and that leak
+    reconstructs two logical tables → ``AMBIGUOUS_FIELD_BINDING``.
+
+    Only *catalog section titles* count as foreign headings.
+    Draft watermarks and cover lines are large but must not drop
+    a table continuation page. When no heading catalog is
+    supplied (unit tests calling reconstruction directly), the
+    line range is left unchanged.
+    """
+
+    folded_known = {_fold_whitespace(heading) for heading in known_section_headings if heading}
+    current_folded = _fold_whitespace(current_heading_text) if current_heading_text else ""
+    if not current_folded:
+        for line in section_lines:
+            if line.max_font_size < _PDF_VISUAL_HEADING_SIZE:
+                continue
+            folded = _fold_whitespace(line.text)
+            if folded and folded in folded_known:
+                current_folded = folded
+                break
+    if not current_folded or not folded_known:
+        return tuple(section_lines)
+
+    own_heading_pages = {
+        line.page_number
+        for line in section_lines
+        if line.max_font_size >= _PDF_VISUAL_HEADING_SIZE
+        and _fold_whitespace(line.text) == current_folded
+    }
+    foreign_pages = {
+        line.page_number
+        for line in pdf_observation.all_lines
+        if line.max_font_size >= _PDF_VISUAL_HEADING_SIZE
+        and _fold_whitespace(line.text) in folded_known
+        and _fold_whitespace(line.text) != current_folded
+    }
+    return tuple(
+        line
+        for line in section_lines
+        if line.page_number not in foreign_pages or line.page_number in own_heading_pages
+    )
+
+
 def _build_logical_tables_for_section(
     *,
     pdf_observation: _PdfObservation,
     section_key: str,
     section_line_range: tuple[int, int],
     expected_headers: tuple[str, ...],
+    known_section_headings: frozenset[str] = frozenset(),
+    current_heading_text: str = "",
 ) -> tuple[_PdfLogicalTable, ...]:
     """Build ``_PdfLogicalTable``s for one section from grid geometry.
 
@@ -1626,7 +1699,12 @@ def _build_logical_tables_for_section(
     if not expected_headers:
         return ()
     start, end = section_line_range
-    section_lines = pdf_observation.all_lines[start:end]
+    section_lines = _section_lines_without_next_section_pages(
+        pdf_observation=pdf_observation,
+        section_lines=pdf_observation.all_lines[start:end],
+        known_section_headings=known_section_headings,
+        current_heading_text=current_heading_text,
+    )
     if not section_lines:
         return ()
     # ── P1-3 fifth corrective (Finding 1) ──
@@ -2171,6 +2249,11 @@ def _resolve_pdf_section_scopes(
         # model — the verifier must not extend the canonical
         # section's scope across that second heading).
         elif line.max_font_size >= 13.0 and folded:
+            if _is_pdf_draft_watermark_text(line.text):
+                # Rotated DRAFT/草稿 watermarks are ~60–72pt and sit
+                # outside the table grid. They must not terminate a
+                # section or drop a continuation page.
+                continue
             # A visually-large line is treated as a section seam
             # ONLY when it sits OUTSIDE a coherent table grid on its
             # page. Real renderer artifacts repeat the table header
@@ -3599,6 +3682,10 @@ def _semantic_checks(
         # cell-binding path finds the unique header match by
         # structural identity — see ``_find_table_cell_binding``.
         if pdf_observation.grid_segments:
+            heading_by_key = {
+                scope.section_key: scope.heading_text for scope in section_scopes_spec
+            }
+            known_headings = frozenset(heading_by_key.values())
             for section_key, scope_range in resolved_scopes.items():
                 expected = section_table_headers.get(section_key, ())
                 if not expected:
@@ -3608,6 +3695,8 @@ def _semantic_checks(
                     section_key=section_key,
                     section_line_range=scope_range,
                     expected_headers=expected,
+                    known_section_headings=known_headings,
+                    current_heading_text=heading_by_key.get(section_key, ""),
                 )
                 pdf_logical_tables = pdf_logical_tables + tables
         # Per P1-3 sixth corrective Finding 5: compute the

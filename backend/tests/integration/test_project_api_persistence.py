@@ -74,7 +74,7 @@ def test_project_api_persists_inputs_calculations_and_audit(tmp_path: Path) -> N
     assert zone_plan["calculator_name"] == "cold_room_zone_plan"
     assert zone_plan["result"]["zones"][7]["zone_name"] == "成品间"
     assert zone_plan["result"]["zones"][7]["temperature_band"] == "1~3℃"
-    assert zone_plan["result"]["zones"][7]["design_storage_mass_kg"] == 62_500
+    assert zone_plan["result"]["zones"][7]["design_storage_mass_kg"] == 56_250
     assert zone_plan["result"]["zones"][10]["position_count"] == 90
     assert zone_plan["requires_review"] is True
 
@@ -83,7 +83,7 @@ def test_project_api_persists_inputs_calculations_and_audit(tmp_path: Path) -> N
         json={},
     ).json()
     assert investment["calculator_name"] == "investment_estimate"
-    assert investment["result"]["total_investment_cny"] == 8296109.5
+    assert investment["result"]["total_investment_cny"] == 6923009.5
     assert [item["item_name"] for item in investment["result"]["items"]] == [
         "土建及钢结构",
         "冷库制冷设备",
@@ -121,7 +121,7 @@ def test_project_api_persists_inputs_calculations_and_audit(tmp_path: Path) -> N
     assert planning_run["zone_plan"]["result"]["zones"][3]["raw_position_count"] == 10
     assert planning_run["zone_plan"]["result"]["zones"][3]["position_count"] == 12
     assert planning_run["zone_plan"]["result"]["zones"][4]["design_storage_mass_kg"] == 12_500
-    assert planning_run["zone_plan"]["result"]["zones"][7]["position_count"] == 152
+    assert planning_run["zone_plan"]["result"]["zones"][7]["position_count"] == 136
     assert planning_run["zone_plan"]["result"]["zones"][9]["design_storage_mass_kg"] == 25_000
     assert planning_run["zone_plan"]["result"]["zones"][10]["position_count"] == 137
     assert planning_run["summary"]["total_power_kw"] == 1360.55

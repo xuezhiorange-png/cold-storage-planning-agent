@@ -79,6 +79,8 @@ _MESSAGES: dict[str, str] = {
     "field.storage_capacity_kg": "Storage Capacity",
     "field.total_area_m2": "Total Area",
     "field.condenser_heat_rejection": "Condenser Heat Rejection",
+    "field.condenser_type": "Condenser Type",
+    "field.scheme_name": "Scheme Name",
     # ── Provenance fields ──
     "field.content_hash": "Content Hash",
     "field.canonical_hash": "Canonical Hash",

@@ -123,9 +123,7 @@ def test_input_conditions_renders_parameter_value_unit_table() -> None:
 
 def test_throughput_inventory_area_renders_zone_table_without_full_dict_dump() -> None:
     canonical = _canonical_model()
-    section = next(
-        s for s in canonical.sections if s.section_key == "throughput_inventory_area"
-    )
+    section = next(s for s in canonical.sections if s.section_key == "throughput_inventory_area")
 
     assert section.content_type_code == "table"
     assert section.table is not None

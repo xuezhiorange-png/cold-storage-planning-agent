@@ -1772,6 +1772,40 @@ def _cmd_run(args: argparse.Namespace) -> int:
         # maps to 4; the typed code is surfaced for downstream
         # debugging via the ``code=<typed-code>`` stderr prefix).
         sys.stderr.write(f"PILOT_VERIFICATION_ERROR code={exc.code}: {exc}\n")
+        checks = exc.details.get("checks") if isinstance(exc.details, dict) else None
+        if isinstance(checks, dict):
+            failures = [
+                {
+                    "field_path": row.get("field_path"),
+                    "binding_status": row.get("binding_status"),
+                    "section_key": row.get("section_key"),
+                    "display_value": row.get("display_value"),
+                    "display_unit": row.get("display_unit"),
+                    "row_index": row.get("row_index"),
+                    "column_index": row.get("column_index"),
+                }
+                for row in checks.get("observed_numeric_fields") or []
+                if isinstance(row, dict)
+                and (
+                    row.get("binding_status") not in (None, "BOUND")
+                    or row.get("field_path") in set(checks.get("numeric_mismatches") or [])
+                )
+            ]
+            sys.stderr.write(
+                json.dumps(
+                    {
+                        "locale": checks.get("locale") or exc.details.get("locale"),
+                        "format": checks.get("format") or exc.details.get("format"),
+                        "missing_sections": checks.get("missing_sections"),
+                        "missing_units": checks.get("missing_units"),
+                        "numeric_mismatches": checks.get("numeric_mismatches"),
+                        "binding_failures": failures,
+                    },
+                    ensure_ascii=False,
+                    sort_keys=True,
+                )
+                + "\n"
+            )
         return EXIT_VERIFIER_ERROR
 
 

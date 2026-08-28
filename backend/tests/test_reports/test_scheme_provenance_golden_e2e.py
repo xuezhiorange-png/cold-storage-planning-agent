@@ -8,6 +8,7 @@ Task C: Complete bilingual DOCX/PDF file content parsing E2E
 from __future__ import annotations
 
 import hashlib
+import unicodedata
 from io import BytesIO
 from typing import Any
 
@@ -233,6 +234,20 @@ def _render_docx(model: LocalizedReportRenderModel, *, is_draft: bool = False) -
     from cold_storage.modules.reports.renderers.docx_renderer import DocxRenderer
 
     return DocxRenderer().render(model, is_draft=is_draft)
+
+
+def _extract_pdf_text(pdf_bytes: bytes) -> str:
+    """Extract PDF text via PyMuPDF. Title matching uses ``_pdf_contains``."""
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    try:
+        return "".join(page.get_text() for page in doc)
+    finally:
+        doc.close()
+
+
+def _pdf_contains(haystack: str, needle: str) -> bool:
+    """Compare after NFKC so PDF CJK compatibility glyphs match catalog headings."""
+    return unicodedata.normalize("NFKC", needle) in unicodedata.normalize("NFKC", haystack)
 
 
 # ======================================================================
@@ -661,11 +676,7 @@ class TestRealFullSchemaDocxPdf:
         _, _, zh_pdf_bytes, en_pdf_bytes, _, _ = self._render_all_four()
 
         # --- ZH PDF ---
-        zh_doc = fitz.open(stream=zh_pdf_bytes, filetype="pdf")
-        zh_text = ""
-        for page in zh_doc:
-            zh_text += page.get_text()
-        zh_doc.close()
+        zh_text = _extract_pdf_text(zh_pdf_bytes)
 
         zh_section_titles = [
             "报告元数据",
@@ -684,7 +695,7 @@ class TestRealFullSchemaDocxPdf:
             "出处信息",
         ]
         for title in zh_section_titles:
-            assert title in zh_text, f"ZH PDF missing section title: {title!r}"
+            assert _pdf_contains(zh_text, title), f"ZH PDF missing section title: {title!r}"
 
         assert "Blueberry Cold Storage" in zh_text or "蓝莓" in zh_text
         assert "方案A" in zh_text
@@ -692,11 +703,7 @@ class TestRealFullSchemaDocxPdf:
         assert "450" in zh_text
 
         # --- EN PDF ---
-        en_doc = fitz.open(stream=en_pdf_bytes, filetype="pdf")
-        en_text = ""
-        for page in en_doc:
-            en_text += page.get_text()
-        en_doc.close()
+        en_text = _extract_pdf_text(en_pdf_bytes)
 
         en_section_titles = [
             "Report Metadata",
@@ -715,7 +722,7 @@ class TestRealFullSchemaDocxPdf:
             "Provenance",
         ]
         for title in en_section_titles:
-            assert title in en_text, f"EN PDF missing section title: {title!r}"
+            assert _pdf_contains(en_text, title), f"EN PDF missing section title: {title!r}"
 
         assert "Blueberry Cold Storage" in en_text
         assert "450" in en_text
@@ -736,18 +743,10 @@ class TestRealFullSchemaDocxPdf:
         assert "DRAFT" in en_docx_text, "EN DOCX should contain 'DRAFT' watermark text"
 
         # --- PDF text contains watermark ---
-        zh_pdf_doc = fitz.open(stream=zh_pdf_bytes, filetype="pdf")
-        zh_pdf_text = ""
-        for page in zh_pdf_doc:
-            zh_pdf_text += page.get_text()
-        zh_pdf_doc.close()
+        zh_pdf_text = _extract_pdf_text(zh_pdf_bytes)
         assert "草稿" in zh_pdf_text, "ZH PDF should contain '草稿' watermark text"
 
-        en_pdf_doc = fitz.open(stream=en_pdf_bytes, filetype="pdf")
-        en_pdf_text = ""
-        for page in en_pdf_doc:
-            en_pdf_text += page.get_text()
-        en_pdf_doc.close()
+        en_pdf_text = _extract_pdf_text(en_pdf_bytes)
         assert "DRAFT" in en_pdf_text, "EN PDF should contain 'DRAFT' watermark text"
 
     def test_four_real_render_inputs_have_identical_canonical_snapshot(self) -> None:
@@ -818,16 +817,8 @@ class TestRealFullSchemaDocxPdf:
     def test_pdf_disclaimer_text_present(self) -> None:
         """Both ZH and EN PDF renderings contain disclaimer text."""
         _, _, zh_pdf_bytes, en_pdf_bytes, _, _ = self._render_all_four()
-        zh_doc = fitz.open(stream=zh_pdf_bytes, filetype="pdf")
-        zh_text = ""
-        for page in zh_doc:
-            zh_text += page.get_text()
-        zh_doc.close()
-        en_doc = fitz.open(stream=en_pdf_bytes, filetype="pdf")
-        en_text = ""
-        for page in en_doc:
-            en_text += page.get_text()
-        en_doc.close()
+        zh_text = _extract_pdf_text(zh_pdf_bytes)
+        en_text = _extract_pdf_text(en_pdf_bytes)
 
         assert len(zh_text) > 0
         assert len(en_text) > 0
@@ -850,11 +841,7 @@ class TestRealFullSchemaDocxPdf:
     def test_risks_and_citations_in_pdf(self) -> None:
         """PDF contains risks, missing information, and citations text."""
         _, _, _, en_pdf_bytes, _, _ = self._render_all_four()
-        en_doc = fitz.open(stream=en_pdf_bytes, filetype="pdf")
-        en_text = ""
-        for page in en_doc:
-            en_text += page.get_text()
-        en_doc.close()
+        en_text = _extract_pdf_text(en_pdf_bytes)
 
         # Missing information description should appear
         assert "soil thermal conductivity" in en_text.lower(), (

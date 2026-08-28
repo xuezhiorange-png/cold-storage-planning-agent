@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, TypeGuard
 
 from cold_storage.modules.projects.application.engineering_input_bundle import (
     OPERATOR_V09_FIVE_KEY_FIELDS,
@@ -118,7 +118,7 @@ def _section_level(section_key: str) -> int:
     return 1
 
 
-def _is_measured_value(obj: Any) -> bool:
+def _is_measured_value(obj: Any) -> TypeGuard[dict[str, Any]]:
     """Return True if obj looks like a measured value dict (value + unit)."""
     return isinstance(obj, dict) and "value" in obj and "unit" in obj
 
@@ -168,7 +168,7 @@ def _extract_text_fields(data: dict[str, Any]) -> dict[str, str]:
 def _extract_canonical_metrics(prefix: str, d: dict[str, Any]) -> list[CanonicalRenderMetric]:
     """Extract canonical metrics from nested dict."""
     metrics: list[CanonicalRenderMetric] = []
-    for k, v in d.items():
+    for k, v in sorted(d.items(), key=lambda item: str(item[0])):
         if _is_measured_value(v):
             unit = v.get("unit", "")
             metrics.append(
@@ -193,7 +193,7 @@ def _extract_top_level_canonical_metrics(
 ) -> list[CanonicalRenderMetric]:
     """Extract measured values from top-level keys only (no nested projection)."""
     metrics: list[CanonicalRenderMetric] = []
-    for k, v in d.items():
+    for k, v in sorted(d.items(), key=lambda item: str(item[0])):
         if _is_measured_value(v):
             unit = v.get("unit", "")
             metrics.append(
@@ -869,7 +869,7 @@ def _build_throughput_inventory_area_section(
         )
 
     text_fields: dict[str, str] = {}
-    for summary_key in ("daily_inbound_mass_kg", "total_area_m2"):
+    for summary_key in ("daily_inbound_mass_kg", "total_area_m2", "storage_capacity_kg"):
         summary_value = _coerce_scalar_numeric(data, summary_key)
         if summary_value is not None:
             text_fields[summary_key] = str(summary_value)
@@ -936,7 +936,7 @@ def _build_throughput_inventory_area_section(
                     CanonicalRenderTableCell(
                         field_path="throughput_inventory_area.total",
                         field_key="header.total",
-                        raw_value="",
+                        raw_value="total",
                     ),
                     CanonicalRenderTableCell(
                         field_path="throughput_inventory_area.total.temperature_band",
@@ -1197,9 +1197,7 @@ def _build_engineering_metrics_table_section(
         unit_codes=tuple(unit_codes),
     )
 
-    text_fields = _extract_text_fields(
-        {k: v for k, v in data.items() if not _is_measured_value(v)}
-    )
+    text_fields = _extract_text_fields({k: v for k, v in data.items() if not _is_measured_value(v)})
 
     return CanonicalRenderSection(
         section_key=section_key,

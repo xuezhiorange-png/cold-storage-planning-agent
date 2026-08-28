@@ -79,6 +79,8 @@ _MESSAGES: dict[str, str] = {
     "field.storage_capacity_kg": "存储容量",
     "field.total_area_m2": "总面积",
     "field.condenser_heat_rejection": "冷凝器排热量",
+    "field.condenser_type": "冷凝器型式",
+    "field.scheme_name": "方案名称",
     # ── Provenance fields ──
     "field.content_hash": "内容哈希",
     "field.canonical_hash": "规范哈希",

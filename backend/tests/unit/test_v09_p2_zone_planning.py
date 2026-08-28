@@ -8,6 +8,7 @@ import pytest
 
 from cold_storage.modules.calculations.domain.zone_planning import (
     COATING_AREA_BY_BAND_M2,
+    FORMULA_AUTHORITY,
     FROZEN_FRUIT_RATIO,
     OFFICE_AREA_BY_BAND_M2,
     PACKAGING_K_BY_BAND,
@@ -21,7 +22,6 @@ from cold_storage.modules.calculations.domain.zone_planning import (
     SHIPPING_PLATFORM_AREA_M2,
     ColdRoomZonePlanInput,
     ColdRoomZonePlanner,
-    FORMULA_AUTHORITY,
 )
 
 
@@ -214,17 +214,15 @@ def test_v09_p2_zone_planning_matches_section4_oracles(
     raw_need = ceil(daily_mass_kg * 0.40 / 220)
     raw_layout = _pack_rectangle_oracle(
         raw_need,
-        lambda n_long, n_short: (n_long * 1.2 + RAW_AISLE_M + RAW_AISLE_M)
-        * (n_short * 1.3 + RAW_AISLE_M),
+        lambda n_long, n_short: (
+            (n_long * 1.2 + RAW_AISLE_M + RAW_AISLE_M) * (n_short * 1.3 + RAW_AISLE_M)
+        ),
     )
     worker_count = ceil(daily_mass_kg / PERSON_DAILY_CAPACITY_KG)
     table_need = ceil(worker_count / 3)
     sorting_layout = _pack_rectangle_oracle(
         table_need,
-        lambda n_long, n_short: (
-            max(n_long - 1, 0) * 5.6 + 8
-        )
-        * (max(n_short - 1, 0) * 3.0 + 7.6),
+        lambda n_long, n_short: (max(n_long - 1, 0) * 5.6 + 8) * (max(n_short - 1, 0) * 3.0 + 7.6),
     )
     finished_mass = daily_mass_kg * (1 - FROZEN_FRUIT_RATIO) * finished_storage_days
     finished_need = ceil(finished_mass / 400)

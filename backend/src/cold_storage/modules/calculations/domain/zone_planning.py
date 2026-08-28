@@ -440,7 +440,9 @@ class ColdRoomZonePlanner:
             requires_review=True,
         )
 
-    def _area_by_throughput_band(self, mass_tons: float, areas: tuple[float, float, float]) -> float:
+    def _area_by_throughput_band(
+        self, mass_tons: float, areas: tuple[float, float, float]
+    ) -> float:
         if mass_tons < 25:
             return areas[0]
         if mass_tons < 50:
@@ -565,9 +567,7 @@ class ColdRoomZonePlanner:
 
     def _finished_goods_zone(self, data: ColdRoomZonePlanInput) -> dict[str, object]:
         design_storage_mass = (
-            data.daily_inbound_mass_kg
-            * (1 - FROZEN_FRUIT_RATIO)
-            * data.finished_storage_days
+            data.daily_inbound_mass_kg * (1 - FROZEN_FRUIT_RATIO) * data.finished_storage_days
         )
         n_need = (
             0
@@ -755,14 +755,8 @@ class ColdRoomZonePlanner:
         return self._pack_rectangle(
             n_need,
             lambda n_long, n_short: (
-                (
-                    max(n_long - 1, 0) * PACKING_TABLE_PITCH_LONG_M
-                    + SORTING_CLEARANCE_LONG_M
-                )
-                * (
-                    max(n_short - 1, 0) * PACKING_TABLE_PITCH_SHORT_M
-                    + SORTING_CLEARANCE_SHORT_M
-                )
+                (max(n_long - 1, 0) * PACKING_TABLE_PITCH_LONG_M + SORTING_CLEARANCE_LONG_M)
+                * (max(n_short - 1, 0) * PACKING_TABLE_PITCH_SHORT_M + SORTING_CLEARANCE_SHORT_M)
             ),
         )
 
