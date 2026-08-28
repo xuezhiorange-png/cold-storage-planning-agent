@@ -10,9 +10,7 @@ from cold_storage.modules.projects.application.engineering_input_bundle import (
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RUNBOOK_PATH = REPO_ROOT / "docs" / "runbooks" / "v11-doubao-aily-connector.md"
-CONTRACT_PATH = (
-    REPO_ROOT / "docs" / "tasks" / "V1_1-P4-feishu-import-runbook-contract.md"
-)
+CONTRACT_PATH = REPO_ROOT / "docs" / "tasks" / "V1_1-P4-feishu-import-runbook-contract.md"
 OPENAPI_PATH = (
     REPO_ROOT / "docs" / "contracts" / "aily" / "v1.1" / "aily-to-system-zone-plan.openapi.yaml"
 )
