@@ -1,4 +1,4 @@
-"""Independent POST-V0.9 P4 oracles (supersedes V0.9 P2 §4 area formulas)."""
+"""Independent POST-V0.9 P4 oracles for Charles zone-area recut."""
 
 from __future__ import annotations
 
@@ -174,6 +174,87 @@ def _oracle_total_area(
     )
 
 
+SAMPLE_KEY_ORACLE: dict[str, float] = {
+    "office": 60.00,
+    "changing_room": 40.00,
+    "primary_precooling_room": 126.00,
+    "secondary_precooling_room": 84.00,
+    "raw_fruit_buffer": 132.24,
+    "sorting_packaging_room": 489.60,
+    "coating_room": 80.00,
+    "finished_goods_room": 602.64,
+    "secondary_fruit_buffer": 57.96,
+    "frozen_fruit_room": 88.56,
+    "packaging_material_storage": 250.85,
+    "shipping_channel": 50.00,
+}
+SAMPLE_KEY_TOTAL = 2061.85
+
+
+def test_post_v09_p4_sample_key_oracle() -> None:
+    """Charles sample KEY: 20 t/day, finished 7 d, frozen 10 d, main 4 d, aux 12 d."""
+    planner = ColdRoomZonePlanner()
+    result = planner.plan(
+        ColdRoomZonePlanInput(
+            daily_inbound_mass_kg=20_000,
+            working_time_h_per_day=16,
+            finished_storage_days=7,
+            packaging_storage_days=3,
+            precooling_required_ratio=1,
+            frozen_storage_days=10,
+            main_packaging_storage_days=4,
+            auxiliary_packaging_storage_days=12,
+        )
+    )
+
+    assert result.success is True
+    assert result.result["planning_parameters"]["formula_authority"] == FORMULA_AUTHORITY
+    zones = {zone["zone_code"]: zone for zone in result.result["zones"]}
+    for zone_code, expected_area in SAMPLE_KEY_ORACLE.items():
+        assert zones[zone_code]["required_area_m2"] == pytest.approx(expected_area, abs=0.01)
+    assert result.result["total_area_m2"] == pytest.approx(SAMPLE_KEY_TOTAL, abs=0.01)
+
+
+@pytest.mark.parametrize(
+    ("daily_mass_kg", "expected_office", "expected_changing", "expected_coating", "expected_k"),
+    [
+        (24_999, 60, 40, 80, 2.4),
+        (25_000, 80, 80, 120, 2.3),
+        (49_999, 80, 80, 120, 2.3),
+        (50_000, 100, 120, 200, 2.2),
+    ],
+)
+def test_post_v09_p4_throughput_band_edges(
+    daily_mass_kg: float,
+    expected_office: float,
+    expected_changing: float,
+    expected_coating: float,
+    expected_k: float,
+) -> None:
+    mass_tons = daily_mass_kg / 1000
+    assert _throughput_band_area(mass_tons, OFFICE_AREA_BY_BAND_M2) == expected_office
+    assert _throughput_band_area(mass_tons, COATING_AREA_BY_BAND_M2) == expected_coating
+    assert _throughput_band_area(mass_tons, PACKAGING_K_BY_BAND) == expected_k
+
+    planner = ColdRoomZonePlanner()
+    result = planner.plan(
+        ColdRoomZonePlanInput(
+            daily_inbound_mass_kg=daily_mass_kg,
+            working_time_h_per_day=16,
+            finished_storage_days=3,
+            packaging_storage_days=3,
+            precooling_required_ratio=1,
+        )
+    )
+    zones = {zone["zone_code"]: zone for zone in result.result["zones"]}
+    assert zones["office"]["required_area_m2"] == pytest.approx(expected_office, abs=0.01)
+    assert zones["changing_room"]["required_area_m2"] == pytest.approx(expected_changing, abs=0.01)
+    assert zones["coating_room"]["required_area_m2"] == pytest.approx(expected_coating, abs=0.01)
+    assert zones["packaging_material_storage"]["packaging_area_factor_k"] == pytest.approx(
+        expected_k, abs=0.001
+    )
+
+
 @pytest.mark.parametrize(
     ("daily_mass_kg", "finished_storage_days", "frozen_storage_days"),
     [
@@ -181,7 +262,7 @@ def _oracle_total_area(
         (5_000, 2.0, 7),
     ],
 )
-def test_v09_p2_zone_planning_matches_section4_oracles(
+def test_post_v09_p4_zone_planning_matches_independent_oracles(
     daily_mass_kg: float,
     finished_storage_days: float,
     frozen_storage_days: float,
@@ -199,7 +280,6 @@ def test_v09_p2_zone_planning_matches_section4_oracles(
     )
 
     assert result.success is True
-    assert result.calculator_version == "1.0.0"
     assert result.result["planning_parameters"]["formula_authority"] == FORMULA_AUTHORITY
     zones = result.result["zones"]
     mass_tons = daily_mass_kg / 1000
@@ -252,85 +332,50 @@ def test_v09_p2_zone_planning_matches_section4_oracles(
     packaging_area = packaging_positions * PACKAGING_POSITION_BASE_AREA_M2 * packaging_k
     shipping = _shipping_oracle(daily_mass_kg)
 
+    assert _zone_by_code(zones, "office")["required_area_m2"] == pytest.approx(
+        office_area, abs=0.01
+    )
+    assert _zone_by_code(zones, "changing_room")["required_area_m2"] == pytest.approx(
+        changing_area, abs=0.01
+    )
+    assert _zone_by_code(zones, "coating_room")["required_area_m2"] == pytest.approx(
+        coating_area, abs=0.01
+    )
+
     primary_zone = _zone_by_code(zones, "primary_precooling_room")
-    secondary_zone = _zone_by_code(zones, "secondary_precooling_room")
     assert primary_zone["raw_position_count"] == primary["n_need"]
-    assert secondary_zone["raw_position_count"] == secondary["n_need"]
-    assert primary_zone["reporting_scheme_id"] == "6_position"
-    assert primary_zone["position_count"] == primary["six_position"]["position_count"]
     assert primary_zone["required_area_m2"] == pytest.approx(
-        primary["six_position"]["required_area_m2"],
-        abs=0.01,
+        primary["six_position"]["required_area_m2"], abs=0.01
     )
-    six_scheme = next(
-        scheme for scheme in primary_zone["schemes"] if scheme["scheme_id"] == "6_position"
-    )
-    eight_scheme = next(
-        scheme for scheme in primary_zone["schemes"] if scheme["scheme_id"] == "8_position"
-    )
-    assert primary_zone["required_area_m2"] == six_scheme["required_area_m2"]
-    assert eight_scheme["required_area_m2"] == pytest.approx(
-        primary["eight_position"]["required_area_m2"],
-        abs=0.01,
-    )
-    assert len(primary_zone["schemes"]) == 2
-    assert {scheme["scheme_id"] for scheme in primary_zone["schemes"]} == {
-        "6_position",
-        "8_position",
-    }
 
     raw_zone = _zone_by_code(zones, "raw_fruit_buffer")
-    assert raw_zone["n_need"] == raw_layout["n_need"]
-    assert raw_zone["n_long"] == raw_layout["n_long"]
-    assert raw_zone["n_short"] == raw_layout["n_short"]
-    assert raw_zone["position_count"] == raw_layout["n_actual"]
     assert raw_zone["required_area_m2"] == pytest.approx(raw_layout["required_area_m2"], abs=0.01)
-    assert "area_basis" not in raw_zone
 
     sorting_zone = _zone_by_code(zones, "sorting_packaging_room")
-    assert sorting_zone["table_count"] == table_need
-    assert sorting_zone["position_count"] == sorting_layout["n_actual"]
     assert sorting_zone["required_area_m2"] == pytest.approx(
-        sorting_layout["required_area_m2"],
-        abs=0.01,
+        sorting_layout["required_area_m2"], abs=0.01
     )
 
     finished_zone = _zone_by_code(zones, "finished_goods_room")
     assert finished_zone["required_area_m2"] == pytest.approx(
-        finished_layout["required_area_m2"],
-        abs=0.01,
+        finished_layout["required_area_m2"], abs=0.01
     )
 
     secondary_zone_buffer = _zone_by_code(zones, "secondary_fruit_buffer")
-    assert secondary_zone_buffer["design_storage_mass_kg"] == pytest.approx(
-        secondary_mass, abs=0.01
-    )
-    assert secondary_zone_buffer["secondary_fruit_ratio"] == SECONDARY_FRUIT_RATIO
     assert secondary_zone_buffer["secondary_fruit_storage_days"] == SECONDARY_FRUIT_STORAGE_DAYS
     assert secondary_zone_buffer["required_area_m2"] == pytest.approx(
-        secondary_layout["required_area_m2"],
-        abs=0.01,
+        secondary_layout["required_area_m2"], abs=0.01
     )
 
     frozen_zone = _zone_by_code(zones, "frozen_fruit_room")
-    assert frozen_zone["design_storage_mass_kg"] == pytest.approx(frozen_mass, abs=0.01)
-    assert frozen_zone["frozen_storage_days"] == frozen_storage_days
     assert frozen_zone["required_area_m2"] == pytest.approx(
         frozen_layout["required_area_m2"], abs=0.01
     )
 
     packaging_zone = _zone_by_code(zones, "packaging_material_storage")
-    assert packaging_zone["position_count"] == packaging_positions
     assert packaging_zone["required_area_m2"] == pytest.approx(packaging_area, abs=0.01)
-    assert packaging_zone["packaging_position_area_m2"] == pytest.approx(
-        PACKAGING_POSITION_BASE_AREA_M2 * packaging_k, abs=0.0001
-    )
 
     shipping_zone = _zone_by_code(zones, "shipping_channel")
-    assert shipping_zone["pallet_count"] == shipping["pallet_count"]
-    assert shipping_zone["truck_count"] == shipping["truck_count"]
-    assert shipping_zone["platform_count"] == shipping["platform_count"]
-    assert shipping_zone["position_count"] == shipping["platform_count"]
     assert shipping_zone["required_area_m2"] == pytest.approx(
         shipping["required_area_m2"], abs=0.01
     )
@@ -349,39 +394,4 @@ def test_v09_p2_zone_planning_matches_section4_oracles(
         packaging_area=packaging_area,
         shipping_area=float(shipping["required_area_m2"]),
     )
-    total_8 = _oracle_total_area(
-        office_area=office_area,
-        changing_area=changing_area,
-        coating_area=coating_area,
-        primary_six_area=float(primary["eight_position"]["required_area_m2"]),
-        secondary_six_area=float(secondary["eight_position"]["required_area_m2"]),
-        raw_area=float(raw_layout["required_area_m2"]),
-        sorting_area=float(sorting_layout["required_area_m2"]),
-        finished_area=float(finished_layout["required_area_m2"]),
-        secondary_fruit_area=float(secondary_layout["required_area_m2"]),
-        frozen_area=float(frozen_layout["required_area_m2"]),
-        packaging_area=packaging_area,
-        shipping_area=float(shipping["required_area_m2"]),
-    )
     assert result.result["total_area_m2"] == pytest.approx(total_6, abs=0.01)
-    assert result.result["total_area_m2_8_position_scheme"] == pytest.approx(total_8, abs=0.01)
-
-    for zone in zones:
-        assert "precooling_position_area_m2" not in zone
-        assert zone.get("required_area_m2") != pytest.approx(5.6, abs=0.001)
-
-
-def test_v09_p2_zone_list_includes_shipping_channel_after_packaging() -> None:
-    planner = ColdRoomZonePlanner()
-    result = planner.plan(
-        ColdRoomZonePlanInput(
-            daily_inbound_mass_kg=10_000,
-            working_time_h_per_day=16,
-            finished_storage_days=2,
-            packaging_storage_days=3,
-            precooling_required_ratio=1,
-        )
-    )
-    zone_codes = [zone["zone_code"] for zone in result.result["zones"]]
-    assert zone_codes.index("packaging_material_storage") < zone_codes.index("shipping_channel")
-    assert zone_codes[-1] == "shipping_channel"

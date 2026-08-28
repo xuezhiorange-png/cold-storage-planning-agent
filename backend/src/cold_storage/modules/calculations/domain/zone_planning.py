@@ -9,6 +9,7 @@ from cold_storage.modules.calculations.domain.result import (
 )
 
 VERSION = "1.0.0"
+FORMULA_AUTHORITY = "POST-V0.9-P4-charles-zone-area-recut"
 
 PALLET_PITCH_ALONG_WALL_M = 1.2
 PALLET_PITCH_DEPTH_M = 1.3
@@ -17,9 +18,9 @@ ASPECT_RATIO_MAX = 2.40
 ASPECT_RATIO_TARGET = 2.0
 
 PRIMARY_PRECOOL_Q_D_KG_DAY = 220 * 6
-SECONDARY_PRECOOL_Q_D_KG_DAY = 200 * 16
-PRECOOL_SIX_POSITION_ROOM_AREA_M2 = 52
-PRECOOL_EIGHT_POSITION_ROOM_AREA_M2 = 68
+SECONDARY_PRECOOL_Q_D_KG_DAY = 3200
+PRECOOL_SIX_POSITION_ROOM_AREA_M2 = 42
+PRECOOL_EIGHT_POSITION_ROOM_AREA_M2 = 56
 PRECOOL_SIX_POSITIONS_PER_ROOM = 6
 PRECOOL_EIGHT_POSITIONS_PER_ROOM = 8
 
@@ -28,30 +29,32 @@ RAW_FRUIT_PALLET_WEIGHT_KG = 220
 FINISHED_GOODS_PALLET_WEIGHT_KG = 400
 FROZEN_GOODS_PALLET_WEIGHT_KG = 600
 SECONDARY_FRUIT_RATIO = 0.10
-SECONDARY_FRUIT_STORAGE_DAYS = 3
+SECONDARY_FRUIT_STORAGE_DAYS = 2
 FROZEN_FRUIT_RATIO = 0.10
 
-STORAGE_AISLE_M = 3.0
-PACKING_TABLE_PITCH_LONG_M = 5.5
-PACKING_TABLE_PITCH_SHORT_M = 3.5
-PACKING_AISLE_M = 4.0
-PACKING_PIECES_PER_PERSON_HOUR = 16
-PACKING_WEIGHT_PER_PIECE_KG = 1.5
-PACKING_WORKING_HOURS_PER_DAY = 16
+RAW_AISLE_M = 2.2
+STORAGE_ONE_AISLE_M = 3.0
+
+PACKING_TABLE_PITCH_LONG_M = 5.6
+PACKING_TABLE_PITCH_SHORT_M = 3.0
+SORTING_CLEARANCE_LONG_M = 3.0 + 5.0
+SORTING_CLEARANCE_SHORT_M = 3.0 + 4.6
 WORKERS_PER_PACKING_TABLE = 3
-PERSON_DAILY_CAPACITY_KG = (
-    PACKING_PIECES_PER_PERSON_HOUR * PACKING_WEIGHT_PER_PIECE_KG * PACKING_WORKING_HOURS_PER_DAY
-)
+PERSON_DAILY_CAPACITY_KG = 384
 
 PACKAGING_POSITION_BASE_AREA_M2 = 1.56
-PACKAGING_AREA_FACTOR = 2.5
 
 SHIPPING_PALLET_WEIGHT_KG = 400
 SHIPPING_PALLETS_PER_TRUCK = 16
 SHIPPING_TRUCKS_PER_PLATFORM_PER_DAY = 4
-SHIPPING_PLATFORM_AREA_M2 = 55
+SHIPPING_PLATFORM_AREA_M2 = 50
 
 REPORTING_PRECOOL_SCHEME_ID = "6_position"
+
+OFFICE_AREA_BY_BAND_M2 = (60, 80, 100)
+CHANGING_AREA_BY_BAND_M2 = (40, 80, 120)
+COATING_AREA_BY_BAND_M2 = (80, 120, 200)
+PACKAGING_K_BY_BAND = (2.4, 2.3, 2.2)
 
 
 @dataclass(frozen=True)
@@ -83,9 +86,9 @@ class ColdRoomZonePlanInput:
     pallet_longitudinal_gap_m: float = 0.3
     storage_area_factor: float = 1.2
     precooling_position_area_m2: float = 5.6
-    packing_pieces_per_person_hour: float = PACKING_PIECES_PER_PERSON_HOUR
-    packing_weight_per_piece_kg: float = PACKING_WEIGHT_PER_PIECE_KG
-    packing_working_hours_per_day: float = PACKING_WORKING_HOURS_PER_DAY
+    packing_pieces_per_person_hour: float = 16
+    packing_weight_per_piece_kg: float = 1.5
+    packing_working_hours_per_day: float = 16
     workers_per_packing_table: float = WORKERS_PER_PACKING_TABLE
     packing_table_horizontal_spacing_m: float = PACKING_TABLE_PITCH_LONG_M
     packing_table_vertical_spacing_m: float = PACKING_TABLE_PITCH_SHORT_M
@@ -163,112 +166,112 @@ class ColdRoomZonePlanner:
                 "原果暂存单位面积承载量",
                 240,
                 "kg/m2",
-                "V0.9 §4 已替代为托盘矩形排布，不再作为面积依据",
+                "POST-V0.9 P4 已替代为托盘矩形排布，不再作为面积依据",
             ),
             "primary_precooling_area_loading": DemoZoneCoefficient(
                 "primary_precooling_area_loading",
                 "一级预冷间单位面积日处理量",
                 620,
                 "kg/day/m2",
-                "V0.9 §4 已替代为双方案模块面积，不再作为面积依据",
+                "POST-V0.9 P4 已替代为双方案模块面积，不再作为面积依据",
             ),
             "secondary_precooling_area_loading": DemoZoneCoefficient(
                 "secondary_precooling_area_loading",
                 "二级预冷间单位面积日处理量",
                 550,
                 "kg/day/m2",
-                "V0.9 §4 已替代为双方案模块面积，不再作为面积依据",
+                "POST-V0.9 P4 已替代为双方案模块面积，不再作为面积依据",
             ),
             "sorting_area_loading": DemoZoneCoefficient(
                 "sorting_area_loading",
                 "分选包装间单位面积日处理量",
                 420,
                 "kg/day/m2",
-                "V0.9 §4 已替代为分选台矩形排布，不再作为面积依据",
+                "POST-V0.9 P4 已替代为分选台矩形排布，不再作为面积依据",
             ),
             "coating_area_loading": DemoZoneCoefficient(
                 "coating_area_loading",
                 "覆膜间单位面积日处理量",
                 500,
                 "kg/day/m2",
-                "V0.9 §4 为固定面积，不再作为面积依据",
+                "POST-V0.9 P4 为吨位分档固定面积，不再作为面积依据",
             ),
             "storage_area_loading": DemoZoneCoefficient(
                 "storage_area_loading",
                 "成品间单位面积储量",
                 216,
                 "kg/m2",
-                "V0.9 §4 已替代为托盘矩形排布，不再作为面积依据",
+                "POST-V0.9 P4 已替代为托盘矩形排布，不再作为面积依据",
             ),
             "secondary_fruit_ratio": DemoZoneCoefficient(
                 "secondary_fruit_ratio",
                 "次果比例",
                 0.08,
                 "ratio",
-                "V0.9 §4 面积使用硬编码 10%，此演示系数仅保留元数据",
+                "POST-V0.9 P4 面积使用硬编码 10%，此演示系数仅保留元数据",
             ),
             "secondary_fruit_area_loading": DemoZoneCoefficient(
                 "secondary_fruit_area_loading",
                 "次果暂存单位面积承载量",
                 220,
                 "kg/m2",
-                "V0.9 §4 已替代为托盘矩形排布，不再作为面积依据",
+                "POST-V0.9 P4 已替代为托盘矩形排布，不再作为面积依据",
             ),
             "frozen_fruit_ratio": DemoZoneCoefficient(
                 "frozen_fruit_ratio",
                 "冻果比例",
                 0.05,
                 "ratio",
-                "V0.9 §4 面积使用硬编码 10%，此演示系数仅保留元数据",
+                "POST-V0.9 P4 面积使用硬编码 10%，此演示系数仅保留元数据",
             ),
             "frozen_storage_days": DemoZoneCoefficient(
                 "frozen_storage_days",
                 "冻果暂存天数",
                 14,
                 "day",
-                "V0.9 面积使用 operator frozen_storage_days KEY",
+                "POST-V0.9 P4 面积使用 operator frozen_storage_days KEY",
             ),
             "frozen_area_loading": DemoZoneCoefficient(
                 "frozen_area_loading",
                 "冻果间单位面积储量",
                 320,
                 "kg/m2",
-                "V0.9 §4 已替代为托盘矩形排布，不再作为面积依据",
+                "POST-V0.9 P4 已替代为托盘矩形排布，不再作为面积依据",
             ),
             "office_area_per_t_day": DemoZoneCoefficient(
                 "office_area_per_t_day",
                 "办公室单位日处理吨位面积",
                 1.2,
                 "m2/(t/day)",
-                "V0.9 §4 为固定面积，不再作为面积依据",
+                "POST-V0.9 P4 为吨位分档固定面积，不再作为面积依据",
             ),
             "changing_area_per_t_day": DemoZoneCoefficient(
                 "changing_area_per_t_day",
                 "更衣室单位日处理吨位面积",
                 0.8,
                 "m2/(t/day)",
-                "V0.9 §4 为固定面积，不再作为面积依据",
+                "POST-V0.9 P4 为吨位分档固定面积，不再作为面积依据",
             ),
             "packaging_area_per_t_day": DemoZoneCoefficient(
                 "packaging_area_per_t_day",
                 "包材库单位吨日库存面积",
                 0.6685,
                 "m2/(t/day*day)",
-                "V0.9 §4 已替代为位面积 1.56×2.5",
+                "POST-V0.9 P4 已替代为位面积 1.56×k(M_t)",
             ),
             "precooling_position_daily_capacity_kg": DemoZoneCoefficient(
                 "precooling_position_daily_capacity_kg",
                 "预冷板位单位日处理量",
                 1250,
                 "kg/day/position",
-                "V0.9 §4 已替代为托盘日处理量公式",
+                "POST-V0.9 P4 已替代为托盘日处理量公式",
             ),
             "storage_position_capacity_kg": DemoZoneCoefficient(
                 "storage_position_capacity_kg",
                 "存储板位单位容量",
                 500,
                 "kg/position",
-                "V0.9 §4 已替代为各区域托盘重量",
+                "POST-V0.9 P4 已替代为各区域托盘重量",
             ),
         }
 
@@ -293,13 +296,14 @@ class ColdRoomZonePlanner:
             )
 
         daily_mass = data.daily_inbound_mass_kg
+        mass_tons = daily_mass / 1000
         zones = [
             self._fixed_zone(
                 "office",
                 "办公室",
                 "常温",
                 "生产管理、品控记录、访客和日常办公",
-                data.office_fixed_area_m2,
+                self._area_by_throughput_band(mass_tons, OFFICE_AREA_BY_BAND_M2),
                 daily_mass,
             ),
             self._fixed_zone(
@@ -307,7 +311,7 @@ class ColdRoomZonePlanner:
                 "更衣室",
                 "常温",
                 "人员更衣、洗手消毒和进入洁净作业区缓冲",
-                data.changing_fixed_area_m2,
+                self._area_by_throughput_band(mass_tons, CHANGING_AREA_BY_BAND_M2),
                 daily_mass,
             ),
             self._precooling_zone(
@@ -337,18 +341,19 @@ class ColdRoomZonePlanner:
                 "覆膜间",
                 "1~3℃",
                 "覆膜作业和覆膜后低温缓冲",
-                data.coating_fixed_area_m2,
+                self._area_by_throughput_band(mass_tons, COATING_AREA_BY_BAND_M2),
                 daily_mass,
             ),
             self._finished_goods_zone(data),
             self._secondary_fruit_buffer_zone(data),
             self._frozen_fruit_zone(data),
-            self._packaging_material_zone(data),
+            self._packaging_material_zone(data, mass_tons),
             self._shipping_channel_zone(daily_mass),
         ]
 
         total_area_6 = sum(self._number(zone["required_area_m2"]) for zone in zones)
         total_area_8 = self._total_area_with_eight_position_precool(zones)
+        packaging_k = self._packaging_area_factor_k(mass_tons)
 
         return CalculationResult(
             success=True,
@@ -362,7 +367,7 @@ class ColdRoomZonePlanner:
                 "total_area_m2": round(total_area_6, 2),
                 "total_area_m2_8_position_scheme": round(total_area_8, 2),
                 "planning_parameters": {
-                    "formula_authority": "V0.9-version-plan-section-4",
+                    "formula_authority": FORMULA_AUTHORITY,
                     "raw_storage_ratio": data.raw_storage_ratio,
                     "finished_storage_days": data.finished_storage_days,
                     "frozen_storage_days": data.frozen_storage_days,
@@ -383,16 +388,12 @@ class ColdRoomZonePlanner:
                         * data.secondary_precooling_working_hours_per_day,
                         2,
                     ),
-                    "packing_person_daily_capacity_kg": round(
-                        data.packing_pieces_per_person_hour
-                        * data.packing_weight_per_piece_kg
-                        * data.packing_working_hours_per_day,
-                        2,
-                    ),
+                    "packing_person_daily_capacity_kg": PERSON_DAILY_CAPACITY_KG,
                     "packaging_position_area_m2": round(
-                        PACKAGING_POSITION_BASE_AREA_M2 * PACKAGING_AREA_FACTOR,
+                        PACKAGING_POSITION_BASE_AREA_M2 * packaging_k,
                         4,
                     ),
+                    "packaging_area_factor_k": packaging_k,
                     "reporting_precool_scheme_id": REPORTING_PRECOOL_SCHEME_ID,
                     "dataclass_override_note": (
                         "Non-default dataclass fields override §4 written-dead "
@@ -424,7 +425,7 @@ class ColdRoomZonePlanner:
             coefficients=[item.to_reference() for item in self._coefficients.values()],
             assumptions=[
                 (
-                    "V0.9 §4 书面锁定工时与面积公式；"
+                    "POST-V0.9 P4 Charles 2026-08-28 书面锁定工时与面积公式；"
                     "operator KEY 仅提供 M、成品天数、冻果天数、包材天数。"
                 ),
                 "所有区域面积为概念设计阶段估算值，需结合工艺、货架、通道、消防和建筑条件复核。",
@@ -438,6 +439,16 @@ class ColdRoomZonePlanner:
             ],
             requires_review=True,
         )
+
+    def _area_by_throughput_band(self, mass_tons: float, areas: tuple[float, float, float]) -> float:
+        if mass_tons < 25:
+            return areas[0]
+        if mass_tons < 50:
+            return areas[1]
+        return areas[2]
+
+    def _packaging_area_factor_k(self, mass_tons: float) -> float:
+        return self._area_by_throughput_band(mass_tons, PACKAGING_K_BY_BAND)
 
     def _fixed_zone(
         self,
@@ -539,7 +550,7 @@ class ColdRoomZonePlanner:
             if design_storage_mass <= 0
             else ceil(design_storage_mass / data.raw_fruit_pallet_weight_kg)
         )
-        layout = self._pack_three_side_aisle_rectangle(n_need)
+        layout = self._pack_three_side_aisle_rectangle(n_need, RAW_AISLE_M)
         return self._storage_layout_zone(
             zone_code="raw_fruit_buffer",
             zone_name="原果暂存间",
@@ -549,17 +560,21 @@ class ColdRoomZonePlanner:
             design_storage_mass_kg=design_storage_mass,
             pallet_weight_kg=data.raw_fruit_pallet_weight_kg,
             layout=layout,
-            aisle_layout="three_side_3m",
+            aisle_layout="three_side_2.2m",
         )
 
     def _finished_goods_zone(self, data: ColdRoomZonePlanInput) -> dict[str, object]:
-        design_storage_mass = data.daily_inbound_mass_kg * data.finished_storage_days
+        design_storage_mass = (
+            data.daily_inbound_mass_kg
+            * (1 - FROZEN_FRUIT_RATIO)
+            * data.finished_storage_days
+        )
         n_need = (
             0
             if design_storage_mass <= 0
             else ceil(design_storage_mass / data.finished_goods_pallet_weight_kg)
         )
-        layout = self._pack_three_side_aisle_rectangle(n_need)
+        layout = self._pack_one_long_side_aisle_rectangle(n_need)
         return self._storage_layout_zone(
             zone_code="finished_goods_room",
             zone_name="成品间",
@@ -569,7 +584,8 @@ class ColdRoomZonePlanner:
             design_storage_mass_kg=design_storage_mass,
             pallet_weight_kg=data.finished_goods_pallet_weight_kg,
             layout=layout,
-            aisle_layout="three_side_3m",
+            aisle_layout="one_long_side_3m",
+            frozen_deduction_ratio=FROZEN_FRUIT_RATIO,
         )
 
     def _secondary_fruit_buffer_zone(self, data: ColdRoomZonePlanInput) -> dict[str, object]:
@@ -652,15 +668,10 @@ class ColdRoomZonePlanner:
         return zone
 
     def _sorting_packaging_zone(self, data: ColdRoomZonePlanInput) -> dict[str, object]:
-        person_daily_capacity = (
-            data.packing_pieces_per_person_hour
-            * data.packing_weight_per_piece_kg
-            * data.packing_working_hours_per_day
-        )
-        worker_count = ceil(data.daily_inbound_mass_kg / person_daily_capacity)
+        worker_count = ceil(data.daily_inbound_mass_kg / PERSON_DAILY_CAPACITY_KG)
         table_count_need = ceil(worker_count / data.workers_per_packing_table)
-        layout = self._pack_four_side_aisle_rectangle(table_count_need)
-        table_area = data.packing_table_horizontal_spacing_m * data.packing_table_vertical_spacing_m
+        layout = self._pack_sorting_rectangle(table_count_need)
+        table_area = PACKING_TABLE_PITCH_LONG_M * PACKING_TABLE_PITCH_SHORT_M
         return {
             "zone_code": "sorting_packaging_room",
             "zone_name": "分选包装间",
@@ -670,18 +681,21 @@ class ColdRoomZonePlanner:
             "design_storage_mass_kg": 0,
             "worker_count": worker_count,
             "table_count": table_count_need,
-            "person_daily_capacity_kg_day": round(person_daily_capacity, 2),
+            "person_daily_capacity_kg_day": PERSON_DAILY_CAPACITY_KG,
             "packing_table_area_m2": round(table_area, 2),
-            "aisle_layout": "four_side_4m",
+            "aisle_layout": "four_side_architectural",
             "position_count": layout.n_actual,
             "required_area_m2": round(layout.required_area_m2, 2),
             "requires_review": True,
             **layout.to_dict(),
         }
 
-    def _packaging_material_zone(self, data: ColdRoomZonePlanInput) -> dict[str, object]:
+    def _packaging_material_zone(
+        self, data: ColdRoomZonePlanInput, mass_tons: float
+    ) -> dict[str, object]:
         position_count = self._packaging_position_count(data)
-        position_area_m2 = PACKAGING_POSITION_BASE_AREA_M2 * PACKAGING_AREA_FACTOR
+        packaging_k = self._packaging_area_factor_k(mass_tons)
+        position_area_m2 = PACKAGING_POSITION_BASE_AREA_M2 * packaging_k
         return {
             "zone_code": "packaging_material_storage",
             "zone_name": "包材库",
@@ -691,6 +705,7 @@ class ColdRoomZonePlanner:
             "design_storage_mass_kg": 0,
             "position_count": position_count,
             "packaging_position_area_m2": round(position_area_m2, 4),
+            "packaging_area_factor_k": packaging_k,
             "required_area_m2": round(position_count * position_area_m2, 2),
             "requires_review": True,
         }
@@ -716,12 +731,14 @@ class ColdRoomZonePlanner:
             "requires_review": True,
         }
 
-    def _pack_three_side_aisle_rectangle(self, n_need: int) -> PackedRectangleLayout:
+    def _pack_three_side_aisle_rectangle(
+        self, n_need: int, aisle_m: float = RAW_AISLE_M
+    ) -> PackedRectangleLayout:
         return self._pack_rectangle(
             n_need,
             lambda n_long, n_short: (
-                (n_long * PALLET_PITCH_ALONG_WALL_M + STORAGE_AISLE_M + STORAGE_AISLE_M)
-                * (n_short * PALLET_PITCH_DEPTH_M + STORAGE_AISLE_M)
+                (n_long * PALLET_PITCH_ALONG_WALL_M + aisle_m + aisle_m)
+                * (n_short * PALLET_PITCH_DEPTH_M + aisle_m)
             ),
         )
 
@@ -730,16 +747,22 @@ class ColdRoomZonePlanner:
             n_need,
             lambda n_long, n_short: (
                 (n_long * PALLET_PITCH_ALONG_WALL_M)
-                * (n_short * PALLET_PITCH_DEPTH_M + STORAGE_AISLE_M)
+                * (n_short * PALLET_PITCH_DEPTH_M + STORAGE_ONE_AISLE_M)
             ),
         )
 
-    def _pack_four_side_aisle_rectangle(self, n_need: int) -> PackedRectangleLayout:
+    def _pack_sorting_rectangle(self, n_need: int) -> PackedRectangleLayout:
         return self._pack_rectangle(
             n_need,
             lambda n_long, n_short: (
-                (n_long * PACKING_TABLE_PITCH_LONG_M + PACKING_AISLE_M + PACKING_AISLE_M)
-                * (n_short * PACKING_TABLE_PITCH_SHORT_M + PACKING_AISLE_M + PACKING_AISLE_M)
+                (
+                    max(n_long - 1, 0) * PACKING_TABLE_PITCH_LONG_M
+                    + SORTING_CLEARANCE_LONG_M
+                )
+                * (
+                    max(n_short - 1, 0) * PACKING_TABLE_PITCH_SHORT_M
+                    + SORTING_CLEARANCE_SHORT_M
+                )
             ),
         )
 
