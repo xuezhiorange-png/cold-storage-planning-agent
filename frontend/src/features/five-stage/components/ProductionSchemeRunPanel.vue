@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { ElAlert, ElButton, ElCard } from 'element-plus'
 
+import { usePersistedPlanningResultsStore } from '../../../stores/persistedPlanningResults'
 import { useWorkbenchContextStore } from '../../../stores/workbenchContext'
 import {
   createProductionSchemeRunApi,
@@ -9,18 +10,14 @@ import {
 } from './productionSchemeRunApi'
 
 const workbench = useWorkbenchContextStore()
+const persisted = usePersistedPlanningResultsStore()
 const api = createProductionSchemeRunApi()
 
 const loading = ref(false)
 const error = ref('')
 const result = ref<ProductionSchemeRunResponse | null>(null)
 
-const fiveStageReady = computed(() => {
-  const steps = workbench.workflow?.steps
-  if (!steps) return false
-  const calcStep = steps.find((step) => step.step === 'DETERMINISTIC_CALCULATION')
-  return calcStep?.status === 'COMPLETED'
-})
+const fiveStageReady = computed(() => persisted.fiveStageProgress.chainComplete)
 
 async function runProductionScheme(): Promise<void> {
   if (!workbench.projectId || workbench.versionNumber === null) {
@@ -41,17 +38,27 @@ async function runProductionScheme(): Promise<void> {
 }
 
 onMounted(() => {
-  if (workbench.isReady && !workbench.workflow) {
-    void workbench.refreshWorkflow()
+  if (workbench.isReady) {
+    void persisted.load()
+    if (!workbench.workflow) {
+      void workbench.refreshWorkflow()
+    }
   }
 })
+
+watch(
+  () => [workbench.projectId, workbench.versionNumber] as const,
+  () => {
+    void persisted.load()
+  }
+)
 </script>
 
 <template>
   <ElCard class="production-scheme-run-panel">
     <template #header>
       <div class="production-scheme-run-panel__header">
-        <span>生产方案评分 (production-scheme-runs)</span>
+        <span>生产方案评分</span>
       </div>
     </template>
 
@@ -91,29 +98,38 @@ onMounted(() => {
 
     <dl v-if="result" class="production-scheme-run-panel__meta">
       <div>
-        <dt>run_id</dt>
+        <dt>运行 ID</dt>
         <dd>{{ result.run_id }}</dd>
       </div>
       <div>
-        <dt>source_mode</dt>
+        <dt>来源模式</dt>
         <dd>{{ result.source_mode }}</dd>
       </div>
       <div>
-        <dt>source_binding_id</dt>
+        <dt>来源绑定 ID</dt>
         <dd>{{ result.source_binding_id }}</dd>
       </div>
       <div>
-        <dt>recommended_scheme_code</dt>
+        <dt>推荐方案代码</dt>
         <dd>{{ result.recommended_scheme_code ?? '—' }}</dd>
       </div>
       <div>
-        <dt>combined_source_hash</dt>
-        <dd class="production-scheme-run-panel__hash">{{ result.combined_source_hash }}</dd>
+        <dt>需复核</dt>
+        <dd>{{ result.requires_review ? '是' : '否' }}</dd>
       </div>
-      <div>
-        <dt>requires_review</dt>
-        <dd>{{ result.requires_review ? 'true' : 'false' }}</dd>
-      </div>
+      <details class="production-scheme-run-panel__hashes">
+        <summary>结果哈希</summary>
+        <dl class="production-scheme-run-panel__hash-list">
+          <div>
+            <dt>combined_source_hash</dt>
+            <dd class="production-scheme-run-panel__hash">{{ result.combined_source_hash }}</dd>
+          </div>
+          <div>
+            <dt>content_hash</dt>
+            <dd class="production-scheme-run-panel__hash">{{ result.content_hash }}</dd>
+          </div>
+        </dl>
+      </details>
     </dl>
   </ElCard>
 </template>
@@ -159,6 +175,39 @@ onMounted(() => {
 }
 
 .production-scheme-run-panel__meta dd {
+  margin: 0;
+  word-break: break-all;
+}
+
+.production-scheme-run-panel__hashes {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.production-scheme-run-panel__hashes summary {
+  cursor: pointer;
+  color: #40566f;
+  font-weight: 600;
+}
+
+.production-scheme-run-panel__hash-list {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+}
+
+.production-scheme-run-panel__hash-list div {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 8px;
+}
+
+.production-scheme-run-panel__hash-list dt {
+  margin: 0;
+  color: #6b7a8f;
+}
+
+.production-scheme-run-panel__hash-list dd {
   margin: 0;
   word-break: break-all;
 }
