@@ -2,7 +2,7 @@
 
 **Status:** Conversation connector for 豆包工作伙伴 (Feishu Aily)  
 **Previous release:** `v1.0.0`  
-**Base `main` SHA:** `79af2a32a282777ce3d1790106751c2481d81800`  
+**Base `main` SHA:** `938002546090ac0ca0932c65c48e83cd107a6702` (`#237`)  
 **Base tree:** `49ee3dde429fd00c4ae05a11da96d32227b50400`  
 **Authority:** Charles — 先做飞书/豆包接口；吨=每天；豆包理解语义；五个参数调用现有内核，表格回复分区规划
 
@@ -69,12 +69,16 @@ This connector does not parse `message` / 口语.
 
 | Pkg | Name | Status |
 |---|---|---|
-| **P0/P1** | Inbound zone-plan connector (this change) | Implementation |
+| **P0/P1** | Inbound zone-plan connector | Delivered on `main` (`#237`) |
+| **P2** | Static 豆包工作伙伴 skill pack (paste-ready) | In progress (`cursor/v11-p2-doubao-skill-742e`) |
+| **P3** | Aily connector auth | Parallel sibling PR (not this package) |
+| **P4** | Runbook + OpenAPI examples | Parallel sibling PR (not this package) |
 | Later | Outbound live 豆包 session, Feishu tenant skill wiring | `AILY_OUTBOUND_LIVE_SESSION=NO` |
 | Later | Cooling/equipment/power/investment formula recut | Not this version |
 
-P0 and the inbound HTTP implementation ship together because Charles asked to
-implement the interface, not only freeze paper.
+P0/P1 inbound HTTP shipped on `main` via `#237`. P2 ships the static skill
+contract operators paste into 豆包工作伙伴 — not live Feishu session control.
+P3 (auth) and P4 (runbook) are parallel packages owned by other PRs.
 
 ## 5. Non-goals
 

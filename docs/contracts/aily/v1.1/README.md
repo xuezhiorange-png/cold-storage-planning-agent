@@ -10,6 +10,8 @@ call this system's kernel for engineering numbers.
 | File | Purpose |
 | --- | --- |
 | `aily-to-system-zone-plan.openapi.yaml` | Custom connector OpenAPI for `POST /api/v1/aily/v1/zone-plan` |
+| `doubao-skill.v1.md` | Paste-ready 豆包工作伙伴 skill (Chinese conversation policy) |
+| `doubao-skill.v1.json` | Structured companion for tests and tooling |
 
 ## 豆包 skill notes
 
