@@ -115,6 +115,64 @@ _P14_LIKE_CONTENT = {
 }
 
 
+def _pdf_line(page: int, text: str, size: float, idx: int = 0) -> ppr._PdfLine:
+    return ppr._PdfLine(
+        page_number=page,
+        block_index=idx,
+        line_index=idx,
+        text=text,
+        bbox=(50.0, 80.0, 200.0, 96.0),
+        max_font_size=size,
+    )
+
+
+def test_section_page_filter_ignores_watermark_and_drops_next_section() -> None:
+    """Draft watermarks are large; only catalog titles bound section pages."""
+
+    cooling = _pdf_line(2, "冷却负荷", 16.0, 0)
+    watermark_p2 = _pdf_line(2, "草稿", 72.0, 1)
+    row_p2 = _pdf_line(2, "项目", 9.5, 2)
+    watermark_p3 = _pdf_line(3, "草稿", 72.0, 0)
+    row_p3 = _pdf_line(3, "25.0", 9.0, 1)
+    equipment = _pdf_line(4, "设备选型", 16.0, 0)
+    watermark_p4 = _pdf_line(4, "草稿", 72.0, 1)
+    leaked_header = _pdf_line(4, "项目", 9.5, 2)
+    all_lines = (
+        cooling,
+        watermark_p2,
+        row_p2,
+        watermark_p3,
+        row_p3,
+        equipment,
+        watermark_p4,
+        leaked_header,
+    )
+    observation = ppr._PdfObservation(all_lines=all_lines, section_scopes={})
+    kept = ppr._section_lines_without_next_section_pages(
+        pdf_observation=observation,
+        section_lines=all_lines,
+        known_section_headings=frozenset({"冷却负荷", "设备选型"}),
+        current_heading_text="冷却负荷",
+    )
+    assert {line.page_number for line in kept} == {2, 3}
+
+
+def test_section_page_filter_noop_without_heading_catalog() -> None:
+    """Direct reconstruction callers must keep continuation pages as-is."""
+
+    heading = _pdf_line(1, "Investment Estimate", 16.0)
+    watermark = _pdf_line(1, "DRAFT", 72.0, 1)
+    continuation_wm = _pdf_line(2, "DRAFT", 72.0, 0)
+    row = _pdf_line(2, "50.0", 9.0, 1)
+    section_lines = (heading, watermark, continuation_wm, row)
+    observation = ppr._PdfObservation(all_lines=section_lines, section_scopes={})
+    kept = ppr._section_lines_without_next_section_pages(
+        pdf_observation=observation,
+        section_lines=section_lines,
+    )
+    assert kept == section_lines
+
+
 def test_fold_whitespace_maps_cjk_compatibility_ideographs_for_quantity() -> None:
     """PDF CJK fonts often round-trip 量 to U+F97E; headings must still match."""
     catalog = "质量摘要"

@@ -164,8 +164,8 @@ def _fold_whitespace(text: str) -> str:
         - remove leading/trailing whitespace
         - collapse pure-typographic runs of whitespace
         - Unicode NFKC so CJK compatibility ideographs from PDF
-          font round-trips (e.g. U+F97E / U+F9A8 → 量) match the
-          catalog heading and cell text
+          font round-trips (e.g. U+F97E → 量) match the catalog
+          heading and cell text
     NOT permitted:
         - rewriting decimal/thousands separators
         - fuzzy numeric tolerance
@@ -1599,6 +1599,8 @@ def _section_lines_without_next_section_pages(
     *,
     pdf_observation: _PdfObservation,
     section_lines: tuple[_PdfLine, ...] | list[_PdfLine],
+    known_section_headings: frozenset[str] = frozenset(),
+    current_heading_text: str = "",
 ) -> tuple[_PdfLine, ...]:
     """Drop lines that sit on a later page that already starts another section.
 
@@ -1609,31 +1611,38 @@ def _section_lines_without_next_section_pages(
     same headers (``项目``/``数值``/``单位``), and that leak
     reconstructs two logical tables → ``AMBIGUOUS_FIELD_BINDING``.
 
-    Continuation pages of the same section do not carry a different
-    visual heading and are kept.
+    Only *catalog section titles* count as foreign headings.
+    Draft watermarks and cover lines are large but must not drop
+    a table continuation page. When no heading catalog is
+    supplied (unit tests calling reconstruction directly), the
+    line range is left unchanged.
     """
 
-    own_heading_folded = ""
-    for line in section_lines:
-        if line.max_font_size >= _PDF_VISUAL_HEADING_SIZE:
-            own_heading_folded = _fold_whitespace(line.text)
-            if own_heading_folded:
+    folded_known = {_fold_whitespace(heading) for heading in known_section_headings if heading}
+    current_folded = _fold_whitespace(current_heading_text) if current_heading_text else ""
+    if not current_folded:
+        for line in section_lines:
+            if line.max_font_size < _PDF_VISUAL_HEADING_SIZE:
+                continue
+            folded = _fold_whitespace(line.text)
+            if folded and folded in folded_known:
+                current_folded = folded
                 break
-    if not own_heading_folded:
+    if not current_folded or not folded_known:
         return tuple(section_lines)
 
     own_heading_pages = {
         line.page_number
         for line in section_lines
         if line.max_font_size >= _PDF_VISUAL_HEADING_SIZE
-        and _fold_whitespace(line.text) == own_heading_folded
+        and _fold_whitespace(line.text) == current_folded
     }
     foreign_pages = {
         line.page_number
         for line in pdf_observation.all_lines
         if line.max_font_size >= _PDF_VISUAL_HEADING_SIZE
-        and _fold_whitespace(line.text)
-        and _fold_whitespace(line.text) != own_heading_folded
+        and _fold_whitespace(line.text) in folded_known
+        and _fold_whitespace(line.text) != current_folded
     }
     return tuple(
         line
@@ -1648,6 +1657,8 @@ def _build_logical_tables_for_section(
     section_key: str,
     section_line_range: tuple[int, int],
     expected_headers: tuple[str, ...],
+    known_section_headings: frozenset[str] = frozenset(),
+    current_heading_text: str = "",
 ) -> tuple[_PdfLogicalTable, ...]:
     """Build ``_PdfLogicalTable``s for one section from grid geometry.
 
@@ -1684,6 +1695,8 @@ def _build_logical_tables_for_section(
     section_lines = _section_lines_without_next_section_pages(
         pdf_observation=pdf_observation,
         section_lines=pdf_observation.all_lines[start:end],
+        known_section_headings=known_section_headings,
+        current_heading_text=current_heading_text,
     )
     if not section_lines:
         return ()
@@ -3657,6 +3670,10 @@ def _semantic_checks(
         # cell-binding path finds the unique header match by
         # structural identity — see ``_find_table_cell_binding``.
         if pdf_observation.grid_segments:
+            heading_by_key = {
+                scope.section_key: scope.heading_text for scope in section_scopes_spec
+            }
+            known_headings = frozenset(heading_by_key.values())
             for section_key, scope_range in resolved_scopes.items():
                 expected = section_table_headers.get(section_key, ())
                 if not expected:
@@ -3666,6 +3683,8 @@ def _semantic_checks(
                     section_key=section_key,
                     section_line_range=scope_range,
                     expected_headers=expected,
+                    known_section_headings=known_headings,
+                    current_heading_text=heading_by_key.get(section_key, ""),
                 )
                 pdf_logical_tables = pdf_logical_tables + tables
         # Per P1-3 sixth corrective Finding 5: compute the
