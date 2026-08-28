@@ -213,9 +213,14 @@ def test_p2_provenance_renders_when_present_and_omits_when_absent(locale: Report
     model = localize_render_model(canonical, locale=locale)
 
     cooling_section = next(s for s in model.sections if s.section_key == "cooling_load")
-    metric = cooling_section.metrics[0]
-    assert "2.1.0" in metric.display_value
-    assert "abc123hashvalue" in metric.display_value
+    if cooling_section.metrics:
+        cooling_display = cooling_section.metrics[0].display_value
+    else:
+        assert cooling_section.table is not None
+        assert cooling_section.table.rows, "cooling_load compact table is empty"
+        cooling_display = cooling_section.table.rows[0][1].display_value
+    assert "2.1.0" in cooling_display
+    assert "abc123hashvalue" in cooling_display
 
     scheme_section = next(s for s in model.sections if s.section_key == "scheme_comparison")
     total_score_label = translate(locale, "header.total_score")

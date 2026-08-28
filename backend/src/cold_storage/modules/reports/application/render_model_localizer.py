@@ -50,7 +50,9 @@ from cold_storage.modules.reports.localization.formatter import (
 
 def _is_numeric(value: Any) -> bool:
     """Return True if value can be converted to a number."""
-    if isinstance(value, (int, float)):
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, (int, float, Decimal)):
         return True
     if isinstance(value, str):
         try:
@@ -100,8 +102,18 @@ _TRANSLATABLE_CELL_FIELD_KEY_PREFIXES: tuple[str, ...] = (
 )
 
 
+def _cell_raw_is_label_key(cell: CanonicalRenderTableCell) -> bool:
+    """True when raw_value is the catalog key itself, not an operator-facing value."""
+    field_key = cell.field_key
+    raw = cell.raw_value
+    if not field_key or not isinstance(raw, str):
+        return False
+    suffix = field_key.split(".", 1)[-1]
+    return raw == field_key or raw == suffix
+
+
 def _translate_cell_field_key(cell: CanonicalRenderTableCell, locale: ReportLocale) -> str | None:
-    """Return catalog text when the cell field_key is a translatable label key."""
+    """Return catalog text when the cell is a label, not a data value."""
     field_key = cell.field_key
     if not field_key:
         return None
@@ -137,6 +149,8 @@ def _translate_cell_field_key(cell: CanonicalRenderTableCell, locale: ReportLoca
         "unit",
         "item",
     }:
+        return None
+    if not _cell_raw_is_label_key(cell):
         return None
     return translate(locale, field_key)
 

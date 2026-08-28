@@ -869,7 +869,7 @@ def _build_throughput_inventory_area_section(
         )
 
     text_fields: dict[str, str] = {}
-    for summary_key in ("daily_inbound_mass_kg", "total_area_m2"):
+    for summary_key in ("daily_inbound_mass_kg", "total_area_m2", "storage_capacity_kg"):
         summary_value = _coerce_scalar_numeric(data, summary_key)
         if summary_value is not None:
             text_fields[summary_key] = str(summary_value)
@@ -936,7 +936,7 @@ def _build_throughput_inventory_area_section(
                     CanonicalRenderTableCell(
                         field_path="throughput_inventory_area.total",
                         field_key="header.total",
-                        raw_value="",
+                        raw_value="total",
                     ),
                     CanonicalRenderTableCell(
                         field_path="throughput_inventory_area.total.temperature_band",
