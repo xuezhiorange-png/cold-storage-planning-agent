@@ -1,0 +1,86 @@
+{
+  "schema_id": "doubao_skill_pack",
+  "schema_version": "1.1.0",
+  "contract_family": "aily/v1.1",
+  "title": "冷库规划助手 — 豆包工作伙伴 Skill（V1.1）",
+  "language": "zh-CN",
+  "paste_ready_markdown": "docs/contracts/aily/v1.1/doubao-skill.v1.md",
+  "governance": {
+    "AILY_OUTBOUND_LIVE_SESSION": "NO",
+    "DO_NOT_BUMP_ZONE_PLAN_VERSION": "YES",
+    "AGENT_TO_ENGINEERING_VALUE": "NO",
+    "MARK_REVIEWED_AS_MODEL_TOOL": "NO",
+    "PRODUCTION_RBAC_CLAIM": "NO"
+  },
+  "calculator_identity": {
+    "name": "cold_room_zone_plan",
+    "version": "1.0.0"
+  },
+  "operator_schema": {
+    "schema_id": "OperatorProcessInputV1",
+    "schema_version": "1.1.0"
+  },
+  "semantics": {
+    "tonne_means": "per_day",
+    "nlp_owner": "doubao",
+    "system_parses_chat": false,
+    "example_utterance_only": "要建一个多少吨的加工厂"
+  },
+  "endpoint": {
+    "method": "POST",
+    "path": "/api/v1/aily/v1/zone-plan",
+    "forbidden_paths": ["/api/v1/agent/**"]
+  },
+  "operator_keys": [
+    {
+      "field": "daily_inbound_mass_kg",
+      "unit": "kg/day",
+      "ask_operator_zh": "每天进货量（公斤/天；1吨/天=1000公斤/天）",
+      "conversion": {
+        "from": "吨/天",
+        "multiply_by": 1000,
+        "note": "豆包必须在调用前完成换算"
+      }
+    },
+    {
+      "field": "finished_storage_days",
+      "unit": "day",
+      "ask_operator_zh": "成品存放天数"
+    },
+    {
+      "field": "frozen_storage_days",
+      "unit": "day",
+      "ask_operator_zh": "冻果存放天数"
+    },
+    {
+      "field": "main_packaging_storage_days",
+      "unit": "day",
+      "ask_operator_zh": "主包材存放天数"
+    },
+    {
+      "field": "auxiliary_packaging_storage_days",
+      "unit": "day",
+      "ask_operator_zh": "辅包材存放天数"
+    }
+  ],
+  "response_handling": {
+    "success_status": 200,
+    "display_fields": ["markdown_table", "extra_tables"],
+    "user_disclaimer_zh": "概念设计，需要复核，不是施工图",
+    "error_status": 400,
+    "error_fields": ["ask_operator", "missing_keys"],
+    "on_error": "ask_user_for_missing_keys_no_guessing"
+  },
+  "forbidden_model_tools": [
+    "mark_reviewed",
+    "approve",
+    "report.mark_reviewed",
+    "report.approve"
+  ],
+  "forbidden_behaviors": [
+    "compute_area_in_prompt",
+    "compute_cooling_load_in_prompt",
+    "send_chat_text_as_request_body",
+    "invent_engineering_numbers"
+  ]
+}
