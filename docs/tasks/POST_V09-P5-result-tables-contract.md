@@ -71,6 +71,10 @@ Missing persisted fields: em dash / omit. Do not invent `0`.
 POST_V09_P5_FILE_ALLOWLIST
 docs/tasks/POST_V09-P5-result-tables-contract.md
 backend/tests/architecture/test_post_v09_p5_result_tables_contract.py
+frontend/src/features/calculations/components/persistedResultLabels.ts
+frontend/src/features/calculations/components/PersistedScalarResultsTable.vue
+frontend/src/features/calculations/components/PersistedArrayResultsTable.vue
+frontend/src/features/calculations/components/CalculationBasisDetails.vue
 frontend/src/features/calculations/components/CalculationsPage.vue
 frontend/src/features/calculations/components/ZoneResultsTable.vue
 frontend/src/features/calculations/components/ZoneResultsTable.test.ts

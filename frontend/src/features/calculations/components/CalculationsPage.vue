@@ -94,7 +94,7 @@ const zoneTableRows = computed(() => {
 
       <ElCard>
         <template #header>
-          <span>装机功率结果 (installed_power)</span>
+          <span>装机功率结果</span>
         </template>
         <InstalledPowerResultsTable :record="powerSlot?.record ?? null" />
       </ElCard>
