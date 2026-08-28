@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import re
+import unicodedata
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -162,13 +163,16 @@ def _fold_whitespace(text: str) -> str:
     Permitted per the P1-3 contract:
         - remove leading/trailing whitespace
         - collapse pure-typographic runs of whitespace
+        - Unicode NFKC so CJK compatibility ideographs from PDF
+          font round-trips (e.g. U+F97E / U+F9A8 → 量) match the
+          catalog heading and cell text
     NOT permitted:
         - rewriting decimal/thousands separators
         - fuzzy numeric tolerance
         - dropping sign or unit
     """
 
-    return " ".join(text.split())
+    return " ".join(unicodedata.normalize("NFKC", text).split())
 
 
 def _strings_equal_folded(a: str, b: str) -> bool:
@@ -536,6 +540,7 @@ _PAGE_DECORATION_MARGIN_FRACTION = 0.10
 _Y_TOLERANCE = 2.0  # pixels for clustering lines into rows
 _GRID_Y_TOLERANCE = 1.5  # grid line clustering (sub-pixel)
 _GRID_X_TOLERANCE = 1.5
+_PDF_VISUAL_HEADING_SIZE = 13.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -681,7 +686,10 @@ def _observe_pdf(data: bytes) -> _PdfObservation:
                     # Image block — skip text extraction.
                     continue
                 for line_index, line in enumerate(block.get("lines", [])):
-                    line_text = "".join(span.get("text", "") for span in line.get("spans", []))
+                    line_text = unicodedata.normalize(
+                        "NFKC",
+                        "".join(span.get("text", "") for span in line.get("spans", [])),
+                    )
                     line_bbox_tuple = line.get("bbox", (0.0, 0.0, 0.0, 0.0))
                     line_max_font_size = max(
                         (float(span.get("size", 0.0)) for span in line.get("spans", [])),
@@ -704,7 +712,7 @@ def _observe_pdf(data: bytes) -> _PdfObservation:
                             )
                         )
                     for span in line.get("spans", []):
-                        span_text = span.get("text", "")
+                        span_text = unicodedata.normalize("NFKC", span.get("text", ""))
                         if not span_text:
                             continue
                         span_bbox = span.get("bbox", (0.0, 0.0, 0.0, 0.0))
@@ -1587,6 +1595,53 @@ def _is_pdf_table_continuation(
     return current.page_number in section_page_set
 
 
+def _section_lines_without_next_section_pages(
+    *,
+    pdf_observation: _PdfObservation,
+    section_lines: tuple[_PdfLine, ...] | list[_PdfLine],
+) -> tuple[_PdfLine, ...]:
+    """Drop lines that sit on a later page that already starts another section.
+
+    ``PdfRenderer`` emits each section on a new page. Observation
+    order puts that next page's running header/footer *before* the
+    next section heading, so the previous section's line range can
+    leak onto the next page. Compact engineering tables share the
+    same headers (``项目``/``数值``/``单位``), and that leak
+    reconstructs two logical tables → ``AMBIGUOUS_FIELD_BINDING``.
+
+    Continuation pages of the same section do not carry a different
+    visual heading and are kept.
+    """
+
+    own_heading_folded = ""
+    for line in section_lines:
+        if line.max_font_size >= _PDF_VISUAL_HEADING_SIZE:
+            own_heading_folded = _fold_whitespace(line.text)
+            if own_heading_folded:
+                break
+    if not own_heading_folded:
+        return tuple(section_lines)
+
+    own_heading_pages = {
+        line.page_number
+        for line in section_lines
+        if line.max_font_size >= _PDF_VISUAL_HEADING_SIZE
+        and _fold_whitespace(line.text) == own_heading_folded
+    }
+    foreign_pages = {
+        line.page_number
+        for line in pdf_observation.all_lines
+        if line.max_font_size >= _PDF_VISUAL_HEADING_SIZE
+        and _fold_whitespace(line.text)
+        and _fold_whitespace(line.text) != own_heading_folded
+    }
+    return tuple(
+        line
+        for line in section_lines
+        if line.page_number not in foreign_pages or line.page_number in own_heading_pages
+    )
+
+
 def _build_logical_tables_for_section(
     *,
     pdf_observation: _PdfObservation,
@@ -1626,7 +1681,10 @@ def _build_logical_tables_for_section(
     if not expected_headers:
         return ()
     start, end = section_line_range
-    section_lines = pdf_observation.all_lines[start:end]
+    section_lines = _section_lines_without_next_section_pages(
+        pdf_observation=pdf_observation,
+        section_lines=pdf_observation.all_lines[start:end],
+    )
     if not section_lines:
         return ()
     # ── P1-3 fifth corrective (Finding 1) ──
