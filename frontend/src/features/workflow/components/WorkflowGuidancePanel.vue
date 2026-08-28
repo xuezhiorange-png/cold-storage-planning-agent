@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 
 import type { WorkflowBlocker, WorkflowNextAction } from '../../../api/contracts/workflow'
+import { usePersistedPlanningResultsStore } from '../../../stores/persistedPlanningResults'
 import { useWorkbenchContextStore } from '../../../stores/workbenchContext'
 
 const OPERATOR_NEXT_STEPS = new Set([
@@ -35,7 +36,21 @@ const NON_CORE_BLOCKER_STAGES = new Set([
   'KNOWLEDGE_PROVENANCE'
 ])
 
+const SCHEME_MISSING_NUDGE_MESSAGE = '还没跑生产方案评分，请到计算结果页运行'
+
+const SCHEME_MISSING_NEXT_ACTION: WorkflowNextAction = {
+  action_id: 'action-calculations-production-scheme',
+  type: 'SCHEME_COMPARISON',
+  target_step: 'SCHEME_COMPARISON',
+  label: '前往计算结果页运行生产方案评分',
+  reason: '五阶段结果已持久化，请在计算结果页运行生产方案评分',
+  required: true,
+  enabled: true,
+  blocked_by: []
+}
+
 const workbench = useWorkbenchContextStore()
+const persisted = usePersistedPlanningResultsStore()
 
 const workflow = computed(() => workbench.workflow)
 const readinessStatus = computed(() => workflow.value?.workflow_readiness.status ?? 'UNKNOWN')
@@ -48,6 +63,7 @@ const revisionStale = computed(() => workflow.value?.project_context.revision_st
 const formalEligible = computed(
   () => workflow.value?.formal_export_eligibility.eligible ?? false
 )
+const fiveStagePersisted = computed(() => persisted.fiveStageProgress.chainComplete)
 
 function isCoreOperatorBlocker(blocker: WorkflowBlocker): boolean {
   const code = blocker.code ?? ''
@@ -61,13 +77,34 @@ function isCoreOperatorBlocker(blocker: WorkflowBlocker): boolean {
 
 const coreBlockers = computed(() => blockers.value.filter(isCoreOperatorBlocker))
 
+const schemeMissingOnly = computed(() => {
+  if (!fiveStagePersisted.value) return false
+  const core = coreBlockers.value
+  return core.length === 1 && core[0]?.code === 'SCHEME_MISSING'
+})
+
+const displayCoreBlockers = computed<WorkflowBlocker[]>(() => {
+  if (schemeMissingOnly.value) {
+    return [{ code: 'SCHEME_MISSING', message: SCHEME_MISSING_NUDGE_MESSAGE }]
+  }
+  return coreBlockers.value
+})
+
 const operatorNextActions = computed(() =>
   nextActions.value.filter((action) => {
     return OPERATOR_NEXT_STEPS.has(action.type) || OPERATOR_NEXT_STEPS.has(action.target_step)
   })
 )
 
+const displayOperatorNextActions = computed(() => {
+  if (schemeMissingOnly.value) {
+    return [SCHEME_MISSING_NEXT_ACTION]
+  }
+  return operatorNextActions.value
+})
+
 const displayReadiness = computed(() => {
+  if (schemeMissingOnly.value) return 'IN_PROGRESS'
   const raw = readinessStatus.value
   if (coreBlockers.value.length > 0) return raw
   if (raw === 'BLOCKED' || raw === 'REVIEW_REQUIRED') return 'IN_PROGRESS'
@@ -86,6 +123,12 @@ function statusLabel(status: string): string {
   }
   return labels[status] ?? status
 }
+
+onMounted(() => {
+  if (workbench.isReady) {
+    void persisted.load()
+  }
+})
 </script>
 
 <template>
@@ -132,29 +175,37 @@ function statusLabel(status: string): string {
     </div>
 
     <div
-      v-if="coreBlockers.length"
+      v-if="displayCoreBlockers.length"
       class="workflow-guidance__blockers"
       role="status"
       aria-live="polite"
     >
       <strong>核心阻断</strong>
       <ul>
-        <li v-for="(blocker, index) in coreBlockers" :key="`${blocker.code}-${index}`">
-          <span class="workflow-guidance__blocker-code">{{ blocker.code }}</span>
+        <li
+          v-for="(blocker, index) in displayCoreBlockers"
+          :key="`${blocker.code}-${index}`"
+        >
+          <span
+            v-if="!schemeMissingOnly"
+            class="workflow-guidance__blocker-code"
+          >
+            {{ blocker.code }}
+          </span>
           {{ blocker.message }}
         </li>
       </ul>
     </div>
 
-    <div v-if="operatorNextActions.length" class="workflow-guidance__actions">
+    <div v-if="displayOperatorNextActions.length" class="workflow-guidance__actions">
       <strong>下一步建议</strong>
       <ul>
-        <li v-for="action in operatorNextActions" :key="action.action_id">
+        <li v-for="action in displayOperatorNextActions" :key="action.action_id">
           <span :class="{ 'workflow-guidance__action-disabled': !action.enabled }">
             {{ action.label }}
           </span>
           <span
-            v-if="!action.enabled && coreBlockers.length"
+            v-if="!action.enabled && displayCoreBlockers.length && !schemeMissingOnly"
             class="workflow-guidance__action-hint"
           >
             （需先解决阻断项）
