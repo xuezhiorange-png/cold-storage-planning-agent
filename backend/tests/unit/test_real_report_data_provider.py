@@ -480,8 +480,8 @@ def test_investment_estimate_projection_preserves_persisted_provenance() -> None
     assert investment["persisted_content_hash"] == "invest-hash-001"
     data = investment["data"]
     assert data["total_investment"] == 5_000_000.0
-    assert data["breakdown"]["土建及钢结构"] == 2_000_000.0
-    assert data["breakdown"]["冷库制冷设备"] == 3_000_000.0
+    assert data["breakdown"]["civil_works_and_steel_structure"] == 2_000_000.0
+    assert data["breakdown"]["cold_storage_refrigeration_equipment"] == 3_000_000.0
 
 
 @pytest.mark.parametrize(

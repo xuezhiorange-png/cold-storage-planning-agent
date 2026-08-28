@@ -14,6 +14,10 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
+from cold_storage.modules.calculations.domain.investment import (
+    InvestmentEstimateInput,
+    InvestmentEstimator,
+)
 from cold_storage.modules.calculations.domain.zone_planning import (
     ColdRoomZonePlanInput,
     ColdRoomZonePlanner,
@@ -323,6 +327,57 @@ class TestTypedResultSnapshots:
                 item_name="",
                 amount_cny=Decimal("100"),
             )
+
+    def test_investment_item_admits_optional_item_key(self) -> None:
+        without_key = InvestmentItemEntry(
+            item_name="Compressor",
+            amount_cny=Decimal("200000"),
+        )
+        assert without_key.item_key is None
+        with_key = InvestmentItemEntry(
+            item_name="土建及钢结构",
+            amount_cny=Decimal("200000"),
+            item_key="civil_works_and_steel_structure",
+        )
+        assert with_key.item_key == "civil_works_and_steel_structure"
+
+    def test_investment_item_rejects_blank_item_key(self) -> None:
+        with pytest.raises(ValidationError, match="item_key"):
+            InvestmentItemEntry(
+                item_name="Compressor",
+                amount_cny=Decimal("100"),
+                item_key="   ",
+            )
+
+    def test_investment_item_rejects_unknown_extra(self) -> None:
+        with pytest.raises(ValidationError, match="extra"):
+            InvestmentItemEntry(
+                item_name="Compressor",
+                amount_cny=Decimal("100"),
+                item_usd=Decimal("14"),
+            )
+
+    def test_live_estimator_output_parses_as_investment_result_snapshot(self) -> None:
+        result = InvestmentEstimator().estimate(
+            InvestmentEstimateInput(
+                total_area_m2=724.28,
+                refrigerated_area_m2=649.28,
+                frozen_area_m2=54.69,
+                position_count=250,
+                total_power_kw=1352.63,
+            )
+        )
+        assert result.success is True
+        snap = InvestmentResultSnapshotV1(**result.result)
+        assert [item.item_key for item in snap.items] == [
+            "civil_works_and_steel_structure",
+            "cold_storage_refrigeration_equipment",
+            "high_low_voltage_distribution",
+            "accommodation_and_living_area",
+            "monitoring_and_startup_supplies",
+        ]
+        source = InvestmentSourceSnapshotV1(**_stage_base_kwargs(snap.model_dump()))
+        assert source.result_snapshot.items[0].item_key == "civil_works_and_steel_structure"
 
 
 # ══════════════════════════════════════════════════════════════════════════════

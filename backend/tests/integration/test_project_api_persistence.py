@@ -91,6 +91,13 @@ def test_project_api_persists_inputs_calculations_and_audit(tmp_path: Path) -> N
         "住宿及生活区",
         "监控及开厂物资",
     ]
+    assert [item["item_key"] for item in investment["result"]["items"]] == [
+        "civil_works_and_steel_structure",
+        "cold_storage_refrigeration_equipment",
+        "high_low_voltage_distribution",
+        "accommodation_and_living_area",
+        "monitoring_and_startup_supplies",
+    ]
 
     planning_run = client.post(
         f"/api/v1/projects/{project_id}/versions/{version}/planning-run",

@@ -706,8 +706,9 @@ class InvestmentItemEntry(BaseModel):
     """Single investment line item.
 
     Matches the items dict from InvestmentEstimator.estimate():
-    - item_name
+    - item_name (required display label)
     - amount_cny
+    - item_key (optional stable English catalog key; omitted on legacy rows)
     MUST NOT include usd fields.
     """
 
@@ -715,10 +716,20 @@ class InvestmentItemEntry(BaseModel):
 
     item_name: str
     amount_cny: str
+    item_key: str | None = None
 
     @field_validator("item_name", mode="after")
     @classmethod
     def _require_non_empty_str(cls, v: str) -> str:
+        if not isinstance(v, str) or not v.strip():
+            raise ValueError("must not be empty or whitespace")
+        return v
+
+    @field_validator("item_key", mode="after")
+    @classmethod
+    def _optional_non_empty_item_key(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
         if not isinstance(v, str) or not v.strip():
             raise ValueError("must not be empty or whitespace")
         return v

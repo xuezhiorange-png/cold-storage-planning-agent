@@ -27,6 +27,9 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from cold_storage.modules.reports.application.assembler import ReportDataProvider
+from cold_storage.modules.reports.application.investment_item_keys import (
+    resolve_investment_breakdown_key,
+)
 from cold_storage.modules.reports.application.persisted_calculation_reads import (
     ReportEngineeringContext,
 )
@@ -341,13 +344,21 @@ def _project_v0_to_v1_section(
             for index, item in enumerate(items):
                 if not isinstance(item, dict):
                     continue
-                item_name = item.get("item_name")
+                item_key = resolve_investment_breakdown_key(item)
                 amount = item.get("amount_cny")
-                if not isinstance(item_name, str) or not item_name.strip():
+                if item_key is None:
+                    item_name = item.get("item_name")
+                    if isinstance(item_name, str) and item_name.strip():
+                        raise ReportProjectionError(
+                            section_key=section_key,
+                            result_id=result_id,
+                            field_path=f"items[{index}].item_name",
+                            reason_code="UNKNOWN_INVESTMENT_ITEM_KEY",
+                        )
                     continue
                 if amount is None:
                     continue
-                breakdown[item_name] = _coerce_to_number(
+                breakdown[item_key] = _coerce_to_number(
                     value=amount,
                     section_key=section_key,
                     result_id=result_id,

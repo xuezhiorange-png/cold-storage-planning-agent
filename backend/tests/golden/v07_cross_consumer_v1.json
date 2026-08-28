@@ -6,7 +6,7 @@
     "cooling_load": "90eecb3da28637398383fba25c73bdb3dfc7d7b57de62435591d817be259bf02",
     "equipment": "bb54f88af8c95a510f6dec9e1c7521b91e327a58aa040598b1685d478e0f5769",
     "power": "26be7ed586e997654857a6dcc16dddcfa0d16dc28b24c9687bbda1421ab1b58e",
-    "investment": "c2b9af5174a7a44d173b39de5ae361b8a694386357cb02c7c558e0335e55f972"
+    "investment": "44eb24810011f2d53198d99eee7ad56ce45f1231ae11519c155c16191ad3d249"
   },
   "selected_numeric_projections": {
     "cold_room_zone_plan.daily_inbound_mass_kg": "20000",
