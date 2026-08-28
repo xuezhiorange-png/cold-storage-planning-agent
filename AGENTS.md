@@ -65,9 +65,12 @@ facilities.
 
 ## Current Baseline Notes
 
+- Product release identity is Git tag `v1.0.0` on `main`. Do not move
+  `v0.9.0` or `v1.0.0`. Session handover: `docs/handover/2026-08-28-v1.0.md`.
 - The current repository baseline still has documented gaps between target
   architecture and implementation. Use `docs/audit/` and `docs/roadmap/` before
-  making architecture claims.
+  making architecture claims. `docs/audit/current-state.md` §1–30 is the Task 0
+  snapshot, not current operator capability.
 - Reports must read persisted calculation results and must not recalculate
   formulas.
 
