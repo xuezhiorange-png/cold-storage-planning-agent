@@ -8,11 +8,12 @@
 > operator-minimal process input is **complete** at tag `v0.8.0`
 > (`docs/tasks/V0_8-P0-operator-minimal-input-contract.md`). **Active
 > umbrella:** V0.9 P0 contract (`docs/tasks/V0_9-P0-version-contract.md`)
-> plus overall plan (`docs/tasks/V0_9-version-plan.md`). Formula recut is
-> one package inside V0.9, together with KEY recut, workbench layout,
-> draft-vs-formal export, banner recut, and zone result display. P1–P7 remain
-> `IMPLEMENTATION_AUTHORIZED=NO`. This is **not** a V0.7 trust-loop gap and
-> **not** a cooling/equipment formula rewrite.
+> plus overall plan (`docs/tasks/V0_9-version-plan.md`). V0.9 operator
+> workbench is **complete** at `v1.0.0`. **Active umbrella after `v1.0.0`:**
+> V1.1 豆包工作伙伴 inbound zone-plan connector
+> (`docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`,
+> `docs/tasks/V1_1-version-plan.md`). This is **not** a cooling/equipment
+> formula rewrite and **not** outbound live Aily session enablement.
 
 ## Task 0: Local Baseline, Repository Audit, And Governance
 

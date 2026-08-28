@@ -7,8 +7,9 @@
 > V0.7 closed the operator trust-loop seam at `v0.7.0`. V0.8 closed the
 > five-KEY operator path at `v0.8.0`. Demo coefficient conflicts (TD-003 note)
 > remain open. Prior contracts: `docs/tasks/V0_7-P0-trust-loop-contract.md`,
-> `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`. Active contract:
-> `docs/tasks/V0_9-P0-version-contract.md`.
+> `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`,
+> `docs/tasks/V0_9-P0-version-contract.md`. Active contract after `v1.0.0`:
+> `docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`.
 
 | ID | Status | Priority | Module | Cause | Current Impact | Temporary Approach | Permanent Resolution | Target Task / Version |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -35,3 +36,4 @@
 | TD-021 | Open | High | zone_planning / workbench | V0.8 KEY and planner/UI/export do not match the V0.9 lock | Unused KEY, no shipping_channel, review mixed with export, layout | P0 contract only; do not implement off-plan | V0.9 P1–P7 after dispatch | V0.9 |
 | TD-022 | **Resolved** | Medium | reports/localization | ~~Investment calculator persists Chinese ``item_name``; render uses ``investment.{item_name}`` as catalog keys~~ | Draft export projects stable English ``item_key`` catalog keys | Leftover Chinese catalog keys remain for persisted report JSON | Calculator emits ``item_key``; reports-owned legacy map; snapshot admits optional ``item_key``; unknown names fail closed | post-v0.9 |
 | TD-023 | Open | Medium | workflow | Guided workflow still names the first step PROJECT_INPUT and V0.4 `save_inputs` snapshot | Sidebar showed deleted KEY and false stale after 工程输入 | Workflow treats canonical five-stage runs as input authority; empty snapshot lists V0.9 five KEY | Persist operator_process_input onto version snapshot or recut step names | post-v0.9 |
+| TD-024 | Open | Medium | aily | V0.7 P6 froze Aily paper only; outbound Feishu skill/session is still unwired | Chat in 豆包工作伙伴 cannot open a live session from this app | V1.1 inbound `POST /api/v1/aily/v1/zone-plan` preview | Outbound live session after Charles supplies tenant skill wiring | V1.1 later |
