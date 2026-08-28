@@ -86,6 +86,32 @@ _TEXT_SECTIONS: frozenset[str] = frozenset(
     }
 )
 
+# Operator KEY unit catalog keys (locale-free; localizer translates).
+_INPUT_CONDITION_UNIT_KEYS: dict[str, str] = {
+    "daily_inbound_mass_kg": "unit.kg_per_day",
+    "finished_storage_days": "unit.day",
+    "frozen_storage_days": "unit.day",
+    "main_packaging_storage_days": "unit.day",
+    "auxiliary_packaging_storage_days": "unit.day",
+}
+
+# Sections that render top-level measured values as compact item/value/unit tables.
+_ENGINEERING_METRICS_SECTIONS: frozenset[str] = frozenset(
+    {
+        "cooling_load",
+        "equipment_selection",
+        "electrical_and_energy",
+    }
+)
+
+# Zone table columns persisted from throughput projection.
+_THROUGHPUT_ZONE_TABLE_COLUMNS: tuple[str, ...] = (
+    "zone_name",
+    "temperature_band",
+    "required_area_m2",
+    "position_count",
+)
+
 
 def _section_level(section_key: str) -> int:
     """All top-level sections use level 1."""
@@ -160,6 +186,48 @@ def _extract_canonical_metrics(prefix: str, d: dict[str, Any]) -> list[Canonical
         elif isinstance(v, dict) and not _is_measured_value(v):
             metrics.extend(_extract_canonical_metrics(f"{prefix}.{k}", v))
     return metrics
+
+
+def _extract_top_level_canonical_metrics(
+    prefix: str, d: dict[str, Any]
+) -> list[CanonicalRenderMetric]:
+    """Extract measured values from top-level keys only (no nested projection)."""
+    metrics: list[CanonicalRenderMetric] = []
+    for k, v in d.items():
+        if _is_measured_value(v):
+            unit = v.get("unit", "")
+            metrics.append(
+                CanonicalRenderMetric(
+                    field_path=f"{prefix}.{k}",
+                    field_key=f"field.{k}",
+                    raw_value=_canonicalize_numeric(v.get("value")),
+                    unit_code=unit,
+                    source_id=v.get("source_result_id", ""),
+                    source_tool=v.get("source_tool", ""),
+                    source_tool_version=v.get("source_tool_version", ""),
+                    source_content_hash=v.get("source_content_hash", ""),
+                )
+            )
+    return metrics
+
+
+def _coerce_scalar_numeric(data: dict[str, Any], key: str) -> Decimal | int | None:
+    """Read a numeric scalar or measured-value dict from section data."""
+    value = data.get(key)
+    if isinstance(value, (int, float, Decimal)) and not isinstance(value, bool):
+        return _canonicalize_numeric(value)
+    if _is_measured_value(value):
+        return _canonicalize_numeric(value.get("value"))
+    return None
+
+
+def _zone_list_from_throughput(data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return zone rows from persisted zone_details or legacy zones list."""
+    for key in ("zone_details", "zones"):
+        zones = data.get(key)
+        if isinstance(zones, list):
+            return [zone for zone in zones if isinstance(zone, dict)]
+    return []
 
 
 def _build_text_section(
@@ -787,7 +855,7 @@ def _build_provenance_section(
 def _build_throughput_inventory_area_section(
     data: dict[str, Any],
 ) -> CanonicalRenderSection:
-    """Build the throughput_inventory_area section with numeric values, units, and provenance."""
+    """Build throughput section with zone table and summary scalars."""
     section_key = "throughput_inventory_area"
     level = _section_level(section_key)
 
@@ -800,6 +868,114 @@ def _build_throughput_inventory_area_section(
             empty_reason_code="not_provided",
         )
 
+    text_fields: dict[str, str] = {}
+    for summary_key in ("daily_inbound_mass_kg", "total_area_m2"):
+        summary_value = _coerce_scalar_numeric(data, summary_key)
+        if summary_value is not None:
+            text_fields[summary_key] = str(summary_value)
+
+    zones = _zone_list_from_throughput(data)
+    if zones:
+        col_keys = _THROUGHPUT_ZONE_TABLE_COLUMNS
+        rows: list[tuple[CanonicalRenderTableCell, ...]] = []
+        total_area = Decimal("0")
+        total_positions = 0
+        has_area = False
+        has_positions = False
+
+        for zone in zones:
+            zone_name = str(zone.get("zone_name", zone.get("zone_code", "")))
+            temperature_band = str(zone.get("temperature_band", ""))
+
+            area_raw = zone.get("required_area_m2")
+            area_value: Decimal | int | None = None
+            if area_raw is not None:
+                area_value = _canonicalize_numeric(area_raw)
+                total_area += Decimal(str(area_value))
+                has_area = True
+
+            position_raw = zone.get("position_count")
+            position_value: Decimal | int | None = None
+            if position_raw is not None:
+                position_value = _canonicalize_numeric(position_raw)
+                total_positions += int(position_value)
+                has_positions = True
+
+            rows.append(
+                (
+                    CanonicalRenderTableCell(
+                        field_path="throughput_inventory_area.zone_name",
+                        field_key="header.zone_name",
+                        raw_value=zone_name,
+                    ),
+                    CanonicalRenderTableCell(
+                        field_path="throughput_inventory_area.temperature_band",
+                        field_key="header.temperature_band",
+                        raw_value=temperature_band,
+                    ),
+                    CanonicalRenderTableCell(
+                        field_path="throughput_inventory_area.required_area_m2",
+                        field_key="header.required_area_m2",
+                        raw_value=area_value,
+                        unit_code="m2",
+                        align_code="right",
+                    ),
+                    CanonicalRenderTableCell(
+                        field_path="throughput_inventory_area.position_count",
+                        field_key="header.position_count",
+                        raw_value=position_value,
+                        unit_code="count",
+                        align_code="right",
+                    ),
+                )
+            )
+
+        if len(zones) > 1 and (has_area or has_positions):
+            rows.append(
+                (
+                    CanonicalRenderTableCell(
+                        field_path="throughput_inventory_area.total",
+                        field_key="header.total",
+                        raw_value="",
+                    ),
+                    CanonicalRenderTableCell(
+                        field_path="throughput_inventory_area.total.temperature_band",
+                        field_key="",
+                        raw_value="",
+                    ),
+                    CanonicalRenderTableCell(
+                        field_path="throughput_inventory_area.total_area_m2",
+                        field_key="",
+                        raw_value=total_area if has_area else None,
+                        unit_code="m2",
+                        align_code="right",
+                    ),
+                    CanonicalRenderTableCell(
+                        field_path="throughput_inventory_area.total_position_count",
+                        field_key="",
+                        raw_value=total_positions if has_positions else None,
+                        unit_code="count",
+                        align_code="right",
+                    ),
+                )
+            )
+
+        table = CanonicalRenderTable(
+            table_key="throughput_zone_details",
+            title_key="section.throughput_inventory_area",
+            column_keys=col_keys,
+            rows=tuple(rows),
+            unit_codes=("", "", "m2", "count"),
+        )
+        return CanonicalRenderSection(
+            section_key=section_key,
+            title=section_key,
+            level=level,
+            content_type_code="table",
+            table=table,
+            text_fields=text_fields,
+        )
+
     metrics = _extract_canonical_metrics(section_key, data)
     if metrics:
         return CanonicalRenderSection(
@@ -808,10 +984,10 @@ def _build_throughput_inventory_area_section(
             level=level,
             content_type_code="metrics",
             metrics=tuple(metrics),
+            text_fields=text_fields,
         )
 
-    # Fallback: text fields if no measured values
-    text_fields = _extract_text_fields(data)
+    # Fallback: text fields if no measured values or zone rows
     if text_fields:
         return CanonicalRenderSection(
             section_key=section_key,
@@ -836,18 +1012,54 @@ def _build_input_conditions_section(
     section_key = "input_conditions"
     level = _section_level(section_key)
     text_fields: dict[str, str] = {}
+    table_rows: list[tuple[CanonicalRenderTableCell, ...]] = []
+
     for field_name in OPERATOR_V09_FIVE_KEY_FIELDS:
         value = data.get(field_name)
-        if isinstance(value, (int, float, Decimal)) and not isinstance(value, bool):
-            text_fields[field_name] = str(value)
-    if text_fields:
+        if not isinstance(value, (int, float, Decimal)) or isinstance(value, bool):
+            continue
+        numeric_value = _canonicalize_numeric(value)
+        text_fields[field_name] = str(numeric_value)
+        unit_key = _INPUT_CONDITION_UNIT_KEYS[field_name]
+        table_rows.append(
+            (
+                CanonicalRenderTableCell(
+                    field_path=f"input_conditions.{field_name}",
+                    field_key=f"field.{field_name}",
+                    raw_value=field_name,
+                ),
+                CanonicalRenderTableCell(
+                    field_path=f"input_conditions.{field_name}.value",
+                    field_key="header.metric_value",
+                    raw_value=numeric_value,
+                    align_code="right",
+                ),
+                CanonicalRenderTableCell(
+                    field_path=f"input_conditions.{field_name}.unit",
+                    field_key=unit_key,
+                    raw_value=unit_key,
+                ),
+            )
+        )
+
+    if table_rows:
+        col_keys = ("parameter", "value", "unit")
+        table = CanonicalRenderTable(
+            table_key="input_conditions_key",
+            title_key="section.input_conditions",
+            column_keys=col_keys,
+            rows=tuple(table_rows),
+            unit_codes=("", "", ""),
+        )
         return CanonicalRenderSection(
             section_key=section_key,
             title=section_key,
             level=level,
-            content_type_code="text",
+            content_type_code="table",
+            table=table,
             text_fields=text_fields,
         )
+
     return CanonicalRenderSection(
         section_key=section_key,
         title=section_key,
@@ -873,9 +1085,7 @@ def _build_calculation_logic_section(
         )
     formula_col_keys = (
         "stage",
-        "calculation_id",
         "formula_id",
-        "formula_version",
         "expression",
         "description",
     )
@@ -884,7 +1094,6 @@ def _build_calculation_logic_section(
         if not isinstance(stage_entry, dict):
             continue
         stage_name = str(stage_entry.get("stage", ""))
-        calculation_id = str(stage_entry.get("calculation_id", ""))
         formulas = stage_entry.get("formulas")
         if not isinstance(formulas, list):
             continue
@@ -895,23 +1104,13 @@ def _build_calculation_logic_section(
                 (
                     CanonicalRenderTableCell(
                         field_path="calculation_logic.stage",
-                        field_key="header.stage",
+                        field_key=f"stage.{stage_name}",
                         raw_value=stage_name,
-                    ),
-                    CanonicalRenderTableCell(
-                        field_path="calculation_logic.calculation_id",
-                        field_key="header.calculation_id",
-                        raw_value=calculation_id,
                     ),
                     CanonicalRenderTableCell(
                         field_path="calculation_logic.formula_id",
                         field_key="header.formula_id",
                         raw_value=formula.get("formula_id", ""),
-                    ),
-                    CanonicalRenderTableCell(
-                        field_path="calculation_logic.formula_version",
-                        field_key="header.formula_version",
-                        raw_value=formula.get("formula_version", ""),
                     ),
                     CanonicalRenderTableCell(
                         field_path="calculation_logic.expression",
@@ -949,6 +1148,69 @@ def _build_calculation_logic_section(
     )
 
 
+def _build_engineering_metrics_table_section(
+    section_key: str,
+    data: dict[str, Any],
+) -> CanonicalRenderSection | None:
+    """Render top-level measured values as a compact item/value/unit table."""
+    level = _section_level(section_key)
+    metrics = _extract_top_level_canonical_metrics(section_key, data)
+    if not metrics:
+        return None
+
+    col_keys = ("item", "value", "unit")
+    rows: list[tuple[CanonicalRenderTableCell, ...]] = []
+    unit_codes: list[str] = ["", "", ""]
+    for metric in metrics:
+        rows.append(
+            (
+                CanonicalRenderTableCell(
+                    field_path=metric.field_path,
+                    field_key=metric.field_key,
+                    raw_value=metric.field_key,
+                ),
+                CanonicalRenderTableCell(
+                    field_path=f"{metric.field_path}.value",
+                    field_key="header.metric_value",
+                    raw_value=metric.raw_value,
+                    unit_code=metric.unit_code,
+                    align_code="right",
+                    source_id=metric.source_id,
+                    source_tool=metric.source_tool,
+                    source_tool_version=metric.source_tool_version,
+                    source_content_hash=metric.source_content_hash,
+                ),
+                CanonicalRenderTableCell(
+                    field_path=f"{metric.field_path}.unit",
+                    field_key="",
+                    raw_value=metric.unit_code,
+                    unit_code=metric.unit_code,
+                ),
+            )
+        )
+
+    table = CanonicalRenderTable(
+        table_key=f"{section_key}_metrics",
+        title_key=f"section.{section_key}",
+        column_keys=col_keys,
+        rows=tuple(rows),
+        unit_codes=tuple(unit_codes),
+    )
+
+    text_fields = _extract_text_fields(
+        {k: v for k, v in data.items() if not _is_measured_value(v)}
+    )
+
+    return CanonicalRenderSection(
+        section_key=section_key,
+        title=section_key,
+        level=level,
+        content_type_code="table",
+        table=table,
+        text_fields=text_fields,
+    )
+
+
 def _build_canonical_section(
     section_key: str,
     data: dict[str, Any] | Any,
@@ -974,6 +1236,11 @@ def _build_canonical_section(
 
     if section_key == "calculation_logic" and isinstance(data, dict):
         return _build_calculation_logic_section(data)
+
+    if section_key in _ENGINEERING_METRICS_SECTIONS and isinstance(data, dict):
+        metrics_section = _build_engineering_metrics_table_section(section_key, data)
+        if metrics_section is not None:
+            return metrics_section
 
     if section_key == "quality_summary" and isinstance(data, dict):
         return _build_quality_summary_section(data)

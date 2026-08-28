@@ -183,18 +183,22 @@ def test_canonical_render_populates_input_conditions_and_calculation_logic_table
         template_version="1.0.0",
     )
     input_section = next(s for s in canonical.sections if s.section_key == "input_conditions")
-    assert input_section.content_type_code == "text"
+    assert input_section.content_type_code == "table"
+    assert input_section.table is not None
+    assert input_section.table.table_key == "input_conditions_key"
     assert input_section.text_fields["daily_inbound_mass_kg"] == "20000"
 
     logic_section = next(s for s in canonical.sections if s.section_key == "calculation_logic")
     assert logic_section.content_type_code == "table"
     assert logic_section.table is not None
     assert logic_section.table.table_key == "calculation_logic_formulas"
+    assert "calculation_id" not in logic_section.table.column_keys
 
     localized = localize_render_model(canonical, locale=ReportLocale.ZH_CN)
     localized_input = next(s for s in localized.sections if s.section_key == "input_conditions")
-    assert localized_input.content_type == "text"
-    assert "20000" in localized_input.text
+    assert localized_input.content_type == "table"
+    assert localized_input.table is not None
+    assert localized_input.table.rows[0][1].display_value == "20000"
     localized_logic = next(s for s in localized.sections if s.section_key == "calculation_logic")
     assert localized_logic.table is not None
     assert localized_logic.table.title

@@ -11,7 +11,7 @@ suppression -- MissingTranslationError propagates on missing catalog keys
 
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from cold_storage.modules.reports.domain.enums import ReportLocale
@@ -56,7 +56,7 @@ def _is_numeric(value: Any) -> bool:
         try:
             Decimal(value)
             return True
-        except (ValueError, TypeError):
+        except (InvalidOperation, ValueError, TypeError):
             return False
     return False
 
@@ -91,6 +91,54 @@ def _format_display_value(
 
 
 _SCHEME_TABLE_SKIP_COLUMNS: frozenset[str] = frozenset({"scheme_name"})
+
+_TRANSLATABLE_CELL_FIELD_KEY_PREFIXES: tuple[str, ...] = (
+    "field.",
+    "stage.",
+    "unit.",
+    "header.",
+)
+
+
+def _translate_cell_field_key(cell: CanonicalRenderTableCell, locale: ReportLocale) -> str | None:
+    """Return catalog text when the cell field_key is a translatable label key."""
+    field_key = cell.field_key
+    if not field_key:
+        return None
+    if not field_key.startswith(_TRANSLATABLE_CELL_FIELD_KEY_PREFIXES):
+        return None
+    # Body cells use header.* only for row labels such as totals.
+    if field_key.startswith("header.") and field_key.removeprefix("header.") in {
+        "stage",
+        "formula_id",
+        "expression",
+        "description",
+        "scheme",
+        "scheme_id",
+        "scheme_name",
+        "rank",
+        "metric_label",
+        "metric_value",
+        "code",
+        "severity",
+        "message",
+        "section",
+        "field_path",
+        "source_type",
+        "source_id",
+        "tool",
+        "content_hash",
+        "zone_name",
+        "temperature_band",
+        "required_area_m2",
+        "position_count",
+        "parameter",
+        "value",
+        "unit",
+        "item",
+    }:
+        return None
+    return translate(locale, field_key)
 
 
 def _append_provenance_suffix(
@@ -432,8 +480,18 @@ def _localize_section(
                 cells: list[LocalizedRenderTableCell] = []
                 for cell in row:
                     raw = cell.raw_value
-                    # Determine if this is a scheme_name cell (first column) or a metric
-                    if cell.field_key == "header.scheme" or cell.field_path.endswith("scheme_name"):
+                    translated_label = _translate_cell_field_key(cell, locale)
+                    if translated_label is not None:
+                        cells.append(
+                            LocalizedRenderTableCell(
+                                canonical=cell,
+                                display_value=translated_label,
+                                align=cell.align_code or "left",
+                            )
+                        )
+                    elif cell.field_key == "header.scheme" or cell.field_path.endswith(
+                        "scheme_name"
+                    ):
                         display_val = str(raw) if raw else "\u2014"
                         display_val = _append_provenance_suffix(display_val, cell, locale)
                         cells.append(
@@ -456,7 +514,16 @@ def _localize_section(
                                 canonical=cell,
                                 display_value=display_val,
                                 display_unit=localized_unit,
-                                align="right",
+                                align=cell.align_code or "right",
+                            )
+                        )
+                    elif cell.unit_code and not _is_numeric(raw):
+                        display_val = format_unit_label(cell.unit_code, locale)
+                        cells.append(
+                            LocalizedRenderTableCell(
+                                canonical=cell,
+                                display_value=display_val,
+                                align=cell.align_code or "left",
                             )
                         )
                     else:
