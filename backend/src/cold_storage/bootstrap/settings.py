@@ -209,6 +209,9 @@ class Settings(BaseSettings):
     redis_url: str | None = Field(default=None, validation_alias="COLD_STORAGE_REDIS_URL")
     storage_dir: str | None = Field(default=None, validation_alias="COLD_STORAGE_STORAGE_DIR")
     mimo_api_key: str | None = Field(default=None, validation_alias="COLD_STORAGE_MIMO_API_KEY")
+    aily_connector_shared_secret: str | None = Field(
+        default=None, validation_alias="COLD_STORAGE_AILY_CONNECTOR_SHARED_SECRET"
+    )
     agent_provider: str | None = Field(default=None, validation_alias="COLD_STORAGE_AGENT_PROVIDER")
     agent_model: str | None = Field(default=None, validation_alias="COLD_STORAGE_AGENT_MODEL")
     agent_timeout_seconds: int | None = Field(
