@@ -11,7 +11,10 @@ export interface PersistedScalarField {
 }
 
 const AISLE_LAYOUT_LABELS: Record<string, string> = {
-  three_side_3m: '三面通道'
+  three_side_3m: '三面通道',
+  'three_side_2.2m': '三面通道',
+  one_long_side_3m: '单侧长边通道',
+  four_side_architectural: '四边通道'
 }
 
 const SCHEME_ID_LABELS: Record<string, string> = {
