@@ -1,6 +1,7 @@
 import pytest
 
 from cold_storage.modules.calculations.domain.zone_planning import (
+    FORMULA_AUTHORITY,
     ColdRoomZonePlanInput,
     ColdRoomZonePlanner,
 )
@@ -62,17 +63,20 @@ def test_zone_planner_converts_known_production_to_room_capacities_and_areas() -
     assert primary["reporting_scheme_id"] == "6_position"
     assert primary["position_count"] == 24
     assert primary["position_daily_capacity_kg_day"] == 1320
-    assert primary["required_area_m2"] == pytest.approx(208, abs=0.01)
+    assert primary["required_area_m2"] == pytest.approx(168, abs=0.01)
     assert len(primary["schemes"]) == 2
     assert primary["schemes"][0]["scheme_id"] == "6_position"
-    assert primary["schemes"][0]["required_area_m2"] == pytest.approx(208, abs=0.01)
+    assert primary["schemes"][0]["required_area_m2"] == pytest.approx(168, abs=0.01)
     assert primary["schemes"][1]["scheme_id"] == "8_position"
-    assert primary["schemes"][1]["required_area_m2"] == pytest.approx(204, abs=0.01)
+    assert primary["schemes"][1]["required_area_m2"] == pytest.approx(168, abs=0.01)
 
     assert secondary["raw_position_count"] == 8
     assert secondary["position_count"] == 12
     assert secondary["position_daily_capacity_kg_day"] == 3200
-    assert secondary["required_area_m2"] == pytest.approx(104, abs=0.01)
+    assert secondary["required_area_m2"] == pytest.approx(84, abs=0.01)
+
+    assert zones[0]["required_area_m2"] == pytest.approx(80, abs=0.01)
+    assert zones[1]["required_area_m2"] == pytest.approx(80, abs=0.01)
 
     raw = zones[4]
     assert raw["design_storage_mass_kg"] == 10_000
@@ -80,28 +84,28 @@ def test_zone_planner_converts_known_production_to_room_capacities_and_areas() -
     assert raw["n_long"] == 10
     assert raw["n_short"] == 5
     assert raw["position_count"] == 50
-    assert raw["required_area_m2"] == pytest.approx(171, abs=0.01)
+    assert raw["required_area_m2"] == pytest.approx(142.68, abs=0.01)
     assert "area_basis" not in raw
 
     sorting = zones[5]
     assert sorting["worker_count"] == 66
     assert sorting["table_count"] == 22
     assert sorting["position_count"] == 28
-    assert sorting["required_area_m2"] == pytest.approx(1023, abs=0.01)
+    assert sorting["required_area_m2"] == pytest.approx(690.56, abs=0.01)
 
     assert zones[6]["required_area_m2"] == pytest.approx(120, abs=0.01)
 
     finished = zones[7]
-    assert finished["design_storage_mass_kg"] == 62_500
-    assert finished["n_need"] == 157
-    assert finished["position_count"] == 162
-    assert finished["required_area_m2"] == pytest.approx(405.72, abs=0.01)
+    assert finished["design_storage_mass_kg"] == 56_250
+    assert finished["n_need"] == 141
+    assert finished["position_count"] == 144
+    assert finished["required_area_m2"] == pytest.approx(282.24, abs=0.01)
 
     secondary_fruit = zones[8]
-    assert secondary_fruit["design_storage_mass_kg"] == 7_500
+    assert secondary_fruit["design_storage_mass_kg"] == 5_000
     assert secondary_fruit["secondary_fruit_ratio"] == 0.10
-    assert secondary_fruit["secondary_fruit_storage_days"] == 3
-    assert secondary_fruit["required_area_m2"] == pytest.approx(88.56, abs=0.01)
+    assert secondary_fruit["secondary_fruit_storage_days"] == 2
+    assert secondary_fruit["required_area_m2"] == pytest.approx(68.88, abs=0.01)
 
     frozen = zones[9]
     assert frozen["temperature_band"] == "-18℃"
@@ -112,22 +116,20 @@ def test_zone_planner_converts_known_production_to_room_capacities_and_areas() -
 
     packaging = zones[10]
     assert packaging["position_count"] == 90
-    assert packaging["required_area_m2"] == pytest.approx(351.0, abs=0.01)
+    assert packaging["required_area_m2"] == pytest.approx(322.92, abs=0.01)
 
     shipping = zones[11]
     assert shipping["pallet_count"] == 63
     assert shipping["truck_count"] == 4
     assert shipping["platform_count"] == 1
     assert shipping["position_count"] == 1
-    assert shipping["required_area_m2"] == pytest.approx(55, abs=0.01)
+    assert shipping["required_area_m2"] == pytest.approx(50, abs=0.01)
 
-    assert result.result["total_area_m2"] == pytest.approx(2744.24, abs=0.01)
-    assert result.result["total_area_m2_8_position_scheme"] == pytest.approx(2704.24, abs=0.01)
+    assert result.result["total_area_m2"] == pytest.approx(2147.24, abs=0.01)
+    assert result.result["total_area_m2_8_position_scheme"] == pytest.approx(2119.24, abs=0.01)
     assert result.result["planning_parameters"]["main_packaging_storage_days"] == 3
     assert result.result["planning_parameters"]["auxiliary_packaging_storage_days"] == 30
-    assert (
-        result.result["planning_parameters"]["formula_authority"] == "V0.9-version-plan-section-4"
-    )
+    assert result.result["planning_parameters"]["formula_authority"] == FORMULA_AUTHORITY
     assert result.warnings[0].code == "DEMO_ASSUMPTIONS_REQUIRE_REVIEW"
 
 
@@ -184,8 +186,8 @@ def test_zone_planner_accepts_explicit_planning_assumption_overrides() -> None:
     assert zones[4]["design_storage_mass_kg"] == 12_500
     assert zones[4]["n_need"] == 50
     assert zones[4]["position_count"] == 50
-    assert zones[7]["position_count"] == 152
-    assert zones[8]["design_storage_mass_kg"] == 7_500
+    assert zones[7]["position_count"] == 136
+    assert zones[8]["design_storage_mass_kg"] == 5_000
     assert zones[9]["design_storage_mass_kg"] == 25_000
     assert zones[9]["position_count"] == 50
     assert zones[10]["position_count"] == 137
