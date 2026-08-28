@@ -181,6 +181,13 @@ def _strings_equal_folded(a: str, b: str) -> bool:
     return _fold_whitespace(a) == _fold_whitespace(b)
 
 
+def _is_pdf_draft_watermark_text(text: str) -> bool:
+    """True for renderer draft watermarks, which must not bound sections."""
+
+    compact = "".join(_fold_whitespace(text).split()).casefold()
+    return compact in {"draft", "草稿"}
+
+
 # ── DOCX observation ──────────────────────────────────────────────────────
 
 
@@ -2242,6 +2249,11 @@ def _resolve_pdf_section_scopes(
         # model — the verifier must not extend the canonical
         # section's scope across that second heading).
         elif line.max_font_size >= 13.0 and folded:
+            if _is_pdf_draft_watermark_text(line.text):
+                # Rotated DRAFT/草稿 watermarks are ~60–72pt and sit
+                # outside the table grid. They must not terminate a
+                # section or drop a continuation page.
+                continue
             # A visually-large line is treated as a section seam
             # ONLY when it sits OUTSIDE a coherent table grid on its
             # page. Real renderer artifacts repeat the table header

@@ -173,6 +173,30 @@ def test_section_page_filter_noop_without_heading_catalog() -> None:
     assert kept == section_lines
 
 
+def test_pdf_section_scope_ignores_draft_watermark_seam() -> None:
+    """72pt DRAFT/草稿 must not truncate a section before the next catalog title."""
+
+    lines = (
+        _pdf_line(2, "冷负荷计算", 16.0, 0),
+        _pdf_line(2, "项目", 9.5, 1),
+        _pdf_line(2, "草稿", 72.0, 2),
+        _pdf_line(3, "DRAFT", 72.0, 0),
+        _pdf_line(3, "设备选型", 16.0, 1),
+    )
+    observation = ppr._PdfObservation(all_lines=lines, section_scopes={})
+    resolved = ppr._resolve_pdf_section_scopes(
+        observation=observation,
+        section_scopes=(
+            ppr._SectionScope(section_key="cooling_load", heading_text="冷负荷计算"),
+            ppr._SectionScope(section_key="equipment_selection", heading_text="设备选型"),
+        ),
+    )
+    cooling_start, cooling_end = resolved["cooling_load"]
+    assert lines[cooling_start].text == "冷负荷计算"
+    assert cooling_end == 4
+    assert "设备选型" not in {line.text for line in lines[cooling_start:cooling_end]}
+
+
 def test_fold_whitespace_maps_cjk_compatibility_ideographs_for_quantity() -> None:
     """PDF CJK fonts often round-trip 量 to U+F97E; headings must still match."""
     catalog = "质量摘要"
