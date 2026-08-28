@@ -14,8 +14,16 @@ from cold_storage.modules.reports.application.canonical_render_model_builder imp
 )
 from cold_storage.modules.reports.application.render_model_localizer import localize_render_model
 from cold_storage.modules.reports.domain.enums import ExportFormat, ReportLocale
+from cold_storage.modules.reports.renderers.docx_renderer import DocxRenderer
 from cold_storage.modules.reports.renderers.pdf_renderer import PdfRenderer
 
+_DOCX_MANIFEST = json.loads(
+    (
+        Path(__file__).resolve().parents[2]
+        / "src/cold_storage/modules/reports/templates/"
+        / "cold_storage_concept_design/1.0.0/docx/manifest.json"
+    ).read_text(encoding="utf-8")
+)
 _PDF_MANIFEST = json.loads(
     (
         Path(__file__).resolve().parents[2]
@@ -266,3 +274,93 @@ def test_zh_cn_pdf_semantic_passes_for_compact_tables_and_quality_summary() -> N
     observed = {row["field_path"]: row for row in checks["observed_numeric_fields"]}
     for path in compact_paths:
         assert observed[path]["binding_status"] == "BOUND", path
+
+
+def _equipment_value_paths(content: dict) -> tuple[str, ...]:
+    canonical = build_canonical_render_model(
+        content=content,
+        report_id="r1",
+        revision_number=1,
+        content_hash="hash",
+        generated_by="tester",
+        generated_at="2026-08-28T00:00:00Z",
+        template_code="cold_storage_concept_design",
+        template_version="1.0.0",
+    )
+    section = next(s for s in canonical.sections if s.section_key == "equipment_selection")
+    assert section.table is not None
+    return tuple(row[1].field_path for row in section.table.rows)
+
+
+def test_engineering_metrics_table_rows_are_stable_across_json_key_order() -> None:
+    """PostgreSQL JSONB does not preserve object key order; compact rows must."""
+
+    compressor = _P14_LIKE_CONTENT["equipment_selection"]["total_compressor_capacity"]
+    condenser = _P14_LIKE_CONTENT["equipment_selection"]["condenser_heat_rejection"]
+    compressor_first = {
+        **_P14_LIKE_CONTENT,
+        "equipment_selection": {
+            "total_compressor_capacity": compressor,
+            "condenser_heat_rejection": condenser,
+        },
+    }
+    condenser_first = {
+        **_P14_LIKE_CONTENT,
+        "equipment_selection": {
+            "condenser_heat_rejection": condenser,
+            "total_compressor_capacity": compressor,
+        },
+    }
+    expected = (
+        "equipment_selection.condenser_heat_rejection.value",
+        "equipment_selection.total_compressor_capacity.value",
+    )
+    assert _equipment_value_paths(compressor_first) == expected
+    assert _equipment_value_paths(condenser_first) == expected
+
+
+def test_zh_cn_docx_semantic_passes_when_equipment_keys_are_reordered() -> None:
+    """In-memory assemble order vs JSONB reload order must still bind compact cells."""
+
+    compressor = _P14_LIKE_CONTENT["equipment_selection"]["total_compressor_capacity"]
+    condenser = _P14_LIKE_CONTENT["equipment_selection"]["condenser_heat_rejection"]
+    content = {
+        **_P14_LIKE_CONTENT,
+        "equipment_selection": {
+            "condenser_heat_rejection": condenser,
+            "total_compressor_capacity": compressor,
+        },
+    }
+    canonical = build_canonical_render_model(
+        content=content,
+        report_id="r1",
+        revision_number=1,
+        content_hash="hash",
+        generated_by="tester",
+        generated_at="2026-08-28T00:00:00Z",
+        template_code="cold_storage_concept_design",
+        template_version="1.0.0",
+    )
+    localized = localize_render_model(
+        canonical,
+        locale=ReportLocale.ZH_CN,
+        template_manifest_json=_DOCX_MANIFEST,
+        format="docx",
+    )
+    docx_bytes = DocxRenderer().render(localized)
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=SimpleNamespace(manifest_json=_DOCX_MANIFEST),
+        locale=ReportLocale.ZH_CN,
+        fmt=ExportFormat.DOCX,
+        artifact_bytes=docx_bytes,
+    )
+    assert checks["numeric_mismatches"] == []
+    assert checks["semantic_result"] == "PASS"
+    observed = {row["field_path"]: row for row in checks["observed_numeric_fields"]}
+    assert observed["equipment_selection.total_compressor_capacity.value"]["binding_status"] == (
+        "BOUND"
+    )
+    assert observed["equipment_selection.condenser_heat_rejection.value"]["binding_status"] == (
+        "BOUND"
+    )

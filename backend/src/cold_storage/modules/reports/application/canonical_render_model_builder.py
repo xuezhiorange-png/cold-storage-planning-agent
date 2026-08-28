@@ -168,7 +168,7 @@ def _extract_text_fields(data: dict[str, Any]) -> dict[str, str]:
 def _extract_canonical_metrics(prefix: str, d: dict[str, Any]) -> list[CanonicalRenderMetric]:
     """Extract canonical metrics from nested dict."""
     metrics: list[CanonicalRenderMetric] = []
-    for k, v in d.items():
+    for k, v in sorted(d.items(), key=lambda item: str(item[0])):
         if _is_measured_value(v):
             unit = v.get("unit", "")
             metrics.append(
@@ -193,7 +193,7 @@ def _extract_top_level_canonical_metrics(
 ) -> list[CanonicalRenderMetric]:
     """Extract measured values from top-level keys only (no nested projection)."""
     metrics: list[CanonicalRenderMetric] = []
-    for k, v in d.items():
+    for k, v in sorted(d.items(), key=lambda item: str(item[0])):
         if _is_measured_value(v):
             unit = v.get("unit", "")
             metrics.append(
@@ -1197,9 +1197,7 @@ def _build_engineering_metrics_table_section(
         unit_codes=tuple(unit_codes),
     )
 
-    text_fields = _extract_text_fields(
-        {k: v for k, v in data.items() if not _is_measured_value(v)}
-    )
+    text_fields = _extract_text_fields({k: v for k, v in data.items() if not _is_measured_value(v)})
 
     return CanonicalRenderSection(
         section_key=section_key,

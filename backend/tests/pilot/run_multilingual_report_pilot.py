@@ -1779,9 +1779,17 @@ def _cmd_run(args: argparse.Namespace) -> int:
                     "field_path": row.get("field_path"),
                     "binding_status": row.get("binding_status"),
                     "section_key": row.get("section_key"),
+                    "display_value": row.get("display_value"),
+                    "display_unit": row.get("display_unit"),
+                    "row_index": row.get("row_index"),
+                    "column_index": row.get("column_index"),
                 }
                 for row in checks.get("observed_numeric_fields") or []
-                if isinstance(row, dict) and row.get("binding_status") not in (None, "BOUND")
+                if isinstance(row, dict)
+                and (
+                    row.get("binding_status") not in (None, "BOUND")
+                    or row.get("field_path") in set(checks.get("numeric_mismatches") or [])
+                )
             ]
             sys.stderr.write(
                 json.dumps(
