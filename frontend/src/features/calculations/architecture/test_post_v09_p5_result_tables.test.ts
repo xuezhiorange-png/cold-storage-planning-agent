@@ -108,5 +108,13 @@ describe('POST-V0.9 P5 operator result tables guards', () => {
     expect(content).toContain('6位汇报')
     expect(content).toContain('formatAisleLayout')
     expect(content).toContain('formatSchemeId')
+
+    const labels = readFileSync(
+      join(FRONTEND_SRC, 'features/calculations/components/persistedResultLabels.ts'),
+      'utf8'
+    )
+    expect(labels).toContain("three_side_2.2m")
+    expect(labels).toContain("三面通道")
+    expect(labels).toContain("one_long_side_3m")
   })
 })
