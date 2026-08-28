@@ -5,14 +5,13 @@ with headers, footers, and optional DRAFT watermark.
 
 P0-1: Metrics content type rendering.
 P0-6: Real pagination with page overflow detection and table header repeat.
-P0-9: Uses system CJK font for Chinese text rendering.
+P0-9: Uses a CJK font for Chinese text (system face, then PyMuPDF builtin).
 P0-10: Template manifest controls page size, margins, fonts, styles, etc.
 """
 
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import fitz  # PyMuPDF
@@ -22,6 +21,12 @@ from cold_storage.modules.reports.domain.render_model import (
     CanonicalRenderTableCell as _CanonicalCell,
 )
 from cold_storage.modules.reports.domain.render_model import LocalizedRenderTableCell
+from cold_storage.modules.reports.renderers.cjk_font import (
+    find_cjk_font as _find_cjk_font,
+)
+from cold_storage.modules.reports.renderers.cjk_font import (
+    load_cjk_font as _get_cjk_font,
+)
 
 
 def _make_pdf_cell(text: str) -> _CanonicalCell:
@@ -38,53 +43,9 @@ if TYPE_CHECKING:
 
 _logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# CJK Font Detection (P0-9)
-# ---------------------------------------------------------------------------
-_CJK_FONT_CANDIDATES: list[str] = [
-    "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
-    "/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf",
-    "/usr/share/fonts/opentype/ipafont-gothic/ipagp.ttf",
-]
-
-_CJK_FONT_PATH: str | None = None
-
-
-def _find_cjk_font() -> str:
-    """Find a CJK-capable font on the system, caching the result."""
-    global _CJK_FONT_PATH  # noqa: PLW0603
-    if _CJK_FONT_PATH is not None:
-        return _CJK_FONT_PATH
-
-    # Check hardcoded candidates first
-    for candidate in _CJK_FONT_CANDIDATES:
-        if Path(candidate).is_file():
-            _CJK_FONT_PATH = candidate
-            return _CJK_FONT_PATH
-
-    # Scan /usr/share/fonts for any .ttc or .ttf that might be CJK
-    for font_dir in Path("/usr/share/fonts").rglob("*"):
-        if font_dir.is_file() and font_dir.suffix in (".ttc", ".ttf"):
-            name_lower = font_dir.name.lower()
-            if any(kw in name_lower for kw in ("cjk", "wqy", "noto", "gothic", "mincho", "han")):
-                _CJK_FONT_PATH = str(font_dir)
-                return _CJK_FONT_PATH
-
-    raise RuntimeError("No CJK font found. Install fonts-wqy-zenhei or similar.")
-
-
-def _get_cjk_font() -> fitz.Font:
-    """Return a fitz.Font object for CJK text."""
-    font_path = _find_cjk_font()
-    return fitz.Font(fontfile=font_path)
-
 
 def _get_cjk_fontname() -> str:
     """Return the registered fontname for CJK font used with page.insert_text."""
-    # We register the font on each page; use a stable name
     return "cjk_font"
 
 
