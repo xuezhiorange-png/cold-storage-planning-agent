@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, TypeGuard
 
 from cold_storage.modules.projects.application.engineering_input_bundle import (
     OPERATOR_V09_FIVE_KEY_FIELDS,
@@ -118,7 +118,7 @@ def _section_level(section_key: str) -> int:
     return 1
 
 
-def _is_measured_value(obj: Any) -> bool:
+def _is_measured_value(obj: Any) -> TypeGuard[dict[str, Any]]:
     """Return True if obj looks like a measured value dict (value + unit)."""
     return isinstance(obj, dict) and "value" in obj and "unit" in obj
 
