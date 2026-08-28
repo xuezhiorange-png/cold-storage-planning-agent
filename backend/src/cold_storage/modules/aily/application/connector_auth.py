@@ -8,6 +8,7 @@ blank, the connector remains open for local/test backward compatibility.
 from __future__ import annotations
 
 import hmac
+from typing import TypeGuard
 
 from cold_storage.modules.aily.domain.errors import AilyConnectorError
 
@@ -15,7 +16,7 @@ CONNECTOR_KEY_HEADER = "X-Aily-Connector-Key"
 UNAUTHORIZED_CODE = "AILY_CONNECTOR_UNAUTHORIZED"
 
 
-def connector_secret_configured(secret: str | None) -> bool:
+def connector_secret_configured(secret: str | None) -> TypeGuard[str]:
     """Return True when a non-blank shared secret is configured."""
     return secret is not None and bool(secret.strip())
 
