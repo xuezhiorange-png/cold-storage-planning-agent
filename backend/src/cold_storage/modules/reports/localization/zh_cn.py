@@ -263,12 +263,18 @@ _MESSAGES: dict[str, str] = {
     "investment.installation": "安装",
     "investment.design": "设计",
     "investment.commissioning": "调试",
-    # Calculator item_name labels used as investment_breakdown column keys.
+    # Leftover persisted report JSON still uses Chinese item_name as keys.
     "investment.土建及钢结构": "土建及钢结构",
     "investment.冷库制冷设备": "冷库制冷设备",
     "investment.高低压配电": "高低压配电",
     "investment.住宿及生活区": "住宿及生活区",
     "investment.监控及开厂物资": "监控及开厂物资",
+    # Stable English keys emitted by the calculator / report projection.
+    "investment.civil_works_and_steel_structure": "土建及钢结构",
+    "investment.cold_storage_refrigeration_equipment": "冷库制冷设备",
+    "investment.high_low_voltage_distribution": "高低压配电",
+    "investment.accommodation_and_living_area": "住宿及生活区",
+    "investment.monitoring_and_startup_supplies": "监控及开厂物资",
     # ── Impact labels ──
     "impact.not_provided": "未提供",
     "impact.not_calculated": "未计算",

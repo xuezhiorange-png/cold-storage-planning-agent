@@ -30,6 +30,13 @@ def test_investment_estimator_returns_traceable_demo_cost_breakdown() -> None:
         "住宿及生活区",
         "监控及开厂物资",
     ]
+    assert [item["item_key"] for item in result.result["items"]] == [
+        "civil_works_and_steel_structure",
+        "cold_storage_refrigeration_equipment",
+        "high_low_voltage_distribution",
+        "accommodation_and_living_area",
+        "monitoring_and_startup_supplies",
+    ]
     assert result.warnings[0].code == "DEMO_INVESTMENT_REQUIRES_REVIEW"
 
 

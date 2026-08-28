@@ -7016,14 +7016,29 @@ _INVESTMENT_ITEM_LABELS_EN_US: dict[str, str] = {
 }
 
 
-class TestInvestmentCalculatorItemNameLocalization:
-    """Draft export localizes investment_breakdown from calculator item_name.
+_INVESTMENT_STABLE_LABELS_ZH_CN: dict[str, str] = {
+    "civil_works_and_steel_structure": "土建及钢结构",
+    "cold_storage_refrigeration_equipment": "冷库制冷设备",
+    "high_low_voltage_distribution": "高低压配电",
+    "accommodation_and_living_area": "住宿及生活区",
+    "monitoring_and_startup_supplies": "监控及开厂物资",
+}
 
-    ``InvestmentEstimator`` persists Chinese ``item_name`` values. The report
-    provider copies those strings into ``breakdown`` keys, and the localizer
-    looks up ``investment.{item_name}``. Those keys belong in the production
-    catalogs so zh-CN draft export does not depend on the V0.6 evaluation
-    overlay.
+_INVESTMENT_STABLE_LABELS_EN_US: dict[str, str] = {
+    "civil_works_and_steel_structure": "Civil Works and Steel Structure",
+    "cold_storage_refrigeration_equipment": "Cold Storage Refrigeration Equipment",
+    "high_low_voltage_distribution": "High and Low Voltage Distribution",
+    "accommodation_and_living_area": "Accommodation and Living Area",
+    "monitoring_and_startup_supplies": "Monitoring and Startup Supplies",
+}
+
+
+class TestInvestmentCalculatorItemNameLocalization:
+    """Draft export localizes leftover Chinese and stable English catalog keys.
+
+    Production catalogs keep Chinese ``investment.{item_name}`` keys for
+    leftover persisted report JSON. New projection emits English
+    ``item_key`` values; those keys must also exist in both locales.
     """
 
     def test_catalog_contains_calculator_item_name_keys(self) -> None:
@@ -7031,6 +7046,12 @@ class TestInvestmentCalculatorItemNameLocalization:
             key = f"investment.{item_name}"
             assert translate(ReportLocale.ZH_CN, key) == zh_label
             assert translate(ReportLocale.EN_US, key) == _INVESTMENT_ITEM_LABELS_EN_US[item_name]
+
+    def test_catalog_contains_stable_english_item_keys(self) -> None:
+        for item_key, zh_label in _INVESTMENT_STABLE_LABELS_ZH_CN.items():
+            key = f"investment.{item_key}"
+            assert translate(ReportLocale.ZH_CN, key) == zh_label
+            assert translate(ReportLocale.EN_US, key) == _INVESTMENT_STABLE_LABELS_EN_US[item_key]
 
     def test_investment_breakdown_localizes_without_overlay(self) -> None:
         content = {

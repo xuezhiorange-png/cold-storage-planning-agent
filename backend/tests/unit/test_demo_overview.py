@@ -35,6 +35,13 @@ def test_demo_overview_contains_sample_data_for_all_modules() -> None:
         "住宿及生活区",
         "监控及开厂物资",
     ]
+    assert [item["item_key"] for item in overview["modules"][5]["sample"]["items"]] == [
+        "civil_works_and_steel_structure",
+        "cold_storage_refrigeration_equipment",
+        "high_low_voltage_distribution",
+        "accommodation_and_living_area",
+        "monitoring_and_startup_supplies",
+    ]
     assert overview["modules"][6]["sample"]["items"][0]["category"] == "制冷系统"
     axial_fan_row = next(
         row

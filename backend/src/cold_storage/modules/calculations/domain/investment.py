@@ -10,6 +10,16 @@ from cold_storage.modules.calculations.domain.zone_planning import DemoZoneCoeff
 
 VERSION = "1.0.0"
 
+# Stable English keys emitted next to Chinese display labels.
+# Reports own the localization catalog lookup; this module only emits both fields.
+INVESTMENT_ITEM_SPECS: tuple[tuple[str, str], ...] = (
+    ("civil_works_and_steel_structure", "土建及钢结构"),
+    ("cold_storage_refrigeration_equipment", "冷库制冷设备"),
+    ("high_low_voltage_distribution", "高低压配电"),
+    ("accommodation_and_living_area", "住宿及生活区"),
+    ("monitoring_and_startup_supplies", "监控及开厂物资"),
+)
+
 
 @dataclass(frozen=True)
 class InvestmentEstimateInput:
@@ -78,12 +88,16 @@ class InvestmentEstimator:
         power_distribution = data.total_power_kw * self._value("power_distribution_cost_cny_kw")
         dormitory_living = 0
         monitoring_opening_supplies = self._value("monitoring_opening_supplies_cny")
+        amounts = {
+            "civil_works_and_steel_structure": civil_structure,
+            "cold_storage_refrigeration_equipment": refrigeration,
+            "high_low_voltage_distribution": power_distribution,
+            "accommodation_and_living_area": dormitory_living,
+            "monitoring_and_startup_supplies": monitoring_opening_supplies,
+        }
         items = [
-            self._item("土建及钢结构", civil_structure),
-            self._item("冷库制冷设备", refrigeration),
-            self._item("高低压配电", power_distribution),
-            self._item("住宿及生活区", dormitory_living),
-            self._item("监控及开厂物资", monitoring_opening_supplies),
+            self._item(item_key, item_name, amounts[item_key])
+            for item_key, item_name in INVESTMENT_ITEM_SPECS
         ]
         return CalculationResult(
             success=True,
@@ -122,8 +136,12 @@ class InvestmentEstimator:
             requires_review=True,
         )
 
-    def _item(self, item_name: str, amount_cny: float) -> dict[str, object]:
-        return {"item_name": item_name, "amount_cny": round(amount_cny, 2)}
+    def _item(self, item_key: str, item_name: str, amount_cny: float) -> dict[str, object]:
+        return {
+            "item_key": item_key,
+            "item_name": item_name,
+            "amount_cny": round(amount_cny, 2),
+        }
 
     def _value(self, code: str) -> float:
         return self._coefficients[code].value
