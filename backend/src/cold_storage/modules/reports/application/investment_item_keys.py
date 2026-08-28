@@ -2,8 +2,8 @@
 
 The investment calculator may emit a stable English ``item_key`` next to the
 Chinese display ``item_name``. Legacy persisted rows have only ``item_name``.
-This module maps those known demo labels to catalog suffixes and must not
-import ``cold_storage.modules.calculations``.
+This module maps those known demo labels to catalog suffixes. Mapping lives
+here so report assembly does not import calculator functions.
 """
 
 from __future__ import annotations

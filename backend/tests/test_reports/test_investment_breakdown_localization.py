@@ -109,12 +109,19 @@ _LEGACY_DEMO_ITEMS: list[dict[str, object]] = [
 
 
 def test_reports_mapping_does_not_import_calculator_domain() -> None:
-    import inspect
+    import ast
+    from pathlib import Path
 
     import cold_storage.modules.reports.application.investment_item_keys as module
 
-    source = inspect.getsource(module)
-    assert "cold_storage.modules.calculations" not in source
+    tree = ast.parse(Path(module.__file__).read_text(encoding="utf-8"))
+    imported: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.append(node.module)
+    assert all(not name.startswith("cold_storage.modules.calculations") for name in imported)
 
 
 def test_resolve_prefers_item_key_over_legacy_name() -> None:
