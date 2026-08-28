@@ -29,6 +29,9 @@ P8_ALLOWLIST = (
     "frontend/src/features/reports/components/ReportsPage.vue",
     "frontend/src/features/reports/components/ReportExportPanel.vue",
     "frontend/src/features/workbench/architecture/test_post_v09_p8_frontend_polish.test.ts",
+    "frontend/src/features/five-stage/architecture/test_v09_p1_five_key_operator_form.test.ts",
+    "frontend/src/features/five-stage/architecture/test_v08_p2_five_key_operator_form.test.ts",
+    "frontend/tests/workbench.test.ts",
 )
 
 _INTERESTING_PREFIXES = (

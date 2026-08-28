@@ -76,10 +76,12 @@ describe('V0.8 P2 operator five-KEY workbench guards', () => {
     }
   })
 
-  it('engineering inputs page titles OperatorProcessInputV1', () => {
+  it('engineering inputs page titles 工程输入 without schema id in the header', () => {
     const page = readFileSync(join(FIVE_STAGE_DIR, 'components/EngineeringInputsPage.vue'), 'utf8')
-    expect(page).toContain('OperatorProcessInputV1')
-    expect(page).toContain('操作员过程输入')
+    expect(page).toContain('工程输入')
+    expect(page).toContain('仅填写五个过程 KEY')
+    expect(page).not.toContain('OperatorProcessInputV1')
+    expect(page).not.toContain('操作员过程输入')
     expect(page).not.toContain('EngineeringInputBundleV1')
   })
 
