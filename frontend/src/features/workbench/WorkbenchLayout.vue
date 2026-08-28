@@ -32,16 +32,19 @@ onMounted(() => {
 <template>
   <div class="workbench-layout">
     <nav class="workbench-layout__nav" aria-label="主流程导航">
-      <RouterLink
-        v-for="item in navItems"
-        :key="item.path"
-        :to="item.path"
-        class="workbench-layout__nav-link"
-        active-class="workbench-layout__nav-link--active"
-        exact-active-class="workbench-layout__nav-link--active"
-      >
-        {{ item.label }}
-      </RouterLink>
+      <div class="workbench-layout__strip">
+        <RouterLink
+          v-for="(item, index) in navItems"
+          :key="item.path"
+          :to="item.path"
+          class="workbench-layout__nav-link"
+          active-class="workbench-layout__nav-link--active"
+          exact-active-class="workbench-layout__nav-link--active"
+        >
+          <span class="workbench-layout__label">{{ item.label }}</span>
+          <span class="workbench-layout__step">{{ index + 1 }}</span>
+        </RouterLink>
+      </div>
     </nav>
     <div class="workbench-layout__body">
       <aside class="workbench-layout__aside" aria-label="工作流与溯源">
@@ -60,45 +63,78 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   width: 100%;
-  min-height: calc(100vh - 52px);
+  min-height: calc(100vh - 56px);
   box-sizing: border-box;
 }
 
 .workbench-layout__nav {
+  padding: 12px 20px;
+  background: var(--owb-surface);
+  border-bottom: 1px solid var(--owb-border);
+}
+
+.workbench-layout__strip {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 8px;
-  align-items: center;
-  padding: 10px 20px;
-  background: #f3f7fb;
-  border-bottom: 1px solid #c7d4e3;
+  align-items: stretch;
+  gap: 0;
+  border: 1px solid var(--owb-border);
+  border-radius: var(--owb-card-radius);
+  background: #fff;
+  overflow: hidden;
 }
 
 .workbench-layout__nav-link {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  padding: 6px 14px;
-  border: 1px solid #c7d4e3;
-  border-radius: 6px;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-right: 1px solid var(--owb-border);
   background: #fff;
-  color: #163f68;
+  color: var(--owb-navy-text);
   font-size: 13px;
   font-weight: 500;
   text-decoration: none;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s;
+  flex-direction: row-reverse;
+}
+
+.workbench-layout__nav-link:last-child {
+  border-right: none;
 }
 
 .workbench-layout__nav-link:hover {
   background: #ebf0f6;
-  border-color: #8aa8c4;
 }
 
 .workbench-layout__nav-link--active {
-  background: #123a63;
-  border-color: #123a63;
+  background: var(--owb-navy-mid);
   color: #fff;
+}
+
+.workbench-layout__nav-link--active .workbench-layout__step {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.workbench-layout__step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--owb-surface);
+  color: var(--owb-navy-mid);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.workbench-layout__label {
+  white-space: nowrap;
 }
 
 .workbench-layout__body {
@@ -143,6 +179,19 @@ onMounted(() => {
 
   .workbench-layout__body {
     padding: 12px;
+  }
+
+  .workbench-layout__strip {
+    flex-direction: column;
+  }
+
+  .workbench-layout__nav-link {
+    border-right: none;
+    border-bottom: 1px solid var(--owb-border);
+  }
+
+  .workbench-layout__nav-link:last-child {
+    border-bottom: none;
   }
 }
 </style>

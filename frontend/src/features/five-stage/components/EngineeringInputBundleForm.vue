@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ElAlert, ElCard, ElForm } from 'element-plus'
+import { ElAlert, ElForm } from 'element-plus'
 
 import BundleLeafField from './BundleLeafField.vue'
 import type { FiveStageFieldError } from '../../../stores/fiveStageExecution'
@@ -63,60 +63,57 @@ const unmappedFieldError = computed(() => {
       class="engineering-input-bundle-form__alert"
     />
 
-    <ElForm label-position="top">
-      <ElCard shadow="never" class="engineering-input-bundle-form__section">
-        <template #header>过程规划输入 (zone_planning_inputs)</template>
-        <BundleLeafField
-          label="日入库量"
-          field-key="zonePlanning.dailyInboundMassKg"
-          :model-value="form.zonePlanning.dailyInboundMassKg"
-          unit="kg/day"
-          type="number"
-          :disabled="disabled"
-          v-bind="fieldErrorFor('zonePlanning.dailyInboundMassKg')"
-          @update:model-value="updateZonePlanning('dailyInboundMassKg', $event as number | null)"
-        />
-        <BundleLeafField
-          label="成品储存天数"
-          field-key="zonePlanning.finishedStorageDays"
-          :model-value="form.zonePlanning.finishedStorageDays"
-          unit="day"
-          type="number"
-          :disabled="disabled"
-          v-bind="fieldErrorFor('zonePlanning.finishedStorageDays')"
-          @update:model-value="updateZonePlanning('finishedStorageDays', $event as number | null)"
-        />
-        <BundleLeafField
-          label="冻果储存天数"
-          field-key="zonePlanning.frozenStorageDays"
-          :model-value="form.zonePlanning.frozenStorageDays"
-          unit="day"
-          type="number"
-          :disabled="disabled"
-          v-bind="fieldErrorFor('zonePlanning.frozenStorageDays')"
-          @update:model-value="updateZonePlanning('frozenStorageDays', $event as number | null)"
-        />
-        <BundleLeafField
-          label="主包材储存天数"
-          field-key="zonePlanning.mainPackagingStorageDays"
-          :model-value="form.zonePlanning.mainPackagingStorageDays"
-          unit="day"
-          type="number"
-          :disabled="disabled"
-          v-bind="fieldErrorFor('zonePlanning.mainPackagingStorageDays')"
-          @update:model-value="updateZonePlanning('mainPackagingStorageDays', $event as number | null)"
-        />
-        <BundleLeafField
-          label="辅包材储存天数"
-          field-key="zonePlanning.auxiliaryPackagingStorageDays"
-          :model-value="form.zonePlanning.auxiliaryPackagingStorageDays"
-          unit="day"
-          type="number"
-          :disabled="disabled"
-          v-bind="fieldErrorFor('zonePlanning.auxiliaryPackagingStorageDays')"
-          @update:model-value="updateZonePlanning('auxiliaryPackagingStorageDays', $event as number | null)"
-        />
-      </ElCard>
+    <ElForm label-position="top" class="engineering-input-bundle-form__fields">
+      <BundleLeafField
+        label="日入库量"
+        field-key="zonePlanning.dailyInboundMassKg"
+        :model-value="form.zonePlanning.dailyInboundMassKg"
+        unit="kg/day"
+        type="number"
+        :disabled="disabled"
+        v-bind="fieldErrorFor('zonePlanning.dailyInboundMassKg')"
+        @update:model-value="updateZonePlanning('dailyInboundMassKg', $event as number | null)"
+      />
+      <BundleLeafField
+        label="成品储存天数"
+        field-key="zonePlanning.finishedStorageDays"
+        :model-value="form.zonePlanning.finishedStorageDays"
+        unit="天"
+        type="number"
+        :disabled="disabled"
+        v-bind="fieldErrorFor('zonePlanning.finishedStorageDays')"
+        @update:model-value="updateZonePlanning('finishedStorageDays', $event as number | null)"
+      />
+      <BundleLeafField
+        label="冻果储存天数"
+        field-key="zonePlanning.frozenStorageDays"
+        :model-value="form.zonePlanning.frozenStorageDays"
+        unit="天"
+        type="number"
+        :disabled="disabled"
+        v-bind="fieldErrorFor('zonePlanning.frozenStorageDays')"
+        @update:model-value="updateZonePlanning('frozenStorageDays', $event as number | null)"
+      />
+      <BundleLeafField
+        label="主包材储存天数"
+        field-key="zonePlanning.mainPackagingStorageDays"
+        :model-value="form.zonePlanning.mainPackagingStorageDays"
+        unit="天"
+        type="number"
+        :disabled="disabled"
+        v-bind="fieldErrorFor('zonePlanning.mainPackagingStorageDays')"
+        @update:model-value="updateZonePlanning('mainPackagingStorageDays', $event as number | null)"
+      />
+      <BundleLeafField
+        label="辅包材储存天数"
+        field-key="zonePlanning.auxiliaryPackagingStorageDays"
+        :model-value="form.zonePlanning.auxiliaryPackagingStorageDays"
+        unit="天"
+        type="number"
+        :disabled="disabled"
+        v-bind="fieldErrorFor('zonePlanning.auxiliaryPackagingStorageDays')"
+        @update:model-value="updateZonePlanning('auxiliaryPackagingStorageDays', $event as number | null)"
+      />
     </ElForm>
   </div>
 </template>
@@ -124,14 +121,16 @@ const unmappedFieldError = computed(() => {
 <style scoped>
 .engineering-input-bundle-form {
   display: grid;
-  gap: 16px;
-}
-
-.engineering-input-bundle-form__section {
-  margin-bottom: 8px;
+  gap: 12px;
 }
 
 .engineering-input-bundle-form__alert {
   margin-bottom: 8px;
+}
+
+.engineering-input-bundle-form__fields {
+  display: grid;
+  gap: 4px;
+  max-width: 480px;
 }
 </style>

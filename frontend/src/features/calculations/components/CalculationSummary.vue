@@ -18,23 +18,19 @@ function formatWan(value: number): string {
 const items = computed(() => [
   {
     label: '总面积',
-    value: `${formatNumber(props.summary.total_area_m2)} m²`,
-    icon: '📐'
+    value: `${formatNumber(props.summary.total_area_m2)} m²`
   },
   {
     label: '总板位',
-    value: `${props.summary.total_position_count} 个`,
-    icon: '📦'
+    value: `${props.summary.total_position_count} 个`
   },
   {
     label: '总投资',
-    value: formatWan(props.summary.total_investment_cny),
-    icon: '💰'
+    value: formatWan(props.summary.total_investment_cny)
   },
   {
     label: '总功率',
-    value: `${formatNumber(props.summary.total_power_kw)} kW`,
-    icon: '⚡'
+    value: `${formatNumber(props.summary.total_power_kw)} kW`
   }
 ])
 </script>
@@ -42,7 +38,7 @@ const items = computed(() => [
 <template>
   <section class="calculation-summary" aria-label="计算结果概览">
     <div v-if="summary?.requires_review" class="calculation-summary__notice">
-      ⚠️ 部分参数采用演示系数，结果未经工程复核，仅供参考。
+      部分参数采用演示系数，结果未经工程复核，仅供参考。
     </div>
     <div class="calculation-summary__grid">
       <div
@@ -50,11 +46,8 @@ const items = computed(() => [
         :key="item.label"
         class="calculation-summary__card"
       >
-        <span class="calculation-summary__icon">{{ item.icon }}</span>
-        <div class="calculation-summary__body">
-          <span class="calculation-summary__label">{{ item.label }}</span>
-          <span class="calculation-summary__value">{{ item.value }}</span>
-        </div>
+        <span class="calculation-summary__label">{{ item.label }}</span>
+        <span class="calculation-summary__value">{{ item.value }}</span>
       </div>
     </div>
   </section>
@@ -84,33 +77,22 @@ const items = computed(() => [
 }
 
 .calculation-summary__card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 8px;
-  border: 1px solid #e0e6ed;
-  background: #fff;
-}
-
-.calculation-summary__icon {
-  font-size: 24px;
-  line-height: 1;
-}
-
-.calculation-summary__body {
   display: grid;
-  gap: 2px;
+  gap: 4px;
+  padding: 16px;
+  border-radius: var(--owb-card-radius);
+  border: 1px solid var(--owb-border-light);
+  background: #fff;
 }
 
 .calculation-summary__label {
   font-size: 12px;
-  color: #6b7a8f;
+  color: var(--owb-muted);
 }
 
 .calculation-summary__value {
   font-size: 18px;
   font-weight: 600;
-  color: #071a31;
+  color: var(--owb-navy-deep);
 }
 </style>

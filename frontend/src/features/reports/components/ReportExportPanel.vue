@@ -672,7 +672,7 @@ function reportStatusLabel(status: string): string {
             v-if="renderResult && selectedReportId === report.id"
             class="report-export-panel__render-success"
           >
-            <span>✅ 导出已提交 ({{ renderResult.artifact_id }})</span>
+            <span>导出已提交 ({{ renderResult.artifact_id }})</span>
           </div>
           <div
             v-if="renderError && selectedReportId === report.id"
@@ -1104,9 +1104,13 @@ function reportStatusLabel(status: string): string {
 }
 
 .report-export-panel__empty {
-  padding: 8px 12px;
+  padding: 24px 16px;
+  border-radius: var(--owb-card-radius);
+  background: var(--owb-surface);
   font-size: 13px;
-  color: #8aa3c2;
+  color: var(--owb-muted);
+  text-align: center;
+  line-height: 1.5;
 }
 
 .report-export-panel__empty--inline {

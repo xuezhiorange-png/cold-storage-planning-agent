@@ -42,40 +42,43 @@ function formatWan(value: number): string {
 </script>
 
 <template>
-  <div class="investment-page">
-    <template v-if="investmentItems.length > 0">
-      <ElCard>
-        <template #header>
-          <span>投资估算</span>
-        </template>
+  <div class="investment-page owb-page owb-page--wide">
+    <ElCard v-if="investmentItems.length > 0">
+      <template #header>
+        <span class="investment-page__title">投资估算</span>
+      </template>
 
-        <div class="table-scroll">
-          <ElTable :data="investmentItems" stripe border size="small">
-            <ElTableColumn prop="item_name" label="投资分项" min-width="200" />
-            <ElTableColumn label="估算金额" width="180" align="right">
-              <template #default="scope">
-                {{ formatWan((scope.row as InvestmentRow).amount_cny) }} 万元
-              </template>
-            </ElTableColumn>
-          </ElTable>
-        </div>
+      <div class="table-scroll">
+        <ElTable :data="investmentItems" stripe border size="small">
+          <ElTableColumn prop="item_name" label="投资分项" min-width="200" />
+          <ElTableColumn label="估算金额" width="180" align="right">
+            <template #default="scope">
+              {{ formatWan((scope.row as InvestmentRow).amount_cny) }} 万元
+            </template>
+          </ElTableColumn>
+        </ElTable>
+      </div>
 
-        <div class="investment-page__total">
-          <strong>合计</strong>
-          <span v-if="totalCny !== null">{{ formatWan(totalCny) }} 万元</span>
-          <span v-else>—</span>
-        </div>
+      <div class="investment-page__total">
+        <strong>合计</strong>
+        <span v-if="totalCny !== null">{{ formatWan(totalCny) }} 万元</span>
+        <span v-else>—</span>
+      </div>
 
-        <p class="investment-page__note">
-          投资测算使用 demo / unverified 演示单价，未包含土地、税费、融资、正式设计费和专项工程费用。
-        </p>
-      </ElCard>
-    </template>
+      <p class="investment-page__note">
+        投资测算使用 demo / unverified 演示单价，未包含土地、税费、融资、正式设计费和专项工程费用。
+      </p>
+    </ElCard>
 
-    <div v-else class="investment-page__empty">
-      <p>暂无投资估算数据。</p>
-      <p>请在「工程输入」填写五个过程 KEY 并提交 OperatorProcessInputV1。</p>
-    </div>
+    <ElCard v-else>
+      <template #header>
+        <span class="investment-page__title">投资估算</span>
+      </template>
+      <div class="owb-page__empty">
+        <p>暂无投资估算数据</p>
+        <p>请先在「工程输入」填写五个过程参数并提交</p>
+      </div>
+    </ElCard>
   </div>
 </template>
 
@@ -85,6 +88,12 @@ function formatWan(value: number): string {
   max-width: 1400px;
 }
 
+.investment-page__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--owb-navy-deep);
+}
+
 .investment-page__total {
   display: flex;
   align-items: center;
@@ -92,14 +101,14 @@ function formatWan(value: number): string {
   gap: 12px;
   margin-top: 12px;
   padding: 10px 16px;
-  border: 1px solid #123a63;
+  border: 1px solid var(--owb-navy-mid);
   border-radius: 6px;
-  background: #f3f7fb;
+  background: var(--owb-surface);
   font-size: 16px;
 }
 
 .investment-page__total strong {
-  color: #0b1f3a;
+  color: var(--owb-navy-deep);
 }
 
 .investment-page__total span {
@@ -116,19 +125,5 @@ function formatWan(value: number): string {
   color: #856404;
   font-size: 12px;
   line-height: 1.4;
-}
-
-.investment-page__empty {
-  padding: 48px 24px;
-  text-align: center;
-  color: #6b7a8f;
-  border: 1px dashed #d0d7e2;
-  border-radius: 8px;
-  background: #f8f9fb;
-  font-size: 14px;
-}
-
-.investment-page__empty p {
-  margin: 4px 0;
 }
 </style>

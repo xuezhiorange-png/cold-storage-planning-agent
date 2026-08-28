@@ -2,7 +2,6 @@
 import { computed, onMounted, watch } from 'vue'
 import { ElAlert, ElCard, ElTable, ElTableColumn } from 'element-plus'
 
-import { CANONICAL_CALCULATOR_NAMES } from '../../five-stage/model/canonicalCalculators'
 import { usePersistedPlanningResultsStore } from '../../../stores/persistedPlanningResults'
 import { useWorkbenchContextStore } from '../../../stores/workbenchContext'
 import type { EquipmentPowerRowContract, PowerSummaryRowContract } from '../../../api/contracts/planning'
@@ -81,28 +80,13 @@ function formatOptionalPower(value: number | null): string {
 </script>
 
 <template>
-  <div class="power-page">
+  <div class="power-page owb-page owb-page--wide">
     <ElCard class="power-page__canonical">
       <template #header>
-        <span>规范装机功率 ({{ CANONICAL_CALCULATOR_NAMES.power }})</span>
+        <span class="power-page__title">规范装机功率</span>
       </template>
 
       <template v-if="installedPowerSlot?.record">
-        <dl class="power-page__meta">
-          <div v-if="installedPowerSlot.calculationId">
-            <dt>calculation_id</dt>
-            <dd>{{ installedPowerSlot.calculationId }}</dd>
-          </div>
-          <div v-if="installedPowerSlot.resultHash">
-            <dt>result_hash</dt>
-            <dd class="power-page__hash">{{ installedPowerSlot.resultHash }}</dd>
-          </div>
-          <div>
-            <dt>requires_review</dt>
-            <dd>{{ installedPowerSlot.requiresReview ? 'true' : 'false' }}</dd>
-          </div>
-        </dl>
-
         <div v-if="canonicalTotalPower > 0" class="power-page__totals">
           <div class="power-page__total-item">
             <span class="power-page__total-label">装机总功率</span>
@@ -115,15 +99,15 @@ function formatOptionalPower(value: number | null): string {
         </p>
       </template>
 
-      <div v-else class="power-page__empty">
-        <p>暂无规范 installed_power 持久化结果。</p>
-        <p>请在「工程输入」页面提交五阶段执行。V0.4 power_configuration 不能替代本阶段。</p>
+      <div v-else class="owb-page__empty">
+        <p>暂无规范装机功率结果</p>
+        <p>请先在「工程输入」提交五阶段执行</p>
       </div>
     </ElCard>
 
     <ElCard v-if="response?.power_configuration" class="power-page__supplemental">
       <template #header>
-        <span>V0.4 补充用电配置 (power_configuration — 非规范功率)</span>
+        <span class="power-page__title">补充用电配置</span>
       </template>
 
       <ElAlert
@@ -204,48 +188,21 @@ function formatOptionalPower(value: number | null): string {
   width: 100%;
   max-width: 1400px;
   display: grid;
-  gap: 16px;
+  gap: var(--owb-page-gap);
 }
 
-.power-page__canonical,
-.power-page__supplemental {
-  margin-bottom: 0;
+.power-page__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--owb-navy-deep);
 }
 
 .power-page__alert {
   margin-bottom: 12px;
 }
 
-.power-page__meta {
-  display: grid;
-  gap: 4px;
-  margin: 0 0 12px;
-  font-size: 12px;
-}
-
-.power-page__meta div {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 8px;
-}
-
-.power-page__meta dt {
-  margin: 0;
-  color: #6b7a8f;
-}
-
-.power-page__meta dd {
-  margin: 0;
-  word-break: break-all;
-}
-
-.power-page__hash {
-  font-family: monospace;
-  font-size: 11px;
-}
-
 .power-page__table-empty {
-  color: #6b7a8f;
+  color: var(--owb-muted);
   font-size: 13px;
 }
 
@@ -254,9 +211,9 @@ function formatOptionalPower(value: number | null): string {
   gap: 24px;
   margin-top: 16px;
   padding: 12px 16px;
-  border: 1px solid #123a63;
+  border: 1px solid var(--owb-navy-mid);
   border-radius: 6px;
-  background: #f3f7fb;
+  background: var(--owb-surface);
 }
 
 .power-page__total-item {
@@ -267,7 +224,7 @@ function formatOptionalPower(value: number | null): string {
 
 .power-page__total-label {
   font-weight: 600;
-  color: #0b1f3a;
+  color: var(--owb-navy-deep);
   font-size: 14px;
 }
 
@@ -285,14 +242,5 @@ function formatOptionalPower(value: number | null): string {
   color: #856404;
   font-size: 12px;
   line-height: 1.4;
-}
-
-.power-page__empty {
-  padding: 24px;
-  border: 1px dashed #d0d7e2;
-  border-radius: 8px;
-  background: #f8f9fb;
-  color: #6b7a8f;
-  font-size: 14px;
 }
 </style>
