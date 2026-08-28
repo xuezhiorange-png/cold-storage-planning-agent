@@ -109,7 +109,7 @@ def _cell_raw_is_label_key(cell: CanonicalRenderTableCell) -> bool:
     if not field_key or not isinstance(raw, str):
         return False
     suffix = field_key.split(".", 1)[-1]
-    return raw == field_key or raw == suffix
+    return raw in (field_key, suffix)
 
 
 def _translate_cell_field_key(cell: CanonicalRenderTableCell, locale: ReportLocale) -> str | None:

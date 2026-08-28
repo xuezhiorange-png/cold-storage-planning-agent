@@ -76,7 +76,7 @@ function mountPanel(
 
   const persisted = usePersistedPlanningResultsStore(pinia)
   if (chainComplete) {
-    persisted.rawRecords = sampleFiveStageCalculationRuns() as CalculationRunRecord[]
+    persisted.rawRecords = sampleFiveStageCalculationRuns() as unknown as CalculationRunRecord[]
   } else {
     persisted.rawRecords = []
   }

@@ -21,12 +21,12 @@ vi.mock('./productionSchemeRunApi', () => ({
 
 function seedFiveStageRecords(pinia: ReturnType<typeof createPinia>): void {
   const persisted = usePersistedPlanningResultsStore(pinia)
-  persisted.rawRecords = sampleFiveStageCalculationRuns() as CalculationRunRecord[]
+  persisted.rawRecords = sampleFiveStageCalculationRuns() as unknown as CalculationRunRecord[]
 }
 
 function seedPartialFiveStageRecords(pinia: ReturnType<typeof createPinia>): void {
   const persisted = usePersistedPlanningResultsStore(pinia)
-  persisted.rawRecords = sampleFiveStageCalculationRuns().slice(0, 2) as CalculationRunRecord[]
+  persisted.rawRecords = sampleFiveStageCalculationRuns().slice(0, 2) as unknown as CalculationRunRecord[]
 }
 
 function mountPanel(pinia: ReturnType<typeof createPinia>) {
