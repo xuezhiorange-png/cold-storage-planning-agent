@@ -23,6 +23,7 @@ CANONICAL_KEYS = (
     "REDIS_URL",
     "STORAGE_DIR",
     "MIMO_API_KEY",
+    "AILY_CONNECTOR_SHARED_SECRET",
     "AGENT_PROVIDER",
     "AGENT_MODEL",
     "AGENT_TIMEOUT_SECONDS",
@@ -65,6 +66,7 @@ _SENSITIVE_KEYS = frozenset(
         "REDIS_URL",
         "OPENAI_API_KEY",
         "MIMO_API_KEY",
+        "AILY_CONNECTOR_SHARED_SECRET",
         "POSTGRES_PASSWORD",
     }
 )

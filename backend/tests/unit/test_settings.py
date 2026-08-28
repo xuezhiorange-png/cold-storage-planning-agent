@@ -37,6 +37,7 @@ def clear_env(monkeypatch: pytest.MonkeyPatch) -> None:
             "STORAGE_DIR",
             "OPENAI_API_KEY",
             "MIMO_API_KEY",
+            "AILY_CONNECTOR_SHARED_SECRET",
         }:
             monkeypatch.delenv(key, raising=False)
 
@@ -227,6 +228,33 @@ def test_mimo_credential_is_redacted_and_does_not_create_enablement_intent() -> 
     assert mimo_entries == [
         {
             "canonical_key": "MIMO_API_KEY",
+            "source": "canonical_environment",
+            "environment_id": "local",
+            "legacy_key_used": False,
+            "default_used": False,
+            "redacted": True,
+            "validation_status": "PASS",
+            "warning_codes": [],
+        }
+    ]
+
+
+def test_aily_connector_shared_secret_is_redacted() -> None:
+    secret = "aily-connector-test-secret"
+    settings = Settings.model_validate({"COLD_STORAGE_AILY_CONNECTOR_SHARED_SECRET": secret})
+
+    assert settings.aily_connector_shared_secret == secret
+    assert secret not in repr(settings)
+    assert settings.resolution_report is not None
+    report = settings.resolution_report.to_dict()
+    aily_entries = [
+        entry
+        for entry in report["entries"]
+        if entry["canonical_key"] == "AILY_CONNECTOR_SHARED_SECRET"
+    ]
+    assert aily_entries == [
+        {
+            "canonical_key": "AILY_CONNECTOR_SHARED_SECRET",
             "source": "canonical_environment",
             "environment_id": "local",
             "legacy_key_used": False,
