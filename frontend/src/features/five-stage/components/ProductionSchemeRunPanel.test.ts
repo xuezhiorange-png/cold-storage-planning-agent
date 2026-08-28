@@ -122,13 +122,14 @@ describe('ProductionSchemeRunPanel', () => {
 
   it('enables the run button when persisted chainComplete is true even if calc step is REVIEW_REQUIRED', async () => {
     setupWorkbench(pinia, 'REVIEW_REQUIRED')
+    vi.spyOn(usePersistedPlanningResultsStore(pinia), 'load').mockResolvedValue(null)
     seedFiveStageRecords(pinia)
 
     const wrapper = mountPanel(pinia)
     await flushPromises()
 
     const button = wrapper.get('button')
-    expect(button.attributes('disabled')).toBeUndefined()
+    expect(button.element.hasAttribute('disabled')).toBe(false)
     expect(wrapper.text()).toContain('生产方案评分')
     expect(wrapper.text()).not.toContain('production-scheme-runs')
     expect(wrapper.text()).not.toContain('需先完成五阶段持久化')
@@ -136,18 +137,20 @@ describe('ProductionSchemeRunPanel', () => {
 
   it('keeps the button disabled when persisted chainComplete is false even if calc step is COMPLETED', async () => {
     setupWorkbench(pinia, 'COMPLETED')
+    vi.spyOn(usePersistedPlanningResultsStore(pinia), 'load').mockResolvedValue(null)
     seedPartialFiveStageRecords(pinia)
 
     const wrapper = mountPanel(pinia)
     await flushPromises()
 
     const button = wrapper.get('button')
-    expect(button.attributes('disabled')).toBeDefined()
+    expect(button.element.hasAttribute('disabled')).toBe(true)
     expect(wrapper.text()).toContain('需先完成五阶段持久化')
   })
 
   it('posts to production-scheme-runs when chainComplete enables the button', async () => {
     setupWorkbench(pinia, 'REVIEW_REQUIRED')
+    vi.spyOn(usePersistedPlanningResultsStore(pinia), 'load').mockResolvedValue(null)
     seedFiveStageRecords(pinia)
 
     const wrapper = mountPanel(pinia)
