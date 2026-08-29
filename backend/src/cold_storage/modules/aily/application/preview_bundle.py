@@ -48,9 +48,7 @@ _PREVIEW_POWER_DEMO: dict[str, str] = {
     "evaporator_fan_power_kw_e": "10.0",
     "condenser_fan_power_kw_e": "8.0",
 }
-_POWER_DEMO_CATALOG_DISCLAIMER_ZH = (
-    "装机功率压缩机电气输入用演示目录，不是设备结果自动换算；需复核"
-)
+_POWER_DEMO_CATALOG_DISCLAIMER_ZH = "装机功率压缩机电气输入用演示目录，不是设备结果自动换算；需复核"
 POWER_DEMO_CATALOG_DISCLAIMER_ZH = _POWER_DEMO_CATALOG_DISCLAIMER_ZH
 
 
