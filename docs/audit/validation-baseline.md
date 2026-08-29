@@ -11,7 +11,8 @@
 > truth-up); see `docs/tasks/V0_7-P0-trust-loop-contract.md`,
 > `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`, and
 > `docs/tasks/V0_9-P0-version-contract.md`. V1.1 inbound 豆包 connector:
-> `docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`. Re-run
+> `docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`. V1.2 five-stage
+> preview: `docs/tasks/V1_2-P0-aily-five-stage-preview-contract.md`. Re-run
 > `cd backend && PYTHONPATH=src pytest` for authoritative current counts.
 
 Validation was run against the current repository baseline on

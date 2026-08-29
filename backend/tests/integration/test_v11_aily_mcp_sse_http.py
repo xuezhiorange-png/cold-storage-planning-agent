@@ -8,6 +8,12 @@ from fastapi.testclient import TestClient
 
 from cold_storage.bootstrap.app import create_app
 from cold_storage.modules.aily.api.mcp_sse import MCP_MESSAGES_PATH, MCP_MOUNT_PATH, MCP_SSE_PATH
+from cold_storage.modules.aily.application.mcp_stage_preview import (
+    PREVIEW_COOLING_LOAD_TOOL_NAME,
+    PREVIEW_EQUIPMENT_TOOL_NAME,
+    PREVIEW_INSTALLED_POWER_TOOL_NAME,
+    PREVIEW_INVESTMENT_TOOL_NAME,
+)
 from cold_storage.modules.aily.application.mcp_zone_plan import PREVIEW_ZONE_PLAN_TOOL_NAME
 
 _CONNECTOR_SECRET = "connector-test-secret-v11-mcp"
@@ -124,7 +130,13 @@ def test_aily_mcp_streamable_tools_list_includes_preview_zone_plan() -> None:
     body = response.json()
     assert body["jsonrpc"] == "2.0"
     names = [tool["name"] for tool in body["result"]["tools"]]
-    assert names == [PREVIEW_ZONE_PLAN_TOOL_NAME]
+    assert names == [
+        PREVIEW_ZONE_PLAN_TOOL_NAME,
+        PREVIEW_COOLING_LOAD_TOOL_NAME,
+        PREVIEW_EQUIPMENT_TOOL_NAME,
+        PREVIEW_INSTALLED_POWER_TOOL_NAME,
+        PREVIEW_INVESTMENT_TOOL_NAME,
+    ]
 
 
 def test_aily_mcp_streamable_tools_list_on_mount_root() -> None:

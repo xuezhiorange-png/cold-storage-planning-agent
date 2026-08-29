@@ -10,8 +10,10 @@
 > umbrella:** V0.9 P0 contract (`docs/tasks/V0_9-P0-version-contract.md`)
 > plus overall plan (`docs/tasks/V0_9-version-plan.md`). V0.9 operator
 > workbench is **complete** at `v1.0.0`. **V1.1 豆包工作伙伴 inbound connector
-> is complete at `v1.1.0`.** Later umbrellas (outbound live Aily session,
-> cooling/equipment formula recut) stay unauthorized until Charles dispatches.
+> is complete at `v1.1.0`.** V1.2 five-stage conversation preview:
+> `docs/tasks/V1_2-P0-aily-five-stage-preview-contract.md`. Later umbrellas
+> (outbound live Aily session, cooling/equipment formula recut) stay unauthorized
+> until Charles dispatches.
 
 ## Task 0: Local Baseline, Repository Audit, And Governance
 

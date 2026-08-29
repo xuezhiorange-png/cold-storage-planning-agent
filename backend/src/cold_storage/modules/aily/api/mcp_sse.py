@@ -39,6 +39,13 @@ from cold_storage.modules.aily.application.connector_auth import (
     UNAUTHORIZED_CODE,
     verify_connector_key,
 )
+from cold_storage.modules.aily.application.mcp_stage_preview import (
+    PREVIEW_COOLING_LOAD_TOOL_NAME,
+    PREVIEW_EQUIPMENT_TOOL_NAME,
+    PREVIEW_INSTALLED_POWER_TOOL_NAME,
+    PREVIEW_INVESTMENT_TOOL_NAME,
+    invoke_stage_preview_tool,
+)
 from cold_storage.modules.aily.application.mcp_zone_plan import (
     PREVIEW_ZONE_PLAN_TOOL_NAME,
     invoke_preview_zone_plan_tool,
@@ -62,6 +69,47 @@ _TOOL_DESCRIPTION = (
     "失败时按 ask_operator 向用户追问，不要编造数字。"
 )
 
+_COOLING_TOOL_DESCRIPTION = (
+    "根据五个过程参数生成冷负荷预览表。"
+    "冷量仍用演示围护系数，围护面积来自演示目录，不是分区规划面积自动带入。"
+    "吨=每天。只传五个 KEY。成功时原样展示 markdown_table，并说明概念设计、需复核、演示系数。"
+    "失败时按 ask_operator 追问，不要编造数字。"
+)
+
+_EQUIPMENT_TOOL_DESCRIPTION = (
+    "根据五个过程参数生成设备能力预览表。"
+    "吨=每天。只传五个 KEY。成功时原样展示 markdown_table，并说明概念设计、需复核、演示系数。"
+    "失败时按 ask_operator 追问，不要编造数字。"
+)
+
+_POWER_TOOL_DESCRIPTION = (
+    "根据五个过程参数生成装机功率预览表。"
+    "吨=每天。只传五个 KEY。成功时原样展示 markdown_table，并说明概念设计、需复核。"
+    "失败时按 ask_operator 追问，不要编造数字。"
+)
+
+_INVESTMENT_TOOL_DESCRIPTION = (
+    "根据五个过程参数生成投资估算预览表。"
+    "吨=每天。只传五个 KEY。成功时原样展示 markdown_table，并说明概念设计、需复核、演示系数。"
+    "失败时按 ask_operator 追问，不要编造数字。"
+)
+
+_STAGE_TOOL_DESCRIPTIONS: dict[str, str] = {
+    PREVIEW_ZONE_PLAN_TOOL_NAME: _TOOL_DESCRIPTION,
+    PREVIEW_COOLING_LOAD_TOOL_NAME: _COOLING_TOOL_DESCRIPTION,
+    PREVIEW_EQUIPMENT_TOOL_NAME: _EQUIPMENT_TOOL_DESCRIPTION,
+    PREVIEW_INSTALLED_POWER_TOOL_NAME: _POWER_TOOL_DESCRIPTION,
+    PREVIEW_INVESTMENT_TOOL_NAME: _INVESTMENT_TOOL_DESCRIPTION,
+}
+
+_PREVIEW_TOOL_ORDER: tuple[str, ...] = (
+    PREVIEW_ZONE_PLAN_TOOL_NAME,
+    PREVIEW_COOLING_LOAD_TOOL_NAME,
+    PREVIEW_EQUIPMENT_TOOL_NAME,
+    PREVIEW_INSTALLED_POWER_TOOL_NAME,
+    PREVIEW_INVESTMENT_TOOL_NAME,
+)
+
 _KEY_DESCRIPTIONS: dict[str, str] = {
     "daily_inbound_mass_kg": "每天进货质量，kg/day。用户说吨时先×1000。",
     "finished_storage_days": "成品储存天数。",
@@ -72,10 +120,10 @@ _KEY_DESCRIPTIONS: dict[str, str] = {
 
 
 def build_zone_plan_mcp_server() -> Server[Any, Any]:
-    """Low-level MCP server exposing only ``preview_zone_plan``."""
+    """Low-level MCP server exposing five-stage conversation preview tools."""
     server: Server[Any, Any] = Server(
         name="cold-storage-zone-plan",
-        version="1.1.0",
+        version="1.2.0",
         instructions=_TOOL_DESCRIPTION,
     )
 
@@ -88,24 +136,30 @@ def build_zone_plan_mcp_server() -> Server[Any, Any]:
             }
             for field_name in OPERATOR_V09_FIVE_KEY_FIELDS
         }
+        input_schema = {
+            "type": "object",
+            "properties": properties,
+            "required": list(OPERATOR_V09_FIVE_KEY_FIELDS),
+            "additionalProperties": False,
+        }
         return [
             Tool(
-                name=PREVIEW_ZONE_PLAN_TOOL_NAME,
-                description=_TOOL_DESCRIPTION,
-                inputSchema={
-                    "type": "object",
-                    "properties": properties,
-                    "required": list(OPERATOR_V09_FIVE_KEY_FIELDS),
-                    "additionalProperties": False,
-                },
+                name=tool_name,
+                description=_STAGE_TOOL_DESCRIPTIONS[tool_name],
+                inputSchema=input_schema,
             )
+            for tool_name in _PREVIEW_TOOL_ORDER
         ]
 
     @server.call_tool(validate_input=False)  # type: ignore[untyped-decorator]
     async def _call_tool(name: str, arguments: dict[str, Any]) -> CallToolResult:
         # Schema still lists required KEY for tools/list. Validation is the
         # application fail-closed path so 豆包 sees Chinese ask_operator.
-        if name != PREVIEW_ZONE_PLAN_TOOL_NAME:
+        if name == PREVIEW_ZONE_PLAN_TOOL_NAME:
+            payload = invoke_preview_zone_plan_tool(arguments)
+        elif name in _STAGE_TOOL_DESCRIPTIONS and name != PREVIEW_ZONE_PLAN_TOOL_NAME:
+            payload = invoke_stage_preview_tool(name, arguments)
+        else:
             payload = {
                 "ok": False,
                 "error": {
@@ -120,7 +174,6 @@ def build_zone_plan_mcp_server() -> Server[Any, Any]:
                 structuredContent=payload,
                 isError=True,
             )
-        payload = invoke_preview_zone_plan_tool(arguments)
         return CallToolResult(
             content=[TextContent(type="text", text=_dumps(payload))],
             structuredContent=payload,
