@@ -8,7 +8,8 @@ This audit records the repository exactly as found on the preserved baseline.
 > post–V0.5 delta, §32 for the V0.7 trust-loop (delivered at `v0.7.0`),
 > §33 for the V0.8 operator-minimal input recut (delivered at `v0.8.0`,
 > `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`), §34 for V0.9,
-> and §35 for V1.1 豆包/Aily inbound zone-plan (complete at `v1.1.0`).
+> and §35 for V1.1 豆包/Aily inbound zone-plan (complete at `v1.1.0`);
+> §36 for V1.2 five-stage conversation preview.
 > Prior contract: `docs/tasks/V0_7-P0-trust-loop-contract.md`.
 > V0.9 contract: `docs/tasks/V0_9-P0-version-contract.md`.
 > Released contract: `docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`.
@@ -507,4 +508,21 @@ V0.9 + post-v0.9 operator workbench is **complete** at `v1.0.0`. V1.1 豆包工�
 GitHub Release `v1.1.0`).
 Prior V0.9 contract remains: `docs/tasks/V0_9-P0-version-contract.md`.
 Do not move tags `v0.9.0`, `v1.0.0`, or `v1.1.0`.
+
+## 36. V1.2 five-stage conversation preview (in progress)
+
+V1.1 inbound zone-plan connector is **complete** at `v1.1.0`. V1.2 adds
+five-stage conversation preview for 豆包工作伙伴: same five KEY, existing
+adapters in memory (`persisted: false`), REST `concept-preview`, MCP tools
+`preview_cooling_load` / `preview_equipment` / `preview_installed_power` /
+`preview_investment` plus frozen `preview_zone_plan` (first). Cooling uses
+demo envelope catalog — **not** zone area auto-feed (`envelope_from_zone_area:
+false`). Not Transaction B; not outbound live session
+(`AILY_OUTBOUND_LIVE_SESSION=NO`).
+
+**Contract:** `docs/tasks/V1_2-P0-aily-five-stage-preview-contract.md`,
+`docs/tasks/V1_2-version-plan.md`,
+`docs/architecture/ADR-034-aily-five-stage-conversation-preview.md`.
+Do not move tags `v0.9.0`, `v1.0.0`, or `v1.1.0`. Parent tags `v1.2.0` after
+review + main CI green.
 

@@ -1,0 +1,97 @@
+"""Project cooling-load calculator output into a conversation table."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from typing import Any
+
+_COOLING_CAPTION = "冷负荷预览（演示围护系数；围护面积来自演示目录，不是分区规划面积自动带入）"
+
+_COMPONENT_ROWS: tuple[tuple[str, str], ...] = (
+    ("envelope_heat_transfer_load_kw", "围护传热"),
+    ("product_sensible_heat_load_kw", "产品显热"),
+    ("packaging_load_kw", "包装"),
+    ("infiltration_load_kw", "渗透"),
+    ("personnel_load_kw", "人员"),
+    ("lighting_load_kw", "照明"),
+    ("evaporator_fan_load_kw", "蒸发风机"),
+    ("defrost_additional_load_kw", "融霜附加"),
+    ("other_configuration_load_kw", "其他"),
+    ("safety_margin_load_kw", "安全裕量"),
+)
+
+
+def project_cooling_load_table(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Build the 豆包-facing cooling table from adapter payload fields only."""
+    rows: list[dict[str, Any]] = []
+    for field_name, label in _COMPONENT_ROWS:
+        value = payload.get(field_name)
+        if value is None:
+            continue
+        rows.append({"component": label, "load_kw": value})
+
+    total = payload.get("total_cooling_load_kw")
+    summary = {
+        "total_cooling_load_kw": total,
+        "envelope_from_zone_area": False,
+        "demo_envelope": True,
+    }
+
+    extra_tables: list[dict[str, Any]] = []
+    zones = payload.get("zones")
+    if isinstance(zones, Sequence) and not isinstance(zones, (str, bytes)) and zones:
+        zone_rows = []
+        for zone in zones:
+            if not isinstance(zone, Mapping):
+                continue
+            zone_rows.append(
+                {
+                    "zone_code": zone.get("zone_code"),
+                    "zone_name": zone.get("zone_name"),
+                    "subtotal_load_kw_r": zone.get("subtotal_load_kw_r"),
+                }
+            )
+        if zone_rows:
+            extra_tables.append(
+                {
+                    "caption": "分区小计（演示围护，非分区面积自动带入）",
+                    "columns": [
+                        {"key": "zone_name", "label": "分区", "unit": None},
+                        {"key": "subtotal_load_kw_r", "label": "小计", "unit": "kW(r)"},
+                    ],
+                    "rows": zone_rows,
+                }
+            )
+
+    return {
+        "caption": _COOLING_CAPTION,
+        "columns": [
+            {"key": "component", "label": "负荷分项", "unit": None},
+            {"key": "load_kw", "label": "冷量", "unit": "kW(r)"},
+        ],
+        "rows": rows,
+        "summary": summary,
+        "extra_tables": extra_tables,
+        "markdown_table": _markdown_table(rows, total),
+    }
+
+
+def _markdown_table(rows: Sequence[Mapping[str, Any]], total: Any) -> str:
+    lines = [
+        "| 负荷分项 | 冷量 kW(r) |",
+        "|---|---|",
+    ]
+    for row in rows:
+        lines.append(f"| {_cell(row.get('component'))} | {_cell(row.get('load_kw'))} |")
+    if total is not None:
+        lines.append(f"| **合计** | **{_cell(total)}** |")
+    lines.append("")
+    lines.append("> 演示围护：围护面积来自演示目录，不是分区规划面积自动带入；需人工复核。")
+    return "\n".join(lines)
+
+
+def _cell(value: Any) -> str:
+    if value is None:
+        return "—"
+    text = str(value).replace("|", "｜").strip()
+    return text if text else "—"

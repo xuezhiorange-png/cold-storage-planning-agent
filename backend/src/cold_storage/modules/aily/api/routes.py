@@ -17,6 +17,7 @@ from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 
 from cold_storage.bootstrap.settings import get_settings
+from cold_storage.modules.aily.application.concept_preview import preview_concept
 from cold_storage.modules.aily.application.connector_auth import (
     CONNECTOR_KEY_HEADER,
     UNAUTHORIZED_CODE,
@@ -62,6 +63,24 @@ def post_zone_plan(
             get_settings().aily_connector_shared_secret,
         )
         body = preview_zone_plan(payload, correlation_id=x_correlation_id)
+    except AilyConnectorError as exc:
+        return _connector_error_response(exc)
+    return JSONResponse(status_code=200, content=body)
+
+
+@router.post("/v1/concept-preview", response_model=None)
+def post_concept_preview(
+    payload: dict[str, Any],
+    x_correlation_id: str | None = Header(default=None, alias="X-Correlation-ID"),
+    x_aily_connector_key: str | None = Header(default=None, alias=CONNECTOR_KEY_HEADER),
+) -> JSONResponse:
+    """Collect five KEY from 豆包, run five preview kernels, return all tables."""
+    try:
+        verify_connector_key(
+            x_aily_connector_key,
+            get_settings().aily_connector_shared_secret,
+        )
+        body = preview_concept(payload, correlation_id=x_correlation_id)
     except AilyConnectorError as exc:
         return _connector_error_response(exc)
     return JSONResponse(status_code=200, content=body)
