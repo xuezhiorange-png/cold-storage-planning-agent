@@ -10,7 +10,8 @@ This audit records the repository exactly as found on the preserved baseline.
 > `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`), §34 for V0.9,
 > and §35 for V1.1 豆包/Aily inbound zone-plan (complete at `v1.1.0`);
 > §36 for V1.2 five-stage conversation preview (complete at `v1.2.0`);
-> §37 for V1.3 conversation preview lineage (`docs/tasks/V1_3-version-plan.md`).
+> §37 for V1.3 conversation preview lineage (complete at `v1.3.0`);
+> §38 for V1.4 operator workbench debt (`docs/tasks/V1_4-version-plan.md`).
 > Prior contract: `docs/tasks/V0_7-P0-trust-loop-contract.md`.
 > V0.9 contract: `docs/tasks/V0_9-P0-version-contract.md`.
 > Released contract: `docs/tasks/V1_2-P0-aily-five-stage-preview-contract.md`.
@@ -528,18 +529,32 @@ false`). Not Transaction B; not outbound live session
 GitHub Release `v1.2.0`).
 Do not move tags `v0.9.0`, `v1.0.0`, `v1.1.0`, or `v1.2.0`.
 
-## 37. V1.3 conversation preview lineage (implementation authorized)
+## 37. V1.3 shipped at `v1.3.0`
 
-V1.3 applies workbench lineage binds **in memory** on the V1.2 conversation
-preview path (zone `required_area_m2` → cooling `floor_area` / `zone_area`;
-equipment electrical kW(e) → installed power; zone totals + power →
-investment). Wall / roof / U-values stay demo catalog.
-`FORMULA_RECUT_AUTHORIZED=NO`. `AILY_OUTBOUND_LIVE_SESSION=NO`.
-`V13_IMPLEMENTATION_AUTHORIZED=YES` on branch `cursor/v13-version-plan-742e`.
+V1.3 conversation preview lineage is **complete** at `v1.3.0`
+(`0496010934f97dcad780acd0115866d1efc5276c`): workbench lineage binds
+**in memory** on the V1.2 conversation preview path (zone `required_area_m2`
+→ cooling `floor_area` / `zone_area`; equipment electrical kW(e) → installed
+power; zone totals + power → investment). Wall / roof / U-values stay demo
+catalog. `FORMULA_RECUT_AUTHORIZED=NO`. `AILY_OUTBOUND_LIVE_SESSION=NO`.
 
-**Plan:** `docs/tasks/V1_3-version-plan.md`,
-`docs/tasks/V1_3-P0-aily-preview-lineage-contract.md`,
-`docs/architecture/ADR-035-aily-preview-workbench-lineage.md`.
+**Released umbrella:** V1.3 (`docs/tasks/V1_3-P0-aily-preview-lineage-contract.md`,
+`docs/tasks/V1_3-version-plan.md`,
+`docs/architecture/ADR-035-aily-preview-workbench-lineage.md`,
+GitHub Release `v1.3.0`).
 **Skill / runbook:** `docs/contracts/aily/v1.3/**`,
 `docs/runbooks/v13-doubao-aily-connector.md`.
+Do not move tags `v0.9.0`, `v1.0.0`, `v1.1.0`, `v1.2.0`, or `v1.3.0`.
+
+## 38. V1.4 operator workbench debt (implementation authorized)
+
+V1.4 recuts the guided first step to `OPERATOR_PROCESS_INPUT` (TD-023) and
+makes `samples/v09-process-input/manifest.json` the only operator demo
+authority for five KEY + storage-day defaults (TD-008 slice).
+`FORMULA_RECUT_AUTHORIZED=NO`. `AILY_OUTBOUND_LIVE_SESSION=NO`.
+`KEEP_AILY_V13_SKILL=YES`. `V14_IMPLEMENTATION_AUTHORIZED=YES`.
+
+**Plan:** `docs/tasks/V1_4-version-plan.md`,
+`docs/tasks/V1_4-P0-workbench-debt-contract.md`,
+`docs/architecture/ADR-036-workbench-operator-input-and-demo-defaults.md`.
 

@@ -11,7 +11,11 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals"],
+    "baseUrl": ".",
+    "paths": {
+      "@v09-operator-demo": ["../samples/v09-process-input/manifest.json"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.vue", "tests/**/*.ts"]
 }

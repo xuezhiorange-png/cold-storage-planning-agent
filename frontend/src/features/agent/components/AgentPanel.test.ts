@@ -10,7 +10,7 @@ function mountAgentPanel() {
   setActivePinia(pinia)
   const workbench = useWorkbenchContextStore(pinia)
   workbench.workflow = {
-    contract_version: 'WorkflowAggregateV1',
+    contract_version: 'WorkflowAggregateV2',
     generated_at: '2026-01-01T00:00:00Z',
     project_context: {
       project_id: 'proj-1',

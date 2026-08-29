@@ -746,8 +746,8 @@ describe('cold storage workbench', () => {
       item => item.text().includes('日入库量')
     )[0]
     const dailyInboundInputAfter = dailyInboundItemAfter.find('.el-input__inner')
-    // Default dailyInboundMassTons is 25 (displayed as 25.0 due to precision=1)
-    expect((dailyInboundInputAfter.element as HTMLInputElement).value).toBe('25.0')
+    // Default dailyInboundMassTons is 20 (v09 20000 kg/day; displayed as 20.0)
+    expect((dailyInboundInputAfter.element as HTMLInputElement).value).toBe('20.0')
 
     // Store cleared
     expect(store.isLoading).toBe(false)
@@ -972,7 +972,7 @@ describe('cold storage workbench', () => {
             {
               code: 'INPUT_MISSING',
               message: 'Project inputs have not been saved',
-              stage: 'PROJECT_INPUT'
+              stage: 'OPERATOR_PROCESS_INPUT'
             }
           ],
           reasons: ['Project inputs have not been saved'],
@@ -982,7 +982,7 @@ describe('cold storage workbench', () => {
           {
             code: 'INPUT_MISSING',
             message: 'Project inputs have not been saved',
-            stage: 'PROJECT_INPUT'
+            stage: 'OPERATOR_PROCESS_INPUT'
           }
         ]
       })

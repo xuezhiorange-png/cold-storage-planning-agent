@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from typing import Any
 
-from cold_storage.modules.projects.application.engineering_input_bundle import (
-    OPERATOR_V09_FIVE_KEY_FIELDS,
+from cold_storage.modules.projects.application.operator_five_key_presence import (
+    missing_v09_five_key_fields,
+    v09_five_keys_are_present,
 )
 from cold_storage.modules.projects.application.service import ProjectService
 from cold_storage.modules.projects.domain.models import ProjectVersion
@@ -38,6 +39,8 @@ from cold_storage.modules.workflow.domain.errors import (
 )
 from cold_storage.modules.workflow.domain.steps import (
     MAINLINE_STEPS,
+    OPERATOR_PROCESS_INPUT_STEP,
+    STEP_NEXT_ACTION_LABELS,
     WORKFLOW_CONTRACT_VERSION,
     WORKFLOW_GOAL_FORMAL_REPORT,
     WORKFLOW_GOAL_PLANNING_PREVIEW,
@@ -95,7 +98,7 @@ class WorkflowAggregateService:
         validation = _operator_input_validation(
             inputs=inputs,
             five_stage_complete=five_stage_complete,
-            validate_inputs=self._project_service.validate_inputs,
+            calc_by_name=calc_by_name,
         )
 
         scheme_runs: list[dict[str, Any]] = []
@@ -404,7 +407,7 @@ def _step_applicability(step: str, workflow_goal: str) -> str:
     }:
         return "REQUIRED"
     defaults = {
-        "PROJECT_INPUT": "REQUIRED",
+        OPERATOR_PROCESS_INPUT_STEP: "REQUIRED",
         "INPUT_COMPLETENESS": "REQUIRED",
         "DETERMINISTIC_CALCULATION": "REQUIRED",
         "SCHEME_COMPARISON": "CONDITIONAL",
@@ -454,8 +457,10 @@ def _evaluate_step(
     if applicability == "NOT_APPLICABLE":
         return "NOT_APPLICABLE", False, blockers
 
-    if step == "PROJECT_INPUT":
-        if five_stage_complete or inputs:
+    if step == OPERATOR_PROCESS_INPUT_STEP:
+        if five_stage_complete or v09_five_keys_are_present(
+            inputs=inputs, calc_by_name=calc_by_name
+        ):
             return "COMPLETED", False, blockers
         blockers.append(
             _blocker(
@@ -629,18 +634,16 @@ def _operator_input_validation(
     *,
     inputs: dict[str, Any],
     five_stage_complete: bool,
-    validate_inputs: Callable[..., dict[str, Any]],
+    calc_by_name: Mapping[str, Mapping[str, Any]],
 ) -> dict[str, Any]:
-    """Operator completeness: five-stage canonical runs, else V0.9 KEY, else leftover snapshot."""
-    if five_stage_complete:
+    """Operator completeness: five-stage canonical runs or V0.9 five KEY."""
+    if five_stage_complete or v09_five_keys_are_present(inputs=inputs, calc_by_name=calc_by_name):
         return {"valid": True, "missing_fields": [], "tentative_fields": []}
-    if not inputs:
-        return {
-            "valid": False,
-            "missing_fields": list(OPERATOR_V09_FIVE_KEY_FIELDS),
-            "tentative_fields": [],
-        }
-    return validate_inputs(inputs)
+    return {
+        "valid": False,
+        "missing_fields": missing_v09_five_key_fields(inputs),
+        "tentative_fields": [],
+    }
 
 
 def _build_missing_inputs(
@@ -686,7 +689,7 @@ def _build_next_actions(
     blockers: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     priority = [
-        "PROJECT_INPUT",
+        OPERATOR_PROCESS_INPUT_STEP,
         "INPUT_COMPLETENESS",
         "DETERMINISTIC_CALCULATION",
         "SCHEME_COMPARISON",
@@ -711,7 +714,9 @@ def _build_next_actions(
                 "action_id": action_id,
                 "type": step_name,
                 "target_step": step_name,
-                "label": f"Complete {step_name.replace('_', ' ').lower()}",
+                "label": STEP_NEXT_ACTION_LABELS.get(
+                    step_name, f"Complete {step_name.replace('_', ' ').lower()}"
+                ),
                 "reason": step.get("blockers", [{}])[0].get("message", "")
                 if step.get("blockers")
                 else "Continue guided workflow",

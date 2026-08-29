@@ -110,6 +110,33 @@ describe('WorkflowGuidancePanel', () => {
     expect(wrapper.text()).toContain('正式导出与草稿导出不是同一件事')
   })
 
+  it('shows 工程输入 for OPERATOR_PROCESS_INPUT', () => {
+    const wrapper = mountPanel(
+      pinia,
+      sampleWorkflowAggregate({
+        current_step: 'OPERATOR_PROCESS_INPUT',
+        next_required_actions: [
+          {
+            action_id: 'action-operator_process_input',
+            type: 'OPERATOR_PROCESS_INPUT',
+            target_step: 'OPERATOR_PROCESS_INPUT',
+            label: '完成工程输入',
+            reason: 'OperatorProcessInputV1 five KEY have not been submitted via 工程输入',
+            required: true,
+            enabled: true,
+            blocked_by: []
+          }
+        ]
+      }),
+      false
+    )
+
+    expect(wrapper.text()).toContain('当前步骤：工程输入')
+    expect(wrapper.text()).toContain('完成工程输入')
+    expect(wrapper.text()).not.toContain('PROJECT_INPUT')
+    expect(wrapper.text()).not.toContain('Complete project input')
+  })
+
   it('keeps blocked badge when five stages are not persisted', () => {
     const wrapper = mountPanel(pinia, workflowWithSchemeMissingOnly(), false)
 
