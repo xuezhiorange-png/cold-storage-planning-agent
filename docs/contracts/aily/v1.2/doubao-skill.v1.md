@@ -88,6 +88,14 @@ MCP 服务地址是 `{origin}/api/v1/aily/v1/mcp/sse`。飞书里传输方式必
 冷量预览使用**演示围护系数**与演示目录围护面积，**不是**把分区规划算出的面积自动带入冷负荷。
 向用户说明：这是概念设计、需人工复核、演示系数、`requires_review=true`。
 
+### 设备与功率特别说明（内存字段拷贝 / 演示目录）
+
+- **设备**：预览在内存中把冷负荷各分区 `subtotal_load_kw_r` **字段拷贝**到设备输入（与 Workbench Transaction B 同源映射，但不持久化、不二次算 kW）。
+- **装机功率**：设备 canonical 结果**不含**压缩机电气 kW(e)；预览用 `samples/v05-local-workbench/manifest.json` 演示目录填充 pending 电气功率，**不是**从设备 kW(r)/COP 自动换算。
+- **投资**：预览用演示目录面积/功率占位，**不是**分区规划面积自动带入。
+
+向用户说明上述 honesty 标记（`power_from_demo_catalog`、`investment_from_demo_catalog`）及需复核。
+
 ### 处理响应
 
 #### 成功（HTTP 200 / MCP `ok: true`）
@@ -99,6 +107,8 @@ MCP 服务地址是 `{origin}/api/v1/aily/v1/mcp/sse`。飞书里传输方式必
    - **不是施工图**，不能用于施工招标或最终设备选型；
    - 演示系数，常带 `requires_review=true`；
    - 冷量表注明**演示围护**，不是分区面积自动进冷负荷。
+   - 功率表若含 `power_from_demo_catalog: true`，说明电气 kW(e) 来自演示目录，不是设备 kW(r) 自动换算。
+   - 投资表若含 `investment_from_demo_catalog: true`，说明面积/功率为演示占位，不是分区规划自动带入。
 
 #### 参数缺失或无效（HTTP 400 / MCP `ok: false`）
 

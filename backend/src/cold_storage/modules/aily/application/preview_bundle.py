@@ -41,6 +41,17 @@ _PREVIEW_INVESTMENT_DEMO: dict[str, Any] = {
     "position_count": 100,
     "total_power_kw": "150",
 }
+# Installed-power leaves from samples/v05-local-workbench/manifest.json
+# (equipment canonical payload strips kW(e); preview must not infer from kW(r)).
+_PREVIEW_POWER_DEMO: dict[str, str] = {
+    "compressor_input_power_kw_e": "120.0",
+    "evaporator_fan_power_kw_e": "10.0",
+    "condenser_fan_power_kw_e": "8.0",
+}
+_POWER_DEMO_CATALOG_DISCLAIMER_ZH = (
+    "装机功率压缩机电气输入用演示目录，不是设备结果自动换算；需复核"
+)
+POWER_DEMO_CATALOG_DISCLAIMER_ZH = _POWER_DEMO_CATALOG_DISCLAIMER_ZH
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,7 +113,90 @@ def prepare_stage_inputs(stage_key: str, raw_inputs: Mapping[str, Any]) -> dict[
         return _enrich_cooling_load_preview_inputs(inputs)
     if stage_key == "investment":
         return _enrich_investment_preview_inputs(inputs)
+    if stage_key == "power":
+        enriched, _used_catalog = _enrich_power_preview_inputs(inputs)
+        return enriched
     return inputs
+
+
+def prepare_power_preview_inputs(
+    raw_inputs: Mapping[str, Any],
+) -> tuple[dict[str, Any], bool]:
+    """Fill pending power leaves from the workbench demo catalog when needed."""
+    return _enrich_power_preview_inputs(dict(raw_inputs))
+
+
+def zone_loads_from_cooling_payload(cooling_payload: Mapping[str, Any]) -> dict[str, str]:
+    """Extract zone_code -> subtotal_load_kw_r from a cooling adapter payload."""
+    zones_raw = cooling_payload.get("zones")
+    if not isinstance(zones_raw, (list, tuple)) or not zones_raw:
+        raise AilyConnectorError(
+            code="UPSTREAM_LINEAGE_BIND_FAILED",
+            message="equipment lineage binding requires per-zone cooling load results",
+            field_path="cooling_load.result_snapshot.zones",
+        )
+    zone_loads: dict[str, str] = {}
+    for zone in zones_raw:
+        if not isinstance(zone, Mapping):
+            continue
+        zone_code = zone.get("zone_code")
+        load = zone.get("subtotal_load_kw_r")
+        if zone_code is None or load is None:
+            raise AilyConnectorError(
+                code="UPSTREAM_LINEAGE_BIND_FAILED",
+                message="equipment lineage binding requires zone_code and subtotal_load_kw_r",
+                field_path="cooling_load.result_snapshot.zones",
+            )
+        zone_loads[str(zone_code)] = str(load)
+    if not zone_loads:
+        raise AilyConnectorError(
+            code="UPSTREAM_LINEAGE_BIND_FAILED",
+            message="equipment lineage binding requires at least one zone cooling subtotal",
+            field_path="cooling_load.result_snapshot.zones",
+        )
+    return zone_loads
+
+
+def bind_equipment_loads_from_cooling_payload(
+    equipment_inputs: dict[str, Any],
+    cooling_payload: Mapping[str, Any],
+) -> None:
+    """Copy cooling zone subtotals onto equipment zones by zone_code (field copy only)."""
+    zone_loads = zone_loads_from_cooling_payload(cooling_payload)
+    systems = equipment_inputs.get("systems")
+    if not isinstance(systems, list):
+        raise AilyConnectorError(
+            code="UPSTREAM_LINEAGE_BIND_FAILED",
+            message="equipment lineage binding requires equipment systems",
+            field_path="equipment_inputs.systems",
+        )
+    for system in systems:
+        if not isinstance(system, dict):
+            continue
+        zones = system.get("zones")
+        if not isinstance(zones, list):
+            continue
+        for zone in zones:
+            if not isinstance(zone, dict):
+                continue
+            zone_code = str(zone.get("zone_code", ""))
+            if not zone_code:
+                raise AilyConnectorError(
+                    code="UPSTREAM_LINEAGE_BIND_FAILED",
+                    message="equipment lineage binding requires zone_code on every zone",
+                    field_path="equipment_inputs.systems[].zones[].zone_code",
+                )
+            load = zone_loads.get(zone_code)
+            if load is None:
+                raise AilyConnectorError(
+                    code="UPSTREAM_LINEAGE_BIND_FAILED",
+                    message=(
+                        "equipment lineage binding could not match cooling load "
+                        f"for zone_code {zone_code!r}"
+                    ),
+                    field_path="equipment_inputs.systems[].zones[].design_cooling_load_kw_r",
+                )
+            zone["design_cooling_load_kw_r"] = load
 
 
 def json_ready(value: Any) -> Any:
@@ -173,3 +267,26 @@ def _enrich_investment_preview_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
         inputs[field_name] = value
     inputs.setdefault("demo_catalog_source", _WORKBENCH_ENVELOPE_CATALOG_SOURCE)
     return inputs
+
+
+def _enrich_power_preview_inputs(inputs: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    """Replace pending/zero power leaves with workbench demo catalog values."""
+    used_catalog = False
+    for field_name, catalog_value in _PREVIEW_POWER_DEMO.items():
+        if _is_pending_or_zero(inputs.get(field_name)):
+            inputs[field_name] = catalog_value
+            used_catalog = True
+    if used_catalog:
+        inputs.setdefault("demo_catalog_source", _WORKBENCH_ENVELOPE_CATALOG_SOURCE)
+    return inputs, used_catalog
+
+
+def _is_pending_or_zero(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, Decimal):
+        return value == 0
+    if isinstance(value, (int, float)):
+        return value == 0
+    text = str(value).strip()
+    return not text or text in {"0", "0.0", "0.00"}

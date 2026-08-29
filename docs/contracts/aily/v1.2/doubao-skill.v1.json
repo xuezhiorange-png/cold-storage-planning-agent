@@ -64,6 +64,21 @@
     "envelope_from_zone_area": false,
     "user_disclaimer_zh": "冷量仍用演示围护，不是分区面积自动带入冷负荷"
   },
+  "equipment_honesty": {
+    "bind_cooling_subtotals_in_memory": true,
+    "field_copy_only": true,
+    "user_disclaimer_zh": "设备预览在内存拷贝冷负荷分区 subtotal_load_kw_r，不持久化"
+  },
+  "power_honesty": {
+    "power_from_demo_catalog": true,
+    "demo_catalog_source": "samples/v05-local-workbench/manifest.json",
+    "user_disclaimer_zh": "装机功率压缩机电气输入用演示目录，不是设备结果自动换算；需复核"
+  },
+  "investment_honesty": {
+    "investment_from_demo_catalog": true,
+    "envelope_from_zone_area": false,
+    "user_disclaimer_zh": "投资预览用演示目录面积/功率占位，不是分区规划面积自动带入"
+  },
   "operator_keys": [
     {
       "field": "daily_inbound_mass_kg",

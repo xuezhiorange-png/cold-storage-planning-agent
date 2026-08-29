@@ -11,6 +11,8 @@ from mcp.shared.message import SessionMessage
 from cold_storage.modules.aily.api.mcp_sse import build_zone_plan_mcp_server
 from cold_storage.modules.aily.application.mcp_stage_preview import (
     PREVIEW_COOLING_LOAD_TOOL_NAME,
+    PREVIEW_EQUIPMENT_TOOL_NAME,
+    PREVIEW_INSTALLED_POWER_TOOL_NAME,
     PREVIEW_INVESTMENT_TOOL_NAME,
 )
 from cold_storage.modules.aily.application.mcp_zone_plan import PREVIEW_ZONE_PLAN_TOOL_NAME
@@ -43,6 +45,14 @@ def test_mcp_server_call_cooling_returns_demo_envelope_table() -> None:
     anyio.run(_call_cooling)
 
 
+def test_mcp_server_call_equipment_returns_non_zero_capacity() -> None:
+    anyio.run(_call_equipment)
+
+
+def test_mcp_server_call_power_returns_non_zero_total() -> None:
+    anyio.run(_call_power)
+
+
 def test_mcp_server_call_investment_returns_table() -> None:
     anyio.run(_call_investment)
 
@@ -68,6 +78,29 @@ async def _call_cooling() -> None:
     assert body["calculator_name"] == "cooling_load"
     assert body["envelope_from_zone_area"] is False
     assert "演示围护" in body["markdown_table"]
+
+
+async def _call_equipment() -> None:
+    result = await _with_session(
+        lambda session: session.call_tool(PREVIEW_EQUIPMENT_TOOL_NAME, dict(_FIVE_KEYS))
+    )
+    assert result.structuredContent is not None
+    body = result.structuredContent
+    assert body["ok"] is True
+    assert body["calculator_name"] == "equipment"
+    assert float(body["summary"]["compressor_operating_capacity_kw"]) > 0
+
+
+async def _call_power() -> None:
+    result = await _with_session(
+        lambda session: session.call_tool(PREVIEW_INSTALLED_POWER_TOOL_NAME, dict(_FIVE_KEYS))
+    )
+    assert result.structuredContent is not None
+    body = result.structuredContent
+    assert body["ok"] is True
+    assert body["calculator_name"] == "installed_power"
+    assert float(body["summary"]["total_installed_power_kw_e"]) > 0
+    assert body["power_from_demo_catalog"] is True
 
 
 async def _call_investment() -> None:

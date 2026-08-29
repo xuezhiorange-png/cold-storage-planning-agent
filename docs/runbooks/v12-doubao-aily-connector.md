@@ -7,6 +7,9 @@ V1.1 手册 `docs/runbooks/v11-doubao-aily-connector.md` 保持冻结；本文�
 
 - 五阶段预览是**入站传输**，不是第二套内核；`persisted: false`；不是 Transaction B。
 - `FORMULA_RECUT_AUTHORIZED=NO`：**冷量仍用演示围护**，不是分区面积自动带入冷负荷。
+- 设备预览在内存中把冷负荷 `subtotal_load_kw_r` **字段拷贝**到 `design_cooling_load_kw_r`（DAG 顺序，不持久化）。
+- 装机功率 pending 电气 kW(e) 用 `samples/v05-local-workbench/manifest.json` 演示目录填充（`power_from_demo_catalog: true`），**不是**设备 kW(r) 自动换算。
+- 投资预览用演示目录面积/功率占位（`investment_from_demo_catalog: true`），**不是**分区规划面积自动带入。
 - `AILY_OUTBOUND_LIVE_SESSION=NO`：本仓库不会打开飞书出站会话。
 - 不扩展 `/api/v1/agent/**`。不暴露 `mark_reviewed` / `approve`。
 - 豆包负责 NLP；本系统只接受五个 KEY，不解析聊天原文。
@@ -76,11 +79,17 @@ curl -sS -X POST "${ORIGIN}/api/v1/aily/v1/mcp/sse" \
 
 响应 `ok: true`，`markdown_table` 含演示围护说明；`envelope_from_zone_area` 为 false。
 
-### 3. tools/call — investment
+### 3. tools/call — equipment / power
+
+将 `name` 换为 `preview_equipment` 或 `preview_installed_power`，同样五个 KEY。
+设备 `compressor_operating_capacity_kw` 应大于 0；功率 `total_installed_power_kw_e` 应大于 0，
+且 `power_from_demo_catalog` 为 true。
+
+### 4. tools/call — investment
 
 将 `name` 换为 `preview_investment`，同样五个 KEY；应返回投资表与 `requires_review: true`。
 
-### 4. REST concept-preview
+### 5. REST concept-preview
 
 ```bash
 curl -sS -X POST "${ORIGIN}/api/v1/aily/v1/concept-preview" \
@@ -100,3 +109,5 @@ curl -sS -X POST "${ORIGIN}/api/v1/aily/v1/concept-preview" \
 
 - 概念设计、需复核、演示系数、不是施工图。
 - 冷量：**演示围护**，不是把分区规划面积自动带进冷负荷。
+- 设备：内存拷贝冷负荷分区 subtotal，不是二次算 kW。
+- 功率/投资：演示目录占位，需复核；不是设备或分区结果自动换算/带入。

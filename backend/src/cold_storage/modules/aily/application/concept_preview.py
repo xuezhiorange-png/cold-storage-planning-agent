@@ -5,14 +5,11 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from cold_storage.modules.aily.application.preview_bundle import json_ready
-from cold_storage.modules.aily.application.stage_preview import (
-    preview_cooling_load,
-    preview_equipment,
-    preview_installed_power,
-    preview_investment,
-    preview_zone_plan,
+from cold_storage.modules.aily.application.preview_bundle import (
+    assemble_preview_context,
+    json_ready,
 )
+from cold_storage.modules.aily.application.stage_preview import run_concept_preview_stages
 
 
 def preview_concept(
@@ -21,13 +18,8 @@ def preview_concept(
     correlation_id: str | None = None,
 ) -> dict[str, Any]:
     """Validate five KEY, run five preview kernels, return all tables."""
-    stages = {
-        "zone": preview_zone_plan(payload, correlation_id=correlation_id),
-        "cooling_load": preview_cooling_load(payload, correlation_id=correlation_id),
-        "equipment": preview_equipment(payload, correlation_id=correlation_id),
-        "power": preview_installed_power(payload, correlation_id=correlation_id),
-        "investment": preview_investment(payload, correlation_id=correlation_id),
-    }
+    context = assemble_preview_context(payload, correlation_id=correlation_id)
+    stages = run_concept_preview_stages(context)
     requires_review = any(stage.get("requires_review") for stage in stages.values())
     body = json_ready(
         {
