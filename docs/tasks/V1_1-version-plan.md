@@ -70,15 +70,15 @@ This connector does not parse `message` / 口语.
 | Pkg | Name | Status |
 |---|---|---|
 | **P0/P1** | Inbound zone-plan connector | Delivered on `main` (`#237`) |
-| **P2** | Static 豆包工作伙伴 skill pack (paste-ready) | In progress (`cursor/v11-p2-doubao-skill-742e`) |
-| **P3** | Aily connector auth | Parallel sibling PR (not this package) |
-| **P4** | Runbook + OpenAPI examples | Parallel sibling PR (not this package) |
+| **P2** | Static 豆包工作伙伴 skill pack (paste-ready) | Delivered on `main` (`#238`) |
+| **P3** | Aily connector auth | Delivered on `main` (`#240`) |
+| **P4** | Runbook + OpenAPI examples | Delivered on `main` (`#239`) |
+| **P5** | MCP SSE transport for 豆包工作伙伴 custom tools | This package |
 | Later | Outbound live 豆包 session, Feishu tenant skill wiring | `AILY_OUTBOUND_LIVE_SESSION=NO` |
 | Later | Cooling/equipment/power/investment formula recut | Not this version |
 
-P0/P1 inbound HTTP shipped on `main` via `#237`. P2 ships the static skill
-contract operators paste into 豆包工作伙伴 — not live Feishu session control.
-P3 (auth) and P4 (runbook) are parallel packages owned by other PRs.
+P0–P4 inbound HTTP, skill, auth, and runbook shipped on `main`. P5 adds the
+MCP SSE URL operators paste into 添加自定义 MCP 工具. Not live Feishu session control.
 
 ## 5. Non-goals
 

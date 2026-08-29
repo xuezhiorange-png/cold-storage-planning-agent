@@ -1,7 +1,8 @@
-# V1.1 豆包工作伙伴自定义连接器导入操作手册
+# V1.1 豆包工作伙伴 MCP 接入操作手册
 
-本手册供 Charles 在飞书 Aily / 豆包工作伙伴租户中，将本仓库已有的 inbound
-OpenAPI 导入为**自定义连接器**，使豆包在用户说完过程参数后调用本系统分区规划内核并返回表格。
+本手册供 Charles 在**豆包工作伙伴**里，把本系统分区规划内核接到技能工具上。
+该产品的自定义工具走 **MCP（SSE）**，详情页**没有**「连接器」标签，也**不能**
+上传 OpenAPI yaml。
 
 ## 范围与边界
 
@@ -15,8 +16,9 @@ OpenAPI 导入为**自定义连接器**，使豆包在用户说完过程参数�
 
 ## 前置条件
 
-- 本仓库已合并 V1.1 P0 inbound 连接器实现（`POST /api/v1/aily/v1/zone-plan`）。
-- OpenAPI 文件路径：
+- 本仓库已合并 inbound REST（`POST /api/v1/aily/v1/zone-plan`）和 MCP SSE
+  （`GET /api/v1/aily/v1/mcp/sse`，工具名 `preview_zone_plan`）。
+- OpenAPI 文件（给创建平台 Workflow 用，不是工作伙伴详情页）：
   `docs/contracts/aily/v1.1/aily-to-system-zone-plan.openapi.yaml`
 - 技能说明参考：
   - `docs/contracts/aily/v1.1/README.md`（§ 豆包 skill notes）
@@ -43,16 +45,18 @@ OpenAPI 导入为**自定义连接器**，使豆包在用户说完过程参数�
    PYTHONPATH=src UV_CACHE_DIR=../.uv-cache uv run uvicorn cold_storage.bootstrap.app:create_app --factory --reload
    ```
 
-3. 本地连接器 Base URL 示例：`http://127.0.0.1:8000`
-   完整路径：`http://127.0.0.1:8000/api/v1/aily/v1/zone-plan`
+3. 本地 REST 自检：`http://127.0.0.1:8000/api/v1/aily/v1/zone-plan`
+   本地 MCP SSE 地址：`http://127.0.0.1:8000/api/v1/aily/v1/mcp/sse`
 
-   若豆包租户无法访问你的笔记本，请改用下方「已部署环境」；勿将本地地址当作生产 URL。
+   豆包工作伙伴跑在飞书云上，**访问不了**你笔记本的 `127.0.0.1`。请改用下方
+   「已部署环境」的公网 HTTPS。
 
 ### 已部署环境
 
 使用**你的已部署 origin**（例如 `https://your-deployment.example.com`），勿编造本仓库未提供的生产域名。
 
-完整路径：`{你的 deployed origin}/api/v1/aily/v1/zone-plan`
+REST：`{你的 deployed origin}/api/v1/aily/v1/zone-plan`  
+MCP SSE（填进飞书的地址）：`{你的 deployed origin}/api/v1/aily/v1/mcp/sse`
 
 确保该 origin 对飞书 / 豆包租户出站网络可达（防火墙、TLS、反向代理已放行）。
 
@@ -74,22 +78,32 @@ curl -sS -X POST "${ORIGIN}/api/v1/aily/v1/zone-plan" \
 
 将 `ORIGIN` 换成本地或 deployed origin（无尾斜杠）。
 
-## 第二步：在飞书 Aily / 豆包工作伙伴中创建自定义连接器
+## 第二步：在豆包工作伙伴里添加自定义 MCP 工具
 
-具体菜单名称因租户版本可能略有差异，一般路径为：**工作伙伴 / Aily → 连接器 / 自定义连接器 → 从 OpenAPI 导入**。
+详情页只有「人设 / 技能 / 模型 / 安全」。自定义工具入口是：
 
-1. 选择「从 OpenAPI 导入」或等价入口。
-2. 上传或粘贴仓库内文件：
-   `docs/contracts/aily/v1.1/aily-to-system-zone-plan.openapi.yaml`
-3. 确认 OpenAPI 中的路径为：
-   `POST /api/v1/aily/v1/zone-plan`
-   `operationId` 为 `previewZonePlan`（勿改）。
-4. 配置连接器 **Server URL / Base URL** 为上述 `{origin}`（不要重复包含 `/api/v1/aily/v1/zone-plan` 若 UI 已按 path 拼接；以飞书 UI 说明为准）。
-5. 保存并启用连接器，绑定到目标豆包工作伙伴应用或技能。
+**技能 → 工具 → 添加工具 → 自定义工具 →「添加自定义 MCP 工具」**
 
-### 可选：连接器密钥头（ sibling P3）
+1. 传输选 **SSE**（若 UI 已写死 SSE，保持默认）。
+2. MCP 服务地址填：
 
-后续 sibling P3 可能增加可选请求头 `X-Aily-Connector-Key`。**当前未设置时连接器应能正常工作**；本手册与 P4 不在本仓库实现鉴权。若 P3 合并后租户要求配置该头，在连接器「认证 / 自定义 Header」中按 P3 文档填写。
+   `{ORIGIN}/api/v1/aily/v1/mcp/sse`
+
+   不要填 `POST /api/v1/aily/v1/zone-plan`，那是普通 HTTP JSON，不是 MCP。
+   不要上传 `aily-to-system-zone-plan.openapi.yaml`。
+3. 若部署时设置了环境变量 `COLD_STORAGE_AILY_CONNECTOR_SHARED_SECRET`，在请求头里加固定值：
+
+   - 名称：`X-Aily-Connector-Key`
+   - 值：与该环境变量相同
+
+   未设置该变量时不必填请求头。
+4. 保存后，技能应能看到工具 `preview_zone_plan`。五个 KEY 齐全再调用；把返回的
+   `markdown_table` 原样发给用户。
+
+「从 OpenAPI 导入」属于**另一个产品**（飞书智能伙伴创建平台的 Workflow /
+Smartflow），入口见
+[飞书智能伙伴 Aily 之自定义连接器](https://www.feishu.cn/content/ya5j9hjw)。
+本手册不猜测那个后台的 URL。没开通创建平台就不用找。
 
 ## 第三步：映射五个 KEY（豆包侧语义）
 
@@ -185,7 +199,7 @@ HTTP 200 时，响应包含（节选）：
 1. 阅读 `docs/contracts/aily/v1.1/README.md` 中「豆包 skill notes」四条原则。
 2. 若存在 P2 技能包，以
    `docs/contracts/aily/v1.1/doubao-skill.v1.md` 为**既定技能文件**（P2 skill pack, if present）。
-3. 技能须写明：听懂用户 → 换算五个 KEY → 调用自定义连接器 → 展示 `markdown_table` → 标注概念设计与复核要求。
+3. 技能须写明：听懂用户 → 换算五个 KEY → 调用 MCP 工具 `preview_zone_plan` → 展示 `markdown_table` → 标注概念设计与复核要求。
 
 ## 概念设计声明
 

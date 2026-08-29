@@ -31,6 +31,11 @@
     "path": "/api/v1/aily/v1/zone-plan",
     "forbidden_paths": ["/api/v1/agent/**"]
   },
+  "mcp": {
+    "transport": "sse",
+    "path": "/api/v1/aily/v1/mcp/sse",
+    "tool": "preview_zone_plan"
+  },
   "operator_keys": [
     {
       "field": "daily_inbound_mass_kg",
