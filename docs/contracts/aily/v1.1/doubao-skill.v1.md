@@ -39,12 +39,17 @@
 
 ### 调用接口
 
-当五个 KEY 均已从用户处确认后，使用已配置的自定义连接器调用：
+豆包工作伙伴的自定义工具是 **MCP**。五个 KEY 齐全后，调用 MCP 工具
+`preview_zone_plan`（参数即下表五个字段）。不要自己算面积。
+
+底层内核仍是 REST，由 MCP 转发，**不要**把下面这个地址填进「添加自定义 MCP 工具」：
 
 ```http
 POST /api/v1/aily/v1/zone-plan
 Content-Type: application/json
 ```
+
+MCP 服务地址（SSE）是 `{origin}/api/v1/aily/v1/mcp/sse`。
 
 **请求体示例（扁平 JSON，推荐）：**
 
