@@ -9,11 +9,9 @@
 > (`docs/tasks/V0_8-P0-operator-minimal-input-contract.md`). **Active
 > umbrella:** V0.9 P0 contract (`docs/tasks/V0_9-P0-version-contract.md`)
 > plus overall plan (`docs/tasks/V0_9-version-plan.md`). V0.9 operator
-> workbench is **complete** at `v1.0.0`. **Active umbrella after `v1.0.0`:**
-> V1.1 豆包工作伙伴 inbound zone-plan connector
-> (`docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`,
-> `docs/tasks/V1_1-version-plan.md`). This is **not** a cooling/equipment
-> formula rewrite and **not** outbound live Aily session enablement.
+> workbench is **complete** at `v1.0.0`. **V1.1 豆包工作伙伴 inbound connector
+> is complete at `v1.1.0`.** Later umbrellas (outbound live Aily session,
+> cooling/equipment formula recut) stay unauthorized until Charles dispatches.
 
 ## Task 0: Local Baseline, Repository Audit, And Governance
 

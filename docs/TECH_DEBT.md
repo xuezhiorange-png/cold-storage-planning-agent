@@ -8,8 +8,8 @@
 > five-KEY operator path at `v0.8.0`. Demo coefficient conflicts (TD-003 note)
 > remain open. Prior contracts: `docs/tasks/V0_7-P0-trust-loop-contract.md`,
 > `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`,
-> `docs/tasks/V0_9-P0-version-contract.md`. Active contract after `v1.0.0`:
-> `docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`.
+> `docs/tasks/V0_9-P0-version-contract.md`. V1.1 inbound connector is complete
+> at `v1.1.0` (`docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`).
 
 | ID | Status | Priority | Module | Cause | Current Impact | Temporary Approach | Permanent Resolution | Target Task / Version |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

@@ -8,10 +8,10 @@ This audit records the repository exactly as found on the preserved baseline.
 > post–V0.5 delta, §32 for the V0.7 trust-loop (delivered at `v0.7.0`),
 > §33 for the V0.8 operator-minimal input recut (delivered at `v0.8.0`,
 > `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`), §34 for V0.9,
-> and §35 for V1.1 豆包/Aily inbound zone-plan.
+> and §35 for V1.1 豆包/Aily inbound zone-plan (complete at `v1.1.0`).
 > Prior contract: `docs/tasks/V0_7-P0-trust-loop-contract.md`.
 > V0.9 contract: `docs/tasks/V0_9-P0-version-contract.md`.
-> Active contract: `docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`.
+> Released contract: `docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`.
 
 ## 1. Current Directory Tree
 
@@ -491,16 +491,20 @@ dispatched.
 live Aily, production RBAC, Feishu review, coefficient promotion, tag
 without separate `授权`.
 
-## 35. V1.1 governance truth-up (`v1.0.0` shipped)
+## 35. V1.1 shipped at `v1.1.0`
 
-V0.9 + post-v0.9 operator workbench is **complete** at `v1.0.0`. V1.1 is the
-豆包工作伙伴 (Feishu Aily) inbound conversation connector: five KEY in, existing
-`cold_room_zone_plan@1.0.0` kernel, table out. It does not recut cooling
-formulas, does not bump zone `VERSION`, and does not open a live outbound
-Feishu session (`AILY_OUTBOUND_LIVE_SESSION=NO`).
+V0.9 + post-v0.9 operator workbench is **complete** at `v1.0.0`. V1.1 豆包工作伙伴
+(Feishu Aily) inbound conversation connector is **complete** at `v1.1.0`
+(`7fd0a28659baca56570813f3380b8223a0114f57`): five KEY in, existing
+`cold_room_zone_plan@1.0.0` kernel, table out, MCP Streamable HTTP tool
+`preview_zone_plan`. It does not recut cooling formulas, does not bump zone
+`VERSION`, and does not open a live outbound Feishu session
+(`AILY_OUTBOUND_LIVE_SESSION=NO`).
 
-**Active umbrella:** V1.1 (`docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`,
+**Released umbrella:** V1.1 (`docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`,
 `docs/tasks/V1_1-version-plan.md`,
-`docs/architecture/ADR-031-aily-conversation-zone-plan.md`).
+`docs/architecture/ADR-031-aily-conversation-zone-plan.md`,
+GitHub Release `v1.1.0`).
 Prior V0.9 contract remains: `docs/tasks/V0_9-P0-version-contract.md`.
+Do not move tags `v0.9.0`, `v1.0.0`, or `v1.1.0`.
 
