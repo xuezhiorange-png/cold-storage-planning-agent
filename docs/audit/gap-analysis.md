@@ -10,9 +10,10 @@
 > **complete** at `v0.8.0` (`docs/tasks/V0_8-P0-operator-minimal-input-contract.md`).
 > **V0.9 contract:** `docs/tasks/V0_9-P0-version-contract.md`.
 > **V1.1 inbound connector is complete at `v1.1.0`.** V1.2 five-stage
-> conversation preview contract: `docs/tasks/V1_2-P0-aily-five-stage-preview-contract.md`.
-> Later umbrellas (outbound live Aily session, cooling/equipment formula recut)
-> stay unauthorized until Charles dispatches.
+> conversation preview is complete at `v1.2.0`. V1.3 definition freeze:
+> `docs/tasks/V1_3-version-plan.md`. Later umbrellas (outbound live Aily
+> session, cooling wall/roof formula recut) stay unauthorized until Charles
+> dispatches.
 
 ## P0
 
