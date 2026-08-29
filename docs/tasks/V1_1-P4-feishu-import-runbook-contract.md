@@ -42,8 +42,9 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 Charles (operator) can follow `docs/runbooks/v11-doubao-aily-connector.md` to:
 
 1. Reach `POST /api/v1/aily/v1/zone-plan` (local or deployed origin).
-2. Import `docs/contracts/aily/v1.1/aily-to-system-zone-plan.openapi.yaml` as a
-   Feishu Aily / 豆包工作伙伴 **custom connector** in the tenant UI.
+2. Know that **豆包工作伙伴** custom tools are **MCP** (技能 → 工具 → 自定义工具),
+   not OpenAPI import. The yaml is for the separate 创建平台 Workflow connector,
+   not the 人设/技能/模型/安全 detail page. This repo does not yet expose MCP.
 3. Map the five OperatorProcessInputV1 KEY; 豆包 converts spoken 吨 (per day) to
    `daily_inbound_mass_kg` in kg/day.
 4. Configure 豆包 to send structured KEY JSON, not chat text; on HTTP 400 use

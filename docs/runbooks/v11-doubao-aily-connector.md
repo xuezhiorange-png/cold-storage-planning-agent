@@ -1,7 +1,8 @@
-# V1.1 豆包工作伙伴自定义连接器导入操作手册
+# V1.1 豆包工作伙伴接入分区规划内核操作手册
 
-本手册供 Charles 在飞书 Aily / 豆包工作伙伴租户中，将本仓库已有的 inbound
-OpenAPI 导入为**自定义连接器**，使豆包在用户说完过程参数后调用本系统分区规划内核并返回表格。
+本手册供 Charles 在**豆包工作伙伴**（`aily.feishu.cn` 工作伙伴详情页）里，把本系统
+分区规划内核接到技能工具上。该产品的自定义工具走 **MCP 协议**，**没有**
+「从 OpenAPI 导入」，详情页也**没有**「连接器」标签。
 
 ## 范围与边界
 
@@ -74,24 +75,49 @@ curl -sS -X POST "${ORIGIN}/api/v1/aily/v1/zone-plan" \
 
 将 `ORIGIN` 换成本地或 deployed origin（无尾斜杠）。
 
-## 第二步：在飞书 Aily / 豆包工作伙伴中创建自定义连接器
+## 第二步：豆包工作伙伴只认 MCP，不要找 OpenAPI 导入
 
-具体菜单名称因租户版本可能略有差异，一般路径为：**工作伙伴 / Aily → 连接器 / 自定义连接器 → 从 OpenAPI 导入**。
+你现在打开的「程学致的智能伙伴」详情页（人设 / 技能 / 模型 / 安全）就是对的产品。
+自定义工具入口也是对的：
 
-1. 选择「从 OpenAPI 导入」或等价入口。
-2. 上传或粘贴仓库内文件：
-   `docs/contracts/aily/v1.1/aily-to-system-zone-plan.openapi.yaml`
-3. 确认 OpenAPI 中的路径为：
-   `POST /api/v1/aily/v1/zone-plan`
-   `operationId` 为 `previewZonePlan`（勿改）。
-4. 配置连接器 **Server URL / Base URL** 为上述 `{origin}`（不要重复包含 `/api/v1/aily/v1/zone-plan` 若 UI 已按 path 拼接；以飞书 UI 说明为准）。
-5. 保存并启用连接器，绑定到目标豆包工作伙伴应用或技能。
+**技能 → 工具 → 添加工具 → 自定义工具 →「添加自定义 MCP 工具」**（MCP / SSE）
 
-### 可选：连接器密钥头（ sibling P3）
+这里要填的是 **MCP 服务地址**，不能上传 OpenAPI yaml。官方说明：自定义工具走 MCP 协议
+（[添加和使用 MCP](https://aily.feishu.cn/hc/1u7kleqg/fiogabrc)）。
 
-后续 sibling P3 可能增加可选请求头 `X-Aily-Connector-Key`。**当前未设置时连接器应能正常工作**；本手册与 P4 不在本仓库实现鉴权。若 P3 合并后租户要求配置该头，在连接器「认证 / 自定义 Header」中按 P3 文档填写。
+### 不要做的事
 
-## 第三步：映射五个 KEY（豆包侧语义）
+- 不要在这个详情页找「连接器」标签或「从 OpenAPI 导入」。**没有这两个入口。**
+- 不要把 `POST /api/v1/aily/v1/zone-plan` 的 REST 地址填进 MCP 对话框。那是普通 HTTP JSON
+  接口，不是 MCP；填进去连不上。
+- 不要把仓库里的
+  `docs/contracts/aily/v1.1/aily-to-system-zone-plan.openapi.yaml`
+  上传到这个对话框。
+
+### 「从 OpenAPI 导入」在哪个产品
+
+那是**另一个后台**：飞书智能伙伴创建平台里，给 **Workflow / Smartflow** 用的 HTTP
+自定义连接器。官方文章写的入口是：
+
+> 从 Workflow 和 Smartflow 中找到自定义连接器入口
+
+来源：[飞书智能伙伴 Aily 之自定义连接器](https://www.feishu.cn/content/ya5j9hjw)。
+
+低代码 / 集成平台的「集成」里也可以导入 OpenAPI/Postman，同样**不是**豆包工作伙伴详情页。
+本手册**不猜测**创建平台的后台 URL。若租户没有开通创建平台 / Workflow，就不要走这条路。
+
+### 本仓库现状（卡住的原因）
+
+- 已有能力：REST `POST /api/v1/aily/v1/zone-plan`（可用上面 curl 自检）。
+- **尚未**提供远程 MCP（SSE / Streamable HTTP）服务。所以在当前这个 UI 里，还没有可填的
+  MCP 地址。
+- 可选请求头 `X-Aily-Connector-Key`：环境变量 `COLD_STORAGE_AILY_CONNECTOR_SHARED_SECRET`
+  未设置时接口保持开放；设置后须带该头，否则 401。MCP 尚未落地前，不必在飞书 UI 里配这个头。
+
+要继续留在豆包工作伙伴：需要在本仓库增加一层 MCP，把五个 KEY 转到现有分区内核，再把
+**公网 HTTPS 的 MCP 地址**填进「添加自定义 MCP 工具」。MCP 层不得自己算工程数。
+
+## 第三步：映射五个 KEY（豆包侧语义，MCP 与 REST 相同）
 
 本系统要求的五个叶子字段（与 `OperatorProcessInputV1` 一致）：
 
@@ -185,7 +211,7 @@ HTTP 200 时，响应包含（节选）：
 1. 阅读 `docs/contracts/aily/v1.1/README.md` 中「豆包 skill notes」四条原则。
 2. 若存在 P2 技能包，以
    `docs/contracts/aily/v1.1/doubao-skill.v1.md` 为**既定技能文件**（P2 skill pack, if present）。
-3. 技能须写明：听懂用户 → 换算五个 KEY → 调用自定义连接器 → 展示 `markdown_table` → 标注概念设计与复核要求。
+3. 技能须写明：听懂用户 → 换算五个 KEY → 调用 MCP 工具（五个 KEY JSON，不要发聊天原文）→ 展示 `markdown_table` → 标注概念设计与复核要求。MCP 落地前，这一步无法在飞书 UI 里点通。
 
 ## 概念设计声明
 

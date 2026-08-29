@@ -47,6 +47,14 @@ def test_v11_p4_runbook_documents_markdown_table_and_review() -> None:
     assert "ask_operator" in runbook
 
 
+def test_v11_p4_runbook_states_doubao_workbench_custom_tools_are_mcp() -> None:
+    runbook = RUNBOOK_PATH.read_text(encoding="utf-8")
+    assert "添加自定义 MCP 工具" in runbook
+    assert "不是 MCP" in runbook
+    assert "Workflow" in runbook
+    assert "工作伙伴 / Aily → 连接器 / 自定义连接器 → 从 OpenAPI 导入" not in runbook
+
+
 def test_v11_p4_contract_keeps_outbound_session_no() -> None:
     contract = CONTRACT_PATH.read_text(encoding="utf-8")
     assert "AILY_OUTBOUND_LIVE_SESSION=NO" in contract
