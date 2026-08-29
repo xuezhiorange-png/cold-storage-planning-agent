@@ -9,10 +9,11 @@ This audit records the repository exactly as found on the preserved baseline.
 > §33 for the V0.8 operator-minimal input recut (delivered at `v0.8.0`,
 > `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`), §34 for V0.9,
 > and §35 for V1.1 豆包/Aily inbound zone-plan (complete at `v1.1.0`);
-> §36 for V1.2 five-stage conversation preview.
+> §36 for V1.2 five-stage conversation preview (complete at `v1.2.0`);
+> §37 for V1.3 conversation preview lineage (`docs/tasks/V1_3-version-plan.md`).
 > Prior contract: `docs/tasks/V0_7-P0-trust-loop-contract.md`.
 > V0.9 contract: `docs/tasks/V0_9-P0-version-contract.md`.
-> Released contract: `docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`.
+> Released contract: `docs/tasks/V1_2-P0-aily-five-stage-preview-contract.md`.
 
 ## 1. Current Directory Tree
 
@@ -509,10 +510,11 @@ GitHub Release `v1.1.0`).
 Prior V0.9 contract remains: `docs/tasks/V0_9-P0-version-contract.md`.
 Do not move tags `v0.9.0`, `v1.0.0`, or `v1.1.0`.
 
-## 36. V1.2 five-stage conversation preview (in progress)
+## 36. V1.2 shipped at `v1.2.0`
 
-V1.1 inbound zone-plan connector is **complete** at `v1.1.0`. V1.2 adds
-five-stage conversation preview for 豆包工作伙伴: same five KEY, existing
+V1.1 inbound zone-plan connector is **complete** at `v1.1.0`. V1.2
+five-stage conversation preview is **complete** at `v1.2.0`
+(`cb8a00bf7f95d5b29367a66f8fd06a1066ab4309`): same five KEY, existing
 adapters in memory (`persisted: false`), REST `concept-preview`, MCP tools
 `preview_cooling_load` / `preview_equipment` / `preview_installed_power` /
 `preview_investment` plus frozen `preview_zone_plan` (first). Cooling uses
@@ -520,9 +522,24 @@ demo envelope catalog — **not** zone area auto-feed (`envelope_from_zone_area:
 false`). Not Transaction B; not outbound live session
 (`AILY_OUTBOUND_LIVE_SESSION=NO`).
 
-**Contract:** `docs/tasks/V1_2-P0-aily-five-stage-preview-contract.md`,
+**Released umbrella:** V1.2 (`docs/tasks/V1_2-P0-aily-five-stage-preview-contract.md`,
 `docs/tasks/V1_2-version-plan.md`,
-`docs/architecture/ADR-034-aily-five-stage-conversation-preview.md`.
-Do not move tags `v0.9.0`, `v1.0.0`, or `v1.1.0`. Parent tags `v1.2.0` after
-review + main CI green.
+`docs/architecture/ADR-034-aily-five-stage-conversation-preview.md`,
+GitHub Release `v1.2.0`).
+Do not move tags `v0.9.0`, `v1.0.0`, `v1.1.0`, or `v1.2.0`.
+
+## 37. V1.3 conversation preview lineage (implementation authorized)
+
+V1.3 applies workbench lineage binds **in memory** on the V1.2 conversation
+preview path (zone `required_area_m2` → cooling `floor_area` / `zone_area`;
+equipment electrical kW(e) → installed power; zone totals + power →
+investment). Wall / roof / U-values stay demo catalog.
+`FORMULA_RECUT_AUTHORIZED=NO`. `AILY_OUTBOUND_LIVE_SESSION=NO`.
+`V13_IMPLEMENTATION_AUTHORIZED=YES` on branch `cursor/v13-version-plan-742e`.
+
+**Plan:** `docs/tasks/V1_3-version-plan.md`,
+`docs/tasks/V1_3-P0-aily-preview-lineage-contract.md`,
+`docs/architecture/ADR-035-aily-preview-workbench-lineage.md`.
+**Skill / runbook:** `docs/contracts/aily/v1.3/**`,
+`docs/runbooks/v13-doubao-aily-connector.md`.
 

@@ -71,7 +71,7 @@ _TOOL_DESCRIPTION = (
 
 _COOLING_TOOL_DESCRIPTION = (
     "根据五个过程参数生成冷负荷预览表。"
-    "冷量仍用演示围护系数，围护面积来自演示目录，不是分区规划面积自动带入。"
+    "地板/规划面积来自分区结果；墙、屋面、U 值仍用演示围护系数与演示目录，不是几何自动推导。"
     "吨=每天。只传五个 KEY。成功时原样展示 markdown_table，并说明概念设计、需复核、演示系数。"
     "失败时按 ask_operator 追问，不要编造数字。"
 )
@@ -84,12 +84,14 @@ _EQUIPMENT_TOOL_DESCRIPTION = (
 
 _POWER_TOOL_DESCRIPTION = (
     "根据五个过程参数生成装机功率预览表。"
+    "压缩机电气 kW(e) 来自设备结果；蒸发/冷凝风机可能仍为演示目录，不是 kW(r)/COP 换算。"
     "吨=每天。只传五个 KEY。成功时原样展示 markdown_table，并说明概念设计、需复核。"
     "失败时按 ask_operator 追问，不要编造数字。"
 )
 
 _INVESTMENT_TOOL_DESCRIPTION = (
     "根据五个过程参数生成投资估算预览表。"
+    "面积与功率来自分区规划与装机功率结果，不是演示目录占位。"
     "吨=每天。只传五个 KEY。成功时原样展示 markdown_table，并说明概念设计、需复核、演示系数。"
     "失败时按 ask_operator 追问，不要编造数字。"
 )
@@ -123,7 +125,7 @@ def build_zone_plan_mcp_server() -> Server[Any, Any]:
     """Low-level MCP server exposing five-stage conversation preview tools."""
     server: Server[Any, Any] = Server(
         name="cold-storage-zone-plan",
-        version="1.2.0",
+        version="1.3.0",
         instructions=_TOOL_DESCRIPTION,
     )
 

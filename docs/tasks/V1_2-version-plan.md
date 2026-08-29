@@ -82,5 +82,6 @@ investment_estimate@1.0.0
 | **P3** | v1.2 skill + runbook | This release |
 | Later | Outbound live 豆包 session | `AILY_OUTBOUND_LIVE_SESSION=NO` |
 | Later | Formula recut / Transaction B chat persistence | Not this version |
+| Later | Conversation preview workbench lineage (in memory) | See `docs/tasks/V1_3-version-plan.md` |
 
 V1.1 files under `docs/contracts/aily/v1.1/**` remain frozen.

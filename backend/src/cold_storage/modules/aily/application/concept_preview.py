@@ -28,7 +28,8 @@ def preview_concept(
             "connector": "aily",
             "requires_review": requires_review,
             "persisted": False,
-            "envelope_from_zone_area": False,
+            "floor_area_from_zone_plan": True,
+            "envelope_wall_roof_from_plan": False,
             "formula_recut_authorized": False,
             "stages": stages,
         }

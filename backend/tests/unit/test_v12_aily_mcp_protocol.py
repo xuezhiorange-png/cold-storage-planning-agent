@@ -76,8 +76,9 @@ async def _call_cooling() -> None:
     body = result.structuredContent
     assert body["ok"] is True
     assert body["calculator_name"] == "cooling_load"
-    assert body["envelope_from_zone_area"] is False
-    assert "演示围护" in body["markdown_table"]
+    assert body["floor_area_from_zone_plan"] is True
+    assert body["envelope_wall_roof_from_plan"] is False
+    assert "演示" in body["markdown_table"]
 
 
 async def _call_equipment() -> None:
@@ -100,7 +101,7 @@ async def _call_power() -> None:
     assert body["ok"] is True
     assert body["calculator_name"] == "installed_power"
     assert float(body["summary"]["total_installed_power_kw_e"]) > 0
-    assert body["power_from_demo_catalog"] is True
+    assert body["power_from_demo_catalog"] is False
 
 
 async def _call_investment() -> None:

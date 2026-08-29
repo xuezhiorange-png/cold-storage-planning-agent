@@ -23,11 +23,12 @@ def test_aily_concept_preview_http_returns_five_stages() -> None:
     body = response.json()
     assert body["reply_kind"] == "concept_preview"
     assert body["persisted"] is False
-    assert body["envelope_from_zone_area"] is False
+    assert body["floor_area_from_zone_plan"] is True
+    assert body["envelope_wall_roof_from_plan"] is False
     assert "zone" in body["stages"]
     assert "cooling_load" in body["stages"]
     assert "investment" in body["stages"]
-    assert "演示围护" in body["stages"]["cooling_load"]["markdown_table"]
+    assert "演示" in body["stages"]["cooling_load"]["markdown_table"]
 
 
 def test_aily_concept_preview_http_unauthorized_without_header_when_secret_set(
