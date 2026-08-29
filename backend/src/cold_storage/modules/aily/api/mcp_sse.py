@@ -1,4 +1,13 @@
-"""SSE MCP transport for 豆包工作伙伴 custom tools.
+"""MCP transport for 豆包工作伙伴 custom tools.
+
+Feishu / 豆包工作伙伴 custom MCP is Streamable HTTP: POST JSON-RPC to
+``/api/v1/aily/v1/mcp/sse`` (and ``/api/v1/aily/v1/mcp``) and return a complete
+JSON body (``json_response=true`` / ``is_json_response_enabled=True``). It is
+not a GET event stream.
+
+GET ``/sse`` plus POST ``/messages/`` remain as optional legacy SSE. Do not
+document that path as the Feishu 请求地址. trycloudflare buffers GET SSE into
+HTTP 200 with an empty body.
 
 Thin ASGI: no engineering formulas, no chat parsing. Tools call
 ``invoke_preview_zone_plan_tool``. Optional ``X-Aily-Connector-Key`` is the
@@ -8,17 +17,21 @@ same gate as the REST connector. This is not production RBAC.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
+import anyio
+from anyio.abc import TaskStatus
 from fastapi import FastAPI
 from mcp.server.lowlevel import Server
 from mcp.server.sse import SseServerTransport
+from mcp.server.streamable_http import StreamableHTTPServerTransport
 from mcp.types import CallToolResult, TextContent, Tool
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Mount, Route
-from starlette.types import Receive, Scope, Send
+from starlette.types import Message, Receive, Scope, Send
 
 from cold_storage.bootstrap.settings import get_settings
 from cold_storage.modules.aily.application.connector_auth import (
@@ -34,6 +47,8 @@ from cold_storage.modules.aily.domain.errors import AilyConnectorError
 from cold_storage.modules.projects.application.engineering_input_bundle import (
     OPERATOR_V09_FIVE_KEY_FIELDS,
 )
+
+logger = logging.getLogger(__name__)
 
 MCP_MOUNT_PATH = "/api/v1/aily/v1/mcp"
 MCP_SSE_PATH = f"{MCP_MOUNT_PATH}/sse"
@@ -116,11 +131,11 @@ def build_zone_plan_mcp_server() -> Server[Any, Any]:
 
 
 def build_aily_mcp_asgi() -> Starlette:
-    """Starlette app: GET ``/sse``, POST ``/messages/``."""
+    """Starlette app: Streamable HTTP POST on ``/sse`` and ``/``; legacy GET SSE."""
     sse = SseServerTransport("/messages/")
     server = build_zone_plan_mcp_server()
 
-    async def handle_sse(request: Request) -> Response:
+    async def handle_legacy_sse_get(request: Request) -> Response:
         denied = _auth_response(request.headers.get(CONNECTOR_KEY_HEADER))
         if denied is not None:
             return denied
@@ -129,16 +144,24 @@ def build_aily_mcp_asgi() -> Starlette:
             await server.run(streams[0], streams[1], server.create_initialization_options())
         return Response()
 
+    async def handle_streamable_http_post(request: Request) -> Response:
+        denied = _auth_response(request.headers.get(CONNECTOR_KEY_HEADER))
+        if denied is not None:
+            return denied
+        return await _stateless_json_mcp_response(server, request)
+
     return Starlette(
         routes=[
-            Route("/sse", endpoint=handle_sse, methods=["GET"]),
+            Route("/sse", endpoint=handle_streamable_http_post, methods=["POST"]),
+            Route("/", endpoint=handle_streamable_http_post, methods=["POST"]),
+            Route("/sse", endpoint=handle_legacy_sse_get, methods=["GET"]),
             Mount("/messages/", app=_ConnectorKeyASGI(sse.handle_post_message)),
         ]
     )
 
 
 def mount_aily_mcp(app: FastAPI) -> None:
-    """Mount the SSE MCP app on unmodified ``create_app``."""
+    """Mount the Aily MCP app on unmodified ``create_app``."""
     app.mount(MCP_MOUNT_PATH, build_aily_mcp_asgi())
 
 
@@ -175,6 +198,89 @@ def _header_value(scope: Scope, name: str) -> str | None:
             decoded: str = bytes(value).decode("latin-1")
             return decoded
     return None
+
+
+def _accept_includes_json(accept_header: str) -> bool:
+    accept_types = [media_type.strip() for media_type in accept_header.split(",")]
+    return any(media_type.startswith("application/json") for media_type in accept_types)
+
+
+def _scope_with_json_accept(scope: Scope) -> Scope:
+    """Feishu and curl send Content-Type only; MCP SDK 406s on missing/``*/*`` Accept."""
+    accept = _header_value(scope, "accept") or ""
+    if _accept_includes_json(accept):
+        return scope
+    patched = dict(scope)
+    existing = scope.get("headers") or []
+    headers = [(key, value) for key, value in existing if key.lower() != b"accept"]
+    headers.append((b"accept", b"application/json"))
+    patched["headers"] = headers
+    return patched
+
+
+async def _stateless_json_mcp_response(server: Server[Any, Any], request: Request) -> Response:
+    scope = _scope_with_json_accept(request.scope)
+    status_code = 500
+    raw_headers: list[tuple[bytes, bytes]] = []
+    body = bytearray()
+
+    async def send(message: Message) -> None:
+        nonlocal status_code, raw_headers
+        if message["type"] == "http.response.start":
+            status_code = int(message["status"])
+            raw_headers = list(message.get("headers") or [])
+        elif message["type"] == "http.response.body":
+            chunk = message.get("body", b"") or b""
+            if chunk:
+                body.extend(chunk)
+
+    await _run_stateless_json_mcp(server, scope, request.receive, send)
+    header_map = {
+        key.decode("latin-1"): value.decode("latin-1")
+        for key, value in raw_headers
+        if key.lower() != b"content-length"
+    }
+    return Response(content=bytes(body), status_code=status_code, headers=header_map)
+
+
+async def _run_stateless_json_mcp(
+    server: Server[Any, Any],
+    scope: Scope,
+    receive: Receive,
+    send: Send,
+) -> None:
+    # json_response=true: one complete JSON object per POST, not a long-lived SSE stream.
+    http_transport = StreamableHTTPServerTransport(
+        mcp_session_id=None,
+        is_json_response_enabled=True,
+        event_store=None,
+        security_settings=None,
+    )
+
+    async def run_stateless_server(
+        *,
+        task_status: TaskStatus[None] = anyio.TASK_STATUS_IGNORED,
+    ) -> None:
+        async with http_transport.connect() as streams:
+            read_stream, write_stream = streams
+            task_status.started()
+            try:
+                await server.run(
+                    read_stream,
+                    write_stream,
+                    server.create_initialization_options(),
+                    stateless=True,
+                )
+            except Exception:
+                logger.exception("Aily MCP Streamable HTTP session crashed")
+
+    async with anyio.create_task_group() as tg:
+        await tg.start(run_stateless_server)
+        try:
+            await http_transport.handle_request(scope, receive, send)
+        finally:
+            await http_transport.terminate()
+            tg.cancel_scope.cancel()
 
 
 class _ConnectorKeyASGI:

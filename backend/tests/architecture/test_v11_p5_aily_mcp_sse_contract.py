@@ -1,7 +1,8 @@
-"""Architecture tests for V1.1 P5 Aily MCP SSE inbound transport."""
+"""Architecture tests for V1.1 P5 Aily MCP Streamable HTTP inbound transport."""
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from cold_storage.modules.calculations.domain.zone_planning import VERSION
@@ -73,14 +74,28 @@ def test_v11_p5_application_and_domain_stay_mcp_sdk_free() -> None:
     assert "does not import the MCP SDK" in text
 
 
-def test_v11_p5_runbook_tells_operator_to_paste_sse_url() -> None:
+def test_v11_p5_runbook_tells_operator_streamable_http_not_get_sse() -> None:
     runbook = RUNBOOK_PATH.read_text(encoding="utf-8")
     contract = CONTRACT_PATH.read_text(encoding="utf-8")
+    api_text = MCP_SSE.read_text(encoding="utf-8")
     assert "/api/v1/aily/v1/mcp/sse" in runbook
     assert "/api/v1/aily/v1/mcp/sse" in contract
     assert "添加自定义 MCP 工具" in runbook
     assert "POST /api/v1/aily/v1/zone-plan" in runbook
     assert "工作伙伴 / Aily → 连接器 / 自定义连接器 → 从 OpenAPI 导入" not in runbook
+    assert "Streamable HTTP" in runbook
+    assert "Streamable HTTP" in contract
+    assert "传输选 **SSE**" not in runbook
+    assert "json_response=true" in api_text or "json_response=true" in contract
+    assert "is_json_response_enabled=True" in api_text
+    assert "tools/list" in runbook
+    assert "preview_zone_plan" in runbook
+    assert "trycloudflare" in runbook
+    assert "5173" in runbook
+    assert "8000" in runbook
+    assert "GET SSE" in runbook or "GET 事件流" in runbook
+    assert "POST JSON-RPC" in runbook or "POST JSON-RPC" in contract
+    assert "GET {origin}/api/v1/aily/v1/mcp/sse" not in contract
 
 
 def test_v11_p5_contract_keeps_non_goals() -> None:
@@ -99,3 +114,14 @@ def test_v11_p5_contract_keeps_non_goals() -> None:
         assert flag in contract
     assert "豆包工作伙伴" in contract
     assert "吨 always means per day" in contract
+
+
+def test_v11_p5_skill_declares_streamable_http_transport() -> None:
+    skill_json = json.loads(
+        (REPO_ROOT / "docs" / "contracts" / "aily" / "v1.1" / "doubao-skill.v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert skill_json["mcp"]["transport"] == "streamable_http"
+    assert skill_json["mcp"]["path"] == "/api/v1/aily/v1/mcp/sse"
+    assert skill_json["mcp"]["tool"] == "preview_zone_plan"

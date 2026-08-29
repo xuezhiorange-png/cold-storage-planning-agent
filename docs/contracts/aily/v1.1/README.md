@@ -19,5 +19,8 @@ call this system's kernel for engineering numbers.
 - 五个参数：每天进货公斤、成品天数、冻果天数、主包材天数、辅包材天数。
 - 调用前把吨/天换成 `daily_inbound_mass_kg`（kg/day；1 吨/天 = 1000 kg/day）。
 - 缺哪个就问哪个。不要自己编面积。
-- 调用 MCP 工具 `preview_zone_plan`（五个 KEY）。底层 REST 为 `POST /api/v1/aily/v1/zone-plan`，不要把 REST 地址填进 MCP 对话框。
+- 调用 MCP 工具 `preview_zone_plan`（五个 KEY）。飞书自定义 MCP 传输方式必须是
+  Streamable HTTP，请求地址为 `{origin}/api/v1/aily/v1/mcp/sse`。底层 REST 为
+  `POST /api/v1/aily/v1/zone-plan`，不要把 REST 地址填进 MCP 对话框。GET SSE 在
+  trycloudflare / 飞书云上不可用。
 - 标明这是概念设计，需要复核。

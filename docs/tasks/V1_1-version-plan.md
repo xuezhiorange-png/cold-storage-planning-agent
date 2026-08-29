@@ -73,12 +73,14 @@ This connector does not parse `message` / 口语.
 | **P2** | Static 豆包工作伙伴 skill pack (paste-ready) | Delivered on `main` (`#238`) |
 | **P3** | Aily connector auth | Delivered on `main` (`#240`) |
 | **P4** | Runbook + OpenAPI examples | Delivered on `main` (`#239`) |
-| **P5** | MCP SSE transport for 豆包工作伙伴 custom tools | This package |
+| **P5** | MCP Streamable HTTP for 豆包工作伙伴 custom tools | This package |
 | Later | Outbound live 豆包 session, Feishu tenant skill wiring | `AILY_OUTBOUND_LIVE_SESSION=NO` |
 | Later | Cooling/equipment/power/investment formula recut | Not this version |
 
-P0–P4 inbound HTTP, skill, auth, and runbook shipped on `main`. P5 adds the
-MCP SSE URL operators paste into 添加自定义 MCP 工具. Not live Feishu session control.
+P0–P4 inbound HTTP, skill, auth, and runbook shipped on `main`. P5 is the MCP
+URL operators paste into 添加自定义 MCP 工具. Feishu 传输方式 must be
+**Streamable HTTP** (`POST` JSON-RPC, complete JSON). GET SSE is not the Feishu
+path and is unavailable on trycloudflare / 飞书云. Not live Feishu session control.
 
 ## 5. Non-goals
 

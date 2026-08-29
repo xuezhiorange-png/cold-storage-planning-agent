@@ -49,7 +49,9 @@ POST /api/v1/aily/v1/zone-plan
 Content-Type: application/json
 ```
 
-MCP 服务地址（SSE）是 `{origin}/api/v1/aily/v1/mcp/sse`。
+MCP 服务地址是 `{origin}/api/v1/aily/v1/mcp/sse`。飞书里传输方式必须选
+**Streamable HTTP**（不要选 SSE）。飞书对该地址 POST JSON-RPC，响应是完整 JSON。
+不要把该 URL 当 GET SSE 用。
 
 **请求体示例（扁平 JSON，推荐）：**
 

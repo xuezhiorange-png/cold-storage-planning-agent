@@ -32,7 +32,7 @@
     "forbidden_paths": ["/api/v1/agent/**"]
   },
   "mcp": {
-    "transport": "sse",
+    "transport": "streamable_http",
     "path": "/api/v1/aily/v1/mcp/sse",
     "tool": "preview_zone_plan"
   },
