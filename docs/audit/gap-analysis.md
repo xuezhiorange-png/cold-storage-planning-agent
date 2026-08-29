@@ -9,8 +9,9 @@
 > for the delivered V0.7 register. V0.8 operator-minimal process input is
 > **complete** at `v0.8.0` (`docs/tasks/V0_8-P0-operator-minimal-input-contract.md`).
 > **V0.9 contract:** `docs/tasks/V0_9-P0-version-contract.md`.
-> **Active umbrella after `v1.0.0`:** V1.1
-> (`docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`).
+> **Active umbrella after `v1.1.0`:** unauthorized until Charles dispatches
+> (outbound live Aily session, cooling/equipment formula recut).
+> V1.1 inbound connector is **complete** at tag `v1.1.0`.
 
 ## P0
 

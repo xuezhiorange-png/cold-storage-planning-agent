@@ -23,3 +23,4 @@ def test_agents_md_points_at_v10_handover() -> None:
     text = AGENTS.read_text(encoding="utf-8")
     assert "docs/handover/2026-08-28-v1.0.md" in text
     assert "v1.0.0" in text
+    assert "docs/handover/2026-08-29-v1.1.md" in text

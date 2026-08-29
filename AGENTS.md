@@ -65,8 +65,10 @@ facilities.
 
 ## Current Baseline Notes
 
-- Product release identity is Git tag `v1.0.0` on `main`. Do not move
-  `v0.9.0` or `v1.0.0`. Session handover: `docs/handover/2026-08-28-v1.0.md`.
+- Product release identity is Git tag `v1.1.0` on `main`. Do not move
+  `v0.9.0`, `v1.0.0`, or `v1.1.0`. Session handover:
+  `docs/handover/2026-08-29-v1.1.md` (current) and
+  `docs/handover/2026-08-28-v1.0.md` (V1.0 freeze).
 - The current repository baseline still has documented gaps between target
   architecture and implementation. Use `docs/audit/` and `docs/roadmap/` before
   making architecture claims. `docs/audit/current-state.md` §1–30 is the Task 0
