@@ -2030,7 +2030,9 @@ def create_app(
     from cold_storage.modules.aily.api.routes import router as aily_router
 
     app.include_router(aily_router)
-    # Inbound MCP SSE for 豆包工作伙伴 custom tools. Not an outbound Feishu session.
+    # Inbound MCP Streamable HTTP for 豆包工作伙伴 custom tools (POST JSON-RPC
+    # on /api/v1/aily/v1/mcp/sse). Not an outbound Feishu session. GET SSE is
+    # legacy-only and is not the Feishu 请求地址.
     mount_aily_mcp(app)
 
     # Seed default templates (P0-3) — lazy, only if engine is available

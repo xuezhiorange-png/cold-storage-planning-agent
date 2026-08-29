@@ -1,8 +1,8 @@
 # V1.1 豆包工作伙伴 MCP 接入操作手册
 
 本手册供 Charles 在**豆包工作伙伴**里，把本系统分区规划内核接到技能工具上。
-该产品的自定义工具走 **MCP（SSE）**，详情页**没有**「连接器」标签，也**不能**
-上传 OpenAPI yaml。
+该产品的自定义工具走 **MCP Streamable HTTP**（完整 JSON），详情页**没有**「连接器」
+标签，也**不能**上传 OpenAPI yaml。
 
 ## 范围与边界
 
@@ -16,8 +16,8 @@
 
 ## 前置条件
 
-- 本仓库已合并 inbound REST（`POST /api/v1/aily/v1/zone-plan`）和 MCP SSE
-  （`GET /api/v1/aily/v1/mcp/sse`，工具名 `preview_zone_plan`）。
+- 本仓库已合并 inbound REST（`POST /api/v1/aily/v1/zone-plan`）和 MCP Streamable HTTP
+  （`POST /api/v1/aily/v1/mcp/sse`，工具名 `preview_zone_plan`）。
 - OpenAPI 文件（给创建平台 Workflow 用，不是工作伙伴详情页）：
   `docs/contracts/aily/v1.1/aily-to-system-zone-plan.openapi.yaml`
 - 技能说明参考：
@@ -27,7 +27,7 @@
 
 ## 第一步：让连接器能访问 API
 
-连接器需要能 `POST` 到本系统的 zone-plan 预览接口。
+连接器需要能访问本系统的 HTTPS origin。飞书云访问不了笔记本上的 `127.0.0.1`。
 
 ### 本地验证（开发机）
 
@@ -38,31 +38,65 @@
    make migrate
    ```
 
-2. 启动后端（默认监听 `http://127.0.0.1:8000`）：
+2. 启动**后端**（必须监听 `http://127.0.0.1:8000`）：
 
    ```bash
    cd backend
    PYTHONPATH=src UV_CACHE_DIR=../.uv-cache uv run uvicorn cold_storage.bootstrap.app:create_app --factory --reload
    ```
 
-3. 本地 REST 自检：`http://127.0.0.1:8000/api/v1/aily/v1/zone-plan`
-   本地 MCP SSE 地址：`http://127.0.0.1:8000/api/v1/aily/v1/mcp/sse`
+3. 本地 REST：`http://127.0.0.1:8000/api/v1/aily/v1/zone-plan`
+   本地 MCP Streamable HTTP 地址：`http://127.0.0.1:8000/api/v1/aily/v1/mcp/sse`
 
-   豆包工作伙伴跑在飞书云上，**访问不了**你笔记本的 `127.0.0.1`。请改用下方
-   「已部署环境」的公网 HTTPS。
+4. 公网隧道必须指向 **`127.0.0.1:8000`**。不要把隧道指到 Vite **`:5173`**（前端代理会卡流）。
 
 ### 已部署环境
 
-使用**你的已部署 origin**（例如 `https://your-deployment.example.com`），勿编造本仓库未提供的生产域名。
+使用**你的已部署 origin**（例如 `https://your-deployment.example.com`），勿编造本仓库未提供的生产域名。ORIGIN 不要带尾斜杠。
 
 REST：`{你的 deployed origin}/api/v1/aily/v1/zone-plan`  
-MCP SSE（填进飞书的地址）：`{你的 deployed origin}/api/v1/aily/v1/mcp/sse`
+MCP 请求地址（填进飞书，完整路径）：`{你的 deployed origin}/api/v1/aily/v1/mcp/sse`
 
 确保该 origin 对飞书 / 豆包租户出站网络可达（防火墙、TLS、反向代理已放行）。
 
-### 快速自检（curl）
+### 飞书必须这样填（复制这一块）
 
-五个 KEY 齐全时应返回 200 与 `markdown_table`：
+```text
+产品：豆包工作伙伴 → 技能 → 工具 → 添加工具 → 自定义工具 → 添加自定义 MCP 工具
+传输方式：必须选 Streamable HTTP（不要选 SSE）
+请求地址：https://<ORIGIN>/api/v1/aily/v1/mcp/sse
+  （完整路径；ORIGIN 无尾斜杠；不要只填域名）
+飞书会对这个地址 POST JSON-RPC：initialize → tools/list → tools/call
+响应必须是完整 JSON，不是长连接 SSE
+工具名：preview_zone_plan
+五个 KEY：daily_inbound_mass_kg、finished_storage_days、frozen_storage_days、
+  main_packaging_storage_days、auxiliary_packaging_storage_days
+吨 = 每天；调用前把吨/天 × 1000 得到 daily_inbound_mass_kg
+后端监听 :8000；公网隧道指向 127.0.0.1:8000，不要指 Vite :5173
+不要填 POST /api/v1/aily/v1/zone-plan（那是 REST，不是 MCP）
+不要在详情页上传 OpenAPI（那个入口不存在）
+不要把该 URL 当 GET SSE 用，不要等 event: endpoint，不要再 POST /messages/
+GET SSE 在 trycloudflare / 飞书云上不可用（会被缓冲成 200 + 0 字节，
+  飞书报 generic call psm=lark.aily.canvas...）
+可选请求头：若设置了 COLD_STORAGE_AILY_CONNECTOR_SHARED_SECRET，
+  则加 X-Aily-Connector-Key，值与环境变量相同
+```
+
+### 快速自检（curl）— 必须 POST，只测 GET SSE 不算做完
+
+ORIGIN 无尾斜杠。先 `initialize`，再 `tools/list`，必须 HTTP 200 且列出 `preview_zone_plan`：
+
+```bash
+curl -sS -X POST "${ORIGIN}/api/v1/aily/v1/mcp/sse" \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"t","version":"0.1"}}}'
+
+curl -sS -X POST "${ORIGIN}/api/v1/aily/v1/mcp/sse" \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
+```
+
+REST 五个 KEY 齐全时应返回 200 与 `markdown_table`（这是内核自检，不是飞书 MCP 地址）：
 
 ```bash
 curl -sS -X POST "${ORIGIN}/api/v1/aily/v1/zone-plan" \
@@ -84,13 +118,13 @@ curl -sS -X POST "${ORIGIN}/api/v1/aily/v1/zone-plan" \
 
 **技能 → 工具 → 添加工具 → 自定义工具 →「添加自定义 MCP 工具」**
 
-1. 传输选 **SSE**（若 UI 已写死 SSE，保持默认）。
-2. MCP 服务地址填：
+1. 传输方式必须选 **Streamable HTTP**。不要选 SSE。GET SSE 在 trycloudflare / 飞书云上不可用。
+2. MCP 服务地址填完整路径：
 
    `{ORIGIN}/api/v1/aily/v1/mcp/sse`
 
    不要填 `POST /api/v1/aily/v1/zone-plan`，那是普通 HTTP JSON，不是 MCP。
-   不要上传 `aily-to-system-zone-plan.openapi.yaml`。
+   不要只填域名。不要上传 `aily-to-system-zone-plan.openapi.yaml`。
 3. 若部署时设置了环境变量 `COLD_STORAGE_AILY_CONNECTOR_SHARED_SECRET`，在请求头里加固定值：
 
    - 名称：`X-Aily-Connector-Key`
@@ -150,7 +184,7 @@ OpenAPI 提供两种请求示例：
 
 ## 第四步：错误处理（HTTP 400）
 
-缺 KEY 或无效参数时，接口返回 400，body 形如：
+缺 KEY 或无效参数时，REST 接口返回 400，body 形如：
 
 ```json
 {
@@ -162,6 +196,9 @@ OpenAPI 提供两种请求示例：
   }
 }
 ```
+
+MCP `preview_zone_plan` 在缺 KEY 时返回 `ok=false` 以及同样的 `ask_operator` /
+`missing_keys`（不要编造数字）。
 
 豆包行为：
 
@@ -209,4 +246,6 @@ HTTP 200 时，响应包含（节选）：
 
 - P0 连接器契约：`docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`
 - P4 契约：`docs/tasks/V1_1-P4-feishu-import-runbook-contract.md`
-- ADR：`docs/architecture/ADR-031-aily-conversation-zone-plan.md`
+- P5 契约：`docs/tasks/V1_1-P5-aily-mcp-sse-contract.md`
+- ADR：`docs/architecture/ADR-031-aily-conversation-zone-plan.md`、
+  `docs/architecture/ADR-033-aily-mcp-sse-zone-plan.md`
