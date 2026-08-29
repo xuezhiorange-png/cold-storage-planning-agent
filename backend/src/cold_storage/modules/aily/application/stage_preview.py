@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from typing import Any
+from typing import Any, Protocol
 
 from cold_storage.modules.aily.application.cooling_load_table import project_cooling_load_table
 from cold_storage.modules.aily.application.equipment_table import project_equipment_table
@@ -48,6 +48,13 @@ POWER_CALCULATOR_NAME = "installed_power"
 POWER_CALCULATOR_VERSION = "1.0.0"
 INVESTMENT_CALCULATOR_NAME = "investment_estimate"
 INVESTMENT_CALCULATOR_VERSION = "1.0.0"
+
+
+class _StageAdapter(Protocol):
+    """Production adapters expose execute(projection) -> AdapterResult."""
+
+    def execute(self, projection: CalculatorInputProjection) -> AdapterResult: ...
+
 
 _COOLING_EXTRA_FIELDS = {
     "envelope_from_zone_area": False,
@@ -247,7 +254,7 @@ def _execute_stage_adapter(
     *,
     stage_key: str,
     calculation_type: CalculationType,
-    adapter: Any,
+    adapter: _StageAdapter,
     calculator_name: str,
     calculator_version: str,
     prepared_inputs: dict[str, Any] | None = None,
@@ -337,7 +344,7 @@ def _run_stage_preview(
     *,
     stage_key: str,
     calculation_type: CalculationType,
-    adapter: Any,
+    adapter: _StageAdapter,
     calculator_name: str,
     calculator_version: str,
     reply_kind: str,
