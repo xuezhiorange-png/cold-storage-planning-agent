@@ -640,7 +640,7 @@ class LineageAwareCalculatorPort:
             raise TransactionBFailure(
                 exc.code,
                 exc.message,
-                field=exc.field,
+                field=exc.field_path,
                 details=dict(exc.details),
             ) from exc
 
@@ -712,7 +712,7 @@ class LineageAwareCalculatorPort:
             raise TransactionBFailure(
                 exc.code,
                 exc.message,
-                field=exc.field,
+                field=exc.field_path,
                 details=dict(exc.details),
             ) from exc
 

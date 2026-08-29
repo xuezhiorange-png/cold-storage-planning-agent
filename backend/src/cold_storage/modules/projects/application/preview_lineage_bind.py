@@ -8,7 +8,6 @@ error types.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
 
@@ -17,12 +16,22 @@ from cold_storage.modules.projects.application.operator_process_input import (
 )
 
 
-@dataclass(frozen=True, slots=True)
 class LineageBindFailure(Exception):
-    code: str
-    message: str
-    field: str
-    details: Mapping[str, Any] = field(default_factory=dict)
+    """Typed bind failure. Callers map this onto Transaction B or Aily errors."""
+
+    def __init__(
+        self,
+        *,
+        code: str,
+        message: str,
+        field_path: str,
+        details: Mapping[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.field_path = field_path
+        self.details = dict(details or {})
 
 
 def decimalize(value: Any) -> Decimal:
@@ -42,7 +51,7 @@ def bind_cooling_identity_and_plan_area_from_zone(
         raise LineageBindFailure(
             code="UPSTREAM_LINEAGE_BIND_FAILED",
             message="cooling lineage binding requires zone-plan zones",
-            field="zone.result_snapshot.zones",
+            field_path="zone.result_snapshot.zones",
             details={"reason": "missing_zone_zones"},
         )
     cooling_zones = cooling_inputs.get("zones")
@@ -50,7 +59,7 @@ def bind_cooling_identity_and_plan_area_from_zone(
         raise LineageBindFailure(
             code="UPSTREAM_LINEAGE_BIND_FAILED",
             message="cooling lineage binding requires cooling_load zones",
-            field="cooling_load_inputs.zones",
+            field_path="cooling_load_inputs.zones",
         )
     templates_by_code: dict[str, dict[str, Any]] = {}
     for template in cooling_zones:
@@ -71,7 +80,7 @@ def bind_cooling_identity_and_plan_area_from_zone(
             raise LineageBindFailure(
                 code="UPSTREAM_LINEAGE_BIND_FAILED",
                 message="cooling lineage binding requires zone_code on zone-plan zones",
-                field="zone.result_snapshot.zones[].zone_code",
+                field_path="zone.result_snapshot.zones[].zone_code",
                 details={"zone": zone},
             )
         zone_code_str = str(zone_code)
@@ -83,7 +92,7 @@ def bind_cooling_identity_and_plan_area_from_zone(
                     "cooling lineage binding could not map temperature_band "
                     f"{temperature_band!r} to TemperatureLevel"
                 ),
-                field="cooling_load_inputs.zones[].temperature_level",
+                field_path="cooling_load_inputs.zones[].temperature_level",
                 details={"temperature_band": temperature_band, "zone_code": zone_code_str},
             )
         template = templates_by_code.get(zone_code_str)
@@ -93,7 +102,7 @@ def bind_cooling_identity_and_plan_area_from_zone(
                 message=(
                     f"cooling lineage binding could not match zone-plan zone_code {zone_code_str!r}"
                 ),
-                field="cooling_load_inputs.zones[].zone_code",
+                field_path="cooling_load_inputs.zones[].zone_code",
                 details={
                     "zone_code": zone_code_str,
                     "available_zone_codes": sorted(templates_by_code),
@@ -104,7 +113,7 @@ def bind_cooling_identity_and_plan_area_from_zone(
             raise LineageBindFailure(
                 code="UPSTREAM_LINEAGE_BIND_FAILED",
                 message="cooling lineage binding requires required_area_m2 on zone-plan zones",
-                field="zone.result_snapshot.zones[].required_area_m2",
+                field_path="zone.result_snapshot.zones[].required_area_m2",
                 details={"zone_code": zone_code_str},
             )
         bound_zone = dict(template)
@@ -120,7 +129,7 @@ def bind_cooling_identity_and_plan_area_from_zone(
         raise LineageBindFailure(
             code="UPSTREAM_LINEAGE_BIND_FAILED",
             message="cooling lineage binding requires at least one refrigerated zone",
-            field="cooling_load_inputs.zones",
+            field_path="cooling_load_inputs.zones",
             details={"reason": "no_refrigerated_zones"},
         )
     cooling_inputs["zones"] = bound_zones
@@ -142,7 +151,7 @@ def bind_power_compressor_from_equipment(
         raise LineageBindFailure(
             code="UPSTREAM_LINEAGE_BIND_FAILED",
             message="power lineage binding requires equipment total_compressor_input_power_kw_e",
-            field="equipment.result_snapshot.total_compressor_input_power_kw_e",
+            field_path="equipment.result_snapshot.total_compressor_input_power_kw_e",
         )
     power_inputs["compressor_input_power_kw_e"] = compressor_power
     return compressor_power

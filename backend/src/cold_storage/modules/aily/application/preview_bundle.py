@@ -226,7 +226,7 @@ def lineage_bind_failure(exc: LineageBindFailure) -> AilyConnectorError:
     return AilyConnectorError(
         code=exc.code,
         message=exc.message,
-        field_path=exc.field,
+        field_path=exc.field_path,
     )
 
 

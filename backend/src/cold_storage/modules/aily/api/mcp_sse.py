@@ -125,7 +125,7 @@ def build_zone_plan_mcp_server() -> Server[Any, Any]:
     """Low-level MCP server exposing five-stage conversation preview tools."""
     server: Server[Any, Any] = Server(
         name="cold-storage-zone-plan",
-        version="1.2.0",
+        version="1.3.0",
         instructions=_TOOL_DESCRIPTION,
     )
 

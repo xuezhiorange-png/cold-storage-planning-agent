@@ -15,12 +15,16 @@ CONTRACT_PATH = REPO_ROOT / "docs" / "tasks" / "V1_3-P0-aily-preview-lineage-con
 PLAN_PATH = REPO_ROOT / "docs" / "tasks" / "V1_3-version-plan.md"
 ADR_PATH = REPO_ROOT / "docs" / "architecture" / "ADR-035-aily-preview-workbench-lineage.md"
 AILY_API_DIR = REPO_ROOT / "backend" / "src" / "cold_storage" / "modules" / "aily"
+SKILL_PATH = REPO_ROOT / "docs" / "contracts" / "aily" / "v1.3" / "doubao-skill.v1.md"
+RUNBOOK_PATH = REPO_ROOT / "docs" / "runbooks" / "v13-doubao-aily-connector.md"
 
 
 def test_v13_plan_files_exist() -> None:
     assert CONTRACT_PATH.is_file()
     assert PLAN_PATH.is_file()
     assert ADR_PATH.is_file()
+    assert SKILL_PATH.is_file()
+    assert RUNBOOK_PATH.is_file()
 
 
 def test_v13_keeps_frozen_operator_keys_and_calculator_identities() -> None:
@@ -81,3 +85,4 @@ def test_v13_aily_still_must_not_import_calculations() -> None:
     for path in AILY_API_DIR.rglob("*.py"):
         text = path.read_text(encoding="utf-8")
         assert "cold_storage.modules.calculations" not in text, path.name
+        assert "five_stage_execution" not in text, path.name

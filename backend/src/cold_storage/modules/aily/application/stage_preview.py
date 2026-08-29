@@ -80,10 +80,15 @@ class _StageAdapter(Protocol):
 @dataclass(slots=True)
 class _PreviewLineage:
     zone_payload: dict[str, Any]
+    zone_result: AdapterResult | None = None
     cooling_payload: dict[str, Any] | None = None
+    cooling_result: AdapterResult | None = None
     equipment_payload: dict[str, Any] | None = None
+    equipment_result: AdapterResult | None = None
     equipment_adapter: ElectricalCapturingEquipmentAdapter | None = None
     power_payload: dict[str, Any] | None = None
+    power_result: AdapterResult | None = None
+    power_used_fan_catalog: bool = False
 
 
 def preview_zone_plan(
@@ -103,7 +108,7 @@ def preview_cooling_load(
 ) -> dict[str, Any]:
     """Validate five KEY, run cooling_load with zone floor area lineage, return a table."""
     context = assemble_preview_context(payload, correlation_id=correlation_id)
-    zone_payload = _execute_zone_payload(context)
+    zone_payload, _zone_result = _execute_zone_stage(context)
     lineage = _PreviewLineage(zone_payload=zone_payload)
     return _run_cooling_stage(context, lineage)[0]
 
@@ -115,8 +120,8 @@ def preview_equipment(
 ) -> dict[str, Any]:
     """Validate five KEY, run equipment capability preview, return a table."""
     context = assemble_preview_context(payload, correlation_id=correlation_id)
-    zone_payload = _execute_zone_payload(context)
-    cooling_payload = _execute_cooling_payload(context, zone_payload)
+    zone_payload, _zone_result = _execute_zone_stage(context)
+    cooling_payload, _cooling_result = _execute_cooling_stage(context, zone_payload)
     lineage = _PreviewLineage(
         zone_payload=zone_payload,
         cooling_payload=cooling_payload,
@@ -148,21 +153,60 @@ def preview_investment(
 
 def run_concept_preview_stages(context: PreviewContext) -> dict[str, dict[str, Any]]:
     """Run all five preview kernels once from a shared assemble context."""
-    zone_payload = _execute_zone_payload(context)
-    cooling_payload = _execute_cooling_payload(context, zone_payload)
-    equipment_payload, equipment_adapter = _execute_equipment_payload(context, cooling_payload)
-    power_payload = _execute_power_payload(context, equipment_payload, equipment_adapter)
-    lineage = _PreviewLineage(
-        zone_payload=zone_payload,
-        cooling_payload=cooling_payload,
-        equipment_payload=equipment_payload,
-        equipment_adapter=equipment_adapter,
-        power_payload=power_payload,
+    lineage = _lineage_through_power(context)
+    if (
+        lineage.zone_result is None
+        or lineage.cooling_result is None
+        or lineage.equipment_result is None
+        or lineage.power_result is None
+    ):
+        raise AilyConnectorError(
+            code="UPSTREAM_LINEAGE_BIND_FAILED",
+            message="concept preview missing an upstream adapter result",
+            field_path="stages",
+        )
+    zone = _build_stage_preview_body(
+        context,
+        lineage.zone_result,
+        stage_key="zone",
+        calculator_name=ZONE_CALCULATOR_NAME,
+        calculator_version=ZONE_CALCULATOR_VERSION,
+        reply_kind="zone_plan_table",
+        table_projector=project_zone_plan_table,
+        extra_fields={},
     )
-    zone = _run_zone_stage(context)
-    cooling, _ = _run_cooling_stage(context, lineage)
-    equipment = _run_equipment_stage(context, lineage)
-    power = _run_power_stage(context, lineage)
+    cooling = _build_stage_preview_body(
+        context,
+        lineage.cooling_result,
+        stage_key="cooling_load",
+        calculator_name=COOLING_CALCULATOR_NAME,
+        calculator_version=COOLING_CALCULATOR_VERSION,
+        reply_kind="cooling_load_table",
+        table_projector=project_cooling_load_table,
+        extra_fields=_COOLING_EXTRA_FIELDS,
+    )
+    equipment = _build_stage_preview_body(
+        context,
+        lineage.equipment_result,
+        stage_key="equipment",
+        calculator_name=EQUIPMENT_CALCULATOR_NAME,
+        calculator_version=EQUIPMENT_CALCULATOR_VERSION,
+        reply_kind="equipment_table",
+        table_projector=project_equipment_table,
+        extra_fields={},
+    )
+    power = _build_stage_preview_body(
+        context,
+        lineage.power_result,
+        stage_key="power",
+        calculator_name=POWER_CALCULATOR_NAME,
+        calculator_version=POWER_CALCULATOR_VERSION,
+        reply_kind="power_table",
+        table_projector=project_power_table,
+        extra_fields={"power_from_demo_catalog": False},
+    )
+    if lineage.power_used_fan_catalog:
+        _apply_power_fan_catalog_disclaimer(power)
     investment = _run_investment_stage(context, lineage)
     return {
         "zone": zone,
@@ -174,20 +218,29 @@ def run_concept_preview_stages(context: PreviewContext) -> dict[str, dict[str, A
 
 
 def _lineage_through_power(context: PreviewContext) -> _PreviewLineage:
-    zone_payload = _execute_zone_payload(context)
-    cooling_payload = _execute_cooling_payload(context, zone_payload)
-    equipment_payload, equipment_adapter = _execute_equipment_payload(context, cooling_payload)
-    power_payload = _execute_power_payload(context, equipment_payload, equipment_adapter)
+    zone_payload, zone_result = _execute_zone_stage(context)
+    cooling_payload, cooling_result = _execute_cooling_stage(context, zone_payload)
+    equipment_payload, equipment_adapter, equipment_result = _execute_equipment_stage(
+        context, cooling_payload
+    )
+    power_payload, power_result, used_fan_catalog = _execute_power_stage(
+        context, equipment_payload, equipment_adapter
+    )
     return _PreviewLineage(
         zone_payload=zone_payload,
+        zone_result=zone_result,
         cooling_payload=cooling_payload,
+        cooling_result=cooling_result,
         equipment_payload=equipment_payload,
+        equipment_result=equipment_result,
         equipment_adapter=equipment_adapter,
         power_payload=power_payload,
+        power_result=power_result,
+        power_used_fan_catalog=used_fan_catalog,
     )
 
 
-def _execute_zone_payload(context: PreviewContext) -> dict[str, Any]:
+def _execute_zone_stage(context: PreviewContext) -> tuple[dict[str, Any], AdapterResult]:
     adapter_result = _execute_stage_adapter(
         context,
         stage_key="zone",
@@ -196,13 +249,13 @@ def _execute_zone_payload(context: PreviewContext) -> dict[str, Any]:
         calculator_name=ZONE_CALCULATOR_NAME,
         calculator_version=ZONE_CALCULATOR_VERSION,
     )
-    return dict(adapter_result.payload)
+    return dict(adapter_result.payload), adapter_result
 
 
-def _execute_cooling_payload(
+def _execute_cooling_stage(
     context: PreviewContext,
     zone_payload: Mapping[str, Any],
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], AdapterResult]:
     prepared = _prepare_cooling_inputs(context, zone_payload)
     adapter_result = _execute_stage_adapter(
         context,
@@ -213,13 +266,13 @@ def _execute_cooling_payload(
         calculator_version=COOLING_CALCULATOR_VERSION,
         prepared_inputs=prepared,
     )
-    return dict(adapter_result.payload)
+    return dict(adapter_result.payload), adapter_result
 
 
-def _execute_equipment_payload(
+def _execute_equipment_stage(
     context: PreviewContext,
     cooling_payload: Mapping[str, Any],
-) -> tuple[dict[str, Any], ElectricalCapturingEquipmentAdapter]:
+) -> tuple[dict[str, Any], ElectricalCapturingEquipmentAdapter, AdapterResult]:
     equipment_inputs = _equipment_inputs_from_context(context)
     bind_equipment_loads_from_cooling_payload(equipment_inputs, cooling_payload)
     adapter = ElectricalCapturingEquipmentAdapter()
@@ -236,14 +289,14 @@ def _execute_equipment_payload(
     captured = adapter.last_total_compressor_input_power_kw_e
     if captured is not None:
         payload["total_compressor_input_power_kw_e"] = captured
-    return payload, adapter
+    return payload, adapter, adapter_result
 
 
-def _execute_power_payload(
+def _execute_power_stage(
     context: PreviewContext,
     equipment_payload: Mapping[str, Any],
     equipment_adapter: ElectricalCapturingEquipmentAdapter,
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], AdapterResult, bool]:
     power_inputs = _power_inputs_from_context(context)
     try:
         bind_power_compressor_from_equipment(
@@ -253,7 +306,7 @@ def _execute_power_payload(
         )
     except LineageBindFailure as exc:
         raise lineage_bind_failure(exc) from exc
-    prepared, _used_fan_catalog = prepare_power_fan_catalog_inputs(power_inputs)
+    prepared, used_fan_catalog = prepare_power_fan_catalog_inputs(power_inputs)
     adapter_result = _execute_stage_adapter(
         context,
         stage_key="power",
@@ -263,7 +316,7 @@ def _execute_power_payload(
         calculator_version=POWER_CALCULATOR_VERSION,
         prepared_inputs=prepared,
     )
-    return dict(adapter_result.payload)
+    return dict(adapter_result.payload), adapter_result, used_fan_catalog
 
 
 def _prepare_cooling_inputs(

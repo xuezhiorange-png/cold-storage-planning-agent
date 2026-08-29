@@ -14,9 +14,6 @@ from cold_storage.modules.aily.application.stage_preview import (
     preview_zone_plan,
 )
 from cold_storage.modules.aily.domain.errors import AilyConnectorError
-from cold_storage.modules.orchestration.application.production_calculation.electrical_capturing_equipment_adapter import (
-    ElectricalCapturingEquipmentAdapter,
-)
 
 AILY_DIR = Path(__file__).resolve().parents[2] / "src" / "cold_storage" / "modules" / "aily"
 
@@ -90,4 +87,3 @@ def test_v13_equipment_and_power_totals_non_zero() -> None:
     power = preview_installed_power(_five_keys())
     assert float(equipment["summary"]["compressor_operating_capacity_kw"]) > 0
     assert float(power["summary"]["total_installed_power_kw_e"]) > 0
-    assert isinstance(ElectricalCapturingEquipmentAdapter(), ElectricalCapturingEquipmentAdapter)
