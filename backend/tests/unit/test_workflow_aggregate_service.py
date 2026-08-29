@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from cold_storage.modules.projects.application.operator_demo_defaults import (
+    load_operator_demo_process_input,
+)
 from cold_storage.modules.projects.application.service import ProjectService
 from cold_storage.modules.projects.domain.models import ProjectVersion
 from cold_storage.modules.reports.domain.enums import ReportStatus, ReportType
@@ -516,8 +519,10 @@ def test_empty_version_lists_v09_operator_keys_not_v04_planning_fields() -> None
     assert "packaging_storage_days" not in missing_fields
     assert "utilization_factor" not in missing_fields
     assert "reserve_factor" not in missing_fields
-    assert aggregate["current_step"] == "PROJECT_INPUT"
+    assert aggregate["current_step"] == "OPERATOR_PROCESS_INPUT"
     assert any(blocker["code"] == "INPUT_MISSING" for blocker in aggregate["blockers"])
+    assert aggregate["contract_version"] == "WorkflowAggregateV2"
+    assert any(action["label"] == "完成工程输入" for action in aggregate["next_required_actions"])
 
 
 def test_five_stage_runs_complete_input_steps_without_version_snapshot() -> None:
@@ -532,7 +537,9 @@ def test_five_stage_runs_complete_input_steps_without_version_snapshot() -> None
     )
     aggregate = workflow.get_workflow_aggregate(project.id, version.version_number)
 
-    project_input = next(step for step in aggregate["steps"] if step["step"] == "PROJECT_INPUT")
+    project_input = next(
+        step for step in aggregate["steps"] if step["step"] == "OPERATOR_PROCESS_INPUT"
+    )
     completeness = next(step for step in aggregate["steps"] if step["step"] == "INPUT_COMPLETENESS")
     calculation = next(
         step for step in aggregate["steps"] if step["step"] == "DETERMINISTIC_CALCULATION"
@@ -548,3 +555,50 @@ def test_five_stage_runs_complete_input_steps_without_version_snapshot() -> None
     )
     assert aggregate["current_step"] == "SCHEME_COMPARISON"
     assert any(blocker["code"] == "SCHEME_MISSING" for blocker in aggregate["blockers"])
+
+
+def test_v04_save_inputs_alone_does_not_complete_operator_process_input() -> None:
+    project_service = ProjectService()
+    project_id, version_number, _ = _seed_project_with_inputs(project_service)
+    workflow = WorkflowAggregateService(
+        project_service=project_service,
+        scheme_query=_SchemeQueryStub(),
+    )
+    aggregate = workflow.get_workflow_aggregate(project_id, version_number)
+    operator_step = next(
+        step for step in aggregate["steps"] if step["step"] == "OPERATOR_PROCESS_INPUT"
+    )
+    assert operator_step["status"] == "NOT_STARTED"
+    assert aggregate["current_step"] == "OPERATOR_PROCESS_INPUT"
+    assert [item["field"] for item in aggregate["missing_inputs"]] == [
+        "daily_inbound_mass_kg",
+        "finished_storage_days",
+        "frozen_storage_days",
+        "main_packaging_storage_days",
+        "auxiliary_packaging_storage_days",
+    ]
+    assert any(action["label"] == "完成工程输入" for action in aggregate["next_required_actions"])
+
+
+def test_persisted_operator_process_input_completes_first_step_without_save_inputs() -> None:
+    project_service = ProjectService()
+    project = project_service.create_project("蓝莓冷库规划", "山东", "blueberry")
+    version = project_service.create_version(project.id, "initial", created_by="operator")
+    demo = load_operator_demo_process_input()
+    snapshot = {
+        "schema_id": demo["schema_id"],
+        "schema_version": demo["schema_version"],
+        "zone_planning_inputs": demo["zone_planning_inputs"],
+    }
+    project_service.save_inputs(project.id, version.version_number, snapshot, actor="operator")
+    workflow = WorkflowAggregateService(
+        project_service=project_service,
+        scheme_query=_SchemeQueryStub(),
+    )
+    aggregate = workflow.get_workflow_aggregate(project.id, version.version_number)
+    operator_step = next(
+        step for step in aggregate["steps"] if step["step"] == "OPERATOR_PROCESS_INPUT"
+    )
+    assert operator_step["status"] == "COMPLETED"
+    assert aggregate["missing_inputs"] == []
+    assert aggregate["current_step"] != "OPERATOR_PROCESS_INPUT"

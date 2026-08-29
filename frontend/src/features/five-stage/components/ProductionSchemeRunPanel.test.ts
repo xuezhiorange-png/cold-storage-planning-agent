@@ -45,7 +45,7 @@ function setupWorkbench(
   workbench.projectId = 'proj-test'
   workbench.versionNumber = 1
   workbench.workflow = {
-    contract_version: 'WorkflowAggregateV1',
+    contract_version: 'WorkflowAggregateV2',
     generated_at: '2026-01-01T00:00:00Z',
     project_context: {
       project_id: 'proj-test',

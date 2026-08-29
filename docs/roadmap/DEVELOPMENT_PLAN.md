@@ -11,8 +11,9 @@
 > plus overall plan (`docs/tasks/V0_9-version-plan.md`). V0.9 operator
 > workbench is **complete** at `v1.0.0`. **V1.1 豆包工作伙伴 inbound connector
 > is complete at `v1.1.0`.** V1.2 five-stage conversation preview is
-> **complete at `v1.2.0`**. V1.3 inbound preview lineage is **implementation
-> authorized** (in-memory workbench binds; `docs/tasks/V1_3-version-plan.md`).
+> **complete at `v1.2.0`**. V1.3 inbound preview lineage is **complete at
+> `v1.3.0`**. V1.4 operator workbench debt (TD-023 + TD-008 five-KEY slice)
+> is **implementation authorized** (`docs/tasks/V1_4-version-plan.md`).
 > Later umbrellas (outbound live Aily session, cooling wall/roof formula recut)
 > stay unauthorized until Charles dispatches.
 

@@ -1,4 +1,5 @@
 import type { PlanningRunRequest } from '../../../api/contracts/planning'
+import { operatorDemoZoneNumeric } from '../../design-inputs/operatorDemoDefaults'
 
 /** Demo migration gap defaults — must be persisted via project inputs, not silent authority. */
 export const DEMO_MIGRATION_GAP_COEFFICIENTS = {
@@ -31,20 +32,20 @@ export interface DesignInputValidationError {
 
 export function createDefaultDesignInputs(): DesignInputs {
   return {
-    dailyInboundMassTons: 25,
+    dailyInboundMassTons: operatorDemoZoneNumeric('daily_inbound_mass_kg') / 1000,
     workingHoursPerDay: 16,
     utilizationFactor: DEMO_MIGRATION_GAP_COEFFICIENTS.utilization_factor,
     reserveFactor: DEMO_MIGRATION_GAP_COEFFICIENTS.reserve_factor,
-    finishedStorageDays: 2.5,
-    packagingStorageDays: 3,
-    auxiliaryPackagingStorageDays: 30,
+    finishedStorageDays: operatorDemoZoneNumeric('finished_storage_days'),
+    packagingStorageDays: operatorDemoZoneNumeric('main_packaging_storage_days'),
+    auxiliaryPackagingStorageDays: operatorDemoZoneNumeric('auxiliary_packaging_storage_days'),
     precoolingRequiredRatio: 1,
     rawStorageRatio: 0.4,
     primaryPrecoolingWorkingHours: 6,
     secondaryPrecoolingWorkingHours: 16,
     finishedGoodsPalletWeightKg: 400,
     frozenFruitRatio: 0.1,
-    frozenStorageDays: 5,
+    frozenStorageDays: operatorDemoZoneNumeric('frozen_storage_days'),
     frozenGoodsPalletWeightKg: 600
   }
 }

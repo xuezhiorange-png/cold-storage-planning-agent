@@ -14,7 +14,7 @@ export function sampleWorkflowAggregate(
   overrides: Partial<WorkflowAggregateV1> = {}
 ): WorkflowAggregateV1 {
   return {
-    contract_version: 'WorkflowAggregateV1',
+    contract_version: 'WorkflowAggregateV2',
     generated_at: '2026-01-01T00:00:00Z',
     project_context: {
       project_id: 'proj-test',
@@ -27,7 +27,7 @@ export function sampleWorkflowAggregate(
       revision_stale_reasons: [],
       revision_freshness: 'fresh'
     },
-    current_step: 'PROJECT_INPUT',
+    current_step: 'OPERATOR_PROCESS_INPUT',
     workflow_status: 'IN_PROGRESS',
     workflow_goal: 'formal_report',
     steps: [],

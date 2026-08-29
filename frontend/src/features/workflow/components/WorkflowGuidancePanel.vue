@@ -6,11 +6,15 @@ import { usePersistedPlanningResultsStore } from '../../../stores/persistedPlann
 import { useWorkbenchContextStore } from '../../../stores/workbenchContext'
 
 const OPERATOR_NEXT_STEPS = new Set([
-  'PROJECT_INPUT',
+  'OPERATOR_PROCESS_INPUT',
   'INPUT_COMPLETENESS',
   'DETERMINISTIC_CALCULATION',
   'SCHEME_COMPARISON'
 ])
+
+const OPERATOR_STEP_LABELS: Record<string, string> = {
+  OPERATOR_PROCESS_INPUT: '工程输入'
+}
 
 const NON_CORE_BLOCKER_CODES = new Set([
   'INPUT_REQUIRES_REVIEW',
@@ -161,7 +165,7 @@ onMounted(() => {
           修订已过期
         </span>
         <span v-if="currentStep" class="workflow-guidance__current-step">
-          当前步骤：{{ currentStep.replace(/_/g, ' ') }}
+          当前步骤：{{ OPERATOR_STEP_LABELS[currentStep] ?? currentStep.replace(/_/g, ' ') }}
         </span>
       </div>
     </header>

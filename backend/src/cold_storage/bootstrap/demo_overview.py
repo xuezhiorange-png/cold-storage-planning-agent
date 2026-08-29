@@ -1,3 +1,12 @@
+"""Legacy factory-overview payload for GET /api/v1/demo/overview.
+
+Not the operator demo authority. Operator five KEY and storage-day defaults
+come from samples/v09-process-input/manifest.json via
+GET /api/v1/demo/operator-process-input. This module still runs leftover
+calculators for the overview sample and must not be treated as a new formula
+source.
+"""
+
 from dataclasses import asdict
 from typing import Any
 

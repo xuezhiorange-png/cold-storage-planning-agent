@@ -10,8 +10,10 @@
 > `docs/tasks/V0_8-P0-operator-minimal-input-contract.md`,
 > `docs/tasks/V0_9-P0-version-contract.md`. V1.1 inbound connector is complete
 > at `v1.1.0` (`docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`).
-> V1.2 five-stage inbound preview is complete at `v1.2.0`. V1.3 definition
-> freeze: `docs/tasks/V1_3-version-plan.md` (`V13_IMPLEMENTATION_AUTHORIZED=NO`).
+> V1.2 five-stage inbound preview is complete at `v1.2.0`. V1.3 conversation
+> preview lineage is complete at `v1.3.0`. V1.4 workbench debt (TD-023 +
+> TD-008 five-KEY slice): `docs/tasks/V1_4-version-plan.md`
+> (`V14_IMPLEMENTATION_AUTHORIZED=YES`).
 
 | ID | Status | Priority | Module | Cause | Current Impact | Temporary Approach | Permanent Resolution | Target Task / Version |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -22,7 +24,7 @@
 | TD-005 | **Superseded** | High | knowledge | Knowledge service was in-memory substring search only | Durable ingestion/chunking/retrieval delivered; production retrieval hardening continues | Consumer-only workflow provenance remains separate authority | Continue ops/quality hardening | Task 7 follow-up |
 | TD-006 | **Superseded** | High | reports | Report generation wrote files directly without persisted report versions | Persisted revisions and API delivery exist; assembler reads persisted results only | Reports must not recalculate formulas | Align report consumers with five-stage canonical mapping | V0.5 P3 |
 | TD-007 | **Resolved** | Medium | frontend | ~~`App.vue` was a monolith~~ | ~~UI maintenance cost is high~~ | Delivered at `v0.5.0` | Five-stage workbench wiring complete | V0.5 |
-| TD-008 | Open | Medium | frontend/backend demo | Demo defaults and power/equipment reference data are duplicated between backend and frontend | Drift risk between API and UI samples | Maintain both copies only as interim baseline | Source demo data from backend APIs or shared typed fixtures | Task 10 |
+| TD-008 | Open | Medium | frontend/backend demo | Demo defaults and power/equipment reference data are duplicated between backend and frontend | V1.4 closes **operator five KEY + storage-day defaults** onto `samples/v09-process-input/manifest.json`; leftover V0.4 `demo_overview` and power/equipment catalogs may still diverge | Operator KEY/days from v09 sample + `GET /api/v1/demo/operator-process-input`; overview marked legacy | Unify remaining power/equipment catalog copies | V1.4 slice / later |
 | TD-009 | Resolved | Medium | quality | Backend formatting check failed on two files | CI truthfully shows formatting drift | Do not suppress the check | Reformatted `demo_overview.py` and `investment.py` via `ruff format` in Task 0 completion | Task 0 |
 || TD-010 | **Resolved** | Medium | dependencies/bootstrap | ~~Global singleton services are created at import time~~ | ~~Startup side effects complicate testing and environment changes~~ | ~~Keep current dependency wiring for baseline stability~~ | Import-time singletons removed; lifecycle managed via FastAPI lifespan | Task 1 |
 || TD-011 | **Resolved** | High | projects/versioning | ~~ProjectVersion lacked state machine, immutability, and snapshot isolation~~ | ~~Approved versions could be modified, no audit trail for state changes~~ | ~~Keep basic approval check~~ | Implemented full version state machine with immutability rules, snapshots, and audit events | Task 2 |
@@ -37,5 +39,5 @@
 | TD-020 | **Resolved** | High | workbench/inputs | Operator 工程输入 required full `EngineeringInputBundleV1` KEY form | Delivered at `v0.8.0` | Keep V0.7 full-bundle path as compatibility | `OperatorProcessInputV1` five KEY leaves + assembler | V0.8 |
 | TD-021 | Open | High | zone_planning / workbench | V0.8 KEY and planner/UI/export do not match the V0.9 lock | Unused KEY, no shipping_channel, review mixed with export, layout | P0 contract only; do not implement off-plan | V0.9 P1–P7 after dispatch | V0.9 |
 | TD-022 | **Resolved** | Medium | reports/localization | ~~Investment calculator persists Chinese ``item_name``; render uses ``investment.{item_name}`` as catalog keys~~ | Draft export projects stable English ``item_key`` catalog keys | Leftover Chinese catalog keys remain for persisted report JSON | Calculator emits ``item_key``; reports-owned legacy map; snapshot admits optional ``item_key``; unknown names fail closed | post-v0.9 |
-| TD-023 | Open | Medium | workflow | Guided workflow still names the first step PROJECT_INPUT and V0.4 `save_inputs` snapshot | Sidebar showed deleted KEY and false stale after 工程输入 | Workflow treats canonical five-stage runs as input authority; empty snapshot lists V0.9 five KEY | Persist operator_process_input onto version snapshot or recut step names | post-v0.9 |
-| TD-024 | Open | Medium | aily | V0.7 P6 froze Aily paper only; outbound Feishu skill/session is still unwired | Chat in 豆包工作伙伴 cannot open a live session from this app | V1.1 inbound REST + MCP Streamable HTTP; V1.2 five-stage inbound preview at `v1.2.0`; V1.3 proposed in-memory workbench lineage (still no outbound; `docs/tasks/V1_3-version-plan.md`) | Outbound live session after Charles supplies tenant skill wiring | V1.3 later |
+| TD-023 | **Resolved** | Medium | workflow | ~~Guided workflow still names the first step PROJECT_INPUT and V0.4 `save_inputs` snapshot~~ | Delivered at V1.4: first step is `OPERATOR_PROCESS_INPUT` / 工程输入; V0.4 `save_inputs` alone does not complete it | Keep Path A `save_inputs` as compatibility | Recut delivered | V1.4 |
+| TD-024 | Open | Medium | aily | V0.7 P6 froze Aily paper only; outbound Feishu skill/session is still unwired | Chat in 豆包工作伙伴 cannot open a live session from this app | V1.1 inbound REST + MCP Streamable HTTP; V1.2 five-stage inbound preview at `v1.2.0`; V1.3 in-memory workbench lineage at `v1.3.0` (still no outbound) | Outbound live session after Charles supplies tenant skill wiring | later |

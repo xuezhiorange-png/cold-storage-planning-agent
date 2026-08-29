@@ -43,7 +43,7 @@ def test_workflow_endpoint_is_read_only_and_returns_aggregate(tmp_path: Path) ->
     response = client.get(f"/api/v1/projects/{project_id}/versions/{version}/workflow")
     assert response.status_code == 200
     payload = response.json()
-    assert payload["contract_version"] == "WorkflowAggregateV1"
+    assert payload["contract_version"] == "WorkflowAggregateV2"
     assert payload["project_context"]["project_id"] == project_id
     assert payload["workflow_goal"] == "formal_report"
     assert "workflow_readiness" in payload
@@ -61,3 +61,9 @@ def test_workflow_endpoint_is_read_only_and_returns_aggregate(tmp_path: Path) ->
 
     workflow_after = client.get(f"/api/v1/projects/{project_id}/versions/{version}/workflow")
     assert workflow_after.status_code == 200
+    after_payload = workflow_after.json()
+    assert after_payload["current_step"] == "OPERATOR_PROCESS_INPUT"
+    operator_step = next(
+        step for step in after_payload["steps"] if step["step"] == "OPERATOR_PROCESS_INPUT"
+    )
+    assert operator_step["status"] != "COMPLETED"

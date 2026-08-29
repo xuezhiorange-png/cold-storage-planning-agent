@@ -27,16 +27,17 @@ describe('design input model', () => {
     const request = mapDesignInputsToPlanningRequest(createDefaultDesignInputs())
 
     expect(request).toMatchObject({
-      daily_inbound_mass_kg: 25_000,
+      daily_inbound_mass_kg: 20_000,
       working_time_h_per_day: 16,
-      finished_storage_days: 2.5,
-      packaging_storage_days: 3,
-      main_packaging_storage_days: 3,
-      auxiliary_packaging_storage_days: 30,
+      finished_storage_days: 7,
+      packaging_storage_days: 4,
+      main_packaging_storage_days: 4,
+      auxiliary_packaging_storage_days: 12,
       utilization_factor: 0.85,
       reserve_factor: 1.05,
       raw_storage_ratio: 0.4,
-      frozen_fruit_ratio: 0.1
+      frozen_fruit_ratio: 0.1,
+      frozen_storage_days: 10
     })
   })
 })

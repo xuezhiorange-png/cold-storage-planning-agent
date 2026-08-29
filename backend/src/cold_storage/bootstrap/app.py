@@ -52,6 +52,9 @@ from cold_storage.modules.planning_agent.application.orchestrator import AgentOr
 from cold_storage.modules.planning_agent.application.service import PlanningAgentService
 from cold_storage.modules.planning_agent.application.tool_registry import build_default_registry
 from cold_storage.modules.planning_agent.infrastructure.repository import AgentRepository
+from cold_storage.modules.projects.application.operator_demo_defaults import (
+    load_operator_demo_process_input,
+)
 from cold_storage.modules.projects.application.service import ProjectService
 from cold_storage.modules.projects.domain.models import (
     InvalidVersionTransitionError,
@@ -1200,6 +1203,10 @@ def create_app(
                 as_float(power_configuration["total_installed_power_kw"]),
             )
             return planning_run_response(inputs, zone_result, investment_result)
+
+    @app.get("/api/v1/demo/operator-process-input")
+    def demo_operator_process_input() -> dict[str, Any]:
+        return load_operator_demo_process_input()
 
     @app.post("/api/v1/projects")
     def create_project(
