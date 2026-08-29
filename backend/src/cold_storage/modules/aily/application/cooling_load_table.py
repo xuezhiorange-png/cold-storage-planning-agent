@@ -5,7 +5,9 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-_COOLING_CAPTION = "冷负荷预览（演示围护系数；围护面积来自演示目录，不是分区规划面积自动带入）"
+_COOLING_CAPTION = (
+    "冷负荷预览（地板/规划面积来自分区结果；墙、屋面、U 值仍是演示目录，需复核）"
+)
 
 _COMPONENT_ROWS: tuple[tuple[str, str], ...] = (
     ("envelope_heat_transfer_load_kw", "围护传热"),
@@ -33,7 +35,8 @@ def project_cooling_load_table(payload: Mapping[str, Any]) -> dict[str, Any]:
     total = payload.get("total_cooling_load_kw")
     summary = {
         "total_cooling_load_kw": total,
-        "envelope_from_zone_area": False,
+        "floor_area_from_zone_plan": True,
+        "envelope_wall_roof_from_plan": False,
         "demo_envelope": True,
     }
 
@@ -54,7 +57,7 @@ def project_cooling_load_table(payload: Mapping[str, Any]) -> dict[str, Any]:
         if zone_rows:
             extra_tables.append(
                 {
-                    "caption": "分区小计（演示围护，非分区面积自动带入）",
+                    "caption": "分区小计（地板面积来自分区结果；墙屋面仍为演示目录）",
                     "columns": [
                         {"key": "zone_name", "label": "分区", "unit": None},
                         {"key": "subtotal_load_kw_r", "label": "小计", "unit": "kW(r)"},
@@ -86,7 +89,9 @@ def _markdown_table(rows: Sequence[Mapping[str, Any]], total: Any) -> str:
     if total is not None:
         lines.append(f"| **合计** | **{_cell(total)}** |")
     lines.append("")
-    lines.append("> 演示围护：围护面积来自演示目录，不是分区规划面积自动带入；需人工复核。")
+    lines.append(
+        "> 地板/规划面积来自分区结果；墙、屋面、U 值仍是演示目录，需复核。"
+    )
     return "\n".join(lines)
 
 

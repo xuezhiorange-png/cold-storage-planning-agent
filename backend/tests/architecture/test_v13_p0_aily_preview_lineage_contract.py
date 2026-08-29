@@ -55,12 +55,13 @@ def test_v13_keeps_frozen_operator_keys_and_calculator_identities() -> None:
     assert CALCULATOR_BINDINGS["investment"] == "investment_estimate"
 
 
-def test_v13_definition_freeze_keeps_non_goals() -> None:
+def test_v13_definition_freeze_keeps_non_goals_and_authorization() -> None:
     contract = CONTRACT_PATH.read_text(encoding="utf-8")
     plan = PLAN_PATH.read_text(encoding="utf-8")
     adr = ADR_PATH.read_text(encoding="utf-8")
     for flag in (
-        "V13_IMPLEMENTATION_AUTHORIZED=NO",
+        "V13_IMPLEMENTATION_AUTHORIZED=YES",
+        "V13_P0_IMPLEMENTATION_AUTHORIZED=YES",
         "FORMULA_RECUT_AUTHORIZED=NO",
         "COOLING_LOAD_FORMULA_RECUT=NO",
         "ENVELOPE_WALL_ROOF_FROM_PLAN=NO",
@@ -71,7 +72,7 @@ def test_v13_definition_freeze_keeps_non_goals() -> None:
     ):
         assert flag in contract
         assert flag in plan
-    assert "Proposed" in adr
+    assert "Accepted" in adr
     assert "floor_area" in plan
     assert "required_area_m2" in plan
 

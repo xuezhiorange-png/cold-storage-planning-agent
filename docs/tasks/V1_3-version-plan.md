@@ -1,6 +1,6 @@
 # V1.3 总计划：对话预览对齐工作台血缘
 
-**状态：** 定义冻结 R1（计划可审阅；实现尚未派发）  
+**状态：** 实现已授权（V1.3 inbound preview lineage）  
 **上一产品标签：** `v1.2.0`  
 **基线 `main` SHA：** `cb8a00b`  
 **权威：** 推荐主题 — 豆包五阶段预览在内存里走与工作台相同的阶段血缘；不重切公式、不落库、不开出站  
@@ -14,7 +14,8 @@ GOVERNANCE_OWNER=V1.3
 PREVIOUS_RELEASE=v1.2.0
 BASE_MAIN_SHA=cb8a00b
 TARGET_FILE=docs/tasks/V1_3-version-plan.md
-V13_IMPLEMENTATION_AUTHORIZED=NO
+V13_IMPLEMENTATION_AUTHORIZED=YES
+V13_P0_IMPLEMENTATION_AUTHORIZED=YES
 AILY_INBOUND_PREVIEW_LINEAGE=YES
 AILY_OUTBOUND_LIVE_SESSION=NO
 FORMULA_RECUT_AUTHORIZED=NO
@@ -39,8 +40,8 @@ EXTEND_API_V1_AGENT_FOR_AILY=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
-`V13_IMPLEMENTATION_AUTHORIZED=NO`：本文件只冻结「1.3 做什么」。
-代码、技能包、打标签 `v1.3.0` 要等 Charles 明确派发后再做。
+`V13_IMPLEMENTATION_AUTHORIZED=YES`：本文件冻结「1.3 做什么」且实现已授权。
+代码、技能包见 P1–P3；打标签 `v1.3.0` 仍等 `main` HEAD CI 全绿后。
 
 ---
 

@@ -1,6 +1,6 @@
 # ADR-035: Aily conversation preview uses workbench lineage in memory
 
-- Status: Proposed (V1.3 definition freeze; not dispatched)
+- Status: Accepted (V1.3 inbound preview lineage)
 - Date: 2026-08-29
 - Context: V1.2 (ADR-034) delivered five-stage conversation preview with
   demo envelope catalog, demo installed-power leaves, and demo investment

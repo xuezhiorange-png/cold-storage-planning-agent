@@ -528,16 +528,18 @@ false`). Not Transaction B; not outbound live session
 GitHub Release `v1.2.0`).
 Do not move tags `v0.9.0`, `v1.0.0`, `v1.1.0`, or `v1.2.0`.
 
-## 37. V1.3 conversation preview lineage (definition freeze)
+## 37. V1.3 conversation preview lineage (implementation authorized)
 
-V1.3 recommended theme: apply workbench lineage binds **in memory** on the
-V1.2 conversation preview path (zone `required_area_m2` → cooling
-`floor_area` / `zone_area`; equipment electrical kW(e) → installed power;
-zone totals + power → investment). Wall / roof / U-values stay demo catalog.
+V1.3 applies workbench lineage binds **in memory** on the V1.2 conversation
+preview path (zone `required_area_m2` → cooling `floor_area` / `zone_area`;
+equipment electrical kW(e) → installed power; zone totals + power →
+investment). Wall / roof / U-values stay demo catalog.
 `FORMULA_RECUT_AUTHORIZED=NO`. `AILY_OUTBOUND_LIVE_SESSION=NO`.
-`V13_IMPLEMENTATION_AUTHORIZED=NO` until Charles dispatches.
+`V13_IMPLEMENTATION_AUTHORIZED=YES` on branch `cursor/v13-version-plan-742e`.
 
 **Plan:** `docs/tasks/V1_3-version-plan.md`,
 `docs/tasks/V1_3-P0-aily-preview-lineage-contract.md`,
 `docs/architecture/ADR-035-aily-preview-workbench-lineage.md`.
+**Skill / runbook:** `docs/contracts/aily/v1.3/**`,
+`docs/runbooks/v13-doubao-aily-connector.md`.
 

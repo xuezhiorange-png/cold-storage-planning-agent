@@ -27,6 +27,7 @@ from cold_storage.modules.projects.application.operator_process_input import (
     assemble_engineering_input_bundle,
     validate_operator_process_input,
 )
+from cold_storage.modules.projects.application.preview_lineage_bind import LineageBindFailure
 from cold_storage.modules.projects.domain.models import ProjectVersion
 
 AILY_CONNECTOR_ACTOR = "aily-connector"
@@ -34,22 +35,14 @@ AILY_PREVIEW_PROJECT_ID = "aily-preview"
 AILY_PREVIEW_VERSION_ID = "aily-preview-v1"
 
 _WORKBENCH_ENVELOPE_CATALOG_SOURCE = "samples/v05-local-workbench/manifest.json"
-_PREVIEW_INVESTMENT_DEMO: dict[str, Any] = {
-    "total_area_m2": "1000",
-    "refrigerated_area_m2": "800",
-    "frozen_area_m2": "200",
-    "position_count": 100,
-    "total_power_kw": "150",
-}
-# Installed-power leaves from samples/v05-local-workbench/manifest.json
-# (equipment canonical payload strips kW(e); preview must not infer from kW(r)).
-_PREVIEW_POWER_DEMO: dict[str, str] = {
-    "compressor_input_power_kw_e": "120.0",
+_PREVIEW_POWER_FAN_DEMO: dict[str, str] = {
     "evaporator_fan_power_kw_e": "10.0",
     "condenser_fan_power_kw_e": "8.0",
 }
-_POWER_DEMO_CATALOG_DISCLAIMER_ZH = "装机功率压缩机电气输入用演示目录，不是设备结果自动换算；需复核"
-POWER_DEMO_CATALOG_DISCLAIMER_ZH = _POWER_DEMO_CATALOG_DISCLAIMER_ZH
+_POWER_FAN_DEMO_CATALOG_DISCLAIMER_ZH = (
+    "蒸发风机与冷凝风机电气功率仍用演示目录；压缩机电气来自设备结果，需复核"
+)
+POWER_FAN_DEMO_CATALOG_DISCLAIMER_ZH = _POWER_FAN_DEMO_CATALOG_DISCLAIMER_ZH
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,23 +98,26 @@ def assemble_preview_context(
 
 
 def prepare_stage_inputs(stage_key: str, raw_inputs: Mapping[str, Any]) -> dict[str, Any]:
-    """Apply preview-only snapshot enrichment without feeding zone results into cooling."""
+    """Apply preview-only snapshot enrichment for registry identity fields."""
     inputs = dict(raw_inputs)
     if stage_key == "cooling_load":
         return _enrich_cooling_load_preview_inputs(inputs)
-    if stage_key == "investment":
-        return _enrich_investment_preview_inputs(inputs)
-    if stage_key == "power":
-        enriched, _used_catalog = _enrich_power_preview_inputs(inputs)
-        return enriched
     return inputs
 
 
-def prepare_power_preview_inputs(
+def prepare_power_fan_catalog_inputs(
     raw_inputs: Mapping[str, Any],
 ) -> tuple[dict[str, Any], bool]:
-    """Fill pending power leaves from the workbench demo catalog when needed."""
-    return _enrich_power_preview_inputs(dict(raw_inputs))
+    """Fill pending evaporator/condenser fan leaves from the workbench demo catalog."""
+    inputs = dict(raw_inputs)
+    used_catalog = False
+    for field_name, catalog_value in _PREVIEW_POWER_FAN_DEMO.items():
+        if _is_pending_or_zero(inputs.get(field_name)):
+            inputs[field_name] = catalog_value
+            used_catalog = True
+    if used_catalog:
+        inputs.setdefault("demo_catalog_source", _WORKBENCH_ENVELOPE_CATALOG_SOURCE)
+    return inputs, used_catalog
 
 
 def zone_loads_from_cooling_payload(cooling_payload: Mapping[str, Any]) -> dict[str, str]:
@@ -226,6 +222,14 @@ def from_bundle_error(exc: EngineeringInputBundleValidationError) -> AilyConnect
     )
 
 
+def lineage_bind_failure(exc: LineageBindFailure) -> AilyConnectorError:
+    return AilyConnectorError(
+        code=exc.code,
+        message=exc.message,
+        field_path=exc.field,
+    )
+
+
 def adapter_failure(
     *,
     stage_key: str,
@@ -241,7 +245,7 @@ def adapter_failure(
 
 
 def _enrich_cooling_load_preview_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
-    """Fill registry zone identity; keep demo envelope catalog, not zone-planner area."""
+    """Fill registry zone identity before zone-plan area lineage bind."""
     zones = inputs.get("zones")
     if not isinstance(zones, list):
         return inputs
@@ -257,26 +261,6 @@ def _enrich_cooling_load_preview_inputs(inputs: dict[str, Any]) -> dict[str, Any
         enriched_zones.append(zone)
     inputs["zones"] = enriched_zones
     return inputs
-
-
-def _enrich_investment_preview_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
-    """Use workbench demo placeholders; do not bind zone-planner totals."""
-    for field_name, value in _PREVIEW_INVESTMENT_DEMO.items():
-        inputs[field_name] = value
-    inputs.setdefault("demo_catalog_source", _WORKBENCH_ENVELOPE_CATALOG_SOURCE)
-    return inputs
-
-
-def _enrich_power_preview_inputs(inputs: dict[str, Any]) -> tuple[dict[str, Any], bool]:
-    """Replace pending/zero power leaves with workbench demo catalog values."""
-    used_catalog = False
-    for field_name, catalog_value in _PREVIEW_POWER_DEMO.items():
-        if _is_pending_or_zero(inputs.get(field_name)):
-            inputs[field_name] = catalog_value
-            used_catalog = True
-    if used_catalog:
-        inputs.setdefault("demo_catalog_source", _WORKBENCH_ENVELOPE_CATALOG_SOURCE)
-    return inputs, used_catalog
 
 
 def _is_pending_or_zero(value: Any) -> bool:

@@ -1,6 +1,6 @@
 # V1.3 P0 — Aily 对话预览对齐工作台血缘（定义冻结）
 
-**Status:** Definition freeze R1 — plan reviewable; implementation not dispatched  
+**Status:** Implementation authorized — inbound preview lineage in memory  
 **Authority:** recommended theme in `docs/tasks/V1_3-version-plan.md`  
 **Previous release:** `v1.2.0`  
 **Base `main` SHA:** `cb8a00b`  
@@ -13,8 +13,8 @@ GOVERNANCE_OWNER=V1.3
 PREVIOUS_RELEASE=v1.2.0
 BASE_MAIN_SHA=cb8a00b
 TARGET_FILE=docs/tasks/V1_3-P0-aily-preview-lineage-contract.md
-V13_P0_IMPLEMENTATION_AUTHORIZED=NO
-V13_IMPLEMENTATION_AUTHORIZED=NO
+V13_P0_IMPLEMENTATION_AUTHORIZED=YES
+V13_IMPLEMENTATION_AUTHORIZED=YES
 AILY_INBOUND_PREVIEW_LINEAGE=YES
 AILY_OUTBOUND_LIVE_SESSION=NO
 KEEP_OPERATOR_SCHEMA=OperatorProcessInputV1@1.1.0
