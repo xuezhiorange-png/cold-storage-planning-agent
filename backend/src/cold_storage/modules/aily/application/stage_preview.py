@@ -61,13 +61,13 @@ INVESTMENT_CALCULATOR_VERSION = "1.0.0"
 
 _COOLING_EXTRA_FIELDS = {
     "floor_area_from_zone_plan": True,
-    "envelope_wall_roof_from_plan": False,
-    "formula_recut_authorized": False,
+    "envelope_wall_roof_from_plan": True,
+    "formula_recut_authorized": True,
 }
 _INVESTMENT_EXTRA_FIELDS = {
     "investment_from_demo_catalog": False,
     "floor_area_from_zone_plan": True,
-    "envelope_wall_roof_from_plan": False,
+    "envelope_wall_roof_from_plan": True,
 }
 
 
@@ -106,7 +106,7 @@ def preview_cooling_load(
     *,
     correlation_id: str | None = None,
 ) -> dict[str, Any]:
-    """Validate five KEY, run cooling_load with zone floor area lineage, return a table."""
+    """Validate five KEY, run cooling_load with zone floor/wall/roof lineage, return a table."""
     context = assemble_preview_context(payload, correlation_id=correlation_id)
     zone_payload, _zone_result = _execute_zone_stage(context)
     lineage = _PreviewLineage(zone_payload=zone_payload)

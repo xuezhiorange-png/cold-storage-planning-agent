@@ -34,7 +34,7 @@ def test_v13_cooling_floor_area_from_zone_changes_with_inbound_mass() -> None:
     low = preview_cooling_load(_five_keys(daily_inbound_mass_kg=20000))
     high = preview_cooling_load(_five_keys(daily_inbound_mass_kg=40000))
     assert low["floor_area_from_zone_plan"] is True
-    assert low["envelope_wall_roof_from_plan"] is False
+    assert low["envelope_wall_roof_from_plan"] is True
     assert float(high["summary"]["total_cooling_load_kw"]) > float(
         low["summary"]["total_cooling_load_kw"]
     )

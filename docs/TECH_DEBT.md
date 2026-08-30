@@ -11,9 +11,9 @@
 > `docs/tasks/V0_9-P0-version-contract.md`. V1.1 inbound connector is complete
 > at `v1.1.0` (`docs/tasks/V1_1-P0-aily-zone-plan-connector-contract.md`).
 > V1.2 five-stage inbound preview is complete at `v1.2.0`. V1.3 conversation
-> preview lineage is complete at `v1.3.0`. V1.4 workbench debt (TD-023 +
-> TD-008 five-KEY slice): `docs/tasks/V1_4-version-plan.md`
-> (`V14_IMPLEMENTATION_AUTHORIZED=YES`).
+> preview lineage is complete at `v1.3.0`. V1.4 workbench debt is complete
+> at `v1.4.0`. V1.5 envelope wall/roof geometry bind:
+> `docs/tasks/V1_5-version-plan.md` (`V15_IMPLEMENTATION_AUTHORIZED=YES`).
 
 | ID | Status | Priority | Module | Cause | Current Impact | Temporary Approach | Permanent Resolution | Target Task / Version |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -24,7 +24,7 @@
 | TD-005 | **Superseded** | High | knowledge | Knowledge service was in-memory substring search only | Durable ingestion/chunking/retrieval delivered; production retrieval hardening continues | Consumer-only workflow provenance remains separate authority | Continue ops/quality hardening | Task 7 follow-up |
 | TD-006 | **Superseded** | High | reports | Report generation wrote files directly without persisted report versions | Persisted revisions and API delivery exist; assembler reads persisted results only | Reports must not recalculate formulas | Align report consumers with five-stage canonical mapping | V0.5 P3 |
 | TD-007 | **Resolved** | Medium | frontend | ~~`App.vue` was a monolith~~ | ~~UI maintenance cost is high~~ | Delivered at `v0.5.0` | Five-stage workbench wiring complete | V0.5 |
-| TD-008 | Open | Medium | frontend/backend demo | Demo defaults and power/equipment reference data are duplicated between backend and frontend | V1.4 closes **operator five KEY + storage-day defaults** onto `samples/v09-process-input/manifest.json`; leftover V0.4 `demo_overview` and power/equipment catalogs may still diverge | Operator KEY/days from v09 sample + `GET /api/v1/demo/operator-process-input`; overview marked legacy | Unify remaining power/equipment catalog copies | V1.4 slice / later |
+| TD-008 | Open | Medium | frontend/backend demo | Demo defaults and power/equipment reference data are duplicated between backend and frontend | V1.4 closed **operator five KEY + storage-day defaults** onto `samples/v09-process-input/manifest.json`; leftover V0.4 `demo_overview` and power/equipment catalogs may still diverge; V1.5 overwrites wall/roof catalog `200`/`100` from zone geometry on the five-stage bind | Operator KEY/days from v09 sample; envelope wall/roof from shared bind (demo square plan + catalog height) | Unify remaining power/equipment catalog copies | V1.4 slice / later |
 | TD-009 | Resolved | Medium | quality | Backend formatting check failed on two files | CI truthfully shows formatting drift | Do not suppress the check | Reformatted `demo_overview.py` and `investment.py` via `ruff format` in Task 0 completion | Task 0 |
 || TD-010 | **Resolved** | Medium | dependencies/bootstrap | ~~Global singleton services are created at import time~~ | ~~Startup side effects complicate testing and environment changes~~ | ~~Keep current dependency wiring for baseline stability~~ | Import-time singletons removed; lifecycle managed via FastAPI lifespan | Task 1 |
 || TD-011 | **Resolved** | High | projects/versioning | ~~ProjectVersion lacked state machine, immutability, and snapshot isolation~~ | ~~Approved versions could be modified, no audit trail for state changes~~ | ~~Keep basic approval check~~ | Implemented full version state machine with immutability rules, snapshots, and audit events | Task 2 |

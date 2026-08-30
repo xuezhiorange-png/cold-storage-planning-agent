@@ -11,7 +11,9 @@ This audit records the repository exactly as found on the preserved baseline.
 > and §35 for V1.1 豆包/Aily inbound zone-plan (complete at `v1.1.0`);
 > §36 for V1.2 five-stage conversation preview (complete at `v1.2.0`);
 > §37 for V1.3 conversation preview lineage (complete at `v1.3.0`);
-> §38 for V1.4 operator workbench debt (`docs/tasks/V1_4-version-plan.md`).
+> §38 for V1.4 operator workbench debt (complete at `v1.4.0`);
+> §39 for V1.5 envelope wall/roof geometry bind
+> (`docs/tasks/V1_5-version-plan.md`).
 > Prior contract: `docs/tasks/V0_7-P0-trust-loop-contract.md`.
 > V0.9 contract: `docs/tasks/V0_9-P0-version-contract.md`.
 > Released contract: `docs/tasks/V1_2-P0-aily-five-stage-preview-contract.md`.
@@ -546,15 +548,39 @@ GitHub Release `v1.3.0`).
 `docs/runbooks/v13-doubao-aily-connector.md`.
 Do not move tags `v0.9.0`, `v1.0.0`, `v1.1.0`, `v1.2.0`, or `v1.3.0`.
 
-## 38. V1.4 operator workbench debt (implementation authorized)
+## 38. V1.4 shipped at `v1.4.0`
 
-V1.4 recuts the guided first step to `OPERATOR_PROCESS_INPUT` (TD-023) and
-makes `samples/v09-process-input/manifest.json` the only operator demo
-authority for five KEY + storage-day defaults (TD-008 slice).
-`FORMULA_RECUT_AUTHORIZED=NO`. `AILY_OUTBOUND_LIVE_SESSION=NO`.
-`KEEP_AILY_V13_SKILL=YES`. `V14_IMPLEMENTATION_AUTHORIZED=YES`.
+V1.4 operator workbench debt is **complete** at `v1.4.0`
+(`c58f0aee40af8362dbb034f6ebad94306b9d5f08`): first guided step is
+`OPERATOR_PROCESS_INPUT` / 工程输入 (TD-023); operator demo five KEY +
+storage-day defaults use `samples/v09-process-input/manifest.json`
+(`20000 / 7 / 10 / 4 / 12`) (TD-008 slice). Path A `save_inputs` remains.
+`FORMULA_RECUT_AUTHORIZED=NO` in that release.
+`AILY_OUTBOUND_LIVE_SESSION=NO`. Feishu still used the V1.3 skill.
 
-**Plan:** `docs/tasks/V1_4-version-plan.md`,
+**Released umbrella:** V1.4 (`docs/tasks/V1_4-version-plan.md`,
 `docs/tasks/V1_4-P0-workbench-debt-contract.md`,
-`docs/architecture/ADR-036-workbench-operator-input-and-demo-defaults.md`.
+`docs/architecture/ADR-036-workbench-operator-input-and-demo-defaults.md`,
+GitHub Release `v1.4.0`).
+Do not move tags `v0.9.0`, `v1.0.0`, `v1.1.0`, `v1.2.0`, `v1.3.0`, or
+`v1.4.0`.
+
+## 39. V1.5 envelope wall/roof from zone geometry (implementation authorized)
+
+V1.5 authorizes **input-lineage recut only** for cooling envelope area:
+after zone `required_area_m2` binds to `floor_area` / `zone_area` (V1.3),
+the shared binder also sets `roof_area = floor_area` and
+`wall_area = room_height × 4 × √floor_area` (square plan). `room_height`
+stays the v05 demo catalog `5.0` m. U-values and design temperatures stay
+demo/coefficient catalog. Derivation lives in
+`preview_lineage_bind.py`, **not** in `cooling_load.py`, so
+`cooling_load@1.0.0` is not bumped (`KEEP_COOLING_LOAD_VERSION=YES`).
+Workbench persist and 豆包 in-memory preview use the same bind.
+`AILY_OUTBOUND_LIVE_SESSION=NO`.
+
+**Plan:** `docs/tasks/V1_5-version-plan.md`,
+`docs/tasks/V1_5-P0-envelope-geometry-contract.md`,
+`docs/architecture/ADR-037-envelope-wall-roof-from-zone-geometry.md`.
+ADR-028 / ADR-035 bodies stay historically frozen; ADR-037 supersedes
+`ZONE_RESULT_TO_COOLING_LOAD_ENVELOPE_AUTO_FEED` for V1.5.
 

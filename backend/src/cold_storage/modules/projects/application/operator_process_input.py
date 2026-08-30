@@ -5,7 +5,8 @@ catalog/derived leftovers. V0.8 compact path (schema_version 1.0.0 or
 omitted-as-V0.8) assembles as today.
 
 Copies existing production authority (dataclass defaults, demo catalog envelopes)
-into explicit bundle leaves. Does not invent engineering numbers or recut formulas.
+into explicit bundle leaves. Does not invent engineering numbers. V1.5 wall/roof
+leaves are lineage-pending; square-plan geometry is applied in preview_lineage_bind.
 V0.9 P2 registers shipping_channel in REFRIGERATED_ZONE_REGISTRY (1~3℃ demo envelope).
 """
 
@@ -66,7 +67,7 @@ TEMPERATURE_BAND_TO_LEVEL: dict[str, str] = {
 }
 
 # v05 workbench single-zone thermal catalog (samples/v05-local-workbench/manifest.json).
-# Applied as global demo leaves to every refrigerated zone (same rule as wall_area / room_height).
+# Applied as global demo leaves to every refrigerated zone (same rule as room_height).
 _WORKBENCH_PRODUCT_MASS_PER_DAY = "20000.0"
 _WORKBENCH_ROOM_DESIGN_TEMPERATURE_C = "-18.0"
 _WORKBENCH_PRODUCT_TARGET_TEMPERATURE_C = "-18.0"
@@ -370,12 +371,8 @@ def _cooling_load_inputs_section(
             "room_height": _catalog_leaf(
                 "5.0", unit="m", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE
             ),
-            "wall_area": _catalog_leaf(
-                "200.0", unit="m2", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE
-            ),
-            "roof_area": _catalog_leaf(
-                "100.0", unit="m2", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE
-            ),
+            "wall_area": _lineage_pending_leaf(unit="m2"),
+            "roof_area": _lineage_pending_leaf(unit="m2"),
             "outdoor_design_temperature": _catalog_leaf(
                 "30.0", unit="C", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE
             ),

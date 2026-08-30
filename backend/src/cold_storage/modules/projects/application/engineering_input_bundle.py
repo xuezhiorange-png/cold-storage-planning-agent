@@ -58,6 +58,8 @@ _LINEAGE_DEFERRED_COOLING_FIELDS: frozenset[str] = frozenset(
         "temperature_level",
         "zone_area",
         "floor_area",
+        "wall_area",
+        "roof_area",
     }
 )
 

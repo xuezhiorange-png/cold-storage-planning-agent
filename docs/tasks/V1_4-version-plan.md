@@ -1,6 +1,7 @@
 # V1.4 总计划：操作员工作台债务（TD-023 + TD-008）
 
-**状态：** 实现已授权（V1.4 workbench debt）  
+**状态：** 已发布（V1.4 workbench debt）  
+**产品标签：** `v1.4.0` at `c58f0ae`（闸门块保持历史冻结）  
 **上一产品标签：** `v1.3.0`  
 **基线 `main` SHA：** `0496010`  
 **权威：** Charles 选定主题 — TD-023 引导步改名 + TD-008 演示数字一份权威；合成一个版本  
@@ -44,8 +45,8 @@ POWER_CONFIGURATION_REPLACES_INSTALLED_POWER=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
-`V14_IMPLEMENTATION_AUTHORIZED=YES`：本文件冻结「1.4 做什么」且实现已授权。
-打标签 `v1.4.0` 仍等 `main` HEAD CI 全绿后。
+`V14_IMPLEMENTATION_AUTHORIZED=YES`：本文件冻结「1.4 做什么」。产品标签
+`v1.4.0` 已打在 `c58f0ae`。本文件闸门保持历史冻结，不改写成 V1.5。
 
 ---
 

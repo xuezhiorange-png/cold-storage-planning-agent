@@ -11,10 +11,10 @@
 > **V0.9 contract:** `docs/tasks/V0_9-P0-version-contract.md`.
 > **V1.1 inbound connector is complete at `v1.1.0`.** V1.2 five-stage
 > conversation preview is complete at `v1.2.0`. V1.3 conversation preview
-> lineage is complete at `v1.3.0`. V1.4 workbench debt:
-> `docs/tasks/V1_4-version-plan.md`. Later umbrellas (outbound live Aily
-> session, cooling wall/roof formula recut) stay unauthorized until Charles
-> dispatches.
+> lineage is complete at `v1.3.0`. V1.4 workbench debt is complete at
+> `v1.4.0`. V1.5 envelope wall/roof geometry:
+> `docs/tasks/V1_5-version-plan.md`. Later umbrellas (outbound live Aily
+> session) stay unauthorized until Charles dispatches.
 
 ## P0
 
