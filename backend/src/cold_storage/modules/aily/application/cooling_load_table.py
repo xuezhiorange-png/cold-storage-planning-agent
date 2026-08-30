@@ -91,7 +91,8 @@ def _markdown_table(rows: Sequence[Mapping[str, Any]], total: Any) -> str:
         lines.append(f"| **合计** | **{_cell(total)}** |")
     lines.append("")
     lines.append(
-        "> 地板、墙、屋面来自分区几何（正方形平面 + 演示层高）；U 值与设计温度仍为演示目录，需复核。"
+        "> 地板、墙、屋面来自分区几何（正方形平面 + 演示层高）；"
+        "U 值与设计温度仍为演示目录，需复核。"
     )
     return "\n".join(lines)
 

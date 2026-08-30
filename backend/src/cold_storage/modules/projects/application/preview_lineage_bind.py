@@ -167,10 +167,7 @@ def _require_positive_room_height(value: Any, *, zone_code: str) -> Decimal:
     """Fail closed when catalog height is missing; do not guess 5.0 m."""
     raw = value
     if isinstance(value, Mapping) and "value" in value:
-        if value.get("state") == "missing":
-            raw = None
-        else:
-            raw = value.get("value")
+        raw = None if value.get("state") == "missing" else value.get("value")
     if raw is None or raw == "":
         raise LineageBindFailure(
             code="UPSTREAM_LINEAGE_BIND_FAILED",

@@ -14,9 +14,7 @@ from cold_storage.modules.projects.application.engineering_input_bundle import (
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CONTRACT_PATH = REPO_ROOT / "docs" / "tasks" / "V1_5-P0-envelope-geometry-contract.md"
 PLAN_PATH = REPO_ROOT / "docs" / "tasks" / "V1_5-version-plan.md"
-ADR_PATH = (
-    REPO_ROOT / "docs" / "architecture" / "ADR-037-envelope-wall-roof-from-zone-geometry.md"
-)
+ADR_PATH = REPO_ROOT / "docs" / "architecture" / "ADR-037-envelope-wall-roof-from-zone-geometry.md"
 ADR_028 = REPO_ROOT / "docs" / "architecture" / "ADR-028-operator-minimal-process-input.md"
 ADR_035 = REPO_ROOT / "docs" / "architecture" / "ADR-035-aily-preview-workbench-lineage.md"
 AILY_API_DIR = REPO_ROOT / "backend" / "src" / "cold_storage" / "modules" / "aily"
