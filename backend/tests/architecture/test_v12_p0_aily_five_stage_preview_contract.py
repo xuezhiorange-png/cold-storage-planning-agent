@@ -103,5 +103,5 @@ def test_v12_mcp_lists_five_tools_zone_first() -> None:
     assert "PREVIEW_EQUIPMENT_TOOL_NAME" in mcp_text
     assert "PREVIEW_INSTALLED_POWER_TOOL_NAME" in mcp_text
     assert "PREVIEW_INVESTMENT_TOOL_NAME" in mcp_text
-    assert "演示围护" in mcp_text
+    assert "演示目录" in mcp_text
     assert "validate_input=False" in mcp_text

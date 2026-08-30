@@ -24,7 +24,7 @@ def test_aily_concept_preview_http_returns_five_stages() -> None:
     assert body["reply_kind"] == "concept_preview"
     assert body["persisted"] is False
     assert body["floor_area_from_zone_plan"] is True
-    assert body["envelope_wall_roof_from_plan"] is False
+    assert body["envelope_wall_roof_from_plan"] is True
     assert "zone" in body["stages"]
     assert "cooling_load" in body["stages"]
     assert "investment" in body["stages"]

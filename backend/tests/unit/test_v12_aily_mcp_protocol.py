@@ -77,7 +77,7 @@ async def _call_cooling() -> None:
     assert body["ok"] is True
     assert body["calculator_name"] == "cooling_load"
     assert body["floor_area_from_zone_plan"] is True
-    assert body["envelope_wall_roof_from_plan"] is False
+    assert body["envelope_wall_roof_from_plan"] is True
     assert "演示" in body["markdown_table"]
 
 

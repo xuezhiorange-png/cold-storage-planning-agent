@@ -45,10 +45,10 @@ def test_v12_cooling_preview_demo_envelope_disclaimer() -> None:
     assert result["persisted"] is False
     assert result["requires_review"] is True
     assert result["floor_area_from_zone_plan"] is True
-    assert result["envelope_wall_roof_from_plan"] is False
-    assert result["formula_recut_authorized"] is False
+    assert result["envelope_wall_roof_from_plan"] is True
+    assert result["formula_recut_authorized"] is True
     assert "演示" in result["table"]["caption"]
-    assert "分区结果" in result["markdown_table"]
+    assert "分区几何" in result["markdown_table"]
     assert float(result["summary"]["total_cooling_load_kw"]) > 0
 
 
@@ -89,7 +89,7 @@ def test_v12_investment_preview() -> None:
     assert result["requires_review"] is True
     assert result["investment_from_demo_catalog"] is False
     assert result["floor_area_from_zone_plan"] is True
-    assert result["envelope_wall_roof_from_plan"] is False
+    assert result["envelope_wall_roof_from_plan"] is True
     assert result["table"]["rows"]
     assert float(result["summary"]["total_investment_cny"]) > 0
 
@@ -100,8 +100,8 @@ def test_v12_concept_preview_five_stages() -> None:
     assert result["persisted"] is False
     assert result["requires_review"] is True
     assert result["floor_area_from_zone_plan"] is True
-    assert result["envelope_wall_roof_from_plan"] is False
-    assert result["formula_recut_authorized"] is False
+    assert result["envelope_wall_roof_from_plan"] is True
+    assert result["formula_recut_authorized"] is True
     stages = result["stages"]
     for key in ("zone", "cooling_load", "equipment", "power", "investment"):
         assert key in stages

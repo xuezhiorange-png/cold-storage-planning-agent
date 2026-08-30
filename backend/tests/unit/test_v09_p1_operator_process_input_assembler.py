@@ -78,6 +78,9 @@ def test_v09_five_key_assembly_succeeds() -> None:
     assert zone["frozen_storage_days"]["value"] in {"10", "10.0"}
     assert zone["frozen_storage_days"]["source_type"] == "user"
     assert zone["frozen_storage_days"]["validity_status"] != "conflict"
+    cooling_zone = bundle["cooling_load_inputs"]["zones"][0]
+    assert cooling_zone["wall_area"]["state"] == LINEAGE_PENDING_STATE
+    assert cooling_zone["roof_area"]["state"] == LINEAGE_PENDING_STATE
     assert zone["main_packaging_storage_days"]["value"] in {"4", "4.0"}
     assert zone["main_packaging_storage_days"]["source_type"] == "user"
     assert zone["auxiliary_packaging_storage_days"]["value"] in {"12", "12.0"}

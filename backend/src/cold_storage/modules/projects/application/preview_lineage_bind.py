@@ -3,17 +3,26 @@
 Reuses the same field-copy rules as Transaction B lineage without SQLAlchemy or
 calculator imports. Callers translate :class:`LineageBindFailure` to their own
 error types.
+
+V1.5 envelope geometry (demo / unverified / requires_review) lives here, not in
+``cooling_load.py``: roof equals floor; wall is square-plan
+``room_height × 4 × √floor_area``. Missing room height fails closed.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from cold_storage.modules.projects.application.operator_process_input import (
     TEMPERATURE_BAND_TO_LEVEL,
 )
+
+SQUARE_PLAN_WALL_SIDES = Decimal("4")
+ENVELOPE_GEOMETRY_SOURCE_TYPE = "demo"
+ENVELOPE_GEOMETRY_VALIDITY_STATUS = "unverified"
+ENVELOPE_GEOMETRY_REQUIRES_REVIEW = True
 
 
 class LineageBindFailure(Exception):
@@ -40,12 +49,17 @@ def decimalize(value: Any) -> Decimal:
     return Decimal(str(value))
 
 
+def square_plan_wall_area_m2(*, floor_area_m2: Decimal, room_height_m: Decimal) -> Decimal:
+    """Demo square-plan wall area: height × 4 × √floor. Not the cooling kernel."""
+    return room_height_m * SQUARE_PLAN_WALL_SIDES * floor_area_m2.sqrt()
+
+
 def bind_cooling_identity_and_plan_area_from_zone(
     *,
     zone_payload: Mapping[str, Any],
     cooling_inputs: dict[str, Any],
 ) -> None:
-    """Bind zone required_area_m2 into cooling zone_area and floor_area."""
+    """Bind zone required_area_m2 into cooling floor/zone/roof/wall areas."""
     zones_raw = zone_payload.get("zones")
     if not isinstance(zones_raw, (list, tuple)) or not zones_raw:
         raise LineageBindFailure(
@@ -121,8 +135,22 @@ def bind_cooling_identity_and_plan_area_from_zone(
         bound_zone["zone_name"] = str(zone.get("zone_name", ""))
         bound_zone["temperature_level"] = temperature_level
         area_text = str(decimalize(required_area))
+        floor_area = decimalize(required_area)
+        room_height = _require_positive_room_height(
+            bound_zone.get("room_height"),
+            zone_code=zone_code_str,
+        )
+        wall_area = square_plan_wall_area_m2(
+            floor_area_m2=floor_area,
+            room_height_m=room_height,
+        )
         bound_zone["zone_area"] = area_text
         bound_zone["floor_area"] = area_text
+        bound_zone["roof_area"] = area_text
+        bound_zone["wall_area"] = str(wall_area)
+        bound_zone["envelope_geometry_source_type"] = ENVELOPE_GEOMETRY_SOURCE_TYPE
+        bound_zone["envelope_geometry_validity_status"] = ENVELOPE_GEOMETRY_VALIDITY_STATUS
+        bound_zone["envelope_geometry_requires_review"] = ENVELOPE_GEOMETRY_REQUIRES_REVIEW
         bound_zone.pop("_assembler_expected_zone_code", None)
         bound_zones.append(bound_zone)
     if not bound_zones:
@@ -133,6 +161,40 @@ def bind_cooling_identity_and_plan_area_from_zone(
             details={"reason": "no_refrigerated_zones"},
         )
     cooling_inputs["zones"] = bound_zones
+
+
+def _require_positive_room_height(value: Any, *, zone_code: str) -> Decimal:
+    """Fail closed when catalog height is missing; do not guess 5.0 m."""
+    raw = value
+    if isinstance(value, Mapping) and "value" in value:
+        if value.get("state") == "missing":
+            raw = None
+        else:
+            raw = value.get("value")
+    if raw is None or raw == "":
+        raise LineageBindFailure(
+            code="UPSTREAM_LINEAGE_BIND_FAILED",
+            message="cooling lineage binding requires room_height on refrigerated zones",
+            field_path="cooling_load_inputs.zones[].room_height",
+            details={"zone_code": zone_code, "reason": "missing_room_height"},
+        )
+    try:
+        height = decimalize(raw)
+    except (InvalidOperation, ValueError, TypeError) as exc:
+        raise LineageBindFailure(
+            code="UPSTREAM_LINEAGE_BIND_FAILED",
+            message="cooling lineage binding requires a numeric room_height",
+            field_path="cooling_load_inputs.zones[].room_height",
+            details={"zone_code": zone_code, "reason": "invalid_room_height"},
+        ) from exc
+    if height <= 0:
+        raise LineageBindFailure(
+            code="UPSTREAM_LINEAGE_BIND_FAILED",
+            message="cooling lineage binding requires a positive room_height",
+            field_path="cooling_load_inputs.zones[].room_height",
+            details={"zone_code": zone_code, "reason": "non_positive_room_height"},
+        )
+    return height
 
 
 def bind_power_compressor_from_equipment(

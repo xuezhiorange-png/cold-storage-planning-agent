@@ -21,6 +21,9 @@ ADR_028 = REPO_ROOT / "docs" / "architecture" / "ADR-028-operator-minimal-proces
 ADR_035 = REPO_ROOT / "docs" / "architecture" / "ADR-035-aily-preview-workbench-lineage.md"
 AILY_API_DIR = REPO_ROOT / "backend" / "src" / "cold_storage" / "modules" / "aily"
 V13_SKILL_PATH = REPO_ROOT / "docs" / "contracts" / "aily" / "v1.3" / "doubao-skill.v1.md"
+V15_SKILL_PATH = REPO_ROOT / "docs" / "contracts" / "aily" / "v1.5" / "doubao-skill.v1.md"
+V15_SKILL_JSON = REPO_ROOT / "docs" / "contracts" / "aily" / "v1.5" / "doubao-skill.v1.json"
+RUNBOOK_PATH = REPO_ROOT / "docs" / "runbooks" / "v15-doubao-aily-connector.md"
 COOLING_KERNEL = (
     REPO_ROOT
     / "backend"
@@ -49,6 +52,9 @@ def test_v15_plan_files_exist() -> None:
     assert PLAN_PATH.is_file()
     assert ADR_PATH.is_file()
     assert V13_SKILL_PATH.is_file()
+    assert V15_SKILL_PATH.is_file()
+    assert V15_SKILL_JSON.is_file()
+    assert RUNBOOK_PATH.is_file()
     assert ADR_028.is_file()
     assert ADR_035.is_file()
 
@@ -78,6 +84,7 @@ def test_v15_keeps_frozen_operator_keys_and_calculator_identities() -> None:
         "KEEP_INVESTMENT_VERSION=YES",
         "KEEP_OPERATOR_SCHEMA=OperatorProcessInputV1@1.1.0",
         "KEEP_AILY_V13_SKILL_FROZEN=YES",
+        "KEEP_AILY_V15_SKILL=YES",
     ):
         assert flag in contract
         assert flag in plan
@@ -131,7 +138,23 @@ def test_v15_aily_still_must_not_import_calculations() -> None:
         assert "five_stage_execution" not in text, path.name
 
 
-def test_v15_vue_does_not_embed_wall_roof_formula() -> None:
+def test_v15_v13_skill_stays_frozen_and_v15_skill_has_new_honesty() -> None:
+    v13 = V13_SKILL_PATH.read_text(encoding="utf-8")
+    v15 = V15_SKILL_PATH.read_text(encoding="utf-8")
+    v15_json = V15_SKILL_JSON.read_text(encoding="utf-8")
+    assert "envelope_wall_roof_from_plan: false" in v13
+    assert "envelope_wall_roof_from_plan: true" in v15
+    assert "正方形平面 + 演示层高" in v15
+    assert "4 × √" not in v15
+    assert "room_height × 4" not in v15
+    assert '"envelope_wall_roof_from_plan": true' in v15_json
+    assert '"FORMULA_RECUT_AUTHORIZED": "YES"' in v15_json
+    mcp_text = (
+        REPO_ROOT / "backend" / "src" / "cold_storage" / "modules" / "aily" / "api" / "mcp_sse.py"
+    ).read_text(encoding="utf-8")
+    assert "正方形平面 + 演示层高" in mcp_text
+    assert "preview_zone_plan" in mcp_text
+
     needles = (
         "4 × √",
         "4 * Math.sqrt",
