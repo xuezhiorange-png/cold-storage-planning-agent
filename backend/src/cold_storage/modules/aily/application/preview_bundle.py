@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import uuid4
 
@@ -17,6 +17,10 @@ from cold_storage.modules.aily.application.operator_payload import (
     normalize_aily_operator_payload,
 )
 from cold_storage.modules.aily.domain.errors import AilyConnectorError
+from cold_storage.modules.projects.application.demo_power_fan_catalog import (
+    DEMO_POWER_FAN_SOURCE,
+    load_demo_power_fan_catalog,
+)
 from cold_storage.modules.projects.application.engineering_input_bundle import (
     EngineeringInputBundleValidationError,
     project_execution_snapshot_from_bundle,
@@ -33,16 +37,6 @@ from cold_storage.modules.projects.domain.models import ProjectVersion
 AILY_CONNECTOR_ACTOR = "aily-connector"
 AILY_PREVIEW_PROJECT_ID = "aily-preview"
 AILY_PREVIEW_VERSION_ID = "aily-preview-v1"
-
-_WORKBENCH_ENVELOPE_CATALOG_SOURCE = "samples/v05-local-workbench/manifest.json"
-_PREVIEW_POWER_FAN_DEMO: dict[str, str] = {
-    "evaporator_fan_power_kw_e": "10.0",
-    "condenser_fan_power_kw_e": "8.0",
-}
-_POWER_FAN_DEMO_CATALOG_DISCLAIMER_ZH = (
-    "蒸发风机与冷凝风机电气功率仍用演示目录；压缩机电气来自设备结果，需复核"
-)
-POWER_FAN_DEMO_CATALOG_DISCLAIMER_ZH = _POWER_FAN_DEMO_CATALOG_DISCLAIMER_ZH
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,15 +102,19 @@ def prepare_stage_inputs(stage_key: str, raw_inputs: Mapping[str, Any]) -> dict[
 def prepare_power_fan_catalog_inputs(
     raw_inputs: Mapping[str, Any],
 ) -> tuple[dict[str, Any], bool]:
-    """Fill pending evaporator/condenser fan leaves from the workbench demo catalog."""
+    """Fill pending evaporator/condenser fan leaves from the v05 demo catalog."""
+    catalog = load_demo_power_fan_catalog()
     inputs = dict(raw_inputs)
     used_catalog = False
-    for field_name, catalog_value in _PREVIEW_POWER_FAN_DEMO.items():
-        if _is_pending_or_zero(inputs.get(field_name)):
+    for field_name, catalog_value in catalog.as_field_map().items():
+        current = inputs.get(field_name)
+        if _is_pending_or_zero(current):
             inputs[field_name] = catalog_value
             used_catalog = True
+        elif _matches_catalog(current, catalog_value):
+            used_catalog = True
     if used_catalog:
-        inputs.setdefault("demo_catalog_source", _WORKBENCH_ENVELOPE_CATALOG_SOURCE)
+        inputs.setdefault("demo_catalog_source", DEMO_POWER_FAN_SOURCE)
     return inputs, used_catalog
 
 
@@ -272,3 +270,12 @@ def _is_pending_or_zero(value: Any) -> bool:
         return value == 0
     text = str(value).strip()
     return not text or text in {"0", "0.0", "0.00"}
+
+
+def _matches_catalog(value: Any, catalog_value: str) -> bool:
+    if value is None:
+        return False
+    try:
+        return Decimal(str(value)) == Decimal(catalog_value)
+    except (InvalidOperation, ValueError, TypeError):
+        return False

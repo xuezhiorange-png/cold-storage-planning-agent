@@ -12,9 +12,10 @@
 > **V1.1 inbound connector is complete at `v1.1.0`.** V1.2 five-stage
 > conversation preview is complete at `v1.2.0`. V1.3 conversation preview
 > lineage is complete at `v1.3.0`. V1.4 workbench debt is complete at
-> `v1.4.0`. V1.5 envelope wall/roof geometry:
-> `docs/tasks/V1_5-version-plan.md`. Later umbrellas (outbound live Aily
-> session) stay unauthorized until Charles dispatches.
+> `v1.4.0`. V1.5 envelope wall/roof geometry is complete at `v1.5.0`.
+> V1.6 power-fan demo catalog: `docs/tasks/V1_6-version-plan.md`.
+> Later umbrellas (outbound live Aily session, remaining TD-008 equipment
+> catalogs) stay unauthorized until Charles dispatches.
 
 ## P0
 

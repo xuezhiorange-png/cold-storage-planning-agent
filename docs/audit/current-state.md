@@ -12,8 +12,9 @@ This audit records the repository exactly as found on the preserved baseline.
 > §36 for V1.2 five-stage conversation preview (complete at `v1.2.0`);
 > §37 for V1.3 conversation preview lineage (complete at `v1.3.0`);
 > §38 for V1.4 operator workbench debt (complete at `v1.4.0`);
-> §39 for V1.5 envelope wall/roof geometry bind
-> (`docs/tasks/V1_5-version-plan.md`).
+> §39 for V1.5 envelope wall/roof geometry bind (complete at `v1.5.0`);
+> §40 for V1.6 power-fan demo catalog
+> (`docs/tasks/V1_6-version-plan.md`).
 > Prior contract: `docs/tasks/V0_7-P0-trust-loop-contract.md`.
 > V0.9 contract: `docs/tasks/V0_9-P0-version-contract.md`.
 > Released contract: `docs/tasks/V1_2-P0-aily-five-stage-preview-contract.md`.
@@ -565,22 +566,42 @@ GitHub Release `v1.4.0`).
 Do not move tags `v0.9.0`, `v1.0.0`, `v1.1.0`, `v1.2.0`, `v1.3.0`, or
 `v1.4.0`.
 
-## 39. V1.5 envelope wall/roof from zone geometry (implementation authorized)
+## 39. V1.5 shipped at `v1.5.0`
 
-V1.5 authorizes **input-lineage recut only** for cooling envelope area:
-after zone `required_area_m2` binds to `floor_area` / `zone_area` (V1.3),
-the shared binder also sets `roof_area = floor_area` and
-`wall_area = room_height × 4 × √floor_area` (square plan). `room_height`
-stays the v05 demo catalog `5.0` m. U-values and design temperatures stay
-demo/coefficient catalog. Derivation lives in
+V1.5 cooling envelope wall/roof geometry bind is **complete** at `v1.5.0`
+(`536603de1825b5ee7375b0d877f03cd28ba1343f`): after zone `required_area_m2`
+binds to `floor_area` / `zone_area` (V1.3), the shared binder also sets
+`roof_area = floor_area` and `wall_area = room_height × 4 × √floor_area`
+(square plan). `room_height` stays the v05 demo catalog `5.0` m. U-values
+and design temperatures stay demo/coefficient catalog. Derivation lives in
 `preview_lineage_bind.py`, **not** in `cooling_load.py`, so
 `cooling_load@1.0.0` is not bumped (`KEEP_COOLING_LOAD_VERSION=YES`).
 Workbench persist and 豆包 in-memory preview use the same bind.
 `AILY_OUTBOUND_LIVE_SESSION=NO`.
 
-**Plan:** `docs/tasks/V1_5-version-plan.md`,
+**Released umbrella:** V1.5 (`docs/tasks/V1_5-version-plan.md`,
 `docs/tasks/V1_5-P0-envelope-geometry-contract.md`,
-`docs/architecture/ADR-037-envelope-wall-roof-from-zone-geometry.md`.
-ADR-028 / ADR-035 bodies stay historically frozen; ADR-037 supersedes
-`ZONE_RESULT_TO_COOLING_LOAD_ENVELOPE_AUTO_FEED` for V1.5.
+`docs/architecture/ADR-037-envelope-wall-roof-from-zone-geometry.md`,
+GitHub Release `v1.5.0`).
+**Skill / runbook:** `docs/contracts/aily/v1.5/**`,
+`docs/runbooks/v15-doubao-aily-connector.md`.
+Do not move tags `v0.9.0`, `v1.0.0`, `v1.1.0`, `v1.2.0`, `v1.3.0`,
+`v1.4.0`, or `v1.5.0`.
+
+## 40. V1.6 power-fan demo catalog (implementation authorized)
+
+V1.6 authorizes **catalog authority only** for evaporator/condenser fan
+electrical kW(e): read `10.0` / `8.0` from
+`samples/v05-local-workbench/manifest.json` via a shared loader used by the
+operator-minimal assembler and Aily preview. Kernel
+`InstalledPowerCalcInput` fan defaults stay `0` / `0`. Compressor electrical
+still binds from equipment (`power_from_demo_catalog: false`). Do not invent
+fan kW(e) from equipment. Do not treat v05 compressor `120.0` as operator
+authority. Do not unify nine-zone equipment from v05 `Z1`.
+`installed_power@1.0.0` is not bumped (`KEEP_INSTALLED_POWER_VERSION=YES`).
+`AILY_OUTBOUND_LIVE_SESSION=NO`.
+
+**Plan:** `docs/tasks/V1_6-version-plan.md`,
+`docs/tasks/V1_6-P0-power-fan-catalog-contract.md`,
+`docs/architecture/ADR-038-v05-power-fan-demo-catalog.md`.
 

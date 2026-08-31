@@ -12,7 +12,6 @@ from cold_storage.modules.aily.application.investment_table import project_inves
 from cold_storage.modules.aily.application.power_table import project_power_table
 from cold_storage.modules.aily.application.preview_bundle import (
     AILY_CONNECTOR_ACTOR,
-    POWER_FAN_DEMO_CATALOG_DISCLAIMER_ZH,
     PreviewContext,
     adapter_failure,
     assemble_preview_context,
@@ -41,6 +40,9 @@ from cold_storage.modules.orchestration.application.production_calculation.error
     CalculatorRejectedInputError,
 )
 from cold_storage.modules.orchestration.domain.contracts import CalculationType
+from cold_storage.modules.projects.application.demo_power_fan_catalog import (
+    POWER_FAN_DEMO_CATALOG_DISCLAIMER_ZH,
+)
 from cold_storage.modules.projects.application.preview_lineage_bind import (
     LineageBindFailure,
     bind_cooling_identity_and_plan_area_from_zone,

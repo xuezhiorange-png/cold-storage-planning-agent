@@ -52,6 +52,9 @@ from cold_storage.modules.planning_agent.application.orchestrator import AgentOr
 from cold_storage.modules.planning_agent.application.service import PlanningAgentService
 from cold_storage.modules.planning_agent.application.tool_registry import build_default_registry
 from cold_storage.modules.planning_agent.infrastructure.repository import AgentRepository
+from cold_storage.modules.projects.application.demo_power_fan_catalog import (
+    load_demo_power_fan_catalog_payload,
+)
 from cold_storage.modules.projects.application.operator_demo_defaults import (
     load_operator_demo_process_input,
 )
@@ -1207,6 +1210,10 @@ def create_app(
     @app.get("/api/v1/demo/operator-process-input")
     def demo_operator_process_input() -> dict[str, Any]:
         return load_operator_demo_process_input()
+
+    @app.get("/api/v1/demo/power-fan-catalog")
+    def demo_power_fan_catalog() -> dict[str, Any]:
+        return load_demo_power_fan_catalog_payload()
 
     @app.post("/api/v1/projects")
     def create_project(
