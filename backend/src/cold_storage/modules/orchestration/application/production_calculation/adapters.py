@@ -258,23 +258,30 @@ def _build_source_refs(
     return tuple(dict(s) for s in getattr(result, "source_references", []) or [])
 
 
+_ZONE_COMPONENT_FIELDS: tuple[str, ...] = (
+    "transmission_load_kw_r",
+    "product_load_kw_r",
+    "infiltration_load_kw_r",
+    "internal_load_kw_r",
+    "defrost_load_kw_r",
+)
+
+
 def _canonical_cooling_snapshot_payload(
     result: LegacyOrNewCalculationResult,
 ) -> dict[str, Any]:
     """Project the cooling calculator result onto the persisted snapshot schema.
 
-    The Phase 2 cooling calculator reports a detailed zone-oriented payload,
-    while the durable orchestration snapshot retains the established aggregate
-    component contract.  Keep this translation at the adapter boundary so the
-    calculator remains the sole producer of the engineering values and the
-    snapshot verifier can continue to enforce its strict schema.
+    The Phase 2 cooling calculator reports a detailed zone-oriented payload.
+    Durable orchestration keeps plant-wide aggregate component rows and, as of
+    V1.7, copies kernel per-zone five components for operator audit. Equipment
+    lineage still binds on zone_code + subtotal only. The calculator remains
+    the sole producer of engineering values.
     """
 
     payload = result.result
     if not isinstance(payload, Mapping) or not isinstance(payload.get("zones"), list):
         return dict(payload) if isinstance(payload, Mapping) else {}
-
-    from decimal import Decimal
 
     def decimal(value: object) -> Decimal:
         return Decimal(str(value))
@@ -304,12 +311,21 @@ def _canonical_cooling_snapshot_payload(
         zone_code = zone.get("zone_code")
         subtotal_load = zone.get("subtotal_load_kw_r")
         if zone_code is not None and subtotal_load is not None:
-            zone_snapshots.append(
-                {
-                    "zone_code": str(zone_code),
-                    "subtotal_load_kw_r": text(decimal(subtotal_load)),
-                }
-            )
+            zone_row: dict[str, str] = {
+                "zone_code": str(zone_code),
+                "subtotal_load_kw_r": text(decimal(subtotal_load)),
+            }
+            zone_name = zone.get("zone_name")
+            if zone_name is not None:
+                zone_row["zone_name"] = str(zone_name)
+            temperature_level = zone.get("temperature_level")
+            if temperature_level is not None:
+                zone_row["temperature_level"] = str(temperature_level)
+            for field_name in _ZONE_COMPONENT_FIELDS:
+                raw = zone.get(field_name)
+                if raw is not None:
+                    zone_row[field_name] = text(decimal(raw))
+            zone_snapshots.append(zone_row)
         totals["envelope_heat_transfer_load_kw"] += decimal(zone.get("transmission_load_kw_r", 0))
         product_total = decimal(zone.get("product_load_kw_r", 0))
         packaging = Decimal("0")

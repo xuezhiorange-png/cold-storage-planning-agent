@@ -13,7 +13,8 @@
 > conversation preview is complete at `v1.2.0`. V1.3 conversation preview
 > lineage is complete at `v1.3.0`. V1.4 workbench debt is complete at
 > `v1.4.0`. V1.5 envelope wall/roof geometry is complete at `v1.5.0`.
-> V1.6 power-fan demo catalog: `docs/tasks/V1_6-version-plan.md`.
+> V1.6 power-fan demo catalog is complete at `v1.6.0`.
+> V1.7 per-zone cooling component surface: `docs/tasks/V1_7-version-plan.md`.
 > Later umbrellas (outbound live Aily session, remaining TD-008 equipment
 > catalogs) stay unauthorized until Charles dispatches.
 

@@ -1,6 +1,7 @@
 # V1.6 总计划：电力风机演示目录一份权威
 
-**状态：** 实现已授权（V1.6 v05 power-fan demo catalog）  
+**状态：** 已发布（V1.6 v05 power-fan demo catalog）  
+**产品标签：** `v1.6.0` at `cd702b0`（闸门块保持历史冻结）  
 **上一产品标签：** `v1.5.0`  
 **基线 `main` SHA：** `536603d`  
 **权威：** Charles 选定主题 — TD-008 剩余中的**风机电气目录**（不是从设备发明 kW(e)）：蒸发/冷凝风机不再一边内核默认 0、一边 Aily 硬编码 10/8。工作台组装器与豆包预览读**同一份** `samples/v05-local-workbench/manifest.json` 叶子。  
@@ -45,8 +46,9 @@ INVESTMENT_FORMULA_RECUT=NO
 V05_COMPRESSOR_120_NOT_AUTHORITY=YES
 ```
 
-`V16_IMPLEMENTATION_AUTHORIZED=YES`：本文件冻结「1.6 做什么」且实现已授权。
-打标签 `v1.6.0` 仍等 `main` HEAD CI 全绿后。不移动 `v1.5.0`。
+`V16_IMPLEMENTATION_AUTHORIZED=YES`：本文件冻结「1.6 做什么」。产品标签
+`v1.6.0` 已打在 `cd702b0`。本文件闸门保持历史冻结，不改写成 V1.7。
+不移动 `v1.5.0` / `v1.6.0`。
 
 ---
 
