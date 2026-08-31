@@ -153,8 +153,21 @@ def test_v17_v16_skill_stays_frozen_and_v17_skill_has_zone_audit() -> None:
     runbook = RUNBOOK_PATH.read_text(encoding="utf-8")
     assert "五项" in runbook
     assert "AILY_OUTBOUND_LIVE_SESSION=NO" in runbook
+    cooling_table = (
+        REPO_ROOT
+        / "backend"
+        / "src"
+        / "cold_storage"
+        / "modules"
+        / "aily"
+        / "application"
+        / "cooling_load_table.py"
+    ).read_text(encoding="utf-8")
+    assert "分区冷量按内核五项加总" in cooling_table
+    assert "正方形平面 + 演示层高" in cooling_table
     mcp_text = (
         REPO_ROOT / "backend" / "src" / "cold_storage" / "modules" / "aily" / "api" / "mcp_sse.py"
     ).read_text(encoding="utf-8")
+    assert "COOLING_CAPTION" in mcp_text
     assert "分区冷量按内核五项加总" in mcp_text
     assert "正方形平面 + 演示层高" in mcp_text

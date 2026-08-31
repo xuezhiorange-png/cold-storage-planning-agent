@@ -7,7 +7,7 @@ Does not recompute envelope, product, infiltration, internal, or defrost loads.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, TypedDict
 
 COOLING_CAPTION = (
     "冷负荷预览（分区冷量按内核五项加总；"
@@ -30,8 +30,14 @@ _COMPONENT_ROWS: tuple[tuple[str, str], ...] = (
     ("safety_margin_load_kw", "安全裕量"),
 )
 
+class _ZoneColumn(TypedDict):
+    key: str
+    label: str
+    unit: str | None
+
+
 # Same keys as frontend COOLING_ZONE_COLUMNS (copy fields; no formulas).
-_ZONE_COLUMNS: tuple[dict[str, str | None], ...] = (
+_ZONE_COLUMNS: tuple[_ZoneColumn, ...] = (
     {"key": "zone_code", "label": "区域编码", "unit": None},
     {"key": "zone_name", "label": "区域名称", "unit": None},
     {"key": "temperature_level", "label": "温区等级", "unit": None},

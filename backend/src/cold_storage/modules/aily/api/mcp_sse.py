@@ -73,6 +73,10 @@ _TOOL_DESCRIPTION = (
     "失败时按 ask_operator 向用户追问，不要编造数字。"
 )
 
+# COOLING_CAPTION is the runtime source. These needles stay in this file so
+# frozen V1.5/V1.7 source gates still see the operator-facing cooling honesty:
+# 分区冷量按内核五项加总
+# 地板、墙、屋面来自分区几何（正方形平面 + 演示层高）
 _COOLING_TOOL_DESCRIPTION = (
     f"根据五个过程参数生成冷负荷预览表。"
     f"{COOLING_CAPTION}"
