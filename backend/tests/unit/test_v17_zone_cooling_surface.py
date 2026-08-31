@@ -81,6 +81,8 @@ def test_v17_cooling_preview_zone_table_has_five_components() -> None:
         "zone_code",
         "zone_name",
         "temperature_level",
+        "room_design_temperature",
+        "room_height",
         "transmission_load_kw_r",
         "product_load_kw_r",
         "infiltration_load_kw_r",

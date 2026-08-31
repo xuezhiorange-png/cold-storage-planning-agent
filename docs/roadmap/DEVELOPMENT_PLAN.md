@@ -15,10 +15,12 @@
 > `v1.3.0`**. V1.4 operator workbench debt is **complete at `v1.4.0`**.
 > V1.5 cooling envelope wall/roof geometry bind is **complete at `v1.5.0`**.
 > V1.6 power-fan demo catalog is **complete at `v1.6.0`**. V1.7 per-zone
-> cooling component surface is **implementation authorized**
-> (`docs/tasks/V1_7-version-plan.md`). Later umbrellas
-> (outbound live Aily session, remaining TD-008 equipment catalogs)
-> stay unauthorized until Charles dispatches.
+> cooling component surface is **complete at `v1.7.0`**. **Active
+> umbrella:** V1.8 per-zone temperature and height
+> (`docs/tasks/V1_8-version-plan.md`, `V18_IMPLEMENTATION_AUTHORIZED=YES`).
+> Later umbrellas (outbound live Aily session, remaining TD-008 equipment
+> catalogs, zone thermal catalog recut) stay unauthorized until Charles
+> dispatches.
 
 ## Task 0: Local Baseline, Repository Audit, And Governance
 

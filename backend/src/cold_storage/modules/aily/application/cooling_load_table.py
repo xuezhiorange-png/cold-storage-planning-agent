@@ -9,13 +9,21 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
+from cold_storage.modules.projects.application.demo_zone_thermal_catalog import (
+    ZONE_THERMAL_CATALOG_DISCLAIMER_ZH,
+)
+
 COOLING_CAPTION = (
     "冷负荷预览（分区冷量按内核五项加总；"
     "地板、墙、屋面来自分区几何（正方形平面 + 演示层高）；"
-    "U 值与设计温度仍为演示目录，货品热工各区目前共用 v05 演示目录，需复核）"
+    "U 值与设计温度仍为演示目录；"
+    f"{ZONE_THERMAL_CATALOG_DISCLAIMER_ZH}，货品质量仍为 v05 演示目录，需复核）"
 )
 
-_ZONE_EXTRA_CAPTION = "分区冷量（按内核五项加总；面积来自分区几何；U 值与货品热工仍为演示目录）"
+_ZONE_EXTRA_CAPTION = (
+    "分区冷量（按内核五项加总；室内温度取规划温区低端；层高演示 4.0 m；"
+    "面积来自分区几何；U 值与货品质量仍为演示目录）"
+)
 
 _COMPONENT_ROWS: tuple[tuple[str, str], ...] = (
     ("envelope_heat_transfer_load_kw", "围护传热"),
@@ -42,6 +50,8 @@ _ZONE_COLUMNS: tuple[_ZoneColumn, ...] = (
     {"key": "zone_code", "label": "区域编码", "unit": None},
     {"key": "zone_name", "label": "区域名称", "unit": None},
     {"key": "temperature_level", "label": "温区等级", "unit": None},
+    {"key": "room_design_temperature", "label": "室内设计温度", "unit": "°C"},
+    {"key": "room_height", "label": "层高", "unit": "m"},
     {"key": "transmission_load_kw_r", "label": "传热负荷", "unit": "kW(r)"},
     {"key": "product_load_kw_r", "label": "产品负荷", "unit": "kW(r)"},
     {"key": "infiltration_load_kw_r", "label": "渗透负荷", "unit": "kW(r)"},

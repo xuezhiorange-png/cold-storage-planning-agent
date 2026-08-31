@@ -6,6 +6,7 @@ from decimal import Decimal
 
 import pytest
 
+from cold_storage.modules.projects.application.demo_zone_thermal_catalog import ROOM_HEIGHT_M
 from cold_storage.modules.projects.application.engineering_input_bundle import (
     LINEAGE_PENDING_STATE,
     project_execution_snapshot_from_bundle,
@@ -24,7 +25,6 @@ from cold_storage.modules.projects.application.preview_lineage_bind import (
 )
 from cold_storage.modules.projects.domain.models import ProjectVersion
 
-_DEMO_HEIGHT = Decimal("5.0")
 _FLOOR_400 = Decimal("400")
 _FLOOR_100 = Decimal("100")
 
@@ -85,8 +85,9 @@ def _zone_payload_with_area(area: Decimal) -> dict[str, object]:
 
 
 def test_v15_square_plan_wall_formula_is_height_times_four_sqrt_floor() -> None:
-    wall = square_plan_wall_area_m2(floor_area_m2=_FLOOR_400, room_height_m=_DEMO_HEIGHT)
-    assert wall == _DEMO_HEIGHT * Decimal("4") * Decimal("20")
+    demo_height = Decimal("5.0")
+    wall = square_plan_wall_area_m2(floor_area_m2=_FLOOR_400, room_height_m=demo_height)
+    assert wall == demo_height * Decimal("4") * Decimal("20")
 
 
 def test_v15_assembler_wall_roof_are_lineage_pending_height_stays_catalog() -> None:
@@ -96,7 +97,7 @@ def test_v15_assembler_wall_roof_are_lineage_pending_height_stays_catalog() -> N
     assert zone["roof_area"]["state"] == LINEAGE_PENDING_STATE
     assert zone["wall_area"]["value"] is None
     assert zone["roof_area"]["value"] is None
-    assert zone["room_height"]["value"] in {"5", "5.0"}
+    assert zone["room_height"]["value"] in {"4", "4.0"}
     assert zone["room_height"]["source_type"] == "demo"
     assert zone["room_height"]["validity_status"] == "unverified"
     assert zone["room_height"]["requires_review"] is True
@@ -112,7 +113,7 @@ def test_v15_bind_sets_roof_equal_floor_and_square_plan_wall() -> None:
     )
     expected_wall = square_plan_wall_area_m2(
         floor_area_m2=_FLOOR_400,
-        room_height_m=_DEMO_HEIGHT,
+        room_height_m=Decimal(ROOM_HEIGHT_M),
     )
     assert cooling["zones"]
     for zone in cooling["zones"]:

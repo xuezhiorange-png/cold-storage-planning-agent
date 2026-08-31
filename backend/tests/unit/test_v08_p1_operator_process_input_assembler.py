@@ -62,11 +62,14 @@ def test_five_field_assembly_succeeds() -> None:
     assert len(bundle["equipment_inputs"]["systems"]) == 3
     assert bundle["cooling_load_inputs"]["zones"][0]["zone_area"]["state"] == LINEAGE_PENDING_STATE
     first_zone = bundle["cooling_load_inputs"]["zones"][0]
-    assert first_zone["room_design_temperature"]["value"] in {"-18", "-18.0"}
-    assert first_zone["product_target_temperature"]["value"] in {"-18", "-18.0"}
+    assert first_zone["room_design_temperature"]["value"] in {"8", "8.0"}
+    assert first_zone["product_target_temperature"]["value"] in {"8", "8.0"}
+    assert first_zone["room_height"]["value"] in {"4", "4.0"}
     assert first_zone["product_mass_per_day"]["value"] in {"20000", "20000.0"}
     assert first_zone["room_design_temperature"]["source_type"] == "demo"
     assert first_zone["room_design_temperature"]["requires_review"] is True
+    assert first_zone["room_design_temperature"]["source_path"].endswith("V18-T1")
+    assert first_zone["room_height"]["source_path"].endswith("V18-H1")
 
 
 @pytest.mark.parametrize(

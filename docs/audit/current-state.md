@@ -14,8 +14,9 @@ This audit records the repository exactly as found on the preserved baseline.
 > §38 for V1.4 operator workbench debt (complete at `v1.4.0`);
 > §39 for V1.5 envelope wall/roof geometry bind (complete at `v1.5.0`);
 > §40 for V1.6 power-fan demo catalog (complete at `v1.6.0`);
-> §41 for V1.7 per-zone cooling component surface
-> (`docs/tasks/V1_7-version-plan.md`).
+> §41 for V1.7 per-zone cooling component surface (complete at
+> `v1.7.0`); §42 for V1.8 per-zone temperature and height
+> (`docs/tasks/V1_8-version-plan.md`, implementation authorized).
 > Prior contract: `docs/tasks/V0_7-P0-trust-loop-contract.md`.
 > V0.9 contract: `docs/tasks/V0_9-P0-version-contract.md`.
 > Released contract: `docs/tasks/V1_2-P0-aily-five-stage-preview-contract.md`.
@@ -610,20 +611,41 @@ GitHub Release `v1.6.0`).
 `docs/runbooks/v16-doubao-aily-connector.md`.
 Do not move tags `v0.9.0` … `v1.6.0`.
 
-## 41. V1.7 per-zone cooling component surface (implementation authorized)
+## 41. V1.7 per-zone cooling component surface (complete at `v1.7.0`)
 
-V1.7 authorizes **surfacing existing kernel zone components** for operator
-audit: persist and display transmission / product / infiltration / internal /
-defrost plus subtotal per refrigerated zone. Do not recut
-`Q = U × A × ΔT`. Do not bump `cooling_load@1.0.0`. Do not retune the
+V1.7 **surfaced existing kernel zone components** for operator audit:
+persist and display transmission / product / infiltration / internal /
+defrost plus subtotal per refrigerated zone. Did not recut
+`Q = U × A × ΔT`. Did not bump `cooling_load@1.0.0`. Did not retune the
 shared v05 zone thermal catalog. Workbench persist and 豆包 preview use the
 same adapter payload. `AILY_OUTBOUND_LIVE_SESSION=NO`.
 
-**Plan:** `docs/tasks/V1_7-version-plan.md`,
+**Released umbrella:** V1.7 (`docs/tasks/V1_7-version-plan.md`,
 `docs/tasks/V1_7-P0-zone-cooling-surface-contract.md`,
-`docs/architecture/ADR-039-per-zone-cooling-component-surface.md`.
+`docs/architecture/ADR-039-per-zone-cooling-component-surface.md`,
+GitHub Release `v1.7.0`).
 **Skill / runbook:** `docs/contracts/aily/v1.7/**`,
 `docs/runbooks/v17-doubao-aily-connector.md`.
 V1.6 skill `docs/contracts/aily/v1.6/**` stays frozen.
-Do not move tags `v0.9.0` … `v1.6.0`.
+Do not move tags `v0.9.0` … `v1.7.0`.
+
+## 42. V1.8 per-zone temperature and height (implementation authorized)
+
+V1.8 **surfaces bound cooling `room_design_temperature` and
+`room_height` per refrigerated zone** so operators can audit °C and m.
+Temperature catalog recut is **YES**: existing zone-plan bands, **cold
+end** (8.0 / 1.0 / −18.0 °C); `product_target_temperature` follows.
+Height catalog recut is **YES**: **4.0 m** for every refrigerated zone.
+Do not recut `Q = U × A × ΔT`. Do not bump `cooling_load@1.0.0`.
+`V18_IMPLEMENTATION_AUTHORIZED=YES` after Charles replied 可以.
+`AILY_OUTBOUND_LIVE_SESSION=NO`. Tag `v1.8.0` waits for **main HEAD CI
+green**. Do not tell the operator to `git pull` until that tag exists.
+
+**Plan:** `docs/tasks/V1_8-version-plan.md`,
+`docs/tasks/V1_8-P0-zone-temperature-height-contract.md`,
+`docs/architecture/ADR-040-per-zone-temperature-height-surface.md`.
+**Skill / runbook:** `docs/contracts/aily/v1.8/**`,
+`docs/runbooks/v18-doubao-aily-connector.md`.
+V1.7 skill `docs/contracts/aily/v1.7/**` stays frozen.
+Do not move tags `v0.9.0` … `v1.7.0`.
 

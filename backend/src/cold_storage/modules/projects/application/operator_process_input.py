@@ -29,6 +29,12 @@ from cold_storage.modules.projects.application.demo_power_fan_catalog import (
     DEMO_POWER_FAN_SOURCE,
     load_demo_power_fan_catalog,
 )
+from cold_storage.modules.projects.application.demo_zone_thermal_catalog import (
+    ROOM_HEIGHT_M,
+    V18_H1_SOURCE,
+    V18_T1_SOURCE,
+    room_design_temperature_c_for_band,
+)
 from cold_storage.modules.projects.application.engineering_input_bundle import (
     BUNDLE_SCHEMA_ID,
     BUNDLE_SCHEMA_VERSION,
@@ -71,11 +77,9 @@ TEMPERATURE_BAND_TO_LEVEL: dict[str, str] = {
     "-18℃": "low_temperature",
 }
 
-# v05 workbench single-zone thermal catalog (samples/v05-local-workbench/manifest.json).
-# Applied as global demo leaves to every refrigerated zone (same rule as room_height).
+# v05 workbench single-zone product-mass catalog. Room temperature and height
+# use V1.8 Charles-authorized demo leaves (V18-T1 / V18-H1), not this sample.
 _WORKBENCH_PRODUCT_MASS_PER_DAY = "20000.0"
-_WORKBENCH_ROOM_DESIGN_TEMPERATURE_C = "-18.0"
-_WORKBENCH_PRODUCT_TARGET_TEMPERATURE_C = "-18.0"
 
 SYSTEM_GROUP_BY_BAND: dict[str, tuple[str, str]] = {
     "8~10℃": ("system_8_10c", "8~10℃制冷系统"),
@@ -367,24 +371,32 @@ def _cooling_load_inputs_section(
                     ),
                 )
             )
+        try:
+            design_temperature_c = room_design_temperature_c_for_band(temperature_band)
+        except ValueError as exc:
+            raise EngineeringInputBundleValidationError(
+                BundleValidationError(
+                    code="UPSTREAM_LINEAGE_BIND_FAILED",
+                    field_path="cooling_load_inputs.zones[].room_design_temperature",
+                    message=str(exc),
+                )
+            ) from exc
         zone_entry: dict[str, Any] = {
             "zone_code": _lineage_pending_leaf(unit=None),
             "zone_name": _lineage_pending_leaf(unit=None),
             "temperature_level": _lineage_pending_leaf(unit=None),
             "zone_area": _lineage_pending_leaf(unit="m2"),
             "floor_area": _lineage_pending_leaf(unit="m2"),
-            "room_height": _catalog_leaf(
-                "5.0", unit="m", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE
-            ),
+            "room_height": _catalog_leaf(ROOM_HEIGHT_M, unit="m", source_path=V18_H1_SOURCE),
             "wall_area": _lineage_pending_leaf(unit="m2"),
             "roof_area": _lineage_pending_leaf(unit="m2"),
             "outdoor_design_temperature": _catalog_leaf(
                 "30.0", unit="C", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE
             ),
             "room_design_temperature": _catalog_leaf(
-                _WORKBENCH_ROOM_DESIGN_TEMPERATURE_C,
+                design_temperature_c,
                 unit="C",
-                source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE,
+                source_path=V18_T1_SOURCE,
             ),
             "operating_hours_per_day": _catalog_leaf(
                 working_time_h_per_day,
@@ -401,9 +413,9 @@ def _cooling_load_inputs_section(
                 "20.0", unit="C", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE
             ),
             "product_target_temperature": _catalog_leaf(
-                _WORKBENCH_PRODUCT_TARGET_TEMPERATURE_C,
+                design_temperature_c,
                 unit="C",
-                source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE,
+                source_path=V18_T1_SOURCE,
             ),
             "cooling_duration": _catalog_leaf(
                 "8.0", unit="h", source_path=_WORKBENCH_ENVELOPE_CATALOG_SOURCE

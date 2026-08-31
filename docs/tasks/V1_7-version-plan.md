@@ -1,6 +1,7 @@
 # V1.7 总计划：按区核对制冷量如何计算
 
-**状态：** 实现已授权（V1.7 per-zone cooling component surface）  
+**状态：** 已发布（V1.7 per-zone cooling component surface）  
+**产品标签：** `v1.7.0` at `60f741c`（闸门块保持历史冻结）  
 **上一产品标签：** `v1.6.0` at `cd702b0`  
 **基线 `main` SHA：** `cd702b0`  
 **权威：** Charles 选定主题 — 下一版主要核对一件事：**每个区域的制冷量是如何计算的。**  
@@ -39,8 +40,9 @@ MARK_REVIEWED_AS_MODEL_TOOL=NO
 EXTEND_API_V1_AGENT_FOR_AILY=NO
 ```
 
-`V17_IMPLEMENTATION_AUTHORIZED=YES`：本文件冻结「1.7 核对什么」且实现已授权。
-打标签 `v1.7.0` 仍等 **main HEAD CI 全绿** 后。不移动 `v1.6.0`。
+`V17_IMPLEMENTATION_AUTHORIZED=YES`：本文件冻结「1.7 核对什么」。产品标签
+`v1.7.0` 已打在 `60f741c`。本文件闸门保持历史冻结，不改写成 V1.8。
+不移动 `v1.6.0` / `v1.7.0`。
 
 ---
 

@@ -133,4 +133,46 @@ describe('CoolingLoadResultsTable', () => {
     expect(wrapper.text()).toContain('Q_sensible')
     expect(wrapper.text()).toContain('计算依据')
   })
+
+  it('renders persisted zone design temperature and height', () => {
+    const wrapper = mount(CoolingLoadResultsTable, {
+      props: {
+        record: coolingRecord({
+          total_cooling_load_kw: '120.5',
+          safety_margin_load_kw: '12.05',
+          envelope_heat_transfer_load_kw: '30',
+          product_sensible_heat_load_kw: '40',
+          packaging_load_kw: '5',
+          infiltration_load_kw: '10',
+          personnel_load_kw: '3',
+          lighting_load_kw: '2',
+          evaporator_fan_load_kw: '15',
+          defrost_additional_load_kw: '10',
+          other_configuration_load_kw: '5.45',
+          zones: [
+            {
+              zone_code: 'primary_precooling_room',
+              zone_name: '一级预冷间',
+              temperature_level: 'precooling',
+              room_design_temperature: '8.0',
+              room_height: '4.0',
+              transmission_load_kw_r: '1',
+              product_load_kw_r: '2',
+              infiltration_load_kw_r: '3',
+              internal_load_kw_r: '0',
+              defrost_load_kw_r: '0',
+              subtotal_load_kw_r: '6'
+            }
+          ]
+        })
+      }
+    })
+
+    expect(wrapper.text()).toContain('室内设计温度')
+    expect(wrapper.text()).toContain('层高')
+    expect(wrapper.text()).toContain('8')
+    expect(wrapper.text()).toContain('4')
+    expect(wrapper.text()).toContain('一级预冷间')
+  })
 })
+

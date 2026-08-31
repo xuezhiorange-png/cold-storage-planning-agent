@@ -14,9 +14,12 @@
 > lineage is complete at `v1.3.0`. V1.4 workbench debt is complete at
 > `v1.4.0`. V1.5 envelope wall/roof geometry is complete at `v1.5.0`.
 > V1.6 power-fan demo catalog is complete at `v1.6.0`.
-> V1.7 per-zone cooling component surface: `docs/tasks/V1_7-version-plan.md`.
+> V1.7 per-zone cooling component surface is complete at `v1.7.0`.
+> V1.8 per-zone temperature and height: `docs/tasks/V1_8-version-plan.md`
+> (`V18_IMPLEMENTATION_AUTHORIZED=YES`; catalog V18-T1 cold end + V18-H1 4.0 m).
 > Later umbrellas (outbound live Aily session, remaining TD-008 equipment
-> catalogs) stay unauthorized until Charles dispatches.
+> catalogs, zone thermal catalog recut) stay unauthorized until Charles
+> dispatches.
 
 ## P0
 
