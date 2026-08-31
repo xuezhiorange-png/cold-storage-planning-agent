@@ -45,19 +45,20 @@ table add the same two keys. Do not invent a second temperature scale.
 ### 4. Catalog recut is gated and must not guess
 
 ```text
-ZONE_TEMPERATURE_CATALOG_RECUT=NO
+ZONE_TEMPERATURE_FROM_ZONE_PLAN_BAND=YES
+ZONE_TEMPERATURE_BAND_POINT=COLD_END
+ZONE_TEMPERATURE_CATALOG_RECUT=YES
 ZONE_HEIGHT_CATALOG_RECUT=YES
 ZONE_PRODUCT_MASS_CATALOG_RECUT=NO
 ZONE_THERMAL_CATALOG_RECUT=NO
 ```
 
 Do not treat zone-plan band **midpoints** as design temperatures (V0.8).
-Charles answers indoor °C **per refrigerated zone** (V18-T1); empty cells
-are not authority. Height is Charles-authorized demo **4.0 m** for every
-refrigerated zone (V18-H1), replacing v05 5.0 m on the operator-minimal
-path only. Missing height stays fail-closed. When the temperature table
-is complete, `product_target_temperature` follows
-`room_design_temperature`.
+Charles authorized the **cold end** of each existing band (V18-T1:
+8.0 / 1.0 / −18.0). `product_target_temperature` follows
+`room_design_temperature`. Height is Charles-authorized demo **4.0 m**
+for every refrigerated zone (V18-H1), replacing v05 5.0 m on the
+operator-minimal path only. Missing height stays fail-closed.
 
 ### 5. Identities unchanged
 
@@ -68,7 +69,7 @@ Five KEY stay `OperatorProcessInputV1@1.1.0`. Calculator identities stay
 ## Consequences
 
 - Operators can audit echoed °C / m. After implementation, height is 4.0 m
-  (Charles demo catalog). Indoor °C stays v05 −18 until V18-T1 is filled.
+  and indoor °C is the zone-plan band cold end (8 / 1 / −18).
 - Old persisted cooling snapshots without the echo leaves still verify.
 
 ## Alternatives rejected
