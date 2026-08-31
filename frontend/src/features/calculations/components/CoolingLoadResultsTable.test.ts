@@ -129,6 +129,11 @@ describe('CoolingLoadResultsTable', () => {
       }
     })
 
+    expect(wrapper.text()).toContain('Q = m * cp * dT')
+    expect(wrapper.text()).toContain('Q_sensible')
+    expect(wrapper.text()).toContain('计算依据')
+  })
+
   it('renders persisted zone design temperature and height', () => {
     const wrapper = mount(CoolingLoadResultsTable, {
       props: {
@@ -170,3 +175,4 @@ describe('CoolingLoadResultsTable', () => {
     expect(wrapper.text()).toContain('一级预冷间')
   })
 })
+

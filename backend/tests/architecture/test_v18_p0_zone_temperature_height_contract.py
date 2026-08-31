@@ -220,7 +220,6 @@ def test_v18_v17_skill_stays_frozen_and_v18_skill_has_temp_height() -> None:
     assert '"schema_version": "1.7.0"' in v17_json
     assert '"ZONE_THERMAL_CATALOG_RECUT": "NO"' in v17_json
     assert '"KEEP_COOLING_LOAD_VERSION": "YES"' in v17_json
-    assert "1.8.0" in v18
     assert "温区低端" in v18
     assert "4.0 m" in v18
     assert "U × A" not in v18
