@@ -1,6 +1,6 @@
-# V1.8 P0 — Per-zone cooling temperature and height (definition freeze)
+# V1.8 P0 — Per-zone cooling temperature and height
 
-**Status:** Definition frozen — implementation **not** authorized  
+**Status:** Implementation authorized — stamp V18-T1 / V18-H1 and surface °C / m  
 **Authority:** Charles-selected theme in `docs/tasks/V1_8-version-plan.md`  
 **Previous release:** `v1.7.0`  
 **Base `main` SHA:** `60f741c`  
@@ -13,8 +13,8 @@ GOVERNANCE_OWNER=V1.8
 PREVIOUS_RELEASE=v1.7.0
 BASE_MAIN_SHA=60f741c
 TARGET_FILE=docs/tasks/V1_8-P0-zone-temperature-height-contract.md
-V18_P0_IMPLEMENTATION_AUTHORIZED=NO
-V18_IMPLEMENTATION_AUTHORIZED=NO
+V18_P0_IMPLEMENTATION_AUTHORIZED=YES
+V18_IMPLEMENTATION_AUTHORIZED=YES
 ZONE_THERMAL_INPUT_SURFACE=YES
 ZONE_TEMPERATURE_FROM_ZONE_PLAN_BAND=YES
 ZONE_TEMPERATURE_BAND_POINT=COLD_END
@@ -122,7 +122,8 @@ preview_investment
 ```
 
 Do not extend `/api/v1/agent/**`. Freeze `docs/contracts/aily/v1.7/**`.
-A V1.8 skill pack is a later package after authorization.
+V1.8 skill pack: `docs/contracts/aily/v1.8/**`.
+Runbook: `docs/runbooks/v18-doubao-aily-connector.md`.
 
 ## 5. Honesty (success path)
 
@@ -211,9 +212,8 @@ docs/tasks/V1_7-version-plan.md
 backend/tests/architecture/test_v18_p0_zone_temperature_height_contract.py
 ```
 
-After authorization, later packages may change cooling snapshot optional
-leaves, adapter/kernel input echo, assembler demo catalog (only if a recut
-gate is YES), workbench `COOLING_ZONE_COLUMNS`, Aily cooling extra table /
-captions, `docs/contracts/aily/v1.8/**`, and
-`docs/runbooks/v18-doubao-aily-connector.md`.
+After authorization this package stamps V18-T1 / V18-H1, copies cooling
+snapshot optional T/H leaves, aligns workbench `COOLING_ZONE_COLUMNS` and
+Aily cooling extra table / captions, and adds `docs/contracts/aily/v1.8/**`
+plus `docs/runbooks/v18-doubao-aily-connector.md`.
 Do not edit frozen `docs/contracts/aily/v1.7/**` or `cooling_load.py` formulas.

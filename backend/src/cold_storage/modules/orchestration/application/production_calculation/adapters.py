@@ -265,6 +265,10 @@ _ZONE_COMPONENT_FIELDS: tuple[str, ...] = (
     "internal_load_kw_r",
     "defrost_load_kw_r",
 )
+_ZONE_INPUT_ECHO_FIELDS: tuple[str, ...] = (
+    "room_design_temperature",
+    "room_height",
+)
 
 
 def _canonical_cooling_snapshot_payload(
@@ -274,9 +278,10 @@ def _canonical_cooling_snapshot_payload(
 
     The Phase 2 cooling calculator reports a detailed zone-oriented payload.
     Durable orchestration keeps plant-wide aggregate component rows and, as of
-    V1.7, copies kernel per-zone five components for operator audit. Equipment
-    lineage still binds on zone_code + subtotal only. The calculator remains
-    the sole producer of engineering values.
+    V1.7, copies kernel per-zone five components for operator audit. V1.8 also
+    copies kernel input echo for room_design_temperature and room_height.
+    Equipment lineage still binds on zone_code + subtotal only. The calculator
+    remains the sole producer of engineering values.
     """
 
     payload = result.result
@@ -322,6 +327,10 @@ def _canonical_cooling_snapshot_payload(
             if temperature_level is not None:
                 zone_row["temperature_level"] = str(temperature_level)
             for field_name in _ZONE_COMPONENT_FIELDS:
+                raw = zone.get(field_name)
+                if raw is not None:
+                    zone_row[field_name] = text(decimal(raw))
+            for field_name in _ZONE_INPUT_ECHO_FIELDS:
                 raw = zone.get(field_name)
                 if raw is not None:
                     zone_row[field_name] = text(decimal(raw))

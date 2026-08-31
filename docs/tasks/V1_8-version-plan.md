@@ -1,6 +1,6 @@
 # V1.8 总计划：理清每个区域的温度和层高
 
-**状态：** 定义已冻结，**实现未授权**（等 Charles 回复「可以」）  
+**状态：** 实现已授权（本包落地；等 main HEAD CI 绿后打 `v1.8.0`）  
 **上一产品标签：** `v1.7.0` at `60f741c`  
 **基线 `main` SHA：** `60f741c`  
 **权威：** Charles 选定主题 — 下一版主要理清一件事：**每个制冷分区冷却实际用的室内设计温度和层高。**  
@@ -14,8 +14,8 @@ GOVERNANCE_OWNER=V1.8
 PREVIOUS_RELEASE=v1.7.0
 BASE_MAIN_SHA=60f741c
 TARGET_FILE=docs/tasks/V1_8-version-plan.md
-V18_IMPLEMENTATION_AUTHORIZED=NO
-V18_P0_IMPLEMENTATION_AUTHORIZED=NO
+V18_IMPLEMENTATION_AUTHORIZED=YES
+V18_P0_IMPLEMENTATION_AUTHORIZED=YES
 ZONE_THERMAL_INPUT_SURFACE=YES
 ZONE_TEMPERATURE_FROM_ZONE_PLAN_BAND=YES
 ZONE_TEMPERATURE_BAND_POINT=COLD_END
@@ -45,16 +45,16 @@ MARK_REVIEWED_AS_MODEL_TOOL=NO
 EXTEND_API_V1_AGENT_FOR_AILY=NO
 ```
 
-`V18_IMPLEMENTATION_AUTHORIZED=NO`：本文件冻结「1.8 核对什么」，**在 Charles 回复「可以」之前不改组装器、内核、工作台、豆包。**  
+`V18_IMPLEMENTATION_AUTHORIZED=YES`：Charles 已回复「可以」。按 V18-T1 / V18-H1 实现。
 打标签 `v1.8.0` 仍等实现完成后 **main HEAD CI 全绿**。不移动 `v1.7.0`。
 
 ---
 
 ## 1. 一句话
 
-产品身份仍是 **豆包工作伙伴**。V1.7 已发布。V1.8 让操作者能按区看到冷却真正用的 **室内设计温度 °C** 和 **层高 m**。内核公式不动，`cooling_load@1.0.0` 不 bump。Charles 已批：**九个制冷分区层高一律 4.0 m**；室内设计温度**跟分区规划温区走，区间取低端**（8~10℃ → 8.0；1~3℃ → 1.0；−18℃ → −18.0）。货品目标温度跟室内设计温度同一张表。**实现仍等「可以」。**
+产品身份仍是 **豆包工作伙伴**。V1.7 已发布。V1.8 让操作者能按区看到冷却真正用的 **室内设计温度 °C** 和 **层高 m**。内核公式不动，`cooling_load@1.0.0` 不 bump。Charles 已批：**九个制冷分区层高一律 4.0 m**；室内设计温度**跟分区规划温区走，区间取低端**（8~10℃ → 8.0；1~3℃ → 1.0；−18℃ → −18.0）。货品目标温度跟室内设计温度同一张表。**本包落地后等 main HEAD CI 绿再打 `v1.8.0`。**
 
-## 2. 今天实际怎么用（核对对象，不是要改的公式）
+## 2. V1.7 核对对象（本版要改掉的血缘，不是公式）
 
 分区规划已经按区登记了温区，冷却内核也已经按区读 `room_design_temperature` 和 `room_height`：
 
@@ -66,7 +66,7 @@ wall_area       = room_height × 4 × √floor_area   # V1.5 正方形平面，�
 
 公式在 [`cooling_load.py`](../../backend/src/cold_storage/modules/calculations/domain/cooling_load.py) 和 V1.5 绑定里，**本版不改**。
 
-缺口在**输入血缘**：组装器把 v05 单区演示目录打到**每一个**制冷分区：
+缺口曾在**输入血缘**：V1.7 组装器把 v05 单区演示目录打到**每一个**制冷分区：
 
 ```text
 room_height              = 5.0 m
@@ -79,7 +79,7 @@ source_type = demo
 
 分区规划温区（已有权威，`REFRIGERATED_ZONE_REGISTRY`）和冷却实际打入的数字对不上：
 
-| 分区 | 规划温区 | 冷却室内设计温度（今天） | 冷却层高（今天） |
+| 分区 | 规划温区 | 冷却室内设计温度（V1.7） | 冷却层高（V1.7） |
 |---|---|---|---|
 | 一级预冷间 | 8~10℃ | −18.0 °C | 5.0 m |
 | 二级预冷间 | 1~3℃ | −18.0 °C | 5.0 m |
@@ -93,20 +93,20 @@ source_type = demo
 
 常温间不进冷量。五个 KEY 不变。吨 = 每天。
 
-货品目标温度今天也是每区 −18°C；货品质量仍是每区 20 t/天。**本版默认不改货品质量**（`ZONE_PRODUCT_MASS_CATALOG_RECUT=NO`）。
+货品目标温度在 V1.7 也是每区 −18°C；货品质量仍是每区 20 t/天。**本版默认不改货品质量**（`ZONE_PRODUCT_MASS_CATALOG_RECUT=NO`）。
 
-层高在仓库里**没有**第二份按区权威，只有 v05 的 5.0 m。
+层高在仓库里**没有**第二份按区权威，只有 v05 的 5.0 m；本版用 Charles 批的 V18-H1 **4.0 m** 替换操作员最小路径层高，不改 v05 历史样本。
 
-## 3. 今天操作者能看到什么
+## 3. 操作者能看到什么
 
-| 表面 | 现在能看到什么 |
-|---|---|
-| 分区规划表 | **温区字符串**（8~10℃ / 1~3℃ / −18℃ / 常温），没有层高 |
-| 工作台冷负荷分区表 | `temperature_level` 枚举 + V1.7 五项冷量；**没有 °C，没有 m** |
-| 豆包冷量分区表 | 与工作台同一套列 |
-| 冷却输入叶子 | 每区已有 `room_design_temperature` / `room_height`，但结果快照不回写 |
+| 表面 | V1.7 | V1.8（本版落地） |
+|---|---|---|
+| 分区规划表 | **温区字符串**（8~10℃ / 1~3℃ / −18℃ / 常温），没有层高 | 不变 |
+| 工作台冷负荷分区表 | `temperature_level` 枚举 + V1.7 五项冷量；**没有 °C，没有 m** | 增加室内设计温度 °C、层高 m |
+| 豆包冷量分区表 | 与工作台同一套列 | 与工作台同一套列（含 °C / m） |
+| 冷却输入叶子 | 每区已有 `room_design_temperature` / `room_height`，但结果快照不回写 | 快照回写内核实际使用的 °C / m |
 
-所以操作者无法在冷量页核对「这一区用了几度、几米」。
+诚实表注：室内设计温度取分区规划温区低端；层高演示 4.0 m；U 值与货品质量仍为 v05 演示目录，需复核。
 
 ## 4. 本版默认要露出的核对列（成功路径）
 
@@ -119,7 +119,7 @@ room_height                # m，内核该区实际使用的层高
 
 V1.7 五项冷量列保持。`temperature_level` 保持。历史只有五项的快照仍能解析（新列 optional）。设备血缘仍只绑 `zone_code` + `subtotal_load_kw_r`。
 
-诚实表注（建议；目录已批、实现未授权）：
+诚实表注：
 
 **室内设计温度与层高按区回写冷却已用输入；层高为 Charles 演示目录 4.0 m；室内设计温度取分区规划温区低端（8 / 1 / −18 ℃），货品目标温度与之相同；U 值与货品质量仍为 v05 演示目录，需复核。**
 
@@ -135,7 +135,7 @@ formula_recut_authorized: true   # 历史 V1.5 几何重切，本版不再新授
 
 本版闸门 `FORMULA_RECUT_AUTHORIZED=NO`：不授权新的公式重切。
 
-目录数字已齐（层高 4.0 m，温区低端 8 / 1 / −18）；**在 Charles 回复「可以」之前不改组装器。**
+目录数字已齐（层高 4.0 m，温区低端 8 / 1 / −18）；实现已授权。
 
 ## 5. 目录重切
 
@@ -228,12 +228,12 @@ zone_planning_inputs.auxiliary_packaging_storage_days
 | **P2** | 豆包分区表与工作台对齐；表注/测试；Aily 不 import calculations |
 | **P3** | v1.8 技能 + 手册；冻结 v1.7 技能；`v1.8.0` 仅 **main HEAD CI 绿** 后打 |
 
-## 8. 还缺什么才实现
+## 8. 落地状态
 
-1. **露出 T/H 两列** — 要做。  
-2. **层高** — 已批 4.0 m。  
-3. **温度** — 已批：规划温区低端 8.0 / 1.0 / −18.0；货品目标温度跟室内设计温度走。  
-4. 仍须 Charles 回复 **「可以」** 才改代码。
+1. **露出 T/H 两列** — 本包落地。  
+2. **层高** — 已批并打入 4.0 m（V18-H1）。  
+3. **温度** — 已批并打入规划温区低端 8.0 / 1.0 / −18.0；货品目标温度跟室内设计温度走（V18-T1）。  
+4. Charles 已回复 **「可以」**；本切片落地后等 **main HEAD CI 绿** 再打 `v1.8.0`。不移动 `v1.7.0`。
 
 ## 9. 本版不做
 

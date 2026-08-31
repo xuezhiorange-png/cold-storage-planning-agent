@@ -518,6 +518,8 @@ class CoolingLoadZoneResultV1(BaseModel):
     zone_code: str
     zone_name: str | None = None
     temperature_level: str | None = None
+    room_design_temperature: str | None = None
+    room_height: str | None = None
     transmission_load_kw_r: str | None = None
     product_load_kw_r: str | None = None
     infiltration_load_kw_r: str | None = None
@@ -536,6 +538,8 @@ class CoolingLoadZoneResultV1(BaseModel):
         "infiltration_load_kw_r",
         "internal_load_kw_r",
         "defrost_load_kw_r",
+        "room_design_temperature",
+        "room_height",
         mode="before",
     )
     @classmethod
@@ -552,8 +556,9 @@ class CoolingLoadResultSnapshotV1(BaseModel):
     - total_cooling_load_kw
     - safety_margin_load_kw
     - Individual component load fields
-    - Optional per-zone components for operator audit (V1.7); subtotal
-      remains the equipment lineage bind key
+    - Optional per-zone components for operator audit (V1.7); V1.8 optional
+      room_design_temperature / room_height input echo; subtotal remains the
+      equipment lineage bind key
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")

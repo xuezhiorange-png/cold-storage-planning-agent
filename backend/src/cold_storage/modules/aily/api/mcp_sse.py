@@ -77,6 +77,9 @@ _TOOL_DESCRIPTION = (
 # frozen V1.5/V1.7 source gates still see the operator-facing cooling honesty:
 # 分区冷量按内核五项加总
 # 地板、墙、屋面来自分区几何（正方形平面 + 演示层高）
+# U 值与设计温度仍为演示目录
+# 室内设计温度取分区规划温区低端
+# 层高为演示目录 4.0 m
 _COOLING_TOOL_DESCRIPTION = (
     f"根据五个过程参数生成冷负荷预览表。"
     f"{COOLING_CAPTION}"

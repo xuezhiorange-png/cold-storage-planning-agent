@@ -65,6 +65,8 @@ export const COOLING_ZONE_COLUMNS: PersistedColumnDef[] = [
   { key: 'zone_code', label: '区域编码' },
   { key: 'zone_name', label: '区域名称' },
   { key: 'temperature_level', label: '温区等级' },
+  { key: 'room_design_temperature', label: '室内设计温度', unit: '°C' },
+  { key: 'room_height', label: '层高', unit: 'm' },
   { key: 'transmission_load_kw_r', label: '传热负荷', unit: 'kW(r)' },
   { key: 'product_load_kw_r', label: '产品负荷', unit: 'kW(r)' },
   { key: 'infiltration_load_kw_r', label: '渗透负荷', unit: 'kW(r)' },

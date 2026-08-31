@@ -660,6 +660,8 @@ def _calculate_zone_cooling_load(
         "zone_code": zone.zone_code,
         "zone_name": zone.zone_name,
         "temperature_level": zone.temperature_level.value,
+        "room_design_temperature": float(zone.room_design_temperature),
+        "room_height": float(zone.room_height),
         "transmission_load_kw_r": float(total_transmission_kw),
         "wall_transmission_load_kw_r": float(wall_load_kw),
         "roof_transmission_load_kw_r": float(roof_load_kw),

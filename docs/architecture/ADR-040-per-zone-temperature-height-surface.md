@@ -1,17 +1,17 @@
 # ADR-040: Surface per-zone cooling design temperature and height
 
-- Status: Proposed (V1.8 per-zone temperature and height surface)
+- Status: Accepted (V1.8 per-zone temperature and height surface)
 - Date: 2026-08-31
 - Context: Zone planning already registers temperature bands
   (`8~10℃`, `1~3℃`, `-18℃`) per refrigerated zone. The cooling kernel
   already consumes per-zone `room_design_temperature` and `room_height`
-  in `Q = U × A × ΔT` and infiltration volume. The operator-minimal
-  assembler still stamps the v05 single-zone demo catalog onto **every**
-  refrigerated zone: **−18.0 °C** and **5.0 m**. V1.7 surfaced five load
-  components but not these inputs. Charles asked to 理清 each zone's
-  temperature and height. This ADR records the freeze: surface the values
-  cooling already used; do not recut the catalog unless Charles flips an
-  explicit gate and supplies numbers. This is not a formula recut.
+  in `Q = U × A × ΔT` and infiltration volume. Before V1.8, the
+  operator-minimal assembler stamped the v05 single-zone demo catalog
+  onto **every** refrigerated zone: **−18.0 °C** and **5.0 m**. V1.7
+  surfaced five load components but not these inputs. Charles asked to
+  理清 each zone's temperature and height. This ADR records the surface
+  plus Charles-authorized V18-T1 / V18-H1 demo catalog. This is not a
+  formula recut.
 
 ## Decision
 
