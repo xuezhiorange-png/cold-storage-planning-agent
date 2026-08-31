@@ -1,6 +1,7 @@
 # V1.5 总计划：冷量墙/屋面从分区几何进入
 
-**状态：** 实现已授权（V1.5 envelope wall/roof geometry bind）  
+**状态：** 已发布（V1.5 envelope wall/roof geometry bind）  
+**产品标签：** `v1.5.0` at `536603d`（闸门块保持历史冻结）  
 **上一产品标签：** `v1.4.0`  
 **基线 `main` SHA：** `c58f0ae`  
 **权威：** Charles 选定主题 — 授权公式重切的**输入血缘**（不是改 `Q = U × A × ΔT` 内核）：墙、屋面面积不再用 v05 演示目录的固定 `200` / `100` m²，而从分区 `required_area_m2` 推导。工作台落库路径和豆包内存预览走**同一绑定**。  
@@ -44,8 +45,9 @@ POWER_CONFIGURATION_REPLACES_INSTALLED_POWER=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
-`V15_IMPLEMENTATION_AUTHORIZED=YES`：本文件冻结「1.5 做什么」且实现已授权。
-打标签 `v1.5.0` 仍等 `main` HEAD CI 全绿后。不移动 `v1.4.0`。
+`V15_IMPLEMENTATION_AUTHORIZED=YES`：本文件冻结「1.5 做什么」。产品标签
+`v1.5.0` 已打在 `536603d`。本文件闸门保持历史冻结，不改写成 V1.6。
+不移动 `v1.4.0` / `v1.5.0`。
 
 ---
 

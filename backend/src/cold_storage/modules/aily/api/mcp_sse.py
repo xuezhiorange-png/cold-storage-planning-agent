@@ -51,6 +51,9 @@ from cold_storage.modules.aily.application.mcp_zone_plan import (
     invoke_preview_zone_plan_tool,
 )
 from cold_storage.modules.aily.domain.errors import AilyConnectorError
+from cold_storage.modules.projects.application.demo_power_fan_catalog import (
+    POWER_FAN_DEMO_CATALOG_DISCLAIMER_ZH,
+)
 from cold_storage.modules.projects.application.engineering_input_bundle import (
     OPERATOR_V09_FIVE_KEY_FIELDS,
 )
@@ -83,10 +86,11 @@ _EQUIPMENT_TOOL_DESCRIPTION = (
 )
 
 _POWER_TOOL_DESCRIPTION = (
-    "根据五个过程参数生成装机功率预览表。"
-    "压缩机电气 kW(e) 来自设备结果；蒸发/冷凝风机可能仍为演示目录，不是 kW(r)/COP 换算。"
-    "吨=每天。只传五个 KEY。成功时原样展示 markdown_table，并说明概念设计、需复核。"
-    "失败时按 ask_operator 追问，不要编造数字。"
+    f"根据五个过程参数生成装机功率预览表。"
+    f"压缩机电气 kW(e) 来自设备结果，不是 kW(r)/COP 换算。"
+    f"{POWER_FAN_DEMO_CATALOG_DISCLAIMER_ZH}。"
+    f"吨=每天。只传五个 KEY。成功时原样展示 markdown_table，并说明概念设计、需复核。"
+    f"失败时按 ask_operator 追问，不要编造数字。"
 )
 
 _INVESTMENT_TOOL_DESCRIPTION = (

@@ -13,9 +13,10 @@
 > is complete at `v1.1.0`.** V1.2 five-stage conversation preview is
 > **complete at `v1.2.0`**. V1.3 inbound preview lineage is **complete at
 > `v1.3.0`**. V1.4 operator workbench debt is **complete at `v1.4.0`**.
-> V1.5 cooling envelope wall/roof geometry bind is **implementation
-> authorized** (`docs/tasks/V1_5-version-plan.md`). Later umbrellas
-> (outbound live Aily session, remaining TD-008 power/equipment catalogs)
+> V1.5 cooling envelope wall/roof geometry bind is **complete at `v1.5.0`**.
+> V1.6 power-fan demo catalog is **implementation authorized**
+> (`docs/tasks/V1_6-version-plan.md`). Later umbrellas
+> (outbound live Aily session, remaining TD-008 equipment catalogs)
 > stay unauthorized until Charles dispatches.
 
 ## Task 0: Local Baseline, Repository Audit, And Governance

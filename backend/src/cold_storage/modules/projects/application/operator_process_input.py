@@ -7,6 +7,8 @@ omitted-as-V0.8) assembles as today.
 Copies existing production authority (dataclass defaults, demo catalog envelopes)
 into explicit bundle leaves. Does not invent engineering numbers. V1.5 wall/roof
 leaves are lineage-pending; square-plan geometry is applied in preview_lineage_bind.
+V1.6 fan electrical leaves come from the v05 workbench sample via
+demo_power_fan_catalog, not InstalledPowerCalcInput zeros.
 V0.9 P2 registers shipping_channel in REFRIGERATED_ZONE_REGISTRY (1~3℃ demo envelope).
 """
 
@@ -19,10 +21,13 @@ from typing import Any, NoReturn
 from uuid import uuid4
 
 from cold_storage.modules.calculations.domain.equipment import ZoneEquipmentInput
-from cold_storage.modules.calculations.domain.power import InstalledPowerCalcInput
 from cold_storage.modules.calculations.domain.zone_planning import (
     ColdRoomZonePlanInput,
     DemoZoneCoefficient,
+)
+from cold_storage.modules.projects.application.demo_power_fan_catalog import (
+    DEMO_POWER_FAN_SOURCE,
+    load_demo_power_fan_catalog,
 )
 from cold_storage.modules.projects.application.engineering_input_bundle import (
     BUNDLE_SCHEMA_ID,
@@ -496,18 +501,18 @@ def _equipment_inputs_section() -> dict[str, Any]:
 
 
 def _installed_power_inputs_section() -> dict[str, Any]:
-    power_defaults = _installed_power_defaults()
+    fan_catalog = load_demo_power_fan_catalog()
     return {
         "compressor_input_power_kw_e": _lineage_pending_leaf(unit="kW(e)"),
         "evaporator_fan_power_kw_e": _demo_leaf(
-            power_defaults["evaporator_fan_power_kw_e"],
+            fan_catalog.evaporator_fan_power_kw_e,
             unit="kW(e)",
-            source_path="InstalledPowerCalcInput.evaporator_fan_power_kw_e",
+            source_path=DEMO_POWER_FAN_SOURCE,
         ),
         "condenser_fan_power_kw_e": _demo_leaf(
-            power_defaults["condenser_fan_power_kw_e"],
+            fan_catalog.condenser_fan_power_kw_e,
             unit="kW(e)",
-            source_path="InstalledPowerCalcInput.condenser_fan_power_kw_e",
+            source_path=DEMO_POWER_FAN_SOURCE,
         ),
     }
 
@@ -575,15 +580,6 @@ def _zone_equipment_input_defaults() -> dict[str, str]:
         "evaporator_count": str(field_defaults["evaporator_count"]),
         "evaporation_temperature_c": _decimalize(field_defaults["evaporation_temperature_c"]),
         "defrost_method": str(field_defaults["defrost_method"]),
-    }
-
-
-def _installed_power_defaults() -> dict[str, str]:
-    return {
-        "evaporator_fan_power_kw_e": _decimalize(
-            InstalledPowerCalcInput().evaporator_fan_power_kw_e
-        ),
-        "condenser_fan_power_kw_e": _decimalize(InstalledPowerCalcInput().condenser_fan_power_kw_e),
     }
 
 
