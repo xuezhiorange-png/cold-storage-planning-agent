@@ -17,7 +17,7 @@ V18_P0_IMPLEMENTATION_AUTHORIZED=NO
 V18_IMPLEMENTATION_AUTHORIZED=NO
 ZONE_THERMAL_INPUT_SURFACE=YES
 ZONE_TEMPERATURE_CATALOG_RECUT=NO
-ZONE_HEIGHT_CATALOG_RECUT=NO
+ZONE_HEIGHT_CATALOG_RECUT=YES
 ZONE_PRODUCT_MASS_CATALOG_RECUT=NO
 ZONE_THERMAL_CATALOG_RECUT=NO
 KEEP_COOLING_LOAD_VERSION=YES
@@ -56,10 +56,11 @@ Copy the values cooling actually used. Do **not** recompute
 per-zone °C or m. Aily does not import `cold_storage.modules.calculations`.
 Vue / reports / prompts do not embed cooling or geometry formulas.
 
-Default catalog gates stay **NO**: every refrigerated zone may still show
-v05 demo **−18.0 °C** and **5.0 m**. Surfacing that fact is in scope.
-Changing the numbers is not, unless Charles flips the matching gate and
-supplies a demo table.
+Default temperature catalog gate stays **NO** until Charles fills V18-T1
+zone-by-zone. Height catalog gate is **YES**: Charles authorized
+**4.0 m** for every refrigerated zone (`docs/tasks/V1_8-version-plan.md#V18-H1`).
+Do not invent per-zone °C. Do not keep v05 5.0 m on the operator-minimal
+path after implementation is authorized.
 
 ## 2. Operator KEY (unchanged)
 
@@ -139,12 +140,13 @@ Caption / skill must still contain:
 U 值与设计温度仍为演示目录
 ```
 
-Default (catalog recut NO) must also say the echoed °C / m currently share
-the v05 demo catalog (−18°C / 5.0 m) and are not the zone-plan band string.
+After height recut, honesty must say refrigerated-zone height is the
+Charles demo catalog **4.0 m**, not v05 5.0 m. Indoor °C stays the shared
+v05 −18 until V18-T1 is complete and `ZONE_TEMPERATURE_CATALOG_RECUT=YES`.
 
 This slice `FORMULA_RECUT_AUTHORIZED=NO`.
 `ZONE_TEMPERATURE_CATALOG_RECUT=NO`.
-`ZONE_HEIGHT_CATALOG_RECUT=NO`.
+`ZONE_HEIGHT_CATALOG_RECUT=YES`.
 `ZONE_PRODUCT_MASS_CATALOG_RECUT=NO`.
 `ZONE_THERMAL_CATALOG_RECUT=NO`.
 
@@ -153,14 +155,17 @@ This slice `FORMULA_RECUT_AUTHORIZED=NO`.
 Do not stamp band midpoints. Do not guess missing height.
 
 If Charles sets `ZONE_TEMPERATURE_CATALOG_RECUT=YES`, implement only from
-the demo table he approves in the version plan reply. Pair
-`product_target_temperature` with `room_design_temperature` on that table.
-Unmapped band → fail-closed.
+the completed V18-T1 table. Pair `product_target_temperature` with
+`room_design_temperature`. Unmapped zone → fail-closed. Do not stamp
+band midpoints.
 
-If Charles sets `ZONE_HEIGHT_CATALOG_RECUT=YES`, implement only from the
-demo height table he supplies. Missing / non-positive height stays
-fail-closed. V1.5 square-plan wall bind consumes the new height; do not
-re-derive wall area in Vue or Aily.
+`ZONE_HEIGHT_CATALOG_RECUT=YES`: stamp `room_height = 4.0` m on every
+refrigerated zone from V18-H1 (`source_type=demo`,
+`validity_status=unverified`, `requires_review=true`). Do not rewrite
+`samples/v05-local-workbench/manifest.json`. Missing / non-positive
+height stays fail-closed. V1.5 square-plan wall bind consumes the new
+height; do not re-derive wall area in Vue or Aily. The `4` in
+`wall = height × 4 × √A` is four square sides, not the 4.0 m catalog.
 
 Product mass per zone stays 20000 kg/day unless
 `ZONE_PRODUCT_MASS_CATALOG_RECUT=YES` (not requested for V1.8).
@@ -172,7 +177,7 @@ AILY_OUTBOUND_LIVE_SESSION=NO
 KEEP_COOLING_LOAD_VERSION=YES
 ZONE_THERMAL_INPUT_SURFACE=YES
 ZONE_TEMPERATURE_CATALOG_RECUT=NO
-ZONE_HEIGHT_CATALOG_RECUT=NO
+ZONE_HEIGHT_CATALOG_RECUT=YES
 ZONE_PRODUCT_MASS_CATALOG_RECUT=NO
 ZONE_THERMAL_CATALOG_RECUT=NO
 CAD_BIM_CONSTRUCTION_DRAWINGS=NO

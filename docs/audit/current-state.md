@@ -633,12 +633,12 @@ Do not move tags `v0.9.0` … `v1.7.0`.
 
 V1.8 freezes **surfacing bound cooling `room_design_temperature` and
 `room_height` per refrigerated zone** so operators can audit °C and m.
-Default catalog recut stays **NO**: today's assembler still stamps v05
-**−18.0 °C** and **5.0 m** on every refrigerated zone even though zone
-planning already has bands `8~10℃` / `1~3℃` / `-18℃`. Do not recut
+Default catalog recut stays **NO** for indoor temperature until Charles
+fills V18-T1 zone-by-zone. Height catalog recut is **YES**: Charles
+authorized **4.0 m** for every refrigerated zone. Do not recut
 `Q = U × A × ΔT`. Do not bump `cooling_load@1.0.0`. Do not invent band
-midpoints or per-zone heights. `V18_IMPLEMENTATION_AUTHORIZED=NO` until
-Charles replies 可以. `AILY_OUTBOUND_LIVE_SESSION=NO`.
+midpoints or extra per-zone heights. `V18_IMPLEMENTATION_AUTHORIZED=NO`
+until V18-T1 is complete and Charles replies 可以. `AILY_OUTBOUND_LIVE_SESSION=NO`.
 
 **Plan:** `docs/tasks/V1_8-version-plan.md`,
 `docs/tasks/V1_8-P0-zone-temperature-height-contract.md`,

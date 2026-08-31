@@ -71,7 +71,7 @@ def test_v18_keeps_frozen_operator_keys_and_calculator_identities() -> None:
     assert CALCULATOR_BINDINGS["cooling_load"] == "cooling_load"
 
 
-def test_v18_definition_freeze_surfaces_inputs_without_catalog_or_formula_recut() -> None:
+def test_v18_definition_freeze_surfaces_inputs_without_formula_or_temperature_recut() -> None:
     contract = CONTRACT_PATH.read_text(encoding="utf-8")
     plan = PLAN_PATH.read_text(encoding="utf-8")
     adr = ADR_PATH.read_text(encoding="utf-8")
@@ -80,7 +80,7 @@ def test_v18_definition_freeze_surfaces_inputs_without_catalog_or_formula_recut(
         "V18_P0_IMPLEMENTATION_AUTHORIZED=NO",
         "ZONE_THERMAL_INPUT_SURFACE=YES",
         "ZONE_TEMPERATURE_CATALOG_RECUT=NO",
-        "ZONE_HEIGHT_CATALOG_RECUT=NO",
+        "ZONE_HEIGHT_CATALOG_RECUT=YES",
         "ZONE_PRODUCT_MASS_CATALOG_RECUT=NO",
         "ZONE_THERMAL_CATALOG_RECUT=NO",
         "FORMULA_RECUT_AUTHORIZED=NO",
@@ -96,8 +96,10 @@ def test_v18_definition_freeze_surfaces_inputs_without_catalog_or_formula_recut(
     assert 'CALCULATOR_VERSION = "1.0.0"' in kernel
     assert "room_design_temperature" in plan
     assert "room_height" in plan
-    assert "−18.0 °C" in plan or "-18.0 °C" in plan
-    assert "5.0 m" in plan
+    assert "4.0 m" in plan
+    assert "V18-H1" in plan
+    assert "V18-T1" in plan
+    assert "*待填*" in plan
 
 
 def test_v18_aily_does_not_import_calculations_or_embed_formulas() -> None:
@@ -128,4 +130,5 @@ def test_v18_v17_skill_stays_frozen_without_catalog_recut() -> None:
     plan = PLAN_PATH.read_text(encoding="utf-8")
     assert "docs/contracts/aily/v1.7/**" in plan
     assert "ZONE_TEMPERATURE_CATALOG_RECUT=NO" in plan
-    assert "ZONE_HEIGHT_CATALOG_RECUT=NO" in plan
+    assert "ZONE_HEIGHT_CATALOG_RECUT=YES" in plan
+    assert "ZONE_HEIGHT_CATALOG_RECUT=NO" not in plan

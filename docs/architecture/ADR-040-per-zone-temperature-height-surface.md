@@ -44,20 +44,20 @@ table add the same two keys. Do not invent a second temperature scale.
 
 ### 4. Catalog recut is gated and must not guess
 
-Default:
-
 ```text
 ZONE_TEMPERATURE_CATALOG_RECUT=NO
-ZONE_HEIGHT_CATALOG_RECUT=NO
+ZONE_HEIGHT_CATALOG_RECUT=YES
 ZONE_PRODUCT_MASS_CATALOG_RECUT=NO
 ZONE_THERMAL_CATALOG_RECUT=NO
 ```
 
 Do not treat zone-plan band **midpoints** as design temperatures (V0.8).
-The repository has no second height catalog beyond v05 `5.0` m. Missing
-height stays fail-closed. If Charles later authorizes a temperature table,
-`product_target_temperature` follows `room_design_temperature` so product
-ΔT does not stay at −18 °C in a precooling room.
+Charles answers indoor °C **per refrigerated zone** (V18-T1); empty cells
+are not authority. Height is Charles-authorized demo **4.0 m** for every
+refrigerated zone (V18-H1), replacing v05 5.0 m on the operator-minimal
+path only. Missing height stays fail-closed. When the temperature table
+is complete, `product_target_temperature` follows
+`room_design_temperature`.
 
 ### 5. Identities unchanged
 
@@ -67,9 +67,8 @@ Five KEY stay `OperatorProcessInputV1@1.1.0`. Calculator identities stay
 
 ## Consequences
 
-- Operators can see that today's echoed °C / m are still the shared v05
-  demo leaves, next to zone-plan bands that already differ by zone.
-- Changing those numbers remains a later, gated catalog recut.
+- Operators can audit echoed °C / m. After implementation, height is 4.0 m
+  (Charles demo catalog). Indoor °C stays v05 −18 until V18-T1 is filled.
 - Old persisted cooling snapshots without the echo leaves still verify.
 
 ## Alternatives rejected
@@ -77,8 +76,8 @@ Five KEY stay `OperatorProcessInputV1@1.1.0`. Calculator identities stay
 1. Bump `cooling_load@1.0.0` and change formulas — out of scope.
 2. Silently stamp band midpoints (9 °C / 2 °C) — forbidden by V0.8 and
    AGENTS.md (do not guess missing engineering parameters).
-3. Invent per-zone heights (high-bay frozen vs low precool) — no repo
-   authority.
+3. Invent per-zone heights — Charles set one demo height (4.0 m) for all
+   refrigerated zones; do not further invent 6 m / 4.5 m.
 4. Recut product mass 20 t/zone in the same slice — Charles asked for
    temperature and height only.
 5. Recompute ΔT or wall area in Vue or Aily — forbidden.

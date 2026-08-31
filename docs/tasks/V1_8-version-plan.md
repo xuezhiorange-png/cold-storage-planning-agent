@@ -18,7 +18,7 @@ V18_IMPLEMENTATION_AUTHORIZED=NO
 V18_P0_IMPLEMENTATION_AUTHORIZED=NO
 ZONE_THERMAL_INPUT_SURFACE=YES
 ZONE_TEMPERATURE_CATALOG_RECUT=NO
-ZONE_HEIGHT_CATALOG_RECUT=NO
+ZONE_HEIGHT_CATALOG_RECUT=YES
 ZONE_PRODUCT_MASS_CATALOG_RECUT=NO
 ZONE_THERMAL_CATALOG_RECUT=NO
 KEEP_COOLING_LOAD_VERSION=YES
@@ -50,7 +50,7 @@ EXTEND_API_V1_AGENT_FOR_AILY=NO
 
 ## 1. 一句话
 
-产品身份仍是 **豆包工作伙伴**。V1.7 已发布。V1.8 让操作者能按区看到冷却真正用的 **室内设计温度 °C** 和 **层高 m**。内核公式不动，`cooling_load@1.0.0` 不 bump。默认**不改**现在每区共用的 −18°C / 5.0 m。
+产品身份仍是 **豆包工作伙伴**。V1.7 已发布。V1.8 让操作者能按区看到冷却真正用的 **室内设计温度 °C** 和 **层高 m**。内核公式不动，`cooling_load@1.0.0` 不 bump。Charles 已批：**九个制冷分区层高一律 4.0 m**。室内设计温度由 Charles **逐区作答**，表未填完前不改温度数字、不实现。
 
 ## 2. 今天实际怎么用（核对对象，不是要改的公式）
 
@@ -117,9 +117,11 @@ room_height                # m，内核该区实际使用的层高
 
 V1.7 五项冷量列保持。`temperature_level` 保持。历史只有五项的快照仍能解析（新列 optional）。设备血缘仍只绑 `zone_code` + `subtotal_load_kw_r`。
 
-诚实表注（建议，默认不改数字时）：
+诚实表注（建议；层高已批、温度表未齐）：
 
-**室内设计温度与层高按区回写冷却已用输入；各区目前仍共用 v05 演示目录（−18°C / 5.0 m），与分区规划温区字符串不是同一份数字，需复核。**
+**室内设计温度与层高按区回写冷却已用输入；层高为 Charles 演示目录 4.0 m（九个制冷分区共用）；室内设计温度在 Charles 逐区表填齐前不得改数字；U 值与货品质量仍为 v05 演示目录，需复核。**
+
+层高从 5.0 改为 4.0 后，V1.5 墙面积绑定会用新高度，冷量数字和 golden hash **会变**；仍不 bump `cooling_load@1.0.0`。墙面积公式里的 `4` 是正方形四边，**不是**层高 4 米。
 
 成功标志保持 V1.5 / V1.7：
 
@@ -131,49 +133,58 @@ formula_recut_authorized: true   # 历史 V1.5 几何重切，本版不再新授
 
 本版闸门 `FORMULA_RECUT_AUTHORIZED=NO`：不授权新的公式重切。
 
-只做露出、不改目录时，冷量数字和 golden hash **应保持不变**（只多两列）。
+高度目录已批、温度表未齐：在实现授权前不得改组装器。温度表填齐并回复「可以」后，层高重切会使墙面积与冷量数字变化。
 
-## 5. 目录重切（默认关，须 Charles 显式改闸门并批数字）
-
-默认：
+## 5. 目录重切
 
 ```text
 ZONE_TEMPERATURE_CATALOG_RECUT=NO
-ZONE_HEIGHT_CATALOG_RECUT=NO
+ZONE_HEIGHT_CATALOG_RECUT=YES
 ZONE_PRODUCT_MASS_CATALOG_RECUT=NO
 ZONE_THERMAL_CATALOG_RECUT=NO
 ```
 
-### 5.1 温度
+### 5.1 温度（Charles 逐区作答，表未齐）
 
-分区规划温区是**区间**（8~10℃、1~3℃），不是单点。V0.8 已写明：冷却不得把区间中点悄悄当成设计温度。
+分区规划温区是**区间**（8~10℃、1~3℃），不是单点。V0.8 已写明：冷却不得把区间中点悄悄当成设计温度。Charles 要求**每个制冷分区单独问温度**，由他作答。禁止用规划温区中点或冷端顶替。
 
-仓库里**没有**「8~10℃ → 某单点 °C」的已发布目录。因此：
+实现前必须填齐下表（空单元格不得当权威）。填齐后把 `ZONE_TEMPERATURE_CATALOG_RECUT` 改为 `YES`。`source_type=demo`，`validity_status=unverified`，`requires_review=true`，`source_path=docs/tasks/V1_8-version-plan.md#V18-T1`。
 
-- 禁止实现时用模型判断 8 / 9 / 10。
-- 若 Charles 把 `ZONE_TEMPERATURE_CATALOG_RECUT` 改为 `YES`，必须同时批一张演示表（`source_type=demo`，`validity_status=unverified`，`requires_review=true`）。
-- 为避免预冷间围护按 8~10℃、货品仍按冻到 −18℃，温度重切开启时 **`product_target_temperature` 与 `room_design_temperature` 用同一张表**。这不是公式重切。
-- 未映射温区 fail-closed，禁止猜。
+温度重切开启时 **`product_target_temperature` 与 `room_design_temperature` 用同一张表**。未映射分区 fail-closed，禁止猜。
 
-候选项（**未批准，不得当实现权威**；仅把已有温区字符串写成单点的两种读法）：
+<a id="V18-T1"></a>
 
-| 规划温区 | 候选项 A：区间冷端 | 候选项 B：继续今天 |
+| 分区 | 规划温区（仅对照，不是设计温度） | 室内设计温度 °C（Charles 填） |
 |---|---|---|
-| 8~10℃ | 8.0 °C | −18.0 °C |
-| 1~3℃ | 1.0 °C | −18.0 °C |
-| −18℃ | −18.0 °C | −18.0 °C |
+| 一级预冷间 | 8~10℃ | *待填* |
+| 二级预冷间 | 1~3℃ | *待填* |
+| 原果暂存间 | 8~10℃ | *待填* |
+| 分选包装间 | 8~10℃ | *待填* |
+| 覆膜间 | 1~3℃ | *待填* |
+| 成品间 | 1~3℃ | *待填* |
+| 次果暂存间 | 8~10℃ | *待填* |
+| 冻果间 | −18℃ | *待填* |
+| 出货通道 | 1~3℃ | *待填* |
 
-Charles 也可以另给表。中点 9 / 2 不是本文件的推荐，除非他指定。
+常温间不进冷量，不问冷却室内温度。
 
 温度重切会改变 ΔT，因而改变冷量数字和 golden hash；**仍不 bump** `cooling_load@1.0.0`。
 
-### 5.2 层高
+### 5.2 层高（Charles 已批）
 
-仓库只有 v05 **5.0 m**。没有按区 / 按温区的第二权威。
+<a id="V18-H1"></a>
 
-- 默认：九个制冷分区继续 5.0 m，但按区露出。
-- 若 Charles 把 `ZONE_HEIGHT_CATALOG_RECUT` 改为 `YES`，必须给演示层高表。禁止模型编 6 m / 4.5 m。
-- 层高若改，V1.5 墙面积绑定自动用新高度（公式已有，不重切）。缺层高仍 fail-closed。
+Charles 2026-08-31：**九个制冷分区层高都是 4 米。**
+
+```text
+room_height = 4.0 m
+source_type = demo
+validity_status = unverified
+requires_review = true
+source_path = docs/tasks/V1_8-version-plan.md#V18-H1
+```
+
+不再使用 v05 的 5.0 m 作为操作员最小路径层高。不要改 `samples/v05-local-workbench/manifest.json` 历史样本；组装器改读本计划。V1.5 墙面积绑定消费该 4.0 m（公式已有，不重切）。缺层高仍 fail-closed。常温间不进冷量，本闸门不给常温间编层高。
 
 ### 5.3 本版仍不改
 
@@ -195,18 +206,19 @@ zone_planning_inputs.auxiliary_packaging_storage_days
 
 | 切片 | 内容 |
 |---|---|
-| **P0** | 身份跟上 `v1.7.0`；本合同 + ADR（露出 T/H，目录重切默认关） |
-| **P1** | 快照回写 `room_design_temperature` / `room_height`；工作台读持久化结果。**仅当闸门 YES** 时组装器改目录 |
+| **P0** | 身份跟上 `v1.7.0`；本合同 + ADR（露出 T/H；层高 4.0 m 已批；温度表待 Charles） |
+| **P1** | 快照回写 `room_design_temperature` / `room_height`；工作台读持久化结果。层高组装器改 4.0 m；温度仅在表填齐且闸门 YES 后改 |
 | **P2** | 豆包分区表与工作台对齐；表注/测试；Aily 不 import calculations |
 | **P3** | v1.8 技能 + 手册；冻结 v1.7 技能；`v1.8.0` 仅 **main HEAD CI 绿** 后打 |
 
-## 8. 请 Charles 在「可以」时一并确认
+## 8. 还缺什么才实现
 
-1. **露出 T/H 两列** — 本版默认要做。  
-2. **温度是否改数字？** 默认否。若是：选冷端 8 / 1 / −18，或另给表；并确认货品目标温度跟室内设计温度走。  
-3. **层高是否改数字？** 默认否（继续 5.0 m）。若是：请给按区或按温区演示表。
+1. **露出 T/H 两列** — 要做。  
+2. **层高** — Charles 已批 4.0 m（`ZONE_HEIGHT_CATALOG_RECUT=YES`）。  
+3. **温度** — 逐区待填（上表 V18-T1）。填齐后改 `ZONE_TEMPERATURE_CATALOG_RECUT=YES`。货品目标温度跟室内设计温度走。  
+4. 表齐后仍须 Charles 回复 **「可以」** 才改代码。
 
-只回「可以」、不改闸门 → 只露出、不改 −18°C / 5.0 m。
+未填温度单元格禁止用规划温区或 −18 顶替。
 
 ## 9. 本版不做
 
