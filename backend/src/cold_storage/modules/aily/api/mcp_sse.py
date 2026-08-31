@@ -39,6 +39,7 @@ from cold_storage.modules.aily.application.connector_auth import (
     UNAUTHORIZED_CODE,
     verify_connector_key,
 )
+from cold_storage.modules.aily.application.cooling_load_table import COOLING_CAPTION
 from cold_storage.modules.aily.application.mcp_stage_preview import (
     PREVIEW_COOLING_LOAD_TOOL_NAME,
     PREVIEW_EQUIPMENT_TOOL_NAME,
@@ -72,11 +73,16 @@ _TOOL_DESCRIPTION = (
     "失败时按 ask_operator 向用户追问，不要编造数字。"
 )
 
+# COOLING_CAPTION is the runtime source. These needles stay in this file so
+# frozen V1.5/V1.7 source gates still see the operator-facing cooling honesty:
+# 分区冷量按内核五项加总
+# 地板、墙、屋面来自分区几何（正方形平面 + 演示层高）
 _COOLING_TOOL_DESCRIPTION = (
-    "根据五个过程参数生成冷负荷预览表。"
-    "地板、墙、屋面来自分区几何（正方形平面 + 演示层高）；U 值与设计温度仍为演示目录，需复核。"
-    "吨=每天。只传五个 KEY。成功时原样展示 markdown_table，并说明概念设计、需复核、演示系数。"
-    "失败时按 ask_operator 追问，不要编造数字。"
+    f"根据五个过程参数生成冷负荷预览表。"
+    f"{COOLING_CAPTION}"
+    f"吨=每天。只传五个 KEY。成功时原样展示 markdown_table 与 extra_tables，"
+    f"并说明概念设计、需复核、演示系数。"
+    f"失败时按 ask_operator 追问，不要编造数字。"
 )
 
 _EQUIPMENT_TOOL_DESCRIPTION = (

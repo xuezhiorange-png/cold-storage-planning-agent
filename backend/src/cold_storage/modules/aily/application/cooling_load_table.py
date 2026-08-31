@@ -1,14 +1,21 @@
-"""Project cooling-load calculator output into a conversation table."""
+"""Project cooling-load calculator output into a conversation table.
+
+Copies already-calculated plant totals and per-zone kernel fields.
+Does not recompute envelope, product, infiltration, internal, or defrost loads.
+"""
 
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, TypedDict
 
-_COOLING_CAPTION = (
-    "冷负荷预览（地板、墙、屋面来自分区几何（正方形平面 + 演示层高）；"
-    "U 值与设计温度仍为演示目录，需复核）"
+COOLING_CAPTION = (
+    "冷负荷预览（分区冷量按内核五项加总；"
+    "地板、墙、屋面来自分区几何（正方形平面 + 演示层高）；"
+    "U 值与设计温度仍为演示目录，货品热工各区目前共用 v05 演示目录，需复核）"
 )
+
+_ZONE_EXTRA_CAPTION = "分区冷量（按内核五项加总；面积来自分区几何；U 值与货品热工仍为演示目录）"
 
 _COMPONENT_ROWS: tuple[tuple[str, str], ...] = (
     ("envelope_heat_transfer_load_kw", "围护传热"),
@@ -21,6 +28,26 @@ _COMPONENT_ROWS: tuple[tuple[str, str], ...] = (
     ("defrost_additional_load_kw", "融霜附加"),
     ("other_configuration_load_kw", "其他"),
     ("safety_margin_load_kw", "安全裕量"),
+)
+
+
+class _ZoneColumn(TypedDict):
+    key: str
+    label: str
+    unit: str | None
+
+
+# Same keys as frontend COOLING_ZONE_COLUMNS (copy fields; no formulas).
+_ZONE_COLUMNS: tuple[_ZoneColumn, ...] = (
+    {"key": "zone_code", "label": "区域编码", "unit": None},
+    {"key": "zone_name", "label": "区域名称", "unit": None},
+    {"key": "temperature_level", "label": "温区等级", "unit": None},
+    {"key": "transmission_load_kw_r", "label": "传热负荷", "unit": "kW(r)"},
+    {"key": "product_load_kw_r", "label": "产品负荷", "unit": "kW(r)"},
+    {"key": "infiltration_load_kw_r", "label": "渗透负荷", "unit": "kW(r)"},
+    {"key": "internal_load_kw_r", "label": "内部负荷", "unit": "kW(r)"},
+    {"key": "defrost_load_kw_r", "label": "化霜负荷", "unit": "kW(r)"},
+    {"key": "subtotal_load_kw_r", "label": "小计冷负荷", "unit": "kW(r)"},
 )
 
 
@@ -42,33 +69,18 @@ def project_cooling_load_table(payload: Mapping[str, Any]) -> dict[str, Any]:
     }
 
     extra_tables: list[dict[str, Any]] = []
-    zones = payload.get("zones")
-    if isinstance(zones, Sequence) and not isinstance(zones, (str, bytes)) and zones:
-        zone_rows = []
-        for zone in zones:
-            if not isinstance(zone, Mapping):
-                continue
-            zone_rows.append(
-                {
-                    "zone_code": zone.get("zone_code"),
-                    "zone_name": zone.get("zone_name"),
-                    "subtotal_load_kw_r": zone.get("subtotal_load_kw_r"),
-                }
-            )
-        if zone_rows:
-            extra_tables.append(
-                {
-                    "caption": "分区小计（地板、墙、屋面来自分区几何；U 值仍为演示目录）",
-                    "columns": [
-                        {"key": "zone_name", "label": "分区", "unit": None},
-                        {"key": "subtotal_load_kw_r", "label": "小计", "unit": "kW(r)"},
-                    ],
-                    "rows": zone_rows,
-                }
-            )
+    zone_rows = _zone_component_rows(payload)
+    if zone_rows:
+        extra_tables.append(
+            {
+                "caption": _ZONE_EXTRA_CAPTION,
+                "columns": [dict(column) for column in _ZONE_COLUMNS],
+                "rows": zone_rows,
+            }
+        )
 
     return {
-        "caption": _COOLING_CAPTION,
+        "caption": COOLING_CAPTION,
         "columns": [
             {"key": "component", "label": "负荷分项", "unit": None},
             {"key": "load_kw", "label": "冷量", "unit": "kW(r)"},
@@ -76,11 +88,27 @@ def project_cooling_load_table(payload: Mapping[str, Any]) -> dict[str, Any]:
         "rows": rows,
         "summary": summary,
         "extra_tables": extra_tables,
-        "markdown_table": _markdown_table(rows, total),
+        "markdown_table": _markdown_table(rows, total, zone_rows),
     }
 
 
-def _markdown_table(rows: Sequence[Mapping[str, Any]], total: Any) -> str:
+def _zone_component_rows(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
+    zones = payload.get("zones")
+    if not isinstance(zones, Sequence) or isinstance(zones, (str, bytes)) or not zones:
+        return []
+    zone_rows: list[dict[str, Any]] = []
+    for zone in zones:
+        if not isinstance(zone, Mapping):
+            continue
+        zone_rows.append({column["key"]: zone.get(column["key"]) for column in _ZONE_COLUMNS})
+    return zone_rows
+
+
+def _markdown_table(
+    rows: Sequence[Mapping[str, Any]],
+    total: Any,
+    zone_rows: Sequence[Mapping[str, Any]],
+) -> str:
     lines = [
         "| 负荷分项 | 冷量 kW(r) |",
         "|---|---|",
@@ -89,11 +117,17 @@ def _markdown_table(rows: Sequence[Mapping[str, Any]], total: Any) -> str:
         lines.append(f"| {_cell(row.get('component'))} | {_cell(row.get('load_kw'))} |")
     if total is not None:
         lines.append(f"| **合计** | **{_cell(total)}** |")
+    if zone_rows:
+        lines.append("")
+        lines.append(f"**{_ZONE_EXTRA_CAPTION}**")
+        header = " | ".join(str(column["label"]) for column in _ZONE_COLUMNS)
+        lines.append(f"| {header} |")
+        lines.append("|" + "|".join("---" for _ in _ZONE_COLUMNS) + "|")
+        for zone in zone_rows:
+            cells = " | ".join(_cell(zone.get(column["key"])) for column in _ZONE_COLUMNS)
+            lines.append(f"| {cells} |")
     lines.append("")
-    lines.append(
-        "> 地板、墙、屋面来自分区几何（正方形平面 + 演示层高）；"
-        "U 值与设计温度仍为演示目录，需复核。"
-    )
+    lines.append(f"> {COOLING_CAPTION}")
     return "\n".join(lines)
 
 

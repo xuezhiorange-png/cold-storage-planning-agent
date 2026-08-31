@@ -13,8 +13,9 @@ This audit records the repository exactly as found on the preserved baseline.
 > §37 for V1.3 conversation preview lineage (complete at `v1.3.0`);
 > §38 for V1.4 operator workbench debt (complete at `v1.4.0`);
 > §39 for V1.5 envelope wall/roof geometry bind (complete at `v1.5.0`);
-> §40 for V1.6 power-fan demo catalog
-> (`docs/tasks/V1_6-version-plan.md`).
+> §40 for V1.6 power-fan demo catalog (complete at `v1.6.0`);
+> §41 for V1.7 per-zone cooling component surface
+> (`docs/tasks/V1_7-version-plan.md`).
 > Prior contract: `docs/tasks/V0_7-P0-trust-loop-contract.md`.
 > V0.9 contract: `docs/tasks/V0_9-P0-version-contract.md`.
 > Released contract: `docs/tasks/V1_2-P0-aily-five-stage-preview-contract.md`.
@@ -588,20 +589,41 @@ GitHub Release `v1.5.0`).
 Do not move tags `v0.9.0`, `v1.0.0`, `v1.1.0`, `v1.2.0`, `v1.3.0`,
 `v1.4.0`, or `v1.5.0`.
 
-## 40. V1.6 power-fan demo catalog (implementation authorized)
+## 40. V1.6 shipped at `v1.6.0`
 
-V1.6 authorizes **catalog authority only** for evaporator/condenser fan
-electrical kW(e): read `10.0` / `8.0` from
+V1.6 power-fan demo catalog is **complete** at `v1.6.0`
+(`cd702b0abde2189c1626527bcef1086fa330238c`): evaporator/condenser fan
+electrical kW(e) read `10.0` / `8.0` from
 `samples/v05-local-workbench/manifest.json` via a shared loader used by the
 operator-minimal assembler and Aily preview. Kernel
 `InstalledPowerCalcInput` fan defaults stay `0` / `0`. Compressor electrical
 still binds from equipment (`power_from_demo_catalog: false`). Do not invent
 fan kW(e) from equipment. Do not treat v05 compressor `120.0` as operator
-authority. Do not unify nine-zone equipment from v05 `Z1`.
-`installed_power@1.0.0` is not bumped (`KEEP_INSTALLED_POWER_VERSION=YES`).
+authority. `installed_power@1.0.0` is not bumped.
 `AILY_OUTBOUND_LIVE_SESSION=NO`.
 
-**Plan:** `docs/tasks/V1_6-version-plan.md`,
+**Released umbrella:** V1.6 (`docs/tasks/V1_6-version-plan.md`,
 `docs/tasks/V1_6-P0-power-fan-catalog-contract.md`,
-`docs/architecture/ADR-038-v05-power-fan-demo-catalog.md`.
+`docs/architecture/ADR-038-v05-power-fan-demo-catalog.md`,
+GitHub Release `v1.6.0`).
+**Skill / runbook:** `docs/contracts/aily/v1.6/**`,
+`docs/runbooks/v16-doubao-aily-connector.md`.
+Do not move tags `v0.9.0` … `v1.6.0`.
+
+## 41. V1.7 per-zone cooling component surface (implementation authorized)
+
+V1.7 authorizes **surfacing existing kernel zone components** for operator
+audit: persist and display transmission / product / infiltration / internal /
+defrost plus subtotal per refrigerated zone. Do not recut
+`Q = U × A × ΔT`. Do not bump `cooling_load@1.0.0`. Do not retune the
+shared v05 zone thermal catalog. Workbench persist and 豆包 preview use the
+same adapter payload. `AILY_OUTBOUND_LIVE_SESSION=NO`.
+
+**Plan:** `docs/tasks/V1_7-version-plan.md`,
+`docs/tasks/V1_7-P0-zone-cooling-surface-contract.md`,
+`docs/architecture/ADR-039-per-zone-cooling-component-surface.md`.
+**Skill / runbook:** `docs/contracts/aily/v1.7/**`,
+`docs/runbooks/v17-doubao-aily-connector.md`.
+V1.6 skill `docs/contracts/aily/v1.6/**` stays frozen.
+Do not move tags `v0.9.0` … `v1.6.0`.
 

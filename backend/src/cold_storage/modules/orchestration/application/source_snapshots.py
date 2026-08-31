@@ -511,16 +511,37 @@ class ZoneResultSnapshotV1(BaseModel):
 
 
 class CoolingLoadZoneResultV1(BaseModel):
-    """Per-zone cooling load persisted for downstream lineage binding."""
+    """Per-zone cooling load persisted for audit and downstream lineage binding."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     zone_code: str
+    zone_name: str | None = None
+    temperature_level: str | None = None
+    transmission_load_kw_r: str | None = None
+    product_load_kw_r: str | None = None
+    infiltration_load_kw_r: str | None = None
+    internal_load_kw_r: str | None = None
+    defrost_load_kw_r: str | None = None
     subtotal_load_kw_r: str
 
     @field_validator("subtotal_load_kw_r", mode="before")
     @classmethod
     def _coerce_zone_subtotal(cls, v: object) -> str:
+        return _coerce_to_canonical_string(v)
+
+    @field_validator(
+        "transmission_load_kw_r",
+        "product_load_kw_r",
+        "infiltration_load_kw_r",
+        "internal_load_kw_r",
+        "defrost_load_kw_r",
+        mode="before",
+    )
+    @classmethod
+    def _coerce_optional_zone_load(cls, v: object) -> str | None:
+        if v is None:
+            return None
         return _coerce_to_canonical_string(v)
 
 
@@ -531,7 +552,8 @@ class CoolingLoadResultSnapshotV1(BaseModel):
     - total_cooling_load_kw
     - safety_margin_load_kw
     - Individual component load fields
-    - Optional per-zone subtotals for equipment lineage binding
+    - Optional per-zone components for operator audit (V1.7); subtotal
+      remains the equipment lineage bind key
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")

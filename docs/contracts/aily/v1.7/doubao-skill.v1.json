@@ -1,0 +1,167 @@
+{
+  "schema_id": "doubao_skill_pack",
+  "schema_version": "1.7.0",
+  "contract_family": "aily/v1.7",
+  "title": "冷库规划助手 — 豆包工作伙伴 Skill（V1.7）",
+  "language": "zh-CN",
+  "paste_ready_markdown": "docs/contracts/aily/v1.7/doubao-skill.v1.md",
+  "governance": {
+    "AILY_OUTBOUND_LIVE_SESSION": "NO",
+    "FORMULA_RECUT_AUTHORIZED": "NO",
+    "KEEP_AILY_V16_SKILL_FROZEN": "YES",
+    "KEEP_AILY_V17_SKILL": "YES",
+    "COOLING_ZONE_COMPONENT_SURFACE": "YES",
+    "ZONE_THERMAL_CATALOG_RECUT": "NO",
+    "KEEP_COOLING_LOAD_VERSION": "YES",
+    "FAN_KW_FROM_EQUIPMENT": "NO",
+    "TD008_POWER_FAN_DEMO_AUTHORITY": "YES",
+    "TD008_EQUIPMENT_CATALOG_UNIFIED": "NO",
+    "DO_NOT_BUMP_ZONE_PLAN_VERSION": "YES",
+    "KEEP_EQUIPMENT_VERSION": "YES",
+    "KEEP_INSTALLED_POWER_VERSION": "YES",
+    "KEEP_INVESTMENT_VERSION": "YES",
+    "AGENT_TO_ENGINEERING_VALUE": "NO",
+    "MARK_REVIEWED_AS_MODEL_TOOL": "NO",
+    "PRODUCTION_RBAC_CLAIM": "NO"
+  },
+  "calculator_identities": [
+    {"name": "cold_room_zone_plan", "version": "1.0.0"},
+    {"name": "cooling_load", "version": "1.0.0"},
+    {"name": "equipment", "version": "1.0.0"},
+    {"name": "installed_power", "version": "1.0.0"},
+    {"name": "investment_estimate", "version": "1.0.0"}
+  ],
+  "operator_schema": {
+    "schema_id": "OperatorProcessInputV1",
+    "schema_version": "1.1.0"
+  },
+  "semantics": {
+    "tonne_means": "per_day",
+    "nlp_owner": "doubao",
+    "system_parses_chat": false,
+    "example_utterance_only": "要建一个多少吨的加工厂"
+  },
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/api/v1/aily/v1/zone-plan",
+      "role": "zone_plan_preview"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/aily/v1/concept-preview",
+      "role": "five_stage_preview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/demo/power-fan-catalog",
+      "role": "demo_fan_catalog"
+    }
+  ],
+  "forbidden_paths": ["/api/v1/agent/**"],
+  "mcp": {
+    "transport": "streamable_http",
+    "path": "/api/v1/aily/v1/mcp/sse",
+    "tools_in_order": [
+      "preview_zone_plan",
+      "preview_cooling_load",
+      "preview_equipment",
+      "preview_installed_power",
+      "preview_investment"
+    ]
+  },
+  "cooling_honesty": {
+    "demo_envelope_u_values": true,
+    "floor_area_from_zone_plan": true,
+    "envelope_wall_roof_from_plan": true,
+    "formula_recut_authorized": true,
+    "zone_component_surface": true,
+    "zone_thermal_catalog_recut": false,
+    "user_disclaimer_zh": "分区冷量按内核五项加总；地板、墙、屋面来自分区几何（正方形平面 + 演示层高）；U 值与设计温度仍为演示目录，货品热工各区目前共用 v05 演示目录，需复核"
+  },
+  "equipment_honesty": {
+    "bind_cooling_subtotals_in_memory": true,
+    "field_copy_only": true,
+    "user_disclaimer_zh": "设备预览在内存拷贝冷负荷分区 subtotal_load_kw_r，不持久化"
+  },
+  "power_honesty": {
+    "power_from_demo_catalog": false,
+    "compressor_from_equipment_electrical": true,
+    "fan_leaves_from_v05_demo_catalog": true,
+    "fan_kw_from_equipment": false,
+    "evaporator_fan_power_kw_e": "10.0",
+    "condenser_fan_power_kw_e": "8.0",
+    "catalog_source": "samples/v05-local-workbench/manifest.json",
+    "user_disclaimer_zh": "蒸发/冷凝风机电气来自 v05 演示目录（10 / 8 kW(e)），不是设备结果，需复核"
+  },
+  "investment_honesty": {
+    "investment_from_demo_catalog": false,
+    "bind_zone_and_power_lineage": true,
+    "user_disclaimer_zh": "投资面积与功率来自分区规划与装机功率，不是演示占位"
+  },
+  "operator_keys": [
+    {
+      "field": "daily_inbound_mass_kg",
+      "unit": "kg/day",
+      "ask_operator_zh": "每天进货量（公斤/天；1吨/天=1000公斤/天）",
+      "conversion": {
+        "from": "吨/天",
+        "multiply_by": 1000,
+        "note": "豆包必须在调用前完成换算"
+      }
+    },
+    {
+      "field": "finished_storage_days",
+      "unit": "day",
+      "ask_operator_zh": "成品存放天数"
+    },
+    {
+      "field": "frozen_storage_days",
+      "unit": "day",
+      "ask_operator_zh": "冻果存放天数"
+    },
+    {
+      "field": "main_packaging_storage_days",
+      "unit": "day",
+      "ask_operator_zh": "主包材存放天数"
+    },
+    {
+      "field": "auxiliary_packaging_storage_days",
+      "unit": "day",
+      "ask_operator_zh": "辅包材存放天数"
+    }
+  ],
+  "response_handling": {
+    "success_status": 200,
+    "display_fields": ["markdown_table", "extra_tables"],
+    "user_disclaimer_zh": "概念设计，需要复核，演示系数，不是施工图",
+    "error_status": 400,
+    "error_fields": ["ask_operator", "missing_keys"],
+    "on_error": "ask_user_for_missing_keys_no_guessing"
+  },
+  "self_check": {
+    "tools_list_must_include": [
+      "preview_zone_plan",
+      "preview_cooling_load",
+      "preview_equipment",
+      "preview_installed_power",
+      "preview_investment"
+    ],
+    "tools_call_smoke": ["preview_cooling_load", "preview_investment"]
+  },
+  "forbidden_model_tools": [
+    "mark_reviewed",
+    "approve",
+    "report.mark_reviewed",
+    "report.approve"
+  ],
+  "forbidden_behaviors": [
+    "compute_area_in_prompt",
+    "compute_cooling_load_in_prompt",
+    "send_chat_text_as_request_body",
+    "invent_engineering_numbers",
+    "infer_kw_e_from_kw_r_over_cop",
+    "invent_fan_kw_e_from_equipment",
+    "compute_wall_or_roof_area_in_prompt"
+  ]
+}
