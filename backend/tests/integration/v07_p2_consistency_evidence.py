@@ -470,7 +470,15 @@ def build_golden_snapshot(evidence: CrossConsumerEvidence) -> dict[str, Any]:
 
 def assert_matches_golden(evidence: CrossConsumerEvidence, golden: dict[str, Any]) -> None:
     snapshot = build_golden_snapshot(evidence)
-    assert snapshot["payload_result_hashes"] == golden["payload_result_hashes"]
+    left = snapshot["payload_result_hashes"]
+    right = golden["payload_result_hashes"]
+    if left != right:
+        delta = {
+            key: (left.get(key), right.get(key))
+            for key in sorted(set(left) | set(right))
+            if left.get(key) != right.get(key)
+        }
+        raise AssertionError(f"payload_result_hashes mismatch: {delta}")
     assert snapshot["selected_numeric_projections"] == golden["selected_numeric_projections"]
 
 
