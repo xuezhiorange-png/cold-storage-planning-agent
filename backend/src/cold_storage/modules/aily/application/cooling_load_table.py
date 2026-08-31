@@ -30,6 +30,7 @@ _COMPONENT_ROWS: tuple[tuple[str, str], ...] = (
     ("safety_margin_load_kw", "安全裕量"),
 )
 
+
 class _ZoneColumn(TypedDict):
     key: str
     label: str
