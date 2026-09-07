@@ -16,28 +16,51 @@
 > V1.5 cooling envelope wall/roof geometry bind is **complete at `v1.5.0`**.
 > V1.6 power-fan demo catalog is **complete at `v1.6.0`**. V1.7 per-zone
 > cooling component surface is **complete at `v1.7.0`**. V1.8 per-zone
-> temperature and height remains the previous authorized implementation lane.
-> **Active umbrella:** V1.9 P0 per-zone minimum cooling-estimation basis
-> contract (`docs/tasks/V1_9-version-plan.md`,
-> `PER_ZONE_COOLING_ESTIMATION_BASIS`; runtime implementation not authorized).
-> Later umbrellas (V1.9 P1 runtime implementation, outbound live Aily session,
-> remaining TD-008 equipment catalogs, and zone thermal catalog recut) stay
-> unauthorized until Charles dispatches.
+> temperature and height remains complete at its authorized implementation
+> lane. **V1.9 implementation is complete on `main@675fa8adfc58e2362101079d83393e90706505b2`**:
+> the P0 contract is frozen, P1 is merged through PR #254, the report
+> projection regression is closed, and the V0.7 golden controlled evolution is
+> complete. The active governance stage is V1.9 release closure for `v1.9.0`;
+> the release remains gated on the closure PR merge and green main HEAD CI.
+> Later feature umbrellas (outbound live Aily session, remaining TD-008
+> equipment catalogs, and zone thermal catalog recut) stay unauthorized until
+> Charles dispatches.
 
-## Active V1.9 P0 Contract Freeze
+## V1.9 P0 Contract Freeze (complete)
 
 V1.9 P0 freezes the nine-zone minimum-estimation reference matrix and reuses
 the existing `zone_plan.result.zones[]` lineage. Pre-cooling uses final
 `position_count`; area-type zones use canonical `required_area_m2` with the
 semantic `PLANNED_ZONE_AREA`. The output semantic is
 `minimum_estimated_cooling_load_kw_r` and must be expressed as not less than
-the reference basis. This lane is docs/contract/architecture-test only:
-`RUNTIME_IMPLEMENTATION_AUTHORIZED=NO`, `COOLING_LOAD_FORMULA_RECUT_AUTHORIZED=NO`,
-and `V19_P1_AUTHORIZED=NO`.
+the reference basis. The P0 contract is frozen. Its historical authorization
+flags remain preserved in the P0 contract document; the separately authorized
+P1 implementation is now merged and complete. No cooling-load formula recut is
+authorized.
 
 **P0 documents:** `docs/tasks/V1_9-version-plan.md`,
 `docs/tasks/V1_9-P0-per-zone-cooling-estimation-basis-contract.md`, and
 `docs/architecture/ADR-041-per-zone-cooling-estimation-basis.md`.
+
+## V1.9 Implementation Closure
+
+```text
+V19_STATUS=IMPLEMENTATION_COMPLETE
+P0_CONTRACT_FROZEN=YES
+P1_IMPLEMENTATION_MERGED=YES
+PR254_MERGED=YES
+PR254_MERGE_SHA=675fa8adfc58e2362101079d83393e90706505b2
+REPORT_PROJECTION_REGRESSION=CLOSED
+V07_GOLDEN_EVOLUTION=COMPLETE
+RUNTIME_RULE_COUNT=9
+V1_9_0_RELEASE_READY=YES
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The release-closure PR is documentation and governance only. It must remain
+Draft until separately reviewed; do not create or move `v1.9.0` until that PR
+is merged and main HEAD CI is green.
 
 ## Task 0: Local Baseline, Repository Audit, And Governance
 

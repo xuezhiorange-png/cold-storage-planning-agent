@@ -15,21 +15,22 @@
 > `v1.4.0`. V1.5 envelope wall/roof geometry is complete at `v1.5.0`.
 > V1.6 power-fan demo catalog is complete at `v1.6.0`.
 > V1.7 per-zone cooling component surface is complete at `v1.7.0`.
-> V1.8 per-zone temperature and height remains the previous authorized
-> implementation lane. **Active umbrella:** V1.9 P0
-> `PER_ZONE_COOLING_ESTIMATION_BASIS`
-> (`docs/tasks/V1_9-version-plan.md`; contract/architecture-test only).
-> Later umbrellas (V1.9 P1 runtime implementation, outbound live Aily session,
-> remaining TD-008 equipment catalogs, zone thermal catalog recut) stay
-> unauthorized until Charles dispatches.
+> V1.8 per-zone temperature and height is complete. **V1.9 implementation is
+> complete** on `main@675fa8adfc58e2362101079d83393e90706505b2`: the P0 contract
+> is frozen, P1 is merged through PR #254, the report projection regression is
+> closed, and the V0.7 golden controlled evolution is complete. The active
+> governance stage is release closure for `v1.9.0`; later feature umbrellas
+> (outbound live Aily session, remaining TD-008 equipment catalogs, and zone
+> thermal catalog recut) stay unauthorized until Charles dispatches.
 
 ## P0
 
-No runtime P0 issue is opened by this lane. The active governance item is the
-V1.9 P0 contract freeze: it records the nine-zone minimum-estimation basis,
-reuses existing zone-plan lineage, and intentionally leaves implementation
-unauthorized. The earlier wrong-remote configuration was corrected before
-baseline push and is not a remaining repository state issue.
+No runtime P0 issue is opened by this lane. The V1.9 P0 contract records the
+frozen nine-zone minimum-estimation basis and reuses existing zone-plan
+lineage. Its historical authorization snapshot remains preserved, while the
+separately authorized P1 implementation is now merged and complete. The
+earlier wrong-remote configuration was corrected before baseline push and is
+not a remaining repository state issue.
 
 ## P1
 

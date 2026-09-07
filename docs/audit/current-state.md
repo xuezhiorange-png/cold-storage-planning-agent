@@ -703,6 +703,45 @@ MIGRATION_CREATED=NO
 PR252_STATE_CHANGED=NO
 ```
 
-The next required stage is `CHARLES_V19_P1_IMPLEMENTATION_REVIEW`; this audit
-entry does not authorize Ready, Merge, release, or the next equipment/display
-lane.
+At the time of the pre-merge implementation handoff, the next required stage
+was `CHARLES_V19_P1_IMPLEMENTATION_REVIEW`; the current merged state is
+recorded in §45. That historical handoff did not authorize the next
+equipment/display lane.
+
+## 45. V1.9 release-closure truth-up (`main@675fa8adfc58e2362101079d83393e90706505b2`)
+
+Fresh repository verification confirms that `origin/main` is exactly
+`675fa8adfc58e2362101079d83393e90706505b2` with tree
+`71e726710d7df97fb6c2ea1b8e8cfbe080c232f9`. PR #254 is merged, with merge SHA
+equal to that main commit. Its exact-head CI run `34113336197` concluded
+SUCCESS; SQLite and PostgreSQL backend jobs, architecture tests, lint,
+typecheck, frontend, Compose, recovery, and release-evidence checks are green.
+
+The V1.9 current governance state is:
+
+```text
+V19_STATUS=IMPLEMENTATION_COMPLETE
+P0_CONTRACT_FROZEN=YES
+P1_IMPLEMENTATION_MERGED=YES
+PR254_MERGED=YES
+PR254_NUMBER=254
+PR254_MERGE_SHA=675fa8adfc58e2362101079d83393e90706505b2
+PR254_EXACT_HEAD_CI_RUN=34113336197
+PR254_EXACT_HEAD_CI=SUCCESS
+RUNTIME_RULE_COUNT=9
+REPORT_PROJECTION_REGRESSION=CLOSED
+V07_GOLDEN_EVOLUTION=COMPLETE
+V1_9_0_RELEASE_READY=YES
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The merged PR preserved the nine P1 runtime rules and closed the report
+projection regression by keeping V1.9 provenance in the persisted/source zone
+snapshot while excluding it from the legacy report projection. The V0.7 raw
+zone-snapshot golden was evolved under the merged P1 contract; the remaining
+golden hashes and numeric projection assertions stayed unchanged.
+
+The release-closure change is documentation/governance only. `v1.9.0` has not
+been created or moved: tag/release execution remains gated on the closure PR
+being merged and main HEAD CI being green. No next feature lane is authorized.

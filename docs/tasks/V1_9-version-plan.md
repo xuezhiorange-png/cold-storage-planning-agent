@@ -1,10 +1,26 @@
-# V1.9 版本计划：冻结依据与逐区域最低冷量估算实现
+# V1.9 版本计划：冻结依据、逐区域最低冷量估算实现与发布闭环
 
-**状态：** V1.9 P0 文档契约保持冻结；V1.9 P1 已由 Charles 单独授权并在当前 Draft 分支完成最小运行时实现，等待 `CHARLES_V19_P1_IMPLEMENTATION_REVIEW`。
+**状态：** V1.9 P0 文档契约保持冻结；V1.9 P1 已由 Charles 单独授权并通过 PR #254 合并到 `main`，报告投影回归已关闭，V1.9 实现完成并具备 `v1.9.0` 发布就绪状态。
 **上一版本：** V1.8 per-zone temperature and height（实现已授权，但本计划不改其运行时）。
-**本分支基线：** `main@a04aac1ac2309cfbce500ead13cfc2fc4ab176ac`，tree `2b92afddaffcd9e6d289477e37a58b8d54fcd786`。
+**当前主线：** `main@675fa8adfc58e2362101079d83393e90706505b2`，tree `71e726710d7df97fb6c2ea1b8e8cfbe080c232f9`。
 **权威来源：** `CHARLES_CONFIRMED_ENGINEERING_REFERENCE`。
 **产品方向：** `PER_ZONE_COOLING_ESTIMATION_BASIS`。
+
+```text
+V19_STATUS=IMPLEMENTATION_COMPLETE
+P0_CONTRACT_FROZEN=YES
+P1_IMPLEMENTATION_MERGED=YES
+PR254_MERGED=YES
+PR254_MERGE_SHA=675fa8adfc58e2362101079d83393e90706505b2
+PR254_EXACT_HEAD_CI_RUN=34113336197
+PR254_EXACT_HEAD_CI=SUCCESS
+REPORT_PROJECTION_REGRESSION=CLOSED
+V07_GOLDEN_EVOLUTION=COMPLETE
+RUNTIME_RULE_COUNT=9
+V1_9_0_RELEASE_READY=YES
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
 
 本版只定义并冻结九个制冷分区的**最低估算制冷量依据**。结果字段统一为
 `minimum_estimated_cooling_load_kw_r`，该最低计算值**等于**冻结依据；未来选定或设计的制冷能力必须“**不小于**”该最低值。它不是详细热负荷算法、正式热工设计值或设备选型输入。
@@ -169,6 +185,8 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 P1 只消费已完成的 zone-plan `position_count` / `required_area_m2`，向九个
 制冷区追加 `minimum_estimated_cooling_load_kw_r` 与
 `cooling_estimation_basis`。它不修改 `cooling_load`、设备/功率/投资、前端、
-迁移或五阶段 `CalculationType`。完成当前 Draft PR 后停止于
-`CHARLES_V19_P1_IMPLEMENTATION_REVIEW`；不得 Ready、Merge、发布或开始下一
-展示/设备选型阶段。
+迁移或五阶段 `CalculationType`。PR #254 已在
+`675fa8adfc58e2362101079d83393e90706505b2` 合并，指定 exact-head CI
+`34113336197` 为 SUCCESS；报告投影回归已关闭，V0.7 golden controlled
+evolution 已完成。当前进入 V1.9 发布闭环；不得把该状态推断为下一展示、
+设备选型或其他 feature lane 已授权。
