@@ -15,12 +15,29 @@
 > `v1.3.0`**. V1.4 operator workbench debt is **complete at `v1.4.0`**.
 > V1.5 cooling envelope wall/roof geometry bind is **complete at `v1.5.0`**.
 > V1.6 power-fan demo catalog is **complete at `v1.6.0`**. V1.7 per-zone
-> cooling component surface is **complete at `v1.7.0`**. **Active
-> umbrella:** V1.8 per-zone temperature and height
-> (`docs/tasks/V1_8-version-plan.md`, `V18_IMPLEMENTATION_AUTHORIZED=YES`).
-> Later umbrellas (outbound live Aily session, remaining TD-008 equipment
-> catalogs, zone thermal catalog recut) stay unauthorized until Charles
-> dispatches.
+> cooling component surface is **complete at `v1.7.0`**. V1.8 per-zone
+> temperature and height remains the previous authorized implementation lane.
+> **Active umbrella:** V1.9 P0 per-zone minimum cooling-estimation basis
+> contract (`docs/tasks/V1_9-version-plan.md`,
+> `PER_ZONE_COOLING_ESTIMATION_BASIS`; runtime implementation not authorized).
+> Later umbrellas (V1.9 P1 runtime implementation, outbound live Aily session,
+> remaining TD-008 equipment catalogs, and zone thermal catalog recut) stay
+> unauthorized until Charles dispatches.
+
+## Active V1.9 P0 Contract Freeze
+
+V1.9 P0 freezes the nine-zone minimum-estimation reference matrix and reuses
+the existing `zone_plan.result.zones[]` lineage. Pre-cooling uses final
+`position_count`; area-type zones use canonical `required_area_m2` with the
+semantic `PLANNED_ZONE_AREA`. The output semantic is
+`minimum_estimated_cooling_load_kw_r` and must be expressed as not less than
+the reference basis. This lane is docs/contract/architecture-test only:
+`RUNTIME_IMPLEMENTATION_AUTHORIZED=NO`, `COOLING_LOAD_FORMULA_RECUT_AUTHORIZED=NO`,
+and `V19_P1_AUTHORIZED=NO`.
+
+**P0 documents:** `docs/tasks/V1_9-version-plan.md`,
+`docs/tasks/V1_9-P0-per-zone-cooling-estimation-basis-contract.md`, and
+`docs/architecture/ADR-041-per-zone-cooling-estimation-basis.md`.
 
 ## Task 0: Local Baseline, Repository Audit, And Governance
 
