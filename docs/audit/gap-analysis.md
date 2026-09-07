@@ -15,17 +15,21 @@
 > `v1.4.0`. V1.5 envelope wall/roof geometry is complete at `v1.5.0`.
 > V1.6 power-fan demo catalog is complete at `v1.6.0`.
 > V1.7 per-zone cooling component surface is complete at `v1.7.0`.
-> V1.8 per-zone temperature and height: `docs/tasks/V1_8-version-plan.md`
-> (`V18_IMPLEMENTATION_AUTHORIZED=YES`; catalog V18-T1 cold end + V18-H1 4.0 m).
-> Later umbrellas (outbound live Aily session, remaining TD-008 equipment
-> catalogs, zone thermal catalog recut) stay unauthorized until Charles
-> dispatches.
+> V1.8 per-zone temperature and height remains the previous authorized
+> implementation lane. **Active umbrella:** V1.9 P0
+> `PER_ZONE_COOLING_ESTIMATION_BASIS`
+> (`docs/tasks/V1_9-version-plan.md`; contract/architecture-test only).
+> Later umbrellas (V1.9 P1 runtime implementation, outbound live Aily session,
+> remaining TD-008 equipment catalogs, zone thermal catalog recut) stay
+> unauthorized until Charles dispatches.
 
 ## P0
 
-No active P0 issue was found in the tracked baseline after sensitive-file
-review. The earlier wrong-remote configuration was corrected before baseline
-push and is not a remaining repository state issue.
+No runtime P0 issue is opened by this lane. The active governance item is the
+V1.9 P0 contract freeze: it records the nine-zone minimum-estimation basis,
+reuses existing zone-plan lineage, and intentionally leaves implementation
+unauthorized. The earlier wrong-remote configuration was corrected before
+baseline push and is not a remaining repository state issue.
 
 ## P1
 

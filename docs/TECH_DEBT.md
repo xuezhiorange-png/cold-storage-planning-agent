@@ -17,6 +17,10 @@
 > V1.7 per-zone cooling component surface is complete at `v1.7.0`.
 > V1.8 per-zone temperature and height surface:
 > `docs/tasks/V1_8-version-plan.md` (`V18_IMPLEMENTATION_AUTHORIZED=YES`).
+> **Active contract lane:** V1.9 P0 per-zone minimum cooling-estimation basis
+> (`docs/tasks/V1_9-version-plan.md`; `PER_ZONE_COOLING_ESTIMATION_BASIS`).
+> This lane is docs/contract/architecture-test only; runtime implementation,
+> cooling-load formula recut, and V1.9 P1 remain unauthorized.
 
 | ID | Status | Priority | Module | Cause | Current Impact | Temporary Approach | Permanent Resolution | Target Task / Version |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

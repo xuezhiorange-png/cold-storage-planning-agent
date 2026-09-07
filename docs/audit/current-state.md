@@ -649,3 +649,21 @@ green**. Do not tell the operator to `git pull` until that tag exists.
 V1.7 skill `docs/contracts/aily/v1.7/**` stays frozen.
 Do not move tags `v0.9.0` … `v1.7.0`.
 
+## 43. V1.9 P0 per-zone cooling estimation basis (contract frozen for review)
+
+The active V1.9 P0 lane freezes a minimum-estimation reference basis for nine
+refrigerated zones; it does not change the current runtime or claim that a
+formal thermal load has been calculated. It reuses the existing
+`zone_plan.result.zones[]` output: pre-cooling uses final `position_count`, and
+area-type zones use canonical `required_area_m2` with semantic
+`PLANNED_ZONE_AREA`. The unified output semantic is
+`minimum_estimated_cooling_load_kw_r`, expressed as not less than the frozen
+reference.
+
+**Contract:** `docs/tasks/V1_9-P0-per-zone-cooling-estimation-basis-contract.md`.
+**Plan:** `docs/tasks/V1_9-version-plan.md`.
+**ADR:** `docs/architecture/ADR-041-per-zone-cooling-estimation-basis.md`.
+**Scope:** docs and `backend/tests/architecture/**` only.
+`RUNTIME_IMPLEMENTATION_AUTHORIZED=NO`; `V19_P1_AUTHORIZED=NO`.
+PR #252 remains unchanged and not closed; its audit direction is superseded
+only in the new V1.9 contract.
