@@ -106,26 +106,22 @@ def _contract_data() -> dict[str, object]:
 
 
 def _changed_paths() -> set[str]:
+    merge_base = subprocess.run(
+        ["git", "merge-base", "origin/main", "HEAD"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    assert merge_base
     diff = subprocess.run(
-        ["git", "diff", "--name-only", "origin/main"],
+        ["git", "diff", "--name-only", merge_base, "HEAD"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
         check=True,
     )
-    untracked = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return {
-        line.strip()
-        for output in (diff.stdout, untracked.stdout)
-        for line in output.splitlines()
-        if line.strip()
-    }
+    return {line.strip() for line in diff.stdout.splitlines() if line.strip()}
 
 
 def test_v19_p0_contract_files_exist_and_scope_is_docs_only() -> None:
