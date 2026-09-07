@@ -18,6 +18,7 @@ TEST_PATH = "backend/tests/architecture/test_v19_p0_per_zone_cooling_estimation_
 P1_IMPLEMENTATION_PATHS = {
     "backend/src/cold_storage/modules/calculations/domain/per_zone_cooling_estimation.py",
     "backend/src/cold_storage/modules/calculations/domain/zone_planning.py",
+    "backend/src/cold_storage/modules/orchestration/application/source_snapshots.py",
     "backend/tests/architecture/test_v19_p0_per_zone_cooling_estimation_basis_contract.py",
     "backend/tests/architecture/test_v19_p1_per_zone_cooling_estimation_implementation.py",
     "backend/tests/integration/test_v19_p1_per_zone_cooling_estimation.py",

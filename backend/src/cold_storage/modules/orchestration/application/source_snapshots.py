@@ -361,6 +361,26 @@ class SourceReferenceEntry(BaseModel):
 # ── Result snapshot models (P0-2 allowlist) ─────────────────────────────────
 
 
+class CoolingEstimationBasisEntry(BaseModel):
+    """Persisted provenance for the additive V1.9 minimum estimate."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    basis_type: str
+    source_field: str
+    source_value: str
+    source_unit: str
+    reference_factor: str
+    reference_factor_unit: str
+    authority_source: str
+    requires_review: bool
+
+    @field_validator("source_value", "reference_factor", mode="before")
+    @classmethod
+    def _coerce_basis_decimal(cls, v: object) -> str:
+        return _coerce_to_canonical_string(v)
+
+
 class ZoneEntry(BaseModel):
     """Single zone within a zone plan result.
 
@@ -378,6 +398,8 @@ class ZoneEntry(BaseModel):
     design_storage_mass_kg: str
     position_count: int
     required_area_m2: str
+    minimum_estimated_cooling_load_kw_r: str | None = None
+    cooling_estimation_basis: CoolingEstimationBasisEntry | None = None
     requires_review: bool = True
 
     # Zone classification fields (used by source-domain mapping)
@@ -426,6 +448,13 @@ class ZoneEntry(BaseModel):
     )
     @classmethod
     def _coerce_zone_decimal(cls, v: object) -> str:
+        return _coerce_to_canonical_string(v)
+
+    @field_validator("minimum_estimated_cooling_load_kw_r", mode="before")
+    @classmethod
+    def _coerce_optional_cooling_estimation(cls, v: object) -> str | None:
+        if v is None:
+            return None
         return _coerce_to_canonical_string(v)
 
     @field_validator(

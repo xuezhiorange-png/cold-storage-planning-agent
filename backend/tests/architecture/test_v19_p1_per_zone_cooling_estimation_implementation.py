@@ -52,11 +52,22 @@ ZONE_PLANNER_PATH = (
     / "domain"
     / "zone_planning.py"
 )
+SOURCE_SNAPSHOT_PATH = (
+    REPO_ROOT
+    / "backend"
+    / "src"
+    / "cold_storage"
+    / "modules"
+    / "orchestration"
+    / "application"
+    / "source_snapshots.py"
+)
 COOLING_LOAD_PATH = ZONE_PLANNER_PATH.with_name("cooling_load.py")
 
 EXPECTED_CHANGED_PATHS = {
     "backend/src/cold_storage/modules/calculations/domain/per_zone_cooling_estimation.py",
     "backend/src/cold_storage/modules/calculations/domain/zone_planning.py",
+    "backend/src/cold_storage/modules/orchestration/application/source_snapshots.py",
     "backend/tests/architecture/test_v19_p0_per_zone_cooling_estimation_basis_contract.py",
     "backend/tests/architecture/test_v19_p1_per_zone_cooling_estimation_implementation.py",
     "backend/tests/integration/test_v19_p1_per_zone_cooling_estimation.py",
@@ -153,6 +164,7 @@ def test_runtime_registry_matches_the_p0_machine_readable_rules() -> None:
 def test_p1_adds_only_the_minimum_surface_and_keeps_five_stage_boundaries() -> None:
     runtime_text = RUNTIME_MODULE_PATH.read_text(encoding="utf-8")
     planner_text = ZONE_PLANNER_PATH.read_text(encoding="utf-8")
+    source_snapshot_text = SOURCE_SNAPSHOT_PATH.read_text(encoding="utf-8")
     cooling_load_text = COOLING_LOAD_PATH.read_text(encoding="utf-8")
     p1_text = P1_TASK_PATH.read_text(encoding="utf-8")
 
@@ -161,6 +173,9 @@ def test_p1_adds_only_the_minimum_surface_and_keeps_five_stage_boundaries() -> N
     assert "raw_position_count" not in runtime_text
     assert "modules.calculations.domain.cooling_load" not in runtime_text
     assert "apply_per_zone_cooling_estimation" in planner_text
+    assert "minimum_estimated_cooling_load_kw_r" in source_snapshot_text
+    assert "cooling_estimation_basis" in source_snapshot_text
+    assert 'source_snapshot_schema_version: Literal["1.0.0"]' in source_snapshot_text
     assert "selected_cooling_capacity" not in runtime_text
     assert "design_cooling_capacity" not in runtime_text
     assert "equipment_capacity" not in runtime_text
@@ -181,6 +196,7 @@ def test_p1_adds_only_the_minimum_surface_and_keeps_five_stage_boundaries() -> N
         "EQUIPMENT_INPUT_CHANGED=NO",
         "POWER_INPUT_CHANGED=NO",
         "INVESTMENT_INPUT_CHANGED=NO",
+        "SOURCE_SNAPSHOT_SCHEMA_PRESERVES_V19_FIELDS=YES",
         "FRONTEND_CHANGED=NO",
         "MIGRATION_CREATED=NO",
         "COOLING_LOAD_FORMULA_RECUT=NO",

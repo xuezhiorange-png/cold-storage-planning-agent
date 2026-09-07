@@ -27,6 +27,7 @@ REQUIRES_REVIEW_ALL_RULES=YES
 AMBIENT_ZONES_ENRICHED=NO
 ZONE_PLAN_EXISTING_VALUES_CHANGED=NO
 ZONE_PLANNING_ADAPTER_PRESERVES_V19_FIELDS=YES
+SOURCE_SNAPSHOT_SCHEMA_PRESERVES_V19_FIELDS=YES
 CALCULATION_TYPE_CHANGED=NO
 ZONE_PLAN_VERSION_CHANGED=NO
 COOLING_LOAD_FORMULA_RECUT=NO
@@ -102,7 +103,9 @@ The provenance object records `basis_type`, `source_field`, `source_value`,
 
 Ambient rows such as `office`, `changing_room`, and
 `packaging_material_storage` pass through unchanged. The production
-`ZonePlanningAdapter` and its payload/draft lineage preserve both V1.9 fields.
+`ZonePlanningAdapter`, strict `ZoneSourceSnapshotV1` schema, and its
+payload/draft lineage preserve both V1.9 fields. The schema version remains
+`1.0.0`; this additive field allowlist requires no migration.
 
 The computed relation is equality:
 

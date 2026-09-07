@@ -22,6 +22,7 @@ from cold_storage.modules.calculations.domain.zone_planning import (
     ColdRoomZonePlanInput,
     ColdRoomZonePlanner,
 )
+from cold_storage.modules.orchestration.application.source_snapshots import ZoneEntry
 
 
 def _complete_zone_rows() -> list[dict[str, Any]]:
@@ -285,3 +286,32 @@ def test_zone_planner_returns_structured_error_for_estimation_failure(
     assert result.success is False
     assert result.errors[0].code == "MISSING_SOURCE_VALUE"
     assert result.errors[0].details == {"zone_code": "primary_precooling_room"}
+
+
+def test_zone_source_snapshot_schema_preserves_v19_fields() -> None:
+    zone = ZoneEntry(
+        zone_code="raw_fruit_buffer",
+        zone_name="原果缓冲区",
+        temperature_band="冷藏",
+        function="raw fruit buffer",
+        daily_throughput_kg_day=100,
+        design_storage_mass_kg=200,
+        position_count=0,
+        required_area_m2=142.68,
+        minimum_estimated_cooling_load_kw_r=57.072,
+        cooling_estimation_basis={
+            "basis_type": "ZONE_AREA",
+            "source_field": "required_area_m2",
+            "source_value": 142.68,
+            "source_unit": "m2",
+            "reference_factor": 400,
+            "reference_factor_unit": "W/m2",
+            "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+            "requires_review": True,
+        },
+    )
+
+    assert zone.minimum_estimated_cooling_load_kw_r == "57.072"
+    assert zone.cooling_estimation_basis is not None
+    assert zone.cooling_estimation_basis.source_value == "142.68"
+    assert zone.cooling_estimation_basis.reference_factor == "400"
