@@ -1,9 +1,9 @@
 # V1.9 P0 — Per-zone cooling estimation basis contract
 
-**Status:** Contract frozen for Charles review; implementation is not authorized.  
-**Task:** `V19_P0_PER_ZONE_COOLING_ESTIMATION_BASIS_CONTRACT_FREEZE_R1`  
-**Direction:** `PER_ZONE_COOLING_ESTIMATION_BASIS`  
-**Authority:** `CHARLES_CONFIRMED_ENGINEERING_REFERENCE`  
+**Status:** Contract frozen for Charles review; implementation is not authorized.
+**Task:** `V19_P0_PER_ZONE_COOLING_ESTIMATION_BASIS_CONTRACT_FREEZE_R1`
+**Direction:** `PER_ZONE_COOLING_ESTIMATION_BASIS`
+**Authority:** `CHARLES_CONFIRMED_ENGINEERING_REFERENCE`
 **Base:** `main@ae3814f3b0c644d5ae23aabfc24825ac7b29ca2b`
 
 This P0 reuses the existing zone-plan output and freezes only a transparent

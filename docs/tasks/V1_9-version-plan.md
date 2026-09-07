@@ -1,9 +1,9 @@
 # V1.9 版本计划：冻结逐区域最低冷量估算依据
 
-**状态：** V1.9 P0 文档契约已冻结，等待 `CHARLES_V19_P0_CONTRACT_REVIEW`；运行时实现未授权。  
-**上一版本：** V1.8 per-zone temperature and height（实现已授权，但本计划不改其运行时）。  
-**本分支基线：** `main@ae3814f3b0c644d5ae23aabfc24825ac7b29ca2b`，tree `fcef44fe76ffe812172de1d1f9a0463503fbfa08`。  
-**权威来源：** `CHARLES_CONFIRMED_ENGINEERING_REFERENCE`。  
+**状态：** V1.9 P0 文档契约已冻结，等待 `CHARLES_V19_P0_CONTRACT_REVIEW`；运行时实现未授权。
+**上一版本：** V1.8 per-zone temperature and height（实现已授权，但本计划不改其运行时）。
+**本分支基线：** `main@ae3814f3b0c644d5ae23aabfc24825ac7b29ca2b`，tree `fcef44fe76ffe812172de1d1f9a0463503fbfa08`。
+**权威来源：** `CHARLES_CONFIRMED_ENGINEERING_REFERENCE`。
 **产品方向：** `PER_ZONE_COOLING_ESTIMATION_BASIS`。
 
 本版只定义并冻结九个制冷分区的**最低估算制冷量依据**。结果字段统一为
