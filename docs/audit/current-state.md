@@ -667,3 +667,42 @@ reference.
 `RUNTIME_IMPLEMENTATION_AUTHORIZED=NO`; `V19_P1_AUTHORIZED=NO`.
 PR #252 remains unchanged and not closed; its audit direction is superseded
 only in the new V1.9 contract.
+
+## 44. V1.9 P1 per-zone minimum cooling estimation implementation
+
+The P0 contract remains frozen and historical. Charles separately authorized
+the minimal P1 runtime implementation on a fresh `main@a04aac1ac2309cfbce500ead13cfc2fc4ab176ac`
+baseline. The implementation enriches the existing zone-plan rows after the
+planner completes them; it does not recalculate `position_count` or
+`required_area_m2`, add a sixth stage, or change the existing five-stage
+calculation graph.
+
+```text
+P0_CONTRACT_FROZEN=YES
+P1_IMPLEMENTATION_SEPARATELY_AUTHORIZED=YES
+V19_P1_IMPLEMENTATION_AUTHORIZED=YES
+V19_P1_IMPLEMENTATION_EXECUTED=YES
+RUNTIME_RULE_COUNT=9
+PRECOOL_SOURCE_FIELD=position_count
+AREA_SOURCE_FIELD=required_area_m2
+MINIMUM_OUTPUT_FIELD=minimum_estimated_cooling_load_kw_r
+PROVENANCE_SURFACE_IMPLEMENTED=YES
+REQUIRES_REVIEW_ALL_RULES=YES
+AMBIENT_ZONES_ENRICHED=NO
+ZONE_PLAN_EXISTING_VALUES_CHANGED=NO
+ZONE_PLANNING_ADAPTER_PRESERVES_V19_FIELDS=YES
+SOURCE_SNAPSHOT_SCHEMA_PRESERVES_V19_FIELDS=YES
+CALCULATION_TYPE_CHANGED=NO
+ZONE_PLAN_VERSION_CHANGED=NO
+COOLING_LOAD_FORMULA_RECUT=NO
+EQUIPMENT_INPUT_CHANGED=NO
+POWER_INPUT_CHANGED=NO
+INVESTMENT_INPUT_CHANGED=NO
+FRONTEND_CHANGED=NO
+MIGRATION_CREATED=NO
+PR252_STATE_CHANGED=NO
+```
+
+The next required stage is `CHARLES_V19_P1_IMPLEMENTATION_REVIEW`; this audit
+entry does not authorize Ready, Merge, release, or the next equipment/display
+lane.

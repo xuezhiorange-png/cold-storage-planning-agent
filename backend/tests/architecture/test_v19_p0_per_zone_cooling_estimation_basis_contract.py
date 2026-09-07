@@ -15,6 +15,23 @@ PLAN_PATH = REPO_ROOT / "docs" / "tasks" / "V1_9-version-plan.md"
 ADR_PATH = REPO_ROOT / "docs" / "architecture" / "ADR-041-per-zone-cooling-estimation-basis.md"
 
 TEST_PATH = "backend/tests/architecture/test_v19_p0_per_zone_cooling_estimation_basis_contract.py"
+P1_IMPLEMENTATION_PATHS = {
+    "backend/src/cold_storage/modules/calculations/domain/per_zone_cooling_estimation.py",
+    "backend/src/cold_storage/modules/calculations/domain/zone_planning.py",
+    "backend/src/cold_storage/modules/orchestration/application/source_snapshots.py",
+    "backend/src/cold_storage/modules/reports/infrastructure/real_data_provider.py",
+    "backend/tests/architecture/test_v19_p0_per_zone_cooling_estimation_basis_contract.py",
+    "backend/tests/architecture/test_v19_p1_per_zone_cooling_estimation_implementation.py",
+    "backend/tests/integration/test_v19_p1_per_zone_cooling_estimation.py",
+    "backend/tests/golden/v07_cross_consumer_v1.json",
+    "backend/tests/test_v03_p1_report_unit_quality.py",
+    "backend/tests/unit/test_real_report_data_provider.py",
+    "backend/tests/unit/test_v19_p1_per_zone_cooling_estimation.py",
+    "docs/architecture/ADR-041-per-zone-cooling-estimation-basis.md",
+    "docs/audit/current-state.md",
+    "docs/tasks/V1_9-P1-per-zone-cooling-estimation-implementation.md",
+    "docs/tasks/V1_9-version-plan.md",
+}
 ALLOWED_PATHS = {
     "docs/tasks/V1_9-version-plan.md",
     "docs/tasks/V1_9-P0-per-zone-cooling-estimation-basis-contract.md",
@@ -124,6 +141,14 @@ def _changed_paths() -> set[str]:
     return {line.strip() for line in diff.stdout.splitlines() if line.strip()}
 
 
+def _p0_scope_paths() -> set[str]:
+    """Keep the historical P0-only scope guard separate from authorized P1 paths."""
+    changed = _changed_paths()
+    if "docs/tasks/V1_9-P1-per-zone-cooling-estimation-implementation.md" in changed:
+        return changed - P1_IMPLEMENTATION_PATHS
+    return changed
+
+
 def test_v19_p0_contract_files_exist_and_scope_is_docs_only() -> None:
     assert CONTRACT_PATH.is_file()
     assert PLAN_PATH.is_file()
@@ -134,7 +159,7 @@ def test_v19_p0_contract_files_exist_and_scope_is_docs_only() -> None:
         assert "minimum_estimated_cooling_load_kw_r" in text
         assert "required_area_m2" in text
         assert "RUNTIME_IMPLEMENTATION_AUTHORIZED=NO" in text
-    assert _changed_paths() <= ALLOWED_PATHS
+    assert _p0_scope_paths() <= ALLOWED_PATHS
 
 
 def test_v19_p0_freezes_nine_authoritative_rules() -> None:

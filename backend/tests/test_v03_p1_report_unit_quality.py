@@ -9,6 +9,9 @@ from cold_storage.modules.calculations.domain.zone_planning import (
     ColdRoomZonePlanner,
 )
 from cold_storage.modules.reports.domain.quality import evaluate_quality, get_blockers
+from cold_storage.modules.reports.infrastructure.real_data_provider import (
+    _project_throughput_zones,
+)
 
 _SOURCE_REFERENCE = "V1演示规划系数，未作为国家标准或企业正式标准"
 _AREA_BASIS_CODE_UNITS = {
@@ -176,6 +179,13 @@ def test_real_production_zone_details_references_pass_quality() -> None:
     zone_details = [zone for zone in zones if isinstance(zone, dict) and "area_basis" in zone]
     assert zone_details == []
 
-    findings = evaluate_quality({"throughput_inventory_area": {"zone_details": zones}}, [])
+    projected_zones = _project_throughput_zones(
+        zones=zones,
+        section_key="throughput_inventory_area",
+        result_id="run-zone-quality-test",
+    )
+    findings = evaluate_quality(
+        {"throughput_inventory_area": {"zone_details": projected_zones}}, []
+    )
 
     assert not get_blockers(findings)

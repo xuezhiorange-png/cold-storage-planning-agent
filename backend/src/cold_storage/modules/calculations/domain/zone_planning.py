@@ -1,6 +1,10 @@
 from dataclasses import asdict, dataclass
 from math import ceil
 
+from cold_storage.modules.calculations.domain.per_zone_cooling_estimation import (
+    PerZoneCoolingEstimationError,
+    apply_per_zone_cooling_estimation,
+)
 from cold_storage.modules.calculations.domain.result import (
     CalculationError,
     CalculationResult,
@@ -350,6 +354,20 @@ class ColdRoomZonePlanner:
             self._packaging_material_zone(data, mass_tons),
             self._shipping_channel_zone(daily_mass),
         ]
+
+        try:
+            zones = apply_per_zone_cooling_estimation(zones)
+        except PerZoneCoolingEstimationError as exc:
+            return CalculationResult(
+                success=False,
+                calculator_name="cold_room_zone_plan",
+                calculator_version=VERSION,
+                input=asdict(data),
+                result={},
+                formula_references=[],
+                errors=[CalculationError(exc.code, str(exc), exc.details)],
+                requires_review=True,
+            )
 
         total_area_6 = sum(self._number(zone["required_area_m2"]) for zone in zones)
         total_area_8 = self._total_area_with_eight_position_precool(zones)

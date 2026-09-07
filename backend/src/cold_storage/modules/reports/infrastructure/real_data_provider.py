@@ -196,6 +196,14 @@ def _build_measured_value(
     }
 
 
+_REPORT_EXCLUDED_ZONE_FIELDS = frozenset(
+    {
+        "minimum_estimated_cooling_load_kw_r",
+        "cooling_estimation_basis",
+    }
+)
+
+
 def _project_throughput_zones(
     *,
     zones: list[Any],
@@ -205,8 +213,9 @@ def _project_throughput_zones(
     """Project persisted zone details without mutating the source snapshot.
 
     The orchestration snapshot stores nested numeric values as canonical
-    strings.  Rehydrate only the report-owned ``area_basis.value`` field;
-    unrelated zone data remains source-shaped and untouched.
+    strings.  Rehydrate only the report-owned ``area_basis.value`` field and
+    exclude V1.9-only cooling provenance; unrelated source data remains
+    untouched.
     """
     projected_zones: list[Any] = []
     for index, zone in enumerate(zones):
@@ -214,7 +223,9 @@ def _project_throughput_zones(
             projected_zones.append(zone)
             continue
 
-        projected_zone = dict(zone)
+        projected_zone = {
+            key: value for key, value in zone.items() if key not in _REPORT_EXCLUDED_ZONE_FIELDS
+        }
         area_basis = zone.get("area_basis")
         if not isinstance(area_basis, dict) or "value" not in area_basis:
             projected_zones.append(projected_zone)

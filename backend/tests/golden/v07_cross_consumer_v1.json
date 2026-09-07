@@ -2,7 +2,7 @@
   "sample_id": "v07-consistency",
   "schema_version": "1.0",
   "payload_result_hashes": {
-    "zone": "31246ca76d15e0be17ff5a63b1fcae1a7f1398f6e5eb543c05d4e2630cebed01",
+    "zone": "9f139dcde95b98fc15153baeb4e5bd96d06e6a062676c8b93ac411fdd1aa6084",
     "cooling_load": "8e9767c23b2d1bd49aec1bdcdd18be8efc59ee821d695b179a181e36e3ac2aa6",
     "equipment": "bb54f88af8c95a510f6dec9e1c7521b91e327a58aa040598b1685d478e0f5769",
     "power": "26be7ed586e997654857a6dcc16dddcfa0d16dc28b24c9687bbda1421ab1b58e",

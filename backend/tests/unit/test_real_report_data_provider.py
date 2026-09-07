@@ -199,6 +199,34 @@ def _throughput_section_with_area_basis(area_basis: object) -> _StubSection:
     )
 
 
+def _throughput_section_with_v19_fields() -> _StubSection:
+    source = _throughput_section_with_area_basis(_coefficient_area_basis("1.2"))
+    result = dict(source.result)
+    zones = list(result["zones"])
+    zone = dict(zones[0])
+    zone["minimum_estimated_cooling_load_kw_r"] = 80.0
+    zone["cooling_estimation_basis"] = {
+        "basis_type": "ZONE_AREA",
+        "source_field": "required_area_m2",
+        "source_value": "200.0",
+        "source_unit": "m2",
+        "reference_factor": "400",
+        "reference_factor_unit": "W/m2",
+        "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+        "requires_review": True,
+    }
+    zones[0] = zone
+    result["zones"] = zones
+    return _StubSection(
+        id=source.id,
+        calculator_name=source.calculator_name,
+        calculator_version=source.calculator_version,
+        result=result,
+        content_hash=source.content_hash,
+        tool_call_status=source.tool_call_status,
+    )
+
+
 def _cooling_load_section() -> _StubSection:
     return _StubSection(
         id="run-cool-001",
@@ -341,6 +369,27 @@ def test_throughput_zone_without_area_basis_remains_supported() -> None:
 
     assert projected_zone == source_zone
     assert "area_basis" not in projected_zone
+
+
+def test_throughput_v19_fields_are_isolated_from_legacy_report_projection() -> None:
+    section = _throughput_section_with_v19_fields()
+    source_before = deepcopy(section.result)
+    provider = _build_provider(
+        _StubCalculationService(_StubOrchestrationResult(throughput=section))
+    )
+
+    [out] = provider.get_calculation_results("p", "v")
+    projected_zone = out["data"]["zone_details"][0]
+
+    assert projected_zone["zone_code"] == "Z1"
+    assert projected_zone["zone_name"] == "a1-zone-001"
+    assert projected_zone["temperature_band"] == "0~4C"
+    assert projected_zone["required_area_m2"] == "200.0"
+    assert projected_zone["position_count"] == 30
+    assert projected_zone["area_basis"]["value"] == 1.2
+    assert "minimum_estimated_cooling_load_kw_r" not in projected_zone
+    assert "cooling_estimation_basis" not in projected_zone
+    assert section.result == source_before
 
 
 @pytest.mark.parametrize(
