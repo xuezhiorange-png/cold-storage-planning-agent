@@ -9,19 +9,22 @@
 This P0 reuses the existing zone-plan output and freezes only a transparent
 minimum-estimate basis for nine refrigerated zones. It does not define a
 detailed thermal load algorithm, recut `cooling_load`, select equipment, or
-change runtime behavior. Every result must say that
-`minimum_estimated_cooling_load_kw_r` is **not less than** the frozen basis.
+change runtime behavior. The computed
+`minimum_estimated_cooling_load_kw_r` is exactly the frozen basis; any future
+selected or design capacity must be **not less than** that minimum.
 
 The JSON block below is the machine-readable contract surface used by the
-architecture test. Its `formula` values are reference-basis expressions, not
-an authorization to implement a new calculator.
+architecture test. Each rule carries the unified `reference_factor` /
+`reference_factor_unit` pair and `requires_review=true`. Its `formula` values
+are reference-basis expressions, not an authorization to implement a new
+calculator.
 
 ```json
 {
   "contract_id": "V19_P0_PER_ZONE_COOLING_ESTIMATION_BASIS_CONTRACT_FREEZE_R1",
   "direction": "PER_ZONE_COOLING_ESTIMATION_BASIS",
   "output_field": "minimum_estimated_cooling_load_kw_r",
-  "output_relation": "minimum_estimated_cooling_load_kw_r >= frozen_reference_basis",
+  "output_relation": "minimum_estimated_cooling_load_kw_r = frozen_reference_basis",
   "area_semantic": "PLANNED_ZONE_AREA",
   "area_source_field": "required_area_m2",
   "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
@@ -30,96 +33,107 @@ an authorization to implement a new calculator.
       "zone_code": "primary_precooling_room",
       "basis": "FINAL_POSITION_COUNT",
       "source_field": "position_count",
-      "reference": 20,
-      "reference_unit": "kW(r)/final position",
+      "reference_factor": 20,
+      "reference_factor_unit": "kW(r)/final position",
       "formula": "position_count * 20",
       "result_semantics": "MINIMUM_ESTIMATE",
+      "requires_review": true,
       "forbidden_source_fields": ["raw_position_count"]
     },
     {
       "zone_code": "secondary_precooling_room",
       "basis": "FINAL_POSITION_COUNT",
       "source_field": "position_count",
-      "reference": 15,
-      "reference_unit": "kW(r)/final position",
+      "reference_factor": 15,
+      "reference_factor_unit": "kW(r)/final position",
       "formula": "position_count * 15",
       "result_semantics": "MINIMUM_ESTIMATE",
+      "requires_review": true,
       "forbidden_source_fields": ["raw_position_count"]
     },
     {
       "zone_code": "raw_fruit_buffer",
       "basis": "ZONE_AREA",
       "source_field": "required_area_m2",
-      "reference": 400,
-      "reference_unit": "W/m2",
+      "reference_factor": 400,
+      "reference_factor_unit": "W/m2",
       "formula": "required_area_m2 * 0.40",
       "result_semantics": "MINIMUM_ESTIMATE",
+      "requires_review": true,
       "forbidden_source_fields": []
     },
     {
       "zone_code": "sorting_packaging_room",
       "basis": "ZONE_AREA",
       "source_field": "required_area_m2",
-      "reference": 300,
-      "reference_unit": "W/m2",
+      "reference_factor": 300,
+      "reference_factor_unit": "W/m2",
       "formula": "required_area_m2 * 0.30",
       "result_semantics": "MINIMUM_ESTIMATE",
+      "requires_review": true,
       "forbidden_source_fields": []
     },
     {
       "zone_code": "coating_room",
       "basis": "ZONE_AREA",
       "source_field": "required_area_m2",
-      "reference": 300,
-      "reference_unit": "W/m2",
+      "reference_factor": 300,
+      "reference_factor_unit": "W/m2",
       "formula": "required_area_m2 * 0.30",
       "result_semantics": "MINIMUM_ESTIMATE",
+      "requires_review": true,
       "forbidden_source_fields": []
     },
     {
       "zone_code": "finished_goods_room",
       "basis": "ZONE_AREA",
       "source_field": "required_area_m2",
-      "reference": 300,
-      "reference_unit": "W/m2",
+      "reference_factor": 300,
+      "reference_factor_unit": "W/m2",
       "formula": "required_area_m2 * 0.30",
       "result_semantics": "MINIMUM_ESTIMATE",
+      "requires_review": true,
       "forbidden_source_fields": []
     },
     {
       "zone_code": "secondary_fruit_buffer",
       "basis": "ZONE_AREA",
       "source_field": "required_area_m2",
-      "reference": 400,
-      "reference_unit": "W/m2",
+      "reference_factor": 400,
+      "reference_factor_unit": "W/m2",
       "formula": "required_area_m2 * 0.40",
       "result_semantics": "MINIMUM_ESTIMATE",
+      "requires_review": true,
       "forbidden_source_fields": []
     },
     {
       "zone_code": "frozen_fruit_room",
       "basis": "ZONE_AREA",
       "source_field": "required_area_m2",
-      "reference": 550,
-      "reference_unit": "W/m2",
+      "reference_factor": 550,
+      "reference_factor_unit": "W/m2",
       "formula": "required_area_m2 * 0.55",
       "result_semantics": "MINIMUM_ESTIMATE",
+      "requires_review": true,
       "forbidden_source_fields": []
     },
     {
       "zone_code": "shipping_channel",
       "basis": "ZONE_AREA",
       "source_field": "required_area_m2",
-      "reference": 300,
-      "reference_unit": "W/m2",
+      "reference_factor": 300,
+      "reference_factor_unit": "W/m2",
       "formula": "required_area_m2 * 0.30",
       "result_semantics": "MINIMUM_ESTIMATE",
+      "requires_review": true,
       "forbidden_source_fields": []
     }
   ],
   "semantic_lock": {
     "minimum_estimate_semantics": "YES",
-    "must_express_not_less_than": true,
+    "minimum_computed_value_relation": "minimum_estimated_cooling_load_kw_r = frozen_reference_basis",
+    "engineering_reference_relation": "required cooling capacity >= frozen_reference_basis",
+    "engineering_required_capacity_is_lower_bound": true,
     "allowed_terms": [
       "minimum estimated cooling load",
       "minimum cooling capacity reference",
@@ -174,6 +188,21 @@ an authorization to implement a new calculator.
 
 ## Contract rules
 
+The engineering requirement remains a lower bound on capacity:
+
+```text
+ENGINEERING_REFERENCE:
+required cooling capacity >= frozen reference basis
+
+COMPUTED_MINIMUM_VALUE:
+minimum_estimated_cooling_load_kw_r = frozen reference basis
+```
+
+In a future separately authorized design or selection flow,
+`future_selected_or_design_cooling_capacity` may be greater than or equal to
+the computed minimum. That phrase is a semantic distinction only; this P0
+does not add that runtime field or design an equipment-selection algorithm.
+
 ### Canonical lineage
 
 The contract consumes `zone_plan.result.zones[]`. The canonical area field is
@@ -183,7 +212,7 @@ forbidden even though the existing planner exposes it as an intermediate.
 
 ### Nine-zone reference matrix
 
-| Zone | Basis | Reference |
+| Zone | Basis | Reference factor |
 | --- | --- | --- |
 | `primary_precooling_room` | final `position_count` | 20 kW(r)/final position |
 | `secondary_precooling_room` | final `position_count` | 15 kW(r)/final position |
@@ -195,9 +224,11 @@ forbidden even though the existing planner exposes it as an intermediate.
 | `frozen_fruit_room` | `required_area_m2` | 550 W/m² |
 | `shipping_channel` | `required_area_m2` | 300 W/m² |
 
-The area references are 0.40, 0.30, 0.30, 0.30, 0.40, 0.55 and 0.30 kW/m²
+The area reference factors are 0.40, 0.30, 0.30, 0.30, 0.40, 0.55 and 0.30 kW/m²
 respectively. The historical 300 W/m² raw-fruit basis is obsolete and is not
-an alternative in this contract.
+an alternative in this contract. All nine rules retain `requires_review=true`
+to preserve manual engineering review; that flag does not mean the contract is
+unfrozen or the result is invalid.
 
 ### Fail-closed behavior
 
@@ -213,4 +244,3 @@ runtime implementation, detailed thermal algorithm work, cooling-load formula
 recut, equipment selection, installed-power or investment recut, or frontend
 implementation. PR #252 remains untouched and not closed. The next required
 stage is `CHARLES_V19_P0_CONTRACT_REVIEW`; V1.9 P1 is not authorized.
-

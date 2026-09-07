@@ -17,9 +17,9 @@ contract before any future consumer can express a per-zone cooling reference.
 
 This ADR freezes a **minimum estimated cooling load** basis only. It does not
 claim an exact cooling load, a final design cooling load, a formal thermal load,
-or a precise heat load calculation. The output semantic is
-`minimum_estimated_cooling_load_kw_r`, and the result must be stated as **not
-less than** the frozen reference basis.
+or a precise heat load calculation. The computed
+`minimum_estimated_cooling_load_kw_r` equals the frozen reference basis. A
+future selected or design capacity must be **not less than** that minimum.
 
 ## Decision
 
@@ -36,9 +36,9 @@ schema unchanged:
 No processing-plant building area, replacement field, geometry derivation, or
 new runtime input is introduced by this ADR.
 
-### 2. Freeze the nine reference rules
+### 2. Freeze the nine reference-factor rules
 
-| Zone code | Basis | Reference basis |
+| Zone code | Basis | Reference factor |
 | --- | --- | --- |
 | `primary_precooling_room` | `position_count` | 20 kW(r)/final position |
 | `secondary_precooling_room` | `position_count` | 15 kW(r)/final position |
@@ -52,8 +52,26 @@ new runtime input is introduced by this ADR.
 
 The canonical reference expressions are `position_count * 20`,
 `position_count * 15`, and `required_area_m2 * 0.40`, `* 0.30`, `* 0.30`,
-`* 0.30`, `* 0.40`, `* 0.55`, `* 0.30`, respectively. They are reference
-bases, not an authorization to recut `cooling_load`.
+`* 0.30`, `* 0.40`, `* 0.55`, `* 0.30`, respectively. The machine-readable
+schema names their two fields `reference_factor` and `reference_factor_unit`.
+Each rule carries `requires_review=true` to preserve manual engineering review;
+this does not mean the contract is unfrozen or the result is invalid. The
+expressions are reference bases, not an authorization to recut `cooling_load`.
+
+The semantic layers are deliberately separate:
+
+```text
+ENGINEERING_REFERENCE:
+required cooling capacity >= frozen reference basis
+
+COMPUTED_MINIMUM_VALUE:
+minimum_estimated_cooling_load_kw_r = frozen reference basis
+```
+
+In a future separately authorized design or selection flow,
+`future_selected_or_design_cooling_capacity >= minimum_estimated_cooling_load_kw_r`
+may be required. This is not a new runtime field or an equipment-selection
+algorithm in this P0.
 
 ### 3. Fail closed instead of guessing
 
@@ -118,4 +136,3 @@ PR_252_RUNTIME_IMPLEMENTATION_AUTHORIZED=NO
 4. Replacing the existing zone-plan area field with a new runtime schema field.
 5. Inferring a completed implementation or V1.9 P1 authorization from this
    documentation freeze.
-

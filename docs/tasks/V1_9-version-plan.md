@@ -7,7 +7,7 @@
 **产品方向：** `PER_ZONE_COOLING_ESTIMATION_BASIS`。
 
 本版只定义并冻结九个制冷分区的**最低估算制冷量依据**。结果字段统一为
-`minimum_estimated_cooling_load_kw_r`，结果必须表达“**不小于**该依据值”；它不是详细热负荷算法、正式热工设计值或设备选型输入。
+`minimum_estimated_cooling_load_kw_r`，该最低计算值**等于**冻结依据；未来选定或设计的制冷能力必须“**不小于**”该最低值。它不是详细热负荷算法、正式热工设计值或设备选型输入。
 
 ```text
 TASK=V19_P0_PER_ZONE_COOLING_ESTIMATION_BASIS_CONTRACT_FREEZE_R1
@@ -56,11 +56,18 @@ zone_plan.result.zones[]
 `PLANNED_ZONE_AREA`。文档中的 `area_m2` 仅是面积单位的说明，落到契约时必须使用
 `required_area_m2`。`raw_position_count` 是预冷内部计算中间值，不能作为估算依据。
 
-所有九区的结果都使用 `minimum_estimated_cooling_load_kw_r`，并采用以下关系：
+所有九区的结果都使用 `minimum_estimated_cooling_load_kw_r`，并采用以下两层关系：
 
 ```text
-minimum_estimated_cooling_load_kw_r >= frozen_reference_basis
+ENGINEERING_REFERENCE:
+required cooling capacity >= frozen reference basis
+
+COMPUTED_MINIMUM_VALUE:
+minimum_estimated_cooling_load_kw_r = frozen reference basis
 ```
+
+`future_selected_or_design_cooling_capacity >= minimum_estimated_cooling_load_kw_r`
+只是未来设计/选型的语义说明，不是本 P0 新增的 runtime 字段，也不授权设备选型算法。
 
 允许的结果表述只有：`minimum estimated cooling load`、`minimum cooling capacity reference`、
 “最低估算制冷量”或“最低制冷能力参考值”。禁止把它称为 exact cooling load、final design
@@ -68,20 +75,21 @@ cooling load、formal thermal load 或 precise heat load calculation。
 
 ## 2. 九个权威规则
 
-面积型参考值由 W/m² 换算为 kW/m²；换算只用于表达冻结的参考依据，不授权重切现有
-`cooling_load` 计算。每一项均属于最低估算参考值，且 `requires_review=true`。
+面积型 reference factor 由 W/m² 换算为 kW/m²；换算只用于表达冻结的参考依据，不授权重切现有
+`cooling_load` 计算。每一项均属于最低估算参考值，且 machine-readable rule 必须携带
+`requires_review=true`，以保留人工工程复核能力；该标记不表示契约未冻结或结果无效。
 
-| `zone_code` | 基础类型 | canonical source | Charles reference | 冻结参考表达 |
+| `zone_code` | 基础类型 | canonical source | Charles reference factor | 冻结参考表达 |
 | --- | --- | --- | --- | --- |
-| `primary_precooling_room` | `FINAL_POSITION_COUNT` | `position_count` | 20 kW(r)/final position | `minimum_estimated_cooling_load_kw_r >= position_count * 20` |
-| `secondary_precooling_room` | `FINAL_POSITION_COUNT` | `position_count` | 15 kW(r)/final position | `minimum_estimated_cooling_load_kw_r >= position_count * 15` |
-| `raw_fruit_buffer` | `ZONE_AREA` | `required_area_m2` | 400 W/m² | `minimum_estimated_cooling_load_kw_r >= required_area_m2 * 0.40` |
-| `sorting_packaging_room` | `ZONE_AREA` | `required_area_m2` | 300 W/m² | `minimum_estimated_cooling_load_kw_r >= required_area_m2 * 0.30` |
-| `coating_room` | `ZONE_AREA` | `required_area_m2` | 300 W/m² | `minimum_estimated_cooling_load_kw_r >= required_area_m2 * 0.30` |
-| `finished_goods_room` | `ZONE_AREA` | `required_area_m2` | 300 W/m² | `minimum_estimated_cooling_load_kw_r >= required_area_m2 * 0.30` |
-| `secondary_fruit_buffer` | `ZONE_AREA` | `required_area_m2` | 400 W/m² | `minimum_estimated_cooling_load_kw_r >= required_area_m2 * 0.40` |
-| `frozen_fruit_room` | `ZONE_AREA` | `required_area_m2` | 550 W/m² | `minimum_estimated_cooling_load_kw_r >= required_area_m2 * 0.55` |
-| `shipping_channel` | `ZONE_AREA` | `required_area_m2` | 300 W/m² | `minimum_estimated_cooling_load_kw_r >= required_area_m2 * 0.30` |
+| `primary_precooling_room` | `FINAL_POSITION_COUNT` | `position_count` | 20 kW(r)/final position | `minimum_estimated_cooling_load_kw_r = position_count * 20` |
+| `secondary_precooling_room` | `FINAL_POSITION_COUNT` | `position_count` | 15 kW(r)/final position | `minimum_estimated_cooling_load_kw_r = position_count * 15` |
+| `raw_fruit_buffer` | `ZONE_AREA` | `required_area_m2` | 400 W/m² | `minimum_estimated_cooling_load_kw_r = required_area_m2 * 0.40` |
+| `sorting_packaging_room` | `ZONE_AREA` | `required_area_m2` | 300 W/m² | `minimum_estimated_cooling_load_kw_r = required_area_m2 * 0.30` |
+| `coating_room` | `ZONE_AREA` | `required_area_m2` | 300 W/m² | `minimum_estimated_cooling_load_kw_r = required_area_m2 * 0.30` |
+| `finished_goods_room` | `ZONE_AREA` | `required_area_m2` | 300 W/m² | `minimum_estimated_cooling_load_kw_r = required_area_m2 * 0.30` |
+| `secondary_fruit_buffer` | `ZONE_AREA` | `required_area_m2` | 400 W/m² | `minimum_estimated_cooling_load_kw_r = required_area_m2 * 0.40` |
+| `frozen_fruit_room` | `ZONE_AREA` | `required_area_m2` | 550 W/m² | `minimum_estimated_cooling_load_kw_r = required_area_m2 * 0.55` |
+| `shipping_channel` | `ZONE_AREA` | `required_area_m2` | 300 W/m² | `minimum_estimated_cooling_load_kw_r = required_area_m2 * 0.30` |
 
 一级、二级预冷都必须读取最终 `position_count`。不得读取或回退到
 `raw_position_count`。面积型区域只能读取现有 zone-plan 的 `required_area_m2`；不得从加工厂建筑面积、
@@ -128,4 +136,3 @@ PR_252_RUNTIME_IMPLEMENTATION_AUTHORIZED=NO
 
 本 P0 的下一阶段为 `CHARLES_V19_P0_CONTRACT_REVIEW`。完成 Draft PR 后停止；不得将本次文档
 通过、测试通过或 PR 创建推断为 runtime implementation、Ready、Merge、发布或 V1.9 P1 授权。
-

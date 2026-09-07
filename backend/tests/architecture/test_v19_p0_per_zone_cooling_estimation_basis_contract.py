@@ -30,64 +30,64 @@ EXPECTED_RULES = {
     "primary_precooling_room": {
         "basis": "FINAL_POSITION_COUNT",
         "source_field": "position_count",
-        "reference": 20,
-        "reference_unit": "kW(r)/final position",
+        "reference_factor": 20,
+        "reference_factor_unit": "kW(r)/final position",
         "formula": "position_count * 20",
     },
     "secondary_precooling_room": {
         "basis": "FINAL_POSITION_COUNT",
         "source_field": "position_count",
-        "reference": 15,
-        "reference_unit": "kW(r)/final position",
+        "reference_factor": 15,
+        "reference_factor_unit": "kW(r)/final position",
         "formula": "position_count * 15",
     },
     "raw_fruit_buffer": {
         "basis": "ZONE_AREA",
         "source_field": "required_area_m2",
-        "reference": 400,
-        "reference_unit": "W/m2",
+        "reference_factor": 400,
+        "reference_factor_unit": "W/m2",
         "formula": "required_area_m2 * 0.40",
     },
     "sorting_packaging_room": {
         "basis": "ZONE_AREA",
         "source_field": "required_area_m2",
-        "reference": 300,
-        "reference_unit": "W/m2",
+        "reference_factor": 300,
+        "reference_factor_unit": "W/m2",
         "formula": "required_area_m2 * 0.30",
     },
     "coating_room": {
         "basis": "ZONE_AREA",
         "source_field": "required_area_m2",
-        "reference": 300,
-        "reference_unit": "W/m2",
+        "reference_factor": 300,
+        "reference_factor_unit": "W/m2",
         "formula": "required_area_m2 * 0.30",
     },
     "finished_goods_room": {
         "basis": "ZONE_AREA",
         "source_field": "required_area_m2",
-        "reference": 300,
-        "reference_unit": "W/m2",
+        "reference_factor": 300,
+        "reference_factor_unit": "W/m2",
         "formula": "required_area_m2 * 0.30",
     },
     "secondary_fruit_buffer": {
         "basis": "ZONE_AREA",
         "source_field": "required_area_m2",
-        "reference": 400,
-        "reference_unit": "W/m2",
+        "reference_factor": 400,
+        "reference_factor_unit": "W/m2",
         "formula": "required_area_m2 * 0.40",
     },
     "frozen_fruit_room": {
         "basis": "ZONE_AREA",
         "source_field": "required_area_m2",
-        "reference": 550,
-        "reference_unit": "W/m2",
+        "reference_factor": 550,
+        "reference_factor_unit": "W/m2",
         "formula": "required_area_m2 * 0.55",
     },
     "shipping_channel": {
         "basis": "ZONE_AREA",
         "source_field": "required_area_m2",
-        "reference": 300,
-        "reference_unit": "W/m2",
+        "reference_factor": 300,
+        "reference_factor_unit": "W/m2",
         "formula": "required_area_m2 * 0.30",
     },
 }
@@ -145,6 +145,9 @@ def test_v19_p0_freezes_nine_authoritative_rules() -> None:
     data = _contract_data()
     assert data["direction"] == "PER_ZONE_COOLING_ESTIMATION_BASIS"
     assert data["output_field"] == "minimum_estimated_cooling_load_kw_r"
+    assert data["output_relation"] == (
+        "minimum_estimated_cooling_load_kw_r = frozen_reference_basis"
+    )
     assert data["area_semantic"] == "PLANNED_ZONE_AREA"
     assert data["area_source_field"] == "required_area_m2"
     assert data["authority_source"] == "CHARLES_CONFIRMED_ENGINEERING_REFERENCE"
@@ -156,6 +159,11 @@ def test_v19_p0_freezes_nine_authoritative_rules() -> None:
     assert set(by_zone) == set(EXPECTED_RULES)
     for zone_code, expected in EXPECTED_RULES.items():
         rule = by_zone[zone_code]
+        assert "reference_factor" in rule
+        assert "reference_factor_unit" in rule
+        assert "reference" not in rule
+        assert "reference_unit" not in rule
+        assert rule["requires_review"] is True
         for key, value in expected.items():
             assert rule[key] == value
         assert rule["result_semantics"] == "MINIMUM_ESTIMATE"
@@ -167,7 +175,13 @@ def test_v19_p0_locks_minimum_semantics_fail_closed_and_authorization() -> None:
     data = _contract_data()
     semantic_lock = data["semantic_lock"]
     assert semantic_lock["minimum_estimate_semantics"] == "YES"
-    assert semantic_lock["must_express_not_less_than"] is True
+    assert semantic_lock["minimum_computed_value_relation"] == (
+        "minimum_estimated_cooling_load_kw_r = frozen_reference_basis"
+    )
+    assert semantic_lock["engineering_reference_relation"] == (
+        "required cooling capacity >= frozen_reference_basis"
+    )
+    assert semantic_lock["engineering_required_capacity_is_lower_bound"] is True
     assert "minimum estimated cooling load" in semantic_lock["allowed_terms"]
     assert "最低估算制冷量" in semantic_lock["allowed_terms"]
     assert "exact cooling load" in semantic_lock["forbidden_terms"]
