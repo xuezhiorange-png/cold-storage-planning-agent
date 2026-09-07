@@ -17,10 +17,13 @@
 > V1.7 per-zone cooling component surface is complete at `v1.7.0`.
 > V1.8 per-zone temperature and height surface:
 > `docs/tasks/V1_8-version-plan.md` (`V18_IMPLEMENTATION_AUTHORIZED=YES`).
-> **Active contract lane:** V1.9 P0 per-zone minimum cooling-estimation basis
-> (`docs/tasks/V1_9-version-plan.md`; `PER_ZONE_COOLING_ESTIMATION_BASIS`).
-> This lane is docs/contract/architecture-test only; runtime implementation,
-> cooling-load formula recut, and V1.9 P1 remain unauthorized.
+> **V1.9 implementation is complete:** the P0 contract is frozen, P1 is
+> merged through PR #254 at `main@675fa8adfc58e2362101079d83393e90706505b2`,
+> the report projection regression is closed, and the V0.7 golden controlled
+> evolution is complete. The current governance lane is release closure for
+> `v1.9.0`; `V1_9_0_RELEASE_READY=YES` while tag creation remains gated on the
+> closure PR merge and green main HEAD CI. Later feature lanes remain
+> unauthorized until Charles dispatches.
 
 | ID | Status | Priority | Module | Cause | Current Impact | Temporary Approach | Permanent Resolution | Target Task / Version |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

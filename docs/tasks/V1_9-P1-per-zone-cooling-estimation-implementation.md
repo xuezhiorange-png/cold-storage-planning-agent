@@ -1,12 +1,13 @@
 # V1.9 P1 — 逐区域最低冷量估算运行时实现
 
-**状态：** P1 runtime implementation is complete in this Draft branch and
-stopped at `CHARLES_V19_P1_IMPLEMENTATION_REVIEW`.
+**状态：** P1 runtime implementation is complete and merged through PR #254
+into `main@675fa8adfc58e2362101079d83393e90706505b2`; the report projection
+regression is closed and V1.9 is in release-closure state.
 **Task:** `V19_P1_PER_ZONE_COOLING_ESTIMATION_IMPLEMENTATION_R1`
 **Mode:** `MINIMAL_RUNTIME_IMPLEMENTATION`
 **Authority:** `CHARLES_CONFIRMED_ENGINEERING_REFERENCE`
-**Base:** `main@a04aac1ac2309cfbce500ead13cfc2fc4ab176ac`，tree
-`2b92afddaffcd9e6d289477e37a58b8d54fcd786`
+**Merged main:** `main@675fa8adfc58e2362101079d83393e90706505b2`，tree
+`71e726710d7df97fb6c2ea1b8e8cfbe080c232f9`
 
 P0 的九条规则继续是唯一工程参考依据。P0 文档保持历史事实，其中
 `RUNTIME_IMPLEMENTATION_AUTHORIZED=NO` 仍然不变；本文件记录 Charles 对 P1
@@ -37,6 +38,15 @@ INVESTMENT_INPUT_CHANGED=NO
 FRONTEND_CHANGED=NO
 MIGRATION_CREATED=NO
 PR252_STATE_CHANGED=NO
+P1_IMPLEMENTATION_MERGED=YES
+PR254_MERGED=YES
+PR254_EXACT_HEAD_CI_RUN=34113336197
+PR254_EXACT_HEAD_CI=SUCCESS
+REPORT_PROJECTION_REGRESSION=CLOSED
+V07_GOLDEN_EVOLUTION=COMPLETE
+V19_STATUS=IMPLEMENTATION_COMPLETE
+V1_9_0_RELEASE_READY=YES
+NEXT_FEATURE_LANE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
@@ -134,6 +144,9 @@ calculators; does not change `CalculationType`; does not bump
 `cold_room_zone_plan@1.0.0`; and does not add migrations, frontend, Aily,
 Doubao, release, tag, or database behavior. PR #252 remains untouched.
 
-The Draft PR is the complete P1 implementation handoff. The next required
-stage is `CHARLES_V19_P1_IMPLEMENTATION_REVIEW`; Ready, Merge, release, and the
-next display/equipment-selection stage are not authorized.
+PR #254 is the completed P1 implementation handoff and is merged into main.
+The report projection regression is closed and the V0.7 golden controlled
+evolution is complete. The next required stage is V1.9 release closure;
+creation or movement of `v1.9.0` remains gated on the closure PR merge and
+green main HEAD CI. The next display/equipment-selection stage remains
+unauthorized.

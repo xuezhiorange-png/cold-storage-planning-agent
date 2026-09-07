@@ -77,7 +77,10 @@ EXPECTED_CHANGED_PATHS = {
     "backend/tests/unit/test_real_report_data_provider.py",
     "backend/tests/unit/test_v19_p1_per_zone_cooling_estimation.py",
     "docs/architecture/ADR-041-per-zone-cooling-estimation-basis.md",
+    "docs/TECH_DEBT.md",
     "docs/audit/current-state.md",
+    "docs/audit/gap-analysis.md",
+    "docs/roadmap/DEVELOPMENT_PLAN.md",
     "docs/tasks/V1_9-P1-per-zone-cooling-estimation-implementation.md",
     "docs/tasks/V1_9-version-plan.md",
 }

@@ -1,6 +1,7 @@
 # ADR-041: Freeze the per-zone minimum cooling-estimation basis
 
-- **Status:** V1.9 P0 contract frozen for review; runtime implementation not authorized
+- **Status:** V1.9 P0 contract frozen; separately authorized P1 implementation
+  merged through PR #254; release closure pending
 - **Date:** 2026-09-07
 - **Direction:** `PER_ZONE_COOLING_ESTIMATION_BASIS`
 - **Authority:** `CHARLES_CONFIRMED_ENGINEERING_REFERENCE`
@@ -174,6 +175,8 @@ PR252_STATE_CHANGED=NO
 The P1 output is an additive minimum-reference surface with provenance. It is
 not a detailed thermal algorithm, does not recut `cooling_load`, does not feed
 equipment/power/investment sizing, and does not change the five-stage
-`CalculationType` graph. P1 stops at
-`CHARLES_V19_P1_IMPLEMENTATION_REVIEW`; Ready, Merge, release, and downstream
-selection/display work remain unauthorized.
+`CalculationType` graph. PR #254 merged the implementation into
+`main@675fa8adfc58e2362101079d83393e90706505b2`; its exact-head CI run
+`34113336197` concluded SUCCESS. The report projection regression is closed and
+the V0.7 golden controlled evolution is complete. V1.9 release closure remains
+separate from downstream selection/display authorization.
