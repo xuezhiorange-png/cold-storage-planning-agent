@@ -1,8 +1,8 @@
-# V1.9 版本计划：冻结逐区域最低冷量估算依据
+# V1.9 版本计划：冻结依据与逐区域最低冷量估算实现
 
-**状态：** V1.9 P0 文档契约已冻结，等待 `CHARLES_V19_P0_CONTRACT_REVIEW`；运行时实现未授权。
+**状态：** V1.9 P0 文档契约保持冻结；V1.9 P1 已由 Charles 单独授权并在当前 Draft 分支完成最小运行时实现，等待 `CHARLES_V19_P1_IMPLEMENTATION_REVIEW`。
 **上一版本：** V1.8 per-zone temperature and height（实现已授权，但本计划不改其运行时）。
-**本分支基线：** `main@ae3814f3b0c644d5ae23aabfc24825ac7b29ca2b`，tree `fcef44fe76ffe812172de1d1f9a0463503fbfa08`。
+**本分支基线：** `main@a04aac1ac2309cfbce500ead13cfc2fc4ab176ac`，tree `2b92afddaffcd9e6d289477e37a58b8d54fcd786`。
 **权威来源：** `CHARLES_CONFIRMED_ENGINEERING_REFERENCE`。
 **产品方向：** `PER_ZONE_COOLING_ESTIMATION_BASIS`。
 
@@ -113,7 +113,9 @@ infiltration model、legacy cooling output、AI guessed values 或 arbitrary def
 
 本分支允许的变更只有 `docs/**` 与 `backend/tests/architecture/**`。P0 不实现结果服务、API、
 数据库、迁移、前端、报告、设备选型、装机功率、投资或详细热工算法；也不重切任何现有
-`cooling_load` 公式和输出。P1 的任何实现必须重新获得明确授权。
+`cooling_load` 公式和输出。P0 本身不授权 P1；当前 P1 使用独立授权文档
+`docs/tasks/V1_9-P1-per-zone-cooling-estimation-implementation.md`，不改变本
+P0 的历史授权字段。
 
 `EXISTING_ZONE_PLAN_REUSE=YES`、`USER_CONFIRMED_ESTIMATION_REFERENCE=YES` 和
 `MINIMUM_ESTIMATE_SEMANTICS=YES` 是本契约的正向锁；所有运行时/重切/选型相关授权均为 `NO`。
@@ -132,7 +134,40 @@ PR_252_RUNTIME_IMPLEMENTATION_AUTHORIZED=NO
 
 “superseded”只表示审计方向被新的 `PER_ZONE_COOLING_ESTIMATION_BASIS` 取代，不表示 PR #252 已关闭。
 
-## 6. 后续门禁
+## 6. P0 后续门禁与 P1 独立授权
 
-本 P0 的下一阶段为 `CHARLES_V19_P0_CONTRACT_REVIEW`。完成 Draft PR 后停止；不得将本次文档
-通过、测试通过或 PR 创建推断为 runtime implementation、Ready、Merge、发布或 V1.9 P1 授权。
+P0 的 `RUNTIME_IMPLEMENTATION_AUTHORIZED=NO` 与 `V19_P1_AUTHORIZED=NO` 是 P0
+历史事实，不因 P1 实现而改写。Charles 后续已明确单独授权 P1，当前计划记录如下：
+
+```text
+P0_CONTRACT_FROZEN=YES
+P1_IMPLEMENTATION_SEPARATELY_AUTHORIZED=YES
+V19_P1_IMPLEMENTATION_AUTHORIZED=YES
+V19_P1_IMPLEMENTATION_EXECUTED=YES
+RUNTIME_RULE_COUNT=9
+PRECOOL_SOURCE_FIELD=position_count
+AREA_SOURCE_FIELD=required_area_m2
+MINIMUM_OUTPUT_FIELD=minimum_estimated_cooling_load_kw_r
+PROVENANCE_SURFACE_IMPLEMENTED=YES
+REQUIRES_REVIEW_ALL_RULES=YES
+AMBIENT_ZONES_ENRICHED=NO
+ZONE_PLAN_EXISTING_VALUES_CHANGED=NO
+ZONE_PLANNING_ADAPTER_PRESERVES_V19_FIELDS=YES
+CALCULATION_TYPE_CHANGED=NO
+ZONE_PLAN_VERSION_CHANGED=NO
+COOLING_LOAD_FORMULA_RECUT=NO
+EQUIPMENT_INPUT_CHANGED=NO
+POWER_INPUT_CHANGED=NO
+INVESTMENT_INPUT_CHANGED=NO
+FRONTEND_CHANGED=NO
+MIGRATION_CREATED=NO
+PR252_STATE_CHANGED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P1 只消费已完成的 zone-plan `position_count` / `required_area_m2`，向九个
+制冷区追加 `minimum_estimated_cooling_load_kw_r` 与
+`cooling_estimation_basis`。它不修改 `cooling_load`、设备/功率/投资、前端、
+迁移或五阶段 `CalculationType`。完成当前 Draft PR 后停止于
+`CHARLES_V19_P1_IMPLEMENTATION_REVIEW`；不得 Ready、Merge、发布或开始下一
+展示/设备选型阶段。
