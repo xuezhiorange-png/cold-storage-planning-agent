@@ -72,6 +72,7 @@ EXPECTED_CHANGED_PATHS = {
     "backend/tests/architecture/test_v19_p0_per_zone_cooling_estimation_basis_contract.py",
     "backend/tests/architecture/test_v19_p1_per_zone_cooling_estimation_implementation.py",
     "backend/tests/integration/test_v19_p1_per_zone_cooling_estimation.py",
+    "backend/tests/golden/v07_cross_consumer_v1.json",
     "backend/tests/test_v03_p1_report_unit_quality.py",
     "backend/tests/unit/test_real_report_data_provider.py",
     "backend/tests/unit/test_v19_p1_per_zone_cooling_estimation.py",
