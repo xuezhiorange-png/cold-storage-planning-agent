@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
-from dataclasses import replace
 from pathlib import Path
 from typing import Any, cast
 
@@ -14,6 +13,7 @@ from cold_storage.modules.aily.application.factory_power_table import (
 from cold_storage.modules.projects.application.factory_power_presentation import (
     FACTORY_POWER_CALCULATOR_IDENTITY,
     FACTORY_POWER_UNAVAILABLE_CODE,
+    FactoryPowerPresentation,
     FactoryPowerPresentationError,
     build_factory_power_presentation,
     canonical_result_hash,
@@ -97,16 +97,42 @@ def test_aily_rejects_fake_hash_on_a_serialized_read_model_mapping() -> None:
     assert unavailable["canonical_result_hash"] is None
 
 
-def test_aily_rejects_non_sha256_hash_on_the_internal_presentation_path() -> None:
+def test_aily_rejects_a_caller_constructed_presentation_object() -> None:
     canonical = _canonical_fixture()
-    presentation = replace(
-        build_factory_power_presentation(canonical),
-        canonical_result_hash="sha256:fixture-hash",
+    built = build_factory_power_presentation(canonical)
+    presentation = FactoryPowerPresentation(
+        schema_version=built.schema_version,
+        source_calculator_id=built.source_calculator_id,
+        source_calculator_version=built.source_calculator_version,
+        source_calculator_identity=built.source_calculator_identity,
+        canonical_result_hash=built.canonical_result_hash,
+        factory_area_band=built.factory_area_band,
+        unit_semantics=deepcopy(built.unit_semantics),
+        review=deepcopy(built.review),
+        provenance=deepcopy(built.provenance),
+        assumptions=tuple(built.assumptions),
+        details=tuple(deepcopy(built.details)),
+        summary=deepcopy(built.summary),
     )
 
-    unavailable = project_factory_power_table(presentation)
+    unavailable = project_factory_power_table(cast(Any, presentation))
 
     assert unavailable["available"] is False
+    assert unavailable["canonical_result_hash"] is None
+
+
+def test_aily_rejects_a_mutated_built_presentation_object_with_its_old_hash() -> None:
+    canonical = _canonical_fixture()
+    presentation = build_factory_power_presentation(canonical)
+    old_hash = presentation.canonical_result_hash
+    presentation.summary["estimated_total_power_kw"] = "999999"
+    presentation.details[0]["coincident_power_kw"] = "888888"
+    assert presentation.canonical_result_hash == old_hash
+
+    unavailable = project_factory_power_table(cast(Any, presentation))
+
+    assert unavailable["reply_kind"] == "factory_power_estimation_unavailable"
+    assert unavailable["code"] == FACTORY_POWER_UNAVAILABLE_CODE
     assert unavailable["canonical_result_hash"] is None
 
 

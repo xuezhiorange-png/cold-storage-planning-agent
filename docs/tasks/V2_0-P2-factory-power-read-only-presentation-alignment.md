@@ -78,11 +78,11 @@ calculator_version=2.0.0-p1
 
 ### Aily / 豆包
 
-新增纯 `project_factory_power_table(...)`。它只接受 canonical result 或共享
-`FactoryPowerPresentation` 对象，输出 V2-specific `reply_kind`、精确 calculator
-identity/hash、details、summary、review、assumptions、provenance 和单位语义。普通
-`Mapping` 只代表 P1 serialized canonical result，并统一经过
-`build_factory_power_presentation(...)`，重新绑定 canonical 内容与 hash；带有
+新增纯 `project_factory_power_table(...)`。它只接受 serialized P1 canonical result
+`Mapping`，输出 V2-specific `reply_kind`、精确 calculator identity/hash、details、
+summary、review、assumptions、provenance 和单位语义。它不接受 caller-created
+`FactoryPowerPresentation` object；普通 `Mapping` 统一经过
+`build_factory_power_presentation(...)`，重新绑定 canonical 内容与 hash。带有
 `source_calculator_identity`/`canonical_result_hash` 的可变 presentation dict 不再
 被当作可信 read-model。当前五阶段 `project_power_table()`、
 `preview_installed_power()` 和其 `installed_power@1.0.0` 身份未修改；本任务没有
@@ -111,14 +111,35 @@ HASH_BOUND_TO_CANONICAL_CONTENT=YES
 MUTATED_READ_MODEL_WITH_OLD_HASH_BLOCKED=YES
 ~~
 
+## Review correction R2
+
+PR #258 的后续独立复审确认 R1 后仍存在 Aily object-path integrity blocker。R2 在同一
+feature lane 中删除 `FactoryPowerPresentation` object shortcut，使 Aily 的 Mapping
+入口始终从 canonical source 重建并重算 hash；完成后等待独立 re-review。
+
+~~~text
+CORRECTION_TASK_ID=V20_P2_FACTORY_POWER_CANONICAL_RESULT_READ_ONLY_PRESENTATION_REVIEW_CORRECTION_R2
+SOURCE_PR=258
+SOURCE_HEAD_SHA=57b7d2c021d85c5fe9cc679b7d64554cefc4125e
+REVIEW_RESULT=FAIL_CORRECTION_REQUIRED
+BLOCKER_COUNT=1
+AILY_PRESENTATION_OBJECT_INPUT_REMOVED=YES
+AILY_MAPPING_CANONICAL_ONLY=YES
+CALLER_CONSTRUCTED_PRESENTATION_ACCEPTED=NO
+MUTATED_PRESENTATION_OBJECT_WITH_OLD_HASH_ACCEPTED=NO
+STRICT_SHA256_FORMAT=YES
+HASH_ALWAYS_RECOMPUTED_FROM_CANONICAL_SOURCE=YES
+HASH_BOUND_TO_CANONICAL_CONTENT=YES
+~~~
+
 ## 一致性与测试
 
 共享 golden fixture 分别从 backend shared presentation 与 canonical source 进入工作台
 和 Aily projector，比较 source identity、canonical hash、details、summary、review、
 unit semantics 和审计字段。hostile fixtures 证明工作台在 attached presentation 缺失、
-为空或 malformed 时不读取 raw snapshot；Aily 对 fake hash、可变 serialized read-model
-以及“修改工程值但保留旧 hash”的 payload 统一不可用。canonical 数值即使与可推导的
-数学关系被故意打破，也不会在消费者侧重算。
+为空或 malformed 时不读取 raw snapshot；Aily 对 fake hash、可变 serialized read-model、
+caller-created presentation object，以及“修改工程值但保留旧 hash”的 payload 统一不可用。
+canonical 数值即使与可推导的数学关系被故意打破，也不会在消费者侧重算。
 
 架构测试锁定 P0/P1 历史授权、P2 独立授权、旧 calculator 身份分离、无公式复制、
 无 migration、无 outbound Aily、无五阶段枚举变化和精确的允许范围。

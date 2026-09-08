@@ -12,7 +12,6 @@ from cold_storage.modules.projects.application.factory_power_presentation import
     FACTORY_POWER_CALCULATOR_IDENTITY,
     FACTORY_POWER_CALCULATOR_VERSION,
     FACTORY_POWER_UNAVAILABLE_CODE,
-    FactoryPowerPresentation,
     FactoryPowerPresentationError,
     build_factory_power_presentation,
 )
@@ -21,15 +20,13 @@ _CANONICAL_RESULT_HASH_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 def project_factory_power_table(
-    source: Mapping[str, Any] | FactoryPowerPresentation | None,
+    source: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     """Project an existing V2 canonical result without running engineering logic."""
     if source is None:
         return _unavailable_body()
     try:
-        presentation = (
-            source if isinstance(source, FactoryPowerPresentation) else _build_presentation(source)
-        )
+        presentation = _build_presentation(source)
         if (
             not isinstance(presentation.canonical_result_hash, str)
             or _CANONICAL_RESULT_HASH_PATTERN.fullmatch(presentation.canonical_result_hash) is None
@@ -73,13 +70,13 @@ def project_factory_power_table(
     }
 
 
-def _build_presentation(source: Mapping[str, Any]) -> FactoryPowerPresentation:
+def _build_presentation(source: Mapping[str, Any]) -> Any:
     """Build only from the serialized P1 canonical result.
 
     A mutable mapping that looks like the shared presentation is not an
     integrity authority: it has no canonical source from which its hash can
-    be recomputed.  The trusted internal object path is handled by the caller
-    above; every mapping must therefore pass through the canonical builder.
+    be recomputed. Every mapping must therefore pass through the canonical
+    builder.
     """
     return build_factory_power_presentation(source)
 
