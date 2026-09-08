@@ -1,3 +1,5 @@
+import type { FactoryPowerPresentation } from './factoryPower'
+
 export interface PersistedFormulaEntry {
   formula_id?: string
   formula_version?: string
@@ -24,6 +26,7 @@ export interface CalculationRunRecord {
   input_snapshot?: Record<string, unknown>
   result_snapshot: CalculationResultSnapshot | Record<string, unknown>
   result_hash?: string
+  factory_power_presentation?: FactoryPowerPresentation | null
   upstream_calculation_ids?: Record<string, string>
   formulas?: PersistedFormulaEntry[]
   coefficients?: unknown[]

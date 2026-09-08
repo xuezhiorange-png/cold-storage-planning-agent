@@ -78,6 +78,27 @@ EXPECTED_CHANGED_PATHS = {
     "docs/tasks/V2_0-P1-factory-power-estimation-canonical-result-implementation.md",
     "docs/tasks/V2_0-version-plan.md",
 }
+P2_DOWNSTREAM_PATHS = {
+    "backend/src/cold_storage/modules/aily/application/factory_power_table.py",
+    "backend/src/cold_storage/modules/calculations/application/factory_power_presentation.py",
+    "backend/src/cold_storage/modules/projects/application/factory_power_presentation.py",
+    "backend/src/cold_storage/modules/projects/application/service.py",
+    "backend/src/cold_storage/modules/projects/infrastructure/database.py",
+    "backend/tests/architecture/test_v20_p0_factory_power_estimation_and_presentation_contract.py",
+    "backend/tests/architecture/test_v20_p1_factory_power_estimation_canonical_result.py",
+    "backend/tests/architecture/test_v20_p2_factory_power_read_only_presentation.py",
+    "backend/tests/golden/v20_factory_power_canonical_result_v1.json",
+    "backend/tests/unit/test_v20_p2_factory_power_read_only_presentation.py",
+    "docs/tasks/V2_0-P2-factory-power-read-only-presentation-alignment.md",
+    "frontend/src/api/contracts/calculations.ts",
+    "frontend/src/api/contracts/factoryPower.ts",
+    "frontend/src/features/calculations/components/CalculationsPage.vue",
+    "frontend/src/features/calculations/components/FactoryPowerEstimationResults.test.ts",
+    "frontend/src/features/calculations/components/FactoryPowerEstimationResults.vue",
+    "frontend/src/features/calculations/architecture/test_v20_p2_factory_power_read_only_presentation.test.ts",
+    "frontend/src/features/calculations/model/mapFactoryPowerPresentation.test.ts",
+    "frontend/src/features/calculations/model/mapFactoryPowerPresentation.ts",
+}
 GENERATED_ARTIFACT_PREFIX = "backend/artifacts/local/"
 OUTBOUND_AILY_AUTHORIZATION_LOCK = "OUTBOUND_LIVE_AILY_SESSION_AUTHORIZED=NO"
 HOSTILE_OUTBOUND_AILY_AUTHORIZATION_LOCK = "NO_OUTBOUND_LIVE_AILY_SESSION" + "=NO"
@@ -213,11 +234,16 @@ def test_v20_p0_documents_are_present_and_docs_only() -> None:
     assert VERSION_PLAN_PATH.is_file()
     assert ADR_PATH.is_file()
     changed = _changed_paths()
-    assert changed <= EXPECTED_CHANGED_PATHS
+    assert changed <= EXPECTED_CHANGED_PATHS | P2_DOWNSTREAM_PATHS
     assert {path for path in changed if path.startswith("backend/src/")} <= {
-        "backend/src/cold_storage/modules/calculations/domain/factory_power_estimation.py"
+        "backend/src/cold_storage/modules/calculations/domain/factory_power_estimation.py",
+        "backend/src/cold_storage/modules/calculations/application/factory_power_presentation.py",
+        "backend/src/cold_storage/modules/aily/application/factory_power_table.py",
+        "backend/src/cold_storage/modules/projects/application/service.py",
+        "backend/src/cold_storage/modules/projects/application/factory_power_presentation.py",
+        "backend/src/cold_storage/modules/projects/infrastructure/database.py",
     }
-    assert not any(path.startswith("frontend/") for path in changed)
+    assert {path for path in changed if path.startswith("frontend/")} <= P2_DOWNSTREAM_PATHS
     assert not any(path.startswith("backend/alembic/") for path in changed)
 
 
