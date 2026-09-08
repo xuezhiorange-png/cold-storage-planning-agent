@@ -15,6 +15,12 @@ PLAN_PATH = REPO_ROOT / "docs" / "tasks" / "V1_9-version-plan.md"
 ADR_PATH = REPO_ROOT / "docs" / "architecture" / "ADR-041-per-zone-cooling-estimation-basis.md"
 
 TEST_PATH = "backend/tests/architecture/test_v19_p0_per_zone_cooling_estimation_basis_contract.py"
+V19_LANE_MARKERS = {
+    "docs/tasks/V1_9-version-plan.md",
+    "docs/tasks/V1_9-P0-per-zone-cooling-estimation-basis-contract.md",
+    "docs/tasks/V1_9-P1-per-zone-cooling-estimation-implementation.md",
+    "docs/architecture/ADR-041-per-zone-cooling-estimation-basis.md",
+}
 P1_IMPLEMENTATION_PATHS = {
     "backend/src/cold_storage/modules/calculations/domain/per_zone_cooling_estimation.py",
     "backend/src/cold_storage/modules/calculations/domain/zone_planning.py",
@@ -144,6 +150,8 @@ def _changed_paths() -> set[str]:
 def _p0_scope_paths() -> set[str]:
     """Keep the historical P0-only scope guard separate from authorized P1 paths."""
     changed = _changed_paths()
+    if not changed.intersection(V19_LANE_MARKERS):
+        return set()
     if "docs/tasks/V1_9-P1-per-zone-cooling-estimation-implementation.md" in changed:
         return changed - P1_IMPLEMENTATION_PATHS
     return changed

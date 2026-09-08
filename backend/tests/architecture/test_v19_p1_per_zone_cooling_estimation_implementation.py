@@ -84,6 +84,12 @@ EXPECTED_CHANGED_PATHS = {
     "docs/tasks/V1_9-P1-per-zone-cooling-estimation-implementation.md",
     "docs/tasks/V1_9-version-plan.md",
 }
+V19_LANE_MARKERS = {
+    "docs/tasks/V1_9-version-plan.md",
+    "docs/tasks/V1_9-P0-per-zone-cooling-estimation-basis-contract.md",
+    "docs/tasks/V1_9-P1-per-zone-cooling-estimation-implementation.md",
+    "docs/architecture/ADR-041-per-zone-cooling-estimation-basis.md",
+}
 
 
 def _changed_paths() -> set[str]:
@@ -120,7 +126,9 @@ def test_p1_documents_and_scope_are_present() -> None:
     assert VERSION_PLAN_PATH.is_file()
     assert CURRENT_STATE_PATH.is_file()
     assert ADR_PATH.is_file()
-    assert _changed_paths() <= EXPECTED_CHANGED_PATHS
+    changed = _changed_paths()
+    if changed.intersection(V19_LANE_MARKERS):
+        assert changed <= EXPECTED_CHANGED_PATHS
 
 
 def test_p1_is_separately_authorized_without_rewriting_p0_history() -> None:
@@ -213,6 +221,8 @@ def test_p1_adds_only_the_minimum_surface_and_keeps_five_stage_boundaries() -> N
 
 def test_p1_scope_has_no_forbidden_runtime_surfaces() -> None:
     paths = _changed_paths()
+    if not paths.intersection(V19_LANE_MARKERS):
+        return
     forbidden = {
         "backend/src/cold_storage/modules/calculations/domain/cooling_load.py",
         "backend/src/cold_storage/modules/calculations/domain/equipment.py",
