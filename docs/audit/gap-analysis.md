@@ -19,9 +19,10 @@
 > complete** on `main@675fa8adfc58e2362101079d83393e90706505b2`: the P0 contract
 > is frozen, P1 is merged through PR #254, the report projection regression is
 > closed, and the V0.7 golden controlled evolution is complete. V1.9 release
-> closure is complete at `v1.9.0`. **V2.0 implementation is complete** on
-> `main@5d5a9cad010a629bf52f6534fba37d047c330e00`: P0, P1, and P2 are merged;
-> the active governance stage is release closure/readiness for `v2.0.0`.
+> closure is complete at `v1.9.0`. **V2.0 implementation and release are complete**
+> at `v2.0.0` on `main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`: P0, P1, and P2
+> are merged, and the annotated tag/GitHub Release point to that commit. **V2.1
+> P0 is now the active governance stage** for `v2.1.0`.
 > There is no defined V2.0 P3. Later feature umbrellas (outbound live Aily
 > session, remaining TD-008 equipment catalogs, and zone thermal catalog recut)
 > stay unauthorized until Charles dispatches.
@@ -46,6 +47,62 @@ V2_0_0_RELEASE_READY=YES
 TAG_CREATION_AUTHORIZED=NO
 GITHUB_RELEASE_CREATION_AUTHORIZED=NO
 DEPLOYMENT_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The block above preserves the historical V2.0 readiness gate. Release execution
+subsequently completed at `v2.0.0`; the active lane is now V2.1 P0.
+
+```text
+V2_0_0_RELEASED=YES
+V2_0_0_RELEASE_COMMIT=a7049ca93d238013c0cf62069fe1e0a89ff834d7
+GITHUB_RELEASE_CREATED=YES
+ACTIVE_GOVERNANCE_LANE=V2.1_P0
+V21_P0_FACTORY_POWER_UPSTREAM_AUTHORITY_AND_DOUBAO_MCP_CONTRACT_R1
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+## V2.1 P0 active contract-freeze lane
+
+V2.1 P0 freezes the upstream authority from
+`cold_room_zone_plan@1.0.0` to the V2.0 factory-power calculator and appends the
+future `preview_factory_power` contract after the existing five MCP tools. This
+is contract/governance work only; it does not implement the adapter, MCP, Skill,
+database migration, or any runtime behavior. The P0 lane is defined by
+`docs/tasks/V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md` and
+`docs/architecture/ADR-043-factory-power-upstream-authority-doubao-mcp.md`.
+
+```text
+ACTIVE_GOVERNANCE_LANE=V2.1_P0
+TARGET_VERSION=v2.1.0
+BASE_RELEASE=v2.0.0
+BASE_MAIN_SHA=a7049ca93d238013c0cf62069fe1e0a89ff834d7
+CONTRACT_FREEZE=YES
+USER_REENTERS_FACTORY_AREA=NO
+USER_REENTERS_COLD_STORAGE_AREA=NO
+FACTORY_AREA_AUTHORITY=SUM_ALL_ZONE_REQUIRED_AREA
+COLD_STORAGE_AREA_AUTHORITY=REFRIGERATED_ZONE_REGISTRY
+EXPECTED_FACTORY_ZONE_COUNT=12
+EXPECTED_REFRIGERATED_ZONE_COUNT=9
+FROZEN_FRUIT_ROOM_INCLUDED=YES
+SHIPPING_CHANNEL_INCLUDED=YES
+REFRIGERATED_AREA_M2_IS_V21_AUTHORITY=NO
+NEW_MCP_TOOL=preview_factory_power
+NEW_MCP_TOOL_POSITION=6
+EXISTING_FIVE_TOOL_ORDER_CHANGED=NO
+V20_P1_CALCULATOR_UNCHANGED=YES
+V20_P2_PRESENTATION_UNCHANGED=YES
+RUNTIME_IMPLEMENTATION=NO
+MCP_IMPLEMENTATION=NO
+SKILL_IMPLEMENTATION=NO
+DATABASE_MIGRATION=NO
+READY=NO
+MERGE=NO
+TAG=NO
+RELEASE=NO
+DEPLOYMENT=NO
 NEXT_FEATURE_LANE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```

@@ -1,8 +1,8 @@
 # ADR-042：冻结 V2.0 工厂功率估算与统一呈现契约
 
-- 状态：Accepted; P0 contract frozen, P1 merged, P2 read-only presentation merged; V2.0 implementation complete; release closure active
+- 状态：Accepted; P0 contract frozen, P1 merged, P2 read-only presentation merged; V2.0 implementation complete and released; release closure active (historical and completed); V2.1 P0 active
 - 日期：2026-09-08
-- 当前主线：v2.0.0 release-closure candidate / main@5d5a9cad010a629bf52f6534fba37d047c330e00
+- 当前主线：v2.0.0 / main@a7049ca93d238013c0cf62069fe1e0a89ff834d7
 - 关联任务：V20_RELEASE_CLOSURE_READINESS_R1
 
 ## Context
@@ -234,9 +234,22 @@ NEXT_FEATURE_LANE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ~~~
 
-The active governance lane is release closure/readiness. This status does not
-create or move a tag, create a GitHub Release, deploy the system, or define a
-fictional V2.0 P3.
+The release-closure block above is the historical readiness record. V2.0 release
+execution subsequently completed at `v2.0.0`; the active governance lane is now
+V2.1 P0 and no V2.1 implementation is implied.
+
+## V2.0 release execution completed
+
+~~~text
+V2_0_0_RELEASED=YES
+V2_0_0_TAG=v2.0.0
+V2_0_0_RELEASE_COMMIT=a7049ca93d238013c0cf62069fe1e0a89ff834d7
+GITHUB_RELEASE_CREATED=YES
+ACTIVE_GOVERNANCE_LANE=V2.1_P0
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+~~~
+
+v2.0.0 已发布；该事实不改写 P0/P1/P2 的历史 authorization blocks。
 
 ## Consequences
 
@@ -249,7 +262,8 @@ fictional V2.0 P3.
   本 P0 中保持不变。
 - 本 ADR 的接受不授予 P1、P2、Ready、Merge、标签、发布或正式设计权限。
 - 历史 P2 Draft PR 和 CI 通过不自动授予 Ready、Merge、标签、发布或正式设计权限；
-  当前 release closure 仍需遵守独立的 tag、Release、部署和正式设计 gate。
+  V2.0 的独立 release gate 已在 `v2.0.0` 完成，V2.1 P0 仍需遵守自己的
+  implementation、Ready、Merge、tag、Release、部署和正式设计 gate。
 
 ## Alternatives rejected
 

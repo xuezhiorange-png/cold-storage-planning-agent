@@ -31,6 +31,10 @@ ALLOWED_PATHS = {
     "docs/tasks/V2_0-release-closure-readiness.md",
     "docs/tasks/V2_0-version-plan.md",
     "docs/TECH_DEBT.md",
+    "backend/tests/architecture/test_v21_p0_factory_power_upstream_authority_doubao_mcp_contract.py",
+    "docs/tasks/V2_1-version-plan.md",
+    "docs/tasks/V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md",
+    "docs/architecture/ADR-043-factory-power-upstream-authority-doubao-mcp.md",
 }
 
 RUNTIME_PATHS = {

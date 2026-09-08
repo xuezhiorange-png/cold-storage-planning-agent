@@ -1,7 +1,9 @@
 # V2.0 版本计划：工厂功率估算与统一呈现契约
 
-**状态：** V2.0 P0 契约冻结；P1/P2 已合并到 `main`，V2.0 implementation complete；当前治理阶段为 `v2.0.0` release closure/readiness。
-**当前主线：** `main@5d5a9cad010a629bf52f6534fba37d047c330e00`。
+**状态：** V2.0 P0 契约冻结；P1/P2 已合并到 `main`，V2.0 implementation
+complete；`v2.0.0` 已发布。本文件现为历史版本计划，当前治理阶段已转入
+V2.1 P0。
+**当前主线：** `main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`（`v2.0.0`）。
 **上一版本：** v1.9.0 at main@8f48332435f4916bdb9ab8430d686678c1efc576。
 **本版方向：** 冷间设备数量、设备装机功率、化霜/其他/生产功率池、同时系数和工厂最终估算电功率。
 **产品身份：** 冷库规划与概念设计辅助工具，不替代正式电气设计、设备选型、变压器容量校核或计量。
@@ -147,9 +149,20 @@ NEXT_FEATURE_LANE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ~~~
 
-P0、P1、P2 均已完成并合并；不存在定义中的 V2.0 P3。当前只允许继续
-release closure/readiness 的独立审查，不允许由本状态推导 tag、GitHub Release、
-部署或下一 feature lane。
+P0、P1、P2 均已完成并合并；不存在定义中的 V2.0 P3。V2.0 release
+closure/readiness 随后完成并已发布 `v2.0.0`；本文件的 authorization block
+仍是历史记录，不能被用来推导 V2.1 实现或下一 feature lane。
+
+V2.0 release execution 随后已完成：`v2.0.0` tag 和 GitHub Release 均指向
+`main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`。上面的 tag/release
+authorization NO 是历史 gate 记录，当前 active governance lane 为 V2.1 P0。
+
+~~~text
+V2_0_0_RELEASED=YES
+V2_0_0_RELEASE_COMMIT=a7049ca93d238013c0cf62069fe1e0a89ff834d7
+ACTIVE_GOVERNANCE_LANE=V2.1_P0
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+~~~
 
 ## 1. P0 冻结目标
 
@@ -197,10 +210,10 @@ MAPPING_ISSUE_V19_DETAIL_LOAD=MINIMUM_ESTIMATE_AND_SUBTOTAL_ARE_DISTINCT_FIELDS
 | P0 | **已合并到 main** | 规则矩阵、字段审计、ADR、架构测试 |
 | P1 | **已合并到 main；Review Correction R1 已完成** | 后端确定性计算、canonical result 和持久化边界；不包含消费者接入或 schema 变更 |
 | P2 | **已合并到 main；PR #258 Review PASS** | 工作台与豆包/Aily 只读呈现对齐；不包含重新计算、迁移或旧 power 替换 |
-| 发布 | **Release Closure / Readiness 当前阶段** | 目标 `v2.0.0`；tag、GitHub Release、部署仍未授权 |
+| 发布 | **已完成：`v2.0.0`** | tag 与 GitHub Release 已指向 `main@a7049ca...`；部署和下一 lane 仍需独立授权 |
 
-P0 Review、P1/P2 历史授权和各自独立门禁均保留；当前 release closure 另行核验
-main lineage、runtime/presentation regression 和无新增 V2.0 blocker。
+P0 Review、P1/P2 历史授权和各自独立门禁均保留；V2.0 release closure 已完成，
+当前治理活动转入 V2.1 P0，不由本历史计划推导下一实现阶段。
 NO_STEP_IMPLIES_THE_NEXT=TRUE。
 
 ## 4. 不在本版
