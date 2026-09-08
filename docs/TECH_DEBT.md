@@ -17,13 +17,30 @@
 > V1.7 per-zone cooling component surface is complete at `v1.7.0`.
 > V1.8 per-zone temperature and height surface:
 > `docs/tasks/V1_8-version-plan.md` (`V18_IMPLEMENTATION_AUTHORIZED=YES`).
-> **V1.9 implementation is complete:** the P0 contract is frozen, P1 is
-> merged through PR #254 at `main@675fa8adfc58e2362101079d83393e90706505b2`,
-> the report projection regression is closed, and the V0.7 golden controlled
-> evolution is complete. The current governance lane is release closure for
-> `v1.9.0`; `V1_9_0_RELEASE_READY=YES` while tag creation remains gated on the
-> closure PR merge and green main HEAD CI. Later feature lanes remain
-> unauthorized until Charles dispatches.
+> **V1.9 implementation and release closure are complete:** the P0 contract is
+> frozen, P1 is merged through PR #254 at `main@675fa8adfc58e2362101079d83393e90706505b2`,
+> the report projection regression is closed, the V0.7 golden controlled
+> evolution is complete, and `v1.9.0` is released. **V2.0 implementation is
+> complete** on `main@5d5a9cad010a629bf52f6534fba37d047c330e00`: P0, P1, and P2
+> are merged. The current governance lane is release closure/readiness for
+> `v2.0.0`; tag, GitHub Release, deployment, and later feature lanes remain
+> unauthorized until separately dispatched.
+
+Current V2.0 release-closure state:
+
+```text
+V20_IMPLEMENTATION_COMPLETE=YES
+V20_P3_DEFINED=NO
+V20_P3_EXECUTED=NO
+TARGET_RELEASE=v2.0.0
+V2_0_0_RELEASE_CANDIDATE=YES
+V2_0_0_RELEASE_READY=YES
+TAG_CREATION_AUTHORIZED=NO
+GITHUB_RELEASE_CREATION_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
 
 | ID | Status | Priority | Module | Cause | Current Impact | Temporary Approach | Permanent Resolution | Target Task / Version |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

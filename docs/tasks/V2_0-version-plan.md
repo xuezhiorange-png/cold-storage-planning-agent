@@ -1,6 +1,7 @@
 # V2.0 版本计划：工厂功率估算与统一呈现契约
 
-**状态：** V2.0 P0 契约冻结；P1 已合并到 `main`，P2 只读消费者对齐已由 Charles 单独授权并在本分支实施，当前等待 P2 独立 Review。
+**状态：** V2.0 P0 契约冻结；P1/P2 已合并到 `main`，V2.0 implementation complete；当前治理阶段为 `v2.0.0` release closure/readiness。
+**当前主线：** `main@5d5a9cad010a629bf52f6534fba37d047c330e00`。
 **上一版本：** v1.9.0 at main@8f48332435f4916bdb9ab8430d686678c1efc576。
 **本版方向：** 冷间设备数量、设备装机功率、化霜/其他/生产功率池、同时系数和工厂最终估算电功率。
 **产品身份：** 冷库规划与概念设计辅助工具，不替代正式电气设计、设备选型、变压器容量校核或计量。
@@ -74,10 +75,11 @@ NO_FRONTEND_RECALCULATION
 NO_OUTBOUND_LIVE_AILY_SESSION
 ~~~
 
-## 当前实施状态：V2.0 P2
+## 当前实施状态：V2.0 P2（已合并）
 
 P1 canonical calculator 已在 `main@2a1a2797767a52834143a78b3e80193b5752b2e6`
-合并。Charles 随后单独授权 P2，本切片只把已经存在的
+合并。Charles 随后单独授权 P2；PR #258 已将本切片合并到
+`main@5d5a9cad010a629bf52f6534fba37d047c330e00`。本切片只把已经存在的
 `factory_power_estimation@2.0.0-p1` 结果投影到工作台和 Aily/Doubao 的只读
 呈现边界；不触发计算、不替换五阶段 power、不改数据库结构。
 
@@ -115,11 +117,39 @@ P2 的共享 read-model 只做 canonical result 的 shape validation、字段复
 实现细节、跨消费者 golden test 和门禁记录见
 [V2_0-P2-factory-power-read-only-presentation-alignment.md](V2_0-P2-factory-power-read-only-presentation-alignment.md)。
 
-本计划的 P0 段落只冻结规则和数据呈现边界；当前 P1/P2 实施仍受各自任务文件和
-授权块约束。正式契约和机器可读规则矩阵见
+本计划中的 P0/P1/P2 授权块是历史记录，原始 `P2_AUTHORIZED=NO`、
+`READY_AUTHORIZED=NO` 和 `MERGE_AUTHORIZED=NO` 等 gate 值不改写为当前授权。
+当前合并事实和 release readiness 记录见
+[V2_0-release-closure-readiness.md](V2_0-release-closure-readiness.md)。正式契约和机器可读规则矩阵见
 [V2_0-P0-factory-power-estimation-and-presentation-contract.md](V2_0-P0-factory-power-estimation-and-presentation-contract.md)；
 架构决策见
 [ADR-042-factory-power-estimation-and-presentation-contract.md](../architecture/ADR-042-factory-power-estimation-and-presentation-contract.md)。
+
+## V2.0 Release Closure / Readiness
+
+~~~text
+V20_P2_IMPLEMENTATION_STATUS=MERGED
+V20_P2_PR_NUMBER=258
+V20_P2_REVIEW_RESULT=PASS
+V20_P2_BLOCKER_COUNT=0
+V20_P2_FINAL_HEAD_SHA=2759538bcd32f7468de50c740ca17d7fbe18f49b
+V20_P2_MERGE_COMMIT_SHA=5d5a9cad010a629bf52f6534fba37d047c330e00
+V20_IMPLEMENTATION_COMPLETE=YES
+V20_P3_DEFINED=NO
+V20_P3_EXECUTED=NO
+TARGET_RELEASE=v2.0.0
+V2_0_0_RELEASE_CANDIDATE=YES
+V2_0_0_RELEASE_READY=YES
+TAG_CREATION_AUTHORIZED=NO
+GITHUB_RELEASE_CREATION_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+~~~
+
+P0、P1、P2 均已完成并合并；不存在定义中的 V2.0 P3。当前只允许继续
+release closure/readiness 的独立审查，不允许由本状态推导 tag、GitHub Release、
+部署或下一 feature lane。
 
 ## 1. P0 冻结目标
 
@@ -164,13 +194,13 @@ MAPPING_ISSUE_V19_DETAIL_LOAD=MINIMUM_ESTIMATE_AND_SUBTOTAL_ARE_DISTINCT_FIELDS
 
 | 切片 | 状态 | 允许内容 |
 | --- | --- | --- |
-| P0 | **本 PR：契约冻结** | 规则矩阵、字段审计、ADR、架构测试 |
+| P0 | **已合并到 main** | 规则矩阵、字段审计、ADR、架构测试 |
 | P1 | **已合并到 main；Review Correction R1 已完成** | 后端确定性计算、canonical result 和持久化边界；不包含消费者接入或 schema 变更 |
-| P2 | **已授权；本分支实施，等待独立 Review** | 工作台与豆包/Aily 只读呈现对齐；不包含重新计算、迁移或旧 power 替换 |
-| 发布 | 未授权 | 任何 release/tag 必须另过发布门禁；不由 P0 推导 |
+| P2 | **已合并到 main；PR #258 Review PASS** | 工作台与豆包/Aily 只读呈现对齐；不包含重新计算、迁移或旧 power 替换 |
+| 发布 | **Release Closure / Readiness 当前阶段** | 目标 `v2.0.0`；tag、GitHub Release、部署仍未授权 |
 
-P0 Review 的通过只证明契约可审计；P1 和 P2 均须以各自明确的授权与独立门禁为准，
-不因当前 P2 实施或测试通过而推导 Ready、Merge、发布或生产设计。
+P0 Review、P1/P2 历史授权和各自独立门禁均保留；当前 release closure 另行核验
+main lineage、runtime/presentation regression 和无新增 V2.0 blocker。
 NO_STEP_IMPLIES_THE_NEXT=TRUE。
 
 ## 4. 不在本版

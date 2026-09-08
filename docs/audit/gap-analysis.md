@@ -18,10 +18,37 @@
 > V1.8 per-zone temperature and height is complete. **V1.9 implementation is
 > complete** on `main@675fa8adfc58e2362101079d83393e90706505b2`: the P0 contract
 > is frozen, P1 is merged through PR #254, the report projection regression is
-> closed, and the V0.7 golden controlled evolution is complete. The active
-> governance stage is release closure for `v1.9.0`; later feature umbrellas
-> (outbound live Aily session, remaining TD-008 equipment catalogs, and zone
-> thermal catalog recut) stay unauthorized until Charles dispatches.
+> closed, and the V0.7 golden controlled evolution is complete. V1.9 release
+> closure is complete at `v1.9.0`. **V2.0 implementation is complete** on
+> `main@5d5a9cad010a629bf52f6534fba37d047c330e00`: P0, P1, and P2 are merged;
+> the active governance stage is release closure/readiness for `v2.0.0`.
+> There is no defined V2.0 P3. Later feature umbrellas (outbound live Aily
+> session, remaining TD-008 equipment catalogs, and zone thermal catalog recut)
+> stay unauthorized until Charles dispatches.
+
+## V2.0 release-closure status
+
+The V2.0 implementation is complete on `main`; P0 contract freeze, P1 canonical
+calculation, and P2 read-only workbench/Aily presentation alignment are all
+merged. This release-closure lane does not close unrelated open rows below and
+does not define or execute a V2.0 P3.
+
+```text
+V20_IMPLEMENTATION_COMPLETE=YES
+P0_STATUS=MERGED
+P1_STATUS=MERGED
+P2_STATUS=MERGED
+V20_P3_DEFINED=NO
+V20_P3_EXECUTED=NO
+TARGET_RELEASE=v2.0.0
+V2_0_0_RELEASE_CANDIDATE=YES
+V2_0_0_RELEASE_READY=YES
+TAG_CREATION_AUTHORIZED=NO
+GITHUB_RELEASE_CREATION_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
 
 ## P0
 

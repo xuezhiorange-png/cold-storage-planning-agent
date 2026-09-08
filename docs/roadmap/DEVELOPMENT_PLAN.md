@@ -6,8 +6,8 @@
 > assembly is **complete** at tag `v0.6.0`. V0.7 trust loop is **complete**
 > at tag `v0.7.0` (`docs/tasks/V0_7-P0-trust-loop-contract.md`). V0.8
 > operator-minimal process input is **complete** at tag `v0.8.0`
-> (`docs/tasks/V0_8-P0-operator-minimal-input-contract.md`). **Active
-> umbrella:** V0.9 P0 contract (`docs/tasks/V0_9-P0-version-contract.md`)
+> (`docs/tasks/V0_8-P0-operator-minimal-input-contract.md`). **Historical
+> umbrella at this freeze:** V0.9 P0 contract (`docs/tasks/V0_9-P0-version-contract.md`)
 > plus overall plan (`docs/tasks/V0_9-version-plan.md`). V0.9 operator
 > workbench is **complete** at `v1.0.0`. **V1.1 豆包工作伙伴 inbound connector
 > is complete at `v1.1.0`.** V1.2 five-stage conversation preview is
@@ -20,9 +20,10 @@
 > lane. **V1.9 implementation is complete on `main@675fa8adfc58e2362101079d83393e90706505b2`**:
 > the P0 contract is frozen, P1 is merged through PR #254, the report
 > projection regression is closed, and the V0.7 golden controlled evolution is
-> complete. The active governance stage is V1.9 release closure for `v1.9.0`;
-> the release remains gated on the closure PR merge and green main HEAD CI.
-> Later feature umbrellas (outbound live Aily session, remaining TD-008
+> complete. V1.9 release closure is complete at `v1.9.0`. **Active governance
+> stage:** V2.0 release closure/readiness for `v2.0.0` on
+> `main@5d5a9cad010a629bf52f6534fba37d047c330e00`; V2.0 P0, P1, and P2 are
+> complete and merged. Later feature umbrellas (outbound live Aily session, remaining TD-008
 > equipment catalogs, and zone thermal catalog recut) stay unauthorized until
 > Charles dispatches.
 
@@ -58,9 +59,39 @@ NEXT_FEATURE_LANE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
-The release-closure PR is documentation and governance only. It must remain
-Draft until separately reviewed; do not create or move `v1.9.0` until that PR
-is merged and main HEAD CI is green.
+The V1.9 release-closure PR was documentation/governance only and has completed;
+`v1.9.0` is already released. The active release-closure work is V2.0 and must
+remain Draft until separately reviewed; no V2.0 tag or GitHub Release is created
+by this roadmap update.
+
+## V2.0 Implementation Closure
+
+V2.0 consists of exactly three formal implementation stages: P0 contract freeze,
+P1 backend deterministic canonical calculation, and P2 workbench + Aily/Doubao
+read-only presentation alignment. All three are merged on `main`; there is no
+defined V2.0 P3. The active lane is the separate `v2.0.0` release
+closure/readiness evaluation.
+
+```text
+V20_IMPLEMENTATION_COMPLETE=YES
+P0_STATUS=MERGED
+P1_STATUS=MERGED
+P2_STATUS=MERGED
+V20_P3_DEFINED=NO
+V20_P3_EXECUTED=NO
+TARGET_RELEASE=v2.0.0
+V2_0_0_RELEASE_CANDIDATE=YES
+V2_0_0_RELEASE_READY=YES
+TAG_CREATION_AUTHORIZED=NO
+GITHUB_RELEASE_CREATION_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The closure/readiness record is maintained in
+`docs/tasks/V2_0-release-closure-readiness.md`. Passing implementation CI does
+not imply tag, GitHub Release, deployment, or a next feature lane.
 
 ## Task 0: Local Baseline, Repository Audit, And Governance
 

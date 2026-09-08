@@ -76,6 +76,7 @@ EXPECTED_CHANGED_PATHS = {
     "docs/tasks/V2_0-version-plan.md",
 }
 P2_DOWNSTREAM_PATHS = {
+    "backend/tests/architecture/test_v20_release_closure_readiness.py",
     "backend/src/cold_storage/modules/aily/application/factory_power_table.py",
     "backend/src/cold_storage/modules/calculations/application/factory_power_presentation.py",
     "backend/src/cold_storage/modules/projects/application/factory_power_presentation.py",
@@ -87,6 +88,7 @@ P2_DOWNSTREAM_PATHS = {
     "backend/tests/golden/v20_factory_power_canonical_result_v1.json",
     "backend/tests/unit/test_v20_p2_factory_power_read_only_presentation.py",
     "docs/tasks/V2_0-P2-factory-power-read-only-presentation-alignment.md",
+    "docs/tasks/V2_0-release-closure-readiness.md",
     "frontend/src/api/contracts/calculations.ts",
     "frontend/src/api/contracts/factoryPower.ts",
     "frontend/src/features/calculations/components/CalculationsPage.vue",
