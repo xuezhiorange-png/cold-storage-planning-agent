@@ -74,6 +74,7 @@ EXPECTED_CHANGED_PATHS = {
     "docs/tasks/V2_0-P0-factory-power-estimation-and-presentation-contract.md",
     "docs/tasks/V2_0-version-plan.md",
 }
+GENERATED_ARTIFACT_PREFIX = "backend/artifacts/local/"
 
 EXPECTED_ZONE_RULES = {
     "primary_precooling_room": {
@@ -194,7 +195,11 @@ def _changed_paths() -> set[str]:
         text=True,
         check=True,
     ).stdout.splitlines()
-    return {path.strip() for path in [*tracked, *untracked] if path.strip()}
+    return {
+        path.strip()
+        for path in [*tracked, *untracked]
+        if path.strip() and not path.strip().startswith(GENERATED_ARTIFACT_PREFIX)
+    }
 
 
 def test_v20_p0_documents_are_present_and_docs_only() -> None:
