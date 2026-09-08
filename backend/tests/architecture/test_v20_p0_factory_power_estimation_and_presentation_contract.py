@@ -75,6 +75,8 @@ EXPECTED_CHANGED_PATHS = {
     "docs/tasks/V2_0-version-plan.md",
 }
 GENERATED_ARTIFACT_PREFIX = "backend/artifacts/local/"
+OUTBOUND_AILY_AUTHORIZATION_LOCK = "OUTBOUND_LIVE_AILY_SESSION_AUTHORIZED=NO"
+HOSTILE_OUTBOUND_AILY_AUTHORIZATION_LOCK = "NO_OUTBOUND_LIVE_AILY_SESSION" + "=NO"
 
 EXPECTED_ZONE_RULES = {
     "primary_precooling_room": {
@@ -224,6 +226,7 @@ def test_v20_p0_document_authorization_locks_are_consistent() -> None:
         "RUNTIME_CODE_CHANGE": "NO",
         "FRONTEND_CODE_CHANGE": "NO",
         "AILY_RUNTIME_CHANGE": "NO",
+        "OUTBOUND_LIVE_AILY_SESSION_AUTHORIZED": "NO",
         "DATABASE_MIGRATION": "NO",
         "EQUIPMENT_MODEL_SELECTION": "NO",
         "TRANSFORMER_SIZING": "NO",
@@ -361,6 +364,10 @@ def test_nine_zone_air_cooler_rules_are_frozen_exactly() -> None:
 
 
 def test_public_equipment_and_lighting_rules_are_frozen() -> None:
+    contract_text = CONTRACT_PATH.read_text(encoding="utf-8")
+    assert "冷库电动平移门" in contract_text
+    assert "电动" + "滑升门" not in contract_text
+
     public = _contract_data()["public_equipment"]
     assert isinstance(public, list)
     by_code = {item["equipment_code"]: item for item in public}
@@ -558,6 +565,7 @@ def test_final_power_and_shared_presentation_contract_are_frozen() -> None:
         "NO_FRONTEND_RECALCULATION",
         "NO_OUTBOUND_LIVE_AILY_SESSION",
     }
+    assert data["authorization"]["OUTBOUND_LIVE_AILY_SESSION_AUTHORIZED"] == "NO"
     assert data["unit_semantics"] == {
         "power_unit": "kW",
         "estimated_electrical_power": "kW",
@@ -611,6 +619,9 @@ def test_contract_documents_repeat_the_shared_consumer_and_stop_locks() -> None:
         assert "NO_AILY_RECALCULATION" in text
         assert "NO_FRONTEND_RECALCULATION" in text
         assert "NO_OUTBOUND_LIVE_AILY_SESSION" in text
+        assert OUTBOUND_AILY_AUTHORIZATION_LOCK in text
+        assert HOSTILE_OUTBOUND_AILY_AUTHORIZATION_LOCK not in text
+        assert "OUTBOUND_LIVE_AILY_SESSION_AUTHORIZED=YES" not in text
         assert "P1_AUTHORIZED=NO" in text
         assert "P2_AUTHORIZED=NO" in text
         assert "MERGE_AUTHORIZED=NO" in text
