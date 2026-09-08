@@ -21,6 +21,9 @@ TECH_DEBT_PATH = REPO_ROOT / "docs" / "TECH_DEBT.md"
 
 ALLOWED_PATHS = {
     "backend/tests/architecture/test_v20_release_closure_readiness.py",
+    "backend/tests/architecture/test_v20_p0_factory_power_estimation_and_presentation_contract.py",
+    "backend/tests/architecture/test_v20_p1_factory_power_estimation_canonical_result.py",
+    "backend/tests/architecture/test_v20_p2_factory_power_read_only_presentation.py",
     "docs/architecture/ADR-042-factory-power-estimation-and-presentation-contract.md",
     "docs/audit/current-state.md",
     "docs/audit/gap-analysis.md",
