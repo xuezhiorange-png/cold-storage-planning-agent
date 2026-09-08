@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from cold_storage.modules.audit.domain import AuditEvent
 from cold_storage.modules.calculations.domain.result import CalculationResult
+from cold_storage.modules.projects.application.factory_power_presentation import (
+    attach_factory_power_presentation,
+)
 from cold_storage.modules.projects.domain.models import (
     Project,
     ProjectVersion,
@@ -350,7 +353,7 @@ class ProjectService:
     def list_calculations(self, project_id: str, version_number: int) -> list[dict[str, object]]:
         version = self.get_version(project_id, version_number)
         return [
-            record
+            attach_factory_power_presentation(record)
             for record in self.calculation_runs
             if record["project_id"] == project_id and record["project_version_id"] == version.id
         ]

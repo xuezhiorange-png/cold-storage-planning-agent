@@ -1,0 +1,66 @@
+{
+  "schema_version": "2.0.0-p1",
+  "result_kind": "factory_power_canonical_result",
+  "success": true,
+  "calculator": {
+    "id": "factory_power_estimation",
+    "version": "2.0.0-p1",
+    "identity": "factory_power_estimation@2.0.0-p1"
+  },
+  "input_authority": {
+    "factory_area_m2": "2500",
+    "cold_storage_area_m2": "100"
+  },
+  "factory_area_band": "SMALL",
+  "unit_semantics": {
+    "power_unit": "kW",
+    "energy_unit": "kWh",
+    "not_energy": true,
+    "not_metered_electricity": true,
+    "not_daily_electricity_consumption": true
+  },
+  "provenance": {
+    "rule_authority": "V20_P0_FACTORY_POWER_ESTIMATION_AND_PRESENTATION_CONTRACT_R1",
+    "rule_source": "static_runtime_registry",
+    "runtime_document_parsing": false
+  },
+  "assumptions": [
+    "all values are estimated electrical power in kW and require engineering review"
+  ],
+  "review": {
+    "requires_review": true,
+    "status": "REQUIRES_ENGINEERING_REVIEW"
+  },
+  "details": [
+    {
+      "equipment_or_zone": "public.electric_sliding_door",
+      "basis": "factory_area_band",
+      "configured_quantity": 15,
+      "unit_power_kw": "0.5",
+      "installed_power_kw": "7.5",
+      "pool": "POOL_B",
+      "simultaneity_factor": "0.90",
+      "coincident_power_kw": "6.75"
+    },
+    {
+      "equipment_or_zone": "production_equipment",
+      "basis": "production_equipment_installed_power_kw by factory area band",
+      "configured_quantity": 1,
+      "unit_power_kw": "200",
+      "installed_power_kw": "200",
+      "pool": "POOL_C",
+      "simultaneity_factor": "0.85",
+      "coincident_power_kw": "170"
+    }
+  ],
+  "summary": {
+    "defrost_installed_power_kw": "10",
+    "defrost_coincident_power_kw": "3",
+    "other_installed_power_kw": "100",
+    "other_coincident_power_kw": "90",
+    "production_equipment_installed_power_kw": "200",
+    "production_equipment_coincident_power_kw": "170",
+    "total_installed_power_kw": "310",
+    "estimated_total_power_kw": "263"
+  }
+}

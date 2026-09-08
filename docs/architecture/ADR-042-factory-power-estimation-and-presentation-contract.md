@@ -1,6 +1,6 @@
 # ADR-042：冻结 V2.0 工厂功率估算与统一呈现契约
 
-- 状态：Accepted for V2.0 P0 contract freeze; implementation not authorized
+- 状态：Accepted; P0 contract frozen, P1 merged, P2 read-only presentation implemented in a Draft PR
 - 日期：2026-09-08
 - 基线：v1.9.0 / main@8f48332435f4916bdb9ab8430d686678c1efc576
 - 关联任务：V20_P0_FACTORY_POWER_ESTIMATION_AND_PRESENTATION_CONTRACT_R1
@@ -126,7 +126,8 @@ P0_CONTRACT_FROZEN=YES
 P1_IMPLEMENTATION_SEPARATELY_AUTHORIZED=YES
 V20_P1_IMPLEMENTATION_AUTHORIZED=YES
 V20_P1_IMPLEMENTATION_EXECUTED=YES
-V20_P1_IMPLEMENTATION_STATUS=IMPLEMENTATION_IN_THIS_BRANCH
+V20_P1_IMPLEMENTATION_STATUS=IMPLEMENTATION_MERGED_IN_MAIN
+V20_P1_MERGE_COMMIT_SHA=2a1a2797767a52834143a78b3e80193b5752b2e6
 CALCULATOR_IDENTITY=factory_power_estimation@2.0.0-p1
 DISTINCT_FROM=installed_power@1.0.0
 FACTORY_AREA_AUTHORITY_REQUIRED=YES
@@ -159,6 +160,51 @@ tag, and release work remain separately gated.
 前端和 Aily 可以解释或查询 canonical 数据，但不得复制公式、重建数量、
 重乘系数或建立出站实时 Aily 会话。
 
+## P2 read-only presentation addendum (separate authorization)
+
+The P0 authorization lock and the P1 implementation record above remain
+historical records. P1 was merged at
+`2a1a2797767a52834143a78b3e80193b5752b2e6`. Charles separately authorized the
+following P2 consumer-alignment slice; it does not grant Ready, Merge, tag, or
+release authority.
+
+~~~text
+TASK_ID=V20_P2_FACTORY_POWER_CANONICAL_RESULT_READ_ONLY_PRESENTATION_ALIGNMENT_R1
+P0_CONTRACT_FROZEN=YES
+P1_IMPLEMENTATION_MERGED=YES
+P1_MERGE_COMMIT_SHA=2a1a2797767a52834143a78b3e80193b5752b2e6
+P2_IMPLEMENTATION_SEPARATELY_AUTHORIZED=YES
+V20_P2_IMPLEMENTATION_AUTHORIZED=YES
+V20_P2_IMPLEMENTATION_EXECUTED=YES
+CANONICAL_SOURCE=factory_power_estimation@2.0.0-p1
+WORKBENCH_READ_ONLY=YES
+AILY_READ_ONLY=YES
+WORKBENCH_AND_AILY_READ_SAME_RESULT=YES
+FRONTEND_RECALCULATION=NO
+AILY_RECALCULATION=NO
+INSTALLED_POWER_REPLACED=NO
+POWER_CONFIGURATION_USED_AS_V2_AUTHORITY=NO
+FIVE_STAGE_CALCULATION_TYPE_CHANGED=NO
+OUTBOUND_LIVE_AILY_SESSION_AUTHORIZED=NO
+DATABASE_MIGRATION_CREATED=NO
+P3_AUTHORIZED=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+TAG_AUTHORIZED=NO
+RELEASE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+~~~
+
+P2 adds a shared read-only presentation model under the calculations
+application boundary and an independent Aily/Doubao projector. Both copy the
+serialized P1 canonical result, preserve the exact calculator identity and
+engineering fields, and use the same canonical-result integrity hash. The
+workbench adds a separate V2 card while retaining the legacy
+`installed_power@1.0.0` card and `power_configuration` supplemental surface.
+Missing or malformed V2 data fails closed; it never falls back to either
+legacy power surface. No calculation trigger, migration, schema change,
+outbound Aily session, or P3 work is included.
+
 ## Consequences
 
 - 规则和边界拥有可被架构测试直接验证的单一契约来源。
@@ -169,6 +215,7 @@ tag, and release work remain separately gated.
 - 现有 installed_power@1.0.0、equipment.py、power.py、报告和前端在
   本 P0 中保持不变。
 - 本 ADR 的接受不授予 P1、P2、Ready、Merge、标签、发布或正式设计权限。
+- P2 的 Draft PR 和 CI 通过不自动授予 Ready、Merge、标签、发布或正式设计权限。
 
 ## Alternatives rejected
 

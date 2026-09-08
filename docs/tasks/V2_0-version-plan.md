@@ -1,6 +1,6 @@
 # V2.0 版本计划：工厂功率估算与统一呈现契约
 
-**状态：** V2.0 P0 契约冻结；P1 已由 Charles 单独授权并在本分支实现，Review Correction R1 已推送，当前等待独立 P1 re-review。
+**状态：** V2.0 P0 契约冻结；P1 已合并到 `main`，P2 只读消费者对齐已由 Charles 单独授权并在本分支实施，当前等待 P2 独立 Review。
 **上一版本：** v1.9.0 at main@8f48332435f4916bdb9ab8430d686678c1efc576。
 **本版方向：** 冷间设备数量、设备装机功率、化霜/其他/生产功率池、同时系数和工厂最终估算电功率。
 **产品身份：** 冷库规划与概念设计辅助工具，不替代正式电气设计、设备选型、变压器容量校核或计量。
@@ -41,7 +41,8 @@ P0_CONTRACT_FROZEN=YES
 P1_IMPLEMENTATION_SEPARATELY_AUTHORIZED=YES
 V20_P1_IMPLEMENTATION_AUTHORIZED=YES
 V20_P1_IMPLEMENTATION_EXECUTED=YES
-V20_P1_IMPLEMENTATION_STATUS=IMPLEMENTATION_IN_THIS_BRANCH
+V20_P1_IMPLEMENTATION_STATUS=IMPLEMENTATION_MERGED_IN_MAIN
+V20_P1_MERGE_COMMIT_SHA=2a1a2797767a52834143a78b3e80193b5752b2e6
 V20_CANONICAL_RESULT=IMPLEMENTED_ADDITIVELY
 FACTORY_AREA_AUTHORITY_REQUIRED=YES
 COLD_STORAGE_AREA_AUTHORITY_REQUIRED=YES
@@ -73,8 +74,49 @@ NO_FRONTEND_RECALCULATION
 NO_OUTBOUND_LIVE_AILY_SESSION
 ~~~
 
-本计划只冻结规则和数据呈现边界，不实现功率计算器、API、数据库、工作台、
-豆包/Aily 或报告输出。正式契约和机器可读规则矩阵见
+## 当前实施状态：V2.0 P2
+
+P1 canonical calculator 已在 `main@2a1a2797767a52834143a78b3e80193b5752b2e6`
+合并。Charles 随后单独授权 P2，本切片只把已经存在的
+`factory_power_estimation@2.0.0-p1` 结果投影到工作台和 Aily/Doubao 的只读
+呈现边界；不触发计算、不替换五阶段 power、不改数据库结构。
+
+~~~text
+TASK_ID=V20_P2_FACTORY_POWER_CANONICAL_RESULT_READ_ONLY_PRESENTATION_ALIGNMENT_R1
+P0_CONTRACT_FROZEN=YES
+P1_IMPLEMENTATION_MERGED=YES
+P1_MERGE_COMMIT_SHA=2a1a2797767a52834143a78b3e80193b5752b2e6
+P2_IMPLEMENTATION_SEPARATELY_AUTHORIZED=YES
+V20_P2_IMPLEMENTATION_AUTHORIZED=YES
+V20_P2_IMPLEMENTATION_EXECUTED=YES
+CANONICAL_SOURCE=factory_power_estimation@2.0.0-p1
+WORKBENCH_READ_ONLY=YES
+AILY_READ_ONLY=YES
+WORKBENCH_AND_AILY_READ_SAME_RESULT=YES
+FRONTEND_RECALCULATION=NO
+AILY_RECALCULATION=NO
+INSTALLED_POWER_REPLACED=NO
+POWER_CONFIGURATION_USED_AS_V2_AUTHORITY=NO
+FIVE_STAGE_CALCULATION_TYPE_CHANGED=NO
+OUTBOUND_LIVE_AILY_SESSION_AUTHORIZED=NO
+DATABASE_MIGRATION_CREATED=NO
+P3_AUTHORIZED=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+TAG_AUTHORIZED=NO
+RELEASE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+~~~
+
+P2 的共享 read-model 只做 canonical result 的 shape validation、字段复制、中文
+呈现标签和完整性 hash。工作台保留独立的“估算工厂电功率（V2.0）”卡片；旧
+`installed_power@1.0.0` 仍是五阶段 power，`power_configuration` 仍是补充/演示
+数据。缺失或非法的 V2 结果在两侧均显式不可用，绝不回退到旧功率结果。
+实现细节、跨消费者 golden test 和门禁记录见
+[V2_0-P2-factory-power-read-only-presentation-alignment.md](V2_0-P2-factory-power-read-only-presentation-alignment.md)。
+
+本计划的 P0 段落只冻结规则和数据呈现边界；当前 P1/P2 实施仍受各自任务文件和
+授权块约束。正式契约和机器可读规则矩阵见
 [V2_0-P0-factory-power-estimation-and-presentation-contract.md](V2_0-P0-factory-power-estimation-and-presentation-contract.md)；
 架构决策见
 [ADR-042-factory-power-estimation-and-presentation-contract.md](../architecture/ADR-042-factory-power-estimation-and-presentation-contract.md)。
@@ -123,12 +165,13 @@ MAPPING_ISSUE_V19_DETAIL_LOAD=MINIMUM_ESTIMATE_AND_SUBTOTAL_ARE_DISTINCT_FIELDS
 | 切片 | 状态 | 允许内容 |
 | --- | --- | --- |
 | P0 | **本 PR：契约冻结** | 规则矩阵、字段审计、ADR、架构测试 |
-| P1 | **已实现；Review Correction R1 已推送，等待独立 re-review** | 后端确定性计算、canonical result 和持久化边界；不包含消费者接入或 schema 变更 |
-| P2 | 未授权 | 工作台与豆包/Aily 只读呈现对齐；须单独授权 |
+| P1 | **已合并到 main；Review Correction R1 已完成** | 后端确定性计算、canonical result 和持久化边界；不包含消费者接入或 schema 变更 |
+| P2 | **已授权；本分支实施，等待独立 Review** | 工作台与豆包/Aily 只读呈现对齐；不包含重新计算、迁移或旧 power 替换 |
 | 发布 | 未授权 | 任何 release/tag 必须另过发布门禁；不由 P0 推导 |
 
-P0 Review 的通过只证明契约可审计，不等于 P1、P2、Ready、Merge、发布或生产设计
-已经授权。NO_STEP_IMPLIES_THE_NEXT=TRUE。
+P0 Review 的通过只证明契约可审计；P1 和 P2 均须以各自明确的授权与独立门禁为准，
+不因当前 P2 实施或测试通过而推导 Ready、Merge、发布或生产设计。
+NO_STEP_IMPLIES_THE_NEXT=TRUE。
 
 ## 4. 不在本版
 

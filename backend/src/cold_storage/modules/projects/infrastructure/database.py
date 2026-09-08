@@ -13,6 +13,9 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from cold_storage.modules.audit.domain import AuditEvent
 from cold_storage.modules.calculations.domain.result import CalculationResult
+from cold_storage.modules.projects.application.factory_power_presentation import (
+    attach_factory_power_presentation,
+)
 from cold_storage.modules.projects.application.service import ProjectService
 from cold_storage.modules.projects.domain.models import (
     Project,
@@ -593,7 +596,7 @@ class DatabaseProjectService(ProjectService):
                 payload["upstream_calculation_ids"] = upstream
         if record.calculation_type is not None:
             payload["calculation_type"] = record.calculation_type
-        return payload
+        return attach_factory_power_presentation(payload)
 
     def _audit_to_dict(self, record: AuditEventRecord) -> dict[str, Any]:
         return {

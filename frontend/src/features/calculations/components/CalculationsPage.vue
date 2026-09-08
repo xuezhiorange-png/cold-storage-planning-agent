@@ -8,8 +8,10 @@ import EquipmentResultsTable from './EquipmentResultsTable.vue'
 import InstalledPowerResultsTable from './InstalledPowerResultsTable.vue'
 import InvestmentResultsTable from './InvestmentResultsTable.vue'
 import ZoneResultsTable from './ZoneResultsTable.vue'
+import FactoryPowerEstimationResults from './FactoryPowerEstimationResults.vue'
 import FiveStageProgressPanel from '../../five-stage/components/FiveStageProgressPanel.vue'
 import { EMPTY_STAGE_COPY } from '../model/mapPersistedCalculations'
+import { mapFactoryPowerPresentation } from '../model/mapFactoryPowerPresentation'
 import { usePersistedPlanningResultsStore } from '../../../stores/persistedPlanningResults'
 import { useWorkbenchContextStore } from '../../../stores/workbenchContext'
 
@@ -48,11 +50,17 @@ const zoneTableRows = computed(() => {
   const zones = persisted.displayResponse?.zone_plan?.result?.zones
   return zones && zones.length > 0 ? zones : []
 })
+
+const factoryPowerPresentation = computed(() =>
+  mapFactoryPowerPresentation(persisted.rawRecords)
+)
 </script>
 
 <template>
   <div class="calculations-page">
     <FiveStageProgressPanel :progress="persisted.fiveStageProgress" />
+
+    <FactoryPowerEstimationResults :presentation="factoryPowerPresentation" />
 
     <template v-if="hasAnyPersistedStage">
       <CalculationSummary
