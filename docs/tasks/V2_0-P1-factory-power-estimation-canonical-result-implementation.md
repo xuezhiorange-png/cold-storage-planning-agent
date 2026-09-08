@@ -41,9 +41,26 @@ RELEASE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ~~~
 
-实现状态：`V20_P1_IMPLEMENTATION_EXECUTED=YES`。本任务只覆盖后端纯确定性
-计算、typed canonical input/result、稳定序列化、测试和本记录；完成后停在
-独立 Review gate，不推导 Ready、Merge、tag 或 release。
+实现状态：`V20_P1_IMPLEMENTATION_EXECUTED=YES`。Review Correction R1 已按
+独立评审意见完成：mapping-built input 与 direct typed input 共用同一 nested
+canonical validation boundary，所有执行面积分母和照明/UV 数值均来自可审计的
+静态 registry，并由架构测试从 P0 machine-readable matrix 派生锁定。当前仍停在
+独立 re-review gate，不推导 Ready、Merge、tag 或 release。
+
+~~~text
+CORRECTION_TASK_ID=V20_P1_FACTORY_POWER_ESTIMATION_CANONICAL_RESULT_REVIEW_CORRECTION_R1
+SOURCE_PR=257
+SOURCE_HEAD_SHA=ce683e69f8014bfa17242a19c0cd2d7ebbafa293
+TYPED_CANONICAL_VALIDATION_UNIFIED=YES
+DIRECT_TYPED_FAIL_CLOSED=YES
+AREA_DENOMINATORS_EXECUTION_LOCKED=YES
+LIGHTING_RUNTIME_REGISTRY_LOCKED=YES
+UV_RUNTIME_REGISTRY_LOCKED=YES
+READY_EXECUTED=NO
+MERGE_EXECUTED=NO
+TAG_CREATED=NO
+RELEASE_CREATED=NO
+~~~
 
 ## 实现边界
 
@@ -118,8 +135,8 @@ registry，不读取或解析 Markdown/JSON。P1 采用 additive boundary，保�
 ## 测试证据与停止点
 
 - P1 unit tests 覆盖面积边界、九区数量、预冷 6/8-position、公共设备、照明、
-  六区主压缩机、专用系统、冷凝器、三池互斥、summary、Decimal 重放及 hostile
-  fail-closed 输入。
+  六区主压缩机、专用系统、冷凝器、三池互斥、summary、Decimal 重放及 mapping/
+  direct typed hostile fail-closed 输入；面积分母边界必须能反映执行值漂移。
 - P1 architecture test 将 P0 JSON 与 runtime registry 对照，并锁定 P0 历史
   授权、P1 独立授权、legacy/外部副作用边界、五阶段枚举、前端/Aily/迁移范围。
 - 本任务完成后仅创建并保持 Draft PR，等待 Charles 独立 Review；不执行 Ready、

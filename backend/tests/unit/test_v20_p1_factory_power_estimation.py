@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import replace
 from decimal import Decimal
 from typing import Any
 
@@ -13,6 +14,7 @@ from cold_storage.modules.calculations.domain.factory_power_estimation import (
     CALCULATOR_VERSION,
     MAIN_SYSTEM_COP,
     FactoryPowerEstimationError,
+    FactoryPowerEstimationInput,
     build_factory_power_estimation_input,
     calculate_factory_power_estimation,
     calculate_factory_power_estimation_from_mapping,
@@ -120,6 +122,55 @@ def _row(payload: dict[str, object], zone_code: str) -> dict[str, object]:
     return row
 
 
+def _typed_input() -> FactoryPowerEstimationInput:
+    return build_factory_power_estimation_input(_raw_input())
+
+
+def _typed_input_with_zone(
+    zone_code: str,
+    **changes: object,
+) -> FactoryPowerEstimationInput:
+    calculation_input = _typed_input()
+    zones = tuple(
+        replace(zone, **changes) if zone.zone_code == zone_code else zone
+        for zone in calculation_input.zones
+    )
+    return replace(calculation_input, zones=zones)
+
+
+def _typed_input_with_scheme(
+    zone_code: str,
+    scheme_index: int = 0,
+    **changes: object,
+) -> FactoryPowerEstimationInput:
+    calculation_input = _typed_input()
+    zones = []
+    for zone in calculation_input.zones:
+        if zone.zone_code != zone_code:
+            zones.append(zone)
+            continue
+        schemes = tuple(
+            replace(scheme, **changes) if index == scheme_index else scheme
+            for index, scheme in enumerate(zone.schemes)
+        )
+        zones.append(replace(zone, schemes=schemes))
+    return replace(calculation_input, zones=tuple(zones))
+
+
+def _assert_direct_typed_blocker(
+    calculation_input: FactoryPowerEstimationInput,
+    expected_code: str,
+) -> None:
+    with pytest.raises(FactoryPowerEstimationError) as exc:
+        calculate_factory_power_estimation(calculation_input)
+
+    assert exc.value.code == expected_code
+    blocker = exc.value.to_blocker()
+    assert blocker["success"] is False
+    assert blocker["blocker"]["code"] == expected_code  # type: ignore[index]
+    assert isinstance(blocker["blocker"]["details"], dict)  # type: ignore[index]
+
+
 def test_v2_identity_is_distinct_and_result_has_one_canonical_shape() -> None:
     result = calculate_factory_power_estimation_from_mapping(_raw_input())
 
@@ -180,6 +231,41 @@ def test_zone_rules_use_selected_scheme_and_next_even_sorting_quantity() -> None
     assert details["sorting_packaging_room.air_cooler.motor"].configured_quantity == 4
     assert details["raw_fruit_buffer.air_cooler.motor"].configured_quantity == 1
     assert details["shipping_channel.air_cooler.motor"].configured_quantity == 2
+
+
+@pytest.mark.parametrize(
+    ("zone_code", "required_area_m2", "expected_quantity"),
+    [
+        ("raw_fruit_buffer", "79.99", 1),
+        ("raw_fruit_buffer", "80", 1),
+        ("raw_fruit_buffer", "80.01", 2),
+        ("sorting_packaging_room", "69.99", 2),
+        ("sorting_packaging_room", "70", 2),
+        ("sorting_packaging_room", "70.01", 2),
+        ("sorting_packaging_room", "140", 2),
+        ("sorting_packaging_room", "140.01", 4),
+        ("coating_room", "69.99", 1),
+        ("coating_room", "70", 1),
+        ("coating_room", "70.01", 2),
+        ("finished_goods_room", "69.99", 1),
+        ("finished_goods_room", "70", 1),
+        ("finished_goods_room", "70.01", 2),
+        ("shipping_channel", "49.99", 1),
+        ("shipping_channel", "50", 1),
+        ("shipping_channel", "50.01", 2),
+    ],
+)
+def test_area_denominator_boundaries_drive_executed_quantities(
+    zone_code: str,
+    required_area_m2: str,
+    expected_quantity: int,
+) -> None:
+    payload = _raw_input()
+    _row(payload, zone_code)["required_area_m2"] = required_area_m2
+
+    details = _details(calculate_factory_power_estimation_from_mapping(payload))
+
+    assert details[f"{zone_code}.air_cooler.motor"].configured_quantity == expected_quantity
 
 
 def test_eight_position_scheme_is_selected_by_reporting_scheme_id() -> None:
@@ -288,6 +374,145 @@ def test_decimal_serialization_is_deterministic_without_binary_float_values() ->
     assert first.canonical_json() == second.canonical_json()
     assert "500.02" in first.canonical_json()
     assert "kWh" in first.canonical_json()
+
+
+@pytest.mark.parametrize(
+    ("bad_value", "expected_code"),
+    [
+        (Decimal("-1"), "INVALID_REQUIRED_AREA_M2"),
+        (Decimal("NaN"), "INVALID_REQUIRED_AREA_M2"),
+        (Decimal("Infinity"), "INVALID_REQUIRED_AREA_M2"),
+        ("not-a-number", "INVALID_REQUIRED_AREA_M2"),
+        (True, "INVALID_REQUIRED_AREA_M2"),
+    ],
+)
+def test_direct_typed_zone_area_is_fail_closed(
+    bad_value: object,
+    expected_code: str,
+) -> None:
+    _assert_direct_typed_blocker(
+        _typed_input_with_zone("raw_fruit_buffer", required_area_m2=bad_value),
+        expected_code,
+    )
+
+
+@pytest.mark.parametrize(
+    ("bad_value", "expected_code"),
+    [
+        (Decimal("-1"), "INVALID_SCHEME_REQUIRED_AREA"),
+        (Decimal("NaN"), "INVALID_SCHEME_REQUIRED_AREA"),
+        (Decimal("Infinity"), "INVALID_SCHEME_REQUIRED_AREA"),
+        ("not-a-number", "INVALID_SCHEME_REQUIRED_AREA"),
+    ],
+)
+def test_direct_typed_scheme_area_is_fail_closed(
+    bad_value: object,
+    expected_code: str,
+) -> None:
+    _assert_direct_typed_blocker(
+        _typed_input_with_scheme(
+            "primary_precooling_room",
+            required_area_m2=bad_value,
+        ),
+        expected_code,
+    )
+
+
+@pytest.mark.parametrize(
+    "bad_value",
+    [Decimal("-1"), Decimal("1.5"), 1.0, True],
+)
+def test_direct_typed_scheme_room_count_is_fail_closed(bad_value: object) -> None:
+    _assert_direct_typed_blocker(
+        _typed_input_with_scheme("primary_precooling_room", room_count=bad_value),
+        "INVALID_SCHEME_ROOM_COUNT",
+    )
+
+
+@pytest.mark.parametrize(
+    "bad_value",
+    [Decimal("-1"), Decimal("1.5"), 1.0, True],
+)
+def test_direct_typed_scheme_position_count_is_fail_closed(bad_value: object) -> None:
+    _assert_direct_typed_blocker(
+        _typed_input_with_scheme("primary_precooling_room", position_count=bad_value),
+        "INVALID_SCHEME_POSITION_COUNT",
+    )
+
+
+@pytest.mark.parametrize(
+    ("bad_value", "expected_code"),
+    [
+        (123, "INVALID_REPORTING_SCHEME_ID"),
+        ("", "INVALID_REPORTING_SCHEME_ID"),
+        ("unknown", "UNKNOWN_REPORTING_SCHEME_ID"),
+    ],
+)
+def test_direct_typed_reporting_scheme_id_is_fail_closed(
+    bad_value: object,
+    expected_code: str,
+) -> None:
+    _assert_direct_typed_blocker(
+        _typed_input_with_zone("primary_precooling_room", reporting_scheme_id=bad_value),
+        expected_code,
+    )
+
+
+@pytest.mark.parametrize(
+    ("bad_value", "expected_code"),
+    [
+        (123, "INVALID_PRECOOLING_SCHEME"),
+        ("", "INVALID_PRECOOLING_SCHEME"),
+        ("unknown", "UNKNOWN_REPORTING_SCHEME_ID"),
+    ],
+)
+def test_direct_typed_scheme_id_is_fail_closed(
+    bad_value: object,
+    expected_code: str,
+) -> None:
+    _assert_direct_typed_blocker(
+        _typed_input_with_scheme("primary_precooling_room", scheme_id=bad_value),
+        expected_code,
+    )
+
+
+@pytest.mark.parametrize(
+    "bad_value",
+    [Decimal("-1"), Decimal("NaN"), Decimal("Infinity")],
+)
+def test_direct_typed_cooling_authority_is_fail_closed(bad_value: object) -> None:
+    _assert_direct_typed_blocker(
+        _typed_input_with_zone(
+            "raw_fruit_buffer",
+            minimum_estimated_cooling_load_kw_r=bad_value,
+        ),
+        "INVALID_MINIMUM_ESTIMATED_COOLING_LOAD_KW_R",
+    )
+
+
+def test_direct_typed_cooling_basis_is_fail_closed() -> None:
+    _assert_direct_typed_blocker(
+        _typed_input_with_zone("raw_fruit_buffer", cooling_estimation_basis=123),
+        "INVALID_COOLING_ESTIMATION_BASIS",
+    )
+
+
+@pytest.mark.parametrize(
+    ("field_name", "bad_value", "expected_code"),
+    [
+        ("factory_area_m2", -1, "INVALID_FACTORY_AREA_AUTHORITY"),
+        ("cold_storage_area_m2", Decimal("NaN"), "INVALID_COLD_STORAGE_AREA_AUTHORITY"),
+    ],
+)
+def test_direct_typed_top_level_authorities_are_fail_closed(
+    field_name: str,
+    bad_value: object,
+    expected_code: str,
+) -> None:
+    _assert_direct_typed_blocker(
+        replace(_typed_input(), **{field_name: bad_value}),
+        expected_code,
+    )
 
 
 @pytest.mark.parametrize(

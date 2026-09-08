@@ -107,7 +107,7 @@ def _zone_rule(
     *,
     zone_code: str,
     quantity_basis: str,
-    quantity_formula: str,
+    quantity_formula: str | None = None,
     motor_kw_per_unit: str,
     defrost_kw_per_unit: str,
     source_field: str | None = None,
@@ -118,6 +118,14 @@ def _zone_rule(
     axial_fan_kw_per_unit: str | None = None,
     axial_fan_quantity_formula: str | None = None,
 ) -> ZoneAirCoolerRule:
+    if area_denominator_m2 is not None:
+        area_formula = f"ceil(required_area_m2 / {area_denominator_m2})"
+        if quantity_formula is None:
+            quantity_formula = area_formula
+        if quantity_formula == "next_even_integer_greater_than_or_equal_to(raw_count)":
+            raw_count_formula = raw_count_formula or area_formula
+    if quantity_formula is None:
+        raise ValueError("quantity_formula is required for non-area rules")
     return ZoneAirCoolerRule(
         zone_code=zone_code,
         quantity_basis=quantity_basis,
@@ -165,7 +173,6 @@ ZONE_AIR_COOLER_RULES: Mapping[str, ZoneAirCoolerRule] = MappingProxyType(
         "raw_fruit_buffer": _zone_rule(
             zone_code="raw_fruit_buffer",
             quantity_basis="ZONE_AREA",
-            quantity_formula="ceil(required_area_m2 / 80)",
             source_field="required_area_m2",
             area_denominator_m2="80",
             motor_kw_per_unit="0.5",
@@ -175,7 +182,6 @@ ZONE_AIR_COOLER_RULES: Mapping[str, ZoneAirCoolerRule] = MappingProxyType(
             zone_code="sorting_packaging_room",
             quantity_basis="ZONE_AREA",
             quantity_formula="next_even_integer_greater_than_or_equal_to(raw_count)",
-            raw_count_formula="ceil(required_area_m2 / 70)",
             source_field="required_area_m2",
             area_denominator_m2="70",
             motor_kw_per_unit="0.5",
@@ -184,7 +190,6 @@ ZONE_AIR_COOLER_RULES: Mapping[str, ZoneAirCoolerRule] = MappingProxyType(
         "coating_room": _zone_rule(
             zone_code="coating_room",
             quantity_basis="ZONE_AREA",
-            quantity_formula="ceil(required_area_m2 / 70)",
             source_field="required_area_m2",
             area_denominator_m2="70",
             motor_kw_per_unit="1.5",
@@ -193,7 +198,6 @@ ZONE_AIR_COOLER_RULES: Mapping[str, ZoneAirCoolerRule] = MappingProxyType(
         "finished_goods_room": _zone_rule(
             zone_code="finished_goods_room",
             quantity_basis="ZONE_AREA",
-            quantity_formula="ceil(required_area_m2 / 70)",
             source_field="required_area_m2",
             area_denominator_m2="70",
             motor_kw_per_unit="1.5",
@@ -218,7 +222,6 @@ ZONE_AIR_COOLER_RULES: Mapping[str, ZoneAirCoolerRule] = MappingProxyType(
         "shipping_channel": _zone_rule(
             zone_code="shipping_channel",
             quantity_basis="ZONE_AREA",
-            quantity_formula="ceil(required_area_m2 / 50)",
             source_field="required_area_m2",
             area_denominator_m2="50",
             motor_kw_per_unit="2.0",
@@ -285,6 +288,56 @@ PUBLIC_EQUIPMENT_RULES: Mapping[str, PublicEquipmentRule] = MappingProxyType(
             POOL_B,
             fixed_quantity=1,
             fixed_installed_power_kw=Decimal("4.0"),
+        ),
+    }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class LightingRule:
+    """Static lighting rule whose fields directly drive the calculation."""
+
+    lighting_code: str
+    area_source_field: str
+    area_divisor_m2: Decimal
+    unit_power_kw: Decimal
+    pool: str
+    quantity_formula: str
+    installed_power_formula: str
+    forbidden_area_substitute: str
+
+
+def _lighting_rule(
+    *,
+    lighting_code: str,
+    area_divisor_m2: str,
+    unit_power_kw: str,
+) -> LightingRule:
+    divisor = Decimal(area_divisor_m2)
+    unit_power = Decimal(unit_power_kw)
+    return LightingRule(
+        lighting_code=lighting_code,
+        area_source_field="cold_storage_area_m2",
+        area_divisor_m2=divisor,
+        unit_power_kw=unit_power,
+        pool=POOL_B,
+        quantity_formula=f"ceil(cold_storage_area_m2 / {area_divisor_m2})",
+        installed_power_formula=f"quantity * {unit_power_kw}",
+        forbidden_area_substitute="factory_area_m2",
+    )
+
+
+LIGHTING_RULES: Mapping[str, LightingRule] = MappingProxyType(
+    {
+        "cold_storage_lighting": _lighting_rule(
+            lighting_code="cold_storage_lighting",
+            area_divisor_m2="10",
+            unit_power_kw="0.04",
+        ),
+        "uv_lighting": _lighting_rule(
+            lighting_code="uv_lighting",
+            area_divisor_m2="20",
+            unit_power_kw="0.08",
         ),
     }
 )
@@ -721,11 +774,13 @@ def build_factory_power_estimation_input(
         invalid_code="INVALID_COLD_STORAGE_AREA_AUTHORITY",
     )
     zones = tuple(_build_zone(row, index) for index, row in enumerate(_extract_zone_rows(raw)))
-    return FactoryPowerEstimationInput(
+    calculation_input = FactoryPowerEstimationInput(
         factory_area_m2=factory_area_m2,
         cold_storage_area_m2=cold_storage_area_m2,
         zones=zones,
     )
+    _validate_canonical_input(calculation_input)
+    return calculation_input
 
 
 def _validated_authority_decimal(
@@ -735,12 +790,199 @@ def _validated_authority_decimal(
     missing_code: str,
     invalid_code: str,
 ) -> Decimal:
-    return _parse_decimal(
-        value,
-        field_name=field_name,
-        missing_code=missing_code,
-        invalid_code=invalid_code,
+    if value is None:
+        _fail(missing_code, f"{field_name} is required and must be authoritative", field=field_name)
+    _validate_typed_decimal(value, field_name=field_name, invalid_code=invalid_code)
+    assert isinstance(value, Decimal)
+    return value
+
+
+def _validate_typed_decimal(
+    value: object,
+    *,
+    field_name: str,
+    invalid_code: str,
+) -> None:
+    """Validate a Decimal field after the mapping adapter has built typed input."""
+    if not isinstance(value, Decimal):
+        _fail(
+            invalid_code,
+            f"{field_name} must be a Decimal",
+            field=field_name,
+            value=repr(value),
+        )
+    if not value.is_finite():
+        _fail(
+            invalid_code,
+            f"{field_name} must be finite",
+            field=field_name,
+            value=repr(value),
+        )
+    if value < 0:
+        _fail(
+            invalid_code,
+            f"{field_name} cannot be negative",
+            field=field_name,
+            value=repr(value),
+        )
+
+
+def _validate_optional_typed_decimal(
+    value: object,
+    *,
+    field_name: str,
+    invalid_code: str,
+) -> None:
+    if value is not None:
+        _validate_typed_decimal(value, field_name=field_name, invalid_code=invalid_code)
+
+
+def _validate_optional_typed_int(
+    value: object,
+    *,
+    field_name: str,
+    invalid_code: str,
+) -> None:
+    if value is None:
+        return
+    if isinstance(value, bool) or not isinstance(value, int):
+        _fail(
+            invalid_code,
+            f"{field_name} must be an integer",
+            field=field_name,
+            value=repr(value),
+        )
+    if value < 0:
+        _fail(
+            invalid_code,
+            f"{field_name} cannot be negative",
+            field=field_name,
+            value=repr(value),
+        )
+
+
+def _validate_typed_string(
+    value: object,
+    *,
+    field_name: str,
+    invalid_code: str,
+    require_non_empty: bool = False,
+) -> None:
+    if not isinstance(value, str) or (require_non_empty and not value.strip()):
+        _fail(
+            invalid_code,
+            f"{field_name} must be a non-empty string"
+            if require_non_empty
+            else f"{field_name} must be a string",
+            field=field_name,
+            value=repr(value),
+        )
+
+
+def _validate_typed_scheme(
+    scheme: object,
+    *,
+    zone_code: str,
+    index: int,
+) -> None:
+    if not isinstance(scheme, FactoryPowerSchemeInput):
+        _fail(
+            "INVALID_PRECOOLING_SCHEME",
+            "typed pre-cooling scheme is required",
+            zone_code=zone_code,
+            index=index,
+        )
+    _validate_typed_string(
+        scheme.scheme_id,
+        field_name="scheme_id",
+        invalid_code="INVALID_PRECOOLING_SCHEME",
+        require_non_empty=True,
     )
+    _validate_optional_typed_int(
+        scheme.room_count,
+        field_name="room_count",
+        invalid_code="INVALID_SCHEME_ROOM_COUNT",
+    )
+    _validate_optional_typed_int(
+        scheme.position_count,
+        field_name="position_count",
+        invalid_code="INVALID_SCHEME_POSITION_COUNT",
+    )
+    _validate_optional_typed_decimal(
+        scheme.required_area_m2,
+        field_name="required_area_m2",
+        invalid_code="INVALID_SCHEME_REQUIRED_AREA",
+    )
+
+
+def _validate_typed_zone(zone: object, *, index: int) -> None:
+    if not isinstance(zone, FactoryPowerZoneInput):
+        _fail("INVALID_ZONE_ROW", "typed zone row is required", index=index)
+    _validate_typed_string(
+        zone.zone_code,
+        field_name="zone_code",
+        invalid_code="MISSING_ZONE_CODE",
+        require_non_empty=True,
+    )
+    if zone.temperature_band is not None:
+        _validate_typed_string(
+            zone.temperature_band,
+            field_name="temperature_band",
+            invalid_code="INVALID_ZONE_TEMPERATURE_BAND",
+        )
+    _validate_optional_typed_decimal(
+        zone.required_area_m2,
+        field_name="required_area_m2",
+        invalid_code="INVALID_REQUIRED_AREA_M2",
+    )
+    _validate_optional_typed_decimal(
+        zone.minimum_estimated_cooling_load_kw_r,
+        field_name="minimum_estimated_cooling_load_kw_r",
+        invalid_code="INVALID_MINIMUM_ESTIMATED_COOLING_LOAD_KW_R",
+    )
+    if zone.cooling_estimation_basis is not None:
+        _validate_typed_string(
+            zone.cooling_estimation_basis,
+            field_name="cooling_estimation_basis",
+            invalid_code="INVALID_COOLING_ESTIMATION_BASIS",
+        )
+    if zone.reporting_scheme_id is not None:
+        _validate_typed_string(
+            zone.reporting_scheme_id,
+            field_name="reporting_scheme_id",
+            invalid_code="INVALID_REPORTING_SCHEME_ID",
+            require_non_empty=True,
+        )
+    if not isinstance(zone.schemes, tuple):
+        _fail(
+            "INVALID_PRECOOLING_SCHEMES",
+            "typed schemes must be a tuple",
+            zone_code=zone.zone_code,
+        )
+    for scheme_index, scheme in enumerate(zone.schemes):
+        _validate_typed_scheme(scheme, zone_code=zone.zone_code, index=scheme_index)
+
+
+def _validate_canonical_input(calculation_input: object) -> None:
+    """Validate every public typed field before any calculation arithmetic."""
+    if not isinstance(calculation_input, FactoryPowerEstimationInput):
+        _fail("INVALID_CANONICAL_INPUT", "FactoryPowerEstimationInput is required")
+    _validated_authority_decimal(
+        calculation_input.factory_area_m2,
+        field_name="factory_area_m2",
+        missing_code="MISSING_FACTORY_AREA_AUTHORITY",
+        invalid_code="INVALID_FACTORY_AREA_AUTHORITY",
+    )
+    _validated_authority_decimal(
+        calculation_input.cold_storage_area_m2,
+        field_name="cold_storage_area_m2",
+        missing_code="MISSING_COLD_STORAGE_AREA_AUTHORITY",
+        invalid_code="INVALID_COLD_STORAGE_AREA_AUTHORITY",
+    )
+    if not isinstance(calculation_input.zones, tuple):
+        _fail("INVALID_ZONE_PLAN_AUTHORITY", "typed zones must be a tuple")
+    for index, zone in enumerate(calculation_input.zones):
+        _validate_typed_zone(zone, index=index)
 
 
 def _select_factory_area_band(factory_area_m2: Decimal) -> FactoryAreaBand:
@@ -1077,8 +1319,7 @@ def calculate_factory_power_estimation(
     calculation_input: FactoryPowerEstimationInput,
 ) -> FactoryPowerEstimationResult:
     """Calculate the V2.0 factory-power canonical result."""
-    if not isinstance(calculation_input, FactoryPowerEstimationInput):
-        _fail("INVALID_CANONICAL_INPUT", "FactoryPowerEstimationInput is required")
+    _validate_canonical_input(calculation_input)
     factory_area_m2 = _validated_authority_decimal(
         calculation_input.factory_area_m2,
         field_name="factory_area_m2",
@@ -1122,32 +1363,28 @@ def calculate_factory_power_estimation(
             )
         )
 
-    cold_lighting_quantity = int(
-        (cold_storage_area_m2 / Decimal("10")).to_integral_value(rounding=ROUND_CEILING)
-    )
-    details.append(
-        _make_detail(
-            equipment_or_zone="cold_storage_lighting",
-            basis="ceil(cold_storage_area_m2 / 10)",
-            configured_quantity=cold_lighting_quantity,
-            unit_power_kw=Decimal("0.04"),
-            pool=POOL_B,
-            band_code=band.code,
+    for lighting_code, lighting_rule in LIGHTING_RULES.items():
+        if lighting_rule.area_source_field != "cold_storage_area_m2":
+            _fail(
+                "INVALID_RULE_REGISTRY",
+                "lighting rule must use cold_storage_area_m2",
+                lighting_code=lighting_code,
+            )
+        lighting_quantity = int(
+            (cold_storage_area_m2 / lighting_rule.area_divisor_m2).to_integral_value(
+                rounding=ROUND_CEILING
+            )
         )
-    )
-    uv_quantity = int(
-        (cold_storage_area_m2 / Decimal("20")).to_integral_value(rounding=ROUND_CEILING)
-    )
-    details.append(
-        _make_detail(
-            equipment_or_zone="uv_lighting",
-            basis="ceil(cold_storage_area_m2 / 20)",
-            configured_quantity=uv_quantity,
-            unit_power_kw=Decimal("0.08"),
-            pool=POOL_B,
-            band_code=band.code,
+        details.append(
+            _make_detail(
+                equipment_or_zone=lighting_code,
+                basis=lighting_rule.quantity_formula,
+                configured_quantity=lighting_quantity,
+                unit_power_kw=lighting_rule.unit_power_kw,
+                pool=lighting_rule.pool,
+                band_code=band.code,
+            )
         )
-    )
 
     main_load = sum(
         (_required_main_cooling_load(zone_map[zone_code]) for zone_code in MAIN_SYSTEM_ZONE_CODES),
@@ -1269,6 +1506,8 @@ __all__ = [
     "FactoryPowerSchemeInput",
     "FactoryPowerSummary",
     "FactoryPowerZoneInput",
+    "LIGHTING_RULES",
+    "LightingRule",
     "MAIN_SYSTEM_COP",
     "MAIN_SYSTEM_ZONE_CODES",
     "POOL_A_SIMULTANEITY_FACTOR",

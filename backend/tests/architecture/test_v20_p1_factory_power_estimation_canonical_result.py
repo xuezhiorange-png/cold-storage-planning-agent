@@ -22,6 +22,7 @@ from cold_storage.modules.calculations.domain.factory_power_estimation import (
     DEDICATED_SYSTEM_ZONE_CODES,
     EVAPORATIVE_CONDENSER_POWER_BY_BAND,
     FACTORY_AREA_BANDS,
+    LIGHTING_RULES,
     MAIN_SYSTEM_COP,
     MAIN_SYSTEM_ZONE_CODES,
     POOL_A_SIMULTANEITY_FACTOR,
@@ -120,6 +121,16 @@ def _decimal(value: object) -> Decimal:
     return Decimal(str(value))
 
 
+def _area_denominator_from_formula(formula: object) -> Decimal | None:
+    if not isinstance(formula, str):
+        return None
+    match = re.fullmatch(
+        r"ceil\((?:required_area_m2|cold_storage_area_m2) / ([0-9]+(?:\.[0-9]+)?)\)",
+        formula,
+    )
+    return None if match is None else _decimal(match.group(1))
+
+
 def test_v20_p1_scope_is_additive_and_does_not_touch_consumers_or_schema() -> None:
     changed = _changed_paths()
     assert changed <= EXPECTED_CHANGED_PATHS
@@ -203,6 +214,15 @@ def test_v20_p0_rule_matrix_matches_v20_p1_runtime_registry() -> None:
         assert actual.source_field == expected.get("source_field")
         assert actual.raw_count_formula == expected.get("raw_count_formula")
         assert actual.fixed_quantity == expected.get("quantity")
+        expected_area_formula = expected.get("raw_count_formula") or expected.get(
+            "quantity_formula"
+        )
+        expected_denominator = (
+            _area_denominator_from_formula(expected_area_formula)
+            if expected["quantity_basis"] == "ZONE_AREA"
+            else None
+        )
+        assert actual.area_denominator_m2 == expected_denominator
         assert actual.axial_fans_per_position == expected.get("axial_fans_per_position")
         axial_power = expected.get("axial_fan_kw_per_unit")
         assert actual.axial_fan_kw_per_unit == (
@@ -226,6 +246,24 @@ def test_v20_p0_rule_matrix_matches_v20_p1_runtime_registry() -> None:
         assert actual.fixed_installed_power_kw == (
             None if expected_fixed_power is None else _decimal(expected_fixed_power)
         )
+
+    lighting = data["lighting"]
+    expected_lighting = {
+        "cold_storage_lighting": lighting["cold_storage_lighting"],
+        "uv_lighting": lighting["uv_lighting"],
+    }
+    assert set(LIGHTING_RULES) == set(expected_lighting)
+    for lighting_code, expected in expected_lighting.items():
+        actual = LIGHTING_RULES[lighting_code]
+        assert actual.area_source_field == lighting["area_source_field"]
+        assert actual.area_divisor_m2 == _area_denominator_from_formula(
+            expected["quantity_formula"]
+        )
+        assert actual.unit_power_kw == _decimal(expected["unit_power_kw"])
+        assert actual.pool == expected["pool"]
+        assert actual.quantity_formula == expected["quantity_formula"]
+        assert actual.installed_power_formula == expected["installed_power_formula"]
+        assert actual.forbidden_area_substitute == lighting["forbidden_area_substitute"]
 
 
 def test_v20_p0_system_boundaries_and_power_pools_match_runtime_registry() -> None:

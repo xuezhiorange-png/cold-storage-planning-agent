@@ -1,6 +1,6 @@
 # V2.0 版本计划：工厂功率估算与统一呈现契约
 
-**状态：** V2.0 P0 契约冻结；P1 已由 Charles 单独授权并在本分支实现，当前等待独立 P1 Review。
+**状态：** V2.0 P0 契约冻结；P1 已由 Charles 单独授权并在本分支实现，Review Correction R1 已推送，当前等待独立 P1 re-review。
 **上一版本：** v1.9.0 at main@8f48332435f4916bdb9ab8430d686678c1efc576。
 **本版方向：** 冷间设备数量、设备装机功率、化霜/其他/生产功率池、同时系数和工厂最终估算电功率。
 **产品身份：** 冷库规划与概念设计辅助工具，不替代正式电气设计、设备选型、变压器容量校核或计量。
@@ -60,7 +60,9 @@ RELEASE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ~~~
 
-P1 新增独立的纯 Domain 计算边界和 typed canonical result 序列化；它不替换
+P1 新增独立的纯 Domain 计算边界和 typed canonical result 序列化；Review
+Correction R1 已补齐 direct typed fail-closed 校验，并将执行中的面积分母、照明
+和 UV 数值纳入 P0→runtime 架构锁。它不替换
 五阶段 `CalculationType`，不接入旧 `installed_power@1.0.0`，也不新增数据库
 迁移、前端呈现或 Aily/Doubao 出站会话。实现细节和测试证据见
 [V2_0-P1-factory-power-estimation-canonical-result-implementation.md](V2_0-P1-factory-power-estimation-canonical-result-implementation.md)。
@@ -121,7 +123,7 @@ MAPPING_ISSUE_V19_DETAIL_LOAD=MINIMUM_ESTIMATE_AND_SUBTOTAL_ARE_DISTINCT_FIELDS
 | 切片 | 状态 | 允许内容 |
 | --- | --- | --- |
 | P0 | **本 PR：契约冻结** | 规则矩阵、字段审计、ADR、架构测试 |
-| P1 | 未授权 | 后端确定性计算、canonical result 和持久化边界；须单独授权 |
+| P1 | **已实现；Review Correction R1 已推送，等待独立 re-review** | 后端确定性计算、canonical result 和持久化边界；不包含消费者接入或 schema 变更 |
 | P2 | 未授权 | 工作台与豆包/Aily 只读呈现对齐；须单独授权 |
 | 发布 | 未授权 | 任何 release/tag 必须另过发布门禁；不由 P0 推导 |
 
