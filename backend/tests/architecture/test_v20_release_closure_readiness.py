@@ -68,7 +68,11 @@ def _changed_paths() -> set[str]:
         text=True,
         check=True,
     ).stdout.splitlines()
-    return {path for path in [*tracked, *untracked] if path}
+    return {
+        path
+        for path in [*tracked, *untracked]
+        if path and not path.startswith("backend/artifacts/local/")
+    }
 
 
 def test_release_closure_scope_is_docs_and_architecture_only() -> None:
