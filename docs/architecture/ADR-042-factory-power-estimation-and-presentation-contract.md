@@ -1,9 +1,9 @@
 # ADR-042：冻结 V2.0 工厂功率估算与统一呈现契约
 
-- 状态：Accepted; P0 contract frozen, P1 merged, P2 read-only presentation implemented in a Draft PR
+- 状态：Accepted; P0 contract frozen, P1 merged, P2 read-only presentation merged; V2.0 implementation complete; release closure active
 - 日期：2026-09-08
-- 基线：v1.9.0 / main@8f48332435f4916bdb9ab8430d686678c1efc576
-- 关联任务：V20_P0_FACTORY_POWER_ESTIMATION_AND_PRESENTATION_CONTRACT_R1
+- 当前主线：v2.0.0 release-closure candidate / main@5d5a9cad010a629bf52f6534fba37d047c330e00
+- 关联任务：V20_RELEASE_CLOSURE_READINESS_R1
 
 ## Context
 
@@ -205,6 +205,39 @@ Missing or malformed V2 data fails closed; it never falls back to either
 legacy power surface. No calculation trigger, migration, schema change,
 outbound Aily session, or P3 work is included.
 
+## V2.0 release closure status
+
+P0、P1、P2 的原始 authorization blocks 保留为历史记录；其中的
+`P2_AUTHORIZED=NO`、`READY_AUTHORIZED=NO` 和 `MERGE_AUTHORIZED=NO` 不代表
+当前 release closure 的授权状态。当前实施事实和候选发布就绪评估如下：
+
+~~~text
+V20_IMPLEMENTATION_COMPLETE=YES
+P0_STATUS=MERGED
+P1_STATUS=MERGED
+P2_STATUS=MERGED
+P1_MERGE_COMMIT_SHA=2a1a2797767a52834143a78b3e80193b5752b2e6
+V20_P2_PR_NUMBER=258
+V20_P2_REVIEW_RESULT=PASS
+V20_P2_BLOCKER_COUNT=0
+V20_P2_FINAL_HEAD_SHA=2759538bcd32f7468de50c740ca17d7fbe18f49b
+V20_P2_MERGE_COMMIT_SHA=5d5a9cad010a629bf52f6534fba37d047c330e00
+V20_P3_DEFINED=NO
+V20_P3_EXECUTED=NO
+TARGET_RELEASE=v2.0.0
+V2_0_0_RELEASE_CANDIDATE=YES
+V2_0_0_RELEASE_READY=YES
+TAG_CREATION_AUTHORIZED=NO
+GITHUB_RELEASE_CREATION_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+~~~
+
+The active governance lane is release closure/readiness. This status does not
+create or move a tag, create a GitHub Release, deploy the system, or define a
+fictional V2.0 P3.
+
 ## Consequences
 
 - 规则和边界拥有可被架构测试直接验证的单一契约来源。
@@ -215,7 +248,8 @@ outbound Aily session, or P3 work is included.
 - 现有 installed_power@1.0.0、equipment.py、power.py、报告和前端在
   本 P0 中保持不变。
 - 本 ADR 的接受不授予 P1、P2、Ready、Merge、标签、发布或正式设计权限。
-- P2 的 Draft PR 和 CI 通过不自动授予 Ready、Merge、标签、发布或正式设计权限。
+- 历史 P2 Draft PR 和 CI 通过不自动授予 Ready、Merge、标签、发布或正式设计权限；
+  当前 release closure 仍需遵守独立的 tag、Release、部署和正式设计 gate。
 
 ## Alternatives rejected
 

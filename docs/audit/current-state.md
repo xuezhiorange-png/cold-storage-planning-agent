@@ -742,6 +742,61 @@ snapshot while excluding it from the legacy report projection. The V0.7 raw
 zone-snapshot golden was evolved under the merged P1 contract; the remaining
 golden hashes and numeric projection assertions stayed unchanged.
 
-The release-closure change is documentation/governance only. `v1.9.0` has not
-been created or moved: tag/release execution remains gated on the closure PR
-being merged and main HEAD CI being green. No next feature lane is authorized.
+The V1.9 release-closure change was documentation/governance only and completed;
+`v1.9.0` was subsequently created and released at the verified V1.9 main
+commit. No next feature lane was authorized by that closure.
+
+## 46. V2.0 release-closure readiness (`main@5d5a9cad010a629bf52f6534fba37d047c330e00`)
+
+Fresh verification confirms that `origin/main` is exactly
+`5d5a9cad010a629bf52f6534fba37d047c330e00` with tree
+`797d630461c4550a7ed2a70342e44b81a4b170a5`. PR #258 is merged with that merge
+SHA; its merged P2 head is `2759538bcd32f7468de50c740ca17d7fbe18f49b`.
+
+V2.0 has exactly three formal implementation stages: P0 contract freeze, P1
+backend deterministic canonical calculation, and P2 workbench + Aily/Doubao
+read-only presentation alignment. There is no defined V2.0 P3. The active
+governance lane is release closure/readiness for candidate `v2.0.0`.
+
+```text
+V20_IMPLEMENTATION_COMPLETE=YES
+P0_STATUS=MERGED
+P1_STATUS=MERGED
+P2_STATUS=MERGED
+P0_CONTRACT_FROZEN=YES
+P1_CANONICAL_CALCULATOR_MERGED=YES
+P2_READ_ONLY_PRESENTATION_MERGED=YES
+P1_CANONICAL_IDENTITY=factory_power_estimation@2.0.0-p1
+V20_P2_IMPLEMENTATION_STATUS=MERGED
+V20_P2_PR_NUMBER=258
+V20_P2_REVIEW_RESULT=PASS
+V20_P2_BLOCKER_COUNT=0
+V20_P2_FINAL_HEAD_SHA=2759538bcd32f7468de50c740ca17d7fbe18f49b
+V20_P2_MERGE_COMMIT_SHA=5d5a9cad010a629bf52f6534fba37d047c330e00
+WORKBENCH_READ_ONLY_PRESENTATION=YES
+AILY_READ_ONLY_PRESENTATION=YES
+WORKBENCH_AND_AILY_READ_SAME_RESULT=YES
+FRONTEND_RECALCULATION=NO
+AILY_RECALCULATION=NO
+INSTALLED_POWER_REPLACED=NO
+POWER_CONFIGURATION_USED_AS_V2_AUTHORITY=NO
+FIVE_STAGE_CALCULATION_TYPE_CHANGED=NO
+DATABASE_MIGRATION_CREATED_FOR_V20=NO
+OUTBOUND_LIVE_AILY_SESSION_AUTHORIZED=NO
+V20_P3_DEFINED=NO
+V20_P3_EXECUTED=NO
+TARGET_RELEASE=v2.0.0
+V2_0_0_RELEASE_CANDIDATE=YES
+V2_0_0_RELEASE_READY=YES
+TAG_CREATION_AUTHORIZED=NO
+GITHUB_RELEASE_CREATION_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The V2.0 factory-power result remains a concept-design estimate in `kW`, not
+`kWh`, a metered value, a monthly electricity bill, transformer sizing, formal
+distribution design, short-circuit calculation, cable selection, or protection
+setting. The release-closure record is documentation/governance only; no tag,
+GitHub Release, deployment, or next feature lane has been executed or authorized.
