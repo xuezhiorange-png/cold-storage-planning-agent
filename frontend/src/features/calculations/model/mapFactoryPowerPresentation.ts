@@ -1,7 +1,6 @@
 import type { CalculationRunRecord } from '../../../api/contracts/calculations'
 import type {
   FactoryPowerCanonicalDetail,
-  FactoryPowerCanonicalResult,
   FactoryPowerCanonicalSummary,
   FactoryPowerPresentation
 } from '../../../api/contracts/factoryPower'
@@ -11,16 +10,7 @@ export const FACTORY_POWER_CALCULATOR_VERSION = '2.0.0-p1'
 export const FACTORY_POWER_CALCULATOR_IDENTITY =
   `${FACTORY_POWER_CALCULATOR_ID}@${FACTORY_POWER_CALCULATOR_VERSION}`
 
-const DETAIL_FIELDS = [
-  'equipment_or_zone',
-  'basis',
-  'configured_quantity',
-  'unit_power_kw',
-  'installed_power_kw',
-  'pool',
-  'simultaneity_factor',
-  'coincident_power_kw'
-] as const
+const SHA256_HASH_PATTERN = /^sha256:[0-9a-f]{64}$/u
 
 const SUMMARY_FIELDS = [
   'defrost_installed_power_kw',
@@ -33,25 +23,6 @@ const SUMMARY_FIELDS = [
   'estimated_total_power_kw'
 ] as const
 
-const POOL_LABELS: Record<string, string> = {
-  POOL_A: '化霜',
-  POOL_B: '其他设备',
-  POOL_C: '生产设备'
-}
-
-const DETAIL_LABELS: Record<string, string> = {
-  'public.electric_sliding_door': '冷库电动平移门',
-  'public.rapid_rolling_door': '快速卷帘门',
-  'public.air_curtain': '风幕',
-  'public.loading_platform': '装卸平台',
-  'public.ozone_humidification': '臭氧与加湿',
-  'public.floor_heating': '地坪加热',
-  'cold_storage.lighting': '冷间照明',
-  'cold_storage.ultraviolet': '冷间紫外线',
-  evaporative_condenser: '蒸发式冷凝器',
-  production_equipment: '生产设备'
-}
-
 export function mapFactoryPowerPresentation(
   records: CalculationRunRecord[]
 ): FactoryPowerPresentation | null {
@@ -59,30 +30,8 @@ export function mapFactoryPowerPresentation(
   if (!record) return null
 
   const attached = record.factory_power_presentation
-  if (attached && isValidPresentation(attached)) {
-    return clonePresentation(attached)
-  }
-
-  const canonical = readCanonicalResult(record.result_snapshot)
-  if (!canonical || !isValidCanonicalResult(canonical)) return null
-
-  const canonicalHash = readCanonicalHash(record, canonical)
-  if (!canonicalHash) return null
-
-  return {
-    schema_version: canonical.schema_version,
-    source_calculator_id: canonical.calculator.id,
-    source_calculator_version: canonical.calculator.version,
-    source_calculator_identity: canonical.calculator.identity,
-    canonical_result_hash: canonicalHash,
-    factory_area_band: canonical.factory_area_band,
-    unit_semantics: cloneObject(canonical.unit_semantics),
-    review: cloneObject(canonical.review),
-    provenance: cloneObject(canonical.provenance),
-    assumptions: [...canonical.assumptions],
-    details: canonical.details.map(mapDetail),
-    summary: cloneSummary(canonical.summary)
-  }
+  if (!isValidPresentation(attached)) return null
+  return clonePresentation(attached)
 }
 
 export function latestFactoryPowerRecord(
@@ -100,95 +49,65 @@ export function latestFactoryPowerRecord(
   return latest
 }
 
-function readCanonicalResult(snapshot: unknown): FactoryPowerCanonicalResult | null {
-  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return null
-  const snapshotObject = snapshot as Record<string, unknown>
-  if (isObject(snapshotObject.calculator)) {
-    return snapshotObject as unknown as FactoryPowerCanonicalResult
-  }
-  if (isObject(snapshotObject.result) && isObject(snapshotObject.result.calculator)) {
-    return snapshotObject.result as unknown as FactoryPowerCanonicalResult
-  }
-  return null
-}
-
-function isValidCanonicalResult(value: FactoryPowerCanonicalResult): boolean {
+function isValidPresentation(value: unknown): value is FactoryPowerPresentation {
   return (
-    value.schema_version === FACTORY_POWER_CALCULATOR_VERSION
-    && value.result_kind === 'factory_power_canonical_result'
-    && value.success === true
-    && value.calculator?.id === FACTORY_POWER_CALCULATOR_ID
-    && value.calculator?.version === FACTORY_POWER_CALCULATOR_VERSION
-    && value.calculator?.identity === FACTORY_POWER_CALCULATOR_IDENTITY
-    && isObject(value.input_authority)
-    && typeof value.factory_area_band === 'string'
-    && isObject(value.unit_semantics)
-    && value.unit_semantics.power_unit === 'kW'
-    && value.unit_semantics.not_energy === true
-    && isObject(value.provenance)
-    && Array.isArray(value.assumptions)
-    && value.assumptions.every((item) => typeof item === 'string')
-    && isObject(value.review)
-    && value.review.requires_review === true
-    && typeof value.review.status === 'string'
-    && Array.isArray(value.details)
-    && value.details.every(isValidDetail)
-    && isObject(value.summary)
-    && SUMMARY_FIELDS.every((field) => typeof value.summary[field] === 'string')
-  )
-}
-
-function isValidPresentation(value: FactoryPowerPresentation): boolean {
-  return (
-    value.schema_version === FACTORY_POWER_CALCULATOR_VERSION
+    isObject(value)
+    && value.schema_version === FACTORY_POWER_CALCULATOR_VERSION
     && value.source_calculator_id === FACTORY_POWER_CALCULATOR_ID
     && value.source_calculator_version === FACTORY_POWER_CALCULATOR_VERSION
     && value.source_calculator_identity === FACTORY_POWER_CALCULATOR_IDENTITY
     && typeof value.canonical_result_hash === 'string'
-    && value.canonical_result_hash.startsWith('sha256:')
+    && SHA256_HASH_PATTERN.test(value.canonical_result_hash)
     && typeof value.factory_area_band === 'string'
+    && value.factory_area_band.length > 0
     && isObject(value.unit_semantics)
+    && value.unit_semantics.power_unit === 'kW'
+    && value.unit_semantics.energy_unit === 'kWh'
+    && value.unit_semantics.not_energy === true
+    && value.unit_semantics.not_metered_electricity === true
+    && value.unit_semantics.not_daily_electricity_consumption === true
     && isObject(value.review)
     && value.review.requires_review === true
+    && typeof value.review.status === 'string'
+    && value.review.status.length > 0
     && isObject(value.provenance)
     && Array.isArray(value.assumptions)
-    && value.assumptions.every((item) => typeof item === 'string')
+    && value.assumptions.every((item) => typeof item === 'string' && item.length > 0)
     && Array.isArray(value.details)
     && value.details.every(isValidDetail)
-    && isObject(value.summary)
-    && SUMMARY_FIELDS.every((field) => typeof value.summary[field] === 'string')
+    && isValidSummary(value.summary)
   )
 }
 
-function isValidDetail(value: FactoryPowerCanonicalDetail): boolean {
+function isValidDetail(value: unknown): value is FactoryPowerCanonicalDetail {
   return (
     isObject(value)
-    && DETAIL_FIELDS.every((field) => field in value)
     && typeof value.equipment_or_zone === 'string'
+    && value.equipment_or_zone.length > 0
     && typeof value.basis === 'string'
+    && value.basis.length > 0
     && typeof value.configured_quantity === 'number'
     && Number.isInteger(value.configured_quantity)
     && typeof value.unit_power_kw === 'string'
+    && value.unit_power_kw.length > 0
     && typeof value.installed_power_kw === 'string'
+    && value.installed_power_kw.length > 0
     && typeof value.pool === 'string'
+    && (value.pool === 'POOL_A' || value.pool === 'POOL_B' || value.pool === 'POOL_C')
     && typeof value.simultaneity_factor === 'string'
+    && value.simultaneity_factor.length > 0
     && typeof value.coincident_power_kw === 'string'
+    && value.coincident_power_kw.length > 0
   )
 }
 
-function mapDetail(detail: FactoryPowerCanonicalDetail): FactoryPowerCanonicalDetail {
-  return {
-    equipment_or_zone: detail.equipment_or_zone,
-    basis: detail.basis,
-    configured_quantity: detail.configured_quantity,
-    unit_power_kw: detail.unit_power_kw,
-    installed_power_kw: detail.installed_power_kw,
-    pool: detail.pool,
-    simultaneity_factor: detail.simultaneity_factor,
-    coincident_power_kw: detail.coincident_power_kw,
-    display_label: DETAIL_LABELS[detail.equipment_or_zone] ?? detail.equipment_or_zone,
-    pool_label: POOL_LABELS[detail.pool] ?? detail.pool
-  }
+function isValidSummary(value: unknown): value is FactoryPowerCanonicalSummary {
+  return (
+    isObject(value)
+    && SUMMARY_FIELDS.every(
+      (field) => typeof value[field] === 'string' && value[field].length > 0
+    )
+  )
 }
 
 function clonePresentation(value: FactoryPowerPresentation): FactoryPowerPresentation {
@@ -203,7 +122,7 @@ function clonePresentation(value: FactoryPowerPresentation): FactoryPowerPresent
     review: cloneObject(value.review),
     provenance: cloneObject(value.provenance),
     assumptions: [...value.assumptions],
-    details: value.details.map(mapDetail),
+    details: value.details.map((detail) => ({ ...detail })),
     summary: cloneSummary(value.summary)
   }
 }
@@ -223,20 +142,6 @@ function cloneSummary(summary: FactoryPowerCanonicalSummary): FactoryPowerCanoni
 
 function cloneObject(value: Record<string, unknown>): Record<string, unknown> {
   return { ...value }
-}
-
-function readCanonicalHash(
-  record: CalculationRunRecord,
-  canonical: FactoryPowerCanonicalResult
-): string | null {
-  const fromPayload = (canonical as unknown as Record<string, unknown>).canonical_result_hash
-  if (typeof fromPayload === 'string' && fromPayload.startsWith('sha256:')) {
-    return fromPayload
-  }
-  if (typeof record.result_hash !== 'string' || !record.result_hash) return null
-  return record.result_hash.startsWith('sha256:')
-    ? record.result_hash
-    : `sha256:${record.result_hash}`
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

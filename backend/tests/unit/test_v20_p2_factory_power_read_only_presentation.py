@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
+from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from cold_storage.modules.aily.application.factory_power_table import (
     project_factory_power_table,
@@ -70,18 +71,61 @@ def test_cross_consumer_golden_uses_one_read_model() -> None:
     assert aily["details"] == list(workbench.details)
     assert aily["summary"] == workbench.summary
     assert aily["unit_semantics"] == workbench.unit_semantics
+    assert aily["review"] == workbench.review
+    assert aily["provenance"] == workbench.provenance
+    assert aily["assumptions"] == list(workbench.assumptions)
     assert aily["requires_review"] is True
 
 
-def test_aily_accepts_the_shared_serialized_read_model() -> None:
+def test_aily_rejects_a_shared_serialized_read_model_mapping() -> None:
     canonical = _canonical_fixture()
     read_model = build_factory_power_presentation(canonical).to_dict()
     aily = project_factory_power_table(read_model)
 
-    assert aily["reply_kind"] == "factory_power_estimation_table"
-    assert aily["canonical_result_hash"] == read_model["canonical_result_hash"]
-    assert aily["details"] == read_model["details"]
-    assert aily["summary"] == read_model["summary"]
+    assert aily["reply_kind"] == "factory_power_estimation_unavailable"
+    assert aily["code"] == FACTORY_POWER_UNAVAILABLE_CODE
+
+
+def test_aily_rejects_fake_hash_on_a_serialized_read_model_mapping() -> None:
+    canonical = _canonical_fixture()
+    read_model = build_factory_power_presentation(canonical).to_dict()
+    read_model["canonical_result_hash"] = "sha256:fixture-hash"
+
+    unavailable = project_factory_power_table(read_model)
+
+    assert unavailable["available"] is False
+    assert unavailable["canonical_result_hash"] is None
+
+
+def test_aily_rejects_non_sha256_hash_on_the_internal_presentation_path() -> None:
+    canonical = _canonical_fixture()
+    presentation = replace(
+        build_factory_power_presentation(canonical),
+        canonical_result_hash="sha256:fixture-hash",
+    )
+
+    unavailable = project_factory_power_table(presentation)
+
+    assert unavailable["available"] is False
+    assert unavailable["canonical_result_hash"] is None
+
+
+def test_aily_rejects_mutated_read_model_with_its_old_hash() -> None:
+    canonical = _canonical_fixture()
+    read_model = build_factory_power_presentation(canonical).to_dict()
+    old_hash = read_model["canonical_result_hash"]
+    summary = cast(dict[str, Any], read_model["summary"])
+    details = cast(list[dict[str, Any]], read_model["details"])
+    summary["estimated_total_power_kw"] = "999999"
+    details[0]["coincident_power_kw"] = "888888"
+    read_model["canonical_result_hash"] = old_hash
+
+    unavailable = project_factory_power_table(read_model)
+
+    assert unavailable["reply_kind"] == "factory_power_estimation_unavailable"
+    assert unavailable["code"] == FACTORY_POWER_UNAVAILABLE_CODE
+    assert unavailable["summary"] is None
+    assert unavailable["details"] == []
 
 
 def test_hostile_canonical_values_are_displayed_without_recalculation() -> None:

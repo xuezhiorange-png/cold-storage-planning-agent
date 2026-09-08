@@ -195,6 +195,8 @@ def test_v2_identity_is_separate_and_five_stage_calculation_type_is_unchanged() 
     assert "installed_power@1.0.0" not in shared_text
     assert "power_configuration" not in shared_text
     assert "project_factory_power_table" in aily_text
+    assert "build_factory_power_presentation_from_read_model" not in aily_text
+    assert "return build_factory_power_presentation(source)" in aily_text
     assert "installed_power@1.0.0" not in aily_text
     assert "power_configuration" not in aily_text
     assert (

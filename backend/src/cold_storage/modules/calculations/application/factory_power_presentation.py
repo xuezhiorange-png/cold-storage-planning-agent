@@ -186,78 +186,6 @@ def build_factory_power_presentation(
     )
 
 
-def build_factory_power_presentation_from_read_model(
-    read_model: Mapping[str, Any],
-) -> FactoryPowerPresentation:
-    """Validate an already-built shared read model without re-hashing values."""
-    payload = _require_mapping(read_model, "factory_power_presentation")
-    schema_version = _require_non_empty_text(
-        payload, "schema_version", "factory_power_presentation.schema_version"
-    )
-    if schema_version != FACTORY_POWER_RESULT_SCHEMA_VERSION:
-        raise FactoryPowerPresentationError("presentation schema version is not V2.0 P1")
-    source_id = _require_non_empty_text(
-        payload, "source_calculator_id", "factory_power_presentation.source_calculator_id"
-    )
-    source_version = _require_non_empty_text(
-        payload,
-        "source_calculator_version",
-        "factory_power_presentation.source_calculator_version",
-    )
-    source_identity = _require_non_empty_text(
-        payload,
-        "source_calculator_identity",
-        "factory_power_presentation.source_calculator_identity",
-    )
-    if (
-        source_id != FACTORY_POWER_CALCULATOR_ID
-        or source_version != FACTORY_POWER_CALCULATOR_VERSION
-        or source_identity != FACTORY_POWER_CALCULATOR_IDENTITY
-    ):
-        raise FactoryPowerPresentationError("presentation source identity is not V2.0 P1")
-    result_hash = _require_non_empty_text(
-        payload, "canonical_result_hash", "factory_power_presentation.canonical_result_hash"
-    )
-    if not result_hash.startswith("sha256:"):
-        raise FactoryPowerPresentationError("presentation canonical_result_hash is invalid")
-
-    factory_area_band = _require_non_empty_text(
-        payload, "factory_area_band", "factory_power_presentation.factory_area_band"
-    )
-    unit_semantics = _require_mapping(
-        payload.get("unit_semantics"), "factory_power_presentation.unit_semantics"
-    )
-    _require_semantic_unit_fields(unit_semantics)
-    review = _require_mapping(payload.get("review"), "factory_power_presentation.review")
-    if review.get("requires_review") is not True:
-        raise FactoryPowerPresentationError("presentation must retain requires_review=true")
-    _require_non_empty_text(review, "status", "factory_power_presentation.review.status")
-    provenance = _require_mapping(
-        payload.get("provenance"), "factory_power_presentation.provenance"
-    )
-    assumptions = _require_string_sequence(
-        payload.get("assumptions"), "factory_power_presentation.assumptions"
-    )
-    details_raw = _require_sequence(payload.get("details"), "factory_power_presentation.details")
-    details = tuple(_project_detail(item, index=index) for index, item in enumerate(details_raw))
-    summary = _project_summary(payload.get("summary"))
-
-    return FactoryPowerPresentation(
-        schema_version=schema_version,
-        source_calculator_id=source_id,
-        source_calculator_version=source_version,
-        source_calculator_identity=source_identity,
-        canonical_result_hash=result_hash,
-        factory_area_band=factory_area_band,
-        unit_semantics=deepcopy(dict(unit_semantics)),
-        review=deepcopy(dict(review)),
-        provenance=deepcopy(dict(provenance)),
-        assumptions=tuple(assumptions),
-        details=details,
-        summary=summary,
-    )
-
-
 def factory_power_presentation_from_record(
     record: Mapping[str, Any],
 ) -> FactoryPowerPresentation:
@@ -426,7 +354,6 @@ __all__ = [
     "POOL_DISPLAY_LABELS",
     "attach_factory_power_presentation",
     "build_factory_power_presentation",
-    "build_factory_power_presentation_from_read_model",
     "canonical_result_hash",
     "factory_power_presentation_from_record",
     "factory_power_presentation_from_records",

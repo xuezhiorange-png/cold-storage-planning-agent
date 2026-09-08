@@ -79,17 +79,46 @@ calculator_version=2.0.0-p1
 ### Aily / 豆包
 
 新增纯 `project_factory_power_table(...)`。它只接受 canonical result 或共享
-presentation model，输出 V2-specific `reply_kind`、精确 calculator identity/hash、
-details、summary、review、assumptions、provenance 和单位语义。当前五阶段
-`project_power_table()`、`preview_installed_power()` 和其
-`installed_power@1.0.0` 身份未修改；本任务没有出站实时 Aily 会话。
+`FactoryPowerPresentation` 对象，输出 V2-specific `reply_kind`、精确 calculator
+identity/hash、details、summary、review、assumptions、provenance 和单位语义。普通
+`Mapping` 只代表 P1 serialized canonical result，并统一经过
+`build_factory_power_presentation(...)`，重新绑定 canonical 内容与 hash；带有
+`source_calculator_identity`/`canonical_result_hash` 的可变 presentation dict 不再
+被当作可信 read-model。当前五阶段 `project_power_table()`、
+`preview_installed_power()` 和其 `installed_power@1.0.0` 身份未修改；本任务没有
+出站实时 Aily 会话。
+
+## Review correction R1
+
+PR #258 的独立复审发现了两个 canonical integrity / fail-closed blocker。R1 已在
+同一 feature lane 中完成窄修正，等待独立 re-review；不改变 P1 calculator、公式、
+数据库、旧功率链路或任何下游发布门禁。
+
+~~~text
+CORRECTION_TASK_ID=V20_P2_FACTORY_POWER_CANONICAL_RESULT_READ_ONLY_PRESENTATION_REVIEW_CORRECTION_R1
+SOURCE_PR=258
+SOURCE_HEAD_SHA=ec25f6842c3150d04c93128cc83d76aa3f33ead4
+REVIEW_RESULT=FAIL_CORRECTION_REQUIRED
+BLOCKER_COUNT=2
+FRONTEND_SHARED_PRESENTATION_ONLY=YES
+FRONTEND_RAW_CANONICAL_FALLBACK=NO
+GENERIC_RESULT_HASH_USED_AS_CANONICAL_HASH=NO
+FRONTEND_BACKEND_REJECTION_BYPASS=NO
+AILY_MAPPING_CANONICAL_ONLY=YES
+AILY_UNVERIFIED_READ_MODEL_MAPPING_ACCEPTED=NO
+STRICT_SHA256_FORMAT=YES
+HASH_BOUND_TO_CANONICAL_CONTENT=YES
+MUTATED_READ_MODEL_WITH_OLD_HASH_BLOCKED=YES
+~~
 
 ## 一致性与测试
 
-共享 golden fixture 同时进入工作台 read-only projection 和 Aily projector，比较
-source identity、canonical hash、details、summary、unit semantics 和
-`requires_review`。hostile fixtures 证明消费者直接显示 canonical 的数量、同时系数、
-计入功率和总览值，即使它们与可推导的数学关系被故意打破，也不会重算。
+共享 golden fixture 分别从 backend shared presentation 与 canonical source 进入工作台
+和 Aily projector，比较 source identity、canonical hash、details、summary、review、
+unit semantics 和审计字段。hostile fixtures 证明工作台在 attached presentation 缺失、
+为空或 malformed 时不读取 raw snapshot；Aily 对 fake hash、可变 serialized read-model
+以及“修改工程值但保留旧 hash”的 payload 统一不可用。canonical 数值即使与可推导的
+数学关系被故意打破，也不会在消费者侧重算。
 
 架构测试锁定 P0/P1 历史授权、P2 独立授权、旧 calculator 身份分离、无公式复制、
 无 migration、无 outbound Aily、无五阶段枚举变化和精确的允许范围。
