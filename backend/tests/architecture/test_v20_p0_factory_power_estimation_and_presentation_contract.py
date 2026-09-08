@@ -70,8 +70,12 @@ EXPECTED_CHANGED_PATHS = {
     "backend/tests/architecture/test_v20_p0_factory_power_estimation_and_presentation_contract.py",
     "backend/tests/architecture/test_v19_p0_per_zone_cooling_estimation_basis_contract.py",
     "backend/tests/architecture/test_v19_p1_per_zone_cooling_estimation_implementation.py",
+    "backend/src/cold_storage/modules/calculations/domain/factory_power_estimation.py",
+    "backend/tests/architecture/test_v20_p1_factory_power_estimation_canonical_result.py",
+    "backend/tests/unit/test_v20_p1_factory_power_estimation.py",
     "docs/architecture/ADR-042-factory-power-estimation-and-presentation-contract.md",
     "docs/tasks/V2_0-P0-factory-power-estimation-and-presentation-contract.md",
+    "docs/tasks/V2_0-P1-factory-power-estimation-canonical-result-implementation.md",
     "docs/tasks/V2_0-version-plan.md",
 }
 GENERATED_ARTIFACT_PREFIX = "backend/artifacts/local/"
@@ -210,7 +214,9 @@ def test_v20_p0_documents_are_present_and_docs_only() -> None:
     assert ADR_PATH.is_file()
     changed = _changed_paths()
     assert changed <= EXPECTED_CHANGED_PATHS
-    assert not any(path.startswith("backend/src/") for path in changed)
+    assert {path for path in changed if path.startswith("backend/src/")} <= {
+        "backend/src/cold_storage/modules/calculations/domain/factory_power_estimation.py"
+    }
     assert not any(path.startswith("frontend/") for path in changed)
     assert not any(path.startswith("backend/alembic/") for path in changed)
 

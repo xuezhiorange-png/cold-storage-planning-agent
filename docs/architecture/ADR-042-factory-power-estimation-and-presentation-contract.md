@@ -113,6 +113,49 @@ NO_FRONTEND_RECALCULATION
 NO_OUTBOUND_LIVE_AILY_SESSION
 ~~~
 
+## P1 implementation addendum (separate authorization)
+
+The P0 authorization block above remains historical and is intentionally not
+rewritten. Charles separately authorized the V2.0 P1 backend implementation
+under `V20_P1_FACTORY_POWER_ESTIMATION_CANONICAL_RESULT_IMPLEMENTATION_R1`.
+This addendum records the implementation boundary without changing the P0
+contract or granting a later gate.
+
+~~~text
+P0_CONTRACT_FROZEN=YES
+P1_IMPLEMENTATION_SEPARATELY_AUTHORIZED=YES
+V20_P1_IMPLEMENTATION_AUTHORIZED=YES
+V20_P1_IMPLEMENTATION_EXECUTED=YES
+V20_P1_IMPLEMENTATION_STATUS=IMPLEMENTATION_IN_THIS_BRANCH
+CALCULATOR_IDENTITY=factory_power_estimation@2.0.0-p1
+DISTINCT_FROM=installed_power@1.0.0
+FACTORY_AREA_AUTHORITY_REQUIRED=YES
+COLD_STORAGE_AREA_AUTHORITY_REQUIRED=YES
+RAW_POSITION_COUNT_USED=NO
+REPORTING_SCHEME_BINDING_REQUIRED=YES
+LEGACY_REFERENCE_POWER_ROWS_USED_AS_AUTHORITY=NO
+DATABASE_MIGRATION_AUTHORIZED=NO
+FRONTEND_IMPLEMENTATION_AUTHORIZED=NO
+AILY_IMPLEMENTATION_AUTHORIZED=NO
+OUTBOUND_LIVE_AILY_SESSION_AUTHORIZED=NO
+P2_AUTHORIZED=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+TAG_AUTHORIZED=NO
+RELEASE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+~~~
+
+The implementation is additive in the calculations Domain at
+`factory_power_estimation.py`. It uses a typed/static copy of the P0 rule
+matrix, requires explicit area authorities and selected pre-cooling schemes,
+fails closed on missing V1.9 minimum cooling loads, and emits one deterministic
+canonical result with Decimal arithmetic and auditable detail/summary fields.
+It does not replace the five-stage `CalculationType`, bind the legacy
+`installed_power@1.0.0` calculator, alter existing persistence, or add a
+migration. Frontend, report, Aily/Doubao, outbound-session, P2, Ready, Merge,
+tag, and release work remain separately gated.
+
 前端和 Aily 可以解释或查询 canonical 数据，但不得复制公式、重建数量、
 重乘系数或建立出站实时 Aily 会话。
 
