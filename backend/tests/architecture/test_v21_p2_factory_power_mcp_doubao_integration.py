@@ -348,6 +348,12 @@ def test_v21_p2_skill_and_runbook_are_new_v21_surfaces() -> None:
     assert skill["governance"]["FACTORY_POWER_SOURCE"] == "factory_power_estimation@2.0.0-p1"
     assert skill["governance"]["SERVER_SIDE_CHAT_PARSING"] == "NO"
     assert skill["governance"]["V21_SKILL_STANDALONE_V18_SEMANTIC_SUPERSET"] == "YES"
+    assert skill["governance"]["FACTORY_POWER_ACCEPTS_FLAT_TOP_LEVEL_FIVE_KEY_ONLY"] == "YES"
+    assert skill["governance"]["FACTORY_POWER_ZONE_PLANNING_INPUTS_WRAPPER_ALLOWED"] == "NO"
+    assert skill["governance"]["FACTORY_POWER_REQUIRES_PRECEDING_ZONE_TOOL_CALL"] == "NO"
+    assert skill["factory_power"]["input_shape"] == "flat_top_level_five_keys_only"
+    assert skill["factory_power"]["zone_planning_inputs_wrapper_allowed"] is False
+    assert skill["factory_power"]["requires_preceding_preview_zone_plan"] is False
     for section in (
         "cooling_honesty",
         "equipment_honesty",
@@ -410,6 +416,12 @@ def test_v21_p2_skill_and_runbook_are_new_v21_surfaces() -> None:
         "investment_from_demo_catalog=false",
         "power_from_demo_catalog: false",
         "AGENT_TO_ENGINEERING_VALUE=NO",
+        "FACTORY_POWER_ACCEPTS_FLAT_TOP_LEVEL_FIVE_KEY_ONLY=YES",
+        "FACTORY_POWER_ZONE_PLANNING_INPUTS_WRAPPER_ALLOWED=NO",
+        "FACTORY_POWER_REQUIRES_PRECEDING_ZONE_TOOL_CALL=NO",
+        "`preview_factory_power` 只接受五个顶层 KEY",
+        "`zone_planning_inputs` 包裹对象",
+        "不适用于 `preview_factory_power`",
     ):
         assert marker in skill_text
     for text in (skill_text, runbook):

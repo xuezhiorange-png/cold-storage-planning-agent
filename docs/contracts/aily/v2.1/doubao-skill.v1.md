@@ -40,19 +40,41 @@
 不要传面积；不得为了任何工厂功率或冷间功率结果向用户索要或接受：
 `factory_area_m2`、`cold_storage_area_m2`、`refrigerated_area_m2`、`total_area_m2`。
 
-### 调用顺序与工具
+### 工具路径与工具顺序
 
-五个 KEY 齐全后，工具顺序固定为：
+`tools/list` 的声明顺序固定为以下六项；这是工具列表顺序，不表示每条用户请求
+都必须依次调用全部工具：
 
-1. **先**调用 MCP 工具 `preview_zone_plan`（分区规划表）。
-2. 用户问冷量 → `preview_cooling_load`。
-3. 用户问设备 → `preview_equipment`。
-4. 用户问装机功率 → `preview_installed_power`。
-5. 用户问投资 → `preview_investment`。
-6. 用户问工厂电功率 → `preview_factory_power`。
+1. `preview_zone_plan`
+2. `preview_cooling_load`
+3. `preview_equipment`
+4. `preview_installed_power`
+5. `preview_investment`
+6. `preview_factory_power`
 
-也可一次性 REST `POST /api/v1/aily/v1/concept-preview`（仍只返回五阶段表）；MCP
-仍是飞书主路径。`preview_factory_power` 是 supplemental MCP capability，不是
+#### 五阶段正常流程
+
+用户要查看完整的五阶段方案时，按以下流程调用：
+
+`preview_zone_plan` → `preview_cooling_load` → `preview_equipment` →
+`preview_installed_power` → `preview_investment`。
+
+`preview_zone_plan` 仍是五阶段流程的起点。也可一次性 REST
+`POST /api/v1/aily/v1/concept-preview`（仍只返回五阶段表）；MCP 仍是飞书主路径。
+
+#### Supplemental factory-power path
+
+如果用户已经提供五个 KEY，并明确询问“工厂电功率”“估算工厂电功率”或“工厂总用电功率”，可以直接调用 `preview_factory_power`，**无需先调用 `preview_zone_plan`**。该工具内部会执行 backend stateless zone replay → P1 authority adapter → `factory_power_estimation@2.0.0-p1` → shared presentation。
+
+冻结：
+
+```text
+FACTORY_POWER_REQUIRES_PRECEDING_ZONE_TOOL_CALL=NO
+BACKEND_STATELESS_ZONE_PLAN_REPLAY=YES
+DOUBAO_CARRIES_ZONE_RESULT=NO
+```
+
+`preview_factory_power` 是 supplemental MCP capability，不是
 `CalculationType` 第六阶段，也不加入 concept-preview 的 `stages`。
 
 豆包工作伙伴的自定义工具是 **MCP**。不要自己算工程数字。
@@ -81,7 +103,22 @@ MCP 服务地址是 `{origin}/api/v1/aily/v1/mcp/sse`。飞书里传输方式必
 }
 ```
 
-也可使用 `zone_planning_inputs` 包裹对象；字段名必须与上表一致。
+对于 V1.8 既有五工具或明确支持该格式的 legacy REST path，在其原有语义下也可使用
+`zone_planning_inputs` 包裹对象；字段名必须与上表一致。`zone_planning_inputs` 包裹对象
+不适用于 `preview_factory_power`。
+
+`preview_factory_power` 只接受五个顶层 KEY（flat top-level five keys only）：
+`daily_inbound_mass_kg`、`finished_storage_days`、`frozen_storage_days`、
+`main_packaging_storage_days`、`auxiliary_packaging_storage_days`。
+
+```text
+FACTORY_POWER_ACCEPTS_FLAT_TOP_LEVEL_FIVE_KEY_ONLY=YES
+FACTORY_POWER_ZONE_PLANNING_INPUTS_WRAPPER_ALLOWED=NO
+```
+
+`preview_factory_power` 不接受 `zone_planning_inputs`、`factory_area_m2`、
+`cold_storage_area_m2`、`refrigerated_area_m2`、`total_area_m2`、`zone_plan`、
+`zone_result`、`chat_text` 或任何额外字段。
 
 **禁止：**
 
@@ -112,7 +149,12 @@ MCP 服务地址是 `{origin}/api/v1/aily/v1/mcp/sse`。飞书里传输方式必
 
 当用户明确询问“工厂电功率”“估算工厂电功率”“工厂总用电功率”“这个厂大概需要多少电功率”或“整个加工厂估算功率”时，调用 `preview_factory_power`。
 
-调用只发送上述五个 KEY，不发送任何面积、`zone_plan`、`zone_result` 或聊天原文。后端 stateless 地重放/复用 canonical `cold_room_zone_plan@1.0.0`，通过 V2.1 P1 upstream authority adapter 绑定工厂面积和冷间面积，再调用既有 `factory_power_estimation@2.0.0-p1` 与共享 `project_factory_power_table()`。豆包不保存、不携带、不猜测工程面积，也不需要先调用 `preview_zone_plan` 再把面积传回来。
+调用只发送上述五个顶层 KEY，不发送 `zone_planning_inputs` wrapper、任何面积、
+`zone_plan`、`zone_result` 或聊天原文。后端 stateless 地重放/复用 canonical
+`cold_room_zone_plan@1.0.0`，通过 V2.1 P1 upstream authority adapter 绑定工厂面积和
+冷间面积，再调用既有 `factory_power_estimation@2.0.0-p1` 与共享
+`project_factory_power_table()`。豆包不保存、不携带、不猜测工程面积，也不需要先调用
+`preview_zone_plan` 再把面积传回来。
 
 `preview_factory_power` 的工程结果必须来自后端 shared presentation，单位是 `kW`，
 `requires_review=true`，`persisted=false`。豆包只能展示后端的 `details`、`summary`、
@@ -152,7 +194,8 @@ MCP 服务地址是 `{origin}/api/v1/aily/v1/mcp/sse`。飞书里传输方式必
 
 ### 自检（配置 MCP 后）
 
-1. `tools/list` 必须按以下顺序包含六个工具：
+1. `tools/list` 必须按以下顺序包含六个工具（工具列表顺序不构成
+   `preview_factory_power` 的 preceding-call 要求）：
    `preview_zone_plan`、`preview_cooling_load`、`preview_equipment`、
    `preview_installed_power`、`preview_investment`、`preview_factory_power`。
 2. 对 `preview_cooling_load`、`preview_investment` 和
