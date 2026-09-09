@@ -22,11 +22,10 @@
 > the report projection regression is closed, the V0.7 golden controlled
 > evolution is complete, and `v1.9.0` is released. **V2.0 implementation is
 > complete** on `main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`: P0, P1, and P2
-> are merged and `v2.0.0` tag/GitHub Release are complete. V2.1 P0 for
-> `v2.1.0` is merged, and the current governance lane is the separately
-> authorized V2.1 P2 factory-power MCP/Doubao Skill integration. Release
-> closure, deployment, and later feature lanes remain unauthorized until
-> separately dispatched.
+> are merged and `v2.0.0` tag/GitHub Release are complete. V2.1 P0, P1, and P2 for
+> `v2.1.0` are merged, and the current governance lane is the separately
+> authorized V2.1 release closure/readiness audit. Release execution, deployment,
+> and later feature lanes remain unauthorized until separately dispatched.
 
 Current V2.0 release-closure state:
 
@@ -69,9 +68,9 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
 V2.1 P0 froze canonical zone-plan upstream authority and the append-only Doubao
-MCP contract and is merged. The separately authorized P1 adapter is also merged;
-the current P2 MCP/Doubao integration is recorded below. This does not close
-unrelated technical-debt rows.
+MCP contract and is merged. The separately authorized P1 adapter and P2
+MCP/Doubao integration are also merged; their historical records are recorded
+below. This does not close unrelated technical-debt rows.
 
 Current V2.1 P1 implementation state:
 
@@ -149,6 +148,37 @@ P2 实施记录：
 `docs/tasks/V2_1-P2-factory-power-mcp-doubao-skill-integration.md`。
 此阶段只增加 MCP/Skill/runbook 集成，不关闭无关 TD 行，也不授权发布或
 下一 feature lane。
+
+Current V2.1 release-closure / v2.1.0 readiness state:
+
+```text
+TASK_ID=V21_RELEASE_CLOSURE_READINESS_R1
+TARGET_RELEASE=v2.1.0
+BASE_MAIN_SHA=b314f08c74296e23e2a1729dd4f84dc8387c7a4e
+BASE_MAIN_CI_RUN_ID=34349430563
+BASE_MAIN_CI_RESULT=SUCCESS
+P0_STATUS=MERGED
+P1_STATUS=MERGED
+P2_STATUS=MERGED
+V21_IMPLEMENTATION_COMPLETE=YES
+V21_P3_DEFINED=NO
+V21_P3_EXECUTED=NO
+V21_RELEASE_CANDIDATE=YES
+V2_1_0_RELEASE_READY=YES
+ACTIVE_GOVERNANCE_LANE=V2.1_RELEASE_CLOSURE
+RELEASE_CLOSURE_AUTHORIZED=YES
+RELEASE_CLOSURE_EXECUTED=YES
+TAG_CREATION_AUTHORIZED=NO
+TAG_MOVEMENT_AUTHORIZED=NO
+GITHUB_RELEASE_CREATION_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+这是 readiness determination，不是 Ready、Merge、tag、GitHub Release、部署或
+下一 feature lane 的执行授权；TD-008、TD-019、TD-021、TD-024 等无关技术债
+保持各自真实状态。
 
 | ID | Status | Priority | Module | Cause | Current Impact | Temporary Approach | Permanent Resolution | Target Task / Version |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

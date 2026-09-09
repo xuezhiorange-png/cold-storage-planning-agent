@@ -22,8 +22,8 @@
 > closure is complete at `v1.9.0`. **V2.0 implementation and release are complete**
 > at `v2.0.0` on `main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`: P0, P1, and P2
 > are merged, and the annotated tag/GitHub Release point to that commit. **V2.1
-> P0 and P1 are merged;** the active implementation stage is **V2.1 P2
-> MCP/Skill integration** for `v2.1.0`.
+> P0, P1, and P2 are merged;** the active governance stage is **V2.1 release
+> closure/readiness** for `v2.1.0`.
 > There is no defined V2.0 P3. Later feature umbrellas (outbound live Aily
 > session, remaining TD-008 equipment catalogs, and zone thermal catalog recut)
 > stay unauthorized until Charles dispatches.
@@ -53,8 +53,8 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
 The block above preserves the historical V2.0 readiness gate. Release execution
-subsequently completed at `v2.0.0`; V2.1 P0 is merged and the active lane is now
-V2.1 P2.
+subsequently completed at `v2.0.0`; V2.1 P0, P1, and P2 are merged and the
+active lane is now V2.1 release closure/readiness.
 
 ```text
 V2_0_0_RELEASED=YES
@@ -149,12 +149,14 @@ NEXT_FEATURE_LANE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
-## V2.1 P2 MCP / Doubao Skill integration lane
+## V2.1 P2 MCP / Doubao Skill integration lane（已合并；历史 dispatch）
 
-P1 upstream authority adapter is merged. The active V2.1 P2 lane adds only the
-stateless `preview_factory_power` MCP capability, the V2.1 Doubao Skill and its
-runbook. It consumes the existing zone-plan execution, P1 adapter, V2.0
-calculator and shared projector; it does not recalculate engineering values.
+P1 upstream authority adapter is merged, and the P2 lane subsequently merged. It
+adds only the stateless `preview_factory_power` MCP capability, the V2.1 Doubao
+Skill and its runbook. It consumes the existing zone-plan execution, P1 adapter,
+V2.0 calculator and shared projector; it does not recalculate engineering values.
+The block below is retained as the historical P2 dispatch snapshot; current
+governance is release closure/readiness.
 
 ```text
 TASK_ID=V21_P2_FACTORY_POWER_MCP_DOUBAO_SKILL_INTEGRATION_R1
@@ -200,7 +202,43 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
 The existing V1.8 five-tool contract and runbook remain frozen. Release closure,
-deployment and a next feature lane are separate gates.
+deployment and a next feature lane are separate gates in the historical P2
+snapshot above.
+
+## V2.1 release closure / v2.1.0 readiness（current）
+
+V2.1 P0, P1, and P2 are merged on `main`; V2.1 has no defined P3. The active
+governance lane is the independently authorized release-closure/readiness audit,
+recorded in `docs/tasks/V2_1-release-closure-readiness.md`. It does not close
+unrelated gap rows.
+
+```text
+TASK_ID=V21_RELEASE_CLOSURE_READINESS_R1
+TARGET_RELEASE=v2.1.0
+BASE_MAIN_SHA=b314f08c74296e23e2a1729dd4f84dc8387c7a4e
+BASE_MAIN_CI_RUN_ID=34349430563
+BASE_MAIN_CI_RESULT=SUCCESS
+P0_STATUS=MERGED
+P1_STATUS=MERGED
+P2_STATUS=MERGED
+V21_IMPLEMENTATION_COMPLETE=YES
+V21_P3_DEFINED=NO
+V21_P3_EXECUTED=NO
+V21_RELEASE_CANDIDATE=YES
+V2_1_0_RELEASE_READY=YES
+ACTIVE_GOVERNANCE_LANE=V2.1_RELEASE_CLOSURE
+RELEASE_CLOSURE_AUTHORIZED=YES
+RELEASE_CLOSURE_EXECUTED=YES
+TAG_CREATION_AUTHORIZED=NO
+TAG_MOVEMENT_AUTHORIZED=NO
+GITHUB_RELEASE_CREATION_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The readiness result is not release, deployment, Ready/Merge, tag, or next-lane
+execution authorization.
 
 ## P0
 

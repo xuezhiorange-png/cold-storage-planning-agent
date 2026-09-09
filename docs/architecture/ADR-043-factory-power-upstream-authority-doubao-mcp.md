@@ -1,6 +1,6 @@
 # ADR-043：冻结工厂功率上游面积权威与豆包 MCP 合同
 
-- 状态：P0 contract frozen and merged; P1 backend upstream authority adapter merged; P2 MCP/Skill integration active
+- 状态：P0、P1、P2 merged; V2.1 implementation complete; release closure active
 - 日期：2026-09-09
 - 目标版本：`v2.1.0`
 - 基线版本：`v2.0.0^{}` = `a7049ca93d238013c0cf62069fe1e0a89ff834d7`；该 SHA
@@ -10,10 +10,10 @@
 - P1 实施记录：[V2_1-P1-factory-power-upstream-authority-adapter-implementation.md](../tasks/V2_1-P1-factory-power-upstream-authority-adapter-implementation.md)
 - P2 实施记录：[V2_1-P2-factory-power-mcp-doubao-skill-integration.md](../tasks/V2_1-P2-factory-power-mcp-doubao-skill-integration.md)
 
-当前治理状态是：P0、P1 已在 `main` 合并；当前独立 P2 只实现入站 Doubao MCP、
-V2.1 Skill 和 runbook，并调用既有 P1 adapter、V2.0 calculator 与 shared
-presentation。前端、数据库、Ready、Merge、tag、release 和部署仍未授权。P0/P1
-dispatch 时的 gate block 在文末/记录中原样保留，作为历史授权记录。
+当前治理状态是：P0、P1、P2 已在 `main` 合并，V2.1 implementation complete；
+当前独立治理 lane 是 v2.1.0 release closure/readiness。P0/P1/P2 dispatch 时的
+gate block 在文末/记录中原样保留，作为历史授权记录；本 closure 不改变 runtime、
+Skill、V1.8、数据库或 workflow，也不执行 Ready、Merge、tag、release 或部署。
 
 ## Context
 
@@ -118,8 +118,9 @@ INSTALLED_POWER_REPLACED=NO
 POWER_CONFIGURATION_REPLACED=NO
 ```
 
-P1 只负责绑定 upstream authority；当前 P2 才实现入站 MCP、Skill 和 runbook，且
-不改变上游 calculator/presentation 或五阶段语义。
+P1 只负责绑定 upstream authority；随后合并的 P2 实现入站 MCP、Skill 和 runbook，
+且不改变上游 calculator/presentation 或五阶段语义。当前治理状态与 readiness
+记录见本文末尾的 release-closure record。
 
 ### 6. New MCP tool is an append-only, five-key, read-only presentation contract
 
@@ -141,7 +142,7 @@ V2.1 P0 不授权 P1、P2、Ready、Merge、tag、release、deployment 或任何
   `cold_room_zone_plan@1.0.0` authority。
 - V1.8 五工具及 `preview_installed_power` 兼容性不被 P0 改变。
 - P0 本身不提供 runtime adapter、MCP tool、Skill、数据库迁移或部署；P1 adapter
-  与当前 P2 MCP/Skill 的独立实施边界分别记录在 P1/P2 task 文档中。
+  与已合并的 P2 MCP/Skill 的独立实施边界分别记录在 P1/P2 task 文档中。
 - 结果仍是概念设计阶段估算工厂电功率，单位 `kW`，需要人工复核；不是 kWh、
   计量值、电费、变压器选型或正式配电设计。
 
@@ -201,12 +202,13 @@ P1 的 adapter 必须从成功且身份精确为 `cold_room_zone_plan@1.0.0` 的
 `factory_area_m2`，并从运行时 `REFRIGERATED_ZONE_REGISTRY` 的 9 个 zone 绑定
 `cold_storage_area_m2`。它不接受面积输入、不使用 `refrigerated_area_m2` fallback，
 不复制 V2.0 公式，也不改变共享 presentation contract。上面的 P1 record 保留其
-历史 gate；当前 P2 状态见下节。
+历史 gate；P2 的历史 implementation record 见下节，当前 release closure record
+见本文末尾。
 
-## Current P2 integration record
+## P2 integration record（已合并；历史 dispatch）
 
 以下是独立 P2 authorization/implementation record，不改写上方 P0 historical
-gate 或 P1 implementation record：
+gate 或 P1 implementation record；当前 release closure record 见文末：
 
 ```text
 TASK_ID=V21_P2_FACTORY_POWER_MCP_DOUBAO_SKILL_INTEGRATION_R1
@@ -256,4 +258,34 @@ P2 通过既有 zone preview execution 取得实际 canonical zone-plan `Adapter
 调用 P1 adapter，再序列化并投影为 `preview_factory_power`。它只把 projector 的
 table 逐单元格式化为 Markdown；不在 MCP/豆包侧计算面积、功率或 summary，不解析
 服务器端中文聊天。五阶段 `CalculationType` 仍为五项，V1.8 Skill/runbook 保持
-冻结。P2 结束后停在 Draft Review gate，release closure 仍需另行授权。
+冻结。P2 已完成并合并；其历史 Draft Review gate 不改写为当前授权。当前
+release closure/readiness 记录如下。
+
+## Current V2.1 release-closure record
+
+P0、P1、P2 已完成并合并；V2.1 没有定义 P3，当前治理工作是独立的 release
+closure/readiness。当前 record 见
+[V2_1-release-closure-readiness.md](../tasks/V2_1-release-closure-readiness.md)，
+不改写本文上方历史授权 blocks。
+
+```text
+TASK_ID=V21_RELEASE_CLOSURE_READINESS_R1
+TARGET_RELEASE=v2.1.0
+P0_STATUS=MERGED
+P1_STATUS=MERGED
+P2_STATUS=MERGED
+V21_IMPLEMENTATION_COMPLETE=YES
+V21_P3_DEFINED=NO
+V21_P3_EXECUTED=NO
+V21_RELEASE_CANDIDATE=YES
+V2_1_0_RELEASE_READY=YES
+ACTIVE_GOVERNANCE_LANE=V2.1_RELEASE_CLOSURE
+RELEASE_CLOSURE_AUTHORIZED=YES
+RELEASE_CLOSURE_EXECUTED=YES
+TAG_CREATION_AUTHORIZED=NO
+TAG_MOVEMENT_AUTHORIZED=NO
+GITHUB_RELEASE_CREATION_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```

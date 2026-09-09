@@ -78,6 +78,7 @@ EXPECTED_CHANGED_PATHS = {
 P2_DOWNSTREAM_PATHS = {
     "backend/src/cold_storage/modules/projects/application/factory_power_upstream_authority.py",
     "backend/tests/architecture/test_v20_release_closure_readiness.py",
+    "backend/tests/architecture/test_v21_release_closure_readiness.py",
     "backend/src/cold_storage/modules/aily/application/factory_power_table.py",
     "backend/src/cold_storage/modules/calculations/application/factory_power_presentation.py",
     "backend/src/cold_storage/modules/projects/application/factory_power_presentation.py",
@@ -90,6 +91,7 @@ P2_DOWNSTREAM_PATHS = {
     "backend/tests/unit/test_v20_p2_factory_power_read_only_presentation.py",
     "docs/tasks/V2_0-P2-factory-power-read-only-presentation-alignment.md",
     "docs/tasks/V2_0-release-closure-readiness.md",
+    "docs/tasks/V2_1-release-closure-readiness.md",
     "docs/audit/current-state.md",
     "docs/audit/gap-analysis.md",
     "docs/roadmap/DEVELOPMENT_PLAN.md",

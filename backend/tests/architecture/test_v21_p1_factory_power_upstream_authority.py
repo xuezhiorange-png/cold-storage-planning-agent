@@ -59,6 +59,7 @@ ALLOWED_CHANGED_PATHS = {
     "backend/src/cold_storage/modules/aily/application/factory_power_preview.py",
     "backend/src/cold_storage/modules/aily/application/mcp_factory_power.py",
     "backend/tests/architecture/test_v21_p2_factory_power_mcp_doubao_integration.py",
+    "backend/tests/architecture/test_v21_release_closure_readiness.py",
     "backend/tests/integration/test_v21_p2_aily_factory_power_mcp_http.py",
     "backend/tests/unit/test_v21_p2_aily_factory_power_mcp.py",
     "backend/tests/unit/test_v21_p2_aily_factory_power_preview.py",
@@ -66,6 +67,7 @@ ALLOWED_CHANGED_PATHS = {
     "docs/contracts/aily/v2.1/doubao-skill.v1.md",
     "docs/runbooks/v21-doubao-aily-connector.md",
     "docs/tasks/V2_1-P2-factory-power-mcp-doubao-skill-integration.md",
+    "docs/tasks/V2_1-release-closure-readiness.md",
 }
 
 
