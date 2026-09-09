@@ -23,9 +23,9 @@
 > complete. V1.9 release closure is complete at `v1.9.0`. V2.0 P0, P1, and P2
 > are complete and merged, and `v2.0.0` is released at
 > `main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`. V2.1 P0 upstream authority +
-> Doubao MCP contract freeze and P1 backend upstream authority adapter are
-> merged; **active governance stage:** V2.1 P2 factory-power MCP and Doubao
-> Skill integration for `v2.1.0`.
+> Doubao MCP contract freeze, P1 backend upstream authority adapter, and P2
+> factory-power MCP/Doubao Skill integration are merged; **active governance
+> stage:** V2.1 release closure/readiness for `v2.1.0`.
 > Later feature umbrellas (outbound live Aily session, remaining TD-008 equipment
 > catalogs, and zone thermal catalog recut) stay unauthorized until Charles dispatches.
 
@@ -63,8 +63,8 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 The V1.9 release-closure PR was documentation/governance only and has completed;
 `v1.9.0` is already released. V2.0 release closure subsequently completed and
-`v2.0.0` is released. The active governance work is the separate V2.1 P2
-MCP/Skill integration lane; it must remain Draft until separately reviewed.
+`v2.0.0` is released. The active governance work is the separate V2.1
+release-closure/readiness lane; it remains Draft until separately reviewed.
 
 ## V2.0 Implementation Closure
 
@@ -72,7 +72,7 @@ V2.0 consists of exactly three formal implementation stages: P0 contract freeze,
 P1 backend deterministic canonical calculation, and P2 workbench + Aily/Doubao
 read-only presentation alignment. All three are merged on `main`; there is no
 defined V2.0 P3. The `v2.0.0` release closure and release execution are complete;
-the active lane is the separate V2.1 P0 contract-freeze evaluation.
+the active lane is the separate V2.1 release-closure/readiness evaluation.
 
 ```text
 V20_IMPLEMENTATION_COMPLETE=YES
@@ -93,9 +93,9 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 The historical closure/readiness record is maintained in
 `docs/tasks/V2_0-release-closure-readiness.md`; its later release execution is
-recorded at `v2.0.0`. V2.1 P0 and P1 are merged; the active V2.1 P2 integration
-is governed by `docs/tasks/V2_1-version-plan.md` and does not imply release,
-deployment, or a next feature lane.
+recorded at `v2.0.0`. V2.1 P0, P1, and P2 are merged; the active V2.1
+release-closure/readiness lane is governed by `docs/tasks/V2_1-version-plan.md`
+and does not imply release execution, deployment, or a next feature lane.
 
 ## V2.1 P0 Contract Freeze（已合并；历史 dispatch）
 
@@ -176,15 +176,16 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 P1 历史实施记录：
 `docs/tasks/V2_1-P1-factory-power-upstream-authority-adapter-implementation.md`。
 
-## V2.1 P2 Factory-Power MCP / Doubao Skill Integration（实施中；Draft）
+## V2.1 P2 Factory-Power MCP / Doubao Skill Integration（已合并；历史 dispatch）
 
-P0 and P1 are merged on `main`. P2 connects the existing five-key operator path
+P0 and P1 are merged on `main`, and P2 subsequently merged. P2 connects the existing five-key operator path
 and canonical zone-plan replay to the already-authoritative P1 adapter, the
 unchanged V2.0 calculator, and the existing shared presentation projector. It
 appends `preview_factory_power` as MCP tool 6, creates the V2.1 Doubao Skill
 contract and runbook, and leaves the original five tools, five-stage
 concept-preview flow, calculator formulas, frontend, database, and V1.8 Skill
-unchanged. Release closure remains a separate, unauthorized gate.
+unchanged. The block below is the historical P2 dispatch snapshot; release closure
+is now the active, separately gated lane.
 
 ```text
 TASK_ID=V21_P2_FACTORY_POWER_MCP_DOUBAO_SKILL_INTEGRATION_R1
@@ -415,3 +416,38 @@ P2 实施记录：
 - Rollback: revert hardening changes and fall back to baseline local-only operating model.
 - Recommended branch name: `codex/task-12-productionization`
 - Recommended PR title: `Task 12: Harden deployment, security, and operations`
+
+## V2.1 Release Closure / v2.1.0 Readiness（当前；本分支 Draft）
+
+V2.1 P0、P1、P2 已在 `main` 合并；V2.1 没有定义 P3。当前 active governance
+lane 是 v2.1.0 release closure/readiness，记录于
+`docs/tasks/V2_1-release-closure-readiness.md`。本节只固化当前治理事实，不改变
+无关 roadmap task 或 technical-debt 状态。
+
+```text
+TASK_ID=V21_RELEASE_CLOSURE_READINESS_R1
+TARGET_RELEASE=v2.1.0
+BASE_MAIN_SHA=b314f08c74296e23e2a1729dd4f84dc8387c7a4e
+BASE_MAIN_CI_RUN_ID=34349430563
+BASE_MAIN_CI_RESULT=SUCCESS
+P0_STATUS=MERGED
+P1_STATUS=MERGED
+P2_STATUS=MERGED
+V21_IMPLEMENTATION_COMPLETE=YES
+V21_P3_DEFINED=NO
+V21_P3_EXECUTED=NO
+V21_RELEASE_CANDIDATE=YES
+V2_1_0_RELEASE_READY=YES
+ACTIVE_GOVERNANCE_LANE=V2.1_RELEASE_CLOSURE
+RELEASE_CLOSURE_AUTHORIZED=YES
+RELEASE_CLOSURE_EXECUTED=YES
+TAG_CREATION_AUTHORIZED=NO
+TAG_MOVEMENT_AUTHORIZED=NO
+GITHUB_RELEASE_CREATION_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+Readiness determination 不等于 Ready、Merge、tag、GitHub Release、部署或下一
+feature lane 的执行授权。

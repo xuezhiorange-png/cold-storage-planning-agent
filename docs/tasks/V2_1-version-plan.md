@@ -1,18 +1,18 @@
 # V2.1 版本计划：工厂功率上游权威与豆包 MCP 合同
 
-**状态：** V2.1 P0 已合并；P1 upstream authority adapter 已合并；P2 MCP、豆包
-Skill 与 runbook 集成正在实施（本分支 Draft）。
+**状态：** V2.1 P0、P1、P2 均已合并；当前进入 v2.1.0 release closure
+readiness（本分支 Draft）。
 **目标版本：** `v2.1.0`。**基线版本：** `v2.0.0`。
 **V2.0 release lineage：** `v2.0.0^{}` 解析为
 `a7049ca93d238013c0cf62069fe1e0a89ff834d7`；该 SHA 必须是当前 head 的祖先，后续
 `main` 合并后允许继续前进。
-**当前治理阶段：** V2.1 P2 factory-power MCP、Doubao Skill 与 runbook integration。
+**当前治理阶段：** V2.1 release closure / v2.1.0 readiness。
 
 V2.1 P0 已冻结并合并从 `cold_room_zone_plan@1.0.0` 绑定工厂面积/冷间面积的
 权威链路、`preview_factory_power` 的输入输出合同、现有五工具兼容性和
-fail-closed 边界。P1 backend adapter 已合并；当前单独授权的 P2 只把五 KEY
-接入第 6 个 MCP tool，并新增 V2.1 Skill/runbook。数据库迁移、Ready、Merge、
-release closure 和下一阶段仍未授权。
+fail-closed 边界。P1 backend adapter 与 P2 MCP/Skill/runbook 集成均已合并；
+当前只进行 release closure readiness 审核。数据库迁移、Ready、Merge、tag、
+GitHub Release、部署和下一阶段仍需独立授权。
 
 ~~~text
 TASK_ID=V21_P0_FACTORY_POWER_UPSTREAM_AUTHORITY_AND_DOUBAO_MCP_CONTRACT_R1
@@ -245,8 +245,8 @@ contract。MCP 层不得重算 canonical result 中的 summary、details 或功�
 | --- | --- | --- |
 | P0 | **MERGED** | upstream authority、面积/温区 integrity、MCP 输入输出合同、架构锁 |
 | P1 | **MERGED** | 后端从 canonical zone-plan 绑定面积并接入既有 V2.0 calculator |
-| P2 | **IMPLEMENTATION_ACTIVE（本分支 Draft）** | `preview_factory_power` MCP、Doubao Skill/router/runbook integration |
-| Release Closure | **UNAUTHORIZED** | V2.1.0 release closure/readiness；需独立授权 |
+| P2 | **MERGED** | `preview_factory_power` MCP、Doubao Skill/router/runbook integration |
+| Release Closure | **IMPLEMENTATION_ACTIVE（本分支 Draft）** | V2.1.0 release closure/readiness |
 
 P1 实施记录见
 [V2_1-P1-factory-power-upstream-authority-adapter-implementation.md](V2_1-P1-factory-power-upstream-authority-adapter-implementation.md)。
@@ -258,14 +258,15 @@ P0 不实现 P2。除本文件外，正式规则矩阵见
 V1.8 的既有 Skill、合同和 runbook 保持冻结历史；本任务不修改
 `docs/contracts/aily/v1.8/` 或 `docs/runbooks/v18-doubao-aily-connector.md`。
 
-## V2.1 P2 Factory-Power MCP 与 Doubao Skill（实施中）
+## V2.1 P2 Factory-Power MCP 与 Doubao Skill（已合并；历史 dispatch）
 
-P1 已在 `main` 合并。当前 P2 在同一 V2.1 版本线上只实现入站 MCP、V2.1
-Doubao Skill 和操作手册：五个 operator KEY 经既有 zone-plan execution、P1
-upstream authority adapter、未修改的 V2.0 calculator 与 shared projector，形成
-`preview_factory_power` 的第 6 个只读工具。P2 不改变五阶段 concept-preview、旧
+P1 已在 `main` 合并，P2 随后完成并合并。P2 只把五个 operator KEY 经既有
+zone-plan execution、P1 upstream authority adapter、未修改的 V2.0 calculator
+与 shared projector 接到 `preview_factory_power` 第 6 个只读工具，并交付 V2.1
+Doubao Skill 和操作手册；不改变五阶段 concept-preview、旧
 `preview_installed_power` 语义、V2.0 calculator/presentation、P1 adapter 或 V1.8
-Skill/runbook。
+Skill/runbook。下面的 P2 block 保留 dispatch 时的历史 authorization snapshot；
+当前 release closure 状态见本文末尾。
 
 ```text
 TASK_ID=V21_P2_FACTORY_POWER_MCP_DOUBAO_SKILL_INTEGRATION_R1
@@ -307,3 +308,38 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 Skill 见 `docs/contracts/aily/v2.1/doubao-skill.v1.md`，runbook 见
 `docs/runbooks/v21-doubao-aily-connector.md`。P2 完成后停在 Draft Review gate，
 不隐含 Release Closure、Ready、Merge 或下一 feature lane。
+
+## V2.1 Release Closure / v2.1.0 Readiness（当前；本分支 Draft）
+
+P0、P1、P2 已在 `main` 合并；V2.1 没有定义 P3，当前治理 lane 直接进入
+release closure/readiness。以下是独立的当前 closure authorization/implementation
+record，不改写上方 P0、P1、P2 dispatch 时的历史 authorization snapshots。
+
+```text
+TASK_ID=V21_RELEASE_CLOSURE_READINESS_R1
+TARGET_RELEASE=v2.1.0
+BASE_MAIN_SHA=b314f08c74296e23e2a1729dd4f84dc8387c7a4e
+BASE_MAIN_CI_RUN_ID=34349430563
+BASE_MAIN_CI_RESULT=SUCCESS
+P0_STATUS=MERGED
+P1_STATUS=MERGED
+P2_STATUS=MERGED
+V21_IMPLEMENTATION_COMPLETE=YES
+V21_P3_DEFINED=NO
+V21_P3_EXECUTED=NO
+V21_RELEASE_CANDIDATE=YES
+V2_1_0_RELEASE_READY=YES
+ACTIVE_GOVERNANCE_LANE=V2.1_RELEASE_CLOSURE
+RELEASE_CLOSURE_AUTHORIZED=YES
+RELEASE_CLOSURE_EXECUTED=YES
+TAG_CREATION_AUTHORIZED=NO
+TAG_MOVEMENT_AUTHORIZED=NO
+GITHUB_RELEASE_CREATION_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+Release readiness 是实现闭合与门禁审计结论，不是 Ready、Merge、tag、GitHub
+Release、部署或下一 feature lane 的执行授权。详见
+[V2_1-release-closure-readiness.md](V2_1-release-closure-readiness.md)。
