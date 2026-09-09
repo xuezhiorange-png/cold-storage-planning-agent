@@ -92,6 +92,22 @@ FIVE_TOOLS = (
     "preview_investment",
 )
 ALL_TOOLS = (*FIVE_TOOLS, "preview_factory_power")
+FACTORY_POWER_PREVIEW_PATH = (
+    "backend/src/cold_storage/modules/aily/application/factory_power_preview.py"
+)
+ALLOWED_CALCULATIONS_IMPORTS = {
+    "cold_storage.modules.calculations.domain.factory_power_estimation": {
+        "FactoryPowerEstimationError",
+        "serialize_factory_power_result",
+    }
+}
+P1_ADAPTER_IMPORT_MODULE = (
+    "cold_storage.modules.projects.application.factory_power_upstream_authority"
+)
+P1_ADAPTER_IMPORT_NAMES = {
+    "FactoryPowerUpstreamAuthorityError",
+    "calculate_factory_power_from_zone_plan",
+}
 
 
 def _text(relative_path: str) -> str:
@@ -139,6 +155,51 @@ def _unchanged_from_base(relative_path: str) -> bool:
     )
 
 
+def _assert_narrow_calculations_imports(source: str) -> None:
+    tree = ast.parse(source)
+    observed: dict[str, set[str]] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            if not module.startswith("cold_storage.modules.calculations"):
+                continue
+            assert module in ALLOWED_CALCULATIONS_IMPORTS, (
+                f"Unexpected calculations import module: {module}"
+            )
+            names = {alias.name for alias in node.names}
+            assert names <= ALLOWED_CALCULATIONS_IMPORTS[module], (
+                f"Unexpected names imported from {module}: {names}"
+            )
+            observed.setdefault(module, set()).update(names)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.startswith("cold_storage.modules.calculations"):
+                    raise AssertionError(
+                        "Direct calculations imports are not allowed; use the exact "
+                        "P2 allowlisted symbols"
+                    )
+
+    assert observed == ALLOWED_CALCULATIONS_IMPORTS
+
+
+def _assert_p1_adapter_import(source: str) -> None:
+    tree = ast.parse(source)
+    adapter_imports: list[set[str]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == P1_ADAPTER_IMPORT_MODULE:
+            adapter_imports.append({alias.name for alias in node.names})
+        elif isinstance(node, ast.Import):
+            assert all(alias.name != P1_ADAPTER_IMPORT_MODULE for alias in node.names)
+
+    assert adapter_imports == [P1_ADAPTER_IMPORT_NAMES]
+
+
+def test_v21_p2_factory_power_preview_has_narrow_authority_imports() -> None:
+    source = _text(FACTORY_POWER_PREVIEW_PATH)
+    _assert_narrow_calculations_imports(source)
+    _assert_p1_adapter_import(source)
+
+
 def test_v21_p2_scope_is_limited_to_authorized_mcp_skill_and_docs_paths() -> None:
     changed = _changed_paths()
     assert changed <= P2_ALLOWED_PATHS
@@ -180,6 +241,8 @@ def test_v21_p2_governance_records_active_p2_without_rewriting_prior_gates() -> 
         assert "READY=NO" in text
         assert "MERGE=NO" in text
         assert "NO_STEP_IMPLIES_THE_NEXT=TRUE" in text
+    assert "V21_SKILL_STANDALONE_V18_SEMANTIC_SUPERSET=YES" in p2_doc
+    assert "P2_CALCULATIONS_IMPORT_ALLOWLIST_DURABLE=YES" in p2_doc
 
     p0_history = _text("docs/tasks/V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md")
     p1_history = _text(
@@ -273,6 +336,9 @@ def test_v21_p2_preserves_v20_p1_p2_and_p1_adapter_runtime_boundaries() -> None:
 
 def test_v21_p2_skill_and_runbook_are_new_v21_surfaces() -> None:
     skill = json.loads(SKILL_JSON_PATH.read_text(encoding="utf-8"))
+    v18_skill = json.loads(
+        (REPO_ROOT / "docs/contracts/aily/v1.8/doubao-skill.v1.json").read_text(encoding="utf-8")
+    )
     assert skill["schema_version"] == "2.1.0"
     assert skill["contract_family"] == "aily/v2.1"
     assert skill["governance"]["KEEP_AILY_V18_SKILL_FROZEN"] == "YES"
@@ -281,7 +347,39 @@ def test_v21_p2_skill_and_runbook_are_new_v21_surfaces() -> None:
     assert skill["governance"]["MCP_TOOL_COUNT"] == 6
     assert skill["governance"]["FACTORY_POWER_SOURCE"] == "factory_power_estimation@2.0.0-p1"
     assert skill["governance"]["SERVER_SIDE_CHAT_PARSING"] == "NO"
+    assert skill["governance"]["V21_SKILL_STANDALONE_V18_SEMANTIC_SUPERSET"] == "YES"
+    for section in (
+        "cooling_honesty",
+        "equipment_honesty",
+        "power_honesty",
+        "investment_honesty",
+    ):
+        for key, value in v18_skill[section].items():
+            assert skill[section][key] == value
+    for key, value in v18_skill["governance"].items():
+        assert skill["governance"][key] == value
+    assert skill["calculator_identities"][:5] == v18_skill["calculator_identities"]
+    assert skill["operator_keys"] == v18_skill["operator_keys"]
+    assert (
+        skill["response_handling"]["success_status"]
+        == v18_skill["response_handling"]["success_status"]
+    )
+    assert (
+        skill["response_handling"]["display_fields"]
+        == v18_skill["response_handling"]["display_fields"]
+    )
+    assert skill["response_handling"]["on_error"] == v18_skill["response_handling"]["on_error"]
+    assert (
+        skill["self_check"]["tools_list_must_include"][:5]
+        == v18_skill["self_check"]["tools_list_must_include"]
+    )
+    assert (
+        skill["self_check"]["tools_call_smoke"][:2] == v18_skill["self_check"]["tools_call_smoke"]
+    )
+    assert set(v18_skill["forbidden_model_tools"]) <= set(skill["forbidden_model_tools"])
+    assert set(v18_skill["forbidden_behaviors"]) <= set(skill["forbidden_behaviors"])
     assert skill["mcp"]["tools_in_order"] == list(ALL_TOOLS)
+    assert skill["self_check"]["tools_list_must_include"] == list(ALL_TOOLS)
     assert skill["operator_schema"]["additional_properties"] is False
     assert set(skill["operator_schema"]["forbidden_fields"]) >= {
         "factory_area_m2",
@@ -295,6 +393,25 @@ def test_v21_p2_skill_and_runbook_are_new_v21_surfaces() -> None:
     assert RUNBOOK_PATH.is_file()
     skill_text = SKILL_MD_PATH.read_text(encoding="utf-8")
     runbook = RUNBOOK_PATH.read_text(encoding="utf-8")
+    for marker in (
+        "分区冷量按内核五项加总",
+        "传热",
+        "产品",
+        "渗透",
+        "内部",
+        "化霜",
+        "小计",
+        "正方形平面 + 演示层高",
+        "温区低端",
+        "4.0 m",
+        "10 / 8 kW(e)",
+        "not kW(r)/COP",
+        "extra_tables",
+        "investment_from_demo_catalog=false",
+        "power_from_demo_catalog: false",
+        "AGENT_TO_ENGINEERING_VALUE=NO",
+    ):
+        assert marker in skill_text
     for text in (skill_text, runbook):
         assert "preview_factory_power" in text
         assert "factory_power_estimation@2.0.0-p1" in text
