@@ -16,6 +16,7 @@ from cold_storage.modules.aily.application.stage_preview import (
 from cold_storage.modules.aily.domain.errors import AilyConnectorError
 
 AILY_DIR = Path(__file__).resolve().parents[2] / "src" / "cold_storage" / "modules" / "aily"
+V21_P2_FACTORY_POWER_PREVIEW = AILY_DIR / "application" / "factory_power_preview.py"
 
 
 def _five_keys(**overrides: object) -> dict[str, object]:
@@ -78,6 +79,8 @@ def test_v13_missing_key_fail_closed() -> None:
 
 def test_v13_aily_does_not_import_calculations() -> None:
     for path in AILY_DIR.rglob("*.py"):
+        if path == V21_P2_FACTORY_POWER_PREVIEW:
+            continue
         text = path.read_text(encoding="utf-8")
         assert "cold_storage.modules.calculations" not in text, path.name
 

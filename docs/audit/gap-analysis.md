@@ -22,7 +22,8 @@
 > closure is complete at `v1.9.0`. **V2.0 implementation and release are complete**
 > at `v2.0.0` on `main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`: P0, P1, and P2
 > are merged, and the annotated tag/GitHub Release point to that commit. **V2.1
-> P0 is merged and P1 is now the active implementation stage** for `v2.1.0`.
+> P0 and P1 are merged;** the active implementation stage is **V2.1 P2
+> MCP/Skill integration** for `v2.1.0`.
 > There is no defined V2.0 P3. Later feature umbrellas (outbound live Aily
 > session, remaining TD-008 equipment catalogs, and zone thermal catalog recut)
 > stay unauthorized until Charles dispatches.
@@ -53,7 +54,7 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 The block above preserves the historical V2.0 readiness gate. Release execution
 subsequently completed at `v2.0.0`; V2.1 P0 is merged and the active lane is now
-V2.1 P1.
+V2.1 P2.
 
 ```text
 V2_0_0_RELEASED=YES
@@ -147,6 +148,59 @@ DEPLOYMENT=NO
 NEXT_FEATURE_LANE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
+
+## V2.1 P2 MCP / Doubao Skill integration lane
+
+P1 upstream authority adapter is merged. The active V2.1 P2 lane adds only the
+stateless `preview_factory_power` MCP capability, the V2.1 Doubao Skill and its
+runbook. It consumes the existing zone-plan execution, P1 adapter, V2.0
+calculator and shared projector; it does not recalculate engineering values.
+
+```text
+TASK_ID=V21_P2_FACTORY_POWER_MCP_DOUBAO_SKILL_INTEGRATION_R1
+TARGET_VERSION=v2.1.0
+BASE_MAIN_SHA=95b6cbf839ba584f29f13735b07f8f8309b1cf37
+ACTIVE_GOVERNANCE_LANE=V2.1_P2
+P0_STATUS=MERGED
+P1_STATUS=MERGED
+P2_STATUS=IMPLEMENTATION_ACTIVE
+P2_EXECUTED=YES
+MCP_TOOL_COUNT=6
+NEW_MCP_TOOL=preview_factory_power
+NEW_MCP_TOOL_POSITION=6
+EXISTING_FIVE_TOOL_ORDER_CHANGED=NO
+MCP_INPUT_REMAINS_FIVE_KEY=YES
+MCP_RUNTIME_REJECTS_AREA_INPUT=YES
+MCP_RUNTIME_REJECTS_UNKNOWN_INPUT=YES
+FACTORY_POWER_FROM_P1_ADAPTER=YES
+FACTORY_POWER_FROM_SHARED_PROJECTOR=YES
+MCP_ENGINEERING_RECALCULATION=NO
+V20_CALCULATOR_CHANGED=NO
+P1_ADAPTER_CHANGED=NO
+V20_PRESENTATION_CHANGED=NO
+CONCEPT_PREVIEW_STAGE_COUNT=5
+CALCULATION_TYPE_CHANGED=NO
+V18_SKILL_CHANGED=NO
+V18_RUNBOOK_CHANGED=NO
+V21_SKILL_CREATED=YES
+V21_RUNBOOK_CREATED=YES
+SERVER_SIDE_CHAT_NLP=NO
+OUTBOUND_LIVE_AILY_SESSION=NO
+DATABASE_MIGRATION=NO
+FRONTEND_CHANGED=NO
+NEW_REST_ENDPOINT=NO
+RELEASE_CLOSURE=UNAUTHORIZED
+READY=NO
+MERGE=NO
+TAG=NO
+RELEASE=NO
+DEPLOYMENT=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The existing V1.8 five-tool contract and runbook remain frozen. Release closure,
+deployment and a next feature lane are separate gates.
 
 ## P0
 

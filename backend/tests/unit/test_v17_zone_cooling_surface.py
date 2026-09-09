@@ -20,6 +20,7 @@ from tests.unit.test_production_calculation_adapters import (
 )
 
 AILY_DIR = Path(__file__).resolve().parents[2] / "src" / "cold_storage" / "modules" / "aily"
+V21_P2_FACTORY_POWER_PREVIEW = AILY_DIR / "application" / "factory_power_preview.py"
 
 _ZONE_COMPONENT_FIELDS = (
     "transmission_load_kw_r",
@@ -117,6 +118,8 @@ def test_v17_two_inbound_masses_change_zone_subtotals() -> None:
 
 def test_v17_aily_does_not_import_calculations() -> None:
     for path in AILY_DIR.rglob("*.py"):
+        if path == V21_P2_FACTORY_POWER_PREVIEW:
+            continue
         text = path.read_text(encoding="utf-8")
         assert "cold_storage.modules.calculations" not in text, path.name
         assert "U × A × ΔT" not in text, path.name

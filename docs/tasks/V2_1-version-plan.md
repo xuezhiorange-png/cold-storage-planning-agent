@@ -1,16 +1,18 @@
 # V2.1 版本计划：工厂功率上游权威与豆包 MCP 合同
 
-**状态：** V2.1 P0 已合并；P1 upstream authority adapter 正在实施（本分支 Draft）；P2 未授权。
+**状态：** V2.1 P0 已合并；P1 upstream authority adapter 已合并；P2 MCP、豆包
+Skill 与 runbook 集成正在实施（本分支 Draft）。
 **目标版本：** `v2.1.0`。**基线版本：** `v2.0.0`。
 **V2.0 release lineage：** `v2.0.0^{}` 解析为
 `a7049ca93d238013c0cf62069fe1e0a89ff834d7`；该 SHA 必须是当前 head 的祖先，后续
 `main` 合并后允许继续前进。
-**当前治理阶段：** V2.1 P1 backend upstream authority adapter implementation。
+**当前治理阶段：** V2.1 P2 factory-power MCP、Doubao Skill 与 runbook integration。
 
 V2.1 P0 已冻结并合并从 `cold_room_zone_plan@1.0.0` 绑定工厂面积/冷间面积的
 权威链路、`preview_factory_power` 的输入输出合同、现有五工具兼容性和
-fail-closed 边界。当前单独授权的 P1 只实现 backend adapter 与既有 V2.0
-calculator 的接入；MCP tool、Skill、数据库迁移和下一阶段仍未授权。
+fail-closed 边界。P1 backend adapter 已合并；当前单独授权的 P2 只把五 KEY
+接入第 6 个 MCP tool，并新增 V2.1 Skill/runbook。数据库迁移、Ready、Merge、
+release closure 和下一阶段仍未授权。
 
 ~~~text
 TASK_ID=V21_P0_FACTORY_POWER_UPSTREAM_AUTHORITY_AND_DOUBAO_MCP_CONTRACT_R1
@@ -242,9 +244,9 @@ contract。MCP 层不得重算 canonical result 中的 summary、details 或功�
 | 阶段 | 状态 | 允许内容 |
 | --- | --- | --- |
 | P0 | **MERGED** | upstream authority、面积/温区 integrity、MCP 输入输出合同、架构锁 |
-| P1 | **IMPLEMENTATION_ACTIVE（本分支 Draft）** | 后端从 canonical zone-plan 绑定面积并接入既有 V2.0 calculator |
-| P2 | **UNAUTHORIZED** | `preview_factory_power` MCP、Doubao Skill/router/runbook integration |
-| Release Closure | **未进入** | V2.1.0 release closure/readiness；需独立授权 |
+| P1 | **MERGED** | 后端从 canonical zone-plan 绑定面积并接入既有 V2.0 calculator |
+| P2 | **IMPLEMENTATION_ACTIVE（本分支 Draft）** | `preview_factory_power` MCP、Doubao Skill/router/runbook integration |
+| Release Closure | **UNAUTHORIZED** | V2.1.0 release closure/readiness；需独立授权 |
 
 P1 实施记录见
 [V2_1-P1-factory-power-upstream-authority-adapter-implementation.md](V2_1-P1-factory-power-upstream-authority-adapter-implementation.md)。
@@ -255,3 +257,53 @@ P0 不实现 P2。除本文件外，正式规则矩阵见
 
 V1.8 的既有 Skill、合同和 runbook 保持冻结历史；本任务不修改
 `docs/contracts/aily/v1.8/` 或 `docs/runbooks/v18-doubao-aily-connector.md`。
+
+## V2.1 P2 Factory-Power MCP 与 Doubao Skill（实施中）
+
+P1 已在 `main` 合并。当前 P2 在同一 V2.1 版本线上只实现入站 MCP、V2.1
+Doubao Skill 和操作手册：五个 operator KEY 经既有 zone-plan execution、P1
+upstream authority adapter、未修改的 V2.0 calculator 与 shared projector，形成
+`preview_factory_power` 的第 6 个只读工具。P2 不改变五阶段 concept-preview、旧
+`preview_installed_power` 语义、V2.0 calculator/presentation、P1 adapter 或 V1.8
+Skill/runbook。
+
+```text
+TASK_ID=V21_P2_FACTORY_POWER_MCP_DOUBAO_SKILL_INTEGRATION_R1
+TARGET_VERSION=v2.1.0
+BASE_MAIN_SHA=95b6cbf839ba584f29f13735b07f8f8309b1cf37
+BASE_MAIN_CI_RUN_ID=34321050750
+BASE_MAIN_CI_RESULT=SUCCESS
+P0_STATUS=MERGED
+P1_STATUS=MERGED
+P2_STATUS=IMPLEMENTATION_ACTIVE
+P2_EXECUTED=YES
+ACTIVE_GOVERNANCE_LANE=V2.1_P2
+MCP_TOOL_COUNT=6
+NEW_MCP_TOOL=preview_factory_power
+NEW_MCP_TOOL_POSITION=6
+EXISTING_FIVE_TOOL_ORDER_CHANGED=NO
+MCP_INPUT_REMAINS_FIVE_KEY=YES
+FACTORY_POWER_FROM_P1_ADAPTER=YES
+FACTORY_POWER_FROM_SHARED_PROJECTOR=YES
+MCP_ENGINEERING_RECALCULATION=NO
+V20_CALCULATOR_CHANGED=NO
+P1_ADAPTER_CHANGED=NO
+V20_PRESENTATION_CHANGED=NO
+CONCEPT_PREVIEW_STAGE_COUNT=5
+V18_SKILL_CHANGED=NO
+V18_RUNBOOK_CHANGED=NO
+RELEASE_CLOSURE=UNAUTHORIZED
+READY=NO
+MERGE=NO
+TAG=NO
+RELEASE=NO
+DEPLOYMENT=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+实现记录见
+[V2_1-P2-factory-power-mcp-doubao-skill-integration.md](V2_1-P2-factory-power-mcp-doubao-skill-integration.md)；
+Skill 见 `docs/contracts/aily/v2.1/doubao-skill.v1.md`，runbook 见
+`docs/runbooks/v21-doubao-aily-connector.md`。P2 完成后停在 Draft Review gate，
+不隐含 Release Closure、Ready、Merge 或下一 feature lane。

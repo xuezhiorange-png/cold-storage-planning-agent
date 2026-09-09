@@ -109,6 +109,33 @@ P2_DOWNSTREAM_PATHS = {
     "docs/tasks/V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md",
     "docs/tasks/V2_1-P1-factory-power-upstream-authority-adapter-implementation.md",
     "docs/architecture/ADR-043-factory-power-upstream-authority-doubao-mcp.md",
+    "backend/src/cold_storage/modules/aily/api/mcp_sse.py",
+    "backend/src/cold_storage/modules/aily/application/stage_preview.py",
+    "backend/src/cold_storage/modules/aily/application/factory_power_preview.py",
+    "backend/src/cold_storage/modules/aily/application/mcp_factory_power.py",
+    "backend/tests/unit/test_v21_p2_aily_factory_power_preview.py",
+    "backend/tests/unit/test_v21_p2_aily_factory_power_mcp.py",
+    "backend/tests/integration/test_v21_p2_aily_factory_power_mcp_http.py",
+    "backend/tests/architecture/test_v21_p2_factory_power_mcp_doubao_integration.py",
+    "backend/tests/unit/test_v11_aily_mcp_protocol.py",
+    "backend/tests/unit/test_v12_aily_mcp_protocol.py",
+    "backend/tests/integration/test_v11_aily_mcp_sse_http.py",
+    "backend/tests/architecture/test_v12_p0_aily_five_stage_preview_contract.py",
+    "backend/tests/architecture/test_v13_p0_aily_preview_lineage_contract.py",
+    "backend/tests/architecture/test_v14_p0_workbench_debt_contract.py",
+    "backend/tests/architecture/test_v15_p0_envelope_geometry_contract.py",
+    "backend/tests/architecture/test_v16_p0_power_fan_catalog_contract.py",
+    "backend/tests/architecture/test_v17_p0_zone_cooling_surface_contract.py",
+    "backend/tests/architecture/test_v18_p0_zone_temperature_height_contract.py",
+    "backend/tests/unit/test_v13_aily_preview_lineage.py",
+    "backend/tests/unit/test_v15_aily_envelope_geometry.py",
+    "backend/tests/unit/test_v16_power_fan_catalog.py",
+    "backend/tests/unit/test_v17_zone_cooling_surface.py",
+    "backend/tests/unit/test_v18_zone_temperature_height.py",
+    "docs/tasks/V2_1-P2-factory-power-mcp-doubao-skill-integration.md",
+    "docs/contracts/aily/v2.1/doubao-skill.v1.md",
+    "docs/contracts/aily/v2.1/doubao-skill.v1.json",
+    "docs/runbooks/v21-doubao-aily-connector.md",
 }
 GENERATED_ARTIFACT_PREFIX = "backend/artifacts/local/"
 
@@ -173,7 +200,7 @@ def test_v20_p1_scope_is_additive_and_does_not_touch_consumers_or_schema() -> No
     assert not any(path.startswith("backend/alembic/") for path in changed)
     assert not any(
         path.startswith("backend/src/cold_storage/modules/aily/")
-        and path != "backend/src/cold_storage/modules/aily/application/factory_power_table.py"
+        and path not in P2_DOWNSTREAM_PATHS
         for path in changed
     )
     runtime_paths = {path for path in changed if path.startswith("backend/src/")}

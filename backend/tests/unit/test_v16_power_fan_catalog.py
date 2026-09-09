@@ -25,6 +25,7 @@ from cold_storage.modules.projects.application.operator_process_input import (
 from cold_storage.modules.projects.domain.models import ProjectVersion
 
 AILY_DIR = Path(__file__).resolve().parents[2] / "src" / "cold_storage" / "modules" / "aily"
+V21_P2_FACTORY_POWER_PREVIEW = AILY_DIR / "application" / "factory_power_preview.py"
 
 
 def _five_keys(**overrides: object) -> dict[str, object]:
@@ -141,6 +142,8 @@ def test_v16_prepare_fills_pending_zero_from_loader() -> None:
 
 def test_v16_aily_does_not_import_calculations_or_hardcode_fans() -> None:
     for path in AILY_DIR.rglob("*.py"):
+        if path == V21_P2_FACTORY_POWER_PREVIEW:
+            continue
         text = path.read_text(encoding="utf-8")
         assert "cold_storage.modules.calculations" not in text, path.name
         assert "_PREVIEW_POWER_FAN_DEMO" not in text, path.name

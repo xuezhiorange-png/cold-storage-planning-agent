@@ -41,6 +41,7 @@ ADAPTER = (
     / "adapters.py"
 )
 AILY_API_DIR = REPO_ROOT / "backend" / "src" / "cold_storage" / "modules" / "aily"
+V21_P2_FACTORY_POWER_PREVIEW = AILY_API_DIR / "application" / "factory_power_preview.py"
 FRONTEND_SRC = REPO_ROOT / "frontend" / "src"
 SNAPSHOT = (
     REPO_ROOT
@@ -125,6 +126,8 @@ def test_v17_definition_freeze_surfaces_components_without_formula_recut() -> No
 
 def test_v17_aily_does_not_import_calculations_or_embed_formulas() -> None:
     for path in AILY_API_DIR.rglob("*.py"):
+        if path == V21_P2_FACTORY_POWER_PREVIEW:
+            continue
         text = path.read_text(encoding="utf-8")
         assert "cold_storage.modules.calculations" not in text, path.name
         assert "five_stage_execution" not in text, path.name

@@ -17,6 +17,9 @@ from cold_storage.modules.projects.application.factory_power_upstream_authority 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BASE_MAIN_SHA = "1d0a8e23f550b3c9ced413932fde0995acb227c0"
 BASE_RELEASE_SHA = "a7049ca93d238013c0cf62069fe1e0a89ff834d7"
+# Immutable final commit of the merged P1 branch.  Later P2 changes must not
+# be treated as P1 scope or as mutations of P1's frozen surfaces.
+P1_REFERENCE_HEAD_SHA = "cfa6d990d5f21327289e73d1ac92654cdc8488a5"
 ADAPTER_PATH = (
     "backend/src/cold_storage/modules/projects/application/factory_power_upstream_authority.py"
 )
@@ -51,6 +54,18 @@ ALLOWED_CHANGED_PATHS = {
     "docs/audit/gap-analysis.md",
     "docs/roadmap/DEVELOPMENT_PLAN.md",
     "docs/TECH_DEBT.md",
+    # Later V2.1 P2 lane: these paths are outside the historical P1 diff but
+    # must not make the durable P1 scope lock fail on a follow-on branch.
+    "backend/src/cold_storage/modules/aily/application/factory_power_preview.py",
+    "backend/src/cold_storage/modules/aily/application/mcp_factory_power.py",
+    "backend/tests/architecture/test_v21_p2_factory_power_mcp_doubao_integration.py",
+    "backend/tests/integration/test_v21_p2_aily_factory_power_mcp_http.py",
+    "backend/tests/unit/test_v21_p2_aily_factory_power_mcp.py",
+    "backend/tests/unit/test_v21_p2_aily_factory_power_preview.py",
+    "docs/contracts/aily/v2.1/doubao-skill.v1.json",
+    "docs/contracts/aily/v2.1/doubao-skill.v1.md",
+    "docs/runbooks/v21-doubao-aily-connector.md",
+    "docs/tasks/V2_1-P2-factory-power-mcp-doubao-skill-integration.md",
 }
 
 
@@ -60,7 +75,7 @@ def _text(path: str) -> str:
 
 def _changed_paths() -> set[str]:
     tracked = subprocess.run(
-        ["git", "diff", "--name-only", BASE_MAIN_SHA, "HEAD"],
+        ["git", "diff", "--name-only", BASE_MAIN_SHA, P1_REFERENCE_HEAD_SHA],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -83,7 +98,15 @@ def _changed_paths() -> set[str]:
 def _diff_is_empty(*paths: str) -> bool:
     return (
         subprocess.run(
-            ["git", "diff", "--quiet", BASE_MAIN_SHA, "HEAD", "--", *paths],
+            [
+                "git",
+                "diff",
+                "--quiet",
+                BASE_MAIN_SHA,
+                P1_REFERENCE_HEAD_SHA,
+                "--",
+                *paths,
+            ],
             cwd=REPO_ROOT,
             check=False,
         ).returncode

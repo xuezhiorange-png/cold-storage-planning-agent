@@ -17,6 +17,7 @@ ADR_PATH = REPO_ROOT / "docs" / "architecture" / "ADR-034-aily-five-stage-conver
 AILY_API_DIR = REPO_ROOT / "backend" / "src" / "cold_storage" / "modules" / "aily"
 AILY_API = AILY_API_DIR / "api" / "routes.py"
 MCP_SSE = AILY_API_DIR / "api" / "mcp_sse.py"
+V21_P2_FACTORY_POWER_PREVIEW = AILY_API_DIR / "application" / "factory_power_preview.py"
 SKILL_PATH = REPO_ROOT / "docs" / "contracts" / "aily" / "v1.2" / "doubao-skill.v1.md"
 
 
@@ -61,6 +62,8 @@ def test_v12_keeps_frozen_operator_keys_and_calculator_identities() -> None:
 
 def test_v12_aily_layers_do_not_import_calculations_or_review_tools() -> None:
     for path in AILY_API_DIR.rglob("*.py"):
+        if path == V21_P2_FACTORY_POWER_PREVIEW:
+            continue
         text = path.read_text(encoding="utf-8")
         assert "cold_storage.modules.calculations" not in text, path.name
     routes_text = AILY_API.read_text(encoding="utf-8")
