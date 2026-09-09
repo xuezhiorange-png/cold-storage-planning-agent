@@ -1,15 +1,16 @@
 # V2.1 版本计划：工厂功率上游权威与豆包 MCP 合同
 
-**状态：** V2.1 P0 契约已冻结（本分支 Draft）；未进入 P1/P2 实现。
+**状态：** V2.1 P0 已合并；P1 upstream authority adapter 正在实施（本分支 Draft）；P2 未授权。
 **目标版本：** `v2.1.0`。**基线版本：** `v2.0.0`。
 **V2.0 release lineage：** `v2.0.0^{}` 解析为
 `a7049ca93d238013c0cf62069fe1e0a89ff834d7`；该 SHA 必须是当前 head 的祖先，后续
 `main` 合并后允许继续前进。
-**当前治理阶段：** V2.1 P0 upstream authority + Doubao MCP contract freeze。
+**当前治理阶段：** V2.1 P1 backend upstream authority adapter implementation。
 
-V2.1 P0 只冻结从 `cold_room_zone_plan@1.0.0` 绑定工厂面积/冷间面积的权威
-链路、`preview_factory_power` 的输入输出合同、现有五工具兼容性和 fail-closed
-边界。它不实现 adapter、MCP tool、Skill、数据库迁移或任何新的运行时行为。
+V2.1 P0 已冻结并合并从 `cold_room_zone_plan@1.0.0` 绑定工厂面积/冷间面积的
+权威链路、`preview_factory_power` 的输入输出合同、现有五工具兼容性和
+fail-closed 边界。当前单独授权的 P1 只实现 backend adapter 与既有 V2.0
+calculator 的接入；MCP tool、Skill、数据库迁移和下一阶段仍未授权。
 
 ~~~text
 TASK_ID=V21_P0_FACTORY_POWER_UPSTREAM_AUTHORITY_AND_DOUBAO_MCP_CONTRACT_R1
@@ -31,6 +32,38 @@ RELEASE=NO
 DEPLOYMENT=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ~~~
+
+上面的 P0 authorization block 是 P0 dispatch 时的历史快照，保留其中的
+`RUNTIME_IMPLEMENTATION=NO`、`MCP_IMPLEMENTATION=NO` 等历史 gate，不将历史
+`NO` 改写成后续授权。当前状态由下面独立的 P1 record 表示：
+
+```text
+TASK_ID=V21_P1_FACTORY_POWER_UPSTREAM_AUTHORITY_ADAPTER_IMPLEMENTATION_R1
+TARGET_VERSION=v2.1.0
+BASE_MAIN_SHA=1d0a8e23f550b3c9ced413932fde0995acb227c0
+BASE_MAIN_CI_RUN_ID=34299161658
+BASE_MAIN_CI_RESULT=SUCCESS
+P0_STATUS=MERGED
+P1_STATUS=IMPLEMENTATION_ACTIVE
+P1_EXECUTED=YES
+P2_STATUS=UNAUTHORIZED
+P2_EXECUTED=NO
+BACKEND_UPSTREAM_AUTHORITY_ADAPTER_IMPLEMENTATION=YES
+FACTORY_AREA_BINDING_IMPLEMENTATION=YES
+COLD_STORAGE_AREA_BINDING_IMPLEMENTATION=YES
+V20_FACTORY_POWER_CALCULATOR_INVOCATION=YES
+DOUBAO_MCP_IMPLEMENTATION=NO
+MCP_IMPLEMENTED=NO
+SKILL_IMPLEMENTED=NO
+FRONTEND_CHANGED=NO
+DATABASE_MIGRATION=NO
+READY=NO
+MERGE=NO
+TAG=NO
+RELEASE=NO
+DEPLOYMENT=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
 
 ## Owner Decision
 
@@ -208,12 +241,14 @@ contract。MCP 层不得重算 canonical result 中的 summary、details 或功�
 
 | 阶段 | 状态 | 允许内容 |
 | --- | --- | --- |
-| P0 | **本分支已冻结，待独立 Review** | upstream authority、面积/温区 integrity、MCP 输入输出合同、架构锁 |
-| P1 | **未授权** | 后端从 canonical zone-plan 绑定面积并接入既有 V2.0 calculator |
-| P2 | **未授权** | `preview_factory_power` MCP、Doubao Skill/router/runbook integration |
+| P0 | **MERGED** | upstream authority、面积/温区 integrity、MCP 输入输出合同、架构锁 |
+| P1 | **IMPLEMENTATION_ACTIVE（本分支 Draft）** | 后端从 canonical zone-plan 绑定面积并接入既有 V2.0 calculator |
+| P2 | **UNAUTHORIZED** | `preview_factory_power` MCP、Doubao Skill/router/runbook integration |
 | Release Closure | **未进入** | V2.1.0 release closure/readiness；需独立授权 |
 
-P0 不实现 P1/P2。除本文件外，正式规则矩阵见
+P1 实施记录见
+[V2_1-P1-factory-power-upstream-authority-adapter-implementation.md](V2_1-P1-factory-power-upstream-authority-adapter-implementation.md)。
+P0 不实现 P2。除本文件外，正式规则矩阵见
 [V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md](V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md)，
 架构决策见
 [ADR-043-factory-power-upstream-authority-doubao-mcp.md](../architecture/ADR-043-factory-power-upstream-authority-doubao-mcp.md)。

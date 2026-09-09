@@ -22,8 +22,9 @@
 > projection regression is closed, and the V0.7 golden controlled evolution is
 > complete. V1.9 release closure is complete at `v1.9.0`. V2.0 P0, P1, and P2
 > are complete and merged, and `v2.0.0` is released at
-> `main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`. **Active governance stage:**
-> V2.1 P0 upstream authority + Doubao MCP contract freeze for `v2.1.0`.
+> `main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`. V2.1 P0 upstream authority +
+> Doubao MCP contract freeze is merged; **active governance stage:** V2.1 P1
+> backend upstream authority adapter implementation for `v2.1.0`.
 > Later feature umbrellas (outbound live Aily session, remaining TD-008 equipment
 > catalogs, and zone thermal catalog recut) stay unauthorized until Charles dispatches.
 
@@ -91,18 +92,19 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 The historical closure/readiness record is maintained in
 `docs/tasks/V2_0-release-closure-readiness.md`; its later release execution is
-recorded at `v2.0.0`. V2.1 P0 is governed by
-`docs/tasks/V2_1-version-plan.md` and does not imply runtime implementation,
-MCP/Skill work, tag, release, deployment, or a next feature lane.
+recorded at `v2.0.0`. V2.1 P0 is merged; the active V2.1 P1 implementation is
+governed by `docs/tasks/V2_1-version-plan.md` and does not imply MCP/Skill work,
+tag, release, deployment, or a next feature lane.
 
-## V2.1 P0 Contract Freeze
+## V2.1 P0 Contract Freeze（已合并；历史 dispatch）
 
-V2.1 P0 is the active governance lane after the `v2.0.0` release. It freezes
+V2.1 P0 was the governance lane after the `v2.0.0` release and is now merged. It freezes
 the upstream authority from `cold_room_zone_plan@1.0.0` to the existing
 `factory_power_estimation@2.0.0-p1` calculator, resolves factory/cold-storage
 area semantics through canonical zone rows and the refrigerated registry, and
 appends the future `preview_factory_power` contract at MCP position 6. It does
-not implement the adapter, MCP tool, Skill, database migration, or runtime code.
+not implement the adapter, MCP tool, Skill, database migration, or runtime code;
+the authorization block below is retained as the historical P0 snapshot.
 
 ```text
 V21_P0_FACTORY_POWER_UPSTREAM_AUTHORITY_AND_DOUBAO_MCP_CONTRACT_R1
@@ -130,6 +132,47 @@ The formal contract is
 `docs/tasks/V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md`;
 the decision record is
 `docs/architecture/ADR-043-factory-power-upstream-authority-doubao-mcp.md`.
+
+## V2.1 P1 Factory-Power Upstream Authority Adapter（实施中）
+
+P1 is separately authorized on `main@1d0a8e23f550b3c9ced413932fde0995acb227c0`.
+It implements only the backend adapter that validates the canonical
+`cold_room_zone_plan@1.0.0`, binds factory/cold-storage areas from the 12/9 zone
+authority, and invokes the unchanged `factory_power_estimation@2.0.0-p1`.
+The branch remains Draft; P2 MCP/Skill integration is not authorized.
+
+```text
+TASK_ID=V21_P1_FACTORY_POWER_UPSTREAM_AUTHORITY_ADAPTER_IMPLEMENTATION_R1
+TARGET_VERSION=v2.1.0
+BASE_MAIN_SHA=1d0a8e23f550b3c9ced413932fde0995acb227c0
+ACTIVE_GOVERNANCE_LANE=V2.1_P1
+P0_STATUS=MERGED
+P1_STATUS=IMPLEMENTATION_ACTIVE
+P1_EXECUTED=YES
+P2_STATUS=UNAUTHORIZED
+P2_EXECUTED=NO
+BACKEND_UPSTREAM_AUTHORITY_ADAPTER_IMPLEMENTATION=YES
+FACTORY_AREA_BINDING_IMPLEMENTATION=YES
+COLD_STORAGE_AREA_BINDING_IMPLEMENTATION=YES
+V20_FACTORY_POWER_CALCULATOR_INVOCATION=YES
+V20_CALCULATOR_CHANGED=NO
+V20_PRESENTATION_CHANGED=NO
+DOUBAO_MCP_IMPLEMENTATION=NO
+MCP_IMPLEMENTED=NO
+SKILL_IMPLEMENTED=NO
+FRONTEND_CHANGED=NO
+DATABASE_MIGRATION=NO
+READY=NO
+MERGE=NO
+TAG=NO
+RELEASE=NO
+DEPLOYMENT=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P1 实施记录：
+`docs/tasks/V2_1-P1-factory-power-upstream-authority-adapter-implementation.md`。
 
 ## Task 0: Local Baseline, Repository Audit, And Governance
 

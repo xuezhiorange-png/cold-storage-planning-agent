@@ -22,7 +22,7 @@
 > closure is complete at `v1.9.0`. **V2.0 implementation and release are complete**
 > at `v2.0.0` on `main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`: P0, P1, and P2
 > are merged, and the annotated tag/GitHub Release point to that commit. **V2.1
-> P0 is now the active governance stage** for `v2.1.0`.
+> P0 is merged and P1 is now the active implementation stage** for `v2.1.0`.
 > There is no defined V2.0 P3. Later feature umbrellas (outbound live Aily
 > session, remaining TD-008 equipment catalogs, and zone thermal catalog recut)
 > stay unauthorized until Charles dispatches.
@@ -52,7 +52,8 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
 The block above preserves the historical V2.0 readiness gate. Release execution
-subsequently completed at `v2.0.0`; the active lane is now V2.1 P0.
+subsequently completed at `v2.0.0`; V2.1 P0 is merged and the active lane is now
+V2.1 P1.
 
 ```text
 V2_0_0_RELEASED=YES
@@ -64,13 +65,14 @@ NEXT_FEATURE_LANE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
-## V2.1 P0 active contract-freeze lane
+## V2.1 P0 contract-freeze lane（已合并；历史 dispatch）
 
 V2.1 P0 freezes the upstream authority from
 `cold_room_zone_plan@1.0.0` to the V2.0 factory-power calculator and appends the
 future `preview_factory_power` contract after the existing five MCP tools. This
-is contract/governance work only; it does not implement the adapter, MCP, Skill,
-database migration, or any runtime behavior. The P0 lane is defined by
+was contract/governance work only; its authorization block below is a historical
+snapshot and does not authorize later implementation. P0 is now merged; the
+separate P1 implementation lane is recorded after the snapshot. The P0 lane is defined by
 `docs/tasks/V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md` and
 `docs/architecture/ADR-043-factory-power-upstream-authority-doubao-mcp.md`.
 
@@ -97,6 +99,45 @@ V20_P2_PRESENTATION_UNCHANGED=YES
 RUNTIME_IMPLEMENTATION=NO
 MCP_IMPLEMENTATION=NO
 SKILL_IMPLEMENTATION=NO
+DATABASE_MIGRATION=NO
+READY=NO
+MERGE=NO
+TAG=NO
+RELEASE=NO
+DEPLOYMENT=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+## V2.1 P1 active upstream-authority implementation lane
+
+P1 is the separately authorized backend implementation after the merged P0
+contract. The adapter binds `factory_area_m2` from all 12 canonical
+`zone_plan.result.zones[]` rows, binds `cold_storage_area_m2` from the existing
+9-zone `REFRIGERATED_ZONE_REGISTRY`, validates total-area and refrigerated
+temperature integrity, and invokes the unchanged V2.0 factory-power calculator.
+It does not implement the future MCP tool or Skill.
+
+```text
+TASK_ID=V21_P1_FACTORY_POWER_UPSTREAM_AUTHORITY_ADAPTER_IMPLEMENTATION_R1
+TARGET_VERSION=v2.1.0
+BASE_MAIN_SHA=1d0a8e23f550b3c9ced413932fde0995acb227c0
+ACTIVE_GOVERNANCE_LANE=V2.1_P1
+P0_STATUS=MERGED
+P1_STATUS=IMPLEMENTATION_ACTIVE
+P1_EXECUTED=YES
+P2_STATUS=UNAUTHORIZED
+P2_EXECUTED=NO
+FACTORY_AREA_FROM_12_ZONE_ROWS=YES
+FACTORY_AREA_TOTAL_CROSS_CHECK=YES
+COLD_STORAGE_AREA_FROM_REFRIGERATED_REGISTRY=YES
+V20_CALCULATOR_INVOKED=YES
+V20_CALCULATOR_CHANGED=NO
+V20_PRESENTATION_CHANGED=NO
+DOUBAO_MCP_IMPLEMENTATION=NO
+MCP_IMPLEMENTED=NO
+SKILL_IMPLEMENTED=NO
+FRONTEND_CHANGED=NO
 DATABASE_MIGRATION=NO
 READY=NO
 MERGE=NO

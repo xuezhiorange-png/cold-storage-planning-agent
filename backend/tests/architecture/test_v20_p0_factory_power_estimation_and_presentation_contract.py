@@ -79,7 +79,10 @@ EXPECTED_CHANGED_PATHS = {
     "docs/tasks/V2_0-version-plan.md",
 }
 P2_DOWNSTREAM_PATHS = {
+    "backend/src/cold_storage/modules/projects/application/factory_power_upstream_authority.py",
     "backend/tests/architecture/test_v20_release_closure_readiness.py",
+    "backend/tests/architecture/test_v21_p1_factory_power_upstream_authority.py",
+    "backend/tests/unit/test_v21_p1_factory_power_upstream_authority.py",
     "backend/src/cold_storage/modules/aily/application/factory_power_table.py",
     "backend/src/cold_storage/modules/calculations/application/factory_power_presentation.py",
     "backend/src/cold_storage/modules/projects/application/factory_power_presentation.py",
@@ -107,6 +110,7 @@ P2_DOWNSTREAM_PATHS = {
     "backend/tests/architecture/test_v21_p0_factory_power_upstream_authority_doubao_mcp_contract.py",
     "docs/tasks/V2_1-version-plan.md",
     "docs/tasks/V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md",
+    "docs/tasks/V2_1-P1-factory-power-upstream-authority-adapter-implementation.md",
     "docs/architecture/ADR-043-factory-power-upstream-authority-doubao-mcp.md",
 }
 GENERATED_ARTIFACT_PREFIX = "backend/artifacts/local/"
@@ -251,6 +255,7 @@ def test_v20_p0_documents_are_present_and_docs_only() -> None:
         "backend/src/cold_storage/modules/aily/application/factory_power_table.py",
         "backend/src/cold_storage/modules/projects/application/service.py",
         "backend/src/cold_storage/modules/projects/application/factory_power_presentation.py",
+        "backend/src/cold_storage/modules/projects/application/factory_power_upstream_authority.py",
         "backend/src/cold_storage/modules/projects/infrastructure/database.py",
     }
     assert {path for path in changed if path.startswith("frontend/")} <= P2_DOWNSTREAM_PATHS
