@@ -73,7 +73,11 @@ def _changed_paths() -> set[str]:
         text=True,
         check=True,
     ).stdout.splitlines()
-    return {path for path in [*tracked, *untracked] if path}
+    return {
+        path
+        for path in [*tracked, *untracked]
+        if path and not path.startswith("backend/artifacts/local/")
+    }
 
 
 def _diff_is_empty(*paths: str) -> bool:
