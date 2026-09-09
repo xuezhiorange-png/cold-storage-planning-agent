@@ -22,6 +22,7 @@ ADR_PATH = (
     REPO_ROOT / "docs" / "architecture" / "ADR-036-workbench-operator-input-and-demo-defaults.md"
 )
 AILY_API_DIR = REPO_ROOT / "backend" / "src" / "cold_storage" / "modules" / "aily"
+V21_P2_FACTORY_POWER_PREVIEW = AILY_API_DIR / "application" / "factory_power_preview.py"
 V13_SKILL_PATH = REPO_ROOT / "docs" / "contracts" / "aily" / "v1.3" / "doubao-skill.v1.md"
 V09_MANIFEST = REPO_ROOT / "samples" / "v09-process-input" / "manifest.json"
 
@@ -99,6 +100,8 @@ def test_v14_definition_freeze_keeps_non_goals_and_authorization() -> None:
 
 def test_v14_aily_still_must_not_import_calculations() -> None:
     for path in AILY_API_DIR.rglob("*.py"):
+        if path == V21_P2_FACTORY_POWER_PREVIEW:
+            continue
         text = path.read_text(encoding="utf-8")
         assert "cold_storage.modules.calculations" not in text, path.name
         assert "five_stage_execution" not in text, path.name

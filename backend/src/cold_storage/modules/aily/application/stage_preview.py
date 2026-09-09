@@ -254,6 +254,11 @@ def _execute_zone_stage(context: PreviewContext) -> tuple[dict[str, Any], Adapte
     return dict(adapter_result.payload), adapter_result
 
 
+def execute_zone_preview_authority(context: PreviewContext) -> AdapterResult:
+    """Execute the canonical zone-plan adapter for a downstream preview."""
+    return _execute_zone_stage(context)[1]
+
+
 def _execute_cooling_stage(
     context: PreviewContext,
     zone_payload: Mapping[str, Any],

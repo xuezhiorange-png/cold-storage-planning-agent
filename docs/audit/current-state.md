@@ -757,8 +757,8 @@ the same commit.
 V2.0 has exactly three formal implementation stages: P0 contract freeze, P1
 backend deterministic canonical calculation, and P2 workbench + Aily/Doubao
 read-only presentation alignment. There is no defined V2.0 P3. V2.0 release
-execution is complete; V2.1 P0 is merged and the active governance lane is
-V2.1 P1 for target `v2.1.0`.
+execution is complete; V2.1 P0 and P1 are merged and the active governance lane
+is V2.1 P2 for target `v2.1.0`.
 
 The following V2.0 state block preserves the historical readiness authorization
 snapshot; the subsequent release execution fact is recorded immediately below.
@@ -820,8 +820,8 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 V2.1 P0 以 `v2.0.0` 为唯一基线，冻结了 contract、version plan、ADR 和
 architecture lock，并已合并到当前 main。下面的 P0 authorization block 是
-dispatch 时的历史快照，保留其 `P1_EXECUTED=NO` 等历史 gate；当前单独授权的
-P1 状态见 §48。
+dispatch 时的历史快照，保留其 `P1_EXECUTED=NO` 等历史 gate；已合并的 P1 与
+当前单独授权的 P2 状态见 §48–49。
 
 ```text
 V21_P0_FACTORY_POWER_UPSTREAM_AUTHORITY_AND_DOUBAO_MCP_CONTRACT_R1
@@ -860,13 +860,14 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 版本计划见 `docs/tasks/V2_1-version-plan.md`，ADR 见
 `docs/architecture/ADR-043-factory-power-upstream-authority-doubao-mcp.md`。
 
-## 48. V2.1 P1：factory power upstream authority adapter（Draft 实施中）
+## 48. V2.1 P1：factory power upstream authority adapter（已合并；历史 implementation record）
 
-P1 在已合并的 P0 合同边界内实现 backend adapter：它只接受成功且身份精确为
+P1 在已合并的 P0 合同边界内实现 backend adapter 并已合并：它只接受成功且身份精确为
 `cold_room_zone_plan@1.0.0` 的 canonical snapshot，从实际 12 个 zone rows 和
 运行时 9-zone `REFRIGERATED_ZONE_REGISTRY` 绑定两个面积，再调用未修改的
 `factory_power_estimation@2.0.0-p1`。P1 不实现 Doubao MCP、Skill、前端、数据库
-或下一阶段；PR 保持 Draft，等待独立 Review。
+或下一阶段；以下 P1 block 保留 dispatch/implementation 时的历史 gate。当前 P2
+状态见 §49。
 
 ```text
 TASK_ID=V21_P1_FACTORY_POWER_UPSTREAM_AUTHORITY_ADAPTER_IMPLEMENTATION_R1
@@ -900,3 +901,60 @@ DEPLOYMENT=NO
 NEXT_FEATURE_LANE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
+
+## 49. V2.1 P2：factory-power MCP 与 Doubao Skill（Draft 实施中）
+
+P1 upstream authority adapter 已合并到
+`main@95b6cbf839ba584f29f13735b07f8f8309b1cf37`。当前 P2 只把原五个
+operator KEY 通过既有 zone-plan execution、P1 adapter、V2.0 calculator 和 shared
+projector 接到第 6 个 `preview_factory_power` MCP 工具，并新增 V2.1 Skill/runbook。
+P0/P1 的历史 authorization block 保持原样；P2 仍停在 Draft Review gate。
+
+```text
+TASK_ID=V21_P2_FACTORY_POWER_MCP_DOUBAO_SKILL_INTEGRATION_R1
+TARGET_VERSION=v2.1.0
+BASE_MAIN_SHA=95b6cbf839ba584f29f13735b07f8f8309b1cf37
+BASE_MAIN_CI_RUN_ID=34321050750
+BASE_MAIN_CI_RESULT=SUCCESS
+ACTIVE_GOVERNANCE_LANE=V2.1_P2
+P0_STATUS=MERGED
+P1_STATUS=MERGED
+P2_STATUS=IMPLEMENTATION_ACTIVE
+P2_EXECUTED=YES
+MCP_TOOL_COUNT=6
+NEW_MCP_TOOL=preview_factory_power
+NEW_MCP_TOOL_POSITION=6
+EXISTING_FIVE_TOOL_ORDER_CHANGED=NO
+MCP_INPUT_REMAINS_FIVE_KEY=YES
+MCP_RUNTIME_REJECTS_AREA_INPUT=YES
+MCP_RUNTIME_REJECTS_UNKNOWN_INPUT=YES
+FACTORY_POWER_FROM_P1_ADAPTER=YES
+FACTORY_POWER_FROM_SHARED_PROJECTOR=YES
+MCP_ENGINEERING_RECALCULATION=NO
+V20_CALCULATOR_CHANGED=NO
+P1_ADAPTER_CHANGED=NO
+V20_PRESENTATION_CHANGED=NO
+CONCEPT_PREVIEW_STAGE_COUNT=5
+CALCULATION_TYPE_CHANGED=NO
+V18_SKILL_CHANGED=NO
+V18_RUNBOOK_CHANGED=NO
+V21_SKILL_CREATED=YES
+V21_RUNBOOK_CREATED=YES
+SERVER_SIDE_CHAT_NLP=NO
+OUTBOUND_LIVE_AILY_SESSION=NO
+DATABASE_MIGRATION=NO
+FRONTEND_CHANGED=NO
+NEW_REST_ENDPOINT=NO
+RELEASE_CLOSURE=UNAUTHORIZED
+READY=NO
+MERGE=NO
+TAG=NO
+RELEASE=NO
+DEPLOYMENT=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P2 记录见 `docs/tasks/V2_1-P2-factory-power-mcp-doubao-skill-integration.md`。
+V1.8 Skill/runbook、五阶段 `concept-preview`、`preview_installed_power` 和所有
+V2.0/P1 工程 authority 均保持冻结；不因 P2 实施而隐含 release、部署或下一 lane。

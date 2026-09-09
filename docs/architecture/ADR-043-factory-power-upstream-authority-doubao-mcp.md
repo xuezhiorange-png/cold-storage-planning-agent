@@ -1,6 +1,6 @@
 # ADR-043：冻结工厂功率上游面积权威与豆包 MCP 合同
 
-- 状态：P0 contract frozen and merged; P1 backend upstream authority adapter implementation active; P2 unauthorized
+- 状态：P0 contract frozen and merged; P1 backend upstream authority adapter merged; P2 MCP/Skill integration active
 - 日期：2026-09-09
 - 目标版本：`v2.1.0`
 - 基线版本：`v2.0.0^{}` = `a7049ca93d238013c0cf62069fe1e0a89ff834d7`；该 SHA
@@ -8,11 +8,12 @@
 - 关联任务：[V2_1-version-plan.md](../tasks/V2_1-version-plan.md)
 - 正式契约：[V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md](../tasks/V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md)
 - P1 实施记录：[V2_1-P1-factory-power-upstream-authority-adapter-implementation.md](../tasks/V2_1-P1-factory-power-upstream-authority-adapter-implementation.md)
+- P2 实施记录：[V2_1-P2-factory-power-mcp-doubao-skill-integration.md](../tasks/V2_1-P2-factory-power-mcp-doubao-skill-integration.md)
 
-当前治理状态是：P0 已在 `main` 合并；本 ADR 关联的独立 P1 只实现 backend
-upstream authority adapter，并调用既有 V2.0 calculator；Doubao MCP、Skill、前端、
-数据库、Ready、Merge、tag、release 和部署仍未授权。P0 dispatch 时的 gate block
-在文末原样保留，作为历史授权记录。
+当前治理状态是：P0、P1 已在 `main` 合并；当前独立 P2 只实现入站 Doubao MCP、
+V2.1 Skill 和 runbook，并调用既有 P1 adapter、V2.0 calculator 与 shared
+presentation。前端、数据库、Ready、Merge、tag、release 和部署仍未授权。P0/P1
+dispatch 时的 gate block 在文末/记录中原样保留，作为历史授权记录。
 
 ## Context
 
@@ -117,7 +118,8 @@ INSTALLED_POWER_REPLACED=NO
 POWER_CONFIGURATION_REPLACED=NO
 ```
 
-未来 P1 只负责绑定 upstream authority；未来 P2 才能实现 MCP 和 Skill/router。
+P1 只负责绑定 upstream authority；当前 P2 才实现入站 MCP、Skill 和 runbook，且
+不改变上游 calculator/presentation 或五阶段语义。
 
 ### 6. New MCP tool is an append-only, five-key, read-only presentation contract
 
@@ -138,8 +140,8 @@ V2.1 P0 不授权 P1、P2、Ready、Merge、tag、release、deployment 或任何
 - 豆包可以保持 stateless，不需要记忆上一次工程面积；后端 replay 仍使用同一
   `cold_room_zone_plan@1.0.0` authority。
 - V1.8 五工具及 `preview_installed_power` 兼容性不被 P0 改变。
-- P0 本身不提供 runtime adapter、MCP tool、Skill、数据库迁移或部署；当前 P1
-  adapter 的独立实施边界记录在 P1 task 文档中。
+- P0 本身不提供 runtime adapter、MCP tool、Skill、数据库迁移或部署；P1 adapter
+  与当前 P2 MCP/Skill 的独立实施边界分别记录在 P1/P2 task 文档中。
 - 结果仍是概念设计阶段估算工厂电功率，单位 `kW`，需要人工复核；不是 kWh、
   计量值、电费、变压器选型或正式配电设计。
 
@@ -198,4 +200,60 @@ P1 的 adapter 必须从成功且身份精确为 `cold_room_zone_plan@1.0.0` 的
 `zone_plan.result.zones[]` 绑定全部 12 个 planned functional zones 的
 `factory_area_m2`，并从运行时 `REFRIGERATED_ZONE_REGISTRY` 的 9 个 zone 绑定
 `cold_storage_area_m2`。它不接受面积输入、不使用 `refrigerated_area_m2` fallback，
-不复制 V2.0 公式，也不改变共享 presentation contract。P2 仍未授权。
+不复制 V2.0 公式，也不改变共享 presentation contract。上面的 P1 record 保留其
+历史 gate；当前 P2 状态见下节。
+
+## Current P2 integration record
+
+以下是独立 P2 authorization/implementation record，不改写上方 P0 historical
+gate 或 P1 implementation record：
+
+```text
+TASK_ID=V21_P2_FACTORY_POWER_MCP_DOUBAO_SKILL_INTEGRATION_R1
+TARGET_VERSION=v2.1.0
+BASE_MAIN_SHA=95b6cbf839ba584f29f13735b07f8f8309b1cf37
+BASE_MAIN_CI_RUN_ID=34321050750
+BASE_MAIN_CI_RESULT=SUCCESS
+P0_STATUS=MERGED
+P1_STATUS=MERGED
+P2_STATUS=IMPLEMENTATION_ACTIVE
+P2_EXECUTED=YES
+ACTIVE_GOVERNANCE_LANE=V2.1_P2
+MCP_TOOL_COUNT=6
+NEW_MCP_TOOL=preview_factory_power
+NEW_MCP_TOOL_POSITION=6
+EXISTING_FIVE_TOOL_ORDER_CHANGED=NO
+MCP_INPUT_REMAINS_FIVE_KEY=YES
+MCP_RUNTIME_REJECTS_AREA_INPUT=YES
+MCP_RUNTIME_REJECTS_UNKNOWN_INPUT=YES
+FACTORY_POWER_FROM_P1_ADAPTER=YES
+FACTORY_POWER_FROM_SHARED_PROJECTOR=YES
+MCP_ENGINEERING_RECALCULATION=NO
+V20_CALCULATOR_CHANGED=NO
+P1_ADAPTER_CHANGED=NO
+V20_PRESENTATION_CHANGED=NO
+CONCEPT_PREVIEW_STAGE_COUNT=5
+CALCULATION_TYPE_CHANGED=NO
+V18_SKILL_CHANGED=NO
+V18_RUNBOOK_CHANGED=NO
+V21_SKILL_CREATED=YES
+V21_RUNBOOK_CREATED=YES
+SERVER_SIDE_CHAT_NLP=NO
+OUTBOUND_LIVE_AILY_SESSION=NO
+DATABASE_MIGRATION=NO
+FRONTEND_CHANGED=NO
+NEW_REST_ENDPOINT=NO
+RELEASE_CLOSURE=UNAUTHORIZED
+READY=NO
+MERGE=NO
+TAG=NO
+RELEASE=NO
+DEPLOYMENT=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P2 通过既有 zone preview execution 取得实际 canonical zone-plan `AdapterResult`，
+调用 P1 adapter，再序列化并投影为 `preview_factory_power`。它只把 projector 的
+table 逐单元格式化为 Markdown；不在 MCP/豆包侧计算面积、功率或 summary，不解析
+服务器端中文聊天。五阶段 `CalculationType` 仍为五项，V1.8 Skill/runbook 保持
+冻结。P2 结束后停在 Draft Review gate，release closure 仍需另行授权。

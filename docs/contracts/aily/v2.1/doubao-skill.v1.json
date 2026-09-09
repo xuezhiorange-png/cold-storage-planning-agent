@@ -1,0 +1,141 @@
+{
+  "schema_id": "doubao_skill_pack",
+  "schema_version": "2.1.0",
+  "contract_family": "aily/v2.1",
+  "title": "冷库规划助手 — 豆包工作伙伴 Skill（V2.1）",
+  "language": "zh-CN",
+  "paste_ready_markdown": "docs/contracts/aily/v2.1/doubao-skill.v1.md",
+  "governance": {
+    "KEEP_AILY_V18_SKILL_FROZEN": "YES",
+    "AILY_OUTBOUND_LIVE_SESSION": "NO",
+    "AGENT_TO_ENGINEERING_VALUE": "NO",
+    "MCP_TOOL_COUNT": 6,
+    "FACTORY_POWER_SOURCE": "factory_power_estimation@2.0.0-p1",
+    "MCP_INPUT_REMAINS_FIVE_KEY": "YES",
+    "MCP_RUNTIME_REJECTS_AREA_INPUT": "YES",
+    "MCP_RUNTIME_REJECTS_UNKNOWN_INPUT": "YES",
+    "BACKEND_STATELESS_ZONE_PLAN_REPLAY": "YES",
+    "NLP_OWNER": "DOUBAO",
+    "SERVER_SIDE_CHAT_PARSING": "NO",
+    "AMBIGUOUS_POWER_INTENT_DOES_NOT_REDEFINE_EXISTING_TOOL": "YES",
+    "PREVIEW_INSTALLED_POWER_REPLACED": "NO",
+    "CONCEPT_PREVIEW_STAGE_COUNT": 5,
+    "CALCULATION_TYPE_CHANGED": "NO",
+    "V20_CALCULATOR_CHANGED": "NO",
+    "P1_ADAPTER_CHANGED": "NO",
+    "V20_PRESENTATION_CHANGED": "NO",
+    "V18_SKILL_CHANGED": "NO",
+    "V18_RUNBOOK_CHANGED": "NO",
+    "V21_SKILL_CREATED": "YES",
+    "V21_RUNBOOK_CREATED": "YES"
+  },
+  "calculator_identities": [
+    {"name": "cold_room_zone_plan", "version": "1.0.0"},
+    {"name": "cooling_load", "version": "1.0.0"},
+    {"name": "equipment", "version": "1.0.0"},
+    {"name": "installed_power", "version": "1.0.0"},
+    {"name": "investment_estimate", "version": "1.0.0"},
+    {"name": "factory_power_estimation", "version": "2.0.0-p1"}
+  ],
+  "operator_schema": {
+    "schema_id": "OperatorProcessInputV1",
+    "schema_version": "1.1.0",
+    "fields": [
+      "daily_inbound_mass_kg",
+      "finished_storage_days",
+      "frozen_storage_days",
+      "main_packaging_storage_days",
+      "auxiliary_packaging_storage_days"
+    ],
+    "additional_properties": false,
+    "forbidden_fields": [
+      "factory_area_m2",
+      "cold_storage_area_m2",
+      "refrigerated_area_m2",
+      "total_area_m2",
+      "zone_plan",
+      "chat_text"
+    ]
+  },
+  "semantics": {
+    "tonne_means": "per_day",
+    "nlp_owner": "doubao",
+    "system_parses_chat": false,
+    "factory_power_unit": "kW",
+    "factory_power_is_concept_design_estimate": true,
+    "factory_power_requires_review": true,
+    "factory_power_is_not_kwh": true,
+    "ambiguous_power_intent": "preserve_existing_installed_power_semantics_or_clarify"
+  },
+  "mcp": {
+    "transport": "streamable_http",
+    "path": "/api/v1/aily/v1/mcp/sse",
+    "tools_in_order": [
+      "preview_zone_plan",
+      "preview_cooling_load",
+      "preview_equipment",
+      "preview_installed_power",
+      "preview_investment",
+      "preview_factory_power"
+    ],
+    "factory_power_tool": "preview_factory_power"
+  },
+  "factory_power": {
+    "calculator_identity": "factory_power_estimation@2.0.0-p1",
+    "source": "P1 adapter from canonical zone plan",
+    "projector": "project_factory_power_table",
+    "unit": "kW",
+    "requires_review": true,
+    "persisted": false,
+    "markdown_source": "project_factory_power_table.table",
+    "area_source": "canonical cold_room_zone_plan result; never user or Doubao"
+  },
+  "routing": {
+    "factory_power_intents": [
+      "工厂电功率",
+      "估算工厂电功率",
+      "工厂总用电功率",
+      "这个厂大概需要多少电功率",
+      "整个加工厂估算功率"
+    ],
+    "factory_power_tool": "preview_factory_power",
+    "installed_power_intents": [
+      "装机功率",
+      "五阶段装机功率",
+      "压缩机和风机装机功率"
+    ],
+    "installed_power_tool": "preview_installed_power",
+    "ambiguous_power": "do_not_silently_redefine_existing_tool; clarify_if_needed",
+    "server_side_nlp": false
+  },
+  "response_handling": {
+    "success_fields": [
+      "markdown_table",
+      "details",
+      "summary",
+      "unit_semantics",
+      "review",
+      "provenance",
+      "assumptions"
+    ],
+    "success_disclaimer_zh": "概念设计，需要工程复核，不是施工图，也不是 kWh 或正式配电设计",
+    "missing_parameter_code": "MISSING_ENGINEERING_PARAMETER",
+    "unexpected_input_code": "MCP_INPUT_SCHEMA_REJECTED",
+    "unavailable_code": "V20_FACTORY_POWER_CANONICAL_RESULT_UNAVAILABLE",
+    "on_error": "preserve_backend_code_message_details_and_fail_closed"
+  },
+  "forbidden_behaviors": [
+    "send_factory_area_as_input",
+    "send_cold_storage_area_as_input",
+    "send_refrigerated_area_as_input",
+    "send_total_area_as_input",
+    "send_zone_plan_as_input",
+    "send_chat_text_as_request_body",
+    "recalculate_area_in_doubao",
+    "recalculate_factory_power_in_doubao",
+    "recalculate_markdown_summary",
+    "add_a_concept_preview_sixth_stage",
+    "change_preview_installed_power_semantics",
+    "open_outbound_live_aily_session"
+  ]
+}

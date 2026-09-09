@@ -23,8 +23,9 @@
 > complete. V1.9 release closure is complete at `v1.9.0`. V2.0 P0, P1, and P2
 > are complete and merged, and `v2.0.0` is released at
 > `main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`. V2.1 P0 upstream authority +
-> Doubao MCP contract freeze is merged; **active governance stage:** V2.1 P1
-> backend upstream authority adapter implementation for `v2.1.0`.
+> Doubao MCP contract freeze and P1 backend upstream authority adapter are
+> merged; **active governance stage:** V2.1 P2 factory-power MCP and Doubao
+> Skill integration for `v2.1.0`.
 > Later feature umbrellas (outbound live Aily session, remaining TD-008 equipment
 > catalogs, and zone thermal catalog recut) stay unauthorized until Charles dispatches.
 
@@ -62,8 +63,8 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 The V1.9 release-closure PR was documentation/governance only and has completed;
 `v1.9.0` is already released. V2.0 release closure subsequently completed and
-`v2.0.0` is released. The active governance work is the separate V2.1 P0 contract
-freeze; it must remain Draft until separately reviewed.
+`v2.0.0` is released. The active governance work is the separate V2.1 P2
+MCP/Skill integration lane; it must remain Draft until separately reviewed.
 
 ## V2.0 Implementation Closure
 
@@ -92,9 +93,9 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 The historical closure/readiness record is maintained in
 `docs/tasks/V2_0-release-closure-readiness.md`; its later release execution is
-recorded at `v2.0.0`. V2.1 P0 is merged; the active V2.1 P1 implementation is
-governed by `docs/tasks/V2_1-version-plan.md` and does not imply MCP/Skill work,
-tag, release, deployment, or a next feature lane.
+recorded at `v2.0.0`. V2.1 P0 and P1 are merged; the active V2.1 P2 integration
+is governed by `docs/tasks/V2_1-version-plan.md` and does not imply release,
+deployment, or a next feature lane.
 
 ## V2.1 P0 Contract Freeze（已合并；历史 dispatch）
 
@@ -133,13 +134,14 @@ The formal contract is
 the decision record is
 `docs/architecture/ADR-043-factory-power-upstream-authority-doubao-mcp.md`.
 
-## V2.1 P1 Factory-Power Upstream Authority Adapter（实施中）
+## V2.1 P1 Factory-Power Upstream Authority Adapter（已合并；历史 dispatch）
 
-P1 is separately authorized on `main@1d0a8e23f550b3c9ced413932fde0995acb227c0`.
+P1 was separately authorized on `main@1d0a8e23f550b3c9ced413932fde0995acb227c0`.
 It implements only the backend adapter that validates the canonical
 `cold_room_zone_plan@1.0.0`, binds factory/cold-storage areas from the 12/9 zone
 authority, and invokes the unchanged `factory_power_estimation@2.0.0-p1`.
-The branch remains Draft; P2 MCP/Skill integration is not authorized.
+The historical branch was Draft; the P2 authorization state is recorded in the
+separate current section below.
 
 ```text
 TASK_ID=V21_P1_FACTORY_POWER_UPSTREAM_AUTHORITY_ADAPTER_IMPLEMENTATION_R1
@@ -171,8 +173,53 @@ NEXT_FEATURE_LANE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
-P1 实施记录：
+P1 历史实施记录：
 `docs/tasks/V2_1-P1-factory-power-upstream-authority-adapter-implementation.md`。
+
+## V2.1 P2 Factory-Power MCP / Doubao Skill Integration（实施中；Draft）
+
+P0 and P1 are merged on `main`. P2 connects the existing five-key operator path
+and canonical zone-plan replay to the already-authoritative P1 adapter, the
+unchanged V2.0 calculator, and the existing shared presentation projector. It
+appends `preview_factory_power` as MCP tool 6, creates the V2.1 Doubao Skill
+contract and runbook, and leaves the original five tools, five-stage
+concept-preview flow, calculator formulas, frontend, database, and V1.8 Skill
+unchanged. Release closure remains a separate, unauthorized gate.
+
+```text
+TASK_ID=V21_P2_FACTORY_POWER_MCP_DOUBAO_SKILL_INTEGRATION_R1
+TARGET_VERSION=v2.1.0
+BASE_MAIN_SHA=95b6cbf839ba584f29f13735b07f8f8309b1cf37
+ACTIVE_GOVERNANCE_LANE=V2.1_P2
+P0_STATUS=MERGED
+P1_STATUS=MERGED
+P2_STATUS=IMPLEMENTATION_ACTIVE
+P2_EXECUTED=YES
+MCP_TOOL_COUNT=6
+NEW_MCP_TOOL=preview_factory_power
+NEW_MCP_TOOL_POSITION=6
+EXISTING_FIVE_TOOL_ORDER_CHANGED=NO
+MCP_INPUT_REMAINS_FIVE_KEY=YES
+FACTORY_POWER_FORMULA_CHANGE=NO
+P1_AUTHORITY_ADAPTER_CHANGED=NO
+V20_CALCULATOR_CHANGED=NO
+V20_SHARED_PRESENTATION_CHANGED=NO
+CONCEPT_PREVIEW_STAGE_COUNT=5
+FRONTEND_CHANGED=NO
+DATABASE_MIGRATION=NO
+OUTBOUND_LIVE_AILY_SESSION=NO
+RELEASE_CLOSURE=UNAUTHORIZED
+READY=NO
+MERGE=NO
+TAG=NO
+RELEASE=NO
+DEPLOYMENT=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P2 实施记录：
+`docs/tasks/V2_1-P2-factory-power-mcp-doubao-skill-integration.md`。
 
 ## Task 0: Local Baseline, Repository Audit, And Governance
 

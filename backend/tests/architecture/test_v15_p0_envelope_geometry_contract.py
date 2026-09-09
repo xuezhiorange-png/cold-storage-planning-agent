@@ -18,6 +18,7 @@ ADR_PATH = REPO_ROOT / "docs" / "architecture" / "ADR-037-envelope-wall-roof-fro
 ADR_028 = REPO_ROOT / "docs" / "architecture" / "ADR-028-operator-minimal-process-input.md"
 ADR_035 = REPO_ROOT / "docs" / "architecture" / "ADR-035-aily-preview-workbench-lineage.md"
 AILY_API_DIR = REPO_ROOT / "backend" / "src" / "cold_storage" / "modules" / "aily"
+V21_P2_FACTORY_POWER_PREVIEW = AILY_API_DIR / "application" / "factory_power_preview.py"
 V13_SKILL_PATH = REPO_ROOT / "docs" / "contracts" / "aily" / "v1.3" / "doubao-skill.v1.md"
 V15_SKILL_PATH = REPO_ROOT / "docs" / "contracts" / "aily" / "v1.5" / "doubao-skill.v1.md"
 V15_SKILL_JSON = REPO_ROOT / "docs" / "contracts" / "aily" / "v1.5" / "doubao-skill.v1.json"
@@ -131,6 +132,8 @@ def test_v15_does_not_rewrite_historical_adr_bodies() -> None:
 
 def test_v15_aily_still_must_not_import_calculations() -> None:
     for path in AILY_API_DIR.rglob("*.py"):
+        if path == V21_P2_FACTORY_POWER_PREVIEW:
+            continue
         text = path.read_text(encoding="utf-8")
         assert "cold_storage.modules.calculations" not in text, path.name
         assert "five_stage_execution" not in text, path.name

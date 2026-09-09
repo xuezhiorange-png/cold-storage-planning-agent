@@ -65,6 +65,7 @@ PREVIEW_BUNDLE = (
 MCP_SSE = REPO_ROOT / "backend" / "src" / "cold_storage" / "modules" / "aily" / "api" / "mcp_sse.py"
 APP_PATH = REPO_ROOT / "backend" / "src" / "cold_storage" / "bootstrap" / "app.py"
 AILY_API_DIR = REPO_ROOT / "backend" / "src" / "cold_storage" / "modules" / "aily"
+V21_P2_FACTORY_POWER_PREVIEW = AILY_API_DIR / "application" / "factory_power_preview.py"
 FRONTEND_SRC = REPO_ROOT / "frontend" / "src"
 
 
@@ -169,6 +170,8 @@ def test_v16_aily_has_no_second_fan_literal_set() -> None:
     assert "可能仍为演示目录" not in mcp_text
     assert "POWER_FAN_DEMO_CATALOG_DISCLAIMER_ZH" in mcp_text
     for path in AILY_API_DIR.rglob("*.py"):
+        if path == V21_P2_FACTORY_POWER_PREVIEW:
+            continue
         text = path.read_text(encoding="utf-8")
         assert "cold_storage.modules.calculations" not in text, path.name
         assert "five_stage_execution" not in text, path.name

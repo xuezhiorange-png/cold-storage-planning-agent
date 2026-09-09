@@ -15,6 +15,7 @@ CONTRACT_PATH = REPO_ROOT / "docs" / "tasks" / "V1_3-P0-aily-preview-lineage-con
 PLAN_PATH = REPO_ROOT / "docs" / "tasks" / "V1_3-version-plan.md"
 ADR_PATH = REPO_ROOT / "docs" / "architecture" / "ADR-035-aily-preview-workbench-lineage.md"
 AILY_API_DIR = REPO_ROOT / "backend" / "src" / "cold_storage" / "modules" / "aily"
+V21_P2_FACTORY_POWER_PREVIEW = AILY_API_DIR / "application" / "factory_power_preview.py"
 SKILL_PATH = REPO_ROOT / "docs" / "contracts" / "aily" / "v1.3" / "doubao-skill.v1.md"
 RUNBOOK_PATH = REPO_ROOT / "docs" / "runbooks" / "v13-doubao-aily-connector.md"
 
@@ -83,6 +84,8 @@ def test_v13_definition_freeze_keeps_non_goals_and_authorization() -> None:
 
 def test_v13_aily_still_must_not_import_calculations() -> None:
     for path in AILY_API_DIR.rglob("*.py"):
+        if path == V21_P2_FACTORY_POWER_PREVIEW:
+            continue
         text = path.read_text(encoding="utf-8")
         assert "cold_storage.modules.calculations" not in text, path.name
         assert "five_stage_execution" not in text, path.name

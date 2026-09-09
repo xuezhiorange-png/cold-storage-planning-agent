@@ -9,6 +9,9 @@ from mcp.client.session import ClientSession
 from mcp.shared.message import SessionMessage
 
 from cold_storage.modules.aily.api.mcp_sse import build_zone_plan_mcp_server
+from cold_storage.modules.aily.application.mcp_factory_power import (
+    PREVIEW_FACTORY_POWER_TOOL_NAME,
+)
 from cold_storage.modules.aily.application.mcp_stage_preview import (
     PREVIEW_COOLING_LOAD_TOOL_NAME,
     PREVIEW_EQUIPMENT_TOOL_NAME,
@@ -34,6 +37,7 @@ _EXPECTED_TOOL_ORDER = (
     "preview_equipment",
     "preview_installed_power",
     PREVIEW_INVESTMENT_TOOL_NAME,
+    PREVIEW_FACTORY_POWER_TOOL_NAME,
 )
 
 

@@ -40,6 +40,10 @@ from cold_storage.modules.aily.application.connector_auth import (
     verify_connector_key,
 )
 from cold_storage.modules.aily.application.cooling_load_table import COOLING_CAPTION
+from cold_storage.modules.aily.application.mcp_factory_power import (
+    PREVIEW_FACTORY_POWER_TOOL_NAME,
+    invoke_preview_factory_power_tool,
+)
 from cold_storage.modules.aily.application.mcp_stage_preview import (
     PREVIEW_COOLING_LOAD_TOOL_NAME,
     PREVIEW_EQUIPMENT_TOOL_NAME,
@@ -109,12 +113,21 @@ _INVESTMENT_TOOL_DESCRIPTION = (
     "失败时按 ask_operator 追问，不要编造数字。"
 )
 
+_FACTORY_POWER_TOOL_DESCRIPTION = (
+    "根据五个过程参数生成估算工厂电功率表。"
+    "只传五个 KEY，不要传 factory_area_m2、cold_storage_area_m2 或任何面积。"
+    "单位为 kW，这是概念设计阶段估算，requires_review=true，需工程复核，不是施工图。"
+    "后端从 canonical zone-plan 绑定面积并调用 factory_power_estimation@2.0.0-p1；"
+    "成功时原样展示 markdown_table，失败时按 ask_operator 处理，不要编造数字。"
+)
+
 _STAGE_TOOL_DESCRIPTIONS: dict[str, str] = {
     PREVIEW_ZONE_PLAN_TOOL_NAME: _TOOL_DESCRIPTION,
     PREVIEW_COOLING_LOAD_TOOL_NAME: _COOLING_TOOL_DESCRIPTION,
     PREVIEW_EQUIPMENT_TOOL_NAME: _EQUIPMENT_TOOL_DESCRIPTION,
     PREVIEW_INSTALLED_POWER_TOOL_NAME: _POWER_TOOL_DESCRIPTION,
     PREVIEW_INVESTMENT_TOOL_NAME: _INVESTMENT_TOOL_DESCRIPTION,
+    PREVIEW_FACTORY_POWER_TOOL_NAME: _FACTORY_POWER_TOOL_DESCRIPTION,
 }
 
 _PREVIEW_TOOL_ORDER: tuple[str, ...] = (
@@ -123,6 +136,7 @@ _PREVIEW_TOOL_ORDER: tuple[str, ...] = (
     PREVIEW_EQUIPMENT_TOOL_NAME,
     PREVIEW_INSTALLED_POWER_TOOL_NAME,
     PREVIEW_INVESTMENT_TOOL_NAME,
+    PREVIEW_FACTORY_POWER_TOOL_NAME,
 )
 
 _KEY_DESCRIPTIONS: dict[str, str] = {
@@ -135,7 +149,7 @@ _KEY_DESCRIPTIONS: dict[str, str] = {
 
 
 def build_zone_plan_mcp_server() -> Server[Any, Any]:
-    """Low-level MCP server exposing five-stage conversation preview tools."""
+    """Low-level MCP server exposing the conversation preview tools."""
     server: Server[Any, Any] = Server(
         name="cold-storage-zone-plan",
         version="1.3.0",
@@ -172,6 +186,8 @@ def build_zone_plan_mcp_server() -> Server[Any, Any]:
         # application fail-closed path so 豆包 sees Chinese ask_operator.
         if name == PREVIEW_ZONE_PLAN_TOOL_NAME:
             payload = invoke_preview_zone_plan_tool(arguments)
+        elif name == PREVIEW_FACTORY_POWER_TOOL_NAME:
+            payload = invoke_preview_factory_power_tool(arguments)
         elif name in _STAGE_TOOL_DESCRIPTIONS and name != PREVIEW_ZONE_PLAN_TOOL_NAME:
             payload = invoke_stage_preview_tool(name, arguments)
         else:

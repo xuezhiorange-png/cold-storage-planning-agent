@@ -8,6 +8,7 @@ from cold_storage.modules.aily.application.concept_preview import preview_concep
 from cold_storage.modules.aily.application.stage_preview import preview_cooling_load
 
 AILY_DIR = Path(__file__).resolve().parents[2] / "src" / "cold_storage" / "modules" / "aily"
+V21_P2_FACTORY_POWER_PREVIEW = AILY_DIR / "application" / "factory_power_preview.py"
 
 _CAPTION_NEEDLE = "地板、墙、屋面来自分区几何（正方形平面 + 演示层高）"
 _U_VALUE_NEEDLE = "U 值与设计温度仍为演示目录"
@@ -61,6 +62,8 @@ def test_v15_two_inbound_masses_change_cooling_total() -> None:
 
 def test_v15_aily_does_not_import_calculations() -> None:
     for path in AILY_DIR.rglob("*.py"):
+        if path == V21_P2_FACTORY_POWER_PREVIEW:
+            continue
         text = path.read_text(encoding="utf-8")
         assert "cold_storage.modules.calculations" not in text, path.name
         assert "five_stage_execution" not in text, path.name

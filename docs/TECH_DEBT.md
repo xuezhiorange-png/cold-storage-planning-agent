@@ -24,8 +24,9 @@
 > complete** on `main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`: P0, P1, and P2
 > are merged and `v2.0.0` tag/GitHub Release are complete. V2.1 P0 for
 > `v2.1.0` is merged, and the current governance lane is the separately
-> authorized V2.1 P1 backend upstream-authority adapter. Doubao MCP/Skill work,
-> deployment, and later feature lanes remain unauthorized until separately dispatched.
+> authorized V2.1 P2 factory-power MCP/Doubao Skill integration. Release
+> closure, deployment, and later feature lanes remain unauthorized until
+> separately dispatched.
 
 Current V2.0 release-closure state:
 
@@ -68,8 +69,9 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
 V2.1 P0 froze canonical zone-plan upstream authority and the append-only Doubao
-MCP contract and is merged. The separately authorized P1 adapter is active below;
-this does not close unrelated technical-debt rows.
+MCP contract and is merged. The separately authorized P1 adapter is also merged;
+the current P2 MCP/Doubao integration is recorded below. This does not close
+unrelated technical-debt rows.
 
 Current V2.1 P1 implementation state:
 
@@ -105,7 +107,48 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 P1 的面积 authority、canonical zone-plan 校验和 V2.0 calculator 接入由
 `docs/tasks/V2_1-P1-factory-power-upstream-authority-adapter-implementation.md`
-记录；P2 MCP/Skill 与下一 feature lane 仍未授权。
+记录；上述 block 保留 P1 dispatch 时的历史授权快照。
+
+Current V2.1 P2 MCP / Doubao Skill integration state:
+
+```text
+TASK_ID=V21_P2_FACTORY_POWER_MCP_DOUBAO_SKILL_INTEGRATION_R1
+TARGET_VERSION=v2.1.0
+BASE_MAIN_SHA=95b6cbf839ba584f29f13735b07f8f8309b1cf37
+ACTIVE_GOVERNANCE_LANE=V2.1_P2
+P0_STATUS=MERGED
+P1_STATUS=MERGED
+P2_STATUS=IMPLEMENTATION_ACTIVE
+P2_EXECUTED=YES
+MCP_TOOL_COUNT=6
+NEW_MCP_TOOL=preview_factory_power
+NEW_MCP_TOOL_POSITION=6
+EXISTING_FIVE_TOOL_ORDER_CHANGED=NO
+MCP_INPUT_REMAINS_FIVE_KEY=YES
+FACTORY_POWER_FORMULA_CHANGE=NO
+P1_AUTHORITY_ADAPTER_CHANGED=NO
+V20_CALCULATOR_CHANGED=NO
+V20_SHARED_PRESENTATION_CHANGED=NO
+CONCEPT_PREVIEW_STAGE_COUNT=5
+V18_SKILL_CHANGED=NO
+V18_RUNBOOK_CHANGED=NO
+FRONTEND_CHANGED=NO
+DATABASE_MIGRATION=NO
+OUTBOUND_LIVE_AILY_SESSION=NO
+RELEASE_CLOSURE=UNAUTHORIZED
+READY=NO
+MERGE=NO
+TAG=NO
+RELEASE=NO
+DEPLOYMENT=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P2 实施记录：
+`docs/tasks/V2_1-P2-factory-power-mcp-doubao-skill-integration.md`。
+此阶段只增加 MCP/Skill/runbook 集成，不关闭无关 TD 行，也不授权发布或
+下一 feature lane。
 
 | ID | Status | Priority | Module | Cause | Current Impact | Temporary Approach | Permanent Resolution | Target Task / Version |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

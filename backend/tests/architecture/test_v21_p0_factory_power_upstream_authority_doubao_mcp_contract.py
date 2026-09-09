@@ -95,7 +95,6 @@ V20_RUNTIME_PATHS = (
     "backend/src/cold_storage/modules/calculations/domain/factory_power_estimation.py",
     "backend/src/cold_storage/modules/calculations/application/factory_power_presentation.py",
     "backend/src/cold_storage/modules/aily/application/factory_power_table.py",
-    "backend/src/cold_storage/modules/aily/api/mcp_sse.py",
     "backend/src/cold_storage/modules/aily/application/mcp_stage_preview.py",
     "backend/src/cold_storage/modules/aily/application/mcp_zone_plan.py",
     "frontend/src/features/calculations/model/mapFactoryPowerPresentation.ts",
@@ -466,9 +465,10 @@ def test_v21_p0_mcp_is_append_only_and_output_is_shared_presentation() -> None:
         "PREVIEW_EQUIPMENT_TOOL_NAME",
         "PREVIEW_INSTALLED_POWER_TOOL_NAME",
         "PREVIEW_INVESTMENT_TOOL_NAME",
+        "PREVIEW_FACTORY_POWER_TOOL_NAME",
     )
     assert tuple(re.findall(r"PREVIEW_[A-Z_]+_TOOL_NAME", order_text)) == expected_constant_order
-    assert "preview_factory_power" not in mcp_source
+    assert mcp_source.count("PREVIEW_FACTORY_POWER_TOOL_NAME") >= 2
 
 
 def test_v21_p0_preserves_v20_calculator_presentation_and_v18_mcp() -> None:
