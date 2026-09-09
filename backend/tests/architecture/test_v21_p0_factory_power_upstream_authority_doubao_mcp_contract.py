@@ -172,19 +172,23 @@ def _git_diff_is_empty(*paths: str) -> bool:
     return result.returncode == 0
 
 
-def _runtime_factory_zone_codes() -> tuple[str, ...]:
+def _runtime_zone_rows() -> tuple[dict[str, Any], ...]:
     zone_plan = build_zone_plan_from_inputs(demo_inputs(), ColdRoomZonePlanner())
     assert zone_plan.success, "canonical ColdRoomZonePlanner fixture must succeed"
     zones = zone_plan.result.get("zones")
     assert isinstance(zones, list)
 
-    codes: list[str] = []
+    rows: list[dict[str, Any]] = []
     for zone in zones:
         assert isinstance(zone, dict)
         zone_code = zone.get("zone_code")
         assert isinstance(zone_code, str)
-        codes.append(zone_code)
-    return tuple(codes)
+        rows.append(zone)
+    return tuple(rows)
+
+
+def _runtime_factory_zone_codes() -> tuple[str, ...]:
+    return tuple(str(zone["zone_code"]) for zone in _runtime_zone_rows())
 
 
 def test_v21_p0_scope_is_contract_docs_and_architecture_only() -> None:
@@ -323,7 +327,8 @@ def test_v21_p0_binds_factory_area_from_exact_12_zone_set() -> None:
 def test_v21_p0_factory_zone_contract_is_bound_to_runtime_planner() -> None:
     data = _contract_data()
     contract_zone_codes = tuple(data["factory_area"]["zone_codes"])
-    runtime_zone_codes = _runtime_factory_zone_codes()
+    runtime_zone_rows = _runtime_zone_rows()
+    runtime_zone_codes = tuple(str(zone["zone_code"]) for zone in runtime_zone_rows)
 
     assert len(runtime_zone_codes) == 12
     assert len(set(runtime_zone_codes)) == len(runtime_zone_codes)
@@ -335,6 +340,17 @@ def test_v21_p0_factory_zone_contract_is_bound_to_runtime_planner() -> None:
     assert runtime_binding["contract_equality"] == (
         "CONTRACT_EXPECTED_ZONE_SET == RUNTIME_COLD_ROOM_ZONE_PLANNER_ZONE_SET"
     )
+    assert runtime_binding["refrigerated_registry"] == "REFRIGERATED_ZONE_REGISTRY"
+    assert runtime_binding["refrigerated_temperature_scope"] == "REFRIGERATED_ONLY"
+
+    runtime_zone_by_code = {
+        str(zone["zone_code"]): str(zone["temperature_band"]) for zone in runtime_zone_rows
+    }
+    runtime_registry = tuple(
+        (str(zone_code), runtime_zone_by_code[str(zone_code)])
+        for zone_code, _zone_name, _temperature_band in REFRIGERATED_ZONE_REGISTRY
+    )
+    assert runtime_registry == EXPECTED_REFREGISTRY
 
 
 def test_v21_p0_binds_cold_storage_area_from_existing_registry() -> None:

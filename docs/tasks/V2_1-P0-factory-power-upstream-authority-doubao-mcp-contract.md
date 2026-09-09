@@ -447,6 +447,8 @@ tag、release 或 deployment 权限。
     "assembler": "cold_storage.modules.planning.application.service.build_zone_plan_from_inputs",
     "result_path": "zone_plan.result.zones[].zone_code",
     "contract_equality": "CONTRACT_EXPECTED_ZONE_SET == RUNTIME_COLD_ROOM_ZONE_PLANNER_ZONE_SET",
+    "refrigerated_registry": "REFRIGERATED_ZONE_REGISTRY",
+    "refrigerated_temperature_scope": "REFRIGERATED_ONLY",
     "factory_zone_count": 12,
     "zone_code_unique": true,
     "expected_zone_set_exact": true
