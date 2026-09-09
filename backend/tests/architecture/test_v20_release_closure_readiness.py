@@ -20,6 +20,7 @@ DEVELOPMENT_PLAN_PATH = REPO_ROOT / "docs" / "roadmap" / "DEVELOPMENT_PLAN.md"
 TECH_DEBT_PATH = REPO_ROOT / "docs" / "TECH_DEBT.md"
 
 ALLOWED_PATHS = {
+    "backend/src/cold_storage/modules/projects/application/factory_power_upstream_authority.py",
     "backend/tests/architecture/test_v20_release_closure_readiness.py",
     "backend/tests/architecture/test_v20_p0_factory_power_estimation_and_presentation_contract.py",
     "backend/tests/architecture/test_v20_p1_factory_power_estimation_canonical_result.py",
@@ -32,8 +33,11 @@ ALLOWED_PATHS = {
     "docs/tasks/V2_0-version-plan.md",
     "docs/TECH_DEBT.md",
     "backend/tests/architecture/test_v21_p0_factory_power_upstream_authority_doubao_mcp_contract.py",
+    "backend/tests/architecture/test_v21_p1_factory_power_upstream_authority.py",
+    "backend/tests/unit/test_v21_p1_factory_power_upstream_authority.py",
     "docs/tasks/V2_1-version-plan.md",
     "docs/tasks/V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md",
+    "docs/tasks/V2_1-P1-factory-power-upstream-authority-adapter-implementation.md",
     "docs/architecture/ADR-043-factory-power-upstream-authority-doubao-mcp.md",
 }
 
@@ -44,6 +48,9 @@ RUNTIME_PATHS = {
     "frontend/src/features/calculations/model/mapFactoryPowerPresentation.ts",
     "frontend/src/features/calculations/components/FactoryPowerEstimationResults.vue",
 }
+V21_P1_ADAPTER_PATH = (
+    "backend/src/cold_storage/modules/projects/application/factory_power_upstream_authority.py"
+)
 
 
 def _text(path: Path) -> str:
@@ -82,7 +89,11 @@ def _changed_paths() -> set[str]:
 def test_release_closure_scope_is_docs_and_architecture_only() -> None:
     changed = _changed_paths()
     assert changed <= ALLOWED_PATHS
-    assert not any(path.startswith("backend/src/") for path in changed)
+    # The historical V2.0 closure guard permits the separately governed V2.1
+    # P1 adapter as a downstream path; the P1 architecture test owns its scope.
+    assert not any(
+        path.startswith("backend/src/") and path != V21_P1_ADAPTER_PATH for path in changed
+    )
     assert not any(path.startswith("frontend/src/") for path in changed)
     assert not any(path.startswith("backend/alembic/") for path in changed)
     assert not any(path.startswith(".github/workflows/") for path in changed)

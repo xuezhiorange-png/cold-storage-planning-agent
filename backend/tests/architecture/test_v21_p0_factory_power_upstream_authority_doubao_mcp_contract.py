@@ -1,7 +1,8 @@
 """Architecture locks for the V2.1 P0 authority and MCP contract freeze.
 
-This test reads the P0 contract and the existing V2.0/V1.8 surfaces.  It does
-not implement or execute the future upstream adapter, MCP tool, or Skill.
+This test reads the P0 contract and the existing V2.0/V1.8 surfaces.  Its
+scope assertion is a historical P0 range so later P1/P2 lanes do not get
+misclassified as P0 changes when ``origin/main`` advances.
 """
 
 from __future__ import annotations
@@ -44,6 +45,10 @@ DEVELOPMENT_PLAN_PATH = REPO_ROOT / "docs" / "roadmap" / "DEVELOPMENT_PLAN.md"
 TECH_DEBT_PATH = REPO_ROOT / "docs" / "TECH_DEBT.md"
 
 BASE_MAIN_SHA = "a7049ca93d238013c0cf62069fe1e0a89ff834d7"
+# Immutable final commit of the merged P0 contract branch.  Keep the P0 scope
+# lock on this historical range instead of comparing a follow-on lane with a
+# moving origin/main.
+P0_REFERENCE_HEAD_SHA = "843c48f55016f0bd993afccc279e5c8a8fc271a7"
 GENERATED_ARTIFACT_PREFIX = "backend/artifacts/local/"
 
 EXPECTED_FACTORY_ZONE_CODES = (
@@ -134,23 +139,8 @@ def _contract_data() -> dict[str, Any]:
 
 
 def _changed_paths() -> set[str]:
-    merge_base = subprocess.run(
-        ["git", "merge-base", "origin/main", "HEAD"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-    assert merge_base
     tracked = subprocess.run(
-        ["git", "diff", "--name-only", merge_base, "HEAD"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.splitlines()
-    untracked = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"],
+        ["git", "diff", "--name-only", BASE_MAIN_SHA, P0_REFERENCE_HEAD_SHA],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -158,7 +148,7 @@ def _changed_paths() -> set[str]:
     ).stdout.splitlines()
     return {
         path.strip()
-        for path in [*tracked, *untracked]
+        for path in tracked
         if path.strip() and not path.strip().startswith(GENERATED_ARTIFACT_PREFIX)
     }
 

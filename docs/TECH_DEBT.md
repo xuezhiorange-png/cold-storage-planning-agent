@@ -22,8 +22,9 @@
 > the report projection regression is closed, the V0.7 golden controlled
 > evolution is complete, and `v1.9.0` is released. **V2.0 implementation is
 > complete** on `main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`: P0, P1, and P2
-> are merged and `v2.0.0` tag/GitHub Release are complete. The current governance
-> lane is V2.1 P0 for `v2.1.0`; runtime implementation, MCP/Skill work,
+> are merged and `v2.0.0` tag/GitHub Release are complete. V2.1 P0 for
+> `v2.1.0` is merged, and the current governance lane is the separately
+> authorized V2.1 P1 backend upstream-authority adapter. Doubao MCP/Skill work,
 > deployment, and later feature lanes remain unauthorized until separately dispatched.
 
 Current V2.0 release-closure state:
@@ -43,7 +44,8 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
 V2.0 release execution is complete at `v2.0.0`; the block above preserves the
-historical V2.0 readiness authorization snapshot. Current V2.1 P0 governance state:
+historical V2.0 readiness authorization snapshot. Historical V2.1 P0 governance
+state (dispatch snapshot; current P1 state follows):
 
 ```text
 ACTIVE_GOVERNANCE_LANE=V2.1_P0
@@ -65,8 +67,45 @@ NEXT_FEATURE_LANE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
-V2.1 P0 freezes canonical zone-plan upstream authority and the append-only
-Doubao MCP contract; it does not close unrelated technical-debt rows below.
+V2.1 P0 froze canonical zone-plan upstream authority and the append-only Doubao
+MCP contract and is merged. The separately authorized P1 adapter is active below;
+this does not close unrelated technical-debt rows.
+
+Current V2.1 P1 implementation state:
+
+```text
+TASK_ID=V21_P1_FACTORY_POWER_UPSTREAM_AUTHORITY_ADAPTER_IMPLEMENTATION_R1
+TARGET_VERSION=v2.1.0
+BASE_MAIN_SHA=1d0a8e23f550b3c9ced413932fde0995acb227c0
+ACTIVE_GOVERNANCE_LANE=V2.1_P1
+P0_STATUS=MERGED
+P1_STATUS=IMPLEMENTATION_ACTIVE
+P1_EXECUTED=YES
+P2_STATUS=UNAUTHORIZED
+P2_EXECUTED=NO
+BACKEND_UPSTREAM_AUTHORITY_ADAPTER_IMPLEMENTATION=YES
+FACTORY_AREA_BINDING_IMPLEMENTATION=YES
+COLD_STORAGE_AREA_BINDING_IMPLEMENTATION=YES
+V20_FACTORY_POWER_CALCULATOR_INVOCATION=YES
+V20_CALCULATOR_CHANGED=NO
+V20_PRESENTATION_CHANGED=NO
+DOUBAO_MCP_IMPLEMENTATION=NO
+MCP_IMPLEMENTED=NO
+SKILL_IMPLEMENTED=NO
+FRONTEND_CHANGED=NO
+DATABASE_MIGRATION=NO
+READY=NO
+MERGE=NO
+TAG=NO
+RELEASE=NO
+DEPLOYMENT=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P1 的面积 authority、canonical zone-plan 校验和 V2.0 calculator 接入由
+`docs/tasks/V2_1-P1-factory-power-upstream-authority-adapter-implementation.md`
+记录；P2 MCP/Skill 与下一 feature lane 仍未授权。
 
 | ID | Status | Priority | Module | Cause | Current Impact | Temporary Approach | Permanent Resolution | Target Task / Version |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

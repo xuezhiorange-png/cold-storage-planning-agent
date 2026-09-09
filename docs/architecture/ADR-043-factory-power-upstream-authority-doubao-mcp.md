@@ -1,12 +1,18 @@
 # ADR-043：冻结工厂功率上游面积权威与豆包 MCP 合同
 
-- 状态：Proposed; V2.1 P0 contract frozen; runtime/MCP/Skill implementation not authorized
+- 状态：P0 contract frozen and merged; P1 backend upstream authority adapter implementation active; P2 unauthorized
 - 日期：2026-09-09
 - 目标版本：`v2.1.0`
 - 基线版本：`v2.0.0^{}` = `a7049ca93d238013c0cf62069fe1e0a89ff834d7`；该 SHA
   必须是当前 head 的祖先，后续 main 合并后允许前进
 - 关联任务：[V2_1-version-plan.md](../tasks/V2_1-version-plan.md)
 - 正式契约：[V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md](../tasks/V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md)
+- P1 实施记录：[V2_1-P1-factory-power-upstream-authority-adapter-implementation.md](../tasks/V2_1-P1-factory-power-upstream-authority-adapter-implementation.md)
+
+当前治理状态是：P0 已在 `main` 合并；本 ADR 关联的独立 P1 只实现 backend
+upstream authority adapter，并调用既有 V2.0 calculator；Doubao MCP、Skill、前端、
+数据库、Ready、Merge、tag、release 和部署仍未授权。P0 dispatch 时的 gate block
+在文末原样保留，作为历史授权记录。
 
 ## Context
 
@@ -132,7 +138,8 @@ V2.1 P0 不授权 P1、P2、Ready、Merge、tag、release、deployment 或任何
 - 豆包可以保持 stateless，不需要记忆上一次工程面积；后端 replay 仍使用同一
   `cold_room_zone_plan@1.0.0` authority。
 - V1.8 五工具及 `preview_installed_power` 兼容性不被 P0 改变。
-- 本 ADR 不提供 runtime adapter、MCP tool、Skill、数据库迁移或部署。
+- P0 本身不提供 runtime adapter、MCP tool、Skill、数据库迁移或部署；当前 P1
+  adapter 的独立实施边界记录在 P1 task 文档中。
 - 结果仍是概念设计阶段估算工厂电功率，单位 `kW`，需要人工复核；不是 kWh、
   计量值、电费、变压器选型或正式配电设计。
 
@@ -155,3 +162,40 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 P0 contract/architecture PASS 只代表合同已冻结并可进入独立 review；它不等价于
 P1/P2 实现或 release readiness。
+
+## Current P1 implementation record
+
+下面是独立 P1 authorization/implementation record，不改写上面的 P0 historical
+gate：
+
+```text
+TASK_ID=V21_P1_FACTORY_POWER_UPSTREAM_AUTHORITY_ADAPTER_IMPLEMENTATION_R1
+TARGET_VERSION=v2.1.0
+BASE_MAIN_SHA=1d0a8e23f550b3c9ced413932fde0995acb227c0
+P0_STATUS=MERGED
+P1_STATUS=IMPLEMENTATION_ACTIVE
+P1_EXECUTED=YES
+P2_STATUS=UNAUTHORIZED
+P2_EXECUTED=NO
+BACKEND_UPSTREAM_AUTHORITY_ADAPTER_IMPLEMENTATION=YES
+FACTORY_AREA_BINDING_IMPLEMENTATION=YES
+COLD_STORAGE_AREA_BINDING_IMPLEMENTATION=YES
+V20_FACTORY_POWER_CALCULATOR_INVOCATION=YES
+DOUBAO_MCP_IMPLEMENTATION=NO
+MCP_IMPLEMENTED=NO
+SKILL_IMPLEMENTED=NO
+FRONTEND_CHANGED=NO
+DATABASE_MIGRATION=NO
+READY=NO
+MERGE=NO
+TAG=NO
+RELEASE=NO
+DEPLOYMENT=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P1 的 adapter 必须从成功且身份精确为 `cold_room_zone_plan@1.0.0` 的
+`zone_plan.result.zones[]` 绑定全部 12 个 planned functional zones 的
+`factory_area_m2`，并从运行时 `REFRIGERATED_ZONE_REGISTRY` 的 9 个 zone 绑定
+`cold_storage_area_m2`。它不接受面积输入、不使用 `refrigerated_area_m2` fallback，
+不复制 V2.0 公式，也不改变共享 presentation contract。P2 仍未授权。

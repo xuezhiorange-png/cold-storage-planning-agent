@@ -78,6 +78,7 @@ FRONTEND_COMPONENT_PATH = (
 )
 
 P2_ALLOWED_PATHS = {
+    "backend/src/cold_storage/modules/projects/application/factory_power_upstream_authority.py",
     "backend/tests/architecture/test_v20_release_closure_readiness.py",
     "backend/src/cold_storage/modules/aily/application/factory_power_table.py",
     "backend/src/cold_storage/modules/calculations/application/factory_power_presentation.py",
@@ -107,8 +108,11 @@ P2_ALLOWED_PATHS = {
     "frontend/src/features/calculations/model/mapFactoryPowerPresentation.test.ts",
     "frontend/src/features/calculations/model/mapFactoryPowerPresentation.ts",
     "backend/tests/architecture/test_v21_p0_factory_power_upstream_authority_doubao_mcp_contract.py",
+    "backend/tests/architecture/test_v21_p1_factory_power_upstream_authority.py",
+    "backend/tests/unit/test_v21_p1_factory_power_upstream_authority.py",
     "docs/tasks/V2_1-version-plan.md",
     "docs/tasks/V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md",
+    "docs/tasks/V2_1-P1-factory-power-upstream-authority-adapter-implementation.md",
     "docs/architecture/ADR-043-factory-power-upstream-authority-doubao-mcp.md",
 }
 

@@ -757,7 +757,8 @@ the same commit.
 V2.0 has exactly three formal implementation stages: P0 contract freeze, P1
 backend deterministic canonical calculation, and P2 workbench + Aily/Doubao
 read-only presentation alignment. There is no defined V2.0 P3. V2.0 release
-execution is complete; the active governance lane is V2.1 P0 for target `v2.1.0`.
+execution is complete; V2.1 P0 is merged and the active governance lane is
+V2.1 P1 for target `v2.1.0`.
 
 The following V2.0 state block preserves the historical readiness authorization
 snapshot; the subsequent release execution fact is recorded immediately below.
@@ -815,11 +816,12 @@ NEXT_FEATURE_LANE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
-## 47. V2.1 P0：factory power upstream authority 与 Doubao MCP contract
+## 47. V2.1 P0：factory power upstream authority 与 Doubao MCP contract（已合并；历史 dispatch）
 
-V2.1 P0 以 `v2.0.0` 为唯一基线，只冻结 contract、version plan、ADR 和
-architecture lock。它不实现 backend adapter、MCP tool、Skill、数据库迁移、
-Ready、Merge、tag、Release 或部署。
+V2.1 P0 以 `v2.0.0` 为唯一基线，冻结了 contract、version plan、ADR 和
+architecture lock，并已合并到当前 main。下面的 P0 authorization block 是
+dispatch 时的历史快照，保留其 `P1_EXECUTED=NO` 等历史 gate；当前单独授权的
+P1 状态见 §48。
 
 ```text
 V21_P0_FACTORY_POWER_UPSTREAM_AUTHORITY_AND_DOUBAO_MCP_CONTRACT_R1
@@ -857,3 +859,44 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 `docs/tasks/V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md`；
 版本计划见 `docs/tasks/V2_1-version-plan.md`，ADR 见
 `docs/architecture/ADR-043-factory-power-upstream-authority-doubao-mcp.md`。
+
+## 48. V2.1 P1：factory power upstream authority adapter（Draft 实施中）
+
+P1 在已合并的 P0 合同边界内实现 backend adapter：它只接受成功且身份精确为
+`cold_room_zone_plan@1.0.0` 的 canonical snapshot，从实际 12 个 zone rows 和
+运行时 9-zone `REFRIGERATED_ZONE_REGISTRY` 绑定两个面积，再调用未修改的
+`factory_power_estimation@2.0.0-p1`。P1 不实现 Doubao MCP、Skill、前端、数据库
+或下一阶段；PR 保持 Draft，等待独立 Review。
+
+```text
+TASK_ID=V21_P1_FACTORY_POWER_UPSTREAM_AUTHORITY_ADAPTER_IMPLEMENTATION_R1
+TARGET_VERSION=v2.1.0
+BASE_MAIN_SHA=1d0a8e23f550b3c9ced413932fde0995acb227c0
+ACTIVE_GOVERNANCE_LANE=V2.1_P1
+P0_STATUS=MERGED
+P1_STATUS=IMPLEMENTATION_ACTIVE
+P1_EXECUTED=YES
+P2_STATUS=UNAUTHORIZED
+P2_EXECUTED=NO
+FACTORY_AREA_FROM_12_ZONE_ROWS=YES
+FACTORY_AREA_TOTAL_CROSS_CHECK=YES
+COLD_STORAGE_AREA_FROM_REFRIGERATED_REGISTRY=YES
+REFRIGERATED_ZONE_COUNT=9
+FROZEN_FRUIT_ROOM_INCLUDED=YES
+SHIPPING_CHANNEL_INCLUDED=YES
+V20_CALCULATOR_INVOKED=YES
+V20_CALCULATOR_CHANGED=NO
+V20_PRESENTATION_CHANGED=NO
+DOUBAO_MCP_IMPLEMENTATION=NO
+MCP_IMPLEMENTED=NO
+SKILL_IMPLEMENTED=NO
+FRONTEND_CHANGED=NO
+DATABASE_MIGRATION=NO
+READY=NO
+MERGE=NO
+TAG=NO
+RELEASE=NO
+DEPLOYMENT=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
