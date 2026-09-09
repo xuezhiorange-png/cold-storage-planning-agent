@@ -21,10 +21,10 @@
 > frozen, P1 is merged through PR #254 at `main@675fa8adfc58e2362101079d83393e90706505b2`,
 > the report projection regression is closed, the V0.7 golden controlled
 > evolution is complete, and `v1.9.0` is released. **V2.0 implementation is
-> complete** on `main@5d5a9cad010a629bf52f6534fba37d047c330e00`: P0, P1, and P2
-> are merged. The current governance lane is release closure/readiness for
-> `v2.0.0`; tag, GitHub Release, deployment, and later feature lanes remain
-> unauthorized until separately dispatched.
+> complete** on `main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`: P0, P1, and P2
+> are merged and `v2.0.0` tag/GitHub Release are complete. The current governance
+> lane is V2.1 P0 for `v2.1.0`; runtime implementation, MCP/Skill work,
+> deployment, and later feature lanes remain unauthorized until separately dispatched.
 
 Current V2.0 release-closure state:
 
@@ -41,6 +41,32 @@ DEPLOYMENT_AUTHORIZED=NO
 NEXT_FEATURE_LANE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
+
+V2.0 release execution is complete at `v2.0.0`; the block above preserves the
+historical V2.0 readiness authorization snapshot. Current V2.1 P0 governance state:
+
+```text
+ACTIVE_GOVERNANCE_LANE=V2.1_P0
+TARGET_VERSION=v2.1.0
+BASE_RELEASE=v2.0.0
+BASE_MAIN_SHA=a7049ca93d238013c0cf62069fe1e0a89ff834d7
+V21_P0_FACTORY_POWER_UPSTREAM_AUTHORITY_AND_DOUBAO_MCP_CONTRACT_R1
+CONTRACT_FREEZE=YES
+RUNTIME_IMPLEMENTATION=NO
+MCP_IMPLEMENTATION=NO
+SKILL_IMPLEMENTATION=NO
+DATABASE_MIGRATION=NO
+READY=NO
+MERGE=NO
+TAG=NO
+RELEASE=NO
+DEPLOYMENT=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+V2.1 P0 freezes canonical zone-plan upstream authority and the append-only
+Doubao MCP contract; it does not close unrelated technical-debt rows below.
 
 | ID | Status | Priority | Module | Cause | Current Impact | Temporary Approach | Permanent Resolution | Target Task / Version |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

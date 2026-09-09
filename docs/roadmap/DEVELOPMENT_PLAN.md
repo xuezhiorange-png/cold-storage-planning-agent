@@ -20,12 +20,12 @@
 > lane. **V1.9 implementation is complete on `main@675fa8adfc58e2362101079d83393e90706505b2`**:
 > the P0 contract is frozen, P1 is merged through PR #254, the report
 > projection regression is closed, and the V0.7 golden controlled evolution is
-> complete. V1.9 release closure is complete at `v1.9.0`. **Active governance
-> stage:** V2.0 release closure/readiness for `v2.0.0` on
-> `main@5d5a9cad010a629bf52f6534fba37d047c330e00`; V2.0 P0, P1, and P2 are
-> complete and merged. Later feature umbrellas (outbound live Aily session, remaining TD-008
-> equipment catalogs, and zone thermal catalog recut) stay unauthorized until
-> Charles dispatches.
+> complete. V1.9 release closure is complete at `v1.9.0`. V2.0 P0, P1, and P2
+> are complete and merged, and `v2.0.0` is released at
+> `main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`. **Active governance stage:**
+> V2.1 P0 upstream authority + Doubao MCP contract freeze for `v2.1.0`.
+> Later feature umbrellas (outbound live Aily session, remaining TD-008 equipment
+> catalogs, and zone thermal catalog recut) stay unauthorized until Charles dispatches.
 
 ## V1.9 P0 Contract Freeze (complete)
 
@@ -60,17 +60,17 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
 The V1.9 release-closure PR was documentation/governance only and has completed;
-`v1.9.0` is already released. The active release-closure work is V2.0 and must
-remain Draft until separately reviewed; no V2.0 tag or GitHub Release is created
-by this roadmap update.
+`v1.9.0` is already released. V2.0 release closure subsequently completed and
+`v2.0.0` is released. The active governance work is the separate V2.1 P0 contract
+freeze; it must remain Draft until separately reviewed.
 
 ## V2.0 Implementation Closure
 
 V2.0 consists of exactly three formal implementation stages: P0 contract freeze,
 P1 backend deterministic canonical calculation, and P2 workbench + Aily/Doubao
 read-only presentation alignment. All three are merged on `main`; there is no
-defined V2.0 P3. The active lane is the separate `v2.0.0` release
-closure/readiness evaluation.
+defined V2.0 P3. The `v2.0.0` release closure and release execution are complete;
+the active lane is the separate V2.1 P0 contract-freeze evaluation.
 
 ```text
 V20_IMPLEMENTATION_COMPLETE=YES
@@ -89,9 +89,47 @@ NEXT_FEATURE_LANE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
-The closure/readiness record is maintained in
-`docs/tasks/V2_0-release-closure-readiness.md`. Passing implementation CI does
-not imply tag, GitHub Release, deployment, or a next feature lane.
+The historical closure/readiness record is maintained in
+`docs/tasks/V2_0-release-closure-readiness.md`; its later release execution is
+recorded at `v2.0.0`. V2.1 P0 is governed by
+`docs/tasks/V2_1-version-plan.md` and does not imply runtime implementation,
+MCP/Skill work, tag, release, deployment, or a next feature lane.
+
+## V2.1 P0 Contract Freeze
+
+V2.1 P0 is the active governance lane after the `v2.0.0` release. It freezes
+the upstream authority from `cold_room_zone_plan@1.0.0` to the existing
+`factory_power_estimation@2.0.0-p1` calculator, resolves factory/cold-storage
+area semantics through canonical zone rows and the refrigerated registry, and
+appends the future `preview_factory_power` contract at MCP position 6. It does
+not implement the adapter, MCP tool, Skill, database migration, or runtime code.
+
+```text
+V21_P0_FACTORY_POWER_UPSTREAM_AUTHORITY_AND_DOUBAO_MCP_CONTRACT_R1
+TARGET_VERSION=v2.1.0
+BASE_RELEASE=v2.0.0
+BASE_MAIN_SHA=a7049ca93d238013c0cf62069fe1e0a89ff834d7
+ACTIVE_GOVERNANCE_LANE=V2.1_P0
+CONTRACT_FREEZE=YES
+RUNTIME_IMPLEMENTATION=NO
+MCP_IMPLEMENTATION=NO
+SKILL_IMPLEMENTATION=NO
+DATABASE_MIGRATION=NO
+READY=NO
+MERGE=NO
+TAG=NO
+RELEASE=NO
+DEPLOYMENT=NO
+P1_EXECUTED=NO
+P2_EXECUTED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The formal contract is
+`docs/tasks/V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md`;
+the decision record is
+`docs/architecture/ADR-043-factory-power-upstream-authority-doubao-mcp.md`.
 
 ## Task 0: Local Baseline, Repository Audit, And Governance
 

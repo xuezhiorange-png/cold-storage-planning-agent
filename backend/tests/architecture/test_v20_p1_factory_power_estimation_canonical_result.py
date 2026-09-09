@@ -101,6 +101,10 @@ P2_DOWNSTREAM_PATHS = {
     "frontend/src/features/calculations/architecture/test_v20_p2_factory_power_read_only_presentation.test.ts",
     "frontend/src/features/calculations/model/mapFactoryPowerPresentation.test.ts",
     "frontend/src/features/calculations/model/mapFactoryPowerPresentation.ts",
+    "backend/tests/architecture/test_v21_p0_factory_power_upstream_authority_doubao_mcp_contract.py",
+    "docs/tasks/V2_1-version-plan.md",
+    "docs/tasks/V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md",
+    "docs/architecture/ADR-043-factory-power-upstream-authority-doubao-mcp.md",
 }
 GENERATED_ARTIFACT_PREFIX = "backend/artifacts/local/"
 

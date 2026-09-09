@@ -1,7 +1,8 @@
 # V2.0 Release Closure / Readiness
 
-本文件记录 V2.0 实施闭环和 `v2.0.0` 发布就绪评估。它不是 tag、GitHub
-Release、部署或下一 feature lane 的执行授权；这些动作仍须分别授权。
+本文件记录 V2.0 实施闭环和 `v2.0.0` 发布就绪评估；它是后续 release
+execution 之前的历史治理记录。`v2.0.0` tag 与 GitHub Release 已按独立授权
+完成，当前治理状态转入 V2.1 P0；本文件不授权任何 V2.1 实现或下一 feature lane。
 
 ## 当前状态
 
@@ -37,11 +38,12 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 V2.0 的正式实施阶段只有三段：P0 contract freeze、P1 backend deterministic
 canonical calculation、P2 workbench + Aily/Doubao read-only presentation
-alignment。三段均已合并到 `main`；本版本没有定义 V2.0 P3，后续直接进入
-release closure/readiness。
+alignment。三段均已合并到 `main`；本版本没有定义 V2.0 P3。release closure
+完成后，`v2.0.0` 已发布，当前 active governance lane 是 V2.1 P0。
 
-P2 的历史授权、Draft PR 和独立 Review gate 仍保留在各自任务文件中；本文件的
-当前状态以 PR #258 已合并到 `main@5d5a9cad...` 为准：
+P2 的历史授权、Draft PR 和独立 Review gate 仍保留在各自任务文件中；下面记录
+PR #258 合并到 `main@5d5a9cad...` 的历史事实，后续 `v2.0.0` release execution
+则以当前主线 `a7049ca...` 为准：
 
 ~~~text
 V20_P2_IMPLEMENTATION_STATUS=MERGED
@@ -102,11 +104,36 @@ NO_NEW_RELEASE_BLOCKER=YES
 P0 的 `POOL_A`/`POOL_B`/`POOL_C`、`MAIN_SYSTEM_COP=3.3`、面积权威、冷间面积
 权威和 V1.9 `minimum_estimated_cooling_load_kw_r` 语义没有被消费者重算或替换。
 
-## 发布闸门
+## V2.0 release execution completed
 
-`V2_0_0_RELEASE_READY=YES` 只表示 closure gates 已通过并且候选版本可以进入
-单独的 release execution gate。它不创建或移动 tag，也不创建 GitHub Release，
-不部署，不授权下一 feature lane。当前必须保持：
+这是 readiness 记录之后的独立执行事实，不改写上面的历史 authorization block：
+
+~~~text
+V2_0_0_RELEASE_EXECUTED=YES
+V2_0_0_TAG=v2.0.0
+V2_0_0_TAG_TARGET=a7049ca93d238013c0cf62069fe1e0a89ff834d7
+V2_0_0_RELEASE_COMMIT=a7049ca93d238013c0cf62069fe1e0a89ff834d7
+GITHUB_RELEASE_CREATED=YES
+V2_0_0_RELEASE_URL=https://github.com/xuezhiorange-png/cold-storage-planning-agent/releases/tag/v2.0.0
+V2_0_0_RELEASE_EXECUTION_COMPLETED=YES
+ACTIVE_GOVERNANCE_LANE=V2.1_P0
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+~~~
+
+## V2.1 handoff
+
+V2.1 P0 以 `v2.0.0` 为基线，冻结 upstream zone-plan authority、面积/温区
+integrity 和 append-only `preview_factory_power` MCP 合同。详见
+`docs/tasks/V2_1-version-plan.md`；本文件的历史 `TAG_CREATION_AUTHORIZED=NO`
+和 `GITHUB_RELEASE_CREATION_AUTHORIZED=NO` 不应被解释为否定已经完成的
+V2.0 release execution。
+
+## 历史发布闸门记录
+
+`V2_0_0_RELEASE_READY=YES` 在本历史记录中只表示 closure gates 已通过并且候选
+版本可以进入单独的 release execution gate。下面的 NO 值是当时的 authorization
+snapshot，随后已由上面的独立 release execution 记录完成；它不部署，也不授权
+下一 feature lane。
 
 ~~~text
 TAG_CREATED=NO

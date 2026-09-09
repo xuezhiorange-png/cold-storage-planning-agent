@@ -746,17 +746,21 @@ The V1.9 release-closure change was documentation/governance only and completed;
 `v1.9.0` was subsequently created and released at the verified V1.9 main
 commit. No next feature lane was authorized by that closure.
 
-## 46. V2.0 release-closure readiness (`main@5d5a9cad010a629bf52f6534fba37d047c330e00`)
+## 46. V2.0 released at `v2.0.0` (`main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`)
 
 Fresh verification confirms that `origin/main` is exactly
-`5d5a9cad010a629bf52f6534fba37d047c330e00` with tree
-`797d630461c4550a7ed2a70342e44b81a4b170a5`. PR #258 is merged with that merge
-SHA; its merged P2 head is `2759538bcd32f7468de50c740ca17d7fbe18f49b`.
+`a7049ca93d238013c0cf62069fe1e0a89ff834d7` with tree
+`1e5d59b95beceacdcfa4a96ec2654a77fa52a9d0`. The V2.0 release-closure PR #259
+is merged at that commit; annotated tag `v2.0.0` and its GitHub Release point to
+the same commit.
 
 V2.0 has exactly three formal implementation stages: P0 contract freeze, P1
 backend deterministic canonical calculation, and P2 workbench + Aily/Doubao
-read-only presentation alignment. There is no defined V2.0 P3. The active
-governance lane is release closure/readiness for candidate `v2.0.0`.
+read-only presentation alignment. There is no defined V2.0 P3. V2.0 release
+execution is complete; the active governance lane is V2.1 P0 for target `v2.1.0`.
+
+The following V2.0 state block preserves the historical readiness authorization
+snapshot; the subsequent release execution fact is recorded immediately below.
 
 ```text
 V20_IMPLEMENTATION_COMPLETE=YES
@@ -798,5 +802,58 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 The V2.0 factory-power result remains a concept-design estimate in `kW`, not
 `kWh`, a metered value, a monthly electricity bill, transformer sizing, formal
 distribution design, short-circuit calculation, cable selection, or protection
-setting. The release-closure record is documentation/governance only; no tag,
-GitHub Release, deployment, or next feature lane has been executed or authorized.
+setting. V2.0 tag and GitHub Release execution is complete; deployment and a
+next feature lane remain separately gated.
+
+```text
+V2_0_0_RELEASED=YES
+V2_0_0_TAG_TARGET=a7049ca93d238013c0cf62069fe1e0a89ff834d7
+V2_0_0_RELEASE_COMMIT=a7049ca93d238013c0cf62069fe1e0a89ff834d7
+GITHUB_RELEASE_CREATED=YES
+ACTIVE_GOVERNANCE_LANE=V2.1_P0
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+## 47. V2.1 P0：factory power upstream authority 与 Doubao MCP contract
+
+V2.1 P0 以 `v2.0.0` 为唯一基线，只冻结 contract、version plan、ADR 和
+architecture lock。它不实现 backend adapter、MCP tool、Skill、数据库迁移、
+Ready、Merge、tag、Release 或部署。
+
+```text
+V21_P0_FACTORY_POWER_UPSTREAM_AUTHORITY_AND_DOUBAO_MCP_CONTRACT_R1
+TARGET_VERSION=v2.1.0
+BASE_RELEASE=v2.0.0
+BASE_MAIN_SHA=a7049ca93d238013c0cf62069fe1e0a89ff834d7
+ACTIVE_GOVERNANCE_LANE=V2.1_P0
+CONTRACT_FREEZE=YES
+RUNTIME_IMPLEMENTATION=NO
+MCP_IMPLEMENTATION=NO
+SKILL_IMPLEMENTATION=NO
+DATABASE_MIGRATION=NO
+READY=NO
+MERGE=NO
+TAG=NO
+RELEASE=NO
+DEPLOYMENT=NO
+USER_REENTERS_FACTORY_AREA=NO
+USER_REENTERS_COLD_STORAGE_AREA=NO
+AREA_COMES_FROM_ZONE_PLAN=YES
+EXPECTED_FACTORY_ZONE_COUNT=12
+EXPECTED_REFRIGERATED_ZONE_COUNT=9
+NEW_MCP_TOOL=preview_factory_power
+NEW_MCP_TOOL_POSITION=6
+EXISTING_FIVE_TOOL_ORDER_CHANGED=NO
+V20_P1_CALCULATOR_UNCHANGED=YES
+V20_P2_PRESENTATION_UNCHANGED=YES
+P1_EXECUTED=NO
+P2_EXECUTED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+正式契约、机器可读矩阵和 hostile cases 见
+`docs/tasks/V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md`；
+版本计划见 `docs/tasks/V2_1-version-plan.md`，ADR 见
+`docs/architecture/ADR-043-factory-power-upstream-authority-doubao-mcp.md`。
