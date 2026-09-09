@@ -13,6 +13,8 @@ TASK_ID=V21_P0_FACTORY_POWER_UPSTREAM_AUTHORITY_AND_DOUBAO_MCP_CONTRACT_R1
 TARGET_VERSION=v2.1.0
 BASE_RELEASE=v2.0.0
 BASE_MAIN_SHA=a7049ca93d238013c0cf62069fe1e0a89ff834d7
+V2_0_RELEASE_TAG_PEELED_SHA=a7049ca93d238013c0cf62069fe1e0a89ff834d7
+BASE_MAIN_SHA_IS_ANCESTOR_OF_HEAD=YES
 CONTRACT_FREEZE=YES
 VERSION_PLAN=YES
 ADR=YES
@@ -127,6 +129,21 @@ FACTORY_ZONE_COUNT=12
 FACTORY_AREA_SEMANTIC=SUM_ALL_PLANNED_FUNCTIONAL_ZONES
 ```
 
+这 12 个编码必须绑定到实际的 `ColdRoomZonePlanner` canonical 输出，而不是只在
+合同 JSON 与测试常量之间互相复制。架构测试通过既有
+`build_zone_plan_from_inputs(demo_inputs(), ColdRoomZonePlanner())` assembler 路径
+读取 `zone_plan.result.zones[].zone_code`，并执行精确 cross-layer equality：
+
+```text
+CONTRACT_EXPECTED_ZONE_SET == RUNTIME_COLD_ROOM_ZONE_PLANNER_ZONE_SET
+RUNTIME_FACTORY_ZONE_COUNT=12
+RUNTIME_FACTORY_ZONE_SET_EXACT=YES
+```
+
+base lineage 只验证 `BASE_MAIN_SHA` 是当前 `HEAD` 的祖先，并验证
+`v2.0.0^{}` 仍解析到该 SHA。`origin/main` 在后续合并后允许前进，不作为必须等于
+本次 PR 基线的持久条件。
+
 ### total 字段的交叉校验
 
 `zone_plan.result.total_required_area_m2` 和
@@ -195,7 +212,7 @@ ZONE_CODE_UNIQUE=YES
 EXPECTED_ZONE_SET_EXACT=YES
 REQUIRED_AREA_PRESENT=YES
 REQUIRED_AREA_NON_NEGATIVE=YES
-ZONE_CODE_TEMPERATURE_BAND_EXACT=YES
+REFRIGERATED_ZONE_CODE_TEMPERATURE_BAND_EXACT=YES
 ```
 
 至少使用以下明确错误码：
@@ -210,6 +227,7 @@ FACTORY_AREA_TOTAL_MISMATCH
 REFRIGERATED_AREA_M2_FORBIDDEN_AS_AUTHORITY
 ```
 
+仅 9 个 registry 冷区的 `zone_code` 与 `temperature_band` 必须与 registry 完全一致。
 例如，`frozen_fruit_room` 被标成常温时必须返回
 `REFRIGERATED_ZONE_TEMPERATURE_MISMATCH`，不能因温区错误而把它从冷间面积中
 少算。未知 `fake_factory_area` 不得扩大 factory area。
@@ -424,6 +442,15 @@ tag、release 或 deployment 权限。
     ],
     "mismatch_error": "FACTORY_AREA_TOTAL_MISMATCH"
   },
+  "runtime_binding": {
+    "planner": "ColdRoomZonePlanner",
+    "assembler": "cold_storage.modules.planning.application.service.build_zone_plan_from_inputs",
+    "result_path": "zone_plan.result.zones[].zone_code",
+    "contract_equality": "CONTRACT_EXPECTED_ZONE_SET == RUNTIME_COLD_ROOM_ZONE_PLANNER_ZONE_SET",
+    "factory_zone_count": 12,
+    "zone_code_unique": true,
+    "expected_zone_set_exact": true
+  },
   "cold_storage_area": {
     "source": "zone_plan.result.zones[].required_area_m2 + REFRIGERATED_ZONE_REGISTRY",
     "registry_source": "backend/src/cold_storage/modules/projects/application/operator_process_input.py",
@@ -462,7 +489,7 @@ tag、release 或 deployment 权限。
       "EXPECTED_ZONE_SET_EXACT",
       "REQUIRED_AREA_PRESENT",
       "REQUIRED_AREA_NON_NEGATIVE",
-      "ZONE_CODE_TEMPERATURE_BAND_EXACT"
+      "REFRIGERATED_ZONE_CODE_TEMPERATURE_BAND_EXACT"
     ],
     "errors": [
       "ZONE_AUTHORITY_SET_MISMATCH",

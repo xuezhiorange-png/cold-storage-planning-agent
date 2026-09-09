@@ -3,7 +3,8 @@
 - 状态：Proposed; V2.1 P0 contract frozen; runtime/MCP/Skill implementation not authorized
 - 日期：2026-09-09
 - 目标版本：`v2.1.0`
-- 基线版本：`v2.0.0` at `main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`
+- 基线版本：`v2.0.0^{}` = `a7049ca93d238013c0cf62069fe1e0a89ff834d7`；该 SHA
+  必须是当前 head 的祖先，后续 main 合并后允许前进
 - 关联任务：[V2_1-version-plan.md](../tasks/V2_1-version-plan.md)
 - 正式契约：[V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md](../tasks/V2_1-P0-factory-power-upstream-authority-doubao-mcp-contract.md)
 
@@ -68,13 +69,23 @@ zone result。Aily/Doubao 不计算、不猜测、不携带面积 authority。
 和 `total_area_m2` 只做一致性校验；任一不一致都返回
 `FACTORY_AREA_TOTAL_MISMATCH`。
 
+合同中的 12-zone set 必须与实际 `ColdRoomZonePlanner` 输出绑定。架构测试通过
+既有 `build_zone_plan_from_inputs` assembler 读取
+`zone_plan.result.zones[].zone_code`，并锁定：
+
+```text
+CONTRACT_EXPECTED_ZONE_SET == RUNTIME_COLD_ROOM_ZONE_PLANNER_ZONE_SET
+RUNTIME_FACTORY_ZONE_COUNT=12
+RUNTIME_FACTORY_ZONE_SET_EXACT=YES
+```
+
 zone set、required area、非负性、重复 code 和未知 code 都是 fail-closed
 integrity 条件，不允许为继续计算而删行、补行或改温区。
 
 ### 4. Cold-storage area is the registry-filtered 9-zone sum
 
-冷间面积直接按既有 registry 过滤 canonical zone rows。9 个 registry 温区必须
-完整匹配；`frozen_fruit_room=-18℃` 和 `shipping_channel=1~3℃` 都包含在内。
+冷间面积直接按既有 registry 过滤 canonical zone rows。仅 9 个 registry 冷区的
+温区必须完整匹配；`frozen_fruit_room=-18℃` 和 `shipping_channel=1~3℃` 都包含在内。
 办公室、更衣室和包材库排除。历史 `refrigerated_area_m2` 不具有 V2.1 authority。
 
 ```text
@@ -82,6 +93,7 @@ FACTORY_AREA_AUTHORITY=SUM_ALL_ZONE_REQUIRED_AREA
 COLD_STORAGE_AREA_AUTHORITY=REFRIGERATED_ZONE_REGISTRY
 EXPECTED_FACTORY_ZONE_COUNT=12
 EXPECTED_REFRIGERATED_ZONE_COUNT=9
+REFRIGERATED_ZONE_CODE_TEMPERATURE_BAND_EXACT=YES
 FROZEN_FRUIT_ROOM_INCLUDED=YES
 SHIPPING_CHANNEL_INCLUDED=YES
 REFRIGERATED_AREA_M2_IS_V21_AUTHORITY=NO

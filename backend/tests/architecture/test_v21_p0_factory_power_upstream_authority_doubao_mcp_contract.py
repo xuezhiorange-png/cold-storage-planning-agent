@@ -12,7 +12,12 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from cold_storage.modules.calculations.domain.zone_planning import ColdRoomZonePlanner
 from cold_storage.modules.orchestration.domain.contracts import CalculationType
+from cold_storage.modules.planning.application.service import (
+    build_zone_plan_from_inputs,
+    demo_inputs,
+)
 from cold_storage.modules.projects.application.operator_process_input import (
     REFRIGERATED_ZONE_REGISTRY,
 )
@@ -167,6 +172,21 @@ def _git_diff_is_empty(*paths: str) -> bool:
     return result.returncode == 0
 
 
+def _runtime_factory_zone_codes() -> tuple[str, ...]:
+    zone_plan = build_zone_plan_from_inputs(demo_inputs(), ColdRoomZonePlanner())
+    assert zone_plan.success, "canonical ColdRoomZonePlanner fixture must succeed"
+    zones = zone_plan.result.get("zones")
+    assert isinstance(zones, list)
+
+    codes: list[str] = []
+    for zone in zones:
+        assert isinstance(zone, dict)
+        zone_code = zone.get("zone_code")
+        assert isinstance(zone_code, str)
+        codes.append(zone_code)
+    return tuple(codes)
+
+
 def test_v21_p0_scope_is_contract_docs_and_architecture_only() -> None:
     changed = _changed_paths()
     assert changed <= EXPECTED_CHANGED_PATHS
@@ -187,7 +207,7 @@ def test_v21_p0_base_release_and_gate_are_explicit() -> None:
     assert data["base_main_sha"] == BASE_MAIN_SHA
     assert (
         subprocess.run(
-            ["git", "rev-parse", "origin/main"],
+            ["git", "rev-parse", "v2.0.0^{}"],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
@@ -197,13 +217,11 @@ def test_v21_p0_base_release_and_gate_are_explicit() -> None:
     )
     assert (
         subprocess.run(
-            ["git", "rev-parse", "v2.0.0^{}"],
+            ["git", "merge-base", "--is-ancestor", BASE_MAIN_SHA, "HEAD"],
             cwd=REPO_ROOT,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-        == BASE_MAIN_SHA
+            check=False,
+        ).returncode
+        == 0
     )
 
     gates = data["gates"]
@@ -302,6 +320,23 @@ def test_v21_p0_binds_factory_area_from_exact_12_zone_set() -> None:
         assert line in contract
 
 
+def test_v21_p0_factory_zone_contract_is_bound_to_runtime_planner() -> None:
+    data = _contract_data()
+    contract_zone_codes = tuple(data["factory_area"]["zone_codes"])
+    runtime_zone_codes = _runtime_factory_zone_codes()
+
+    assert len(runtime_zone_codes) == 12
+    assert len(set(runtime_zone_codes)) == len(runtime_zone_codes)
+    assert runtime_zone_codes == contract_zone_codes
+
+    runtime_binding = data["runtime_binding"]
+    assert runtime_binding["planner"] == "ColdRoomZonePlanner"
+    assert runtime_binding["result_path"] == "zone_plan.result.zones[].zone_code"
+    assert runtime_binding["contract_equality"] == (
+        "CONTRACT_EXPECTED_ZONE_SET == RUNTIME_COLD_ROOM_ZONE_PLANNER_ZONE_SET"
+    )
+
+
 def test_v21_p0_binds_cold_storage_area_from_existing_registry() -> None:
     data = _contract_data()
     cold_area = data["cold_storage_area"]
@@ -348,7 +383,7 @@ def test_v21_p0_zone_integrity_and_hostile_cases_are_fail_closed() -> None:
         "EXPECTED_ZONE_SET_EXACT",
         "REQUIRED_AREA_PRESENT",
         "REQUIRED_AREA_NON_NEGATIVE",
-        "ZONE_CODE_TEMPERATURE_BAND_EXACT",
+        "REFRIGERATED_ZONE_CODE_TEMPERATURE_BAND_EXACT",
     }
     assert set(integrity["errors"]) == {
         "ZONE_AUTHORITY_SET_MISMATCH",

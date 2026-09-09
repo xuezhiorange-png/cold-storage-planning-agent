@@ -2,8 +2,9 @@
 
 **状态：** V2.1 P0 契约已冻结（本分支 Draft）；未进入 P1/P2 实现。
 **目标版本：** `v2.1.0`。**基线版本：** `v2.0.0`。
-**当前基线主线：** `main@a7049ca93d238013c0cf62069fe1e0a89ff834d7`，tag
-`v2.0.0` 已指向该 commit。
+**V2.0 release lineage：** `v2.0.0^{}` 解析为
+`a7049ca93d238013c0cf62069fe1e0a89ff834d7`；该 SHA 必须是当前 head 的祖先，后续
+`main` 合并后允许继续前进。
 **当前治理阶段：** V2.1 P0 upstream authority + Doubao MCP contract freeze。
 
 V2.1 P0 只冻结从 `cold_room_zone_plan@1.0.0` 绑定工厂面积/冷间面积的权威
@@ -123,6 +124,16 @@ shipping_channel
 完整性校验；二者都必须等于 `derived_factory_area`。任何不一致都必须 fail
 closed，错误码为 `FACTORY_AREA_TOTAL_MISMATCH`，不能选择其中一个继续计算。
 
+12 个 zone code 必须由实际的 `ColdRoomZonePlanner` canonical 输出锁定。架构测试
+通过既有 `build_zone_plan_from_inputs` assembler 读取
+`zone_plan.result.zones[].zone_code`，并验证：
+
+```text
+CONTRACT_EXPECTED_ZONE_SET == RUNTIME_COLD_ROOM_ZONE_PLANNER_ZONE_SET
+RUNTIME_FACTORY_ZONE_COUNT=12
+RUNTIME_FACTORY_ZONE_SET_EXACT=YES
+```
+
 `cold_storage_area_m2` 只从上述 zone rows 中属于现有
 `REFRIGERATED_ZONE_REGISTRY` 的 9 个 zone 汇总。registry 的权威定义位于
 `backend/src/cold_storage/modules/projects/application/operator_process_input.py`；
@@ -131,13 +142,15 @@ V2.1 不创造第二份温区 authority，也不把 `refrigerated_area_m2` 当�
 ```text
 FACTORY_ZONE_COUNT=12
 REFRIGERATED_ZONE_COUNT=9
+REFRIGERATED_ZONE_CODE_TEMPERATURE_BAND_EXACT=YES
 FROZEN_FRUIT_ROOM_INCLUDED=YES
 SHIPPING_CHANNEL_INCLUDED=YES
 AMBIENT_AREA_INCLUDED_IN_COLD_STORAGE_AREA=NO
 REFRIGERATED_AREA_M2_IS_V21_AUTHORITY=NO
 ```
 
-9 个冷区的 `zone_code` 与 `temperature_band` 必须与 registry 完全一致；冻果间
+9 个 refrigerated zone 的 `zone_code` 与 `temperature_band` 必须与 registry 完全一致；
+冻果间
 为 `-18℃`，出货通道为 `1~3℃`。缺失冻果间、注入未知 zone、重复 code、缺失或
 负面积、温区错配均不得静默修正或少算。
 
