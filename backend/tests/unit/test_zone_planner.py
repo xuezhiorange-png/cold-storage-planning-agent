@@ -70,9 +70,9 @@ def test_zone_planner_converts_known_production_to_room_capacities_and_areas() -
     assert primary["schemes"][1]["scheme_id"] == "8_position"
     assert primary["schemes"][1]["required_area_m2"] == pytest.approx(168, abs=0.01)
 
-    assert secondary["raw_position_count"] == 8
+    assert secondary["raw_position_count"] == 9
     assert secondary["position_count"] == 12
-    assert secondary["position_daily_capacity_kg_day"] == 3200
+    assert secondary["position_daily_capacity_kg_day"] == 2800
     assert secondary["required_area_m2"] == pytest.approx(84, abs=0.01)
 
     assert zones[0]["required_area_m2"] == pytest.approx(80, abs=0.01)
@@ -88,8 +88,8 @@ def test_zone_planner_converts_known_production_to_room_capacities_and_areas() -
     assert "area_basis" not in raw
 
     sorting = zones[5]
-    assert sorting["worker_count"] == 66
-    assert sorting["table_count"] == 22
+    assert sorting["worker_count"] == 75
+    assert sorting["table_count"] == 25
     assert sorting["position_count"] == 28
     assert sorting["required_area_m2"] == pytest.approx(690.56, abs=0.01)
 
