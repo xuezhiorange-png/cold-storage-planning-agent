@@ -81,7 +81,7 @@ values                            - coefficients (source info)
 | `primary_precooling_working_hours_per_day` | float | 6 | Hardcoded default |
 | `secondary_precooling_pallet_weight_kg` | float | 400 | Hardcoded default |
 | `secondary_precooling_hours_per_pallet` | float | 2 | Hardcoded default |
-| `secondary_precooling_working_hours_per_day` | float | 16 | Hardcoded default |
+| `secondary_precooling_working_hours_per_day` | float | 14 | Hardcoded default |
 | `raw_storage_ratio` | float | 0.40 | Hardcoded default |
 | `raw_fruit_pallet_weight_kg` | float | 220 | Hardcoded default |
 | `finished_goods_pallet_weight_kg` | float | 400 | Hardcoded default |
@@ -92,9 +92,9 @@ values                            - coefficients (source info)
 | `pallet_longitudinal_gap_m` | float | 0.3 | Hardcoded default |
 | `storage_area_factor` | float | 1.2 | Hardcoded default |
 | `precooling_position_area_m2` | float | 5.6 | Hardcoded default |
-| `packing_pieces_per_person_hour` | float | 15 | Hardcoded default |
+| `packing_pieces_per_person_hour` | float | 16 | Hardcoded default |
 | `packing_weight_per_piece_kg` | float | 1.5 | Hardcoded default |
-| `packing_working_hours_per_day` | float | 16 | Hardcoded default |
+| `packing_working_hours_per_day` | float | 14 | Hardcoded default |
 | `workers_per_packing_table` | float | 3 | Hardcoded default |
 | `packing_table_horizontal_spacing_m` | float | 5.5 | Hardcoded default |
 | `packing_table_vertical_spacing_m` | float | 3.5 | Hardcoded default |
@@ -190,8 +190,8 @@ required_area_m2 = table_count * table_area * packing_area_factor
 - `table_count`: `math.ceil()`
 - `required_area_m2`: `round(..., 2)`
 
-**Demo Values (25 t/day):**
-- person_daily_capacity=360 kg, worker_count=70, table_count=24, table_area=19.25, area=693.0
+**Current Values (25 t/day, 14 h effective packing time):**
+- person_daily_capacity=336 kg, worker_count=75, table_count=25, packed positions=28, area=690.56
 
 #### 5. Area Ratio Zone (Secondary Fruit Buffer)
 **Method:** `_area_ratio_zone()`
