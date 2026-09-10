@@ -13,7 +13,7 @@ from cold_storage.modules.calculations.domain.result import (
 )
 
 VERSION = "1.0.0"
-FORMULA_AUTHORITY = "POST-V0.9-P4-charles-zone-area-recut"
+FORMULA_AUTHORITY = "POST-V2.1-charles-effective-working-hours-14h"
 
 PALLET_PITCH_ALONG_WALL_M = 1.2
 PALLET_PITCH_DEPTH_M = 1.3
