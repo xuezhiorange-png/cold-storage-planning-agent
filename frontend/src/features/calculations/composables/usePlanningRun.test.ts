@@ -55,7 +55,7 @@ const exampleRequest: PlanningRunRequest = {
   reserve_factor: 1.05,
   precooling_required_ratio: 1,
   primary_precooling_working_hours_per_day: 6,
-  secondary_precooling_working_hours_per_day: 16,
+  secondary_precooling_working_hours_per_day: 14,
   raw_storage_ratio: 0.4,
   finished_goods_pallet_weight_kg: 400,
   frozen_fruit_ratio: 0.1,
