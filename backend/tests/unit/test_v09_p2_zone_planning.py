@@ -210,7 +210,7 @@ def test_v09_p2_zone_planning_matches_section4_oracles(
     packaging_k = _throughput_band_area(mass_tons, PACKAGING_K_BY_BAND)
 
     primary = _precool_oracle(daily_mass_kg, q_d_kg_day=220 * 6)
-    secondary = _precool_oracle(daily_mass_kg, q_d_kg_day=3200)
+    secondary = _precool_oracle(daily_mass_kg, q_d_kg_day=2800)
     raw_need = ceil(daily_mass_kg * 0.40 / 220)
     raw_layout = _pack_rectangle_oracle(
         raw_need,
