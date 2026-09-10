@@ -13,7 +13,6 @@ from cold_storage.modules.calculations.domain.zone_planning import (
     OFFICE_AREA_BY_BAND_M2,
     PACKAGING_K_BY_BAND,
     PACKAGING_POSITION_BASE_AREA_M2,
-    PERSON_DAILY_CAPACITY_KG,
     PRECOOL_EIGHT_POSITION_ROOM_AREA_M2,
     PRECOOL_SIX_POSITION_ROOM_AREA_M2,
     RAW_AISLE_M,
@@ -23,6 +22,10 @@ from cold_storage.modules.calculations.domain.zone_planning import (
     ColdRoomZonePlanInput,
     ColdRoomZonePlanner,
 )
+
+POST_V09_SECONDARY_PRECOOL_WORKING_HOURS_PER_DAY = 16
+POST_V09_PACKING_WORKING_HOURS_PER_DAY = 16
+POST_V09_PERSON_DAILY_CAPACITY_KG = 16 * 1.5 * POST_V09_PACKING_WORKING_HOURS_PER_DAY
 
 
 def _throughput_band_area(mass_tons: float, areas: tuple[float, float, float]) -> float:
@@ -194,6 +197,8 @@ def test_v09_p2_zone_planning_matches_section4_oracles(
             finished_storage_days=finished_storage_days,
             packaging_storage_days=3,
             precooling_required_ratio=1,
+            secondary_precooling_working_hours_per_day=POST_V09_SECONDARY_PRECOOL_WORKING_HOURS_PER_DAY,
+            packing_working_hours_per_day=POST_V09_PACKING_WORKING_HOURS_PER_DAY,
             frozen_storage_days=frozen_storage_days,
         )
     )
@@ -210,7 +215,7 @@ def test_v09_p2_zone_planning_matches_section4_oracles(
     packaging_k = _throughput_band_area(mass_tons, PACKAGING_K_BY_BAND)
 
     primary = _precool_oracle(daily_mass_kg, q_d_kg_day=220 * 6)
-    secondary = _precool_oracle(daily_mass_kg, q_d_kg_day=2800)
+    secondary = _precool_oracle(daily_mass_kg, q_d_kg_day=3200)
     raw_need = ceil(daily_mass_kg * 0.40 / 220)
     raw_layout = _pack_rectangle_oracle(
         raw_need,
@@ -218,7 +223,7 @@ def test_v09_p2_zone_planning_matches_section4_oracles(
             (n_long * 1.2 + RAW_AISLE_M + RAW_AISLE_M) * (n_short * 1.3 + RAW_AISLE_M)
         ),
     )
-    worker_count = ceil(daily_mass_kg / PERSON_DAILY_CAPACITY_KG)
+    worker_count = ceil(daily_mass_kg / POST_V09_PERSON_DAILY_CAPACITY_KG)
     table_need = ceil(worker_count / 3)
     sorting_layout = _pack_rectangle_oracle(
         table_need,
@@ -378,6 +383,8 @@ def test_v09_p2_zone_list_includes_shipping_channel_after_packaging() -> None:
             finished_storage_days=2,
             packaging_storage_days=3,
             precooling_required_ratio=1,
+            secondary_precooling_working_hours_per_day=POST_V09_SECONDARY_PRECOOL_WORKING_HOURS_PER_DAY,
+            packing_working_hours_per_day=POST_V09_PACKING_WORKING_HOURS_PER_DAY,
         )
     )
     zone_codes = [zone["zone_code"] for zone in result.result["zones"]]

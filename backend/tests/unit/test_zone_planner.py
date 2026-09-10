@@ -126,7 +126,7 @@ def test_zone_planner_converts_known_production_to_room_capacities_and_areas() -
     assert shipping["required_area_m2"] == pytest.approx(50, abs=0.01)
 
     assert result.result["total_area_m2"] == pytest.approx(2147.24, abs=0.01)
-    assert result.result["total_area_m2_8_position_scheme"] == pytest.approx(2119.24, abs=0.01)
+    assert result.result["total_area_m2_8_position_scheme"] == pytest.approx(2175.24, abs=0.01)
     assert result.result["planning_parameters"]["main_packaging_storage_days"] == 3
     assert result.result["planning_parameters"]["auxiliary_packaging_storage_days"] == 30
     assert result.result["planning_parameters"]["formula_authority"] == FORMULA_AUTHORITY

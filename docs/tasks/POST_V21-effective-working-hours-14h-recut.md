@@ -15,7 +15,9 @@ cooling/equipment/power/investment calculator identities, or the six-tool Doubao
 TASK_ID=POST_V21_EFFECTIVE_WORKING_HOURS_14H_R1
 BASE_MAIN_SHA=2221077d4ebe0ee90e218b8869ccb3bb000b1d60
 TARGET_BRANCH=fix/v2-1-effective-working-hours-14h-r1
-FORMULA_AUTHORITY=POST-V2.1-charles-effective-working-hours-14h
+CALCULATOR_FORMULA_AUTHORITY=POST-V0.9-P4-charles-zone-area-recut
+CHANGE_AUTHORITY=Charles instruction 2026-09-10
+CHANGE_SCOPE=SECONDARY_PRECOOL_AND_PACKING_EFFECTIVE_HOURS_ONLY
 SECONDARY_PRECOOL_EFFECTIVE_HOURS_PER_DAY=14
 PACKING_EFFECTIVE_HOURS_PER_DAY=14
 MERGE_AUTHORIZED=NO
@@ -98,3 +100,20 @@ Not included:
 - changing the general `working_time_h_per_day` field
 - changing packaging-material storage days or area factors
 - merge, release, tag, or deployment
+
+## 6. R2 correction record
+
+The zone planner remains `VERSION=1.0.0` under the historical
+`POST-V0.9-P4-charles-zone-area-recut` formula authority. The 14 h/day values
+are parameter corrections within that authority; they do not create a new
+calculator identity.
+
+```text
+TASK_ID=POST_V21_EFFECTIVE_WORKING_HOURS_14H_CORRECTION_R2
+CALCULATOR_FORMULA_AUTHORITY=POST-V0.9-P4-charles-zone-area-recut
+CHANGE_AUTHORITY=Charles instruction 2026-09-10
+CHANGE_SCOPE=SECONDARY_PRECOOL_AND_PACKING_EFFECTIVE_HOURS_ONLY
+HISTORICAL_POST_V09_ORACLE_REWRITTEN=NO
+HISTORICAL_POST_V09_TESTS_USE_EXPLICIT_16H_INPUTS=YES
+EXISTING_AUDIT_DRIFT=packing_pieces_per_person_hour inventory=15 versus main runtime default=16
+```

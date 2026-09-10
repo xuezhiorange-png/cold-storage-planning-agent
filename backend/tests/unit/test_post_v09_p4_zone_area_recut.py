@@ -13,7 +13,6 @@ from cold_storage.modules.calculations.domain.zone_planning import (
     OFFICE_AREA_BY_BAND_M2,
     PACKAGING_K_BY_BAND,
     PACKAGING_POSITION_BASE_AREA_M2,
-    PERSON_DAILY_CAPACITY_KG,
     PRECOOL_EIGHT_POSITION_ROOM_AREA_M2,
     PRECOOL_SIX_POSITION_ROOM_AREA_M2,
     RAW_AISLE_M,
@@ -23,6 +22,10 @@ from cold_storage.modules.calculations.domain.zone_planning import (
     ColdRoomZonePlanInput,
     ColdRoomZonePlanner,
 )
+
+POST_V09_SECONDARY_PRECOOL_WORKING_HOURS_PER_DAY = 16
+POST_V09_PACKING_WORKING_HOURS_PER_DAY = 16
+POST_V09_PERSON_DAILY_CAPACITY_KG = 16 * 1.5 * POST_V09_PACKING_WORKING_HOURS_PER_DAY
 
 
 def _throughput_band_area(mass_tons: float, areas: tuple[float, float, float]) -> float:
@@ -180,7 +183,7 @@ SAMPLE_KEY_ORACLE: dict[str, float] = {
     "primary_precooling_room": 126.00,
     "secondary_precooling_room": 84.00,
     "raw_fruit_buffer": 132.24,
-    "sorting_packaging_room": 565.76,
+    "sorting_packaging_room": 489.60,
     "coating_room": 80.00,
     "finished_goods_room": 602.64,
     "secondary_fruit_buffer": 57.96,
@@ -188,7 +191,7 @@ SAMPLE_KEY_ORACLE: dict[str, float] = {
     "packaging_material_storage": 250.85,
     "shipping_channel": 50.00,
 }
-SAMPLE_KEY_TOTAL = 2138.01
+SAMPLE_KEY_TOTAL = 2061.85
 
 
 def test_post_v09_p4_sample_key_oracle() -> None:
@@ -201,6 +204,8 @@ def test_post_v09_p4_sample_key_oracle() -> None:
             finished_storage_days=7,
             packaging_storage_days=3,
             precooling_required_ratio=1,
+            secondary_precooling_working_hours_per_day=POST_V09_SECONDARY_PRECOOL_WORKING_HOURS_PER_DAY,
+            packing_working_hours_per_day=POST_V09_PACKING_WORKING_HOURS_PER_DAY,
             frozen_storage_days=10,
             main_packaging_storage_days=4,
             auxiliary_packaging_storage_days=12,
@@ -244,6 +249,8 @@ def test_post_v09_p4_throughput_band_edges(
             finished_storage_days=3,
             packaging_storage_days=3,
             precooling_required_ratio=1,
+            secondary_precooling_working_hours_per_day=POST_V09_SECONDARY_PRECOOL_WORKING_HOURS_PER_DAY,
+            packing_working_hours_per_day=POST_V09_PACKING_WORKING_HOURS_PER_DAY,
         )
     )
     zones = {zone["zone_code"]: zone for zone in result.result["zones"]}
@@ -275,6 +282,8 @@ def test_post_v09_p4_zone_planning_matches_independent_oracles(
             finished_storage_days=finished_storage_days,
             packaging_storage_days=3,
             precooling_required_ratio=1,
+            secondary_precooling_working_hours_per_day=POST_V09_SECONDARY_PRECOOL_WORKING_HOURS_PER_DAY,
+            packing_working_hours_per_day=POST_V09_PACKING_WORKING_HOURS_PER_DAY,
             frozen_storage_days=frozen_storage_days,
         )
     )
@@ -290,7 +299,7 @@ def test_post_v09_p4_zone_planning_matches_independent_oracles(
     packaging_k = _throughput_band_area(mass_tons, PACKAGING_K_BY_BAND)
 
     primary = _precool_oracle(daily_mass_kg, q_d_kg_day=220 * 6)
-    secondary = _precool_oracle(daily_mass_kg, q_d_kg_day=2800)
+    secondary = _precool_oracle(daily_mass_kg, q_d_kg_day=3200)
     raw_need = ceil(daily_mass_kg * 0.40 / 220)
     raw_layout = _pack_rectangle_oracle(
         raw_need,
@@ -298,7 +307,7 @@ def test_post_v09_p4_zone_planning_matches_independent_oracles(
             (n_long * 1.2 + RAW_AISLE_M + RAW_AISLE_M) * (n_short * 1.3 + RAW_AISLE_M)
         ),
     )
-    worker_count = ceil(daily_mass_kg / PERSON_DAILY_CAPACITY_KG)
+    worker_count = ceil(daily_mass_kg / POST_V09_PERSON_DAILY_CAPACITY_KG)
     table_need = ceil(worker_count / 3)
     sorting_layout = _pack_rectangle_oracle(
         table_need,

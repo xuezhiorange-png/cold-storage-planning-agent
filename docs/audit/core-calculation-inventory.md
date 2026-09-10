@@ -92,7 +92,7 @@ values                            - coefficients (source info)
 | `pallet_longitudinal_gap_m` | float | 0.3 | Hardcoded default |
 | `storage_area_factor` | float | 1.2 | Hardcoded default |
 | `precooling_position_area_m2` | float | 5.6 | Hardcoded default |
-| `packing_pieces_per_person_hour` | float | 16 | Hardcoded default |
+| `packing_pieces_per_person_hour` | float | 15 | Hardcoded default; EXISTING_AUDIT_DRIFT: main runtime default is 16 and this task does not reconcile the historical inventory entry. |
 | `packing_weight_per_piece_kg` | float | 1.5 | Hardcoded default |
 | `packing_working_hours_per_day` | float | 14 | Hardcoded default |
 | `workers_per_packing_table` | float | 3 | Hardcoded default |

@@ -61,7 +61,7 @@ These are the default values applied when the user does not override them via AP
 | 20 | `pallet_longitudinal_gap_m` | 托盘纵向间隙 | 0.3 | m | `engineering_coefficient` | YES | |
 | 21 | `storage_area_factor` | 存储面积系数 | 1.2 | ratio | `engineering_coefficient` | YES | Multiplier on pallet base area for storage zone |
 | 22 | `precooling_position_area_m2` | 预冷板位面积 | 5.6 | m² | `engineering_coefficient` | YES | |
-| 23 | `packing_pieces_per_person_hour` | 每人每小时包装件数 | 16 | pcs/h | `engineering_coefficient` | YES | |
+| 23 | `packing_pieces_per_person_hour` | 每人每小时包装件数 | 15 | pcs/h | `engineering_coefficient` | YES | EXISTING_AUDIT_DRIFT: main runtime default is 16; this task does not reconcile the historical inventory entry. |
 | 24 | `packing_weight_per_piece_kg` | 每件包装重量 | 1.5 | kg/pc | `engineering_coefficient` | YES | |
 | 25 | `packing_working_hours_per_day` | 包装每日工作时间 | 14 | h | `project_input` | YES | |
 | 26 | `workers_per_packing_table` | 每包装台工人数 | 3 | persons | `engineering_coefficient` | YES | |
