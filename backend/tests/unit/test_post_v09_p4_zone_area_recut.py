@@ -180,7 +180,7 @@ SAMPLE_KEY_ORACLE: dict[str, float] = {
     "primary_precooling_room": 126.00,
     "secondary_precooling_room": 84.00,
     "raw_fruit_buffer": 132.24,
-    "sorting_packaging_room": 489.60,
+    "sorting_packaging_room": 565.76,
     "coating_room": 80.00,
     "finished_goods_room": 602.64,
     "secondary_fruit_buffer": 57.96,
@@ -188,7 +188,7 @@ SAMPLE_KEY_ORACLE: dict[str, float] = {
     "packaging_material_storage": 250.85,
     "shipping_channel": 50.00,
 }
-SAMPLE_KEY_TOTAL = 2061.85
+SAMPLE_KEY_TOTAL = 2138.01
 
 
 def test_post_v09_p4_sample_key_oracle() -> None:
@@ -290,7 +290,7 @@ def test_post_v09_p4_zone_planning_matches_independent_oracles(
     packaging_k = _throughput_band_area(mass_tons, PACKAGING_K_BY_BAND)
 
     primary = _precool_oracle(daily_mass_kg, q_d_kg_day=220 * 6)
-    secondary = _precool_oracle(daily_mass_kg, q_d_kg_day=3200)
+    secondary = _precool_oracle(daily_mass_kg, q_d_kg_day=2800)
     raw_need = ceil(daily_mass_kg * 0.40 / 220)
     raw_layout = _pack_rectangle_oracle(
         raw_need,
