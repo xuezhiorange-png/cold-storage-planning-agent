@@ -144,35 +144,39 @@ P2_ALLOWED_PATHS = {
     "docs/contracts/aily/v2.1/doubao-skill.v1.json",
     "docs/runbooks/v21-doubao-aily-connector.md",
 }
+# The V2.0 P2 scope is the immutable range from the merged P1 commit to the
+# PR #258 merge commit.  Later HEADs are checked only for lineage below.
+HISTORICAL_TASK_BASE_SHA = "2a1a2797767a52834143a78b3e80193b5752b2e6"
+HISTORICAL_TASK_TARGET_SHA = "5d5a9cad010a629bf52f6534fba37d047c330e00"
 
 
-def _changed_paths() -> set[str]:
-    merge_base = subprocess.run(
-        ["git", "merge-base", "origin/main", "HEAD"],
+def _assert_historical_target_is_ancestor_of_head() -> None:
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", HISTORICAL_TASK_TARGET_SHA, "HEAD"],
         cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"historical target {HISTORICAL_TASK_TARGET_SHA} must be an ancestor of HEAD"
+    )
+
+
+def _historical_changed_paths() -> set[str]:
+    _assert_historical_target_is_ancestor_of_head()
     tracked = subprocess.run(
-        ["git", "diff", "--name-only", merge_base, "HEAD"],
+        [
+            "git",
+            "diff",
+            "--name-only",
+            HISTORICAL_TASK_BASE_SHA,
+            HISTORICAL_TASK_TARGET_SHA,
+        ],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
         check=True,
     ).stdout.splitlines()
-    untracked = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.splitlines()
-    return {
-        path
-        for path in [*tracked, *untracked]
-        if path and not path.startswith("backend/artifacts/local/")
-    }
+    return {path for path in tracked if path and not path.startswith("backend/artifacts/local/")}
 
 
 def _source_imports(path: Path) -> set[str]:
@@ -187,7 +191,7 @@ def _source_imports(path: Path) -> set[str]:
 
 
 def test_v20_p2_scope_is_additive_and_has_no_schema_or_release_change() -> None:
-    changed = _changed_paths()
+    changed = _historical_changed_paths()
     assert changed <= P2_ALLOWED_PATHS
     assert not any(path.startswith("backend/alembic/") for path in changed)
     assert not any(
@@ -277,7 +281,8 @@ def test_p1_calculator_and_legacy_aily_power_preview_are_untouched() -> None:
             "git",
             "diff",
             "--quiet",
-            "origin/main",
+            HISTORICAL_TASK_BASE_SHA,
+            HISTORICAL_TASK_TARGET_SHA,
             "--",
             str(P1_CALCULATOR_PATH.relative_to(REPO_ROOT)),
         ],

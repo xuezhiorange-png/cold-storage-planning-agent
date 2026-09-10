@@ -140,6 +140,10 @@ P2_DOWNSTREAM_PATHS = {
     "docs/runbooks/v21-doubao-aily-connector.md",
 }
 GENERATED_ARTIFACT_PREFIX = "backend/artifacts/local/"
+# The V2.0 P1 scope is the immutable range from the merged P0 commit to the
+# PR #257 merge commit.  Later HEADs are checked only for lineage below.
+HISTORICAL_TASK_BASE_SHA = "cef98139d56d32e67ab6695153476ec56648f1c3"
+HISTORICAL_TASK_TARGET_SHA = "2a1a2797767a52834143a78b3e80193b5752b2e6"
 
 
 def _p0_contract_data() -> dict[str, object]:
@@ -151,24 +155,27 @@ def _p0_contract_data() -> dict[str, object]:
     return data
 
 
-def _changed_paths() -> set[str]:
-    merge_base = subprocess.run(
-        ["git", "merge-base", "origin/main", "HEAD"],
+def _assert_historical_target_is_ancestor_of_head() -> None:
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", HISTORICAL_TASK_TARGET_SHA, "HEAD"],
         cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-    assert merge_base
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"historical target {HISTORICAL_TASK_TARGET_SHA} must be an ancestor of HEAD"
+    )
+
+
+def _historical_changed_paths() -> set[str]:
+    _assert_historical_target_is_ancestor_of_head()
     tracked = subprocess.run(
-        ["git", "diff", "--name-only", merge_base, "HEAD"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.splitlines()
-    untracked = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"],
+        [
+            "git",
+            "diff",
+            "--name-only",
+            HISTORICAL_TASK_BASE_SHA,
+            HISTORICAL_TASK_TARGET_SHA,
+        ],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -176,7 +183,7 @@ def _changed_paths() -> set[str]:
     ).stdout.splitlines()
     return {
         path.strip()
-        for path in [*tracked, *untracked]
+        for path in tracked
         if path.strip() and not path.strip().startswith(GENERATED_ARTIFACT_PREFIX)
     }
 
@@ -196,7 +203,7 @@ def _area_denominator_from_formula(formula: object) -> Decimal | None:
 
 
 def test_v20_p1_scope_is_additive_and_does_not_touch_consumers_or_schema() -> None:
-    changed = _changed_paths()
+    changed = _historical_changed_paths()
     assert changed <= EXPECTED_CHANGED_PATHS | P2_DOWNSTREAM_PATHS
     assert {path for path in changed if path.startswith("frontend/")} <= P2_DOWNSTREAM_PATHS
     assert not any(path.startswith("backend/alembic/") for path in changed)
@@ -206,11 +213,9 @@ def test_v20_p1_scope_is_additive_and_does_not_touch_consumers_or_schema() -> No
         for path in changed
     )
     runtime_paths = {path for path in changed if path.startswith("backend/src/")}
-    assert runtime_paths <= P2_DOWNSTREAM_PATHS
-    assert (
+    assert runtime_paths == {
         "backend/src/cold_storage/modules/calculations/domain/factory_power_estimation.py"
-        not in changed
-    )
+    }
 
 
 def test_p1_authorization_is_separate_and_p0_history_is_preserved() -> None:

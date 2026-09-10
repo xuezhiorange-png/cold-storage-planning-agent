@@ -21,6 +21,11 @@ from cold_storage.modules.projects.application.factory_power_upstream_authority 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BASE_MAIN_SHA = "b314f08c74296e23e2a1729dd4f84dc8387c7a4e"
+# The V2.1 release-closure scope is the immutable range from the PR #262
+# merge commit to the v2.1.0 release merge commit.  Later HEADs are checked
+# only for lineage below.
+HISTORICAL_TASK_BASE_SHA = BASE_MAIN_SHA
+HISTORICAL_TASK_TARGET_SHA = "2221077d4ebe0ee90e218b8869ccb3bb000b1d60"
 V20_RELEASE_TARGET_SHA = "a7049ca93d238013c0cf62069fe1e0a89ff834d7"
 CLOSURE_PATH = REPO_ROOT / "docs/tasks/V2_1-release-closure-readiness.md"
 VERSION_PLAN_PATH = REPO_ROOT / "docs/tasks/V2_1-version-plan.md"
@@ -83,30 +88,16 @@ def _text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _changed_paths() -> set[str]:
+def _historical_changed_paths() -> set[str]:
+    _assert_historical_target_is_ancestor_of_head()
     tracked = subprocess.run(
-        ["git", "diff", "--name-only", BASE_MAIN_SHA, "HEAD"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.splitlines()
-    working_tree = subprocess.run(
-        ["git", "diff", "--name-only"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.splitlines()
-    staged = subprocess.run(
-        ["git", "diff", "--cached", "--name-only"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.splitlines()
-    untracked = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"],
+        [
+            "git",
+            "diff",
+            "--name-only",
+            HISTORICAL_TASK_BASE_SHA,
+            HISTORICAL_TASK_TARGET_SHA,
+        ],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -114,7 +105,7 @@ def _changed_paths() -> set[str]:
     ).stdout.splitlines()
     return {
         path.strip()
-        for path in [*tracked, *working_tree, *staged, *untracked]
+        for path in tracked
         if path.strip() and not path.strip().startswith("backend/artifacts/local/")
     }
 
@@ -128,8 +119,12 @@ def _assert_ancestor(ancestor: str, descendant: str = "HEAD") -> None:
     assert result.returncode == 0, f"{ancestor} must be an ancestor of {descendant}"
 
 
+def _assert_historical_target_is_ancestor_of_head() -> None:
+    _assert_ancestor(HISTORICAL_TASK_TARGET_SHA)
+
+
 def test_v21_release_closure_scope_is_docs_and_architecture_only() -> None:
-    changed = _changed_paths()
+    changed = _historical_changed_paths()
     assert changed <= ALLOWED_PATHS
     assert not any(
         path == frozen or path.startswith(frozen + "/")
@@ -234,6 +229,7 @@ def test_v21_release_closure_truth_up_preserves_historical_gate_snapshots() -> N
 
 
 def test_v21_release_closure_preserves_runtime_authorities_and_product_boundaries() -> None:
+    _assert_historical_target_is_ancestor_of_head()
     closure = _text(CLOSURE_PATH)
     adapter = _text(
         REPO_ROOT / "backend/src/cold_storage/modules/projects/application/"
@@ -305,7 +301,15 @@ def test_v21_release_closure_preserves_runtime_authorities_and_product_boundarie
 
     for path in FROZEN_PATHS:
         result = subprocess.run(
-            ["git", "diff", "--quiet", BASE_MAIN_SHA, "HEAD", "--", path],
+            [
+                "git",
+                "diff",
+                "--quiet",
+                HISTORICAL_TASK_BASE_SHA,
+                HISTORICAL_TASK_TARGET_SHA,
+                "--",
+                path,
+            ],
             cwd=REPO_ROOT,
             check=False,
         )

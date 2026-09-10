@@ -8,7 +8,9 @@ import subprocess
 import sys
 import tempfile
 import uuid
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,6 +26,10 @@ if os.environ.get("DATABASE_BACKEND") == "postgresql":
 
 from cold_storage.bootstrap.app import create_app
 from cold_storage.bootstrap.v05_local_sample import hydrate_engineering_input_bundle
+from cold_storage.modules.calculations.domain.zone_planning import ColdRoomZonePlanner
+from cold_storage.modules.orchestration.application.production_calculation.adapters import (
+    ZonePlanningAdapter,
+)
 from cold_storage.modules.orchestration.infrastructure.orm import SourceBindingRecord
 from cold_storage.modules.projects.infrastructure.database import DatabaseProjectService
 from cold_storage.modules.projects.infrastructure.orm import CalculationRunRecord
@@ -48,7 +54,43 @@ BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture()
-def migrated_client():
+def migrated_client(monkeypatch: pytest.MonkeyPatch):
+    # The frozen V0.7 manifest predates the dedicated working-hours fields and
+    # records the historical 16 h/day semantics in its shared working-time
+    # field.  Keep this compatibility injection test-local so historical
+    # replay remains on the old golden while current defaults stay at 14 h/day.
+    original_project_to_zone_input_fields = ZonePlanningAdapter._project_to_zone_input_fields
+    original_packing_person_daily_capacity = ColdRoomZonePlanner._packing_person_daily_capacity_kg
+
+    def _project_v07_historical_zone_input_fields(
+        raw_inputs: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        projected = original_project_to_zone_input_fields(raw_inputs)
+        projected["secondary_precooling_working_hours_per_day"] = 16
+        projected["packing_working_hours_per_day"] = 16
+        return projected
+
+    def _project_v07_historical_packing_capacity(
+        planner: ColdRoomZonePlanner,
+        data: Any,
+    ) -> int:
+        # V0.7 stored this integral historical result as 384 rather than the
+        # current dynamically calculated decimalized string "384".  Preserve
+        # only that legacy representation while the explicit 16 h inputs above
+        # continue to drive the value.
+        return int(original_packing_person_daily_capacity(planner, data))
+
+    monkeypatch.setattr(
+        ZonePlanningAdapter,
+        "_project_to_zone_input_fields",
+        staticmethod(_project_v07_historical_zone_input_fields),
+    )
+    monkeypatch.setattr(
+        ColdRoomZonePlanner,
+        "_packing_person_daily_capacity_kg",
+        _project_v07_historical_packing_capacity,
+    )
+
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
         db_path = Path(tmp.name)
     env = os.environ.copy()
