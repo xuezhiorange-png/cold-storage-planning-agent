@@ -18,6 +18,11 @@ CURRENT_STATE_PATH = REPO_ROOT / "docs" / "audit" / "current-state.md"
 GAP_ANALYSIS_PATH = REPO_ROOT / "docs" / "audit" / "gap-analysis.md"
 DEVELOPMENT_PLAN_PATH = REPO_ROOT / "docs" / "roadmap" / "DEVELOPMENT_PLAN.md"
 TECH_DEBT_PATH = REPO_ROOT / "docs" / "TECH_DEBT.md"
+# The V2.0 release-closure scope is the immutable range from the V2.0 P2
+# merge commit to the v2.0.0 release merge commit.  Later HEADs are checked
+# only for lineage below.
+HISTORICAL_TASK_BASE_SHA = "5d5a9cad010a629bf52f6534fba37d047c330e00"
+HISTORICAL_TASK_TARGET_SHA = "a7049ca93d238013c0cf62069fe1e0a89ff834d7"
 
 ALLOWED_PATHS = {
     "backend/src/cold_storage/modules/projects/application/factory_power_upstream_authority.py",
@@ -92,37 +97,37 @@ def _text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _changed_paths() -> set[str]:
-    merge_base = subprocess.run(
-        ["git", "merge-base", "origin/main", "HEAD"],
+def _assert_historical_target_is_ancestor_of_head() -> None:
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", HISTORICAL_TASK_TARGET_SHA, "HEAD"],
         cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"historical target {HISTORICAL_TASK_TARGET_SHA} must be an ancestor of HEAD"
+    )
+
+
+def _historical_changed_paths() -> set[str]:
+    _assert_historical_target_is_ancestor_of_head()
     tracked = subprocess.run(
-        ["git", "diff", "--name-only", merge_base, "HEAD"],
+        [
+            "git",
+            "diff",
+            "--name-only",
+            HISTORICAL_TASK_BASE_SHA,
+            HISTORICAL_TASK_TARGET_SHA,
+        ],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
         check=True,
     ).stdout.splitlines()
-    untracked = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.splitlines()
-    return {
-        path
-        for path in [*tracked, *untracked]
-        if path and not path.startswith("backend/artifacts/local/")
-    }
+    return {path for path in tracked if path and not path.startswith("backend/artifacts/local/")}
 
 
 def test_release_closure_scope_is_docs_and_architecture_only() -> None:
-    changed = _changed_paths()
+    changed = _historical_changed_paths()
     assert changed <= ALLOWED_PATHS
     # The historical V2.0 closure guard permits separately governed V2.1
     # downstream paths; the V2.1 architecture tests own their scopes.
@@ -194,9 +199,18 @@ def test_current_documents_truth_up_p2_without_erasing_history() -> None:
 
 
 def test_v20_runtime_and_release_boundaries_are_unchanged() -> None:
+    _assert_historical_target_is_ancestor_of_head()
     for path in RUNTIME_PATHS:
         result = subprocess.run(
-            ["git", "diff", "--quiet", "origin/main", "--", path],
+            [
+                "git",
+                "diff",
+                "--quiet",
+                HISTORICAL_TASK_BASE_SHA,
+                HISTORICAL_TASK_TARGET_SHA,
+                "--",
+                path,
+            ],
             cwd=REPO_ROOT,
             check=False,
         )

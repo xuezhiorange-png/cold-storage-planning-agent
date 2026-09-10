@@ -87,7 +87,7 @@ def build_zone_plan_from_inputs(
                 inputs.get("secondary_precooling_hours_per_pallet", 2)
             ),
             secondary_precooling_working_hours_per_day=as_float(
-                inputs.get("secondary_precooling_working_hours_per_day", 16)
+                inputs.get("secondary_precooling_working_hours_per_day", 14)
             ),
             raw_storage_ratio=as_float(inputs.get("raw_storage_ratio", 0.40)),
             raw_fruit_pallet_weight_kg=as_float(inputs.get("raw_fruit_pallet_weight_kg", 220)),

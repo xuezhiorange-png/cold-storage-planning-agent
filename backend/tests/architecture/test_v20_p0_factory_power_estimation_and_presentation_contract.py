@@ -143,6 +143,10 @@ P2_DOWNSTREAM_PATHS = {
     "docs/runbooks/v21-doubao-aily-connector.md",
 }
 GENERATED_ARTIFACT_PREFIX = "backend/artifacts/local/"
+# The V2.0 P0 scope is the immutable range from the v1.9.0 main commit to the
+# PR #256 merge commit.  Later HEADs are checked only for lineage below.
+HISTORICAL_TASK_BASE_SHA = "8f48332435f4916bdb9ab8430d686678c1efc576"
+HISTORICAL_TASK_TARGET_SHA = "cef98139d56d32e67ab6695153476ec56648f1c3"
 OUTBOUND_AILY_AUTHORIZATION_LOCK = "OUTBOUND_LIVE_AILY_SESSION_AUTHORIZED=NO"
 HOSTILE_OUTBOUND_AILY_AUTHORIZATION_LOCK = "NO_OUTBOUND_LIVE_AILY_SESSION" + "=NO"
 
@@ -242,24 +246,27 @@ def _contract_data() -> dict[str, object]:
     return parsed
 
 
-def _changed_paths() -> set[str]:
-    merge_base = subprocess.run(
-        ["git", "merge-base", "origin/main", "HEAD"],
+def _assert_historical_target_is_ancestor_of_head() -> None:
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", HISTORICAL_TASK_TARGET_SHA, "HEAD"],
         cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-    assert merge_base
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"historical target {HISTORICAL_TASK_TARGET_SHA} must be an ancestor of HEAD"
+    )
+
+
+def _historical_changed_paths() -> set[str]:
+    _assert_historical_target_is_ancestor_of_head()
     tracked = subprocess.run(
-        ["git", "diff", "--name-only", merge_base, "HEAD"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.splitlines()
-    untracked = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"],
+        [
+            "git",
+            "diff",
+            "--name-only",
+            HISTORICAL_TASK_BASE_SHA,
+            HISTORICAL_TASK_TARGET_SHA,
+        ],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -267,7 +274,7 @@ def _changed_paths() -> set[str]:
     ).stdout.splitlines()
     return {
         path.strip()
-        for path in [*tracked, *untracked]
+        for path in tracked
         if path.strip() and not path.strip().startswith(GENERATED_ARTIFACT_PREFIX)
     }
 
@@ -276,7 +283,7 @@ def test_v20_p0_documents_are_present_and_docs_only() -> None:
     assert CONTRACT_PATH.is_file()
     assert VERSION_PLAN_PATH.is_file()
     assert ADR_PATH.is_file()
-    changed = _changed_paths()
+    changed = _historical_changed_paths()
     assert changed <= EXPECTED_CHANGED_PATHS | P2_DOWNSTREAM_PATHS
     assert {path for path in changed if path.startswith("backend/src/")} <= {
         "backend/src/cold_storage/modules/calculations/domain/factory_power_estimation.py",

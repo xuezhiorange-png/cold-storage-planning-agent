@@ -42,7 +42,7 @@ export function createDefaultDesignInputs(): DesignInputs {
     precoolingRequiredRatio: 1,
     rawStorageRatio: 0.4,
     primaryPrecoolingWorkingHours: 6,
-    secondaryPrecoolingWorkingHours: 16,
+    secondaryPrecoolingWorkingHours: 14,
     finishedGoodsPalletWeightKg: 400,
     frozenFruitRatio: 0.1,
     frozenStorageDays: operatorDemoZoneNumeric('frozen_storage_days'),

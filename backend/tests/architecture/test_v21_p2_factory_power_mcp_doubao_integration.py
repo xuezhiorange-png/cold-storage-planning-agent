@@ -20,6 +20,10 @@ from cold_storage.modules.orchestration.domain.contracts import CalculationType
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BASE_MAIN_SHA = "95b6cbf839ba584f29f13735b07f8f8309b1cf37"
+# The V2.1 P2 scope is the immutable range from the merged P1 commit to the
+# PR #262 merge commit.  Later HEADs are checked only for lineage below.
+HISTORICAL_TASK_BASE_SHA = BASE_MAIN_SHA
+HISTORICAL_TASK_TARGET_SHA = "b314f08c74296e23e2a1729dd4f84dc8387c7a4e"
 P2_DOC_PATH = REPO_ROOT / "docs/tasks/V2_1-P2-factory-power-mcp-doubao-skill-integration.md"
 VERSION_PLAN_PATH = REPO_ROOT / "docs/tasks/V2_1-version-plan.md"
 ADR_PATH = REPO_ROOT / "docs/architecture/ADR-043-factory-power-upstream-authority-doubao-mcp.md"
@@ -116,24 +120,27 @@ def _text(relative_path: str) -> str:
     return (REPO_ROOT / relative_path).read_text(encoding="utf-8")
 
 
-def _changed_paths() -> set[str]:
-    tracked: list[str] = []
-    for command in (
-        ["git", "diff", "--name-only", BASE_MAIN_SHA, "HEAD"],
-        ["git", "diff", "--name-only"],
-        ["git", "diff", "--cached", "--name-only"],
-    ):
-        tracked.extend(
-            subprocess.run(
-                command,
-                cwd=REPO_ROOT,
-                capture_output=True,
-                text=True,
-                check=True,
-            ).stdout.splitlines()
-        )
-    untracked = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"],
+def _assert_historical_target_is_ancestor_of_head() -> None:
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", HISTORICAL_TASK_TARGET_SHA, "HEAD"],
+        cwd=REPO_ROOT,
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"historical target {HISTORICAL_TASK_TARGET_SHA} must be an ancestor of HEAD"
+    )
+
+
+def _historical_changed_paths() -> set[str]:
+    _assert_historical_target_is_ancestor_of_head()
+    tracked = subprocess.run(
+        [
+            "git",
+            "diff",
+            "--name-only",
+            HISTORICAL_TASK_BASE_SHA,
+            HISTORICAL_TASK_TARGET_SHA,
+        ],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -141,15 +148,24 @@ def _changed_paths() -> set[str]:
     ).stdout.splitlines()
     return {
         path.strip()
-        for path in [*tracked, *untracked]
+        for path in tracked
         if path.strip() and not path.strip().startswith("backend/artifacts/local/")
     }
 
 
-def _unchanged_from_base(relative_path: str) -> bool:
+def _unchanged_from_historical_task(relative_path: str) -> bool:
+    _assert_historical_target_is_ancestor_of_head()
     return (
         subprocess.run(
-            ["git", "diff", "--quiet", BASE_MAIN_SHA, "HEAD", "--", relative_path],
+            [
+                "git",
+                "diff",
+                "--quiet",
+                HISTORICAL_TASK_BASE_SHA,
+                HISTORICAL_TASK_TARGET_SHA,
+                "--",
+                relative_path,
+            ],
             cwd=REPO_ROOT,
             check=False,
         ).returncode
@@ -203,7 +219,7 @@ def test_v21_p2_factory_power_preview_has_narrow_authority_imports() -> None:
 
 
 def test_v21_p2_scope_is_limited_to_authorized_mcp_skill_and_docs_paths() -> None:
-    changed = _changed_paths()
+    changed = _historical_changed_paths()
     assert changed <= P2_ALLOWED_PATHS
     assert not any(path.startswith("backend/alembic/") for path in changed)
     assert not any(path.startswith("frontend/src/") for path in changed)
@@ -317,7 +333,7 @@ def test_v21_p2_runtime_chain_uses_existing_authorities_and_pure_projection() ->
 
 def test_v21_p2_preserves_v20_p1_p2_and_p1_adapter_runtime_boundaries() -> None:
     for path in FROZEN_RUNTIME_PATHS:
-        assert _unchanged_from_base(path), f"P2 changed frozen path: {path}"
+        assert _unchanged_from_historical_task(path), f"P2 changed frozen path: {path}"
     assert len(CalculationType) == 5
 
     concept = _text("backend/src/cold_storage/modules/aily/application/concept_preview.py")
@@ -440,7 +456,7 @@ def test_v21_p2_skill_and_runbook_are_new_v21_surfaces() -> None:
     assert "Streamable HTTP" in runbook
     assert "tools/list" in runbook
     assert "tools/call" in runbook
-    assert "v18-doubao-aily-connector.md" not in _changed_paths()
+    assert "v18-doubao-aily-connector.md" not in _historical_changed_paths()
 
 
 def test_v21_p2_architecture_contract_exposes_strict_runtime_rejection() -> None:

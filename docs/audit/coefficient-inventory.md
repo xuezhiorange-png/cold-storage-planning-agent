@@ -50,7 +50,7 @@ These are the default values applied when the user does not override them via AP
 | 9 | `primary_precooling_working_hours_per_day` | 一级预冷每日工作时间 | 6 | h | `project_input` | YES | |
 | 10 | `secondary_precooling_pallet_weight_kg` | 二级预冷托盘重量 | 400 | kg | `engineering_coefficient` | YES | |
 | 11 | `secondary_precooling_hours_per_pallet` | 二级预冷每托盘时间 | 2 | h | `engineering_coefficient` | YES | |
-| 12 | `secondary_precooling_working_hours_per_day` | 二级预冷每日工作时间 | 16 | h | `project_input` | YES | |
+| 12 | `secondary_precooling_working_hours_per_day` | 二级预冷每日工作时间 | 14 | h | `project_input` | YES | |
 | 13 | `raw_storage_ratio` | 原果暂存比例 | 0.40 | ratio | `engineering_coefficient` | YES | Ratio of daily mass held as raw buffer |
 | 14 | `raw_fruit_pallet_weight_kg` | 原果托盘重量 | 220 | kg | `engineering_coefficient` | YES | |
 | 15 | `finished_goods_pallet_weight_kg` | 成品托盘重量 | 400 | kg | `engineering_coefficient` | YES | |
@@ -61,9 +61,9 @@ These are the default values applied when the user does not override them via AP
 | 20 | `pallet_longitudinal_gap_m` | 托盘纵向间隙 | 0.3 | m | `engineering_coefficient` | YES | |
 | 21 | `storage_area_factor` | 存储面积系数 | 1.2 | ratio | `engineering_coefficient` | YES | Multiplier on pallet base area for storage zone |
 | 22 | `precooling_position_area_m2` | 预冷板位面积 | 5.6 | m² | `engineering_coefficient` | YES | |
-| 23 | `packing_pieces_per_person_hour` | 每人每小时包装件数 | 15 | pcs/h | `engineering_coefficient` | YES | |
+| 23 | `packing_pieces_per_person_hour` | 每人每小时包装件数 | 15 | pcs/h | `engineering_coefficient` | YES | EXISTING_AUDIT_DRIFT: main runtime default is 16; this task does not reconcile the historical inventory entry. |
 | 24 | `packing_weight_per_piece_kg` | 每件包装重量 | 1.5 | kg/pc | `engineering_coefficient` | YES | |
-| 25 | `packing_working_hours_per_day` | 包装每日工作时间 | 16 | h | `project_input` | YES | |
+| 25 | `packing_working_hours_per_day` | 包装每日工作时间 | 14 | h | `project_input` | YES | |
 | 26 | `workers_per_packing_table` | 每包装台工人数 | 3 | persons | `engineering_coefficient` | YES | |
 | 27 | `packing_table_horizontal_spacing_m` | 包装台水平间距 | 5.5 | m | `engineering_coefficient` | YES | |
 | 28 | `packing_table_vertical_spacing_m` | 包装台垂直间距 | 3.5 | m | `engineering_coefficient` | YES | |

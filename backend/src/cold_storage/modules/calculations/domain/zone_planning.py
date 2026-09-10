@@ -22,7 +22,7 @@ ASPECT_RATIO_MAX = 2.40
 ASPECT_RATIO_TARGET = 2.0
 
 PRIMARY_PRECOOL_Q_D_KG_DAY = 220 * 6
-SECONDARY_PRECOOL_Q_D_KG_DAY = 3200
+SECONDARY_PRECOOL_Q_D_KG_DAY = 2800
 PRECOOL_SIX_POSITION_ROOM_AREA_M2 = 42
 PRECOOL_EIGHT_POSITION_ROOM_AREA_M2 = 56
 PRECOOL_SIX_POSITIONS_PER_ROOM = 6
@@ -44,7 +44,12 @@ PACKING_TABLE_PITCH_SHORT_M = 3.0
 SORTING_CLEARANCE_LONG_M = 3.0 + 5.0
 SORTING_CLEARANCE_SHORT_M = 3.0 + 4.6
 WORKERS_PER_PACKING_TABLE = 3
-PERSON_DAILY_CAPACITY_KG = 384
+PACKING_PIECES_PER_PERSON_HOUR = 16
+PACKING_WEIGHT_PER_PIECE_KG = 1.5
+PACKING_WORKING_HOURS_PER_DAY = 14
+PERSON_DAILY_CAPACITY_KG = (
+    PACKING_PIECES_PER_PERSON_HOUR * PACKING_WEIGHT_PER_PIECE_KG * PACKING_WORKING_HOURS_PER_DAY
+)
 
 PACKAGING_POSITION_BASE_AREA_M2 = 1.56
 
@@ -79,7 +84,7 @@ class ColdRoomZonePlanInput:
     primary_precooling_working_hours_per_day: float = 6
     secondary_precooling_pallet_weight_kg: float = 400
     secondary_precooling_hours_per_pallet: float = 2
-    secondary_precooling_working_hours_per_day: float = 16
+    secondary_precooling_working_hours_per_day: float = 14
     raw_storage_ratio: float = RAW_STORAGE_RATIO
     raw_fruit_pallet_weight_kg: float = RAW_FRUIT_PALLET_WEIGHT_KG
     finished_goods_pallet_weight_kg: float = FINISHED_GOODS_PALLET_WEIGHT_KG
@@ -90,9 +95,9 @@ class ColdRoomZonePlanInput:
     pallet_longitudinal_gap_m: float = 0.3
     storage_area_factor: float = 1.2
     precooling_position_area_m2: float = 5.6
-    packing_pieces_per_person_hour: float = 16
-    packing_weight_per_piece_kg: float = 1.5
-    packing_working_hours_per_day: float = 16
+    packing_pieces_per_person_hour: float = PACKING_PIECES_PER_PERSON_HOUR
+    packing_weight_per_piece_kg: float = PACKING_WEIGHT_PER_PIECE_KG
+    packing_working_hours_per_day: float = PACKING_WORKING_HOURS_PER_DAY
     workers_per_packing_table: float = WORKERS_PER_PACKING_TABLE
     packing_table_horizontal_spacing_m: float = PACKING_TABLE_PITCH_LONG_M
     packing_table_vertical_spacing_m: float = PACKING_TABLE_PITCH_SHORT_M
@@ -406,7 +411,10 @@ class ColdRoomZonePlanner:
                         * data.secondary_precooling_working_hours_per_day,
                         2,
                     ),
-                    "packing_person_daily_capacity_kg": PERSON_DAILY_CAPACITY_KG,
+                    "packing_person_daily_capacity_kg": round(
+                        self._packing_person_daily_capacity_kg(data),
+                        2,
+                    ),
                     "packaging_position_area_m2": round(
                         PACKAGING_POSITION_BASE_AREA_M2 * packaging_k,
                         4,
@@ -686,7 +694,8 @@ class ColdRoomZonePlanner:
         return zone
 
     def _sorting_packaging_zone(self, data: ColdRoomZonePlanInput) -> dict[str, object]:
-        worker_count = ceil(data.daily_inbound_mass_kg / PERSON_DAILY_CAPACITY_KG)
+        person_daily_capacity_kg = self._packing_person_daily_capacity_kg(data)
+        worker_count = ceil(data.daily_inbound_mass_kg / person_daily_capacity_kg)
         table_count_need = ceil(worker_count / data.workers_per_packing_table)
         layout = self._pack_sorting_rectangle(table_count_need)
         table_area = PACKING_TABLE_PITCH_LONG_M * PACKING_TABLE_PITCH_SHORT_M
@@ -699,7 +708,7 @@ class ColdRoomZonePlanner:
             "design_storage_mass_kg": 0,
             "worker_count": worker_count,
             "table_count": table_count_need,
-            "person_daily_capacity_kg_day": PERSON_DAILY_CAPACITY_KG,
+            "person_daily_capacity_kg_day": round(person_daily_capacity_kg, 2),
             "packing_table_area_m2": round(table_area, 2),
             "aisle_layout": "four_side_architectural",
             "position_count": layout.n_actual,
@@ -707,6 +716,13 @@ class ColdRoomZonePlanner:
             "requires_review": True,
             **layout.to_dict(),
         }
+
+    def _packing_person_daily_capacity_kg(self, data: ColdRoomZonePlanInput) -> float:
+        return (
+            data.packing_pieces_per_person_hour
+            * data.packing_weight_per_piece_kg
+            * data.packing_working_hours_per_day
+        )
 
     def _packaging_material_zone(
         self, data: ColdRoomZonePlanInput, mass_tons: float
