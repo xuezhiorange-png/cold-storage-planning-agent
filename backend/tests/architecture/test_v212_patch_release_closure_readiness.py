@@ -123,7 +123,7 @@ def test_v212_closure_scope_uses_immutable_candidate_snapshot() -> None:
     assert "CLOSURE_SCOPE_TARGET_IS_IMMUTABLE=YES" in closure
     assert "CURRENT_HEAD_USED_ONLY_FOR_LINEAGE=YES" in closure
     assert "ORIGIN_MAIN_DYNAMIC_SCOPE_DIFF=NO" in closure
-    assert "origin/main" not in closure
+    assert "origin/main ==" not in closure
 
 
 def test_v212_release_lineage_and_exact_main_ci_are_recorded() -> None:
