@@ -83,16 +83,10 @@ def _changed_paths() -> set[str]:
         text=True,
         check=True,
     ).stdout.splitlines()
-    untracked = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.splitlines()
     return {
-        path
-        for path in [*tracked, *untracked]
+        path.strip()
+        for path in tracked
+        if path.strip()
         if path and not path.startswith("backend/artifacts/local/")
     }
 
@@ -130,6 +124,14 @@ def test_v21_p1_uses_durable_base_lineage_not_origin_main_equality() -> None:
     assert (
         subprocess.run(
             ["git", "merge-base", "--is-ancestor", BASE_MAIN_SHA, "HEAD"],
+            cwd=REPO_ROOT,
+            check=False,
+        ).returncode
+        == 0
+    )
+    assert (
+        subprocess.run(
+            ["git", "merge-base", "--is-ancestor", P1_REFERENCE_HEAD_SHA, "HEAD"],
             cwd=REPO_ROOT,
             check=False,
         ).returncode

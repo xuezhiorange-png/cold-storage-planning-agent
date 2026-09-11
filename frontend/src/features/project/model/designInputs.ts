@@ -41,7 +41,7 @@ export function createDefaultDesignInputs(): DesignInputs {
     auxiliaryPackagingStorageDays: operatorDemoZoneNumeric('auxiliary_packaging_storage_days'),
     precoolingRequiredRatio: 1,
     rawStorageRatio: 0.4,
-    primaryPrecoolingWorkingHours: 6,
+    primaryPrecoolingWorkingHours: 7,
     secondaryPrecoolingWorkingHours: 14,
     finishedGoodsPalletWeightKg: 400,
     frozenFruitRatio: 0.1,

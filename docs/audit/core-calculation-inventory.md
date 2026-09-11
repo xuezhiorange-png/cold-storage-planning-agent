@@ -78,7 +78,7 @@ values                            - coefficients (source info)
 | `precooling_position_daily_capacity_kg` | float | 1250 | Hardcoded default |
 | `primary_precooling_pallet_weight_kg` | float | 220 | Hardcoded default |
 | `primary_precooling_hours_per_pallet` | float | 1 | Hardcoded default |
-| `primary_precooling_working_hours_per_day` | float | 6 | Hardcoded default |
+| `primary_precooling_working_hours_per_day` | float | 7 | Current POST-V2.1.1 default; historical replay supplies 6 explicitly |
 | `secondary_precooling_pallet_weight_kg` | float | 400 | Hardcoded default |
 | `secondary_precooling_hours_per_pallet` | float | 2 | Hardcoded default |
 | `secondary_precooling_working_hours_per_day` | float | 14 | Hardcoded default |
@@ -98,7 +98,7 @@ values                            - coefficients (source info)
 | `workers_per_packing_table` | float | 3 | Hardcoded default |
 | `packing_table_horizontal_spacing_m` | float | 5.5 | Hardcoded default |
 | `packing_table_vertical_spacing_m` | float | 3.5 | Hardcoded default |
-| `packing_area_factor` | float | 1.5 | Hardcoded default |
+| `packing_area_factor` | float | 1.5 | Legacy field; current sorting/packing authority is `sorting_packaging_area_factor=1.1` applied after layout |
 | `main_packaging_storage_days` | float | 3 | Hardcoded default |
 | `auxiliary_packaging_storage_days` | float | 30 | Hardcoded default |
 | `packaging_area_factor` | float | 1.5 | Hardcoded default |
@@ -697,7 +697,7 @@ axial_fan_quantity = (primary_positions + secondary_positions) * 4
 axial_fan_total_power = axial_fan_quantity * 0.55
 
 # Calculate power totals
-defrost_simultaneous_power = sum(defrost_total_power for refrigeration rows) * 0.30
+defrost_simultaneous_power = sum(defrost_total_power for refrigeration rows) * 0.20
 running_simultaneous_power = sum(total_power for refrigeration rows) * 0.90
 refrigeration_total = defrost_simultaneous_power + running_simultaneous_power
 production_total = sum(total_power for production rows) * 0.90
@@ -723,7 +723,7 @@ def scale_value(value: object, scale: float) -> float:
 ```
 
 ### Rounding
-- `defrost_simultaneous_power`: `round(..., 2)`
+- `defrost_simultaneous_power`: `round(..., 2)` using the current 0.20 simultaneous-use factor; historical release contracts remain immutable
 - `running_simultaneous_power`: `round(..., 2)`
 - `refrigeration_total`: `round(..., 2)`
 - `production_total`: `round(..., 2)`

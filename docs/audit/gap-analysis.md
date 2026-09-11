@@ -329,3 +329,12 @@ See `docs/tasks/V0_7-P0-trust-loop-contract.md`. Delivered at `v0.7.0`. Do not r
 | V09-GAP-001 | P0 | Zone planner does not match the V0.9 formula lock (including 出货通道) | `calculations/domain/zone_planning.py` | Operator KEY unused; aisle factors fixed; no shipping_channel | P2 formula recut after dispatch | V0.9 P2 | Yes |
 | V09-GAP-002 | P0 | Operator KEY still the V0.8 five (includes precooling ratio and working time) | `OperatorProcessInputV1` | KEY do not match locked planner inputs | P1 assembler + form | V0.9 P1 | Yes |
 | V09-GAP-004 | P0 | Stacked workbench blockers and review/export confusion | `WorkflowGuidancePanel.vue`, `ReportExportPanel.vue` | Draft work looks blocked | P4 + P5 | V0.9 P4/P5 | No |
+
+## POST-V2.1.1 current rule adjustment status
+
+The current post-`v2.1.1` rule lane is limited to deterministic zone-planning
+and power-configuration parameters: primary precooling uses 7 effective
+hours/batches per day, sorting/packing applies a 1.1 final-area factor after
+layout, and defrost simultaneous use is 0.20. Historical V0.7/V0.9 artifacts
+remain frozen through explicit replay inputs. No MCP, Skill, database, release,
+deployment, or unrelated technical-debt item is closed by this lane.

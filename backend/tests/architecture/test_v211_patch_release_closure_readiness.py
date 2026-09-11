@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 
 from cold_storage.modules.aily.api.mcp_sse import _PREVIEW_TOOL_ORDER
-from cold_storage.modules.calculations.domain.zone_planning import FORMULA_AUTHORITY
+from cold_storage.modules.calculations.domain.zone_planning import HISTORICAL_FORMULA_AUTHORITY
 from cold_storage.modules.orchestration.domain.contracts import CalculationType
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -37,6 +37,17 @@ FROZEN_SCOPE_PREFIXES = (
 
 def _text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def _historical_text(path: Path) -> str:
+    relative_path = path.relative_to(REPO_ROOT).as_posix()
+    return subprocess.run(
+        ["git", "show", f"{PATCH_TARGET_SHA}:{relative_path}"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
 
 
 def _assert_ancestor(ancestor: str, descendant: str = "HEAD") -> None:
@@ -112,7 +123,7 @@ def test_v211_closure_scope_uses_immutable_candidate_snapshot() -> None:
 
 def test_v211_patch_regression_and_formula_authority_are_present() -> None:
     assert REGRESSION_PATH.exists()
-    regression = _text(REGRESSION_PATH)
+    regression = _historical_text(REGRESSION_PATH)
     for marker in (
         'FORMULA_AUTHORITY == "POST-V0.9-P4-charles-zone-area-recut"',
         'secondary["working_hours_per_day"] == 14',
@@ -125,7 +136,7 @@ def test_v211_patch_regression_and_formula_authority_are_present() -> None:
         "packing_working_hours_per_day=10",
     ):
         assert marker in regression
-    assert FORMULA_AUTHORITY == "POST-V0.9-P4-charles-zone-area-recut"
+    assert HISTORICAL_FORMULA_AUTHORITY == "POST-V0.9-P4-charles-zone-area-recut"
 
 
 def test_v211_mcp_and_calculation_type_boundaries_are_unchanged() -> None:

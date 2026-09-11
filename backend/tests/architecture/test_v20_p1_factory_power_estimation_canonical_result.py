@@ -20,8 +20,10 @@ from cold_storage.modules.calculations.domain.factory_power_estimation import (
     CALCULATOR_VERSION,
     DEDICATED_COMPRESSOR_POWER_BY_ZONE,
     DEDICATED_SYSTEM_ZONE_CODES,
+    DEFROST_SIMULTANEOUS_USE_FACTOR,
     EVAPORATIVE_CONDENSER_POWER_BY_BAND,
     FACTORY_AREA_BANDS,
+    HISTORICAL_POOL_A_SIMULTANEITY_FACTOR,
     LIGHTING_RULES,
     MAIN_SYSTEM_COP,
     MAIN_SYSTEM_ZONE_CODES,
@@ -376,7 +378,14 @@ def test_v20_p0_system_boundaries_and_power_pools_match_runtime_registry() -> No
     assert expected_production["pool"] == "POOL_C"
 
     pools = data["power_pools"]
-    assert _decimal(pools["POOL_A"]["simultaneity_factor"]) == POOL_A_SIMULTANEITY_FACTOR
+    # The V2.0 contract remains an immutable historical snapshot at 30%.  The
+    # current post-v2.1.1 rule is a deliberate additive adjustment, so keep
+    # both values explicit rather than rewriting the released contract.
+    assert _decimal(pools["POOL_A"]["simultaneity_factor"]) == (
+        HISTORICAL_POOL_A_SIMULTANEITY_FACTOR
+    )
+    assert Decimal("0.20") == DEFROST_SIMULTANEOUS_USE_FACTOR
+    assert POOL_A_SIMULTANEITY_FACTOR == DEFROST_SIMULTANEOUS_USE_FACTOR
     assert {
         band: _decimal(factor)
         for band, factor in pools["POOL_B"]["simultaneity_factor_by_band"].items()

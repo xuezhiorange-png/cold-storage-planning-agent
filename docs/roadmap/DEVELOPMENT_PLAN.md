@@ -451,3 +451,24 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 Readiness determination 不等于 Ready、Merge、tag、GitHub Release、部署或下一
 feature lane 的执行授权。
+
+## POST-V2.1.1 Engineering Rule Adjustments（当前；Draft）
+
+当前 follow-up lane 只记录三项已授权的工程规则调整：一级预冷 7 批次/日，
+分选包装矩形排布最终面积乘 1.1，以及化霜同时使用系数 0.20。历史 V0.7/V0.9
+回放保持显式旧参数；V2.0/V2.1 的 calculator identity、MCP 六工具合同和发布
+证据不被重写。详见
+`docs/tasks/POST-V2_1_1-engineering-rule-adjustments.md`。
+
+```text
+ACTIVE_GOVERNANCE_LANE=POST_V2_1_1_ENGINEERING_RULE_ADJUSTMENTS
+FORMULA_AUTHORITY=POST-V2.1.1-charles-engineering-rule-adjustments
+MCP_TOOL_COUNT=6
+DATABASE_MIGRATION_CHANGED=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+TAG_AUTHORIZED=NO
+GITHUB_RELEASE_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```

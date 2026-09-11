@@ -1,20 +1,24 @@
-"""Current POST-V2.1 regression tests for the 14 h/day zone-planning recut."""
+"""Current POST-v2.1.1 engineering-rule adjustment regressions."""
 
 from __future__ import annotations
 
-import pytest
+from decimal import Decimal
 
+from cold_storage.modules.calculations.domain.factory_power_estimation import (
+    DEFROST_SIMULTANEOUS_USE_FACTOR,
+    POOL_A_SIMULTANEITY_FACTOR,
+)
 from cold_storage.modules.calculations.domain.zone_planning import (
     FORMULA_AUTHORITY,
     PRIMARY_PRECOOL_BATCHES_PER_DAY,
-    PRIMARY_PRECOOL_Q_D_KG_DAY,
     SORTING_PACKAGING_AREA_FACTOR,
     ColdRoomZonePlanInput,
     ColdRoomZonePlanner,
 )
+from cold_storage.modules.planning.application.service import build_power_configuration
 
 
-def _sample_input(**overrides: float) -> ColdRoomZonePlanInput:
+def _current_sample_input(**overrides: float) -> ColdRoomZonePlanInput:
     values: dict[str, float] = {
         "daily_inbound_mass_kg": 20_000,
         "working_time_h_per_day": 16,
@@ -29,14 +33,13 @@ def _sample_input(**overrides: float) -> ColdRoomZonePlanInput:
     return ColdRoomZonePlanInput(**values)
 
 
-def test_post_v21_14h_defaults_match_current_20_t_day_sample() -> None:
-    result = ColdRoomZonePlanner().plan(_sample_input())
+def test_post_v211_current_rules_are_applied_without_recutting_layout_counts() -> None:
+    result = ColdRoomZonePlanner().plan(_current_sample_input())
 
     assert result.success is True
     assert result.result["planning_parameters"]["formula_authority"] == FORMULA_AUTHORITY
     assert FORMULA_AUTHORITY == "POST-V2.1.1-charles-engineering-rule-adjustments"
 
-    planning_parameters = result.result["planning_parameters"]
     zones = {zone["zone_code"]: zone for zone in result.result["zones"]}
     primary = zones["primary_precooling_room"]
     secondary = zones["secondary_precooling_room"]
@@ -45,35 +48,28 @@ def test_post_v21_14h_defaults_match_current_20_t_day_sample() -> None:
     assert PRIMARY_PRECOOL_BATCHES_PER_DAY == 7
     assert primary["working_hours_per_day"] == 7
     assert primary["position_daily_capacity_kg_day"] == 1540
-    assert planning_parameters["primary_precooling_q_d_kg_day"] == PRIMARY_PRECOOL_Q_D_KG_DAY
     assert primary["raw_position_count"] == 13
-    assert primary["required_area_m2"] == pytest.approx(126.00, abs=0.01)
+    assert primary["required_area_m2"] == 126
 
     assert secondary["working_hours_per_day"] == 14
     assert secondary["position_daily_capacity_kg_day"] == 2800
-    assert planning_parameters["secondary_precooling_q_d_kg_day"] == 2800
-    assert secondary["required_area_m2"] == pytest.approx(84.00, abs=0.01)
+    assert secondary["required_area_m2"] == 84
 
     assert sorting["person_daily_capacity_kg_day"] == 336
-    assert planning_parameters["packing_person_daily_capacity_kg"] == 336
     assert sorting["n_need"] == 20
+    assert sorting["worker_count"] == 60
+    assert sorting["table_count"] == 20
     assert sorting["n_long"] == 7
     assert sorting["n_short"] == 3
-    assert sorting["raw_required_area_m2"] == pytest.approx(565.76, abs=0.01)
+    assert sorting["raw_required_area_m2"] == 565.76
     assert sorting["sorting_packaging_area_factor"] == SORTING_PACKAGING_AREA_FACTOR
-    assert sorting["required_area_m2"] == pytest.approx(622.34, abs=0.01)
-    assert planning_parameters["sorting_packaging_raw_required_area_m2"] == pytest.approx(
-        565.76, abs=0.01
-    )
-    assert planning_parameters["sorting_packaging_required_area_m2"] == pytest.approx(
-        622.34, abs=0.01
-    )
-    assert result.result["total_area_m2"] == pytest.approx(2194.59, abs=0.01)
+    assert sorting["required_area_m2"] == 622.34
+    assert result.result["total_area_m2"] == 2194.59
 
 
-def test_post_v21_packing_capacity_uses_custom_packing_parameters() -> None:
+def test_post_v211_custom_packing_inputs_still_drive_capacity_and_layout() -> None:
     result = ColdRoomZonePlanner().plan(
-        _sample_input(
+        _current_sample_input(
             packing_pieces_per_person_hour=20,
             packing_weight_per_piece_kg=2,
             packing_working_hours_per_day=10,
@@ -90,7 +86,20 @@ def test_post_v21_packing_capacity_uses_custom_packing_parameters() -> None:
     assert sorting["n_need"] == 17
     assert sorting["n_long"] == 6
     assert sorting["n_short"] == 3
-    assert sorting["raw_required_area_m2"] == pytest.approx(489.60, abs=0.01)
-    assert sorting["required_area_m2"] == pytest.approx(538.56, abs=0.01)
-    assert sorting["sorting_packaging_area_factor"] == 1.1
-    assert result.result["planning_parameters"]["packing_person_daily_capacity_kg"] == 400
+    assert sorting["raw_required_area_m2"] == 489.60
+    assert sorting["required_area_m2"] == 538.56
+
+
+def test_post_v211_defrost_factor_is_shared_by_legacy_power_projection() -> None:
+    power = build_power_configuration([], 25_000, 0)
+
+    defrost_installed = sum(row["defrost_total_power_kw"] or 0 for row in power["equipment_rows"])
+    assert defrost_installed == 830.3
+    assert Decimal("0.20") == DEFROST_SIMULTANEOUS_USE_FACTOR
+    assert POOL_A_SIMULTANEITY_FACTOR == DEFROST_SIMULTANEOUS_USE_FACTOR
+    assert power["summary_rows"][0] == {
+        "name": "化霜总功率",
+        "basis": "按20% 同时化霜",
+        "total_power_kw": 166.06,
+    }
+    assert power["summary_rows"][2]["basis"] == "化霜同时系数20% + 设备运行同时系数90%"

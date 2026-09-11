@@ -8,8 +8,8 @@ import pytest
 
 from cold_storage.modules.calculations.domain.zone_planning import (
     COATING_AREA_BY_BAND_M2,
-    FORMULA_AUTHORITY,
     FROZEN_FRUIT_RATIO,
+    HISTORICAL_FORMULA_AUTHORITY,
     OFFICE_AREA_BY_BAND_M2,
     PACKAGING_K_BY_BAND,
     PACKAGING_POSITION_BASE_AREA_M2,
@@ -26,6 +26,8 @@ from cold_storage.modules.calculations.domain.zone_planning import (
 POST_V09_SECONDARY_PRECOOL_WORKING_HOURS_PER_DAY = 16
 POST_V09_PACKING_WORKING_HOURS_PER_DAY = 16
 POST_V09_PERSON_DAILY_CAPACITY_KG = 16 * 1.5 * POST_V09_PACKING_WORKING_HOURS_PER_DAY
+POST_V09_PRIMARY_PRECOOL_WORKING_HOURS_PER_DAY = 6
+POST_V09_SORTING_PACKAGING_AREA_FACTOR = 1.0
 
 
 def _throughput_band_area(mass_tons: float, areas: tuple[float, float, float]) -> float:
@@ -189,7 +191,10 @@ def test_v09_p2_zone_planning_matches_section4_oracles(
     finished_storage_days: float,
     frozen_storage_days: float,
 ) -> None:
-    planner = ColdRoomZonePlanner()
+    planner = ColdRoomZonePlanner(
+        formula_authority=HISTORICAL_FORMULA_AUTHORITY,
+        sorting_packaging_area_factor=POST_V09_SORTING_PACKAGING_AREA_FACTOR,
+    )
     result = planner.plan(
         ColdRoomZonePlanInput(
             daily_inbound_mass_kg=daily_mass_kg,
@@ -197,6 +202,7 @@ def test_v09_p2_zone_planning_matches_section4_oracles(
             finished_storage_days=finished_storage_days,
             packaging_storage_days=3,
             precooling_required_ratio=1,
+            primary_precooling_working_hours_per_day=POST_V09_PRIMARY_PRECOOL_WORKING_HOURS_PER_DAY,
             secondary_precooling_working_hours_per_day=POST_V09_SECONDARY_PRECOOL_WORKING_HOURS_PER_DAY,
             packing_working_hours_per_day=POST_V09_PACKING_WORKING_HOURS_PER_DAY,
             frozen_storage_days=frozen_storage_days,
@@ -205,7 +211,9 @@ def test_v09_p2_zone_planning_matches_section4_oracles(
 
     assert result.success is True
     assert result.calculator_version == "1.0.0"
-    assert result.result["planning_parameters"]["formula_authority"] == FORMULA_AUTHORITY
+    assert result.result["planning_parameters"]["formula_authority"] == (
+        HISTORICAL_FORMULA_AUTHORITY
+    )
     zones = result.result["zones"]
     mass_tons = daily_mass_kg / 1000
 
@@ -375,7 +383,10 @@ def test_v09_p2_zone_planning_matches_section4_oracles(
 
 
 def test_v09_p2_zone_list_includes_shipping_channel_after_packaging() -> None:
-    planner = ColdRoomZonePlanner()
+    planner = ColdRoomZonePlanner(
+        formula_authority=HISTORICAL_FORMULA_AUTHORITY,
+        sorting_packaging_area_factor=POST_V09_SORTING_PACKAGING_AREA_FACTOR,
+    )
     result = planner.plan(
         ColdRoomZonePlanInput(
             daily_inbound_mass_kg=10_000,
@@ -383,6 +394,7 @@ def test_v09_p2_zone_list_includes_shipping_channel_after_packaging() -> None:
             finished_storage_days=2,
             packaging_storage_days=3,
             precooling_required_ratio=1,
+            primary_precooling_working_hours_per_day=POST_V09_PRIMARY_PRECOOL_WORKING_HOURS_PER_DAY,
             secondary_precooling_working_hours_per_day=POST_V09_SECONDARY_PRECOOL_WORKING_HOURS_PER_DAY,
             packing_working_hours_per_day=POST_V09_PACKING_WORKING_HOURS_PER_DAY,
         )

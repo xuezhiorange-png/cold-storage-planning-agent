@@ -47,7 +47,7 @@ These are the default values applied when the user does not override them via AP
 | 6 | `precooling_position_daily_capacity_kg` | 预冷板位单位日处理量 | 1250 | kg/day | `engineering_coefficient` | YES | |
 | 7 | `primary_precooling_pallet_weight_kg` | 一级预冷托盘重量 | 220 | kg | `engineering_coefficient` | YES | |
 | 8 | `primary_precooling_hours_per_pallet` | 一级预冷每托盘时间 | 1 | h | `engineering_coefficient` | YES | |
-| 9 | `primary_precooling_working_hours_per_day` | 一级预冷每日工作时间 | 6 | h | `project_input` | YES | |
+| 9 | `primary_precooling_working_hours_per_day` | 一级预冷每日工作时间 | 7 | h | `project_input` | YES | Current POST-V2.1.1 rule; historical replay explicitly supplies 6 h/day. |
 | 10 | `secondary_precooling_pallet_weight_kg` | 二级预冷托盘重量 | 400 | kg | `engineering_coefficient` | YES | |
 | 11 | `secondary_precooling_hours_per_pallet` | 二级预冷每托盘时间 | 2 | h | `engineering_coefficient` | YES | |
 | 12 | `secondary_precooling_working_hours_per_day` | 二级预冷每日工作时间 | 14 | h | `project_input` | YES | |
@@ -67,7 +67,7 @@ These are the default values applied when the user does not override them via AP
 | 26 | `workers_per_packing_table` | 每包装台工人数 | 3 | persons | `engineering_coefficient` | YES | |
 | 27 | `packing_table_horizontal_spacing_m` | 包装台水平间距 | 5.5 | m | `engineering_coefficient` | YES | |
 | 28 | `packing_table_vertical_spacing_m` | 包装台垂直间距 | 3.5 | m | `engineering_coefficient` | YES | |
-| 29 | `packing_area_factor` | 包装面积系数 | 1.5 | ratio | `engineering_coefficient` | YES | Multiplier on table area for packing zone |
+| 29 | `packing_area_factor` | 包装面积系数（历史字段） | 1.5 | ratio | `engineering_coefficient` | YES | Legacy dataclass field; not the current sorting/packing area authority. Current canonical field is `sorting_packaging_area_factor=1.1`, applied only after rectangle layout. |
 | 30 | `main_packaging_storage_days` | 主包材库存天数 | 3 | day | `project_input` | YES | |
 | 31 | `auxiliary_packaging_storage_days` | 辅包材库存天数 | 30 | day | `project_input` | YES | |
 | 32 | `packaging_area_factor` | 包材面积系数 | 1.5 | ratio | `engineering_coefficient` | YES | |
@@ -181,7 +181,7 @@ Source file: `backend/src/cold_storage/modules/planning/application/service.py` 
 | # | Code | Name | Value | Unit | Category | In Registry? | Notes |
 |---|------|------|-------|------|----------|:---:|-------|
 | 60 | `reference_daily_capacity_kg` | 参考日产能基准 | 25,000 | kg/day | `formula_constant` | YES | Base capacity for power scaling: `scale = daily_mass / 25000` |
-| 61 | `defrost_simultaneous_factor` | 化霜同时系数 | 0.30 | ratio | `engineering_coefficient` | YES | 30% of defrost power assumed simultaneous |
+| 61 | `defrost_simultaneous_factor` | 化霜同时系数 | 0.20 | ratio | `engineering_coefficient` | YES | Current rule: 20% of defrost power assumed simultaneous; released historical V2.0 contract remains documented at 0.30. |
 | 62 | `running_simultaneous_factor` | 设备运行同时使用系数 | 0.90 | ratio | `engineering_coefficient` | YES | 90% of running power assumed simultaneous |
 | 63 | `axial_fan_per_position` | 轴流风机板位配比 | 4 | fans/position | `engineering_coefficient` | YES | 4 axial fans per precooling position (line 271) |
 

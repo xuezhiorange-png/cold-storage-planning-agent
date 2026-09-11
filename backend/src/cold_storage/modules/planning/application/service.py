@@ -10,11 +10,15 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from cold_storage.modules.calculations.domain.factory_power_estimation import (
+    DEFROST_SIMULTANEOUS_USE_FACTOR,
+)
 from cold_storage.modules.calculations.domain.investment import (
     InvestmentEstimateInput,
     InvestmentEstimator,
 )
 from cold_storage.modules.calculations.domain.zone_planning import (
+    PRIMARY_PRECOOL_WORKING_HOURS_PER_DAY,
     ColdRoomZonePlanInput,
     ColdRoomZonePlanner,
 )
@@ -78,7 +82,10 @@ def build_zone_plan_from_inputs(
                 inputs.get("primary_precooling_hours_per_pallet", 1)
             ),
             primary_precooling_working_hours_per_day=as_float(
-                inputs.get("primary_precooling_working_hours_per_day", 6)
+                inputs.get(
+                    "primary_precooling_working_hours_per_day",
+                    PRIMARY_PRECOOL_WORKING_HOURS_PER_DAY,
+                )
             ),
             secondary_precooling_pallet_weight_kg=as_float(
                 inputs.get("secondary_precooling_pallet_weight_kg", 400)
@@ -189,8 +196,17 @@ def build_power_configuration(
     equipment_rows = [scale_power_row(row, scale) for row in reference_power_rows()]
     apply_precooling_axial_fan_rule(equipment_rows, zones)
     defrost_simultaneous_power = round(
-        sum(optional_number(row["defrost_total_power_kw"]) for row in equipment_rows) * 0.30,
+        sum(optional_number(row["defrost_total_power_kw"]) for row in equipment_rows)
+        * float(DEFROST_SIMULTANEOUS_USE_FACTOR),
         2,
+    )
+    defrost_factor_percent = (
+        format(
+            DEFROST_SIMULTANEOUS_USE_FACTOR * 100,
+            "f",
+        )
+        .rstrip("0")
+        .rstrip(".")
     )
     running_simultaneous_power = round(
         sum(
@@ -215,7 +231,7 @@ def build_power_configuration(
     summary_rows = [
         {
             "name": "化霜总功率",
-            "basis": "按30% 同时化霜",
+            "basis": f"按{defrost_factor_percent}% 同时化霜",
             "total_power_kw": defrost_simultaneous_power,
         },
         {
@@ -225,7 +241,7 @@ def build_power_configuration(
         },
         {
             "name": "制冷总功率",
-            "basis": "化霜同时系数30% + 设备运行同时系数90%",
+            "basis": (f"化霜同时系数{defrost_factor_percent}% + 设备运行同时系数90%"),
             "total_power_kw": refrigeration_total,
         },
         {
