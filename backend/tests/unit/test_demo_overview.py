@@ -48,8 +48,8 @@ def test_demo_overview_contains_sample_data_for_all_modules() -> None:
         for row in overview["modules"][6]["sample"]["equipment_rows"]
         if row["name"] == "轴流风机"
     )
-    assert axial_fan_row["quantity"] == (24 + 12) * 4
-    assert axial_fan_row["total_power_kw"] == 79.2
+    assert axial_fan_row["quantity"] == (18 + 12) * 4
+    assert axial_fan_row["total_power_kw"] == 66.0
     assert (
         "planning.calculate_throughput_inventory_area"
         in overview["modules"][9]["sample"]["tool_calls"]
