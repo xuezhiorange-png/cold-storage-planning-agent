@@ -215,3 +215,26 @@ precooling 7 batches/day, sorting/packing final-area factor 1.1, and defrost
 simultaneous use 0.20) while preserving the existing demo-coefficient and
 consumer-boundary debt register. In particular, TD-008, TD-019, TD-021, and
 TD-024 remain in their existing states.
+
+## V2.1.2 patch release closure note
+
+The v2.1.2 closure records the already-merged PR #266 effective-working-hours
+and factory-power rule adjustment. It does not resolve, downgrade, or otherwise
+reclassify unrelated technical debt. TD-008, TD-019, TD-021, and TD-024 remain
+in their existing states. The current factory-power identity is
+`factory_power_estimation@2.0.0-p2`; historical p1 evidence remains immutable.
+
+```text
+TASK_ID=V2_1_2_PATCH_RELEASE_CLOSURE_R1
+TARGET_RELEASE=v2.1.2
+PATCH_TARGET_SHA=bdbedf885b8b42a3ca18aec9df2746a9505fee33
+V2_1_2_RELEASE_READY=YES
+PRODUCTION_CODE_CHANGED=NO
+DATABASE_MIGRATION_CHANGED=NO
+DEPLOYMENT_CHANGED=NO
+NO_UNRELATED_TECHNICAL_DEBT_RECLASSIFIED=YES
+TAG_AUTHORIZED=NO
+GITHUB_RELEASE_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
