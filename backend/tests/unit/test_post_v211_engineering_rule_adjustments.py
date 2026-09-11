@@ -15,6 +15,9 @@ from cold_storage.modules.calculations.domain.zone_planning import (
     ColdRoomZonePlanInput,
     ColdRoomZonePlanner,
 )
+from cold_storage.modules.orchestration.application.source_snapshots import (
+    ZoneResultSnapshotV1,
+)
 from cold_storage.modules.planning.application.service import build_power_configuration
 
 
@@ -88,6 +91,18 @@ def test_post_v211_custom_packing_inputs_still_drive_capacity_and_layout() -> No
     assert sorting["n_short"] == 3
     assert sorting["raw_required_area_m2"] == 489.60
     assert sorting["required_area_m2"] == 538.56
+
+
+def test_post_v211_zone_snapshot_schema_accepts_current_sorting_area_fields() -> None:
+    result = ColdRoomZonePlanner().plan(_current_sample_input())
+
+    assert result.success is True
+    snapshot = ZoneResultSnapshotV1.model_validate(result.result)
+    sorting = next(zone for zone in snapshot.zones if zone.zone_code == "sorting_packaging_room")
+
+    assert sorting.raw_required_area_m2 == "565.76"
+    assert sorting.sorting_packaging_area_factor == "1.1"
+    assert sorting.required_area_m2 == "622.34"
 
 
 def test_post_v211_defrost_factor_is_shared_by_legacy_power_projection() -> None:
