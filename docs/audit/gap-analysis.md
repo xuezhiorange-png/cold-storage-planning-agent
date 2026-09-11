@@ -338,3 +338,28 @@ hours/batches per day, sorting/packing applies a 1.1 final-area factor after
 layout, and defrost simultaneous use is 0.20. Historical V0.7/V0.9 artifacts
 remain frozen through explicit replay inputs. No MCP, Skill, database, release,
 deployment, or unrelated technical-debt item is closed by this lane.
+
+## POST-V2.1.2 patch release closure status
+
+The v2.1.2 patch closure records the merged PR #266 rule adjustment and the
+successful exact-main CI candidate. It does not close unrelated gaps or change
+the MCP six-tool contract, Doubao Skill, upstream area authority, database,
+deployment boundary, or historical release evidence.
+
+```text
+TASK_ID=V2_1_2_PATCH_RELEASE_CLOSURE_R1
+PATCH_TARGET=v2.1.2
+PATCH_TARGET_SHA=bdbedf885b8b42a3ca18aec9df2746a9505fee33
+PATCH_SOURCE_PR=266
+MAIN_CI_RUN_ID=34567481057
+MAIN_CI_RESULT=SUCCESS
+CURRENT_FACTORY_POWER_IDENTITY=factory_power_estimation@2.0.0-p2
+CURRENT_RESULT_SCHEMA_VERSION=2.0.0-p1
+HISTORICAL_P1_EVIDENCE_PRESERVED=YES
+HISTORICAL_GOLDEN_CHANGED=NO
+V2_1_2_RELEASE_READY=YES
+TAG_AUTHORIZED=NO
+GITHUB_RELEASE_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```

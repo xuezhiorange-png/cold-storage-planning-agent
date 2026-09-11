@@ -1027,3 +1027,40 @@ The primary, sorting/packing, and defrost changes are current production
 rules; V0.7/V0.9 historical replay stays explicit and unchanged. The
 packing-pieces inventory drift (15 in the old audit row versus 16 in runtime)
 remains an existing audit discrepancy and is not silently closed here.
+
+## §52 V2.1.2 patch release closure（当前；Draft）
+
+PR #266 已合并到当前 patch candidate `bdbedf885b8b42a3ca18aec9df2746a9505fee33`。
+本 closure 只固化当前规则、历史不可变证据和 release-readiness gate，不改变生产
+计算代码。exact-main CI `34567481057`（#2352）以同一 SHA 成功完成，作为本 patch
+candidate 的 main-line evidence。
+
+```text
+TASK_ID=V2_1_2_PATCH_RELEASE_CLOSURE_R1
+TARGET_RELEASE=v2.1.2
+BASE_RELEASE=v2.1.1
+BASE_RELEASE_SHA=c9ce6e7399ec2a163ab4c7c7339b828a86abbf08
+PATCH_SOURCE_PR=266
+PATCH_SOURCE_MERGE_SHA=bdbedf885b8b42a3ca18aec9df2746a9505fee33
+PATCH_TARGET_SHA=bdbedf885b8b42a3ca18aec9df2746a9505fee33
+MAIN_CI_RUN_ID=34567481057
+MAIN_CI_RUN_NUMBER=2352
+MAIN_CI_SHA=bdbedf885b8b42a3ca18aec9df2746a9505fee33
+MAIN_CI_SHA_MATCH=YES
+MAIN_CI_RESULT=SUCCESS
+V2_1_2_RELEASE_READY=YES
+ACTIVE_GOVERNANCE_LANE=V2.1.2_RELEASE_CLOSURE
+TAG_AUTHORIZED=NO
+GITHUB_RELEASE_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+当前 authority 为 `POST-V2.1.1-charles-engineering-rule-adjustments`；一级预冷
+为 7 批次/日、二级预冷和分选包装有效工时均为 14 h/day，分选包装最终面积系数
+为 1.1，化霜同时使用系数为 0.20。当前 factory-power identity 为
+`factory_power_estimation@2.0.0-p2`，result schema 仍为 `2.0.0-p1`。
+历史 p1 identity、0.30 化霜系数、历史 golden 与 v2.0/v2.1/v2.1.1 release
+evidence 保持不变；TD-008、TD-019、TD-021、TD-024 等无关技术债不因本 closure
+重新分类。

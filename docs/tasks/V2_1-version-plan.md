@@ -343,3 +343,38 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 Release readiness 是实现闭合与门禁审计结论，不是 Ready、Merge、tag、GitHub
 Release、部署或下一 feature lane 的执行授权。详见
 [V2_1-release-closure-readiness.md](V2_1-release-closure-readiness.md)。
+
+## V2.1.2 Patch Release Closure / v2.1.2 Readiness（当前；本分支 Draft）
+
+V2.1.1 之后的已合并 PR #266 只调整既有工程规则参数：一级预冷 7 批次/日、
+二级预冷 14 h/day、分选包装 14 h/day 与 1.1 最终面积系数，以及
+factory-power 化霜同时使用系数 0.20。当前 calculator revision 为
+`factory_power_estimation@2.0.0-p2`，结果 schema 仍为 `2.0.0-p1`；历史
+`v2.0.0`、`v2.1.0`、`v2.1.1` 证据不被重写。
+
+详见 [V2_1_2-patch-release-closure-readiness.md](V2_1_2-patch-release-closure-readiness.md)。
+
+```text
+TASK_ID=V2_1_2_PATCH_RELEASE_CLOSURE_R1
+TARGET_RELEASE=v2.1.2
+BASE_RELEASE=v2.1.1
+BASE_RELEASE_SHA=c9ce6e7399ec2a163ab4c7c7339b828a86abbf08
+PATCH_SOURCE_PR=266
+PATCH_SOURCE_MERGE_SHA=bdbedf885b8b42a3ca18aec9df2746a9505fee33
+MAIN_CI_RUN_ID=34567481057
+MAIN_CI_RUN_NUMBER=2352
+MAIN_CI_RESULT=SUCCESS
+V2_1_2_PATCH_SCOPE_CLOSED=YES
+V2_1_2_RELEASE_CANDIDATE=YES
+V2_1_2_RELEASE_READY=YES
+ACTIVE_GOVERNANCE_LANE=V2.1.2_RELEASE_CLOSURE
+TAG_AUTHORIZED=NO
+GITHUB_RELEASE_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+上面的 v2.1.0/v2.1.1 closure 区块是历史 authorization/release evidence
+snapshot，保持原样；本区块只记录当前 v2.1.2 readiness，不授权 tag、Release、
+部署、Ready、Merge 或下一 feature lane。

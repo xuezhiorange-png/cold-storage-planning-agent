@@ -61,6 +61,34 @@ NEXT_FEATURE_LANE_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
+## V2.1.2 Patch Release Closure（当前；Draft）
+
+当前治理 lane 是 v2.1.2 patch release closure/readiness。PR #266 已合并，
+exact-main CI 已在 `bdbedf885b8b42a3ca18aec9df2746a9505fee33` 成功；本 lane 只
+记录 readiness evidence，不改变生产代码、MCP/Skill、数据库或部署边界。V2.1.2
+继续使用当前 14 h 工时与 factory-power p2 identity，并保留 v2.1.0/v2.1.1
+历史 release evidence。
+
+```text
+TASK_ID=V2_1_2_PATCH_RELEASE_CLOSURE_R1
+TARGET_RELEASE=v2.1.2
+BASE_RELEASE=v2.1.1
+BASE_RELEASE_SHA=c9ce6e7399ec2a163ab4c7c7339b828a86abbf08
+PATCH_TARGET_SHA=bdbedf885b8b42a3ca18aec9df2746a9505fee33
+V2_1_2_PATCH_SCOPE_CLOSED=YES
+V2_1_2_RELEASE_CANDIDATE=YES
+V2_1_2_RELEASE_READY=YES
+ACTIVE_GOVERNANCE_LANE=V2.1.2_RELEASE_CLOSURE
+PRODUCTION_CODE_CHANGED=NO
+FRONTEND_PRODUCTION_CODE_CHANGED=NO
+DATABASE_SCHEMA_CHANGED=NO
+TAG_AUTHORIZED=NO
+GITHUB_RELEASE_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
 The V1.9 release-closure PR was documentation/governance only and has completed;
 `v1.9.0` is already released. V2.0 release closure subsequently completed and
 `v2.0.0` is released. The active governance work is the separate V2.1
