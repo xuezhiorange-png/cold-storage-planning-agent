@@ -68,6 +68,7 @@ def migrated_client(monkeypatch: pytest.MonkeyPatch):
     # replay remains on the old golden while current defaults stay at 14 h/day.
     original_project_to_zone_input_fields = ZonePlanningAdapter._project_to_zone_input_fields
     original_adapter_init = ZonePlanningAdapter.__init__
+    original_zone_plan = ColdRoomZonePlanner.plan
     original_packing_person_daily_capacity = ColdRoomZonePlanner._packing_person_daily_capacity_kg
 
     def _project_v07_historical_zone_input_fields(
@@ -103,12 +104,42 @@ def migrated_client(monkeypatch: pytest.MonkeyPatch):
         # continue to drive the value.
         return int(original_packing_person_daily_capacity(planner, data))
 
+    def _historical_zone_plan(
+        planner: ColdRoomZonePlanner,
+        data: Any,
+    ) -> Any:
+        result = original_zone_plan(planner, data)
+        if not result.success:
+            return result
+
+        # V0.7 predates the current sorting-area trace fields.  Restore the
+        # historical snapshot shape in this fixture only; current production
+        # results keep the additive fields and the 1.1 area factor.
+        result.assumptions[0] = (
+            "POST-V0.9 P4 Charles 2026-08-28 书面锁定工时与面积公式；"
+            "operator KEY 仅提供 M、成品天数、冻果天数、包材天数。"
+        )
+        planning_parameters = result.result.get("planning_parameters")
+        if isinstance(planning_parameters, dict):
+            for key in (
+                "sorting_packaging_area_factor",
+                "sorting_packaging_raw_required_area_m2",
+                "sorting_packaging_required_area_m2",
+            ):
+                planning_parameters.pop(key, None)
+        for zone in result.result.get("zones", []):
+            if isinstance(zone, dict) and zone.get("zone_code") == "sorting_packaging_room":
+                zone.pop("raw_required_area_m2", None)
+                zone.pop("sorting_packaging_area_factor", None)
+        return result
+
     monkeypatch.setattr(
         ZonePlanningAdapter,
         "_project_to_zone_input_fields",
         staticmethod(_project_v07_historical_zone_input_fields),
     )
     monkeypatch.setattr(ZonePlanningAdapter, "__init__", _historical_zone_adapter_init)
+    monkeypatch.setattr(ColdRoomZonePlanner, "plan", _historical_zone_plan)
     monkeypatch.setattr(
         ColdRoomZonePlanner,
         "_packing_person_daily_capacity_kg",
