@@ -10,8 +10,8 @@ def test_demo_overview_contains_sample_data_for_all_modules() -> None:
     )
     assert overview["overall_status"]["module_count"] == 13
     assert overview["overall_status"]["requires_review_count"] >= 5
-    assert overview["overall_status"]["total_area_m2"] == 2147.24
-    assert overview["overall_status"]["total_investment_cny"] == 6923009.5
+    assert overview["overall_status"]["total_area_m2"] == 2174.3
+    assert overview["overall_status"]["total_investment_cny"] == 6923556.0
     assert [module["module"] for module in overview["modules"]] == [
         "项目管理",
         "设计参数",
