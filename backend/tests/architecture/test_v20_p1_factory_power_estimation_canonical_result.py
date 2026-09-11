@@ -67,6 +67,9 @@ RUNTIME_PATH = (
     / "domain"
     / "factory_power_estimation.py"
 )
+HISTORICAL_GOLDEN_PATH = (
+    REPO_ROOT / "backend/tests/golden/v20_factory_power_canonical_result_v1.json"
+)
 
 EXPECTED_CHANGED_PATHS = {
     "backend/src/cold_storage/modules/calculations/domain/factory_power_estimation.py",
@@ -155,6 +158,14 @@ def _p0_contract_data() -> dict[str, object]:
     data = json.loads(match.group(1))
     assert isinstance(data, dict)
     return data
+
+
+def _historical_p1_calculator() -> dict[str, str]:
+    payload = json.loads(HISTORICAL_GOLDEN_PATH.read_text(encoding="utf-8"))
+    calculator = payload["calculator"]
+    assert isinstance(calculator, dict)
+    assert all(isinstance(value, str) for value in calculator.values())
+    return calculator
 
 
 def _assert_historical_target_is_ancestor_of_head() -> None:
@@ -394,8 +405,13 @@ def test_v20_p0_system_boundaries_and_power_pools_match_runtime_registry() -> No
 
 
 def test_canonical_result_fields_and_five_stage_boundary_are_locked() -> None:
-    assert CALCULATOR_IDENTITY == "factory_power_estimation@2.0.0-p1"
-    assert CALCULATOR_VERSION == "2.0.0-p1"
+    assert CALCULATOR_IDENTITY == "factory_power_estimation@2.0.0-p2"
+    assert CALCULATOR_VERSION == "2.0.0-p2"
+    assert _historical_p1_calculator() == {
+        "id": "factory_power_estimation",
+        "version": "2.0.0-p1",
+        "identity": "factory_power_estimation@2.0.0-p1",
+    }
     assert CALCULATOR_IDENTITY != "installed_power@1.0.0"
     assert [member.value for member in CalculationType] == [
         "zone",

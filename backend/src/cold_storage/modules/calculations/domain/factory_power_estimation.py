@@ -22,7 +22,9 @@ from typing import NoReturn
 from cold_storage.modules.calculations.domain.errors import CoreCalculationError
 
 CALCULATOR_ID = "factory_power_estimation"
-CALCULATOR_VERSION = "2.0.0-p1"
+# The post-v2.1.1 defrost rule is a new calculator revision.  Keep the
+# serialized result schema stable because the payload shape did not change.
+CALCULATOR_VERSION = "2.0.0-p2"
 CALCULATOR_IDENTITY = f"{CALCULATOR_ID}@{CALCULATOR_VERSION}"
 RESULT_SCHEMA_VERSION = "2.0.0-p1"
 P0_CONTRACT_TASK_ID = "V20_P0_FACTORY_POWER_ESTIMATION_AND_PRESENTATION_CONTRACT_R1"

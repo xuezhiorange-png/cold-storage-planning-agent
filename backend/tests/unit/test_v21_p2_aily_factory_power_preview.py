@@ -43,8 +43,8 @@ def test_factory_power_preview_returns_shared_projected_result_and_markdown() ->
     assert body["reply_kind"] == "factory_power_estimation_table"
     assert body["available"] is True
     assert body["calculator_name"] == "factory_power_estimation"
-    assert body["calculator_version"] == "2.0.0-p1"
-    assert body["calculator_identity"] == "factory_power_estimation@2.0.0-p1"
+    assert body["calculator_version"] == "2.0.0-p2"
+    assert body["calculator_identity"] == "factory_power_estimation@2.0.0-p2"
     assert _HASH_PATTERN.fullmatch(str(body["canonical_result_hash"]))
     assert body["requires_review"] is True
     assert body["persisted"] is False

@@ -87,3 +87,42 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 The implementation PR remains a Draft review gate. No MCP/Skill contract,
 database, release, deployment, or unrelated calculation formula is included.
+
+## R2 calculator identity correction (current Draft)
+
+The R1 rule adjustment changed the production defrost simultaneous-use factor
+to `0.20`, but retained the released P1 calculator identity in current
+consumer metadata. R2 closes that identity conflict by publishing a new
+calculator revision. The result schema is unchanged because the serialized
+payload shape is unchanged.
+
+```text
+TASK_ID=POST_V2_1_1_ENGINEERING_RULE_ADJUSTMENTS_R2
+BASE_HEAD_SHA=dcb6e87877255e8a3619abc2fcde1330bd702012
+OLD_FACTORY_POWER_CALCULATOR_VERSION=2.0.0-p1
+OLD_FACTORY_POWER_CALCULATOR_IDENTITY=factory_power_estimation@2.0.0-p1
+OLD_DEFROST_SIMULTANEOUS_FACTOR=0.30
+NEW_FACTORY_POWER_CALCULATOR_VERSION=2.0.0-p2
+NEW_FACTORY_POWER_CALCULATOR_IDENTITY=factory_power_estimation@2.0.0-p2
+NEW_DEFROST_SIMULTANEOUS_FACTOR=0.20
+RESULT_SCHEMA_VERSION=2.0.0-p1
+HISTORICAL_P1_IDENTITY_PRESERVED=YES
+HISTORICAL_P1_FACTOR_PRESERVED=YES
+CURRENT_CONSUMERS_USE_NEW_IDENTITY=YES
+MCP_TOOL_COUNT=6
+MCP_CONTRACT_CHANGED=NO
+DATABASE_MIGRATION_CHANGED=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+TAG_AUTHORIZED=NO
+GITHUB_RELEASE_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The immutable V2.0/V2.1/v2.1.1 release evidence remains a P1 historical
+snapshot with `POOL_A=0.30`. Current untagged production results and their
+read-only consumers use `factory_power_estimation@2.0.0-p2` with `POOL_A=0.20`.
+The V2.1 Skill, runbook, release-closure records, and golden artifacts remain
+unchanged historical evidence; this R2 correction does not rewrite a released
+artifact or move a tag.

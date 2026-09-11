@@ -9,8 +9,8 @@ const VALID_CANONICAL_HASH = `sha256:${'a'.repeat(64)}`
 const ATTACHED_PRESENTATION: FactoryPowerPresentation = {
   schema_version: '2.0.0-p1',
   source_calculator_id: 'factory_power_estimation',
-  source_calculator_version: '2.0.0-p1',
-  source_calculator_identity: 'factory_power_estimation@2.0.0-p1',
+  source_calculator_version: '2.0.0-p2',
+  source_calculator_identity: 'factory_power_estimation@2.0.0-p2',
   canonical_result_hash: VALID_CANONICAL_HASH,
   factory_area_band: 'SMALL',
   unit_semantics: {
@@ -53,15 +53,15 @@ function canonicalRecord(overrides: Record<string, unknown> = {}): CalculationRu
     project_id: 'project-1',
     project_version_id: 'version-1',
     calculator_name: 'factory_power_estimation',
-    calculator_version: '2.0.0-p1',
+    calculator_version: '2.0.0-p2',
     result_snapshot: {
       schema_version: '2.0.0-p1',
       result_kind: 'factory_power_canonical_result',
       success: true,
       calculator: {
         id: 'factory_power_estimation',
-        version: '2.0.0-p1',
-        identity: 'factory_power_estimation@2.0.0-p1'
+        version: '2.0.0-p2',
+        identity: 'factory_power_estimation@2.0.0-p2'
       },
       input_authority: { factory_area_m2: '2500' },
       factory_area_band: 'SMALL',
@@ -107,7 +107,7 @@ describe('mapFactoryPowerPresentation', () => {
   it('copies canonical values and selects the exact V2 calculator identity', () => {
     const presentation = mapFactoryPowerPresentation([canonicalRecord()])
 
-    expect(presentation?.source_calculator_identity).toBe('factory_power_estimation@2.0.0-p1')
+    expect(presentation?.source_calculator_identity).toBe('factory_power_estimation@2.0.0-p2')
     expect(presentation?.canonical_result_hash).toBe(VALID_CANONICAL_HASH)
     expect(presentation?.summary.estimated_total_power_kw).toBe('999.999')
     expect(presentation?.details[0].configured_quantity).toBe(7)

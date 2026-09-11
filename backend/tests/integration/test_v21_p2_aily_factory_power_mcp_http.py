@@ -103,7 +103,7 @@ def test_factory_power_mcp_call_returns_shared_success_projection() -> None:
     assert body["ok"] is True
     assert body["reply_kind"] == "factory_power_estimation_table"
     assert body["available"] is True
-    assert body["calculator_identity"] == "factory_power_estimation@2.0.0-p1"
+    assert body["calculator_identity"] == "factory_power_estimation@2.0.0-p2"
     assert body["canonical_result_hash"].startswith("sha256:")
     assert body["requires_review"] is True
     assert body["persisted"] is False

@@ -6,7 +6,8 @@ import type {
 } from '../../../api/contracts/factoryPower'
 
 export const FACTORY_POWER_CALCULATOR_ID = 'factory_power_estimation'
-export const FACTORY_POWER_CALCULATOR_VERSION = '2.0.0-p1'
+export const FACTORY_POWER_CALCULATOR_VERSION = '2.0.0-p2'
+export const FACTORY_POWER_RESULT_SCHEMA_VERSION = '2.0.0-p1'
 export const FACTORY_POWER_CALCULATOR_IDENTITY =
   `${FACTORY_POWER_CALCULATOR_ID}@${FACTORY_POWER_CALCULATOR_VERSION}`
 
@@ -52,7 +53,7 @@ export function latestFactoryPowerRecord(
 function isValidPresentation(value: unknown): value is FactoryPowerPresentation {
   return (
     isObject(value)
-    && value.schema_version === FACTORY_POWER_CALCULATOR_VERSION
+    && value.schema_version === FACTORY_POWER_RESULT_SCHEMA_VERSION
     && value.source_calculator_id === FACTORY_POWER_CALCULATOR_ID
     && value.source_calculator_version === FACTORY_POWER_CALCULATOR_VERSION
     && value.source_calculator_identity === FACTORY_POWER_CALCULATOR_IDENTITY

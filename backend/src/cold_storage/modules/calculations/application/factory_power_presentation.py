@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 FACTORY_POWER_CALCULATOR_ID = "factory_power_estimation"
-FACTORY_POWER_CALCULATOR_VERSION = "2.0.0-p1"
+FACTORY_POWER_CALCULATOR_VERSION = "2.0.0-p2"
 FACTORY_POWER_CALCULATOR_IDENTITY = (
     f"{FACTORY_POWER_CALCULATOR_ID}@{FACTORY_POWER_CALCULATOR_VERSION}"
 )
@@ -129,7 +129,7 @@ def canonical_result_hash(canonical_result: Mapping[str, Any]) -> str:
 def build_factory_power_presentation(
     canonical_result: Mapping[str, Any],
 ) -> FactoryPowerPresentation:
-    """Validate and project one serialized P1 result without recalculation."""
+    """Validate and project one serialized current result without recalculation."""
     payload = _require_mapping(canonical_result, "canonical_result")
     _require_exact_text(payload, "schema_version", FACTORY_POWER_RESULT_SCHEMA_VERSION)
     _require_exact_text(payload, "result_kind", FACTORY_POWER_RESULT_KIND)
@@ -191,7 +191,7 @@ def factory_power_presentation_from_record(
 ) -> FactoryPowerPresentation:
     """Read a matching CalculationRun-shaped record and project its snapshot."""
     if not is_factory_power_record(record):
-        raise FactoryPowerPresentationError("record is not factory_power_estimation@2.0.0-p1")
+        raise FactoryPowerPresentationError("record is not factory_power_estimation@2.0.0-p2")
     snapshot = _require_mapping(record.get("result_snapshot"), "record.result_snapshot")
     canonical = _canonical_payload_from_snapshot(snapshot)
     return build_factory_power_presentation(canonical)

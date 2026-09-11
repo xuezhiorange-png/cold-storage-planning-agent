@@ -174,12 +174,12 @@ def _assert_direct_typed_blocker(
 def test_v2_identity_is_distinct_and_result_has_one_canonical_shape() -> None:
     result = calculate_factory_power_estimation_from_mapping(_raw_input())
 
-    assert CALCULATOR_IDENTITY == "factory_power_estimation@2.0.0-p1"
-    assert CALCULATOR_VERSION == "2.0.0-p1"
+    assert CALCULATOR_IDENTITY == "factory_power_estimation@2.0.0-p2"
+    assert CALCULATOR_VERSION == "2.0.0-p2"
     assert result.to_dict()["calculator"] == {
         "id": "factory_power_estimation",
-        "version": "2.0.0-p1",
-        "identity": "factory_power_estimation@2.0.0-p1",
+        "version": "2.0.0-p2",
+        "identity": "factory_power_estimation@2.0.0-p2",
     }
     payload = result.to_dict()
     assert payload["result_kind"] == "factory_power_canonical_result"

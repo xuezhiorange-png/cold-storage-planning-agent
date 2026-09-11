@@ -117,7 +117,7 @@ _FACTORY_POWER_TOOL_DESCRIPTION = (
     "根据五个过程参数生成估算工厂电功率表。"
     "只传五个 KEY，不要传 factory_area_m2、cold_storage_area_m2 或任何面积。"
     "单位为 kW，这是概念设计阶段估算，requires_review=true，需工程复核，不是施工图。"
-    "后端从 canonical zone-plan 绑定面积并调用 factory_power_estimation@2.0.0-p1；"
+    "后端从 canonical zone-plan 绑定面积并调用 factory_power_estimation@2.0.0-p2；"
     "成功时原样展示 markdown_table，失败时按 ask_operator 处理，不要编造数字。"
 )
 

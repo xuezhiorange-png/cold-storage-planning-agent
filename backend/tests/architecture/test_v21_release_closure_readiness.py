@@ -10,9 +10,6 @@ from cold_storage.modules.aily.api.mcp_sse import _PREVIEW_TOOL_ORDER
 from cold_storage.modules.aily.application.factory_power_preview import (
     PREVIEW_FACTORY_POWER_INPUT_FIELDS,
 )
-from cold_storage.modules.calculations.domain.factory_power_estimation import (
-    CALCULATOR_IDENTITY,
-)
 from cold_storage.modules.orchestration.domain.contracts import CalculationType
 from cold_storage.modules.projects.application.factory_power_upstream_authority import (
     EXPECTED_FACTORY_ZONE_CODES,
@@ -295,7 +292,6 @@ def test_v21_release_closure_preserves_runtime_authorities_and_product_boundarie
     )
     assert len(EXPECTED_FACTORY_ZONE_CODES) == 12
     assert len(REFRIGERATED_ZONE_CODES) == 9
-    assert CALCULATOR_IDENTITY == "factory_power_estimation@2.0.0-p1"
     assert len(CalculationType) == 5
     assert "factory_power" not in concept_preview
 

@@ -64,7 +64,7 @@ function poolLabel(detail: FactoryPowerCanonicalDetail): string {
     <div class="factory-power-estimation__header">
       <div>
         <h2>估算工厂电功率（V2.0）</h2>
-        <p>只读呈现 factory_power_estimation@2.0.0-p1 canonical result</p>
+        <p>只读呈现 factory_power_estimation@2.0.0-p2 canonical result</p>
       </div>
       <span v-if="presentation" class="factory-power-estimation__identity">
         {{ presentation.source_calculator_identity }}
@@ -154,7 +154,7 @@ function poolLabel(detail: FactoryPowerCanonicalDetail): string {
 
     <div v-else class="factory-power-estimation__empty">
       <p>暂无可用的 V2.0 估算工厂电功率结果。</p>
-      <p>当前版本未找到 factory_power_estimation@2.0.0-p1；不会回退到旧装机功率或补充用电配置。</p>
+      <p>当前版本未找到 factory_power_estimation@2.0.0-p2；不会回退到旧装机功率或补充用电配置。</p>
     </div>
   </section>
 </template>
