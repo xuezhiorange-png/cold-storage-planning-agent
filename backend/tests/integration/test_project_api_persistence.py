@@ -83,7 +83,7 @@ def test_project_api_persists_inputs_calculations_and_audit(tmp_path: Path) -> N
         json={},
     ).json()
     assert investment["calculator_name"] == "investment_estimate"
-    assert investment["result"]["total_investment_cny"] == 6923009.5
+    assert investment["result"]["total_investment_cny"] == 6923556.0
     assert [item["item_name"] for item in investment["result"]["items"]] == [
         "土建及钢结构",
         "冷库制冷设备",
@@ -131,7 +131,7 @@ def test_project_api_persists_inputs_calculations_and_audit(tmp_path: Path) -> N
     assert planning_run["zone_plan"]["result"]["zones"][7]["position_count"] == 136
     assert planning_run["zone_plan"]["result"]["zones"][9]["design_storage_mass_kg"] == 25_000
     assert planning_run["zone_plan"]["result"]["zones"][10]["position_count"] == 137
-    assert planning_run["summary"]["total_power_kw"] == 1360.55
+    assert planning_run["summary"]["total_power_kw"] == 1277.52
     assert planning_run["power_configuration"]["equipment_rows"][0]["name"] == "制冷压缩机组"
     assert (
         planning_run["power_configuration"]["equipment_rows"][0]["area"]
@@ -150,10 +150,10 @@ def test_project_api_persists_inputs_calculations_and_audit(tmp_path: Path) -> N
     assert planning_run["power_configuration"]["summary_rows"][1]["name"] == "设备运行功率"
     assert planning_run["power_configuration"]["summary_rows"][2] == {
         "name": "制冷总功率",
-        "basis": "化霜同时系数30% + 设备运行同时系数90%",
-        "total_power_kw": 1076.15,
+        "basis": "化霜同时系数20% + 设备运行同时系数90%",
+        "total_power_kw": 993.12,
     }
-    assert planning_run["power_configuration"]["summary_rows"][-1]["total_power_kw"] == 1360.55
+    assert planning_run["power_configuration"]["summary_rows"][-1]["total_power_kw"] == 1277.52
     assert planning_run["power_configuration"]["requires_review"] is True
 
     # Walk version through state machine: draft -> under_review -> reviewed -> approved

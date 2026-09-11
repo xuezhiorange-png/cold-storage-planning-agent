@@ -8,8 +8,8 @@ import pytest
 
 from cold_storage.modules.calculations.domain.zone_planning import (
     COATING_AREA_BY_BAND_M2,
-    FORMULA_AUTHORITY,
     FROZEN_FRUIT_RATIO,
+    HISTORICAL_FORMULA_AUTHORITY,
     OFFICE_AREA_BY_BAND_M2,
     PACKAGING_K_BY_BAND,
     PACKAGING_POSITION_BASE_AREA_M2,
@@ -23,9 +23,11 @@ from cold_storage.modules.calculations.domain.zone_planning import (
     ColdRoomZonePlanner,
 )
 
+POST_V09_PRIMARY_PRECOOL_WORKING_HOURS_PER_DAY = 6
 POST_V09_SECONDARY_PRECOOL_WORKING_HOURS_PER_DAY = 16
 POST_V09_PACKING_WORKING_HOURS_PER_DAY = 16
 POST_V09_PERSON_DAILY_CAPACITY_KG = 16 * 1.5 * POST_V09_PACKING_WORKING_HOURS_PER_DAY
+POST_V09_SORTING_PACKAGING_AREA_FACTOR = 1.0
 
 
 def _throughput_band_area(mass_tons: float, areas: tuple[float, float, float]) -> float:
@@ -196,7 +198,10 @@ SAMPLE_KEY_TOTAL = 2061.85
 
 def test_post_v09_p4_sample_key_oracle() -> None:
     """Charles sample KEY: 20 t/day, finished 7 d, frozen 10 d, main 4 d, aux 12 d."""
-    planner = ColdRoomZonePlanner()
+    planner = ColdRoomZonePlanner(
+        formula_authority=HISTORICAL_FORMULA_AUTHORITY,
+        sorting_packaging_area_factor=POST_V09_SORTING_PACKAGING_AREA_FACTOR,
+    )
     result = planner.plan(
         ColdRoomZonePlanInput(
             daily_inbound_mass_kg=20_000,
@@ -204,6 +209,7 @@ def test_post_v09_p4_sample_key_oracle() -> None:
             finished_storage_days=7,
             packaging_storage_days=3,
             precooling_required_ratio=1,
+            primary_precooling_working_hours_per_day=POST_V09_PRIMARY_PRECOOL_WORKING_HOURS_PER_DAY,
             secondary_precooling_working_hours_per_day=POST_V09_SECONDARY_PRECOOL_WORKING_HOURS_PER_DAY,
             packing_working_hours_per_day=POST_V09_PACKING_WORKING_HOURS_PER_DAY,
             frozen_storage_days=10,
@@ -213,7 +219,9 @@ def test_post_v09_p4_sample_key_oracle() -> None:
     )
 
     assert result.success is True
-    assert result.result["planning_parameters"]["formula_authority"] == FORMULA_AUTHORITY
+    assert result.result["planning_parameters"]["formula_authority"] == (
+        HISTORICAL_FORMULA_AUTHORITY
+    )
     zones = {zone["zone_code"]: zone for zone in result.result["zones"]}
     for zone_code, expected_area in SAMPLE_KEY_ORACLE.items():
         assert zones[zone_code]["required_area_m2"] == pytest.approx(expected_area, abs=0.01)
@@ -241,7 +249,10 @@ def test_post_v09_p4_throughput_band_edges(
     assert _throughput_band_area(mass_tons, COATING_AREA_BY_BAND_M2) == expected_coating
     assert _throughput_band_area(mass_tons, PACKAGING_K_BY_BAND) == expected_k
 
-    planner = ColdRoomZonePlanner()
+    planner = ColdRoomZonePlanner(
+        formula_authority=HISTORICAL_FORMULA_AUTHORITY,
+        sorting_packaging_area_factor=POST_V09_SORTING_PACKAGING_AREA_FACTOR,
+    )
     result = planner.plan(
         ColdRoomZonePlanInput(
             daily_inbound_mass_kg=daily_mass_kg,
@@ -249,6 +260,7 @@ def test_post_v09_p4_throughput_band_edges(
             finished_storage_days=3,
             packaging_storage_days=3,
             precooling_required_ratio=1,
+            primary_precooling_working_hours_per_day=POST_V09_PRIMARY_PRECOOL_WORKING_HOURS_PER_DAY,
             secondary_precooling_working_hours_per_day=POST_V09_SECONDARY_PRECOOL_WORKING_HOURS_PER_DAY,
             packing_working_hours_per_day=POST_V09_PACKING_WORKING_HOURS_PER_DAY,
         )
@@ -274,7 +286,10 @@ def test_post_v09_p4_zone_planning_matches_independent_oracles(
     finished_storage_days: float,
     frozen_storage_days: float,
 ) -> None:
-    planner = ColdRoomZonePlanner()
+    planner = ColdRoomZonePlanner(
+        formula_authority=HISTORICAL_FORMULA_AUTHORITY,
+        sorting_packaging_area_factor=POST_V09_SORTING_PACKAGING_AREA_FACTOR,
+    )
     result = planner.plan(
         ColdRoomZonePlanInput(
             daily_inbound_mass_kg=daily_mass_kg,
@@ -282,6 +297,7 @@ def test_post_v09_p4_zone_planning_matches_independent_oracles(
             finished_storage_days=finished_storage_days,
             packaging_storage_days=3,
             precooling_required_ratio=1,
+            primary_precooling_working_hours_per_day=POST_V09_PRIMARY_PRECOOL_WORKING_HOURS_PER_DAY,
             secondary_precooling_working_hours_per_day=POST_V09_SECONDARY_PRECOOL_WORKING_HOURS_PER_DAY,
             packing_working_hours_per_day=POST_V09_PACKING_WORKING_HOURS_PER_DAY,
             frozen_storage_days=frozen_storage_days,
@@ -289,7 +305,9 @@ def test_post_v09_p4_zone_planning_matches_independent_oracles(
     )
 
     assert result.success is True
-    assert result.result["planning_parameters"]["formula_authority"] == FORMULA_AUTHORITY
+    assert result.result["planning_parameters"]["formula_authority"] == (
+        HISTORICAL_FORMULA_AUTHORITY
+    )
     zones = result.result["zones"]
     mass_tons = daily_mass_kg / 1000
 

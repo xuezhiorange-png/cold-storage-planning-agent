@@ -22,7 +22,9 @@ from typing import NoReturn
 from cold_storage.modules.calculations.domain.errors import CoreCalculationError
 
 CALCULATOR_ID = "factory_power_estimation"
-CALCULATOR_VERSION = "2.0.0-p1"
+# The post-v2.1.1 defrost rule is a new calculator revision.  Keep the
+# serialized result schema stable because the payload shape did not change.
+CALCULATOR_VERSION = "2.0.0-p2"
 CALCULATOR_IDENTITY = f"{CALCULATOR_ID}@{CALCULATOR_VERSION}"
 RESULT_SCHEMA_VERSION = "2.0.0-p1"
 P0_CONTRACT_TASK_ID = "V20_P0_FACTORY_POWER_ESTIMATION_AND_PRESENTATION_CONTRACT_R1"
@@ -363,7 +365,9 @@ PRODUCTION_POWER_BY_BAND: Mapping[str, Decimal] = MappingProxyType(
     {"SMALL": Decimal("200.0"), "MEDIUM": Decimal("300.0"), "LARGE": Decimal("400.0")}
 )
 
-POOL_A_SIMULTANEITY_FACTOR = Decimal("0.30")
+HISTORICAL_POOL_A_SIMULTANEITY_FACTOR = Decimal("0.30")
+DEFROST_SIMULTANEOUS_USE_FACTOR = Decimal("0.20")
+POOL_A_SIMULTANEITY_FACTOR = DEFROST_SIMULTANEOUS_USE_FACTOR
 POOL_B_SIMULTANEITY_FACTOR_BY_BAND: Mapping[str, Decimal] = MappingProxyType(
     {"SMALL": Decimal("1.00"), "MEDIUM": Decimal("0.90"), "LARGE": Decimal("0.80")}
 )
@@ -1494,6 +1498,7 @@ __all__ = [
     "CALCULATOR_ID",
     "CALCULATOR_IDENTITY",
     "CALCULATOR_VERSION",
+    "DEFROST_SIMULTANEOUS_USE_FACTOR",
     "DEDICATED_COMPRESSOR_POWER_BY_ZONE",
     "DEDICATED_SYSTEM_ZONE_CODES",
     "EVAPORATIVE_CONDENSER_POWER_BY_BAND",
@@ -1510,6 +1515,7 @@ __all__ = [
     "LightingRule",
     "MAIN_SYSTEM_COP",
     "MAIN_SYSTEM_ZONE_CODES",
+    "HISTORICAL_POOL_A_SIMULTANEITY_FACTOR",
     "POOL_A_SIMULTANEITY_FACTOR",
     "POOL_B_SIMULTANEITY_FACTOR_BY_BAND",
     "POOL_C_SIMULTANEITY_FACTOR",

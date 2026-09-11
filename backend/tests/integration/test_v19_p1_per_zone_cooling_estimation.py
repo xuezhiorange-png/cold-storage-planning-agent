@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from cold_storage.modules.calculations.domain.zone_planning import (
+    HISTORICAL_FORMULA_AUTHORITY,
+    ColdRoomZonePlanner,
+)
 from cold_storage.modules.orchestration.application.production_calculation import (
     adapters,
     persistence,
@@ -24,6 +28,9 @@ def _zone_projection() -> CalculatorInputProjection:
             "finished_storage_days": 2.5,
             "packaging_storage_days": 3.0,
             "precooling_required_ratio": 1.0,
+            "primary_precooling_working_hours_per_day": 6.0,
+            "secondary_precooling_working_hours_per_day": 16.0,
+            "packing_working_hours_per_day": 16.0,
         },
         actor="v19-p1-test",
         correlation_id="v19-p1-zone",
@@ -37,7 +44,12 @@ def _zone_by_code(zones: list[dict[str, Any]], code: str) -> dict[str, Any]:
 
 def test_zone_planner_adapter_preserves_v19_fields_end_to_end() -> None:
     projection_value = _zone_projection()
-    adapter_result = adapters.ZonePlanningAdapter().execute(projection_value)
+    adapter_result = adapters.ZonePlanningAdapter(
+        planner=ColdRoomZonePlanner(
+            formula_authority=HISTORICAL_FORMULA_AUTHORITY,
+            sorting_packaging_area_factor=1.0,
+        )
+    ).execute(projection_value)
 
     assert adapter_result.calculation_type is CalculationType.ZONE
     assert adapter_result.calculator_name == "cold_room_zone_plan"

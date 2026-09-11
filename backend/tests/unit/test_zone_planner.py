@@ -59,14 +59,14 @@ def test_zone_planner_converts_known_production_to_room_capacities_and_areas() -
     secondary = zones[3]
     assert primary["daily_throughput_kg_day"] == 25_000
     assert secondary["daily_throughput_kg_day"] == 25_000
-    assert primary["raw_position_count"] == 19
+    assert primary["raw_position_count"] == 17
     assert primary["reporting_scheme_id"] == "6_position"
-    assert primary["position_count"] == 24
-    assert primary["position_daily_capacity_kg_day"] == 1320
-    assert primary["required_area_m2"] == pytest.approx(168, abs=0.01)
+    assert primary["position_count"] == 18
+    assert primary["position_daily_capacity_kg_day"] == 1540
+    assert primary["required_area_m2"] == pytest.approx(126, abs=0.01)
     assert len(primary["schemes"]) == 2
     assert primary["schemes"][0]["scheme_id"] == "6_position"
-    assert primary["schemes"][0]["required_area_m2"] == pytest.approx(168, abs=0.01)
+    assert primary["schemes"][0]["required_area_m2"] == pytest.approx(126, abs=0.01)
     assert primary["schemes"][1]["scheme_id"] == "8_position"
     assert primary["schemes"][1]["required_area_m2"] == pytest.approx(168, abs=0.01)
 
@@ -91,7 +91,8 @@ def test_zone_planner_converts_known_production_to_room_capacities_and_areas() -
     assert sorting["worker_count"] == 75
     assert sorting["table_count"] == 25
     assert sorting["position_count"] == 28
-    assert sorting["required_area_m2"] == pytest.approx(690.56, abs=0.01)
+    assert sorting["raw_required_area_m2"] == pytest.approx(690.56, abs=0.01)
+    assert sorting["required_area_m2"] == pytest.approx(759.62, abs=0.01)
 
     assert zones[6]["required_area_m2"] == pytest.approx(120, abs=0.01)
 
@@ -125,8 +126,8 @@ def test_zone_planner_converts_known_production_to_room_capacities_and_areas() -
     assert shipping["position_count"] == 1
     assert shipping["required_area_m2"] == pytest.approx(50, abs=0.01)
 
-    assert result.result["total_area_m2"] == pytest.approx(2147.24, abs=0.01)
-    assert result.result["total_area_m2_8_position_scheme"] == pytest.approx(2175.24, abs=0.01)
+    assert result.result["total_area_m2"] == pytest.approx(2174.30, abs=0.01)
+    assert result.result["total_area_m2_8_position_scheme"] == pytest.approx(2244.30, abs=0.01)
     assert result.result["planning_parameters"]["main_packaging_storage_days"] == 3
     assert result.result["planning_parameters"]["auxiliary_packaging_storage_days"] == 30
     assert result.result["planning_parameters"]["formula_authority"] == FORMULA_AUTHORITY

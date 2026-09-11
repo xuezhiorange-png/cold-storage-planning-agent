@@ -238,7 +238,7 @@ def test_v2_identity_is_separate_and_five_stage_calculation_type_is_unchanged() 
 
     shared_text = SHARED_PRESENTATION_PATH.read_text(encoding="utf-8")
     aily_text = AILY_PROJECTOR_PATH.read_text(encoding="utf-8")
-    assert "factory_power_estimation@2.0.0-p1" in shared_text
+    assert "factory_power_estimation@2.0.0-p2" in shared_text
     assert "installed_power@1.0.0" not in shared_text
     assert "power_configuration" not in shared_text
     assert "project_factory_power_table" in aily_text

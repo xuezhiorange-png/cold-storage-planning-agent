@@ -26,11 +26,18 @@ if os.environ.get("DATABASE_BACKEND") == "postgresql":
 
 from cold_storage.bootstrap.app import create_app
 from cold_storage.bootstrap.v05_local_sample import hydrate_engineering_input_bundle
-from cold_storage.modules.calculations.domain.zone_planning import ColdRoomZonePlanner
+from cold_storage.modules.calculations.domain.factory_power_estimation import (
+    HISTORICAL_POOL_A_SIMULTANEITY_FACTOR,
+)
+from cold_storage.modules.calculations.domain.zone_planning import (
+    HISTORICAL_FORMULA_AUTHORITY,
+    ColdRoomZonePlanner,
+)
 from cold_storage.modules.orchestration.application.production_calculation.adapters import (
     ZonePlanningAdapter,
 )
 from cold_storage.modules.orchestration.infrastructure.orm import SourceBindingRecord
+from cold_storage.modules.planning.application import service as planning_service
 from cold_storage.modules.projects.infrastructure.database import DatabaseProjectService
 from cold_storage.modules.projects.infrastructure.orm import CalculationRunRecord
 from tests.integration.v05_p4_acceptance_fixtures import execute_five_stage
@@ -60,15 +67,32 @@ def migrated_client(monkeypatch: pytest.MonkeyPatch):
     # field.  Keep this compatibility injection test-local so historical
     # replay remains on the old golden while current defaults stay at 14 h/day.
     original_project_to_zone_input_fields = ZonePlanningAdapter._project_to_zone_input_fields
+    original_adapter_init = ZonePlanningAdapter.__init__
+    original_zone_plan = ColdRoomZonePlanner.plan
     original_packing_person_daily_capacity = ColdRoomZonePlanner._packing_person_daily_capacity_kg
 
     def _project_v07_historical_zone_input_fields(
         raw_inputs: Mapping[str, Any],
     ) -> dict[str, Any]:
         projected = original_project_to_zone_input_fields(raw_inputs)
+        projected["primary_precooling_working_hours_per_day"] = 6
         projected["secondary_precooling_working_hours_per_day"] = 16
         projected["packing_working_hours_per_day"] = 16
         return projected
+
+    def _historical_zone_adapter_init(
+        adapter: ZonePlanningAdapter,
+        *,
+        planner: ColdRoomZonePlanner | None = None,
+    ) -> None:
+        original_adapter_init(
+            adapter,
+            planner=planner
+            or ColdRoomZonePlanner(
+                formula_authority=HISTORICAL_FORMULA_AUTHORITY,
+                sorting_packaging_area_factor=1.0,
+            ),
+        )
 
     def _project_v07_historical_packing_capacity(
         planner: ColdRoomZonePlanner,
@@ -80,15 +104,51 @@ def migrated_client(monkeypatch: pytest.MonkeyPatch):
         # continue to drive the value.
         return int(original_packing_person_daily_capacity(planner, data))
 
+    def _historical_zone_plan(
+        planner: ColdRoomZonePlanner,
+        data: Any,
+    ) -> Any:
+        result = original_zone_plan(planner, data)
+        if not result.success:
+            return result
+
+        # V0.7 predates the current sorting-area trace fields.  Restore the
+        # historical snapshot shape in this fixture only; current production
+        # results keep the additive fields and the 1.1 area factor.
+        result.assumptions[0] = (
+            "POST-V0.9 P4 Charles 2026-08-28 书面锁定工时与面积公式；"
+            "operator KEY 仅提供 M、成品天数、冻果天数、包材天数。"
+        )
+        planning_parameters = result.result.get("planning_parameters")
+        if isinstance(planning_parameters, dict):
+            for key in (
+                "sorting_packaging_area_factor",
+                "sorting_packaging_raw_required_area_m2",
+                "sorting_packaging_required_area_m2",
+            ):
+                planning_parameters.pop(key, None)
+        for zone in result.result.get("zones", []):
+            if isinstance(zone, dict) and zone.get("zone_code") == "sorting_packaging_room":
+                zone.pop("raw_required_area_m2", None)
+                zone.pop("sorting_packaging_area_factor", None)
+        return result
+
     monkeypatch.setattr(
         ZonePlanningAdapter,
         "_project_to_zone_input_fields",
         staticmethod(_project_v07_historical_zone_input_fields),
     )
+    monkeypatch.setattr(ZonePlanningAdapter, "__init__", _historical_zone_adapter_init)
+    monkeypatch.setattr(ColdRoomZonePlanner, "plan", _historical_zone_plan)
     monkeypatch.setattr(
         ColdRoomZonePlanner,
         "_packing_person_daily_capacity_kg",
         _project_v07_historical_packing_capacity,
+    )
+    monkeypatch.setattr(
+        planning_service,
+        "DEFROST_SIMULTANEOUS_USE_FACTOR",
+        HISTORICAL_POOL_A_SIMULTANEITY_FACTOR,
     )
 
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:

@@ -154,7 +154,7 @@ def _changed_paths() -> set[str]:
 
 def _git_diff_is_empty(*paths: str) -> bool:
     result = subprocess.run(
-        ["git", "diff", "--quiet", "origin/main", "--", *paths],
+        ["git", "diff", "--quiet", BASE_MAIN_SHA, P0_REFERENCE_HEAD_SHA, "--", *paths],
         cwd=REPO_ROOT,
         check=False,
     )

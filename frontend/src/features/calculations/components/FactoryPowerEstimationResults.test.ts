@@ -7,8 +7,8 @@ import FactoryPowerEstimationResults from './FactoryPowerEstimationResults.vue'
 const presentation: FactoryPowerPresentation = {
   schema_version: '2.0.0-p1',
   source_calculator_id: 'factory_power_estimation',
-  source_calculator_version: '2.0.0-p1',
-  source_calculator_identity: 'factory_power_estimation@2.0.0-p1',
+  source_calculator_version: '2.0.0-p2',
+  source_calculator_identity: 'factory_power_estimation@2.0.0-p2',
   canonical_result_hash: 'sha256:golden',
   factory_area_band: 'SMALL',
   unit_semantics: {

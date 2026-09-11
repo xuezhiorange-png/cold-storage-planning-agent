@@ -18,7 +18,8 @@ describe('V2.0 P2 factory-power read-only presentation boundary', () => {
   it('keeps V2 identity and consumer source selection exact', () => {
     const mapper = readFileSync(MAPPER_PATH, 'utf8')
     expect(mapper).toContain("FACTORY_POWER_CALCULATOR_ID = 'factory_power_estimation'")
-    expect(mapper).toContain("FACTORY_POWER_CALCULATOR_VERSION = '2.0.0-p1'")
+    expect(mapper).toContain("FACTORY_POWER_CALCULATOR_VERSION = '2.0.0-p2'")
+    expect(mapper).toContain("FACTORY_POWER_RESULT_SCHEMA_VERSION = '2.0.0-p1'")
     expect(mapper).toContain('record.factory_power_presentation')
     expect(mapper).toContain('if (!isValidPresentation(attached)) return null')
     expect(mapper).toContain('/^sha256:[0-9a-f]{64}$/u')

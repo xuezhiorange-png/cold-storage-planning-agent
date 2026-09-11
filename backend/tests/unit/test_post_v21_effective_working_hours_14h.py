@@ -6,6 +6,9 @@ import pytest
 
 from cold_storage.modules.calculations.domain.zone_planning import (
     FORMULA_AUTHORITY,
+    PRIMARY_PRECOOL_BATCHES_PER_DAY,
+    PRIMARY_PRECOOL_Q_D_KG_DAY,
+    SORTING_PACKAGING_AREA_FACTOR,
     ColdRoomZonePlanInput,
     ColdRoomZonePlanner,
 )
@@ -31,12 +34,20 @@ def test_post_v21_14h_defaults_match_current_20_t_day_sample() -> None:
 
     assert result.success is True
     assert result.result["planning_parameters"]["formula_authority"] == FORMULA_AUTHORITY
-    assert FORMULA_AUTHORITY == "POST-V0.9-P4-charles-zone-area-recut"
+    assert FORMULA_AUTHORITY == "POST-V2.1.1-charles-engineering-rule-adjustments"
 
     planning_parameters = result.result["planning_parameters"]
     zones = {zone["zone_code"]: zone for zone in result.result["zones"]}
+    primary = zones["primary_precooling_room"]
     secondary = zones["secondary_precooling_room"]
     sorting = zones["sorting_packaging_room"]
+
+    assert PRIMARY_PRECOOL_BATCHES_PER_DAY == 7
+    assert primary["working_hours_per_day"] == 7
+    assert primary["position_daily_capacity_kg_day"] == 1540
+    assert planning_parameters["primary_precooling_q_d_kg_day"] == PRIMARY_PRECOOL_Q_D_KG_DAY
+    assert primary["raw_position_count"] == 13
+    assert primary["required_area_m2"] == pytest.approx(126.00, abs=0.01)
 
     assert secondary["working_hours_per_day"] == 14
     assert secondary["position_daily_capacity_kg_day"] == 2800
@@ -45,8 +56,19 @@ def test_post_v21_14h_defaults_match_current_20_t_day_sample() -> None:
 
     assert sorting["person_daily_capacity_kg_day"] == 336
     assert planning_parameters["packing_person_daily_capacity_kg"] == 336
-    assert sorting["required_area_m2"] == pytest.approx(565.76, abs=0.01)
-    assert result.result["total_area_m2"] == pytest.approx(2138.01, abs=0.01)
+    assert sorting["n_need"] == 20
+    assert sorting["n_long"] == 7
+    assert sorting["n_short"] == 3
+    assert sorting["raw_required_area_m2"] == pytest.approx(565.76, abs=0.01)
+    assert sorting["sorting_packaging_area_factor"] == SORTING_PACKAGING_AREA_FACTOR
+    assert sorting["required_area_m2"] == pytest.approx(622.34, abs=0.01)
+    assert planning_parameters["sorting_packaging_raw_required_area_m2"] == pytest.approx(
+        565.76, abs=0.01
+    )
+    assert planning_parameters["sorting_packaging_required_area_m2"] == pytest.approx(
+        622.34, abs=0.01
+    )
+    assert result.result["total_area_m2"] == pytest.approx(2194.59, abs=0.01)
 
 
 def test_post_v21_packing_capacity_uses_custom_packing_parameters() -> None:
@@ -65,4 +87,10 @@ def test_post_v21_packing_capacity_uses_custom_packing_parameters() -> None:
     assert sorting["person_daily_capacity_kg_day"] == 400
     assert sorting["worker_count"] == 50
     assert sorting["table_count"] == 17
+    assert sorting["n_need"] == 17
+    assert sorting["n_long"] == 6
+    assert sorting["n_short"] == 3
+    assert sorting["raw_required_area_m2"] == pytest.approx(489.60, abs=0.01)
+    assert sorting["required_area_m2"] == pytest.approx(538.56, abs=0.01)
+    assert sorting["sorting_packaging_area_factor"] == 1.1
     assert result.result["planning_parameters"]["packing_person_daily_capacity_kg"] == 400

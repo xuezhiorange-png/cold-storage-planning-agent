@@ -174,12 +174,12 @@ def _assert_direct_typed_blocker(
 def test_v2_identity_is_distinct_and_result_has_one_canonical_shape() -> None:
     result = calculate_factory_power_estimation_from_mapping(_raw_input())
 
-    assert CALCULATOR_IDENTITY == "factory_power_estimation@2.0.0-p1"
-    assert CALCULATOR_VERSION == "2.0.0-p1"
+    assert CALCULATOR_IDENTITY == "factory_power_estimation@2.0.0-p2"
+    assert CALCULATOR_VERSION == "2.0.0-p2"
     assert result.to_dict()["calculator"] == {
         "id": "factory_power_estimation",
-        "version": "2.0.0-p1",
-        "identity": "factory_power_estimation@2.0.0-p1",
+        "version": "2.0.0-p2",
+        "identity": "factory_power_estimation@2.0.0-p2",
     }
     payload = result.to_dict()
     assert payload["result_kind"] == "factory_power_canonical_result"
@@ -351,7 +351,7 @@ def test_three_pools_are_disjoint_and_summary_replays_from_details() -> None:
         if detail.equipment_or_zone != "production_equipment"
     )
     assert summary.defrost_installed_power_kw == Decimal("262.4")
-    assert summary.defrost_coincident_power_kw == Decimal("78.720")
+    assert summary.defrost_coincident_power_kw == Decimal("52.480")
     assert summary.production_equipment_installed_power_kw == Decimal("200.0")
     assert summary.production_equipment_coincident_power_kw == Decimal("170.000")
     assert summary.total_installed_power_kw == (
@@ -372,7 +372,7 @@ def test_decimal_serialization_is_deterministic_without_binary_float_values() ->
     second = calculate_factory_power_estimation(calculation_input)
 
     assert first.canonical_json() == second.canonical_json()
-    assert "500.02" in first.canonical_json()
+    assert "473.78" in first.canonical_json()
     assert "kWh" in first.canonical_json()
 
 

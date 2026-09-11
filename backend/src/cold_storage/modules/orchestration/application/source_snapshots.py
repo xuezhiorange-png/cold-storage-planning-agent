@@ -398,6 +398,8 @@ class ZoneEntry(BaseModel):
     design_storage_mass_kg: str
     position_count: int
     required_area_m2: str
+    raw_required_area_m2: str | None = None
+    sorting_packaging_area_factor: str | None = None
     minimum_estimated_cooling_load_kw_r: str | None = None
     cooling_estimation_basis: CoolingEstimationBasisEntry | None = None
     requires_review: bool = True
@@ -465,6 +467,8 @@ class ZoneEntry(BaseModel):
         "position_daily_capacity_kg_day",
         "person_daily_capacity_kg_day",
         "packing_table_area_m2",
+        "raw_required_area_m2",
+        "sorting_packaging_area_factor",
         "secondary_fruit_ratio",
         "frozen_fruit_ratio",
         "packaging_position_area_m2",

@@ -24,8 +24,18 @@ from cold_storage.modules.projects.application.factory_power_presentation import
 GOLDEN_PATH = Path(__file__).parents[1] / "golden" / "v20_factory_power_canonical_result_v1.json"
 
 
-def _canonical_fixture() -> dict[str, Any]:
+def _historical_p1_fixture() -> dict[str, Any]:
     return json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
+
+
+def _canonical_fixture() -> dict[str, Any]:
+    """Build a current p2 fixture without modifying the historical golden."""
+    canonical = _historical_p1_fixture()
+    calculator = canonical["calculator"]
+    assert isinstance(calculator, dict)
+    calculator["version"] = "2.0.0-p2"
+    calculator["identity"] = "factory_power_estimation@2.0.0-p2"
+    return canonical
 
 
 def _record(canonical: dict[str, Any], **overrides: Any) -> dict[str, Any]:
@@ -35,13 +45,28 @@ def _record(canonical: dict[str, Any], **overrides: Any) -> dict[str, Any]:
         "project_id": "project-1",
         "project_version_id": "version-1",
         "calculator_name": "factory_power_estimation",
-        "calculator_version": "2.0.0-p1",
+        "calculator_version": "2.0.0-p2",
         "result_snapshot": canonical,
         "created_at": "2026-09-08T10:00:00+00:00",
         "requires_review": True,
     }
     record.update(overrides)
     return record
+
+
+def test_historical_p1_golden_identity_and_defrost_factor_remain_immutable() -> None:
+    historical = _historical_p1_fixture()
+    calculator = historical["calculator"]
+    summary = historical["summary"]
+    assert isinstance(calculator, dict)
+    assert isinstance(summary, dict)
+    assert calculator == {
+        "id": "factory_power_estimation",
+        "version": "2.0.0-p1",
+        "identity": "factory_power_estimation@2.0.0-p1",
+    }
+    assert historical["schema_version"] == "2.0.0-p1"
+    assert summary["defrost_coincident_power_kw"] == "3"
 
 
 def test_shared_presentation_copies_canonical_fields_and_adds_only_labels() -> None:

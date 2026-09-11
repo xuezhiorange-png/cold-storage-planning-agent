@@ -206,3 +206,12 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 | TD-022 | **Resolved** | Medium | reports/localization | ~~Investment calculator persists Chinese ``item_name``; render uses ``investment.{item_name}`` as catalog keys~~ | Draft export projects stable English ``item_key`` catalog keys | Leftover Chinese catalog keys remain for persisted report JSON | Calculator emits ``item_key``; reports-owned legacy map; snapshot admits optional ``item_key``; unknown names fail closed | post-v0.9 |
 | TD-023 | **Resolved** | Medium | workflow | ~~Guided workflow still names the first step PROJECT_INPUT and V0.4 `save_inputs` snapshot~~ | Delivered at V1.4: first step is `OPERATOR_PROCESS_INPUT` / 工程输入; V0.4 `save_inputs` alone does not complete it | Keep Path A `save_inputs` as compatibility | Recut delivered | V1.4 |
 | TD-024 | Open | Medium | aily | V0.7 P6 froze Aily paper only; outbound Feishu skill/session is still unwired | Chat in 豆包工作伙伴 cannot open a live session from this app | V1.1 inbound REST + MCP Streamable HTTP; V1.2 five-stage inbound preview at `v1.2.0`; V1.3 in-memory workbench lineage at `v1.3.0` (still no outbound) | Outbound live session after Charles supplies tenant skill wiring | later |
+
+## POST-V2.1.1 current rule note
+
+The post-`v2.1.1` engineering-rule adjustment lane does not close or reclassify
+unrelated technical debt. It records current deterministic values (primary
+precooling 7 batches/day, sorting/packing final-area factor 1.1, and defrost
+simultaneous use 0.20) while preserving the existing demo-coefficient and
+consumer-boundary debt register. In particular, TD-008, TD-019, TD-021, and
+TD-024 remain in their existing states.

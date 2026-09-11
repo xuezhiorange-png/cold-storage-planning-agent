@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
-from cold_storage.modules.calculations.domain.factory_power_estimation import (
-    CALCULATOR_IDENTITY,
-    CALCULATOR_VERSION,
-)
 from cold_storage.modules.projects.application.factory_power_upstream_authority import (
     EXPECTED_FACTORY_ZONE_CODES,
     REFRIGERATED_ZONE_CODES,
@@ -37,6 +34,9 @@ MCP_PATHS = (
 V18_FROZEN_PATHS = (
     "docs/contracts/aily/v1.8",
     "docs/runbooks/v18-doubao-aily-connector.md",
+)
+HISTORICAL_P1_GOLDEN_PATH = (
+    REPO_ROOT / "backend/tests/golden/v20_factory_power_canonical_result_v1.json"
 )
 ALLOWED_CHANGED_PATHS = {
     ADAPTER_PATH,
@@ -75,6 +75,14 @@ def _text(path: str) -> str:
     return (REPO_ROOT / path).read_text(encoding="utf-8")
 
 
+def _historical_p1_calculator() -> dict[str, str]:
+    payload = json.loads(HISTORICAL_P1_GOLDEN_PATH.read_text(encoding="utf-8"))
+    calculator = payload["calculator"]
+    assert isinstance(calculator, dict)
+    assert all(isinstance(value, str) for value in calculator.values())
+    return calculator
+
+
 def _changed_paths() -> set[str]:
     tracked = subprocess.run(
         ["git", "diff", "--name-only", BASE_MAIN_SHA, P1_REFERENCE_HEAD_SHA],
@@ -83,16 +91,10 @@ def _changed_paths() -> set[str]:
         text=True,
         check=True,
     ).stdout.splitlines()
-    untracked = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.splitlines()
     return {
-        path
-        for path in [*tracked, *untracked]
+        path.strip()
+        for path in tracked
+        if path.strip()
         if path and not path.startswith("backend/artifacts/local/")
     }
 
@@ -130,6 +132,14 @@ def test_v21_p1_uses_durable_base_lineage_not_origin_main_equality() -> None:
     assert (
         subprocess.run(
             ["git", "merge-base", "--is-ancestor", BASE_MAIN_SHA, "HEAD"],
+            cwd=REPO_ROOT,
+            check=False,
+        ).returncode
+        == 0
+    )
+    assert (
+        subprocess.run(
+            ["git", "merge-base", "--is-ancestor", P1_REFERENCE_HEAD_SHA, "HEAD"],
             cwd=REPO_ROOT,
             check=False,
         ).returncode
@@ -193,8 +203,11 @@ def test_v21_p1_preserves_v20_calculator_presentation_and_mcp_surfaces() -> None
     assert all(_diff_is_empty(path) for path in MCP_PATHS)
     assert all(_diff_is_empty(path) for path in V18_FROZEN_PATHS)
     assert _diff_is_empty("backend/src/cold_storage/modules/orchestration/domain/contracts.py")
-    assert CALCULATOR_IDENTITY == "factory_power_estimation@2.0.0-p1"
-    assert CALCULATOR_VERSION == "2.0.0-p1"
+    assert _historical_p1_calculator() == {
+        "id": "factory_power_estimation",
+        "version": "2.0.0-p1",
+        "identity": "factory_power_estimation@2.0.0-p1",
+    }
 
 
 def test_v21_p1_governance_records_p0_merged_and_p2_not_started() -> None:

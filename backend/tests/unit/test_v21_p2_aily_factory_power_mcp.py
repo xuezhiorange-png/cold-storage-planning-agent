@@ -35,7 +35,7 @@ def test_factory_power_mcp_wrapper_returns_success_body() -> None:
 
     assert body["ok"] is True
     assert body["reply_kind"] == "factory_power_estimation_table"
-    assert body["calculator_identity"] == "factory_power_estimation@2.0.0-p1"
+    assert body["calculator_identity"] == "factory_power_estimation@2.0.0-p2"
     assert body["persisted"] is False
     assert body["markdown_table"]
 

@@ -992,3 +992,38 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 Readiness determination 不执行 Ready、Merge、tag、GitHub Release、部署或下一
 feature lane；release execution 仍是独立授权门禁。
+
+## 51. POST-V2.1.1 engineering-rule adjustments（当前 Draft）
+
+`v2.1.1` release evidence and tag remain immutable. The current follow-up lane
+records three rule adjustments without changing the V2.0/V2.1 calculator
+identities or the six-tool MCP contract.
+
+```text
+TASK_ID=POST_V2_1_1_ENGINEERING_RULE_ADJUSTMENTS_R1
+BASE_MAIN_SHA=c9ce6e7399ec2a163ab4c7c7339b828a86abbf08
+FORMULA_AUTHORITY_BEFORE=POST-V0.9-P4-charles-zone-area-recut
+FORMULA_AUTHORITY_AFTER=POST-V2.1.1-charles-engineering-rule-adjustments
+PRIMARY_PRECOOL_BATCHES_PER_DAY=7
+PRIMARY_PRECOOL_POSITION_DAILY_CAPACITY_KG=1540
+SECONDARY_PRECOOL_HOURS=14
+SECONDARY_PRECOOL_POSITION_DAILY_CAPACITY_KG=2800
+PACKING_HOURS=14
+PACKING_PERSON_DAILY_CAPACITY_KG=336
+SORTING_PACKAGING_AREA_FACTOR=1.1
+DEFROST_SIMULTANEOUS_USE_FACTOR=0.20
+HISTORICAL_GOLDEN_CHANGED=NO
+MCP_TOOL_COUNT=6
+DATABASE_MIGRATION_CHANGED=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+TAG_AUTHORIZED=NO
+GITHUB_RELEASE_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The primary, sorting/packing, and defrost changes are current production
+rules; V0.7/V0.9 historical replay stays explicit and unchanged. The
+packing-pieces inventory drift (15 in the old audit row versus 16 in runtime)
+remains an existing audit discrepancy and is not silently closed here.

@@ -13,7 +13,8 @@ from cold_storage.modules.calculations.domain.result import (
 )
 
 VERSION = "1.0.0"
-FORMULA_AUTHORITY = "POST-V0.9-P4-charles-zone-area-recut"
+HISTORICAL_FORMULA_AUTHORITY = "POST-V0.9-P4-charles-zone-area-recut"
+FORMULA_AUTHORITY = "POST-V2.1.1-charles-engineering-rule-adjustments"
 
 PALLET_PITCH_ALONG_WALL_M = 1.2
 PALLET_PITCH_DEPTH_M = 1.3
@@ -21,7 +22,15 @@ ASPECT_RATIO_MIN = 1.67
 ASPECT_RATIO_MAX = 2.40
 ASPECT_RATIO_TARGET = 2.0
 
-PRIMARY_PRECOOL_Q_D_KG_DAY = 220 * 6
+PRIMARY_PRECOOL_BATCHES_PER_DAY = 7
+PRIMARY_PRECOOL_PALLET_WEIGHT_KG = 220
+PRIMARY_PRECOOL_HOURS_PER_PALLET = 1
+PRIMARY_PRECOOL_WORKING_HOURS_PER_DAY = PRIMARY_PRECOOL_BATCHES_PER_DAY
+PRIMARY_PRECOOL_Q_D_KG_DAY = (
+    PRIMARY_PRECOOL_PALLET_WEIGHT_KG
+    / PRIMARY_PRECOOL_HOURS_PER_PALLET
+    * PRIMARY_PRECOOL_BATCHES_PER_DAY
+)
 SECONDARY_PRECOOL_Q_D_KG_DAY = 2800
 PRECOOL_SIX_POSITION_ROOM_AREA_M2 = 42
 PRECOOL_EIGHT_POSITION_ROOM_AREA_M2 = 56
@@ -47,6 +56,7 @@ WORKERS_PER_PACKING_TABLE = 3
 PACKING_PIECES_PER_PERSON_HOUR = 16
 PACKING_WEIGHT_PER_PIECE_KG = 1.5
 PACKING_WORKING_HOURS_PER_DAY = 14
+SORTING_PACKAGING_AREA_FACTOR = 1.1
 PERSON_DAILY_CAPACITY_KG = (
     PACKING_PIECES_PER_PERSON_HOUR * PACKING_WEIGHT_PER_PIECE_KG * PACKING_WORKING_HOURS_PER_DAY
 )
@@ -79,9 +89,9 @@ class ColdRoomZonePlanInput:
     frozen_fruit_ratio: float = 0.10
     frozen_storage_days: float = 5
     precooling_position_daily_capacity_kg: float = 1250
-    primary_precooling_pallet_weight_kg: float = 220
-    primary_precooling_hours_per_pallet: float = 1
-    primary_precooling_working_hours_per_day: float = 6
+    primary_precooling_pallet_weight_kg: float = PRIMARY_PRECOOL_PALLET_WEIGHT_KG
+    primary_precooling_hours_per_pallet: float = PRIMARY_PRECOOL_HOURS_PER_PALLET
+    primary_precooling_working_hours_per_day: float = PRIMARY_PRECOOL_WORKING_HOURS_PER_DAY
     secondary_precooling_pallet_weight_kg: float = 400
     secondary_precooling_hours_per_pallet: float = 2
     secondary_precooling_working_hours_per_day: float = 14
@@ -161,7 +171,16 @@ class PackedRectangleLayout:
 
 
 class ColdRoomZonePlanner:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        formula_authority: str = FORMULA_AUTHORITY,
+        sorting_packaging_area_factor: float = SORTING_PACKAGING_AREA_FACTOR,
+    ) -> None:
+        # Historical replay tests inject the prior rule profile explicitly;
+        # operator input never controls either authority value.
+        self._formula_authority = formula_authority
+        self._sorting_packaging_area_factor = sorting_packaging_area_factor
         self._coefficients = {
             "raw_holding_hours": DemoZoneCoefficient(
                 "raw_holding_hours",
@@ -390,7 +409,7 @@ class ColdRoomZonePlanner:
                 "total_area_m2": round(total_area_6, 2),
                 "total_area_m2_8_position_scheme": round(total_area_8, 2),
                 "planning_parameters": {
-                    "formula_authority": FORMULA_AUTHORITY,
+                    "formula_authority": self._formula_authority,
                     "raw_storage_ratio": data.raw_storage_ratio,
                     "finished_storage_days": data.finished_storage_days,
                     "frozen_storage_days": data.frozen_storage_days,
@@ -413,6 +432,27 @@ class ColdRoomZonePlanner:
                     ),
                     "packing_person_daily_capacity_kg": round(
                         self._packing_person_daily_capacity_kg(data),
+                        2,
+                    ),
+                    "sorting_packaging_area_factor": self._sorting_packaging_area_factor,
+                    "sorting_packaging_raw_required_area_m2": round(
+                        self._number(
+                            next(
+                                zone["raw_required_area_m2"]
+                                for zone in zones
+                                if zone["zone_code"] == "sorting_packaging_room"
+                            )
+                        ),
+                        2,
+                    ),
+                    "sorting_packaging_required_area_m2": round(
+                        self._number(
+                            next(
+                                zone["required_area_m2"]
+                                for zone in zones
+                                if zone["zone_code"] == "sorting_packaging_room"
+                            )
+                        ),
                         2,
                     ),
                     "packaging_position_area_m2": round(
@@ -451,7 +491,7 @@ class ColdRoomZonePlanner:
             coefficients=[item.to_reference() for item in self._coefficients.values()],
             assumptions=[
                 (
-                    "POST-V0.9 P4 Charles 2026-08-28 书面锁定工时与面积公式；"
+                    f"{self._formula_authority} Charles 书面锁定当前工时与面积公式；"
                     "operator KEY 仅提供 M、成品天数、冻果天数、包材天数。"
                 ),
                 "所有区域面积为概念设计阶段估算值，需结合工艺、货架、通道、消防和建筑条件复核。",
@@ -698,6 +738,11 @@ class ColdRoomZonePlanner:
         worker_count = ceil(data.daily_inbound_mass_kg / person_daily_capacity_kg)
         table_count_need = ceil(worker_count / data.workers_per_packing_table)
         layout = self._pack_sorting_rectangle(table_count_need)
+        raw_required_area_m2 = round(layout.required_area_m2, 2)
+        required_area_m2 = round(
+            raw_required_area_m2 * self._sorting_packaging_area_factor,
+            2,
+        )
         table_area = PACKING_TABLE_PITCH_LONG_M * PACKING_TABLE_PITCH_SHORT_M
         return {
             "zone_code": "sorting_packaging_room",
@@ -712,9 +757,13 @@ class ColdRoomZonePlanner:
             "packing_table_area_m2": round(table_area, 2),
             "aisle_layout": "four_side_architectural",
             "position_count": layout.n_actual,
-            "required_area_m2": round(layout.required_area_m2, 2),
             "requires_review": True,
             **layout.to_dict(),
+            # layout.to_dict() exposes the unscaled rectangle for traceability;
+            # the zone's required area is the final scaled authority.
+            "raw_required_area_m2": raw_required_area_m2,
+            "sorting_packaging_area_factor": self._sorting_packaging_area_factor,
+            "required_area_m2": required_area_m2,
         }
 
     def _packing_person_daily_capacity_kg(self, data: ColdRoomZonePlanInput) -> float:

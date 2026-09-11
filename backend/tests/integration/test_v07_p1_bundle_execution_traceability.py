@@ -182,14 +182,21 @@ def test_five_stage_persists_zone_coefficients_assumptions_warnings(migrated_cli
 def test_zone_gold_numeric_expectations_remain_stable() -> None:
     """Regression guard: zone planner gold values must not drift during P1 proof work."""
     from cold_storage.modules.calculations.domain.zone_planning import (
+        HISTORICAL_FORMULA_AUTHORITY,
         ColdRoomZonePlanInput,
         ColdRoomZonePlanner,
     )
 
-    result = ColdRoomZonePlanner().plan(
+    result = ColdRoomZonePlanner(
+        formula_authority=HISTORICAL_FORMULA_AUTHORITY,
+        sorting_packaging_area_factor=1.0,
+    ).plan(
         ColdRoomZonePlanInput(
             daily_inbound_mass_kg=25_000,
             working_time_h_per_day=16,
+            primary_precooling_working_hours_per_day=6,
+            secondary_precooling_working_hours_per_day=16,
+            packing_working_hours_per_day=16,
             finished_storage_days=2.5,
             packaging_storage_days=3,
             precooling_required_ratio=1,

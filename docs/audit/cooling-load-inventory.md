@@ -92,6 +92,12 @@ cooling-load and equipment-capability calculations.
 > new equipment calculator — it duplicated the W_compressor term. The legacy
 > calculator in `service.py` still uses it for backward compatibility.
 
+> **Current-rule overlay (POST-V2.1.1):** The `0.30` defrost simultaneous
+> factor recorded in this dated baseline is historical audit evidence. The
+> current planning-service rule is `0.20`; the historical value remains
+> available only to explicit historical replay fixtures and is not the current
+> runtime authority.
+
 ---
 
 ## 4. Regression Baselines
