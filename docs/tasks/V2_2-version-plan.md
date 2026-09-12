@@ -1,6 +1,6 @@
 # V2.2 — 受场地边界约束的工厂平面规划
 
-## 当前授权（2026-09-12）
+## P0 历史授权快照（2026-09-12）
 
 ```ini
 TASK_ID=V2_2_P0_SITE_CONSTRAINED_FACTORY_LAYOUT_CONTRACT_FREEZE_R1
@@ -43,8 +43,8 @@ raw_fruit_buffer → primary_precooling_room → sorting_packaging_room → seco
 
 | 阶段 | 内容 | 当前状态 |
 | --- | --- | --- |
-| P0 | Contract Freeze | 本 Draft 合同评审 |
-| P1 | Zone Dimensioning + Adjacency Engine | 未授权 |
+| P0 | Contract Freeze | MERGED，含主物流 authority correction |
+| P1 | Zone Dimensioning + Adjacency Engine | P1A 独立授权，foundation Draft review；非整个 P1 完成 |
 | P2 | Site-Constrained Deterministic Placement Engine | 未授权 |
 | P3 | Canonical SVG Drawing Projection | 未授权 |
 | P4 | MCP Tool 7 + Doubao/Feishu Integration | 未授权 |
@@ -53,6 +53,12 @@ raw_fruit_buffer → primary_precooling_room → sorting_packaging_room → seco
 P1 的完成条件包括容量几何保留、显式定尺 profile、邻接与 access 语义验证；P2 才实现场地放置及可行性判定；P3 只从 canonical JSON 投影；P4 才实现第七个工具。每阶段必须单独授权、测试、Draft review；P0 不授权后续阶段。PDF/DXF 是未来投影方向，不因本分期表自动授权实现。
 
 ## 合同入口与未决工程事项
+
+当前独立授权：`V2_2_P1A_ZONE_DIMENSIONING_AND_ADJACENCY_FOUNDATION_R1`，
+基线 `e963256c56d20f90a880a61d0bc721d28c0a9c38`，ACTIVE_GOVERNANCE_LANE=V2.2_P1。
+P1A 仅容量几何保留、定尺 profile 基础与邻接验证；4 区可定尺、8 区缺工程 authority。
+详见 [P1A authority matrix](V2_2-P1A-zone-dimensioning-adjacency-foundation.md)。
+P1B/P2/P3/P4/P5、Ready/Merge、tag/release/deployment 仍未授权。
 
 - [P0 合同](V2_2-P0-site-constrained-factory-layout-contract.md)：SiteLayoutInputV1 / SiteLayoutResultV1、几何、流向、错误与可复现性。
 - [ADR-044](../architecture/ADR-044-site-constrained-factory-layout-authority.md)：权威分工及现有 capacity geometry 调查。

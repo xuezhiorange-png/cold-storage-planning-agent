@@ -1,6 +1,7 @@
 # ADR-044 — Site-constrained factory layout authority
 
-状态：V2.2 P0 contract frozen，Draft review；P1/P2/P3/P4 未授权。
+状态：P0 已合并；P1A dimensioning/adjacency foundation 独立授权、Draft review。
+P2/P3/P4 未授权。以下原始 P0 调查和历史 authorization snapshot 保留。
 基线：v2.1.2 / `0a68597a40aa460ed31441c537ca37c3d4cfd1a7`。
 
 ## 决策
@@ -69,3 +70,15 @@ sorting_packaging_room → frozen_fruit_room 保持不变。包材分支不再�
 概念规划不提供消防、结构、机电详细设计结论；不实现法规退界推导。办公室与装卸面、人员入口与重车回转区的避让需要工程依据，P0 标记 `ENGINEERING_DECISION_REQUIRED`，不发明尺寸或强制禁邻接规则。
 
 完整字段、精度、错误及分期见 [P0 contract](../tasks/V2_2-P0-site-constrained-factory-layout-contract.md) 与 [version plan](../tasks/V2_2-version-plan.md)。
+
+## P1A separate implementation decision
+
+基线 `e963256c56d20f90a880a61d0bc721d28c0a9c38`；Charles 独立授权
+`V2_2_P1A_ZONE_DIMENSIONING_AND_ADJACENCY_FOUNDATION_R1`。
+新增 module-first `layout/domain`（pure profiles/dimensioning/adjacency）和
+`layout/application`（canonical source/profile binding），不新建 service、API 或数据库。
+现有 planner 的四类储存矩形网格可按已有 pitch/aisle 投影外边长；不重排容量。
+预冷 room edges、分选包装扩大包络和其他独立 profile 未冻结，8 区明确 BLOCKED。
+无 placement/x/y 生成；几何谓词仅消费外部观察矩形，不能作完整布局验收。
+`zone_dimensioning_foundation@1.0.0` 与未来 site placement identity 分开。
+详见 [P1A evidence / authority matrix](../tasks/V2_2-P1A-zone-dimensioning-adjacency-foundation.md)。
