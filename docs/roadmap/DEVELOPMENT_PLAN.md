@@ -1,5 +1,30 @@
 # Development Plan
 
+## 当前治理状态（2026-09-12）
+
+```ini
+CURRENT_RELEASE=v2.1.2
+V2_1_2_RELEASED=true
+RELEASE_TARGET_SHA=0a68597a40aa460ed31441c537ca37c3d4cfd1a7
+DEPLOYMENT_EXECUTED=false
+ACTIVE_GOVERNANCE_LANE=V2.2_P0
+V22_P0_STATUS=CONTRACT_FROZEN_DRAFT_REVIEW
+P1_AUTHORIZED=false
+P2_AUTHORIZED=false
+P3_AUTHORIZED=false
+P4_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+v2.1.2 已正式发布。下文 V2.1.2 closure 的 Draft、TAG_AUTHORIZED=NO、
+RELEASE_AUTHORIZED=NO 及其他早期授权块均是历史 snapshot，不再代表当前发布状态。
+当前工作为 V2.2 P0 场地约束平面规划合同冻结，参见
+`docs/tasks/V2_2-version-plan.md` 和 ADR-044。
+P0 仅文档/schema/architecture evidence；布局引擎、第七 MCP 工具和投影均未实现。
+现有六工具、五 KEY 与工程计算保持 v2.1.2 基线。
+网格容量几何需保留；缺少的定尺/access profile 及人车避让尺寸须另行工程决策。
+本任务未关闭无关技术债；TD-008、TD-019、TD-021、TD-024 保持原有状态。
+
 > **V0.9 P0 freeze (2026-08-27, `main@0dc8de5b3c711aaa662b0bbda3988def037fda3b`,
 > release `v0.8.0`):** Tasks 0–12 below remain the original roadmap register.
 > V0.5 five-stage workbench is **complete** at tag `v0.5.0`. V0.6 report
