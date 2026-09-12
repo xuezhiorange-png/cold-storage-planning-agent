@@ -8,6 +8,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tarfile
@@ -79,6 +80,52 @@ TOOLS = [
 
 def _git(*args: str) -> str:
     return subprocess.check_output(["git", *args], cwd=ROOT, text=True).strip()
+
+
+def test_current_charles_process_flow_authority_and_exact_six_must_adjacencies() -> None:
+    # Current contract authority is intentionally read from the working tree.
+    # _task_text protects the immutable *original* P0 snapshot, which must not
+    # silently remain the authority for this separately approved correction.
+    expected_flow = (
+        "raw_fruit_buffer",
+        "primary_precooling_room",
+        "sorting_packaging_room",
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel",
+    )
+    expected_edges = list(zip(expected_flow[:-1], expected_flow[1:], strict=True))
+    contract = (ROOT / CONTRACT).read_text(encoding="utf-8")
+    actual_flow = re.findall(r"^主物流（方向固定）：(.+?)。$", contract, re.MULTILINE)
+    assert actual_flow == [" → ".join(expected_flow)]
+    actual_edges = re.findall(
+        r"^\| MUST_ADJACENT / ZONE_ADJACENCY \| (\w+) ↔ (\w+) \|$",
+        contract,
+        re.MULTILINE,
+    )
+    assert actual_edges == expected_edges
+    assert len({frozenset(pair) for pair in actual_edges}) == 6
+    for path in (ADR, PLAN):
+        text = (ROOT / path).read_text(encoding="utf-8")
+        assert " → ".join(expected_flow) in text
+        assert "V2_2_P0_PROCESS_FLOW_AUTHORITY_CORRECTION_R1" in text
+    adr_edges = re.findall(
+        r"^- (\w+) ↔ (\w+)$", (ROOT / ADR).read_text(encoding="utf-8"), re.MULTILINE
+    )
+    assert adr_edges == expected_edges
+    for branch in (
+        "packaging_material_storage → sorting_packaging_room",
+        "sorting_packaging_room → secondary_fruit_buffer",
+        "sorting_packaging_room → frozen_fruit_room",
+    ):
+        assert branch in contract
+        assert branch in (ROOT / ADR).read_text(encoding="utf-8")
+    for path in (CONTRACT, ADR, PLAN):
+        text = (ROOT / path).read_text(encoding="utf-8")
+        assert "primary_precooling_room → secondary_precooling_room" not in text
+        assert "primary_precooling_room ↔ secondary_precooling_room" not in text
+        assert "secondary_precooling_room ↔ sorting_packaging_room" not in text
 
 
 def _scope_target() -> str | None:

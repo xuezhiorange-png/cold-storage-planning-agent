@@ -112,7 +112,13 @@ ZoneDimensionV1：zone_code、required_area_m2、width_m、depth_m、actual_area
 
 ## Process flow、adjacency 与 access
 
-主物流（方向固定）：raw_fruit_buffer → primary_precooling_room → secondary_precooling_room → sorting_packaging_room → coating_room → finished_goods_room → shipping_channel。
+主物流（方向固定）：raw_fruit_buffer → primary_precooling_room → sorting_packaging_room → secondary_precooling_room → coating_room → finished_goods_room → shipping_channel。
+
+本节以 Charles 最终确认的业务 authority 为准：一级预冷后先分选包装，再进入二级预冷。
+本次 contract-only correction 为 `V2_2_P0_PROCESS_FLOW_AUTHORITY_CORRECTION_R1`，
+基线 `fe5c1c6f19326f739a55be558403ee7b535f8195`。
+MUST_ADJACENT 精确为下面六组主链邻接；包材侧物流保留，但不再列入 MUST 集合。
+历史 P0 Git 快照仍保留当时记录，不能作为当前主物流 authority。
 
 侧物流：packaging_material_storage → sorting_packaging_room。
 次果：sorting_packaging_room → secondary_fruit_buffer。
@@ -124,12 +130,12 @@ ZONE_ADJACENCY 指两个区域共享正长度边段且内部不重叠；角点�
 | 关系 | 对象对（无向，物流方向由 flows 表示） |
 | --- | --- |
 | MUST_ADJACENT / ZONE_ADJACENCY | raw_fruit_buffer ↔ primary_precooling_room |
-| MUST_ADJACENT / ZONE_ADJACENCY | primary_precooling_room ↔ secondary_precooling_room |
-| MUST_ADJACENT / ZONE_ADJACENCY | secondary_precooling_room ↔ sorting_packaging_room |
-| MUST_ADJACENT / ZONE_ADJACENCY | packaging_material_storage ↔ sorting_packaging_room |
+| MUST_ADJACENT / ZONE_ADJACENCY | primary_precooling_room ↔ sorting_packaging_room |
+| MUST_ADJACENT / ZONE_ADJACENCY | sorting_packaging_room ↔ secondary_precooling_room |
+| MUST_ADJACENT / ZONE_ADJACENCY | secondary_precooling_room ↔ coating_room |
+| MUST_ADJACENT / ZONE_ADJACENCY | coating_room ↔ finished_goods_room |
 | MUST_ADJACENT / ZONE_ADJACENCY | finished_goods_room ↔ shipping_channel |
 | SHOULD_ADJACENT / ZONE_ADJACENCY | sorting_packaging_room ↔ coating_room |
-| SHOULD_ADJACENT / ZONE_ADJACENCY | coating_room ↔ finished_goods_room |
 | SHOULD_ADJACENT / ZONE_ADJACENCY | sorting_packaging_room ↔ secondary_fruit_buffer |
 | SHOULD_ADJACENT / ZONE_ADJACENCY | sorting_packaging_room ↔ frozen_fruit_room |
 | SHOULD_ADJACENT / ZONE_ADJACENCY | changing_room ↔ sorting_packaging_room |

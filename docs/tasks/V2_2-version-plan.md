@@ -33,6 +33,14 @@ v2.1.2 已发布；早期 release closure 文档中的 Draft / 未授权块是�
 
 未来链路：五个业务输入 → canonical zone plan → 12 区面积 → site constraints → zone dimensioning → adjacency / process flow → placement → canonical layout JSON → SVG / PDF / future DXF projection。
 
+当前主工艺物流以 Charles 在 `V2_2_P0_PROCESS_FLOW_AUTHORITY_CORRECTION_R1` 的最终确认为准：
+
+raw_fruit_buffer → primary_precooling_room → sorting_packaging_room → secondary_precooling_room → coating_room → finished_goods_room → shipping_channel
+
+修正基线为 `fe5c1c6f19326f739a55be558403ee7b535f8195`。
+主链相邻六对为 MUST_ADJACENT；包材/次果/冻果侧物流不变，具体见当前 P0 合同与 ADR-044。
+这是 contract authority correction，不启动 P1；上文初始 P0 授权块保留为历史记录。
+
 | 阶段 | 内容 | 当前状态 |
 | --- | --- | --- |
 | P0 | Contract Freeze | 本 Draft 合同评审 |

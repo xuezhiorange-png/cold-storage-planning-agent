@@ -40,6 +40,28 @@ UPSTREAM_CAPACITY_GEOMETRY_MAY_BE_REPACKED=false
 
 ## 接口与取舍
 
+### 主工艺物流 authority correction
+
+`V2_2_P0_PROCESS_FLOW_AUTHORITY_CORRECTION_R1`，基线
+`fe5c1c6f19326f739a55be558403ee7b535f8195`：Charles 最终确认主物流为：
+
+raw_fruit_buffer → primary_precooling_room → sorting_packaging_room → secondary_precooling_room → coating_room → finished_goods_room → shipping_channel
+
+一级预冷之后先分选包装，再二级预冷。MUST_ADJACENT 精确为六组：
+
+- raw_fruit_buffer ↔ primary_precooling_room
+- primary_precooling_room ↔ sorting_packaging_room
+- sorting_packaging_room ↔ secondary_precooling_room
+- secondary_precooling_room ↔ coating_room
+- coating_room ↔ finished_goods_room
+- finished_goods_room ↔ shipping_channel
+
+邻接仍为无向几何关系；物流方向由有向主链单独表达。
+packaging_material_storage → sorting_packaging_room、sorting_packaging_room → secondary_fruit_buffer、
+sorting_packaging_room → frozen_fruit_room 保持不变。包材分支不再列入六组 MUST 集合。
+本修正仅变更合同 authority 和回归锁；不改变 production/MCP/frontend/database/layout engine，
+也不授权 P1。历史 P0 snapshot 不覆盖本次当前业务决策。
+
 未来 `site_constrained_factory_layout@1.0.0`、`preview_site_layout`（第 7 位）使用独立 site contract；不改现有五 KEY 或六工具。后端获取并验证 canonical zone-plan，外部传来的 hash 或面积不能自证权威。传给未来引擎的是 backend 绑定的源数据，输出记录源 identity、formula authority、精确源 payload 的 hash 和算法/profile 身份。
 
 第一版使用本地米制平面、矩形区域、0/90°放置；地块可为简单凹多边形。面积足够不代表几何可行。硬约束必须全部通过才返回 available=true；软分数不能抵消越界、重叠、容量不足或 MUST 邻接失败。
