@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SiteLayoutInputV1",
+  "description": "V2.2 P0 future contract only. No current MCP registration or geometry implementation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "site_boundary",
+    "main_entrance",
+    "truck_entrance"
+  ],
+  "properties": {
+    "site_boundary": {
+      "$ref": "#/$defs/polygon"
+    },
+    "buildable_boundary": {
+      "$ref": "#/$defs/polygon"
+    },
+    "main_entrance": {
+      "$ref": "#/$defs/segment"
+    },
+    "truck_entrance": {
+      "$ref": "#/$defs/segment"
+    },
+    "preferred_loading_side": {
+      "type": "string",
+      "enum": [
+        "NORTH",
+        "EAST",
+        "SOUTH",
+        "WEST",
+        "NEAREST_TRUCK_ENTRANCE",
+        "UNSPECIFIED"
+      ],
+      "default": "UNSPECIFIED"
+    },
+    "no_build_zones": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/polygon"
+      },
+      "default": []
+    },
+    "existing_buildings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "footprint",
+          "retained"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "footprint": {
+            "$ref": "#/$defs/polygon"
+          },
+          "retained": {
+            "type": "boolean"
+          }
+        }
+      },
+      "default": []
+    },
+    "north_angle_degrees": {
+      "type": "number",
+      "minimum": 0,
+      "exclusiveMaximum": 360,
+      "default": 0
+    }
+  },
+  "$defs": {
+    "point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "x",
+        "y"
+      ],
+      "properties": {
+        "x": {
+          "type": "number",
+          "multipleOf": 0.001
+        },
+        "y": {
+          "type": "number",
+          "multipleOf": 0.001
+        }
+      }
+    },
+    "polygon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "points"
+      ],
+      "properties": {
+        "type": {
+          "const": "polygon"
+        },
+        "points": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/point"
+          }
+        }
+      },
+      "$comment": "Simple, positive-area, implicitly closed polygon; geometry validation belongs to the future engine, not JSON Schema."
+    },
+    "segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end"
+      ],
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/point"
+        },
+        "end": {
+          "$ref": "#/$defs/point"
+        }
+      },
+      "$comment": "Positive length and whole-segment-on-site-boundary require future geometry validation."
+    }
+  }
+}
