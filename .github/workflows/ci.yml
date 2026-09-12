@@ -132,7 +132,80 @@ on:
         default: ""
 
 jobs:
+  classify-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      scope: ${{ steps.classify.outputs.scope }}
+      lightweight: ${{ steps.classify.outputs.lightweight }}
+      backend: ${{ steps.classify.outputs.backend }}
+      frontend: ${{ steps.classify.outputs.frontend }}
+      infra: ${{ steps.classify.outputs.infra }}
+      release: ${{ steps.classify.outputs.release }}
+      recovery: ${{ steps.classify.outputs.recovery }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Classifier and final-gate unit tests
+        run: python3 -m unittest discover -s scripts/ci/tests -v
+      - name: Classify event paths
+        id: classify
+        run: python3 scripts/ci/classify_changes.py
+      - name: Changed-lines whitespace check
+        if: ${{ steps.classify.outputs.base != '' }}
+        env:
+          DIFF_BASE: ${{ steps.classify.outputs.base }}
+          DIFF_HEAD: ${{ steps.classify.outputs.head }}
+        run: git diff --check "$DIFF_BASE" "$DIFF_HEAD"
+
+  lightweight:
+    needs: classify-changes
+    if: ${{ needs.classify-changes.outputs.lightweight == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v4
+      - name: Backend install
+        run: cd backend && uv sync
+      - name: Architecture and contract validation
+        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run pytest tests/architecture
+      - name: Lint and format
+        run: cd backend && uv run ruff check . && uv run ruff format --check .
+
+  ci-gate:
+    if: ${{ always() }}
+    needs:
+      - classify-changes
+      - lightweight
+      - backend-sqlite
+      - backend-postgresql
+      - frontend
+      - compose-config
+      - release-evidence
+      - recovery-foundation
+      - live-evidence-capture
+      - live-evidence-artifact-transport-verify
+      - live-evidence-attestation-create
+      - live-evidence-assembly
+      - live-evidence-verified-transport-handoff-verify
+      - controlled-recovery-acceptance
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require all selected checks
+        env:
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: python3 scripts/ci/ci_gate.py
+
   compose-config:
+    needs: classify-changes
+    if: ${{ needs.classify-changes.outputs.infra == 'true' }}
     runs-on: ubuntu-latest
     steps:
       # TASK-012 V0.2 Slice 2 PR82 CI Correction R1: fetch-depth: 0 so
@@ -694,6 +767,8 @@ jobs:
           docker stop "backend-${STAMP}" >/dev/null 2>&1 || true
 
   backend-sqlite:
+    needs: classify-changes
+    if: ${{ needs.classify-changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -738,8 +813,16 @@ jobs:
         run: cd backend && uv run ruff check . && uv run ruff format --check .
       - name: Backend typecheck
         run: cd backend && uv run mypy src
+      - name: CI scripts lint and typecheck
+        run: |
+          cd backend
+          uv run ruff check --config pyproject.toml ../scripts/ci
+          uv run ruff format --check --config pyproject.toml ../scripts/ci
+          uv run mypy --strict ../scripts/ci/classify_changes.py ../scripts/ci/ci_gate.py
 
   backend-postgresql:
+    needs: classify-changes
+    if: ${{ needs.classify-changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -861,6 +944,8 @@ jobs:
         run: cd backend && PYTHONPATH=src uv run pytest -k "not architecture and not postgresql and not sqlite"
 
   frontend:
+    needs: classify-changes
+    if: ${{ needs.classify-changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -879,6 +964,8 @@ jobs:
   # all 20 negative scenario tests.  It does NOT push to any registry,
   # create tags, or perform deployments.
   release-evidence:
+    needs: classify-changes
+    if: ${{ needs.classify-changes.outputs.release == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -1605,6 +1692,8 @@ jobs:
   # This is a normal push/PR job, not a workflow-dispatch live-production
   # surface. It uses an ephemeral PostgreSQL service and temporary files only.
   recovery-foundation:
+    needs: classify-changes
+    if: ${{ needs.classify-changes.outputs.recovery == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
