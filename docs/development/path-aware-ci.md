@@ -28,8 +28,9 @@ are included. Paths are never interpolated into shell commands.
 FULL always takes precedence. Infrastructure includes `.github/**`,
 `scripts/ci/**` (including its tests), `backend/alembic/**`, `deployment/**`,
 Dockerfile/Dockerfile.* anywhere, docker-compose*/compose*.yml or .yaml,
-`backend/alembic.ini`, all backend bootstrap/release modules, backend
-infrastructure directories and backend config.py/settings.py/entrypoint.py.
+`backend/alembic.ini`, all backend bootstrap/release modules, infrastructure
+directories and config.py/settings.py/entrypoint.py under backend/src.
+Test directories named infrastructure are still classified as tests.
 Dependency/manifests include pyproject.toml, requirements*.txt/*.in,
 package.json, package-lock.json, npm-shrinkwrap.json, uv.lock, other *.lock,
 Pipfile, poetry/pdm locks, yarn.lock, pnpm-lock.yaml, bun.lock/bun.lockb,

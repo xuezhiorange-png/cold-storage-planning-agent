@@ -123,10 +123,11 @@ def classify_paths(paths: Sequence[str]) -> Plan:
             or name.startswith("Dockerfile.")
             or name.startswith(("docker-compose", "compose"))
             and name.endswith((".yml", ".yaml"))
-            or raw.startswith("backend/")
+            or raw == "backend/alembic.ini"
+            or raw.startswith("backend/src/")
             and (
                 "infrastructure" in path.parts
-                or name in {"config.py", "settings.py", "entrypoint.py", "alembic.ini"}
+                or name in {"config.py", "settings.py", "entrypoint.py"}
             )
         ):
             return Plan("FULL", "DATABASE_INFRA_FULL")

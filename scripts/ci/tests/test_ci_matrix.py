@@ -38,9 +38,12 @@ class PathTests(unittest.TestCase):
         cases = [
             (["docs/foo.md"], "DOCS_ARCHITECTURE_ONLY"),
             (["backend/tests/architecture/test_x.py"], "DOCS_ARCHITECTURE_ONLY"),
+            (["backend/tests/architecture/infrastructure/test_x.py"], "DOCS_ARCHITECTURE_ONLY"),
+            (["backend/tests/architecture/settings.py"], "DOCS_ARCHITECTURE_ONLY"),
             (["docs/foo.md", "backend/tests/architecture/test_x.py"], "DOCS_ARCHITECTURE_ONLY"),
             (["backend/src/foo.py"], "BACKEND"),
             (["backend/tests/unit/test_x.py"], "BACKEND"),
+            (["backend/tests/unit/infrastructure/test_x.py"], "BACKEND"),
             (["frontend/src/x.ts"], "FRONTEND"),
             (["backend/src/x.py", "frontend/src/y.ts"], "BACKEND_FRONTEND"),
             (["backend/src/x.py", "docs/foo.md"], "BACKEND"),
