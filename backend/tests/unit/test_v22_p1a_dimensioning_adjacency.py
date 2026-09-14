@@ -67,8 +67,12 @@ def test_actual_current_planner_authority_matrix_and_determinism() -> None:
     assert body["source_formula_authority"] == "POST-V2.1.1-charles-engineering-rule-adjustments"
     assert body["status"] == "PARTIAL_ENGINEERING_AUTHORITY"
     assert len(body["authority_matrix"]) == 12
-    assert {row["zone_code"] for row in body["dimensions"]} == set(GRID_ZONES)
-    assert len(body["dimensions"]) == 4
+    # P1B adds two separately authorized profiles; original grid invariants remain.
+    assert {row["zone_code"] for row in body["dimensions"]} == set(GRID_ZONES) | {
+        "primary_precooling_room",
+        "secondary_precooling_room",
+    }
+    assert len(body["dimensions"]) == 6
     rows = {row["zone_code"]: row for row in source["result"]["zones"]}
     for row in body["dimensions"]:
         assert D(row["actual_area_m2"]) == D(row["width_m"]) * D(row["depth_m"])

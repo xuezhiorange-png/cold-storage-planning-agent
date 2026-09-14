@@ -17,7 +17,6 @@ from cold_storage.modules.calculations.domain.zone_planning import (
 )
 from cold_storage.modules.layout.domain.adjacency import ZONE_CODES, process_graph
 from cold_storage.modules.layout.domain.dimensioning import (
-    IDENTITY,
     LayoutAuthorityError,
     ZoneDimensionProfileV1,
     canonical_hash,
@@ -26,6 +25,14 @@ from cold_storage.modules.layout.domain.dimensioning import (
     dimension_zone,
     profile_payload,
 )
+from cold_storage.modules.layout.domain.precool_dimensioning import (
+    PRECOOL_ZONES,
+    dimension_precool_zone,
+    precool_profiles,
+)
+
+# P1B changes the bound profile set, not the historical P1A calculator identity.
+IDENTITY = "zone_dimensioning_foundation@1.1.0"
 
 GRID_ZONES = (
     "raw_fruit_buffer",
@@ -142,19 +149,26 @@ def dimension_zones(
             "area_authority": "cold_room_zone_plan@1.0.0",
             "required_area_m2": zone["required_area_m2"],
             "capacity_geometry_available": "layout" in zone or "schemes" in zone,
-            "dimensioning_profile_available": profile is not None,
+            "dimensioning_profile_available": profile is not None or code in PRECOOL_ZONES,
             "capacity_geometry_reference": canonical_hash(zone),
             "upstream_zone": zone,
             "dimensioning_result": "BLOCKED",
             "block_reason": None,
         }
         try:
-            if profile is not None:
-                expected = "three_side_2.2m" if code == "raw_fruit_buffer" else "one_long_side_3m"
-                if zone.get("aisle_layout") != expected:
-                    raise LayoutAuthorityError("INVALID_UPSTREAM_CAPACITY_GEOMETRY", zone_code=code)
-            dimension = dimension_zone(zone, profile)
-            dimensions.append(asdict(dimension))
+            if code in PRECOOL_ZONES:
+                dimensions.append(dimension_precool_zone(zone))
+            else:
+                if profile is not None:
+                    expected = (
+                        "three_side_2.2m" if code == "raw_fruit_buffer" else "one_long_side_3m"
+                    )
+                    if zone.get("aisle_layout") != expected:
+                        raise LayoutAuthorityError(
+                            "INVALID_UPSTREAM_CAPACITY_GEOMETRY", zone_code=code
+                        )
+                dimension = dimension_zone(zone, profile)
+                dimensions.append(asdict(dimension))
             entry["dimensioning_result"] = "DIMENSIONED"
         except LayoutAuthorityError as error:
             entry["block_reason"] = {"code": error.code, "details": error.details}
@@ -169,6 +183,7 @@ def dimension_zones(
         "dimensions": dimensions,
         "authority_matrix": matrix,
         "profiles": [profile_payload(profiles[code]) for code in sorted(profiles)],
+        "precool_room_profiles": [asdict(profile) for profile in precool_profiles()],
         "adjacency_graph": asdict(process_graph()),
         "constraint_evaluation": {
             "area_invariants_passed_for_dimensioned_zones": True,
@@ -179,7 +194,8 @@ def dimension_zones(
         "units": {"length": "m", "area": "m2"},
         "requires_review": True,
         "assumptions": [
-            "Storage grid envelope only; not construction drawings or access approval."
+            "Storage grids and approved parallel precool envelopes only; "
+            "not construction drawings or access approval."
         ],
         "warnings": ["Unresolved zone dimensions and access authority prevent layout acceptance."],
     }
