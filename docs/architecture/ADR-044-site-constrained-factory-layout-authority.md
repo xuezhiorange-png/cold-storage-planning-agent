@@ -1,10 +1,22 @@
 # ADR-044 — Site-constrained factory layout authority
 
-状态：P0 已合并；P1A dimensioning/adjacency foundation 独立授权、Draft review。
+状态：P0/P1A 已合并；P1B 预冷间定尺 authority 独立授权、Draft review。
 P2/P3/P4 未授权。以下原始 P0 调查和历史 authorization snapshot 保留。
 基线：v2.1.2 / `0a68597a40aa460ed31441c537ca37c3d4cfd1a7`。
 
 ## 决策
+
+### P1B 独立 authority overlay（2026-09-14）
+
+`V2_2_P1B_PRECOOL_DIMENSION_AUTHORITY_R1` 单独确认一级/二级预冷采用相同房间几何：
+6 板位 `4.90 × 10.05 m`；8 板位 `4.90 × 12.95 m`。
+profile 分别为 `precool-room-6-position@1.0.0` / `precool-room-8-position@1.0.0`。
+多间长边平行、短边方向并排：width=N×4.90，depth 保持单间深度。
+N 和方案只读取上游 reporting scheme，不优化、不重选、不重新计算容量。
+42/56 m² 仍仅为上游方案面积 evidence，不反推尺寸；包络不足则 fail closed，不扩大房间。
+P1A 的四个 storage profile 不变，其他六区仍缺 authority；历史 P0/P1A 调查保持原文。
+当前组合器 identity 为 `zone_dimensioning_foundation@1.1.0`，明确区别 P1A 的 1.0.0；
+不是新 zone planner 或 site placement calculator。详见 P1B task evidence。
 
 Agent 理解需求并编排；deterministic calculator 拥有工程计算；deterministic layout engine 拥有定尺、放置和几何校验；MCP 仅桥接工具。JSON 是平面规划权威，SVG/PDF/DXF 是只读投影。现有 `cold_room_zone_plan@1.0.0` 的 `required_area_m2` 是唯一功能区面积权威，site layout 不重算面积。
 
