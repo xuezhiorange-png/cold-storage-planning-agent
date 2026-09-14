@@ -1,5 +1,38 @@
 # Gap Analysis
 
+## P1E 当前独立授权记录（2026-09-14）
+
+P1D3 / PR #276 已合并，基线为 `3910b4fbb4dde1952c1e05d2f7720e87119d3b57`。
+当前阶段为 P1E 二维通行规则实现 / Draft review；下文 P1D3 等“当前”标题、
+Draft 和 access 尚未授权描述均为历史快照，保留原文，不作为本阶段状态。
+
+`V2_2_P1E_ACCESS_PROFILE_AUTHORITY_R1` 的人员、手动托盘搬运、冷间门及
+包材直通规则见 [P1E 独立合同](../tasks/V2_2-P1E-access-profile-authority.md)。
+新 `p1-dimension-access-handoff@1.0.0` 嵌入原有 dimension handoff；
+不修改 9 个已定尺区域、3 个 flexible authority、7 MUST / 5 SHOULD 或面积公式。
+本次只验证已提供的净宽/拓扑观察，不生成路径，也不宣称最终布局已可通行。
+
+```ini
+P1E_AUTHORIZED=true
+DIMENSION_AUTHORITY_COMPLETE=true
+PERSONNEL_ACCESS_AUTHORITY_COMPLETE=true
+MATERIAL_ACCESS_AUTHORITY_COMPLETE=true
+TRUCK_ACCESS_CONTRACT_COMPLETE=true
+TRUCK_ACCESS_ENGINEERING_VALUES_COMPLETE=false
+P1_COMPLETE=false
+P1_CLOSURE_REQUIRES_CONTRACT_DECISION=true
+P2_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+```
+
+真正剩余的是货车宽/长、转弯包络、直线进场段、装卸操作净空，以及这些参数
+是否作为未来项目级输入的独立合同裁决；不能重复索要已经批准的人员/物料净宽。
+本次不改变 SiteLayoutInputV1，不关闭无关技术债，不自动授权 P1 closure 或 P2。
+
 ## P1D3 当前独立授权 overlay（2026-09-14）
 
 基线 `a848c2a3b44c6625db7a2546596f4bb3ceb3d7d3`；P1D1 / PR #275 已合并。
