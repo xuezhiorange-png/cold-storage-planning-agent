@@ -32,7 +32,7 @@ from cold_storage.modules.layout.domain.precool_dimensioning import (
 )
 
 # P1B changes the bound profile set, not the historical P1A calculator identity.
-IDENTITY = "zone_dimensioning_foundation@1.1.0"
+IDENTITY = "zone_dimensioning_foundation@1.2.0"
 
 GRID_ZONES = (
     "raw_fruit_buffer",
@@ -174,7 +174,7 @@ def dimension_zones(
             entry["block_reason"] = {"code": error.code, "details": error.details}
         matrix.append(entry)
     payload = {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "calculator_identity": IDENTITY,
         "source_zone_plan_calculator_identity": "cold_room_zone_plan@1.0.0",
         "source_formula_authority": params["formula_authority"],

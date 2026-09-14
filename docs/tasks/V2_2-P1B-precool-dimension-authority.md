@@ -87,3 +87,11 @@ P1A task 文档的历史 4/8 状态与 immutable introducing-commit scope guard 
 未来 HEAD 仅验证 ancestor，不把 moving origin/main 用作历史终点。
 本地测试和 exact-head CI 结果在 PR body 中绑定实际 head，预期 CI_SCOPE=BACKEND。
 不改计算公式、MCP 六工具/五 KEY、Skill、前端、migration 或部署。
+
+## P1C0 后续独立精度修正说明
+
+本页上述任务记录为历史证据。P1C0 单独引入 exact geometry requirement 与 reporting area
+双层语义，见 P0 合同及 ADR-044 overlay。现有 storage / precool profile 不使用放宽分支，
+宽、深、实际面积与上游容量不变；无 exact authority 仍采用严格 reported 下限。
+当前组合器升级至 1.2.0、schema 1.1.0，所以 hash 变化不代表工程几何变化。
+sorting profile 留待后续单独 P1C；本轮仍六区 DIMENSIONED、六区 BLOCKED。

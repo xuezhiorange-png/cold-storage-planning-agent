@@ -44,7 +44,7 @@ raw_fruit_buffer → primary_precooling_room → sorting_packaging_room → seco
 | 阶段 | 内容 | 当前状态 |
 | --- | --- | --- |
 | P0 | Contract Freeze | MERGED，含主物流 authority correction |
-| P1 | Zone Dimensioning + Adjacency Engine | P1A MERGED；P1B 预冷间 authority Draft review；非整个 P1 完成 |
+| P1 | Zone Dimensioning + Adjacency Engine | P1A/P1B MERGED；P1C0 面积精度合同 Draft review；非整个 P1 完成 |
 | P2 | Site-Constrained Deterministic Placement Engine | 未授权 |
 | P3 | Canonical SVG Drawing Projection | 未授权 |
 | P4 | MCP Tool 7 + Doubao/Feishu Integration | 未授权 |
@@ -59,10 +59,14 @@ P1 的完成条件包括容量几何保留、显式定尺 profile、邻接与 ac
 P1A 仅容量几何保留、定尺 profile 基础与邻接验证；4 区可定尺、8 区缺工程 authority。
 详见 [P1A authority matrix](V2_2-P1A-zone-dimensioning-adjacency-foundation.md)。
 P1A 已在 `ae9794d0454fa64ba7db6a94d9a3faeba5df00bd` 合并。
-当前独立授权 `V2_2_P1B_PRECOOL_DIMENSION_AUTHORITY_R1`，以该提交为基线。
+历史独立授权 `V2_2_P1B_PRECOOL_DIMENSION_AUTHORITY_R1`，以该提交为基线。
 P1B 仅绑定 Charles 确认的 6/8 板位预冷间尺寸及并排组合；见
 [P1B evidence](V2_2-P1B-precool-dimension-authority.md)。预期 6 区定尺 / 6 区 BLOCKED。
-P2/P3/P4/P5、其他区域 profile 实现、Ready/Merge、tag/release/deployment 仍未授权。
+P1B 已在 `09d9973d1c0fb0ea1ead09601d252c22448d213a` 合并。
+当前独立授权 `V2_2_P1C0_AREA_PRECISION_CONTRACT_CORRECTION_R1`，以该 SHA 为基线，
+只修正通用 exact/reporting 面积语义；当前六区几何不变、sorting 仍 BLOCKED。
+详见 [P1C0 evidence](V2_2-P1C0-area-precision-contract.md)。
+P1C sorting profile、P2/P3/P4/P5、其他区域 profile 实现、Ready/Merge、tag/release/deployment 仍未授权。
 
 - [P0 合同](V2_2-P0-site-constrained-factory-layout-contract.md)：SiteLayoutInputV1 / SiteLayoutResultV1、几何、流向、错误与可复现性。
 - [ADR-044](../architecture/ADR-044-site-constrained-factory-layout-authority.md)：权威分工及现有 capacity geometry 调查。
