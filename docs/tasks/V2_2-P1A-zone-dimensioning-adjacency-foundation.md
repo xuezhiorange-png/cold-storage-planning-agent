@@ -173,3 +173,11 @@ oracle, dependency manifest or machine-wide font setting was changed.
   ignored by a widened allowlist, or deleted. No skip/xfail/oracle changes.
 - GitHub exact-head BACKEND lane / ci-gate is the final clean-environment gate;
   local success does not authorize Ready, Merge or P2.
+
+## P1C0 后续独立精度修正说明
+
+本页上述任务记录为历史证据。P1C0 单独引入 exact geometry requirement 与 reporting area
+双层语义，见 P0 合同及 ADR-044 overlay。现有 storage / precool profile 不使用放宽分支，
+宽、深、实际面积与上游容量不变；无 exact authority 仍采用严格 reported 下限。
+当前组合器升级至 1.2.0、schema 1.1.0，所以 hash 变化不代表工程几何变化。
+sorting profile 留待后续单独 P1C；本轮仍六区 DIMENSIONED、六区 BLOCKED。

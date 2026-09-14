@@ -1,10 +1,31 @@
 # ADR-044 — Site-constrained factory layout authority
 
-状态：P0/P1A 已合并；P1B 预冷间定尺 authority 独立授权、Draft review。
+状态：P0/P1A/P1B 已合并；P1C0 面积精度合同独立授权、Draft review。
 P2/P3/P4 未授权。以下原始 P0 调查和历史 authorization snapshot 保留。
 基线：v2.1.2 / `0a68597a40aa460ed31441c537ca37c3d4cfd1a7`。
 
 ## 决策
+
+### P1C0 面积精度 overlay（2026-09-14）
+
+任务 `V2_2_P1C0_AREA_PRECISION_CONTRACT_CORRECTION_R1` 修正 P0 无条件 reported-area 下限。
+上游 required_area 原样保留为 reported authority；actual_area 始终是 width×depth 精确乘积。
+只有 source/profile 绑定及 reporting projection 均通过的 exact requirement 才作为几何下限；
+没有 exact authority 时仍严格比较 reported 值，错误 authority/projection 必须拒绝。
+不使用 epsilon、不按 zone 特判、不因 reporting rounding 扩大房间。
+
+AreaRequirementV1 记录两种 authority；ExactAreaAuthorityV1 从不可变源快照的有序 operands
+重放 Decimal 乘积，验证 JSON Pointer/值/hash；AreaReportingProjectionV1 单独重放
+Python binary64 乘积及 round(...,2)，identity 为
+`cold-room-zone-plan-binary64-product-2dp@1.0.0`，不是 ROUND_HALF_UP。
+该 provenance 机制不替代 Owner 批准：本轮不绑定任何生产 exact profile。
+synthetic 合同允许 45.76×13.60=622.336 和 reported 622.34 同时真实记录，
+不把 622.336 改写为 622.34，不把长边改为 45.761。
+
+当前组合器 `zone_dimensioning_foundation@1.2.0`，输出 schema 1.1.0，新增 area_requirement；
+历史 1.1.0 语义不静默变更。六区工程几何和容量不变，hash 因版本/元数据升级变化。
+sorting 仍 BLOCKED，P1C 正式 profile、其他五区、P2 和发布/部署均未授权。
+以下 P1B/P1A/P0 为历史决策，新增 overlay 只修正精度语义。
 
 ### P1B 独立 authority overlay（2026-09-14）
 

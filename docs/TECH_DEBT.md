@@ -12,7 +12,10 @@ V22_P0_STATUS=MERGED
 P1A_AUTHORIZED=true
 P1A_STATUS=MERGED
 P1B_AUTHORIZED=true
-P1B_STATUS=PRECOOL_DIMENSION_AUTHORITY_DRAFT_REVIEW
+P1B_STATUS=MERGED
+P1C0_AUTHORIZED=true
+P1C0_STATUS=AREA_PRECISION_CONTRACT_DRAFT_REVIEW
+P1C_SORTING_PROFILE_AUTHORIZED=false
 P2_AUTHORIZED=false
 P3_AUTHORIZED=false
 P4_AUTHORIZED=false
@@ -21,11 +24,12 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 v2.1.2 已正式发布。下文 V2.1.2 closure 的 Draft、TAG_AUTHORIZED=NO、
 RELEASE_AUTHORIZED=NO 及其他早期授权块均是历史 snapshot，不再代表当前发布状态。
-当前工作为独立授权的 V2.2 P1B 预冷间定尺 authority，参见
+当前工作为独立授权的 V2.2 P1C0 面积精度合同，参见
 `docs/tasks/V2_2-version-plan.md` 和 ADR-044。
 P1A 已合并；其 4 区定尺 / 8 区 BLOCKED 是历史快照。P1B 仅增加两类预冷间：
 6 区可定尺，其他 6 区仍因缺少 profile 明确 BLOCKED。
-当前 evidence 见 `docs/tasks/V2_2-P1B-precool-dimension-authority.md`。
+P1B 已合并；P1C0 不改变六区几何、容量和 BLOCKED 集合，不接入 sorting profile。
+当前 evidence 见 `docs/tasks/V2_2-P1C0-area-precision-contract.md`。
 场地 placement、第七 MCP 工具和投影均未实现，P2 未授权。
 现有六工具、五 KEY 与工程计算保持 v2.1.2 基线。
 网格容量几何需保留；缺少的定尺/access profile 及人车避让尺寸须另行工程决策。

@@ -58,7 +58,7 @@ def test_actual_20t_six_dimensioned_six_blocked_and_hash_deterministic() -> None
     assert first.canonical_result_hash == second.canonical_result_hash
     assert source == before
     body = first.to_dict()
-    assert body["calculator_identity"] == "zone_dimensioning_foundation@1.1.0"
+    assert body["calculator_identity"] == "zone_dimensioning_foundation@1.2.0"
     assert len(body["dimensions"]) == 6
     blocked = {r["zone_code"] for r in body["authority_matrix"] if r["block_reason"]}
     assert blocked == {

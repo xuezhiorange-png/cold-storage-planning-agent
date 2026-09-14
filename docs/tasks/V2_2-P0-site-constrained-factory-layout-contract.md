@@ -104,7 +104,27 @@ FREE_ROTATION=false
 
 精确 zone set：office、changing_room、primary_precooling_room、secondary_precooling_room、raw_fruit_buffer、sorting_packaging_room、coating_room、finished_goods_room、secondary_fruit_buffer、frozen_fruit_room、packaging_material_storage、shipping_channel。必须唯一且完整，不增删合并；required_area_m2 从成功的 `cold_room_zone_plan@1.0.0` 原样读取，源 formula authority 与 exact payload hash 同时记录。当前 formula authority 为 POST-V2.1.1-charles-engineering-rule-adjustments。缺失、身份不符、非成功结果、非法 area、重复/未知 zone 均 fail closed。
 
-ZoneDimensionV1：zone_code、required_area_m2、width_m、depth_m、actual_area_m2、rotation_deg、x、y；其中 x/y 是旋转后 axis-aligned footprint 的左下角，width/depth 为未旋转边长，rotation 仅 0 或 90。0° extent=(width,depth)，90° extent=(depth,width)，避免绕原点旋转导致位置歧义。width/depth 正且符合 0.001 m 网格；actual_area_m2=width_m×depth_m，actual_area_m2>=required_area_m2；坐标、面积均有限。actual area 是外包络面积，不能替代原 required area。
+ZoneDimensionV1：zone_code、required_area_m2、width_m、depth_m、actual_area_m2、rotation_deg、area_requirement；placement 阶段才有 x/y，其中 x/y 是旋转后 axis-aligned footprint 的左下角，width/depth 为未旋转边长，rotation 仅 0 或 90。0° extent=(width,depth)，90° extent=(depth,width)，避免绕原点旋转导致位置歧义。width/depth 正且符合 0.001 m 网格；actual_area_m2=width_m×depth_m 必须精确成立；坐标、面积均有限。actual area 是外包络面积，不能替代原 required area。
+
+### P1C0 独立面积精度合同修正
+
+`V2_2_P1C0_AREA_PRECISION_CONTRACT_CORRECTION_R1` 明确修正原 P0 无条件 reported-area 下限，
+不是特定 zone 豁免。`required_area_m2` 兼容字段始终原样保留 canonical zone-plan reporting 值，
+在 `AreaRequirementV1.reported_required_area_m2` 中记录相同数值与来源。
+
+- 有版本化、可追溯并验证过的 exact authority 且 reporting projection 相等时：
+  `actual_area_m2>=exact_geometry_required_area_m2`。
+- 没有 exact authority 时：`actual_area_m2>=reported_required_area_m2`，不放宽。
+- 提供 exact authority 但来源或投影验证失败：fail closed，不能悄悄丢弃错误证据。
+- `NO_EPSILON=true`、`NO_SPECIAL_CASE=true`、`NO_GEOMETRY_INFLATION_FOR_REPORTING_ROUNDING=true`。
+
+`cold-room-zone-plan-binary64-product-2dp@1.0.0` 记录 0.01 m² quantum、来源与算法：
+按源 operands 顺序执行 Python binary64 乘积，再 `round(product, 2)`；不是 ROUND_HALF_UP。
+exact requirement 则使用同一 operands 的独立 Decimal 精确乘积。若上游先 round raw area，
+这里的源 operand 必须是那个已输出的 raw 值，不能改成另一套计算顺序。
+源 snapshot/hash、operand JSON Pointer、profile identity、Owner authority 均须绑定；
+元数据对象不是用户输入或 Owner 审批证明，未来生产 binder 必须单独审查授权。
+P1C0 不接入 sorting profile；六个当前可定尺区域继续走严格 reported 下限。
 
 [ADR-044](../architecture/ADR-044-site-constrained-factory-layout-authority.md) 调查证明 1.67/2.40/2.0 是网格比排序，不是建筑外框硬比例。容量几何作为上游保留：n_long/n_short、selected scheme、room_count、position_count、aisle layout、pitch/clearance 不得被 layout engine 重排缩减。已有完整容量 envelope 可整体旋转和平移；尺寸不足的区域使用另行审查的 versioned dimensioning profile，禁止 LLM 补值。profile 不得改变 zone area formula；分选包装 1.1 已计入 required area，不得再乘。预冷多房间必须在 zone 矩形包络中保留选定房间数，不把 zone rectangle 谎称单个冷间。
 
@@ -147,7 +167,7 @@ Required access：main entrance 必须存在可通行连接到 changing_room/生
 
 ## Hard / soft
 
-HARD：建筑与所有 zone 在有效可建域内；zone 在 building 内；zone 内部无重叠；与禁建和 retained 障碍无交集；actual_area>=required_area；全部 MUST_ADJACENT；required access。building footprint 是简单正交 polygon（矩形或直角折线包络），允许包络内非 zone 面积作为 circulation/residual，不允许把 gross_area 当 12 区面积权威。
+HARD：建筑与所有 zone 在有效可建域内；zone 在 building 内；zone 内部无重叠；与禁建和 retained 障碍无交集；actual_area 满足上述已验证的面积下限；全部 MUST_ADJACENT；required access。building footprint 是简单正交 polygon（矩形或直角折线包络），允许包络内非 zone 面积作为 circulation/residual，不允许把 gross_area 当 12 区面积权威。
 
 SOFT：SHOULD_ADJACENT、material flow 更短、loading side preference、compactness、circulation length、people/truck separation、shape regularity、unused-site efficiency。硬约束先满足，再优化软目标。未来 objective profile 明确各项方向、单位、权重、归一化、tie-break；P0 不伪造权重。不得以软分抵扣硬违例。
 
@@ -222,7 +242,7 @@ P1/P2 实现必须覆盖下列行为；P0 测试只锁合同与基线，不冒�
 | obstacle 越界 | NO_BUILD_ZONE_OUTSIDE_SITE / EXISTING_BUILDING_OUTSIDE_SITE |
 | 注入 zone_area_m2 / factory_area_m2 / cold_storage_area_m2 | INVALID_LAYOUT_PREFERENCE；不成为面积权威 |
 | 未知/重复/缺失 zone、伪造 source hash | ZONE_PLAN_IDENTITY_INVALID |
-| actual_area 小于 required_area | hard failure；available=false |
+| actual_area 小于已验证 exact 下限，或无 exact authority 时小于 reported 下限 | hard failure；available=false |
 | 两矩形仅角点接触却要求 MUST | HARD_CONSTRAINT_UNSATISFIABLE |
 | 与禁建/retained 障碍相触 | hard failure；available=false |
 | site 面积足够但形状不容纳不可重排容量几何 | LAYOUT_INFEASIBLE（需证明） |
