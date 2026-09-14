@@ -1,5 +1,35 @@
 # Technical Debt
 
+## P1D3 当前独立授权 overlay（2026-09-14）
+
+基线 `a848c2a3b44c6625db7a2546596f4bb3ceb3d7d3`；P1D1 / PR #275 已合并。
+当前任务 V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1，Draft review。
+下文旧 P1D1 Draft、8/4 和缺固定尺寸即阻断等文字为历史阶段快照，
+不得覆盖本次 Owner 批准的 hybrid handoff。
+
+P0_CONTRACT_SUPPORTS_FLEXIBLE_RECTANGLE=true
+P1_REQUIRES_ALL_12_ZONES_FIXED_WIDTH_DEPTH=false
+P1_REQUIRES_ALL_ZONES_HAVE_DIMENSION_AUTHORITY=true
+P2_WIDTH_DEPTH_SELECTION_SCOPE=FLEXIBLE_RECTANGLE_ONLY
+
+新内部入口 `build_dimension_handoff` / `hybrid_zone_dimension_handoff@1.0.0`，
+独立 handoff schema1.0.0；旧 dimension_zones API及八区几何保持不变。
+coating/changing/office为FLEXIBLE_AUTHORIZED，不生成width/depth，不是DIMENSIONED。
+包材使用批准的整数候选profile；20t为9区DIMENSIONED+3区FLEXIBLE_AUTHORIZED。
+现有面积与P1C0 exact/reporting规则不变；不向required_area重复加通道面积。
+固定/确定性区不得被P2resize，flexible区可由未来P2在硬约束下选长宽。
+
+包材LONG_EDGE→分选SHORT_EDGE_EXIT_SIDE是必须、方向对齐的独立连接authority，
+允许direct或corridor，不加入共边MUST、不重复PACKAGING flow。
+分选出口是相对本体短边，具体哪一侧留给P2，非cardinal direction。
+office↔shipping不授权人员portal。ACCESS_PROFILE仍待独立P1E；
+维持7MUST/5SHOULD，不能据dimension authority完整宣称P1完成或access通过。
+SiteLayoutInputV1不变；最终成功layout仍必须输出12区真实具体几何。
+
+详细决策与schema：`docs/tasks/V2_2-P1D3-flexible-rectangle-handoff-contract.md`。
+P2实现、Ready/Merge、Tool7、tag/release/deployment均未授权。
+本overlay不关闭任何无关技术债、不修改历史授权快照。
+
 ## 当前治理状态（2026-09-14）
 
 ```ini
