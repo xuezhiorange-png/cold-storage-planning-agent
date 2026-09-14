@@ -5,13 +5,13 @@ from decimal import Decimal, localcontext
 
 import pytest
 
-from cold_storage.modules.layout.application.dimension_zones import dimension_zones
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.domain.precool_dimensioning import (
     PRECOOL_ZONES,
     dimension_precool_zone,
 )
 from tests.unit.test_v22_p1a_dimensioning_adjacency import snapshot
+from tests.v22_p1c0_historical_application import dimension_zones
 
 
 @pytest.mark.parametrize("code", PRECOOL_ZONES)

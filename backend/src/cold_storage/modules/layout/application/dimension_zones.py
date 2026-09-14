@@ -15,6 +15,11 @@ from cold_storage.modules.calculations.domain.zone_planning import (
     RAW_AISLE_M,
     STORAGE_ONE_AISLE_M,
 )
+from cold_storage.modules.layout.application.sorting_dimension_authority import (
+    SORTING_ZONE,
+    dimension_sorting_zone,
+    sorting_profile,
+)
 from cold_storage.modules.layout.domain.adjacency import ZONE_CODES, process_graph
 from cold_storage.modules.layout.domain.dimensioning import (
     LayoutAuthorityError,
@@ -32,7 +37,7 @@ from cold_storage.modules.layout.domain.precool_dimensioning import (
 )
 
 # P1B changes the bound profile set, not the historical P1A calculator identity.
-IDENTITY = "zone_dimensioning_foundation@1.2.0"
+IDENTITY = "zone_dimensioning_foundation@1.3.0"
 
 GRID_ZONES = (
     "raw_fruit_buffer",
@@ -139,6 +144,7 @@ def dimension_zones(
     # Validate serialization and bind the whole source, not a caller-supplied hash.
     source_hash = canonical_hash(zone_plan_snapshot)
     profiles = {profile.zone_code: profile for profile in upstream_profiles()}
+    profiles[SORTING_ZONE] = sorting_profile()
     matrix: list[dict[str, Any]] = []
     dimensions = []
     for zone in sorted(zones, key=lambda row: row["zone_code"]):
@@ -158,6 +164,8 @@ def dimension_zones(
         try:
             if code in PRECOOL_ZONES:
                 dimensions.append(dimension_precool_zone(zone))
+            elif code == SORTING_ZONE:
+                dimensions.append(asdict(dimension_sorting_zone(zone)))
             else:
                 if profile is not None:
                     expected = (
@@ -194,7 +202,7 @@ def dimension_zones(
         "units": {"length": "m", "area": "m2"},
         "requires_review": True,
         "assumptions": [
-            "Storage grids and approved parallel precool envelopes only; "
+            "Storage grids, approved parallel precool and sorting long-edge envelopes only; "
             "not construction drawings or access approval."
         ],
         "warnings": ["Unresolved zone dimensions and access authority prevent layout acceptance."],

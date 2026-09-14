@@ -1,12 +1,27 @@
 # ADR-044 — Site-constrained factory layout authority
 
-状态：P0/P1A/P1B 已合并；P1C0 面积精度合同独立授权、Draft review。
+状态：P0/P1A/P1B/P1C0 已合并；P1C sorting 尺寸 authority 独立授权、Draft review。
 P2/P3/P4 未授权。以下原始 P0 调查和历史 authorization snapshot 保留。
 基线：v2.1.2 / `0a68597a40aa460ed31441c537ca37c3d4cfd1a7`。
 
 ## 决策
 
-### P1C0 面积精度 overlay（2026-09-14）
+### P1C sorting production overlay（2026-09-14）
+
+独立授权 `V2_2_P1C_SORTING_PACKAGING_DIMENSION_AUTHORITY_R1`，基线为 PR #273
+merge `7785e877461a2c82980ed4e318bd04eabc0287df`。sorting 只消费 canonical 上游
+已选网格，以 5.6/3.0 节距和 8.0/7.6 边缘空间投影原矩形，长边乘既定 1.1。
+不重算人数/台数/面积 authority、不搜索长宽比、不改变 zone planner。
+profile 为 `upstream-sorting-long-edge-envelope@1.0.0`；组合器升至
+`zone_dimensioning_foundation@1.3.0`，schema 继续 1.1.0（结构未变）。
+backend 内部 binder 验证网格、raw area 和 factor，将 raw_required_area_m2 与
+sorting_packaging_area_factor 从源快照绑定为 ExactAreaAuthorityV1；reported 值原样保留。
+通用 precheck 和最终 model 统一读取 AreaRequirementV1 的几何下限，无 exact 仍严格。
+20t 为 45.76×13.60=622.336 m²，reported 622.34 m²；不得补长至 45.761。
+原六区记录不变，sorting 新增可定尺，共 7 区定尺 / 5 区缺 authority。
+无其他 profile、placement、P2、MCP、发布或部署授权。
+
+### P1C0 面积精度 overlay（2026-09-14，历史阶段快照）
 
 任务 `V2_2_P1C0_AREA_PRECISION_CONTRACT_CORRECTION_R1` 修正 P0 无条件 reported-area 下限。
 上游 required_area 原样保留为 reported authority；actual_area 始终是 width×depth 精确乘积。
