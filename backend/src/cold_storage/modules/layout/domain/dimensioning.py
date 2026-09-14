@@ -122,7 +122,7 @@ class ExactAreaAuthorityV1:
     """Backend-owned formula evidence, never user input or proof of Owner approval.
 
     An approved profile binder must obtain operands from its verified source.
-    P1C0 ships no production binder. Test fixtures may exercise this contract.
+    Production binders are application-owned and require separate profile authority.
     Ordered operands describe the pre-reporting product, not reverse-rounded area.
     """
 
@@ -289,9 +289,13 @@ def dimension_zone(
     profile: ZoneDimensionProfileV1 | None,
     *,
     rotation_deg: int = 0,
+    area_requirement: AreaRequirementV1 | None = None,
 ) -> ZoneDimensionV1:
     code = str(zone["zone_code"])
     area = decimal_value(zone["required_area_m2"])
+    requirement = area_requirement if area_requirement is not None else AreaRequirementV1(area)
+    if type(requirement) is not AreaRequirementV1 or requirement.reported_required_area_m2 != area:
+        raise LayoutAuthorityError("INVALID_AREA_REQUIREMENT")
     if profile is None:
         raise LayoutAuthorityError(
             "ZONE_DIMENSIONING_AUTHORITY_REQUIRED",
@@ -336,7 +340,7 @@ def dimension_zone(
             rounding=ROUND_CEILING
         ) * profile.depth_increment_m
         actual = width * depth
-        if actual < area:
+        if actual < requirement.geometric_lower_bound_m2:
             raise LayoutAuthorityError(
                 "ZONE_DIMENSIONING_AUTHORITY_REQUIRED",
                 zone_code=code,
@@ -353,6 +357,7 @@ def dimension_zone(
             profile.identity,
             profile.source,
             canonical_hash(zone),
+            requirement,
         )
 
 

@@ -4,7 +4,7 @@ import ast
 import subprocess
 from pathlib import Path
 
-from cold_storage.modules.layout.application.dimension_zones import IDENTITY, upstream_profiles
+from cold_storage.modules.layout.application.dimension_zones import upstream_profiles
 from cold_storage.modules.layout.domain.dimensioning import AREA_PROJECTION_IDENTITY
 from cold_storage.modules.layout.domain.precool_dimensioning import precool_profiles
 
@@ -47,12 +47,15 @@ def test_immutable_scope_no_upstream_profile_or_infra_changes() -> None:
 
 
 def test_versioned_precision_no_production_exact_binder_or_zone_special_case() -> None:
-    assert IDENTITY == "zone_dimensioning_foundation@1.2.0"
     assert AREA_PROJECTION_IDENTITY == "cold-room-zone-plan-binary64-product-2dp@1.0.0"
     assert len(upstream_profiles()) == 4 and len(precool_profiles()) == 2
-    app = (
-        ROOT / "backend/src/cold_storage/modules/layout/application/dimension_zones.py"
-    ).read_text()
+    # P1C0's no-production-binder assertion belongs to its immutable merge, not
+    # every later authorized profile revision. Generic domain guards remain live.
+    app = git(
+        "show",
+        "7785e877461a2c82980ed4e318bd04eabc0287df:backend/src/cold_storage/modules/layout/application/dimension_zones.py",
+    )
+    assert 'IDENTITY = "zone_dimensioning_foundation@1.2.0"' in app
     assert "ExactAreaAuthorityV1" not in app
     domain = (ROOT / "backend/src/cold_storage/modules/layout/domain/dimensioning.py").read_text()
     assert "sorting_packaging_room" not in domain

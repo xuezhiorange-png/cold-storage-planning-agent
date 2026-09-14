@@ -15,7 +15,6 @@ from cold_storage.modules.calculations.domain.zone_planning import (
 )
 from cold_storage.modules.layout.application.dimension_zones import (
     GRID_ZONES,
-    dimension_zones,
     upstream_profiles,
 )
 from cold_storage.modules.layout.domain.adjacency import (
@@ -34,6 +33,9 @@ from cold_storage.modules.layout.domain.dimensioning import (
     dimension_zone,
     require_access_profile,
 )
+
+# Historical six-zone integration oracle; current P1C has a separate production suite.
+from tests.v22_p1c0_historical_application import dimension_zones
 
 D = Decimal
 
