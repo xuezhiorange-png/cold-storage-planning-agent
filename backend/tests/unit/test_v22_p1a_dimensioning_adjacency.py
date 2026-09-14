@@ -21,7 +21,6 @@ from cold_storage.modules.layout.domain.adjacency import (
     PROCESS_FLOW,
     RectangleObservationV1,
     evaluate_adjacency,
-    process_graph,
     shared_edge_adjacent,
 )
 from cold_storage.modules.layout.domain.dimensioning import (
@@ -36,6 +35,7 @@ from cold_storage.modules.layout.domain.dimensioning import (
 
 # Historical six-zone integration oracle; current P1C has a separate production suite.
 from tests.v22_p1c0_historical_application import dimension_zones
+from tests.v22_p1c_historical_application import process_graph
 
 D = Decimal
 

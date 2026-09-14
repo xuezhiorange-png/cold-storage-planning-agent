@@ -4,7 +4,7 @@ import ast
 import subprocess
 from pathlib import Path
 
-from cold_storage.modules.layout.application.dimension_zones import IDENTITY, upstream_profiles
+from cold_storage.modules.layout.application.dimension_zones import upstream_profiles
 from cold_storage.modules.layout.application.sorting_dimension_authority import sorting_profile
 from cold_storage.modules.layout.domain.precool_dimensioning import precool_profiles
 
@@ -53,7 +53,11 @@ def test_immutable_scope_preserves_upstream_and_all_non_layout_runtime() -> None
 
 
 def test_one_new_profile_and_no_solver_or_consumer_entrypoint() -> None:
-    assert IDENTITY == "zone_dimensioning_foundation@1.3.0"
+    historical_app = git(
+        "show",
+        "4f8c3a0c3b8e866695a917990588caffdd60defc:" + MODULE + "application/dimension_zones.py",
+    )
+    assert 'IDENTITY = "zone_dimensioning_foundation@1.3.0"' in historical_app
     assert len(upstream_profiles()) == 4 and len(precool_profiles()) == 2
     profile = sorting_profile()
     assert profile.identity == "upstream-sorting-long-edge-envelope@1.0.0"

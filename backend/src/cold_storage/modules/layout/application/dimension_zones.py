@@ -35,9 +35,14 @@ from cold_storage.modules.layout.domain.precool_dimensioning import (
     dimension_precool_zone,
     precool_profiles,
 )
+from cold_storage.modules.layout.domain.shipping_dimensioning import (
+    SHIPPING_ZONE,
+    dimension_shipping_zone,
+    shipping_profile,
+)
 
 # P1B changes the bound profile set, not the historical P1A calculator identity.
-IDENTITY = "zone_dimensioning_foundation@1.3.0"
+IDENTITY = "zone_dimensioning_foundation@1.4.0"
 
 GRID_ZONES = (
     "raw_fruit_buffer",
@@ -155,7 +160,8 @@ def dimension_zones(
             "area_authority": "cold_room_zone_plan@1.0.0",
             "required_area_m2": zone["required_area_m2"],
             "capacity_geometry_available": "layout" in zone or "schemes" in zone,
-            "dimensioning_profile_available": profile is not None or code in PRECOOL_ZONES,
+            "dimensioning_profile_available": profile is not None
+            or code in (*PRECOOL_ZONES, SHIPPING_ZONE),
             "capacity_geometry_reference": canonical_hash(zone),
             "upstream_zone": zone,
             "dimensioning_result": "BLOCKED",
@@ -166,6 +172,8 @@ def dimension_zones(
                 dimensions.append(dimension_precool_zone(zone))
             elif code == SORTING_ZONE:
                 dimensions.append(asdict(dimension_sorting_zone(zone)))
+            elif code == SHIPPING_ZONE:
+                dimensions.append(dimension_shipping_zone(zone))
             else:
                 if profile is not None:
                     expected = (
@@ -182,7 +190,7 @@ def dimension_zones(
             entry["block_reason"] = {"code": error.code, "details": error.details}
         matrix.append(entry)
     payload = {
-        "schema_version": "1.1.0",
+        "schema_version": "1.2.0",
         "calculator_identity": IDENTITY,
         "source_zone_plan_calculator_identity": "cold_room_zone_plan@1.0.0",
         "source_formula_authority": params["formula_authority"],
@@ -192,6 +200,7 @@ def dimension_zones(
         "authority_matrix": matrix,
         "profiles": [profile_payload(profiles[code]) for code in sorted(profiles)],
         "precool_room_profiles": [asdict(profile) for profile in precool_profiles()],
+        "shipping_dimension_profile": asdict(shipping_profile()),
         "adjacency_graph": asdict(process_graph()),
         "constraint_evaluation": {
             "area_invariants_passed_for_dimensioned_zones": True,
@@ -202,7 +211,7 @@ def dimension_zones(
         "units": {"length": "m", "area": "m2"},
         "requires_review": True,
         "assumptions": [
-            "Storage grids, approved parallel precool and sorting long-edge envelopes only; "
+            "Storage, precool, sorting and approved shipping envelopes only; "
             "not construction drawings or access approval."
         ],
         "warnings": ["Unresolved zone dimensions and access authority prevent layout acceptance."],
