@@ -10,7 +10,6 @@ from cold_storage.modules.calculations.domain.zone_planning import (
     ColdRoomZonePlanInput,
     ColdRoomZonePlanner,
 )
-from cold_storage.modules.layout.application.dimension_zones import dimension_zones
 from cold_storage.modules.layout.application.sorting_dimension_authority import (
     dimension_sorting_zone,
     sorting_profile,
@@ -24,6 +23,7 @@ from cold_storage.modules.layout.domain.dimensioning import (
 )
 from tests.unit.test_v22_p1a_dimensioning_adjacency import snapshot
 from tests.v22_p1c0_historical_application import dimension_zones as historical_dimension_zones
+from tests.v22_p1c_historical_application import dimension_zones
 
 D = Decimal
 

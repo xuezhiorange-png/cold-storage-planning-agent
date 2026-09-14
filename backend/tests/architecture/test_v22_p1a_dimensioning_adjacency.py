@@ -65,7 +65,11 @@ def test_runtime_graph_matches_current_p0_not_a_duplicate_test_constant() -> Non
     proximity = re.findall(
         r"^\| SHOULD_ADJACENT / ZONE_ACCESS_PROXIMITY \| (\w+) ↔ (\w+) \|$", contract, re.MULTILINE
     )
-    assert tuple(must) == graph.must_adjacencies and len(must) == 6
+    assert tuple(must) == graph.must_adjacencies and len(must) == 7
+    assert graph.must_adjacencies[:6] == tuple(
+        zip(PROCESS_FLOW[:-1], PROCESS_FLOW[1:], strict=True)
+    )
+    assert graph.must_adjacencies[6] == ("office", "shipping_channel")
     assert tuple(should) == graph.should_adjacencies
     assert tuple(proximity) == graph.zone_access_proximities
     assert len(ZONE_CODES) == 12

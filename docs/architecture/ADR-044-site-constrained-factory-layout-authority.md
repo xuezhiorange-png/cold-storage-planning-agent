@@ -1,12 +1,26 @@
 # ADR-044 — Site-constrained factory layout authority
 
-状态：P0/P1A/P1B/P1C0 已合并；P1C sorting 尺寸 authority 独立授权、Draft review。
+状态：P0/P1A/P1B/P1C0/P1C 已合并；P1D1 Owner authority 独立授权、Draft review。
 P2/P3/P4 未授权。以下原始 P0 调查和历史 authorization snapshot 保留。
 基线：v2.1.2 / `0a68597a40aa460ed31441c537ca37c3d4cfd1a7`。
 
 ## 决策
 
-### P1C sorting production overlay（2026-09-14）
+### P1D1 Owner authority overlay（2026-09-14）
+
+基线 PR #274 merge `4f8c3a0c3b8e866695a917990588caffdd60defc`。
+出货通道短边固定6.5m，长边为装卸面；每坑2m，坑间及两侧墙净距分别至少2.5m。
+长边取 max(2×2.5+N×2+(N−1)×2.5, required_area/6.5)，向上对齐0.001m；
+N与面积仅从canonical source读取。20t宽6.5m、深7.693m、实际面积50.0045m²，由面积约束控制。
+组合器为zone_dimensioning_foundation@1.4.0，schema1.2.0；不生成基坑位置或场外通路。
+office↔shipping_channel追加MUST，office↔primary_precooling_room追加SHOULD；
+graph升至charles-v22-process-flow@1.1.0。原主链六对及所有有向流不变。
+覆膜无固定尺寸authority，仍BLOCKED；包材仅确认1.2×1.0m模块及长边通道≥3m，
+未确认行列和k的通道口径，不实现profile；更衣无新尺寸；办公室仅更新邻接。
+共8区定尺/4区BLOCKED，旧七区几何不变。P2、Ready/Merge、发布部署均未授权。
+详见P1D1 task evidence；以下为历史阶段快照。
+
+### P1C sorting production overlay（2026-09-14，历史）
 
 独立授权 `V2_2_P1C_SORTING_PACKAGING_DIMENSION_AUTHORITY_R1`，基线为 PR #273
 merge `7785e877461a2c82980ed4e318bd04eabc0287df`。sorting 只消费 canonical 上游

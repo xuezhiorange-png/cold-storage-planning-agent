@@ -104,8 +104,8 @@ def test_current_charles_process_flow_authority_and_exact_six_must_adjacencies()
         contract,
         re.MULTILINE,
     )
-    assert actual_edges == expected_edges
-    assert len({frozenset(pair) for pair in actual_edges}) == 6
+    assert actual_edges == expected_edges + [("office", "shipping_channel")]
+    assert len({frozenset(pair) for pair in actual_edges}) == 7
     for path in (ADR, PLAN):
         text = (ROOT / path).read_text(encoding="utf-8")
         assert " → ".join(expected_flow) in text

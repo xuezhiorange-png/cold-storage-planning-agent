@@ -137,7 +137,8 @@ P1C0 不接入 sorting profile；六个当前可定尺区域继续走严格 repo
 本节以 Charles 最终确认的业务 authority 为准：一级预冷后先分选包装，再进入二级预冷。
 本次 contract-only correction 为 `V2_2_P0_PROCESS_FLOW_AUTHORITY_CORRECTION_R1`，
 基线 `fe5c1c6f19326f739a55be558403ee7b535f8195`。
-MUST_ADJACENT 精确为下面六组主链邻接；包材侧物流保留，但不再列入 MUST 集合。
+原主链六组 MUST_ADJACENT 保持不变；P1D1 单独授权追加 office ↔ shipping_channel，
+当前总计七组 MUST。包材侧物流保留，不列入 MUST 集合。
 历史 P0 Git 快照仍保留当时记录，不能作为当前主物流 authority。
 
 侧物流：packaging_material_storage → sorting_packaging_room。
@@ -155,13 +156,18 @@ ZONE_ADJACENCY 指两个区域共享正长度边段且内部不重叠；角点�
 | MUST_ADJACENT / ZONE_ADJACENCY | secondary_precooling_room ↔ coating_room |
 | MUST_ADJACENT / ZONE_ADJACENCY | coating_room ↔ finished_goods_room |
 | MUST_ADJACENT / ZONE_ADJACENCY | finished_goods_room ↔ shipping_channel |
+| MUST_ADJACENT / ZONE_ADJACENCY | office ↔ shipping_channel |
 | SHOULD_ADJACENT / ZONE_ADJACENCY | sorting_packaging_room ↔ coating_room |
 | SHOULD_ADJACENT / ZONE_ADJACENCY | sorting_packaging_room ↔ secondary_fruit_buffer |
 | SHOULD_ADJACENT / ZONE_ADJACENCY | sorting_packaging_room ↔ frozen_fruit_room |
 | SHOULD_ADJACENT / ZONE_ADJACENCY | changing_room ↔ sorting_packaging_room |
+| SHOULD_ADJACENT / ZONE_ADJACENCY | office ↔ primary_precooling_room |
 | SHOULD_ADJACENT / ZONE_ACCESS_PROXIMITY | shipping_channel ↔ truck_entrance |
 
-AVOID_ADJACENT 分类保留，但当前强制规则集合为空。office ↔ truck loading face、people entrance ↔ heavy truck maneuvering area 均为 ENGINEERING_DECISION_REQUIRED；缺乏已冻结场地车辆/卫生安全证据，不能硬编码禁止邻接。people/truck separation 可以作软目标，不能声称安全合规。
+AVOID_ADJACENT 分类保留，但当前强制规则集合为空。office ↔ shipping_channel 的新 MUST
+不等于 office 必须贴装卸面或已满足人员/重车安全分隔；office ↔ truck loading face、
+people entrance ↔ heavy truck maneuvering area 的避让细节仍为 ENGINEERING_DECISION_REQUIRED。
+不得以未批准避让规则否定已批准 zone 邻接，也不得据此声称安全合规。
 
 Required access：main entrance 必须存在可通行连接到 changing_room/生产侧，truck entrance 必须连接到 shipping_channel 装卸侧。通路在 site 内且不穿硬障碍；跨建筑边界必须有显式 portal。路径/门宽/通行包络由有版本的 access profile 提供，不能仅凭入口存在或欧氏距离就声称 required access satisfied。缺 profile 则返回 ACCESS_PROFILE_REQUIRED；P1/P2 冻结后才可实现对应校验。
 

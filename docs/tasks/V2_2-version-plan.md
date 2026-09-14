@@ -44,7 +44,7 @@ raw_fruit_buffer → primary_precooling_room → sorting_packaging_room → seco
 | 阶段 | 内容 | 当前状态 |
 | --- | --- | --- |
 | P0 | Contract Freeze | MERGED，含主物流 authority correction |
-| P1 | Zone Dimensioning + Adjacency Engine | P1A/P1B/P1C0 MERGED；P1C sorting 尺寸 authority Draft review；非整个 P1 完成 |
+| P1 | Zone Dimensioning + Adjacency Engine | P1A/P1B/P1C0/P1C MERGED；P1D1 Owner authority Draft review；非整个 P1 完成 |
 | P2 | Site-Constrained Deterministic Placement Engine | 未授权 |
 | P3 | Canonical SVG Drawing Projection | 未授权 |
 | P4 | MCP Tool 7 + Doubao/Feishu Integration | 未授权 |
@@ -67,10 +67,14 @@ P1B 已在 `09d9973d1c0fb0ea1ead09601d252c22448d213a` 合并。
 只修正通用 exact/reporting 面积语义；该阶段六区几何不变、sorting 仍 BLOCKED。
 详见 [P1C0 evidence](V2_2-P1C0-area-precision-contract.md)。
 P1C0 已在 `7785e877461a2c82980ed4e318bd04eabc0287df`（PR #273）合并。
-当前独立授权 `V2_2_P1C_SORTING_PACKAGING_DIMENSION_AUTHORITY_R1`：
+历史独立授权 `V2_2_P1C_SORTING_PACKAGING_DIMENSION_AUTHORITY_R1`：
 复用 exact/reporting 合同及上游分选网格，长边乘既定 1.1；7 区定尺、5 区 BLOCKED。
 详见 [P1C evidence](V2_2-P1C-sorting-packaging-dimension-authority.md)。
-P2/P3/P4/P5、其他五区 profile、Ready/Merge、tag/release/deployment 仍未授权。
+P1C在`4f8c3a0c3b8e866695a917990588caffdd60defc`合并。
+当前独立授权P1D1仅实现出货profile、更新办公室邻接并记录包材部分authority。
+8区定尺/4区BLOCKED；覆膜、包材、更衣、办公室均不创建尺寸profile。
+详见[P1D1](V2_2-P1D1-remaining-zone-owner-authority.md)。
+P2/P3/P4/P5、其他四区profile、Ready/Merge、tag/release/deployment仍未授权。
 
 - [P0 合同](V2_2-P0-site-constrained-factory-layout-contract.md)：SiteLayoutInputV1 / SiteLayoutResultV1、几何、流向、错误与可复现性。
 - [ADR-044](../architecture/ADR-044-site-constrained-factory-layout-authority.md)：权威分工及现有 capacity geometry 调查。

@@ -65,14 +65,15 @@ class AdjacencyGraphV1:
 def process_graph() -> AdjacencyGraphV1:
     main = tuple(zip(PROCESS_FLOW[:-1], PROCESS_FLOW[1:], strict=True))
     return AdjacencyGraphV1(
-        "charles-v22-process-flow@1.0.0",
+        "charles-v22-process-flow@1.1.0",
         ZONE_CODES,
-        main,
+        main + (("office", "shipping_channel"),),
         (
             ("sorting_packaging_room", "coating_room"),
             ("sorting_packaging_room", "secondary_fruit_buffer"),
             ("sorting_packaging_room", "frozen_fruit_room"),
             ("changing_room", "sorting_packaging_room"),
+            ("office", "primary_precooling_room"),
         ),
         tuple(FlowV1("MATERIAL", a, b) for a, b in main)
         + (
