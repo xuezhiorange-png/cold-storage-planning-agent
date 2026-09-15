@@ -469,3 +469,24 @@ kinematics. P3 remains independently unauthorized.
 无 placement/x/y 生成；几何谓词仅消费外部观察矩形，不能作完整布局验收。
 `zone_dimensioning_foundation@1.0.0` 与未来 site placement identity 分开。
 详见 [P1A evidence / authority matrix](../tasks/V2_2-P1A-zone-dimensioning-adjacency-foundation.md)。
+
+## P3 SVG projection decision (2026-09-16)
+
+P3 is a separately authorized presentation boundary after the validated P2D
+result. The canonical authority remains the structured
+`site_validated_layout@1.0.0` JSON; SVG identity is
+`validated-layout-svg-projection@1.0.0` and is projection-only. The projection
+requires both `project_layout_validated=true` and `p2_complete=true`, verifies
+the P2D source hashes and matching `ValidatedSiteGeometryV1`, and fails closed
+for an incomplete or tampered source result.
+
+The renderer copies, without recomputation or mutation, the selected zone
+rectangles, portals, corridor envelopes and centerlines, loading face, truck
+maneuver envelopes/reference paths, and derived building footprint. It applies
+only a deterministic engineering-metre to SVG-screen transform with inverted
+Y, stable layer/group IDs, XML escaping, and a deterministic viewBox/legend/
+title block. Display labels and display rounding are non-authoritative.
+
+P3 does not implement placement, routing, engineering formulas, MCP Tool 7,
+REST, frontend integration, PDF, DXF, or deployment. P4 and P5 remain
+independently unauthorized.

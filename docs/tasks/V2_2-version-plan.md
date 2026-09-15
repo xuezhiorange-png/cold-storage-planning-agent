@@ -296,7 +296,7 @@ raw_fruit_buffer → primary_precooling_room → sorting_packaging_room → seco
 | P0 | Contract Freeze | MERGED，含主物流 authority correction |
 | P1 | Zone Dimensioning + Adjacency Engine | P1A/P1B/P1C0/P1C MERGED；P1D1 Owner authority Draft review；非整个 P1 完成 |
 | P2 | Site-Constrained Deterministic Placement Engine | 未授权 |
-| P3 | Canonical SVG Drawing Projection | 未授权 |
+| P3 | Canonical SVG Drawing Projection | IMPLEMENTATION_ACTIVE，Draft review |
 | P4 | MCP Tool 7 + Doubao/Feishu Integration | 未授权 |
 | P5 | Release Closure | 未授权 |
 
@@ -365,3 +365,40 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 人员/货车政策和 derived footprint 均已通过；不代表 P3 或任何发布动作已获授权。
 没有完整 project-bound truck maneuver input、路线搜索耗尽或出现 engineering review
 时，结果保持 fail closed。详见 [P2D evidence](V2_2-P2D-access-routing-and-truck-validation.md)。
+
+## V2.2 P3 当前独立授权与实现状态（2026-09-16）
+
+Charles 已单独授权 `V2_2_P3_VALIDATED_LAYOUT_SVG_PROJECTION_R1`。P3 只消费
+P2D 已通过的 `site_validated_layout@1.0.0` 与匹配的已验证 site geometry，生成
+`validated-layout-svg-projection@1.0.0` 的静态 SVG。它不重算面积、尺寸、portal、
+corridor、loading face、truck route 或 placement，也不创建新的工程 authority。
+
+```ini
+P2_COMPLETE_REQUIRED=true
+PROJECT_LAYOUT_VALIDATED_REQUIRED=true
+P3_AUTHORIZED=true
+P3_STATUS=IMPLEMENTED_DRAFT_REVIEW
+P3_SVG_PROJECTION_IDENTITY=validated-layout-svg-projection@1.0.0
+P3_CANONICAL_LAYOUT_AUTHORITY=STRUCTURED_LAYOUT_JSON
+P3_SVG_IS_PROJECTION=true
+P3_ZONE_COUNT=12
+P3_DETERMINISTIC=true
+P3_STATIC_XML_SECURITY=PASS
+P4_AUTHORIZED=false
+P5_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P3 的输入必须同时满足 `project_layout_validated=true` 与 `p2_complete=true`，
+并保留 P2D 的 source hashes、12 区、access、truck maneuver 和 building footprint。
+P3 的 SVG 包含 site/buildable constraints、12 zones、portals、corridor envelopes
+和 centerlines、entrances、selected loading face、truck maneuver envelopes/reference
+paths、dimensions、legend 与 deterministic title block。SVG 不成为 layout authority；
+P4 才可能讨论 MCP Tool 7，PDF/DXF 仍是未来独立投影方向。
+
+详见 [P3 evidence](V2_2-P3-validated-layout-svg-projection.md)。
