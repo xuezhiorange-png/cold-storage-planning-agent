@@ -1,5 +1,35 @@
 # Development Plan
 
+## V2.2 P2B2 当前治理状态（2026-09-15）
+
+P2B2 已获得独立授权，只冻结可追溯的 deterministic objective metadata；不执行
+placement 或 route。历史 P2A/P2B1 状态块继续保留为阶段快照。
+
+```ini
+ACTIVE_GOVERNANCE_LANE=V2.2_P2
+P2_AUTHORIZED=true
+P2B2_AUTHORIZED=true
+OBJECTIVE_PROFILE_AUTHORIZED=true
+OBJECTIVE_PROFILE_IMPLEMENTED=true
+P2B2_REVIEW_CORRECTION_R2_APPLIED=true
+P0_DECLARATION_ORDER_USED_AS_PRIORITY=false
+ROUTE_OBJECTIVE_ORDER_FROZEN=false
+PLACEMENT_SEARCH_IMPLEMENTED=false
+ROUTING_IMPLEMENTED=false
+P2C_AUTHORIZED=false
+P2_COMPLETE=false
+P3_AUTHORIZED=false
+P4_AUTHORIZED=false
+P5_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+合同采用字典序，不采用加权分数；5 条 SHOULD 只按满足条数计分；物流和循环
+距离必须来自真实 portal/corridor route。8 项是目标词汇表，不代表声明顺序；当前
+placement 顺序为 SHOULD_ADJACENT → LOADING_SIDE_PREFERENCE，route 顺序尚未冻结。
+compactness、shape regularity 和
+unused-site efficiency 暂不启用。详见 `docs/tasks/V2_2-P2B2-objective-profile-contract.md`。
+
 ## V2.2 P2A 当前治理状态（2026-09-15）
 
 P1F / PR #278 已合并，当前基线为 `50210aa7cc876ed8a93a099c82ef4a4f287da82a`。
