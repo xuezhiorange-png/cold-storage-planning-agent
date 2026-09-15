@@ -412,6 +412,52 @@ sorting_packaging_room → frozen_fruit_room 保持不变。包材分支不再�
 
 完整字段、精度、错误及分期见 [P0 contract](../tasks/V2_2-P0-site-constrained-factory-layout-contract.md) 与 [version plan](../tasks/V2_2-version-plan.md)。
 
+## P2D access routing and final-layout validation (2026-09-15)
+
+P2D adds a validation layer after P2C placement. The layer consumes the
+already-bound P1 access requirements rather than reconstructing process or
+access authority. There must be twelve results for the twelve authoritative
+requirements, including the separate truck requirement. Every non-truck result
+uses the existing P1 profile and predicate semantics for portal width, corridor
+width, edge orientation and the packaging straight-route rule.
+
+Direct shared-edge access is attempted before a corridor. Corridor search is a
+finite deterministic orthogonal graph over integer millimetres on the existing
+`0.001m` grid. A node budget is the only search cutoff; exhaustion is not an
+infeasibility proof. P2D exposes actual route lengths as evidence, but
+route-objective ordering remains inactive.
+
+Truck validation uses only the project-bound
+`OPTION_C_APPROVED_MANEUVER_TEMPLATES` chain. It rechecks project provenance,
+template identity/hashes, pose continuity, entrance entry, selected shipping
+loading-face docking and transformed-envelope clearance. It does not infer a
+vehicle, turning radius or kinematic solution. Personnel/truck shared routes
+remain prohibited. A geometry crossing/contact does not prove that the crossing
+is necessary: without separate engineering authority it is
+`REQUIRES_ENGINEERING_REVIEW` with `crossing_necessary=UNDETERMINED`, and cannot
+produce a fully validated project result.
+
+Incident-zone corridors are portal-only. The open interval immediately after
+the origin portal and immediately before the destination portal must not enter
+the incident-zone interior; positive-area corridor-envelope overlap is rejected
+and exact selected-portal boundary contact is allowed. The predicate is exact
+on the existing integer-millimetre grid and does not use a midpoint shortcut.
+
+When all eleven non-truck routes pass, P2D may derive a non-optimized building
+footprint from the twelve zone rectangles plus generated personnel/material
+corridor envelopes. The footprint must contain those geometries, remain inside
+the effective buildable boundary and clear hard obstacles. Compactness, shape
+regularity and unused-site efficiency remain inactive. The final
+`site_validated_layout@1.0.0` result binds zone-plan, P1 handoff, site geometry,
+objective profile, placement and truck-binding hashes. `p2_complete` is
+conditional on every hard predicate passing and is not a release or next-stage
+authorization.
+
+P2D does not modify the canonical zone plan, P1/P2C dimension or objective
+authority, MCP tools, frontend, database, or release state. It does not
+implement SVG/PDF/DXF projection, MCP Tool 7, placement optimization or vehicle
+kinematics. P3 remains independently unauthorized.
+
 ## P1A separate implementation decision
 
 基线 `e963256c56d20f90a880a61d0bc721d28c0a9c38`；Charles 独立授权
