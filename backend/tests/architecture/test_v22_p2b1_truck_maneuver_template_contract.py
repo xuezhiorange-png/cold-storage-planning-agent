@@ -15,6 +15,7 @@ from cold_storage.modules.layout.domain.truck_maneuver import (
     MANEUVER_90_DEGREE_TURN,
     MANEUVER_DOCK_REVERSE,
     MANEUVER_STRAIGHT_APPROACH,
+    P1F_INPUT_CONTRACT_IDENTITY,
     P2_COMPLETE,
     P3_AUTHORIZED,
     STRAIGHT_APPROACH,
@@ -117,6 +118,12 @@ def test_template_module_has_only_layout_domain_dependencies_and_no_solver_langu
             assert {alias.name for alias in node.names} <= {"json", "re"}
         elif isinstance(node, ast.ImportFrom):
             module = node.module or ""
+            if module == "cold_storage.modules.layout.domain.project_truck_input":
+                assert {alias.name for alias in node.names} <= {
+                    "IDENTITY",
+                    "validate_project_truck_input",
+                }
+                continue
             assert module in {
                 "__future__",
                 "collections.abc",
@@ -161,6 +168,26 @@ def test_p2b1_docs_record_the_decision_and_explicit_boundaries() -> None:
         "REFERENCE_FRAME=LOCAL_TEMPLATE_FRAME",
         "DOCK_FACE_REFERENCE=shipping_channel.LONG_EDGE_LOADING_FACE",
         "NO_STEP_IMPLIES_THE_NEXT=TRUE",
+    ):
+        assert token in text
+
+
+def test_review_correction_closes_p1f_binding_and_integrity_boundaries() -> None:
+    text = (ROOT / DOC).read_text()
+    assert P1F_INPUT_CONTRACT_IDENTITY == "truck-project-access-input@1.0.0"
+    for token in (
+        "P1F_TRUCK_INPUT_BOUND=true",
+        "PROJECT_SOURCE_REFERENCE=true",
+        "PROJECT_SOURCE_DIGEST=true",
+        "CANONICAL_TEMPLATE_HASH_SEPARATE_FROM_PROVENANCE=true",
+        "ENTRY_REFERENCE_ORIGIN_ENFORCED=true",
+        "FORWARD_AXIS_ENTRY_HEADING_ENFORCED=true",
+        "BoundTruckManeuverProjectInputV1",
+        "PROJECT_INPUT_REQUIRED",
+        "canonical_template_hash",
+        "reference_frame",
+        "vehicle_reference_point={x:0,y:0}",
+        "entry_pose={x:0,y:0,rotation_deg:0}",
     ):
         assert token in text
 

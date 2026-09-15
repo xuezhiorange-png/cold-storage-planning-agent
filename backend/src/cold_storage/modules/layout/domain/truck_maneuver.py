@@ -22,6 +22,12 @@ from cold_storage.modules.layout.domain.dimensioning import (
     canonical_json,
     decimal_value,
 )
+from cold_storage.modules.layout.domain.project_truck_input import (
+    IDENTITY as P1F_TRUCK_INPUT_IDENTITY,
+)
+from cold_storage.modules.layout.domain.project_truck_input import (
+    validate_project_truck_input,
+)
 from cold_storage.modules.layout.domain.site_geometry import (
     PolygonMM,
     normalize_polygon,
@@ -60,6 +66,8 @@ MANEUVER_DOCK_REVERSE = True
 SUPPORTED_TRANSFORM_ROTATIONS = (0, 90, 180, 270)
 
 PROJECT_INPUT = "PROJECT_INPUT"
+PROJECT_BINDING_SCHEMA_VERSION = "1.0.0"
+P1F_INPUT_CONTRACT_IDENTITY = P1F_TRUCK_INPUT_IDENTITY
 
 _TEMPLATE_KEYS = frozenset(
     {
@@ -72,6 +80,7 @@ _TEMPLATE_KEYS = frozenset(
         "vehicle_length_m",
         "envelope_geometry",
         "reference",
+        "reference_frame",
         "content_sha256",
         "provided_by",
         "turn_direction",
@@ -127,6 +136,20 @@ _PROJECT_KEYS = frozenset(
         "identity",
     }
 )
+_BINDING_KEYS = frozenset(
+    {
+        "schema_version",
+        "project_id",
+        "source_authority",
+        "p1f_input_contract_identity",
+        "p1f_input",
+        "p1f_input_canonical_hash",
+        "maneuver_project_input",
+        "content_sha256",
+        "provided_by",
+        "identity",
+    }
+)
 _HASH_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
 
 
@@ -143,6 +166,18 @@ def _text(value: object, *, field: str) -> str:
 def _hash(value: object, *, field: str) -> str:
     if not isinstance(value, str) or _HASH_PATTERN.fullmatch(value) is None:
         raise _error("INVALID_TRUCK_MANEUVER_TEMPLATE", field=field)
+    return value
+
+
+def _binding_text(value: object, *, field: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise _error("INVALID_TRUCK_MANEUVER_PROJECT_BINDING", field=field)
+    return value
+
+
+def _binding_hash(value: object, *, field: str) -> str:
+    if not isinstance(value, str) or _HASH_PATTERN.fullmatch(value) is None:
+        raise _error("INVALID_TRUCK_MANEUVER_PROJECT_BINDING", field=field)
     return value
 
 
@@ -215,7 +250,7 @@ def _envelope(value: object) -> dict[str, Any]:
     return polygon_to_dict(polygon)
 
 
-def _reference(value: object) -> dict[str, Any]:
+def _reference_frame(value: object) -> dict[str, Any]:
     if not isinstance(value, Mapping) or set(value) != _REFERENCE_KEYS:
         raise _error("INVALID_TRUCK_MANEUVER_REFERENCE")
     if (
@@ -224,16 +259,24 @@ def _reference(value: object) -> dict[str, Any]:
         or value["origin_reference"] != ORIGIN_REFERENCE
     ):
         raise _error("INVALID_TRUCK_MANEUVER_REFERENCE")
-    return {
+    frame = {
         "reference_frame": REFERENCE_FRAME,
         "forward_axis": FORWARD_AXIS,
         "origin_reference": ORIGIN_REFERENCE,
         "vehicle_reference_point": _point(
-            value["vehicle_reference_point"], field="reference.vehicle_reference_point"
+            value["vehicle_reference_point"], field="reference_frame.vehicle_reference_point"
         ),
-        "entry_pose": _pose(value["entry_pose"], field="reference.entry_pose"),
-        "exit_pose": _pose(value["exit_pose"], field="reference.exit_pose"),
+        "entry_pose": _pose(value["entry_pose"], field="reference_frame.entry_pose"),
+        "exit_pose": _pose(value["exit_pose"], field="reference_frame.exit_pose"),
     }
+    if frame["vehicle_reference_point"] != {"x": Decimal("0"), "y": Decimal("0")} or frame[
+        "entry_pose"
+    ] != {"x": Decimal("0"), "y": Decimal("0"), "rotation_deg": 0}:
+        raise _error(
+            "INVALID_TRUCK_MANEUVER_REFERENCE",
+            reason="ENTRY_REFERENCE_ORIGIN_REQUIRED",
+        )
+    return frame
 
 
 def _content_payload(normalized: Mapping[str, Any]) -> dict[str, Any]:
@@ -267,25 +310,25 @@ def _decode_template_payload(value: Mapping[str, Any]) -> dict[str, Any]:
                     for point in points
                 ],
             }
-    reference = body.get("reference")
-    if isinstance(reference, Mapping):
-        reference_body = dict(reference)
-        point = reference_body.get("vehicle_reference_point")
+    frame = body.get("reference_frame")
+    if isinstance(frame, Mapping):
+        frame_body = dict(frame)
+        point = frame_body.get("vehicle_reference_point")
         if isinstance(point, Mapping):
-            reference_body["vehicle_reference_point"] = {
+            frame_body["vehicle_reference_point"] = {
                 **point,
                 "x": Decimal(point["x"]) if isinstance(point.get("x"), str) else point.get("x"),
                 "y": Decimal(point["y"]) if isinstance(point.get("y"), str) else point.get("y"),
             }
         for field in ("entry_pose", "exit_pose"):
-            pose = reference_body.get(field)
+            pose = frame_body.get(field)
             if isinstance(pose, Mapping):
-                reference_body[field] = {
+                frame_body[field] = {
                     **pose,
                     "x": Decimal(pose["x"]) if isinstance(pose.get("x"), str) else pose.get("x"),
                     "y": Decimal(pose["y"]) if isinstance(pose.get("y"), str) else pose.get("y"),
                 }
-        body["reference"] = reference_body
+        body["reference_frame"] = frame_body
     for field in ("approach_pose", "final_dock_pose"):
         pose = body.get(field)
         if isinstance(pose, Mapping):
@@ -326,6 +369,7 @@ def _normalize_template(source: Mapping[str, Any], *, require_hash: bool) -> dic
         "vehicle_length_m",
         "envelope_geometry",
         "reference",
+        "reference_frame",
         "provided_by",
     }
     missing = sorted(required - set(source))
@@ -357,7 +401,8 @@ def _normalize_template(source: Mapping[str, Any], *, require_hash: bool) -> dic
             source["vehicle_length_m"], field="vehicle_length_m", positive=True
         ),
         "envelope_geometry": _envelope(source["envelope_geometry"]),
-        "reference": _reference(source["reference"]),
+        "reference": _text(source["reference"], field="reference"),
+        "reference_frame": _reference_frame(source["reference_frame"]),
         "provided_by": _text(source["provided_by"], field="provided_by"),
     }
     if maneuver_class == TURN_90:
@@ -390,27 +435,25 @@ def _normalize_template(source: Mapping[str, Any], *, require_hash: bool) -> dic
     if "identity" in source and source["identity"] != identity:
         raise _error("INVALID_TRUCK_MANEUVER_TEMPLATE", field="identity")
     normalized["identity"] = identity
-    expected_hash = canonical_hash(_content_payload(normalized))
-    supplied_hash = source.get("content_sha256")
-    if require_hash:
-        _hash(supplied_hash, field="content_sha256")
-        if supplied_hash != expected_hash:
-            raise _error(
-                "TRUCK_MANEUVER_TEMPLATE_HASH_MISMATCH",
-                expected_hash=expected_hash,
-                actual_hash=supplied_hash,
-            )
-    normalized["content_sha256"] = expected_hash
+    # This is a digest supplied by the project for its source material.  It is
+    # deliberately not derived from the normalized template in this module.
+    normalized["content_sha256"] = _hash(source.get("content_sha256"), field="content_sha256")
     return normalized
 
 
 def maneuver_template_payload_with_hash(source: Mapping[str, Any]) -> dict[str, Any]:
-    """Return an authoring payload with the content hash derived, never trusted."""
+    """Validate a template with a project-supplied source-material digest."""
     return _normalize_template(source, require_hash=False)
 
 
 def maneuver_template_content_hash(source: Mapping[str, Any]) -> str:
+    """Return the project-supplied source-material digest."""
     return cast(str, maneuver_template_payload_with_hash(source)["content_sha256"])
+
+
+def maneuver_template_canonical_hash(source: Mapping[str, Any]) -> str:
+    """Return the derived integrity hash of the complete template."""
+    return validate_truck_maneuver_template(source).canonical_template_hash
 
 
 @dataclass(frozen=True, init=False)
@@ -429,7 +472,8 @@ class TruckManeuverTemplateV1:
         vehicle_width_m: object,
         vehicle_length_m: object,
         envelope_geometry: Mapping[str, Any],
-        reference: Mapping[str, Any],
+        reference: str,
+        reference_frame: Mapping[str, Any],
         content_sha256: str,
         provided_by: str,
         turn_direction: str | None = None,
@@ -447,6 +491,7 @@ class TruckManeuverTemplateV1:
             "vehicle_length_m": vehicle_length_m,
             "envelope_geometry": envelope_geometry,
             "reference": reference,
+            "reference_frame": reference_frame,
             "content_sha256": content_sha256,
             "provided_by": provided_by,
         }
@@ -511,8 +556,12 @@ class TruckManeuverTemplateV1:
         return cast(dict[str, Any], self.to_dict()["envelope_geometry"])
 
     @property
-    def reference(self) -> dict[str, Any]:
-        return cast(dict[str, Any], self.to_dict()["reference"])
+    def reference(self) -> str:
+        return cast(str, self.to_dict()["reference"])
+
+    @property
+    def reference_frame(self) -> dict[str, Any]:
+        return cast(dict[str, Any], self.to_dict()["reference_frame"])
 
     @property
     def provided_by(self) -> str:
@@ -546,6 +595,11 @@ class TruckManeuverTemplateV1:
 
     @property
     def canonical_result_hash(self) -> str:
+        return self.canonical_template_hash
+
+    @property
+    def canonical_template_hash(self) -> str:
+        """Integrity hash of the complete normalized template serialization."""
         return canonical_hash(self.to_dict())
 
 
@@ -995,6 +1049,269 @@ def validate_truck_maneuver_project_input(
     return TruckManeuverProjectInputV1.from_mapping(source)
 
 
+def _validated_p1f_snapshot(source: Mapping[str, Any] | None) -> dict[str, Any]:
+    result = validate_project_truck_input(source)
+    if result.get("status") != "COMPLETE":
+        status = result.get("status")
+        if status == "PROJECT_INPUT_REQUIRED":
+            raise _error(
+                "PROJECT_INPUT_REQUIRED",
+                input_contract_identity=P1F_TRUCK_INPUT_IDENTITY,
+                missing_fields=result.get("missing_fields", []),
+            )
+        raise _error(
+            "INVALID_PROJECT_TRUCK_INPUT",
+            input_contract_identity=P1F_TRUCK_INPUT_IDENTITY,
+            field=result.get("field", "truck_access"),
+        )
+    canonical = result.get("validated_input_canonical_json")
+    if not isinstance(canonical, str):
+        raise _error(
+            "PROJECT_INPUT_REQUIRED",
+            input_contract_identity=P1F_TRUCK_INPUT_IDENTITY,
+            missing_fields=["validated_input_canonical_json"],
+        )
+    try:
+        snapshot = json.loads(canonical)
+    except json.JSONDecodeError:
+        raise _error("INVALID_PROJECT_TRUCK_INPUT") from None
+    if not isinstance(snapshot, dict):
+        raise _error("INVALID_PROJECT_TRUCK_INPUT")
+    return snapshot
+
+
+def _validated_p1f_snapshot_from_canonical(source: object) -> dict[str, Any]:
+    if not isinstance(source, Mapping):
+        raise _error(
+            "PROJECT_INPUT_REQUIRED",
+            input_contract_identity=P1F_TRUCK_INPUT_IDENTITY,
+            missing_fields=["p1f_input"],
+        )
+    raw = dict(source)
+    for field in ("vehicle_width_m", "vehicle_length_m"):
+        if isinstance(raw.get(field), str):
+            try:
+                raw[field] = Decimal(raw[field])
+            except ArithmeticError:
+                raise _error("INVALID_PROJECT_TRUCK_INPUT", field=field) from None
+    return _validated_p1f_snapshot(raw)
+
+
+def _vehicle_dimension(value: object, *, field: str) -> Decimal:
+    try:
+        number = Decimal(str(value))
+    except ArithmeticError:
+        raise _error("INVALID_TRUCK_MANEUVER_PROJECT_BINDING", field=field) from None
+    if not number.is_finite() or number <= 0:
+        raise _error("INVALID_TRUCK_MANEUVER_PROJECT_BINDING", field=field)
+    return number
+
+
+def _binding_identity(project_id: str) -> str:
+    return f"truck-maneuver-project-binding:{project_id}@{PROJECT_BINDING_SCHEMA_VERSION}"
+
+
+def _normalize_binding(source: Mapping[str, Any], *, require_hash: bool) -> dict[str, Any]:
+    if set(source) - _BINDING_KEYS:
+        raise _error("INVALID_TRUCK_MANEUVER_PROJECT_BINDING", field="unknown_fields")
+    required = _BINDING_KEYS - {"content_sha256", "identity"}
+    missing = sorted(required - set(source))
+    if missing:
+        raise _error("PROJECT_INPUT_REQUIRED", missing_fields=missing)
+    if source["schema_version"] != PROJECT_BINDING_SCHEMA_VERSION:
+        raise _error("INVALID_TRUCK_MANEUVER_PROJECT_BINDING", field="schema_version")
+    if source["source_authority"] != PROJECT_INPUT:
+        raise _error("INVALID_TRUCK_MANEUVER_PROJECT_BINDING", field="source_authority")
+    if source["p1f_input_contract_identity"] != P1F_TRUCK_INPUT_IDENTITY:
+        raise _error("INVALID_TRUCK_MANEUVER_PROJECT_BINDING", field="p1f_input_contract_identity")
+    project_id = _binding_text(source["project_id"], field="project_id")
+    p1f_snapshot = _validated_p1f_snapshot_from_canonical(source["p1f_input"])
+    if p1f_snapshot.get("project_id") != project_id:
+        raise _error("TRUCK_MANEUVER_PROJECT_MISMATCH", field="p1f_input.project_id")
+    p1f_hash = _binding_hash(source["p1f_input_canonical_hash"], field="p1f_input_canonical_hash")
+    expected_p1f_hash = canonical_hash(p1f_snapshot)
+    if p1f_hash != expected_p1f_hash:
+        raise _error(
+            "P1F_TRUCK_INPUT_HASH_MISMATCH",
+            expected_hash=expected_p1f_hash,
+            actual_hash=p1f_hash,
+        )
+    maneuver_input = source["maneuver_project_input"]
+    if isinstance(maneuver_input, (TruckManeuverProjectInputV1, Mapping)):
+        maneuver = validate_truck_maneuver_project_input(maneuver_input)
+    else:
+        raise _error("PROJECT_INPUT_REQUIRED", missing_fields=["maneuver_project_input"])
+    if maneuver.project_id != project_id:
+        raise _error("TRUCK_MANEUVER_PROJECT_MISMATCH", field="maneuver_project_input.project_id")
+
+    p1f_width = _vehicle_dimension(p1f_snapshot["vehicle_width_m"], field="vehicle_width_m")
+    p1f_length = _vehicle_dimension(p1f_snapshot["vehicle_length_m"], field="vehicle_length_m")
+    for template in maneuver.template_set.templates:
+        if template.vehicle_width_m != p1f_width:
+            raise _error(
+                "TRUCK_MANEUVER_VEHICLE_DIMENSION_MISMATCH",
+                template_id=template.template_id,
+                field="vehicle_width_m",
+                expected=str(p1f_width),
+                actual=str(template.vehicle_width_m),
+                p1f_input_contract_identity=P1F_TRUCK_INPUT_IDENTITY,
+            )
+        if template.vehicle_length_m != p1f_length:
+            raise _error(
+                "TRUCK_MANEUVER_VEHICLE_DIMENSION_MISMATCH",
+                template_id=template.template_id,
+                field="vehicle_length_m",
+                expected=str(p1f_length),
+                actual=str(template.vehicle_length_m),
+                p1f_input_contract_identity=P1F_TRUCK_INPUT_IDENTITY,
+            )
+
+    identity = _binding_identity(project_id)
+    if "identity" in source and source["identity"] != identity:
+        raise _error("INVALID_TRUCK_MANEUVER_PROJECT_BINDING", field="identity")
+    normalized: dict[str, Any] = {
+        "schema_version": PROJECT_BINDING_SCHEMA_VERSION,
+        "project_id": project_id,
+        "source_authority": PROJECT_INPUT,
+        "p1f_input_contract_identity": P1F_TRUCK_INPUT_IDENTITY,
+        "p1f_input": p1f_snapshot,
+        "p1f_input_canonical_hash": expected_p1f_hash,
+        "maneuver_project_input": maneuver.to_dict(),
+        "provided_by": _binding_text(source["provided_by"], field="provided_by"),
+        "identity": identity,
+    }
+    expected_hash = canonical_hash(_content_payload(normalized))
+    supplied_hash = source.get("content_sha256")
+    if require_hash:
+        supplied_hash = _binding_hash(supplied_hash, field="content_sha256")
+        if supplied_hash != expected_hash:
+            raise _error(
+                "TRUCK_MANEUVER_PROJECT_BINDING_HASH_MISMATCH",
+                expected_hash=expected_hash,
+                actual_hash=supplied_hash,
+            )
+    normalized["content_sha256"] = expected_hash
+    return normalized
+
+
+@dataclass(frozen=True, init=False)
+class BoundTruckManeuverProjectInputV1:
+    """P1F-bound maneuver input with explicit project vehicle evidence."""
+
+    payload_json: str
+
+    def __init__(
+        self,
+        truck_project_access_input: Mapping[str, Any],
+        truck_maneuver_project_input: Mapping[str, Any] | TruckManeuverProjectInputV1,
+        provided_by: str = PROJECT_INPUT,
+    ) -> None:
+        normalized = _binding_from_sources(
+            truck_project_access_input,
+            truck_maneuver_project_input,
+            provided_by=provided_by,
+        )
+        object.__setattr__(self, "payload_json", canonical_json(normalized))
+
+    @classmethod
+    def _from_normalized(cls, normalized: Mapping[str, Any]) -> BoundTruckManeuverProjectInputV1:
+        obj = object.__new__(cls)
+        object.__setattr__(obj, "payload_json", canonical_json(dict(normalized)))
+        return obj
+
+    @classmethod
+    def from_mapping(cls, source: Mapping[str, Any]) -> BoundTruckManeuverProjectInputV1:
+        if not isinstance(source, Mapping):
+            raise _error("INVALID_TRUCK_MANEUVER_PROJECT_BINDING")
+        return cls._from_normalized(_normalize_binding(source, require_hash=True))
+
+    @property
+    def identity(self) -> str:
+        return cast(str, self.to_dict()["identity"])
+
+    @property
+    def project_id(self) -> str:
+        return cast(str, self.to_dict()["project_id"])
+
+    @property
+    def p1f_input_contract_identity(self) -> str:
+        return cast(str, self.to_dict()["p1f_input_contract_identity"])
+
+    @property
+    def p1f_input(self) -> dict[str, Any]:
+        return cast(dict[str, Any], self.to_dict()["p1f_input"])
+
+    @property
+    def p1f_input_canonical_hash(self) -> str:
+        return cast(str, self.to_dict()["p1f_input_canonical_hash"])
+
+    @property
+    def maneuver_project_input(self) -> TruckManeuverProjectInputV1:
+        return TruckManeuverProjectInputV1.from_mapping(self.to_dict()["maneuver_project_input"])
+
+    @property
+    def content_sha256(self) -> str:
+        return cast(str, self.to_dict()["content_sha256"])
+
+    def to_dict(self) -> dict[str, Any]:
+        return cast(dict[str, Any], json.loads(self.payload_json))
+
+    def canonical_json(self) -> str:
+        return self.payload_json
+
+    @property
+    def canonical_result_hash(self) -> str:
+        return canonical_hash(self.to_dict())
+
+
+TruckManeuverProjectBindingV1 = BoundTruckManeuverProjectInputV1
+
+
+def _binding_from_sources(
+    truck_project_access_input: Mapping[str, Any] | None,
+    truck_maneuver_project_input: Mapping[str, Any] | TruckManeuverProjectInputV1,
+    *,
+    provided_by: str,
+) -> dict[str, Any]:
+    p1f_snapshot = _validated_p1f_snapshot(truck_project_access_input)
+    maneuver = validate_truck_maneuver_project_input(truck_maneuver_project_input)
+    project_id = _binding_text(p1f_snapshot.get("project_id"), field="project_id")
+    source = {
+        "schema_version": PROJECT_BINDING_SCHEMA_VERSION,
+        "project_id": project_id,
+        "source_authority": PROJECT_INPUT,
+        "p1f_input_contract_identity": P1F_TRUCK_INPUT_IDENTITY,
+        "p1f_input": p1f_snapshot,
+        "p1f_input_canonical_hash": canonical_hash(p1f_snapshot),
+        "maneuver_project_input": maneuver,
+        "provided_by": provided_by,
+    }
+    return _normalize_binding(source, require_hash=False)
+
+
+def validate_truck_maneuver_project_binding(
+    truck_project_access_input: Mapping[str, Any] | None,
+    truck_maneuver_project_input: Mapping[str, Any] | TruckManeuverProjectInputV1,
+) -> BoundTruckManeuverProjectInputV1:
+    """Bind every maneuver template to the same explicit P1F project vehicle."""
+    return BoundTruckManeuverProjectInputV1._from_normalized(
+        _binding_from_sources(
+            truck_project_access_input,
+            truck_maneuver_project_input,
+            provided_by=PROJECT_INPUT,
+        )
+    )
+
+
+def bind_truck_maneuver_project_input(
+    truck_project_access_input: Mapping[str, Any] | None,
+    truck_maneuver_project_input: Mapping[str, Any] | TruckManeuverProjectInputV1,
+) -> BoundTruckManeuverProjectInputV1:
+    return validate_truck_maneuver_project_binding(
+        truck_project_access_input, truck_maneuver_project_input
+    )
+
+
 def _mm_coordinate(value: object, *, field: str) -> int:
     number = _coordinate(value, field=field)
     with localcontext(Context(prec=80)):
@@ -1074,7 +1391,7 @@ def transform_maneuver_template(
             allowed_rotations=list(SUPPORTED_TRANSFORM_ROTATIONS),
         )
     body = source.to_dict()
-    reference = cast(dict[str, Any], body["reference"])
+    reference = cast(dict[str, Any], body["reference_frame"])
     transformed_reference = {
         "reference_frame": reference["reference_frame"],
         "forward_axis": reference["forward_axis"],
@@ -1088,7 +1405,9 @@ def transform_maneuver_template(
     transformed: dict[str, Any] = {
         "schema_version": TEMPLATE_SCHEMA_VERSION,
         "template_identity": source.identity,
-        "template_content_sha256": source.content_sha256,
+        "source_reference": source.reference,
+        "source_content_sha256": source.content_sha256,
+        "canonical_template_hash": source.canonical_template_hash,
         "project_id": source.project_id,
         "maneuver_class": source.maneuver_class,
         "coordinate_system": COORDINATE_SYSTEM,
@@ -1098,7 +1417,7 @@ def transform_maneuver_template(
             "x": Decimal(translation_mm[0]) / 1000,
             "y": Decimal(translation_mm[1]) / 1000,
         },
-        "reference": transformed_reference,
+        "reference_frame": transformed_reference,
         "envelope_geometry": polygon_to_dict(
             _transform_polygon(
                 normalize_polygon(

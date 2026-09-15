@@ -31,6 +31,35 @@ DEPLOYMENT_AUTHORIZED=false
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
+## Review correction R2
+
+```ini
+TASK_ID=V2_2_P2B1_TRUCK_MANEUVER_TEMPLATE_CONTRACT_R2
+PR_NUMBER=280
+BASE_MAIN_SHA=ccd6336de4810012deec64c1b0a5f3256ff13d85
+PREVIOUS_HEAD_SHA=370f0e79bc88f6c480f3d79c013acdb2c5ad6111
+P1F_INPUT_CONTRACT_IDENTITY=truck-project-access-input@1.0.0
+P1F_TRUCK_INPUT_BOUND=true
+PROJECT_ID_BINDING_ENFORCED=true
+VEHICLE_WIDTH_BINDING_ENFORCED=true
+VEHICLE_LENGTH_BINDING_ENFORCED=true
+PROJECT_SOURCE_REFERENCE_IMPLEMENTED=true
+PROJECT_SOURCE_DIGEST_IMPLEMENTED=true
+CANONICAL_TEMPLATE_HASH_SEPARATE_FROM_PROVENANCE=true
+ENTRY_REFERENCE_ORIGIN_ENFORCED=true
+FORWARD_AXIS_ENTRY_HEADING_ENFORCED=true
+RUNTIME_CHANGED=true
+PLACEMENT_SEARCH_IMPLEMENTED=false
+OBJECTIVE_PROFILE_FROZEN=false
+KINEMATIC_SOLVER_IMPLEMENTED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+P3_AUTHORIZED=false
+```
+
+R2 changes only this contract boundary. The historical P1F schema and its
+module remain unchanged.
+
 P2B1 implements only the machine contract and validation boundary for
 project-supplied, approved, versioned two-dimensional maneuver envelopes. It
 does not place a template, search for a route, optimize a layout, or produce a
@@ -50,6 +79,13 @@ The implementation is in the layout domain module
 - `TruckManeuverProjectInputV1`: the project-level binding of the collection
   and its requirement.
 
+The correction also exposes `BoundTruckManeuverProjectInputV1`. It binds the
+maneuver project input to the explicit P1F project truck input
+`truck-project-access-input@1.0.0`. Every template in the set must match the
+P1F `vehicle_width_m` and `vehicle_length_m` exactly. Missing or incomplete P1F
+input returns `PROJECT_INPUT_REQUIRED`; no default truck is created. The
+binding records the canonical P1F input and its evidence hash.
+
 The project geometry layer is separate from the historical
 `TruckProjectAccessInputV1` (`truck-project-access-input@1.0.0`). The historical
 P1F input and schema are not changed and remain evidence/completeness input,
@@ -66,7 +102,8 @@ maneuver_class
 vehicle_width_m
 vehicle_length_m
 envelope_geometry
-reference
+reference                  # project engineering source/material identifier
+reference_frame            # local coordinate-frame object
 content_sha256
 provided_by
 ```
@@ -119,25 +156,33 @@ edge, no repeated closing vertex, no self-intersection, no self-touch, no
 hole, and no multipolygon. It is implicitly closed; callers must not repeat
 the first point at the end.
 
-The reference records a vehicle reference point plus `entry_pose` and
-`exit_pose`. Pose headings are limited to the same discrete orientations used
-by the transform primitive: 0, 90, 180, or 270 degrees. These fields describe
-where the supplied envelope is referenced; they do not define a vehicle
-kinematic model.
+`reference` is a non-empty project engineering source/material identifier. It
+is not a coordinate object. The separate `reference_frame` records a vehicle
+reference point plus `entry_pose` and `exit_pose`. Because
+`ORIGIN_REFERENCE=ENTRY_REFERENCE_POINT`, the supplied template must contain
+`vehicle_reference_point={x:0,y:0}` and
+`entry_pose={x:0,y:0,rotation_deg:0}`. Pose headings are otherwise limited to
+the same discrete orientations used by the transform primitive: 0, 90, 180,
+or 270 degrees. These fields describe the reference frame; they do not define
+a vehicle kinematic model.
 
 ## Hash and provenance
 
-`content_sha256` is recomputed from the exact canonical template content. It
-covers the supplied project identity, class, vehicle dimensions, polygon,
-reference, class-specific fields, and provenance, while excluding only the
-derived `identity` and the self-referential hash field. Public validation
-requires the exact lowercase form `sha256:` followed by 64 hexadecimal
-characters and requires equality with the recomputed value.
+`content_sha256` is a project-provided digest for the referenced source
+material. It is not calculated from, or replaced by, the maneuver template
+validator. Public validation requires the exact lowercase form `sha256:`
+followed by 64 hexadecimal characters. The template's own complete
+serialization integrity is exposed separately as `canonical_template_hash`
+(with `canonical_result_hash` retained as its compatibility alias). It covers
+the template source reference and digest, project identity, class, vehicle
+dimensions, polygon, coordinate frame, class-specific fields, and provenance.
+Therefore `project source digest != canonical template hash`.
 
-Reordering mapping keys does not change the hash. Changing the polygon,
-vehicle dimensions, maneuver class, turn direction, pose, project/template
-identity, or provenance does. A stale or fake hash is rejected; no caller
-provided hash is promoted to authority.
+Reordering mapping keys does not change the canonical template hash. Changing
+the polygon, vehicle dimensions, maneuver class, turn direction, pose,
+project/template identity, source reference, source digest, or provenance does.
+A malformed source digest is rejected; no caller-provided digest is promoted
+to template integrity authority.
 
 The validated models retain canonical serialized JSON internally and expose
 copies of their decoded data. A consumer cannot mutate the held canonical
@@ -153,11 +198,14 @@ translation and one of the four authorized rotations:
 0, 90, 180, 270
 ```
 
-It transforms the supplied envelope and reference poses and returns a new
-hash-bound observation. It does not validate site containment, obstacle
-clearance, access feasibility, route feasibility, or placement. Arbitrary
-angles, off-grid translations, and caller-supplied default geometry are
-rejected.
+It transforms the supplied envelope and `reference_frame` poses and returns a
+new hash-bound observation. The transformed `entry_pose` is exactly the
+translation and requested rotation because the input entry reference is the
+local origin. The observation carries `source_reference`,
+`source_content_sha256`, and `canonical_template_hash` as separate fields. It
+does not validate site containment, obstacle clearance, access feasibility,
+route feasibility, or placement. Arbitrary angles, off-grid translations, and
+caller-supplied default geometry are rejected.
 
 ## Completeness and future boundary
 
@@ -193,10 +241,11 @@ this task.
 ## Error boundary
 
 Validation fails closed with stable domain errors for malformed templates,
-unauthorized maneuver classes, invalid polygon/reference values, stale hashes,
-missing required class bindings, invalid dock-face references, and unsupported
-transform rotations. A project that lacks a required class is incomplete, not
-implicitly routed by a server default.
+unauthorized maneuver classes, invalid polygon/reference-frame values,
+malformed source digests, stale collection or wrapper hashes, missing required
+class bindings, P1F project-input gaps, vehicle-dimension mismatches, invalid
+dock-face references, and unsupported transform rotations. A project that lacks
+a required class is incomplete, not implicitly routed by a server default.
 
 The following capabilities are outside P2B1:
 
@@ -215,4 +264,10 @@ NO_DXF_GENERATION=true
 NO_MCP_TOOL_7=true
 P1F_HISTORICAL_INPUT_SCHEMA_MUTATED=false
 P2A_GEOMETRY_AUTHORITY_MUTATED=false
+P1F_TRUCK_INPUT_BOUND=true
+PROJECT_SOURCE_REFERENCE=true
+PROJECT_SOURCE_DIGEST=true
+CANONICAL_TEMPLATE_HASH_SEPARATE_FROM_PROVENANCE=true
+ENTRY_REFERENCE_ORIGIN_ENFORCED=true
+FORWARD_AXIS_ENTRY_HEADING_ENFORCED=true
 ```
