@@ -159,6 +159,13 @@ def test_p2c_runtime_status_does_not_claim_route_or_final_layout_validation() ->
         assert "access_route_validated" in text
         assert "truck_route_validated" in text
         assert "project_layout_validated" in text
+    assert "complete_candidate_limit_stops_search" in source
+    assert "node_budget_is_only_search_cutoff" in source
+    assert "objective_optimal_within_search_family" in source
+    assert "if complete_candidates >= complete_candidate_limit" not in source
+    assert 'historical.get("access_requirements")' in application
+    assert "access_requirements=access_requirements" in application
+    assert "for requirement in access_requirements" in source
     assert "search_placement" in application
     doc = (ROOT / DOC).read_text()
     for token in (
@@ -203,5 +210,10 @@ def test_p2c_documents_preserve_objective_and_authority_boundaries() -> None:
         "PORTAL_PLACEMENT=false",
         "CORRIDOR_GENERATION=false",
         "TRUCK_PATH_SEARCH=false",
+        "SEARCH_TREE_EXHAUSTED",
+        "NODE_BUDGET_EXHAUSTED",
+        "OBJECTIVE_OPTIMAL_WITHIN_SEARCH_FAMILY",
+        "PLACEMENT_ACCESS_REQUIREMENT_COUNT=12",
+        "P1_ACCESS_REQUIREMENTS_PRESERVED=true",
     ):
         assert token in doc

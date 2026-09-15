@@ -42,6 +42,7 @@ from cold_storage.modules.layout.domain.site_geometry import (
     rectangle_intersects_closed_obstacle,
     rectangles_overlap,
     rectangles_share_positive_edge,
+    segments_share_positive_length,
 )
 
 IDENTITY: Final = "site-constrained-deterministic-placement@1.0.0"
@@ -50,7 +51,6 @@ SCHEMA_VERSION: Final = "1.0.0"
 SEARCH_PROFILE_IDENTITY: Final = "deterministic-placement-search@1.0.0"
 GRID_MM: Final = 1
 DEFAULT_NODE_BUDGET: Final = 50_000
-DEFAULT_COMPLETE_CANDIDATE_LIMIT: Final = 128
 MAX_OPTIONS_PER_ZONE: Final = 48
 
 # This is a constrained-first technical search order, not an objective order.
@@ -618,41 +618,184 @@ def _zone_record(authority: Mapping[str, Any], rectangle: PlacedRectangleV1) -> 
     }
 
 
+def _rectangle_edge_segments(
+    rectangle: PlacedRectangleV1,
+) -> dict[str, tuple[SegmentMM, ...]]:
+    """Return relative long/short edge classes for observable evidence only."""
+    left, bottom, right, top = _bounds(rectangle)
+    width_mm = _mm(rectangle.width_m, field="width_m", positive=True)
+    depth_mm = _mm(rectangle.depth_m, field="depth_m", positive=True)
+    width_is_long = width_mm >= depth_mm
+    horizontal_long_edges = (width_is_long and rectangle.rotation_deg == 0) or (
+        not width_is_long and rectangle.rotation_deg == 90
+    )
+    horizontal = (
+        ((left, bottom), (right, bottom)),
+        ((left, top), (right, top)),
+    )
+    vertical = (
+        ((left, bottom), (left, top)),
+        ((right, bottom), (right, top)),
+    )
+    if horizontal_long_edges:
+        return {"LONG_EDGE": horizontal, "SHORT_EDGE": vertical}
+    return {"LONG_EDGE": vertical, "SHORT_EDGE": horizontal}
+
+
+def _segment_overlap_length_mm(first: SegmentMM, second: SegmentMM) -> int:
+    if first[0][1] == first[1][1] == second[0][1] == second[1][1]:
+        return max(0, min(first[1][0], second[1][0]) - max(first[0][0], second[0][0]))
+    if first[0][0] == first[1][0] == second[0][0] == second[1][0]:
+        return max(0, min(first[1][1], second[1][1]) - max(first[0][1], second[0][1]))
+    return 0
+
+
+def _edge_orientation_facts(
+    requirement: Mapping[str, Any],
+    relationship: Mapping[str, Any] | None,
+    placed: Mapping[str, PlacedRectangleV1],
+) -> dict[str, Any]:
+    """Observe P1 edge classes without validating a route or portal."""
+    facts: dict[str, Any] = {
+        "edge_orientation_observable": False,
+        "edge_orientation_satisfied": None,
+        "required_edge_orientation_observable": False,
+        "required_edge_orientation_satisfied": None,
+    }
+    if relationship is None:
+        return facts
+    from_ref = requirement.get("from_ref")
+    to_ref = requirement.get("to_ref")
+    from_rectangle = placed.get(from_ref) if isinstance(from_ref, str) else None
+    to_rectangle = placed.get(to_ref) if isinstance(to_ref, str) else None
+    if from_rectangle is None or to_rectangle is None:
+        return facts
+    expected_from = relationship.get("from_edge_class")
+    expected_to = relationship.get("to_edge_class")
+    facts["edge_orientation_contract"] = {
+        "identity": relationship.get("identity"),
+        "from_edge_class": expected_from,
+        "to_edge_class": expected_to,
+    }
+    matched: list[dict[str, Any]] = []
+    from_edges = _rectangle_edge_segments(from_rectangle)
+    to_edges = _rectangle_edge_segments(to_rectangle)
+    for from_class, from_segments in from_edges.items():
+        for to_class, to_segments in to_edges.items():
+            for from_segment in from_segments:
+                for to_segment in to_segments:
+                    overlap = _segment_overlap_length_mm(from_segment, to_segment)
+                    if overlap > 0 and segments_share_positive_length(
+                        from_segment[0], from_segment[1], to_segment[0], to_segment[1]
+                    ):
+                        matched.append(
+                            {
+                                "from_edge_class": from_class,
+                                "to_edge_class": to_class,
+                                "shared_positive_edge_length_mm": overlap,
+                            }
+                        )
+    facts["edge_orientation_observable"] = bool(matched)
+    facts["edge_orientation_matches"] = matched
+    facts["edge_orientation_satisfied"] = any(
+        row["from_edge_class"] == expected_from
+        and (
+            row["to_edge_class"] == expected_to
+            or (expected_to == "SHORT_EDGE_EXIT_SIDE" and row["to_edge_class"] == "SHORT_EDGE")
+            or (expected_to == "LONG_EDGE_LOADING_FACE" and row["to_edge_class"] == "LONG_EDGE")
+        )
+        for row in matched
+    )
+    facts["required_edge_orientation_observable"] = facts["edge_orientation_observable"]
+    facts["required_edge_orientation_satisfied"] = facts["edge_orientation_satisfied"]
+    return facts
+
+
 def _access_observations(
-    graph: AdjacencyGraphV1,
+    access_requirements: Sequence[Mapping[str, Any]],
+    spatial_relationships: Sequence[Mapping[str, Any]],
     placed: Mapping[str, PlacedRectangleV1],
     loading_face: Mapping[str, Any],
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    for flow in graph.flows:
-        from_rectangle = placed.get(flow.from_ref)
-        to_rectangle = placed.get(flow.to_ref)
+    relationships = {
+        relationship.get("identity"): relationship
+        for relationship in spatial_relationships
+        if isinstance(relationship, Mapping) and isinstance(relationship.get("identity"), str)
+    }
+    preserved_fields = (
+        "identity",
+        "from_ref",
+        "to_ref",
+        "flow_kind",
+        "access_class",
+        "profile_identity",
+        "portal_required",
+        "corridor_allowed",
+        "direct_allowed",
+        "edge_orientation_requirement",
+        "route_shape_constraint",
+        "cold_room_refs",
+        "cold_room_portal_profile_identity",
+        "source_authority",
+    )
+    for requirement in access_requirements:
+        from_ref = requirement.get("from_ref")
+        to_ref = requirement.get("to_ref")
+        from_rectangle = placed.get(from_ref) if isinstance(from_ref, str) else None
+        to_rectangle = placed.get(to_ref) if isinstance(to_ref, str) else None
         shared = bool(
             from_rectangle is not None
             and to_rectangle is not None
             and rectangles_share_positive_edge(from_rectangle, to_rectangle)
         )
+        facts: dict[str, Any] = {
+            "direct_shared_edge_observed": shared,
+            "shared_positive_edge_length_mm": 0,
+        }
+        if from_rectangle is not None and to_rectangle is not None:
+            from_edges = _rectangle_edge_segments(from_rectangle)
+            to_edges = _rectangle_edge_segments(to_rectangle)
+            facts["shared_positive_edge_length_mm"] = max(
+                (
+                    _segment_overlap_length_mm(first, second)
+                    for first_segments in from_edges.values()
+                    for first in first_segments
+                    for second_segments in to_edges.values()
+                    for second in second_segments
+                ),
+                default=0,
+            )
+        requirement_identity = requirement.get("identity")
+        relationship = relationships.get(requirement.get("edge_orientation_requirement"))
+        if requirement.get("edge_orientation_requirement") is not None:
+            facts.update(_edge_orientation_facts(requirement, relationship, placed))
+        if from_ref == "truck_entrance":
+            facts.update(
+                {
+                    "shipping_loading_face_selected": loading_face["side"],
+                    "shipping_loading_face_segment_observed": True,
+                    "shipping_loading_face_segment": {
+                        "start": {
+                            "x": _m(loading_face["segment"][0][0]),
+                            "y": _m(loading_face["segment"][0][1]),
+                        },
+                        "end": {
+                            "x": _m(loading_face["segment"][1][0]),
+                            "y": _m(loading_face["segment"][1][1]),
+                        },
+                    },
+                }
+            )
         rows.append(
             {
-                "from_ref": flow.from_ref,
-                "to_ref": flow.to_ref,
-                "flow_kind": flow.kind,
+                "observation_id": requirement_identity,
+                "requirement_identity": requirement_identity,
+                **{field: requirement[field] for field in preserved_fields if field in requirement},
                 "status": "PENDING_ROUTE_VALIDATION",
-                "observable_facts": {"direct_shared_edge_observed": shared},
+                "observable_facts": facts,
             }
         )
-    rows.append(
-        {
-            "from_ref": "truck_entrance",
-            "to_ref": "shipping_channel",
-            "flow_kind": "TRUCK",
-            "status": "PENDING_ROUTE_VALIDATION",
-            "observable_facts": {
-                "shipping_loading_face_selected": loading_face["side"],
-                "loading_face_segment_observed": True,
-            },
-        }
-    )
     return sorted(rows, key=lambda row: (row["from_ref"], row["to_ref"], row["flow_kind"]))
 
 
@@ -665,6 +808,8 @@ def _candidate_payload(
     source_p1_handoff_hash: str,
     source_site_geometry_hash: str,
     source_objective_profile_hash: str,
+    access_requirements: Sequence[Mapping[str, Any]],
+    spatial_relationships: Sequence[Mapping[str, Any]],
     search_provenance: Mapping[str, Any],
 ) -> dict[str, Any]:
     zones = [_zone_record(authorities[code], placed[code]) for code in sorted(placed)]
@@ -696,6 +841,7 @@ def _candidate_payload(
         "source_site_geometry_hash": source_site_geometry_hash,
         "source_objective_profile_hash": source_objective_profile_hash,
         "zone_count": len(zones),
+        "placement_access_requirement_count": len(access_requirements),
         "zones": zones,
         "shipping_loading_face_side": shipping_side,
         "shipping_loading_face_segment": {
@@ -720,7 +866,8 @@ def _candidate_payload(
             "unsatisfied_pairs": should_unsatisfied,
         },
         "placement_access_observations": _access_observations(
-            graph,
+            access_requirements,
+            spatial_relationships,
             placed,
             {"side": shipping_side, "segment": shipping_segment},
         ),
@@ -790,8 +937,10 @@ def search_placement(
     source_p1_handoff_hash: str,
     source_site_geometry_hash: str,
     objective_profile_hash: str | None = None,
+    access_requirements: Sequence[Mapping[str, Any]] = (),
+    spatial_relationships: Sequence[Mapping[str, Any]] = (),
     node_budget: int = DEFAULT_NODE_BUDGET,
-    complete_candidate_limit: int = DEFAULT_COMPLETE_CANDIDATE_LIMIT,
+    complete_candidate_limit: int | None = None,
 ) -> SitePlacementResultV1:
     """Search a finite candidate family and return found/exhausted semantics.
 
@@ -803,7 +952,13 @@ def search_placement(
         code for code in PLACEMENT_ZONE_ORDER if code in graph.nodes
     ):
         raise _error("PLACEMENT_ZONE_AUTHORITY_SET_INVALID")
-    if node_budget <= 0 or complete_candidate_limit <= 0:
+    if len(access_requirements) != 12:
+        raise _error(
+            "P1_ACCESS_REQUIREMENTS_INVALID",
+            expected_count=12,
+            actual_count=len(access_requirements),
+        )
+    if node_budget <= 0 or (complete_candidate_limit is not None and complete_candidate_limit <= 0):
         raise _error("INVALID_PLACEMENT_SEARCH_BUDGET")
     site = site_body.get("site")
     obstacles_body = site_body.get("obstacles")
@@ -841,18 +996,20 @@ def search_placement(
             budget_exhausted = True
             return
         visited_nodes += 1
-        if complete_candidates >= complete_candidate_limit:
-            return
         if index == len(PLACEMENT_ZONE_ORDER):
             _validate_graph_completeness(graph, placed)
             provenance = {
                 "search_profile_identity": SEARCH_PROFILE_IDENTITY,
                 "node_budget": node_budget,
                 "complete_candidate_limit": complete_candidate_limit,
+                "complete_candidate_limit_stops_search": False,
                 "visited_nodes": visited_nodes,
                 "generated_candidates": generated_candidates,
                 "complete_candidates": complete_candidates + 1,
                 "budget_exhausted": budget_exhausted,
+                "node_budget_exhausted": budget_exhausted,
+                "search_tree_exhausted": False,
+                "objective_optimal_within_search_family": False,
                 "candidate_family": "FINITE_ANCHOR_AND_EDGE_DRIVEN",
             }
             payload = _candidate_payload(
@@ -864,6 +1021,8 @@ def search_placement(
                 source_p1_handoff_hash,
                 source_site_geometry_hash,
                 objective_profile_hash or canonical_hash(approved_objective_profile().to_dict()),
+                access_requirements,
+                spatial_relationships,
                 provenance,
             )
             payload.pop("_loading_comparison", None)
@@ -881,20 +1040,25 @@ def search_placement(
             placed[code] = rectangle
             visit(index + 1)
             placed.pop(code)
-            if visited_nodes >= node_budget or complete_candidates >= complete_candidate_limit:
-                if visited_nodes >= node_budget:
-                    budget_exhausted = True
+            if budget_exhausted:
                 return
 
     visit(0)
+    search_tree_exhausted = not budget_exhausted
+    objective_optimal_within_search_family = best_payload is not None and search_tree_exhausted
     provenance = {
         "search_profile_identity": SEARCH_PROFILE_IDENTITY,
         "node_budget": node_budget,
         "complete_candidate_limit": complete_candidate_limit,
+        "complete_candidate_limit_stops_search": False,
         "visited_nodes": visited_nodes,
         "generated_candidates": generated_candidates,
         "complete_candidates": complete_candidates,
         "budget_exhausted": budget_exhausted,
+        "node_budget_exhausted": budget_exhausted,
+        "search_tree_exhausted": search_tree_exhausted,
+        "objective_optimal_within_search_family": objective_optimal_within_search_family,
+        "node_budget_is_only_search_cutoff": True,
         "candidate_family": "FINITE_ANCHOR_AND_EDGE_DRIVEN",
     }
 
@@ -913,6 +1077,7 @@ def search_placement(
             "source_site_geometry_hash": source_site_geometry_hash,
             "source_objective_profile_hash": objective_profile_hash
             or canonical_hash(approved_objective_profile().to_dict()),
+            "placement_access_requirement_count": len(access_requirements),
             "search_provenance": provenance,
             "routing_validated": False,
             "access_route_validated": False,
@@ -922,8 +1087,15 @@ def search_placement(
             "layout_infeasible_proof_implemented": False,
             "requires_review": True,
             "warnings": [
-                "Finite placement candidate family was exhausted; "
-                "this is not an infeasibility proof."
+                (
+                    "Search budget exhausted before a placement was found; "
+                    "this is not an infeasibility proof."
+                    if budget_exhausted
+                    else (
+                        "Finite placement candidate family was exhausted; "
+                        "this is not an infeasibility proof."
+                    )
+                )
             ],
         }
         return SitePlacementResultV1.from_payload(payload)
@@ -949,8 +1121,14 @@ def search_placement(
     best_payload["layout_infeasible_proof_implemented"] = False
     best_payload["requires_review"] = True
     best_payload["warnings"] = [
-        "Placement is complete for the finite search family only; portal, corridor and "
-        "truck routes remain unvalidated."
+        (
+            "Placement selected by the deterministic objective within the exhausted finite "
+            "search family; portal, corridor and truck routes remain unvalidated."
+            if search_tree_exhausted
+            else "Placement selected among deterministically explored candidates; "
+            "search-family optimum is not proven because the search budget was exhausted; "
+            "portal, corridor and truck routes remain unvalidated."
+        )
     ]
     selected_candidate = PlacementCandidateV1.from_payload(best_payload)
     best_payload["canonical_candidate_hash"] = selected_candidate.canonical_candidate_hash

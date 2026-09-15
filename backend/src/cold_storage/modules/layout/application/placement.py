@@ -36,6 +36,7 @@ P1_HANDOFF_SCHEMA_VERSION = "1.0.0"
 DIMENSION_HANDOFF_IDENTITY = "hybrid_zone_dimension_handoff@1.0.0"
 ZONE_PLAN_IDENTITY = "cold_room_zone_plan@1.0.0"
 FLEXIBLE_ZONES = frozenset({"coating_room", "changing_room", "office"})
+P1_ACCESS_REQUIREMENT_COUNT = 12
 
 
 def _error(code: str, **details: object) -> LayoutAuthorityError:
@@ -62,7 +63,13 @@ def _validate_p1_authority(
     zone_plan: Mapping[str, Any],
     handoff: object,
     geometry: ValidatedSiteGeometryV1,
-) -> tuple[dict[str, Any], str, dict[str, Mapping[str, Any]]]:
+) -> tuple[
+    dict[str, Any],
+    str,
+    dict[str, Mapping[str, Any]],
+    tuple[Mapping[str, Any], ...],
+    tuple[Mapping[str, Any], ...],
+]:
     if not geometry._is_authoritative():
         raise _error("INVALID_SITE_GEOMETRY_RESULT", reason="UNVERIFIED_GEOMETRY_RESULT")
     body, handoff_hash = _p1_body(handoff)
@@ -90,6 +97,8 @@ def _validate_p1_authority(
         raise _error("P1_HANDOFF_INTEGRITY_MISMATCH")
 
     historical = _mapping(body.get("p1e_historical_handoff"), field="p1e_historical_handoff")
+    if body.get("p1e_historical_handoff_hash") != canonical_hash(historical):
+        raise _error("P1_HANDOFF_INTEGRITY_MISMATCH", field="p1e_historical_handoff_hash")
     dimension = _mapping(historical.get("dimension_handoff"), field="dimension_handoff")
     if dimension.get("calculator_identity") != DIMENSION_HANDOFF_IDENTITY:
         raise _error("P1_HANDOFF_IDENTITY_INVALID", field="dimension_handoff")
@@ -130,7 +139,65 @@ def _validate_p1_authority(
         row.get("zone_code") for row in dimensions if isinstance(row, Mapping)
     } != set(concrete):
         raise _error("P1_HANDOFF_IDENTITY_INVALID", field="dimensions")
-    return body, handoff_hash, {code: authorities[code] for code in ZONE_CODES}
+    raw_access_requirements = historical.get("access_requirements")
+    if not isinstance(raw_access_requirements, list):
+        raise _error("P1_HANDOFF_IDENTITY_INVALID", field="access_requirements")
+    if len(raw_access_requirements) != P1_ACCESS_REQUIREMENT_COUNT:
+        raise _error(
+            "P1_HANDOFF_IDENTITY_INVALID",
+            field="access_requirements",
+            expected_count=P1_ACCESS_REQUIREMENT_COUNT,
+        )
+    required_access_fields = {
+        "identity",
+        "from_ref",
+        "to_ref",
+        "flow_kind",
+        "access_class",
+        "profile_identity",
+        "portal_required",
+        "corridor_allowed",
+        "direct_allowed",
+        "edge_orientation_requirement",
+        "route_shape_constraint",
+    }
+    access_requirements: list[Mapping[str, Any]] = []
+    access_keys: set[tuple[object, object, object]] = set()
+    access_identities: set[str] = set()
+    for requirement in raw_access_requirements:
+        if not isinstance(requirement, Mapping) or not required_access_fields <= set(requirement):
+            raise _error("P1_HANDOFF_IDENTITY_INVALID", field="access_requirements")
+        identity = requirement.get("identity")
+        from_ref = requirement.get("from_ref")
+        to_ref = requirement.get("to_ref")
+        flow_kind = requirement.get("flow_kind")
+        if (
+            not isinstance(identity, str)
+            or not isinstance(from_ref, str)
+            or not isinstance(to_ref, str)
+            or not isinstance(flow_kind, str)
+            or identity in access_identities
+        ):
+            raise _error("P1_HANDOFF_IDENTITY_INVALID", field="access_requirements")
+        key = (from_ref, to_ref, flow_kind)
+        if key in access_keys:
+            raise _error("P1_HANDOFF_IDENTITY_INVALID", field="access_requirements")
+        access_identities.add(identity)
+        access_keys.add(key)
+        access_requirements.append(dict(requirement))
+    raw_spatial_relationships = historical.get("spatial_relationships")
+    if not isinstance(raw_spatial_relationships, list) or any(
+        not isinstance(row, Mapping) for row in raw_spatial_relationships
+    ):
+        raise _error("P1_HANDOFF_IDENTITY_INVALID", field="spatial_relationships")
+    spatial_relationships = tuple(dict(row) for row in raw_spatial_relationships)
+    return (
+        body,
+        handoff_hash,
+        {code: authorities[code] for code in ZONE_CODES},
+        tuple(access_requirements),
+        spatial_relationships,
+    )
 
 
 def _validated_objective_profile(
@@ -154,7 +221,7 @@ def place_zones(
     objective_profile: ObjectiveProfileV1 | Mapping[str, object] | None = None,
     *,
     node_budget: int = 50_000,
-    complete_candidate_limit: int = 128,
+    complete_candidate_limit: int | None = None,
 ) -> SitePlacementResultV1:
     """Place all canonical zones within a validated site when the finite search finds one."""
     if not isinstance(canonical_zone_plan, Mapping):
@@ -165,8 +232,8 @@ def place_zones(
         or canonical_zone_plan.get("calculator_version") != "1.0.0"
     ):
         raise _error("ZONE_PLAN_IDENTITY_INVALID")
-    _, handoff_hash, authorities = _validate_p1_authority(
-        canonical_zone_plan, p1_handoff, site_geometry
+    _, handoff_hash, authorities, access_requirements, spatial_relationships = (
+        _validate_p1_authority(canonical_zone_plan, p1_handoff, site_geometry)
     )
     profile, profile_hash = _validated_objective_profile(objective_profile)
     geometry_body = site_geometry.to_dict()
@@ -178,6 +245,8 @@ def place_zones(
         source_p1_handoff_hash=handoff_hash,
         source_site_geometry_hash=site_geometry.canonical_result_hash,
         objective_profile_hash=profile_hash,
+        access_requirements=access_requirements,
+        spatial_relationships=spatial_relationships,
         node_budget=node_budget,
         complete_candidate_limit=complete_candidate_limit,
     )

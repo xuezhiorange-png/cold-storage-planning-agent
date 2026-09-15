@@ -69,8 +69,24 @@ adjacency. No floating epsilon or full-site millimetre scan is used.
 The deterministic search uses stable constrained-first zone ordering and a
 finite edge/vertex anchor family. Flexible dimensions are drawn from
 adjacent-edge, relevant-span and deterministic near-square candidates. The
-search budget is a versioned node/candidate budget and is recorded in result
-provenance; it is not a wall-clock timeout and is not engineering authority.
+search budget is a versioned node budget and is recorded in result provenance;
+it is not a wall-clock timeout and is not engineering authority. The historical
+`complete_candidate_limit` argument is retained only for call compatibility;
+it never stops candidate comparison. Every complete candidate is evaluated and
+discarded after comparison, so the bounded cutoff is the node budget only:
+
+```ini
+COMPLETE_CANDIDATE_LIMIT_STOPS_SEARCH=false
+NODE_BUDGET_IS_ONLY_SEARCH_CUTOFF=true
+SEARCH_TREE_EXHAUSTED=true|false
+NODE_BUDGET_EXHAUSTED=true|false
+OBJECTIVE_OPTIMAL_WITHIN_SEARCH_FAMILY=true|false
+```
+
+When the finite candidate tree is exhausted, the selected result is optimal
+within that deterministic search family. If the node budget stops traversal,
+an already-found placement remains available but its search-family optimum is
+explicitly unproven.
 
 ## Process graph and objective evaluation
 
@@ -125,6 +141,8 @@ source_p1_handoff_hash
 source_site_geometry_hash
 source_objective_profile_hash
 zones[12]
+placement_access_requirement_count
+placement_access_observations[12]
 shipping_loading_face_side
 shipping_loading_face_segment
 must_adjacency_evaluation
@@ -155,7 +173,21 @@ P2_COMPLETE=false
 
 Placement-level observations may record a direct shared edge or the selected
 loading face, but every access observation that requires a portal, corridor or
-route remains `PENDING_ROUTE_VALIDATION`.
+route remains `PENDING_ROUTE_VALIDATION`. The twelve observations are copied
+from the verified P1 handoff's `p1e_historical_handoff.access_requirements`;
+the placement layer does not regenerate them. Each observation preserves the
+P1 requirement identity, from/to references, flow/access class, profile,
+portal/corridor/direct flags, route-shape constraint and edge-orientation
+requirement. The packaging-to-sorting edge relationship may record observable
+relative edge-class facts when a direct shared edge exists, without asserting
+route validity.
+
+```ini
+PLACEMENT_ACCESS_REQUIREMENT_COUNT=12
+P1_ACCESS_REQUIREMENTS_PRESERVED=true
+ACCESS_OBSERVATIONS_ONE_TO_ONE_WITH_P1=true
+PACKAGING_SORTING_ORIENTATION_OBSERVABLE=true
+```
 
 ## Explicit non-goals and gate
 

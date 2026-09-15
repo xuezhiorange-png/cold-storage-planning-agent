@@ -15,6 +15,9 @@ from cold_storage.modules.layout.application.site_geometry import (
     ValidatedSiteGeometryV1,
     validate_site_geometry,
 )
+from cold_storage.modules.layout.domain import placement as placement_domain
+from cold_storage.modules.layout.domain.adjacency import process_graph
+from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.domain.placement import (
     PLACEMENT_RESULT_IDENTITY,
     SEARCH_PROFILE_IDENTITY,
@@ -78,12 +81,14 @@ def run_placement(
     authority_context: tuple[dict[str, Any], ZoneDimensioningResultV1, ValidatedSiteGeometryV1],
     *,
     complete_candidate_limit: int = 1,
+    node_budget: int = 20,
 ) -> SitePlacementResultV1:
     zone_plan, handoff, geometry = authority_context
     return place_zones(
         zone_plan,
         handoff,
         geometry,
+        node_budget=node_budget,
         complete_candidate_limit=complete_candidate_limit,
     )
 
@@ -152,15 +157,167 @@ def test_representative_fixture_finds_twelve_non_overlapping_zones(authority_con
         "violations": [],
     }
     assert body["placement_objective_vector"]["should_adjacency"]["total_count"] == 5
-    assert body["placement_access_observations"]
+    observations = body["placement_access_observations"]
+    requirements = authority_context[1].to_dict()["p1e_historical_handoff"]["access_requirements"]
+    assert body["placement_access_requirement_count"] == 12
+    assert len(observations) == 12
+    assert {row["observation_id"] for row in observations} == {
+        row["identity"] for row in requirements
+    }
+    preserved_fields = (
+        "identity",
+        "from_ref",
+        "to_ref",
+        "flow_kind",
+        "access_class",
+        "profile_identity",
+        "portal_required",
+        "corridor_allowed",
+        "direct_allowed",
+        "edge_orientation_requirement",
+        "route_shape_constraint",
+        "cold_room_refs",
+        "cold_room_portal_profile_identity",
+        "source_authority",
+    )
+    observations_by_id = {row["observation_id"]: row for row in observations}
+    for requirement in requirements:
+        observation = observations_by_id[requirement["identity"]]
+        assert observation["requirement_identity"] == requirement["identity"]
+        for field in preserved_fields:
+            assert observation[field] == requirement[field]
     assert all(
         row["status"] == "PENDING_ROUTE_VALIDATION" for row in body["placement_access_observations"]
     )
+    assert body["search_provenance"]["complete_candidate_limit_stops_search"] is False
+    assert body["search_provenance"]["node_budget_is_only_search_cutoff"] is True
     assert body["routing_validated"] is False
     assert body["access_route_validated"] is False
     assert body["truck_route_validated"] is False
     assert body["project_layout_validated"] is False
     assert body["p2_complete"] is False
+
+
+def test_packaging_orientation_is_observable_when_direct_edge_is_present(authority_context) -> None:
+    handoff = authority_context[1].to_dict()
+    requirements = handoff["p1e_historical_handoff"]["access_requirements"]
+    relationships = handoff["p1e_historical_handoff"]["spatial_relationships"]
+    packaging = PlacedRectangleV1("packaging_material_storage", 0, 0, D("17.3"), D("14.5"), 90)
+    sorting = PlacedRectangleV1("sorting_packaging_room", D("14.5"), 2, D("45.76"), D("13.6"))
+    packaging_requirement = next(
+        row
+        for row in requirements
+        if row["from_ref"] == "packaging_material_storage"
+        and row["to_ref"] == "sorting_packaging_room"
+    )
+    observations = placement_domain._access_observations(
+        requirements,
+        relationships,
+        {packaging.zone_code: packaging, sorting.zone_code: sorting},
+        {"side": "BOTTOM_LONG_EDGE", "segment": ((0, 0), (100, 0))},
+    )
+    row = next(row for row in observations if row["identity"] == packaging_requirement["identity"])
+    assert row["observable_facts"]["direct_shared_edge_observed"] is True
+    assert row["observable_facts"]["edge_orientation_observable"] is True
+    assert row["observable_facts"]["edge_orientation_satisfied"] is True
+
+
+def test_tampered_p1_access_requirement_fails_closed(authority_context) -> None:
+    zone_plan, handoff, geometry = authority_context
+    tampered = handoff.to_dict()
+    tampered["p1e_historical_handoff"]["access_requirements"][0]["portal_required"] = False
+    with pytest.raises(LayoutAuthorityError) as error:
+        place_zones(zone_plan, tampered, geometry, node_budget=20)
+    assert error.value.code == "P1_HANDOFF_INTEGRITY_MISMATCH"
+
+
+def _objective_search_fixture(authority_context, monkeypatch, *, node_budget: int = 1_000):
+    _, handoff, geometry = authority_context
+    graph = process_graph()
+    requirements = handoff.to_dict()["p1e_historical_handoff"]["access_requirements"]
+    relationships = handoff.to_dict()["p1e_historical_handoff"]["spatial_relationships"]
+    authorities = {code: {} for code in graph.nodes}
+
+    def fake_options(code, _authority, placed, *_args):
+        if not placed:
+            return (
+                PlacedRectangleV1(code, 1, 0, 1, 1),
+                PlacedRectangleV1(code, 2, 0, 1, 1),
+            )
+        return (PlacedRectangleV1(code, 10 * (len(placed) + 1), 0, 1, 1),)
+
+    def fake_payload(
+        placed,
+        _authorities,
+        _graph,
+        _site_body,
+        _source_zone_plan_hash,
+        _source_p1_handoff_hash,
+        _source_site_geometry_hash,
+        _source_objective_profile_hash,
+        _access_requirements,
+        _spatial_relationships,
+        _search_provenance,
+    ):
+        better = placed["raw_fruit_buffer"].x == D("2")
+        return {
+            "schema_version": "1.0.0",
+            "placement_result_identity": PLACEMENT_RESULT_IDENTITY,
+            "placement_objective_vector": {
+                "should_adjacency": {"satisfied_count": 4 if better else 3},
+                "loading_side": {"preferred_loading_side": "UNSPECIFIED"},
+            },
+            "selected_marker": placed["raw_fruit_buffer"].x,
+            "placement_access_observations": [],
+            "zones": [],
+            "_loading_comparison": [],
+        }
+
+    monkeypatch.setattr(placement_domain, "_candidate_options", fake_options)
+    monkeypatch.setattr(placement_domain, "_candidate_payload", fake_payload)
+    monkeypatch.setattr(placement_domain, "_validate_graph_completeness", lambda *_args: None)
+    return placement_domain.search_placement(
+        authorities,
+        geometry.to_dict(),
+        graph,
+        source_zone_plan_hash="sha256:" + "1" * 64,
+        source_p1_handoff_hash=handoff.canonical_result_hash,
+        source_site_geometry_hash=geometry.canonical_result_hash,
+        access_requirements=requirements,
+        spatial_relationships=relationships,
+        node_budget=node_budget,
+        complete_candidate_limit=1,
+    )
+
+
+def test_complete_candidate_limit_does_not_stop_objective_selection(
+    authority_context, monkeypatch
+) -> None:
+    body = _objective_search_fixture(authority_context, monkeypatch).to_dict()
+    provenance = body["search_provenance"]
+    assert body["selected_marker"] == "2"
+    assert provenance["complete_candidates"] == 2
+    assert provenance["complete_candidate_limit"] == 1
+    assert provenance["complete_candidate_limit_stops_search"] is False
+    assert provenance["search_tree_exhausted"] is True
+    assert provenance["node_budget_exhausted"] is False
+    assert provenance["objective_optimal_within_search_family"] is True
+
+
+def test_budget_cutoff_does_not_claim_objective_optimality(authority_context, monkeypatch) -> None:
+    # Root plus the twelve zones reaches the first complete candidate; the
+    # second root branch is deliberately beyond this deterministic budget.
+    # Use exactly that first path's node count so the next branch is the only
+    # reason the traversal stops.
+    body = _objective_search_fixture(authority_context, monkeypatch, node_budget=13).to_dict()
+    provenance = body["search_provenance"]
+    assert body["selected_marker"] == "1"
+    assert provenance["complete_candidates"] == 1
+    assert provenance["complete_candidate_limit_stops_search"] is False
+    assert provenance["search_tree_exhausted"] is False
+    assert provenance["node_budget_exhausted"] is True
+    assert provenance["objective_optimal_within_search_family"] is False
+    assert "search-family optimum is not proven" in body["warnings"][0]
 
 
 def test_same_authoritative_input_selects_same_canonical_candidate(authority_context) -> None:
@@ -222,7 +379,9 @@ def test_loading_side_modes_are_explicit_and_do_not_use_proxy_distance(
         zone_plan,
         p1_handoff=handoff,
     )
-    body = place_zones(zone_plan, handoff, geometry, complete_candidate_limit=1).to_dict()
+    body = place_zones(
+        zone_plan, handoff, geometry, node_budget=20, complete_candidate_limit=1
+    ).to_dict()
     loading = body["placement_objective_vector"]["loading_side"]
     assert body["shipping_loading_face_side"] in {
         "BOTTOM_LONG_EDGE",
@@ -276,7 +435,9 @@ def test_obstacle_is_a_hard_placement_constraint(authority_context) -> None:
         zone_plan,
         p1_handoff=handoff,
     )
-    body = place_zones(zone_plan, handoff, geometry, complete_candidate_limit=1).to_dict()
+    body = place_zones(
+        zone_plan, handoff, geometry, node_budget=20, complete_candidate_limit=1
+    ).to_dict()
     assert body["status"] == "PLACEMENT_FOUND"
     obstacle = normalize_polygon(no_build[0])
     assert all(
@@ -300,7 +461,9 @@ def test_concave_buildable_boundary_is_supported(authority_context) -> None:
         zone_plan,
         p1_handoff=handoff,
     )
-    body = place_zones(zone_plan, handoff, geometry, complete_candidate_limit=1).to_dict()
+    body = place_zones(
+        zone_plan, handoff, geometry, node_budget=20, complete_candidate_limit=1
+    ).to_dict()
     assert body["status"] == "PLACEMENT_FOUND"
     assert len(body["zones"]) == 12
 
@@ -319,7 +482,7 @@ def test_exhaustion_is_not_reported_as_infeasibility(authority_context) -> None:
         zone_plan,
         handoff,
         geometry,
-        node_budget=1_000,
+        node_budget=20,
         complete_candidate_limit=1,
     ).to_dict()
     assert body["status"] == "LAYOUT_SEARCH_EXHAUSTED"
