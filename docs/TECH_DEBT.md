@@ -1,5 +1,29 @@
 # Technical Debt
 
+## P2A 当前独立授权与实现状态（2026-09-15）
+
+P1F / PR #278 已合并，基线为 `50210aa7cc876ed8a93a099c82ef4a4f287da82a`。
+P2A 只新增确定性 site geometry foundation 和 evidence，不关闭无关技术债，
+也不把 P2A 误报为完整 placement。
+
+```ini
+ACTIVE_GOVERNANCE_LANE=V2.2_P2
+P1_COMPLETE=true
+P2_AUTHORIZED=true
+P2A_STATUS=IMPLEMENTED_DRAFT_REVIEW
+PLACEMENT_SEARCH_IMPLEMENTED=false
+OBJECTIVE_PROFILE_IMPLEMENTED=false
+TRUCK_TURNING_SOLVER_IMPLEMENTED=false
+P3_AUTHORIZED=false
+P4_AUTHORIZED=false
+P5_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+Remaining P2A decision: approve the future machine representation for truck
+turning/maneuver envelopes. Evidence is recorded in
+`docs/tasks/V2_2-P2A-site-geometry-foundation.md`.
+
 ## P1F 当前独立授权与 P1 收口（2026-09-15）
 
 P1E / PR #277 已合并，基线 `4244379953028899958ce1579d488288a49c5b82`。

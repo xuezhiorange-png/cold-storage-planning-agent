@@ -1,5 +1,29 @@
 # Development Plan
 
+## V2.2 P2A 当前治理状态（2026-09-15）
+
+P1F / PR #278 已合并，当前基线为 `50210aa7cc876ed8a93a099c82ef4a4f287da82a`。
+Charles 已单独授权 P2A；本轮只完成 site geometry foundation，不启动完整
+placement 或下一阶段。
+
+```ini
+ACTIVE_GOVERNANCE_LANE=V2.2_P2
+P1_COMPLETE=true
+P2_AUTHORIZED=true
+P2A_STATUS=IMPLEMENTED_DRAFT_REVIEW
+PLACEMENT_SEARCH_IMPLEMENTED=false
+OBJECTIVE_PROFILE_IMPLEMENTED=false
+TRUCK_TURNING_SOLVER_IMPLEMENTED=false
+P3_AUTHORIZED=false
+P4_AUTHORIZED=false
+P5_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P2A 的 site/buildable polygon、入口、障碍与矩形 predicates 见
+`docs/tasks/V2_2-P2A-site-geometry-foundation.md`；不改变既有计算、P1
+authority 或 MCP/前端/数据库边界。
+
 ## 当前治理状态（2026-09-14）
 
 ```ini

@@ -1,5 +1,34 @@
 # ADR-044 — Site-constrained factory layout authority
 
+## P2A 当前实现 overlay（2026-09-15）
+
+在已合并的 P1F handoff 之上，`V2_2_P2A_SITE_GEOMETRY_FOUNDATION_R1` 仅新增
+`site-geometry-foundation@1.0.0` 的精确二维几何验证基础。输入必须绑定
+`p1-project-access-handoff@1.0.0`；site/buildable polygon、入口和障碍使用整数
+毫米 predicate，边界/障碍接触规则与 P0 一致。
+
+P2A 不放置 12 区、不选择 flexible rectangle 尺寸、不生成 building envelope、
+route、portal 或 drawing。P1 的 9 concrete / 3 flexible dimension authority、
+12 access requirements、7 MUST / 5 SHOULD 和所有面积/容量 authority 不变。
+
+```ini
+P2A_STATUS=IMPLEMENTED_DRAFT_REVIEW
+P2_PLACEMENT_ENGINE_COMPLETE=false
+P2_OBJECTIVE_PROFILE_FROZEN=false
+P2_TRUCK_TURNING_REPRESENTATION_FROZEN=false
+P2A_TRUCK_TURNING_REPRESENTATION_DECISION_REQUIRED=true
+P2A_RECOMMENDED_TRUCK_REPRESENTATION=OPTION_C_APPROVED_MANEUVER_TEMPLATES
+NO_FLOATING_EPSILON=true
+NO_ZONE_AREA_RECALCULATION=true
+NO_PLACEMENT_SEARCH=true
+NO_MCP_TOOL_7=true
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+Truck width/length and project evidence remain input facts; the three evidence
+slots are not turning geometry. The first solver representation remains an
+independent Owner decision.
+
 ## P1F 当前独立授权与 P1 收口（2026-09-15）
 
 P1E / PR #277 已合并，基线 `4244379953028899958ce1579d488288a49c5b82`。
