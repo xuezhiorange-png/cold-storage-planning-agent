@@ -73,6 +73,13 @@ recalculate any engineering value. Route lengths are exposed as factual
 metrics only; route-objective optimization remains inactive because the route
 objective order is not frozen.
 
+Corridors are portal-only at incident zone boundaries. An incident zone's
+interior is never a transit surface: the open interval immediately after the
+origin portal and immediately before the destination portal must leave/enter
+through the selected portal, and positive-area corridor-envelope overlap with
+an incident zone is rejected. Exact boundary contact at the selected portal
+is permitted; this check does not rely on a segment midpoint.
+
 ## Truck validation and personnel policy
 
 Truck validation requires a complete, project-bound
@@ -91,9 +98,11 @@ is reported as `TRUCK_MANEUVER_SEARCH_EXHAUSTED`; it is not renamed to an
 infeasibility proof.
 
 Personnel/truck interaction preserves the P1 policy: shared routes are
-prohibited; a necessary crossing is allowed only as `PASS_WITH_REVIEW` with
-`PERSONNEL_TRUCK_CROSSING_REQUIRES_ENGINEERING_REVIEW`. That status cannot make
-a final project layout valid.
+prohibited. Geometry may detect a crossing/contact, but it does not establish
+that the crossing is necessary. Without a separate engineering authority the
+result is `REQUIRES_ENGINEERING_REVIEW` with
+`crossing_necessary=UNDETERMINED`; that status cannot make a final project
+layout valid. A route with neither shared overlap nor crossing passes.
 
 ## Building footprint and final validation
 
@@ -130,3 +139,19 @@ the factory-power calculator, MCP tools, frontend behavior, database schema or
 the P2C placement search. It does not implement Ackermann or steering
 kinematics, route optimization, SVG, PDF, DXF, CAD, deployment or release
 activity. P3, P4 and P5 remain separately authorized stages.
+
+## R2 review correction (2026-09-15)
+
+The two review corrections are deliberately limited to validation trust
+boundaries:
+
+```ini
+INCIDENT_ZONE_INTERIOR_TRANSIT_ALLOWED=false
+PORTAL_ONLY_ZONE_BOUNDARY_TRANSIT=true
+CROSSING_NECESSITY_INFERRED_FROM_GEOMETRY=false
+CROSSING_WITHOUT_AUTHORITY_REQUIRES_REVIEW=true
+```
+
+The representative full-pass fixture remains a no-crossing case, so it still
+validates the complete P2D gate. No placement search, truck maneuver template,
+route objective, MCP, frontend, database or P3 behavior changed.

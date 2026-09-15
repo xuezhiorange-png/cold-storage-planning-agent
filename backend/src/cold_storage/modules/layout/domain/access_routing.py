@@ -59,6 +59,9 @@ GRID_M = GRID
 DEFAULT_ROUTE_NODE_BUDGET = 20_000
 DEFAULT_TRUCK_NODE_BUDGET = 20_000
 TRUCK_REPRESENTATION = "OPTION_C_APPROVED_MANEUVER_TEMPLATES"
+INCIDENT_ZONE_INTERIOR_TRANSIT_ALLOWED = False
+PORTAL_ONLY_ZONE_BOUNDARY_TRANSIT = True
+CROSSING_NECESSITY_INFERRED_FROM_GEOMETRY = False
 
 
 def _error(code: str, **details: object) -> LayoutAuthorityError:
@@ -377,6 +380,50 @@ def _compact_path(path: Sequence[tuple[int, int]]) -> tuple[tuple[int, int], ...
     return tuple(compact)
 
 
+def _segment_open_interval_overlaps_polygon_interior(
+    segment: SegmentMM, polygon: PolygonMM
+) -> bool:
+    """Return whether a rectilinear segment spends positive length inside a polygon.
+
+    The endpoints are not treated as transit.  This makes exact boundary contact
+    at a selected portal legal while rejecting a segment that enters an incident
+    room before it reaches, or after it leaves, that portal.  All coordinates are
+    integer millimetres; the strict ``>`` comparisons are intentional and do not
+    use a floating-point epsilon.
+    """
+    start, end = segment
+    if start == end:
+        return False
+    left = min(point[0] for point in polygon)
+    right = max(point[0] for point in polygon)
+    bottom = min(point[1] for point in polygon)
+    top = max(point[1] for point in polygon)
+    if start[1] == end[1]:
+        if not bottom < start[1] < top:
+            return False
+        segment_left, segment_right = sorted((start[0], end[0]))
+        return min(segment_right, right) > max(segment_left, left)
+    if start[0] == end[0]:
+        if not left < start[0] < right:
+            return False
+        segment_bottom, segment_top = sorted((start[1], end[1]))
+        return min(segment_top, top) > max(segment_bottom, bottom)
+    raise _error("INVALID_RECTILINEAR_ROUTE")
+
+
+def _unit_step(start: tuple[int, int], end: tuple[int, int]) -> tuple[int, int]:
+    """Return the first one-millimetre grid point after ``start`` toward ``end``."""
+    return (
+        start[0] + (1 if end[0] > start[0] else -1 if end[0] < start[0] else 0),
+        start[1] + (1 if end[1] > start[1] else -1 if end[1] < start[1] else 0),
+    )
+
+
+def _unit_step_before(start: tuple[int, int], end: tuple[int, int]) -> tuple[int, int]:
+    """Return the last one-millimetre grid point before ``end`` from ``start``."""
+    return _unit_step(end, start)
+
+
 def _route_is_safe(
     path: Sequence[tuple[int, int]],
     *,
@@ -389,6 +436,18 @@ def _route_is_safe(
     if len(path) < 2:
         return False, "ROUTE_SEARCH_EXHAUSTED", ()
     envelopes = _path_envelopes(path, width_mm)
+    first_start, first_end = path[0], path[1]
+    last_start, last_end = path[-2], path[-1]
+    if any(
+        code in incident_refs
+        and point_in_polygon(_unit_step(first_start, first_end), rectangle.polygon_mm)
+        for code, rectangle in zones.items()
+    ) or any(
+        code in incident_refs
+        and point_in_polygon(_unit_step_before(last_start, last_end), rectangle.polygon_mm)
+        for code, rectangle in zones.items()
+    ):
+        return False, "CORRIDOR_INCIDENT_ZONE_CROSSING", envelopes
     for envelope in envelopes:
         if not polygon_contains_polygon(boundary, envelope.polygon_mm):
             return False, "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY", envelopes
@@ -400,15 +459,19 @@ def _route_is_safe(
             for code, rectangle in zones.items()
         ):
             return False, "CORRIDOR_UNRELATED_ZONE_INTERSECTION", envelopes
-    for index, (start, end) in enumerate(zip(path, path[1:], strict=False)):
-        midpoint = ((start[0] + end[0]) // 2, (start[1] + end[1]) // 2)
-        for code, rectangle in zones.items():
-            if code not in incident_refs or not _strict_point_in_polygon(
-                midpoint, rectangle.polygon_mm
-            ):
-                continue
-            if index not in {0, len(path) - 2}:
-                return False, "CORRIDOR_INCIDENT_ZONE_CROSSING", envelopes
+        if any(
+            code in incident_refs
+            and _polygon_interiors_overlap(envelope.polygon_mm, rectangle.polygon_mm)
+            for code, rectangle in zones.items()
+        ):
+            return False, "CORRIDOR_INCIDENT_ZONE_CROSSING", envelopes
+    for start, end in zip(path, path[1:], strict=False):
+        if any(
+            code in incident_refs
+            and _segment_open_interval_overlaps_polygon_interior((start, end), rectangle.polygon_mm)
+            for code, rectangle in zones.items()
+        ):
+            return False, "CORRIDOR_INCIDENT_ZONE_CROSSING", envelopes
     return True, None, envelopes
 
 
@@ -1210,20 +1273,31 @@ def evaluate_personnel_truck_interaction(
         for personnel in personnel_corridors
         for truck in truck_envelopes
     )
+    if crossing:
+        return {
+            "status": "REQUIRES_ENGINEERING_REVIEW",
+            "shared_route": False,
+            "crossing": True,
+            "crossing_necessary": "UNDETERMINED",
+            "requires_review": True,
+            "codes": ["PERSONNEL_TRUCK_INTERACTION_REQUIRES_ENGINEERING_REVIEW"],
+            "warnings": ["PERSONNEL_TRUCK_CROSSING_REQUIRES_ENGINEERING_REVIEW"],
+            "warning": "PERSONNEL_TRUCK_CROSSING_REQUIRES_ENGINEERING_REVIEW",
+        }
     predicate = evaluate_personnel_truck_policy(
         shared_route=shared,
-        crossing=crossing,
-        crossing_necessary=crossing,
+        crossing=False,
+        crossing_necessary=False,
     )
     return {
         "status": predicate["status"],
         "shared_route": shared,
         "crossing": crossing,
-        "crossing_necessary": crossing,
+        "crossing_necessary": False,
         "requires_review": predicate["requires_review"],
         "codes": list(predicate.get("codes", [])),
         "warnings": list(predicate.get("warnings", [])),
-        "warning": ("PERSONNEL_TRUCK_CROSSING_REQUIRES_ENGINEERING_REVIEW" if crossing else None),
+        "warning": None,
     }
 
 

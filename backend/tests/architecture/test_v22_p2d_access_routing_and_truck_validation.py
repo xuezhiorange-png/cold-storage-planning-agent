@@ -16,14 +16,17 @@ from cold_storage.modules.layout.domain.access_authority import (
     personnel_truck_policy,
 )
 from cold_storage.modules.layout.domain.access_routing import (
-    IDENTITY as ROUTING_IDENTITY,
-)
-from cold_storage.modules.layout.domain.access_routing import (
+    CROSSING_NECESSITY_INFERRED_FROM_GEOMETRY,
+    INCIDENT_ZONE_INTERIOR_TRANSIT_ALLOWED,
+    PORTAL_ONLY_ZONE_BOUNDARY_TRANSIT,
     RESULT_IDENTITY,
     ROUTE_SEARCH_PROFILE_IDENTITY,
     SCHEMA_VERSION,
     TRUCK_REPRESENTATION,
     TRUCK_SEARCH_PROFILE_IDENTITY,
+)
+from cold_storage.modules.layout.domain.access_routing import (
+    IDENTITY as ROUTING_IDENTITY,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -157,6 +160,9 @@ def test_p2d_identity_and_authoritative_requirement_count_are_exact() -> None:
     assert ROUTE_SEARCH_PROFILE_IDENTITY == "deterministic-rectilinear-access-routing@1.0.0"
     assert TRUCK_SEARCH_PROFILE_IDENTITY == "truck-maneuver-chain-search@1.0.0"
     assert TRUCK_REPRESENTATION == "OPTION_C_APPROVED_MANEUVER_TEMPLATES"
+    assert INCIDENT_ZONE_INTERIOR_TRANSIT_ALLOWED is False
+    assert PORTAL_ONLY_ZONE_BOUNDARY_TRANSIT is True
+    assert CROSSING_NECESSITY_INFERRED_FROM_GEOMETRY is False
     assert len(requirements) == 12
     assert len({row.identity for row in requirements}) == 12
     assert sum(row.access_class == AccessClassV1.TRUCK for row in requirements) == 1
@@ -181,6 +187,8 @@ def test_p2d_runtime_contract_keeps_final_validation_fail_closed() -> None:
         "BUILDING_FOOTPRINT_DERIVATION_EXHAUSTED",
         "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
         "PERSONNEL_TRUCK_CROSSING_REQUIRES_ENGINEERING_REVIEW",
+        "PERSONNEL_TRUCK_INTERACTION_REQUIRES_ENGINEERING_REVIEW",
+        "CORRIDOR_INCIDENT_ZONE_CROSSING",
         "source_truck_maneuver_binding_hash",
         "project_layout_validated",
         "p2_complete",
@@ -188,6 +196,9 @@ def test_p2d_runtime_contract_keeps_final_validation_fail_closed() -> None:
         assert token in domain or token in application
     assert '"objective_optimization_active": False' in application
     assert '"p2_complete": project_valid' in application
+    assert "midpoint" not in domain
+    assert "crossing_necessary=crossing" not in domain
+    assert '"crossing_necessary": "UNDETERMINED"' in domain
 
 
 def test_p2d_owner_profiles_and_policy_are_not_reinvented() -> None:

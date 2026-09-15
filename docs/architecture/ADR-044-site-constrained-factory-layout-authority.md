@@ -432,8 +432,16 @@ Truck validation uses only the project-bound
 template identity/hashes, pose continuity, entrance entry, selected shipping
 loading-face docking and transformed-envelope clearance. It does not infer a
 vehicle, turning radius or kinematic solution. Personnel/truck shared routes
-remain prohibited; a necessary crossing produces engineering review and cannot
+remain prohibited. A geometry crossing/contact does not prove that the crossing
+is necessary: without separate engineering authority it is
+`REQUIRES_ENGINEERING_REVIEW` with `crossing_necessary=UNDETERMINED`, and cannot
 produce a fully validated project result.
+
+Incident-zone corridors are portal-only. The open interval immediately after
+the origin portal and immediately before the destination portal must not enter
+the incident-zone interior; positive-area corridor-envelope overlap is rejected
+and exact selected-portal boundary contact is allowed. The predicate is exact
+on the existing integer-millimetre grid and does not use a midpoint shortcut.
 
 When all eleven non-truck routes pass, P2D may derive a non-optimized building
 footprint from the twelve zone rectangles plus generated personnel/material

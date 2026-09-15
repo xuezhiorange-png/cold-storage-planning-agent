@@ -11,7 +11,11 @@ import pytest
 from cold_storage.modules.layout.application.access_routing import route_site_placement
 from cold_storage.modules.layout.application.p1_project_handoff import build_p1_project_handoff
 from cold_storage.modules.layout.application.site_geometry import validate_site_geometry
-from cold_storage.modules.layout.domain.access_routing import route_access_requirement
+from cold_storage.modules.layout.domain.access_routing import (
+    _route_is_safe,
+    evaluate_personnel_truck_interaction,
+    route_access_requirement,
+)
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError, canonical_hash
 from cold_storage.modules.layout.domain.objective_profile import approved_objective_profile
 from cold_storage.modules.layout.domain.placement import SitePlacementResultV1
@@ -144,7 +148,11 @@ def _placement(zone_plan: dict[str, Any], handoff: Any, geometry: Any) -> SitePl
         _zone("shipping_channel", "84.9", "42.6", "6.5", "7.693"),
         _zone("changing_room", "34.7", 19, 4, 10),
         _zone("office", "84.9", "50.293", 6, 10),
-        _zone("packaging_material_storage", 0, "26.9", "17.3", "14.5"),
+        # Keep the P1D3 long-edge -> sorting short-edge relationship physically
+        # valid under the portal-only corridor boundary rule.  The rotated
+        # long edge shares the sorting room's left short edge without blocking
+        # the project-bound truck maneuver area.
+        _zone("packaging_material_storage", "20.2", "38.8", "17.3", "14.5", rotation=90),
         _zone("secondary_fruit_buffer", 50, "22.1", "8.4", "6.9"),
         _zone("frozen_fruit_room", "58.4", "20.8", "10.8", "8.2"),
     ]
@@ -424,3 +432,68 @@ def test_portal_width_is_fail_closed() -> None:
     )
     assert result["status"] == "FAIL"
     assert "PORTAL_CLEAR_WIDTH_INSUFFICIENT" in result["codes"]
+
+
+def test_corridor_may_touch_incident_boundaries_only_at_portals() -> None:
+    zones = {
+        "from_zone": PlacedRectangleV1("from_zone", 0, 0, 10, 10),
+        "to_zone": PlacedRectangleV1("to_zone", 20, 0, 10, 10),
+    }
+    boundary = normalize_polygon(
+        {
+            "type": "polygon",
+            "points": [_point(-10, -10), _point(40, -10), _point(40, 20), _point(-10, 20)],
+        }
+    )
+    safe, reason, _ = _route_is_safe(
+        ((10_000, 5_000), (20_000, 5_000)),
+        width_mm=2_500,
+        boundary=boundary,
+        obstacles=(),
+        zones=zones,
+        incident_refs=frozenset({"from_zone", "to_zone"}),
+    )
+    assert safe is True
+    assert reason is None
+
+    unsafe, reason, _ = _route_is_safe(
+        ((10_000, 5_000), (9_000, 5_000), (20_000, 5_000)),
+        width_mm=2_500,
+        boundary=boundary,
+        obstacles=(),
+        zones=zones,
+        incident_refs=frozenset({"from_zone", "to_zone"}),
+    )
+    assert unsafe is False
+    assert reason == "CORRIDOR_INCIDENT_ZONE_CROSSING"
+
+
+def test_personnel_truck_crossing_is_not_inferred_as_necessary() -> None:
+    personnel = normalize_polygon(
+        {
+            "type": "polygon",
+            "points": [_point(0, 0), _point(10, 0), _point(10, 2), _point(0, 2)],
+        }
+    )
+    touching_truck = normalize_polygon(
+        {
+            "type": "polygon",
+            "points": [_point(4, 2), _point(6, 2), _point(6, 4), _point(4, 4)],
+        }
+    )
+    result = evaluate_personnel_truck_interaction((personnel,), (touching_truck,))
+    assert result["status"] == "REQUIRES_ENGINEERING_REVIEW"
+    assert result["crossing"] is True
+    assert result["crossing_necessary"] == "UNDETERMINED"
+    assert result["codes"] == ["PERSONNEL_TRUCK_INTERACTION_REQUIRES_ENGINEERING_REVIEW"]
+
+    overlapping_truck = normalize_polygon(
+        {
+            "type": "polygon",
+            "points": [_point(4, 1), _point(6, 1), _point(6, 3), _point(4, 3)],
+        }
+    )
+    shared = evaluate_personnel_truck_interaction((personnel,), (overlapping_truck,))
+    assert shared["status"] == "FAIL"
+    assert shared["shared_route"] is True
+    assert shared["codes"] == ["PERSONNEL_TRUCK_SHARED_ROUTE_PROHIBITED"]
