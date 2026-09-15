@@ -1,5 +1,39 @@
 # V2.2 — 受场地边界约束的工厂平面规划
 
+## V2.2 P2B2 当前目标合同状态（2026-09-15）
+
+P2A 与 P2B1 已分别提供确定性 site-geometry predicates、项目机动模板合同和
+离散变换原语。Charles 现已批准 P2B2 只冻结 objective profile；本阶段不执行
+placement search、route generation 或评分计算。详细合同见
+[P2B2 objective profile contract](V2_2-P2B2-objective-profile-contract.md)。
+
+```ini
+TASK_ID=V2_2_P2B2_OBJECTIVE_PROFILE_CONTRACT_FREEZE_R1
+TARGET_VERSION=v2.2.0
+ACTIVE_GOVERNANCE_LANE=V2.2_P2
+P2_AUTHORIZED=true
+P2B2_AUTHORIZED=true
+OBJECTIVE_PROFILE_AUTHORIZED=true
+OBJECTIVE_PROFILE_IMPLEMENTED=true
+PLACEMENT_SEARCH_IMPLEMENTED=false
+ROUTING_IMPLEMENTED=false
+P2C_AUTHORIZED=false
+P2_COMPLETE=false
+P3_AUTHORIZED=false
+P4_AUTHORIZED=false
+P5_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+本次机器合同固定字典序聚合、5 条 SHOULD 等权计数、真实 portal/corridor route
+距离、loading-side 两种明确度量和三项暂时关闭的 site/building 指标；不创建
+加权分数、中心点/曼哈顿/直线代理或未经 Owner 确认的人员/车辆分离度量。
+
 ## P2B1 当前独立授权与实现状态（2026-09-15）
 
 P2A / PR #279 已在 `ccd6336de4810012deec64c1b0a5f3256ff13d85` 合并。Charles

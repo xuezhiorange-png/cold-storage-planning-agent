@@ -1,5 +1,25 @@
 # Technical Debt
 
+## V2.2 P2B2 当前治理状态（2026-09-15）
+
+P2B2 已冻结 objective profile 的元数据边界，但仍未实现 placement search 或
+route generation。未授权的指标不会以代理值填充：真实路线前不计算距离，building
+footprint authority 完整前不启用 compactness、shape regularity 或 unused-site
+efficiency。
+
+```ini
+OBJECTIVE_PROFILE_IMPLEMENTED=true
+OBJECTIVE_AGGREGATION=LEXICOGRAPHIC
+WEIGHTED_SCORE=false
+PLACEMENT_SEARCH_IMPLEMENTED=false
+ROUTING_IMPLEMENTED=false
+P2C_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+This overlay records the P2B2 boundary only and does not close unrelated technical
+debt items.
+
 ## P2A 当前独立授权与实现状态（2026-09-15）
 
 P1F / PR #278 已合并，基线为 `50210aa7cc876ed8a93a099c82ef4a4f287da82a`。

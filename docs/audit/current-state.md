@@ -1,5 +1,31 @@
 # Current State Audit
 
+## V2.2 P2B2 当前独立授权与实现状态（2026-09-15）
+
+P2B2 仅落地版本化 objective profile 元数据和架构锁。它不生成布局候选、不搜索
+放置、不生成路线，也不改变现有计算或 access authority。
+
+```ini
+TASK_ID=V2_2_P2B2_OBJECTIVE_PROFILE_CONTRACT_FREEZE_R1
+ACTIVE_GOVERNANCE_LANE=V2.2_P2
+P2B2_STATUS=IMPLEMENTED_DRAFT_REVIEW
+OBJECTIVE_PROFILE_IDENTITY=site-constrained-objective-profile@1.0.0
+OBJECTIVE_AGGREGATION=LEXICOGRAPHIC
+WEIGHTED_SCORE=false
+SHOULD_ADJACENT_COUNT=5
+ROUTE_OBJECTIVES_REQUIRE_ACTUAL_PORTAL_CORRIDOR_ROUTE=true
+COMPACTNESS_ACTIVE=false
+SHAPE_REGULARITY_ACTIVE=false
+UNUSED_SITE_EFFICIENCY_ACTIVE=false
+PLACEMENT_SEARCH_IMPLEMENTED=false
+ROUTING_IMPLEMENTED=false
+P2C_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P2B2 的当前合同证据见 `docs/tasks/V2_2-P2B2-objective-profile-contract.md`；
+本节不覆盖下方保留的 P2A、P2B1 历史状态。
+
 ## P2A 当前独立授权与实现状态（2026-09-15）
 
 P1F / PR #278 已合并，`origin/main` 基线为

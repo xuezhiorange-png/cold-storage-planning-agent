@@ -1,5 +1,59 @@
 # ADR-044 — Site-constrained factory layout authority
 
+## P2B2 当前 Owner 决策与 objective contract（2026-09-15）
+
+Charles 已批准 `V2_2_P2B2_OBJECTIVE_PROFILE_CONTRACT_FREEZE_R1`。新增的
+`site-constrained-objective-profile@1.0.0` 只记录目标元数据和未来评估边界，
+不执行布局放置、路径生成或工程评分。P2C 仍需单独授权。
+
+```ini
+OBJECTIVE_AGGREGATION=LEXICOGRAPHIC
+WEIGHTED_SCORE=false
+SHOULD_ADJACENT_EQUAL_PRIORITY=true
+SHOULD_ADJACENT_METRIC=SATISFIED_COUNT
+SHOULD_ADJACENT_COUNT=5
+SHIPPING_TRUCK_ENTRANCE_PROXIMITY_IN_SHOULD_COUNT=false
+ROUTE_OBJECTIVES_REQUIRE_ACTUAL_PORTAL_CORRIDOR_ROUTE=true
+CENTROID_PROXY_ALLOWED=false
+EDGE_MANHATTAN_PROXY_ALLOWED=false
+STRAIGHT_LINE_PROXY_ALLOWED=false
+CARDINAL_LOADING_SIDE_METRIC=BINARY_MATCH
+UNSPECIFIED_LOADING_SIDE_SCORING=DISABLED
+NEAREST_TRUCK_ENTRANCE_METRIC=MIN_LOADING_FACE_TO_TRUCK_ENTRANCE_SEGMENT_DISTANCE
+COMPACTNESS_ACTIVE=false
+SHAPE_REGULARITY_ACTIVE=false
+UNUSED_SITE_EFFICIENCY_ACTIVE=false
+DEFER_UNTIL_BUILDING_ROUTE_AUTHORITY_COMPLETE=true
+FINAL_TIE_BREAK=CANONICAL_NORMALIZED_FULL_LAYOUT_JSON_LEXICAL
+FINAL_TIE_BREAK_AFTER_EXACT_OBJECTIVE_VECTOR=true
+RAW_MAPPING_ORDER_ALLOWED=false
+HASH_AS_TIE_BREAK=false
+PLACEMENT_SEARCH_IMPLEMENTED=false
+ROUTING_IMPLEMENTED=false
+P2C_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The profile keeps the eight P0 soft objectives in their existing declaration
+order for lexicographic comparison; this is a stable sequence, not a weight.
+The five SHOULD zone adjacencies are counted equally. The shipping/truck entrance
+relation remains a separate access proximity. Route distances are deferred until
+actual portal/corridor routes exist. `UNSPECIFIED` loading side is not scored;
+cardinal loading sides use binary match and `NEAREST_TRUCK_ENTRANCE` uses the
+minimum distance between the loading-face and truck-entrance segments.
+
+Compactness, shape regularity and unused-site efficiency remain disabled. The
+existing personnel/truck shared-route prohibition and crossing-review policy stay
+in the access authority; P2B2 does not invent a new separation metric.
+
+## P2B2 implementation boundary
+
+The pure domain model and architecture lock are recorded in
+`backend/src/cold_storage/modules/layout/domain/objective_profile.py` and
+`backend/tests/architecture/test_v22_p2b2_objective_profile_contract.py`.
+They do not change P0/P1/P2A/P2B1 geometry, access, calculator, MCP, frontend,
+database, or release contracts.
+
 ## P2B1 当前 Owner 决策与合同（2026-09-15）
 
 Charles 已正式选择并批准 Option C：`TRUCK_REPRESENTATION=OPTION_C_APPROVED_MANEUVER_TEMPLATES`。
