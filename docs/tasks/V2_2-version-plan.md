@@ -330,3 +330,38 @@ P2/P3/P4/P5、其他四区profile、Ready/Merge、tag/release/deployment仍未�
 - [ADR-044](../architecture/ADR-044-site-constrained-factory-layout-authority.md)：权威分工及现有 capacity geometry 调查。
 - 预冷多房间组合尺寸由 P1B 单独确认。精确门宽、车辆转弯包络、人员/重车隔离尺寸、其他非网格区域定尺 profile 尚需工程决策；不得由 Agent 猜测。
 - 当前六工具、五 KEY、zone area、factory-power p2、schema p1 均不变。模型不得计算面积、尺寸或工程值；输出为概念规划、需工程复核，不是施工图。
+
+## V2.2 P2D 当前独立授权与实现状态（2026-09-15）
+
+P2C 已合并并提供确定性十二分区 placement；Charles 现已独立授权
+`V2_2_P2D_ACCESS_ROUTING_AND_TRUCK_VALIDATION_R1`。本阶段直接消费 P1/P2A/P2B1/P2C
+的已验证结果，新增 portal、人员/物料 corridor、包装库直线路径、Option C 货车
+机动链、人员/货车交互检查及非优化 building footprint derivation。它不改变面积、
+尺寸、placement objective、既有 calculator、MCP 或数据库。
+
+```ini
+P1_COMPLETE=true
+P2D_AUTHORIZED=true
+P2D_STATUS=IMPLEMENTED_DRAFT_REVIEW
+P2D_ACCESS_REQUIREMENT_COUNT=12
+P2D_ROUTING_IMPLEMENTED=true
+P2D_ROUTE_METRICS_AVAILABLE=true
+P2D_ROUTE_OBJECTIVE_OPTIMIZATION_ACTIVE=false
+P2D_TRUCK_REPRESENTATION=OPTION_C_APPROVED_MANEUVER_TEMPLATES
+P2D_PROJECT_LAYOUT_VALIDATION=INPUT_CONDITIONAL
+P2_COMPLETE=true|false
+P3_AUTHORIZED=false
+P4_AUTHORIZED=false
+P5_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+`P2_COMPLETE=true` 只表示具体输入的 placement、十二条 access、货车 maneuver、
+人员/货车政策和 derived footprint 均已通过；不代表 P3 或任何发布动作已获授权。
+没有完整 project-bound truck maneuver input、路线搜索耗尽或出现 engineering review
+时，结果保持 fail closed。详见 [P2D evidence](V2_2-P2D-access-routing-and-truck-validation.md)。
