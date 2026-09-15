@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TruckProjectAccessInputV1",
+  "description": "Project input only. Evidence references are not solver geometry or verified route clearance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_authority",
+    "project_id",
+    "vehicle_width_m",
+    "vehicle_length_m",
+    "turning_envelope",
+    "straight_approach",
+    "loading_operation_clearance"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "source_authority": {
+      "const": "PROJECT_INPUT"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "vehicle_width_m": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "multipleOf": 0.001
+    },
+    "vehicle_length_m": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "multipleOf": 0.001
+    },
+    "turning_envelope": {
+      "$ref": "#/$defs/project_authority_reference"
+    },
+    "straight_approach": {
+      "$ref": "#/$defs/project_authority_reference"
+    },
+    "loading_operation_clearance": {
+      "$ref": "#/$defs/project_authority_reference"
+    }
+  },
+  "$defs": {
+    "project_authority_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "source_authority",
+        "project_id",
+        "reference",
+        "content_sha256",
+        "provided_by"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "source_authority": {
+          "const": "PROJECT_INPUT"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "reference": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "provided_by": {
+          "type": "string",
+          "pattern": "\\S"
+        }
+      }
+    }
+  },
+  "$comment": "Domain additionally enforces finite non-bool numbers with exact Decimal grid, matching reference project_id, and bounded numeric precision. No defaults, automatic evidence retrieval, source authentication or feasibility claims."
+}
