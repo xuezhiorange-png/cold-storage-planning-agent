@@ -1,5 +1,32 @@
 # V2.2 P2A — Deterministic site-geometry foundation
 
+## P2B1 当前决策覆盖（2026-09-15）
+
+P2A 的历史 Option C 推荐已由 Charles 正式裁决为当前
+`OPTION_C_APPROVED_MANEUVER_TEMPLATES`。本覆盖只说明 P2B1 的独立合同实现，
+不改写下方 P2A 历史授权快照，也不启动 placement。
+
+```ini
+TRUCK_REPRESENTATION=OPTION_C_APPROVED_MANEUVER_TEMPLATES
+TRUCK_REPRESENTATION_OWNER_APPROVED=true
+OPTION_A_REJECTED_FOR_V2_2=true
+OPTION_B_REJECTED_FOR_V2_2=true
+DEFAULT_TRUCK_ALLOWED=false
+DEFAULT_MANEUVER_GEOMETRY_ALLOWED=false
+KINEMATIC_TRUCK_SOLVER_REQUIRED=false
+P2B1_TEMPLATE_CONTRACT=IMPLEMENTED_DRAFT_REVIEW
+PLACEMENT_SEARCH_IMPLEMENTED=false
+OBJECTIVE_PROFILE_FROZEN=false
+P2_COMPLETE=false
+P3_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P2B1 使用 P2A 的 `normalize_polygon` 作为项目机动包络的唯一二维几何边界，
+增加 `TruckManeuverTemplateV1`、模板集合、需求绑定、项目组合输入和离散
+0/90/180/270 度变换。它不生成模板、不寻找路线、不验证场地放置，也不改变
+P2A 的 site geometry、旧 P1F 输入或任何 zone authority。
+
 ## Current status
 
 ```ini

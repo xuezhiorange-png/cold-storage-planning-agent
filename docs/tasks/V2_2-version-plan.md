@@ -1,5 +1,42 @@
 # V2.2 — 受场地边界约束的工厂平面规划
 
+## P2B1 当前独立授权与实现状态（2026-09-15）
+
+P2A / PR #279 已在 `ccd6336de4810012deec64c1b0a5f3256ff13d85` 合并。Charles
+随后单独批准 `V2_2_P2B1_TRUCK_MANEUVER_TEMPLATE_CONTRACT_R1`，只实现项目提供的
+批准机动包络模板合同与精确变换原语；不授权放置搜索、目标函数或图纸。
+历史阶段中的 P2 未授权、P2A Draft 和 Option C 待裁决文字是当时快照，继续保留，
+不覆盖本节当前状态。
+
+```ini
+P2_AUTHORIZED=true
+P2B1_AUTHORIZED=true
+TRUCK_REPRESENTATION=OPTION_C_APPROVED_MANEUVER_TEMPLATES
+TRUCK_REPRESENTATION_OWNER_APPROVED=true
+DEFAULT_TRUCK_ALLOWED=false
+DEFAULT_MANEUVER_GEOMETRY_ALLOWED=false
+KINEMATIC_TRUCK_SOLVER_REQUIRED=false
+PLACEMENT_SEARCH_AUTHORIZED=false
+OBJECTIVE_PROFILE_AUTHORIZED=false
+P2B1_STATUS=IMPLEMENTED_DRAFT_REVIEW
+P2_COMPLETE=false
+P3_AUTHORIZED=false
+P4_AUTHORIZED=false
+P5_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P2B1 的三种且仅三种初始机动类别为 `STRAIGHT_APPROACH`、`TURN_90` 和
+`DOCK_REVERSE`。模板由项目提供，使用 P2A 的本地米制、0.001m 网格和简单多边形
+校验；模板集合可以只包含后续候选真正需要的类别，并通过
+`required_maneuver_classes` 表达需求。旧 `TruckProjectAccessInputV1` 不变。
+变换只允许 0/90/180/270 度，且不代表车辆运动学或路线可行。
+
 ## P2A 当前独立授权与实现状态（2026-09-15）
 
 P1F / PR #278 已合并，基线 `50210aa7cc876ed8a93a099c82ef4a4f287da82a`。

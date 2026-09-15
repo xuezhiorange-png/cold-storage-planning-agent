@@ -1,5 +1,36 @@
 # ADR-044 — Site-constrained factory layout authority
 
+## P2B1 当前 Owner 决策与合同（2026-09-15）
+
+Charles 已正式选择并批准 Option C：`TRUCK_REPRESENTATION=OPTION_C_APPROVED_MANEUVER_TEMPLATES`。
+P2B1 只建立项目提供的、批准的、版本化二维机动包络模板合同；模板是后续放置
+阶段的输入 authority，不是服务器默认车型、LLM 生成几何或车辆运动学模型。
+
+```ini
+TRUCK_REPRESENTATION=OPTION_C_APPROVED_MANEUVER_TEMPLATES
+TRUCK_REPRESENTATION_OWNER_APPROVED=true
+OPTION_A_REJECTED_FOR_V2_2=true
+OPTION_B_REJECTED_FOR_V2_2=true
+MANEUVER_CLASSES=STRAIGHT_APPROACH,TURN_90,DOCK_REVERSE
+DEFAULT_TRUCK_ALLOWED=false
+DEFAULT_MANEUVER_GEOMETRY_ALLOWED=false
+KINEMATIC_TRUCK_SOLVER_REQUIRED=false
+PLACEMENT_SEARCH_AUTHORIZED=false
+OBJECTIVE_PROFILE_AUTHORIZED=false
+P2_COMPLETE=false
+P3_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+模板使用 P2A 的 `LOCAL_CARTESIAN_METERS`、0.001m 网格和简单 polygon primitive，
+通过项目 identity、provenance、reference frame 和 `content_sha256` 绑定。
+`TURN_90` 必须明确左右方向；`DOCK_REVERSE` 必须引用
+`shipping_channel.LONG_EDGE_LOADING_FACE`。模板集合和
+`required_maneuver_classes` 不要求每个项目同时提供三类模板。
+`transform_maneuver_template` 只做精确离散旋转/平移，不做 placement、route、
+obstacle 或 feasibility solver。旧 P1F `TruckProjectAccessInputV1` 与 P2A
+几何 authority 保持不变。
+
 ## P2A 当前实现 overlay（2026-09-15）
 
 在已合并的 P1F handoff 之上，`V2_2_P2A_SITE_GEOMETRY_FOUNDATION_R1` 仅新增
