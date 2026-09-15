@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SiteLayoutProjectInputV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "site_constraints",
+    "truck_access"
+  ],
+  "properties": {
+    "site_constraints": {
+      "$ref": "V2_2-site-layout-input-v1.schema.json"
+    },
+    "truck_access": {
+      "$ref": "V2_2-truck-project-access-input-v1.schema.json"
+    }
+  },
+  "$comment": "Version 1.0.0 composition. Preserve SiteLayoutInputV1 byte-for-byte. Schema completeness is not site geometry, truck route validation or layout PASS."
+}

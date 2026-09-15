@@ -1,5 +1,41 @@
 # Gap Analysis
 
+## P1F 当前独立授权与 P1 收口（2026-09-15）
+
+P1E / PR #277 已合并，基线 `4244379953028899958ce1579d488288a49c5b82`。
+本轮为 P1F contract correction / Draft review。Charles 已裁决货车数值属于每个项目输入，
+不属于 P1 的版本级常量。下文 P1E 及更早的“当前”标题、Draft、P1_COMPLETE=false
+均保留为历史阶段快照，不覆盖本节当前状态。
+
+见 [P1F 独立合同](../tasks/V2_2-P1F-project-truck-input-and-p1-closure.md)。
+新 SiteLayoutProjectInputV1 组合旧 SiteLayoutInputV1 与独立 TruckProjectAccessInputV1；
+旧场地 schema 不变，原9 concrete/3 flexible、12 access requirements和净宽规则不变。
+未冻结的求解几何只要求版本化项目资料与来源，不发明半径、车型或净空方向。
+
+```ini
+TRUCK_ENGINEERING_VALUES_SCOPE=PROJECT_LEVEL_INPUT
+TRUCK_VERSION_LEVEL_ENGINEERING_VALUES_REQUIRED=false
+TRUCK_PROJECT_INPUT_CONTRACT_COMPLETE=true
+P1_COMPLETE=true
+P1_CLOSURE_BLOCKERS=NONE
+P2_READY_FOR_SEPARATE_AUTHORIZATION=true
+PROJECT_LAYOUT_VALIDATED=false
+P2A_TRUCK_TURNING_REPRESENTATION_DECISION_REQUIRED=true
+P2_AUTHORIZED=false
+P3_AUTHORIZED=false
+P4_AUTHORIZED=false
+P5_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+GITHUB_RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P1 完成不等于具体项目输入齐全，更不等于布局 PASS。缺货车参数仍
+PROJECT_INPUT_REQUIRED；齐全也不验证路线，不授权 P2。不关闭无关技术债。
+
 ## P1E 当前独立授权记录（2026-09-14）
 
 P1D3 / PR #276 已合并，基线为 `3910b4fbb4dde1952c1e05d2f7720e87119d3b57`。
