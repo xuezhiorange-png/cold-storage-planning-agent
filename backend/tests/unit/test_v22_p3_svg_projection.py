@@ -15,6 +15,7 @@ from cold_storage.modules.layout.application.svg_projection import project_valid
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.domain.svg_projection import (
     LAYER_ORDER,
+    SvgDrawingThemeV1,
     SvgProjectionTransformV1,
 )
 from tests.unit.test_v22_p1f_project_truck_input import truck_input
@@ -121,6 +122,55 @@ def test_svg_is_static_well_formed_and_has_no_unsafe_execution_surface(
     assert root.tag == f"{SVG_NS}svg"
     assert root.get("viewBox") == _rendered(validated_layout_and_geometry).to_dict()["view_box"]
     assert "14.700000000000001" not in svg
+
+
+def test_valid_hex_theme_renders_normally(validated_layout_and_geometry):
+    layout, geometry = validated_layout_and_geometry
+    projection = project_validated_layout_to_svg(
+        layout,
+        site_geometry=geometry,
+        theme=SvgDrawingThemeV1(zone_fill="#abcdef"),
+    )
+    assert "#abcdef" in projection.to_dict()["svg"]
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [
+        ("zone_fill", "url(https://evil.example/a.svg#x)"),
+        ("text", "javascript:alert(1)"),
+        ("dimension", '#fff" onload="alert(1)'),
+    ],
+)
+def test_theme_rejects_external_or_attribute_injection(field_name, value):
+    with pytest.raises(LayoutAuthorityError) as error:
+        SvgDrawingThemeV1(**{field_name: value})
+    assert error.value.code == "SVG_THEME_INVALID"
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    [
+        "background",
+        "zone_fill",
+        "cold_zone_fill",
+        "corridor_fill",
+        "building_outline",
+        "site_outline",
+        "obstacle_fill",
+        "portal_stroke",
+        "truck_envelope",
+        "loading_face",
+        "text",
+        "dimension",
+        "buildable_outline",
+        "entrance_stroke",
+    ],
+)
+def test_every_theme_field_requires_hex_rgb(field_name):
+    with pytest.raises(LayoutAuthorityError) as error:
+        SvgDrawingThemeV1(**{field_name: "rgb(1, 2, 3)"})
+    assert error.value.code == "SVG_THEME_INVALID"
 
 
 def test_projection_is_byte_and_hash_deterministic(validated_layout_and_geometry):

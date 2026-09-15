@@ -10,6 +10,7 @@ into SVG screen coordinates.
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation, localcontext
@@ -97,6 +98,24 @@ DISPLAY_LABELS: Final[dict[str, str]] = {
     "shipping_channel": "出货通道",
 }
 
+_THEME_HEX_COLOR_PATTERN: Final[re.Pattern[str]] = re.compile(r"^#[0-9A-Fa-f]{6}$")
+_THEME_COLOR_FIELDS: Final[tuple[str, ...]] = (
+    "background",
+    "zone_fill",
+    "cold_zone_fill",
+    "corridor_fill",
+    "building_outline",
+    "site_outline",
+    "obstacle_fill",
+    "portal_stroke",
+    "truck_envelope",
+    "loading_face",
+    "text",
+    "dimension",
+    "buildable_outline",
+    "entrance_stroke",
+)
+
 
 @dataclass(frozen=True)
 class SvgDrawingThemeV1:
@@ -116,6 +135,12 @@ class SvgDrawingThemeV1:
     dimension: str = "#374151"
     buildable_outline: str = "#2563eb"
     entrance_stroke: str = "#059669"
+
+    def __post_init__(self) -> None:
+        for field_name in _THEME_COLOR_FIELDS:
+            value = getattr(self, field_name)
+            if not isinstance(value, str) or _THEME_HEX_COLOR_PATTERN.fullmatch(value) is None:
+                raise LayoutAuthorityError("SVG_THEME_INVALID", field=field_name)
 
 
 @dataclass(frozen=True)

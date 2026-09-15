@@ -149,7 +149,7 @@ def test_p3_domain_is_static_svg_serialization_only() -> None:
     }
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            assert {alias.name for alias in node.names} <= {"hashlib", "json"}
+            assert {alias.name for alias in node.names} <= {"hashlib", "json", "re"}
         elif isinstance(node, ast.ImportFrom):
             assert (node.module or "") in allowed_modules
     source = _source(DOMAIN)
@@ -168,3 +168,5 @@ def test_p3_domain_is_static_svg_serialization_only() -> None:
     assert "engineering_coordinates_mutated" in source
     assert "escape(" in source
     assert "quoteattr(" in source
+    assert "SVG_THEME_INVALID" in source
+    assert "^#[0-9A-Fa-f]{6}$" in source

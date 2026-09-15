@@ -118,6 +118,13 @@ references, JavaScript URLs, or event-handler attributes. The SVG has no
 timestamp or random identifier. Replaying one identical source layout and
 validated site geometry produces byte-identical SVG and identical SVG hash.
 
+`SvgDrawingThemeV1` is also a fail-closed public display-input boundary. Every
+theme paint field accepts only the fixed `#RRGGBB` format; any other value
+returns `SVG_THEME_INVALID`. This prevents custom themes from introducing
+external paint resources, scripts, CSS expressions, or attribute injection.
+The server-owned hatch and dimension-tick references remain fixed renderer
+details and are not accepted through the theme object.
+
 The SVG is renderable by a normal browser, but it is not a new engineering
 authority. JSON remains the canonical layout authority; SVG is only a
 projection. No PDF, DXF, PNG, CAD, BIM, MCP, REST, or frontend path is added
