@@ -138,7 +138,8 @@ def test_p2a_contract_identity_and_non_placement_status() -> None:
             },
             "truck_access": truck_input(),
         },
-        build_p1_project_handoff(snapshot(), truck_input()),
+        snapshot(),
+        p1_handoff=build_p1_project_handoff(snapshot(), truck_input()),
     ).to_dict()
     assert body["source_p1_handoff_identity"] == "p1-project-access-handoff@1.0.0"
     assert body["validation_status"] == "VALIDATED_GEOMETRY_FOUNDATION"

@@ -9,10 +9,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from decimal import Decimal
 from typing import Any, cast
 
 from cold_storage.modules.layout.application.dimension_zones import ZoneDimensioningResultV1
+from cold_storage.modules.layout.application.p1_project_handoff import build_p1_project_handoff
 from cold_storage.modules.layout.domain.access_authority import TRUCK
 from cold_storage.modules.layout.domain.dimensioning import (
     LayoutAuthorityError,
@@ -45,6 +47,7 @@ from cold_storage.modules.layout.domain.site_geometry import (
 )
 
 P1_HANDOFF_IDENTITY = "p1-project-access-handoff@1.0.0"
+_VALIDATED_SITE_GEOMETRY_TOKEN = object()
 SITE_INPUT_KEYS = frozenset(
     {
         "site_boundary",
@@ -69,11 +72,29 @@ LOADING_SIDES = frozenset(
 )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class ValidatedSiteGeometryV1:
     """Canonical validated input; no zone placement or final layout result."""
 
     payload_json: str
+    _authority_token: object = dataclass_field(init=False, repr=False, compare=False)
+
+    def __init__(self, payload_json: str, *, _authority_token: object | None = None) -> None:
+        if _authority_token is not _VALIDATED_SITE_GEOMETRY_TOKEN:
+            raise LayoutAuthorityError(
+                "INVALID_SITE_GEOMETRY_RESULT", reason="UNVERIFIED_GEOMETRY_RESULT"
+            )
+        if not isinstance(payload_json, str) or not payload_json:
+            raise LayoutAuthorityError("INVALID_SITE_GEOMETRY_RESULT")
+        object.__setattr__(self, "payload_json", payload_json)
+        object.__setattr__(self, "_authority_token", _authority_token)
+
+    @classmethod
+    def _from_validated_payload(cls, payload_json: str) -> ValidatedSiteGeometryV1:
+        return cls(payload_json, _authority_token=_VALIDATED_SITE_GEOMETRY_TOKEN)
+
+    def _is_authoritative(self) -> bool:
+        return self._authority_token is _VALIDATED_SITE_GEOMETRY_TOKEN
 
     def to_dict(self) -> dict[str, Any]:
         import json
@@ -99,16 +120,12 @@ def _required_text(value: object, field: str) -> str:
 
 
 def _validate_p1_handoff(
-    handoff: Mapping[str, Any] | ZoneDimensioningResultV1,
+    handoff: ZoneDimensioningResultV1,
 ) -> tuple[dict[str, Any], str]:
-    if isinstance(handoff, ZoneDimensioningResultV1):
-        body = handoff.to_dict()
-        source_hash = handoff.canonical_result_hash
-    elif isinstance(handoff, Mapping):
-        body = dict(handoff)
-        source_hash = canonical_hash(body)
-    else:
-        raise LayoutAuthorityError("ZONE_PLAN_REQUIRED", source="p1_project_handoff")
+    if not isinstance(handoff, ZoneDimensioningResultV1):
+        raise LayoutAuthorityError("P1_HANDOFF_AUTHORITY_REQUIRED", source="p1_project_handoff")
+    body = handoff.to_dict()
+    source_hash = handoff.canonical_result_hash
     if body.get("identity") != P1_HANDOFF_IDENTITY or body.get("schema_version") != "1.0.0":
         raise LayoutAuthorityError(
             "P1_HANDOFF_IDENTITY_INVALID", expected_identity=P1_HANDOFF_IDENTITY
@@ -137,6 +154,43 @@ def _validate_p1_handoff(
     if not isinstance(historical, Mapping):
         raise LayoutAuthorityError("P1_HANDOFF_IDENTITY_INVALID", field="p1e_historical_handoff")
     return body, source_hash
+
+
+def _candidate_handoff_canonical(candidate: object) -> tuple[str, str]:
+    """Canonicalize a caller candidate only for equality checking."""
+    try:
+        if isinstance(candidate, ZoneDimensioningResultV1):
+            body = candidate.to_dict()
+        elif isinstance(candidate, Mapping):
+            body = dict(candidate)
+        else:
+            raise TypeError
+        return canonical_json(body), canonical_hash(body)
+    except (LayoutAuthorityError, TypeError, ValueError):
+        raise LayoutAuthorityError(
+            "P1_HANDOFF_INTEGRITY_MISMATCH", reason="INVALID_CANDIDATE"
+        ) from None
+
+
+def _replay_and_bind_p1_handoff(
+    canonical_zone_plan: Mapping[str, Any],
+    truck_input: Mapping[str, Any],
+    candidate: Mapping[str, Any] | ZoneDimensioningResultV1 | None,
+) -> tuple[dict[str, Any], str]:
+    """Replay the server-owned P1 handoff; never trust a supplied mapping hash."""
+    if not isinstance(canonical_zone_plan, Mapping):
+        raise LayoutAuthorityError("ZONE_PLAN_IDENTITY_INVALID", source="canonical_zone_plan")
+    replayed = build_p1_project_handoff(canonical_zone_plan, truck_input)
+    body, expected_hash = _validate_p1_handoff(replayed)
+    if candidate is not None:
+        candidate_json, candidate_hash = _candidate_handoff_canonical(candidate)
+        if candidate_json != replayed.canonical_json():
+            raise LayoutAuthorityError(
+                "P1_HANDOFF_INTEGRITY_MISMATCH",
+                expected_hash=expected_hash,
+                actual_hash=candidate_hash,
+            )
+    return body, expected_hash
 
 
 def _validate_project_shape(
@@ -255,13 +309,22 @@ def _validate_site_inputs(
 
 def validate_site_geometry(
     project_input: Mapping[str, Any],
-    p1_handoff: Mapping[str, Any] | ZoneDimensioningResultV1,
+    canonical_zone_plan: Mapping[str, Any],
+    *,
+    p1_handoff: Mapping[str, Any] | ZoneDimensioningResultV1 | None = None,
 ) -> ValidatedSiteGeometryV1:
-    """Validate SiteLayoutProjectInputV1 against the current P1 authority handoff."""
+    """Validate project geometry against a replayed, server-bound P1 handoff.
+
+    The canonical zone-plan is the authority source.  A supplied handoff is
+    optional evidence and must equal the server replay byte-for-byte after
+    canonicalization; it is never hashed into authority on its own.
+    """
     if not isinstance(project_input, Mapping):
         raise _invalid_input("project_input")
-    handoff, handoff_hash = _validate_p1_handoff(p1_handoff)
     site_input, truck_input = _validate_project_shape(project_input)
+    handoff, handoff_hash = _replay_and_bind_p1_handoff(
+        canonical_zone_plan, truck_input, p1_handoff
+    )
     (
         site_boundary,
         buildable,
@@ -358,22 +421,22 @@ def validate_site_geometry(
         "routes_implemented": False,
         "portals_implemented": False,
     }
-    return ValidatedSiteGeometryV1(canonical_json(payload))
+    return ValidatedSiteGeometryV1._from_validated_payload(canonical_json(payload))
 
 
 def _geometry_payload(
-    geometry: ValidatedSiteGeometryV1 | Mapping[str, Any],
+    geometry: object,
 ) -> Mapping[str, Any]:
-    if isinstance(geometry, ValidatedSiteGeometryV1):
-        return geometry.to_dict()
-    if isinstance(geometry, Mapping):
-        return geometry
-    raise LayoutAuthorityError("INVALID_SITE_GEOMETRY_RESULT")
+    if not isinstance(geometry, ValidatedSiteGeometryV1) or not geometry._is_authoritative():
+        raise LayoutAuthorityError(
+            "INVALID_SITE_GEOMETRY_RESULT", reason="UNVERIFIED_GEOMETRY_RESULT"
+        )
+    return geometry.to_dict()
 
 
 def validate_rectangle_against_site(
     rectangle: PlacedRectangleV1 | Mapping[str, Any],
-    geometry: ValidatedSiteGeometryV1 | Mapping[str, Any],
+    geometry: ValidatedSiteGeometryV1,
 ) -> dict[str, Any]:
     """Evaluate hard site/obstacle predicates for one supplied rectangle only."""
     body = _geometry_payload(geometry)
@@ -427,7 +490,7 @@ def _rectangle_zone_code(rectangle: PlacedRectangleV1 | Mapping[str, Any]) -> ob
 
 def validate_building_footprint_against_site(
     footprint: object,
-    geometry: ValidatedSiteGeometryV1 | Mapping[str, Any],
+    geometry: ValidatedSiteGeometryV1,
 ) -> dict[str, Any]:
     """Validate a supplied orthogonal footprint; never generate one."""
     body = _geometry_payload(geometry)

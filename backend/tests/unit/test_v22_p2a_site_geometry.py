@@ -52,9 +52,13 @@ def handoff():
     return build_p1_project_handoff(snapshot(), truck_input())
 
 
+def validate(data):
+    return validate_site_geometry(data, snapshot(), p1_handoff=handoff())
+
+
 def test_validated_site_geometry_is_canonical_and_deterministic():
-    first = validate_site_geometry(project(), handoff())
-    second = validate_site_geometry(project(), handoff())
+    first = validate(project())
+    second = validate(project())
 
     assert isinstance(first, ValidatedSiteGeometryV1)
     assert first.canonical_json() == second.canonical_json()
@@ -71,6 +75,158 @@ def test_validated_site_geometry_is_canonical_and_deterministic():
     assert not {"zones", "building", "routes", "portals", "svg"} & body.keys()
 
 
+def test_p1_handoff_candidate_is_only_accepted_when_server_replay_matches():
+    body = validate_site_geometry(project(), snapshot(), p1_handoff=handoff().to_dict()).to_dict()
+    assert body["source_p1_handoff_identity"] == "p1-project-access-handoff@1.0.0"
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "concrete_dimension",
+        "packaging_geometry",
+        "flexible_area",
+        "personnel_access_width",
+        "material_access_width",
+        "access_requirement",
+        "adjacency_graph",
+        "truck_binding",
+    ],
+)
+def test_p1_handoff_mutations_fail_closed_against_server_replay(mutation):
+    candidate = handoff().to_dict()
+    historical = candidate["p1e_historical_handoff"]
+    if mutation == "concrete_dimension":
+        row = next(
+            row
+            for row in historical["dimension_handoff"]["dimensions"]
+            if row["zone_code"] == "finished_goods_room"
+        )
+        row["width_m"] = "999"
+    elif mutation == "packaging_geometry":
+        row = next(
+            row
+            for row in historical["dimension_handoff"]["dimensions"]
+            if row["zone_code"] == "packaging_material_storage"
+        )
+        row["width_m"] = "999"
+    elif mutation == "flexible_area":
+        row = next(
+            row
+            for row in historical["dimension_handoff"]["authorities"]
+            if row["zone_code"] == "coating_room"
+        )
+        row["required_area_m2"] = "999"
+    elif mutation == "personnel_access_width":
+        profile = next(
+            profile
+            for profile in historical["access_profiles"]
+            if profile["access_class"] == "PERSONNEL"
+        )
+        profile["portal_clear_width_m"] = "9"
+    elif mutation == "material_access_width":
+        profile = next(
+            profile
+            for profile in historical["access_profiles"]
+            if profile["identity"] == "manual-pallet-jack-clear-envelope@1.0.0"
+        )
+        profile["portal_clear_width_m"] = "9"
+    elif mutation == "access_requirement":
+        historical["access_requirements"][0]["portal_required"] = False
+    elif mutation == "adjacency_graph":
+        historical["dimension_handoff"]["adjacency_graph"]["must_adjacencies"][0] = [
+            "office",
+            "office",
+        ]
+    else:
+        candidate["truck_input_binding"]["to_ref"] = "office"
+
+    with pytest.raises(LayoutAuthorityError, match="P1_HANDOFF_INTEGRITY_MISMATCH"):
+        validate_site_geometry(project(), snapshot(), p1_handoff=candidate)
+
+
+def test_canonical_zone_plan_is_required_for_p1_authority_replay():
+    with pytest.raises(LayoutAuthorityError, match="ZONE_PLAN_IDENTITY_INVALID"):
+        validate_site_geometry(project(), handoff())
+
+
+def test_validated_site_geometry_cannot_be_constructed_without_server_authority():
+    geometry = validate(project())
+    with pytest.raises(LayoutAuthorityError, match="INVALID_SITE_GEOMETRY_RESULT"):
+        ValidatedSiteGeometryV1(geometry.canonical_json())
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "effective_buildable_boundary",
+        "remove_hard_obstacle",
+        "entrance",
+        "retained_building",
+        "source_project_input_hash",
+        "source_p1_handoff_hash",
+    ],
+)
+def test_forged_geometry_mappings_are_rejected_by_all_foundation_consumers(mutation):
+    data = project()
+    data["site_constraints"]["no_build_zones"] = [
+        {
+            "type": "polygon",
+            "points": [
+                {"x": 20, "y": 20},
+                {"x": 30, "y": 20},
+                {"x": 30, "y": 30},
+                {"x": 20, "y": 30},
+            ],
+        }
+    ]
+    data["site_constraints"]["existing_buildings"] = [
+        {
+            "id": "retained",
+            "name": "Retained building",
+            "retained": True,
+            "footprint": {
+                "type": "polygon",
+                "points": [
+                    {"x": 40, "y": 40},
+                    {"x": 50, "y": 40},
+                    {"x": 50, "y": 50},
+                    {"x": 40, "y": 50},
+                ],
+            },
+        }
+    ]
+    forged = validate(data).to_dict()
+    if mutation == "effective_buildable_boundary":
+        forged["site"]["effective_buildable_boundary"]["points"][1]["x"] = D("999")
+    elif mutation == "remove_hard_obstacle":
+        forged["obstacles"]["hard_obstacles"] = []
+    elif mutation == "entrance":
+        forged["entrances"]["main_entrance"]["end"]["x"] = D("999")
+    elif mutation == "retained_building":
+        forged["obstacles"]["existing_buildings"][0]["footprint"]["points"][0]["x"] = D("0")
+    elif mutation == "source_project_input_hash":
+        forged["source_project_input_hash"] = "sha256:" + "0" * 64
+    else:
+        forged["source_p1_handoff_hash"] = "sha256:" + "0" * 64
+
+    with pytest.raises(LayoutAuthorityError, match="INVALID_SITE_GEOMETRY_RESULT"):
+        validate_rectangle_against_site(PlacedRectangleV1("zone", 1, 1, 2, 2), forged)
+    with pytest.raises(LayoutAuthorityError, match="INVALID_SITE_GEOMETRY_RESULT"):
+        validate_building_footprint_against_site(
+            {
+                "type": "polygon",
+                "points": [
+                    {"x": 1, "y": 1},
+                    {"x": 3, "y": 1},
+                    {"x": 3, "y": 3},
+                    {"x": 1, "y": 3},
+                ],
+            },
+            forged,
+        )
+
+
 def test_explicit_buildable_boundary_and_shared_entrance_are_recorded():
     data = project()
     data["site_constraints"]["buildable_boundary"] = {
@@ -83,7 +239,7 @@ def test_explicit_buildable_boundary_and_shared_entrance_are_recorded():
         ],
     }
     data["site_constraints"]["truck_entrance"] = deepcopy(data["site_constraints"]["main_entrance"])
-    body = validate_site_geometry(data, handoff()).to_dict()
+    body = validate(data).to_dict()
     assert body["site"]["buildable_source"] == "EXPLICIT_BUILDABLE_BOUNDARY"
     assert body["entrances"]["shared_entrance"] is True
 
@@ -148,6 +304,22 @@ def test_invalid_site_coordinate_types_fail_closed(value):
         normalize_polygon(polygon)
 
 
+def test_finite_grid_coordinates_have_no_undeclared_magnitude_cap():
+    origin = D("1000000000.001")
+    polygon = normalize_polygon(
+        {
+            "type": "polygon",
+            "points": [
+                {"x": origin, "y": origin},
+                {"x": origin + 1, "y": origin},
+                {"x": origin + 1, "y": origin + 1},
+                {"x": origin, "y": origin + 1},
+            ],
+        }
+    )
+    assert polygon[0] == (1_000_000_000_001, 1_000_000_000_001)
+
+
 def test_concave_container_checks_edges_not_only_vertices():
     site = normalize_polygon(
         {
@@ -188,7 +360,7 @@ def test_buildable_and_obstacle_boundaries_are_fail_closed_with_exact_sets():
             ],
         }
     ]
-    geometry = validate_site_geometry(data, handoff())
+    geometry = validate(data)
     touching = PlacedRectangleV1("zone", 10, 20, 10, 10)
     with pytest.raises(LayoutAuthorityError, match="HARD_CONSTRAINT_UNSATISFIABLE"):
         validate_rectangle_against_site(touching, geometry)
@@ -206,7 +378,7 @@ def test_buildable_and_obstacle_boundaries_are_fail_closed_with_exact_sets():
         }
     ]
     with pytest.raises(LayoutAuthorityError, match="NO_BUILD_ZONE_OUTSIDE_SITE"):
-        validate_site_geometry(outside, handoff())
+        validate(outside)
 
 
 def test_non_retained_building_is_conditional_not_a_hard_obstacle():
@@ -227,7 +399,7 @@ def test_non_retained_building_is_conditional_not_a_hard_obstacle():
             },
         }
     ]
-    geometry = validate_site_geometry(data, handoff())
+    geometry = validate(data)
     body = geometry.to_dict()
     assert body["obstacles"]["hard_obstacles"] == []
     assert body["obstacles"]["conditional_removal_footprints"][0]["removal_authorized"] is False
@@ -253,7 +425,7 @@ def test_existing_building_obstacle_accepts_valid_non_orthogonal_polygon():
         }
     ]
 
-    body = validate_site_geometry(data, handoff()).to_dict()
+    body = validate(data).to_dict()
     assert body["obstacles"]["hard_obstacles"][0]["kind"] == "RETAINED_EXISTING_BUILDING"
 
 
@@ -275,7 +447,7 @@ def test_retained_building_is_hard_and_building_footprint_is_orthogonal_only():
             },
         }
     ]
-    geometry = validate_site_geometry(data, handoff())
+    geometry = validate(data)
     with pytest.raises(LayoutAuthorityError, match="HARD_CONSTRAINT_UNSATISFIABLE"):
         validate_rectangle_against_site(PlacedRectangleV1("zone", 20, 20, 10, 10), geometry)
     with pytest.raises(LayoutAuthorityError, match="INVALID_BUILDING_FOOTPRINT"):
@@ -366,7 +538,7 @@ def test_concrete_p1_geometry_cannot_be_resized_or_have_area_replaced():
 
 
 def test_building_and_zone_collection_predicates_are_separate():
-    geometry = validate_site_geometry(project(), handoff())
+    geometry = validate(project())
     footprint = {
         "type": "polygon",
         "points": [{"x": 1, "y": 1}, {"x": 11, "y": 1}, {"x": 11, "y": 11}, {"x": 1, "y": 11}],

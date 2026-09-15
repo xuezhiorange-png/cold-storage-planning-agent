@@ -26,7 +26,6 @@ SCHEMA_VERSION = "1.0.0"
 COORDINATE_SYSTEM = "LOCAL_CARTESIAN_METERS"
 GRID_M = GRID
 MILLIMETRES_PER_METRE = 1000
-MAX_COORDINATE_M = Decimal("1000000000")
 
 type PointPair = tuple[int, int]
 type PolygonMM = tuple[PointPair, ...]
@@ -48,7 +47,7 @@ def _coordinate_to_mm(
         number = Decimal(str(value))
     except (InvalidOperation, ValueError):
         raise _error(code, field=field, value=str(value)) from None
-    if not number.is_finite() or abs(number) > MAX_COORDINATE_M:
+    if not number.is_finite():
         raise _error(code, field=field, value=str(value))
     with localcontext(Context(prec=80)):
         scaled = number * MILLIMETRES_PER_METRE
