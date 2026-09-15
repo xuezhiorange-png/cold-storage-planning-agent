@@ -1,5 +1,48 @@
 # V2.2 — 受场地边界约束的工厂平面规划
 
+## V2.2 P2C 当前实现状态（2026-09-15）
+
+Charles 已正式授权 `V2_2_P2C_DETERMINISTIC_PLACEMENT_ENGINE_R1`。P2C 在现有
+P2A 几何谓词、P2B1 机动模板边界、P2B2 目标合同和 P1 项目 handoff 之上，新增
+确定性的 12 区矩形放置 MVP。它可以为代表性工况生成真实的 zone `x/y`、旋转和
+三个 flexible zone 的候选尺寸，并按已批准的 MUST/SHOULD 与 loading-side 目标
+选择 canonical candidate。
+
+```ini
+TASK_ID=V2_2_P2C_DETERMINISTIC_PLACEMENT_ENGINE_R1
+TARGET_VERSION=v2.2.0
+BASE_MAIN_SHA=776d6836975d5f27a0261820548425e798919f03
+ACTIVE_GOVERNANCE_LANE=V2.2_P2
+P2C_AUTHORIZED=true
+P2C_STATUS=IMPLEMENTED_DRAFT_REVIEW
+PLACEMENT_SEARCH_IMPLEMENTED=true
+PLACEMENT_SEARCH_PROFILE_IDENTITY=deterministic-placement-search@1.0.0
+PLACEMENT_RESULT_IDENTITY=site_constrained_factory_layout@1.0.0
+PLACEMENT_ZONE_COUNT=12
+MUST_ADJACENT_COUNT=7
+SHOULD_ADJACENT_COUNT=5
+ROUTING_IMPLEMENTED=false
+ACCESS_ROUTE_VALIDATED=false
+TRUCK_ROUTE_VALIDATED=false
+PROJECT_LAYOUT_VALIDATED=false
+P2_COMPLETE=false
+P3_AUTHORIZED=false
+P4_AUTHORIZED=false
+P5_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P2C 的 `PLACEMENT_FOUND` 只表示有限、确定性 candidate family 找到了满足
+放置 hard constraints 的候选；搜索耗尽时返回 `LAYOUT_SEARCH_EXHAUSTED`，不声称
+数学上的 `LAYOUT_INFEASIBLE`。它仍不生成 building footprint、portal/corridor
+route、truck path 或图纸，亦不改变六个既有 MCP 工具。详见
+[P2C deterministic placement engine](V2_2-P2C-deterministic-placement-engine.md)。
+
 ## V2.2 P2B2 当前目标合同状态（2026-09-15）
 
 P2A 与 P2B1 已分别提供确定性 site-geometry predicates、项目机动模板合同和

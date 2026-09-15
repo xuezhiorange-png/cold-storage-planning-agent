@@ -1,5 +1,53 @@
 # ADR-044 — Site-constrained factory layout authority
 
+## P2C 当前实现 overlay（2026-09-15）
+
+P2C 已在 P2A/P2B1/P2B2 的既有合同之上实现
+`site-constrained-deterministic-placement@1.0.0`。该 placement engine 只消费
+权威 zone plan、P1 project handoff、已验证 site geometry 和已批准 objective profile，
+在有限的稳定 anchor family 中放置 12 个矩形区域，并把结果写成
+`site_constrained_factory_layout@1.0.0` 的 canonical JSON。
+
+```ini
+P2C_AUTHORIZED=true
+P2C_STATUS=IMPLEMENTED_DRAFT_REVIEW
+PLACEMENT_SEARCH_IMPLEMENTED=true
+PLACEMENT_SEARCH_PROFILE_IDENTITY=deterministic-placement-search@1.0.0
+PLACEMENT_RESULT_SCHEMA_VERSION=1.0.0
+ZONE_AREA_AUTHORITY=COLD_ROOM_ZONE_PLAN
+FIXED_RECTANGLE_RESIZE_ALLOWED=false
+DETERMINISTIC_GRID_RECTANGLE_RESIZE_ALLOWED=false
+FLEXIBLE_DIMENSION_SELECTION_ALLOWED=true
+NO_ASPECT_RATIO_AUTHORITY_CREATED=true
+MUST_ADJACENT_COUNT=7
+SHOULD_ADJACENT_COUNT=5
+PLACEMENT_OBJECTIVE_ORDER=SHOULD_ADJACENT,LOADING_SIDE_PREFERENCE
+ROUTING_IMPLEMENTED=false
+ACCESS_ROUTE_VALIDATED=false
+TRUCK_ROUTE_VALIDATED=false
+PROJECT_LAYOUT_VALIDATED=false
+LAYOUT_INFEASIBLE_PROOF_IMPLEMENTED=false
+P2_COMPLETE=false
+P3_AUTHORIZED=false
+P4_AUTHORIZED=false
+P5_AUTHORIZED=false
+NO_MCP_TOOL_7=true
+NO_SVG_PDF_DXF=true
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+固定/确定性矩形只允许平移和 0/90 度旋转；coating、changing、office 的
+`FLEXIBLE_RECTANGLE` 只允许在现有 required area 下选择正的 0.001m 网格尺寸。
+所有 zone 使用 P2A 的 exact inside/obstacle/overlap/positive-edge predicates。
+MUST adjacency 仍是 7 条，SHOULD adjacency 仍是 5 条；候选比较严格沿用
+P2B2 的 placement-stage lexicographic objective，未启用任何 weighted score 或
+geometry proxy。
+
+成功结果不等于最终项目布局通过。placement-level observable facts 可以记录
+direct shared edge 和 shipping loading face，但 portal、corridor、人员/物料/货车
+路线仍是 `PENDING_ROUTE_VALIDATION`。P2C 不生成 building footprint、route、portal、
+SVG/PDF/DXF，不改 MCP、frontend、database 或 release boundary。
+
 ## P2B2 当前 Owner 决策与 objective contract（2026-09-15）
 
 Charles 已批准 `V2_2_P2B2_OBJECTIVE_PROFILE_CONTRACT_FREEZE_R1`。新增的
