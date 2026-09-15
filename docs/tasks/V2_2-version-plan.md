@@ -1,5 +1,37 @@
 # V2.2 — 受场地边界约束的工厂平面规划
 
+## P2A 当前独立授权与实现状态（2026-09-15）
+
+P1F / PR #278 已合并，基线 `50210aa7cc876ed8a93a099c82ef4a4f287da82a`。
+Charles 已单独授权 P2；本轮仅实现 `V2_2_P2A_SITE_GEOMETRY_FOUNDATION_R1`。
+历史 P0/P1 authorization block 中的 `P2_AUTHORIZED=false` 保留为当时快照，
+不覆盖本节当前状态。
+
+```ini
+P1_COMPLETE=true
+P1_CLOSURE_BLOCKERS=NONE
+P2_AUTHORIZED=true
+P2A_STATUS=IMPLEMENTED_DRAFT_REVIEW
+P2_PLACEMENT_ENGINE_COMPLETE=false
+P2_OBJECTIVE_PROFILE_FROZEN=false
+P2_TRUCK_TURNING_REPRESENTATION_FROZEN=false
+P2A_TRUCK_TURNING_REPRESENTATION_DECISION_REQUIRED=true
+P3_AUTHORIZED=false
+P4_AUTHORIZED=false
+P5_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+GITHUB_RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P2A 只把 site/buildable polygon、障碍、入口和矩形 hard predicates 做成
+确定性基础；不生成 zone/building 位置，不选择 flexible 长宽，不搜索路径，
+不实现转弯 solver、SVG、MCP Tool 7 或后续阶段。详见
+[P2A evidence](V2_2-P2A-site-geometry-foundation.md)。
+
 ## P1F 当前独立授权与 P1 收口（2026-09-15）
 
 P1E / PR #277 已合并，基线 `4244379953028899958ce1579d488288a49c5b82`。

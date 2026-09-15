@@ -1,5 +1,30 @@
 # Gap Analysis
 
+## P2A 当前独立授权与实现状态（2026-09-15）
+
+在 `50210aa7cc876ed8a93a099c82ef4a4f287da82a` 的 P1F 收口之上，P2A 已实现
+整数毫米 site geometry validation 和 canonical provenance result。P1 area/
+dimension/access authority 未被重算或改写。
+
+```ini
+P1_COMPLETE=true
+P2_AUTHORIZED=true
+P2A_STATUS=IMPLEMENTED_DRAFT_REVIEW
+SITE_GEOMETRY_FOUNDATION_IMPLEMENTED=true
+PLACEMENT_SEARCH_IMPLEMENTED=false
+OBJECTIVE_PROFILE_IMPLEMENTED=false
+TRUCK_TURNING_SOLVER_IMPLEMENTED=false
+P2A_TRUCK_TURNING_REPRESENTATION_DECISION_REQUIRED=true
+P3_AUTHORIZED=false
+P4_AUTHORIZED=false
+P5_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+P2A 仍缺 placement search、objective profile 和 Owner 批准的 truck turning
+machine geometry 表达；这些不是本轮隐式授权。详见
+`docs/tasks/V2_2-P2A-site-geometry-foundation.md`。
+
 ## P1F 当前独立授权与 P1 收口（2026-09-15）
 
 P1E / PR #277 已合并，基线 `4244379953028899958ce1579d488288a49c5b82`。
