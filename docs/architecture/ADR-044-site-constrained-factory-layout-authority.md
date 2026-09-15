@@ -9,6 +9,11 @@ Charles 已批准 `V2_2_P2B2_OBJECTIVE_PROFILE_CONTRACT_FREEZE_R1`。新增的
 ```ini
 OBJECTIVE_AGGREGATION=LEXICOGRAPHIC
 WEIGHTED_SCORE=false
+OBJECTIVE_VOCABULARY_COUNT=8
+OBJECTIVE_STAGING=PLACEMENT_THEN_ROUTE_THEN_FINAL_TIE_BREAK
+P0_DECLARATION_ORDER_USED_AS_PRIORITY=false
+PLACEMENT_OBJECTIVE_ORDER=SHOULD_ADJACENT,LOADING_SIDE_PREFERENCE
+ROUTE_OBJECTIVE_ORDER_FROZEN=false
 SHOULD_ADJACENT_EQUAL_PRIORITY=true
 SHOULD_ADJACENT_METRIC=SATISFIED_COUNT
 SHOULD_ADJACENT_COUNT=5
@@ -20,6 +25,10 @@ STRAIGHT_LINE_PROXY_ALLOWED=false
 CARDINAL_LOADING_SIDE_METRIC=BINARY_MATCH
 UNSPECIFIED_LOADING_SIDE_SCORING=DISABLED
 NEAREST_TRUCK_ENTRANCE_METRIC=MIN_LOADING_FACE_TO_TRUCK_ENTRANCE_SEGMENT_DISTANCE
+NEAREST_TRUCK_ENTRANCE_COMPARATOR=EXACT_MIN_SEGMENT_TO_SEGMENT_SQUARED_EUCLIDEAN_DISTANCE
+NEAREST_TRUCK_ENTRANCE_INTERNAL_UNIT=MM2
+FLOAT_EPSILON_ALLOWED=false
+SQRT_REQUIRED_FOR_RANKING=false
 COMPACTNESS_ACTIVE=false
 SHAPE_REGULARITY_ACTIVE=false
 UNUSED_SITE_EFFICIENCY_ACTIVE=false
@@ -34,13 +43,22 @@ P2C_AUTHORIZED=false
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
-The profile keeps the eight P0 soft objectives in their existing declaration
-order for lexicographic comparison; this is a stable sequence, not a weight.
-The five SHOULD zone adjacencies are counted equally. The shipping/truck entrance
-relation remains a separate access proximity. Route distances are deferred until
-actual portal/corridor routes exist. `UNSPECIFIED` loading side is not scored;
-cardinal loading sides use binary match and `NEAREST_TRUCK_ENTRANCE` uses the
-minimum distance between the loading-face and truck-entrance segments.
+The eight P0 soft objectives form a vocabulary; their declaration or
+serialization order is not a priority order. Lexicographic evaluation is
+staged as placement, then route, then the final tie-break. The currently frozen
+placement order is `SHOULD_ADJACENT` followed by `LOADING_SIDE_PREFERENCE`.
+The route-objective order is not frozen because actual portal/corridor routes
+and complete Owner-approved route semantics do not yet exist. The five SHOULD
+zone adjacencies are counted equally. The shipping/truck entrance relation
+remains a separate access proximity. `UNSPECIFIED` loading side is not scored;
+cardinal loading sides use binary match.
+
+For `NEAREST_TRUCK_ENTRANCE`, the business metric remains the minimum distance
+between the loading-face and truck-entrance segments, but the ranking
+comparator is exact minimum segment-to-segment squared Euclidean distance in
+`MM2`. Floating epsilon and square-root ranking are forbidden. P2B2 freezes
+this comparator boundary only; it does not implement a segment-distance
+evaluator.
 
 Compactness, shape regularity and unused-site efficiency remain disabled. The
 existing personnel/truck shared-route prohibition and crossing-review policy stay

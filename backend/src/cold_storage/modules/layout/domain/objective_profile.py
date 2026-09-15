@@ -27,6 +27,7 @@ LEXICOGRAPHIC: Final = "LEXICOGRAPHIC"
 PLACEMENT_STAGE: Final = "PLACEMENT"
 ROUTE_STAGE: Final = "ROUTE"
 FINAL_STAGE: Final = "FINAL"
+OBJECTIVE_STAGING: Final = "PLACEMENT_THEN_ROUTE_THEN_FINAL_TIE_BREAK"
 
 ACTIVE: Final = "ACTIVE"
 CONDITIONAL: Final = "CONDITIONAL"
@@ -42,7 +43,7 @@ PEOPLE_TRUCK_SEPARATION: Final = "PEOPLE_TRUCK_SEPARATION"
 SHAPE_REGULARITY: Final = "SHAPE_REGULARITY"
 UNUSED_SITE_EFFICIENCY: Final = "UNUSED_SITE_EFFICIENCY"
 
-OBJECTIVE_ORDER: Final = (
+OBJECTIVE_VOCABULARY: Final = (
     SHOULD_ADJACENT,
     MATERIAL_FLOW_DISTANCE,
     LOADING_SIDE_PREFERENCE,
@@ -52,7 +53,26 @@ OBJECTIVE_ORDER: Final = (
     SHAPE_REGULARITY,
     UNUSED_SITE_EFFICIENCY,
 )
-SOFT_OBJECTIVE_COUNT: Final = len(OBJECTIVE_ORDER)
+OBJECTIVE_VOCABULARY_COUNT: Final = len(OBJECTIVE_VOCABULARY)
+P0_DECLARATION_ORDER_USED_AS_PRIORITY: Final = False
+SOFT_OBJECTIVE_COUNT: Final = OBJECTIVE_VOCABULARY_COUNT
+
+PLACEMENT_OBJECTIVE_ORDER: Final = (
+    SHOULD_ADJACENT,
+    LOADING_SIDE_PREFERENCE,
+)
+ROUTE_OBJECTIVE_ORDER: Final[tuple[str, ...] | None] = None
+ROUTE_OBJECTIVE_ORDER_FROZEN: Final = False
+DISABLED_OBJECTIVES: Final = (
+    COMPACTNESS,
+    SHAPE_REGULARITY,
+    UNUSED_SITE_EFFICIENCY,
+)
+DEFERRED_OBJECTIVES: Final = (
+    MATERIAL_FLOW_DISTANCE,
+    CIRCULATION_LENGTH,
+    PEOPLE_TRUCK_SEPARATION,
+)
 
 # Keep the Owner-facing label separate from the stable implementation metric
 # identifier.  The profile freezes metadata only; it does not score layouts.
@@ -70,6 +90,10 @@ CARDINAL_LOADING_SIDE_METRIC: Final = "BINARY_MATCH"
 CARDINAL_LOADING_SIDE_DIRECTION: Final = "MAXIMIZE_MATCH"
 NEAREST_TRUCK_ENTRANCE_METRIC: Final = "MIN_LOADING_FACE_TO_TRUCK_ENTRANCE_SEGMENT_DISTANCE"
 NEAREST_TRUCK_ENTRANCE_DIRECTION: Final = "MINIMIZE_DISTANCE"
+NEAREST_TRUCK_ENTRANCE_COMPARATOR: Final = "EXACT_MIN_SEGMENT_TO_SEGMENT_SQUARED_EUCLIDEAN_DISTANCE"
+NEAREST_TRUCK_ENTRANCE_INTERNAL_UNIT: Final = "MM2"
+FLOAT_EPSILON_ALLOWED: Final = False
+SQRT_REQUIRED_FOR_RANKING: Final = False
 UNSPECIFIED_LOADING_SIDE_SCORING: Final = "DISABLED"
 
 COMPACTNESS_ACTIVE: Final = False
@@ -98,7 +122,7 @@ class ObjectiveRuleV1:
     owner_metric_required: bool = False
 
     def __post_init__(self) -> None:
-        if self.objective_id not in OBJECTIVE_ORDER:
+        if self.objective_id not in OBJECTIVE_VOCABULARY:
             raise LayoutAuthorityError("UNKNOWN_OBJECTIVE")
         if self.stage not in {PLACEMENT_STAGE, ROUTE_STAGE, FINAL_STAGE}:
             raise LayoutAuthorityError("INVALID_OBJECTIVE_STAGE")
@@ -212,7 +236,13 @@ class ObjectiveProfileV1:
     source_authority: str
     aggregation: str
     weighted_score: bool
-    priority_order: tuple[str, ...]
+    objective_staging: str
+    objective_vocabulary: tuple[str, ...]
+    placement_priority_order: tuple[str, ...]
+    route_priority_order: tuple[str, ...] | None
+    route_priority_order_frozen: bool
+    disabled_objectives: tuple[str, ...]
+    deferred_objectives: tuple[str, ...]
     objective_rules: tuple[ObjectiveRuleV1, ...]
     hard_constraints_first: bool
     hard_violation_cannot_be_offset: bool
@@ -230,11 +260,26 @@ class ObjectiveProfileV1:
             raise LayoutAuthorityError("OBJECTIVE_PROFILE_IDENTITY_INVALID")
         if self.aggregation != LEXICOGRAPHIC or self.weighted_score is not False:
             raise LayoutAuthorityError("INVALID_OBJECTIVE_AGGREGATION")
-        if self.priority_order != OBJECTIVE_ORDER:
-            raise LayoutAuthorityError("INVALID_OBJECTIVE_PRIORITY_ORDER")
+        if self.objective_staging != OBJECTIVE_STAGING:
+            raise LayoutAuthorityError("INVALID_OBJECTIVE_STAGING")
+        if P0_DECLARATION_ORDER_USED_AS_PRIORITY is not False:
+            raise LayoutAuthorityError("INVALID_OBJECTIVE_DECLARATION_ORDER_POLICY")
+        if self.objective_vocabulary != OBJECTIVE_VOCABULARY:
+            raise LayoutAuthorityError("INVALID_OBJECTIVE_VOCABULARY")
+        if self.placement_priority_order != PLACEMENT_OBJECTIVE_ORDER:
+            raise LayoutAuthorityError("INVALID_PLACEMENT_OBJECTIVE_ORDER")
+        if (
+            self.route_priority_order != ROUTE_OBJECTIVE_ORDER
+            or self.route_priority_order_frozen is not ROUTE_OBJECTIVE_ORDER_FROZEN
+        ):
+            raise LayoutAuthorityError("INVALID_ROUTE_OBJECTIVE_ORDER_STATUS")
+        if self.disabled_objectives != DISABLED_OBJECTIVES:
+            raise LayoutAuthorityError("INVALID_DISABLED_OBJECTIVES")
+        if self.deferred_objectives != DEFERRED_OBJECTIVES:
+            raise LayoutAuthorityError("INVALID_DEFERRED_OBJECTIVES")
         if not all(isinstance(rule, ObjectiveRuleV1) for rule in self.objective_rules):
             raise LayoutAuthorityError("INVALID_OBJECTIVE_RULE_SET")
-        if tuple(rule.objective_id for rule in self.objective_rules) != OBJECTIVE_ORDER:
+        if tuple(rule.objective_id for rule in self.objective_rules) != OBJECTIVE_VOCABULARY:
             raise LayoutAuthorityError("INVALID_OBJECTIVE_RULE_SET")
         if not self.hard_constraints_first or not self.hard_violation_cannot_be_offset:
             raise LayoutAuthorityError("INVALID_HARD_CONSTRAINT_POLICY")
@@ -266,13 +311,20 @@ class ObjectiveProfileV1:
             ):
                 raise LayoutAuthorityError("INVALID_ROUTE_OBJECTIVE_RULE")
         loading = by_id[LOADING_SIDE_PREFERENCE]
-        if loading.status != CONDITIONAL or loading.proxy_allowed:
+        if (
+            loading.status != CONDITIONAL
+            or loading.proxy_allowed
+            or loading.metric
+            != "BINARY_MATCH_OR_MIN_LOADING_FACE_TO_TRUCK_ENTRANCE_SEGMENT_DISTANCE"
+        ):
             raise LayoutAuthorityError("INVALID_LOADING_SIDE_RULE")
-        for objective_id in (COMPACTNESS, SHAPE_REGULARITY, UNUSED_SITE_EFFICIENCY):
+        for objective_id in DISABLED_OBJECTIVES:
             if by_id[objective_id].status != DISABLED:
                 raise LayoutAuthorityError("DISABLED_OBJECTIVE_REQUIRED")
-        separation = by_id[PEOPLE_TRUCK_SEPARATION]
-        if separation.status != DEFERRED or not separation.owner_metric_required:
+        for objective_id in DEFERRED_OBJECTIVES:
+            if by_id[objective_id].status != DEFERRED:
+                raise LayoutAuthorityError("DEFERRED_OBJECTIVE_REQUIRED")
+        if not by_id[PEOPLE_TRUCK_SEPARATION].owner_metric_required:
             raise LayoutAuthorityError("INVALID_PEOPLE_TRUCK_RULE")
 
     def to_dict(self) -> dict[str, object]:
@@ -282,7 +334,17 @@ class ObjectiveProfileV1:
             "source_authority": self.source_authority,
             "aggregation": self.aggregation,
             "weighted_score": self.weighted_score,
-            "priority_order": list(self.priority_order),
+            "objective_staging": self.objective_staging,
+            "objective_vocabulary_count": len(self.objective_vocabulary),
+            "p0_declaration_order_used_as_priority": P0_DECLARATION_ORDER_USED_AS_PRIORITY,
+            "objective_vocabulary": list(self.objective_vocabulary),
+            "placement_priority_order": list(self.placement_priority_order),
+            "route_priority_order": (
+                list(self.route_priority_order) if self.route_priority_order is not None else None
+            ),
+            "route_priority_order_frozen": self.route_priority_order_frozen,
+            "disabled_objectives": list(self.disabled_objectives),
+            "deferred_objectives": list(self.deferred_objectives),
             "objective_rules": [asdict(rule) for rule in self.objective_rules],
             "hard_constraints_first": self.hard_constraints_first,
             "hard_violation_cannot_be_offset": self.hard_violation_cannot_be_offset,
@@ -305,6 +367,10 @@ class ObjectiveProfileV1:
                 "cardinal_direction": CARDINAL_LOADING_SIDE_DIRECTION,
                 "nearest_truck_entrance_metric": NEAREST_TRUCK_ENTRANCE_METRIC,
                 "nearest_truck_entrance_direction": NEAREST_TRUCK_ENTRANCE_DIRECTION,
+                "nearest_truck_entrance_comparator": NEAREST_TRUCK_ENTRANCE_COMPARATOR,
+                "nearest_truck_entrance_internal_unit": NEAREST_TRUCK_ENTRANCE_INTERNAL_UNIT,
+                "float_epsilon_allowed": FLOAT_EPSILON_ALLOWED,
+                "sqrt_required_for_ranking": SQRT_REQUIRED_FOR_RANKING,
                 "unspecified_scoring": UNSPECIFIED_LOADING_SIDE_SCORING,
             },
             "route_policy": {
@@ -336,10 +402,11 @@ class ObjectiveProfileV1:
             "UNSPECIFIED",
         }:
             raise LayoutAuthorityError("INVALID_LOADING_SIDE")
-        active = [SHOULD_ADJACENT]
-        if preferred_loading_side != "UNSPECIFIED":
-            active.append(LOADING_SIDE_PREFERENCE)
-        return tuple(active)
+        return tuple(
+            objective_id
+            for objective_id in self.placement_priority_order
+            if objective_id != LOADING_SIDE_PREFERENCE or preferred_loading_side != "UNSPECIFIED"
+        )
 
 
 def approved_objective_profile() -> ObjectiveProfileV1:
@@ -350,7 +417,13 @@ def approved_objective_profile() -> ObjectiveProfileV1:
         source_authority=SOURCE_AUTHORITY,
         aggregation=LEXICOGRAPHIC,
         weighted_score=False,
-        priority_order=OBJECTIVE_ORDER,
+        objective_staging=OBJECTIVE_STAGING,
+        objective_vocabulary=OBJECTIVE_VOCABULARY,
+        placement_priority_order=PLACEMENT_OBJECTIVE_ORDER,
+        route_priority_order=ROUTE_OBJECTIVE_ORDER,
+        route_priority_order_frozen=ROUTE_OBJECTIVE_ORDER_FROZEN,
+        disabled_objectives=DISABLED_OBJECTIVES,
+        deferred_objectives=DEFERRED_OBJECTIVES,
         objective_rules=_OBJECTIVE_RULES,
         hard_constraints_first=True,
         hard_violation_cannot_be_offset=True,

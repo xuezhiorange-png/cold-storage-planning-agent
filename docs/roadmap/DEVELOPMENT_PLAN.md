@@ -11,6 +11,9 @@ P2_AUTHORIZED=true
 P2B2_AUTHORIZED=true
 OBJECTIVE_PROFILE_AUTHORIZED=true
 OBJECTIVE_PROFILE_IMPLEMENTED=true
+P2B2_REVIEW_CORRECTION_R2_APPLIED=true
+P0_DECLARATION_ORDER_USED_AS_PRIORITY=false
+ROUTE_OBJECTIVE_ORDER_FROZEN=false
 PLACEMENT_SEARCH_IMPLEMENTED=false
 ROUTING_IMPLEMENTED=false
 P2C_AUTHORIZED=false
@@ -22,7 +25,9 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
 合同采用字典序，不采用加权分数；5 条 SHOULD 只按满足条数计分；物流和循环
-距离必须来自真实 portal/corridor route；compactness、shape regularity 和
+距离必须来自真实 portal/corridor route。8 项是目标词汇表，不代表声明顺序；当前
+placement 顺序为 SHOULD_ADJACENT → LOADING_SIDE_PREFERENCE，route 顺序尚未冻结。
+compactness、shape regularity 和
 unused-site efficiency 暂不启用。详见 `docs/tasks/V2_2-P2B2-objective-profile-contract.md`。
 
 ## V2.2 P2A 当前治理状态（2026-09-15）

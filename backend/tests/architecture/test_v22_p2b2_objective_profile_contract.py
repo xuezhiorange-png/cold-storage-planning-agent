@@ -12,8 +12,17 @@ from cold_storage.modules.layout.domain.objective_profile import (
     COMPACTNESS_ACTIVE,
     DEFER_UNTIL_BUILDING_ROUTE_AUTHORITY_COMPLETE,
     FINAL_TIE_BREAK,
+    FLOAT_EPSILON_ALLOWED,
     IDENTITY,
-    OBJECTIVE_ORDER,
+    NEAREST_TRUCK_ENTRANCE_COMPARATOR,
+    NEAREST_TRUCK_ENTRANCE_INTERNAL_UNIT,
+    OBJECTIVE_STAGING,
+    OBJECTIVE_VOCABULARY,
+    OBJECTIVE_VOCABULARY_COUNT,
+    P0_DECLARATION_ORDER_USED_AS_PRIORITY,
+    PLACEMENT_OBJECTIVE_ORDER,
+    ROUTE_OBJECTIVE_ORDER,
+    ROUTE_OBJECTIVE_ORDER_FROZEN,
     ROUTE_PROXY_ALLOWED,
     SHAPE_REGULARITY_ACTIVE,
     SHIPPING_TRUCK_ENTRANCE_PROXIMITY_IN_SHOULD_COUNT,
@@ -21,6 +30,7 @@ from cold_storage.modules.layout.domain.objective_profile import (
     SHOULD_ADJACENT_METRIC,
     SHOULD_ADJACENT_METRIC_ID,
     SOFT_OBJECTIVE_COUNT,
+    SQRT_REQUIRED_FOR_RANKING,
     UNUSED_SITE_EFFICIENCY_ACTIVE,
     approved_objective_profile,
 )
@@ -118,8 +128,26 @@ def test_owner_objective_contract_is_exactly_frozen() -> None:
     assert IDENTITY == "site-constrained-objective-profile@1.0.0"
     assert profile.aggregation == "LEXICOGRAPHIC"
     assert profile.weighted_score is False
-    assert profile.priority_order == OBJECTIVE_ORDER
-    assert len(OBJECTIVE_ORDER) == SOFT_OBJECTIVE_COUNT == 8
+    assert (
+        profile.objective_staging
+        == OBJECTIVE_STAGING
+        == ("PLACEMENT_THEN_ROUTE_THEN_FINAL_TIE_BREAK")
+    )
+    assert profile.objective_vocabulary == OBJECTIVE_VOCABULARY
+    assert (
+        profile.placement_priority_order
+        == PLACEMENT_OBJECTIVE_ORDER
+        == (
+            "SHOULD_ADJACENT",
+            "LOADING_SIDE_PREFERENCE",
+        )
+    )
+    assert profile.route_priority_order == ROUTE_OBJECTIVE_ORDER
+    assert profile.route_priority_order is None
+    assert profile.route_priority_order_frozen is ROUTE_OBJECTIVE_ORDER_FROZEN
+    assert profile.route_priority_order_frozen is False
+    assert P0_DECLARATION_ORDER_USED_AS_PRIORITY is False
+    assert len(OBJECTIVE_VOCABULARY) == OBJECTIVE_VOCABULARY_COUNT == SOFT_OBJECTIVE_COUNT == 8
     assert profile.hard_constraints_first is True
     assert profile.hard_violation_cannot_be_offset is True
     assert SHOULD_ADJACENT_COUNT == 5
@@ -127,6 +155,12 @@ def test_owner_objective_contract_is_exactly_frozen() -> None:
     assert SHOULD_ADJACENT_METRIC_ID == "SATISFIED_SHOULD_ADJACENCY_COUNT"
     assert SHIPPING_TRUCK_ENTRANCE_PROXIMITY_IN_SHOULD_COUNT is False
     assert ROUTE_PROXY_ALLOWED is False
+    assert NEAREST_TRUCK_ENTRANCE_COMPARATOR == (
+        "EXACT_MIN_SEGMENT_TO_SEGMENT_SQUARED_EUCLIDEAN_DISTANCE"
+    )
+    assert NEAREST_TRUCK_ENTRANCE_INTERNAL_UNIT == "MM2"
+    assert FLOAT_EPSILON_ALLOWED is False
+    assert SQRT_REQUIRED_FOR_RANKING is False
     assert ACTUAL_ROUTE_LENGTH_METRIC == "ACTUAL_PORTAL_CORRIDOR_ROUTE_LENGTH"
     assert CARDINAL_LOADING_SIDE_METRIC == "BINARY_MATCH"
     assert COMPACTNESS_ACTIVE is False
@@ -154,11 +188,25 @@ def test_profile_does_not_implement_placement_or_route_search() -> None:
         assert forbidden not in source
 
 
+def test_profile_does_not_treat_vocabulary_declaration_order_as_priority() -> None:
+    body = approved_objective_profile().to_dict()
+    assert "priority_order" not in body
+    assert body["objective_vocabulary"] == list(OBJECTIVE_VOCABULARY)
+    assert body["placement_priority_order"] == list(PLACEMENT_OBJECTIVE_ORDER)
+    assert body["route_priority_order"] is None
+    assert body["route_priority_order_frozen"] is False
+
+
 def test_p2b2_document_records_owner_rules_and_boundaries() -> None:
     text = (ROOT / DOC).read_text()
     for token in (
         "OBJECTIVE_AGGREGATION=LEXICOGRAPHIC",
         "WEIGHTED_SCORE=false",
+        "OBJECTIVE_VOCABULARY_COUNT=8",
+        "OBJECTIVE_STAGING=PLACEMENT_THEN_ROUTE_THEN_FINAL_TIE_BREAK",
+        "PLACEMENT_OBJECTIVE_ORDER=SHOULD_ADJACENT,LOADING_SIDE_PREFERENCE",
+        "ROUTE_OBJECTIVE_ORDER_FROZEN=false",
+        "P0_DECLARATION_ORDER_USED_AS_PRIORITY=false",
         "SHOULD_ADJACENT_EQUAL_PRIORITY=true",
         "SHOULD_ADJACENT_METRIC=SATISFIED_COUNT",
         "SHIPPING_TRUCK_ENTRANCE_PROXIMITY_IN_SHOULD_COUNT=false",
@@ -169,6 +217,10 @@ def test_p2b2_document_records_owner_rules_and_boundaries() -> None:
         "CARDINAL_LOADING_SIDE_METRIC=BINARY_MATCH",
         "UNSPECIFIED_LOADING_SIDE_SCORING=DISABLED",
         "NEAREST_TRUCK_ENTRANCE_METRIC=MIN_LOADING_FACE_TO_TRUCK_ENTRANCE_SEGMENT_DISTANCE",
+        "NEAREST_TRUCK_ENTRANCE_COMPARATOR=EXACT_MIN_SEGMENT_TO_SEGMENT_SQUARED_EUCLIDEAN_DISTANCE",
+        "NEAREST_TRUCK_ENTRANCE_INTERNAL_UNIT=MM2",
+        "FLOAT_EPSILON_ALLOWED=false",
+        "SQRT_REQUIRED_FOR_RANKING=false",
         "COMPACTNESS_ACTIVE=false",
         "SHAPE_REGULARITY_ACTIVE=false",
         "UNUSED_SITE_EFFICIENCY_ACTIVE=false",

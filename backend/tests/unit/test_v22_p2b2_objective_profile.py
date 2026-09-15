@@ -14,18 +14,29 @@ from cold_storage.modules.layout.domain.objective_profile import (
     CIRCULATION_LENGTH,
     COMPACTNESS,
     DEFERRED,
+    DEFERRED_OBJECTIVES,
     DISABLED,
+    DISABLED_OBJECTIVES,
     FINAL_TIE_BREAK,
+    FLOAT_EPSILON_ALLOWED,
     IDENTITY,
     LOADING_SIDE_PREFERENCE,
     MATERIAL_FLOW_DISTANCE,
+    NEAREST_TRUCK_ENTRANCE_COMPARATOR,
     NEAREST_TRUCK_ENTRANCE_DIRECTION,
+    NEAREST_TRUCK_ENTRANCE_INTERNAL_UNIT,
     NEAREST_TRUCK_ENTRANCE_METRIC,
-    OBJECTIVE_ORDER,
+    OBJECTIVE_STAGING,
+    OBJECTIVE_VOCABULARY,
+    OBJECTIVE_VOCABULARY_COUNT,
+    P0_DECLARATION_ORDER_USED_AS_PRIORITY,
     PEOPLE_TRUCK_SEPARATION,
+    PLACEMENT_OBJECTIVE_ORDER,
     PLACEMENT_STAGE,
     ROUTE_DISTANCE_DIRECTION,
     ROUTE_DISTANCE_UNIT,
+    ROUTE_OBJECTIVE_ORDER,
+    ROUTE_OBJECTIVE_ORDER_FROZEN,
     ROUTE_STAGE,
     SHAPE_REGULARITY,
     SHIPPING_TRUCK_ENTRANCE_PROXIMITY_IN_SHOULD_COUNT,
@@ -34,6 +45,7 @@ from cold_storage.modules.layout.domain.objective_profile import (
     SHOULD_ADJACENT_METRIC,
     SHOULD_ADJACENT_METRIC_ID,
     SOFT_OBJECTIVE_COUNT,
+    SQRT_REQUIRED_FOR_RANKING,
     UNUSED_SITE_EFFICIENCY,
     approved_objective_profile,
     validate_objective_profile,
@@ -47,9 +59,20 @@ def test_profile_freezes_owner_aggregation_and_complete_objective_vocabulary() -
     assert profile.schema_version == "1.0.0"
     assert profile.aggregation == "LEXICOGRAPHIC"
     assert profile.weighted_score is False
-    assert profile.priority_order == OBJECTIVE_ORDER
-    assert len(profile.objective_rules) == SOFT_OBJECTIVE_COUNT == 8
-    assert tuple(rule.objective_id for rule in profile.objective_rules) == OBJECTIVE_ORDER
+    assert profile.objective_staging == OBJECTIVE_STAGING
+    assert profile.objective_vocabulary == OBJECTIVE_VOCABULARY
+    assert profile.placement_priority_order == PLACEMENT_OBJECTIVE_ORDER
+    assert profile.route_priority_order == ROUTE_OBJECTIVE_ORDER
+    assert profile.route_priority_order is None
+    assert profile.route_priority_order_frozen is ROUTE_OBJECTIVE_ORDER_FROZEN
+    assert profile.route_priority_order_frozen is False
+    assert P0_DECLARATION_ORDER_USED_AS_PRIORITY is False
+    assert profile.disabled_objectives == DISABLED_OBJECTIVES
+    assert profile.deferred_objectives == DEFERRED_OBJECTIVES
+    assert len(profile.objective_rules) == SOFT_OBJECTIVE_COUNT == OBJECTIVE_VOCABULARY_COUNT == 8
+    assert tuple(rule.objective_id for rule in profile.objective_rules) == OBJECTIVE_VOCABULARY
+    assert profile.to_dict()["objective_vocabulary_count"] == OBJECTIVE_VOCABULARY_COUNT
+    assert profile.to_dict()["p0_declaration_order_used_as_priority"] is False
     assert profile.hard_constraints_first is True
     assert profile.hard_violation_cannot_be_offset is True
 
@@ -106,6 +129,10 @@ def test_loading_side_has_only_owner_declared_conditional_metrics() -> None:
         "cardinal_direction": CARDINAL_LOADING_SIDE_DIRECTION,
         "nearest_truck_entrance_metric": NEAREST_TRUCK_ENTRANCE_METRIC,
         "nearest_truck_entrance_direction": NEAREST_TRUCK_ENTRANCE_DIRECTION,
+        "nearest_truck_entrance_comparator": NEAREST_TRUCK_ENTRANCE_COMPARATOR,
+        "nearest_truck_entrance_internal_unit": NEAREST_TRUCK_ENTRANCE_INTERNAL_UNIT,
+        "float_epsilon_allowed": FLOAT_EPSILON_ALLOWED,
+        "sqrt_required_for_ranking": SQRT_REQUIRED_FOR_RANKING,
         "unspecified_scoring": "DISABLED",
     }
     assert profile.active_objective_ids("NORTH") == (SHOULD_ADJACENT, LOADING_SIDE_PREFERENCE)
@@ -114,6 +141,24 @@ def test_loading_side_has_only_owner_declared_conditional_metrics() -> None:
         LOADING_SIDE_PREFERENCE,
     )
     assert profile.active_objective_ids("UNSPECIFIED") == (SHOULD_ADJACENT,)
+
+
+def test_nearest_truck_comparator_is_exact_squared_mm2_metadata_only() -> None:
+    loading = approved_objective_profile().to_dict()["loading_side"]
+
+    assert loading["nearest_truck_entrance_comparator"] == (
+        "EXACT_MIN_SEGMENT_TO_SEGMENT_SQUARED_EUCLIDEAN_DISTANCE"
+    )
+    assert loading["nearest_truck_entrance_internal_unit"] == "MM2"
+    assert loading["float_epsilon_allowed"] is False
+    assert loading["sqrt_required_for_ranking"] is False
+
+    # The contract compares exact squared distances; no segment evaluator is
+    # implemented by this profile module.
+    nearer_mm2 = 2_500
+    farther_mm2 = 3_600
+    assert min(nearer_mm2, farther_mm2) == nearer_mm2
+    assert nearer_mm2 == 2_500
 
 
 def test_compactness_shape_and_unused_site_are_disabled() -> None:
@@ -147,6 +192,13 @@ def test_canonical_profile_is_stable_and_untrusted_mutation_fails_closed() -> No
     "field,value,code",
     [
         ("aggregation", "WEIGHTED", "INVALID_OBJECTIVE_AGGREGATION"),
+        ("objective_staging", "DECLARATION_ORDER", "INVALID_OBJECTIVE_STAGING"),
+        (
+            "placement_priority_order",
+            (LOADING_SIDE_PREFERENCE, SHOULD_ADJACENT),
+            "INVALID_PLACEMENT_OBJECTIVE_ORDER",
+        ),
+        ("route_priority_order_frozen", True, "INVALID_ROUTE_OBJECTIVE_ORDER_STATUS"),
         ("final_tie_break", "HASH", "INVALID_FINAL_TIE_BREAK"),
         ("hard_constraints_first", False, "INVALID_HARD_CONSTRAINT_POLICY"),
     ],

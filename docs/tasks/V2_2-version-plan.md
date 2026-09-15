@@ -15,6 +15,9 @@ P2_AUTHORIZED=true
 P2B2_AUTHORIZED=true
 OBJECTIVE_PROFILE_AUTHORIZED=true
 OBJECTIVE_PROFILE_IMPLEMENTED=true
+P2B2_REVIEW_CORRECTION_R2_APPLIED=true
+P0_DECLARATION_ORDER_USED_AS_PRIORITY=false
+ROUTE_OBJECTIVE_ORDER_FROZEN=false
 PLACEMENT_SEARCH_IMPLEMENTED=false
 ROUTING_IMPLEMENTED=false
 P2C_AUTHORIZED=false
@@ -31,7 +34,9 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
 本次机器合同固定字典序聚合、5 条 SHOULD 等权计数、真实 portal/corridor route
-距离、loading-side 两种明确度量和三项暂时关闭的 site/building 指标；不创建
+距离、loading-side 两种明确度量和三项暂时关闭的 site/building 指标；目标词汇表
+不等于比较优先级，当前 placement 优先级仅为 SHOULD_ADJACENT →
+LOADING_SIDE_PREFERENCE，route 优先级尚未冻结；不创建
 加权分数、中心点/曼哈顿/直线代理或未经 Owner 确认的人员/车辆分离度量。
 
 ## P2B1 当前独立授权与实现状态（2026-09-15）
