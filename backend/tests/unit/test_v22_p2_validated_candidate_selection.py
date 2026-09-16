@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+import pytest
+
 from cold_storage.modules.layout.application import validated_candidate_selection as selection
 from cold_storage.modules.layout.domain.placement import SitePlacementResultV1
 
@@ -62,7 +64,10 @@ def _candidate(marker: str, should_count: int) -> SitePlacementResultV1:
     )
 
 
-def _result(*, valid: bool, marker: str) -> _FakeRoutedResult:
+def _result(*, valid: bool, marker: str, warnings: list[str] | None = None) -> _FakeRoutedResult:
+    resolved_warnings = warnings
+    if resolved_warnings is None:
+        resolved_warnings = [] if valid else ["P2D_REJECTED_CANDIDATE"]
     return _FakeRoutedResult(
         {
             "result_identity": "site_access_routing@1.0.0",
@@ -72,7 +77,7 @@ def _result(*, valid: bool, marker: str) -> _FakeRoutedResult:
             "access_requirement_count": 12,
             "access_pass_count": 12 if valid else 11,
             "truck_route_validated": valid,
-            "warnings": [] if valid else ["P2D_REJECTED_CANDIDATE"],
+            "warnings": resolved_warnings,
             "truck_route_codes": [],
         }
     )
@@ -158,7 +163,7 @@ def test_no_full_pass_reports_search_exhaustion_not_infeasibility(monkeypatch) -
     assert "not a mathematical infeasibility proof" in body["warnings"][0]
 
 
-def test_p2d_error_rejects_one_candidate_and_continues(monkeypatch) -> None:
+def test_p2d_non_full_pass_rejects_one_candidate_and_continues(monkeypatch) -> None:
     candidates = [_candidate("A", 4), _candidate("B", 3)]
     monkeypatch.setattr(
         selection,
@@ -168,7 +173,11 @@ def test_p2d_error_rejects_one_candidate_and_continues(monkeypatch) -> None:
 
     def route(*args, **kwargs):
         if args[3].to_dict()["marker"] == "A":
-            raise selection.LayoutAuthorityError("PACKAGING_SORTING_STRAIGHT_ROUTE_REQUIRED")
+            return _result(
+                valid=False,
+                marker="A",
+                warnings=["PACKAGING_SORTING_STRAIGHT_ROUTE_REQUIRED"],
+            )
         return _result(valid=True, marker="B")
 
     monkeypatch.setattr(selection, "route_site_placement", route)
@@ -177,6 +186,27 @@ def test_p2d_error_rejects_one_candidate_and_continues(monkeypatch) -> None:
     body = selection.select_validated_placement(zone_plan, handoff, geometry).to_dict()
     assert body["validated_layout_selected"] is True
     assert body["selected_layout"]["marker"] == "B"
-    assert body["candidate_validation_trace"][0]["error_code"] == (
+    assert body["candidate_validation_trace"][0]["p2d_full_pass"] is False
+    assert body["candidate_validation_trace"][0]["warnings"] == [
         "PACKAGING_SORTING_STRAIGHT_ROUTE_REQUIRED"
+    ]
+
+
+def test_p2d_authority_error_fails_fast(monkeypatch) -> None:
+    candidates = [_candidate("A", 4), _candidate("B", 3)]
+    monkeypatch.setattr(
+        selection,
+        "enumerate_placement_candidates",
+        lambda *args, **kwargs: _FakeCandidateStream(candidates),
     )
+
+    def route(*args, **kwargs):
+        raise selection.LayoutAuthorityError("P2D_RESULT_INTEGRITY_MISMATCH")
+
+    monkeypatch.setattr(selection, "route_site_placement", route)
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    with pytest.raises(selection.LayoutAuthorityError) as caught:
+        selection.select_validated_placement(zone_plan, handoff, geometry)
+
+    assert caught.value.code == "P2D_RESULT_INTEGRITY_MISMATCH"

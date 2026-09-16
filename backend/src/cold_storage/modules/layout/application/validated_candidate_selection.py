@@ -80,8 +80,7 @@ def _p2d_trace_row(
     candidate_index: int,
     candidate_body: Mapping[str, Any],
     *,
-    p2d_body: Mapping[str, Any] | None = None,
-    error: LayoutAuthorityError | None = None,
+    p2d_body: Mapping[str, Any],
 ) -> dict[str, Any]:
     row: dict[str, Any] = {
         "candidate_index": candidate_index,
@@ -89,17 +88,6 @@ def _p2d_trace_row(
         "p2c_canonical_result_hash": candidate_body.get("canonical_result_hash"),
         "p2c_objective_vector": candidate_body.get("placement_objective_vector"),
     }
-    if error is not None:
-        row.update(
-            {
-                "p2d_status": "ERROR",
-                "p2d_full_pass": False,
-                "error_code": error.code,
-                "error_details": dict(error.details),
-            }
-        )
-        return row
-    assert p2d_body is not None
     interaction = p2d_body.get("personnel_truck_evaluation")
     interaction_status = interaction.get("status") if isinstance(interaction, Mapping) else None
     row.update(
@@ -185,20 +173,15 @@ def select_validated_placement(
 
     for candidate_index, candidate in enumerate(enumeration.iter_candidates(), start=1):
         candidate_body = candidate.to_dict()
-        try:
-            routed = route_site_placement(
-                canonical_zone_plan,
-                p1_handoff,
-                site_geometry,
-                candidate,
-                truck_maneuver_binding,
-                route_node_budget=route_node_budget,
-                truck_node_budget=truck_node_budget,
-            )
-        except LayoutAuthorityError as error:
-            trace.append(_p2d_trace_row(candidate_index, candidate_body, error=error))
-            continue
-
+        routed = route_site_placement(
+            canonical_zone_plan,
+            p1_handoff,
+            site_geometry,
+            candidate,
+            truck_maneuver_binding,
+            route_node_budget=route_node_budget,
+            truck_node_budget=truck_node_budget,
+        )
         p2d_validated_count += 1
         routed_body = routed.to_dict()
         full_pass = (

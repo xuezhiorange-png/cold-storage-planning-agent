@@ -105,6 +105,19 @@ def test_application_selector_owns_p2d_filtering_and_p2c_ranking_only() -> None:
     assert "cold_storage.modules.layout.modules" not in _imports(SELECTOR)
 
 
+def test_p2d_authority_errors_fail_fast_in_the_application_boundary() -> None:
+    source = (ROOT / SELECTOR).read_text()
+    tree = ast.parse(source)
+    assert "project_layout_validated" in source
+    assert "p2_complete" in source
+    assert not any(
+        isinstance(node, ast.ExceptHandler)
+        and isinstance(node.type, ast.Name)
+        and node.type.id == "LayoutAuthorityError"
+        for node in ast.walk(tree)
+    )
+
+
 def test_p2c_application_exposes_the_same_authority_bound_search() -> None:
     source = (ROOT / PLACEMENT_APP).read_text()
     for token in (
