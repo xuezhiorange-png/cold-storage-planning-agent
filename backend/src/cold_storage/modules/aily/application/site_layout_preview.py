@@ -21,20 +21,22 @@ from cold_storage.modules.aily.application.stage_preview import (
     execute_zone_preview_authority,
 )
 from cold_storage.modules.aily.domain.errors import AilyConnectorError
-from cold_storage.modules.layout.application.access_routing import route_site_placement
 from cold_storage.modules.layout.application.p1_project_handoff import (
     build_p1_project_handoff,
 )
-from cold_storage.modules.layout.application.placement import place_zones
 from cold_storage.modules.layout.application.site_geometry import (
     validate_site_geometry,
 )
 from cold_storage.modules.layout.application.svg_projection import (
     project_validated_layout_to_svg,
 )
+from cold_storage.modules.layout.application.validated_candidate_selection import (
+    select_validated_placement,
+)
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.domain.truck_maneuver import (
     BoundTruckManeuverProjectInputV1,
+    validate_truck_maneuver_project_binding,
 )
 from cold_storage.modules.orchestration.application.production_calculation.dtos import (
     AdapterResult,
@@ -48,8 +50,11 @@ SITE_LAYOUT_RESULT_IDENTITY = "site_validated_layout@1.0.0"
 SVG_PROJECTION_RESULT_IDENTITY = "validated-layout-svg-projection@1.0.0"
 
 # The P2 search is already bounded and deterministic.  These are orchestration
-# budgets only; they are not new layout or engineering authority.
-P4_PLACEMENT_NODE_BUDGET = 5_000
+# budgets only; they are not new layout or engineering authority.  Tool 7
+# intentionally keeps the selector's explored candidate family small enough
+# for a stateless preview response; P2 still records when this bound cuts off
+# the family and does not claim a mathematical optimum.
+P4_PLACEMENT_NODE_BUDGET = 15
 P4_ROUTE_NODE_BUDGET = 5_000
 P4_TRUCK_NODE_BUDGET = 5_000
 
@@ -57,6 +62,7 @@ PREVIEW_SITE_LAYOUT_INPUT_FIELDS: tuple[str, ...] = (
     *OPERATOR_V09_FIVE_KEY_FIELDS,
     "site_constraints",
     "truck_access",
+    "truck_maneuver",
 )
 _SITE_LAYOUT_INPUT_FIELD_SET = frozenset(PREVIEW_SITE_LAYOUT_INPUT_FIELDS)
 _FIVE_KEY_FIELD_SET = frozenset(OPERATOR_V09_FIVE_KEY_FIELDS)
@@ -84,7 +90,12 @@ def _input_error(
 
 def _validate_tool_input(
     payload: Mapping[str, Any],
-) -> tuple[dict[str, Any], Mapping[str, Any], Mapping[str, Any]]:
+) -> tuple[
+    dict[str, Any],
+    Mapping[str, Any],
+    Mapping[str, Any],
+    Mapping[str, Any],
+]:
     """Validate the strict Tool 7 boundary before any authority is executed."""
     if not isinstance(payload, Mapping):
         raise _input_error(
@@ -99,7 +110,7 @@ def _validate_tool_input(
         raise _input_error(
             "MCP_INPUT_SCHEMA_REJECTED",
             "preview_site_layout accepts only five business keys, site_constraints, "
-            "and truck_access",
+            "truck_access, and truck_maneuver",
             "arguments",
             unexpected_keys=unknown,
         )
@@ -140,18 +151,28 @@ def _validate_tool_input(
             ),
         )
 
-    truck = payload.get("truck_access")
-    if not isinstance(truck, Mapping):
+    truck_access = payload.get("truck_access")
+    if not isinstance(truck_access, Mapping):
         raise _input_error(
             "PROJECT_INPUT_REQUIRED",
-            "truck_access requires a bound project maneuver input",
+            "truck_access requires the raw P1F project truck input",
             "truck_access",
             missing_keys=("truck_access",),
-            ask_operator="请提供已绑定的项目货车参数和批准机动模板；不得使用默认车型或默认路径。",
+            ask_operator="请提供项目级 truck_access 货车参数；不要传入已绑定结果或默认车型。",
+        )
+
+    truck_maneuver = payload.get("truck_maneuver")
+    if not isinstance(truck_maneuver, Mapping):
+        raise _input_error(
+            "PROJECT_INPUT_REQUIRED",
+            "truck_maneuver requires the raw project-approved maneuver input",
+            "truck_maneuver",
+            missing_keys=("truck_maneuver",),
+            ask_operator="请提供项目批准的 truck_maneuver 模板输入；不要使用默认机动模板。",
         )
 
     business = {field: payload[field] for field in OPERATOR_V09_FIVE_KEY_FIELDS}
-    return business, site, truck
+    return business, site, truck_access, truck_maneuver
 
 
 def _zone_plan_snapshot(adapter_result: AdapterResult) -> dict[str, Any]:
@@ -200,13 +221,11 @@ def _zone_plan_snapshot(adapter_result: AdapterResult) -> dict[str, Any]:
 
 
 def _bound_truck_input(
-    source: Mapping[str, Any],
+    truck_access: Mapping[str, Any],
+    truck_maneuver: Mapping[str, Any],
 ) -> tuple[BoundTruckManeuverProjectInputV1, dict[str, Any]]:
-    """Validate the P2B1-bound truck authority and expose its P1F input."""
-    try:
-        bound = BoundTruckManeuverProjectInputV1.from_mapping(source)
-    except LayoutAuthorityError:
-        raise
+    """Bind raw P1F and project maneuver inputs at the server boundary."""
+    bound = validate_truck_maneuver_project_binding(truck_access, truck_maneuver)
     p1f = bound.p1f_input
     for field in _PROJECT_TRUCK_LENGTH_FIELDS:
         value = p1f.get(field)
@@ -215,45 +234,31 @@ def _bound_truck_input(
                 p1f[field] = Decimal(value)
             except ArithmeticError:
                 raise LayoutAuthorityError("INVALID_PROJECT_TRUCK_INPUT", field=field) from None
+        elif value is None:
+            raise LayoutAuthorityError("INVALID_PROJECT_TRUCK_INPUT", field=field)
     return bound, p1f
 
 
-def _first_routing_failure(body: Mapping[str, Any]) -> str:
-    for result in body.get("access_results", []):
-        if not isinstance(result, Mapping) or result.get("status") == "PASS":
-            continue
-        codes = result.get("codes")
-        if isinstance(codes, list) and codes and isinstance(codes[0], str):
-            return codes[0]
-    status = body.get("truck_route_status")
-    if isinstance(status, str) and status:
-        return status
-    warnings = body.get("warnings")
-    if isinstance(warnings, list) and warnings and isinstance(warnings[0], str):
-        return warnings[0]
-    return "PROJECT_LAYOUT_VALIDATION_FAILED"
-
-
-def _require_successful_placement(result: object) -> None:
+def _require_successful_selection(result: object) -> tuple[Mapping[str, Any], Mapping[str, Any]]:
+    """Require the P2 selector's authoritative full-pass selection."""
     if not hasattr(result, "to_dict"):
-        raise LayoutAuthorityError("LAYOUT_SEARCH_EXHAUSTED")
-    body = result.to_dict()
-    if not isinstance(body, Mapping) or body.get("placement_available") is not True:
-        status = body.get("status") if isinstance(body, Mapping) else None
-        raise LayoutAuthorityError(
-            str(status) if isinstance(status, str) else "LAYOUT_SEARCH_EXHAUSTED"
-        )
-
-
-def _require_successful_routing(result: object) -> Mapping[str, Any]:
-    if not hasattr(result, "to_dict"):
-        raise LayoutAuthorityError("PROJECT_LAYOUT_VALIDATION_FAILED")
+        raise LayoutAuthorityError("VALIDATED_LAYOUT_SEARCH_EXHAUSTED")
     body = result.to_dict()
     if not isinstance(body, Mapping):
-        raise LayoutAuthorityError("PROJECT_LAYOUT_VALIDATION_FAILED")
-    if body.get("project_layout_validated") is not True or body.get("p2_complete") is not True:
-        raise LayoutAuthorityError(_first_routing_failure(body))
-    return body
+        raise LayoutAuthorityError("VALIDATED_LAYOUT_SEARCH_EXHAUSTED")
+    if (
+        body.get("validated_layout_selected") is not True
+        or body.get("project_layout_validated") is not True
+        or body.get("p2_complete") is not True
+    ):
+        status = body.get("status")
+        raise LayoutAuthorityError(
+            status if isinstance(status, str) else "VALIDATED_LAYOUT_SEARCH_EXHAUSTED"
+        )
+    selected = body.get("selected_layout")
+    if not isinstance(selected, Mapping):
+        raise LayoutAuthorityError("VALIDATED_LAYOUT_SEARCH_EXHAUSTED")
+    return body, selected
 
 
 def preview_site_layout(
@@ -262,11 +267,11 @@ def preview_site_layout(
     correlation_id: str | None = None,
 ) -> dict[str, Any]:
     """Execute the canonical five-key -> P1 -> P2 -> P3 preview chain."""
-    business, site, truck_source = _validate_tool_input(payload)
+    business, site, truck_access, truck_maneuver = _validate_tool_input(payload)
     context = assemble_preview_context(business, correlation_id=correlation_id)
     adapter_result = execute_zone_preview_authority(context)
     zone_plan = _zone_plan_snapshot(adapter_result)
-    bound_truck, p1f_input = _bound_truck_input(truck_source)
+    bound_truck, p1f_input = _bound_truck_input(truck_access, truck_maneuver)
 
     p1_handoff = build_p1_project_handoff(zone_plan, p1f_input)
     project_input = {
@@ -278,29 +283,22 @@ def preview_site_layout(
         zone_plan,
         p1_handoff=p1_handoff,
     )
-    placement = place_zones(
+    selection = select_validated_placement(
         zone_plan,
         p1_handoff,
         site_geometry,
-        node_budget=P4_PLACEMENT_NODE_BUDGET,
-        complete_candidate_limit=None,
-    )
-    _require_successful_placement(placement)
-    routed = route_site_placement(
-        zone_plan,
-        p1_handoff,
-        site_geometry,
-        placement,
         bound_truck,
+        placement_node_budget=P4_PLACEMENT_NODE_BUDGET,
+        complete_candidate_limit=None,
         route_node_budget=P4_ROUTE_NODE_BUDGET,
         truck_node_budget=P4_TRUCK_NODE_BUDGET,
     )
-    route_body = _require_successful_routing(routed)
+    selection_body, selected_layout = _require_successful_selection(selection)
     drawing = project_validated_layout_to_svg(
-        routed,
+        selected_layout,
         site_geometry=site_geometry,
     )
-    layout_body = routed.to_dict()
+    layout_body = dict(selected_layout)
     drawing_body = drawing.to_dict()
     source_hashes = {
         field: layout_body[field]
@@ -327,6 +325,7 @@ def preview_site_layout(
                 "svg_sha256": drawing_body.get("svg_sha256"),
                 "view_box": drawing_body.get("view_box"),
                 "zone_count": layout_body.get("zone_count"),
+                "validated_layout_selected": True,
                 "project_layout_validated": True,
                 "p2_complete": True,
                 "requires_review": True,
@@ -334,7 +333,8 @@ def preview_site_layout(
                 "projection_only": True,
                 "engineering_coordinates_mutated": False,
                 "source_hashes": source_hashes,
-                "route_metrics": route_body.get("route_metrics"),
+                "route_metrics": layout_body.get("route_metrics"),
+                "selection": selection_body,
                 "warnings": [
                     "概念设计结果，需要工程复核，不是施工图。",
                     "SVG 是结构化布局 JSON 的展示投影，不是计算 authority。",

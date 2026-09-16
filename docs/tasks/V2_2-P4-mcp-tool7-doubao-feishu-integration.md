@@ -6,8 +6,9 @@ This document is the P4 implementation record. Earlier P0–P3 authorization
 snapshots remain historical and are not rewritten here.
 
 ```ini
-TASK_ID=V2_2_P4_MCP_TOOL7_DOUBAO_FEISHU_INTEGRATION_R1
-BASE_MAIN_SHA=cd0a2cc16a9b49296a25b398d4a17dbd4f63b67b
+TASK_ID=V2_2_P4_MCP_TOOL7_FINAL_INTEGRATION_R2
+BASE_MAIN_SHA=efc1ce2e85b55e2e7fb907fee460ea4d2e84dc9d
+MAIN_SHA_INTEGRATED=efc1ce2e85b55e2e7fb907fee460ea4d2e84dc9d
 TARGET_VERSION=v2.2.0
 P3_COMPLETE=YES
 P4_AUTHORIZED=YES
@@ -32,16 +33,21 @@ NO_ENGINEERING_FORMULAS_IN_P4=YES
 
 SITE_LAYOUT_RESULT_IDENTITY=site_validated_layout@1.0.0
 SVG_PROJECTION_IDENTITY=validated-layout-svg-projection@1.0.0
-P4_INPUT=FIVE_BUSINESS_KEYS_PLUS_SITE_CONSTRAINTS_AND_TRUCK_ACCESS
-MCP_INPUT_AUTHORITY=FIVE_BUSINESS_KEYS_PLUS_SITE_CONSTRAINTS_AND_TRUCK_ACCESS
+P4_INPUT=FIVE_BUSINESS_KEYS_PLUS_SITE_CONSTRAINTS_TRUCK_ACCESS_AND_TRUCK_MANEUVER
+MCP_INPUT_AUTHORITY=FIVE_BUSINESS_KEYS_PLUS_SITE_CONSTRAINTS_TRUCK_ACCESS_AND_TRUCK_MANEUVER
 P4_INPUT_ADDITIONAL_PROPERTIES=false
 P4_CALLER_SUPPLIED_ENGINEERING_AUTHORITY=REJECTED
 P4_STATELESS_ZONE_REPLAY=YES
 P4_RESULT_PERSISTED=false
 P4_WIRING_AND_TRANSPORT_IMPLEMENTED=YES
-P4_PRODUCTION_FULL_PASS=NO
-P4_COMPLETE=NO
-P4_BLOCKER=EXISTING_P2C_P2D_PACKAGING_SORTING_STRAIGHT_ROUTE_MISMATCH
+P2_VALIDATED_CANDIDATE_SELECTOR_USED=YES
+P4_CANDIDATE_SELECTION_IMPLEMENTED=NO
+TOOL7_REAL_FULL_CHAIN_TEST=PASS
+FIRST_P2C_CANDIDATE_P2D_RESULT=REJECTED
+LATER_FULL_PASS_CANDIDATE_FOUND=YES
+P4_PRODUCTION_FULL_PASS=YES
+P4_COMPLETE=YES
+P4_BLOCKER=NONE
 
 P5_AUTHORIZED=NO
 READY_AUTHORIZED=NO
@@ -65,9 +71,11 @@ The existing MCP surface remains, in order:
 
 P4 appends `preview_site_layout` at position 7. The first six tools retain
 their five business-key schema and invocation semantics. Tool 7 accepts those
-same five keys plus `site_constraints` and a complete project-bound
-`truck_access` object. It rejects caller-supplied areas, zone plans, hashes,
-placements, validated layouts, SVG, chat text, and unknown top-level fields.
+same five keys plus `site_constraints`, raw project-level `truck_access`, and
+raw project-approved `truck_maneuver`. The server binds the two truck inputs
+before P2 validation and never accepts a caller-supplied bound maneuver result.
+It rejects caller-supplied areas, zone plans, hashes, placements, validated
+layouts, SVG, chat text, and unknown top-level fields.
 
 The server continues to expose the existing Streamable HTTP paths:
 
@@ -119,24 +127,29 @@ CalculationType, change the concept-preview stages, or replace
 
 ## Evidence boundary
 
-The focused P4 tests exercise the real application boundary and use the
-existing P2D full-pass representative authorities as a controlled downstream
-fixture. The production boundary still invokes the real P2C/P2D functions with
-bounded budgets and propagates their failures. No P2/P3 runtime behavior was
-changed to make P4 pass.
+The focused P4 tests exercise both the public application boundary and a real
+end-to-end representative replay. The production boundary invokes the P2
+validated-candidate selector, which enumerates P2C candidates in the existing
+P2C order and passes each candidate to P2D. A rejected candidate is retained in
+the selector trace; a later P2D-full-pass candidate is selected and projected by
+P3. Tool 7 binds raw P1F `truck_access` and raw project-approved
+`truck_maneuver` at the server boundary. `SiteLayoutProjectInputV1` receives
+only `site_constraints` and the bound P1F truck access input; the bound maneuver
+object is not treated as site-geometry authority.
 
-The real end-to-end replay through the current P2C placement search and P2D
-routing path is not a full-pass input at this baseline: the canonical P2C
-candidate is rejected by the existing
-`PACKAGING_SORTING_STRAIGHT_ROUTE_REQUIRED` rule. This is an upstream P2C/P2D
-compatibility blocker, so P4 reports the failure closed and does not change
-placement, routing, or P3 behavior to manufacture a success.
+The `PACKAGING_SORTING_STRAIGHT_ROUTE_REQUIRED` rule remains unchanged. P4
+does not enumerate candidates, rank them, retry P2D, add a route objective, or
+change P2/P3 runtime rules. Selector exhaustion remains an authoritative
+`VALIDATED_LAYOUT_SEARCH_EXHAUSTED` response rather than a manufactured layout.
 
 ```ini
 P4_WIRING_AND_TRANSPORT_IMPLEMENTED=YES
-P4_PRODUCTION_FULL_PASS=NO
-P4_COMPLETE=NO
-P4_BLOCKER=EXISTING_P2C_P2D_PACKAGING_SORTING_STRAIGHT_ROUTE_MISMATCH
+P2_VALIDATED_CANDIDATE_SELECTOR_USED=YES
+P4_CANDIDATE_SELECTION_IMPLEMENTED=NO
+PACKAGING_SORTING_STRAIGHT_RULE_PRESERVED=YES
+P4_PRODUCTION_FULL_PASS=YES
+P4_COMPLETE=YES
+P4_BLOCKER=NONE
 ```
 
 P4 does not authorize P5, Ready, merge, tag, release, or deployment.

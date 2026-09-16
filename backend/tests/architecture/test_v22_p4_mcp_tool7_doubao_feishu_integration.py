@@ -177,11 +177,17 @@ def test_p4_application_has_no_direct_engineering_calculation_imports() -> None:
     for required in (
         "execute_zone_preview_authority",
         "build_p1_project_handoff",
-        "place_zones",
-        "route_site_placement",
+        "select_validated_placement",
+        "validate_truck_maneuver_project_binding",
         "project_validated_layout_to_svg",
     ):
         assert required in source
+    assert "from cold_storage.modules.layout.application.placement import" not in source
+    assert "from cold_storage.modules.layout.application.access_routing import" not in source
+    assert "truck_maneuver" in source
+    assert '"site_constraints": copy.deepcopy(dict(site))' in source
+    assert '"truck_access": p1f_input' in source
+    assert "bound_truck" in source
 
 
 def test_p4_api_keeps_existing_transport_auth_and_appends_only_tool_seven() -> None:
@@ -207,7 +213,13 @@ def test_p4_contract_records_seventh_tool_and_no_p4_downstream_authority() -> No
         "MCP_TOOL_7_IMPLEMENTED=YES",
         "SITE_LAYOUT_RESULT_IDENTITY=site_validated_layout@1.0.0",
         "SVG_PROJECTION_IDENTITY=validated-layout-svg-projection@1.0.0",
-        "MCP_INPUT_AUTHORITY=FIVE_BUSINESS_KEYS_PLUS_SITE_CONSTRAINTS_AND_TRUCK_ACCESS",
+        "MCP_INPUT_AUTHORITY=FIVE_BUSINESS_KEYS_PLUS_SITE_CONSTRAINTS_TRUCK_ACCESS_AND_TRUCK_MANEUVER",
+        "P2_VALIDATED_CANDIDATE_SELECTOR_USED=YES",
+        "P4_CANDIDATE_SELECTION_IMPLEMENTED=NO",
+        "P4_PRODUCTION_FULL_PASS=YES",
+        "P4_COMPLETE=YES",
+        "P4_BLOCKER=NONE",
+        "TOOL7_REAL_FULL_CHAIN_TEST=PASS",
         "NO_CHAT_PARSING=YES",
         "NO_ENGINEERING_FORMULAS_IN_P4=YES",
     ):

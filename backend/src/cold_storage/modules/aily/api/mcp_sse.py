@@ -130,7 +130,8 @@ _SITE_LAYOUT_TOOL_DESCRIPTION = (
     "当用户明确需要受场地约束的冷库/蓝莓加工厂概念平面图时调用 preview_site_layout。"
     "必须同时提供五个业务 KEY：daily_inbound_mass_kg、finished_storage_days、"
     "frozen_storage_days、main_packaging_storage_days、auxiliary_packaging_storage_days，"
-    "以及 site_constraints 和已绑定的 truck_access。"
+    "以及原始项目级 truck_access 和项目批准的 truck_maneuver。"
+    "后端会先绑定这两个输入，调用者不得传入 BoundTruckManeuverProjectInputV1。"
     "不要传入面积、zone_plan、hash、layout 或 SVG，也不要自行计算面积和布局。"
     "后端复用 canonical zone-plan、P1/P2/P3 authority；成功结果是概念设计图，"
     "需要工程复核，不是施工图。失败时按 ask_operator 追问，不要编造默认场地或车型。"
@@ -206,7 +207,13 @@ def build_zone_plan_mcp_server() -> Server[Any, Any]:
             "truck_access": {
                 "type": "object",
                 "description": (
-                    "P2B1-bound project truck maneuver input; no default vehicle or template."
+                    "Raw P1F project truck access input; the server binds it with truck_maneuver."
+                ),
+            },
+            "truck_maneuver": {
+                "type": "object",
+                "description": (
+                    "Raw project-approved maneuver templates; no default vehicle or template."
                 ),
             },
         }
