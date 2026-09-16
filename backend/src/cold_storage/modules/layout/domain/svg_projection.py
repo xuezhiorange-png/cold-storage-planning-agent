@@ -117,6 +117,19 @@ _THEME_COLOR_FIELDS: Final[tuple[str, ...]] = (
 )
 
 
+def _validate_svg_theme_fields(theme: object) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for field_name in _THEME_COLOR_FIELDS:
+        try:
+            value = getattr(theme, field_name)
+        except AttributeError:
+            raise LayoutAuthorityError("SVG_THEME_INVALID", field=field_name) from None
+        if not isinstance(value, str) or _THEME_HEX_COLOR_PATTERN.fullmatch(value) is None:
+            raise LayoutAuthorityError("SVG_THEME_INVALID", field=field_name)
+        values[field_name] = value
+    return values
+
+
 @dataclass(frozen=True)
 class SvgDrawingThemeV1:
     """Display-only colours; the theme is not part of engineering authority."""
@@ -137,10 +150,16 @@ class SvgDrawingThemeV1:
     entrance_stroke: str = "#059669"
 
     def __post_init__(self) -> None:
-        for field_name in _THEME_COLOR_FIELDS:
-            value = getattr(self, field_name)
-            if not isinstance(value, str) or _THEME_HEX_COLOR_PATTERN.fullmatch(value) is None:
-                raise LayoutAuthorityError("SVG_THEME_INVALID", field=field_name)
+        _validate_svg_theme_fields(self)
+
+
+def validate_svg_theme(theme: object | None) -> SvgDrawingThemeV1:
+    """Return a validated server-owned theme for SVG paint serialization."""
+    if theme is None:
+        return SvgDrawingThemeV1()
+    if type(theme) is not SvgDrawingThemeV1:
+        raise LayoutAuthorityError("SVG_THEME_INVALID", reason="THEME_TYPE_REQUIRED")
+    return SvgDrawingThemeV1(**_validate_svg_theme_fields(theme))
 
 
 @dataclass(frozen=True)
@@ -1266,9 +1285,10 @@ def build_projection_payload(
     geometry_body: Mapping[str, Any],
     *,
     source_layout_hash: str,
-    theme: SvgDrawingThemeV1 | None = None,
+    theme: object | None = None,
 ) -> dict[str, Any]:
     """Render one validated result and return the projection payload."""
+    normalized_theme = validate_svg_theme(theme)
     site = _source_site_geometry(geometry_body)
     rectangles = _source_rectangles(body)
     building, gross_area = _source_building_footprint(body)
@@ -1280,7 +1300,7 @@ def build_projection_payload(
         building,
         gross_area,
         loading_face,
-        theme=theme or SvgDrawingThemeV1(),
+        theme=normalized_theme,
     )
     svg_hash = "sha256:" + hashlib.sha256(svg.encode("utf-8")).hexdigest()
     view_box = (

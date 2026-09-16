@@ -84,7 +84,7 @@ def project_validated_layout_to_svg(
     validated_layout: SiteAccessRoutingResultV1 | Mapping[str, Any],
     *,
     site_geometry: ValidatedSiteGeometryV1,
-    theme: SvgDrawingThemeV1 | None = None,
+    theme: object | None = None,
 ) -> ValidatedLayoutSvgProjectionV1:
     """Project one fully validated P2D layout into deterministic static SVG.
 

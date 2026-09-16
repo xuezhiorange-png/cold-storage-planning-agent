@@ -37,6 +37,22 @@ UNSAFE_SVG_TOKENS = (
     ' href="http',
     " xlink:href",
 )
+THEME_FIELDS = (
+    "background",
+    "zone_fill",
+    "cold_zone_fill",
+    "corridor_fill",
+    "building_outline",
+    "site_outline",
+    "obstacle_fill",
+    "portal_stroke",
+    "truck_envelope",
+    "loading_face",
+    "text",
+    "dimension",
+    "buildable_outline",
+    "entrance_stroke",
+)
 
 
 @pytest.fixture(scope="module")
@@ -132,6 +148,45 @@ def test_valid_hex_theme_renders_normally(validated_layout_and_geometry):
         theme=SvgDrawingThemeV1(zone_fill="#abcdef"),
     )
     assert "#abcdef" in projection.to_dict()["svg"]
+
+
+def test_public_projection_rejects_duck_typed_theme(
+    validated_layout_and_geometry,
+):
+    class EvilTheme:
+        def __init__(self):
+            defaults = SvgDrawingThemeV1()
+            for field_name in THEME_FIELDS:
+                setattr(self, field_name, getattr(defaults, field_name))
+            self.zone_fill = "url(https://evil.example/a.svg#x)"
+
+    layout, geometry = validated_layout_and_geometry
+    with pytest.raises(LayoutAuthorityError) as error:
+        project_validated_layout_to_svg(layout, site_geometry=geometry, theme=EvilTheme())
+    assert error.value.code == "SVG_THEME_INVALID"
+
+
+def test_public_projection_rejects_post_construction_theme_tampering(
+    validated_layout_and_geometry,
+):
+    layout, geometry = validated_layout_and_geometry
+    theme = SvgDrawingThemeV1()
+    object.__setattr__(theme, "zone_fill", "url(https://evil.example/a.svg#x)")
+
+    with pytest.raises(LayoutAuthorityError) as error:
+        project_validated_layout_to_svg(layout, site_geometry=geometry, theme=theme)
+    assert error.value.code == "SVG_THEME_INVALID"
+
+
+@pytest.mark.parametrize("theme", [{}, object()])
+def test_public_projection_rejects_wrong_theme_runtime_type(
+    validated_layout_and_geometry,
+    theme,
+):
+    layout, geometry = validated_layout_and_geometry
+    with pytest.raises(LayoutAuthorityError) as error:
+        project_validated_layout_to_svg(layout, site_geometry=geometry, theme=theme)
+    assert error.value.code == "SVG_THEME_INVALID"
 
 
 @pytest.mark.parametrize(

@@ -3,7 +3,9 @@
 ## Governance snapshot
 
 ```ini
-TASK_ID=V2_2_P3_VALIDATED_LAYOUT_SVG_PROJECTION_R1
+TASK_ID=V2_2_P3_VALIDATED_LAYOUT_SVG_PROJECTION_R3
+PREVIOUS_HEAD_SHA=e12f6f11e9f003432d9bf263a2b249dec18e0afd
+CORRECTION_SCOPE=PUBLIC_SVG_THEME_RUNTIME_VALIDATION
 TARGET_VERSION=v2.2.0
 BASE_MAIN_SHA=a1d035c4d42a2bc4895e6d3806d3f5fe77e7e0d2
 P2_COMPLETE_REQUIRED=true
@@ -119,11 +121,13 @@ timestamp or random identifier. Replaying one identical source layout and
 validated site geometry produces byte-identical SVG and identical SVG hash.
 
 `SvgDrawingThemeV1` is also a fail-closed public display-input boundary. Every
-theme paint field accepts only the fixed `#RRGGBB` format; any other value
-returns `SVG_THEME_INVALID`. This prevents custom themes from introducing
-external paint resources, scripts, CSS expressions, or attribute injection.
-The server-owned hatch and dimension-tick references remain fixed renderer
-details and are not accepted through the theme object.
+theme paint field accepts only the fixed `#RRGGBB` format; constructor
+validation and the public projection-time normalization both return
+`SVG_THEME_INVALID` for any other value or runtime theme type. This prevents
+custom themes from introducing external paint resources, scripts, CSS
+expressions, or attribute injection, including after a frozen instance has
+been tampered with. The server-owned hatch and dimension-tick references
+remain fixed renderer details and are not accepted through the theme object.
 
 The SVG is renderable by a normal browser, but it is not a new engineering
 authority. JSON remains the canonical layout authority; SVG is only a

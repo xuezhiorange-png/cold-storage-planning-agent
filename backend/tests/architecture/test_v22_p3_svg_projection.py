@@ -135,7 +135,8 @@ def test_p3_application_uses_validated_inputs_without_engineering_bypass() -> No
 
 
 def test_p3_domain_is_static_svg_serialization_only() -> None:
-    tree = ast.parse(_source(DOMAIN))
+    source = _source(DOMAIN)
+    tree = ast.parse(source)
     allowed_modules = {
         "__future__",
         "collections.abc",
@@ -152,7 +153,6 @@ def test_p3_domain_is_static_svg_serialization_only() -> None:
             assert {alias.name for alias in node.names} <= {"hashlib", "json", "re"}
         elif isinstance(node, ast.ImportFrom):
             assert (node.module or "") in allowed_modules
-    source = _source(DOMAIN)
     for forbidden in (
         "route_site_placement",
         "calculate_",
@@ -170,3 +170,19 @@ def test_p3_domain_is_static_svg_serialization_only() -> None:
     assert "quoteattr(" in source
     assert "SVG_THEME_INVALID" in source
     assert "^#[0-9A-Fa-f]{6}$" in source
+
+    functions = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
+    assert "validate_svg_theme" in functions
+    assert "_validate_svg_theme_fields" in functions
+    validate_source = ast.get_source_segment(source, functions["validate_svg_theme"])
+    assert validate_source is not None
+    assert "type(theme) is not SvgDrawingThemeV1" in validate_source
+    assert "SvgDrawingThemeV1(**_validate_svg_theme_fields(theme))" in validate_source
+
+    build_projection_payload = functions["build_projection_payload"]
+    assert any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "validate_svg_theme"
+        for node in ast.walk(build_projection_payload)
+    )
