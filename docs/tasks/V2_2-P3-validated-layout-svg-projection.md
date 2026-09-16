@@ -3,9 +3,9 @@
 ## Governance snapshot
 
 ```ini
-TASK_ID=V2_2_P3_VALIDATED_LAYOUT_SVG_PROJECTION_R3
-PREVIOUS_HEAD_SHA=e12f6f11e9f003432d9bf263a2b249dec18e0afd
-CORRECTION_SCOPE=PUBLIC_SVG_THEME_RUNTIME_VALIDATION
+TASK_ID=V2_2_P3_VALIDATED_LAYOUT_SVG_PROJECTION_R4
+PREVIOUS_HEAD_SHA=8d507bb2e5a4bcbebce8a8ebb90651c1c5ffa7c7
+CORRECTION_SCOPE=MAPPING_CANONICAL_RESULT_HASH_FAIL_CLOSED
 TARGET_VERSION=v2.2.0
 BASE_MAIN_SHA=a1d035c4d42a2bc4895e6d3806d3f5fe77e7e0d2
 P2_COMPLETE_REQUIRED=true
@@ -13,6 +13,13 @@ PROJECT_LAYOUT_VALIDATED_REQUIRED=true
 P3_AUTHORIZED=true
 P4_AUTHORIZED=false
 P5_AUTHORIZED=false
+MAPPING_CANONICAL_HASH_REQUIRED=true
+MISSING_CANONICAL_HASH_REJECTED=true
+NULL_CANONICAL_HASH_REJECTED=true
+MALFORMED_CANONICAL_HASH_REJECTED=true
+TAMPER_WITHOUT_HASH_REJECTED=true
+SVG_THEME_PUBLIC_RUNTIME_VALIDATION=true
+P3_COMPLETE=true
 READY_AUTHORIZED=false
 MERGE_AUTHORIZED=false
 TAG_AUTHORIZED=false
@@ -42,7 +49,11 @@ The application boundary accepts the immutable P2D
 `ValidatedSiteGeometryV1` context. P2D records the site-geometry hash instead
 of duplicating the complete site input; P3 therefore requires that context and
 checks it against `source_site_geometry_hash`. A mapping-supplied P2D
-canonical hash is checked by `SiteAccessRoutingResultV1` before projection.
+canonical hash is required at the mapping boundary before
+`SiteAccessRoutingResultV1.from_mapping()` and is then checked against the
+canonical body before projection. Missing, null, malformed, or body-tampered
+mapping hashes fail closed as `P2D_RESULT_INTEGRITY_MISMATCH`; native
+`SiteAccessRoutingResultV1` inputs remain supported.
 
 The input must have:
 
