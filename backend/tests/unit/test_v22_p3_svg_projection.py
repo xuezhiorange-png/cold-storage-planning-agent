@@ -9,7 +9,10 @@ from decimal import Decimal
 
 import pytest
 
-from cold_storage.modules.layout.application.access_routing import route_site_placement
+from cold_storage.modules.layout.application.access_routing import (
+    SiteAccessRoutingResultV1,
+    route_site_placement,
+)
 from cold_storage.modules.layout.application.site_geometry import validate_site_geometry
 from cold_storage.modules.layout.application.svg_projection import project_validated_layout_to_svg
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
@@ -189,6 +192,89 @@ def test_public_projection_rejects_wrong_theme_runtime_type(
     assert error.value.code == "SVG_THEME_INVALID"
 
 
+def test_valid_mapping_with_canonical_hash_is_accepted(validated_layout_and_geometry):
+    layout, geometry = validated_layout_and_geometry
+    payload = layout.to_dict()
+
+    projection = project_validated_layout_to_svg(payload, site_geometry=geometry)
+
+    assert projection.to_dict()["project_layout_validated"] is True
+
+
+def test_native_p2d_result_object_remains_accepted(validated_layout_and_geometry):
+    projection = _rendered(validated_layout_and_geometry)
+    assert projection.to_dict()["project_layout_validated"] is True
+
+
+def test_tampered_mapping_with_original_hash_is_rejected(
+    validated_layout_and_geometry,
+):
+    layout, geometry = validated_layout_and_geometry
+    payload = layout.to_dict()
+    payload["zones"][0]["x"] = "999.999"
+
+    with pytest.raises(LayoutAuthorityError) as error:
+        project_validated_layout_to_svg(payload, site_geometry=geometry)
+
+    assert error.value.code == "P2D_RESULT_INTEGRITY_MISMATCH"
+
+
+def test_tampered_mapping_without_canonical_hash_is_rejected(
+    validated_layout_and_geometry,
+):
+    layout, geometry = validated_layout_and_geometry
+    payload = layout.to_dict()
+    payload["zones"][0]["x"] = "999.999"
+    del payload["canonical_result_hash"]
+
+    with pytest.raises(LayoutAuthorityError) as error:
+        project_validated_layout_to_svg(payload, site_geometry=geometry)
+
+    assert error.value.code == "P2D_RESULT_INTEGRITY_MISMATCH"
+
+
+def test_tampered_mapping_with_null_canonical_hash_is_rejected(
+    validated_layout_and_geometry,
+):
+    layout, geometry = validated_layout_and_geometry
+    payload = layout.to_dict()
+    payload["zones"][0]["x"] = "999.999"
+    payload["canonical_result_hash"] = None
+
+    with pytest.raises(LayoutAuthorityError) as error:
+        project_validated_layout_to_svg(payload, site_geometry=geometry)
+
+    assert error.value.code == "P2D_RESULT_INTEGRITY_MISMATCH"
+
+
+def test_untampered_mapping_without_canonical_hash_is_rejected(
+    validated_layout_and_geometry,
+):
+    layout, geometry = validated_layout_and_geometry
+    payload = layout.to_dict()
+    del payload["canonical_result_hash"]
+
+    with pytest.raises(LayoutAuthorityError) as error:
+        project_validated_layout_to_svg(payload, site_geometry=geometry)
+
+    assert error.value.code == "P2D_RESULT_INTEGRITY_MISMATCH"
+    assert error.value.details["reason"] == "CANONICAL_RESULT_HASH_REQUIRED"
+
+
+def test_mapping_with_malformed_canonical_hash_is_rejected(
+    validated_layout_and_geometry,
+):
+    layout, geometry = validated_layout_and_geometry
+    payload = layout.to_dict()
+    payload["canonical_result_hash"] = "not-a-sha256"
+
+    with pytest.raises(LayoutAuthorityError) as error:
+        project_validated_layout_to_svg(payload, site_geometry=geometry)
+
+    assert error.value.code == "P2D_RESULT_INTEGRITY_MISMATCH"
+    assert error.value.details["reason"] == "CANONICAL_RESULT_HASH_REQUIRED"
+
+
 @pytest.mark.parametrize(
     ("field_name", "value"),
     [
@@ -288,8 +374,8 @@ def test_concave_site_boundary_is_projected_from_validated_geometry(
 def test_unvalidated_layout_is_rejected(validated_layout_and_geometry, flag):
     layout, geometry = validated_layout_and_geometry
     payload = layout.to_dict()
-    payload.pop("canonical_result_hash")
     payload[flag] = False
+    payload = SiteAccessRoutingResultV1(payload).to_dict()
     with pytest.raises(LayoutAuthorityError) as error:
         project_validated_layout_to_svg(payload, site_geometry=geometry)
     assert error.value.code == "VALIDATED_LAYOUT_REQUIRED"

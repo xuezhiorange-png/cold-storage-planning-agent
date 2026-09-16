@@ -37,6 +37,12 @@ def _validated_layout_body(
     if isinstance(validated_layout, SiteAccessRoutingResultV1):
         result = validated_layout
     elif isinstance(validated_layout, Mapping):
+        supplied_hash = validated_layout.get("canonical_result_hash")
+        if not isinstance(supplied_hash, str) or _SHA256.fullmatch(supplied_hash) is None:
+            raise _error(
+                "P2D_RESULT_INTEGRITY_MISMATCH",
+                reason="CANONICAL_RESULT_HASH_REQUIRED",
+            )
         try:
             result = SiteAccessRoutingResultV1.from_mapping(validated_layout)
         except LayoutAuthorityError as error:

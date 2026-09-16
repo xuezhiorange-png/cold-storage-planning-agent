@@ -134,6 +134,18 @@ def test_p3_application_uses_validated_inputs_without_engineering_bypass() -> No
     assert "fastapi" not in source.lower()
 
 
+def test_p3_mapping_boundary_requires_original_canonical_hash_before_deserialization() -> None:
+    source = _source(APPLICATION)
+    hash_guard = source.index('supplied_hash = validated_layout.get("canonical_result_hash")')
+    from_mapping = source.index("SiteAccessRoutingResultV1.from_mapping(validated_layout)")
+
+    assert hash_guard < from_mapping
+    assert "isinstance(supplied_hash, str)" in source
+    assert "_SHA256.fullmatch(supplied_hash) is None" in source
+    assert '"CANONICAL_RESULT_HASH_REQUIRED"' in source
+    assert '"P2D_RESULT_INTEGRITY_MISMATCH"' in source
+
+
 def test_p3_domain_is_static_svg_serialization_only() -> None:
     source = _source(DOMAIN)
     tree = ast.parse(source)
