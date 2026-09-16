@@ -9,7 +9,7 @@ repeatable and has no floating-point tolerance.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Context, Decimal, InvalidOperation, localcontext
 from fractions import Fraction
@@ -905,11 +905,27 @@ def _is_better(
         {
             k: v
             for k, v in candidate.items()
-            if k not in {"_loading_comparison", "search_provenance"}
+            if k
+            not in {
+                "_loading_comparison",
+                "search_provenance",
+                "canonical_candidate_hash",
+                "canonical_result_hash",
+            }
         }
     )
     best_json = canonical_json(
-        {k: v for k, v in best.items() if k not in {"_loading_comparison", "search_provenance"}}
+        {
+            k: v
+            for k, v in best.items()
+            if k
+            not in {
+                "_loading_comparison",
+                "search_provenance",
+                "canonical_candidate_hash",
+                "canonical_result_hash",
+            }
+        }
     )
     return candidate_json < best_json
 
@@ -928,7 +944,34 @@ def _validate_graph_completeness(
         )
 
 
-def search_placement(
+@dataclass(frozen=True)
+class _PlacementSearchContext:
+    authorities: Mapping[str, Mapping[str, Any]]
+    site_body: Mapping[str, Any]
+    graph: AdjacencyGraphV1
+    source_zone_plan_hash: str
+    source_p1_handoff_hash: str
+    source_site_geometry_hash: str
+    objective_profile_hash: str
+    access_requirements: tuple[Mapping[str, Any], ...]
+    spatial_relationships: tuple[Mapping[str, Any], ...]
+    node_budget: int
+    complete_candidate_limit: int | None
+    boundary: PolygonMM
+    boundary_bounds: tuple[int, int, int, int]
+    obstacles: tuple[PolygonMM, ...]
+    preferred_loading_side: str
+
+
+@dataclass
+class _PlacementSearchStats:
+    visited_nodes: int = 0
+    generated_candidates: int = 0
+    complete_candidates: int = 0
+    node_budget_exhausted: bool = False
+
+
+def _validated_search_context(
     authorities: Mapping[str, Mapping[str, Any]],
     site_body: Mapping[str, Any],
     graph: AdjacencyGraphV1,
@@ -936,18 +979,12 @@ def search_placement(
     source_zone_plan_hash: str,
     source_p1_handoff_hash: str,
     source_site_geometry_hash: str,
-    objective_profile_hash: str | None = None,
-    access_requirements: Sequence[Mapping[str, Any]] = (),
-    spatial_relationships: Sequence[Mapping[str, Any]] = (),
-    node_budget: int = DEFAULT_NODE_BUDGET,
-    complete_candidate_limit: int | None = None,
-) -> SitePlacementResultV1:
-    """Search a finite candidate family and return found/exhausted semantics.
-
-    This search is intentionally incomplete.  A bounded search that finds no
-    candidate returns ``LAYOUT_SEARCH_EXHAUSTED`` rather than claiming a proof
-    of infeasibility.
-    """
+    objective_profile_hash: str | None,
+    access_requirements: Sequence[Mapping[str, Any]],
+    spatial_relationships: Sequence[Mapping[str, Any]],
+    node_budget: int,
+    complete_candidate_limit: int | None,
+) -> _PlacementSearchContext:
     if set(authorities) != set(graph.nodes) or tuple(PLACEMENT_ZONE_ORDER) != tuple(
         code for code in PLACEMENT_ZONE_ORDER if code in graph.nodes
     ):
@@ -977,90 +1014,275 @@ def search_placement(
     preferred = site.get("preferred_loading_side", "UNSPECIFIED")
     if not isinstance(preferred, str):
         raise _error("INVALID_LOADING_SIDE")
+    return _PlacementSearchContext(
+        authorities=authorities,
+        site_body=site_body,
+        graph=graph,
+        source_zone_plan_hash=source_zone_plan_hash,
+        source_p1_handoff_hash=source_p1_handoff_hash,
+        source_site_geometry_hash=source_site_geometry_hash,
+        objective_profile_hash=objective_profile_hash
+        or canonical_hash(approved_objective_profile().to_dict()),
+        access_requirements=tuple(access_requirements),
+        spatial_relationships=tuple(spatial_relationships),
+        node_budget=node_budget,
+        complete_candidate_limit=complete_candidate_limit,
+        boundary=boundary,
+        boundary_bounds=boundary_bounds,
+        obstacles=obstacles,
+        preferred_loading_side=preferred,
+    )
 
-    placed: dict[str, PlacedRectangleV1] = {}
-    best_payload: dict[str, Any] | None = None
-    visited_nodes = 0
-    generated_candidates = 0
-    complete_candidates = 0
-    budget_exhausted = False
 
-    def visit(index: int) -> None:
-        nonlocal \
-            best_payload, \
-            visited_nodes, \
-            generated_candidates, \
-            complete_candidates, \
-            budget_exhausted
-        if visited_nodes >= node_budget:
-            budget_exhausted = True
-            return
-        visited_nodes += 1
-        if index == len(PLACEMENT_ZONE_ORDER):
-            _validate_graph_completeness(graph, placed)
-            provenance = {
-                "search_profile_identity": SEARCH_PROFILE_IDENTITY,
-                "node_budget": node_budget,
-                "complete_candidate_limit": complete_candidate_limit,
-                "complete_candidate_limit_stops_search": False,
-                "visited_nodes": visited_nodes,
-                "generated_candidates": generated_candidates,
-                "complete_candidates": complete_candidates + 1,
-                "budget_exhausted": budget_exhausted,
-                "node_budget_exhausted": budget_exhausted,
-                "search_tree_exhausted": False,
-                "objective_optimal_within_search_family": False,
-                "candidate_family": "FINITE_ANCHOR_AND_EDGE_DRIVEN",
-            }
-            payload = _candidate_payload(
-                placed,
-                authorities,
-                graph,
-                site_body,
-                source_zone_plan_hash,
-                source_p1_handoff_hash,
-                source_site_geometry_hash,
-                objective_profile_hash or canonical_hash(approved_objective_profile().to_dict()),
-                access_requirements,
-                spatial_relationships,
-                provenance,
-            )
-            payload.pop("_loading_comparison", None)
-            complete_candidates += 1
-            if _is_better(payload, best_payload, preferred):
-                best_payload = payload
-            return
-        code = PLACEMENT_ZONE_ORDER[index]
-        authority = authorities[code]
-        options = _candidate_options(
-            code, authority, placed, boundary, boundary_bounds, obstacles, graph
-        )
-        generated_candidates += len(options)
-        for rectangle in options:
-            placed[code] = rectangle
-            visit(index + 1)
-            placed.pop(code)
-            if budget_exhausted:
-                return
-
-    visit(0)
-    search_tree_exhausted = not budget_exhausted
-    objective_optimal_within_search_family = best_payload is not None and search_tree_exhausted
-    provenance = {
+def _search_provenance(
+    context: _PlacementSearchContext,
+    stats: _PlacementSearchStats,
+    *,
+    search_tree_exhausted: bool,
+    objective_optimal_within_search_family: bool,
+) -> dict[str, Any]:
+    return {
         "search_profile_identity": SEARCH_PROFILE_IDENTITY,
-        "node_budget": node_budget,
-        "complete_candidate_limit": complete_candidate_limit,
+        "node_budget": context.node_budget,
+        "complete_candidate_limit": context.complete_candidate_limit,
         "complete_candidate_limit_stops_search": False,
-        "visited_nodes": visited_nodes,
-        "generated_candidates": generated_candidates,
-        "complete_candidates": complete_candidates,
-        "budget_exhausted": budget_exhausted,
-        "node_budget_exhausted": budget_exhausted,
+        "visited_nodes": stats.visited_nodes,
+        "generated_candidates": stats.generated_candidates,
+        "complete_candidates": stats.complete_candidates,
+        "budget_exhausted": stats.node_budget_exhausted,
+        "node_budget_exhausted": stats.node_budget_exhausted,
         "search_tree_exhausted": search_tree_exhausted,
         "objective_optimal_within_search_family": objective_optimal_within_search_family,
         "node_budget_is_only_search_cutoff": True,
         "candidate_family": "FINITE_ANCHOR_AND_EDGE_DRIVEN",
     }
+
+
+def _walk_complete_candidate_payloads(
+    context: _PlacementSearchContext, stats: _PlacementSearchStats
+) -> Iterator[dict[str, Any]]:
+    """Yield every complete P2C candidate until the node budget is exhausted."""
+    placed: dict[str, PlacedRectangleV1] = {}
+
+    def visit(index: int) -> Iterator[dict[str, Any]]:
+        if stats.visited_nodes >= context.node_budget:
+            stats.node_budget_exhausted = True
+            return
+        stats.visited_nodes += 1
+        if index == len(PLACEMENT_ZONE_ORDER):
+            _validate_graph_completeness(context.graph, placed)
+            stats.complete_candidates += 1
+            yield _candidate_payload(
+                placed,
+                context.authorities,
+                context.graph,
+                context.site_body,
+                context.source_zone_plan_hash,
+                context.source_p1_handoff_hash,
+                context.source_site_geometry_hash,
+                context.objective_profile_hash,
+                context.access_requirements,
+                context.spatial_relationships,
+                _search_provenance(
+                    context,
+                    stats,
+                    search_tree_exhausted=False,
+                    objective_optimal_within_search_family=False,
+                ),
+            )
+            return
+        code = PLACEMENT_ZONE_ORDER[index]
+        options = _candidate_options(
+            code,
+            context.authorities[code],
+            placed,
+            context.boundary,
+            context.boundary_bounds,
+            context.obstacles,
+            context.graph,
+        )
+        stats.generated_candidates += len(options)
+        for rectangle in options:
+            placed[code] = rectangle
+            yield from visit(index + 1)
+            placed.pop(code)
+            if stats.node_budget_exhausted:
+                return
+
+    yield from visit(0)
+
+
+def _materialize_candidate_result(
+    payload: Mapping[str, Any], *, provenance: Mapping[str, Any] | None = None
+) -> SitePlacementResultV1:
+    content = dict(payload)
+    content.pop("_loading_comparison", None)
+    if provenance is not None:
+        content["search_provenance"] = dict(provenance)
+    content.setdefault("placement_engine_identity", IDENTITY)
+    content.setdefault("search_profile_identity", SEARCH_PROFILE_IDENTITY)
+    content.setdefault("status", "PLACEMENT_FOUND")
+    content.setdefault("placement_available", True)
+    content.setdefault("placement_hard_constraints_passed", True)
+    content.setdefault("routing_validated", False)
+    content.setdefault("access_route_validated", False)
+    content.setdefault("truck_route_validated", False)
+    content.setdefault("project_layout_validated", False)
+    content.setdefault("p2_complete", False)
+    content.setdefault("layout_infeasible_proof_implemented", False)
+    content.setdefault("requires_review", True)
+    candidate = PlacementCandidateV1.from_payload(content)
+    content["canonical_candidate_hash"] = candidate.canonical_candidate_hash
+    return SitePlacementResultV1.from_payload(content)
+
+
+class PlacementCandidateEnumerationV1:
+    """One-shot deterministic stream of complete, P2C-ranked candidates.
+
+    The stream retains no complete-candidate list.  Callers compare each
+    materialized candidate and may discard it before requesting the next one.
+    ``complete_candidate_limit`` is accepted for compatibility and evidence,
+    but never terminates this stream.
+    """
+
+    def __init__(self, context: _PlacementSearchContext) -> None:
+        self._context = context
+        self._stats = _PlacementSearchStats()
+        self._started = False
+        self._finished = False
+
+    def iter_candidates(self) -> Iterator[SitePlacementResultV1]:
+        if self._started:
+            raise RuntimeError("placement candidate enumeration is one-shot")
+        self._started = True
+        iterator = _walk_complete_candidate_payloads(self._context, self._stats)
+        while True:
+            try:
+                payload = next(iterator)
+            except StopIteration:
+                self._finished = True
+                return
+            yield _materialize_candidate_result(payload)
+
+    @property
+    def completed(self) -> bool:
+        return self._finished
+
+    @property
+    def candidate_count(self) -> int:
+        return self._stats.complete_candidates
+
+    @property
+    def generated_candidate_count(self) -> int:
+        return self._stats.generated_candidates
+
+    @property
+    def visited_node_count(self) -> int:
+        return self._stats.visited_nodes
+
+    @property
+    def search_tree_exhausted(self) -> bool:
+        return self.completed and not self._stats.node_budget_exhausted
+
+    @property
+    def node_budget_exhausted(self) -> bool:
+        return self._stats.node_budget_exhausted
+
+    @property
+    def provenance(self) -> dict[str, Any]:
+        return _search_provenance(
+            self._context,
+            self._stats,
+            search_tree_exhausted=self.search_tree_exhausted,
+            objective_optimal_within_search_family=self.search_tree_exhausted,
+        )
+
+
+def enumerate_placement_candidates(
+    authorities: Mapping[str, Mapping[str, Any]],
+    site_body: Mapping[str, Any],
+    graph: AdjacencyGraphV1,
+    *,
+    source_zone_plan_hash: str,
+    source_p1_handoff_hash: str,
+    source_site_geometry_hash: str,
+    objective_profile_hash: str | None = None,
+    access_requirements: Sequence[Mapping[str, Any]] = (),
+    spatial_relationships: Sequence[Mapping[str, Any]] = (),
+    node_budget: int = DEFAULT_NODE_BUDGET,
+    complete_candidate_limit: int | None = None,
+) -> PlacementCandidateEnumerationV1:
+    """Expose the same validated P2C search family as a lazy candidate stream."""
+    return PlacementCandidateEnumerationV1(
+        _validated_search_context(
+            authorities,
+            site_body,
+            graph,
+            source_zone_plan_hash=source_zone_plan_hash,
+            source_p1_handoff_hash=source_p1_handoff_hash,
+            source_site_geometry_hash=source_site_geometry_hash,
+            objective_profile_hash=objective_profile_hash,
+            access_requirements=access_requirements,
+            spatial_relationships=spatial_relationships,
+            node_budget=node_budget,
+            complete_candidate_limit=complete_candidate_limit,
+        )
+    )
+
+
+def placement_candidate_is_better(
+    candidate: Mapping[str, Any], best: Mapping[str, Any] | None, preferred_loading_side: str
+) -> bool:
+    """Apply the existing P2B2 objective comparator to one P2C candidate."""
+    return _is_better(candidate, best, preferred_loading_side)
+
+
+def search_placement(
+    authorities: Mapping[str, Mapping[str, Any]],
+    site_body: Mapping[str, Any],
+    graph: AdjacencyGraphV1,
+    *,
+    source_zone_plan_hash: str,
+    source_p1_handoff_hash: str,
+    source_site_geometry_hash: str,
+    objective_profile_hash: str | None = None,
+    access_requirements: Sequence[Mapping[str, Any]] = (),
+    spatial_relationships: Sequence[Mapping[str, Any]] = (),
+    node_budget: int = DEFAULT_NODE_BUDGET,
+    complete_candidate_limit: int | None = None,
+) -> SitePlacementResultV1:
+    """Search a finite candidate family and return found/exhausted semantics.
+
+    This search is intentionally incomplete.  A bounded search that finds no
+    candidate returns ``LAYOUT_SEARCH_EXHAUSTED`` rather than claiming a proof
+    of infeasibility.
+    """
+    context = _validated_search_context(
+        authorities,
+        site_body,
+        graph,
+        source_zone_plan_hash=source_zone_plan_hash,
+        source_p1_handoff_hash=source_p1_handoff_hash,
+        source_site_geometry_hash=source_site_geometry_hash,
+        objective_profile_hash=objective_profile_hash,
+        access_requirements=access_requirements,
+        spatial_relationships=spatial_relationships,
+        node_budget=node_budget,
+        complete_candidate_limit=complete_candidate_limit,
+    )
+    stats = _PlacementSearchStats()
+    best_payload: dict[str, Any] | None = None
+    for payload in _walk_complete_candidate_payloads(context, stats):
+        if _is_better(payload, best_payload, context.preferred_loading_side):
+            best_payload = payload
+    search_tree_exhausted = not stats.node_budget_exhausted
+    objective_optimal_within_search_family = best_payload is not None and search_tree_exhausted
+    provenance = _search_provenance(
+        context,
+        stats,
+        search_tree_exhausted=search_tree_exhausted,
+        objective_optimal_within_search_family=objective_optimal_within_search_family,
+    )
 
     if best_payload is None:
         payload = {
@@ -1072,11 +1294,10 @@ def search_placement(
             "placement_available": False,
             "placement_hard_constraints_passed": False,
             "zone_count": 0,
-            "source_zone_plan_hash": source_zone_plan_hash,
-            "source_p1_handoff_hash": source_p1_handoff_hash,
-            "source_site_geometry_hash": source_site_geometry_hash,
-            "source_objective_profile_hash": objective_profile_hash
-            or canonical_hash(approved_objective_profile().to_dict()),
+            "source_zone_plan_hash": context.source_zone_plan_hash,
+            "source_p1_handoff_hash": context.source_p1_handoff_hash,
+            "source_site_geometry_hash": context.source_site_geometry_hash,
+            "source_objective_profile_hash": context.objective_profile_hash,
             "placement_access_requirement_count": len(access_requirements),
             "search_provenance": provenance,
             "routing_validated": False,
@@ -1090,7 +1311,7 @@ def search_placement(
                 (
                     "Search budget exhausted before a placement was found; "
                     "this is not an infeasibility proof."
-                    if budget_exhausted
+                    if stats.node_budget_exhausted
                     else (
                         "Finite placement candidate family was exhausted; "
                         "this is not an infeasibility proof."
@@ -1100,6 +1321,7 @@ def search_placement(
         }
         return SitePlacementResultV1.from_payload(payload)
 
+    best_payload.pop("_loading_comparison", None)
     best_payload["search_provenance"] = provenance
     best_payload["status"] = "PLACEMENT_FOUND"
     best_payload["placement_available"] = True
