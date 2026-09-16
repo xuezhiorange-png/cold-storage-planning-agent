@@ -44,6 +44,11 @@ from cold_storage.modules.aily.application.mcp_factory_power import (
     PREVIEW_FACTORY_POWER_TOOL_NAME,
     invoke_preview_factory_power_tool,
 )
+from cold_storage.modules.aily.application.mcp_site_layout import (
+    PREVIEW_SITE_LAYOUT_INPUT_FIELDS,
+    PREVIEW_SITE_LAYOUT_TOOL_NAME,
+    invoke_preview_site_layout_tool,
+)
 from cold_storage.modules.aily.application.mcp_stage_preview import (
     PREVIEW_COOLING_LOAD_TOOL_NAME,
     PREVIEW_EQUIPMENT_TOOL_NAME,
@@ -121,6 +126,16 @@ _FACTORY_POWER_TOOL_DESCRIPTION = (
     "成功时原样展示 markdown_table，失败时按 ask_operator 处理，不要编造数字。"
 )
 
+_SITE_LAYOUT_TOOL_DESCRIPTION = (
+    "当用户明确需要受场地约束的冷库/蓝莓加工厂概念平面图时调用 preview_site_layout。"
+    "必须同时提供五个业务 KEY：daily_inbound_mass_kg、finished_storage_days、"
+    "frozen_storage_days、main_packaging_storage_days、auxiliary_packaging_storage_days，"
+    "以及 site_constraints 和已绑定的 truck_access。"
+    "不要传入面积、zone_plan、hash、layout 或 SVG，也不要自行计算面积和布局。"
+    "后端复用 canonical zone-plan、P1/P2/P3 authority；成功结果是概念设计图，"
+    "需要工程复核，不是施工图。失败时按 ask_operator 追问，不要编造默认场地或车型。"
+)
+
 _STAGE_TOOL_DESCRIPTIONS: dict[str, str] = {
     PREVIEW_ZONE_PLAN_TOOL_NAME: _TOOL_DESCRIPTION,
     PREVIEW_COOLING_LOAD_TOOL_NAME: _COOLING_TOOL_DESCRIPTION,
@@ -128,6 +143,7 @@ _STAGE_TOOL_DESCRIPTIONS: dict[str, str] = {
     PREVIEW_INSTALLED_POWER_TOOL_NAME: _POWER_TOOL_DESCRIPTION,
     PREVIEW_INVESTMENT_TOOL_NAME: _INVESTMENT_TOOL_DESCRIPTION,
     PREVIEW_FACTORY_POWER_TOOL_NAME: _FACTORY_POWER_TOOL_DESCRIPTION,
+    PREVIEW_SITE_LAYOUT_TOOL_NAME: _SITE_LAYOUT_TOOL_DESCRIPTION,
 }
 
 _PREVIEW_TOOL_ORDER: tuple[str, ...] = (
@@ -137,6 +153,13 @@ _PREVIEW_TOOL_ORDER: tuple[str, ...] = (
     PREVIEW_INSTALLED_POWER_TOOL_NAME,
     PREVIEW_INVESTMENT_TOOL_NAME,
     PREVIEW_FACTORY_POWER_TOOL_NAME,
+)
+
+# Keep the historical six-tool tuple available to downstream regression locks;
+# the current MCP surface appends Tool 7 without changing those six entries.
+_MCP_TOOL_ORDER: tuple[str, ...] = (
+    *_PREVIEW_TOOL_ORDER,
+    PREVIEW_SITE_LAYOUT_TOOL_NAME,
 )
 
 _KEY_DESCRIPTIONS: dict[str, str] = {
@@ -171,13 +194,39 @@ def build_zone_plan_mcp_server() -> Server[Any, Any]:
             "required": list(OPERATOR_V09_FIVE_KEY_FIELDS),
             "additionalProperties": False,
         }
+        site_layout_properties = {
+            **properties,
+            "site_constraints": {
+                "type": "object",
+                "description": (
+                    "SiteLayoutInputV1: site boundary, optional buildable boundary, "
+                    "entrances, obstacles, and existing buildings."
+                ),
+            },
+            "truck_access": {
+                "type": "object",
+                "description": (
+                    "P2B1-bound project truck maneuver input; no default vehicle or template."
+                ),
+            },
+        }
+        site_layout_schema = {
+            "type": "object",
+            "properties": site_layout_properties,
+            "required": list(PREVIEW_SITE_LAYOUT_INPUT_FIELDS),
+            "additionalProperties": False,
+        }
         return [
             Tool(
                 name=tool_name,
                 description=_STAGE_TOOL_DESCRIPTIONS[tool_name],
-                inputSchema=input_schema,
+                inputSchema=(
+                    site_layout_schema
+                    if tool_name == PREVIEW_SITE_LAYOUT_TOOL_NAME
+                    else input_schema
+                ),
             )
-            for tool_name in _PREVIEW_TOOL_ORDER
+            for tool_name in _MCP_TOOL_ORDER
         ]
 
     @server.call_tool(validate_input=False)  # type: ignore[untyped-decorator]
@@ -188,6 +237,8 @@ def build_zone_plan_mcp_server() -> Server[Any, Any]:
             payload = invoke_preview_zone_plan_tool(arguments)
         elif name == PREVIEW_FACTORY_POWER_TOOL_NAME:
             payload = invoke_preview_factory_power_tool(arguments)
+        elif name == PREVIEW_SITE_LAYOUT_TOOL_NAME:
+            payload = invoke_preview_site_layout_tool(arguments)
         elif name in _STAGE_TOOL_DESCRIPTIONS and name != PREVIEW_ZONE_PLAN_TOOL_NAME:
             payload = invoke_stage_preview_tool(name, arguments)
         else:

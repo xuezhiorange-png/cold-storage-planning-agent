@@ -11,6 +11,9 @@ from cold_storage.modules.aily.api.mcp_sse import MCP_MESSAGES_PATH, MCP_MOUNT_P
 from cold_storage.modules.aily.application.mcp_factory_power import (
     PREVIEW_FACTORY_POWER_TOOL_NAME,
 )
+from cold_storage.modules.aily.application.mcp_site_layout import (
+    PREVIEW_SITE_LAYOUT_TOOL_NAME,
+)
 from cold_storage.modules.aily.application.mcp_stage_preview import (
     PREVIEW_COOLING_LOAD_TOOL_NAME,
     PREVIEW_EQUIPMENT_TOOL_NAME,
@@ -140,6 +143,7 @@ def test_aily_mcp_streamable_tools_list_includes_preview_zone_plan() -> None:
         PREVIEW_INSTALLED_POWER_TOOL_NAME,
         PREVIEW_INVESTMENT_TOOL_NAME,
         PREVIEW_FACTORY_POWER_TOOL_NAME,
+        PREVIEW_SITE_LAYOUT_TOOL_NAME,
     ]
 
 

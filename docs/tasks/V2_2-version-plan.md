@@ -1,5 +1,51 @@
 # V2.2 — 受场地边界约束的工厂平面规划
 
+## V2.2 P4 current implementation overlay (2026-09-16)
+
+P4 has a separate implementation authorization after the P3 projection
+boundary. It appends the seventh MCP tool through the existing Doubao/Feishu
+Streamable HTTP transport and consumes the already completed P1/P2/P3
+authorities. Historical P0–P3 snapshots below remain unchanged.
+
+```ini
+TASK_ID=V2_2_P4_MCP_TOOL7_DOUBAO_FEISHU_INTEGRATION_R1
+BASE_MAIN_SHA=cd0a2cc16a9b49296a25b398d4a17dbd4f63b67b
+P3_COMPLETE=true
+P4_AUTHORIZED=true
+P4_STATUS=IMPLEMENTED_DRAFT_REVIEW
+P4_WIRING_AND_TRANSPORT_IMPLEMENTED=true
+P4_PRODUCTION_FULL_PASS=false
+P4_COMPLETE=false
+P4_BLOCKER=EXISTING_P2C_P2D_PACKAGING_SORTING_STRAIGHT_ROUTE_MISMATCH
+MCP_TOOL_COUNT=7
+MCP_TOOL_7_NAME=preview_site_layout
+MCP_TOOL_7_POSITION=7
+EXISTING_SIX_TOOL_ORDER_PRESERVED=true
+EXISTING_SIX_TOOL_CONTRACT_PRESERVED=true
+SITE_LAYOUT_PROJECT_INPUT_USED=true
+BACKEND_ZONE_PLAN_AUTHORITY_USED=true
+P2_VALIDATED_LAYOUT_USED=true
+P3_SVG_PROJECTION_USED=true
+NO_CHAT_PARSING=true
+NO_ENGINEERING_FORMULAS_IN_P4=true
+P5_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+`preview_site_layout` is appended at position 7; the first six tools, their
+order and their five-key contract are preserved. Tool 7 requires the five
+business keys plus `site_constraints` and a complete project-bound
+`truck_access`, then composes the existing canonical zone adapter, P1 handoff,
+P2 validated layout and P3 SVG projection. P4 does not add a calculation type,
+REST route, formula, second authority, or persistence. It remains a
+concept-design response requiring engineering review, not a construction
+drawing. See the [P4 implementation record](V2_2-P4-mcp-tool7-doubao-feishu-integration.md).
+
 ## V2.2 P2C 当前实现状态（2026-09-15）
 
 Charles 已正式授权 `V2_2_P2C_DETERMINISTIC_PLACEMENT_ENGINE_R1`。P2C 在现有

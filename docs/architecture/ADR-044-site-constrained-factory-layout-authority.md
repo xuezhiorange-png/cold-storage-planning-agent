@@ -1,5 +1,45 @@
 # ADR-044 — Site-constrained factory layout authority
 
+## P4 MCP Tool 7 integration overlay (2026-09-16)
+
+The P4 implementation appends `preview_site_layout` as MCP tool 7 on the
+existing Doubao/Feishu Streamable HTTP transport. It is an orchestration
+boundary, not a new engineering authority.
+
+```ini
+P3_COMPLETE=true
+P4_AUTHORIZED=true
+MCP_TOOL_COUNT=7
+MCP_TOOL_7_NAME=preview_site_layout
+MCP_TOOL_7_POSITION=7
+EXISTING_SIX_TOOL_ORDER_PRESERVED=true
+EXISTING_SIX_TOOL_CONTRACT_PRESERVED=true
+EXISTING_FIVE_KEY_SCHEMA_PRESERVED=true
+SITE_LAYOUT_RESULT_IDENTITY=site_validated_layout@1.0.0
+SVG_PROJECTION_IDENTITY=validated-layout-svg-projection@1.0.0
+P4_ENGINEERING_FORMULAS=NONE
+P4_DIRECT_CALCULATOR_IMPORTS=NONE
+P4_CALLER_ENGINEERING_AUTHORITY=REJECTED
+P5_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The seventh tool accepts the existing five business keys together with
+`site_constraints` and a project-bound `truck_access`. The server rejects
+caller-supplied zone areas, canonical hashes, placements, validated layouts,
+SVG, chat text and unknown fields. The execution chain is the existing zone
+adapter → P1 handoff → P2 placement/routing/truck validation → canonical
+`site_validated_layout@1.0.0` → P3
+`validated-layout-svg-projection@1.0.0`. P4 does not parse chat, recalculate
+engineering values, modify the six existing tools, add a REST endpoint, add a
+CalculationType, or persist results. P2/P3 fail-closed and deterministic
+semantics remain authoritative; P5 is still separately unauthorized.
+
 ## P2C 当前实现 overlay（2026-09-15）
 
 P2C 已在 P2A/P2B1/P2B2 的既有合同之上实现
