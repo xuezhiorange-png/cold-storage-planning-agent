@@ -46,6 +46,9 @@ P4_ALLOWED_PATHS = {
     "docs/tasks/V2_2-version-plan.md",
     "docs/architecture/ADR-044-site-constrained-factory-layout-authority.md",
     "docs/audit/current-state.md",
+    # Append-only corrections keep completed P2 scope guards on immutable history.
+    "backend/tests/architecture/test_v22_p2a_site_geometry_foundation.py",
+    "backend/tests/architecture/test_v22_p2b1_truck_maneuver_template_contract.py",
 }
 
 
