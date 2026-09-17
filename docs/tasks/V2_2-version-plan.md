@@ -1,5 +1,45 @@
 # V2.2 — 受场地边界约束的工厂平面规划
 
+## V2.2 P5 current release-closure overlay (2026-09-17)
+
+P0–P4 are merged and V2.2 release closure is separately authorized as a
+Draft readiness review. The historical P4 overlay below remains unchanged;
+this block is the current state and does not authorize release execution.
+
+```ini
+TASK_ID=V2_2_P5_RELEASE_CLOSURE_R1
+BASE_MAIN_SHA=31c888f446d2d4c5704221426d60685da91f43d8
+TARGET_VERSION=v2.2.0
+PREVIOUS_RELEASE=v2.1.2
+P0_COMPLETE=YES
+P1_COMPLETE=YES
+P2_COMPLETE=YES
+P3_COMPLETE=YES
+P4_COMPLETE=YES
+P5_AUTHORIZED=YES
+P5_STATUS=RELEASE_CLOSURE_DRAFT_REVIEW
+V2_2_0_RELEASE_READY=YES
+MCP_TOOL_COUNT=7
+REAL_TOOL7_FULL_CHAIN=PASS
+PROJECT_LAYOUT_VALIDATED=YES
+P2_COMPLETE=YES
+RELEASE_BLOCKERS=NONE
+RELEASE_TARGET_SHA=P5_FINAL_HEAD_AFTER_EVIDENCE_COMMIT
+RELEASE_TARGET_SHA_POLICY=FINAL_P5_HEAD_PLUS_EXACT_MAIN_CI_AND_SEPARATE_RELEASE_AUTHORIZATION
+TAG_AUTHORIZED=NO
+GITHUB_RELEASE_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The complete closure evidence is in
+[`V2_2-P5-release-closure.md`](V2_2-P5-release-closure.md). The P5 block
+certifies readiness only; the older P4 authorization snapshot is retained as
+historical evidence.
+
 ## V2.2 P4 current implementation overlay (2026-09-17)
 
 P4 has a separate implementation authorization after the P3 projection
