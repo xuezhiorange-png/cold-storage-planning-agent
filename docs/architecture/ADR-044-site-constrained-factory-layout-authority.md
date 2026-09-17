@@ -1,5 +1,47 @@
 # ADR-044 — Site-constrained factory layout authority
 
+## P5 release-closure readiness overlay (2026-09-17)
+
+V2.2 P0–P4 are merged. P5 is a separate release-closure/readiness gate and
+does not add runtime authority or execute release operations. The P4 overlay
+below is retained as historical implementation evidence.
+
+```ini
+TASK_ID=V2_2_P5_RELEASE_CLOSURE_R1
+BASE_MAIN_SHA=31c888f446d2d4c5704221426d60685da91f43d8
+TARGET_VERSION=v2.2.0
+P0_COMPLETE=YES
+P1_COMPLETE=YES
+P2_COMPLETE=YES
+P3_COMPLETE=YES
+P4_COMPLETE=YES
+P5_AUTHORIZED=YES
+P5_STATUS=RELEASE_CLOSURE_DRAFT_REVIEW
+MCP_TOOL_COUNT=7
+EXISTING_SIX_TOOL_ORDER_PRESERVED=YES
+EXISTING_SIX_TOOL_CONTRACT_PRESERVED=YES
+REAL_TOOL7_FULL_CHAIN=PASS
+PROJECT_LAYOUT_VALIDATED=YES
+CANONICAL_LAYOUT_AUTHORITY=STRUCTURED_LAYOUT_JSON
+P2_VALIDATED_CANDIDATE_SELECTOR_USED=YES
+P3_SVG_PROJECTION_USED=YES
+RELEASE_BLOCKERS=NONE
+RELEASE_TARGET_SHA=P5_FINAL_HEAD_AFTER_EVIDENCE_COMMIT
+TAG_AUTHORIZED=NO
+GITHUB_RELEASE_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The release target is policy-bound to the eventual P5 closure merge commit,
+its exact-main CI success, and separate release authorization. It is not the
+old P4 merge SHA. See
+[`V2_2-P5-release-closure.md`](../tasks/V2_2-P5-release-closure.md) for the
+full readiness evidence and non-goals.
+
 ## P4 MCP Tool 7 integration overlay (2026-09-16)
 
 The P4 implementation appends `preview_site_layout` as MCP tool 7 on the

@@ -1317,3 +1317,45 @@ replays the backend zone authority, P1 handoff, P2 validated layout and P3
 static SVG projection without changing formulas or persisting a result. The
 response remains concept-design output requiring engineering review and is
 not a construction drawing. P5 is not authorized.
+
+## V2.2 P5 current release-closure overlay (2026-09-17)
+
+The preceding P4 block is a historical implementation snapshot. The current
+governance lane is now V2.2 release closure/readiness; this overlay does not
+rewrite the earlier P4 evidence and does not authorize release execution.
+
+```ini
+TASK_ID=V2_2_P5_RELEASE_CLOSURE_R1
+BASE_MAIN_SHA=31c888f446d2d4c5704221426d60685da91f43d8
+TARGET_VERSION=v2.2.0
+CURRENT_RELEASE=v2.1.2
+V2_1_2_RELEASED=YES
+P0_COMPLETE=YES
+P1_COMPLETE=YES
+P2_COMPLETE=YES
+P3_COMPLETE=YES
+P4_COMPLETE=YES
+P5_AUTHORIZED=YES
+P5_STATUS=RELEASE_CLOSURE_DRAFT_REVIEW
+V2_2_0_RELEASE_READY=YES
+MCP_TOOL_COUNT=7
+REAL_TOOL7_FULL_CHAIN=PASS
+PROJECT_LAYOUT_VALIDATED=YES
+RELEASE_BLOCKERS=NONE
+RELEASE_TARGET_SHA=P5_FINAL_HEAD_AFTER_EVIDENCE_COMMIT
+RELEASE_TARGET_SHA_POLICY=FINAL_P5_HEAD_PLUS_EXACT_MAIN_CI_AND_SEPARATE_RELEASE_AUTHORIZATION
+TAG_AUTHORIZED=NO
+GITHUB_RELEASE_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+NEXT_FEATURE_LANE_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The P5 closure records the seven-tool surface, the P2 validated-candidate
+selector, the P3 validated-layout SVG projection, and the unmocked Tool 7
+full-chain evidence. It changes no production runtime, database, frontend,
+deployment, or historical release record. Full evidence and future release
+note content are maintained in
+`docs/tasks/V2_2-P5-release-closure.md`.
