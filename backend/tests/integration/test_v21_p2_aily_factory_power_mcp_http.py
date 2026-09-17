@@ -69,8 +69,9 @@ def test_factory_power_mcp_tools_list_appends_sixth_tool_with_five_key_schema() 
         "preview_installed_power",
         "preview_investment",
         "preview_factory_power",
+        "preview_site_layout",
     ]
-    factory_tool = tools[-1]
+    factory_tool = tools[-2]
     assert "估算工厂电功率" in factory_tool["description"]
     assert "kW" in factory_tool["description"]
     schema = factory_tool["inputSchema"]

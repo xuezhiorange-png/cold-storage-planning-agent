@@ -150,9 +150,16 @@ def test_p2a_contract_identity_and_non_placement_status() -> None:
 
 
 def test_p1_authority_and_existing_contracts_are_not_replaced() -> None:
+    target = historical_target() or "HEAD"
+    if target != "HEAD":
+        subprocess.run(
+            ["git", "merge-base", "--is-ancestor", target, "HEAD"],
+            cwd=ROOT,
+            check=True,
+        )
     for path in PROTECTED_RUNTIME:
         subprocess.run(
-            ["git", "diff", "--quiet", BASE, "HEAD", "--", path],
+            ["git", "diff", "--quiet", BASE, target, "--", path],
             cwd=ROOT,
             check=True,
         )

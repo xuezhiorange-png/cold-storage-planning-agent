@@ -78,6 +78,7 @@ def test_scope_is_additive_from_p2a_and_does_not_touch_prior_authority() -> None
     changed = _changed_paths()
     assert changed <= ALLOWED
     assert not changed & PROTECTED
+    target = _historical_target() or "HEAD"
     for path in PROTECTED:
         if (
             subprocess.run(
@@ -86,7 +87,7 @@ def test_scope_is_additive_from_p2a_and_does_not_touch_prior_authority() -> None
             == 0
         ):
             subprocess.run(
-                ["git", "diff", "--quiet", BASE, "HEAD", "--", path], cwd=ROOT, check=True
+                ["git", "diff", "--quiet", BASE, target, "--", path], cwd=ROOT, check=True
             )
 
 

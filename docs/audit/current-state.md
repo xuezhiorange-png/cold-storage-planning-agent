@@ -1272,3 +1272,48 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 历史 p1 identity、0.30 化霜系数、历史 golden 与 v2.0/v2.1/v2.1.1 release
 evidence 保持不变；TD-008、TD-019、TD-021、TD-024 等无关技术债不因本 closure
 重新分类。
+
+## V2.2 P4 current implementation overlay (2026-09-16)
+
+P3 is complete and P4 is separately authorized in the current Draft review
+lane. P4 adds only the MCP/Feishu/Doubao application composition for the
+already implemented site-layout authorities; earlier authorization snapshots
+remain historical.
+
+```ini
+TASK_ID=V2_2_P4_MCP_TOOL7_DOUBAO_FEISHU_INTEGRATION_R1
+BASE_MAIN_SHA=cd0a2cc16a9b49296a25b398d4a17dbd4f63b67b
+P3_COMPLETE=true
+P4_AUTHORIZED=true
+MCP_TOOL_COUNT=7
+MCP_TOOL_7_NAME=preview_site_layout
+MCP_TOOL_7_POSITION=7
+EXISTING_SIX_TOOL_ORDER_PRESERVED=true
+EXISTING_SIX_TOOL_CONTRACT_PRESERVED=true
+DOUBAO_FEISHU_INTEGRATION_IMPLEMENTED=true
+P4_WIRING_AND_TRANSPORT_IMPLEMENTED=true
+P4_PRODUCTION_FULL_PASS=false
+P4_COMPLETE=false
+P4_BLOCKER=EXISTING_P2C_P2D_PACKAGING_SORTING_STRAIGHT_ROUTE_MISMATCH
+SITE_LAYOUT_PROJECT_INPUT_USED=true
+BACKEND_ZONE_PLAN_AUTHORITY_USED=true
+P2_VALIDATED_LAYOUT_USED=true
+P3_SVG_PROJECTION_USED=true
+NO_CHAT_PARSING=true
+NO_ENGINEERING_FORMULAS_IN_P4=true
+P5_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+`preview_site_layout` is exposed at position 7 on the existing Streamable HTTP
+paths. It accepts the five business keys plus project `site_constraints` and
+bound `truck_access`, and rejects caller-supplied engineering authority. It
+replays the backend zone authority, P1 handoff, P2 validated layout and P3
+static SVG projection without changing formulas or persisting a result. The
+response remains concept-design output requiring engineering review and is
+not a construction drawing. P5 is not authorized.
