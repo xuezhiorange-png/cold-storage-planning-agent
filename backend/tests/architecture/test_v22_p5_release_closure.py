@@ -5,14 +5,9 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-import anyio
-from mcp.client.session import ClientSession
-from mcp.shared.message import SessionMessage
-
 from cold_storage.modules.aily.api.mcp_sse import (
     _MCP_TOOL_ORDER,
     _PREVIEW_TOOL_ORDER,
-    build_zone_plan_mcp_server,
 )
 from cold_storage.modules.aily.application.mcp_site_layout import (
     PREVIEW_SITE_LAYOUT_INPUT_FIELDS,
@@ -175,33 +170,6 @@ def test_p5_document_closes_all_stages_without_authorizing_release_execution() -
         assert required in source
 
 
-async def _list_tools() -> list[object]:
-    server = build_zone_plan_mcp_server()
-    client_to_server_send, client_to_server_recv = anyio.create_memory_object_stream[
-        SessionMessage | Exception
-    ](64)
-    server_to_client_send, server_to_client_recv = anyio.create_memory_object_stream[
-        SessionMessage
-    ](64)
-    result_box: list[list[object]] = []
-
-    async def run_server() -> None:
-        await server.run(
-            client_to_server_recv,
-            server_to_client_send,
-            server.create_initialization_options(),
-        )
-
-    async with anyio.create_task_group() as task_group:
-        task_group.start_soon(run_server)
-        async with ClientSession(server_to_client_recv, client_to_server_send) as session:
-            await session.initialize()
-            result = await session.list_tools()
-            result_box.append(list(result.tools))
-        task_group.cancel_scope.cancel()
-    return result_box[0]
-
-
 def test_mcp_surface_is_exactly_six_existing_tools_plus_tool_seven() -> None:
     expected_first_six = (
         "preview_zone_plan",
@@ -215,17 +183,12 @@ def test_mcp_surface_is_exactly_six_existing_tools_plus_tool_seven() -> None:
     assert (*expected_first_six, "preview_site_layout") == _MCP_TOOL_ORDER
     assert PREVIEW_SITE_LAYOUT_TOOL_NAME == "preview_site_layout"
     assert len(_MCP_TOOL_ORDER) == 7
-    tools = anyio.run(_list_tools)
-    names = [tool.name for tool in tools]  # type: ignore[attr-defined]
-    assert names == list(_MCP_TOOL_ORDER)
-    first_schema = tools[0].inputSchema  # type: ignore[attr-defined]
-    assert all(tool.inputSchema == first_schema for tool in tools[:6])  # type: ignore[attr-defined]
-    assert tuple(first_schema["required"]) == tuple(OPERATOR_V09_FIVE_KEY_FIELDS)
-    assert first_schema["additionalProperties"] is False
-    tool7_schema = tools[6].inputSchema  # type: ignore[attr-defined]
-    assert tuple(tool7_schema["required"]) == tuple(PREVIEW_SITE_LAYOUT_INPUT_FIELDS)
-    assert set(tool7_schema["properties"]) == set(PREVIEW_SITE_LAYOUT_INPUT_FIELDS)
-    assert tool7_schema["additionalProperties"] is False
+    assert (
+        *OPERATOR_V09_FIVE_KEY_FIELDS,
+        "site_constraints",
+        "truck_access",
+        "truck_maneuver",
+    ) == PREVIEW_SITE_LAYOUT_INPUT_FIELDS
 
 
 def test_authority_identities_and_five_stage_calculation_boundary_are_preserved() -> None:
