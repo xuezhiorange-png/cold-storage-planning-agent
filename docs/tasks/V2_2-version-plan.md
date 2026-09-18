@@ -1,5 +1,35 @@
 # V2.2 — 受场地边界约束的工厂平面规划
 
+## V2.2 post-P5 CI correction release overlay (2026-09-18)
+
+The P5 readiness snapshot below remains historical. The post-P5 correction was
+workflow-only: PR #288 installed the required CJK font in the lightweight lane;
+the independent docs-only PR #289 then exercised that lane successfully.
+
+```ini
+TASK_ID=V2_2_0_POST_P5_CI_CORRECTION_RELEASE_R1
+P5_MERGE_SHA=853db6ecd2acc2a47196feb048a2f860d4b2f6e4
+CORRECTION_PR=288
+CORRECTION_MERGE_SHA=959c8d00911f7f3075f7bd23be9c1307f4d616c7
+WORKFLOW_ONLY=true
+PRODUCTION_CODE_CHANGED=false
+TEST_SEMANTICS_CHANGED=false
+V2_2_RUNTIME_CHANGED=false
+MCP_CHANGED=false
+DATABASE_CHANGED=false
+RELEASE_TARGET_EXACT_MAIN_CI_RUN=35336958482
+RELEASE_TARGET_EXACT_MAIN_CI_STATUS=SUCCESS
+V2_2_0_RELEASE_TARGET_SHA=959c8d00911f7f3075f7bd23be9c1307f4d616c7
+V2_2_0_RELEASE_TARGET_REASON=POST_P5_WORKFLOW_ONLY_CI_PREREQUISITE_CORRECTION
+P5_RUNTIME_AUTHORITY_CHANGED=false
+RELEASE_BLOCKERS=NONE
+TAG_AUTHORIZED=true
+GITHUB_RELEASE_AUTHORIZED=true
+DEPLOYMENT_AUTHORIZED=false
+V2_2_0_RELEASED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
 ## V2.2 P5 current release-closure overlay (2026-09-17)
 
 P0–P4 are merged and V2.2 release closure is separately authorized as a
