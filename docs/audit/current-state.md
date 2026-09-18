@@ -1318,6 +1318,41 @@ static SVG projection without changing formulas or persisting a result. The
 response remains concept-design output requiring engineering review and is
 not a construction drawing. P5 is not authorized.
 
+## V2.2 post-P5 CI correction release overlay (2026-09-18)
+
+The post-P5 correction is a workflow-only release-closure correction. It does
+not revise P0–P5 runtime authority or the historical P5 evidence. PR #288 was
+merged after its lightweight CJK prerequisite was independently exercised by
+the docs-only validation PR #289.
+
+```ini
+TASK_ID=V2_2_0_POST_P5_CI_CORRECTION_RELEASE_R1
+P5_MERGE_SHA=853db6ecd2acc2a47196feb048a2f860d4b2f6e4
+CORRECTION_PR=288
+CORRECTION_MERGE_SHA=959c8d00911f7f3075f7bd23be9c1307f4d616c7
+WORKFLOW_ONLY=true
+PRODUCTION_CODE_CHANGED=false
+TEST_SEMANTICS_CHANGED=false
+V2_2_RUNTIME_CHANGED=false
+MCP_CHANGED=false
+DATABASE_CHANGED=false
+RELEASE_TARGET_EXACT_MAIN_CI_RUN=35336958482
+RELEASE_TARGET_EXACT_MAIN_CI_STATUS=SUCCESS
+V2_2_0_RELEASE_TARGET_SHA=959c8d00911f7f3075f7bd23be9c1307f4d616c7
+V2_2_0_RELEASE_TARGET_REASON=POST_P5_WORKFLOW_ONLY_CI_PREREQUISITE_CORRECTION
+P5_RUNTIME_AUTHORITY_CHANGED=false
+RELEASE_BLOCKERS=NONE
+TAG_AUTHORIZED=true
+GITHUB_RELEASE_AUTHORIZED=true
+DEPLOYMENT_AUTHORIZED=false
+V2_2_0_RELEASED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The final tag target remains the post-correction release-closure merge commit
+only after its exact-main CI succeeds. The failed P5 merge SHA is not a release
+target, and no deployment is authorized.
+
 ## V2.2 P5 current release-closure overlay (2026-09-17)
 
 The preceding P4 block is a historical implementation snapshot. The current

@@ -257,3 +257,52 @@ READY_EXECUTED=NO
 MERGE_EXECUTED=NO
 P5_RELEASE_EXECUTION=UNAUTHORIZED
 ```
+
+## Post-P5 CI correction release closure (2026-09-18)
+
+The original P5 readiness block above is retained as the historical review
+snapshot. After the P5 merge, the only correction was the workflow prerequisite
+in PR #288; it installed the already-required CJK font in the lightweight
+architecture lane and changed no product behavior. PR #289 independently
+validated that lane against the #288 head branch with a docs-only diff.
+
+```ini
+TASK_ID=V2_2_0_POST_P5_CI_CORRECTION_RELEASE_R1
+P5_MERGE_SHA=853db6ecd2acc2a47196feb048a2f860d4b2f6e4
+P5_MERGE_CI_RUN_ID=35241519009
+P5_MERGE_CI_RESULT=FAILURE
+P5_MERGE_CI_ROOT_CAUSE=LIGHTWEIGHT_ARCHITECTURE_LANE_MISSING_REQUIRED_CJK_FONT_INSTALL
+CORRECTION_PR=288
+CORRECTION_HEAD_SHA=b6b514a950ef3015c609d1d625f55827f21b86be
+CORRECTION_MERGE_SHA=959c8d00911f7f3075f7bd23be9c1307f4d616c7
+WORKFLOW_ONLY=true
+PRODUCTION_CODE_CHANGED=false
+TEST_SEMANTICS_CHANGED=false
+V2_2_RUNTIME_CHANGED=false
+MCP_CHANGED=false
+DATABASE_CHANGED=false
+VALIDATION_PR=289
+VALIDATION_PR_DOCS_ONLY=true
+LIGHTWEIGHT_SELECTED=true
+CJK_INSTALL_STATUS=SUCCESS
+ARCHITECTURE_VALIDATION_STATUS=685_PASSED_16_SKIPPED
+LIGHTWEIGHT_STATUS=SUCCESS
+CI_GATE_STATUS=SUCCESS
+RELEASE_TARGET_EXACT_MAIN_CI_RUN=35336958482
+RELEASE_TARGET_EXACT_MAIN_CI_STATUS=SUCCESS
+V2_2_0_RELEASE_TARGET_SHA=959c8d00911f7f3075f7bd23be9c1307f4d616c7
+V2_2_0_RELEASE_TARGET_REASON=POST_P5_WORKFLOW_ONLY_CI_PREREQUISITE_CORRECTION
+P5_RUNTIME_AUTHORITY_CHANGED=false
+RELEASE_BLOCKERS=NONE
+TAG_AUTHORIZED=true
+GITHUB_RELEASE_AUTHORIZED=true
+DEPLOYMENT_AUTHORIZED=false
+V2_2_0_RELEASED=false
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+The release target above is the corrected post-P5 main baseline. Release
+execution must still tag the release-closure correction's final main commit
+after its own exact-main CI succeeds; the failed P5 merge SHA is never a tag
+target. No deployment, server change, production configuration change, or
+next feature lane is authorized by this correction.
