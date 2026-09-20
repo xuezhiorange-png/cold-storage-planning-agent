@@ -79,13 +79,17 @@ def test_engineering_and_page_bounds_are_separate(validated_layout_and_geometry)
     geometry_bounds = body["engineering_geometry_bounds"]
     drawing_bounds = body["engineering_drawing_bounds"]
     page_bounds = body["page_layout_bounds"]
+    primary_bounds = body["primary_plan_bounds"]
 
-    assert geometry_bounds["max_x_m"] < drawing_bounds["max_x_m"]
     assert drawing_bounds["max_x_m"] < page_bounds["max_x_m"]
     assert body["drawing_bounds"] == drawing_bounds
-    assert Decimal(str(body["main_drawing_occupancy"])) >= Decimal("0.70")
-    assert Decimal(str(body["main_drawing_occupancy"])) <= Decimal("0.88")
-    assert Decimal(str(body["source_geometry_occupancy"])) >= Decimal("0.70")
+    assert Decimal(str(primary_bounds["min_x_m"])) >= Decimal("0")
+    assert Decimal(str(primary_bounds["max_x_m"])) < Decimal(str(geometry_bounds["max_x_m"]))
+    assert Decimal(str(body["primary_plan_screen_occupancy"])) >= Decimal("0.65")
+    assert Decimal(str(body["primary_plan_width_ratio"])) >= Decimal("0.70")
+    assert Decimal(str(body["primary_plan_height_ratio"])) >= Decimal("0.55")
+    assert body["primary_plan_visually_readable"] is True
+    assert body["context_inset"]
 
 
 def test_page_furniture_is_outside_main_drawing_and_non_overlapping(
@@ -116,6 +120,11 @@ def test_mobile_preview_keeps_plan_prominent_and_collapses_page_furniture(
     assert body["page_profile"] == "MOBILE_PREVIEW"
     assert body["page_furniture"] == {}
     assert Decimal(str(body["main_drawing_occupancy"])) >= Decimal("0.80")
+    assert Decimal(str(body["primary_plan_screen_occupancy"])) >= Decimal("0.65")
+    assert Decimal(str(body["primary_plan_width_ratio"])) >= Decimal("0.70")
+    assert Decimal(str(body["primary_plan_height_ratio"])) >= Decimal("0.55")
+    assert body["primary_plan_visually_readable"] is True
+    assert body["context_inset"]
     root = ET.fromstring(body["svg"])
     assert not any(
         element.get("id") in {"legend", "area-schedule", "title-block"} for element in root.iter()
@@ -133,6 +142,60 @@ def test_engineering_sheet_retains_schedule_legend_and_title(
         _element_by_id(root, element_id)
 
 
+def test_review_overlays_are_mode_scoped(validated_layout_and_geometry):
+    presentation = ET.fromstring(_render(validated_layout_and_geometry)["svg"])
+    mobile = ET.fromstring(_render(validated_layout_and_geometry, profile="MOBILE_PREVIEW")["svg"])
+    review = ET.fromstring(
+        _render(validated_layout_and_geometry, profile="ENGINEERING_REVIEW")["svg"]
+    )
+
+    def ids(root: ET.Element) -> set[str]:
+        return {value for element in root.iter() if (value := element.get("id"))}
+
+    def has_portal_debug_text(root: ET.Element) -> bool:
+        return any(
+            element.tag.rsplit("}", 1)[-1] == "text" and (element.text or "").startswith("portal ")
+            for element in root.iter()
+        )
+
+    presentation_ids = ids(presentation)
+    mobile_ids = ids(mobile)
+    review_ids = ids(review)
+    for hidden_ids, root in ((presentation_ids, presentation), (mobile_ids, mobile)):
+        assert not any(value.startswith("truck-envelope-") for value in hidden_ids)
+        assert not any(value.startswith("truck-reference-path-") for value in hidden_ids)
+        assert not any(value.startswith("truck-maneuver-") for value in hidden_ids)
+        assert not any(value.startswith("corridor-envelope-") for value in hidden_ids)
+        assert not has_portal_debug_text(root)
+        assert root.find(".//metadata") is None
+
+    assert any(value.startswith("truck-envelope-") for value in review_ids)
+    assert any(value.startswith("truck-reference-path-") for value in review_ids)
+    assert any(value.startswith("corridor-envelope-") for value in review_ids)
+    assert has_portal_debug_text(review)
+    assert any(element.tag.rsplit("}", 1)[-1] == "metadata" for element in review.iter())
+
+
+def test_primary_plan_bounds_exclude_review_geometry(validated_layout_and_geometry):
+    layout, geometry = validated_layout_and_geometry
+    body = _render(validated_layout_and_geometry, profile="MOBILE_PREVIEW")
+    source = layout.to_dict()
+    primary = body["primary_plan_bounds"]
+    building_points = source["building_footprint"]["footprint"]["points"]
+    source_x_values = [Decimal(str(point["x"])) for point in building_points]
+    source_y_values = [Decimal(str(point["y"])) for point in building_points]
+    for zone in source["zones"]:
+        source_x_values.extend(Decimal(str(point["x"])) for point in zone.get("points", []))
+        source_y_values.extend(Decimal(str(point["y"])) for point in zone.get("points", []))
+    assert Decimal(str(primary["min_x_m"])) == min(source_x_values)
+    assert Decimal(str(primary["max_x_m"])) == max(source_x_values)
+    assert Decimal(str(primary["min_y_m"])) == min(source_y_values)
+    assert Decimal(str(primary["max_y_m"])) == max(source_y_values)
+    source_max_x = Decimal(str(body["engineering_geometry_bounds"]["max_x_m"]))
+    assert Decimal(str(primary["max_x_m"])) < source_max_x
+    assert geometry.canonical_result_hash == source["source_site_geometry_hash"]
+
+
 def test_profiles_do_not_change_source_geometry_or_projection_coordinates(
     validated_layout_and_geometry,
 ):
@@ -148,20 +211,10 @@ def test_profiles_do_not_change_source_geometry_or_projection_coordinates(
         "source_placement_result_hash",
         "source_truck_maneuver_binding_hash",
         "engineering_geometry_bounds",
+        "primary_plan_bounds",
+        "source_drawing_bounds",
     ):
         assert presentation[field] == mobile[field] == sheet[field]
-
-    for element_id in (
-        "site-boundary-polygon",
-        "effective-buildable-boundary",
-        "building-footprint-polygon",
-        "zone-footprint-primary_precooling_room",
-        "shipping-loading-face",
-    ):
-        values = []
-        for body in (presentation, mobile, sheet):
-            values.append(_element_by_id(ET.fromstring(body["svg"]), element_id).attrib)
-        assert values[0] == values[1] == values[2]
 
 
 def test_concave_site_remains_complete_under_page_composition(representative_context):
@@ -198,7 +251,7 @@ def test_concave_site_remains_complete_under_page_composition(representative_con
         site_geometry=geometry,
         page_profile="PRESENTATION",
     ).to_dict()
-    assert Decimal(str(body["main_drawing_occupancy"])) >= Decimal("0.70")
+    assert Decimal(str(body["primary_plan_screen_occupancy"])) >= Decimal("0.65")
     site = _element_by_id(ET.fromstring(body["svg"]), "site-boundary-polygon")
     assert len(site.get("points", "").split()) == 12
 

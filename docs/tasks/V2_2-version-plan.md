@@ -83,6 +83,32 @@ DEPLOYMENT_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
+## V2.2.1 P1A2 presentation/mobile composition correction (Draft review)
+
+P1A2 is a projection-only correction after visual review. It hides
+engineering-review-only truck/corridor/portal overlays from the default
+presentation and mobile views, and adds a deterministic primary-plan focus
+with a small full-site context inset. The structured validated layout remains
+the only geometry authority.
+
+```ini
+TASK_ID=V2_2_1_P1A2_PRESENTATION_MOBILE_COMPOSITION_CORRECTION_R1
+PREVIOUS_HEAD_SHA=436c7923c9bd6f1da00b857465e1fdc81f1fdae7
+PRESENTATION_REVIEW_OVERLAYS_HIDDEN=YES
+MOBILE_REVIEW_OVERLAYS_HIDDEN=YES
+ENGINEERING_REVIEW_OVERLAYS_PRESERVED=YES
+PRIMARY_PLAN_BOUNDS_IMPLEMENTED=YES
+SOURCE_ENGINEERING_GEOMETRY_CHANGED=NO
+P2_CHANGED=NO
+P2D_CHANGED=NO
+P4_CHANGED=NO
+MCP_CHANGED=NO
+DATABASE_CHANGED=NO
+P1B_AUTHORIZED=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+```
+
 ## V2.2 post-P5 CI correction release overlay (2026-09-18)
 
 The P5 readiness snapshot below remains historical. The post-P5 correction was

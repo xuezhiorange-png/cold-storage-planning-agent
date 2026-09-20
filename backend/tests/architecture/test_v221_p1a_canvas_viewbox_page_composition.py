@@ -69,7 +69,12 @@ def test_p1a_scope_is_limited_to_projection_and_evidence() -> None:
 
 
 def test_p1a_profiles_and_occupancy_contract_are_versioned() -> None:
-    assert SVG_PAGE_PROFILES == ("PRESENTATION", "MOBILE_PREVIEW", "ENGINEERING_SHEET")
+    assert SVG_PAGE_PROFILES == (
+        "PRESENTATION",
+        "MOBILE_PREVIEW",
+        "ENGINEERING_SHEET",
+        "ENGINEERING_REVIEW",
+    )
     assert Decimal("0.78") == SVG_MAIN_DRAWING_TARGET_OCCUPANCY
     assert Decimal("0.70") == SVG_MAIN_DRAWING_MIN_OCCUPANCY
     assert Decimal("0.88") == SVG_MAIN_DRAWING_MAX_OCCUPANCY
@@ -88,6 +93,16 @@ def test_p1a_profiles_and_occupancy_contract_are_versioned() -> None:
         '"legend_overlap"',
         '"area-schedule"',
         '"MOBILE_PREVIEW"',
+        "SVG_MOBILE_PRIMARY_PLAN_OCCUPANCY_MIN",
+        "SVG_MOBILE_PRIMARY_PLAN_WIDTH_RATIO_MIN",
+        "SVG_MOBILE_PRIMARY_PLAN_HEIGHT_RATIO_MIN",
+        '"primary_plan_bounds"',
+        '"context_inset"',
+        '"primary_plan_visually_readable"',
+        "review_overlays_visible",
+        "ENGINEERING_REVIEW",
+        "if review_overlays_visible",
+        "include_source_hash=review_overlays_visible",
     ):
         assert required in source
 

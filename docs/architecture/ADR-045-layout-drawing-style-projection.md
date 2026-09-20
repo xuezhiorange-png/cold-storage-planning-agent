@@ -68,11 +68,20 @@ truck geometry determines the first two; legend, area schedule, title block,
 metadata and debug text live only in page space.
 
 The public projection boundary supports deterministic `PRESENTATION`,
-`MOBILE_PREVIEW` and `ENGINEERING_SHEET` page profiles. Mobile collapses page
-furniture without deleting engineering geometry. Presentation and engineering
-sheet place furniture in a non-overlapping right-hand page column. Occupancy is
-reported and checked against the frozen 0.78 target, 0.70 general minimum and
-0.80 mobile minimum.
+`MOBILE_PREVIEW`, `ENGINEERING_SHEET` and `ENGINEERING_REVIEW` page profiles.
+Presentation and mobile are user-facing views: they hide complete truck
+maneuver envelopes, corridor debug envelopes, portal debug text and raw
+validation metadata while retaining the business plan, loading face and
+major corridor expression. Engineering sheet/review profiles preserve the
+full review overlays. All profiles consume the same source geometry.
+
+Presentation and mobile use a `PRIMARY_PLAN_BOUNDS` focus derived only from
+the authoritative building footprint and twelve zone rectangles. A small,
+deterministic context inset retains the complete site/obstacle context; it is
+not a second engineering geometry and does not mutate source coordinates.
+The projection reports primary-plan occupancy plus width/height ratios, with
+mobile floors of 0.65, 0.70 and 0.55 respectively. Page furniture remains in
+page space and does not participate in the primary-plan measurement.
 
 This overlay does not change the structured layout result, any engineering
 coordinate, placement/routing/truck authority, MCP surface, database, PDF/DXF
