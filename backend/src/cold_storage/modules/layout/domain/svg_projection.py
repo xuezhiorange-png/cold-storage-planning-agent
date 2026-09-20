@@ -13,7 +13,7 @@ import hashlib
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation, localcontext
+from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal, InvalidOperation, localcontext
 from typing import Any, Final, cast
 from xml.sax.saxutils import escape, quoteattr
 
@@ -35,9 +35,23 @@ SVG_PROJECTION_IDENTITY: Final = "validated-layout-svg-projection@1.0.0"
 SVG_SCHEMA_VERSION: Final = "1.0.0"
 SVG_GEOMETRY_GRID_M: Final = Decimal("0.001")
 SVG_SCALE: Final = Decimal("10")
-SVG_MARGIN_M: Final = Decimal("8")
+SVG_MARGIN_M: Final = Decimal("4")
 SVG_LEGEND_WIDTH_M: Final = Decimal("42")
 SVG_TITLE_HEIGHT_M: Final = Decimal("18")
+SVG_PAGE_FURNITURE_GAP_M: Final = Decimal("4")
+SVG_PAGE_FURNITURE_WIDTH_M: Final = Decimal("60")
+SVG_PAGE_FURNITURE_MARGIN_M: Final = Decimal("2")
+SVG_AREA_SCHEDULE_HEIGHT_M: Final = Decimal("36")
+SVG_FURNITURE_GAP_M: Final = Decimal("2")
+SVG_MAIN_DRAWING_TARGET_OCCUPANCY: Final = Decimal("0.78")
+SVG_MAIN_DRAWING_MIN_OCCUPANCY: Final = Decimal("0.70")
+SVG_MAIN_DRAWING_MAX_OCCUPANCY: Final = Decimal("0.88")
+SVG_MOBILE_DRAWING_MIN_OCCUPANCY: Final = Decimal("0.80")
+SVG_PAGE_PROFILES: Final[tuple[str, ...]] = (
+    "PRESENTATION",
+    "MOBILE_PREVIEW",
+    "ENGINEERING_SHEET",
+)
 SVG_DISPLAY_DIMENSION_DECIMALS: Final = 2
 
 LAYER_ORDER: Final[tuple[str, ...]] = (
@@ -177,6 +191,197 @@ class SvgProjectionTransformV1:
             (x_m - self.min_x_m) * self.scale,
             (self.max_y_m - y_m) * self.scale,
         )
+
+
+def _safe_ratio(numerator: Decimal, denominator: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 60
+        return numerator / denominator
+
+
+def _ceil_to_grid(value: Decimal) -> Decimal:
+    return value.quantize(SVG_GEOMETRY_GRID_M, rounding=ROUND_CEILING)
+
+
+def _rectangles_overlap(left: Mapping[str, object], right: Mapping[str, object]) -> bool:
+    left_x = cast(Decimal, left["x"])
+    left_y = cast(Decimal, left["y"])
+    left_width = cast(Decimal, left["width"])
+    left_height = cast(Decimal, left["height"])
+    right_x = cast(Decimal, right["x"])
+    right_y = cast(Decimal, right["y"])
+    right_width = cast(Decimal, right["width"])
+    right_height = cast(Decimal, right["height"])
+    return not (
+        left_x + left_width <= right_x
+        or right_x + right_width <= left_x
+        or left_y + left_height <= right_y
+        or right_y + right_height <= left_y
+    )
+
+
+def _page_composition(
+    *,
+    geometry_min_x: Decimal,
+    geometry_min_y: Decimal,
+    geometry_max_x: Decimal,
+    geometry_max_y: Decimal,
+    page_profile: str,
+) -> dict[str, Any]:
+    """Build page-space rectangles without changing source engineering geometry."""
+    if page_profile not in SVG_PAGE_PROFILES:
+        raise _error("SVG_PAGE_PROFILE_INVALID", profile=page_profile)
+
+    drawing_min_x = geometry_min_x - SVG_MARGIN_M
+    drawing_min_y = geometry_min_y - SVG_MARGIN_M
+    drawing_max_x = geometry_max_x + SVG_MARGIN_M
+    drawing_max_y = geometry_max_y + SVG_MARGIN_M
+    drawing_width_m = drawing_max_x - drawing_min_x
+    drawing_height_m = drawing_max_y - drawing_min_y
+
+    if page_profile == "MOBILE_PREVIEW":
+        page_min_x = drawing_min_x
+        page_min_y = drawing_min_y
+        page_max_x = drawing_max_x
+        page_max_y = drawing_max_y
+        furniture: dict[str, dict[str, object]] = {}
+    else:
+        legend_height_m = Decimal("21")
+        title_height_m = SVG_TITLE_HEIGHT_M
+        required_furniture_height_m = (
+            SVG_PAGE_FURNITURE_MARGIN_M
+            + legend_height_m
+            + SVG_FURNITURE_GAP_M
+            + SVG_AREA_SCHEDULE_HEIGHT_M
+            + SVG_FURNITURE_GAP_M
+            + title_height_m
+            + SVG_PAGE_FURNITURE_MARGIN_M
+        )
+        page_height_m = max(drawing_height_m, required_furniture_height_m)
+        # Keep page furniture out of the engineering drawing while targeting the
+        # frozen occupancy range. The minimum width keeps the schedule legible;
+        # the target-derived width prevents a wide plan from becoming a tiny
+        # corner of the page.
+        target_page_width_m = _safe_ratio(
+            drawing_width_m * page_height_m,
+            SVG_MAIN_DRAWING_TARGET_OCCUPANCY * drawing_height_m,
+        )
+        target_furniture_width_m = _ceil_to_grid(
+            target_page_width_m - drawing_width_m - SVG_PAGE_FURNITURE_GAP_M
+        )
+        furniture_width_m = max(SVG_PAGE_FURNITURE_WIDTH_M, target_furniture_width_m)
+        page_min_x = drawing_min_x
+        page_min_y = drawing_max_y - page_height_m
+        page_max_x = drawing_max_x + SVG_PAGE_FURNITURE_GAP_M + furniture_width_m
+        page_max_y = drawing_max_y
+
+        page_width_px = (page_max_x - page_min_x) * SVG_SCALE
+        page_height_px = (page_max_y - page_min_y) * SVG_SCALE
+        furniture_x_px = (drawing_max_x + SVG_PAGE_FURNITURE_GAP_M - page_min_x) * SVG_SCALE
+        furniture_margin_px = SVG_PAGE_FURNITURE_MARGIN_M * SVG_SCALE
+        furniture_width_px = furniture_width_m * SVG_SCALE
+        inner_x = furniture_x_px + furniture_margin_px
+        inner_width = furniture_width_px - (furniture_margin_px * 2)
+        legend_y = furniture_margin_px
+        legend_height_px = legend_height_m * SVG_SCALE
+        schedule_y = legend_y + legend_height_px + (SVG_FURNITURE_GAP_M * SVG_SCALE)
+        schedule_height_px = SVG_AREA_SCHEDULE_HEIGHT_M * SVG_SCALE
+        title_height_px = title_height_m * SVG_SCALE
+        title_y = page_height_px - furniture_margin_px - title_height_px
+        furniture = {
+            "legend": {
+                "visible": True,
+                "x": inner_x,
+                "y": legend_y,
+                "width": inner_width,
+                "height": legend_height_px,
+            },
+            "area_schedule": {
+                "visible": True,
+                "x": inner_x,
+                "y": schedule_y,
+                "width": inner_width,
+                "height": schedule_height_px,
+            },
+            "title_block": {
+                "visible": True,
+                "x": inner_x,
+                "y": title_y,
+                "width": inner_width,
+                "height": title_height_px,
+            },
+        }
+
+    page_width_m = page_max_x - page_min_x
+    page_height_m = page_max_y - page_min_y
+    drawing_width_px = drawing_width_m * SVG_SCALE
+    drawing_height_px = drawing_height_m * SVG_SCALE
+    page_width_px = page_width_m * SVG_SCALE
+    page_height_px = page_height_m * SVG_SCALE
+    engineering_drawing_rect = {
+        "x": Decimal("0"),
+        "y": Decimal("0"),
+        "width": drawing_width_px,
+        "height": drawing_height_px,
+    }
+    main_occupancy = _safe_ratio(
+        drawing_width_px * drawing_height_px,
+        page_width_px * page_height_px,
+    )
+    source_width_m = geometry_max_x - geometry_min_x
+    source_height_m = geometry_max_y - geometry_min_y
+    source_occupancy = _safe_ratio(
+        source_width_m * source_height_m,
+        page_width_m * page_height_m,
+    )
+    furniture_values = tuple(furniture.values())
+    title_block = furniture.get("title_block")
+    area_schedule = furniture.get("area_schedule")
+    legend = furniture.get("legend")
+    return {
+        "profile": page_profile,
+        "engineering_geometry_bounds": {
+            "min_x_m": geometry_min_x,
+            "min_y_m": geometry_min_y,
+            "max_x_m": geometry_max_x,
+            "max_y_m": geometry_max_y,
+        },
+        "engineering_drawing_bounds": {
+            "min_x_m": drawing_min_x,
+            "min_y_m": drawing_min_y,
+            "max_x_m": drawing_max_x,
+            "max_y_m": drawing_max_y,
+            "scale": SVG_SCALE,
+        },
+        "page_layout_bounds": {
+            "min_x_m": page_min_x,
+            "min_y_m": page_min_y,
+            "max_x_m": page_max_x,
+            "max_y_m": page_max_y,
+            "scale": SVG_SCALE,
+        },
+        "engineering_drawing_rect": engineering_drawing_rect,
+        "page_size": {"width": page_width_px, "height": page_height_px},
+        "furniture": furniture,
+        "main_drawing_occupancy": main_occupancy,
+        "source_geometry_occupancy": source_occupancy,
+        "occupancy_target": SVG_MAIN_DRAWING_TARGET_OCCUPANCY,
+        "occupancy_min": SVG_MAIN_DRAWING_MIN_OCCUPANCY,
+        "occupancy_max": SVG_MAIN_DRAWING_MAX_OCCUPANCY,
+        "mobile_occupancy_min": SVG_MOBILE_DRAWING_MIN_OCCUPANCY,
+        "title_block_overlap": bool(
+            title_block and _rectangles_overlap(engineering_drawing_rect, title_block)
+        ),
+        "area_table_overlap": bool(
+            area_schedule and _rectangles_overlap(engineering_drawing_rect, area_schedule)
+        ),
+        "legend_overlap": bool(legend and _rectangles_overlap(engineering_drawing_rect, legend)),
+        "page_furniture_overlap": any(
+            _rectangles_overlap(left, right)
+            for index, left in enumerate(furniture_values)
+            for right in furniture_values[index + 1 :]
+        ),
+    }
 
 
 @dataclass(frozen=True)
@@ -810,6 +1015,229 @@ def _render_title_block(
     return _element("g", attrs={"id": "title-block"}, body="".join(parts))
 
 
+def _render_legend_at(
+    x: Decimal,
+    y: Decimal,
+    width: Decimal,
+    height: Decimal,
+    theme: SvgDrawingThemeV1,
+    source_hash: str,
+) -> str:
+    rows = (
+        ("场地边界", theme.site_outline, "none", "site"),
+        ("建筑轮廓", theme.building_outline, "none", "building"),
+        ("冷库/预冷区", theme.cold_zone_fill, theme.cold_zone_fill, "rect"),
+        ("生产/辅助区", theme.zone_fill, theme.zone_fill, "rect"),
+        ("人流/物流通道", theme.corridor_fill, theme.corridor_fill, "rect"),
+        ("入口 / Portal", theme.entrance_stroke, "none", "line"),
+        ("货车机动包络", theme.truck_envelope, "none", "dash"),
+        ("装卸面", theme.loading_face, "none", "line"),
+        ("禁建区", theme.obstacle_fill, theme.obstacle_fill, "rect"),
+    )
+    parts = [
+        _element(
+            "rect",
+            attrs={
+                "x": x,
+                "y": y,
+                "width": width,
+                "height": height,
+                "fill": theme.background,
+                "stroke": theme.building_outline,
+                "stroke-width": 1,
+            },
+        ),
+        _text(
+            x + Decimal("14"),
+            y + Decimal("22"),
+            "图例",
+            attrs={"fill": theme.text, "font-size": 16, "font-weight": "700"},
+        ),
+    ]
+    for index, (label, stroke, fill, kind) in enumerate(rows):
+        cy = y + Decimal("43") + (Decimal(index) * Decimal("18"))
+        if kind == "rect":
+            parts.append(
+                _element(
+                    "rect",
+                    attrs={
+                        "x": x + Decimal("14"),
+                        "y": cy - Decimal("9"),
+                        "width": 18,
+                        "height": 12,
+                        "fill": fill,
+                        "stroke": stroke,
+                        "stroke-width": 1,
+                    },
+                )
+            )
+        elif kind == "dash":
+            parts.append(
+                _element(
+                    "line",
+                    attrs={
+                        "x1": x + Decimal("14"),
+                        "y1": cy - Decimal("3"),
+                        "x2": x + Decimal("32"),
+                        "y2": cy - Decimal("3"),
+                        "stroke": stroke,
+                        "stroke-width": 2,
+                        "stroke-dasharray": "5 3",
+                    },
+                )
+            )
+        elif kind == "site":
+            parts.append(
+                _element(
+                    "rect",
+                    attrs={
+                        "x": x + Decimal("14"),
+                        "y": cy - Decimal("9"),
+                        "width": 18,
+                        "height": 12,
+                        "fill": "none",
+                        "stroke": stroke,
+                        "stroke-width": 2,
+                    },
+                )
+            )
+        else:
+            parts.append(
+                _element(
+                    "line",
+                    attrs={
+                        "x1": x + Decimal("14"),
+                        "y1": cy - Decimal("3"),
+                        "x2": x + Decimal("32"),
+                        "y2": cy - Decimal("3"),
+                        "stroke": stroke,
+                        "stroke-width": 3,
+                    },
+                )
+            )
+        parts.append(
+            _text(
+                x + Decimal("42"),
+                cy,
+                label,
+                attrs={"fill": theme.text, "font-size": 11},
+            )
+        )
+    parts.append(
+        _text(
+            x + Decimal("14"),
+            y + height - Decimal("12"),
+            f"source layout hash: {source_hash[7:19]}",
+            attrs={"fill": theme.text, "font-size": 10},
+        )
+    )
+    return _element("g", attrs={"id": "legend"}, body="".join(parts))
+
+
+def _render_area_schedule(
+    x: Decimal,
+    y: Decimal,
+    width: Decimal,
+    height: Decimal,
+    rectangles: Mapping[str, PlacedRectangleV1],
+    theme: SvgDrawingThemeV1,
+) -> str:
+    parts = [
+        _element(
+            "rect",
+            attrs={
+                "x": x,
+                "y": y,
+                "width": width,
+                "height": height,
+                "fill": theme.background,
+                "stroke": theme.building_outline,
+                "stroke-width": 1,
+            },
+        ),
+        _text(
+            x + Decimal("14"),
+            y + Decimal("22"),
+            "面积表",
+            attrs={"fill": theme.text, "font-size": 16, "font-weight": "700"},
+        ),
+    ]
+    for index, code in enumerate(EXPECTED_ZONE_CODES):
+        rectangle = rectangles[code]
+        row_y = y + Decimal("42") + (Decimal(index) * Decimal("24"))
+        value = (
+            f"{DISPLAY_LABELS[code]}  "
+            f"{format_display_number(rectangle.width_m)} × "
+            f"{format_display_number(rectangle.depth_m)} m  "
+            f"{format_display_number(rectangle.actual_area_m2)} m²"
+        )
+        parts.append(
+            _text(
+                x + Decimal("14"),
+                row_y,
+                value,
+                attrs={"fill": theme.text, "font-size": 10},
+            )
+        )
+    return _element("g", attrs={"id": "area-schedule"}, body="".join(parts))
+
+
+def _render_title_block_at(
+    x: Decimal,
+    y: Decimal,
+    width: Decimal,
+    height: Decimal,
+    theme: SvgDrawingThemeV1,
+    body: Mapping[str, Any],
+) -> str:
+    source_hash = str(body.get("canonical_result_hash", ""))
+    parts = [
+        _element(
+            "rect",
+            attrs={
+                "x": x,
+                "y": y,
+                "width": width,
+                "height": height,
+                "fill": theme.background,
+                "stroke": theme.building_outline,
+                "stroke-width": 1,
+            },
+        ),
+        _text(
+            x + Decimal("14"),
+            y + Decimal("23"),
+            "冷库/加工厂平面规划图",
+            attrs={"fill": theme.text, "font-size": 17, "font-weight": "700"},
+        ),
+        _text(
+            x + Decimal("14"),
+            y + Decimal("46"),
+            "v2.2  ·  Layout status: VALIDATED",
+            attrs={"fill": theme.text, "font-size": 12},
+        ),
+        _text(
+            x + Decimal("14"),
+            y + Decimal("66"),
+            "Zone count: 12   Access: 12/12",
+            attrs={"fill": theme.text, "font-size": 12},
+        ),
+        _text(
+            x + Decimal("14"),
+            y + Decimal("86"),
+            "Truck route: VALIDATED",
+            attrs={"fill": theme.text, "font-size": 12},
+        ),
+        _text(
+            x + Decimal("14"),
+            y + Decimal("106"),
+            f"Source layout hash: {source_hash[7:19]}",
+            attrs={"fill": theme.text, "font-size": 10},
+        ),
+    ]
+    return _element("g", attrs={"id": "title-block"}, body="".join(parts))
+
+
 def _render_svg(
     body: Mapping[str, Any],
     site: Mapping[str, Any],
@@ -819,6 +1247,7 @@ def _render_svg(
     loading_face: SegmentMM,
     *,
     theme: SvgDrawingThemeV1,
+    page_profile: str,
 ) -> tuple[str, dict[str, Any], dict[str, int]]:
     all_points = _all_geometry_points(site, rectangles, building, loading_face, body)
     min_x_mm, min_y_mm, max_x_mm, max_y_mm = _points_for_bounds(all_points)
@@ -826,13 +1255,20 @@ def _render_svg(
     geometry_min_y = Decimal(min_y_mm) / Decimal(1000)
     geometry_max_x = Decimal(max_x_mm) / Decimal(1000)
     geometry_max_y = Decimal(max_y_mm) / Decimal(1000)
-    drawing_min_x = geometry_min_x - SVG_MARGIN_M
-    drawing_min_y = geometry_min_y - SVG_MARGIN_M
-    drawing_max_x = geometry_max_x + SVG_MARGIN_M + SVG_LEGEND_WIDTH_M
-    drawing_max_y = geometry_max_y + SVG_MARGIN_M + SVG_TITLE_HEIGHT_M
-    width = (drawing_max_x - drawing_min_x) * SVG_SCALE
-    height = (drawing_max_y - drawing_min_y) * SVG_SCALE
-    transform = SvgProjectionTransformV1(drawing_min_x, drawing_max_y)
+    composition = _page_composition(
+        geometry_min_x=geometry_min_x,
+        geometry_min_y=geometry_min_y,
+        geometry_max_x=geometry_max_x,
+        geometry_max_y=geometry_max_y,
+        page_profile=page_profile,
+    )
+    page_bounds = composition["page_layout_bounds"]
+    page_min_x = cast(Decimal, page_bounds["min_x_m"])
+    page_max_y = cast(Decimal, page_bounds["max_y_m"])
+    page_size = composition["page_size"]
+    width = cast(Decimal, page_size["width"])
+    height = cast(Decimal, page_size["height"])
+    transform = SvgProjectionTransformV1(page_min_x, page_max_y)
 
     metadata = {
         "projection_identity": SVG_PROJECTION_IDENTITY,
@@ -842,6 +1278,10 @@ def _render_svg(
         "scale": SVG_SCALE,
         "source_layout_hash": body["canonical_result_hash"],
         "north_angle_degrees": site["north_angle_degrees"],
+        "page_profile": page_profile,
+        "engineering_geometry_bounds": composition["engineering_geometry_bounds"],
+        "engineering_drawing_bounds": composition["engineering_drawing_bounds"],
+        "page_layout_bounds": composition["page_layout_bounds"],
     }
     defs = _element(
         "defs",
@@ -1232,8 +1672,39 @@ def _render_svg(
         "g", attrs={"id": "dimensions"}, body=_render_dimensions(rectangles, transform, theme)
     )
     labels_group = _element("g", attrs={"id": "labels"}, body="".join(label_parts))
-    legend_group = _render_legend(width, height, theme, str(body["canonical_result_hash"]))
-    title_block = _render_title_block(width, height, theme, body)
+    furniture = cast(dict[str, dict[str, object]], composition["furniture"])
+    if page_profile == "MOBILE_PREVIEW":
+        legend_group = ""
+        schedule_group = ""
+        title_block = ""
+    else:
+        legend_rect = furniture["legend"]
+        schedule_rect = furniture["area_schedule"]
+        title_rect = furniture["title_block"]
+        legend_group = _render_legend_at(
+            cast(Decimal, legend_rect["x"]),
+            cast(Decimal, legend_rect["y"]),
+            cast(Decimal, legend_rect["width"]),
+            cast(Decimal, legend_rect["height"]),
+            theme,
+            str(body["canonical_result_hash"]),
+        )
+        schedule_group = _render_area_schedule(
+            cast(Decimal, schedule_rect["x"]),
+            cast(Decimal, schedule_rect["y"]),
+            cast(Decimal, schedule_rect["width"]),
+            cast(Decimal, schedule_rect["height"]),
+            rectangles,
+            theme,
+        )
+        title_block = _render_title_block_at(
+            cast(Decimal, title_rect["x"]),
+            cast(Decimal, title_rect["y"]),
+            cast(Decimal, title_rect["width"]),
+            cast(Decimal, title_rect["height"]),
+            theme,
+            body,
+        )
     metadata_element = _element("metadata", body=escape(canonical_json(metadata)))
     svg = '<?xml version="1.0" encoding="UTF-8"?>' + _element(
         "svg",
@@ -1260,15 +1731,9 @@ def _render_svg(
         + dimensions_group
         + labels_group
         + legend_group
+        + schedule_group
         + title_block,
     )
-    bounds = {
-        "min_x_m": drawing_min_x,
-        "min_y_m": drawing_min_y,
-        "max_x_m": drawing_max_x,
-        "max_y_m": drawing_max_y,
-        "scale": SVG_SCALE,
-    }
     counts = {
         "zone_count": len(rectangles),
         "portal_count": len(raw_portals),
@@ -1277,7 +1742,7 @@ def _render_svg(
         if raw_maneuvers
         else len(body.get("truck_envelopes", [])),
     }
-    return svg, bounds, counts
+    return svg, composition, counts
 
 
 def build_projection_payload(
@@ -1286,6 +1751,7 @@ def build_projection_payload(
     *,
     source_layout_hash: str,
     theme: object | None = None,
+    page_profile: str = "PRESENTATION",
 ) -> dict[str, Any]:
     """Render one validated result and return the projection payload."""
     normalized_theme = validate_svg_theme(theme)
@@ -1301,12 +1767,13 @@ def build_projection_payload(
         gross_area,
         loading_face,
         theme=normalized_theme,
+        page_profile=page_profile,
     )
     svg_hash = "sha256:" + hashlib.sha256(svg.encode("utf-8")).hexdigest()
-    view_box = (
-        f"0 0 {_format_number((bounds['max_x_m'] - bounds['min_x_m']) * SVG_SCALE)} "
-        f"{_format_number((bounds['max_y_m'] - bounds['min_y_m']) * SVG_SCALE)}"
-    )
+    page_bounds = cast(dict[str, Decimal], bounds["page_layout_bounds"])
+    page_width = (page_bounds["max_x_m"] - page_bounds["min_x_m"]) * SVG_SCALE
+    page_height = (page_bounds["max_y_m"] - page_bounds["min_y_m"]) * SVG_SCALE
+    view_box = f"0 0 {_format_number(page_width)} {_format_number(page_height)}"
     return {
         "identity": SVG_PROJECTION_IDENTITY,
         "schema_version": SVG_SCHEMA_VERSION,
@@ -1317,8 +1784,25 @@ def build_projection_payload(
         "source_objective_profile_hash": body.get("source_objective_profile_hash"),
         "source_placement_result_hash": body.get("source_placement_result_hash"),
         "source_truck_maneuver_binding_hash": body.get("source_truck_maneuver_binding_hash"),
+        "page_profile": bounds["profile"],
         "view_box": view_box,
-        "drawing_bounds": bounds,
+        "drawing_bounds": bounds["engineering_drawing_bounds"],
+        "engineering_geometry_bounds": bounds["engineering_geometry_bounds"],
+        "engineering_drawing_bounds": bounds["engineering_drawing_bounds"],
+        "page_layout_bounds": bounds["page_layout_bounds"],
+        "page_size": bounds["page_size"],
+        "engineering_drawing_rect": bounds["engineering_drawing_rect"],
+        "page_furniture": bounds["furniture"],
+        "main_drawing_occupancy": bounds["main_drawing_occupancy"],
+        "source_geometry_occupancy": bounds["source_geometry_occupancy"],
+        "main_drawing_target_occupancy": bounds["occupancy_target"],
+        "main_drawing_min_occupancy": bounds["occupancy_min"],
+        "main_drawing_max_occupancy": bounds["occupancy_max"],
+        "mobile_drawing_min_occupancy": bounds["mobile_occupancy_min"],
+        "title_block_overlap": bounds["title_block_overlap"],
+        "area_table_overlap": bounds["area_table_overlap"],
+        "legend_overlap": bounds["legend_overlap"],
+        "page_furniture_overlap": bounds["page_furniture_overlap"],
         "layer_order": list(LAYER_ORDER),
         **counts,
         "svg": svg,

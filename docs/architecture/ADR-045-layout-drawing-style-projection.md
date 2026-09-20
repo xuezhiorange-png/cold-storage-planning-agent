@@ -57,3 +57,24 @@ This ADR does not implement or authorize renderer changes, route or placement
 search, engineering formula changes, PDF/DXF/CAD/BIM export, frontend work,
 MCP changes, database migration, release, deployment, or the next feature
 lane.
+
+## P1A implementation overlay — canvas and page composition
+
+P1A is separately authorized to implement only the canvas correction described
+by the frozen contract. The SVG renderer now keeps
+`engineering_geometry_bounds`, `engineering_drawing_bounds` and
+`page_layout_bounds` distinct. Authoritative site, building, zone, access and
+truck geometry determines the first two; legend, area schedule, title block,
+metadata and debug text live only in page space.
+
+The public projection boundary supports deterministic `PRESENTATION`,
+`MOBILE_PREVIEW` and `ENGINEERING_SHEET` page profiles. Mobile collapses page
+furniture without deleting engineering geometry. Presentation and engineering
+sheet place furniture in a non-overlapping right-hand page column. Occupancy is
+reported and checked against the frozen 0.78 target, 0.70 general minimum and
+0.80 mobile minimum.
+
+This overlay does not change the structured layout result, any engineering
+coordinate, placement/routing/truck authority, MCP surface, database, PDF/DXF
+export, or downstream authorization. P1B and later presentation work remain
+independently unauthorized.
