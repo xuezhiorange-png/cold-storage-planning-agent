@@ -24,6 +24,7 @@ DOC = "docs/tasks/V2_2_1-P1A-canvas-viewbox-page-composition.md"
 PLAN = "docs/tasks/V2_2-version-plan.md"
 ADR = "docs/architecture/ADR-045-layout-drawing-style-projection.md"
 ALLOWED_PATHS = {DOMAIN, APPLICATION, UNIT, SELF, DOC, PLAN, ADR}
+GENERATED_ARTIFACT_PREFIX = "backend/artifacts/local/"
 PROTECTED_PREFIXES = (
     "frontend/",
     "backend/alembic/",
@@ -48,7 +49,11 @@ def _git(*args: str) -> str:
 def _paths_from_base() -> set[str]:
     paths = set(_git("diff", "--name-only", BASE_MAIN_SHA, "HEAD").splitlines())
     paths.update(_git("ls-files", "--others", "--exclude-standard").splitlines())
-    return {path for path in paths if path}
+    return {
+        path
+        for path in paths
+        if path and not path.startswith(GENERATED_ARTIFACT_PREFIX)
+    }
 
 
 def _source(path: str) -> str:
