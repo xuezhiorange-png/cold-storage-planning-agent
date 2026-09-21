@@ -106,5 +106,24 @@ properties only; source layout hashes, coordinates, building/zone/access/
 truck geometry, loading face, P1A primary-plan bounds and page composition are
 unchanged.
 
-P1C label restructuring, racks/equipment/grid/columns, P2/P2D, MCP, frontend,
-database and export work remain outside this overlay and unauthorized.
+## P1C implementation overlay — room labels and collision-safe annotation
+
+P1C is separately authorized as a projection-only correction. It applies the
+existing stable Chinese display-label registry and the frozen fallback order
+`3_LINES > 2_LINES > 1_LINE > NUMERIC_ID`. A numeric room ID is mapped to the
+Chinese name and area in the deterministic area schedule. Business views do
+not expose internal zone codes, schema identities, source hashes or portal
+debug text; `ENGINEERING_REVIEW` retains the existing review visibility.
+
+The label planner tests fixed anchors in deterministic order and checks the
+resulting screen-space label box against the room, visible portals and visible
+dimension annotations. It reports zero wall crossings and zero primary label
+collisions without moving or resizing any source engineering geometry. Focused
+presentation keeps only the selected major room dimensions, mobile keeps no
+room dimension chain, and engineering sheet/review retain the full dimension
+groups.
+
+This overlay does not change P1A focus/composition, P1B monochrome styling,
+zone geometry, layout algorithms, access/truck validation, P2/P2D/P4, MCP,
+frontend, database or export behavior. Owner visual review remains separate
+from automated collision and determinism tests.

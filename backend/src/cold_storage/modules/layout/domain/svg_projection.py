@@ -76,6 +76,27 @@ SVG_FOCUS_PROFILES: Final[frozenset[str]] = frozenset({"PRESENTATION", "MOBILE_P
 SVG_REVIEW_PROFILES: Final[frozenset[str]] = frozenset({"ENGINEERING_SHEET", "ENGINEERING_REVIEW"})
 SVG_REVIEW_ACCENT_PROFILES: Final[frozenset[str]] = frozenset({"ENGINEERING_REVIEW"})
 SVG_DISPLAY_DIMENSION_DECIMALS: Final = 2
+SVG_LABEL_FONT_SIZE: Final = Decimal("11")
+SVG_LABEL_COMPACT_FONT_SIZE: Final = Decimal("10")
+SVG_LABEL_NUMERIC_FONT_SIZE: Final = Decimal("9")
+SVG_LABEL_LINE_HEIGHT: Final = Decimal("14")
+SVG_LABEL_BOX_PADDING: Final = Decimal("2")
+SVG_LABEL_WALL_CLEARANCE: Final = Decimal("2")
+SVG_LABEL_PORTAL_CLEARANCE: Final = Decimal("4")
+SVG_LABEL_ANCHOR_ORDER: Final[tuple[str, ...]] = (
+    "CENTER",
+    "TOP",
+    "BOTTOM",
+    "LEFT",
+    "RIGHT",
+)
+SVG_PRESENTATION_DIMENSION_CODES: Final[tuple[str, ...]] = (
+    "primary_precooling_room",
+    "secondary_precooling_room",
+    "sorting_packaging_room",
+    "shipping_channel",
+)
+SVG_MOBILE_DIMENSION_CODES: Final[tuple[str, ...]] = ()
 
 LAYER_ORDER: Final[tuple[str, ...]] = (
     "site-boundary",
@@ -890,6 +911,315 @@ def _multiline_text(
     return _element("text", attrs=text_attrs, body=body)
 
 
+def _dimension_codes_for_profile(page_profile: str) -> tuple[str, ...]:
+    if page_profile == "PRESENTATION":
+        return SVG_PRESENTATION_DIMENSION_CODES
+    if page_profile == "MOBILE_PREVIEW":
+        return SVG_MOBILE_DIMENSION_CODES
+    return EXPECTED_ZONE_CODES
+
+
+def _screen_rectangle_bounds(
+    rectangle: PlacedRectangleV1, transform: SvgProjectionTransformV1
+) -> dict[str, Decimal]:
+    left, bottom, right, top = rectangle.bounds_mm
+    points = (
+        transform.point((left, bottom)),
+        transform.point((right, bottom)),
+        transform.point((right, top)),
+        transform.point((left, top)),
+    )
+    xs = [point[0] for point in points]
+    ys = [point[1] for point in points]
+    return {
+        "x": min(xs),
+        "y": min(ys),
+        "width": max(xs) - min(xs),
+        "height": max(ys) - min(ys),
+    }
+
+
+def _estimated_text_width(text: str, font_size: Decimal) -> Decimal:
+    """Use a stable conservative width estimate for presentation-only labels."""
+    width = Decimal("0")
+    for character in text:
+        # CJK glyphs are approximately square at the selected font size.  The
+        # ASCII estimate covers units, digits and punctuation without relying
+        # on a runner-specific font or browser text measurement.
+        width += font_size if ord(character) >= 0x2E80 else font_size * Decimal("0.62")
+    return width
+
+
+def _label_box(
+    lines: Sequence[str],
+    font_size: Decimal,
+    line_height: Decimal = SVG_LABEL_LINE_HEIGHT,
+) -> tuple[Decimal, Decimal]:
+    width = max((_estimated_text_width(line, font_size) for line in lines), default=font_size)
+    height = font_size + (line_height * Decimal(max(0, len(lines) - 1)))
+    return (
+        width + (SVG_LABEL_BOX_PADDING * 2),
+        height + (SVG_LABEL_BOX_PADDING * 2),
+    )
+
+
+def _label_anchor_center(
+    room: Mapping[str, Decimal],
+    box_width: Decimal,
+    box_height: Decimal,
+    anchor: str,
+) -> tuple[Decimal, Decimal]:
+    room_left = room["x"]
+    room_top = room["y"]
+    room_right = room_left + room["width"]
+    room_bottom = room_top + room["height"]
+    center_x = (room_left + room_right) / Decimal("2")
+    center_y = (room_top + room_bottom) / Decimal("2")
+    if anchor == "TOP":
+        center_y = room_top + SVG_LABEL_WALL_CLEARANCE + (box_height / Decimal("2"))
+    elif anchor == "BOTTOM":
+        center_y = room_bottom - SVG_LABEL_WALL_CLEARANCE - (box_height / Decimal("2"))
+    elif anchor == "LEFT":
+        center_x = room_left + SVG_LABEL_WALL_CLEARANCE + (box_width / Decimal("2"))
+    elif anchor == "RIGHT":
+        center_x = room_right - SVG_LABEL_WALL_CLEARANCE - (box_width / Decimal("2"))
+    return center_x, center_y
+
+
+def _box_at_center(
+    center_x: Decimal, center_y: Decimal, width: Decimal, height: Decimal
+) -> dict[str, Decimal]:
+    return {
+        "x": center_x - (width / Decimal("2")),
+        "y": center_y - (height / Decimal("2")),
+        "width": width,
+        "height": height,
+    }
+
+
+def _box_inside(candidate: Mapping[str, Decimal], room: Mapping[str, Decimal]) -> bool:
+    clearance = SVG_LABEL_WALL_CLEARANCE
+    return (
+        candidate["x"] >= room["x"] + clearance
+        and candidate["y"] >= room["y"] + clearance
+        and candidate["x"] + candidate["width"] <= room["x"] + room["width"] - clearance
+        and candidate["y"] + candidate["height"] <= room["y"] + room["height"] - clearance
+    )
+
+
+def _screen_segment_box(
+    segment: SegmentMM,
+    transform: SvgProjectionTransformV1,
+    padding: Decimal,
+) -> dict[str, Decimal]:
+    first = transform.point(segment[0])
+    second = transform.point(segment[1])
+    return {
+        "x": min(first[0], second[0]) - padding,
+        "y": min(first[1], second[1]) - padding,
+        "width": abs(first[0] - second[0]) + (padding * 2),
+        "height": abs(first[1] - second[1]) + (padding * 2),
+    }
+
+
+def _dimension_obstacle_boxes(
+    rectangles: Mapping[str, PlacedRectangleV1],
+    transform: SvgProjectionTransformV1,
+    dimension_codes: Sequence[str],
+) -> list[dict[str, Decimal]]:
+    """Reserve the screen-space footprint of visible dimension annotations."""
+    obstacles: list[dict[str, Decimal]] = []
+    for code in dimension_codes:
+        rectangle = rectangles[code]
+        left, bottom, right, top = rectangle.bounds_mm
+        hx1, hy1 = transform.point((left, bottom))
+        hx2, hy2 = transform.point((right, bottom))
+        vx1, vy1 = transform.point((left, bottom))
+        vx2, vy2 = transform.point((left, top))
+        offset = Decimal("2") * transform.scale
+        h_y = hy1 + offset
+        v_x = vx1 - offset
+        line_padding = SVG_STROKE_W1
+        obstacles.append(
+            {
+                "x": min(hx1, hx2) - line_padding,
+                "y": h_y - line_padding,
+                "width": abs(hx2 - hx1) + (line_padding * 2),
+                "height": line_padding * 2,
+            }
+        )
+        horizontal_text = f"{format_display_number(Decimal(right - left) / Decimal(1000))} m"
+        text_width = _estimated_text_width(horizontal_text, Decimal("11"))
+        obstacles.append(
+            _box_at_center(
+                (hx1 + hx2) / Decimal("2"),
+                h_y + Decimal("12") - Decimal("5"),
+                text_width,
+                Decimal("14"),
+            )
+        )
+        obstacles.append(
+            {
+                "x": v_x - line_padding,
+                "y": min(vy1, vy2) - line_padding,
+                "width": line_padding * 2,
+                "height": abs(vy2 - vy1) + (line_padding * 2),
+            }
+        )
+        vertical_text = f"{format_display_number(Decimal(top - bottom) / Decimal(1000))} m"
+        obstacles.append(
+            _box_at_center(
+                v_x - Decimal("5"),
+                (vy1 + vy2) / Decimal("2"),
+                Decimal("14"),
+                _estimated_text_width(vertical_text, Decimal("11")),
+            )
+        )
+    return obstacles
+
+
+def _label_lines(
+    code: str,
+    rectangle: PlacedRectangleV1,
+    mode: str,
+    *,
+    debug: bool,
+) -> tuple[str, ...]:
+    name = DISPLAY_LABELS[code]
+    area = f"{format_display_number(rectangle.actual_area_m2)} m²"
+    dimensions = (
+        f"{format_display_number(rectangle.width_m)} × {format_display_number(rectangle.depth_m)} m"
+    )
+    if debug:
+        if mode == "DEBUG":
+            return (name, code, dimensions, area)
+        if mode == "DEBUG_SHORT":
+            return (name, code)
+    if mode == "3_LINES":
+        return (name, area, dimensions)
+    if mode == "2_LINES":
+        return (name, area)
+    if mode == "1_LINE":
+        return (name,)
+    return (f"{EXPECTED_ZONE_CODES.index(code) + 1:02d}",)
+
+
+def _label_modes(*, debug: bool) -> tuple[tuple[str, Decimal], ...]:
+    if debug:
+        return (("DEBUG", SVG_LABEL_FONT_SIZE), ("DEBUG_SHORT", SVG_LABEL_FONT_SIZE))
+    return (
+        ("3_LINES", SVG_LABEL_FONT_SIZE),
+        ("2_LINES", SVG_LABEL_FONT_SIZE),
+        ("1_LINE", SVG_LABEL_COMPACT_FONT_SIZE),
+        ("NUMERIC_ID", SVG_LABEL_NUMERIC_FONT_SIZE),
+    )
+
+
+def _build_room_label_plan(
+    rectangles: Mapping[str, PlacedRectangleV1],
+    transform: SvgProjectionTransformV1,
+    *,
+    page_profile: str,
+    portal_segments: Sequence[SegmentMM],
+    dimension_codes: Sequence[str],
+) -> tuple[dict[str, dict[str, Any]], dict[str, int]]:
+    """Choose stable presentation labels without mutating engineering geometry."""
+    debug = page_profile == "ENGINEERING_REVIEW"
+    obstacles = [
+        _screen_segment_box(segment, transform, SVG_LABEL_PORTAL_CLEARANCE)
+        for segment in portal_segments
+    ]
+    obstacles.extend(_dimension_obstacle_boxes(rectangles, transform, dimension_codes))
+    plans: dict[str, dict[str, Any]] = {}
+    placed_boxes: list[dict[str, Decimal]] = []
+    for code in EXPECTED_ZONE_CODES:
+        rectangle = rectangles[code]
+        room = _screen_rectangle_bounds(rectangle, transform)
+        chosen: dict[str, Any] | None = None
+        for mode, font_size in _label_modes(debug=debug):
+            lines = _label_lines(code, rectangle, mode, debug=debug)
+            box_width, box_height = _label_box(lines, font_size)
+            for anchor in SVG_LABEL_ANCHOR_ORDER:
+                center_x, center_y = _label_anchor_center(room, box_width, box_height, anchor)
+                box = _box_at_center(center_x, center_y, box_width, box_height)
+                if not _box_inside(box, room):
+                    continue
+                if any(_rectangles_overlap(box, other) for other in placed_boxes):
+                    continue
+                if any(_rectangles_overlap(box, other) for other in obstacles):
+                    continue
+                chosen = {
+                    "code": code,
+                    "index": f"{EXPECTED_ZONE_CODES.index(code) + 1:02d}",
+                    "mode": mode,
+                    "lines": lines,
+                    "font_size": font_size,
+                    "line_height": SVG_LABEL_LINE_HEIGHT,
+                    "center_x": center_x,
+                    "center_y": center_y,
+                    "box": box,
+                    "room": room,
+                    "anchor": anchor,
+                    "callout": False,
+                }
+                break
+            if chosen is not None:
+                break
+        if chosen is None:
+            # A room that cannot hold even its fixed numeric ID uses a stable
+            # callout.  It is not counted as a wall-crossing room label because
+            # the room label itself is intentionally externalized to the schedule.
+            lines = _label_lines(code, rectangle, "NUMERIC_ID", debug=False)
+            box_width, box_height = _label_box(lines, SVG_LABEL_NUMERIC_FONT_SIZE)
+            room_center_x = room["x"] + room["width"] / Decimal("2")
+            room_center_y = room["y"] + room["height"] / Decimal("2")
+            center_x = room["x"] + room["width"] + Decimal("8") + box_width / Decimal("2")
+            center_y = room_center_y
+            chosen = {
+                "code": code,
+                "index": f"{EXPECTED_ZONE_CODES.index(code) + 1:02d}",
+                "mode": "CALLOUT",
+                "lines": lines,
+                "font_size": SVG_LABEL_NUMERIC_FONT_SIZE,
+                "line_height": SVG_LABEL_LINE_HEIGHT,
+                "center_x": center_x,
+                "center_y": center_y,
+                "box": _box_at_center(center_x, center_y, box_width, box_height),
+                "room": room,
+                "anchor": "CALLOUT_RIGHT",
+                "callout": True,
+                "leader_start_x": room_center_x,
+                "leader_start_y": room_center_y,
+                "leader_end_x": center_x - box_width / Decimal("2"),
+                "leader_end_y": center_y,
+            }
+        plans[code] = chosen
+        placed_boxes.append(cast(dict[str, Decimal], chosen["box"]))
+
+    primary_collision_count = 0
+    for index, left in enumerate(placed_boxes):
+        for right in placed_boxes[index + 1 :]:
+            primary_collision_count += int(_rectangles_overlap(left, right))
+        primary_collision_count += sum(
+            int(_rectangles_overlap(left, obstacle)) for obstacle in obstacles
+        )
+    wall_crossing_count = sum(
+        int(not _box_inside(cast(Mapping[str, Decimal], plan["box"]), plan["room"]))
+        for plan in plans.values()
+        if not plan["callout"]
+    )
+    metrics = {
+        "ROOM_LABEL_WALL_CROSSING_COUNT": wall_crossing_count,
+        "ROOM_LABEL_PRIMARY_COLLISION_COUNT": primary_collision_count,
+        "ROOM_LABEL_3_LINE_COUNT": sum(plan["mode"] == "3_LINES" for plan in plans.values()),
+        "ROOM_LABEL_2_LINE_COUNT": sum(plan["mode"] == "2_LINES" for plan in plans.values()),
+        "ROOM_LABEL_1_LINE_COUNT": sum(plan["mode"] == "1_LINE" for plan in plans.values()),
+        "ROOM_LABEL_NUMERIC_ID_COUNT": sum(plan["mode"] == "NUMERIC_ID" for plan in plans.values()),
+        "ROOM_LABEL_CALLOUT_COUNT": sum(plan["callout"] for plan in plans.values()),
+    }
+    return plans, metrics
+
+
 def _style(theme: SvgDrawingThemeV1, **values: object) -> dict[str, object]:
     return {key: value for key, value in values.items()}
 
@@ -898,10 +1228,36 @@ def _render_dimensions(
     rectangles: Mapping[str, PlacedRectangleV1],
     transform: SvgProjectionTransformV1,
     theme: SvgDrawingThemeV1,
+    *,
+    dimension_codes: Sequence[str] = EXPECTED_ZONE_CODES,
 ) -> str:
     parts: list[str] = []
     for code in EXPECTED_ZONE_CODES:
         rectangle = rectangles[code]
+        group_id = f"dimension-zone-{_safe_id(code)}"
+        if code not in dimension_codes:
+            # Keep stable machine identities for consumers and historical
+            # architecture tests, but do not paint non-selected room chains in
+            # focused business views.
+            parts.append(
+                _element(
+                    "g",
+                    attrs={"id": group_id, "data-zone-code": code, "data-dimension-level": "3"},
+                    body=_element(
+                        "line",
+                        attrs={
+                            "x1": 0,
+                            "y1": 0,
+                            "x2": 0,
+                            "y2": 0,
+                            "stroke": theme.dimension,
+                            "stroke-width": SVG_STROKE_W1,
+                            "visibility": "hidden",
+                        },
+                    ),
+                )
+            )
+            continue
         left, bottom, right, top = rectangle.bounds_mm
         horizontal = ((left, bottom), (right, bottom))
         vertical = ((left, bottom), (left, top))
@@ -914,7 +1270,6 @@ def _render_dimensions(
         v_x = vx1 - offset
         horizontal_value = Decimal(right - left) / Decimal(1000)
         vertical_value = Decimal(top - bottom) / Decimal(1000)
-        group_id = f"dimension-zone-{_safe_id(code)}"
         vertical_label_x = v_x - Decimal("5")
         vertical_label_y = (vy1 + vy2) / 2
         vertical_transform = (
@@ -1014,8 +1369,133 @@ def _render_dimensions(
                 ),
             )
         )
-        parts.append(_element("g", attrs={"id": group_id, "data-zone-code": code}, body=body))
+        parts.append(
+            _element(
+                "g",
+                attrs={"id": group_id, "data-zone-code": code, "data-dimension-level": "2"},
+                body=body,
+            )
+        )
     return "".join(parts)
+
+
+def _render_total_dimensions(
+    building: PolygonMM,
+    transform: SvgProjectionTransformV1,
+    theme: SvgDrawingThemeV1,
+) -> str:
+    """Render the frozen level-1 overall building extents."""
+    min_x, min_y, max_x, max_y = _points_for_bounds(building)
+    hx1, hy1 = transform.point((min_x, min_y))
+    hx2, hy2 = transform.point((max_x, min_y))
+    vx1, vy1 = transform.point((min_x, min_y))
+    vx2, vy2 = transform.point((min_x, max_y))
+    offset = Decimal("3") * transform.scale
+    h_y = hy1 + offset
+    v_x = vx1 - offset
+    horizontal_value = Decimal(max_x - min_x) / Decimal(1000)
+    vertical_value = Decimal(max_y - min_y) / Decimal(1000)
+    vertical_label_x = v_x - Decimal("5")
+    vertical_label_y = (vy1 + vy2) / Decimal("2")
+    vertical_transform = (
+        f"rotate(-90 {_format_number(vertical_label_x)} {_format_number(vertical_label_y)})"
+    )
+    body = "".join(
+        (
+            _element(
+                "line",
+                attrs={
+                    "x1": hx1,
+                    "y1": h_y,
+                    "x2": hx2,
+                    "y2": h_y,
+                    "stroke": theme.dimension,
+                    "stroke-width": SVG_STROKE_W1,
+                    "marker-start": "url(#dimension-tick)",
+                    "marker-end": "url(#dimension-tick)",
+                },
+            ),
+            _element(
+                "line",
+                attrs={
+                    "x1": hx1,
+                    "y1": hy1,
+                    "x2": hx1,
+                    "y2": h_y,
+                    "stroke": theme.dimension,
+                    "stroke-width": SVG_STROKE_W1,
+                },
+            ),
+            _element(
+                "line",
+                attrs={
+                    "x1": hx2,
+                    "y1": hy2,
+                    "x2": hx2,
+                    "y2": h_y,
+                    "stroke": theme.dimension,
+                    "stroke-width": SVG_STROKE_W1,
+                },
+            ),
+            _text(
+                (hx1 + hx2) / Decimal("2"),
+                h_y + Decimal("12"),
+                f"{format_display_number(horizontal_value)} m",
+                attrs={"fill": theme.dimension, "font-size": 11, "text-anchor": "middle"},
+            ),
+            _element(
+                "line",
+                attrs={
+                    "x1": v_x,
+                    "y1": vy1,
+                    "x2": v_x,
+                    "y2": vy2,
+                    "stroke": theme.dimension,
+                    "stroke-width": SVG_STROKE_W1,
+                    "marker-start": "url(#dimension-tick)",
+                    "marker-end": "url(#dimension-tick)",
+                },
+            ),
+            _element(
+                "line",
+                attrs={
+                    "x1": vx1,
+                    "y1": vy1,
+                    "x2": v_x,
+                    "y2": vy1,
+                    "stroke": theme.dimension,
+                    "stroke-width": SVG_STROKE_W1,
+                },
+            ),
+            _element(
+                "line",
+                attrs={
+                    "x1": vx2,
+                    "y1": vy2,
+                    "x2": v_x,
+                    "y2": vy2,
+                    "stroke": theme.dimension,
+                    "stroke-width": SVG_STROKE_W1,
+                },
+            ),
+            _text(
+                vertical_label_x,
+                vertical_label_y,
+                f"{format_display_number(vertical_value)} m",
+                attrs={
+                    "fill": theme.dimension,
+                    "font-size": 11,
+                    "text-anchor": "middle",
+                    "transform": vertical_transform,
+                },
+            ),
+        )
+    )
+    return _element(
+        "g",
+        attrs={"id": "dimension-level-1-total", "data-dimension-level": "1"},
+        body=body,
+    )
 
 
 def _render_legend(
@@ -1329,14 +1809,18 @@ def _render_area_schedule(
             "面积表",
             attrs={"fill": theme.text, "font-size": 16, "font-weight": "700"},
         ),
+        _text(
+            x + Decimal("14"),
+            y + Decimal("34"),
+            "编号 | 中文名称 | 面积",
+            attrs={"fill": theme.text, "font-size": 9},
+        ),
     ]
     for index, code in enumerate(EXPECTED_ZONE_CODES):
         rectangle = rectangles[code]
         row_y = y + Decimal("42") + (Decimal(index) * Decimal("24"))
         value = (
-            f"{DISPLAY_LABELS[code]}  "
-            f"{format_display_number(rectangle.width_m)} × "
-            f"{format_display_number(rectangle.depth_m)} m  "
+            f"{index + 1:02d} | {DISPLAY_LABELS[code]} | "
             f"{format_display_number(rectangle.actual_area_m2)} m²"
         )
         parts.append(
@@ -1465,6 +1949,25 @@ def _render_svg(
             offset_y_px=cast(Decimal, context["y"]) + context_padding,
         )
     site_transform = context_transform if context_transform is not None else transform
+    raw_portals = body.get("portals", [])
+    if not isinstance(raw_portals, list):
+        raise _error("SVG_PROJECTION_INPUT_INVALID", field="portals")
+    portal_segments = tuple(
+        _segment(
+            _mapping(portal_value, field=f"portals[{index}]").get("segment"),
+            field=f"portals[{index}].segment",
+        )
+        for index, portal_value in enumerate(raw_portals)
+    )
+    dimension_codes = _dimension_codes_for_profile(page_profile)
+    label_plans, label_metrics = _build_room_label_plan(
+        rectangles,
+        transform,
+        page_profile=page_profile,
+        portal_segments=portal_segments,
+        dimension_codes=dimension_codes,
+    )
+    internal_zone_code_visible = page_profile == "ENGINEERING_REVIEW"
 
     metadata = {
         "projection_identity": SVG_PROJECTION_IDENTITY,
@@ -1493,6 +1996,11 @@ def _render_svg(
         "engineering_geometry_bounds": composition["engineering_geometry_bounds"],
         "engineering_drawing_bounds": composition["engineering_drawing_bounds"],
         "page_layout_bounds": composition["page_layout_bounds"],
+        "room_label_metrics": label_metrics,
+        "internal_zone_code_visible": internal_zone_code_visible,
+        "source_hash_visible": review_overlays_visible,
+        "portal_debug_text_visible": review_overlays_visible,
+        "schema_identity_visible": review_overlays_visible,
     }
     defs = _element(
         "defs",
@@ -1658,36 +2166,54 @@ def _render_svg(
                         "stroke": theme.building_outline,
                         "stroke-width": SVG_STROKE_W3,
                     },
-                    body=_element("title", body=escape(f"{DISPLAY_LABELS[code]} {code}")),
+                    body=_element(
+                        "title",
+                        body=escape(
+                            f"{DISPLAY_LABELS[code]} {code}"
+                            if internal_zone_code_visible
+                            else DISPLAY_LABELS[code]
+                        ),
+                    ),
                 ),
             )
         )
-        left, bottom, right, top = rectangle.bounds_mm
-        center = ((left + right) // 2, (bottom + top) // 2)
-        cx, cy = transform.point(center)
-        area = rectangle.actual_area_m2
-        dimension_label = (
-            f"{format_display_number(rectangle.width_m)} × "
-            f"{format_display_number(rectangle.depth_m)} m"
+        plan = label_plans[code]
+        plan_box = cast(dict[str, Decimal], plan["box"])
+        plan_font_size = cast(Decimal, plan["font_size"])
+        label_body = ""
+        if plan["callout"]:
+            label_body = _element(
+                "line",
+                attrs={
+                    "id": f"label-callout-line-{_safe_id(code)}",
+                    "x1": plan["leader_start_x"],
+                    "y1": plan["leader_start_y"],
+                    "x2": plan["leader_end_x"],
+                    "y2": plan["leader_end_y"],
+                    "stroke": theme.dimension,
+                    "stroke-width": SVG_STROKE_W1,
+                },
+            )
+        label_body += _multiline_text(
+            plan["center_x"],
+            plan_box["y"] + plan_font_size + SVG_LABEL_BOX_PADDING,
+            cast(tuple[str, ...], plan["lines"]),
+            attrs={
+                "id": f"label-zone-{_safe_id(code)}",
+                "data-zone-code": code,
+                "data-label-index": plan["index"],
+                "data-label-mode": plan["mode"],
+                "fill": theme.text,
+                "font-size": plan_font_size,
+                "text-anchor": "middle",
+            },
+            line_height=plan["line_height"],
         )
         label_parts.append(
-            _multiline_text(
-                cx,
-                cy - Decimal("10"),
-                (
-                    DISPLAY_LABELS[code],
-                    code,
-                    dimension_label,
-                    f"{format_display_number(area)} m²",
-                ),
-                attrs={
-                    "id": f"label-zone-{_safe_id(code)}",
-                    "data-zone-code": code,
-                    "fill": theme.text,
-                    "font-size": 11,
-                    "text-anchor": "middle",
-                },
-                line_height=14,
+            _element(
+                "g",
+                attrs={"id": f"label-group-{_safe_id(code)}"},
+                body=label_body,
             )
         )
     zones_group = _element("g", attrs={"id": "zones"}, body="".join(zone_parts))
@@ -1939,7 +2465,15 @@ def _render_svg(
         ),
     )
     dimensions_group = _element(
-        "g", attrs={"id": "dimensions"}, body=_render_dimensions(rectangles, transform, theme)
+        "g",
+        attrs={"id": "dimensions"},
+        body=_render_total_dimensions(building, transform, theme)
+        + _render_dimensions(
+            rectangles,
+            transform,
+            theme,
+            dimension_codes=dimension_codes,
+        ),
     )
     labels_group = _element("g", attrs={"id": "labels"}, body="".join(label_parts))
     furniture = cast(dict[str, dict[str, object]], composition["furniture"])
@@ -2023,6 +2557,7 @@ def _render_svg(
         "truck_maneuver_count": len(raw_maneuvers)
         if raw_maneuvers
         else len(body.get("truck_envelopes", [])),
+        **label_metrics,
     }
     return svg, composition, counts
 
@@ -2093,6 +2628,7 @@ def build_projection_payload(
         "page_size": bounds["page_size"],
         "engineering_drawing_rect": bounds["engineering_drawing_rect"],
         "page_furniture": bounds["furniture"],
+        "dimension_codes_rendered": list(_dimension_codes_for_profile(page_profile)),
         "main_drawing_occupancy": bounds["main_drawing_occupancy"],
         "source_geometry_occupancy": bounds["source_geometry_occupancy"],
         "primary_plan_screen_occupancy": bounds["primary_plan_screen_occupancy"],
@@ -2110,6 +2646,10 @@ def build_projection_payload(
         "presentation_review_overlays_hidden": page_profile in SVG_FOCUS_PROFILES,
         "mobile_review_overlays_hidden": page_profile == "MOBILE_PREVIEW",
         "engineering_review_overlays_preserved": page_profile in SVG_REVIEW_PROFILES,
+        "internal_zone_code_visible": page_profile == "ENGINEERING_REVIEW",
+        "source_hash_visible": page_profile in SVG_REVIEW_PROFILES,
+        "portal_debug_text_visible": page_profile in SVG_REVIEW_PROFILES,
+        "schema_identity_visible": page_profile in SVG_REVIEW_PROFILES,
         "source_engineering_geometry_changed": False,
         "main_drawing_target_occupancy": bounds["occupancy_target"],
         "main_drawing_min_occupancy": bounds["occupancy_min"],
