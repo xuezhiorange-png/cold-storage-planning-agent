@@ -91,6 +91,7 @@ def project_validated_layout_to_svg(
     *,
     site_geometry: ValidatedSiteGeometryV1,
     theme: object | None = None,
+    page_profile: str = "PRESENTATION",
 ) -> ValidatedLayoutSvgProjectionV1:
     """Project one fully validated P2D layout into deterministic static SVG.
 
@@ -116,6 +117,7 @@ def project_validated_layout_to_svg(
         site_geometry.to_dict(),
         source_layout_hash=source_layout_hash,
         theme=theme,
+        page_profile=page_profile,
     )
     return ValidatedLayoutSvgProjectionV1.from_payload(payload)
 

@@ -13,7 +13,7 @@ import hashlib
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation, localcontext
+from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal, InvalidOperation, localcontext
 from typing import Any, Final, cast
 from xml.sax.saxutils import escape, quoteattr
 
@@ -35,9 +35,33 @@ SVG_PROJECTION_IDENTITY: Final = "validated-layout-svg-projection@1.0.0"
 SVG_SCHEMA_VERSION: Final = "1.0.0"
 SVG_GEOMETRY_GRID_M: Final = Decimal("0.001")
 SVG_SCALE: Final = Decimal("10")
-SVG_MARGIN_M: Final = Decimal("8")
+SVG_MARGIN_M: Final = Decimal("4")
 SVG_LEGEND_WIDTH_M: Final = Decimal("42")
 SVG_TITLE_HEIGHT_M: Final = Decimal("18")
+SVG_PAGE_FURNITURE_GAP_M: Final = Decimal("4")
+SVG_PAGE_FURNITURE_WIDTH_M: Final = Decimal("60")
+SVG_PAGE_FURNITURE_MARGIN_M: Final = Decimal("2")
+SVG_AREA_SCHEDULE_HEIGHT_M: Final = Decimal("36")
+SVG_FURNITURE_GAP_M: Final = Decimal("2")
+SVG_MAIN_DRAWING_TARGET_OCCUPANCY: Final = Decimal("0.78")
+SVG_MAIN_DRAWING_MIN_OCCUPANCY: Final = Decimal("0.70")
+SVG_MAIN_DRAWING_MAX_OCCUPANCY: Final = Decimal("0.88")
+SVG_MOBILE_DRAWING_MIN_OCCUPANCY: Final = Decimal("0.80")
+SVG_MOBILE_PRIMARY_PLAN_OCCUPANCY_MIN: Final = Decimal("0.65")
+SVG_MOBILE_PRIMARY_PLAN_WIDTH_RATIO_MIN: Final = Decimal("0.70")
+SVG_MOBILE_PRIMARY_PLAN_HEIGHT_RATIO_MIN: Final = Decimal("0.55")
+SVG_CONTEXT_INSET_WIDTH_M: Final = Decimal("24")
+SVG_CONTEXT_INSET_GAP_M: Final = Decimal("2")
+SVG_CONTEXT_INSET_MARGIN_M: Final = Decimal("1")
+SVG_FOCUSED_FURNITURE_MIN_WIDTH_M: Final = Decimal("42")
+SVG_PAGE_PROFILES: Final[tuple[str, ...]] = (
+    "PRESENTATION",
+    "MOBILE_PREVIEW",
+    "ENGINEERING_SHEET",
+    "ENGINEERING_REVIEW",
+)
+SVG_FOCUS_PROFILES: Final[frozenset[str]] = frozenset({"PRESENTATION", "MOBILE_PREVIEW"})
+SVG_REVIEW_PROFILES: Final[frozenset[str]] = frozenset({"ENGINEERING_SHEET", "ENGINEERING_REVIEW"})
 SVG_DISPLAY_DIMENSION_DECIMALS: Final = 2
 
 LAYER_ORDER: Final[tuple[str, ...]] = (
@@ -169,14 +193,336 @@ class SvgProjectionTransformV1:
     min_x_m: Decimal
     max_y_m: Decimal
     scale: Decimal = SVG_SCALE
+    offset_x_px: Decimal = Decimal("0")
+    offset_y_px: Decimal = Decimal("0")
 
     def point(self, point: PointPair) -> tuple[Decimal, Decimal]:
         x_m = Decimal(point[0]) / Decimal(1000)
         y_m = Decimal(point[1]) / Decimal(1000)
         return (
-            (x_m - self.min_x_m) * self.scale,
-            (self.max_y_m - y_m) * self.scale,
+            (x_m - self.min_x_m) * self.scale + self.offset_x_px,
+            (self.max_y_m - y_m) * self.scale + self.offset_y_px,
         )
+
+
+def _safe_ratio(numerator: Decimal, denominator: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 60
+        return numerator / denominator
+
+
+def _ceil_to_grid(value: Decimal) -> Decimal:
+    return value.quantize(SVG_GEOMETRY_GRID_M, rounding=ROUND_CEILING)
+
+
+def _rectangles_overlap(left: Mapping[str, object], right: Mapping[str, object]) -> bool:
+    left_x = cast(Decimal, left["x"])
+    left_y = cast(Decimal, left["y"])
+    left_width = cast(Decimal, left["width"])
+    left_height = cast(Decimal, left["height"])
+    right_x = cast(Decimal, right["x"])
+    right_y = cast(Decimal, right["y"])
+    right_width = cast(Decimal, right["width"])
+    right_height = cast(Decimal, right["height"])
+    return not (
+        left_x + left_width <= right_x
+        or right_x + right_width <= left_x
+        or left_y + left_height <= right_y
+        or right_y + right_height <= left_y
+    )
+
+
+def _primary_plan_bounds(
+    rectangles: Mapping[str, PlacedRectangleV1], building: PolygonMM
+) -> dict[str, Decimal]:
+    """Return bounds for the user-facing factory plan, excluding site context.
+
+    The bounds are a presentation measurement only.  They are derived from
+    the authoritative building footprint and the twelve authoritative zone
+    rectangles; no source geometry is resized, translated, or omitted from
+    the projection payload.
+    """
+    points: list[PointPair] = list(building)
+    for rectangle in rectangles.values():
+        points.extend(rectangle.polygon_mm)
+    min_x_mm, min_y_mm, max_x_mm, max_y_mm = _points_for_bounds(points)
+    return {
+        "min_x_m": Decimal(min_x_mm) / Decimal(1000),
+        "min_y_m": Decimal(min_y_mm) / Decimal(1000),
+        "max_x_m": Decimal(max_x_mm) / Decimal(1000),
+        "max_y_m": Decimal(max_y_mm) / Decimal(1000),
+    }
+
+
+def _page_composition(
+    *,
+    geometry_min_x: Decimal,
+    geometry_min_y: Decimal,
+    geometry_max_x: Decimal,
+    geometry_max_y: Decimal,
+    primary_min_x: Decimal,
+    primary_min_y: Decimal,
+    primary_max_x: Decimal,
+    primary_max_y: Decimal,
+    page_profile: str,
+) -> dict[str, Any]:
+    """Build page-space rectangles without changing source engineering geometry."""
+    if page_profile not in SVG_PAGE_PROFILES:
+        raise _error("SVG_PAGE_PROFILE_INVALID", profile=page_profile)
+
+    focused = page_profile in SVG_FOCUS_PROFILES
+    review_overlays_visible = page_profile in SVG_REVIEW_PROFILES
+    source_width_m = geometry_max_x - geometry_min_x
+    source_height_m = geometry_max_y - geometry_min_y
+    source_drawing_min_x = geometry_min_x - SVG_MARGIN_M
+    source_drawing_min_y = geometry_min_y - SVG_MARGIN_M
+    source_drawing_max_x = geometry_max_x + SVG_MARGIN_M
+    source_drawing_max_y = geometry_max_y + SVG_MARGIN_M
+
+    primary_drawing_min_x = primary_min_x - SVG_MARGIN_M
+    primary_drawing_min_y = primary_min_y - SVG_MARGIN_M
+    primary_drawing_max_x = primary_max_x + SVG_MARGIN_M
+    primary_drawing_max_y = primary_max_y + SVG_MARGIN_M
+    primary_width_m = primary_drawing_max_x - primary_drawing_min_x
+    primary_height_m = primary_drawing_max_y - primary_drawing_min_y
+
+    context_inset: dict[str, object] = {}
+    if focused:
+        context_width_m = SVG_CONTEXT_INSET_WIDTH_M
+        context_inner_width_m = context_width_m - (SVG_CONTEXT_INSET_MARGIN_M * 2)
+        context_height_m = _ceil_to_grid(
+            _safe_ratio(context_inner_width_m * source_height_m, source_width_m)
+            + (SVG_CONTEXT_INSET_MARGIN_M * 2)
+        )
+        drawing_min_x = primary_drawing_min_x
+        drawing_min_y = primary_drawing_max_y - max(primary_height_m, context_height_m)
+        if page_profile == "MOBILE_PREVIEW":
+            drawing_max_x = primary_drawing_max_x
+            context_x = max(
+                SVG_CONTEXT_INSET_MARGIN_M,
+                primary_width_m - context_width_m - SVG_CONTEXT_INSET_MARGIN_M,
+            )
+        else:
+            drawing_max_x = primary_drawing_max_x + SVG_CONTEXT_INSET_GAP_M + context_width_m
+            context_x = primary_width_m + SVG_CONTEXT_INSET_GAP_M
+        drawing_max_y = primary_drawing_max_y
+        context_inset = {
+            "x": context_x * SVG_SCALE,
+            "y": SVG_CONTEXT_INSET_MARGIN_M * SVG_SCALE,
+            "width": context_width_m * SVG_SCALE,
+            "height": context_height_m * SVG_SCALE,
+            "inner_padding": SVG_CONTEXT_INSET_MARGIN_M * SVG_SCALE,
+            "scale": _safe_ratio(
+                min(
+                    context_inner_width_m * SVG_SCALE / source_width_m,
+                    (context_height_m - (SVG_CONTEXT_INSET_MARGIN_M * 2))
+                    * SVG_SCALE
+                    / source_height_m,
+                ),
+                Decimal("1"),
+            ),
+        }
+    else:
+        drawing_min_x = source_drawing_min_x
+        drawing_min_y = source_drawing_min_y
+        drawing_max_x = source_drawing_max_x
+        drawing_max_y = source_drawing_max_y
+
+    drawing_width_m = drawing_max_x - drawing_min_x
+    drawing_height_m = drawing_max_y - drawing_min_y
+
+    if page_profile == "MOBILE_PREVIEW" or page_profile == "ENGINEERING_REVIEW":
+        page_min_x = drawing_min_x
+        page_min_y = drawing_min_y
+        page_max_x = drawing_max_x
+        page_max_y = drawing_max_y
+        furniture: dict[str, dict[str, object]] = {}
+    else:
+        legend_height_m = Decimal("21")
+        title_height_m = SVG_TITLE_HEIGHT_M
+        required_furniture_height_m = (
+            SVG_PAGE_FURNITURE_MARGIN_M
+            + legend_height_m
+            + SVG_FURNITURE_GAP_M
+            + SVG_AREA_SCHEDULE_HEIGHT_M
+            + SVG_FURNITURE_GAP_M
+            + title_height_m
+            + SVG_PAGE_FURNITURE_MARGIN_M
+        )
+        page_height_m = max(drawing_height_m, required_furniture_height_m)
+        # Keep page furniture out of the engineering drawing while targeting the
+        # frozen occupancy range. The minimum width keeps the schedule legible;
+        # the target-derived width prevents a wide plan from becoming a tiny
+        # corner of the page.
+        target_page_width_m = _safe_ratio(
+            drawing_width_m * page_height_m,
+            SVG_MAIN_DRAWING_TARGET_OCCUPANCY * drawing_height_m,
+        )
+        target_furniture_width_m = _ceil_to_grid(
+            target_page_width_m - drawing_width_m - SVG_PAGE_FURNITURE_GAP_M
+        )
+        furniture_min_width_m = (
+            SVG_FOCUSED_FURNITURE_MIN_WIDTH_M if focused else SVG_PAGE_FURNITURE_WIDTH_M
+        )
+        furniture_width_m = max(furniture_min_width_m, target_furniture_width_m)
+        page_min_x = drawing_min_x
+        page_min_y = drawing_max_y - page_height_m
+        page_max_x = drawing_max_x + SVG_PAGE_FURNITURE_GAP_M + furniture_width_m
+        page_max_y = drawing_max_y
+
+        page_width_px = (page_max_x - page_min_x) * SVG_SCALE
+        page_height_px = (page_max_y - page_min_y) * SVG_SCALE
+        furniture_x_px = (drawing_max_x + SVG_PAGE_FURNITURE_GAP_M - page_min_x) * SVG_SCALE
+        furniture_margin_px = SVG_PAGE_FURNITURE_MARGIN_M * SVG_SCALE
+        furniture_width_px = furniture_width_m * SVG_SCALE
+        inner_x = furniture_x_px + furniture_margin_px
+        inner_width = furniture_width_px - (furniture_margin_px * 2)
+        legend_y = furniture_margin_px
+        legend_height_px = legend_height_m * SVG_SCALE
+        schedule_y = legend_y + legend_height_px + (SVG_FURNITURE_GAP_M * SVG_SCALE)
+        schedule_height_px = SVG_AREA_SCHEDULE_HEIGHT_M * SVG_SCALE
+        title_height_px = title_height_m * SVG_SCALE
+        title_y = page_height_px - furniture_margin_px - title_height_px
+        furniture = {
+            "legend": {
+                "visible": True,
+                "x": inner_x,
+                "y": legend_y,
+                "width": inner_width,
+                "height": legend_height_px,
+            },
+            "area_schedule": {
+                "visible": True,
+                "x": inner_x,
+                "y": schedule_y,
+                "width": inner_width,
+                "height": schedule_height_px,
+            },
+            "title_block": {
+                "visible": True,
+                "x": inner_x,
+                "y": title_y,
+                "width": inner_width,
+                "height": title_height_px,
+            },
+        }
+
+    page_width_m = page_max_x - page_min_x
+    page_height_m = page_max_y - page_min_y
+    drawing_width_px = drawing_width_m * SVG_SCALE
+    drawing_height_px = drawing_height_m * SVG_SCALE
+    page_width_px = page_width_m * SVG_SCALE
+    page_height_px = page_height_m * SVG_SCALE
+    engineering_drawing_rect = {
+        "x": Decimal("0"),
+        "y": Decimal("0"),
+        "width": drawing_width_px,
+        "height": drawing_height_px,
+    }
+    main_occupancy = _safe_ratio(
+        drawing_width_px * drawing_height_px,
+        page_width_px * page_height_px,
+    )
+    primary_occupancy = _safe_ratio(
+        primary_width_m * primary_height_m,
+        drawing_width_m * drawing_height_m,
+    )
+    primary_width_ratio = _safe_ratio(primary_width_m, drawing_width_m)
+    primary_height_ratio = _safe_ratio(primary_height_m, drawing_height_m)
+    if focused:
+        context_scale = cast(Decimal, context_inset["scale"])
+        context_inner_width_px = cast(Decimal, context_inset["width"]) - (
+            cast(Decimal, context_inset["inner_padding"]) * 2
+        )
+        context_inner_height_px = cast(Decimal, context_inset["height"]) - (
+            cast(Decimal, context_inset["inner_padding"]) * 2
+        )
+        context_source_width_m = _safe_ratio(
+            context_inner_width_px,
+            context_scale,
+        )
+        context_source_height_m = _safe_ratio(
+            context_inner_height_px,
+            context_scale,
+        )
+        source_occupancy = _safe_ratio(
+            source_width_m * source_height_m,
+            context_source_width_m * context_source_height_m,
+        )
+    else:
+        source_occupancy = _safe_ratio(
+            source_width_m * source_height_m,
+            page_width_m * page_height_m,
+        )
+    furniture_values = tuple(furniture.values())
+    title_block = furniture.get("title_block")
+    area_schedule = furniture.get("area_schedule")
+    legend = furniture.get("legend")
+    return {
+        "profile": page_profile,
+        "engineering_geometry_bounds": {
+            "min_x_m": geometry_min_x,
+            "min_y_m": geometry_min_y,
+            "max_x_m": geometry_max_x,
+            "max_y_m": geometry_max_y,
+        },
+        "primary_plan_bounds": {
+            "min_x_m": primary_min_x,
+            "min_y_m": primary_min_y,
+            "max_x_m": primary_max_x,
+            "max_y_m": primary_max_y,
+        },
+        "engineering_drawing_bounds": {
+            "min_x_m": drawing_min_x,
+            "min_y_m": drawing_min_y,
+            "max_x_m": drawing_max_x,
+            "max_y_m": drawing_max_y,
+            "scale": SVG_SCALE,
+        },
+        "source_drawing_bounds": {
+            "min_x_m": source_drawing_min_x,
+            "min_y_m": source_drawing_min_y,
+            "max_x_m": source_drawing_max_x,
+            "max_y_m": source_drawing_max_y,
+            "scale": SVG_SCALE,
+        },
+        "context_inset": context_inset,
+        "page_layout_bounds": {
+            "min_x_m": page_min_x,
+            "min_y_m": page_min_y,
+            "max_x_m": page_max_x,
+            "max_y_m": page_max_y,
+            "scale": SVG_SCALE,
+        },
+        "engineering_drawing_rect": engineering_drawing_rect,
+        "page_size": {"width": page_width_px, "height": page_height_px},
+        "furniture": furniture,
+        "main_drawing_occupancy": main_occupancy,
+        "source_geometry_occupancy": source_occupancy,
+        "primary_plan_screen_occupancy": primary_occupancy,
+        "primary_plan_width_ratio": primary_width_ratio,
+        "primary_plan_height_ratio": primary_height_ratio,
+        "primary_plan_occupancy_min": SVG_MOBILE_PRIMARY_PLAN_OCCUPANCY_MIN,
+        "primary_plan_width_ratio_min": SVG_MOBILE_PRIMARY_PLAN_WIDTH_RATIO_MIN,
+        "primary_plan_height_ratio_min": SVG_MOBILE_PRIMARY_PLAN_HEIGHT_RATIO_MIN,
+        "review_overlays_visible": review_overlays_visible,
+        "occupancy_target": SVG_MAIN_DRAWING_TARGET_OCCUPANCY,
+        "occupancy_min": SVG_MAIN_DRAWING_MIN_OCCUPANCY,
+        "occupancy_max": SVG_MAIN_DRAWING_MAX_OCCUPANCY,
+        "mobile_occupancy_min": SVG_MOBILE_DRAWING_MIN_OCCUPANCY,
+        "title_block_overlap": bool(
+            title_block and _rectangles_overlap(engineering_drawing_rect, title_block)
+        ),
+        "area_table_overlap": bool(
+            area_schedule and _rectangles_overlap(engineering_drawing_rect, area_schedule)
+        ),
+        "legend_overlap": bool(legend and _rectangles_overlap(engineering_drawing_rect, legend)),
+        "page_furniture_overlap": any(
+            _rectangles_overlap(left, right)
+            for index, left in enumerate(furniture_values)
+            for right in furniture_values[index + 1 :]
+        ),
+    }
 
 
 @dataclass(frozen=True)
@@ -810,6 +1156,239 @@ def _render_title_block(
     return _element("g", attrs={"id": "title-block"}, body="".join(parts))
 
 
+def _render_legend_at(
+    x: Decimal,
+    y: Decimal,
+    width: Decimal,
+    height: Decimal,
+    theme: SvgDrawingThemeV1,
+    source_hash: str,
+    *,
+    include_source_hash: bool = True,
+    include_review_items: bool = True,
+) -> str:
+    rows = [
+        ("场地边界", theme.site_outline, "none", "site"),
+        ("建筑轮廓", theme.building_outline, "none", "building"),
+        ("冷库/预冷区", theme.cold_zone_fill, theme.cold_zone_fill, "rect"),
+        ("生产/辅助区", theme.zone_fill, theme.zone_fill, "rect"),
+        ("人流/物流通道", theme.corridor_fill, theme.corridor_fill, "rect"),
+        ("入口 / Portal", theme.entrance_stroke, "none", "line"),
+        ("装卸面", theme.loading_face, "none", "line"),
+        ("禁建区", theme.obstacle_fill, theme.obstacle_fill, "rect"),
+    ]
+    if include_review_items:
+        rows.insert(6, ("货车机动包络", theme.truck_envelope, "none", "dash"))
+    parts = [
+        _element(
+            "rect",
+            attrs={
+                "x": x,
+                "y": y,
+                "width": width,
+                "height": height,
+                "fill": theme.background,
+                "stroke": theme.building_outline,
+                "stroke-width": 1,
+            },
+        ),
+        _text(
+            x + Decimal("14"),
+            y + Decimal("22"),
+            "图例",
+            attrs={"fill": theme.text, "font-size": 16, "font-weight": "700"},
+        ),
+    ]
+    for index, (label, stroke, fill, kind) in enumerate(rows):
+        cy = y + Decimal("43") + (Decimal(index) * Decimal("18"))
+        if kind == "rect":
+            parts.append(
+                _element(
+                    "rect",
+                    attrs={
+                        "x": x + Decimal("14"),
+                        "y": cy - Decimal("9"),
+                        "width": 18,
+                        "height": 12,
+                        "fill": fill,
+                        "stroke": stroke,
+                        "stroke-width": 1,
+                    },
+                )
+            )
+        elif kind == "dash":
+            parts.append(
+                _element(
+                    "line",
+                    attrs={
+                        "x1": x + Decimal("14"),
+                        "y1": cy - Decimal("3"),
+                        "x2": x + Decimal("32"),
+                        "y2": cy - Decimal("3"),
+                        "stroke": stroke,
+                        "stroke-width": 2,
+                        "stroke-dasharray": "5 3",
+                    },
+                )
+            )
+        elif kind == "site":
+            parts.append(
+                _element(
+                    "rect",
+                    attrs={
+                        "x": x + Decimal("14"),
+                        "y": cy - Decimal("9"),
+                        "width": 18,
+                        "height": 12,
+                        "fill": "none",
+                        "stroke": stroke,
+                        "stroke-width": 2,
+                    },
+                )
+            )
+        else:
+            parts.append(
+                _element(
+                    "line",
+                    attrs={
+                        "x1": x + Decimal("14"),
+                        "y1": cy - Decimal("3"),
+                        "x2": x + Decimal("32"),
+                        "y2": cy - Decimal("3"),
+                        "stroke": stroke,
+                        "stroke-width": 3,
+                    },
+                )
+            )
+        parts.append(
+            _text(
+                x + Decimal("42"),
+                cy,
+                label,
+                attrs={"fill": theme.text, "font-size": 11},
+            )
+        )
+    if include_source_hash:
+        parts.append(
+            _text(
+                x + Decimal("14"),
+                y + height - Decimal("12"),
+                f"source layout hash: {source_hash[7:19]}",
+                attrs={"fill": theme.text, "font-size": 10},
+            )
+        )
+    return _element("g", attrs={"id": "legend"}, body="".join(parts))
+
+
+def _render_area_schedule(
+    x: Decimal,
+    y: Decimal,
+    width: Decimal,
+    height: Decimal,
+    rectangles: Mapping[str, PlacedRectangleV1],
+    theme: SvgDrawingThemeV1,
+) -> str:
+    parts = [
+        _element(
+            "rect",
+            attrs={
+                "x": x,
+                "y": y,
+                "width": width,
+                "height": height,
+                "fill": theme.background,
+                "stroke": theme.building_outline,
+                "stroke-width": 1,
+            },
+        ),
+        _text(
+            x + Decimal("14"),
+            y + Decimal("22"),
+            "面积表",
+            attrs={"fill": theme.text, "font-size": 16, "font-weight": "700"},
+        ),
+    ]
+    for index, code in enumerate(EXPECTED_ZONE_CODES):
+        rectangle = rectangles[code]
+        row_y = y + Decimal("42") + (Decimal(index) * Decimal("24"))
+        value = (
+            f"{DISPLAY_LABELS[code]}  "
+            f"{format_display_number(rectangle.width_m)} × "
+            f"{format_display_number(rectangle.depth_m)} m  "
+            f"{format_display_number(rectangle.actual_area_m2)} m²"
+        )
+        parts.append(
+            _text(
+                x + Decimal("14"),
+                row_y,
+                value,
+                attrs={"fill": theme.text, "font-size": 10},
+            )
+        )
+    return _element("g", attrs={"id": "area-schedule"}, body="".join(parts))
+
+
+def _render_title_block_at(
+    x: Decimal,
+    y: Decimal,
+    width: Decimal,
+    height: Decimal,
+    theme: SvgDrawingThemeV1,
+    body: Mapping[str, Any],
+    *,
+    include_source_hash: bool = True,
+) -> str:
+    source_hash = str(body.get("canonical_result_hash", ""))
+    parts = [
+        _element(
+            "rect",
+            attrs={
+                "x": x,
+                "y": y,
+                "width": width,
+                "height": height,
+                "fill": theme.background,
+                "stroke": theme.building_outline,
+                "stroke-width": 1,
+            },
+        ),
+        _text(
+            x + Decimal("14"),
+            y + Decimal("23"),
+            "冷库/加工厂平面规划图",
+            attrs={"fill": theme.text, "font-size": 17, "font-weight": "700"},
+        ),
+        _text(
+            x + Decimal("14"),
+            y + Decimal("46"),
+            "v2.2  ·  Layout status: VALIDATED",
+            attrs={"fill": theme.text, "font-size": 12},
+        ),
+        _text(
+            x + Decimal("14"),
+            y + Decimal("66"),
+            "Zone count: 12   Access: 12/12",
+            attrs={"fill": theme.text, "font-size": 12},
+        ),
+        _text(
+            x + Decimal("14"),
+            y + Decimal("86"),
+            "Truck route: VALIDATED",
+            attrs={"fill": theme.text, "font-size": 12},
+        ),
+    ]
+    if include_source_hash:
+        parts.append(
+            _text(
+                x + Decimal("14"),
+                y + Decimal("106"),
+                f"Source layout hash: {source_hash[7:19]}",
+                attrs={"fill": theme.text, "font-size": 10},
+            )
+        )
+    return _element("g", attrs={"id": "title-block"}, body="".join(parts))
+
+
 def _render_svg(
     body: Mapping[str, Any],
     site: Mapping[str, Any],
@@ -819,6 +1398,7 @@ def _render_svg(
     loading_face: SegmentMM,
     *,
     theme: SvgDrawingThemeV1,
+    page_profile: str,
 ) -> tuple[str, dict[str, Any], dict[str, int]]:
     all_points = _all_geometry_points(site, rectangles, building, loading_face, body)
     min_x_mm, min_y_mm, max_x_mm, max_y_mm = _points_for_bounds(all_points)
@@ -826,13 +1406,40 @@ def _render_svg(
     geometry_min_y = Decimal(min_y_mm) / Decimal(1000)
     geometry_max_x = Decimal(max_x_mm) / Decimal(1000)
     geometry_max_y = Decimal(max_y_mm) / Decimal(1000)
-    drawing_min_x = geometry_min_x - SVG_MARGIN_M
-    drawing_min_y = geometry_min_y - SVG_MARGIN_M
-    drawing_max_x = geometry_max_x + SVG_MARGIN_M + SVG_LEGEND_WIDTH_M
-    drawing_max_y = geometry_max_y + SVG_MARGIN_M + SVG_TITLE_HEIGHT_M
-    width = (drawing_max_x - drawing_min_x) * SVG_SCALE
-    height = (drawing_max_y - drawing_min_y) * SVG_SCALE
-    transform = SvgProjectionTransformV1(drawing_min_x, drawing_max_y)
+    primary = _primary_plan_bounds(rectangles, building)
+    composition = _page_composition(
+        geometry_min_x=geometry_min_x,
+        geometry_min_y=geometry_min_y,
+        geometry_max_x=geometry_max_x,
+        geometry_max_y=geometry_max_y,
+        primary_min_x=primary["min_x_m"],
+        primary_min_y=primary["min_y_m"],
+        primary_max_x=primary["max_x_m"],
+        primary_max_y=primary["max_y_m"],
+        page_profile=page_profile,
+    )
+    page_bounds = composition["page_layout_bounds"]
+    page_min_x = cast(Decimal, page_bounds["min_x_m"])
+    page_max_y = cast(Decimal, page_bounds["max_y_m"])
+    page_size = composition["page_size"]
+    width = cast(Decimal, page_size["width"])
+    height = cast(Decimal, page_size["height"])
+    transform = SvgProjectionTransformV1(page_min_x, page_max_y)
+    focused = page_profile in SVG_FOCUS_PROFILES
+    review_overlays_visible = page_profile in SVG_REVIEW_PROFILES
+    context_transform: SvgProjectionTransformV1 | None = None
+    if focused:
+        context = cast(dict[str, object], composition["context_inset"])
+        context_scale = cast(Decimal, context["scale"])
+        context_padding = cast(Decimal, context["inner_padding"])
+        context_transform = SvgProjectionTransformV1(
+            geometry_min_x,
+            geometry_max_y,
+            scale=context_scale,
+            offset_x_px=cast(Decimal, context["x"]) + context_padding,
+            offset_y_px=cast(Decimal, context["y"]) + context_padding,
+        )
+    site_transform = context_transform if context_transform is not None else transform
 
     metadata = {
         "projection_identity": SVG_PROJECTION_IDENTITY,
@@ -842,6 +1449,10 @@ def _render_svg(
         "scale": SVG_SCALE,
         "source_layout_hash": body["canonical_result_hash"],
         "north_angle_degrees": site["north_angle_degrees"],
+        "page_profile": page_profile,
+        "engineering_geometry_bounds": composition["engineering_geometry_bounds"],
+        "engineering_drawing_bounds": composition["engineering_drawing_bounds"],
+        "page_layout_bounds": composition["page_layout_bounds"],
     }
     defs = _element(
         "defs",
@@ -885,14 +1496,31 @@ def _render_svg(
             )
         ),
     )
+    context_frame = ""
+    if focused:
+        context = cast(dict[str, object], composition["context_inset"])
+        context_frame = _element(
+            "rect",
+            attrs={
+                "id": "site-context-inset-frame",
+                "x": context["x"],
+                "y": context["y"],
+                "width": context["width"],
+                "height": context["height"],
+                "fill": theme.background,
+                "stroke": theme.site_outline,
+                "stroke-width": 1,
+            },
+        )
     site_group = _element(
         "g",
         attrs={"id": "site-boundary"},
-        body=_element(
+        body=context_frame
+        + _element(
             "polygon",
             attrs={
                 "id": "site-boundary-polygon",
-                "points": _polygon_points(site["site_boundary"], transform),
+                "points": _polygon_points(site["site_boundary"], site_transform),
                 "fill": "none",
                 "stroke": theme.site_outline,
                 "stroke-width": 3,
@@ -904,7 +1532,7 @@ def _render_svg(
             "polygon",
             attrs={
                 "id": "effective-buildable-boundary",
-                "points": _polygon_points(site["buildable_boundary"], transform),
+                "points": _polygon_points(site["buildable_boundary"], site_transform),
                 "fill": "none",
                 "stroke": theme.buildable_outline,
                 "stroke-width": 2,
@@ -918,7 +1546,7 @@ def _render_svg(
                 "polygon",
                 attrs={
                     "id": f"no-build-zone-{index}",
-                    "points": _polygon_points(polygon, transform),
+                    "points": _polygon_points(polygon, site_transform),
                     "fill": "url(#no-build-hatch)",
                     "stroke": theme.obstacle_fill,
                     "stroke-width": 1,
@@ -932,9 +1560,9 @@ def _render_svg(
                 attrs={
                     "id": f"existing-building-{_safe_id(existing.get('id', index))}",
                     "data-retained": existing.get("retained", False),
-                    "points": _polygon_points(existing["footprint"], transform),
+                    "points": _polygon_points(existing["footprint"], site_transform),
                     "fill": theme.obstacle_fill if existing.get("retained") else "none",
-                    "fill-opacity": 0.45,
+                    "fill-opacity": 0.22 if focused else 0.45,
                     "stroke": theme.obstacle_fill,
                     "stroke-width": 2,
                     "stroke-dasharray": "5 3",
@@ -1023,6 +1651,38 @@ def _render_svg(
             )
         )
     zones_group = _element("g", attrs={"id": "zones"}, body="".join(zone_parts))
+    context_layout_group = ""
+    if context_transform is not None:
+        context_zone_parts = [
+            _element(
+                "polygon",
+                attrs={
+                    "id": f"context-zone-footprint-{_safe_id(code)}",
+                    "data-zone-code": code,
+                    "points": _polygon_points(rectangles[code].polygon_mm, context_transform),
+                    "fill": theme.cold_zone_fill if code in COLD_ZONE_CODES else theme.zone_fill,
+                    "fill-opacity": 0.30,
+                    "stroke": theme.building_outline,
+                    "stroke-width": 1,
+                },
+            )
+            for code in EXPECTED_ZONE_CODES
+        ]
+        context_layout_group = _element(
+            "g",
+            attrs={"id": "site-context-layout"},
+            body=_element(
+                "polygon",
+                attrs={
+                    "id": "context-building-footprint-polygon",
+                    "points": _polygon_points(building, context_transform),
+                    "fill": "none",
+                    "stroke": theme.building_outline,
+                    "stroke-width": 1.5,
+                },
+            )
+            + "".join(context_zone_parts),
+        )
     portal_parts: list[str] = []
     raw_portals = body.get("portals", [])
     if not isinstance(raw_portals, list):
@@ -1047,10 +1707,14 @@ def _render_svg(
                         "stroke-linecap": "round",
                     },
                 )
-                + _text(
-                    *transform.point(segment[0]),
-                    f"portal {format_display_number(portal.get('clear_width_m', 0))} m",
-                    attrs={"fill": theme.portal_stroke, "font-size": 9},
+                + (
+                    _text(
+                        *transform.point(segment[0]),
+                        f"portal {format_display_number(portal.get('clear_width_m', 0))} m",
+                        attrs={"fill": theme.portal_stroke, "font-size": 9},
+                    )
+                    if review_overlays_visible
+                    else ""
                 ),
             )
         )
@@ -1062,22 +1726,23 @@ def _render_svg(
     for index, corridor_value in enumerate(raw_corridors):
         corridor = _mapping(corridor_value, field=f"corridors[{index}]")
         identity = corridor.get("requirement_identity", f"corridor-{index}")
-        envelope_parts = [
-            _element(
-                "polygon",
-                attrs={
-                    "id": f"corridor-envelope-{_safe_id(identity)}-{envelope_index}",
-                    "points": _polygon_points(
-                        _polygon(envelope, field="corridor.envelope"), transform
-                    ),
-                    "fill": theme.corridor_fill,
-                    "fill-opacity": 0.42,
-                    "stroke": theme.corridor_fill,
-                    "stroke-width": 1,
-                },
-            )
-            for envelope_index, envelope in enumerate(corridor.get("envelope", []))
-        ]
+        envelope_parts = []
+        for envelope_index, envelope in enumerate(corridor.get("envelope", [])):
+            envelope_polygon = _polygon(envelope, field="corridor.envelope")
+            if review_overlays_visible:
+                envelope_parts.append(
+                    _element(
+                        "polygon",
+                        attrs={
+                            "id": f"corridor-envelope-{_safe_id(identity)}-{envelope_index}",
+                            "points": _polygon_points(envelope_polygon, transform),
+                            "fill": theme.corridor_fill,
+                            "fill-opacity": 0.42,
+                            "stroke": theme.corridor_fill,
+                            "stroke-width": 1,
+                        },
+                    )
+                )
         centerline = _polyline(corridor.get("centerline"), field=f"corridors[{index}].centerline")
         corridor_parts.append(
             _element(
@@ -1180,7 +1845,12 @@ def _render_svg(
                     },
                 )
             )
-    truck_group = _element("g", attrs={"id": "truck-maneuvers"}, body="".join(maneuver_parts))
+    truck_group = _element(
+        "g",
+        attrs={"id": "truck-maneuvers"},
+        body="".join(maneuver_parts) if review_overlays_visible else "",
+    )
+    entrance_transform = context_transform if context_transform is not None else transform
     entrances_group = _element(
         "g",
         attrs={"id": "entrances"},
@@ -1191,10 +1861,10 @@ def _render_svg(
                     attrs={
                         "id": "main-entrance",
                         "data-entrance-type": "main",
-                        "x1": transform.point(site["main_entrance"][0])[0],
-                        "y1": transform.point(site["main_entrance"][0])[1],
-                        "x2": transform.point(site["main_entrance"][1])[0],
-                        "y2": transform.point(site["main_entrance"][1])[1],
+                        "x1": entrance_transform.point(site["main_entrance"][0])[0],
+                        "y1": entrance_transform.point(site["main_entrance"][0])[1],
+                        "x2": entrance_transform.point(site["main_entrance"][1])[0],
+                        "y2": entrance_transform.point(site["main_entrance"][1])[1],
                         "stroke": theme.entrance_stroke,
                         "stroke-width": 6,
                     },
@@ -1204,10 +1874,10 @@ def _render_svg(
                     attrs={
                         "id": "truck-entrance",
                         "data-entrance-type": "truck",
-                        "x1": transform.point(site["truck_entrance"][0])[0],
-                        "y1": transform.point(site["truck_entrance"][0])[1],
-                        "x2": transform.point(site["truck_entrance"][1])[0],
-                        "y2": transform.point(site["truck_entrance"][1])[1],
+                        "x1": entrance_transform.point(site["truck_entrance"][0])[0],
+                        "y1": entrance_transform.point(site["truck_entrance"][0])[1],
+                        "x2": entrance_transform.point(site["truck_entrance"][1])[0],
+                        "y2": entrance_transform.point(site["truck_entrance"][1])[1],
                         "stroke": theme.truck_envelope,
                         "stroke-width": 6,
                     },
@@ -1232,9 +1902,47 @@ def _render_svg(
         "g", attrs={"id": "dimensions"}, body=_render_dimensions(rectangles, transform, theme)
     )
     labels_group = _element("g", attrs={"id": "labels"}, body="".join(label_parts))
-    legend_group = _render_legend(width, height, theme, str(body["canonical_result_hash"]))
-    title_block = _render_title_block(width, height, theme, body)
-    metadata_element = _element("metadata", body=escape(canonical_json(metadata)))
+    furniture = cast(dict[str, dict[str, object]], composition["furniture"])
+    if not furniture:
+        legend_group = ""
+        schedule_group = ""
+        title_block = ""
+    else:
+        legend_rect = furniture["legend"]
+        schedule_rect = furniture["area_schedule"]
+        title_rect = furniture["title_block"]
+        legend_group = _render_legend_at(
+            cast(Decimal, legend_rect["x"]),
+            cast(Decimal, legend_rect["y"]),
+            cast(Decimal, legend_rect["width"]),
+            cast(Decimal, legend_rect["height"]),
+            theme,
+            str(body["canonical_result_hash"]),
+            include_source_hash=review_overlays_visible,
+            include_review_items=review_overlays_visible,
+        )
+        schedule_group = _render_area_schedule(
+            cast(Decimal, schedule_rect["x"]),
+            cast(Decimal, schedule_rect["y"]),
+            cast(Decimal, schedule_rect["width"]),
+            cast(Decimal, schedule_rect["height"]),
+            rectangles,
+            theme,
+        )
+        title_block = _render_title_block_at(
+            cast(Decimal, title_rect["x"]),
+            cast(Decimal, title_rect["y"]),
+            cast(Decimal, title_rect["width"]),
+            cast(Decimal, title_rect["height"]),
+            theme,
+            body,
+            include_source_hash=review_overlays_visible,
+        )
+    metadata_element = (
+        _element("metadata", body=escape(canonical_json(metadata)))
+        if review_overlays_visible
+        else ""
+    )
     svg = '<?xml version="1.0" encoding="UTF-8"?>' + _element(
         "svg",
         attrs={
@@ -1243,6 +1951,9 @@ def _render_svg(
             "width": "100%",
             "height": "100%",
             "viewBox": f"0 0 {_format_number(width)} {_format_number(height)}",
+            "preserveAspectRatio": "xMidYMin meet"
+            if page_profile in SVG_FOCUS_PROFILES
+            else "xMidYMid meet",
             "role": "img",
             "aria-labelledby": "drawing-title",
         },
@@ -1251,6 +1962,7 @@ def _render_svg(
         + defs
         + site_group
         + constraints_group
+        + context_layout_group
         + building_group
         + zones_group
         + portals_group
@@ -1260,15 +1972,9 @@ def _render_svg(
         + dimensions_group
         + labels_group
         + legend_group
+        + schedule_group
         + title_block,
     )
-    bounds = {
-        "min_x_m": drawing_min_x,
-        "min_y_m": drawing_min_y,
-        "max_x_m": drawing_max_x,
-        "max_y_m": drawing_max_y,
-        "scale": SVG_SCALE,
-    }
     counts = {
         "zone_count": len(rectangles),
         "portal_count": len(raw_portals),
@@ -1277,7 +1983,7 @@ def _render_svg(
         if raw_maneuvers
         else len(body.get("truck_envelopes", [])),
     }
-    return svg, bounds, counts
+    return svg, composition, counts
 
 
 def build_projection_payload(
@@ -1286,6 +1992,7 @@ def build_projection_payload(
     *,
     source_layout_hash: str,
     theme: object | None = None,
+    page_profile: str = "PRESENTATION",
 ) -> dict[str, Any]:
     """Render one validated result and return the projection payload."""
     normalized_theme = validate_svg_theme(theme)
@@ -1301,12 +2008,13 @@ def build_projection_payload(
         gross_area,
         loading_face,
         theme=normalized_theme,
+        page_profile=page_profile,
     )
     svg_hash = "sha256:" + hashlib.sha256(svg.encode("utf-8")).hexdigest()
-    view_box = (
-        f"0 0 {_format_number((bounds['max_x_m'] - bounds['min_x_m']) * SVG_SCALE)} "
-        f"{_format_number((bounds['max_y_m'] - bounds['min_y_m']) * SVG_SCALE)}"
-    )
+    page_bounds = cast(dict[str, Decimal], bounds["page_layout_bounds"])
+    page_width = (page_bounds["max_x_m"] - page_bounds["min_x_m"]) * SVG_SCALE
+    page_height = (page_bounds["max_y_m"] - page_bounds["min_y_m"]) * SVG_SCALE
+    view_box = f"0 0 {_format_number(page_width)} {_format_number(page_height)}"
     return {
         "identity": SVG_PROJECTION_IDENTITY,
         "schema_version": SVG_SCHEMA_VERSION,
@@ -1317,8 +2025,44 @@ def build_projection_payload(
         "source_objective_profile_hash": body.get("source_objective_profile_hash"),
         "source_placement_result_hash": body.get("source_placement_result_hash"),
         "source_truck_maneuver_binding_hash": body.get("source_truck_maneuver_binding_hash"),
+        "page_profile": bounds["profile"],
         "view_box": view_box,
-        "drawing_bounds": bounds,
+        "drawing_bounds": bounds["engineering_drawing_bounds"],
+        "engineering_geometry_bounds": bounds["engineering_geometry_bounds"],
+        "engineering_drawing_bounds": bounds["engineering_drawing_bounds"],
+        "source_drawing_bounds": bounds["source_drawing_bounds"],
+        "primary_plan_bounds": bounds["primary_plan_bounds"],
+        "context_inset": bounds["context_inset"],
+        "page_layout_bounds": bounds["page_layout_bounds"],
+        "page_size": bounds["page_size"],
+        "engineering_drawing_rect": bounds["engineering_drawing_rect"],
+        "page_furniture": bounds["furniture"],
+        "main_drawing_occupancy": bounds["main_drawing_occupancy"],
+        "source_geometry_occupancy": bounds["source_geometry_occupancy"],
+        "primary_plan_screen_occupancy": bounds["primary_plan_screen_occupancy"],
+        "primary_plan_width_ratio": bounds["primary_plan_width_ratio"],
+        "primary_plan_height_ratio": bounds["primary_plan_height_ratio"],
+        "primary_plan_occupancy_min": bounds["primary_plan_occupancy_min"],
+        "primary_plan_width_ratio_min": bounds["primary_plan_width_ratio_min"],
+        "primary_plan_height_ratio_min": bounds["primary_plan_height_ratio_min"],
+        "primary_plan_visually_readable": (
+            bounds["primary_plan_screen_occupancy"] >= bounds["primary_plan_occupancy_min"]
+            and bounds["primary_plan_width_ratio"] >= bounds["primary_plan_width_ratio_min"]
+            and bounds["primary_plan_height_ratio"] >= bounds["primary_plan_height_ratio_min"]
+        ),
+        "review_overlays_visible": bounds["review_overlays_visible"],
+        "presentation_review_overlays_hidden": page_profile in SVG_FOCUS_PROFILES,
+        "mobile_review_overlays_hidden": page_profile == "MOBILE_PREVIEW",
+        "engineering_review_overlays_preserved": page_profile in SVG_REVIEW_PROFILES,
+        "source_engineering_geometry_changed": False,
+        "main_drawing_target_occupancy": bounds["occupancy_target"],
+        "main_drawing_min_occupancy": bounds["occupancy_min"],
+        "main_drawing_max_occupancy": bounds["occupancy_max"],
+        "mobile_drawing_min_occupancy": bounds["mobile_occupancy_min"],
+        "title_block_overlap": bounds["title_block_overlap"],
+        "area_table_overlap": bounds["area_table_overlap"],
+        "legend_overlap": bounds["legend_overlap"],
+        "page_furniture_overlap": bounds["page_furniture_overlap"],
         "layer_order": list(LAYER_ORDER),
         **counts,
         "svg": svg,

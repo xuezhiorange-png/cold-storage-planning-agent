@@ -44,6 +44,71 @@ DEPLOYMENT_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
+## V2.2.1 P1A canvas/viewBox/page composition (2026-09-20)
+
+P0 is merged. P1A is the separately authorized presentation-runtime
+correction for the existing P3 SVG only. It separates authoritative
+engineering geometry bounds from page-layout bounds and provides deterministic
+`PRESENTATION`, `MOBILE_PREVIEW` and `ENGINEERING_SHEET` compositions. It does
+not change any P2/P2D geometry, candidate selection, routing, truck validation,
+MCP contract or engineering formula.
+
+详见 [`V2_2_1-P1A-canvas-viewbox-page-composition.md`](V2_2_1-P1A-canvas-viewbox-page-composition.md)。
+
+```ini
+TASK_ID=V2_2_1_P1A_CANVAS_VIEWBOX_PAGE_COMPOSITION_R1
+BASE_MAIN_SHA=00f684b994c22fbab85227a6ae7b88ff8f697f54
+TARGET_VERSION=v2.2.1
+ACTIVE_GOVERNANCE_LANE=V2.2.1_P1A
+ENGINEERING_BOUNDS_SEPARATED=YES
+PAGE_LAYOUT_BOUNDS_SEPARATED=YES
+PRESENTATION_OCCUPANCY>=0.70
+MOBILE_PREVIEW_OCCUPANCY>=0.80
+ENGINEERING_SHEET_OCCUPANCY>=0.70
+LAYOUT_ALGORITHM_CHANGED=NO
+P2_CHANGED=NO
+P2D_CHANGED=NO
+P4_CHANGED=NO
+MCP_CHANGED=NO
+DATABASE_CHANGED=NO
+P1B_AUTHORIZED=NO
+P1C_AUTHORIZED=NO
+P1D_AUTHORIZED=NO
+P1E_AUTHORIZED=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+TAG_AUTHORIZED=NO
+RELEASE_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+## V2.2.1 P1A2 presentation/mobile composition correction (Draft review)
+
+P1A2 is a projection-only correction after visual review. It hides
+engineering-review-only truck/corridor/portal overlays from the default
+presentation and mobile views, and adds a deterministic primary-plan focus
+with a small full-site context inset. The structured validated layout remains
+the only geometry authority.
+
+```ini
+TASK_ID=V2_2_1_P1A2_PRESENTATION_MOBILE_COMPOSITION_CORRECTION_R1
+PREVIOUS_HEAD_SHA=436c7923c9bd6f1da00b857465e1fdc81f1fdae7
+PRESENTATION_REVIEW_OVERLAYS_HIDDEN=YES
+MOBILE_REVIEW_OVERLAYS_HIDDEN=YES
+ENGINEERING_REVIEW_OVERLAYS_PRESERVED=YES
+PRIMARY_PLAN_BOUNDS_IMPLEMENTED=YES
+SOURCE_ENGINEERING_GEOMETRY_CHANGED=NO
+P2_CHANGED=NO
+P2D_CHANGED=NO
+P4_CHANGED=NO
+MCP_CHANGED=NO
+DATABASE_CHANGED=NO
+P1B_AUTHORIZED=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+```
+
 ## V2.2 post-P5 CI correction release overlay (2026-09-18)
 
 The P5 readiness snapshot below remains historical. The post-P5 correction was
