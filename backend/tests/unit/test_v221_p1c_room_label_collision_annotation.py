@@ -155,6 +155,8 @@ def test_engineering_review_preserves_debug_label_and_metadata_visibility(
     assert body["source_hash_visible"] is True
     assert body["portal_debug_text_visible"] is True
     assert body["schema_identity_visible"] is True
+    assert body["ROOM_LABEL_WALL_CROSSING_COUNT"] == 0
+    assert body["ROOM_LABEL_PRIMARY_COLLISION_COUNT"] == 0
     assert ET.fromstring(body["svg"]).find(f".//{SVG_NS}metadata") is not None
 
 

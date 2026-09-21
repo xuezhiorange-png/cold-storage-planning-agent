@@ -1078,6 +1078,41 @@ def _dimension_obstacle_boxes(
     return obstacles
 
 
+def _callout_centers(
+    room: Mapping[str, Decimal], box_width: Decimal, box_height: Decimal
+) -> tuple[tuple[Decimal, Decimal, str], ...]:
+    """Return stable external callout anchors around one room."""
+    room_center_x = room["x"] + room["width"] / Decimal("2")
+    room_center_y = room["y"] + room["height"] / Decimal("2")
+    candidates: list[tuple[Decimal, Decimal, str]] = []
+    for gap in (Decimal("8"), Decimal("16"), Decimal("24"), Decimal("32")):
+        candidates.extend(
+            (
+                (
+                    room["x"] + room["width"] + gap + box_width / Decimal("2"),
+                    room_center_y,
+                    "CALLOUT_RIGHT",
+                ),
+                (
+                    room["x"] - gap - box_width / Decimal("2"),
+                    room_center_y,
+                    "CALLOUT_LEFT",
+                ),
+                (
+                    room_center_x,
+                    room["y"] - gap - box_height / Decimal("2"),
+                    "CALLOUT_TOP",
+                ),
+                (
+                    room_center_x,
+                    room["y"] + room["height"] + gap + box_height / Decimal("2"),
+                    "CALLOUT_BOTTOM",
+                ),
+            )
+        )
+    return tuple(candidates)
+
+
 def _label_lines(
     code: str,
     rectangle: PlacedRectangleV1,
@@ -1095,6 +1130,8 @@ def _label_lines(
             return (name, code, dimensions, area)
         if mode == "DEBUG_SHORT":
             return (name, code)
+        if mode == "DEBUG_ID":
+            return (code,)
     if mode == "3_LINES":
         return (name, area, dimensions)
     if mode == "2_LINES":
@@ -1106,7 +1143,11 @@ def _label_lines(
 
 def _label_modes(*, debug: bool) -> tuple[tuple[str, Decimal], ...]:
     if debug:
-        return (("DEBUG", SVG_LABEL_FONT_SIZE), ("DEBUG_SHORT", SVG_LABEL_FONT_SIZE))
+        return (
+            ("DEBUG", SVG_LABEL_FONT_SIZE),
+            ("DEBUG_SHORT", SVG_LABEL_FONT_SIZE),
+            ("DEBUG_ID", SVG_LABEL_NUMERIC_FONT_SIZE),
+        )
     return (
         ("3_LINES", SVG_LABEL_FONT_SIZE),
         ("2_LINES", SVG_LABEL_FONT_SIZE),
@@ -1173,8 +1214,26 @@ def _build_room_label_plan(
             box_width, box_height = _label_box(lines, SVG_LABEL_NUMERIC_FONT_SIZE)
             room_center_x = room["x"] + room["width"] / Decimal("2")
             room_center_y = room["y"] + room["height"] / Decimal("2")
-            center_x = room["x"] + room["width"] + Decimal("8") + box_width / Decimal("2")
-            center_y = room_center_y
+            center_x, center_y, anchor = next(
+                (
+                    (candidate_x, candidate_y, candidate_anchor)
+                    for candidate_x, candidate_y, candidate_anchor in _callout_centers(
+                        room, box_width, box_height
+                    )
+                    if not any(
+                        _rectangles_overlap(
+                            _box_at_center(candidate_x, candidate_y, box_width, box_height),
+                            other,
+                        )
+                        for other in (*placed_boxes, *obstacles)
+                    )
+                ),
+                (
+                    room["x"] + room["width"] + Decimal("8") + box_width / Decimal("2"),
+                    room_center_y,
+                    "CALLOUT_RIGHT",
+                ),
+            )
             chosen = {
                 "code": code,
                 "index": f"{EXPECTED_ZONE_CODES.index(code) + 1:02d}",
@@ -1186,7 +1245,7 @@ def _build_room_label_plan(
                 "center_y": center_y,
                 "box": _box_at_center(center_x, center_y, box_width, box_height),
                 "room": room,
-                "anchor": "CALLOUT_RIGHT",
+                "anchor": anchor,
                 "callout": True,
                 "leader_start_x": room_center_x,
                 "leader_start_y": room_center_y,
