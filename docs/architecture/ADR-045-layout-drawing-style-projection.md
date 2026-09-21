@@ -87,3 +87,24 @@ This overlay does not change the structured layout result, any engineering
 coordinate, placement/routing/truck authority, MCP surface, database, PDF/DXF
 export, or downstream authorization. P1B and later presentation work remain
 independently unauthorized.
+
+## P1B implementation overlay — monochrome CAD hierarchy
+
+P1B is the authorized projection-only implementation of the style contract.
+The default theme is `LAYOUT_DRAWING_STYLE_V1` / `CAD_FACTORY_LAYOUT` with
+`COLOR_MODE=MONOCHROME_PRIMARY`. Presentation and mobile use zero review
+accent colors; engineering sheet stays grayscale; explicit engineering review
+may use at most one review accent. Zone fills, no-build hatch, entrances,
+portals, loading face and page furniture use restrained black/white/gray
+tokens, while the existing HEX-only theme validation remains fail-closed.
+
+The renderer exposes semantic viewport stroke tokens `W5` through `W0` with
+the ordering `3.0 > 2.2 > 1.6 > 1.1 > 0.75 > 0.45`. Building exterior is
+W5, zone boundaries W3, portal/entrance W2, loading face W3, dimensions and
+site auxiliary geometry W1, and hatch marks W0. These are presentation
+properties only; source layout hashes, coordinates, building/zone/access/
+truck geometry, loading face, P1A primary-plan bounds and page composition are
+unchanged.
+
+P1C label restructuring, racks/equipment/grid/columns, P2/P2D, MCP, frontend,
+database and export work remain outside this overlay and unauthorized.

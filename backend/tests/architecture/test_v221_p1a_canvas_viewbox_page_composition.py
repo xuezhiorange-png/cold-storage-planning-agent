@@ -47,6 +47,24 @@ def _git(*args: str) -> str:
 
 
 def _paths_from_base() -> set[str]:
+    history = _git(
+        "log",
+        "--reverse",
+        "--diff-filter=A",
+        "--format=%H",
+        "HEAD",
+        "--",
+        SELF,
+    )
+    targets = history.splitlines()
+    if targets:
+        target = targets[0]
+        subprocess.run(
+            ["git", "merge-base", "--is-ancestor", target, "HEAD"],
+            cwd=REPO_ROOT,
+            check=True,
+        )
+        return set(_git("diff", "--name-only", BASE_MAIN_SHA, target).splitlines())
     paths = set(_git("diff", "--name-only", BASE_MAIN_SHA, "HEAD").splitlines())
     paths.update(_git("ls-files", "--others", "--exclude-standard").splitlines())
     return {path for path in paths if path and not path.startswith(GENERATED_ARTIFACT_PREFIX)}

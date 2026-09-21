@@ -54,6 +54,18 @@ SVG_CONTEXT_INSET_WIDTH_M: Final = Decimal("24")
 SVG_CONTEXT_INSET_GAP_M: Final = Decimal("2")
 SVG_CONTEXT_INSET_MARGIN_M: Final = Decimal("1")
 SVG_FOCUSED_FURNITURE_MIN_WIDTH_M: Final = Decimal("42")
+SVG_STYLE_ID: Final = "LAYOUT_DRAWING_STYLE_V1"
+SVG_STYLE_NAME: Final = "CAD_FACTORY_LAYOUT"
+SVG_COLOR_MODE: Final = "MONOCHROME_PRIMARY"
+SVG_NO_BUILD_HATCH_COLOR: Final = "#B5B5B5"
+SVG_STROKE_W5: Final = Decimal("3.0")
+SVG_STROKE_W4: Final = Decimal("2.2")
+SVG_STROKE_W3: Final = Decimal("1.6")
+SVG_STROKE_W2: Final = Decimal("1.1")
+SVG_STROKE_W1: Final = Decimal("0.75")
+SVG_STROKE_W0: Final = Decimal("0.45")
+SVG_ZONE_FILL_OPACITY: Final = Decimal("0.52")
+SVG_CONTEXT_FILL_OPACITY: Final = Decimal("0.18")
 SVG_PAGE_PROFILES: Final[tuple[str, ...]] = (
     "PRESENTATION",
     "MOBILE_PREVIEW",
@@ -62,6 +74,7 @@ SVG_PAGE_PROFILES: Final[tuple[str, ...]] = (
 )
 SVG_FOCUS_PROFILES: Final[frozenset[str]] = frozenset({"PRESENTATION", "MOBILE_PREVIEW"})
 SVG_REVIEW_PROFILES: Final[frozenset[str]] = frozenset({"ENGINEERING_SHEET", "ENGINEERING_REVIEW"})
+SVG_REVIEW_ACCENT_PROFILES: Final[frozenset[str]] = frozenset({"ENGINEERING_REVIEW"})
 SVG_DISPLAY_DIMENSION_DECIMALS: Final = 2
 
 LAYER_ORDER: Final[tuple[str, ...]] = (
@@ -158,20 +171,21 @@ def _validate_svg_theme_fields(theme: object) -> dict[str, str]:
 class SvgDrawingThemeV1:
     """Display-only colours; the theme is not part of engineering authority."""
 
-    background: str = "#ffffff"
-    zone_fill: str = "#dbeafe"
-    cold_zone_fill: str = "#bfdbfe"
-    corridor_fill: str = "#fef3c7"
-    building_outline: str = "#1f2937"
-    site_outline: str = "#111827"
-    obstacle_fill: str = "#fecaca"
-    portal_stroke: str = "#7c3aed"
-    truck_envelope: str = "#dc2626"
-    loading_face: str = "#ea580c"
-    text: str = "#111827"
-    dimension: str = "#374151"
-    buildable_outline: str = "#2563eb"
-    entrance_stroke: str = "#059669"
+    background: str = "#FFFFFF"
+    zone_fill: str = "#FAFAFA"
+    cold_zone_fill: str = "#F3F3F3"
+    corridor_fill: str = "#F7F7F7"
+    building_outline: str = "#111111"
+    site_outline: str = "#555555"
+    obstacle_fill: str = "#999999"
+    portal_stroke: str = "#666666"
+    # The one reserved accent is used only by ENGINEERING_REVIEW overlays.
+    truck_envelope: str = "#B3261E"
+    loading_face: str = "#222222"
+    text: str = "#111111"
+    dimension: str = "#777777"
+    buildable_outline: str = "#777777"
+    entrance_stroke: str = "#555555"
 
     def __post_init__(self) -> None:
         _validate_svg_theme_fields(self)
@@ -184,6 +198,13 @@ def validate_svg_theme(theme: object | None) -> SvgDrawingThemeV1:
     if type(theme) is not SvgDrawingThemeV1:
         raise LayoutAuthorityError("SVG_THEME_INVALID", reason="THEME_TYPE_REQUIRED")
     return SvgDrawingThemeV1(**_validate_svg_theme_fields(theme))
+
+
+def _review_accent(theme: SvgDrawingThemeV1, page_profile: str) -> str:
+    """Return the sole review accent only for the explicit review profile."""
+    if page_profile in SVG_REVIEW_ACCENT_PROFILES:
+        return theme.truck_envelope
+    return theme.dimension
 
 
 @dataclass(frozen=True)
@@ -911,7 +932,7 @@ def _render_dimensions(
                         y2=h_y,
                         stroke=theme.dimension,
                         **{
-                            "stroke-width": 1,
+                            "stroke-width": SVG_STROKE_W1,
                             "marker-start": "url(#dimension-tick)",
                             "marker-end": "url(#dimension-tick)",
                         },
@@ -925,7 +946,7 @@ def _render_dimensions(
                         "x2": hx1,
                         "y2": h_y,
                         "stroke": theme.dimension,
-                        "stroke-width": 1,
+                        "stroke-width": SVG_STROKE_W1,
                     },
                 ),
                 _element(
@@ -936,7 +957,7 @@ def _render_dimensions(
                         "x2": hx2,
                         "y2": h_y,
                         "stroke": theme.dimension,
-                        "stroke-width": 1,
+                        "stroke-width": SVG_STROKE_W1,
                     },
                 ),
                 _text(
@@ -953,7 +974,7 @@ def _render_dimensions(
                         "x2": v_x,
                         "y2": vy2,
                         "stroke": theme.dimension,
-                        "stroke-width": 1,
+                        "stroke-width": SVG_STROKE_W1,
                         "marker-start": "url(#dimension-tick)",
                         "marker-end": "url(#dimension-tick)",
                     },
@@ -966,7 +987,7 @@ def _render_dimensions(
                         "x2": v_x,
                         "y2": vy1,
                         "stroke": theme.dimension,
-                        "stroke-width": 1,
+                        "stroke-width": SVG_STROKE_W1,
                     },
                 ),
                 _element(
@@ -977,7 +998,7 @@ def _render_dimensions(
                         "x2": v_x,
                         "y2": vy2,
                         "stroke": theme.dimension,
-                        "stroke-width": 1,
+                        "stroke-width": SVG_STROKE_W1,
                     },
                 ),
                 _text(
@@ -1011,7 +1032,7 @@ def _render_legend(
         ("入口 / Portal", theme.entrance_stroke, "none", "line"),
         ("货车机动包络", theme.truck_envelope, "none", "dash"),
         ("装卸面", theme.loading_face, "none", "line"),
-        ("禁建区", theme.obstacle_fill, theme.obstacle_fill, "rect"),
+        ("禁建区", theme.obstacle_fill, "url(#no-build-hatch)", "rect"),
     )
     parts = [
         _element(
@@ -1023,7 +1044,7 @@ def _render_legend(
                 "height": 210,
                 "fill": theme.background,
                 "stroke": theme.building_outline,
-                "stroke-width": 1,
+                "stroke-width": SVG_STROKE_W1,
             },
         ),
         _text(
@@ -1046,7 +1067,7 @@ def _render_legend(
                         "height": 12,
                         "fill": fill,
                         "stroke": stroke,
-                        "stroke-width": 1,
+                        "stroke-width": SVG_STROKE_W3,
                     },
                 )
             )
@@ -1060,7 +1081,7 @@ def _render_legend(
                         "x2": x + 32,
                         "y2": cy - 3,
                         "stroke": stroke,
-                        "stroke-width": 2,
+                        "stroke-width": SVG_STROKE_W1,
                         "stroke-dasharray": "5 3",
                     },
                 )
@@ -1076,7 +1097,7 @@ def _render_legend(
                         "height": 12,
                         "fill": "none",
                         "stroke": stroke,
-                        "stroke-width": 2,
+                        "stroke-width": SVG_STROKE_W4,
                     },
                 )
             )
@@ -1090,7 +1111,7 @@ def _render_legend(
                         "x2": x + 32,
                         "y2": cy - 3,
                         "stroke": stroke,
-                        "stroke-width": 3,
+                        "stroke-width": SVG_STROKE_W3,
                     },
                 )
             )
@@ -1122,7 +1143,7 @@ def _render_title_block(
                 "height": 125,
                 "fill": theme.background,
                 "stroke": theme.building_outline,
-                "stroke-width": 1,
+                "stroke-width": SVG_STROKE_W1,
             },
         ),
         _text(
@@ -1166,6 +1187,7 @@ def _render_legend_at(
     *,
     include_source_hash: bool = True,
     include_review_items: bool = True,
+    review_accent: str | None = None,
 ) -> str:
     rows = [
         ("场地边界", theme.site_outline, "none", "site"),
@@ -1175,10 +1197,10 @@ def _render_legend_at(
         ("人流/物流通道", theme.corridor_fill, theme.corridor_fill, "rect"),
         ("入口 / Portal", theme.entrance_stroke, "none", "line"),
         ("装卸面", theme.loading_face, "none", "line"),
-        ("禁建区", theme.obstacle_fill, theme.obstacle_fill, "rect"),
+        ("禁建区", theme.obstacle_fill, "url(#no-build-hatch)", "rect"),
     ]
     if include_review_items:
-        rows.insert(6, ("货车机动包络", theme.truck_envelope, "none", "dash"))
+        rows.insert(6, ("货车机动包络", review_accent or theme.dimension, "none", "dash"))
     parts = [
         _element(
             "rect",
@@ -1189,7 +1211,7 @@ def _render_legend_at(
                 "height": height,
                 "fill": theme.background,
                 "stroke": theme.building_outline,
-                "stroke-width": 1,
+                "stroke-width": SVG_STROKE_W1,
             },
         ),
         _text(
@@ -1212,7 +1234,7 @@ def _render_legend_at(
                         "height": 12,
                         "fill": fill,
                         "stroke": stroke,
-                        "stroke-width": 1,
+                        "stroke-width": SVG_STROKE_W3,
                     },
                 )
             )
@@ -1226,7 +1248,7 @@ def _render_legend_at(
                         "x2": x + Decimal("32"),
                         "y2": cy - Decimal("3"),
                         "stroke": stroke,
-                        "stroke-width": 2,
+                        "stroke-width": SVG_STROKE_W1,
                         "stroke-dasharray": "5 3",
                     },
                 )
@@ -1242,7 +1264,7 @@ def _render_legend_at(
                         "height": 12,
                         "fill": "none",
                         "stroke": stroke,
-                        "stroke-width": 2,
+                        "stroke-width": SVG_STROKE_W4,
                     },
                 )
             )
@@ -1256,7 +1278,7 @@ def _render_legend_at(
                         "x2": x + Decimal("32"),
                         "y2": cy - Decimal("3"),
                         "stroke": stroke,
-                        "stroke-width": 3,
+                        "stroke-width": SVG_STROKE_W3,
                     },
                 )
             )
@@ -1298,7 +1320,7 @@ def _render_area_schedule(
                 "height": height,
                 "fill": theme.background,
                 "stroke": theme.building_outline,
-                "stroke-width": 1,
+                "stroke-width": SVG_STROKE_W1,
             },
         ),
         _text(
@@ -1349,7 +1371,7 @@ def _render_title_block_at(
                 "height": height,
                 "fill": theme.background,
                 "stroke": theme.building_outline,
-                "stroke-width": 1,
+                "stroke-width": SVG_STROKE_W1,
             },
         ),
         _text(
@@ -1427,6 +1449,9 @@ def _render_svg(
     transform = SvgProjectionTransformV1(page_min_x, page_max_y)
     focused = page_profile in SVG_FOCUS_PROFILES
     review_overlays_visible = page_profile in SVG_REVIEW_PROFILES
+    review_accent_visible = page_profile in SVG_REVIEW_ACCENT_PROFILES
+    review_accent = _review_accent(theme, page_profile)
+    site_boundary_width = SVG_STROKE_W1 if focused else SVG_STROKE_W4
     context_transform: SvgProjectionTransformV1 | None = None
     if focused:
         context = cast(dict[str, object], composition["context_inset"])
@@ -1448,6 +1473,21 @@ def _render_svg(
         "drawing_transform": "engineering_x_to_svg_x; engineering_y_to_inverted_svg_y",
         "scale": SVG_SCALE,
         "source_layout_hash": body["canonical_result_hash"],
+        "style_id": SVG_STYLE_ID,
+        "style_name": SVG_STYLE_NAME,
+        "color_mode": SVG_COLOR_MODE,
+        "review_accent_visible": review_accent_visible,
+        "presentation_accent_color_count": 0,
+        "mobile_accent_color_count": 0,
+        "engineering_review_accent_color_count": 1,
+        "stroke_weights": {
+            "W5": SVG_STROKE_W5,
+            "W4": SVG_STROKE_W4,
+            "W3": SVG_STROKE_W3,
+            "W2": SVG_STROKE_W2,
+            "W1": SVG_STROKE_W1,
+            "W0": SVG_STROKE_W0,
+        },
         "north_angle_degrees": site["north_angle_degrees"],
         "page_profile": page_profile,
         "engineering_geometry_bounds": composition["engineering_geometry_bounds"],
@@ -1463,8 +1503,8 @@ def _render_svg(
                     attrs={
                         "id": "no-build-hatch",
                         "patternUnits": "userSpaceOnUse",
-                        "width": 8,
-                        "height": 8,
+                        "width": 12,
+                        "height": 12,
                         "patternTransform": "rotate(45)",
                     },
                     body=_element(
@@ -1474,8 +1514,8 @@ def _render_svg(
                             "y1": 0,
                             "x2": 0,
                             "y2": 8,
-                            "stroke": theme.obstacle_fill,
-                            "stroke-width": 3,
+                            "stroke": SVG_NO_BUILD_HATCH_COLOR,
+                            "stroke-width": SVG_STROKE_W0,
                         },
                     ),
                 ),
@@ -1509,7 +1549,7 @@ def _render_svg(
                 "height": context["height"],
                 "fill": theme.background,
                 "stroke": theme.site_outline,
-                "stroke-width": 1,
+                "stroke-width": SVG_STROKE_W1,
             },
         )
     site_group = _element(
@@ -1523,7 +1563,7 @@ def _render_svg(
                 "points": _polygon_points(site["site_boundary"], site_transform),
                 "fill": "none",
                 "stroke": theme.site_outline,
-                "stroke-width": 3,
+                "stroke-width": site_boundary_width,
             },
         ),
     )
@@ -1535,7 +1575,7 @@ def _render_svg(
                 "points": _polygon_points(site["buildable_boundary"], site_transform),
                 "fill": "none",
                 "stroke": theme.buildable_outline,
-                "stroke-width": 2,
+                "stroke-width": SVG_STROKE_W1,
                 "stroke-dasharray": "8 4",
             },
         )
@@ -1549,7 +1589,7 @@ def _render_svg(
                     "points": _polygon_points(polygon, site_transform),
                     "fill": "url(#no-build-hatch)",
                     "stroke": theme.obstacle_fill,
-                    "stroke-width": 1,
+                    "stroke-width": SVG_STROKE_W1,
                 },
             )
         )
@@ -1564,7 +1604,7 @@ def _render_svg(
                     "fill": theme.obstacle_fill if existing.get("retained") else "none",
                     "fill-opacity": 0.22 if focused else 0.45,
                     "stroke": theme.obstacle_fill,
-                    "stroke-width": 2,
+                    "stroke-width": SVG_STROKE_W2,
                     "stroke-dasharray": "5 3",
                 },
             )
@@ -1582,7 +1622,7 @@ def _render_svg(
                         "points": _polygon_points(building, transform),
                         "fill": "none",
                         "stroke": theme.building_outline,
-                        "stroke-width": 3,
+                        "stroke-width": SVG_STROKE_W5,
                     },
                 ),
                 _text(
@@ -1614,9 +1654,9 @@ def _render_svg(
                         "id": f"zone-footprint-{_safe_id(code)}",
                         "points": _polygon_points(polygon, transform),
                         "fill": fill,
-                        "fill-opacity": 0.72,
+                        "fill-opacity": SVG_ZONE_FILL_OPACITY,
                         "stroke": theme.building_outline,
-                        "stroke-width": 1.5,
+                        "stroke-width": SVG_STROKE_W3,
                     },
                     body=_element("title", body=escape(f"{DISPLAY_LABELS[code]} {code}")),
                 ),
@@ -1661,9 +1701,9 @@ def _render_svg(
                     "data-zone-code": code,
                     "points": _polygon_points(rectangles[code].polygon_mm, context_transform),
                     "fill": theme.cold_zone_fill if code in COLD_ZONE_CODES else theme.zone_fill,
-                    "fill-opacity": 0.30,
+                    "fill-opacity": SVG_CONTEXT_FILL_OPACITY,
                     "stroke": theme.building_outline,
-                    "stroke-width": 1,
+                    "stroke-width": SVG_STROKE_W1,
                 },
             )
             for code in EXPECTED_ZONE_CODES
@@ -1678,7 +1718,7 @@ def _render_svg(
                     "points": _polygon_points(building, context_transform),
                     "fill": "none",
                     "stroke": theme.building_outline,
-                    "stroke-width": 1.5,
+                    "stroke-width": SVG_STROKE_W1,
                 },
             )
             + "".join(context_zone_parts),
@@ -1703,7 +1743,7 @@ def _render_svg(
                         "x2": transform.point(segment[1])[0],
                         "y2": transform.point(segment[1])[1],
                         "stroke": theme.portal_stroke,
-                        "stroke-width": 5,
+                        "stroke-width": SVG_STROKE_W2,
                         "stroke-linecap": "round",
                     },
                 )
@@ -1739,7 +1779,7 @@ def _render_svg(
                             "fill": theme.corridor_fill,
                             "fill-opacity": 0.42,
                             "stroke": theme.corridor_fill,
-                            "stroke-width": 1,
+                            "stroke-width": SVG_STROKE_W1,
                         },
                     )
                 )
@@ -1758,7 +1798,7 @@ def _render_svg(
                         "points": _polyline_points(centerline, transform),
                         "fill": "none",
                         "stroke": theme.dimension,
-                        "stroke-width": 1.5,
+                        "stroke-width": SVG_STROKE_W1,
                         "stroke-dasharray": "5 3",
                     },
                 ),
@@ -1799,10 +1839,10 @@ def _render_svg(
                     attrs={
                         "id": f"truck-envelope-{index}",
                         "points": _polygon_points(envelope, transform),
-                        "fill": theme.truck_envelope,
+                        "fill": review_accent,
                         "fill-opacity": 0.18,
-                        "stroke": theme.truck_envelope,
-                        "stroke-width": 2,
+                        "stroke": review_accent,
+                        "stroke-width": SVG_STROKE_W1,
                         "stroke-dasharray": "7 4",
                     },
                 )
@@ -1812,8 +1852,8 @@ def _render_svg(
                         "id": f"truck-reference-path-{index}",
                         "points": _polyline_points((entry, exit_point), transform),
                         "fill": "none",
-                        "stroke": theme.truck_envelope,
-                        "stroke-width": 2,
+                        "stroke": review_accent,
+                        "stroke-width": SVG_STROKE_W1,
                         "stroke-dasharray": "3 3",
                     },
                 )
@@ -1837,10 +1877,10 @@ def _render_svg(
                     attrs={
                         "id": f"truck-envelope-{index}",
                         "points": _polygon_points(envelope, transform),
-                        "fill": theme.truck_envelope,
+                        "fill": review_accent,
                         "fill-opacity": 0.18,
-                        "stroke": theme.truck_envelope,
-                        "stroke-width": 2,
+                        "stroke": review_accent,
+                        "stroke-width": SVG_STROKE_W1,
                         "stroke-dasharray": "7 4",
                     },
                 )
@@ -1866,7 +1906,7 @@ def _render_svg(
                         "x2": entrance_transform.point(site["main_entrance"][1])[0],
                         "y2": entrance_transform.point(site["main_entrance"][1])[1],
                         "stroke": theme.entrance_stroke,
-                        "stroke-width": 6,
+                        "stroke-width": SVG_STROKE_W2,
                     },
                 ),
                 _element(
@@ -1878,8 +1918,8 @@ def _render_svg(
                         "y1": entrance_transform.point(site["truck_entrance"][0])[1],
                         "x2": entrance_transform.point(site["truck_entrance"][1])[0],
                         "y2": entrance_transform.point(site["truck_entrance"][1])[1],
-                        "stroke": theme.truck_envelope,
-                        "stroke-width": 6,
+                        "stroke": theme.entrance_stroke,
+                        "stroke-width": SVG_STROKE_W2,
                     },
                 ),
                 _element(
@@ -1892,7 +1932,7 @@ def _render_svg(
                         "x2": transform.point(loading_face[1])[0],
                         "y2": transform.point(loading_face[1])[1],
                         "stroke": theme.loading_face,
-                        "stroke-width": 7,
+                        "stroke-width": SVG_STROKE_W3,
                     },
                 ),
             )
@@ -1920,6 +1960,7 @@ def _render_svg(
             str(body["canonical_result_hash"]),
             include_source_hash=review_overlays_visible,
             include_review_items=review_overlays_visible,
+            review_accent=review_accent,
         )
         schedule_group = _render_area_schedule(
             cast(Decimal, schedule_rect["x"]),
@@ -2018,6 +2059,21 @@ def build_projection_payload(
     return {
         "identity": SVG_PROJECTION_IDENTITY,
         "schema_version": SVG_SCHEMA_VERSION,
+        "style_id": SVG_STYLE_ID,
+        "style_name": SVG_STYLE_NAME,
+        "color_mode": SVG_COLOR_MODE,
+        "review_accent_visible": page_profile in SVG_REVIEW_ACCENT_PROFILES,
+        "presentation_accent_color_count": 0,
+        "mobile_accent_color_count": 0,
+        "engineering_review_accent_color_count": 1,
+        "stroke_weights": {
+            "W5": SVG_STROKE_W5,
+            "W4": SVG_STROKE_W4,
+            "W3": SVG_STROKE_W3,
+            "W2": SVG_STROKE_W2,
+            "W1": SVG_STROKE_W1,
+            "W0": SVG_STROKE_W0,
+        },
         "source_validated_layout_hash": source_layout_hash,
         "source_zone_plan_hash": body.get("source_zone_plan_hash"),
         "source_p1_handoff_hash": body.get("source_p1_handoff_hash"),
