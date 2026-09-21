@@ -109,6 +109,45 @@ READY_AUTHORIZED=NO
 MERGE_AUTHORIZED=NO
 ```
 
+## V2.2.1 P1B monochrome CAD visual hierarchy (Draft review)
+
+P1B is the separately authorized presentation-only implementation of the
+frozen `LAYOUT_DRAWING_STYLE_V1` / `CAD_FACTORY_LAYOUT` contract. It changes
+the default SVG expression from a colorful functional-area map to a
+black/white/gray CAD-style hierarchy with explicit W5–W0 stroke levels. It
+does not change P1A/P1A2 canvas or focus composition and does not change any
+validated engineering geometry or P2/P2D/P4/MCP behavior.
+
+详见 [`V2_2_1-P1B-monochrome-cad-visual-hierarchy.md`](V2_2_1-P1B-monochrome-cad-visual-hierarchy.md)。
+
+```ini
+TASK_ID=V2_2_1_P1B_MONOCHROME_CAD_VISUAL_HIERARCHY_R1
+BASE_MAIN_SHA=dd26be03438ba7e3b147e5b700e3815d80d70458
+TARGET_VERSION=v2.2.1
+ACTIVE_GOVERNANCE_LANE=V2.2.1_P1B
+P1B_AUTHORIZED=YES
+STYLE_ID=LAYOUT_DRAWING_STYLE_V1
+STYLE_NAME=CAD_FACTORY_LAYOUT
+COLOR_MODE=MONOCHROME_PRIMARY
+W5_W0_IMPLEMENTED=YES
+P1A_COMPOSITION_PRESERVED=YES
+P1A2_FOCUS_PRESERVED=YES
+SOURCE_ENGINEERING_GEOMETRY_CHANGED=NO
+P2_CHANGED=NO
+P2D_CHANGED=NO
+P4_CHANGED=NO
+MCP_CHANGED=NO
+DATABASE_CHANGED=NO
+FRONTEND_CHANGED=NO
+P1C_AUTHORIZED=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+TAG_AUTHORIZED=NO
+RELEASE_AUTHORIZED=NO
+DEPLOYMENT_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
 ## V2.2 post-P5 CI correction release overlay (2026-09-18)
 
 The P5 readiness snapshot below remains historical. The post-P5 correction was
