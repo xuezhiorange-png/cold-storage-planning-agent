@@ -204,6 +204,150 @@ def test_diagnostics_are_stably_sorted_and_hashed(presentation_body):
     assert first.canonical_lint_hash == second.canonical_lint_hash
 
 
+def test_missing_required_room_label_fact_fails_closed(presentation_body):
+    body = deepcopy(presentation_body)
+    del body["ROOM_LABEL_WALL_CROSSING_COUNT"]
+
+    report = lint_validated_layout_drawing(body)
+
+    assert report.drawing_lint_gate == "FAIL"
+    assert report.unavailable_required_fact_count >= 1
+    assert report.metric_evidence["ROOM_LABEL_WALL_CROSSING_COUNT"].status == "UNAVAILABLE"
+    assert any(
+        issue.code == "DRAWING_LINT_REQUIRED_FACT_UNAVAILABLE"
+        and issue.metrics["fact"] == "ROOM_LABEL_WALL_CROSSING_COUNT"
+        for issue in report.issues
+    )
+
+
+def test_missing_required_boolean_fact_is_not_false(presentation_body):
+    body = deepcopy(presentation_body)
+    del body["internal_zone_code_visible"]
+
+    report = lint_validated_layout_drawing(body)
+
+    assert report.drawing_lint_gate == "FAIL"
+    evidence = report.metric_evidence["INTERNAL_ZONE_CODE_VISIBLE"]
+    assert evidence.status == "UNAVAILABLE"
+    assert evidence.value is None
+
+
+def test_explicit_zero_is_measured_and_passes(presentation_body):
+    body = deepcopy(presentation_body)
+    body["ROOM_LABEL_WALL_CROSSING_COUNT"] = 0
+
+    report = lint_validated_layout_drawing(body)
+
+    assert report.drawing_lint_gate == "PASS"
+    evidence = report.metric_evidence["ROOM_LABEL_WALL_CROSSING_COUNT"]
+    assert evidence.status == "MEASURED"
+    assert evidence.value == 0
+
+
+def test_page_furniture_out_of_page_is_derived_from_facts(presentation_body):
+    body = deepcopy(presentation_body)
+    body.pop("PAGE_FURNITURE_OUT_OF_PAGE_COUNT", None)
+
+    report = lint_validated_layout_drawing(body)
+
+    evidence = report.metric_evidence["PAGE_FURNITURE_OUT_OF_PAGE_COUNT"]
+    assert evidence.status == "DERIVED"
+    assert evidence.value == 0
+    assert report.drawing_lint_gate == "PASS"
+
+
+def test_non_rendered_callout_checks_are_not_applicable(validated_layout_and_geometry):
+    report = lint_validated_layout_drawing(_render(validated_layout_and_geometry, "PRESENTATION"))
+
+    assert report.metrics["ROOM_LABEL_CALLOUT_COUNT"] == 0
+    assert report.not_applicable_fact_count >= 4
+    assert all(
+        report.metric_evidence[name].status == "NOT_APPLICABLE"
+        for name in (
+            "CALLOUT_LABEL_COLLISION_COUNT",
+            "CALLOUT_LEADER_SELF_INTERSECTION_COUNT",
+            "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT",
+            "CALLOUT_OUT_OF_PAGE_COUNT",
+        )
+    )
+
+
+def test_engineering_review_callout_facts_are_evaluated(validated_layout_and_geometry):
+    report = lint_validated_layout_drawing(
+        _render(validated_layout_and_geometry, "ENGINEERING_REVIEW")
+    )
+
+    assert report.metrics["ROOM_LABEL_CALLOUT_COUNT"] == 7
+    for name in (
+        "CALLOUT_LABEL_COLLISION_COUNT",
+        "CALLOUT_LEADER_SELF_INTERSECTION_COUNT",
+        "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT",
+        "CALLOUT_OUT_OF_PAGE_COUNT",
+    ):
+        assert report.metric_evidence[name].status in {"MEASURED", "DERIVED"}
+        assert report.metric_evidence[name].status != "UNAVAILABLE"
+    assert report.drawing_lint_gate == "PASS"
+
+
+def test_evidence_status_and_hash_are_deterministic(presentation_body):
+    first = lint_validated_layout_drawing(deepcopy(presentation_body))
+    second = lint_validated_layout_drawing(deepcopy(presentation_body))
+
+    assert first.to_dict() == second.to_dict()
+    assert first.canonical_lint_hash == second.canonical_lint_hash
+    assert {name: evidence.status for name, evidence in first.metric_evidence.items()} == {
+        name: evidence.status for name, evidence in second.metric_evidence.items()
+    }
+    assert first.to_dict()["evidence_status_hashed"] is True
+    assert first.to_dict()["evidence_source_hashed"] is True
+    assert first.to_dict()["same_input_same_evidence_status"] is True
+
+
+def test_evidence_status_and_source_are_part_of_lint_hash(presentation_body):
+    measured_body = deepcopy(presentation_body)
+    derived_body = deepcopy(presentation_body)
+    del derived_body["ROOM_LABEL_LABEL_OVERLAP_COUNT"]
+
+    measured = lint_validated_layout_drawing(measured_body)
+    derived = lint_validated_layout_drawing(derived_body)
+
+    assert measured.metrics["ROOM_LABEL_LABEL_OVERLAP_COUNT"] == 0
+    assert derived.metrics["ROOM_LABEL_LABEL_OVERLAP_COUNT"] == 0
+    assert measured.metric_evidence["ROOM_LABEL_LABEL_OVERLAP_COUNT"].status == "MEASURED"
+    assert derived.metric_evidence["ROOM_LABEL_LABEL_OVERLAP_COUNT"].status == "DERIVED"
+    assert measured.canonical_lint_hash != derived.canonical_lint_hash
+
+
+@pytest.mark.parametrize(
+    "profile,expected_hash",
+    (
+        ("PRESENTATION", "sha256:97e7c9083050dc1e1edd01c8880f4c7aa1d2526d72e8eff809ee792bda8cf59e"),
+        (
+            "MOBILE_PREVIEW",
+            "sha256:db6a39e7ad38ca8c0b0fc2063d4189bdd295691d92aaf7a922e59d7c200954c8",
+        ),
+        (
+            "ENGINEERING_SHEET",
+            "sha256:9383f8686189ab9152f1203a9c4af20d85545293e46952f25ed7af13bfac3237",
+        ),
+        (
+            "ENGINEERING_REVIEW",
+            "sha256:48ea97310b955b3e5b94ea68eebed49c377031c74cb4eeba9db003e36042f37d",
+        ),
+    ),
+)
+def test_lint_sidecar_does_not_change_svg_baseline_hash(
+    validated_layout_and_geometry, profile, expected_hash
+):
+    projection = _render(validated_layout_and_geometry, profile)
+    body = projection.to_dict()
+
+    lint_validated_layout_drawing(projection)
+
+    assert body["svg_sha256"] == expected_hash
+    assert "drawing_lint_facts" not in body["svg"]
+
+
 def test_profile_validation_is_explicit():
     with pytest.raises(ValueError) as error:
         lint_validated_layout_drawing({"page_profile": "UNKNOWN"})

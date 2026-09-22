@@ -15,10 +15,11 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 BASE_MAIN_SHA = "27400de6934fd6bf8a307ac1e4ce3786a959e331"
 DOMAIN = "backend/src/cold_storage/modules/layout/domain/drawing_lint.py"
 APPLICATION = "backend/src/cold_storage/modules/layout/application/drawing_lint.py"
+PROJECTION = "backend/src/cold_storage/modules/layout/domain/svg_projection.py"
 UNIT = "backend/tests/unit/test_v221_p1d_drawing_lint.py"
 SELF = "backend/tests/architecture/test_v221_p1d_drawing_lint.py"
 DOC = "docs/tasks/V2_2_1-P1D-drawing-lint-foundation.md"
-ALLOWED_PATHS = {DOMAIN, APPLICATION, UNIT, SELF, DOC}
+ALLOWED_PATHS = {DOMAIN, APPLICATION, PROJECTION, UNIT, SELF, DOC}
 PROTECTED_PREFIXES = (
     "backend/src/cold_storage/modules/calculations/",
     "backend/src/cold_storage/modules/layout/application/access_routing.py",
@@ -26,7 +27,6 @@ PROTECTED_PREFIXES = (
     "backend/src/cold_storage/modules/layout/domain/access_routing.py",
     "backend/src/cold_storage/modules/layout/domain/placement.py",
     "backend/src/cold_storage/modules/layout/domain/site_geometry.py",
-    "backend/src/cold_storage/modules/layout/domain/svg_projection.py",
     "frontend/",
     "backend/alembic/",
     ".github/workflows/",
@@ -64,6 +64,9 @@ def test_p1d_scope_is_independent_and_immutable_history_based() -> None:
     changed = _historical_changed_paths()
     assert changed <= ALLOWED_PATHS
     assert not any(path.startswith(PROTECTED_PREFIXES) for path in changed)
+    current_changed = set(_git("diff", "--name-only", BASE_MAIN_SHA, "HEAD").splitlines())
+    assert current_changed <= ALLOWED_PATHS
+    assert not any(path.startswith(PROTECTED_PREFIXES) for path in current_changed)
 
 
 def test_drawing_lint_identity_profiles_and_gate_are_versioned() -> None:
@@ -110,6 +113,24 @@ def test_drawing_lint_identity_profiles_and_gate_are_versioned() -> None:
         "VISIBLE_DIMENSION_OUT_OF_PAGE_COUNT",
         "ROOM_LABEL_OUT_OF_PAGE_COUNT",
         "canonical_lint_hash",
+        "DrawingLintMetricEvidenceV1",
+        "DRAWING_LINT_EVIDENCE_STATUSES",
+        "MEASURED",
+        "DERIVED",
+        "NOT_APPLICABLE",
+        "UNAVAILABLE",
+        "DRAWING_LINT_REQUIRED_FACT_UNAVAILABLE",
+        "MISSING_FACT_IS_ZERO",
+        "MISSING_FACT_IS_FALSE",
+        "MISSING_REQUIRED_FACT_FAILS_CLOSED",
+        "EVIDENCE_STATUS_HASHED",
+        "EVIDENCE_SOURCE_HASHED",
+        "unavailable_required_fact_count",
+        "metric_evidence",
+        "required_fact_count",
+        "measured_fact_count",
+        "derived_fact_count",
+        "not_applicable_fact_count",
     ):
         assert required in source
     for required in (
@@ -121,8 +142,24 @@ def test_drawing_lint_identity_profiles_and_gate_are_versioned() -> None:
         "SVG_HASH_CHANGED=false",
         "P1E_AUTHORIZED=NO",
         "NO_STEP_IMPLIES_THE_NEXT=TRUE",
+        "MISSING_FACT_IS_ZERO=false",
+        "MISSING_REQUIRED_FACT_FAILS_CLOSED=true",
+        "SVG_VISUAL_OUTPUT_CHANGED=false",
     ):
         assert required in document
+
+
+def test_required_fact_policy_and_sidecar_are_fail_closed() -> None:
+    domain = _source(DOMAIN)
+    projection = _source(PROJECTION)
+    assert "_BASE_REQUIRED_FACTS" in domain
+    assert "_CALLOUT_REQUIRED_FACTS" in domain
+    assert 'status="UNAVAILABLE"' in domain
+    assert "DRAWING_LINT_REQUIRED_FACT_UNAVAILABLE" in domain
+    assert "_drawing_lint_sidecar" in projection
+    assert '"drawing_lint_facts": drawing_lint_facts' in projection
+    metadata_source = projection.split("metadata =", 1)[1].split("defs =", 1)[0]
+    assert "drawing_lint_facts" not in metadata_source
 
 
 def test_lint_layer_does_not_depend_on_rendering_or_engineering_runtime() -> None:

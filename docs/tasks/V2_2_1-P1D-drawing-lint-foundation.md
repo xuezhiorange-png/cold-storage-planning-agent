@@ -61,6 +61,36 @@ warning so the SVG remains byte-identical; it does not silently claim the
 engineering sheet is a clean business view. `ENGINEERING_REVIEW` retains its
 debug visibility policy and is not treated as leakage.
 
+## Evidence semantics correction
+
+```ini
+TASK_ID=V2_2_1_P1D_DRAWING_LINT_EVIDENCE_SEMANTICS_CORRECTION_R1
+PREVIOUS_HEAD_SHA=c31ca60b5e140075c037866b101e5d725f78fb97
+CORRECTION_SCOPE=EVIDENCE_AVAILABILITY_AND_FAIL_CLOSED_SEMANTICS
+MISSING_FACT_IS_ZERO=false
+MISSING_FACT_IS_FALSE=false
+MISSING_REQUIRED_FACT_FAILS_CLOSED=true
+EVIDENCE_STATUS_VALUES=MEASURED|DERIVED|NOT_APPLICABLE|UNAVAILABLE
+EVIDENCE_STATUS_HASHED=true
+EVIDENCE_SOURCE_HASHED=true
+DRAWING_LINT_REQUIRED_FACT_UNAVAILABLE=ERROR
+SVG_VISUAL_OUTPUT_CHANGED=false
+SVG_BYTES_CHANGED=false
+SVG_HASH_CHANGED=false
+ENGINEERING_SHEET_WARNING_POLICY_PRESERVED=true
+P1E_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=TRUE
+```
+
+Required facts now carry explicit evidence status and stable source strings.
+`UNAVAILABLE` is never converted to zero or false; a required unavailable fact
+adds `DRAWING_LINT_REQUIRED_FACT_UNAVAILABLE` and fails the lint gate.
+`NOT_APPLICABLE` is reserved for an explicitly absent drawing feature, such as
+callout checks when the resolved room-label plan has zero callouts. Resolved
+label, dimension, and callout facts are exposed in a non-visual projection
+sidecar. The sidecar is excluded from SVG metadata and does not alter SVG
+bytes or hashes.
+
 ## Parity and governance
 
 The representative four-profile SVG parity check is performed outside the
