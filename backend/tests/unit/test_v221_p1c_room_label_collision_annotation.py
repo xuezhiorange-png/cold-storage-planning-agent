@@ -148,6 +148,23 @@ def test_area_schedule_is_numeric_id_to_business_name_and_area(
     assert "01 | 办公室 |" in schedule_text
     assert "02 | 更衣室 |" in schedule_text
     assert all(code not in schedule_text for code in ZONE_CODES)
+    assert body["AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP"] is False
+    assert body["AREA_SCHEDULE_ROW_OVERLAP_COUNT"] == 0
+
+    schedule_text_elements = [element for element in schedule if element.tag == f"{SVG_NS}text"]
+    header = next(
+        element for element in schedule_text_elements if element.text == "编号 | 中文名称 | 面积"
+    )
+    rows = [
+        element
+        for element in schedule_text_elements
+        if element.text and element.text[:2].isdigit() and " | " in element.text
+    ]
+    assert len(rows) == 12
+    header_y = Decimal(header.get("y", "nan"))
+    row_y = [Decimal(element.get("y", "nan")) for element in rows]
+    assert row_y[0] - header_y >= Decimal("20")
+    assert all(row_y[index + 1] - row_y[index] == Decimal("24") for index in range(len(row_y) - 1))
 
 
 def test_engineering_review_preserves_debug_label_and_metadata_visibility(

@@ -42,6 +42,12 @@ SVG_PAGE_FURNITURE_GAP_M: Final = Decimal("4")
 SVG_PAGE_FURNITURE_WIDTH_M: Final = Decimal("60")
 SVG_PAGE_FURNITURE_MARGIN_M: Final = Decimal("2")
 SVG_AREA_SCHEDULE_HEIGHT_M: Final = Decimal("36")
+SVG_AREA_SCHEDULE_TITLE_BASELINE_OFFSET_PX: Final = Decimal("22")
+SVG_AREA_SCHEDULE_HEADER_BASELINE_OFFSET_PX: Final = Decimal("40")
+SVG_AREA_SCHEDULE_FIRST_ROW_BASELINE_OFFSET_PX: Final = Decimal("62")
+SVG_AREA_SCHEDULE_ROW_SPACING_PX: Final = Decimal("24")
+SVG_AREA_SCHEDULE_HEADER_TEXT_HEIGHT_PX: Final = Decimal("9")
+SVG_AREA_SCHEDULE_ROW_TEXT_HEIGHT_PX: Final = Decimal("10")
 SVG_FURNITURE_GAP_M: Final = Decimal("2")
 SVG_MAIN_DRAWING_TARGET_OCCUPANCY: Final = Decimal("0.78")
 SVG_MAIN_DRAWING_MIN_OCCUPANCY: Final = Decimal("0.70")
@@ -1880,20 +1886,24 @@ def _render_area_schedule(
         ),
         _text(
             x + Decimal("14"),
-            y + Decimal("22"),
+            y + SVG_AREA_SCHEDULE_TITLE_BASELINE_OFFSET_PX,
             "面积表",
             attrs={"fill": theme.text, "font-size": 16, "font-weight": "700"},
         ),
         _text(
             x + Decimal("14"),
-            y + Decimal("34"),
+            y + SVG_AREA_SCHEDULE_HEADER_BASELINE_OFFSET_PX,
             "编号 | 中文名称 | 面积",
             attrs={"fill": theme.text, "font-size": 9},
         ),
     ]
     for index, code in enumerate(EXPECTED_ZONE_CODES):
         rectangle = rectangles[code]
-        row_y = y + Decimal("42") + (Decimal(index) * Decimal("24"))
+        row_y = (
+            y
+            + SVG_AREA_SCHEDULE_FIRST_ROW_BASELINE_OFFSET_PX
+            + (Decimal(index) * SVG_AREA_SCHEDULE_ROW_SPACING_PX)
+        )
         value = (
             f"{index + 1:02d} | {DISPLAY_LABELS[code]} | "
             f"{format_display_number(rectangle.actual_area_m2)} m²"
@@ -1907,6 +1917,24 @@ def _render_area_schedule(
             )
         )
     return _element("g", attrs={"id": "area-schedule"}, body="".join(parts))
+
+
+def _area_schedule_metrics(row_count: int) -> dict[str, bool | int]:
+    """Return deterministic, conservative vertical-overlap metrics."""
+    header_baseline = SVG_AREA_SCHEDULE_HEADER_BASELINE_OFFSET_PX
+    first_row_baseline = SVG_AREA_SCHEDULE_FIRST_ROW_BASELINE_OFFSET_PX
+    header_first_row_overlap = first_row_baseline - header_baseline < max(
+        SVG_AREA_SCHEDULE_HEADER_TEXT_HEIGHT_PX, SVG_AREA_SCHEDULE_ROW_TEXT_HEIGHT_PX
+    )
+    row_overlap_count = sum(
+        1
+        for index in range(max(row_count - 1, 0))
+        if SVG_AREA_SCHEDULE_ROW_SPACING_PX < SVG_AREA_SCHEDULE_ROW_TEXT_HEIGHT_PX
+    )
+    return {
+        "AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP": header_first_row_overlap,
+        "AREA_SCHEDULE_ROW_OVERLAP_COUNT": row_overlap_count,
+    }
 
 
 def _render_title_block_at(
@@ -2632,6 +2660,7 @@ def _render_svg(
         "truck_maneuver_count": len(raw_maneuvers)
         if raw_maneuvers
         else len(body.get("truck_envelopes", [])),
+        **_area_schedule_metrics(len(EXPECTED_ZONE_CODES)),
         **label_metrics,
     }
     return svg, composition, counts
