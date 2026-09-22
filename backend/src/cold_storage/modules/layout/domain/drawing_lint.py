@@ -766,11 +766,16 @@ def _derived_callout_metrics(
                     points[second_index + 1],
                 ):
                     self_intersection_count += 1
-        if any(
-            _segment_intersects_rectangle_interior(points[index], points[index + 1], box)
-            for index in range(len(points) - 1)
-        ):
-            leader_label_intersection_count += 1
+        for other_id, other_box in label_by_id.items():
+            if other_id == own_label_id:
+                continue
+            if any(
+                _segment_intersects_rectangle_interior(points[index], points[index + 1], other_box)
+                for index in range(len(points) - 1)
+            ):
+                # Count each leader/other-label pair once, even if multiple
+                # orthogonal segments cross the same label box.
+                leader_label_intersection_count += 1
         if _out_of_page(box, page_size) or any(
             _page_point_out_of_page(point, page_size) for point in points
         ):
@@ -1008,9 +1013,9 @@ def lint_drawing_projection(
         "ROOM_LABEL_LABEL_OVERLAP_COUNT": "Room labels overlap.",
         "ROOM_LABEL_DIMENSION_COLLISION_COUNT": "Room label collides with a dimension.",
         "ROOM_LABEL_PORTAL_COLLISION_COUNT": "Room label collides with a portal.",
-        "CALLOUT_LABEL_COLLISION_COUNT": "Callout label collides with another drawing element.",
+        "CALLOUT_LABEL_COLLISION_COUNT": "Callout label overlaps another label.",
         "CALLOUT_LEADER_SELF_INTERSECTION_COUNT": "Callout leader self-intersects.",
-        "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT": "Callout leader intersects its label.",
+        "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT": "Callout leader intersects another label.",
         "CALLOUT_OUT_OF_PAGE_COUNT": "Callout is outside the page.",
         "AREA_SCHEDULE_ROW_OVERLAP_COUNT": "Area schedule rows overlap.",
         "AREA_SCHEDULE_CONTENT_CLIP_COUNT": "Area schedule content is clipped.",

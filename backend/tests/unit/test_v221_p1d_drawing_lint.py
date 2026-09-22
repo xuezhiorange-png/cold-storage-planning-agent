@@ -220,6 +220,145 @@ def test_missing_required_room_label_fact_fails_closed(presentation_body):
     )
 
 
+def _synthetic_callout_body(presentation_body, *, points, other_boxes):
+    body = deepcopy(presentation_body)
+    callout_metric_names = (
+        "CALLOUT_LABEL_COLLISION_COUNT",
+        "CALLOUT_LEADER_SELF_INTERSECTION_COUNT",
+        "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT",
+        "CALLOUT_OUT_OF_PAGE_COUNT",
+    )
+    for name in callout_metric_names:
+        body.pop(name, None)
+    callout_metrics = body.get("callout_metrics")
+    if isinstance(callout_metrics, dict):
+        for name in callout_metric_names:
+            callout_metrics.pop(name, None)
+
+    own_box = {
+        "x": "80",
+        "y": "20",
+        "width": "20",
+        "height": "10",
+    }
+    label_boxes = [
+        {"element_id": "label-own", "box": own_box},
+        *({"element_id": element_id, "box": box} for element_id, box in other_boxes),
+    ]
+    body["ROOM_LABEL_CALLOUT_COUNT"] = 1
+    facts = body["drawing_lint_facts"]
+    facts["label_boxes"] = label_boxes
+    facts["callout_leaders"] = [
+        {
+            "element_id": "leader-a",
+            "label_element_id": "label-own",
+            "points": points,
+            "label_box": own_box,
+        }
+    ]
+    return body
+
+
+def test_callout_leader_crossing_other_label_is_an_error(presentation_body):
+    body = _synthetic_callout_body(
+        presentation_body,
+        points=[
+            {"x": "10", "y": "45"},
+            {"x": "80", "y": "45"},
+            {"x": "80", "y": "25"},
+        ],
+        other_boxes=(
+            (
+                "label-other",
+                {"x": "40", "y": "40", "width": "20", "height": "10"},
+            ),
+        ),
+    )
+
+    report = lint_validated_layout_drawing(body)
+
+    assert report.metrics["CALLOUT_LEADER_LABEL_INTERSECTION_COUNT"] == 1
+    issue = next(
+        issue for issue in report.issues if issue.code == "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT"
+    )
+    assert issue.severity == "ERROR"
+    assert report.drawing_lint_gate == "FAIL"
+
+
+def test_callout_leader_endpoint_touching_own_label_is_not_an_intersection(
+    presentation_body,
+):
+    body = _synthetic_callout_body(
+        presentation_body,
+        points=[
+            {"x": "70", "y": "10"},
+            {"x": "80", "y": "10"},
+            {"x": "80", "y": "25"},
+        ],
+        other_boxes=(
+            (
+                "label-other",
+                {"x": "40", "y": "40", "width": "20", "height": "10"},
+            ),
+        ),
+    )
+
+    report = lint_validated_layout_drawing(body)
+
+    assert report.metrics["CALLOUT_LEADER_LABEL_INTERSECTION_COUNT"] == 0
+    assert report.drawing_lint_gate == "PASS"
+
+
+def test_callout_leader_touching_other_label_boundary_is_not_an_intersection(
+    presentation_body,
+):
+    body = _synthetic_callout_body(
+        presentation_body,
+        points=[
+            {"x": "10", "y": "40"},
+            {"x": "80", "y": "40"},
+            {"x": "80", "y": "25"},
+        ],
+        other_boxes=(
+            (
+                "label-other",
+                {"x": "40", "y": "40", "width": "20", "height": "10"},
+            ),
+        ),
+    )
+
+    report = lint_validated_layout_drawing(body)
+
+    assert report.metrics["CALLOUT_LEADER_LABEL_INTERSECTION_COUNT"] == 0
+    assert report.drawing_lint_gate == "PASS"
+
+
+def test_callout_leader_crosses_each_other_label_once(presentation_body):
+    body = _synthetic_callout_body(
+        presentation_body,
+        points=[
+            {"x": "10", "y": "45"},
+            {"x": "80", "y": "45"},
+            {"x": "80", "y": "25"},
+        ],
+        other_boxes=(
+            (
+                "label-other-a",
+                {"x": "30", "y": "40", "width": "20", "height": "10"},
+            ),
+            (
+                "label-other-b",
+                {"x": "55", "y": "40", "width": "20", "height": "10"},
+            ),
+        ),
+    )
+
+    report = lint_validated_layout_drawing(body)
+
+    assert report.metrics["CALLOUT_LEADER_LABEL_INTERSECTION_COUNT"] == 2
+    assert report.drawing_lint_gate == "FAIL"
+
+
 def test_missing_required_boolean_fact_is_not_false(presentation_body):
     body = deepcopy(presentation_body)
     del body["internal_zone_code_visible"]

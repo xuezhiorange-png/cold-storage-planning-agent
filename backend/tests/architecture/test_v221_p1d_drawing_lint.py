@@ -162,6 +162,14 @@ def test_required_fact_policy_and_sidecar_are_fail_closed() -> None:
     assert "drawing_lint_facts" not in metadata_source
 
 
+def test_callout_leader_intersections_use_other_label_boxes_only() -> None:
+    domain = _source(DOMAIN)
+    assert "for other_id, other_box in label_by_id.items()" in domain
+    assert "if other_id == own_label_id:" in domain
+    assert '"Callout label overlaps another label."' in domain
+    assert '"Callout leader intersects another label."' in domain
+
+
 def test_lint_layer_does_not_depend_on_rendering_or_engineering_runtime() -> None:
     domain = _source(DOMAIN)
     application = _source(APPLICATION)
