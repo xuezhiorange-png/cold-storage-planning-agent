@@ -425,6 +425,7 @@ def test_engineering_review_callout_facts_are_evaluated(validated_layout_and_geo
     ):
         assert report.metric_evidence[name].status in {"MEASURED", "DERIVED"}
         assert report.metric_evidence[name].status != "UNAVAILABLE"
+        assert report.metrics[name] == 0
     assert report.drawing_lint_gate == "PASS"
 
 
