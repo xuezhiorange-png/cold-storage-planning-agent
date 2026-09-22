@@ -1113,6 +1113,20 @@ def _callout_centers(
     return tuple(candidates)
 
 
+def _callout_leader_endpoint(*, anchor: str, box: Mapping[str, Decimal]) -> tuple[Decimal, Decimal]:
+    """Return the leader endpoint on the callout side facing its room."""
+    half = Decimal("2")
+    if anchor == "CALLOUT_RIGHT":
+        return box["x"], box["y"] + box["height"] / half
+    if anchor == "CALLOUT_LEFT":
+        return box["x"] + box["width"], box["y"] + box["height"] / half
+    if anchor == "CALLOUT_TOP":
+        return box["x"] + box["width"] / half, box["y"] + box["height"]
+    if anchor == "CALLOUT_BOTTOM":
+        return box["x"] + box["width"] / half, box["y"]
+    raise LayoutAuthorityError("SVG_CALLOUT_ANCHOR_INVALID", anchor=anchor)
+
+
 def _label_lines(
     code: str,
     rectangle: PlacedRectangleV1,
@@ -1249,9 +1263,11 @@ def _build_room_label_plan(
                 "callout": True,
                 "leader_start_x": room_center_x,
                 "leader_start_y": room_center_y,
-                "leader_end_x": center_x - box_width / Decimal("2"),
-                "leader_end_y": center_y,
             }
+            chosen["leader_end_x"], chosen["leader_end_y"] = _callout_leader_endpoint(
+                anchor=anchor,
+                box=cast(dict[str, Decimal], chosen["box"]),
+            )
         plans[code] = chosen
         placed_boxes.append(cast(dict[str, Decimal], chosen["box"]))
 

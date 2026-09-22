@@ -11,10 +11,15 @@ from cold_storage.modules.layout.application.access_routing import route_site_pl
 from cold_storage.modules.layout.application.svg_projection import (
     project_validated_layout_to_svg,
 )
+from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
 from cold_storage.modules.layout.domain.svg_projection import (
     SvgProjectionTransformV1,
     _build_room_label_plan,
+    _callout_leader_endpoint,
+    _dimension_codes_for_profile,
+    _segment,
+    _source_rectangles,
 )
 from tests.unit.test_v22_p2d_access_routing import (
     representative_context as p2d_representative_context,
@@ -203,6 +208,66 @@ def test_extremely_small_rooms_use_numeric_or_callout_fallback():
     assert metrics["ROOM_LABEL_2_LINE_COUNT"] == 0
     assert metrics["ROOM_LABEL_1_LINE_COUNT"] == 0
     assert metrics["ROOM_LABEL_NUMERIC_ID_COUNT"] + metrics["ROOM_LABEL_CALLOUT_COUNT"] == 12
+
+
+@pytest.mark.parametrize(
+    ("anchor", "expected"),
+    (
+        ("CALLOUT_RIGHT", (Decimal("10"), Decimal("7"))),
+        ("CALLOUT_LEFT", (Decimal("18"), Decimal("7"))),
+        ("CALLOUT_TOP", (Decimal("14"), Decimal("10"))),
+        ("CALLOUT_BOTTOM", (Decimal("14"), Decimal("4"))),
+    ),
+)
+def test_callout_leader_endpoint_is_facing_box_midpoint(anchor, expected):
+    box = {"x": Decimal("10"), "y": Decimal("4"), "width": Decimal("8"), "height": Decimal("6")}
+    assert _callout_leader_endpoint(anchor=anchor, box=box) == expected
+
+
+def test_invalid_callout_anchor_fails_closed():
+    box = {"x": Decimal("10"), "y": Decimal("4"), "width": Decimal("8"), "height": Decimal("6")}
+    with pytest.raises(LayoutAuthorityError) as error:
+        _callout_leader_endpoint(anchor="CALLOUT_DIAGONAL", box=box)
+    assert error.value.code == "SVG_CALLOUT_ANCHOR_INVALID"
+
+
+def test_representative_svg_uses_directional_callout_endpoints(
+    validated_layout_and_geometry,
+):
+    layout, _ = validated_layout_and_geometry
+    body = _render(validated_layout_and_geometry, profile="ENGINEERING_REVIEW")
+    assert body["ROOM_LABEL_CALLOUT_COUNT"] >= 1
+
+    layout_body = layout.to_dict()
+    rectangles = _source_rectangles(layout_body)
+    page_bounds = body["page_layout_bounds"]
+    transform = SvgProjectionTransformV1(
+        Decimal(page_bounds["min_x_m"]), Decimal(page_bounds["max_y_m"])
+    )
+    portal_segments = tuple(
+        _segment(portal["segment"], field="portal.segment") for portal in layout_body["portals"]
+    )
+    plans, metrics = _build_room_label_plan(
+        rectangles,
+        transform,
+        page_profile="ENGINEERING_REVIEW",
+        portal_segments=portal_segments,
+        dimension_codes=_dimension_codes_for_profile("ENGINEERING_REVIEW"),
+    )
+    assert metrics["ROOM_LABEL_CALLOUT_COUNT"] == body["ROOM_LABEL_CALLOUT_COUNT"]
+
+    root = ET.fromstring(body["svg"])
+    for code, plan in plans.items():
+        if not plan["callout"]:
+            continue
+        line = _element_by_id(root, f"label-callout-line-{code}")
+        expected_x, expected_y = _callout_leader_endpoint(anchor=plan["anchor"], box=plan["box"])
+        assert Decimal(line.get("x1", "nan")) == plan["leader_start_x"]
+        assert Decimal(line.get("y1", "nan")) == plan["leader_start_y"]
+        assert Decimal(line.get("x2", "nan")) == expected_x
+        assert Decimal(line.get("y2", "nan")) == expected_y
+    assert body["ROOM_LABEL_WALL_CROSSING_COUNT"] == 0
+    assert body["ROOM_LABEL_PRIMARY_COLLISION_COUNT"] == 0
 
 
 def test_label_elements_record_stable_mode_and_index(validated_layout_and_geometry):
