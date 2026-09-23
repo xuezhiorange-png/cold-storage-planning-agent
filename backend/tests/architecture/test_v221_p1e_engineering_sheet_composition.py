@@ -31,6 +31,7 @@ PLAN = "docs/tasks/V2_2-version-plan.md"
 ADR = "docs/architecture/ADR-046-engineering-sheet-composition.md"
 BEFORE_PNG = "docs/tasks/evidence/v2_2_1_p1e/before-engineering-sheet.png"
 AFTER_PNG = "docs/tasks/evidence/v2_2_1_p1e/after-engineering-sheet.png"
+GENERATED_ARTIFACT_PREFIX = "backend/artifacts/local/"
 ALLOWED_PATHS = {
     DOMAIN,
     PROJECTION,
@@ -71,14 +72,37 @@ def _source(path: str) -> str:
     return (REPO_ROOT / path).read_text(encoding="utf-8")
 
 
+def _source_changes(tracked: set[str], untracked: set[str]) -> set[str]:
+    # Backend integration/architecture tests may leave generated report files
+    # in this runtime output directory. They are not source changes in the PR.
+    return tracked | {path for path in untracked if not path.startswith(GENERATED_ARTIFACT_PREFIX)}
+
+
+def test_generated_report_artifacts_are_not_source_changes() -> None:
+    assert (
+        _source_changes(
+            set(),
+            {
+                "backend/artifacts/local/run/report.pdf",
+                "backend/artifacts/local/run/report.pdf.meta",
+            },
+        )
+        == set()
+    )
+    assert _source_changes(set(), {"backend/src/cold_storage/modules/layout/new_module.py"}) == {
+        "backend/src/cold_storage/modules/layout/new_module.py"
+    }
+
+
 def test_p1e_changes_are_projection_only_and_within_allowlist() -> None:
     subprocess.run(
         ["git", "merge-base", "--is-ancestor", BASE_MAIN_SHA, "HEAD"],
         cwd=REPO_ROOT,
         check=True,
     )
-    changed = set(_git("diff", "--name-only", BASE_MAIN_SHA, "HEAD").splitlines())
-    changed.update(_git("ls-files", "--others", "--exclude-standard").splitlines())
+    tracked = set(_git("diff", "--name-only", BASE_MAIN_SHA, "HEAD").splitlines())
+    untracked = set(_git("ls-files", "--others", "--exclude-standard").splitlines())
+    changed = _source_changes(tracked, untracked)
     assert changed <= ALLOWED_PATHS
     assert not any(
         path == protected or path.startswith(protected)
