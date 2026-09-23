@@ -15,6 +15,27 @@ P1E_ARCH = "backend/tests/architecture/test_v221_p1e_engineering_sheet_compositi
 P1D_UNIT = "backend/tests/unit/test_v221_p1d_drawing_lint.py"
 P1E_UNIT = "backend/tests/unit/test_v221_p1e_engineering_sheet_composition.py"
 DOC = "docs/tasks/V2_2_1-P1F-context-inset-loading-face-correction.md"
+P1F_RERUN_EVIDENCE = {
+    "docs/tasks/V2_2_1-P1F-cross-fixture-drawing-robustness.md",
+    "docs/tasks/V2_2_1-P1E-engineering-sheet-composition.md",
+    "docs/tasks/V2_2-version-plan.md",
+    "backend/tests/evaluation/test_v221_p1f_cross_fixture_drawing_robustness.py",
+    "docs/tasks/evidence/v2_2_1_p1f/acceptance-matrix.json",
+    "docs/tasks/evidence/v2_2_1_p1f/p2d_representative_20t_rectangular_site-presentation.png",
+    "docs/tasks/evidence/v2_2_1_p1f/p2d_representative_20t_rectangular_site-presentation.svg",
+    "docs/tasks/evidence/v2_2_1_p1f/p2d_representative_20t_rectangular_site-presentation-context-inset.png",
+    "docs/tasks/evidence/v2_2_1_p1f/p2d_representative_20t_rectangular_site-presentation-context-loading-face-detail.png",
+    "docs/tasks/evidence/v2_2_1_p1f/p2d_representative_20t_rectangular_site-mobile_preview.png",
+    "docs/tasks/evidence/v2_2_1_p1f/p2d_representative_20t_rectangular_site-mobile_preview.svg",
+    "docs/tasks/evidence/v2_2_1_p1f/p2d_representative_20t_rectangular_site-mobile_preview-context-inset.png",
+    "docs/tasks/evidence/v2_2_1_p1f/p2d_representative_20t_rectangular_site-mobile_preview-context-loading-face-detail.png",
+    "docs/tasks/evidence/v2_2_1_p1f/p2d_representative_20t_rectangular_site-engineering_sheet.png",
+    "docs/tasks/evidence/v2_2_1_p1f/p2d_representative_20t_rectangular_site-engineering_sheet.svg",
+    "docs/tasks/evidence/v2_2_1_p1f/p4_real_selector_site_with_no_build_zones-engineering_sheet.png",
+    "docs/tasks/evidence/v2_2_1_p1f/p4_real_selector_site_with_no_build_zones-engineering_sheet.svg",
+    "docs/tasks/evidence/v2_2_1_p1f/p3_existing_concave_site_validated_layout-engineering_review.png",
+    "docs/tasks/evidence/v2_2_1_p1f/p3_existing_concave_site_validated_layout-engineering_review.svg",
+}
 EVIDENCE = {
     "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/before_presentation.svg",
     "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/before_presentation.png",
@@ -38,6 +59,7 @@ ALLOWED_PATHS = {
     P1E_UNIT,
     DOC,
     *EVIDENCE,
+    *P1F_RERUN_EVIDENCE,
 }
 PROTECTED_PREFIXES = (
     "backend/src/cold_storage/modules/calculations/",

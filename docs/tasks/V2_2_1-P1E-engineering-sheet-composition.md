@@ -56,12 +56,14 @@ new engineering score or placement objective. The representative input
 selects `RIGHT_RAIL`.
 
 The representative `ENGINEERING_SHEET` measures main-drawing occupancy
-`0.7008771929824561`, primary-plan screen occupancy `1.0`, primary-plan width
-ratio `1.0`, and height ratio `1.0`. The selected composition satisfies the
-minimum occupancy of `0.70`; the `0.78` value remains the target, not a
-substitute for the explicit minimum. The `BOTTOM_RAIL` candidate does not
-meet the minimum for this fixture and is therefore rejected. All dimensions
-remain visible.
+`0.7008771929824561`, primary-plan screen occupancy `0.7943176771550949`,
+primary-plan width ratio `0.8998748435544431`, and height ratio
+`0.8826979472140762`. These primary-plan ratios use the actual primary bounds
+inside the drawing bounds; they are not inferred from the drawing rectangle
+itself. The selected composition satisfies the minimum main-drawing occupancy
+of `0.70`; the `0.78` value remains the target, not a substitute for the
+explicit minimum. The `BOTTOM_RAIL` candidate does not meet the minimum for
+this fixture and is therefore rejected. All dimensions remain visible.
 
 Engineering overlays remain visible, but sheet-only business drawing
 visibility is separated from `ENGINEERING_REVIEW` provenance/debug visibility.
@@ -75,9 +77,9 @@ For the representative 20 t/day full-pass fixture:
 
 | Measure | Before | P1E result |
 | --- | ---: | ---: |
-| Primary-plan screen occupancy | 0.1422613826 | 1.0 |
-| Primary-plan width ratio | 0.3504385965 | 1.0 |
-| Primary-plan height ratio | 0.4059523810 | 1.0 |
+| Primary-plan screen occupancy | 0.1422613826 | 0.7943176771550949 |
+| Primary-plan width ratio | 0.3504385965 | 0.8998748435544431 |
+| Primary-plan height ratio | 0.4059523810 | 0.8826979472140762 |
 | Main-drawing occupancy | 0.7799991789 | 0.7008771929824561 |
 | Drawing lint warnings | 4 | 0 |
 
