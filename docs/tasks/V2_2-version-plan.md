@@ -199,32 +199,55 @@ and [ADR-046](../architecture/ADR-046-engineering-sheet-composition.md). The
 composition is presentation-only; passing automated lint does not replace
 Owner visual review or authorize a subsequent phase.
 
-## V2.2.1 P1F cross-fixture drawing robustness (Draft review)
+## V2.2.1 P1F cross-fixture drawing robustness (R2 rerun; Owner review pending)
 
 P1F evaluates the existing P1A–P1E drawing output across three reused,
 P2D-validated full-chain fixtures and two bounds-only P1E composition cases.
-It adds no drawing feature or runtime behavior. The representative P1E primary
-metrics are corrected to use the actual primary-plan bounds; the detailed
-fixture inventory, 12-profile acceptance matrix, two candidate-path checks,
-exact SVG hashes, and viewable PNG evidence are in the
+After PR #298 merged the context-inset loading-face correction, the R2 rerun
+verified the actual transformed SVG line endpoints against each fixture's
+authoritative `shipping_loading_face_segment`. All 12 full-chain profile rows
+pass Drawing Lint with zero errors or unavailable required facts, all six
+previously failing PRESENTATION/MOBILE combinations now pass, and deterministic
+replay is preserved. R2 changes no renderer feature or engineering/runtime
+behavior. Owner visual review remains an independent pending gate. The detailed
+fixture inventory, generated acceptance matrix, candidate-path checks, exact
+SVG hashes, and regenerated viewable PNG/context crops are in the
 [P1F robustness report](V2_2_1-P1F-cross-fixture-drawing-robustness.md).
 
 ```ini
-TASK_ID=V2_2_1_P1F_CROSS_FIXTURE_DRAWING_ROBUSTNESS_R1
-BASE_MAIN_SHA=debda749966e7c890e2f8758f468fa582fb3def8
+TASK_ID=V2_2_1_P1F_CROSS_FIXTURE_DRAWING_ROBUSTNESS_RERUN_R2
+PR_NUMBER=297
+PREVIOUS_PR_HEAD_SHA=0631d9f3410b54ff862406922f110505949ac85f
+NEW_BASE_MAIN_SHA=0ba8334a8fd6c4dde5b887c12a6a271d0cad1fce
 ACTIVE_GOVERNANCE_LANE=V2.2.1_P1F
-AUTHORITATIVE_FULL_CHAIN_FIXTURE_COUNT=3
-COMPOSITION_ONLY_SYNTHETIC_SCENARIO_COUNT=2
+FULL_CHAIN_AUTHORITATIVE_FIXTURE_COUNT=3
+COMPOSITION_ONLY_FIXTURE_COUNT=2
 TOTAL_DRAWING_SCENARIO_COUNT=5
+FULL_CHAIN_PROFILE_ROW_COUNT=12
+PREVIOUS_FAILED_PROFILE_COMBINATIONS=6
+AFTER_FAILED_PROFILE_COMBINATIONS=0
 RIGHT_RAIL_PATH_VALIDATED=true
 BOTTOM_RAIL_PATH_VALIDATED=true
 DRAWING_LINT_FAILED_SCENARIO_COUNT=0
 DETERMINISM_FAILED_SCENARIO_COUNT=0
-VISUAL_BLOCKER_SCENARIO_COUNT=3
-VISUAL_BLOCKER_PROFILE_COUNT=6
-P1F_ACCEPTANCE_COMPLETE=false
+VISUAL_BLOCKER_SCENARIO_COUNT=0
+VISUAL_BLOCKER_PROFILE_COMBINATIONS=0
+PRESENTATION_CONTEXT_LOADING_FACE_COMPLETE=true
+MOBILE_CONTEXT_LOADING_FACE_COMPLETE=true
+P1F_AUTOMATED_MATRIX_ACCEPTANCE=PASS
+OWNER_VISUAL_REVIEW=REQUIRED
+PREVIOUS_BLOCKER=CONTEXT_INSET_MISSING_SHIPPING_LOADING_FACE
+PREVIOUS_BLOCKER_RESOLVED_BY_PR=298
+PRESENTATION_SVG_SHA256=sha256:e89ca6e1f797fedca41780d2027e728b3a3f37db19c979c0fa9dc863531b2f1a
+MOBILE_PREVIEW_SVG_SHA256=sha256:dc0b5313113e69fdfc6c59b88f4bd911316d74b71762bae83768c1bdd70153f2
+ENGINEERING_SHEET_SVG_SHA256=sha256:96c82d7296d027a9b41b4b2d8198e7239bed61dbc0811259e0575e2ca3eb25d3
+ENGINEERING_REVIEW_SVG_SHA256=sha256:48ea97310b955b3e5b94ea68eebed49c377031c74cb4eeba9db003e36042f37d
+REPRESENTATIVE_PRIMARY_PLAN_SCREEN_OCCUPANCY=0.7943176771550949
+REPRESENTATIVE_PRIMARY_PLAN_WIDTH_RATIO=0.8998748435544431
+REPRESENTATIVE_PRIMARY_PLAN_HEIGHT_RATIO=0.8826979472140762
 REPRESENTATIVE_DRAWING_BYTES_CHANGED=false
 SOURCE_ENGINEERING_GEOMETRY_CHANGED=false
+ENGINEERING_COORDINATES_MUTATED=false
 P1G_AUTHORIZED=false
 READY_AUTHORIZED=false
 MERGE_AUTHORIZED=false

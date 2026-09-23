@@ -42,7 +42,10 @@ from cold_storage.modules.layout.domain.engineering_sheet_composition import (
     ENGINEERING_SHEET_PRIMARY_PLAN_MIN_WIDTH_RATIO,
     build_engineering_sheet_composition,
 )
-from cold_storage.modules.layout.domain.svg_projection import SVG_PAGE_PROFILES
+from cold_storage.modules.layout.domain.svg_projection import (
+    SVG_PAGE_PROFILES,
+    SvgProjectionTransformV1,
+)
 from tests.unit.test_v22_p1f_project_truck_input import truck_input
 from tests.unit.test_v22_p2d_access_routing import (
     _placement,
@@ -83,8 +86,8 @@ _BUSINESS_VIEW_FLAGS = (
     "SCHEMA_IDENTITY_VISIBLE",
 )
 _EXPECTED_REPRESENTATIVE_HASHES = {
-    "PRESENTATION": "sha256:97e7c9083050dc1e1edd01c8880f4c7aa1d2526d72e8eff809ee792bda8cf59e",
-    "MOBILE_PREVIEW": "sha256:db6a39e7ad38ca8c0b0fc2063d4189bdd295691d92aaf7a922e59d7c200954c8",
+    "PRESENTATION": "sha256:e89ca6e1f797fedca41780d2027e728b3a3f37db19c979c0fa9dc863531b2f1a",
+    "MOBILE_PREVIEW": "sha256:dc0b5313113e69fdfc6c59b88f4bd911316d74b71762bae83768c1bdd70153f2",
     "ENGINEERING_SHEET": "sha256:96c82d7296d027a9b41b4b2d8198e7239bed61dbc0811259e0575e2ca3eb25d3",
     "ENGINEERING_REVIEW": "sha256:48ea97310b955b3e5b94ea68eebed49c377031c74cb4eeba9db003e36042f37d",
 }
@@ -251,7 +254,13 @@ def _context_inset_evidence(
     scenario: _FullChainScenario, projection: Mapping[str, Any], profile: str
 ) -> dict[str, Any]:
     if profile not in _CONTEXT_INSET_PROFILES:
-        return {"required": False, "visible": False, "loading_interface_visible": None}
+        return {
+            "required": False,
+            "visible": False,
+            "loading_interface_visible": None,
+            "loading_face_endpoint_matches_authority": None,
+            "inset_bounds_px": None,
+        }
 
     assert projection["context_inset"]
     root = ET.fromstring(str(projection["svg"]))
@@ -274,15 +283,55 @@ def _context_inset_evidence(
         ),
     }
     missing_ids = sorted(required_ids - element_ids)
-    loading_interface_visible = bool(
-        {"context-shipping-loading-face", "context-shipping-loading-face-visible"} & element_ids
+    context_group = next(
+        (element for element in root.iter() if element.get("id") == "site-context-layout"),
+        None,
     )
+    loading_face = next(
+        (
+            element
+            for element in root.iter()
+            if element.get("id") == "context-shipping-loading-face"
+        ),
+        None,
+    )
+    loading_interface_visible = False
+    if context_group is not None and loading_face is not None:
+        body = scenario.layout.to_dict() if hasattr(scenario.layout, "to_dict") else scenario.layout
+        assert isinstance(body, Mapping)
+        source_segment = body["shipping_loading_face_segment"]
+        source_points: list[tuple[int, int]] = []
+        for endpoint in (source_segment["start"], source_segment["end"]):
+            coordinates = tuple(Decimal(str(endpoint[axis])) * 1000 for axis in ("x", "y"))
+            assert all(value == value.to_integral_value() for value in coordinates)
+            source_points.append((int(coordinates[0]), int(coordinates[1])))
+
+        geometry_bounds = projection["engineering_geometry_bounds"]
+        inset = projection["context_inset"]
+        padding = Decimal(str(inset["inner_padding"]))
+        context_transform = SvgProjectionTransformV1(
+            min_x_m=Decimal(str(geometry_bounds["min_x_m"])),
+            max_y_m=Decimal(str(geometry_bounds["max_y_m"])),
+            scale=Decimal(str(inset["scale"])),
+            offset_x_px=Decimal(str(inset["x"])) + padding,
+            offset_y_px=Decimal(str(inset["y"])) + padding,
+        )
+        expected = tuple(context_transform.point(point) for point in source_points)
+        actual = tuple(Decimal(loading_face.attrib[name]) for name in ("x1", "y1", "x2", "y2"))
+        loading_interface_visible = loading_face in list(context_group) and actual == (
+            *expected[0],
+            *expected[1],
+        )
     if not loading_interface_visible:
         missing_ids.append("context-shipping-loading-face")
     return {
         "required": True,
         "visible": True,
         "loading_interface_visible": loading_interface_visible,
+        "loading_face_endpoint_matches_authority": loading_interface_visible,
+        "inset_bounds_px": {
+            name: str(projection["context_inset"][name]) for name in ("x", "y", "width", "height")
+        },
         "missing_elements": missing_ids,
         "contract_pass": not missing_ids,
     }
@@ -307,6 +356,8 @@ def _project_all_profiles(scenario: _FullChainScenario) -> dict[str, dict[str, A
         replay_lint = lint_validated_layout_drawing(replay, page_profile=profile)
         assert first["svg"] == replay["svg"]
         assert first["svg_sha256"] == replay["svg_sha256"]
+        if scenario.scenario_id == "P2D_REPRESENTATIVE_20T_RECTANGULAR_SITE":
+            assert first["svg_sha256"] == _EXPECTED_REPRESENTATIVE_HASHES[profile]
         assert first_lint.to_dict() == replay_lint.to_dict()
         assert first_lint.canonical_lint_hash == replay_lint.canonical_lint_hash
         assert first_lint.drawing_lint_gate == "PASS"
@@ -521,9 +572,21 @@ def _scenario_report(
                     "context_loading_interface_visible": context_evidence[
                         "loading_interface_visible"
                     ],
+                    "context_loading_face_endpoint_matches_authority": context_evidence[
+                        "loading_face_endpoint_matches_authority"
+                    ],
+                    "context_inset_bounds_px": context_evidence["inset_bounds_px"],
                     "context_inset_contract_pass": context_evidence.get("contract_pass"),
                     "context_inset_missing_elements": context_evidence.get("missing_elements", []),
-                    "result": ("BLOCKED_CONTEXT_INSET_INCOMPLETE" if context_blocked else "PASS"),
+                    "result": (
+                        "BLOCKED_CONTEXT_INSET_INCOMPLETE"
+                        if context_blocked
+                        else "DRAWING_LINT_FAILED"
+                        if lint.drawing_lint_gate != "PASS"
+                        else "DETERMINISM_FAILED"
+                        if not profile_data["determinism"]
+                        else "PASS"
+                    ),
                     "lint_hash": lint.canonical_lint_hash,
                     "metric_evidence": {
                         name: evidence.to_dict() for name, evidence in lint.metric_evidence.items()
@@ -532,8 +595,14 @@ def _scenario_report(
             )
     synthetic = _bounds_only_scenarios()
     context_blockers = [row for row in acceptance if row["context_inset_contract_pass"] is False]
+    drawing_lint_failures = [row for row in acceptance if row["drawing_lint_gate"] != "PASS"]
+    determinism_failures = [row for row in acceptance if row["determinism"] is not True]
+    visual_blockers = [row for row in acceptance if row["result"] != "PASS"]
+    automated_pass = not (
+        context_blockers or drawing_lint_failures or determinism_failures or visual_blockers
+    )
     return {
-        "task_id": "V2_2_1_P1F_CROSS_FIXTURE_DRAWING_ROBUSTNESS_R1",
+        "task_id": "V2_2_1_P1F_CROSS_FIXTURE_DRAWING_ROBUSTNESS_RERUN_R2",
         "drawing_lint_identity": "drawing-lint@1.0.0",
         "authoritative_full_chain_fixtures": inventory,
         "composition_only_scenarios": synthetic,
@@ -543,12 +612,22 @@ def _scenario_report(
         "composition_only_fixture_count": len(synthetic),
         "context_inset_blocker_profile_count": len(context_blockers),
         "visual_blocker_scenario_count": len({row["scenario"] for row in context_blockers}),
-        "p1f_acceptance_complete": not context_blockers,
+        "visual_blocker_profile_combinations": len(visual_blockers),
+        "drawing_lint_failed_scenario_count": len(drawing_lint_failures),
+        "determinism_failed_scenario_count": len(determinism_failures),
+        "previous_failed_profile_combinations": 6,
+        "after_failed_profile_combinations": len(visual_blockers),
+        "p1f_acceptance_complete": automated_pass,
         "p1f_blocker": (
-            "CONTEXT_INSET_MISSING_SHIPPING_LOADING_FACE_IN_PRESENTATION_AND_MOBILE_PREVIEW"
+            "CONTEXT_INSET_MISSING_SHIPPING_LOADING_FACE"
             if context_blockers
+            else "DRAWING_LINT_FAILED"
+            if drawing_lint_failures
+            else "DETERMINISM_FAILED"
+            if determinism_failures
             else None
         ),
+        "resolved_by_merged_pr": 298,
         "context_inset_blockers": [
             {
                 "scenario": row["scenario"],
@@ -558,6 +637,71 @@ def _scenario_report(
             for row in context_blockers
         ],
     }
+
+
+def _context_inset_page_rect(
+    page: Any, svg_bytes: bytes, inset: Mapping[str, Any], fitz_module: Any
+) -> Any:
+    root = ET.fromstring(svg_bytes)
+    view_box = tuple(Decimal(value) for value in root.attrib["viewBox"].split())
+    assert len(view_box) == 4
+    view_x, view_y, view_width, view_height = view_box
+    preserve = root.attrib.get("preserveAspectRatio", "xMidYMid meet").split()
+    alignment = preserve[0] if preserve else "xMidYMid"
+    mode = preserve[1] if len(preserve) > 1 else "meet"
+    assert alignment != "none" and mode == "meet"
+    scale = min(
+        Decimal(str(page.rect.width)) / view_width,
+        Decimal(str(page.rect.height)) / view_height,
+    )
+    spare_x = Decimal(str(page.rect.width)) - (view_width * scale)
+    spare_y = Decimal(str(page.rect.height)) - (view_height * scale)
+    offset_x = (
+        spare_x / 2 if "xMid" in alignment else spare_x if "xMax" in alignment else Decimal("0")
+    )
+    offset_y = (
+        spare_y / 2 if "YMid" in alignment else spare_y if "YMax" in alignment else Decimal("0")
+    )
+    inset_x = Decimal(str(inset["x"]))
+    inset_y = Decimal(str(inset["y"]))
+    inset_width = Decimal(str(inset["width"]))
+    inset_height = Decimal(str(inset["height"]))
+    left = offset_x + ((inset_x - view_x) * scale)
+    top = offset_y + ((inset_y - view_y) * scale)
+    right = left + (inset_width * scale)
+    bottom = top + (inset_height * scale)
+    return fitz_module.Rect(float(left), float(top), float(right), float(bottom))
+
+
+def _context_loading_face_detail_page_rect(page: Any, svg_bytes: bytes, fitz_module: Any) -> Any:
+    root = ET.fromstring(svg_bytes)
+    loading_face = next(
+        (
+            element
+            for element in root.iter()
+            if element.get("id") == "context-shipping-loading-face"
+        ),
+        None,
+    )
+    assert loading_face is not None
+    face_x = [Decimal(loading_face.attrib[name]) for name in ("x1", "x2")]
+    face_y = [Decimal(loading_face.attrib[name]) for name in ("y1", "y2")]
+    padding = Decimal("12")
+    left = min(face_x) - padding
+    top = min(face_y) - padding
+    right = max(face_x) + padding
+    bottom = max(face_y) + padding
+    return _context_inset_page_rect(
+        page,
+        svg_bytes,
+        {
+            "x": str(left),
+            "y": str(top),
+            "width": str(right - left),
+            "height": str(bottom - top),
+        },
+        fitz_module,
+    )
 
 
 def _save_optional_evidence(report: Mapping[str, Any], results_by_id: Mapping[str, Any]) -> None:
@@ -576,6 +720,8 @@ def _save_optional_evidence(report: Mapping[str, Any], results_by_id: Mapping[st
     import fitz
 
     evidence_hashes: dict[str, dict[str, str]] = {}
+    context_crop_hashes: dict[str, dict[str, str]] = {}
+    context_detail_crop_hashes: dict[str, dict[str, str]] = {}
     for scenario_id, profile in selected:
         projection = results_by_id[scenario_id][profile]["projection"]
         file_stem = f"{scenario_id.lower()}-{profile.lower()}"
@@ -592,8 +738,44 @@ def _save_optional_evidence(report: Mapping[str, Any], results_by_id: Mapping[st
             "svg_sha256": str(projection["svg_sha256"]),
             "png_sha256": hashlib.sha256(png_path.read_bytes()).hexdigest(),
         }
+        if profile in {"PRESENTATION", "MOBILE_PREVIEW"}:
+            inset = projection["context_inset"]
+            clip = _context_inset_page_rect(page, svg_bytes, inset, fitz)
+            crop_scale = min(1600 / clip.width, 1600 / clip.height)
+            crop_path = output_dir / f"{file_stem}-context-inset.png"
+            crop_path.write_bytes(
+                page.get_pixmap(
+                    matrix=fitz.Matrix(crop_scale, crop_scale), clip=clip, alpha=False
+                ).tobytes("png")
+            )
+            context_crop_hashes[file_stem] = {
+                "png_sha256": hashlib.sha256(crop_path.read_bytes()).hexdigest(),
+                "viewport_px": {
+                    "x": str(inset["x"]),
+                    "y": str(inset["y"]),
+                    "width": str(inset["width"]),
+                    "height": str(inset["height"]),
+                },
+            }
+            detail_clip = _context_loading_face_detail_page_rect(page, svg_bytes, fitz)
+            detail_scale = min(1800 / detail_clip.width, 1800 / detail_clip.height)
+            detail_path = output_dir / f"{file_stem}-context-loading-face-detail.png"
+            detail_path.write_bytes(
+                page.get_pixmap(
+                    matrix=fitz.Matrix(detail_scale, detail_scale),
+                    clip=detail_clip,
+                    alpha=False,
+                ).tobytes("png")
+            )
+            context_detail_crop_hashes[file_stem] = {
+                "png_sha256": hashlib.sha256(detail_path.read_bytes()).hexdigest(),
+                "source_element_id": "context-shipping-loading-face",
+                "source_segment_authority": "shipping_loading_face_segment",
+            }
     complete_report = dict(report)
     complete_report["visual_evidence"] = evidence_hashes
+    complete_report["context_inset_crop_evidence"] = context_crop_hashes
+    complete_report["context_loading_face_detail_crop_evidence"] = context_detail_crop_hashes
     (output_dir / "acceptance-matrix.json").write_text(
         json.dumps(complete_report, ensure_ascii=False, indent=2, sort_keys=True, default=str)
         + "\n",
@@ -612,21 +794,22 @@ def test_existing_authoritative_fixtures_pass_all_profiles_and_replay_determinis
     assert report["full_chain_authoritative_fixture_count"] == 3
     assert report["composition_only_fixture_count"] == 2
     assert report["scenario_count"] == 5
-    assert all(
-        row["result"] in {"PASS", "BLOCKED_CONTEXT_INSET_INCOMPLETE"}
-        for row in report["acceptance_matrix"]
-    )
+    assert all(row["result"] == "PASS" for row in report["acceptance_matrix"])
     assert all(item["full_p2d_validated"] for item in report["authoritative_full_chain_fixtures"])
-    assert report["context_inset_blocker_profile_count"] == 6
-    assert report["visual_blocker_scenario_count"] == 3
-    assert report["p1f_acceptance_complete"] is False
-    assert report["p1f_blocker"] == (
-        "CONTEXT_INSET_MISSING_SHIPPING_LOADING_FACE_IN_PRESENTATION_AND_MOBILE_PREVIEW"
-    )
+    assert report["context_inset_blocker_profile_count"] == 0
+    assert report["visual_blocker_scenario_count"] == 0
+    assert report["visual_blocker_profile_combinations"] == 0
+    assert report["drawing_lint_failed_scenario_count"] == 0
+    assert report["determinism_failed_scenario_count"] == 0
+    assert report["after_failed_profile_combinations"] == 0
+    assert report["p1f_acceptance_complete"] is True
+    assert report["p1f_blocker"] is None
     assert all(
-        row["context_inset_missing_elements"] == ["context-shipping-loading-face"]
+        row["context_inset_contract_pass"] is True
+        and row["context_loading_interface_visible"] is True
+        and row["context_loading_face_endpoint_matches_authority"] is True
         for row in report["acceptance_matrix"]
-        if row["context_inset_contract_pass"] is False
+        if row["context_inset_visible"]
     )
     selector = next(
         item

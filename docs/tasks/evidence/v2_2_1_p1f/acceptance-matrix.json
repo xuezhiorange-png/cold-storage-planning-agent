@@ -1,12 +1,17 @@
 {
   "acceptance_matrix": [
     {
-      "context_inset_contract_pass": false,
-      "context_inset_missing_elements": [
-        "context-shipping-loading-face"
-      ],
+      "context_inset_bounds_px": {
+        "height": "180",
+        "width": "240",
+        "x": "819",
+        "y": "10"
+      },
+      "context_inset_contract_pass": true,
+      "context_inset_missing_elements": [],
       "context_inset_visible": true,
-      "context_loading_interface_visible": false,
+      "context_loading_face_endpoint_matches_authority": true,
+      "context_loading_interface_visible": true,
       "determinism": true,
       "drawing_lint_gate": "PASS",
       "errors": 0,
@@ -143,23 +148,28 @@
       "primary_aspect_ratio": "1.194352159468438538205980066",
       "primary_plan_occupancy": "0.754485363550519357884796978281397544853635505193578847969783",
       "profile": "PRESENTATION",
-      "result": "BLOCKED_CONTEXT_INSET_INCOMPLETE",
+      "result": "PASS",
       "room_label_collisions": 0,
       "scenario": "P2D_REPRESENTATIVE_20T_RECTANGULAR_SITE",
       "selected_composition": null,
       "site_aspect_ratio": "1.375",
       "source_type": "EXISTING_P2D_VALIDATED_TEST_FIXTURE",
-      "svg_hash": "sha256:97e7c9083050dc1e1edd01c8880f4c7aa1d2526d72e8eff809ee792bda8cf59e",
+      "svg_hash": "sha256:e89ca6e1f797fedca41780d2027e728b3a3f37db19c979c0fa9dc863531b2f1a",
       "unavailable_facts": 0,
       "warnings": 0
     },
     {
-      "context_inset_contract_pass": false,
-      "context_inset_missing_elements": [
-        "context-shipping-loading-face"
-      ],
+      "context_inset_bounds_px": {
+        "height": "180",
+        "width": "240",
+        "x": "549",
+        "y": "10"
+      },
+      "context_inset_contract_pass": true,
+      "context_inset_missing_elements": [],
       "context_inset_visible": true,
-      "context_loading_interface_visible": false,
+      "context_loading_face_endpoint_matches_authority": true,
+      "context_loading_interface_visible": true,
       "determinism": true,
       "drawing_lint_gate": "PASS",
       "errors": 0,
@@ -296,20 +306,27 @@
       "primary_aspect_ratio": "1.194352159468438538205980066",
       "primary_plan_occupancy": "1",
       "profile": "MOBILE_PREVIEW",
-      "result": "BLOCKED_CONTEXT_INSET_INCOMPLETE",
+      "result": "PASS",
       "room_label_collisions": 0,
       "scenario": "P2D_REPRESENTATIVE_20T_RECTANGULAR_SITE",
       "selected_composition": null,
       "site_aspect_ratio": "1.375",
       "source_type": "EXISTING_P2D_VALIDATED_TEST_FIXTURE",
-      "svg_hash": "sha256:db6a39e7ad38ca8c0b0fc2063d4189bdd295691d92aaf7a922e59d7c200954c8",
+      "svg_hash": "sha256:dc0b5313113e69fdfc6c59b88f4bd911316d74b71762bae83768c1bdd70153f2",
       "unavailable_facts": 0,
       "warnings": 0
     },
     {
+      "context_inset_bounds_px": {
+        "height": "92.73",
+        "width": "120",
+        "x": "800",
+        "y": "189.135"
+      },
       "context_inset_contract_pass": true,
       "context_inset_missing_elements": [],
       "context_inset_visible": true,
+      "context_loading_face_endpoint_matches_authority": true,
       "context_loading_interface_visible": true,
       "determinism": true,
       "drawing_lint_gate": "PASS",
@@ -458,9 +475,11 @@
       "warnings": 0
     },
     {
+      "context_inset_bounds_px": null,
       "context_inset_contract_pass": null,
       "context_inset_missing_elements": [],
       "context_inset_visible": false,
+      "context_loading_face_endpoint_matches_authority": null,
       "context_loading_interface_visible": null,
       "determinism": true,
       "drawing_lint_gate": "PASS",
@@ -609,12 +628,17 @@
       "warnings": 0
     },
     {
-      "context_inset_contract_pass": false,
-      "context_inset_missing_elements": [
-        "context-shipping-loading-face"
-      ],
+      "context_inset_bounds_px": {
+        "height": "180",
+        "width": "240",
+        "x": "819",
+        "y": "10"
+      },
+      "context_inset_contract_pass": true,
+      "context_inset_missing_elements": [],
       "context_inset_visible": true,
-      "context_loading_interface_visible": false,
+      "context_loading_face_endpoint_matches_authority": true,
+      "context_loading_interface_visible": true,
       "determinism": true,
       "drawing_lint_gate": "PASS",
       "errors": 0,
@@ -751,23 +775,28 @@
       "primary_aspect_ratio": "1.194352159468438538205980066",
       "primary_plan_occupancy": "0.754485363550519357884796978281397544853635505193578847969783",
       "profile": "PRESENTATION",
-      "result": "BLOCKED_CONTEXT_INSET_INCOMPLETE",
+      "result": "PASS",
       "room_label_collisions": 0,
       "scenario": "P3_EXISTING_CONCAVE_SITE_VALIDATED_LAYOUT",
       "selected_composition": null,
       "site_aspect_ratio": "1.375",
       "source_type": "EXISTING_P2D_VALIDATED_TEST_FIXTURE",
-      "svg_hash": "sha256:4732742c0a27a8c5e808dc4de8b6b8d1594e4e8130d692bbb8f259f44a2756b3",
+      "svg_hash": "sha256:e6ff22d4a31b4a7945ca4df3bf211f84b21c0dd0277e334a39587596a25a9a39",
       "unavailable_facts": 0,
       "warnings": 0
     },
     {
-      "context_inset_contract_pass": false,
-      "context_inset_missing_elements": [
-        "context-shipping-loading-face"
-      ],
+      "context_inset_bounds_px": {
+        "height": "180",
+        "width": "240",
+        "x": "549",
+        "y": "10"
+      },
+      "context_inset_contract_pass": true,
+      "context_inset_missing_elements": [],
       "context_inset_visible": true,
-      "context_loading_interface_visible": false,
+      "context_loading_face_endpoint_matches_authority": true,
+      "context_loading_interface_visible": true,
       "determinism": true,
       "drawing_lint_gate": "PASS",
       "errors": 0,
@@ -904,20 +933,27 @@
       "primary_aspect_ratio": "1.194352159468438538205980066",
       "primary_plan_occupancy": "1",
       "profile": "MOBILE_PREVIEW",
-      "result": "BLOCKED_CONTEXT_INSET_INCOMPLETE",
+      "result": "PASS",
       "room_label_collisions": 0,
       "scenario": "P3_EXISTING_CONCAVE_SITE_VALIDATED_LAYOUT",
       "selected_composition": null,
       "site_aspect_ratio": "1.375",
       "source_type": "EXISTING_P2D_VALIDATED_TEST_FIXTURE",
-      "svg_hash": "sha256:aadc14f5fcb47fdcfbfce2e3cdface491172cfad2efacdf48dd406db98558d93",
+      "svg_hash": "sha256:837ce07e1934a19d13d359bc391a7193a6357dc0ac54bf3fe6e1e5a1722f43cb",
       "unavailable_facts": 0,
       "warnings": 0
     },
     {
+      "context_inset_bounds_px": {
+        "height": "92.73",
+        "width": "120",
+        "x": "800",
+        "y": "189.135"
+      },
       "context_inset_contract_pass": true,
       "context_inset_missing_elements": [],
       "context_inset_visible": true,
+      "context_loading_face_endpoint_matches_authority": true,
       "context_loading_interface_visible": true,
       "determinism": true,
       "drawing_lint_gate": "PASS",
@@ -1066,9 +1102,11 @@
       "warnings": 0
     },
     {
+      "context_inset_bounds_px": null,
       "context_inset_contract_pass": null,
       "context_inset_missing_elements": [],
       "context_inset_visible": false,
+      "context_loading_face_endpoint_matches_authority": null,
       "context_loading_interface_visible": null,
       "determinism": true,
       "drawing_lint_gate": "PASS",
@@ -1217,12 +1255,17 @@
       "warnings": 0
     },
     {
-      "context_inset_contract_pass": false,
-      "context_inset_missing_elements": [
-        "context-shipping-loading-face"
-      ],
+      "context_inset_bounds_px": {
+        "height": "180.35",
+        "width": "240",
+        "x": "854.6",
+        "y": "10"
+      },
+      "context_inset_contract_pass": true,
+      "context_inset_missing_elements": [],
       "context_inset_visible": true,
-      "context_loading_interface_visible": false,
+      "context_loading_face_endpoint_matches_authority": true,
+      "context_loading_interface_visible": true,
       "determinism": true,
       "drawing_lint_gate": "PASS",
       "errors": 0,
@@ -1359,23 +1402,28 @@
       "primary_aspect_ratio": "1.442829827915869980879541109",
       "primary_plan_occupancy": "0.762470308788598574821852731591448931116389548693586698337292",
       "profile": "PRESENTATION",
-      "result": "BLOCKED_CONTEXT_INSET_INCOMPLETE",
+      "result": "PASS",
       "room_label_collisions": 0,
       "scenario": "P4_REAL_SELECTOR_SITE_WITH_NO_BUILD_ZONES",
       "selected_composition": null,
       "site_aspect_ratio": "1.372",
       "source_type": "EXISTING_UNMOCKED_TOOL7_FULL_CHAIN_FIXTURE",
-      "svg_hash": "sha256:e731dbc092fb1758e4584c26d3c5d8caa11b18a567978555047ae035b7aff382",
+      "svg_hash": "sha256:db63fa7a6954820dd21dc0a7c70aba6f2cbfa7de6c5d2299027176100b109973",
       "unavailable_facts": 0,
       "warnings": 0
     },
     {
-      "context_inset_contract_pass": false,
-      "context_inset_missing_elements": [
-        "context-shipping-loading-face"
-      ],
+      "context_inset_bounds_px": {
+        "height": "180.35",
+        "width": "240",
+        "x": "584.6",
+        "y": "10"
+      },
+      "context_inset_contract_pass": true,
+      "context_inset_missing_elements": [],
       "context_inset_visible": true,
-      "context_loading_interface_visible": false,
+      "context_loading_face_endpoint_matches_authority": true,
+      "context_loading_interface_visible": true,
       "determinism": true,
       "drawing_lint_gate": "PASS",
       "errors": 0,
@@ -1512,20 +1560,27 @@
       "primary_aspect_ratio": "1.442829827915869980879541109",
       "primary_plan_occupancy": "1",
       "profile": "MOBILE_PREVIEW",
-      "result": "BLOCKED_CONTEXT_INSET_INCOMPLETE",
+      "result": "PASS",
       "room_label_collisions": 0,
       "scenario": "P4_REAL_SELECTOR_SITE_WITH_NO_BUILD_ZONES",
       "selected_composition": null,
       "site_aspect_ratio": "1.372",
       "source_type": "EXISTING_UNMOCKED_TOOL7_FULL_CHAIN_FIXTURE",
-      "svg_hash": "sha256:1e29c2b517faba321139753ae01d475978c454d36fad0f9b5f2c32240d1a499f",
+      "svg_hash": "sha256:b8bcf6dc9486cb8ceb7dbdad9fc03927460685ca28b04d2b27c8b7b65e601d40",
       "unavailable_facts": 0,
       "warnings": 0
     },
     {
+      "context_inset_bounds_px": {
+        "height": "92.89",
+        "width": "120",
+        "x": "835.6",
+        "y": "149.555"
+      },
       "context_inset_contract_pass": true,
       "context_inset_missing_elements": [],
       "context_inset_visible": true,
+      "context_loading_face_endpoint_matches_authority": true,
       "context_loading_interface_visible": true,
       "determinism": true,
       "drawing_lint_gate": "PASS",
@@ -1674,9 +1729,11 @@
       "warnings": 0
     },
     {
+      "context_inset_bounds_px": null,
       "context_inset_contract_pass": null,
       "context_inset_missing_elements": [],
       "context_inset_visible": false,
+      "context_loading_face_endpoint_matches_authority": null,
       "context_loading_interface_visible": null,
       "determinism": true,
       "drawing_lint_gate": "PASS",
@@ -1825,6 +1882,7 @@
       "warnings": 0
     }
   ],
+  "after_failed_profile_combinations": 0,
   "authoritative_full_chain_fixtures": [
     {
       "fixture_id": "P2D_REPRESENTATIVE_20T_RECTANGULAR_SITE",
@@ -1988,70 +2046,64 @@
       "warnings": null
     }
   ],
-  "context_inset_blocker_profile_count": 6,
-  "context_inset_blockers": [
-    {
-      "missing_elements": [
-        "context-shipping-loading-face"
-      ],
-      "profile": "PRESENTATION",
-      "scenario": "P2D_REPRESENTATIVE_20T_RECTANGULAR_SITE"
+  "context_inset_blocker_profile_count": 0,
+  "context_inset_blockers": [],
+  "context_inset_crop_evidence": {
+    "p2d_representative_20t_rectangular_site-mobile_preview": {
+      "png_sha256": "5267005d1c62695af1bda86b66ebb21958765a07e070b87b8c48934974516349",
+      "viewport_px": {
+        "height": "180",
+        "width": "240",
+        "x": "549",
+        "y": "10"
+      }
     },
-    {
-      "missing_elements": [
-        "context-shipping-loading-face"
-      ],
-      "profile": "MOBILE_PREVIEW",
-      "scenario": "P2D_REPRESENTATIVE_20T_RECTANGULAR_SITE"
-    },
-    {
-      "missing_elements": [
-        "context-shipping-loading-face"
-      ],
-      "profile": "PRESENTATION",
-      "scenario": "P3_EXISTING_CONCAVE_SITE_VALIDATED_LAYOUT"
-    },
-    {
-      "missing_elements": [
-        "context-shipping-loading-face"
-      ],
-      "profile": "MOBILE_PREVIEW",
-      "scenario": "P3_EXISTING_CONCAVE_SITE_VALIDATED_LAYOUT"
-    },
-    {
-      "missing_elements": [
-        "context-shipping-loading-face"
-      ],
-      "profile": "PRESENTATION",
-      "scenario": "P4_REAL_SELECTOR_SITE_WITH_NO_BUILD_ZONES"
-    },
-    {
-      "missing_elements": [
-        "context-shipping-loading-face"
-      ],
-      "profile": "MOBILE_PREVIEW",
-      "scenario": "P4_REAL_SELECTOR_SITE_WITH_NO_BUILD_ZONES"
+    "p2d_representative_20t_rectangular_site-presentation": {
+      "png_sha256": "b20b51c6cf0ae76eca86cbc8f41a1bbec9e1d9d8d9eb8d2be276f7c2edffe5f8",
+      "viewport_px": {
+        "height": "180",
+        "width": "240",
+        "x": "819",
+        "y": "10"
+      }
     }
-  ],
+  },
+  "context_loading_face_detail_crop_evidence": {
+    "p2d_representative_20t_rectangular_site-mobile_preview": {
+      "png_sha256": "b0f3a25cdf00960fb53f315e54e8c1ae3005a49548ea32a02957e5fc11b0f228",
+      "source_element_id": "context-shipping-loading-face",
+      "source_segment_authority": "shipping_loading_face_segment"
+    },
+    "p2d_representative_20t_rectangular_site-presentation": {
+      "png_sha256": "ffa1eb4eed4f30d2bd1100d62017a72dc04242d60bb10a71321c9de8804ecb35",
+      "source_element_id": "context-shipping-loading-face",
+      "source_segment_authority": "shipping_loading_face_segment"
+    }
+  },
+  "determinism_failed_scenario_count": 0,
+  "drawing_lint_failed_scenario_count": 0,
   "drawing_lint_identity": "drawing-lint@1.0.0",
   "full_chain_authoritative_fixture_count": 3,
-  "p1f_acceptance_complete": false,
-  "p1f_blocker": "CONTEXT_INSET_MISSING_SHIPPING_LOADING_FACE_IN_PRESENTATION_AND_MOBILE_PREVIEW",
+  "p1f_acceptance_complete": true,
+  "p1f_blocker": null,
+  "previous_failed_profile_combinations": 6,
+  "resolved_by_merged_pr": 298,
   "scenario_count": 5,
-  "task_id": "V2_2_1_P1F_CROSS_FIXTURE_DRAWING_ROBUSTNESS_R1",
-  "visual_blocker_scenario_count": 3,
+  "task_id": "V2_2_1_P1F_CROSS_FIXTURE_DRAWING_ROBUSTNESS_RERUN_R2",
+  "visual_blocker_profile_combinations": 0,
+  "visual_blocker_scenario_count": 0,
   "visual_evidence": {
     "p2d_representative_20t_rectangular_site-engineering_sheet": {
       "png_sha256": "8158376e015a1c3af3d2a18250c43d83e5d2478a3b3904dc50442d986638fc73",
       "svg_sha256": "sha256:96c82d7296d027a9b41b4b2d8198e7239bed61dbc0811259e0575e2ca3eb25d3"
     },
     "p2d_representative_20t_rectangular_site-mobile_preview": {
-      "png_sha256": "947de0a24a5e34b37f59ffe451339404cd534e626332572b24635184b2a3571d",
-      "svg_sha256": "sha256:db6a39e7ad38ca8c0b0fc2063d4189bdd295691d92aaf7a922e59d7c200954c8"
+      "png_sha256": "08febada50be4c5bcf7682612102cd9d14c205611954136f08f309238ec9b264",
+      "svg_sha256": "sha256:dc0b5313113e69fdfc6c59b88f4bd911316d74b71762bae83768c1bdd70153f2"
     },
     "p2d_representative_20t_rectangular_site-presentation": {
-      "png_sha256": "d8b0f4c8042136a92fb65aefad490c2c84bfc7048894155c422dc9194199f958",
-      "svg_sha256": "sha256:97e7c9083050dc1e1edd01c8880f4c7aa1d2526d72e8eff809ee792bda8cf59e"
+      "png_sha256": "5a1df8aeee3ee6ec186d3c3ac329e342d60088b38416e0bdb53cc82097e852f9",
+      "svg_sha256": "sha256:e89ca6e1f797fedca41780d2027e728b3a3f37db19c979c0fa9dc863531b2f1a"
     },
     "p3_existing_concave_site_validated_layout-engineering_review": {
       "png_sha256": "a89f79c72f8d9e33c522b2d8087d8bbb88b8f0c4fe5c8f7b97d4f82106542a30",
