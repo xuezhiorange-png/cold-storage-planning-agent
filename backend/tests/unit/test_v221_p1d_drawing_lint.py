@@ -77,24 +77,22 @@ def test_mobile_lint_passes_and_is_deterministic(validated_layout_and_geometry):
     assert first.canonical_lint_hash == second.canonical_lint_hash
 
 
-def test_engineering_sheet_debug_metadata_is_an_explicit_warning_only(
-    validated_layout_and_geometry,
-):
+def test_engineering_sheet_is_a_clean_business_drawing(validated_layout_and_geometry):
     projection = _render(validated_layout_and_geometry, "ENGINEERING_SHEET")
     report = lint_validated_layout_drawing(projection)
 
     assert report.drawing_lint_gate == "PASS"
     assert report.error_count == 0
-    assert report.warning_count >= 0
+    assert report.warning_count == 0
+    assert report.unavailable_required_fact_count == 0
     leakage_codes = {
         "INTERNAL_ZONE_CODE_VISIBLE",
         "SOURCE_HASH_VISIBLE",
         "PORTAL_DEBUG_TEXT_VISIBLE",
         "SCHEMA_IDENTITY_VISIBLE",
     }
-    assert all(
-        issue.severity == "WARNING" for issue in report.issues if issue.code in leakage_codes
-    )
+    assert all(report.metrics[code] is False for code in leakage_codes)
+    assert not any(issue.code in leakage_codes for issue in report.issues)
 
 
 def test_engineering_review_debug_policy_is_not_business_view_leakage(
@@ -468,7 +466,7 @@ def test_evidence_status_and_source_are_part_of_lint_hash(presentation_body):
         ),
         (
             "ENGINEERING_SHEET",
-            "sha256:9383f8686189ab9152f1203a9c4af20d85545293e46952f25ed7af13bfac3237",
+            "sha256:96c82d7296d027a9b41b4b2d8198e7239bed61dbc0811259e0575e2ca3eb25d3",
         ),
         (
             "ENGINEERING_REVIEW",

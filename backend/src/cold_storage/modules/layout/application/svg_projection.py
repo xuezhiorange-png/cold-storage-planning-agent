@@ -10,11 +10,21 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from cold_storage.modules.layout.application.access_routing import SiteAccessRoutingResultV1
+from cold_storage.modules.layout.application.drawing_lint import lint_validated_layout_drawing
 from cold_storage.modules.layout.application.site_geometry import ValidatedSiteGeometryV1
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
+from cold_storage.modules.layout.domain.engineering_sheet_composition import (
+    ENGINEERING_SHEET_CANDIDATE_ORDER,
+    ENGINEERING_SHEET_MAIN_DRAWING_MAX_OCCUPANCY,
+    ENGINEERING_SHEET_MAIN_DRAWING_MIN_OCCUPANCY,
+    ENGINEERING_SHEET_PRIMARY_PLAN_MIN_HEIGHT_RATIO,
+    ENGINEERING_SHEET_PRIMARY_PLAN_MIN_OCCUPANCY,
+    ENGINEERING_SHEET_PRIMARY_PLAN_MIN_WIDTH_RATIO,
+)
 from cold_storage.modules.layout.domain.svg_projection import (
     SVG_PROJECTION_IDENTITY,
     SvgDrawingThemeV1,
@@ -86,6 +96,40 @@ def _validated_layout_body(
     return body, result.canonical_result_hash
 
 
+def _engineering_sheet_candidate_passes_lint(payload: Mapping[str, Any]) -> bool:
+    report = lint_validated_layout_drawing(payload, page_profile="ENGINEERING_SHEET")
+    if (
+        report.drawing_lint_gate != "PASS"
+        or report.error_count != 0
+        or report.warning_count != 0
+        or report.unavailable_required_fact_count != 0
+    ):
+        return False
+
+    def meets(key: str, minimum: object, maximum: object | None = None) -> bool:
+        value = payload.get(key)
+        try:
+            numeric = Decimal(str(value))
+            lower = Decimal(str(minimum))
+            upper = Decimal(str(maximum)) if maximum is not None else None
+        except (InvalidOperation, TypeError, ValueError):
+            return False
+        return numeric >= lower and (upper is None or numeric <= upper)
+
+    return (
+        meets(
+            "main_drawing_occupancy",
+            ENGINEERING_SHEET_MAIN_DRAWING_MIN_OCCUPANCY,
+            ENGINEERING_SHEET_MAIN_DRAWING_MAX_OCCUPANCY,
+        )
+        and meets("primary_plan_screen_occupancy", ENGINEERING_SHEET_PRIMARY_PLAN_MIN_OCCUPANCY)
+        and meets("primary_plan_width_ratio", ENGINEERING_SHEET_PRIMARY_PLAN_MIN_WIDTH_RATIO)
+        and meets("primary_plan_height_ratio", ENGINEERING_SHEET_PRIMARY_PLAN_MIN_HEIGHT_RATIO)
+        and payload.get("engineering_sheet_context_inset_visible") is True
+        and payload.get("engineering_sheet_full_room_dimensions") is True
+    )
+
+
 def project_validated_layout_to_svg(
     validated_layout: SiteAccessRoutingResultV1 | Mapping[str, Any],
     *,
@@ -112,9 +156,27 @@ def project_validated_layout_to_svg(
             expected=site_geometry.canonical_result_hash,
             actual=body.get("source_site_geometry_hash"),
         )
+    geometry_body = site_geometry.to_dict()
+    if page_profile == "ENGINEERING_SHEET":
+        for candidate in ENGINEERING_SHEET_CANDIDATE_ORDER:
+            payload = build_projection_payload(
+                body,
+                geometry_body,
+                source_layout_hash=source_layout_hash,
+                theme=theme,
+                page_profile=page_profile,
+                engineering_sheet_candidate=candidate,
+            )
+            if _engineering_sheet_candidate_passes_lint(payload):
+                return ValidatedLayoutSvgProjectionV1.from_payload(payload)
+        raise _error(
+            "ENGINEERING_SHEET_COMPOSITION_NO_VALID_CANDIDATE",
+            candidates=ENGINEERING_SHEET_CANDIDATE_ORDER,
+        )
+
     payload = build_projection_payload(
         body,
-        site_geometry.to_dict(),
+        geometry_body,
         source_layout_hash=source_layout_hash,
         theme=theme,
         page_profile=page_profile,

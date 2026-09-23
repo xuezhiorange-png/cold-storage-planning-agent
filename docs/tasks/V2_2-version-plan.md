@@ -148,6 +148,55 @@ DEPLOYMENT_AUTHORIZED=NO
 NO_STEP_IMPLIES_THE_NEXT=TRUE
 ```
 
+## V2.2.1 P1E Engineering Sheet composition (Draft review)
+
+P1E is separately authorized to correct only the `ENGINEERING_SHEET` page
+composition. It focuses the main view on the authoritative building plan,
+retains complete site information in a context inset, preserves full room
+dimensions, and separates business-sheet visibility from engineering-review
+debug/provenance visibility. A finite `RIGHT_RAIL` → `BOTTOM_RAIL` candidate
+order is hard-gated by the existing P1D drawing lint and occupancy floors.
+
+```ini
+TASK_ID=V2_2_1_P1E_ENGINEERING_SHEET_COMPOSITION_R1
+BASE_MAIN_SHA=2154c869ed202beeeb1903d1875508122a4ed829
+ACTIVE_GOVERNANCE_LANE=V2.2.1_P1E
+P1E_AUTHORIZED=true
+COMPOSITION_IDENTITY=engineering-sheet-composition@1.0.0
+ENGINEERING_SHEET_PRIMARY_PLAN_FOCUS=true
+ENGINEERING_SHEET_CONTEXT_INSET_VISIBLE=true
+FULL_SITE_CONTEXT_PRESERVED=true
+ENGINEERING_SHEET_FULL_ROOM_DIMENSIONS=true
+P1D_DRAWING_LINT_GATE=HARD_GATE
+REPRESENTATIVE_MAIN_DRAWING_OCCUPANCY=0.7008771929824561
+REPRESENTATIVE_PRIMARY_PLAN_SCREEN_OCCUPANCY=1.0
+REPRESENTATIVE_DRAWING_LINT_ERRORS=0
+REPRESENTATIVE_DRAWING_LINT_WARNINGS=0
+PRESENTATION_SVG_BYTES_CHANGED=false
+MOBILE_PREVIEW_SVG_BYTES_CHANGED=false
+ENGINEERING_REVIEW_SVG_BYTES_CHANGED=false
+ENGINEERING_SHEET_SVG_BYTES_CHANGED=true
+SOURCE_ENGINEERING_GEOMETRY_CHANGED=false
+ENGINEERING_COORDINATES_MUTATED=false
+P2_CHANGED=false
+P2D_CHANGED=false
+P4_CHANGED=false
+MCP_CHANGED=false
+DATABASE_CHANGED=false
+FRONTEND_CHANGED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```
+
+See the [P1E implementation evidence](V2_2_1-P1E-engineering-sheet-composition.md)
+and [ADR-046](../architecture/ADR-046-engineering-sheet-composition.md). The
+composition is presentation-only; passing automated lint does not replace
+Owner visual review or authorize a subsequent phase.
+
 ## V2.2 post-P5 CI correction release overlay (2026-09-18)
 
 The P5 readiness snapshot below remains historical. The post-P5 correction was

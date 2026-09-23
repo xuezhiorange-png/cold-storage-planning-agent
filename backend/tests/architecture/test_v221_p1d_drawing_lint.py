@@ -19,7 +19,32 @@ PROJECTION = "backend/src/cold_storage/modules/layout/domain/svg_projection.py"
 UNIT = "backend/tests/unit/test_v221_p1d_drawing_lint.py"
 SELF = "backend/tests/architecture/test_v221_p1d_drawing_lint.py"
 DOC = "docs/tasks/V2_2_1-P1D-drawing-lint-foundation.md"
-ALLOWED_PATHS = {DOMAIN, APPLICATION, PROJECTION, UNIT, SELF, DOC}
+P1E_DOMAIN = "backend/src/cold_storage/modules/layout/domain/engineering_sheet_composition.py"
+P1E_APPLICATION = "backend/src/cold_storage/modules/layout/application/svg_projection.py"
+P1E_UNIT = "backend/tests/unit/test_v221_p1e_engineering_sheet_composition.py"
+P1E_SELF = "backend/tests/architecture/test_v221_p1e_engineering_sheet_composition.py"
+P1A_UNIT = "backend/tests/unit/test_v221_p1a_canvas_viewbox_page_composition.py"
+P1A_SELF = "backend/tests/architecture/test_v221_p1a_canvas_viewbox_page_composition.py"
+ALLOWED_PATHS = {
+    DOMAIN,
+    APPLICATION,
+    PROJECTION,
+    UNIT,
+    SELF,
+    DOC,
+    P1E_DOMAIN,
+    P1E_APPLICATION,
+    P1E_UNIT,
+    P1E_SELF,
+    P1A_UNIT,
+    P1A_SELF,
+    "backend/tests/architecture/test_v22_p3_svg_projection.py",
+    "docs/tasks/V2_2_1-P1E-engineering-sheet-composition.md",
+    "docs/tasks/V2_2-version-plan.md",
+    "docs/architecture/ADR-046-engineering-sheet-composition.md",
+    "docs/tasks/evidence/v2_2_1_p1e/before-engineering-sheet.png",
+    "docs/tasks/evidence/v2_2_1_p1e/after-engineering-sheet.png",
+}
 PROTECTED_PREFIXES = (
     "backend/src/cold_storage/modules/calculations/",
     "backend/src/cold_storage/modules/layout/application/access_routing.py",
