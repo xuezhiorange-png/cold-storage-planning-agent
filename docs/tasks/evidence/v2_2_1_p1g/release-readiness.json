@@ -1,0 +1,151 @@
+{
+  "identity": "v2.2.1-release-readiness@1.0.0",
+  "schema_version": "1.0.0",
+  "task_id": "V2_2_1_P1G_RELEASE_CLOSURE_R1",
+  "candidate": {
+    "base_main_sha": "a71347a7ca56c32b2facaa3b57e489427b9a7ea8",
+    "target_version": "v2.2.1",
+    "previous_release": "v2.2.0",
+    "release_target_policy": "P1G_FINAL_MERGE_SHA_AFTER_EXACT_MAIN_CI"
+  },
+  "lineage": {
+    "v2_2_0_tag_target_sha": "34cd6b56c1d79dde9730898c6bd46e295e423334",
+    "v2_2_0_is_ancestor": true,
+    "commits_since_v2_2_0_at_closure_start": 31,
+    "changed_files_since_v2_2_0_at_closure_start": 59,
+    "previous_release_immutable": true,
+    "latest_github_release_at_closure_start": "v2.2.0",
+    "v2_2_1_tag_exists_at_closure_start": false,
+    "v2_2_1_github_release_exists_at_closure_start": false
+  },
+  "phase_status": {
+    "P0_LAYOUT_DRAWING_STYLE_CONTRACT": "PASS",
+    "P1A_CANVAS_PAGE_COMPOSITION": "PASS",
+    "P1A2_PRESENTATION_MOBILE_FOCUS": "PASS",
+    "P1B_MONOCHROME_CAD_HIERARCHY": "PASS",
+    "P1C_ROOM_LABEL_ANNOTATION": "PASS",
+    "P1D_DRAWING_LINT_FOUNDATION": "PASS",
+    "P1E_ENGINEERING_SHEET_COMPOSITION": "PASS",
+    "P1F_CROSS_FIXTURE_DRAWING_ROBUSTNESS": "PASS",
+    "P1F_OWNER_VISUAL_REVIEW": "PASS",
+    "P1F_FINAL_MERGE_SHA": "a71347a7ca56c32b2facaa3b57e489427b9a7ea8",
+    "P1F_FINAL_EXACT_HEAD_SHA": "aea30a6e6d0e640574451fd5f58bcf5d291fe278",
+    "P1F_FINAL_EXACT_CI_RUN_ID": 35838403105,
+    "P1F_FINAL_EXACT_CI_RESULT": "SUCCESS"
+  },
+  "drawing_authority": {
+    "canonical_engineering_authority": "STRUCTURED_LAYOUT_JSON",
+    "svg_role": "PRESENTATION_PROJECTION",
+    "zone_area_authority_changed": false,
+    "zone_dimension_authority_changed": false,
+    "placement_algorithm_changed": false,
+    "placement_objective_changed": false,
+    "p2_candidate_selection_changed": false,
+    "access_routing_changed": false,
+    "truck_validation_changed": false,
+    "loading_face_selection_changed": false,
+    "building_footprint_authority_changed": false
+  },
+  "drawing_capability": {
+    "style_id": "LAYOUT_DRAWING_STYLE_V1",
+    "style_name": "CAD_FACTORY_LAYOUT",
+    "color_mode": "MONOCHROME_PRIMARY",
+    "drawing_lint_identity": "drawing-lint@1.0.0",
+    "engineering_sheet_composition_identity": "engineering-sheet-composition@1.0.0",
+    "profiles": [
+      "PRESENTATION",
+      "MOBILE_PREVIEW",
+      "ENGINEERING_SHEET",
+      "ENGINEERING_REVIEW"
+    ]
+  },
+  "representative_svg_sha256": {
+    "PRESENTATION": "sha256:e89ca6e1f797fedca41780d2027e728b3a3f37db19c979c0fa9dc863531b2f1a",
+    "MOBILE_PREVIEW": "sha256:dc0b5313113e69fdfc6c59b88f4bd911316d74b71762bae83768c1bdd70153f2",
+    "ENGINEERING_SHEET": "sha256:96c82d7296d027a9b41b4b2d8198e7239bed61dbc0811259e0575e2ca3eb25d3",
+    "ENGINEERING_REVIEW": "sha256:48ea97310b955b3e5b94ea68eebed49c377031c74cb4eeba9db003e36042f37d"
+  },
+  "p1e_primary_plan_metrics": {
+    "width_m": 71.9,
+    "height_m": 60.2,
+    "screen_occupancy": 0.7943176771550949,
+    "width_ratio": 0.8998748435544431,
+    "height_ratio": 0.8826979472140762,
+    "main_drawing_occupancy": 0.7008771929824561
+  },
+  "p1f_matrix": {
+    "merge_tree_matches_exact_ci_head": true,
+    "full_chain_authoritative_fixture_count": 3,
+    "composition_only_fixture_count": 2,
+    "total_drawing_scenario_count": 5,
+    "full_chain_profile_row_count": 12,
+    "previous_failed_profile_combinations": 6,
+    "final_failed_profile_combinations": 0,
+    "drawing_lint_failed_scenario_count": 0,
+    "determinism_failed_scenario_count": 0,
+    "visual_blocker_scenario_count": 0,
+    "visual_blocker_profile_combinations": 0,
+    "right_rail_path_validated": true,
+    "bottom_rail_path_validated": true,
+    "context_loading_face_endpoints_match_authoritative_segment": true,
+    "loading_face_selection_changed": false
+  },
+  "mcp_compatibility": {
+    "tool_count": 7,
+    "tool_order": [
+      "preview_zone_plan",
+      "preview_cooling_load",
+      "preview_equipment",
+      "preview_installed_power",
+      "preview_investment",
+      "preview_factory_power",
+      "preview_site_layout"
+    ],
+    "existing_six_tool_order_preserved": true,
+    "existing_six_tool_contract_preserved": true,
+    "tool7_input_contract_changed": false,
+    "transport_changed": false,
+    "new_tool_added": false,
+    "existing_six_tool_regression": "PASS",
+    "unmocked_tool7_full_chain": "PASS",
+    "project_layout_validated": true,
+    "p2_complete": true,
+    "zone_count": 12,
+    "access_requirement_count": 12,
+    "access_pass_count": 12,
+    "truck_route_validated": true,
+    "first_p2c_candidate_p2d_result": "REJECTED",
+    "later_full_pass_candidate_found": true,
+    "factory_power_calculator_identity": "factory_power_estimation@2.0.0-p2",
+    "factory_power_result_schema_version": "2.0.0-p1"
+  },
+  "package_versions": {
+    "backend": "0.1.0",
+    "frontend": "0.1.0",
+    "version_bump_authorized": false
+  },
+  "release_note_draft": {
+    "title": "v2.2.1 — CAD Drawing Projection & Engineering Sheet Quality",
+    "published": false,
+    "claims_construction_drawing_ready": false,
+    "claims_formal_design_replacement": false,
+    "claims_physical_print_scale_validated": false,
+    "claims_pdf_dxf_export": false
+  },
+  "p1g_exact_head_ci": {
+    "status_at_evidence_authoring": "PENDING",
+    "run_id": null,
+    "result": null,
+    "ci_gate_result": null,
+    "recorded_after_push_in_pr_evidence": true
+  },
+  "governance": {
+    "ready_authorized": false,
+    "merge_authorized": false,
+    "tag_authorized": false,
+    "github_release_authorized": false,
+    "deployment_authorized": false,
+    "p1e_authorized": false,
+    "next_version_authorized": false
+  }
+}

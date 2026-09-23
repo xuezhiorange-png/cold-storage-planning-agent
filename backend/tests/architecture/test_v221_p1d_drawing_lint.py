@@ -13,6 +13,7 @@ from cold_storage.modules.layout.domain.drawing_lint import (
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BASE_MAIN_SHA = "27400de6934fd6bf8a307ac1e4ce3786a959e331"
+P1D_MERGE_SHA = "2154c869ed202beeeb1903d1875508122a4ed829"
 DOMAIN = "backend/src/cold_storage/modules/layout/domain/drawing_lint.py"
 APPLICATION = "backend/src/cold_storage/modules/layout/application/drawing_lint.py"
 PROJECTION = "backend/src/cold_storage/modules/layout/domain/svg_projection.py"
@@ -133,9 +134,14 @@ def test_p1d_scope_is_independent_and_immutable_history_based() -> None:
     changed = _historical_changed_paths()
     assert changed <= ALLOWED_PATHS
     assert not any(path.startswith(PROTECTED_PREFIXES) for path in changed)
-    current_changed = set(_git("diff", "--name-only", BASE_MAIN_SHA, "HEAD").splitlines())
-    assert current_changed <= ALLOWED_PATHS
-    assert not any(path.startswith(PROTECTED_PREFIXES) for path in current_changed)
+    subprocess.run(
+        ["git", "merge-base", "--is-ancestor", BASE_MAIN_SHA, P1D_MERGE_SHA],
+        cwd=REPO_ROOT,
+        check=True,
+    )
+    merged_changed = set(_git("diff", "--name-only", BASE_MAIN_SHA, P1D_MERGE_SHA).splitlines())
+    assert merged_changed <= ALLOWED_PATHS
+    assert not any(path.startswith(PROTECTED_PREFIXES) for path in merged_changed)
 
 
 def test_drawing_lint_identity_profiles_and_gate_are_versioned() -> None:

@@ -7,6 +7,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BASE_MAIN_SHA = "debda749966e7c890e2f8758f468fa582fb3def8"
+P1F_MERGE_SHA = "a71347a7ca56c32b2facaa3b57e489427b9a7ea8"
 PROJECTION = "backend/src/cold_storage/modules/layout/domain/svg_projection.py"
 UNIT = "backend/tests/unit/test_v221_p1f_context_inset_loading_face_correction.py"
 SELF = "backend/tests/architecture/test_v221_p1f_context_inset_loading_face_correction.py"
@@ -81,19 +82,13 @@ def _git(*args: str) -> str:
 
 def test_context_loading_face_correction_has_exact_scope() -> None:
     subprocess.run(
-        ["git", "merge-base", "--is-ancestor", BASE_MAIN_SHA, "HEAD"],
+        ["git", "merge-base", "--is-ancestor", BASE_MAIN_SHA, P1F_MERGE_SHA],
         cwd=REPO_ROOT,
         check=True,
     )
-    tracked = set(_git("diff", "--name-only", BASE_MAIN_SHA).splitlines())
-    untracked = {
-        path
-        for path in _git("ls-files", "--others", "--exclude-standard").splitlines()
-        # Full backend tests generate ignored local report artifacts before
-        # architecture tests run in CI; they are not PR source changes.
-        if not path.startswith("backend/artifacts/local/")
-    }
-    changed = tracked | untracked
+    # This guard freezes the exact merged P1F change set. Later tasks are not
+    # part of that historical PR scope and must not be folded into its audit.
+    changed = set(_git("diff", "--name-only", BASE_MAIN_SHA, P1F_MERGE_SHA).splitlines())
     assert changed <= ALLOWED_PATHS
     changed_runtime = {path for path in changed if path.startswith("backend/src/")}
     assert changed_runtime == {PROJECTION}
