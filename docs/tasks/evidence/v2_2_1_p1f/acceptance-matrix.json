@@ -1,0 +1,2065 @@
+{
+  "acceptance_matrix": [
+    {
+      "context_inset_contract_pass": false,
+      "context_inset_missing_elements": [
+        "context-shipping-loading-face"
+      ],
+      "context_inset_visible": true,
+      "context_loading_interface_visible": false,
+      "determinism": true,
+      "drawing_lint_gate": "PASS",
+      "errors": 0,
+      "lint_hash": "sha256:1389cb03654d404f470a3c8b7d8cf8a43a7c9844d3850c716d39a1d2739cb628",
+      "main_drawing_occupancy": "0.526629828823685924636980316732727694714269495598730642431983",
+      "metric_evidence": {
+        "AREA_SCHEDULE_CONTENT_CLIP_COUNT": {
+          "source": "page_furniture.area_schedule+schedule_row_envelope",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP": {
+          "source": "projection.AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP",
+          "status": "MEASURED",
+          "value": false
+        },
+        "AREA_SCHEDULE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture.area_schedule+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "AREA_SCHEDULE_ROW_OVERLAP_COUNT": {
+          "source": "projection.AREA_SCHEDULE_ROW_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "AREA_TABLE_OVERLAP": {
+          "source": "projection.area_table_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "CALLOUT_LABEL_COLLISION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_LEADER_SELF_INTERSECTION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_OUT_OF_PAGE_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "INTERNAL_ZONE_CODE_VISIBLE": {
+          "source": "projection.internal_zone_code_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "LEGEND_OVERLAP": {
+          "source": "projection.legend_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PAGE_FURNITURE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PAGE_FURNITURE_OVERLAP_COUNT": {
+          "source": "projection.page_furniture_overlap",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PORTAL_DEBUG_TEXT_VISIBLE": {
+          "source": "projection.portal_debug_text_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PRIMARY_PLAN_OUT_OF_PAGE_COUNT": {
+          "source": "primary_plan_bounds+page_layout_bounds",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_CALLOUT_COUNT": {
+          "source": "projection.ROOM_LABEL_CALLOUT_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_DIMENSION_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_DIMENSION_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_LABEL_OVERLAP_COUNT": {
+          "source": "projection.ROOM_LABEL_LABEL_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_PORTAL_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_PORTAL_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_WALL_CROSSING_COUNT": {
+          "source": "projection.ROOM_LABEL_WALL_CROSSING_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "SCHEMA_IDENTITY_VISIBLE": {
+          "source": "projection.schema_identity_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "SOURCE_HASH_VISIBLE": {
+          "source": "projection.source_hash_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "TITLE_BLOCK_OVERLAP": {
+          "source": "projection.title_block_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "VISIBLE_DIMENSION_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.dimension_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        }
+      },
+      "page_furniture_overlaps": 0,
+      "primary_aspect_ratio": "1.194352159468438538205980066",
+      "primary_plan_occupancy": "0.754485363550519357884796978281397544853635505193578847969783",
+      "profile": "PRESENTATION",
+      "result": "BLOCKED_CONTEXT_INSET_INCOMPLETE",
+      "room_label_collisions": 0,
+      "scenario": "P2D_REPRESENTATIVE_20T_RECTANGULAR_SITE",
+      "selected_composition": null,
+      "site_aspect_ratio": "1.375",
+      "source_type": "EXISTING_P2D_VALIDATED_TEST_FIXTURE",
+      "svg_hash": "sha256:97e7c9083050dc1e1edd01c8880f4c7aa1d2526d72e8eff809ee792bda8cf59e",
+      "unavailable_facts": 0,
+      "warnings": 0
+    },
+    {
+      "context_inset_contract_pass": false,
+      "context_inset_missing_elements": [
+        "context-shipping-loading-face"
+      ],
+      "context_inset_visible": true,
+      "context_loading_interface_visible": false,
+      "determinism": true,
+      "drawing_lint_gate": "PASS",
+      "errors": 0,
+      "lint_hash": "sha256:d6736a0f39ba157f4a10a157200b69c7e981bf5993ae005fbccec148c2fa869e",
+      "main_drawing_occupancy": "1",
+      "metric_evidence": {
+        "AREA_SCHEDULE_CONTENT_CLIP_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP": {
+          "source": "projection.AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP",
+          "status": "MEASURED",
+          "value": false
+        },
+        "AREA_SCHEDULE_OUT_OF_PAGE_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_SCHEDULE_ROW_OVERLAP_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_TABLE_OVERLAP": {
+          "source": "projection.area_table_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "CALLOUT_LABEL_COLLISION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_LEADER_SELF_INTERSECTION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_OUT_OF_PAGE_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "INTERNAL_ZONE_CODE_VISIBLE": {
+          "source": "projection.internal_zone_code_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "LEGEND_OVERLAP": {
+          "source": "projection.legend_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PAGE_FURNITURE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PAGE_FURNITURE_OVERLAP_COUNT": {
+          "source": "projection.page_furniture_overlap",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PORTAL_DEBUG_TEXT_VISIBLE": {
+          "source": "projection.portal_debug_text_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PRIMARY_PLAN_OUT_OF_PAGE_COUNT": {
+          "source": "primary_plan_bounds+page_layout_bounds",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_CALLOUT_COUNT": {
+          "source": "projection.ROOM_LABEL_CALLOUT_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_DIMENSION_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_DIMENSION_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_LABEL_OVERLAP_COUNT": {
+          "source": "projection.ROOM_LABEL_LABEL_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_PORTAL_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_PORTAL_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_WALL_CROSSING_COUNT": {
+          "source": "projection.ROOM_LABEL_WALL_CROSSING_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "SCHEMA_IDENTITY_VISIBLE": {
+          "source": "projection.schema_identity_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "SOURCE_HASH_VISIBLE": {
+          "source": "projection.source_hash_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "TITLE_BLOCK_OVERLAP": {
+          "source": "projection.title_block_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "VISIBLE_DIMENSION_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.dimension_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        }
+      },
+      "page_furniture_overlaps": 0,
+      "primary_aspect_ratio": "1.194352159468438538205980066",
+      "primary_plan_occupancy": "1",
+      "profile": "MOBILE_PREVIEW",
+      "result": "BLOCKED_CONTEXT_INSET_INCOMPLETE",
+      "room_label_collisions": 0,
+      "scenario": "P2D_REPRESENTATIVE_20T_RECTANGULAR_SITE",
+      "selected_composition": null,
+      "site_aspect_ratio": "1.375",
+      "source_type": "EXISTING_P2D_VALIDATED_TEST_FIXTURE",
+      "svg_hash": "sha256:db6a39e7ad38ca8c0b0fc2063d4189bdd295691d92aaf7a922e59d7c200954c8",
+      "unavailable_facts": 0,
+      "warnings": 0
+    },
+    {
+      "context_inset_contract_pass": true,
+      "context_inset_missing_elements": [],
+      "context_inset_visible": true,
+      "context_loading_interface_visible": true,
+      "determinism": true,
+      "drawing_lint_gate": "PASS",
+      "errors": 0,
+      "lint_hash": "sha256:720cfc224175de4544449c05eb8c892d3e9ac6c734aeafeb04a0a4f20001bf85",
+      "main_drawing_occupancy": "0.700877192982456140350877192982456140350877192982456140350877",
+      "metric_evidence": {
+        "AREA_SCHEDULE_CONTENT_CLIP_COUNT": {
+          "source": "page_furniture.area_schedule+schedule_row_envelope",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP": {
+          "source": "projection.AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP",
+          "status": "MEASURED",
+          "value": false
+        },
+        "AREA_SCHEDULE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture.area_schedule+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "AREA_SCHEDULE_ROW_OVERLAP_COUNT": {
+          "source": "projection.AREA_SCHEDULE_ROW_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "AREA_TABLE_OVERLAP": {
+          "source": "projection.area_table_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "CALLOUT_LABEL_COLLISION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_LEADER_SELF_INTERSECTION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_OUT_OF_PAGE_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "INTERNAL_ZONE_CODE_VISIBLE": {
+          "source": "projection.internal_zone_code_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "LEGEND_OVERLAP": {
+          "source": "projection.legend_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PAGE_FURNITURE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PAGE_FURNITURE_OVERLAP_COUNT": {
+          "source": "projection.page_furniture_overlap",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PORTAL_DEBUG_TEXT_VISIBLE": {
+          "source": "projection.portal_debug_text_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PRIMARY_PLAN_OUT_OF_PAGE_COUNT": {
+          "source": "primary_plan_bounds+page_layout_bounds",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_CALLOUT_COUNT": {
+          "source": "projection.ROOM_LABEL_CALLOUT_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_DIMENSION_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_DIMENSION_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_LABEL_OVERLAP_COUNT": {
+          "source": "projection.ROOM_LABEL_LABEL_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_PORTAL_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_PORTAL_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_WALL_CROSSING_COUNT": {
+          "source": "projection.ROOM_LABEL_WALL_CROSSING_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "SCHEMA_IDENTITY_VISIBLE": {
+          "source": "projection.schema_identity_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "SOURCE_HASH_VISIBLE": {
+          "source": "projection.source_hash_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "TITLE_BLOCK_OVERLAP": {
+          "source": "projection.title_block_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "VISIBLE_DIMENSION_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.dimension_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        }
+      },
+      "page_furniture_overlaps": 0,
+      "primary_aspect_ratio": "1.194352159468438538205980066",
+      "primary_plan_occupancy": "0.794317677155094895011726535001596570493175119926300837924238",
+      "profile": "ENGINEERING_SHEET",
+      "result": "PASS",
+      "room_label_collisions": 0,
+      "scenario": "P2D_REPRESENTATIVE_20T_RECTANGULAR_SITE",
+      "selected_composition": "RIGHT_RAIL",
+      "site_aspect_ratio": "1.375",
+      "source_type": "EXISTING_P2D_VALIDATED_TEST_FIXTURE",
+      "svg_hash": "sha256:96c82d7296d027a9b41b4b2d8198e7239bed61dbc0811259e0575e2ca3eb25d3",
+      "unavailable_facts": 0,
+      "warnings": 0
+    },
+    {
+      "context_inset_contract_pass": null,
+      "context_inset_missing_elements": [],
+      "context_inset_visible": false,
+      "context_loading_interface_visible": null,
+      "determinism": true,
+      "drawing_lint_gate": "PASS",
+      "errors": 0,
+      "lint_hash": "sha256:51c0724aa700cc330a5045578bd92ec9caafa777c34ef1b6fbbbe1d37269ca93",
+      "main_drawing_occupancy": "1",
+      "metric_evidence": {
+        "AREA_SCHEDULE_CONTENT_CLIP_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP": {
+          "source": "projection.AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP",
+          "status": "MEASURED",
+          "value": false
+        },
+        "AREA_SCHEDULE_OUT_OF_PAGE_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_SCHEDULE_ROW_OVERLAP_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_TABLE_OVERLAP": {
+          "source": "projection.area_table_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "CALLOUT_LABEL_COLLISION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_LEADER_SELF_INTERSECTION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "INTERNAL_ZONE_CODE_VISIBLE": {
+          "source": "projection.internal_zone_code_visible",
+          "status": "MEASURED",
+          "value": true
+        },
+        "LEGEND_OVERLAP": {
+          "source": "projection.legend_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PAGE_FURNITURE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PAGE_FURNITURE_OVERLAP_COUNT": {
+          "source": "projection.page_furniture_overlap",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PORTAL_DEBUG_TEXT_VISIBLE": {
+          "source": "projection.portal_debug_text_visible",
+          "status": "MEASURED",
+          "value": true
+        },
+        "PRIMARY_PLAN_OUT_OF_PAGE_COUNT": {
+          "source": "primary_plan_bounds+page_layout_bounds",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_CALLOUT_COUNT": {
+          "source": "projection.ROOM_LABEL_CALLOUT_COUNT",
+          "status": "MEASURED",
+          "value": 7
+        },
+        "ROOM_LABEL_DIMENSION_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_DIMENSION_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_LABEL_OVERLAP_COUNT": {
+          "source": "projection.ROOM_LABEL_LABEL_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_PORTAL_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_PORTAL_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_WALL_CROSSING_COUNT": {
+          "source": "projection.ROOM_LABEL_WALL_CROSSING_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "SCHEMA_IDENTITY_VISIBLE": {
+          "source": "projection.schema_identity_visible",
+          "status": "MEASURED",
+          "value": true
+        },
+        "SOURCE_HASH_VISIBLE": {
+          "source": "projection.source_hash_visible",
+          "status": "MEASURED",
+          "value": true
+        },
+        "TITLE_BLOCK_OVERLAP": {
+          "source": "projection.title_block_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "VISIBLE_DIMENSION_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.dimension_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        }
+      },
+      "page_furniture_overlaps": 0,
+      "primary_aspect_ratio": "1.194352159468438538205980066",
+      "primary_plan_occupancy": "0.142261382623224728487886382623224728487886382623224728487886",
+      "profile": "ENGINEERING_REVIEW",
+      "result": "PASS",
+      "room_label_collisions": 0,
+      "scenario": "P2D_REPRESENTATIVE_20T_RECTANGULAR_SITE",
+      "selected_composition": null,
+      "site_aspect_ratio": "1.375",
+      "source_type": "EXISTING_P2D_VALIDATED_TEST_FIXTURE",
+      "svg_hash": "sha256:48ea97310b955b3e5b94ea68eebed49c377031c74cb4eeba9db003e36042f37d",
+      "unavailable_facts": 0,
+      "warnings": 0
+    },
+    {
+      "context_inset_contract_pass": false,
+      "context_inset_missing_elements": [
+        "context-shipping-loading-face"
+      ],
+      "context_inset_visible": true,
+      "context_loading_interface_visible": false,
+      "determinism": true,
+      "drawing_lint_gate": "PASS",
+      "errors": 0,
+      "lint_hash": "sha256:1389cb03654d404f470a3c8b7d8cf8a43a7c9844d3850c716d39a1d2739cb628",
+      "main_drawing_occupancy": "0.526629828823685924636980316732727694714269495598730642431983",
+      "metric_evidence": {
+        "AREA_SCHEDULE_CONTENT_CLIP_COUNT": {
+          "source": "page_furniture.area_schedule+schedule_row_envelope",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP": {
+          "source": "projection.AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP",
+          "status": "MEASURED",
+          "value": false
+        },
+        "AREA_SCHEDULE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture.area_schedule+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "AREA_SCHEDULE_ROW_OVERLAP_COUNT": {
+          "source": "projection.AREA_SCHEDULE_ROW_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "AREA_TABLE_OVERLAP": {
+          "source": "projection.area_table_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "CALLOUT_LABEL_COLLISION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_LEADER_SELF_INTERSECTION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_OUT_OF_PAGE_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "INTERNAL_ZONE_CODE_VISIBLE": {
+          "source": "projection.internal_zone_code_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "LEGEND_OVERLAP": {
+          "source": "projection.legend_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PAGE_FURNITURE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PAGE_FURNITURE_OVERLAP_COUNT": {
+          "source": "projection.page_furniture_overlap",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PORTAL_DEBUG_TEXT_VISIBLE": {
+          "source": "projection.portal_debug_text_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PRIMARY_PLAN_OUT_OF_PAGE_COUNT": {
+          "source": "primary_plan_bounds+page_layout_bounds",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_CALLOUT_COUNT": {
+          "source": "projection.ROOM_LABEL_CALLOUT_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_DIMENSION_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_DIMENSION_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_LABEL_OVERLAP_COUNT": {
+          "source": "projection.ROOM_LABEL_LABEL_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_PORTAL_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_PORTAL_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_WALL_CROSSING_COUNT": {
+          "source": "projection.ROOM_LABEL_WALL_CROSSING_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "SCHEMA_IDENTITY_VISIBLE": {
+          "source": "projection.schema_identity_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "SOURCE_HASH_VISIBLE": {
+          "source": "projection.source_hash_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "TITLE_BLOCK_OVERLAP": {
+          "source": "projection.title_block_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "VISIBLE_DIMENSION_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.dimension_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        }
+      },
+      "page_furniture_overlaps": 0,
+      "primary_aspect_ratio": "1.194352159468438538205980066",
+      "primary_plan_occupancy": "0.754485363550519357884796978281397544853635505193578847969783",
+      "profile": "PRESENTATION",
+      "result": "BLOCKED_CONTEXT_INSET_INCOMPLETE",
+      "room_label_collisions": 0,
+      "scenario": "P3_EXISTING_CONCAVE_SITE_VALIDATED_LAYOUT",
+      "selected_composition": null,
+      "site_aspect_ratio": "1.375",
+      "source_type": "EXISTING_P2D_VALIDATED_TEST_FIXTURE",
+      "svg_hash": "sha256:4732742c0a27a8c5e808dc4de8b6b8d1594e4e8130d692bbb8f259f44a2756b3",
+      "unavailable_facts": 0,
+      "warnings": 0
+    },
+    {
+      "context_inset_contract_pass": false,
+      "context_inset_missing_elements": [
+        "context-shipping-loading-face"
+      ],
+      "context_inset_visible": true,
+      "context_loading_interface_visible": false,
+      "determinism": true,
+      "drawing_lint_gate": "PASS",
+      "errors": 0,
+      "lint_hash": "sha256:d6736a0f39ba157f4a10a157200b69c7e981bf5993ae005fbccec148c2fa869e",
+      "main_drawing_occupancy": "1",
+      "metric_evidence": {
+        "AREA_SCHEDULE_CONTENT_CLIP_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP": {
+          "source": "projection.AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP",
+          "status": "MEASURED",
+          "value": false
+        },
+        "AREA_SCHEDULE_OUT_OF_PAGE_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_SCHEDULE_ROW_OVERLAP_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_TABLE_OVERLAP": {
+          "source": "projection.area_table_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "CALLOUT_LABEL_COLLISION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_LEADER_SELF_INTERSECTION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_OUT_OF_PAGE_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "INTERNAL_ZONE_CODE_VISIBLE": {
+          "source": "projection.internal_zone_code_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "LEGEND_OVERLAP": {
+          "source": "projection.legend_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PAGE_FURNITURE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PAGE_FURNITURE_OVERLAP_COUNT": {
+          "source": "projection.page_furniture_overlap",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PORTAL_DEBUG_TEXT_VISIBLE": {
+          "source": "projection.portal_debug_text_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PRIMARY_PLAN_OUT_OF_PAGE_COUNT": {
+          "source": "primary_plan_bounds+page_layout_bounds",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_CALLOUT_COUNT": {
+          "source": "projection.ROOM_LABEL_CALLOUT_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_DIMENSION_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_DIMENSION_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_LABEL_OVERLAP_COUNT": {
+          "source": "projection.ROOM_LABEL_LABEL_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_PORTAL_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_PORTAL_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_WALL_CROSSING_COUNT": {
+          "source": "projection.ROOM_LABEL_WALL_CROSSING_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "SCHEMA_IDENTITY_VISIBLE": {
+          "source": "projection.schema_identity_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "SOURCE_HASH_VISIBLE": {
+          "source": "projection.source_hash_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "TITLE_BLOCK_OVERLAP": {
+          "source": "projection.title_block_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "VISIBLE_DIMENSION_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.dimension_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        }
+      },
+      "page_furniture_overlaps": 0,
+      "primary_aspect_ratio": "1.194352159468438538205980066",
+      "primary_plan_occupancy": "1",
+      "profile": "MOBILE_PREVIEW",
+      "result": "BLOCKED_CONTEXT_INSET_INCOMPLETE",
+      "room_label_collisions": 0,
+      "scenario": "P3_EXISTING_CONCAVE_SITE_VALIDATED_LAYOUT",
+      "selected_composition": null,
+      "site_aspect_ratio": "1.375",
+      "source_type": "EXISTING_P2D_VALIDATED_TEST_FIXTURE",
+      "svg_hash": "sha256:aadc14f5fcb47fdcfbfce2e3cdface491172cfad2efacdf48dd406db98558d93",
+      "unavailable_facts": 0,
+      "warnings": 0
+    },
+    {
+      "context_inset_contract_pass": true,
+      "context_inset_missing_elements": [],
+      "context_inset_visible": true,
+      "context_loading_interface_visible": true,
+      "determinism": true,
+      "drawing_lint_gate": "PASS",
+      "errors": 0,
+      "lint_hash": "sha256:720cfc224175de4544449c05eb8c892d3e9ac6c734aeafeb04a0a4f20001bf85",
+      "main_drawing_occupancy": "0.700877192982456140350877192982456140350877192982456140350877",
+      "metric_evidence": {
+        "AREA_SCHEDULE_CONTENT_CLIP_COUNT": {
+          "source": "page_furniture.area_schedule+schedule_row_envelope",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP": {
+          "source": "projection.AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP",
+          "status": "MEASURED",
+          "value": false
+        },
+        "AREA_SCHEDULE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture.area_schedule+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "AREA_SCHEDULE_ROW_OVERLAP_COUNT": {
+          "source": "projection.AREA_SCHEDULE_ROW_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "AREA_TABLE_OVERLAP": {
+          "source": "projection.area_table_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "CALLOUT_LABEL_COLLISION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_LEADER_SELF_INTERSECTION_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "CALLOUT_OUT_OF_PAGE_COUNT": {
+          "source": "profile.no_callouts",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "INTERNAL_ZONE_CODE_VISIBLE": {
+          "source": "projection.internal_zone_code_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "LEGEND_OVERLAP": {
+          "source": "projection.legend_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PAGE_FURNITURE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PAGE_FURNITURE_OVERLAP_COUNT": {
+          "source": "projection.page_furniture_overlap",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PORTAL_DEBUG_TEXT_VISIBLE": {
+          "source": "projection.portal_debug_text_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PRIMARY_PLAN_OUT_OF_PAGE_COUNT": {
+          "source": "primary_plan_bounds+page_layout_bounds",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_CALLOUT_COUNT": {
+          "source": "projection.ROOM_LABEL_CALLOUT_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_DIMENSION_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_DIMENSION_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_LABEL_OVERLAP_COUNT": {
+          "source": "projection.ROOM_LABEL_LABEL_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_PORTAL_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_PORTAL_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_WALL_CROSSING_COUNT": {
+          "source": "projection.ROOM_LABEL_WALL_CROSSING_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "SCHEMA_IDENTITY_VISIBLE": {
+          "source": "projection.schema_identity_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "SOURCE_HASH_VISIBLE": {
+          "source": "projection.source_hash_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "TITLE_BLOCK_OVERLAP": {
+          "source": "projection.title_block_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "VISIBLE_DIMENSION_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.dimension_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        }
+      },
+      "page_furniture_overlaps": 0,
+      "primary_aspect_ratio": "1.194352159468438538205980066",
+      "primary_plan_occupancy": "0.794317677155094895011726535001596570493175119926300837924238",
+      "profile": "ENGINEERING_SHEET",
+      "result": "PASS",
+      "room_label_collisions": 0,
+      "scenario": "P3_EXISTING_CONCAVE_SITE_VALIDATED_LAYOUT",
+      "selected_composition": "RIGHT_RAIL",
+      "site_aspect_ratio": "1.375",
+      "source_type": "EXISTING_P2D_VALIDATED_TEST_FIXTURE",
+      "svg_hash": "sha256:52739bc7163a7522783574dbc516c7312727aa37b3bcd7558b1ed3533ca45344",
+      "unavailable_facts": 0,
+      "warnings": 0
+    },
+    {
+      "context_inset_contract_pass": null,
+      "context_inset_missing_elements": [],
+      "context_inset_visible": false,
+      "context_loading_interface_visible": null,
+      "determinism": true,
+      "drawing_lint_gate": "PASS",
+      "errors": 0,
+      "lint_hash": "sha256:51c0724aa700cc330a5045578bd92ec9caafa777c34ef1b6fbbbe1d37269ca93",
+      "main_drawing_occupancy": "1",
+      "metric_evidence": {
+        "AREA_SCHEDULE_CONTENT_CLIP_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP": {
+          "source": "projection.AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP",
+          "status": "MEASURED",
+          "value": false
+        },
+        "AREA_SCHEDULE_OUT_OF_PAGE_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_SCHEDULE_ROW_OVERLAP_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_TABLE_OVERLAP": {
+          "source": "projection.area_table_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "CALLOUT_LABEL_COLLISION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_LEADER_SELF_INTERSECTION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "INTERNAL_ZONE_CODE_VISIBLE": {
+          "source": "projection.internal_zone_code_visible",
+          "status": "MEASURED",
+          "value": true
+        },
+        "LEGEND_OVERLAP": {
+          "source": "projection.legend_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PAGE_FURNITURE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PAGE_FURNITURE_OVERLAP_COUNT": {
+          "source": "projection.page_furniture_overlap",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PORTAL_DEBUG_TEXT_VISIBLE": {
+          "source": "projection.portal_debug_text_visible",
+          "status": "MEASURED",
+          "value": true
+        },
+        "PRIMARY_PLAN_OUT_OF_PAGE_COUNT": {
+          "source": "primary_plan_bounds+page_layout_bounds",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_CALLOUT_COUNT": {
+          "source": "projection.ROOM_LABEL_CALLOUT_COUNT",
+          "status": "MEASURED",
+          "value": 7
+        },
+        "ROOM_LABEL_DIMENSION_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_DIMENSION_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_LABEL_OVERLAP_COUNT": {
+          "source": "projection.ROOM_LABEL_LABEL_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_PORTAL_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_PORTAL_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_WALL_CROSSING_COUNT": {
+          "source": "projection.ROOM_LABEL_WALL_CROSSING_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "SCHEMA_IDENTITY_VISIBLE": {
+          "source": "projection.schema_identity_visible",
+          "status": "MEASURED",
+          "value": true
+        },
+        "SOURCE_HASH_VISIBLE": {
+          "source": "projection.source_hash_visible",
+          "status": "MEASURED",
+          "value": true
+        },
+        "TITLE_BLOCK_OVERLAP": {
+          "source": "projection.title_block_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "VISIBLE_DIMENSION_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.dimension_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        }
+      },
+      "page_furniture_overlaps": 0,
+      "primary_aspect_ratio": "1.194352159468438538205980066",
+      "primary_plan_occupancy": "0.142261382623224728487886382623224728487886382623224728487886",
+      "profile": "ENGINEERING_REVIEW",
+      "result": "PASS",
+      "room_label_collisions": 0,
+      "scenario": "P3_EXISTING_CONCAVE_SITE_VALIDATED_LAYOUT",
+      "selected_composition": null,
+      "site_aspect_ratio": "1.375",
+      "source_type": "EXISTING_P2D_VALIDATED_TEST_FIXTURE",
+      "svg_hash": "sha256:5feff4442d0b11047bfd0eb74bb310876ebb9f58e11697107f0753b2e1d32fbc",
+      "unavailable_facts": 0,
+      "warnings": 0
+    },
+    {
+      "context_inset_contract_pass": false,
+      "context_inset_missing_elements": [
+        "context-shipping-loading-face"
+      ],
+      "context_inset_visible": true,
+      "context_loading_interface_visible": false,
+      "determinism": true,
+      "drawing_lint_gate": "PASS",
+      "errors": 0,
+      "lint_hash": "sha256:b9e275d1ac98f81f45cec3edeb29a5721af9d788d27721f51eabed6fcadaf229",
+      "main_drawing_occupancy": "0.411692514043084879250489912768145297355125973915645809753546",
+      "metric_evidence": {
+        "AREA_SCHEDULE_CONTENT_CLIP_COUNT": {
+          "source": "page_furniture.area_schedule+schedule_row_envelope",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP": {
+          "source": "projection.AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP",
+          "status": "MEASURED",
+          "value": false
+        },
+        "AREA_SCHEDULE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture.area_schedule+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "AREA_SCHEDULE_ROW_OVERLAP_COUNT": {
+          "source": "projection.AREA_SCHEDULE_ROW_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "AREA_TABLE_OVERLAP": {
+          "source": "projection.area_table_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "CALLOUT_LABEL_COLLISION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_LEADER_SELF_INTERSECTION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "INTERNAL_ZONE_CODE_VISIBLE": {
+          "source": "projection.internal_zone_code_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "LEGEND_OVERLAP": {
+          "source": "projection.legend_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PAGE_FURNITURE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PAGE_FURNITURE_OVERLAP_COUNT": {
+          "source": "projection.page_furniture_overlap",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PORTAL_DEBUG_TEXT_VISIBLE": {
+          "source": "projection.portal_debug_text_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PRIMARY_PLAN_OUT_OF_PAGE_COUNT": {
+          "source": "primary_plan_bounds+page_layout_bounds",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_CALLOUT_COUNT": {
+          "source": "projection.ROOM_LABEL_CALLOUT_COUNT",
+          "status": "MEASURED",
+          "value": 1
+        },
+        "ROOM_LABEL_DIMENSION_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_DIMENSION_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_LABEL_OVERLAP_COUNT": {
+          "source": "projection.ROOM_LABEL_LABEL_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_PORTAL_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_PORTAL_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_WALL_CROSSING_COUNT": {
+          "source": "projection.ROOM_LABEL_WALL_CROSSING_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "SCHEMA_IDENTITY_VISIBLE": {
+          "source": "projection.schema_identity_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "SOURCE_HASH_VISIBLE": {
+          "source": "projection.source_hash_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "TITLE_BLOCK_OVERLAP": {
+          "source": "projection.title_block_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "VISIBLE_DIMENSION_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.dimension_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        }
+      },
+      "page_furniture_overlaps": 0,
+      "primary_aspect_ratio": "1.442829827915869980879541109",
+      "primary_plan_occupancy": "0.762470308788598574821852731591448931116389548693586698337292",
+      "profile": "PRESENTATION",
+      "result": "BLOCKED_CONTEXT_INSET_INCOMPLETE",
+      "room_label_collisions": 0,
+      "scenario": "P4_REAL_SELECTOR_SITE_WITH_NO_BUILD_ZONES",
+      "selected_composition": null,
+      "site_aspect_ratio": "1.372",
+      "source_type": "EXISTING_UNMOCKED_TOOL7_FULL_CHAIN_FIXTURE",
+      "svg_hash": "sha256:e731dbc092fb1758e4584c26d3c5d8caa11b18a567978555047ae035b7aff382",
+      "unavailable_facts": 0,
+      "warnings": 0
+    },
+    {
+      "context_inset_contract_pass": false,
+      "context_inset_missing_elements": [
+        "context-shipping-loading-face"
+      ],
+      "context_inset_visible": true,
+      "context_loading_interface_visible": false,
+      "determinism": true,
+      "drawing_lint_gate": "PASS",
+      "errors": 0,
+      "lint_hash": "sha256:58846fe1a35d45d39ef432a3046e75f67b5c0fe669741f6bc1f07b6c540ad454",
+      "main_drawing_occupancy": "1",
+      "metric_evidence": {
+        "AREA_SCHEDULE_CONTENT_CLIP_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP": {
+          "source": "projection.AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP",
+          "status": "MEASURED",
+          "value": false
+        },
+        "AREA_SCHEDULE_OUT_OF_PAGE_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_SCHEDULE_ROW_OVERLAP_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_TABLE_OVERLAP": {
+          "source": "projection.area_table_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "CALLOUT_LABEL_COLLISION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_LEADER_SELF_INTERSECTION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "INTERNAL_ZONE_CODE_VISIBLE": {
+          "source": "projection.internal_zone_code_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "LEGEND_OVERLAP": {
+          "source": "projection.legend_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PAGE_FURNITURE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PAGE_FURNITURE_OVERLAP_COUNT": {
+          "source": "projection.page_furniture_overlap",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PORTAL_DEBUG_TEXT_VISIBLE": {
+          "source": "projection.portal_debug_text_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PRIMARY_PLAN_OUT_OF_PAGE_COUNT": {
+          "source": "primary_plan_bounds+page_layout_bounds",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_CALLOUT_COUNT": {
+          "source": "projection.ROOM_LABEL_CALLOUT_COUNT",
+          "status": "MEASURED",
+          "value": 1
+        },
+        "ROOM_LABEL_DIMENSION_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_DIMENSION_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_LABEL_OVERLAP_COUNT": {
+          "source": "projection.ROOM_LABEL_LABEL_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_PORTAL_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_PORTAL_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_WALL_CROSSING_COUNT": {
+          "source": "projection.ROOM_LABEL_WALL_CROSSING_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "SCHEMA_IDENTITY_VISIBLE": {
+          "source": "projection.schema_identity_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "SOURCE_HASH_VISIBLE": {
+          "source": "projection.source_hash_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "TITLE_BLOCK_OVERLAP": {
+          "source": "projection.title_block_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "VISIBLE_DIMENSION_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.dimension_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        }
+      },
+      "page_furniture_overlaps": 0,
+      "primary_aspect_ratio": "1.442829827915869980879541109",
+      "primary_plan_occupancy": "1",
+      "profile": "MOBILE_PREVIEW",
+      "result": "BLOCKED_CONTEXT_INSET_INCOMPLETE",
+      "room_label_collisions": 0,
+      "scenario": "P4_REAL_SELECTOR_SITE_WITH_NO_BUILD_ZONES",
+      "selected_composition": null,
+      "site_aspect_ratio": "1.372",
+      "source_type": "EXISTING_UNMOCKED_TOOL7_FULL_CHAIN_FIXTURE",
+      "svg_hash": "sha256:1e29c2b517faba321139753ae01d475978c454d36fad0f9b5f2c32240d1a499f",
+      "unavailable_facts": 0,
+      "warnings": 0
+    },
+    {
+      "context_inset_contract_pass": true,
+      "context_inset_missing_elements": [],
+      "context_inset_visible": true,
+      "context_loading_interface_visible": true,
+      "determinism": true,
+      "drawing_lint_gate": "PASS",
+      "errors": 0,
+      "lint_hash": "sha256:dee35060a4eba9e442e46c7736093b83307eca224a12168f403554147becfdec",
+      "main_drawing_occupancy": "0.709935352160598843143926505614154474310990132698196665532494",
+      "metric_evidence": {
+        "AREA_SCHEDULE_CONTENT_CLIP_COUNT": {
+          "source": "page_furniture.area_schedule+schedule_row_envelope",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP": {
+          "source": "projection.AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP",
+          "status": "MEASURED",
+          "value": false
+        },
+        "AREA_SCHEDULE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture.area_schedule+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "AREA_SCHEDULE_ROW_OVERLAP_COUNT": {
+          "source": "projection.AREA_SCHEDULE_ROW_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "AREA_TABLE_OVERLAP": {
+          "source": "projection.area_table_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "CALLOUT_LABEL_COLLISION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_LEADER_SELF_INTERSECTION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "INTERNAL_ZONE_CODE_VISIBLE": {
+          "source": "projection.internal_zone_code_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "LEGEND_OVERLAP": {
+          "source": "projection.legend_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PAGE_FURNITURE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PAGE_FURNITURE_OVERLAP_COUNT": {
+          "source": "projection.page_furniture_overlap",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PORTAL_DEBUG_TEXT_VISIBLE": {
+          "source": "projection.portal_debug_text_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PRIMARY_PLAN_OUT_OF_PAGE_COUNT": {
+          "source": "primary_plan_bounds+page_layout_bounds",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_CALLOUT_COUNT": {
+          "source": "projection.ROOM_LABEL_CALLOUT_COUNT",
+          "status": "MEASURED",
+          "value": 1
+        },
+        "ROOM_LABEL_DIMENSION_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_DIMENSION_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_LABEL_OVERLAP_COUNT": {
+          "source": "projection.ROOM_LABEL_LABEL_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_PORTAL_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_PORTAL_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_WALL_CROSSING_COUNT": {
+          "source": "projection.ROOM_LABEL_WALL_CROSSING_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "SCHEMA_IDENTITY_VISIBLE": {
+          "source": "projection.schema_identity_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "SOURCE_HASH_VISIBLE": {
+          "source": "projection.source_hash_visible",
+          "status": "MEASURED",
+          "value": false
+        },
+        "TITLE_BLOCK_OVERLAP": {
+          "source": "projection.title_block_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "VISIBLE_DIMENSION_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.dimension_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        }
+      },
+      "page_furniture_overlaps": 0,
+      "primary_aspect_ratio": "1.442829827915869980879541109",
+      "primary_plan_occupancy": "0.784192703707280356743322289423558777722538358610335176104461",
+      "profile": "ENGINEERING_SHEET",
+      "result": "PASS",
+      "room_label_collisions": 0,
+      "scenario": "P4_REAL_SELECTOR_SITE_WITH_NO_BUILD_ZONES",
+      "selected_composition": "RIGHT_RAIL",
+      "site_aspect_ratio": "1.372",
+      "source_type": "EXISTING_UNMOCKED_TOOL7_FULL_CHAIN_FIXTURE",
+      "svg_hash": "sha256:6a222eb31572b812ed20cb76b796907a970807aff91f4ab9ae2b21beedc6c1bf",
+      "unavailable_facts": 0,
+      "warnings": 0
+    },
+    {
+      "context_inset_contract_pass": null,
+      "context_inset_missing_elements": [],
+      "context_inset_visible": false,
+      "context_loading_interface_visible": null,
+      "determinism": true,
+      "drawing_lint_gate": "PASS",
+      "errors": 0,
+      "lint_hash": "sha256:53ddf7b99571534fab9e74a79e443a5ab6c51b4a60a262cd13c60c7b37c5ebfb",
+      "main_drawing_occupancy": "1",
+      "metric_evidence": {
+        "AREA_SCHEDULE_CONTENT_CLIP_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP": {
+          "source": "projection.AREA_SCHEDULE_HEADER_FIRST_ROW_OVERLAP",
+          "status": "MEASURED",
+          "value": false
+        },
+        "AREA_SCHEDULE_OUT_OF_PAGE_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_SCHEDULE_ROW_OVERLAP_COUNT": {
+          "source": "profile.area_schedule_not_visible",
+          "status": "NOT_APPLICABLE",
+          "value": 0
+        },
+        "AREA_TABLE_OVERLAP": {
+          "source": "projection.area_table_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "CALLOUT_LABEL_COLLISION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_LEADER_LABEL_INTERSECTION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_LEADER_SELF_INTERSECTION_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "CALLOUT_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.callout_leaders+label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "INTERNAL_ZONE_CODE_VISIBLE": {
+          "source": "projection.internal_zone_code_visible",
+          "status": "MEASURED",
+          "value": true
+        },
+        "LEGEND_OVERLAP": {
+          "source": "projection.legend_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "PAGE_FURNITURE_OUT_OF_PAGE_COUNT": {
+          "source": "page_furniture+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PAGE_FURNITURE_OVERLAP_COUNT": {
+          "source": "projection.page_furniture_overlap",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "PORTAL_DEBUG_TEXT_VISIBLE": {
+          "source": "projection.portal_debug_text_visible",
+          "status": "MEASURED",
+          "value": true
+        },
+        "PRIMARY_PLAN_OUT_OF_PAGE_COUNT": {
+          "source": "primary_plan_bounds+page_layout_bounds",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_CALLOUT_COUNT": {
+          "source": "projection.ROOM_LABEL_CALLOUT_COUNT",
+          "status": "MEASURED",
+          "value": 6
+        },
+        "ROOM_LABEL_DIMENSION_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_DIMENSION_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_LABEL_OVERLAP_COUNT": {
+          "source": "projection.ROOM_LABEL_LABEL_OVERLAP_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.label_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        },
+        "ROOM_LABEL_PORTAL_COLLISION_COUNT": {
+          "source": "projection.ROOM_LABEL_PORTAL_COLLISION_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "ROOM_LABEL_WALL_CROSSING_COUNT": {
+          "source": "projection.ROOM_LABEL_WALL_CROSSING_COUNT",
+          "status": "MEASURED",
+          "value": 0
+        },
+        "SCHEMA_IDENTITY_VISIBLE": {
+          "source": "projection.schema_identity_visible",
+          "status": "MEASURED",
+          "value": true
+        },
+        "SOURCE_HASH_VISIBLE": {
+          "source": "projection.source_hash_visible",
+          "status": "MEASURED",
+          "value": true
+        },
+        "TITLE_BLOCK_OVERLAP": {
+          "source": "projection.title_block_overlap",
+          "status": "MEASURED",
+          "value": false
+        },
+        "VISIBLE_DIMENSION_OUT_OF_PAGE_COUNT": {
+          "source": "drawing_lint_facts.dimension_boxes+page_size",
+          "status": "DERIVED",
+          "value": 0
+        }
+      },
+      "page_furniture_overlaps": 0,
+      "primary_aspect_ratio": "1.442829827915869980879541109",
+      "primary_plan_occupancy": "0.957142857142857142857142857142857142857142857142857142857143",
+      "profile": "ENGINEERING_REVIEW",
+      "result": "PASS",
+      "room_label_collisions": 0,
+      "scenario": "P4_REAL_SELECTOR_SITE_WITH_NO_BUILD_ZONES",
+      "selected_composition": null,
+      "site_aspect_ratio": "1.372",
+      "source_type": "EXISTING_UNMOCKED_TOOL7_FULL_CHAIN_FIXTURE",
+      "svg_hash": "sha256:3cad4c935733a653ce631cc2e1da0abf2147b02a4ffa9655d59e6ac58a3edd13",
+      "unavailable_facts": 0,
+      "warnings": 0
+    }
+  ],
+  "authoritative_full_chain_fixtures": [
+    {
+      "fixture_id": "P2D_REPRESENTATIVE_20T_RECTANGULAR_SITE",
+      "full_p2d_validated": true,
+      "layout_hash": "sha256:872044da8b2ea985a9059f483d222568b451587f1f0e6740406823407c2e37d8",
+      "no_build_present": false,
+      "p2c_candidate_selection": false,
+      "primary_bounds": {
+        "max_x_m": "91.4",
+        "max_y_m": "61.2",
+        "min_x_m": "19.5",
+        "min_y_m": "1"
+      },
+      "primary_plan_aspect_ratio": "1.194352159468438538205980066",
+      "site_aspect_ratio": "1.375",
+      "site_bounds": {
+        "max_x_m": "220",
+        "max_y_m": "160",
+        "min_x_m": "0",
+        "min_y_m": "0"
+      },
+      "site_irregularity": false,
+      "source": "EXISTING_P2D_VALIDATED_TEST_FIXTURE",
+      "truck_geometry_present": true,
+      "usable_for_full_svg": true
+    },
+    {
+      "fixture_id": "P3_EXISTING_CONCAVE_SITE_VALIDATED_LAYOUT",
+      "full_p2d_validated": true,
+      "layout_hash": "sha256:c8b855adf2e3a09179af0cecce1d79672d3477679370118463c59a02ee2c5da6",
+      "no_build_present": false,
+      "p2c_candidate_selection": false,
+      "primary_bounds": {
+        "max_x_m": "91.4",
+        "max_y_m": "61.2",
+        "min_x_m": "19.5",
+        "min_y_m": "1"
+      },
+      "primary_plan_aspect_ratio": "1.194352159468438538205980066",
+      "site_aspect_ratio": "1.375",
+      "site_bounds": {
+        "max_x_m": "220",
+        "max_y_m": "160",
+        "min_x_m": "0",
+        "min_y_m": "0"
+      },
+      "site_irregularity": true,
+      "source": "EXISTING_P2D_VALIDATED_TEST_FIXTURE",
+      "truck_geometry_present": true,
+      "usable_for_full_svg": true
+    },
+    {
+      "fixture_id": "P4_REAL_SELECTOR_SITE_WITH_NO_BUILD_ZONES",
+      "full_p2d_validated": true,
+      "layout_hash": "sha256:eaa791651fa3fdb20d707d18fa31620992ab17b1ade8dc89554b8b2331742b30",
+      "no_build_present": true,
+      "p2c_candidate_selection": true,
+      "primary_bounds": {
+        "max_x_m": "75.46",
+        "max_y_m": "52.3",
+        "min_x_m": "0",
+        "min_y_m": "0"
+      },
+      "primary_plan_aspect_ratio": "1.442829827915869980879541109",
+      "site_aspect_ratio": "1.372",
+      "site_bounds": {
+        "max_x_m": "75.46",
+        "max_y_m": "55",
+        "min_x_m": "0",
+        "min_y_m": "0"
+      },
+      "site_irregularity": false,
+      "source": "EXISTING_UNMOCKED_TOOL7_FULL_CHAIN_FIXTURE",
+      "truck_geometry_present": true,
+      "usable_for_full_svg": true
+    }
+  ],
+  "composition_only_fixture_count": 2,
+  "composition_only_scenarios": [
+    {
+      "attempts": [
+        {
+          "candidate": "RIGHT_RAIL",
+          "hard_gates_pass": true,
+          "main_drawing_occupancy": "0.879120879120879120879120879120879120879120879120879120879121"
+        }
+      ],
+      "determinism": true,
+      "drawing_lint_gate": "NOT_RUN_COMPOSITION_ONLY",
+      "errors": null,
+      "full_chain_fixture": false,
+      "geometry_bounds": {
+        "max_x_m": "400",
+        "max_y_m": "100",
+        "min_x_m": "0",
+        "min_y_m": "0"
+      },
+      "main_drawing_occupancy": "0.879120879120879120879120879120879120879120879120879120879121",
+      "page_furniture_out_of_page": 0,
+      "page_furniture_overlaps": 0,
+      "primary_aspect_ratio": "3.428571428571428571428571429",
+      "primary_bounds": {
+        "max_x_m": "260",
+        "max_y_m": "80",
+        "min_x_m": "20",
+        "min_y_m": "10"
+      },
+      "primary_plan_occupancy": "0.868486352357320099255583126550868486352357320099255583126551",
+      "result": "PASS_COMPOSITION_ONLY",
+      "room_label_collisions": null,
+      "scenario_id": "COMPOSITION_ONLY_WIDE_SITE_RIGHT_RAIL",
+      "selected_composition": "RIGHT_RAIL",
+      "site_aspect_ratio": "4",
+      "source_type": "COMPOSITION_ONLY_SYNTHETIC_BOUNDS",
+      "svg_hash": null,
+      "unavailable_facts": null,
+      "warnings": null
+    },
+    {
+      "attempts": [
+        {
+          "candidate": "RIGHT_RAIL",
+          "hard_gates_pass": false,
+          "main_drawing_occupancy": "0.919213456526889362710258232646292347784885098317934138829661"
+        },
+        {
+          "candidate": "BOTTOM_RAIL",
+          "hard_gates_pass": true,
+          "main_drawing_occupancy": "0.792647903503733486502010338885697874784606547960941987363584"
+        }
+      ],
+      "determinism": true,
+      "drawing_lint_gate": "NOT_RUN_COMPOSITION_ONLY",
+      "errors": null,
+      "full_chain_fixture": false,
+      "geometry_bounds": {
+        "max_x_m": "520",
+        "max_y_m": "180",
+        "min_x_m": "0",
+        "min_y_m": "0"
+      },
+      "main_drawing_occupancy": "0.792647903503733486502010338885697874784606547960941987363584",
+      "page_furniture_out_of_page": 0,
+      "page_furniture_overlaps": 0,
+      "primary_aspect_ratio": "2.923076923076923076923076923",
+      "primary_bounds": {
+        "max_x_m": "400",
+        "max_y_m": "150",
+        "min_x_m": "20",
+        "min_y_m": "20"
+      },
+      "primary_plan_occupancy": "0.922605707455550575227849992529508441655460929329149858060660",
+      "result": "PASS_COMPOSITION_ONLY",
+      "room_label_collisions": null,
+      "scenario_id": "COMPOSITION_ONLY_WIDE_PLAN_BOTTOM_RAIL",
+      "selected_composition": "BOTTOM_RAIL",
+      "site_aspect_ratio": "2.888888888888888888888888889",
+      "source_type": "COMPOSITION_ONLY_SYNTHETIC_BOUNDS",
+      "svg_hash": null,
+      "unavailable_facts": null,
+      "warnings": null
+    }
+  ],
+  "context_inset_blocker_profile_count": 6,
+  "context_inset_blockers": [
+    {
+      "missing_elements": [
+        "context-shipping-loading-face"
+      ],
+      "profile": "PRESENTATION",
+      "scenario": "P2D_REPRESENTATIVE_20T_RECTANGULAR_SITE"
+    },
+    {
+      "missing_elements": [
+        "context-shipping-loading-face"
+      ],
+      "profile": "MOBILE_PREVIEW",
+      "scenario": "P2D_REPRESENTATIVE_20T_RECTANGULAR_SITE"
+    },
+    {
+      "missing_elements": [
+        "context-shipping-loading-face"
+      ],
+      "profile": "PRESENTATION",
+      "scenario": "P3_EXISTING_CONCAVE_SITE_VALIDATED_LAYOUT"
+    },
+    {
+      "missing_elements": [
+        "context-shipping-loading-face"
+      ],
+      "profile": "MOBILE_PREVIEW",
+      "scenario": "P3_EXISTING_CONCAVE_SITE_VALIDATED_LAYOUT"
+    },
+    {
+      "missing_elements": [
+        "context-shipping-loading-face"
+      ],
+      "profile": "PRESENTATION",
+      "scenario": "P4_REAL_SELECTOR_SITE_WITH_NO_BUILD_ZONES"
+    },
+    {
+      "missing_elements": [
+        "context-shipping-loading-face"
+      ],
+      "profile": "MOBILE_PREVIEW",
+      "scenario": "P4_REAL_SELECTOR_SITE_WITH_NO_BUILD_ZONES"
+    }
+  ],
+  "drawing_lint_identity": "drawing-lint@1.0.0",
+  "full_chain_authoritative_fixture_count": 3,
+  "p1f_acceptance_complete": false,
+  "p1f_blocker": "CONTEXT_INSET_MISSING_SHIPPING_LOADING_FACE_IN_PRESENTATION_AND_MOBILE_PREVIEW",
+  "scenario_count": 5,
+  "task_id": "V2_2_1_P1F_CROSS_FIXTURE_DRAWING_ROBUSTNESS_R1",
+  "visual_blocker_scenario_count": 3,
+  "visual_evidence": {
+    "p2d_representative_20t_rectangular_site-engineering_sheet": {
+      "png_sha256": "8158376e015a1c3af3d2a18250c43d83e5d2478a3b3904dc50442d986638fc73",
+      "svg_sha256": "sha256:96c82d7296d027a9b41b4b2d8198e7239bed61dbc0811259e0575e2ca3eb25d3"
+    },
+    "p2d_representative_20t_rectangular_site-mobile_preview": {
+      "png_sha256": "947de0a24a5e34b37f59ffe451339404cd534e626332572b24635184b2a3571d",
+      "svg_sha256": "sha256:db6a39e7ad38ca8c0b0fc2063d4189bdd295691d92aaf7a922e59d7c200954c8"
+    },
+    "p2d_representative_20t_rectangular_site-presentation": {
+      "png_sha256": "d8b0f4c8042136a92fb65aefad490c2c84bfc7048894155c422dc9194199f958",
+      "svg_sha256": "sha256:97e7c9083050dc1e1edd01c8880f4c7aa1d2526d72e8eff809ee792bda8cf59e"
+    },
+    "p3_existing_concave_site_validated_layout-engineering_review": {
+      "png_sha256": "a89f79c72f8d9e33c522b2d8087d8bbb88b8f0c4fe5c8f7b97d4f82106542a30",
+      "svg_sha256": "sha256:5feff4442d0b11047bfd0eb74bb310876ebb9f58e11697107f0753b2e1d32fbc"
+    },
+    "p4_real_selector_site_with_no_build_zones-engineering_sheet": {
+      "png_sha256": "9e16953795abf62608d19d407b14d58b05433fc06bb4a8ad59589eb0cc6bcc57",
+      "svg_sha256": "sha256:6a222eb31572b812ed20cb76b796907a970807aff91f4ab9ae2b21beedc6c1bf"
+    }
+  }
+}

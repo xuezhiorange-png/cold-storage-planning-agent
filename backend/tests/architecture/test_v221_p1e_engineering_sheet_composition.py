@@ -32,6 +32,25 @@ ADR = "docs/architecture/ADR-046-engineering-sheet-composition.md"
 BEFORE_PNG = "docs/tasks/evidence/v2_2_1_p1e/before-engineering-sheet.png"
 AFTER_PNG = "docs/tasks/evidence/v2_2_1_p1e/after-engineering-sheet.png"
 GENERATED_ARTIFACT_PREFIX = "backend/artifacts/local/"
+P1F_EVALUATION = "backend/tests/evaluation/test_v221_p1f_cross_fixture_drawing_robustness.py"
+P1F_REPORT = "docs/tasks/V2_2_1-P1F-cross-fixture-drawing-robustness.md"
+P1F_EVIDENCE = "docs/tasks/evidence/v2_2_1_p1f/"
+P1F_EVIDENCE_FILES = {
+    f"{P1F_EVIDENCE}{name}"
+    for name in (
+        "acceptance-matrix.json",
+        "p2d_representative_20t_rectangular_site-presentation.png",
+        "p2d_representative_20t_rectangular_site-presentation.svg",
+        "p2d_representative_20t_rectangular_site-mobile_preview.png",
+        "p2d_representative_20t_rectangular_site-mobile_preview.svg",
+        "p2d_representative_20t_rectangular_site-engineering_sheet.png",
+        "p2d_representative_20t_rectangular_site-engineering_sheet.svg",
+        "p4_real_selector_site_with_no_build_zones-engineering_sheet.png",
+        "p4_real_selector_site_with_no_build_zones-engineering_sheet.svg",
+        "p3_existing_concave_site_validated_layout-engineering_review.png",
+        "p3_existing_concave_site_validated_layout-engineering_review.svg",
+    )
+}
 ALLOWED_PATHS = {
     DOMAIN,
     PROJECTION,
@@ -48,6 +67,9 @@ ALLOWED_PATHS = {
     ADR,
     BEFORE_PNG,
     AFTER_PNG,
+    P1F_EVALUATION,
+    P1F_REPORT,
+    *P1F_EVIDENCE_FILES,
 }
 PROTECTED_PATHS = {
     "backend/src/cold_storage/modules/calculations/",

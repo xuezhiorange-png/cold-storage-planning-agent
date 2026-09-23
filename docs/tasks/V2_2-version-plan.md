@@ -169,7 +169,9 @@ FULL_SITE_CONTEXT_PRESERVED=true
 ENGINEERING_SHEET_FULL_ROOM_DIMENSIONS=true
 P1D_DRAWING_LINT_GATE=HARD_GATE
 REPRESENTATIVE_MAIN_DRAWING_OCCUPANCY=0.7008771929824561
-REPRESENTATIVE_PRIMARY_PLAN_SCREEN_OCCUPANCY=1.0
+REPRESENTATIVE_PRIMARY_PLAN_SCREEN_OCCUPANCY=0.7943176771550949
+REPRESENTATIVE_PRIMARY_PLAN_WIDTH_RATIO=0.8998748435544431
+REPRESENTATIVE_PRIMARY_PLAN_HEIGHT_RATIO=0.8826979472140762
 REPRESENTATIVE_DRAWING_LINT_ERRORS=0
 REPRESENTATIVE_DRAWING_LINT_WARNINGS=0
 PRESENTATION_SVG_BYTES_CHANGED=false
@@ -196,6 +198,41 @@ See the [P1E implementation evidence](V2_2_1-P1E-engineering-sheet-composition.m
 and [ADR-046](../architecture/ADR-046-engineering-sheet-composition.md). The
 composition is presentation-only; passing automated lint does not replace
 Owner visual review or authorize a subsequent phase.
+
+## V2.2.1 P1F cross-fixture drawing robustness (Draft review)
+
+P1F evaluates the existing P1A–P1E drawing output across three reused,
+P2D-validated full-chain fixtures and two bounds-only P1E composition cases.
+It adds no drawing feature or runtime behavior. The representative P1E primary
+metrics are corrected to use the actual primary-plan bounds; the detailed
+fixture inventory, 12-profile acceptance matrix, two candidate-path checks,
+exact SVG hashes, and viewable PNG evidence are in the
+[P1F robustness report](V2_2_1-P1F-cross-fixture-drawing-robustness.md).
+
+```ini
+TASK_ID=V2_2_1_P1F_CROSS_FIXTURE_DRAWING_ROBUSTNESS_R1
+BASE_MAIN_SHA=debda749966e7c890e2f8758f468fa582fb3def8
+ACTIVE_GOVERNANCE_LANE=V2.2.1_P1F
+AUTHORITATIVE_FULL_CHAIN_FIXTURE_COUNT=3
+COMPOSITION_ONLY_SYNTHETIC_SCENARIO_COUNT=2
+TOTAL_DRAWING_SCENARIO_COUNT=5
+RIGHT_RAIL_PATH_VALIDATED=true
+BOTTOM_RAIL_PATH_VALIDATED=true
+DRAWING_LINT_FAILED_SCENARIO_COUNT=0
+DETERMINISM_FAILED_SCENARIO_COUNT=0
+VISUAL_BLOCKER_SCENARIO_COUNT=3
+VISUAL_BLOCKER_PROFILE_COUNT=6
+P1F_ACCEPTANCE_COMPLETE=false
+REPRESENTATIVE_DRAWING_BYTES_CHANGED=false
+SOURCE_ENGINEERING_GEOMETRY_CHANGED=false
+P1G_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```
 
 ## V2.2 post-P5 CI correction release overlay (2026-09-18)
 
