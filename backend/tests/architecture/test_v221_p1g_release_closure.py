@@ -9,6 +9,7 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BASE_MAIN_SHA = "a71347a7ca56c32b2facaa3b57e489427b9a7ea8"
+P1G_ACCEPTED_HEAD_SHA = "83d43e6432165a2ef8d7b20683e10ac1103f50ee"
 V2_2_0_TAG_SHA = "34cd6b56c1d79dde9730898c6bd46e295e423334"
 P1F_MERGE_SHA = "a71347a7ca56c32b2facaa3b57e489427b9a7ea8"
 P1F_HEAD_SHA = "aea30a6e6d0e640574451fd5f58bcf5d291fe278"
@@ -65,13 +66,13 @@ def _json(path: str) -> dict[str, Any]:
 
 def test_p1g_is_based_on_the_immutable_release_candidate_and_docs_only_scope() -> None:
     subprocess.run(
-        ["git", "merge-base", "--is-ancestor", BASE_MAIN_SHA, "HEAD"],
+        ["git", "merge-base", "--is-ancestor", BASE_MAIN_SHA, P1G_ACCEPTED_HEAD_SHA],
         cwd=REPO_ROOT,
         check=True,
     )
-    changed = set(_git("diff", "--name-only", BASE_MAIN_SHA, "HEAD").splitlines())
-    untracked = set(_git("ls-files", "--others", "--exclude-standard").splitlines())
-    changed |= {path for path in untracked if not path.startswith("backend/artifacts/local/")}
+    # Keep P1G's original scope assertion pinned to its accepted task head;
+    # later, independently authorized tasks must not inherit this allowlist.
+    changed = set(_git("diff", "--name-only", BASE_MAIN_SHA, P1G_ACCEPTED_HEAD_SHA).splitlines())
     assert changed <= ALLOWED_PATHS
     assert not any(
         path.startswith(("backend/src/", "frontend/src/", "backend/alembic/", ".github/"))

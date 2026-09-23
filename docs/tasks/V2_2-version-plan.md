@@ -877,3 +877,64 @@ NO_STEP_IMPLIES_THE_NEXT=TRUE
 
 P1C 的自动化结果不能替代 Owner 对 representative 20 t/day 图纸的视觉
 审核，也不蕴含 P1D、P2、P3 后续授权。
+
+## V2.2.2 P0 — Process Flow and Layout Regularity Contract
+
+V2.2.1 `v2.2.1` is released at
+`64f335bbfbbaf061b9ba08c18f2068db411f8922`. Owner's post-release review
+accepted Tool 7's technical hard-validation chain but rejected the produced
+factory organization as irregular. This is a future layout generation and
+candidate-quality concern, not a drawing-projection correction.
+
+The V2.2.2 P0 audit found that current P2C placement enumerates a deterministic
+bounded family and ranks with the P2B2 lexicographic vector (five SHOULD
+adjacencies, loading-side preference, canonical JSON tie-break). The P2
+validated-candidate selector evaluates P2D full-pass candidates and chooses
+the best P2C-ranked candidate within that family; it does not simply select
+the first hard-valid result. Process backtracking/overall turn, grid/depth,
+functional grouping, and building regularity are not current ranking metrics.
+P2D validates route/access/truck/footprint hard conditions but does not certify
+layout quality. Thus a hard-valid layout may still look like disconnected
+blocks or have a poor process organization.
+
+```ini
+TASK_ID=V2_2_2_P0_PROCESS_FLOW_AND_LAYOUT_REGULARITY_CONTRACT_R1
+ACTIVE_GOVERNANCE_LANE=V2.2.2_P0
+P0_CONTRACT_ONLY=true
+P0_STATUS=CONTRACT_FREEZE_DRAFT_REVIEW
+PROCESS_FLOW_ORDER_GATE=FROZEN
+MAIN_FLOW_BACKTRACK_TARGET=0
+ORDINARY_SITE_MAIN_FLOW_TURN_TARGET=0_OR_1
+MAJOR_ZONE_GRID_ALIGNMENT_TARGET=0.90
+DEPTH_ALIGNMENT_METRIC=FROZEN
+DEPTH_ALIGNMENT_PASS_THRESHOLD=NOT_CALIBRATED
+XINZHAO_SITE_LAYOUT_INPUT_V3_PRESENT=false
+MISSING_CANONICAL_FIXTURE=true
+PROJECT_LAYOUT_VALIDATED=HARD_ENGINEERING_VALIDITY_ONLY
+PROCESS_FLOW_VALIDATED=SEPARATE_FUTURE_QUALITY_ASSESSMENT
+LAYOUT_REGULARITY_VALIDATED=SEPARATE_FUTURE_QUALITY_ASSESSMENT
+V2_2_1_BASELINE_PRESERVED=true
+FUTURE_CANONICAL_HASH_CHANGE_ALLOWED=true
+RUNTIME_IMPLEMENTATION_AUTHORIZED=false
+P1_IMPLEMENTATION_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+GITHUB_RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```
+
+The current Xinzhao canonical input is absent and may not be reconstructed
+from an SVG, screenshot, conversation, or hash. `GD-005_PANLONG` remains a
+non-engineering organization/style reference; the original source bytes are
+not present. Depth-alignment, exterior-notch, appendage, and compactness
+thresholds requiring empirical calibration remain explicit preconditions,
+not invented pass values. See the [V2.2.2 P0 contract](V2_2_2-P0-process-flow-layout-regularity-contract.md)
+and [ADR-047](../architecture/ADR-047-process-flow-layout-regularity-authority.md).
+
+P0 changes no runtime, P2/P2D rules, renderer, MCP contract, database, frontend,
+release, or deployment. Future implementation, if separately authorized,
+targets the layout objective profile, deterministic P2C candidate family,
+P2 validated-candidate selector, and their domain/integration/evaluation
+tests. P3/P1 drawing projection and P4 are not the next implementation target.
