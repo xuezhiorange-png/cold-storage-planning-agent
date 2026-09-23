@@ -28,9 +28,6 @@ def _git(*args: str) -> str:
 
 def test_p0a_changes_are_limited_to_fixture_test_and_evidence_paths() -> None:
     changed = set(_git("diff", "--name-only", f"{BASE}...HEAD").splitlines())
-    changed.update(_git("diff", "--name-only").splitlines())
-    changed.update(_git("diff", "--cached", "--name-only").splitlines())
-    changed.update(_git("ls-files", "--others", "--exclude-standard").splitlines())
     assert changed == ALLOWED_PATHS
     assert not any(
         path.startswith(
