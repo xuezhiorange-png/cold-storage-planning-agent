@@ -45,6 +45,22 @@ P1F_EVIDENCE_FILES = {
         "p3_existing_concave_site_validated_layout-engineering_review.svg",
     )
 }
+P1F_CORRECTION_PATHS = {
+    "backend/tests/unit/test_v221_p1f_context_inset_loading_face_correction.py",
+    "backend/tests/architecture/test_v221_p1f_context_inset_loading_face_correction.py",
+    "docs/tasks/V2_2_1-P1F-context-inset-loading-face-correction.md",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/before_presentation.svg",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/before_presentation.png",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/after_presentation.svg",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/after_presentation.png",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/before_mobile_preview.svg",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/before_mobile_preview.png",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/after_mobile_preview.svg",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/after_mobile_preview.png",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/after_presentation_context_crop.png",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/after_mobile_context_crop.png",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/evidence.json",
+}
 ALLOWED_PATHS = {
     DOMAIN,
     APPLICATION,
@@ -67,6 +83,7 @@ ALLOWED_PATHS = {
     P1F_EVALUATION,
     P1F_REPORT,
     *P1F_EVIDENCE_FILES,
+    *P1F_CORRECTION_PATHS,
 }
 PROTECTED_PREFIXES = (
     "backend/src/cold_storage/modules/calculations/",

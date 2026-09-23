@@ -1,0 +1,92 @@
+{
+  "task_id": "V2_2_1_P1F_CONTEXT_INSET_LOADING_FACE_CORRECTION_R1",
+  "base_main_sha": "debda749966e7c890e2f8758f468fa582fb3def8",
+  "fixture": "representative_20t_day_full_pass",
+  "projection_identity": "validated-layout-svg-projection@1.0.0",
+  "authoritative_full_pass_scenarios": [
+    "P2D_REPRESENTATIVE_20T_RECTANGULAR_SITE",
+    "P3_EXISTING_CONCAVE_SITE_VALIDATED_LAYOUT",
+    "P4_REAL_SELECTOR_SITE_WITH_NO_BUILD_ZONES"
+  ],
+  "context_profile_scenarios_tested": 6,
+  "loading_face_source": "site_validated_layout.shipping_loading_face_segment",
+  "transform": "SvgProjectionTransformV1",
+  "loading_face_selection_changed": false,
+  "source_engineering_geometry_changed": false,
+  "engineering_coordinates_mutated": false,
+  "profiles": {
+    "PRESENTATION": {
+      "before_svg_sha256": "97e7c9083050dc1e1edd01c8880f4c7aa1d2526d72e8eff809ee792bda8cf59e",
+      "after_svg_sha256": "e89ca6e1f797fedca41780d2027e728b3a3f37db19c979c0fa9dc863531b2f1a",
+      "context_loading_face_visible": true,
+      "drawing_lint_gate": "PASS",
+      "drawing_lint_errors": 0,
+      "drawing_lint_warnings": 0,
+      "unavailable_required_facts": 0
+    },
+    "MOBILE_PREVIEW": {
+      "before_svg_sha256": "db6a39e7ad38ca8c0b0fc2063d4189bdd295691d92aaf7a922e59d7c200954c8",
+      "after_svg_sha256": "dc0b5313113e69fdfc6c59b88f4bd911316d74b71762bae83768c1bdd70153f2",
+      "context_loading_face_visible": true,
+      "drawing_lint_gate": "PASS",
+      "drawing_lint_errors": 0,
+      "drawing_lint_warnings": 0,
+      "unavailable_required_facts": 0
+    },
+    "ENGINEERING_SHEET": {
+      "before_svg_sha256": "96c82d7296d027a9b41b4b2d8198e7239bed61dbc0811259e0575e2ca3eb25d3",
+      "after_svg_sha256": "96c82d7296d027a9b41b4b2d8198e7239bed61dbc0811259e0575e2ca3eb25d3",
+      "context_loading_face_visible": true
+    },
+    "ENGINEERING_REVIEW": {
+      "before_svg_sha256": "48ea97310b955b3e5b94ea68eebed49c377031c74cb4eeba9db003e36042f37d",
+      "after_svg_sha256": "48ea97310b955b3e5b94ea68eebed49c377031c74cb4eeba9db003e36042f37d",
+      "context_inset_present": false
+    }
+  },
+  "artifacts": {
+    "before_presentation.svg": {
+      "path": "before_presentation.svg",
+      "sha256": "97e7c9083050dc1e1edd01c8880f4c7aa1d2526d72e8eff809ee792bda8cf59e"
+    },
+    "before_presentation.png": {
+      "path": "before_presentation.png",
+      "sha256": "d8b0f4c8042136a92fb65aefad490c2c84bfc7048894155c422dc9194199f958"
+    },
+    "after_presentation.svg": {
+      "path": "after_presentation.svg",
+      "sha256": "e89ca6e1f797fedca41780d2027e728b3a3f37db19c979c0fa9dc863531b2f1a"
+    },
+    "after_presentation.png": {
+      "path": "after_presentation.png",
+      "sha256": "5a1df8aeee3ee6ec186d3c3ac329e342d60088b38416e0bdb53cc82097e852f9"
+    },
+    "after_presentation_context_crop.png": {
+      "path": "after_presentation_context_crop.png",
+      "sha256": "25d6868722504c1338e4cb4a349d6212a78b9d2b0eb5df731c5f354fb0865502"
+    },
+    "before_mobile_preview.svg": {
+      "path": "before_mobile_preview.svg",
+      "sha256": "db6a39e7ad38ca8c0b0fc2063d4189bdd295691d92aaf7a922e59d7c200954c8"
+    },
+    "before_mobile_preview.png": {
+      "path": "before_mobile_preview.png",
+      "sha256": "947de0a24a5e34b37f59ffe451339404cd534e626332572b24635184b2a3571d"
+    },
+    "after_mobile_preview.svg": {
+      "path": "after_mobile_preview.svg",
+      "sha256": "dc0b5313113e69fdfc6c59b88f4bd911316d74b71762bae83768c1bdd70153f2"
+    },
+    "after_mobile_preview.png": {
+      "path": "after_mobile_preview.png",
+      "sha256": "08febada50be4c5bcf7682612102cd9d14c205611954136f08f309238ec9b264"
+    },
+    "after_mobile_context_crop.png": {
+      "path": "after_mobile_context_crop.png",
+      "sha256": "89751befd716c015c24d85ced9d22067447a3990c74de0bbaaac5573daa14ed7"
+    }
+  },
+  "automated_test_status": "PASS",
+  "exact_head_ci_status": "PENDING",
+  "owner_visual_review": "PENDING"
+}
