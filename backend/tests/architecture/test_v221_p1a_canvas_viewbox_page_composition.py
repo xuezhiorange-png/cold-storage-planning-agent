@@ -117,10 +117,11 @@ def test_p1a_profiles_and_occupancy_contract_are_versioned() -> None:
         '"primary_plan_bounds"',
         '"context_inset"',
         '"primary_plan_visually_readable"',
-        "review_overlays_visible",
+        "engineering_overlays_visible",
+        "debug_metadata_visible",
         "ENGINEERING_REVIEW",
-        "if review_overlays_visible",
-        "include_source_hash=review_overlays_visible",
+        "if engineering_overlays_visible",
+        "include_source_hash=debug_metadata_visible",
     ):
         assert required in source
 

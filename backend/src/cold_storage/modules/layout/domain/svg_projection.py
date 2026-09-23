@@ -22,6 +22,10 @@ from cold_storage.modules.layout.domain.dimensioning import (
     canonical_hash,
     canonical_json,
 )
+from cold_storage.modules.layout.domain.engineering_sheet_composition import (
+    ENGINEERING_SHEET_CANDIDATE_ORDER,
+    build_engineering_sheet_composition,
+)
 from cold_storage.modules.layout.domain.site_geometry import (
     PlacedRectangleV1,
     PointPair,
@@ -79,6 +83,9 @@ SVG_PAGE_PROFILES: Final[tuple[str, ...]] = (
     "ENGINEERING_REVIEW",
 )
 SVG_FOCUS_PROFILES: Final[frozenset[str]] = frozenset({"PRESENTATION", "MOBILE_PREVIEW"})
+SVG_DRAWING_FOCUS_PROFILES: Final[frozenset[str]] = frozenset(
+    {*SVG_FOCUS_PROFILES, "ENGINEERING_SHEET"}
+)
 SVG_REVIEW_PROFILES: Final[frozenset[str]] = frozenset({"ENGINEERING_SHEET", "ENGINEERING_REVIEW"})
 SVG_REVIEW_ACCENT_PROFILES: Final[frozenset[str]] = frozenset({"ENGINEERING_REVIEW"})
 SVG_DISPLAY_DIMENSION_DECIMALS: Final = 2
@@ -313,13 +320,39 @@ def _page_composition(
     primary_max_x: Decimal,
     primary_max_y: Decimal,
     page_profile: str,
+    engineering_sheet_candidate: str | None = None,
 ) -> dict[str, Any]:
     """Build page-space rectangles without changing source engineering geometry."""
     if page_profile not in SVG_PAGE_PROFILES:
         raise _error("SVG_PAGE_PROFILE_INVALID", profile=page_profile)
 
+    if page_profile == "ENGINEERING_SHEET":
+        candidate = engineering_sheet_candidate or ENGINEERING_SHEET_CANDIDATE_ORDER[0]
+        try:
+            return build_engineering_sheet_composition(
+                candidate=candidate,
+                geometry_bounds={
+                    "min_x_m": geometry_min_x,
+                    "min_y_m": geometry_min_y,
+                    "max_x_m": geometry_max_x,
+                    "max_y_m": geometry_max_y,
+                },
+                primary_bounds={
+                    "min_x_m": primary_min_x,
+                    "min_y_m": primary_min_y,
+                    "max_x_m": primary_max_x,
+                    "max_y_m": primary_max_y,
+                },
+            )
+        except ValueError as error:
+            raise _error(
+                "ENGINEERING_SHEET_COMPOSITION_CANDIDATE_INVALID",
+                candidate=candidate,
+                reason=str(error),
+            ) from None
+
     focused = page_profile in SVG_FOCUS_PROFILES
-    review_overlays_visible = page_profile in SVG_REVIEW_PROFILES
+    engineering_overlays_visible = page_profile in SVG_REVIEW_PROFILES
     source_width_m = geometry_max_x - geometry_min_x
     source_height_m = geometry_max_y - geometry_min_y
     source_drawing_min_x = geometry_min_x - SVG_MARGIN_M
@@ -553,7 +586,7 @@ def _page_composition(
         "primary_plan_occupancy_min": SVG_MOBILE_PRIMARY_PLAN_OCCUPANCY_MIN,
         "primary_plan_width_ratio_min": SVG_MOBILE_PRIMARY_PLAN_WIDTH_RATIO_MIN,
         "primary_plan_height_ratio_min": SVG_MOBILE_PRIMARY_PLAN_HEIGHT_RATIO_MIN,
-        "review_overlays_visible": review_overlays_visible,
+        "review_overlays_visible": engineering_overlays_visible,
         "occupancy_target": SVG_MAIN_DRAWING_TARGET_OCCUPANCY,
         "occupancy_min": SVG_MAIN_DRAWING_MIN_OCCUPANCY,
         "occupancy_max": SVG_MAIN_DRAWING_MAX_OCCUPANCY,
@@ -2027,6 +2060,7 @@ def _render_title_block_at(
     body: Mapping[str, Any],
     *,
     include_source_hash: bool = True,
+    engineering_sheet_business_content: bool = False,
 ) -> str:
     source_hash = str(body.get("canonical_result_hash", ""))
     parts = [
@@ -2048,25 +2082,39 @@ def _render_title_block_at(
             "冷库/加工厂平面规划图",
             attrs={"fill": theme.text, "font-size": 17, "font-weight": "700"},
         ),
-        _text(
-            x + Decimal("14"),
-            y + Decimal("46"),
-            "v2.2  ·  Layout status: VALIDATED",
-            attrs={"fill": theme.text, "font-size": 12},
-        ),
-        _text(
-            x + Decimal("14"),
-            y + Decimal("66"),
-            "Zone count: 12   Access: 12/12",
-            attrs={"fill": theme.text, "font-size": 12},
-        ),
-        _text(
-            x + Decimal("14"),
-            y + Decimal("86"),
-            "Truck route: VALIDATED",
-            attrs={"fill": theme.text, "font-size": 12},
-        ),
     ]
+    if engineering_sheet_business_content:
+        parts.append(
+            _text(
+                x + Decimal("14"),
+                y + Decimal("46"),
+                "v2.2.1  ·  比例：示意",
+                attrs={"fill": theme.text, "font-size": 12},
+            )
+        )
+    else:
+        parts.extend(
+            (
+                _text(
+                    x + Decimal("14"),
+                    y + Decimal("46"),
+                    "v2.2  ·  Layout status: VALIDATED",
+                    attrs={"fill": theme.text, "font-size": 12},
+                ),
+                _text(
+                    x + Decimal("14"),
+                    y + Decimal("66"),
+                    "Zone count: 12   Access: 12/12",
+                    attrs={"fill": theme.text, "font-size": 12},
+                ),
+                _text(
+                    x + Decimal("14"),
+                    y + Decimal("86"),
+                    "Truck route: VALIDATED",
+                    attrs={"fill": theme.text, "font-size": 12},
+                ),
+            )
+        )
     if include_source_hash:
         parts.append(
             _text(
@@ -2089,6 +2137,7 @@ def _render_svg(
     *,
     theme: SvgDrawingThemeV1,
     page_profile: str,
+    engineering_sheet_candidate: str | None = None,
 ) -> tuple[str, dict[str, Any], dict[str, int], dict[str, Any]]:
     all_points = _all_geometry_points(site, rectangles, building, loading_face, body)
     min_x_mm, min_y_mm, max_x_mm, max_y_mm = _points_for_bounds(all_points)
@@ -2107,6 +2156,7 @@ def _render_svg(
         primary_max_x=primary["max_x_m"],
         primary_max_y=primary["max_y_m"],
         page_profile=page_profile,
+        engineering_sheet_candidate=engineering_sheet_candidate,
     )
     page_bounds = composition["page_layout_bounds"]
     page_min_x = cast(Decimal, page_bounds["min_x_m"])
@@ -2115,8 +2165,9 @@ def _render_svg(
     width = cast(Decimal, page_size["width"])
     height = cast(Decimal, page_size["height"])
     transform = SvgProjectionTransformV1(page_min_x, page_max_y)
-    focused = page_profile in SVG_FOCUS_PROFILES
-    review_overlays_visible = page_profile in SVG_REVIEW_PROFILES
+    focused = page_profile in SVG_DRAWING_FOCUS_PROFILES
+    engineering_overlays_visible = page_profile in SVG_REVIEW_PROFILES
+    debug_metadata_visible = page_profile == "ENGINEERING_REVIEW"
     review_accent_visible = page_profile in SVG_REVIEW_ACCENT_PROFILES
     review_accent = _review_accent(theme, page_profile)
     site_boundary_width = SVG_STROKE_W1 if focused else SVG_STROKE_W4
@@ -2203,9 +2254,9 @@ def _render_svg(
             )
         },
         "internal_zone_code_visible": internal_zone_code_visible,
-        "source_hash_visible": review_overlays_visible,
-        "portal_debug_text_visible": review_overlays_visible,
-        "schema_identity_visible": review_overlays_visible,
+        "source_hash_visible": debug_metadata_visible,
+        "portal_debug_text_visible": debug_metadata_visible,
+        "schema_identity_visible": debug_metadata_visible,
     }
     defs = _element(
         "defs",
@@ -2452,7 +2503,23 @@ def _render_svg(
                     "stroke-width": SVG_STROKE_W1,
                 },
             )
-            + "".join(context_zone_parts),
+            + "".join(context_zone_parts)
+            + (
+                _element(
+                    "line",
+                    attrs={
+                        "id": "context-shipping-loading-face",
+                        "x1": context_transform.point(loading_face[0])[0],
+                        "y1": context_transform.point(loading_face[0])[1],
+                        "x2": context_transform.point(loading_face[1])[0],
+                        "y2": context_transform.point(loading_face[1])[1],
+                        "stroke": theme.loading_face,
+                        "stroke-width": SVG_STROKE_W2,
+                    },
+                )
+                if page_profile == "ENGINEERING_SHEET"
+                else ""
+            ),
         )
     portal_parts: list[str] = []
     raw_portals = body.get("portals", [])
@@ -2484,7 +2551,7 @@ def _render_svg(
                         f"portal {format_display_number(portal.get('clear_width_m', 0))} m",
                         attrs={"fill": theme.portal_stroke, "font-size": 9},
                     )
-                    if review_overlays_visible
+                    if debug_metadata_visible
                     else ""
                 ),
             )
@@ -2500,7 +2567,7 @@ def _render_svg(
         envelope_parts = []
         for envelope_index, envelope in enumerate(corridor.get("envelope", [])):
             envelope_polygon = _polygon(envelope, field="corridor.envelope")
-            if review_overlays_visible:
+            if engineering_overlays_visible:
                 envelope_parts.append(
                     _element(
                         "polygon",
@@ -2556,20 +2623,27 @@ def _render_svg(
             reference.get("exit_pose"), field=f"truck_maneuver_chain[{index}].exit_pose"
         )
         identity = maneuver.get("template_identity", f"maneuver-{index}")
-        maneuver_parts.append(
-            _element(
-                "g",
-                attrs={
-                    "id": f"truck-maneuver-{index}",
+        maneuver_transform = context_transform if page_profile == "ENGINEERING_SHEET" else transform
+        if maneuver_transform is None:
+            maneuver_transform = transform
+        maneuver_attrs: dict[str, object] = {"id": f"truck-maneuver-{index}"}
+        if debug_metadata_visible:
+            maneuver_attrs.update(
+                {
                     "data-maneuver-class": maneuver.get("maneuver_class", ""),
                     "data-template-identity": identity,
                     "data-sequence-index": index,
-                },
+                }
+            )
+        maneuver_parts.append(
+            _element(
+                "g",
+                attrs=maneuver_attrs,
                 body=_element(
                     "polygon",
                     attrs={
                         "id": f"truck-envelope-{index}",
-                        "points": _polygon_points(envelope, transform),
+                        "points": _polygon_points(envelope, maneuver_transform),
                         "fill": review_accent,
                         "fill-opacity": 0.18,
                         "stroke": review_accent,
@@ -2581,18 +2655,22 @@ def _render_svg(
                     "polyline",
                     attrs={
                         "id": f"truck-reference-path-{index}",
-                        "points": _polyline_points((entry, exit_point), transform),
+                        "points": _polyline_points((entry, exit_point), maneuver_transform),
                         "fill": "none",
                         "stroke": review_accent,
                         "stroke-width": SVG_STROKE_W1,
                         "stroke-dasharray": "3 3",
                     },
                 )
-                + _element(
-                    "title",
-                    body=escape(
-                        f"{maneuver.get('maneuver_class', '')} {identity} sequence {index}"
-                    ),
+                + (
+                    _element(
+                        "title",
+                        body=escape(
+                            f"{maneuver.get('maneuver_class', '')} {identity} sequence {index}"
+                        ),
+                    )
+                    if debug_metadata_visible
+                    else ""
                 ),
             )
         )
@@ -2607,7 +2685,12 @@ def _render_svg(
                     "polygon",
                     attrs={
                         "id": f"truck-envelope-{index}",
-                        "points": _polygon_points(envelope, transform),
+                        "points": _polygon_points(
+                            envelope,
+                            context_transform
+                            if page_profile == "ENGINEERING_SHEET" and context_transform
+                            else transform,
+                        ),
                         "fill": review_accent,
                         "fill-opacity": 0.18,
                         "stroke": review_accent,
@@ -2619,7 +2702,7 @@ def _render_svg(
     truck_group = _element(
         "g",
         attrs={"id": "truck-maneuvers"},
-        body="".join(maneuver_parts) if review_overlays_visible else "",
+        body="".join(maneuver_parts) if engineering_overlays_visible else "",
     )
     entrance_transform = context_transform if context_transform is not None else transform
     entrances_group = _element(
@@ -2666,6 +2749,24 @@ def _render_svg(
                         "stroke-width": SVG_STROKE_W3,
                     },
                 ),
+                *(
+                    (
+                        _element(
+                            "line",
+                            attrs={
+                                "id": "context-shipping-loading-face-visible",
+                                "x1": entrance_transform.point(loading_face[0])[0],
+                                "y1": entrance_transform.point(loading_face[0])[1],
+                                "x2": entrance_transform.point(loading_face[1])[0],
+                                "y2": entrance_transform.point(loading_face[1])[1],
+                                "stroke": theme.loading_face,
+                                "stroke-width": SVG_STROKE_W1,
+                            },
+                        ),
+                    )
+                    if page_profile == "ENGINEERING_SHEET"
+                    else ()
+                ),
             )
         ),
     )
@@ -2697,8 +2798,8 @@ def _render_svg(
             cast(Decimal, legend_rect["height"]),
             theme,
             str(body["canonical_result_hash"]),
-            include_source_hash=review_overlays_visible,
-            include_review_items=review_overlays_visible,
+            include_source_hash=debug_metadata_visible,
+            include_review_items=engineering_overlays_visible,
             review_accent=review_accent,
         )
         schedule_group = _render_area_schedule(
@@ -2716,11 +2817,12 @@ def _render_svg(
             cast(Decimal, title_rect["height"]),
             theme,
             body,
-            include_source_hash=review_overlays_visible,
+            include_source_hash=debug_metadata_visible,
+            engineering_sheet_business_content=page_profile == "ENGINEERING_SHEET",
         )
     metadata_element = (
         _element("metadata", body=escape(canonical_json(metadata)))
-        if review_overlays_visible
+        if debug_metadata_visible
         else ""
     )
     svg = '<?xml version="1.0" encoding="UTF-8"?>' + _element(
@@ -2732,7 +2834,7 @@ def _render_svg(
             "height": "100%",
             "viewBox": f"0 0 {_format_number(width)} {_format_number(height)}",
             "preserveAspectRatio": "xMidYMin meet"
-            if page_profile in SVG_FOCUS_PROFILES
+            if page_profile in SVG_DRAWING_FOCUS_PROFILES
             else "xMidYMid meet",
             "role": "img",
             "aria-labelledby": "drawing-title",
@@ -2775,6 +2877,7 @@ def build_projection_payload(
     source_layout_hash: str,
     theme: object | None = None,
     page_profile: str = "PRESENTATION",
+    engineering_sheet_candidate: str | None = None,
 ) -> dict[str, Any]:
     """Render one validated result and return the projection payload."""
     normalized_theme = validate_svg_theme(theme)
@@ -2791,6 +2894,7 @@ def build_projection_payload(
         loading_face,
         theme=normalized_theme,
         page_profile=page_profile,
+        engineering_sheet_candidate=engineering_sheet_candidate,
     )
     svg_hash = "sha256:" + hashlib.sha256(svg.encode("utf-8")).hexdigest()
     page_bounds = cast(dict[str, Decimal], bounds["page_layout_bounds"])
@@ -2823,6 +2927,17 @@ def build_projection_payload(
         "source_placement_result_hash": body.get("source_placement_result_hash"),
         "source_truck_maneuver_binding_hash": body.get("source_truck_maneuver_binding_hash"),
         "page_profile": bounds["profile"],
+        "engineering_sheet_composition_candidate": bounds.get("candidate"),
+        "engineering_sheet_composition_identity": bounds.get("candidate_identity"),
+        "engineering_sheet_primary_plan_focus": page_profile == "ENGINEERING_SHEET",
+        "engineering_sheet_context_inset_visible": (
+            page_profile == "ENGINEERING_SHEET" and bool(bounds["context_inset"])
+        ),
+        "full_site_context_preserved": page_profile == "ENGINEERING_SHEET",
+        "engineering_sheet_full_room_dimensions": (
+            page_profile == "ENGINEERING_SHEET"
+            and tuple(_dimension_codes_for_profile(page_profile)) == EXPECTED_ZONE_CODES
+        ),
         "view_box": view_box,
         "drawing_bounds": bounds["engineering_drawing_bounds"],
         "engineering_geometry_bounds": bounds["engineering_geometry_bounds"],
@@ -2854,9 +2969,10 @@ def build_projection_payload(
         "mobile_review_overlays_hidden": page_profile == "MOBILE_PREVIEW",
         "engineering_review_overlays_preserved": page_profile in SVG_REVIEW_PROFILES,
         "internal_zone_code_visible": page_profile == "ENGINEERING_REVIEW",
-        "source_hash_visible": page_profile in SVG_REVIEW_PROFILES,
-        "portal_debug_text_visible": page_profile in SVG_REVIEW_PROFILES,
-        "schema_identity_visible": page_profile in SVG_REVIEW_PROFILES,
+        "engineering_sheet_debug_metadata_visible": page_profile == "ENGINEERING_REVIEW",
+        "source_hash_visible": page_profile == "ENGINEERING_REVIEW",
+        "portal_debug_text_visible": page_profile == "ENGINEERING_REVIEW",
+        "schema_identity_visible": page_profile == "ENGINEERING_REVIEW",
         "source_engineering_geometry_changed": False,
         "main_drawing_target_occupancy": bounds["occupancy_target"],
         "main_drawing_min_occupancy": bounds["occupancy_min"],

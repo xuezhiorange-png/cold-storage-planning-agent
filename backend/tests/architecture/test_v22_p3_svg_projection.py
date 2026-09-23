@@ -114,11 +114,14 @@ def test_p3_application_uses_validated_inputs_without_engineering_bypass() -> No
     tree = ast.parse(_source(APPLICATION))
     allowed = {
         "cold_storage.modules.layout.application.access_routing",
+        "cold_storage.modules.layout.application.drawing_lint",
         "cold_storage.modules.layout.application.site_geometry",
         "cold_storage.modules.layout.domain.dimensioning",
+        "cold_storage.modules.layout.domain.engineering_sheet_composition",
         "cold_storage.modules.layout.domain.svg_projection",
         "__future__",
         "collections.abc",
+        "decimal",
         "re",
         "typing",
     }
@@ -159,6 +162,7 @@ def test_p3_domain_is_static_svg_serialization_only() -> None:
         "xml.sax.saxutils",
         "cold_storage.modules.layout.domain.dimensioning",
         "cold_storage.modules.layout.domain.site_geometry",
+        "cold_storage.modules.layout.domain.engineering_sheet_composition",
     }
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
