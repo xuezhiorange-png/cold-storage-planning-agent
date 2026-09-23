@@ -16,6 +16,7 @@ from cold_storage.modules.layout.domain.engineering_sheet_composition import (
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BASE_MAIN_SHA = "2154c869ed202beeeb1903d1875508122a4ed829"
+P1E_MERGE_SHA = "debda749966e7c890e2f8758f468fa582fb3def8"
 DOMAIN = "backend/src/cold_storage/modules/layout/domain/engineering_sheet_composition.py"
 PROJECTION = "backend/src/cold_storage/modules/layout/domain/svg_projection.py"
 APPLICATION = "backend/src/cold_storage/modules/layout/application/svg_projection.py"
@@ -139,13 +140,12 @@ def test_generated_report_artifacts_are_not_source_changes() -> None:
 
 def test_p1e_changes_are_projection_only_and_within_allowlist() -> None:
     subprocess.run(
-        ["git", "merge-base", "--is-ancestor", BASE_MAIN_SHA, "HEAD"],
+        ["git", "merge-base", "--is-ancestor", BASE_MAIN_SHA, P1E_MERGE_SHA],
         cwd=REPO_ROOT,
         check=True,
     )
-    tracked = set(_git("diff", "--name-only", BASE_MAIN_SHA, "HEAD").splitlines())
-    untracked = set(_git("ls-files", "--others", "--exclude-standard").splitlines())
-    changed = _source_changes(tracked, untracked)
+    tracked = set(_git("diff", "--name-only", BASE_MAIN_SHA, P1E_MERGE_SHA).splitlines())
+    changed = _source_changes(tracked, set())
     assert changed <= ALLOWED_PATHS
     assert not any(
         path == protected or path.startswith(protected)

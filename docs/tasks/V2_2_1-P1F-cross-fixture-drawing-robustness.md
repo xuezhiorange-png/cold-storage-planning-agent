@@ -24,7 +24,14 @@ VISUAL_BLOCKER_PROFILE_COMBINATIONS=0
 RIGHT_RAIL_PATH_VALIDATED=true
 BOTTOM_RAIL_PATH_VALIDATED=true
 P1F_AUTOMATED_MATRIX_ACCEPTANCE=PASS
-OWNER_VISUAL_REVIEW=REQUIRED
+OWNER_VISUAL_REVIEW=PASS
+P1F_ACCEPTANCE_COMPLETE=true
+P1F_BLOCKERS=NONE
+P1F_MERGED=true
+P1F_FINAL_MERGE_SHA=a71347a7ca56c32b2facaa3b57e489427b9a7ea8
+P1F_FINAL_EXACT_HEAD_SHA=aea30a6e6d0e640574451fd5f58bcf5d291fe278
+P1F_FINAL_EXACT_CI_RUN_ID=35838403105
+P1F_FINAL_EXACT_CI_RESULT=SUCCESS
 PREVIOUS_BLOCKER=CONTEXT_INSET_MISSING_SHIPPING_LOADING_FACE
 PREVIOUS_BLOCKER_RESOLVED_BY_PR=298
 SOURCE_ENGINEERING_GEOMETRY_CHANGED=false
@@ -77,8 +84,8 @@ PRESENTATION, MOBILE_PREVIEW, and ENGINEERING_SHEET; the no-build-site
 ENGINEERING_SHEET; the concave-site ENGINEERING_REVIEW; and direct context-inset
 renders for PRESENTATION and MOBILE_PREVIEW. These are raw SVG projections and
 direct SVG renders/crops, with no editing of engineering or drawing geometry.
-Owner visual review remains a separate gate. The matrix is evidence for review,
-not a declaration of visual approval.
+Owner visual review subsequently passed. P1F acceptance is complete; this
+review approval does not authorize a new drawing phase or release execution.
 
 ### R2 regenerated visual evidence
 

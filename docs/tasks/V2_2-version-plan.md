@@ -199,7 +199,7 @@ and [ADR-046](../architecture/ADR-046-engineering-sheet-composition.md). The
 composition is presentation-only; passing automated lint does not replace
 Owner visual review or authorize a subsequent phase.
 
-## V2.2.1 P1F cross-fixture drawing robustness (R2 rerun; Owner review pending)
+## V2.2.1 P1F cross-fixture drawing robustness (R2 final; Owner review passed)
 
 P1F evaluates the existing P1A–P1E drawing output across three reused,
 P2D-validated full-chain fixtures and two bounds-only P1E composition cases.
@@ -209,9 +209,10 @@ authoritative `shipping_loading_face_segment`. All 12 full-chain profile rows
 pass Drawing Lint with zero errors or unavailable required facts, all six
 previously failing PRESENTATION/MOBILE combinations now pass, and deterministic
 replay is preserved. R2 changes no renderer feature or engineering/runtime
-behavior. Owner visual review remains an independent pending gate. The detailed
-fixture inventory, generated acceptance matrix, candidate-path checks, exact
-SVG hashes, and regenerated viewable PNG/context crops are in the
+behavior. Charles completed the independent visual review and accepted P1F;
+P1F is complete with no remaining blocker. The detailed fixture inventory,
+generated acceptance matrix, candidate-path checks, exact SVG hashes, and
+regenerated viewable PNG/context crops are in the
 [P1F robustness report](V2_2_1-P1F-cross-fixture-drawing-robustness.md).
 
 ```ini
@@ -235,7 +236,14 @@ VISUAL_BLOCKER_PROFILE_COMBINATIONS=0
 PRESENTATION_CONTEXT_LOADING_FACE_COMPLETE=true
 MOBILE_CONTEXT_LOADING_FACE_COMPLETE=true
 P1F_AUTOMATED_MATRIX_ACCEPTANCE=PASS
-OWNER_VISUAL_REVIEW=REQUIRED
+OWNER_VISUAL_REVIEW=PASS
+P1F_ACCEPTANCE_COMPLETE=true
+P1F_BLOCKERS=NONE
+P1F_MERGED=true
+P1F_FINAL_MERGE_SHA=a71347a7ca56c32b2facaa3b57e489427b9a7ea8
+P1F_FINAL_EXACT_HEAD_SHA=aea30a6e6d0e640574451fd5f58bcf5d291fe278
+P1F_FINAL_EXACT_CI_RUN_ID=35838403105
+P1F_FINAL_EXACT_CI_RESULT=SUCCESS
 PREVIOUS_BLOCKER=CONTEXT_INSET_MISSING_SHIPPING_LOADING_FACE
 PREVIOUS_BLOCKER_RESOLVED_BY_PR=298
 PRESENTATION_SVG_SHA256=sha256:e89ca6e1f797fedca41780d2027e728b3a3f37db19c979c0fa9dc863531b2f1a
@@ -256,6 +264,56 @@ RELEASE_AUTHORIZED=false
 DEPLOYMENT_AUTHORIZED=false
 NO_STEP_IMPLIES_THE_NEXT=true
 ```
+
+## V2.2.1 P1G release closure (Draft readiness review)
+
+P1G closes the merged P0–P1F drawing and layout evidence for a future
+`v2.2.1` release. The release audit revalidates the immutable `v2.2.0`
+lineage, the four representative SVG hashes, the P1F five-scenario matrix,
+the P1E measured composition values, and MCP Tool 7 compatibility. It does
+not add or alter drawing behavior, runtime code, database state, or package
+versions. The detailed audit, release-note draft, and machine-readable
+readiness snapshot are in
+[`V2_2_1-P1G-release-closure.md`](V2_2_1-P1G-release-closure.md).
+
+```ini
+TASK_ID=V2_2_1_P1G_RELEASE_CLOSURE_R1
+BASE_MAIN_SHA=a71347a7ca56c32b2facaa3b57e489427b9a7ea8
+TARGET_VERSION=v2.2.1
+PREVIOUS_RELEASE=v2.2.0
+ACTIVE_GOVERNANCE_LANE=V2.2.1_P1G
+P0_COMPLETE=true
+P1A_COMPLETE=true
+P1A2_COMPLETE=true
+P1B_COMPLETE=true
+P1C_COMPLETE=true
+P1D_COMPLETE=true
+P1E_COMPLETE=true
+P1F_COMPLETE=true
+P1F_OWNER_VISUAL_REVIEW=PASS
+P1F_FINAL_MERGE_SHA=a71347a7ca56c32b2facaa3b57e489427b9a7ea8
+V2_2_0_IS_ANCESTOR_OF_CANDIDATE=true
+REPRESENTATIVE_HASH_FREEZE=PASS
+DRAWING_LINT_GATE=PASS
+P1F_CROSS_FIXTURE_ACCEPTANCE=PASS
+MCP_REGRESSION=PASS
+EXISTING_SIX_TOOL_REGRESSION=PASS
+TOOL7_FULL_CHAIN=PASS
+P1G_EXACT_HEAD_CI=REQUIRED_BEFORE_CLOSURE_ACCEPTANCE
+V2_2_1_RELEASE_READY=CONDITIONAL_ON_P1G_EXACT_HEAD_CI
+RELEASE_TARGET_SHA=P1G_FINAL_MERGE_SHA_AFTER_EXACT_MAIN_CI
+TAG_AUTHORIZED=false
+GITHUB_RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```
+
+The conditional release-readiness value is intentional: P1G's own exact-head
+CI and `ci-gate` must pass before the readiness audit can close. Even after
+that, Owner review and separate Ready/Merge authorization remain required;
+tagging, GitHub Release, and deployment are outside this authorization.
 
 ## V2.2 post-P5 CI correction release overlay (2026-09-18)
 
