@@ -48,12 +48,16 @@ contract.
 
 ## Calibration and entry criteria
 
-The canonical Xinzhao `site_layout_input_v3.json` is not in the repository and
-must not be inferred from its SVG or hash. The repository also does not contain
-the original GD-005 drawing bytes. The proposed depth-alignment value `0.80`
-and thresholds for notches/appendages/compactness are not frozen acceptance
-gates: they require canonical fixture distribution, versioned definitions,
-and Owner approval. P1 implementation cannot treat these as passing defaults.
+At the original P0 freeze, the canonical Xinzhao `site_layout_input_v3.json`
+was unavailable and was not inferred from its SVG or hash. P0A later acquired
+the Owner-provided raw bytes, verified their digest, and reproduced the
+v2.2.1 Tool 7 result; the fixture and replay evidence are recorded in the
+P0A calibration document. This resolves fixture availability only. The
+repository still does not contain the original GD-005 drawing bytes. The
+proposed depth-alignment value `0.80` and thresholds for
+notches/appendages/compactness are not frozen acceptance gates: they require
+Owner-labelled positive samples, versioned definitions, and Owner approval.
+P1 implementation cannot treat these as passing defaults.
 
 ## Consequences
 

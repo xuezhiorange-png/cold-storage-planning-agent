@@ -401,15 +401,23 @@ inspected unavailable source bytes. Do not OCR or copy dimensions, coordinates,
 areas, or other project-specific engineering values; do not train runtime
 rules from the reference image.
 
-The 20 t/day Xinzhao Tool 7 layout criticized by Owner must become a future
-regression fixture using its canonical structured input. The repository does
-not contain `site_layout_input_v3.json` or an equivalent canonical Xinzhao
-input. Record:
+At the P0 contract-freeze snapshot, the 20 t/day Xinzhao Tool 7 layout
+criticized by Owner did not yet have its canonical structured input in the
+repository. The frozen P0 snapshot was:
 
 ```ini
 XINZHAO_SITE_LAYOUT_INPUT_V3_PRESENT=false
 MISSING_CANONICAL_FIXTURE=true
 ```
+
+This is historical P0 state, not the current P0A evidence status. The original
+Owner-provided bytes were subsequently acquired, hash-verified, accepted by
+the v2.2.1 Tool 7 input boundary, and replayed against the v2.2.1 release
+runtime in P0A; see
+[`V2_2_2-P0A-canonical-fixture-regularity-calibration.md`](V2_2_2-P0A-canonical-fixture-regularity-calibration.md).
+The fixture is regression evidence, not engineering authority. Owner-labelled
+positive regularity samples and empirical threshold calibration remain
+unavailable.
 
 Do not reconstruct this input from conversation text, the SVG, screenshot, or
 layout hash. The historical v2.2.1 result
@@ -438,10 +446,12 @@ authoritative route evidence cannot support a metric; it must not have its
 frozen access/truck rules weakened. P3 SVG, P1A–P1F renderer, P4 Tool 7, and
 the drawing/page-composition path are not the next implementation target.
 
-Before implementation begins, Owner/project authority must provide the
-canonical Xinzhao fixture and approve/calibrate depth-alignment and
-building-outline classifier thresholds that require empirical evidence.
-Implementation requires separate authorization; this P0 does not grant it.
+Before implementation begins, Owner/project authority must review the P0A
+canonical Xinzhao regression evidence and approve/calibrate depth-alignment
+and building-outline classifier thresholds that require empirical evidence.
+P0A did not supply an Owner-labelled positive sample, so those thresholds
+remain not ready. Implementation requires separate authorization; this P0
+does not grant it.
 
 ## 13. Scope guard
 

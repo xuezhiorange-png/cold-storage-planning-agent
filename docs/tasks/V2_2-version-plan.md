@@ -908,8 +908,12 @@ ORDINARY_SITE_MAIN_FLOW_TURN_TARGET=0_OR_1
 MAJOR_ZONE_GRID_ALIGNMENT_TARGET=0.90
 DEPTH_ALIGNMENT_METRIC=FROZEN
 DEPTH_ALIGNMENT_PASS_THRESHOLD=NOT_CALIBRATED
-XINZHAO_SITE_LAYOUT_INPUT_V3_PRESENT=false
-MISSING_CANONICAL_FIXTURE=true
+P0_FREEZE_XINZHAO_SITE_LAYOUT_INPUT_V3_PRESENT=false
+P0_FREEZE_MISSING_CANONICAL_FIXTURE=true
+P0A_XINZHAO_CANONICAL_FIXTURE_ACQUIRED=true
+P0A_XINZHAO_V221_REPLAY=PASS
+P1_ENTRY_CANONICAL_FIXTURE_READY=true
+OWNER_LABELLED_REGULARITY_POSITIVE_SAMPLES_UNAVAILABLE=true
 PROJECT_LAYOUT_VALIDATED=HARD_ENGINEERING_VALIDITY_ONLY
 PROCESS_FLOW_VALIDATED=SEPARATE_FUTURE_QUALITY_ASSESSMENT
 LAYOUT_REGULARITY_VALIDATED=SEPARATE_FUTURE_QUALITY_ASSESSMENT
@@ -925,12 +929,15 @@ DEPLOYMENT_AUTHORIZED=false
 NO_STEP_IMPLIES_THE_NEXT=true
 ```
 
-The current Xinzhao canonical input is absent and may not be reconstructed
-from an SVG, screenshot, conversation, or hash. `GD-005_PANLONG` remains a
-non-engineering organization/style reference; the original source bytes are
-not present. Depth-alignment, exterior-notch, appendage, and compactness
-thresholds requiring empirical calibration remain explicit preconditions,
-not invented pass values. See the [V2.2.2 P0 contract](V2_2_2-P0-process-flow-layout-regularity-contract.md)
+The Xinzhao canonical input was unavailable at P0 freeze, then supplied as
+original bytes and successfully replayed against v2.2.1 in P0A. See the
+[P0A evidence](V2_2_2-P0A-canonical-fixture-regularity-calibration.md).
+`GD-005_PANLONG` remains a non-engineering organization/style reference; the
+original source bytes are not present. Depth-alignment, exterior-notch,
+appendage, and compactness thresholds requiring empirical calibration remain
+explicit preconditions because Owner-labelled positive regularity samples
+remain unavailable; they are not invented pass values. See the
+[V2.2.2 P0 contract](V2_2_2-P0-process-flow-layout-regularity-contract.md)
 and [ADR-047](../architecture/ADR-047-process-flow-layout-regularity-authority.md).
 
 P0 changes no runtime, P2/P2D rules, renderer, MCP contract, database, frontend,
