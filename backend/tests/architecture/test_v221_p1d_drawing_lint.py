@@ -25,6 +25,22 @@ P1E_UNIT = "backend/tests/unit/test_v221_p1e_engineering_sheet_composition.py"
 P1E_SELF = "backend/tests/architecture/test_v221_p1e_engineering_sheet_composition.py"
 P1A_UNIT = "backend/tests/unit/test_v221_p1a_canvas_viewbox_page_composition.py"
 P1A_SELF = "backend/tests/architecture/test_v221_p1a_canvas_viewbox_page_composition.py"
+P1F_CORRECTION_PATHS = {
+    "backend/tests/unit/test_v221_p1f_context_inset_loading_face_correction.py",
+    "backend/tests/architecture/test_v221_p1f_context_inset_loading_face_correction.py",
+    "docs/tasks/V2_2_1-P1F-context-inset-loading-face-correction.md",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/before_presentation.svg",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/before_presentation.png",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/after_presentation.svg",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/after_presentation.png",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/before_mobile_preview.svg",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/before_mobile_preview.png",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/after_mobile_preview.svg",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/after_mobile_preview.png",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/after_presentation_context_crop.png",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/after_mobile_context_crop.png",
+    "docs/tasks/evidence/v2_2_1_p1f_context_loading_face/evidence.json",
+}
 ALLOWED_PATHS = {
     DOMAIN,
     APPLICATION,
@@ -44,6 +60,7 @@ ALLOWED_PATHS = {
     "docs/architecture/ADR-046-engineering-sheet-composition.md",
     "docs/tasks/evidence/v2_2_1_p1e/before-engineering-sheet.png",
     "docs/tasks/evidence/v2_2_1_p1e/after-engineering-sheet.png",
+    *P1F_CORRECTION_PATHS,
 }
 PROTECTED_PREFIXES = (
     "backend/src/cold_storage/modules/calculations/",

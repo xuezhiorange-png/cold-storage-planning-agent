@@ -224,8 +224,8 @@ def test_engineering_sheet_selection_is_deterministic_and_other_profiles_are_byt
     )
 
     expected_hashes = {
-        "PRESENTATION": "sha256:97e7c9083050dc1e1edd01c8880f4c7aa1d2526d72e8eff809ee792bda8cf59e",
-        "MOBILE_PREVIEW": "sha256:db6a39e7ad38ca8c0b0fc2063d4189bdd295691d92aaf7a922e59d7c200954c8",
+        "PRESENTATION": "sha256:e89ca6e1f797fedca41780d2027e728b3a3f37db19c979c0fa9dc863531b2f1a",
+        "MOBILE_PREVIEW": "sha256:dc0b5313113e69fdfc6c59b88f4bd911316d74b71762bae83768c1bdd70153f2",
         "ENGINEERING_REVIEW": (
             "sha256:48ea97310b955b3e5b94ea68eebed49c377031c74cb4eeba9db003e36042f37d"
         ),
