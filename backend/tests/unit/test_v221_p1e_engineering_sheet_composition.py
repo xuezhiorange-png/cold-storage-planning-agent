@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 import pytest
 
@@ -94,6 +94,39 @@ def test_engineering_sheet_composition_bounds_and_metrics_are_hard_gated(
     body = _render(validated_layout_and_geometry, "ENGINEERING_SHEET")
     lint = lint_validated_layout_drawing(body, page_profile="ENGINEERING_SHEET")
 
+    primary_bounds = body["primary_plan_bounds"]
+    drawing_bounds = body["engineering_drawing_bounds"]
+    assert isinstance(primary_bounds, dict)
+    assert isinstance(drawing_bounds, dict)
+    primary_width_m = Decimal(str(primary_bounds["max_x_m"])) - Decimal(
+        str(primary_bounds["min_x_m"])
+    )
+    primary_height_m = Decimal(str(primary_bounds["max_y_m"])) - Decimal(
+        str(primary_bounds["min_y_m"])
+    )
+    drawing_width_m = Decimal(str(drawing_bounds["max_x_m"])) - Decimal(
+        str(drawing_bounds["min_x_m"])
+    )
+    drawing_height_m = Decimal(str(drawing_bounds["max_y_m"])) - Decimal(
+        str(drawing_bounds["min_y_m"])
+    )
+    with localcontext() as context:
+        context.prec = 60
+        expected_width_ratio = primary_width_m / drawing_width_m
+        expected_height_ratio = primary_height_m / drawing_height_m
+        expected_occupancy = (primary_width_m * primary_height_m) / (
+            drawing_width_m * drawing_height_m
+        )
+
+    assert primary_width_m == Decimal("71.9")
+    assert primary_height_m == Decimal("60.2")
+    assert Decimal(str(body["primary_plan_screen_occupancy"])) == expected_occupancy
+    assert Decimal(str(body["primary_plan_width_ratio"])) == expected_width_ratio
+    assert Decimal(str(body["primary_plan_height_ratio"])) == expected_height_ratio
+    assert body["primary_plan_screen_occupancy"] != 1
+    assert body["primary_plan_width_ratio"] != 1
+    assert body["primary_plan_height_ratio"] != 1
+
     assert float(body["main_drawing_occupancy"]) >= float(
         ENGINEERING_SHEET_MAIN_DRAWING_MIN_OCCUPANCY
     )
@@ -173,6 +206,10 @@ def test_engineering_sheet_selection_is_deterministic_and_other_profiles_are_byt
     assert first_sheet["engineering_sheet_composition_candidate"] == "RIGHT_RAIL"
     assert first_sheet["svg"] == second_sheet["svg"]
     assert first_sheet["svg_sha256"] == second_sheet["svg_sha256"]
+    assert (
+        first_sheet["svg_sha256"]
+        == "sha256:96c82d7296d027a9b41b4b2d8198e7239bed61dbc0811259e0575e2ca3eb25d3"
+    )
     bottom_rail = build_engineering_sheet_composition(
         candidate="BOTTOM_RAIL",
         geometry_bounds={

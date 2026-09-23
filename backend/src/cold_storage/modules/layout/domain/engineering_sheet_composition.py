@@ -229,8 +229,8 @@ def build_engineering_sheet_composition(
     drawing_height_px = drawing_height_m * _SCALE
     page_width_px = page_width_m * _SCALE
     page_height_px = page_height_m * _SCALE
-    primary_width_m = drawing_width_m
-    primary_height_m = drawing_height_m
+    primary_width_m = primary_bounds["max_x_m"] - primary_bounds["min_x_m"]
+    primary_height_m = primary_bounds["max_y_m"] - primary_bounds["min_y_m"]
     main_occupancy = _ratio(
         drawing_width_px * drawing_height_px,
         page_width_px * page_height_px,
