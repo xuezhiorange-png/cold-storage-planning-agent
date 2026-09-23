@@ -1186,11 +1186,12 @@ def _build_room_label_plan(
 ) -> tuple[dict[str, dict[str, Any]], dict[str, int]]:
     """Choose stable presentation labels without mutating engineering geometry."""
     debug = page_profile == "ENGINEERING_REVIEW"
-    obstacles = [
+    portal_obstacles = [
         _screen_segment_box(segment, transform, SVG_LABEL_PORTAL_CLEARANCE)
         for segment in portal_segments
     ]
-    obstacles.extend(_dimension_obstacle_boxes(rectangles, transform, dimension_codes))
+    dimension_obstacles = _dimension_obstacle_boxes(rectangles, transform, dimension_codes)
+    obstacles = [*portal_obstacles, *dimension_obstacles]
     plans: dict[str, dict[str, Any]] = {}
     placed_boxes: list[dict[str, Decimal]] = []
     for code in EXPECTED_ZONE_CODES:
@@ -1289,9 +1290,27 @@ def _build_room_label_plan(
         for plan in plans.values()
         if not plan["callout"]
     )
+    label_overlap_count = sum(
+        int(_rectangles_overlap(left, right))
+        for index, left in enumerate(placed_boxes)
+        for right in placed_boxes[index + 1 :]
+    )
+    dimension_collision_count = sum(
+        int(_rectangles_overlap(cast(Mapping[str, Decimal], plan["box"]), obstacle))
+        for plan in plans.values()
+        for obstacle in dimension_obstacles
+    )
+    portal_collision_count = sum(
+        int(_rectangles_overlap(cast(Mapping[str, Decimal], plan["box"]), obstacle))
+        for plan in plans.values()
+        for obstacle in portal_obstacles
+    )
     metrics = {
         "ROOM_LABEL_WALL_CROSSING_COUNT": wall_crossing_count,
         "ROOM_LABEL_PRIMARY_COLLISION_COUNT": primary_collision_count,
+        "ROOM_LABEL_LABEL_OVERLAP_COUNT": label_overlap_count,
+        "ROOM_LABEL_DIMENSION_COLLISION_COUNT": dimension_collision_count,
+        "ROOM_LABEL_PORTAL_COLLISION_COUNT": portal_collision_count,
         "ROOM_LABEL_3_LINE_COUNT": sum(plan["mode"] == "3_LINES" for plan in plans.values()),
         "ROOM_LABEL_2_LINE_COUNT": sum(plan["mode"] == "2_LINES" for plan in plans.values()),
         "ROOM_LABEL_1_LINE_COUNT": sum(plan["mode"] == "1_LINE" for plan in plans.values()),
@@ -1299,6 +1318,68 @@ def _build_room_label_plan(
         "ROOM_LABEL_CALLOUT_COUNT": sum(plan["callout"] for plan in plans.values()),
     }
     return plans, metrics
+
+
+def _drawing_lint_sidecar(
+    label_plans: Mapping[str, Mapping[str, Any]],
+    rectangles: Mapping[str, PlacedRectangleV1],
+    transform: SvgProjectionTransformV1,
+    portal_segments: Sequence[SegmentMM],
+    dimension_codes: Sequence[str],
+) -> dict[str, Any]:
+    """Expose resolved drawing facts without adding them to the SVG XML."""
+    label_boxes = [
+        {
+            "element_id": f"label-zone-{_safe_id(code)}",
+            "zone_code": code,
+            "callout": bool(plan["callout"]),
+            "box": dict(cast(Mapping[str, Decimal], plan["box"])),
+        }
+        for code, plan in label_plans.items()
+    ]
+    callout_leaders = [
+        {
+            "element_id": f"label-callout-line-{_safe_id(code)}",
+            "label_element_id": f"label-zone-{_safe_id(code)}",
+            "zone_code": code,
+            "points": [
+                {
+                    "x": plan["leader_start_x"],
+                    "y": plan["leader_start_y"],
+                },
+                {
+                    "x": plan["leader_end_x"],
+                    "y": plan["leader_end_y"],
+                },
+            ],
+            "label_box": dict(cast(Mapping[str, Decimal], plan["box"])),
+        }
+        for code, plan in label_plans.items()
+        if plan["callout"]
+    ]
+    dimension_boxes = [
+        {
+            "element_id": f"dimension-box-{index:03d}",
+            "box": box,
+        }
+        for index, box in enumerate(
+            _dimension_obstacle_boxes(rectangles, transform, dimension_codes)
+        )
+    ]
+    portal_boxes = [
+        {
+            "element_id": f"portal-box-{index:03d}",
+            "box": _screen_segment_box(segment, transform, SVG_LABEL_PORTAL_CLEARANCE),
+        }
+        for index, segment in enumerate(portal_segments)
+    ]
+    return {
+        "schema_version": "1.0.0",
+        "label_boxes": label_boxes,
+        "callout_leaders": callout_leaders,
+        "dimension_boxes": dimension_boxes,
+        "portal_boxes": portal_boxes,
+    }
 
 
 def _style(theme: SvgDrawingThemeV1, **values: object) -> dict[str, object]:
@@ -2008,7 +2089,7 @@ def _render_svg(
     *,
     theme: SvgDrawingThemeV1,
     page_profile: str,
-) -> tuple[str, dict[str, Any], dict[str, int]]:
+) -> tuple[str, dict[str, Any], dict[str, int], dict[str, Any]]:
     all_points = _all_geometry_points(site, rectangles, building, loading_face, body)
     min_x_mm, min_y_mm, max_x_mm, max_y_mm = _points_for_bounds(all_points)
     geometry_min_x = Decimal(min_x_mm) / Decimal(1000)
@@ -2070,6 +2151,13 @@ def _render_svg(
         portal_segments=portal_segments,
         dimension_codes=dimension_codes,
     )
+    drawing_lint_facts = _drawing_lint_sidecar(
+        label_plans,
+        rectangles,
+        transform,
+        portal_segments,
+        dimension_codes,
+    )
     internal_zone_code_visible = page_profile == "ENGINEERING_REVIEW"
 
     metadata = {
@@ -2099,7 +2187,21 @@ def _render_svg(
         "engineering_geometry_bounds": composition["engineering_geometry_bounds"],
         "engineering_drawing_bounds": composition["engineering_drawing_bounds"],
         "page_layout_bounds": composition["page_layout_bounds"],
-        "room_label_metrics": label_metrics,
+        # Keep the historical review metadata byte-identical.  New lint facts
+        # are returned in the payload sidecar below and are deliberately not
+        # serialized into the SVG metadata element.
+        "room_label_metrics": {
+            key: label_metrics[key]
+            for key in (
+                "ROOM_LABEL_WALL_CROSSING_COUNT",
+                "ROOM_LABEL_PRIMARY_COLLISION_COUNT",
+                "ROOM_LABEL_3_LINE_COUNT",
+                "ROOM_LABEL_2_LINE_COUNT",
+                "ROOM_LABEL_1_LINE_COUNT",
+                "ROOM_LABEL_NUMERIC_ID_COUNT",
+                "ROOM_LABEL_CALLOUT_COUNT",
+            )
+        },
         "internal_zone_code_visible": internal_zone_code_visible,
         "source_hash_visible": review_overlays_visible,
         "portal_debug_text_visible": review_overlays_visible,
@@ -2663,7 +2765,7 @@ def _render_svg(
         **_area_schedule_metrics(len(EXPECTED_ZONE_CODES)),
         **label_metrics,
     }
-    return svg, composition, counts
+    return svg, composition, counts, drawing_lint_facts
 
 
 def build_projection_payload(
@@ -2680,7 +2782,7 @@ def build_projection_payload(
     rectangles = _source_rectangles(body)
     building, gross_area = _source_building_footprint(body)
     loading_face = _source_loading_face(body)
-    svg, bounds, counts = _render_svg(
+    svg, bounds, counts, drawing_lint_facts = _render_svg(
         body,
         site,
         rectangles,
@@ -2732,6 +2834,7 @@ def build_projection_payload(
         "page_size": bounds["page_size"],
         "engineering_drawing_rect": bounds["engineering_drawing_rect"],
         "page_furniture": bounds["furniture"],
+        "drawing_lint_facts": drawing_lint_facts,
         "dimension_codes_rendered": list(_dimension_codes_for_profile(page_profile)),
         "main_drawing_occupancy": bounds["main_drawing_occupancy"],
         "source_geometry_occupancy": bounds["source_geometry_occupancy"],
