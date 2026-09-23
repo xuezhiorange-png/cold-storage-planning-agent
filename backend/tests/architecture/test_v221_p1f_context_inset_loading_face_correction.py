@@ -64,7 +64,13 @@ def test_context_loading_face_correction_has_exact_scope() -> None:
         check=True,
     )
     tracked = set(_git("diff", "--name-only", BASE_MAIN_SHA).splitlines())
-    untracked = set(_git("ls-files", "--others", "--exclude-standard").splitlines())
+    untracked = {
+        path
+        for path in _git("ls-files", "--others", "--exclude-standard").splitlines()
+        # Full backend tests generate ignored local report artifacts before
+        # architecture tests run in CI; they are not PR source changes.
+        if not path.startswith("backend/artifacts/local/")
+    }
     changed = tracked | untracked
     assert changed <= ALLOWED_PATHS
     changed_runtime = {path for path in changed if path.startswith("backend/src/")}
