@@ -2504,21 +2504,17 @@ def _render_svg(
                 },
             )
             + "".join(context_zone_parts)
-            + (
-                _element(
-                    "line",
-                    attrs={
-                        "id": "context-shipping-loading-face",
-                        "x1": context_transform.point(loading_face[0])[0],
-                        "y1": context_transform.point(loading_face[0])[1],
-                        "x2": context_transform.point(loading_face[1])[0],
-                        "y2": context_transform.point(loading_face[1])[1],
-                        "stroke": theme.loading_face,
-                        "stroke-width": SVG_STROKE_W2,
-                    },
-                )
-                if page_profile == "ENGINEERING_SHEET"
-                else ""
+            + _element(
+                "line",
+                attrs={
+                    "id": "context-shipping-loading-face",
+                    "x1": context_transform.point(loading_face[0])[0],
+                    "y1": context_transform.point(loading_face[0])[1],
+                    "x2": context_transform.point(loading_face[1])[0],
+                    "y2": context_transform.point(loading_face[1])[1],
+                    "stroke": theme.loading_face,
+                    "stroke-width": SVG_STROKE_W2,
+                },
             ),
         )
     portal_parts: list[str] = []
