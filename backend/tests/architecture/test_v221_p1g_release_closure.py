@@ -18,12 +18,14 @@ P1F_MATRIX = "docs/tasks/evidence/v2_2_1_p1f/acceptance-matrix.json"
 P1G_REPORT = "docs/tasks/V2_2_1-P1G-release-closure.md"
 P1G_EVIDENCE = "docs/tasks/evidence/v2_2_1_p1g/release-readiness.json"
 VERSION_PLAN = "docs/tasks/V2_2-version-plan.md"
+P1D_SCOPE_GUARD = "backend/tests/architecture/test_v221_p1d_drawing_lint.py"
 P1E_SCOPE_GUARD = "backend/tests/architecture/test_v221_p1e_engineering_sheet_composition.py"
 P1F_SCOPE_GUARD = (
     "backend/tests/architecture/test_v221_p1f_context_inset_loading_face_correction.py"
 )
 SELF = "backend/tests/architecture/test_v221_p1g_release_closure.py"
 ALLOWED_PATHS = {
+    P1D_SCOPE_GUARD,
     P1E_SCOPE_GUARD,
     P1F_SCOPE_GUARD,
     P1F_REPORT,
@@ -113,10 +115,13 @@ def test_p1f_current_owner_status_and_final_ci_are_closed() -> None:
 
 
 def test_previous_phase_scope_guards_pin_the_merged_phase_trees() -> None:
+    p1d_guard = (REPO_ROOT / P1D_SCOPE_GUARD).read_text(encoding="utf-8")
     p1e_guard = (REPO_ROOT / P1E_SCOPE_GUARD).read_text(encoding="utf-8")
     p1f_guard = (REPO_ROOT / P1F_SCOPE_GUARD).read_text(encoding="utf-8")
+    assert 'P1D_MERGE_SHA = "2154c869ed202beeeb1903d1875508122a4ed829"' in p1d_guard
     assert 'P1E_MERGE_SHA = "debda749966e7c890e2f8758f468fa582fb3def8"' in p1e_guard
     assert 'P1F_MERGE_SHA = "a71347a7ca56c32b2facaa3b57e489427b9a7ea8"' in p1f_guard
+    assert "BASE_MAIN_SHA, P1D_MERGE_SHA" in p1d_guard
     assert "BASE_MAIN_SHA, P1E_MERGE_SHA" in p1e_guard
     assert "BASE_MAIN_SHA, P1F_MERGE_SHA" in p1f_guard
 

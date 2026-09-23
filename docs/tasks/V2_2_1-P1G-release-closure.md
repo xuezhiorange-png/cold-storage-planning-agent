@@ -64,10 +64,10 @@ It is now corrected to `PASS` in the current version-plan and P1F report
 overlays. The R1 blocker and its failed measurements remain in explicitly
 historical sections and are not presented as current state.
 
-The P1E and P1F historical scope guards now compare each phase's original
-base with its immutable merged PR tree. This prevents later P1G closure files
-from being misattributed to the earlier phase change sets while preserving
-their original allowlists.
+The P1D, P1E, and P1F historical scope guards now compare each phase's
+original base with its immutable merged PR tree. This prevents later P1G
+closure files from being misattributed to the earlier phase change sets while
+preserving their original allowlists.
 
 ## Drawing authority and frozen capability
 
