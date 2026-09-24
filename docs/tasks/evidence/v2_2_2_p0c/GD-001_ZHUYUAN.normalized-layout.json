@@ -12,25 +12,53 @@
   "engineering_authority": false,
   "approximate_group_envelope": true,
   "runtime_project_input": false,
-  "owner_overlay_review": "PENDING",
+  "owner_overlay_review": "PASS",
   "overlay_correction": {
     "task_id": "V2_2_2_P0C_OWNER_OVERLAY_CORRECTION_R1",
-    "corrects_owner_findings": ["DOMINANT_PROCESS_BAND_TOO_NARROW", "RIGHT_ANNEX_EXCLUSION_UNMARKED"],
+    "corrects_owner_findings": [
+      "DOMINANT_PROCESS_BAND_TOO_NARROW",
+      "RIGHT_ANNEX_EXCLUSION_UNMARKED"
+    ],
     "reference_derived": true,
     "engineering_authority": false,
     "approximate_group_envelope": true
   },
   "geometry_method": "native_pdf_vector_and_page_geometry_with_manual_major_group_tracing",
   "normalization": {
-    "coordinate_range": [0, 1],
+    "coordinate_range": [
+      0,
+      1
+    ],
     "coordinate_convention": "x-right_y-down",
-    "primary_envelope_page_bbox_norm": [0.078, 0.206, 0.688, 0.754],
+    "primary_envelope_page_bbox_norm": [
+      0.078,
+      0.206,
+      0.688,
+      0.754
+    ],
     "source_bbox_is_approximate_visual_trace": true,
     "real_dimensions_recorded": false
   },
   "building_outline": {
     "polygons": [
-      [[0, 0], [1, 0], [1, 1], [0, 1]]
+      [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          1
+        ]
+      ]
     ],
     "class": "RECTANGLE",
     "classification_status": "PROVISIONAL_MAJOR_ENVELOPE",
@@ -40,37 +68,204 @@
   "room_level_geometry_available": false,
   "quantitative_outline_metrics_status": "UNAVAILABLE_COARSE_ENVELOPE_ONLY",
   "major_zone_rectangles": [
-    {"id": "raw_side_cold_entry", "display_label": "RAW SIDE", "rect": [0.00, 0.38, 0.18, 0.27], "semantic_role": "PRIMARY_PRECOOL", "functional_group": "RAW_SIDE_GROUP", "confidence": "MEDIUM"},
-    {"id": "upper_cold_storage_bank", "display_label": "COLD / STORAGE", "rect": [0.20, 0.07, 0.50, 0.28], "semantic_role": "OTHER_SUPPORT", "functional_group": "COLD_STORAGE_GROUP", "confidence": "MEDIUM"},
-    {"id": "dominant_processing_hall", "display_label": "DOMINANT PROCESSING HALL", "rect": [0.18, 0.38, 0.54, 0.27], "semantic_role": "SORTING_PACKAGING", "functional_group": "PROCESSING_CORE_GROUP", "confidence": "MEDIUM"},
-    {"id": "finished_storage_terminal_band", "display_label": "FINISHED SIDE", "rect": [0.72, 0.38, 0.28, 0.27], "semantic_role": "FINISHED_STORAGE", "functional_group": "FINISHED_SIDE_GROUP", "confidence": "MEDIUM"},
-    {"id": "peripheral_support_band", "display_label": "SUPPORT", "rect": [0.18, 0.68, 0.70, 0.30], "semantic_role": "OTHER_SUPPORT", "functional_group": "SUPPORT_GROUP", "confidence": "MEDIUM"}
+    {
+      "id": "raw_side_cold_entry",
+      "display_label": "RAW SIDE",
+      "rect": [
+        0,
+        0.38,
+        0.18,
+        0.27
+      ],
+      "semantic_role": "PRIMARY_PRECOOL",
+      "functional_group": "RAW_SIDE_GROUP",
+      "confidence": "MEDIUM"
+    },
+    {
+      "id": "upper_cold_storage_bank",
+      "display_label": "COLD / STORAGE",
+      "rect": [
+        0.2,
+        0.07,
+        0.5,
+        0.28
+      ],
+      "semantic_role": "OTHER_SUPPORT",
+      "functional_group": "COLD_STORAGE_GROUP",
+      "confidence": "MEDIUM"
+    },
+    {
+      "id": "dominant_processing_hall",
+      "display_label": "DOMINANT PROCESSING HALL",
+      "rect": [
+        0.18,
+        0.38,
+        0.54,
+        0.27
+      ],
+      "semantic_role": "SORTING_PACKAGING",
+      "functional_group": "PROCESSING_CORE_GROUP",
+      "confidence": "MEDIUM"
+    },
+    {
+      "id": "finished_storage_terminal_band",
+      "display_label": "FINISHED SIDE",
+      "rect": [
+        0.72,
+        0.38,
+        0.28,
+        0.27
+      ],
+      "semantic_role": "FINISHED_STORAGE",
+      "functional_group": "FINISHED_SIDE_GROUP",
+      "confidence": "MEDIUM"
+    },
+    {
+      "id": "peripheral_support_band",
+      "display_label": "SUPPORT",
+      "rect": [
+        0.18,
+        0.68,
+        0.7,
+        0.3
+      ],
+      "semantic_role": "OTHER_SUPPORT",
+      "functional_group": "SUPPORT_GROUP",
+      "confidence": "MEDIUM"
+    }
   ],
   "excluded_areas": [
     {
       "id": "right_independent_storage_annex",
       "kind": "ANNEX",
       "display_label": "ANNEX / EXCLUDED",
-      "polygon_page_norm": [[0.742, 0.494], [0.853, 0.494], [0.853, 0.878], [0.742, 0.878]],
+      "polygon_page_norm": [
+        [
+          0.742,
+          0.494
+        ],
+        [
+          0.853,
+          0.494
+        ],
+        [
+          0.853,
+          0.878
+        ],
+        [
+          0.742,
+          0.878
+        ]
+      ],
       "exclusion_reason": "Large right-side storage volume is visibly outside the primary processing envelope and is represented as a separate annex; no engineering connectivity is asserted."
     }
   ],
-  "axis_families": {"x": [0.00, 0.18, 0.72, 1.00], "y": [0.07, 0.35, 0.65, 0.68, 0.98], "status": "REFERENCE_DERIVED_PROVISIONAL"},
+  "axis_families": {
+    "x": [
+      0,
+      0.18,
+      0.72,
+      1
+    ],
+    "y": [
+      0.07,
+      0.35,
+      0.65,
+      0.68,
+      0.98
+    ],
+    "status": "REFERENCE_DERIVED_PROVISIONAL"
+  },
   "depth_families": [
-    {"id": "dominant-production-band", "orientation": "HORIZONTAL", "normalized_depth": 0.27, "members": ["raw_side_cold_entry", "dominant_processing_hall", "finished_storage_terminal_band"], "eligibility": "SAME_BAND_ORIENTATION_ONLY"},
-    {"id": "upper-cold-bank", "orientation": "HORIZONTAL", "normalized_depth": 0.28, "members": ["upper_cold_storage_bank"], "eligibility": "NO_PAIR"},
-    {"id": "support-band", "orientation": "HORIZONTAL", "normalized_depth": 0.34, "members": ["peripheral_support_band"], "eligibility": "NO_PAIR"}
+    {
+      "id": "dominant-production-band",
+      "orientation": "HORIZONTAL",
+      "normalized_depth": 0.27,
+      "members": [
+        "raw_side_cold_entry",
+        "dominant_processing_hall",
+        "finished_storage_terminal_band"
+      ],
+      "eligibility": "SAME_BAND_ORIENTATION_ONLY"
+    },
+    {
+      "id": "upper-cold-bank",
+      "orientation": "HORIZONTAL",
+      "normalized_depth": 0.28,
+      "members": [
+        "upper_cold_storage_bank"
+      ],
+      "eligibility": "NO_PAIR"
+    },
+    {
+      "id": "support-band",
+      "orientation": "HORIZONTAL",
+      "normalized_depth": 0.34,
+      "members": [
+        "peripheral_support_band"
+      ],
+      "eligibility": "NO_PAIR"
+    }
   ],
   "functional_groups": [
-    {"id": "RAW_SIDE_GROUP", "members": ["raw_side_cold_entry"], "relationship": "raw-entry-side_terminal_of_dominant_production_band"},
-    {"id": "COLD_STORAGE_GROUP", "members": ["upper_cold_storage_bank"], "relationship": "grouped_storage_bank_adjacent_to_primary_process_composition"},
-    {"id": "PROCESSING_CORE_GROUP", "members": ["dominant_processing_hall"], "relationship": "broad_continuous_long_axis_processing_hall"},
-    {"id": "FINISHED_SIDE_GROUP", "members": ["finished_storage_terminal_band"], "relationship": "terminal_storage_dispatch_side"},
-    {"id": "SUPPORT_GROUP", "members": ["peripheral_support_band"], "relationship": "edge_or_terminal_support_subordinate"}
+    {
+      "id": "RAW_SIDE_GROUP",
+      "members": [
+        "raw_side_cold_entry"
+      ],
+      "relationship": "raw-entry-side_terminal_of_dominant_production_band"
+    },
+    {
+      "id": "COLD_STORAGE_GROUP",
+      "members": [
+        "upper_cold_storage_bank"
+      ],
+      "relationship": "grouped_storage_bank_adjacent_to_primary_process_composition"
+    },
+    {
+      "id": "PROCESSING_CORE_GROUP",
+      "members": [
+        "dominant_processing_hall"
+      ],
+      "relationship": "broad_continuous_long_axis_processing_hall"
+    },
+    {
+      "id": "FINISHED_SIDE_GROUP",
+      "members": [
+        "finished_storage_terminal_band"
+      ],
+      "relationship": "terminal_storage_dispatch_side"
+    },
+    {
+      "id": "SUPPORT_GROUP",
+      "members": [
+        "peripheral_support_band"
+      ],
+      "relationship": "edge_or_terminal_support_subordinate"
+    }
   ],
-  "process_core": {"member_ids": ["dominant_processing_hall"], "form": "CONTINUOUS_LONG_AXIS_PRODUCTION_BAND", "legibility": "PASS_QUALITATIVE", "route_direction": "UNAVAILABLE"},
-  "support_groups": {"member_ids": ["peripheral_support_band"], "subordination": "PASS_QUALITATIVE"},
-  "personnel_groups": {"member_ids": [], "status": "UNAVAILABLE"},
-  "site_constraint_notes": ["The reference page contains extensive drawing furniture; the normalized envelope follows the principal processing composition only.", "The visibly large right-side storage volume is separately marked as an approximate annex excluded from that primary envelope; connectivity and exact building status are not asserted.", "Specific room-to-role bindings, engineering dimensions, and route traces are not asserted."],
+  "process_core": {
+    "member_ids": [
+      "dominant_processing_hall"
+    ],
+    "form": "CONTINUOUS_LONG_AXIS_PRODUCTION_BAND",
+    "legibility": "PASS_QUALITATIVE",
+    "route_direction": "UNAVAILABLE"
+  },
+  "support_groups": {
+    "member_ids": [
+      "peripheral_support_band"
+    ],
+    "subordination": "PASS_QUALITATIVE"
+  },
+  "personnel_groups": {
+    "member_ids": [],
+    "status": "UNAVAILABLE"
+  },
+  "site_constraint_notes": [
+    "The reference page contains extensive drawing furniture; the normalized envelope follows the principal processing composition only.",
+    "The visibly large right-side storage volume is separately marked as an approximate annex excluded from that primary envelope; connectivity and exact building status are not asserted.",
+    "Specific room-to-role bindings, engineering dimensions, and route traces are not asserted."
+  ],
   "route_backtrack_turn_metrics": "UNAVAILABLE_NO_AUTHORITATIVE_ROUTE_TRACE"
 }

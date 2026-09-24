@@ -141,12 +141,12 @@ def test_structural_and_numeric_entry_are_separate_and_no_release_authority() ->
 def test_overlay_pack_contains_five_viewable_pngs_without_original_pdf_assets() -> None:
     manifest = _json(EVIDENCE / "overlay-review-pack.json")
     assert manifest["abstraction_visual_overlay_created"] is True
-    assert manifest["owner_visual_review"] == "PENDING"
+    assert manifest["owner_visual_review"] == "PASS"
     assert manifest["correction_task_id"] == GD003_ALIGNMENT_TASK
     assert manifest["owner_review_by_reference"] == {
         "GD-001_ZHUYUAN": "PASS",
         "GD-002_XIAOXIANG": "PASS",
-        "GD-003_MOUDING": "PENDING",
+        "GD-003_MOUDING": "PASS",
         "GD-004_SHUANGLONGYING": "PASS",
         "GD-005_PANLONG": "PASS",
     }

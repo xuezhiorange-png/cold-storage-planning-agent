@@ -2,11 +2,11 @@
   "identity": "v2.2.2-p0c-overlay-review-pack@1.0.0",
   "correction_task_id": "V2_2_2_P0C_GD003_FINAL_OVERLAY_ALIGNMENT_R1",
   "abstraction_visual_overlay_created": true,
-  "owner_visual_review": "PENDING",
+  "owner_visual_review": "PASS",
   "owner_review_by_reference": {
     "GD-001_ZHUYUAN": "PASS",
     "GD-002_XIAOXIANG": "PASS",
-    "GD-003_MOUDING": "PENDING",
+    "GD-003_MOUDING": "PASS",
     "GD-004_SHUANGLONGYING": "PASS",
     "GD-005_PANLONG": "PASS"
   },

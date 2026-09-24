@@ -60,8 +60,8 @@ subsequently created normalized provisional major-group abstractions and
 faded-source overlays from all five PDFs. They support qualitative rule
 drafting and provisional group-envelope axis observations, but not exact
 room-level geometry. There is still no structured positive layout geometry at
-room/footprint resolution for numeric calibration. Overlay review remains
-pending; the abstractions are not runtime inputs. Positive depth pairs, exact positive footprints, and
+room/footprint resolution for numeric calibration. Final Owner overlay review
+is complete and `PASS`; the abstractions are not runtime inputs. Positive depth pairs, exact positive footprints, and
 appendage-purpose evidence remain unavailable. The proposed depth-alignment
 value `0.80` and numeric thresholds for grid, occupancy, notches, or
 appendages remain unfrozen. Structural P1A entry can be considered separately

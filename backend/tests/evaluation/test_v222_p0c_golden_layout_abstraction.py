@@ -265,7 +265,7 @@ def test_golden_overlay_review_pack_is_present_and_not_runtime_input() -> None:
     manifest_path = REFERENCE_DIR / "overlay-review-pack.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["abstraction_visual_overlay_created"] is True
-    assert manifest["owner_visual_review"] == "PENDING"
+    assert manifest["owner_visual_review"] == "PASS"
     assert manifest["runtime_project_input"] is False
     assert len(manifest["overlays"]) == 5
     for overlay in manifest["overlays"]:

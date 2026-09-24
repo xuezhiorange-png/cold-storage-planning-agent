@@ -7,7 +7,7 @@ PR_STATE=OPEN_DRAFT
 BASE_P0C_HEAD_SHA=9bc00b6157bb549f1fd3c7112cfc30f29452b8e0
 EVIDENCE_AND_CALIBRATION_ONLY=true
 RUNTIME_IMPLEMENTATION_AUTHORIZED=false
-OWNER_VISUAL_OVERLAY_REVIEW=PENDING
+OWNER_VISUAL_OVERLAY_REVIEW=PASS
 GOLDEN_ENGINEERING_AUTHORITY=false
 REFERENCE_DERIVED=true
 RUNTIME_PROJECT_INPUT=false
@@ -55,11 +55,12 @@ interchangeable with exact P0 zone-boundary metrics.
 Five original-page PNG overlays are stored under
 [`evidence/v2_2_2_p0c/`](evidence/v2_2_2_p0c/). They fade the source page and
 show approximate principal mass/group envelopes, candidate axis families, and
-depth-family markers. GD-001 and GD-002 passed Owner overlay review. GD-003 is
-being corrected under `V2_2_2_P0C_GD003_FINAL_OVERLAY_ALIGNMENT_R1`; its final
-overlay is pending Owner review. GD-004 and GD-005 remain unchanged and retain
-their prior `PASS` review. The overlays are not engineering drawings or
-runtime fixtures. The source PDFs are not embedded in the repository.
+depth-family markers. GD-001 through GD-005 have all passed final Owner visual
+overlay review. GD-003 passed after
+`V2_2_2_P0C_GD003_FINAL_OVERLAY_ALIGNMENT_R1` aligned its finished-side and
+storage/cold envelopes to the visible principal building mass and excluded the
+right-side drawing-furniture region. The overlays are not engineering drawings
+or runtime fixtures. The source PDFs are not embedded in the repository.
 
 ## Owner overlay correction R1
 
@@ -72,7 +73,7 @@ runtime behavior changed. Each revised abstraction records:
 REFERENCE_DERIVED=true
 ENGINEERING_AUTHORITY=false
 APPROXIMATE_GROUP_ENVELOPE=true
-OWNER_VISUAL_OVERLAY_REVIEW=PENDING
+OWNER_VISUAL_OVERLAY_REVIEW=PASS
 ```
 
 - **GD-001 Zhuyuan:** the process group is now a broad, long-axis
@@ -92,10 +93,9 @@ OWNER_VISUAL_OVERLAY_REVIEW=PENDING
   overlay PNG bytes remain unchanged; their prior Owner overlay `PASS` is
   retained.
 
-The overlay manifest and calibration matrix separate the review state of each
-image: GD-001/002 are accepted, GD-003 is pending the final alignment review,
-and GD-004/005 remain accepted. The changed outlines and labels are only visual
-evidence and do not make any numeric threshold ready.
+The overlay manifest and calibration matrix record all five references as
+Owner-reviewed `PASS`. The changed outlines and labels remain visual evidence
+only and do not make any numeric threshold ready.
 
 ## GD-003 final overlay alignment correction
 
@@ -112,8 +112,30 @@ not drawn in blank page space.
 These are manual visual traces from the source page only. They do not read,
 copy, or infer engineering dimensions, and the table trace is not engineering
 authority. GD-001, GD-002, GD-004, and GD-005 evidence remains byte-identical.
-GD-003 remains `OWNER_VISUAL_OVERLAY_REVIEW=PENDING` until the Owner reviews
-the regenerated single-image overlay.
+The regenerated GD-003 overlay was reviewed at exact head
+`e6fffcb4350181824fb2f01783565d1bb458a7a7` and accepted by the Owner.
+`OWNER_VISUAL_OVERLAY_REVIEW=PASS`.
+
+## Owner visual overlay closure
+
+Final Owner review at exact head
+`e6fffcb4350181824fb2f01783565d1bb458a7a7` accepted all five normalized
+overlay abstractions:
+
+```ini
+GD001_OVERLAY_REVIEW=PASS
+GD002_OVERLAY_REVIEW=PASS
+GD003_OVERLAY_REVIEW=PASS
+GD004_OVERLAY_REVIEW=PASS
+GD005_OVERLAY_REVIEW=PASS
+OWNER_VISUAL_OVERLAY_REVIEW=PASS
+```
+
+This closes the visual-overlay blocker only. The abstractions remain
+reference-derived, approximate group envelopes and are not engineering
+authority. Numeric P1B thresholds remain `NOT_READY`, while the previously
+frozen structural P1A entry-readiness proposal remains unchanged and still
+requires separate implementation authorization.
 
 ## What the references support
 
@@ -257,9 +279,8 @@ P1_RUNTIME_IMPLEMENTATION_AUTHORIZED=false
 ```
 
 This is an entry-readiness proposal only. It does not authorize runtime work.
-Numeric gates remain blocked on Owner review of these overlays, comparable
-room-level positive geometry, exact positive outline traces, and Owner-labeled
-appendage purpose evidence. P1 requires a separate explicit authorization.
+Numeric gates remain blocked on comparable room-level positive geometry,
+exact positive outline traces, and Owner-labeled appendage purpose evidence. P1 requires a separate explicit authorization.
 
 ## Scope and reproducibility
 

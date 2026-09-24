@@ -959,7 +959,8 @@ provisional major-group envelopes; original PDFs remain external, and no
 engineering dimensions or runtime input are derived. The abstractions support
 qualitative structural patterns and a proposed P1A structural-entry split,
 while room-level depth/footprint facts and numeric acceptance thresholds stay
-not ready pending Owner overlay review and comparable geometry evidence.
+not ready because comparable room-level positive geometry is unavailable.
+Owner visual overlay review is complete and `PASS`.
 
 ```ini
 TASK_ID=V2_2_2_P0C_GOLDEN_LAYOUT_ABSTRACTION_AND_CALIBRATION_R1
@@ -970,6 +971,7 @@ NEGATIVE_STRUCTURED_REFERENCE_COUNT=1
 REFERENCE_NORMALIZATION_VERSION=1.0.0
 BUILDING_OUTLINE_CLASSIFIER=BUILDING_OUTLINE_CLASSIFIER_V1
 DEPTH_PAIR_POLICY_VERSION=1.0.0
+OWNER_VISUAL_OVERLAY_REVIEW=PASS
 P1A_STRUCTURAL_IMPLEMENTATION_ENTRY_READY=true
 P1B_NUMERIC_THRESHOLD_IMPLEMENTATION_ENTRY_READY=false
 P1_IMPLEMENTATION_ENTRY_READY=false

@@ -6,12 +6,12 @@
   "depth_pair_policy_version": "1.0.0",
   "evidence_only": true,
   "numeric_threshold_calibration_ready": false,
-  "owner_visual_overlay_review": "PENDING",
+  "owner_visual_overlay_review": "PASS",
   "overlay_correction_task_id": "V2_2_2_P0C_GD003_FINAL_OVERLAY_ALIGNMENT_R1",
   "owner_overlay_review_by_reference": {
     "GD-001_ZHUYUAN": "PASS",
     "GD-002_XIAOXIANG": "PASS",
-    "GD-003_MOUDING": "PENDING",
+    "GD-003_MOUDING": "PASS",
     "GD-004_SHUANGLONGYING": "PASS",
     "GD-005_PANLONG": "PASS"
   },
@@ -79,7 +79,7 @@
       "outline_class": "APPROXIMATE_ORTHOGONAL_PRINCIPAL_MASS_NOT_CLASSIFIED",
       "functional_grouping": "PASS_QUALITATIVE",
       "process_core_legibility": "PASS_QUALITATIVE",
-      "overlay_review": "PENDING",
+      "overlay_review": "PASS",
       "overlay_correction": "GD003_R2_SHARED_PRINCIPAL_BUILDING_SOURCE_BBOX_WITH_FINISHED_AND_STORAGE_GROUPS_INSIDE_MASS_AND_CLEAR_OF_RIGHT_AREA_TABLE",
       "support_group_subordination": "PASS_QUALITATIVE",
       "backtrack_count": "UNAVAILABLE",
@@ -156,7 +156,7 @@
       "provisional_positive_max": "1",
       "negative_exact_zone_level_value": "0.4",
       "separation_usable": false,
-      "reason": "Positive values measure approximate major-group envelope edges while the negative value measures exact room/zone boundary incidences; granularity and abstraction are not comparable until overlays are Owner-reviewed and room-level positive geometry exists."
+      "reason": "Positive values measure approximate major-group envelope edges while the negative value measures exact room/zone boundary incidences; granularity and abstraction remain incomparable because room-level positive geometry is unavailable."
     },
     "depth_alignment": {
       "status": "NOT_READY",
@@ -202,7 +202,6 @@
     "p1_implementation_entry_ready": false,
     "implementation_authorized": false,
     "blocking_numeric_items": [
-      "Owner visual confirmation of the five normalized overlay abstractions",
       "Structured positive room-level geometry for depth-pair calibration",
       "Comparable exact positive footprint geometry for grid and compactness calibration",
       "Owner-confirmed appendage intent labels and outline classifier evaluation"
