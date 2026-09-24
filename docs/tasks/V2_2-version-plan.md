@@ -908,8 +908,12 @@ ORDINARY_SITE_MAIN_FLOW_TURN_TARGET=0_OR_1
 MAJOR_ZONE_GRID_ALIGNMENT_TARGET=0.90
 DEPTH_ALIGNMENT_METRIC=FROZEN
 DEPTH_ALIGNMENT_PASS_THRESHOLD=NOT_CALIBRATED
-XINZHAO_SITE_LAYOUT_INPUT_V3_PRESENT=false
-MISSING_CANONICAL_FIXTURE=true
+P0_FREEZE_XINZHAO_SITE_LAYOUT_INPUT_V3_PRESENT=false
+P0_FREEZE_MISSING_CANONICAL_FIXTURE=true
+P0A_XINZHAO_CANONICAL_FIXTURE_ACQUIRED=true
+P0A_XINZHAO_V221_REPLAY=PASS
+P1_ENTRY_CANONICAL_FIXTURE_READY=true
+OWNER_LABELLED_REGULARITY_POSITIVE_SAMPLES_UNAVAILABLE=true
 PROJECT_LAYOUT_VALIDATED=HARD_ENGINEERING_VALIDITY_ONLY
 PROCESS_FLOW_VALIDATED=SEPARATE_FUTURE_QUALITY_ASSESSMENT
 LAYOUT_REGULARITY_VALIDATED=SEPARATE_FUTURE_QUALITY_ASSESSMENT
@@ -925,16 +929,63 @@ DEPLOYMENT_AUTHORIZED=false
 NO_STEP_IMPLIES_THE_NEXT=true
 ```
 
-The current Xinzhao canonical input is absent and may not be reconstructed
-from an SVG, screenshot, conversation, or hash. `GD-005_PANLONG` remains a
-non-engineering organization/style reference; the original source bytes are
-not present. Depth-alignment, exterior-notch, appendage, and compactness
-thresholds requiring empirical calibration remain explicit preconditions,
-not invented pass values. See the [V2.2.2 P0 contract](V2_2_2-P0-process-flow-layout-regularity-contract.md)
-and [ADR-047](../architecture/ADR-047-process-flow-layout-regularity-authority.md).
+The Xinzhao canonical input was unavailable at P0 freeze, then supplied as
+original bytes and successfully replayed against v2.2.1 in P0A. See the
+[P0A evidence](V2_2_2-P0A-canonical-fixture-regularity-calibration.md).
+`GD-005_PANLONG` remains a non-engineering organization/style reference. P0B
+verified the five Owner-supplied original drawing attachments and recorded
+their raw digests; the files remain external evidence rather than repository
+assets. The references enable qualitative organization-rule drafting, but do
+not expose structured positive layout geometry. Depth-alignment,
+exterior-notch, appendage, and compactness thresholds requiring empirical
+calibration therefore remain explicit preconditions; no pass values are
+inferred from the PDFs. See the
+[V2.2.2 P0 contract](V2_2_2-P0-process-flow-layout-regularity-contract.md)
+and [ADR-047](../architecture/ADR-047-process-flow-layout-regularity-authority.md),
+plus the [P0B positive-reference analysis](V2_2_2-P0B-owner-positive-layout-reference-set.md).
 
 P0 changes no runtime, P2/P2D rules, renderer, MCP contract, database, frontend,
 release, or deployment. Future implementation, if separately authorized,
 targets the layout objective profile, deterministic P2C candidate family,
 P2 validated-candidate selector, and their domain/integration/evaluation
 tests. P3/P1 drawing projection and P4 are not the next implementation target.
+
+## V2.2.2 P0C — Golden layout abstraction and calibration (Draft)
+
+P0C adds five Owner-labelled Golden drawing abstractions and faded-source
+overlay evidence, plus a six-sample evidence matrix including the canonical
+Xinzhao negative. The normalized positive geometry is intentionally limited to
+provisional major-group envelopes; original PDFs remain external, and no
+engineering dimensions or runtime input are derived. The abstractions support
+qualitative structural patterns and a proposed P1A structural-entry split,
+while room-level depth/footprint facts and numeric acceptance thresholds stay
+not ready because comparable room-level positive geometry is unavailable.
+Owner visual overlay review is complete and `PASS`.
+
+```ini
+TASK_ID=V2_2_2_P0C_GOLDEN_LAYOUT_ABSTRACTION_AND_CALIBRATION_R1
+PR_NUMBER=301
+ACTIVE_GOVERNANCE_LANE=V2.2.2_P0C
+POSITIVE_REFERENCE_ABSTRACTIONS=5
+NEGATIVE_STRUCTURED_REFERENCE_COUNT=1
+REFERENCE_NORMALIZATION_VERSION=1.0.0
+BUILDING_OUTLINE_CLASSIFIER=BUILDING_OUTLINE_CLASSIFIER_V1
+DEPTH_PAIR_POLICY_VERSION=1.0.0
+OWNER_VISUAL_OVERLAY_REVIEW=PASS
+P1A_STRUCTURAL_IMPLEMENTATION_ENTRY_READY=true
+P1B_NUMERIC_THRESHOLD_IMPLEMENTATION_ENTRY_READY=false
+P1_IMPLEMENTATION_ENTRY_READY=false
+RUNTIME_CHANGED=false
+LAYOUT_RUNTIME_CHANGED=false
+MCP_CONTRACT_CHANGED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+P1_RUNTIME_IMPLEMENTATION_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```
+
+See the [P0C abstraction and calibration report](V2_2_2-P0C-golden-layout-abstraction-and-calibration.md)
+and its [normalized evidence pack](evidence/v2_2_2_p0c/).

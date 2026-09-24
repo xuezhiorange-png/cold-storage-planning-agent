@@ -1,0 +1,380 @@
+{
+  "identity": "v2.2.2-p0b-owner-layout-reference-matrix@1.0.0",
+  "task_id": "V2_2_2_P0B_OWNER_POSITIVE_LAYOUT_REFERENCE_SET_R1",
+  "analysis_date": "2026-09-24",
+  "primary_positive_reference": "GD-005_PANLONG",
+  "golden_engineering_authority": false,
+  "golden_runtime_training_data": false,
+  "evidence_method": "full-sheet visual review of owner-provided originals; no dimension transcription or coordinate reconstruction",
+  "original_golden_source_available": true,
+  "original_golden_assets_committed": false,
+  "numeric_threshold_calibration_ready": false,
+  "references": [
+    {
+      "reference_id": "GD-001_ZHUYUAN",
+      "reference_name": "竹园",
+      "owner_label": "PASS",
+      "source_available": true,
+      "source_filename": "竹园加工厂09-18.pdf",
+      "source_sha256": "ee1c9dde1034dfa5fb652ef191a5868f514b04e701f5f339b400e52a1e46b5a6",
+      "source_storage": "owner-provided attachment; not copied into repository",
+      "reference_role": "regular_factory_layout",
+      "process_flow_pattern": "LINEAR",
+      "flow_direction_clarity": "PARTIAL",
+      "functional_grouping": "PASS",
+      "cold_room_grouping_pattern": "Repeated cold/storage modules form long coherent bands; smaller support rooms are peripheral or terminal rather than scattered through the main band.",
+      "sorting_packaging_role": "A stage within the dominant production band; exact route direction is not recoverable from the sheet alone.",
+      "raw_side_organization": "Raw/process-side functions appear grouped toward a defined end/side of the long plan; receiving interface identity is not asserted.",
+      "finished_side_organization": "Storage and dispatch-related blocks remain legible as terminal/peripheral groups along the main building organization.",
+      "packaging_material_branch_pattern": "Support/material functions are placed at the edge of the primary production organization; a validated route is not inferable.",
+      "secondary_fruit_branch_pattern": "UNAVAILABLE_FROM_VISUAL_EVIDENCE",
+      "personnel_zone_relationship": "Small ancillary/personnel-like spaces are subordinate to the dominant production mass where visible; access separation is not measured.",
+      "personnel_logistics_separation": "PARTIAL",
+      "building_outline_class": "RECTANGLE",
+      "major_zone_axis_pattern": "Long dominant axis with repeated orthogonal bay/partition families.",
+      "major_zone_depth_pattern": "Several repeated parallel bands are visible; compatible-pair depth rate is unavailable.",
+      "exterior_projection_pattern": "Minor edge/end projections remain subordinate to a continuous elongated principal building mass.",
+      "main_flow_backtrack_visible": "UNAVAILABLE",
+      "main_flow_multi_turn_visible": "UNAVAILABLE",
+      "qualitative_findings": [
+        "The main facility reads as one continuous long production/storage composition.",
+        "Repeated cold/storage modules are grouped in aligned runs instead of independent isolated tiles.",
+        "The dominant building axis provides a clear organizing direction even though route arrows are not authoritative evidence.",
+        "Peripheral support blocks remain visually secondary to the main process and storage bands."
+      ]
+    },
+    {
+      "reference_id": "GD-002_XIAOXIANG",
+      "reference_name": "潇湘",
+      "owner_label": "PASS",
+      "source_available": true,
+      "source_filename": "潇湘04-30.pdf",
+      "source_sha256": "f527cc5cbf760bc992c83f69754ef722f42fdc74f1ebe2fe30df5ff7f84de4bf",
+      "source_storage": "owner-provided attachment; not copied into repository",
+      "reference_role": "high_density_internal_arrangement",
+      "process_flow_pattern": "MULTI_BRANCH",
+      "flow_direction_clarity": "PARTIAL",
+      "functional_grouping": "PASS",
+      "cold_room_grouping_pattern": "Cold/storage blocks are grouped in distinct bands around a clearly identifiable processing core.",
+      "sorting_packaging_role": "Central process hub with repeated parallel production lines; side functions connect around the hub.",
+      "raw_side_organization": "Raw/staging functions appear at an outer side of the main production block; exact receiving route is not established.",
+      "finished_side_organization": "Finished/storage functions occupy distinct adjacent blocks rather than being mixed uniformly through the process core.",
+      "packaging_material_branch_pattern": "Material/support storage is shown as a side function near the processing organization; corridor and portal geometry are not inferred.",
+      "secondary_fruit_branch_pattern": "UNAVAILABLE_FROM_VISUAL_EVIDENCE",
+      "personnel_zone_relationship": "Office/support functions appear at the perimeter; personnel route separation from material movement is not proven.",
+      "personnel_logistics_separation": "PARTIAL",
+      "building_outline_class": "RECTANGLE",
+      "major_zone_axis_pattern": "Repeated parallel equipment/process lines and orthogonal room edges use a limited visible axis family.",
+      "major_zone_depth_pattern": "Several process/storage bands repeat, but their exact compatible depth pairs are unavailable.",
+      "exterior_projection_pattern": "Main block is broadly rectangular; local service/storage blocks remain recognizable as side groups.",
+      "main_flow_backtrack_visible": "UNAVAILABLE",
+      "main_flow_multi_turn_visible": "UNAVAILABLE",
+      "qualitative_findings": [
+        "A dense plan remains readable because a central production hub is distinguishable from surrounding storage/support groups.",
+        "Parallel process lines establish a strong internal direction and repeated spatial rhythm.",
+        "Cold/storage rooms are grouped rather than scattered as unrelated single rooms.",
+        "Side functions are legible as branches from the core, not as a replacement for the primary process organization."
+      ]
+    },
+    {
+      "reference_id": "GD-003_MOUDING",
+      "reference_name": "牟定",
+      "owner_label": "PASS",
+      "source_available": true,
+      "source_filename": "牟定05-26.pdf",
+      "source_sha256": "ba1885009205b7d5956cddc99bd21c7600bddb626377fc78f2211ddd5aa5f28b",
+      "source_storage": "owner-provided attachment; not copied into repository",
+      "reference_role": "irregular_site_masterplan",
+      "process_flow_pattern": "IRREGULAR_SITE_CONSTRAINED",
+      "flow_direction_clarity": "PARTIAL",
+      "functional_grouping": "PASS",
+      "cold_room_grouping_pattern": "Cold and storage functions occupy identifiable grouped blocks within an orthogonal building organization, while the outer site boundary remains irregular.",
+      "sorting_packaging_role": "A defined production-core stage adjacent to related storage/process blocks; no exact route chain is derived from the image.",
+      "raw_side_organization": "Receiving/raw functions are presented as a distinct site/building side group; the operational direction remains unverified.",
+      "finished_side_organization": "Finished/storage and dispatch-side functions are distinguishable from the main processing core.",
+      "packaging_material_branch_pattern": "Packaging/support functions are placed at a process edge or separate support group; route topology is unavailable.",
+      "secondary_fruit_branch_pattern": "UNAVAILABLE_FROM_VISUAL_EVIDENCE",
+      "personnel_zone_relationship": "Administrative/support spaces are peripheral to the main production block where identified; a people-route result is not available.",
+      "personnel_logistics_separation": "PARTIAL",
+      "building_outline_class": "IRREGULAR_SITE_FOLLOWING",
+      "major_zone_axis_pattern": "The production core remains predominantly orthogonal despite the non-rectangular site context.",
+      "major_zone_depth_pattern": "Repeated room rows are visible; no structured compatible-pair depth calculation is available.",
+      "exterior_projection_pattern": "Site outline is irregular/angled; the primary building mass remains a legible organized core with subordinate site elements.",
+      "main_flow_backtrack_visible": "UNAVAILABLE",
+      "main_flow_multi_turn_visible": "UNAVAILABLE",
+      "qualitative_findings": [
+        "The irregular site is not mistaken for a requirement that every room follow the site edge.",
+        "A recognizable orthogonal production core is preserved inside the constrained site.",
+        "Operational blocks remain grouped while yard and site-context space remain visible.",
+        "The drawing demonstrates that a site-constrained exception need not become a fragmented room-by-room footprint."
+      ]
+    },
+    {
+      "reference_id": "GD-004_SHUANGLONGYING",
+      "reference_name": "双龙营",
+      "owner_label": "PASS",
+      "source_available": true,
+      "source_filename": "01、双龙营单体平面方案0604.pdf",
+      "source_sha256": "5b8139b34143599ade6cb285744adbae871bc36fef209c13c1d4acc776be514e",
+      "source_storage": "owner-provided attachment; not copied into repository",
+      "reference_role": "architectural_single_building_plan",
+      "process_flow_pattern": "LINEAR",
+      "flow_direction_clarity": "PARTIAL",
+      "functional_grouping": "PASS",
+      "cold_room_grouping_pattern": "Repeated cold/storage rooms are arranged in aligned banks on both sides/ends of long processing bands.",
+      "sorting_packaging_role": "A major continuous process band, legible as the main production stage rather than a detached cluster of unrelated rooms.",
+      "raw_side_organization": "Raw-side functions are assigned to a defined edge/end of the large single-building plan; exact intake path is not claimed.",
+      "finished_side_organization": "Finished/storage functions occupy distinct aligned groups along the principal building organization.",
+      "packaging_material_branch_pattern": "Packaging/support spaces appear adjacent to the process band as side functions; no corridor dimensions or route are transcribed.",
+      "secondary_fruit_branch_pattern": "UNAVAILABLE_FROM_VISUAL_EVIDENCE",
+      "personnel_zone_relationship": "Small service/personnel functions are placed in perimeter/support locations where identifiable; route separation is not quantified.",
+      "personnel_logistics_separation": "PARTIAL",
+      "building_outline_class": "RECTANGLE",
+      "major_zone_axis_pattern": "Strong repeated structural/grid family spans the building, with long partitions aligned to the same dominant axes.",
+      "major_zone_depth_pattern": "Process and storage bands repeat across a limited set of visible depths; exact rate is unavailable.",
+      "exterior_projection_pattern": "A single dominant rectilinear building envelope with planned edge openings and limited subordinate extensions.",
+      "main_flow_backtrack_visible": "UNAVAILABLE",
+      "main_flow_multi_turn_visible": "UNAVAILABLE",
+      "qualitative_findings": [
+        "One dominant building envelope makes the program read as a single facility.",
+        "A regular grid family gives the major walls a consistent alignment.",
+        "The process core and cold/storage banks form long bands rather than a collection of isolated rectangles.",
+        "Support functions attach at edges of the main organization and do not visually dominate it."
+      ]
+    },
+    {
+      "reference_id": "GD-005_PANLONG",
+      "reference_name": "盘龙",
+      "owner_label": "PASS",
+      "source_available": true,
+      "source_filename": "01、盘龙冷库单体平面融合版（签发版）.pdf",
+      "source_sha256": "02faa6384e8ac810e229de15f3f4e2a22687ebd3b39b2151651a75b263d80534",
+      "source_storage": "owner-provided attachment; not copied into repository",
+      "reference_role": "signed_fused_production_drawing_primary_positive",
+      "process_flow_pattern": "LINEAR",
+      "flow_direction_clarity": "PARTIAL",
+      "functional_grouping": "PASS",
+      "cold_room_grouping_pattern": "Primary/secondary cold and finished-storage spaces are organized as repeated, aligned room bands around a continuous processing organization.",
+      "sorting_packaging_role": "The sorting/packing core is a major connecting stage between grouped cold-room bands and related support branches.",
+      "raw_side_organization": "Raw-side and first-stage functions occupy a defined part of the main production composition; exact process direction requires structured route authority.",
+      "finished_side_organization": "Finished storage and shipping/loading interfaces form a distinguishable terminal side of the composition.",
+      "packaging_material_branch_pattern": "Packaging storage is a side/support function positioned in relation to the sorting/packing core, not an extra stage in the main product sequence.",
+      "secondary_fruit_branch_pattern": "Secondary/frozen-product functions are presented as related side groups; their paths are not recovered from pixels.",
+      "personnel_zone_relationship": "Personnel/administrative spaces are visually subordinate and peripheral to the principal product-flow bands; pedestrian separation remains unmeasured.",
+      "personnel_logistics_separation": "PARTIAL",
+      "building_outline_class": "RECTANGLE",
+      "major_zone_axis_pattern": "A strong repeated orthogonal grid and continuous horizontal/vertical wall families organize the major rooms.",
+      "major_zone_depth_pattern": "Several repeated band depths are visible and suggest deliberate depth families; exact compatible-pair rate is unavailable.",
+      "exterior_projection_pattern": "The main production/storage body reads as one coherent rectilinear facility with limited planned edge projections.",
+      "main_flow_backtrack_visible": "UNAVAILABLE",
+      "main_flow_multi_turn_visible": "UNAVAILABLE",
+      "qualitative_findings": [
+        "Repeated room bands align to a common orthogonal grid, producing a consistent building rhythm.",
+        "Cold-stage and finished-storage groups are legible as bands around the main process core.",
+        "The sorting/packing operation reads as a connecting process stage, while packaging and secondary products remain side functions.",
+        "The dominant envelope and aligned partitions read as one planned facility rather than unrelated room tiles.",
+        "Personnel/support spaces remain visually subordinate to the product-processing composition."
+      ]
+    },
+    {
+      "reference_id": "XINZHAO_20T_SITE_LAYOUT_INPUT_V3",
+      "reference_name": "新哨 20 t/day Tool 7 canonical layout",
+      "owner_label": "FAIL",
+      "source_available": true,
+      "source_filename": "xinzhao_20t_site_layout_input_v3.json",
+      "source_sha256": "d03ecae9e1e2808cba346eb83a39f853c8a4b366acc103669af1cf868363901e",
+      "source_storage": "canonical original input in P0A fixture directory; no original drawing PDF supplied in P0B",
+      "reference_role": "owner_labelled_negative_historical_v221_layout",
+      "process_flow_pattern": "OTHER",
+      "flow_direction_clarity": "FAIL",
+      "functional_grouping": "FAIL",
+      "cold_room_grouping_pattern": "Owner's negative review describes a fragmented, tile-like organization; current P0A evidence has no calibrated semantic cold-room grouping metric.",
+      "sorting_packaging_role": "Owner review reports auxiliary/support rooms attached around the sorting/packing core in multiple directions, weakening a clear main/branch hierarchy.",
+      "raw_side_organization": "Owner review reports weak receiving-to-processing direction; route-aggregated raw-side evidence is unavailable in the v2.2.1 result contract.",
+      "finished_side_organization": "Owner review reports weak finished/shipping direction; no direction metric is available in the historical result contract.",
+      "packaging_material_branch_pattern": "Branch quality is not machine-classified in P0A; the Owner's overall review reports main/side-flow organization concerns.",
+      "secondary_fruit_branch_pattern": "P0A does not provide authoritative main-flow crossing facts for the secondary/frozen branches; value remains unavailable.",
+      "personnel_zone_relationship": "Personnel placement is part of the future separation contract; the historical result lacks an accepted personnel/logistics separation fact.",
+      "personnel_logistics_separation": "UNAVAILABLE",
+      "building_outline_class": "OTHER",
+      "major_zone_axis_pattern": "P0A's exact structured-result calculation measured major-zone grid alignment at 0.4; this is a recorded fact, not a threshold.",
+      "major_zone_depth_pattern": "UNAVAILABLE",
+      "exterior_projection_pattern": "P0A measured bounding-rectangle occupancy 0.5792454589543597230802131883 and 16 reflex corners on one connected authoritative footprint polygon; notch/appendage classifiers remain unavailable.",
+      "main_flow_backtrack_visible": "UNAVAILABLE",
+      "main_flow_multi_turn_visible": "UNAVAILABLE",
+      "qualitative_findings": [
+        "Owner-labelled negative sample: the accepted 20 t/day production call passed engineering hard validation but failed regularity review.",
+        "Owner review describes a tile-like composition, weak main-process direction, irregular auxiliary attachment, and weak shipping orientation.",
+        "Structured P0A evidence records 0.4 major-zone grid alignment and approximately 0.579245 bounding-rectangle occupancy; neither value alone defines acceptance.",
+        "Backtrack count, route turns, depth alignment, branch crossings, and personnel/logistics separation are unavailable, not zero."
+      ]
+    }
+  ],
+  "positive_vs_xinzhao_negative_comparison": [
+    {
+      "dimension": "A_MAIN_PROCESS_DIRECTION",
+      "positive_pattern": "The five accepted drawings present a visually dominant process organization: a continuous production band or a central process core connected to grouped storage/support bands. Exact route direction is not proven by the images.",
+      "xinzhao_negative_pattern": "Owner review reports weak receiving-to-processing-to-shipping direction; P0A route-order evidence is unavailable.",
+      "algorithm_implication": "Bind semantic process roles and direction explicitly; evaluate ordered authoritative portal/corridor routes rather than infer direction from room centroids."
+    },
+    {
+      "dimension": "B_MAIN_FLOW_BACKTRACK",
+      "positive_pattern": "No authoritative route trace can be recovered from any reference PDF; visible bands are only qualitative organization evidence.",
+      "xinzhao_negative_pattern": "Owner describes the main flow as folding/backtracking; P0A has no route-aggregated backtrack metric.",
+      "algorithm_implication": "Implement a route-based rank-boundary re-entry metric and keep all reference-image backtrack values UNAVAILABLE."
+    },
+    {
+      "dimension": "C_MAIN_FLOW_TURNS",
+      "positive_pattern": "Several plans suggest a dominant long axis or core, but the PDFs do not establish actual portal-to-portal turn counts.",
+      "xinzhao_negative_pattern": "Owner reports repeated direction changes; exact count cannot be derived from the canonical input evidence in P0A.",
+      "algorithm_implication": "Count turns only from concatenated authoritative routes; permit documented site-constrained exceptions."
+    },
+    {
+      "dimension": "D_FUNCTIONAL_GROUPING",
+      "positive_pattern": "Cold/storage banks, production cores, and support blocks are visually distinguishable and grouped in each accepted reference.",
+      "xinzhao_negative_pattern": "Owner review describes a tile-like mixture and support rooms attached around sorting in several directions.",
+      "algorithm_implication": "Generate and compare functional group/band candidates before independently placing every zone."
+    },
+    {
+      "dimension": "E_COLD_ROOM_ORGANIZATION",
+      "positive_pattern": "Repeated cold rooms are shown in contiguous rows or coherent bands, with aligned partitions.",
+      "xinzhao_negative_pattern": "The Owner judged the full organization fragmented; an exact cold-room group metric is not yet defined or available.",
+      "algorithm_implication": "Add semantic cold-room family grouping and explainable adjacency/axis evidence; do not infer a fixed number of rows from the drawings."
+    },
+    {
+      "dimension": "F_SORTING_PACKAGING_POSITION",
+      "positive_pattern": "Sorting/packing appears as a central hub or a defined stage in the main production band; its role is spatially legible.",
+      "xinzhao_negative_pattern": "Owner reports auxiliary functions attached around the sorting/packing area in multiple directions, obscuring the core-versus-branch relationship.",
+      "algorithm_implication": "Treat sorting/packing as a process-core role; keep required material branches attached without allowing them to split the core."
+    },
+    {
+      "dimension": "G_PACKAGING_MATERIAL_BRANCH",
+      "positive_pattern": "Where identifiable, packaging supply is a local side function near the process core rather than a main product stage.",
+      "xinzhao_negative_pattern": "P0A does not provide machine-readable branch crossing or route-length evidence; overall owner review flags organization quality.",
+      "algorithm_implication": "Preserve the frozen straight packaging-to-sorting route and evaluate branch crossings against actual main routes."
+    },
+    {
+      "dimension": "H_SECONDARY_AND_FROZEN_BRANCHES",
+      "positive_pattern": "Related secondary/by-product functions, when visible, read as side groups; exact routing is not proven by the PDFs.",
+      "xinzhao_negative_pattern": "Crossing/interference is a future concern in the P0 contract, but P0A has no authoritative branch-crossing fact.",
+      "algorithm_implication": "Keep side flows subordinate to the main line and compute crossing only from authoritative route/envelope geometry."
+    },
+    {
+      "dimension": "I_PERSONNEL_AND_OFFICE",
+      "positive_pattern": "Visible administrative/personnel functions are generally peripheral or subordinate; no PDF proves the route-separation policy.",
+      "xinzhao_negative_pattern": "P0A cannot evaluate personnel/logistics separation; Owner's irregularity concerns make this an explicit quality dimension.",
+      "algorithm_implication": "Keep office/changing roles outside the product-process rank chain and evaluate people/logistics policy independently."
+    },
+    {
+      "dimension": "J_BUILDING_OUTLINE",
+      "positive_pattern": "Most references use a coherent rectilinear principal mass; Mouding shows the site can be irregular while the production core remains organized.",
+      "xinzhao_negative_pattern": "Owner describes a jagged/tile-like result; structured P0A evidence is one polygon, occupancy about 0.579245 and 16 reflex corners.",
+      "algorithm_implication": "Classify rectangle/simple-L/stair-step/narrow-neck/appendage/site-constrained cases separately; do not penalize necessary site response as a poor outline."
+    },
+    {
+      "dimension": "K_ROOM_AXIS_ALIGNMENT",
+      "positive_pattern": "Repeated orthogonal grid or wall families align major rooms in all five reviewed plans.",
+      "xinzhao_negative_pattern": "Structured P0A major-zone grid-alignment rate is 0.4 under its stated exact incidence calculation.",
+      "algorithm_implication": "Score exact shared axis families for major zones while leaving small auxiliary exceptions explicit."
+    },
+    {
+      "dimension": "L_DEPTH_ALIGNMENT",
+      "positive_pattern": "Repeated room bands suggest a small number of compatible depths, but drawings are not a structured eligible-pair dataset.",
+      "xinzhao_negative_pattern": "P0A depth-alignment metric is UNAVAILABLE; no comparison rate exists.",
+      "algorithm_implication": "Define compatible zone-pair/orientation policy from semantic bands before any threshold is proposed."
+    },
+    {
+      "dimension": "M_RECEIVING_AND_SHIPPING_DIRECTION",
+      "positive_pattern": "Accepted plans make receiving/dispatch functions recognizable as distinct sides or terminal groups where shown, without implying a single universal compass direction.",
+      "xinzhao_negative_pattern": "Owner review reports weak receiving/shipping direction; P0A does not provide a validated side-to-side direction metric.",
+      "algorithm_implication": "Bind project-specific receiving interface and preserve the selected shipping loading face; never assume truck entrance is raw receiving."
+    }
+  ],
+  "owner_positive_common_rules": [
+    {
+      "rule_id": "P0B-ORG-001",
+      "rule_description": "Keep the primary production organization legible as a continuous band or a central process core; avoid treating all rooms as independent peer rectangles.",
+      "supporting_references": ["GD-001_ZHUYUAN", "GD-002_XIAOXIANG", "GD-003_MOUDING", "GD-004_SHUANGLONGYING", "GD-005_PANLONG"],
+      "rule_type": "QUALITY_PRIORITY",
+      "evidence_limit": "Qualitative pattern only; not a geometric hard constraint or a project template."
+    },
+    {
+      "rule_id": "P0B-ORG-002",
+      "rule_description": "Group repeated cold/storage functions into coherent aligned banks or bands, with the principal process spaces still identifiable.",
+      "supporting_references": ["GD-001_ZHUYUAN", "GD-002_XIAOXIANG", "GD-003_MOUDING", "GD-004_SHUANGLONGYING", "GD-005_PANLONG"],
+      "rule_type": "QUALITY_PRIORITY",
+      "evidence_limit": "The drawings support grouping as a visual organization principle; they do not establish counts, distances, or required dimensions."
+    },
+    {
+      "rule_id": "P0B-ORG-003",
+      "rule_description": "Prefer a limited, repeated orthogonal axis family for major room boundaries where site and fixed geometry permit.",
+      "supporting_references": ["GD-001_ZHUYUAN", "GD-002_XIAOXIANG", "GD-003_MOUDING", "GD-004_SHUANGLONGYING", "GD-005_PANLONG"],
+      "rule_type": "SOFT_PREFERENCE",
+      "evidence_limit": "Site-constrained geometry and engineering dimensions always outrank visual alignment."
+    },
+    {
+      "rule_id": "P0B-ORG-004",
+      "rule_description": "Keep support and material/by-product functions recognizable as local side groups instead of allowing them to obscure the primary processing organization.",
+      "supporting_references": ["GD-001_ZHUYUAN", "GD-002_XIAOXIANG", "GD-003_MOUDING", "GD-004_SHUANGLONGYING", "GD-005_PANLONG"],
+      "rule_type": "QUALITY_PRIORITY",
+      "evidence_limit": "The individual branch topology differs by project; only the distinction between core and support is common."
+    },
+    {
+      "rule_id": "P0B-ORG-005",
+      "rule_description": "Prefer one coherent principal building composition, while allowing a purposeful L shape, irregular-site response, or subordinate annex when business/site authority requires it.",
+      "supporting_references": ["GD-001_ZHUYUAN", "GD-002_XIAOXIANG", "GD-003_MOUDING", "GD-004_SHUANGLONGYING", "GD-005_PANLONG"],
+      "rule_type": "SOFT_PREFERENCE",
+      "evidence_limit": "A rectangle is not a universal mandate; Mouding is explicit evidence against forcing every project into the same outline."
+    }
+  ],
+  "p1_layout_implementation_rules_draft": {
+    "status": "DRAFT_NOT_AUTHORITY",
+    "steps": [
+      {"order": 1, "rule": "Generate candidate compositions by semantic functional group and process band before resolving individual zone rectangles."},
+      {"order": 2, "rule": "Bind present process roles and project-specific receiving direction explicitly; do not infer receiving from truck_entrance."},
+      {"order": 3, "rule": "Reject or mark PROCESS_FLOW_VALIDATED=false when authoritative route evidence proves reversed process rank or backtracking; missing route facts remain UNAVAILABLE."},
+      {"order": 4, "rule": "Prefer aligned major-zone axis families and compatible depth families only after all area, dimension, access, site, and truck hard constraints pass."},
+      {"order": 5, "rule": "Treat packaging, secondary-product, and frozen-product movements as side branches; preserve the existing packaging straight-only rule and score branch crossing only from authoritative route geometry."},
+      {"order": 6, "rule": "Keep office/changing roles outside the product-process rank chain and evaluate personnel/logistics separation as its own quality fact."},
+      {"order": 7, "rule": "Use versioned outline classifiers that distinguish a simple L, stair-step, narrow neck, isolated appendage, and site-constrained exception; do not equate every reflex corner with failure."},
+      {"order": 8, "rule": "Rank only hard-feasible, P2D-full-pass candidates with a deterministic lexicographic atomic quality vector; never use a weighted total to offset a failed gate."},
+      {"order": 9, "rule": "Return WHY_THIS_CANDIDATE_WON with atomic facts and the first decisive comparison against the next-ranked full-pass candidate."},
+      {"order": 10, "rule": "Require explicit Owner review for irregular sites, omitted process stages, conflicting loading/receiving directions, and any rule exception not derivable from project authority."}
+    ],
+    "ordering": [
+      "HARD_ENGINEERING_FEASIBILITY",
+      "PROCESS_FLOW_ORDER_AND_VERIFIED_BACKTRACK",
+      "MAIN_FLOW_TURNS_WITH_DOCUMENTED_SITE_EXCEPTION",
+      "FUNCTIONAL_GROUPING_AND_REQUIRED_BRANCH_QUALITY",
+      "MAJOR_ZONE_GRID_ALIGNMENT",
+      "COMPATIBLE_DEPTH_ALIGNMENT",
+      "BUILDING_OUTLINE_AND_APPENDAGE_QUALITY",
+      "AUTHORITATIVE_PROCESS_ROUTE_EFFICIENCY",
+      "PERSONNEL_LOGISTICS_SEPARATION",
+      "EXISTING_P2B2_COMPATIBILITY_TIE_BREAKS"
+    ],
+    "owner_review_required_cases": [
+      "IRREGULAR_SITE_EXCEPTION",
+      "REQUIRED_PROCESS_ROLE_OMISSION",
+      "RECEIVING_INTERFACE_OR_DIRECTION_UNBOUND",
+      "CROSSING_OR_SHARED_ROUTE_POLICY_EXCEPTION",
+      "OUTLINE_CLASSIFIER_AMBIGUITY"
+    ]
+  },
+  "entry_readiness": {
+    "p1_entry_canonical_fixture_ready": true,
+    "p1_entry_owner_positive_reference_ready": true,
+    "p1_entry_layout_rules_ready": true,
+    "p1_entry_calibration_matrix_ready": false,
+    "p1_implementation_entry_ready": false,
+    "numeric_threshold_calibration_ready": false,
+    "depth_alignment_threshold": "NOT_READY",
+    "bounding_rectangle_occupancy_floor": "NOT_READY",
+    "max_exterior_notch_count": "NOT_READY",
+    "max_isolated_appendage_count": "NOT_READY",
+    "blockers": [
+      "Owner-positive references are visual-only and do not provide structured positive layout geometry for calculating depth, outline, route, or appendage metrics.",
+      "Depth-pair eligibility and exterior-notch/isolated-appendage classifiers still require versioned definitions and structured positive/negative samples."
+    ]
+  }
+}

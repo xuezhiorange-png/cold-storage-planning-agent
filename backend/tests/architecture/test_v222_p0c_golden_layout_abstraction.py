@@ -1,0 +1,285 @@
+"""Scope and authority locks for P0C Golden layout evidence."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import subprocess
+from pathlib import Path
+from typing import Any
+
+ROOT = Path(__file__).resolve().parents[3]
+P0C_BASE = "9bc00b6157bb549f1fd3c7112cfc30f29452b8e0"
+CORRECTION_BASE = "f1a8faed7ca700caab66166550b6f42827ff72f5"
+GD003_ALIGNMENT_BASE = "7799442d20bd502fe10b4e18c0bac64e996c1b72"
+GD003_ALIGNMENT_TASK = "V2_2_2_P0C_GD003_FINAL_OVERLAY_ALIGNMENT_R1"
+OWNER_REVIEW_CLOSURE_BASE = "e6fffcb4350181824fb2f01783565d1bb458a7a7"
+EVIDENCE_REL = Path("docs/tasks/evidence/v2_2_2_p0c")
+EVIDENCE = ROOT / EVIDENCE_REL
+ALLOWED_PATHS = {
+    "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py",
+    "backend/tests/evaluation/test_v222_p0c_golden_layout_abstraction.py",
+    "backend/tests/evaluation/v222_p0c_golden_layout_metrics.py",
+    "backend/tests/evaluation/render_v222_p0c_overlay_review_pack.py",
+    "docs/architecture/ADR-047-process-flow-layout-regularity-authority.md",
+    "docs/tasks/V2_2-version-plan.md",
+    "docs/tasks/V2_2_2-P0-process-flow-layout-regularity-contract.md",
+    "docs/tasks/V2_2_2-P0C-golden-layout-abstraction-and-calibration.md",
+    str(EVIDENCE_REL / "GD-001_ZHUYUAN.normalized-layout.json"),
+    str(EVIDENCE_REL / "GD-002_XIAOXIANG.normalized-layout.json"),
+    str(EVIDENCE_REL / "GD-003_MOUDING.normalized-layout.json"),
+    str(EVIDENCE_REL / "GD-004_SHUANGLONGYING.normalized-layout.json"),
+    str(EVIDENCE_REL / "GD-005_PANLONG.normalized-layout.json"),
+    str(EVIDENCE_REL / "calibration-matrix.json"),
+    str(EVIDENCE_REL / "overlay-review-pack.json"),
+    str(EVIDENCE_REL / "gd-001-zhuyuan-normalized-overlay.png"),
+    str(EVIDENCE_REL / "gd-002-xiaoxiang-normalized-overlay.png"),
+    str(EVIDENCE_REL / "gd-003-mouding-normalized-overlay.png"),
+    str(EVIDENCE_REL / "gd-004-shuanglongying-normalized-overlay.png"),
+    str(EVIDENCE_REL / "gd-005-panlong-normalized-overlay.png"),
+}
+REFERENCE_FILES = sorted(EVIDENCE.glob("GD-*.normalized-layout.json"))
+
+
+def _git(*args: str) -> str:
+    return subprocess.check_output(["git", *args], cwd=ROOT, text=True).strip()
+
+
+def _changed_paths() -> set[str]:
+    # Scope is about files included in the PR, not test-run artifacts created
+    # in the checkout (for example backend/artifacts/local reports).
+    return set(_git("diff", "--name-only", P0C_BASE, "HEAD").splitlines())
+
+
+def _json(path: Path) -> dict[str, Any]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    assert isinstance(value, dict)
+    return value
+
+
+def test_p0c_is_limited_to_offline_evidence_docs_and_tests() -> None:
+    subprocess.run(["git", "merge-base", "--is-ancestor", P0C_BASE, "HEAD"], cwd=ROOT, check=True)
+    assert _changed_paths() == ALLOWED_PATHS
+    for forbidden in ("backend/src/", "frontend/", "database/", "backend/alembic/"):
+        assert not any(path.startswith(forbidden) for path in _changed_paths())
+
+
+def test_release_and_layout_runtime_are_unchanged() -> None:
+    subprocess.run(["git", "diff", "--quiet", P0C_BASE, "--", "backend/src"], cwd=ROOT, check=True)
+    subprocess.run(
+        ["git", "diff", "--quiet", "64f335bbfbbaf061b9ba08c18f2068db411f8922", "--", "backend/src"],
+        cwd=ROOT,
+        check=True,
+    )
+    p0c_doc_path = ROOT / "docs/tasks/V2_2_2-P0C-golden-layout-abstraction-and-calibration.md"
+    p0c_doc = p0c_doc_path.read_text(encoding="utf-8")
+    assert "RUNTIME_IMPLEMENTATION_AUTHORIZED=false" in p0c_doc
+    assert "P1_IMPLEMENTATION_ENTRY_READY=false" in p0c_doc
+
+
+def test_five_references_and_one_negative_are_non_authoritative() -> None:
+    refs = [_json(path) for path in REFERENCE_FILES]
+    assert len(refs) == 5
+    assert {ref["owner_label"] for ref in refs} == {"PASS"}
+    for ref in refs:
+        assert ref["reference_derived"] is True
+        assert ref["engineering_authority"] is False
+        assert ref["runtime_project_input"] is False
+        assert ref["normalization_version"] == "1.0.0"
+        assert ref["normalization"]["real_dimensions_recorded"] is False
+        assert ref["room_level_geometry_available"] is False
+        assert ref["route_backtrack_turn_metrics"] == "UNAVAILABLE_NO_AUTHORITATIVE_ROUTE_TRACE"
+
+    matrix = _json(EVIDENCE / "calibration-matrix.json")
+    rows = matrix["fixtures"]
+    positives = [row for row in rows if row["owner_label"] == "PASS"]
+    negatives = [row for row in rows if row["owner_label"] == "FAIL"]
+    assert len(positives) == 5
+    assert len(negatives) == 1
+    assert negatives[0]["fixture_id"] == "XINZHAO_20T_SITE_LAYOUT_INPUT_V3_OWNER_ACCEPTANCE"
+    assert negatives[0]["project_layout_validated"] is True
+    assert negatives[0]["grid_alignment_rate"] == "0.4"
+    assert negatives[0]["depth_alignment_rate"] == "UNAVAILABLE"
+
+
+def test_outline_classifier_and_metric_unavailability_are_explicit() -> None:
+    report_path = ROOT / "docs/tasks/V2_2_2-P0C-golden-layout-abstraction-and-calibration.md"
+    report = report_path.read_text(encoding="utf-8")
+    for class_name in (
+        "RECTANGLE",
+        "SIMPLE_L",
+        "COMPLEX_L",
+        "IRREGULAR_SITE_CONSTRAINED",
+        "STAIR_STEP",
+        "NARROW_NECK",
+        "ISOLATED_APPENDAGE",
+        "MULTI_COMPONENT",
+        "AMBIGUOUS_REQUIRES_OWNER_REVIEW",
+    ):
+        assert class_name in report
+    assert "`EXTERIOR_NOTCH_COUNT` is different" in report
+    matrix = _json(EVIDENCE / "calibration-matrix.json")
+    assert matrix["threshold_assessment"]["grid_alignment"]["status"] == "NOT_READY"
+    assert matrix["threshold_assessment"]["depth_alignment"]["status"] == "NOT_READY"
+    assert matrix["threshold_assessment"]["bounding_rectangle_occupancy"]["status"] == "NOT_READY"
+
+
+def test_structural_and_numeric_entry_are_separate_and_no_release_authority() -> None:
+    matrix = _json(EVIDENCE / "calibration-matrix.json")
+    entry = matrix["entry_readiness"]
+    assert entry["p1a_structural_implementation_entry_ready"] is True
+    assert entry["p1b_numeric_threshold_implementation_entry_ready"] is False
+    assert entry["p1_implementation_entry_ready"] is False
+    assert entry["implementation_authorized"] is False
+    assert len(entry["blocking_numeric_items"]) >= 3
+    assert "GOLDEN_ENGINEERING_AUTHORITY=false" in (
+        ROOT / "docs/architecture/ADR-047-process-flow-layout-regularity-authority.md"
+    ).read_text(encoding="utf-8") or "engineering authority" in (
+        ROOT / "docs/tasks/V2_2_2-P0C-golden-layout-abstraction-and-calibration.md"
+    ).read_text(encoding="utf-8")
+
+
+def test_overlay_pack_contains_five_viewable_pngs_without_original_pdf_assets() -> None:
+    manifest = _json(EVIDENCE / "overlay-review-pack.json")
+    assert manifest["abstraction_visual_overlay_created"] is True
+    assert manifest["owner_visual_review"] == "PASS"
+    assert manifest["correction_task_id"] == GD003_ALIGNMENT_TASK
+    assert manifest["owner_review_by_reference"] == {
+        "GD-001_ZHUYUAN": "PASS",
+        "GD-002_XIAOXIANG": "PASS",
+        "GD-003_MOUDING": "PASS",
+        "GD-004_SHUANGLONGYING": "PASS",
+        "GD-005_PANLONG": "PASS",
+    }
+    assert manifest["original_pdf_bytes_committed"] is False
+    assert len(manifest["overlays"]) == 5
+    assert "combined_pdf" not in manifest
+    for item in manifest["overlays"]:
+        path = EVIDENCE / item["png"]
+        assert path.is_file() and path.stat().st_size > 0
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == item["sha256"]
+        if item["reference_id"] in {
+            "GD-001_ZHUYUAN",
+            "GD-002_XIAOXIANG",
+            "GD-003_MOUDING",
+        }:
+            assert item["reference_derived"] is True
+            assert item["engineering_authority"] is False
+            assert item["approximate_group_envelope"] is True
+
+
+def test_owner_review_closure_preserves_historical_abstractions() -> None:
+    references = {
+        "GD-001_ZHUYUAN": "PASS",
+        "GD-002_XIAOXIANG": "PASS",
+        "GD-003_MOUDING": "PASS",
+        "GD-004_SHUANGLONGYING": "PASS",
+        "GD-005_PANLONG": "PASS",
+    }
+    historical_abstractions = [
+        str(EVIDENCE_REL / f"{reference_id}.normalized-layout.json") for reference_id in references
+    ]
+    subprocess.run(
+        ["git", "merge-base", "--is-ancestor", OWNER_REVIEW_CLOSURE_BASE, "HEAD"],
+        cwd=ROOT,
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "diff",
+            "--quiet",
+            OWNER_REVIEW_CLOSURE_BASE,
+            "--",
+            *historical_abstractions,
+        ],
+        cwd=ROOT,
+        check=True,
+    )
+
+    manifest = _json(EVIDENCE / "overlay-review-pack.json")
+    matrix = _json(EVIDENCE / "calibration-matrix.json")
+    assert manifest["owner_visual_review"] == "PASS"
+    assert manifest["owner_review_by_reference"] == references
+    assert matrix["owner_visual_overlay_review"] == "PASS"
+    assert matrix["owner_overlay_review_by_reference"] == references
+    assert {
+        row["fixture_id"]: row["overlay_review"]
+        for row in matrix["fixtures"]
+        if row["fixture_id"] in references
+    } == references
+
+
+def test_gd003_alignment_correction_is_isolated_from_other_owner_reviewed_overlays() -> None:
+    subprocess.run(
+        ["git", "merge-base", "--is-ancestor", GD003_ALIGNMENT_BASE, "HEAD"],
+        cwd=ROOT,
+        check=True,
+    )
+    for abstraction_name, png_name in (
+        ("GD-001_ZHUYUAN.normalized-layout.json", "gd-001-zhuyuan-normalized-overlay.png"),
+        ("GD-002_XIAOXIANG.normalized-layout.json", "gd-002-xiaoxiang-normalized-overlay.png"),
+        (
+            "GD-004_SHUANGLONGYING.normalized-layout.json",
+            "gd-004-shuanglongying-normalized-overlay.png",
+        ),
+        ("GD-005_PANLONG.normalized-layout.json", "gd-005-panlong-normalized-overlay.png"),
+    ):
+        subprocess.run(
+            [
+                "git",
+                "diff",
+                "--quiet",
+                GD003_ALIGNMENT_BASE,
+                "--",
+                str(EVIDENCE_REL / abstraction_name),
+                str(EVIDENCE_REL / png_name),
+            ],
+            cwd=ROOT,
+            check=True,
+        )
+    reference = _json(EVIDENCE / "GD-003_MOUDING.normalized-layout.json")
+    assert reference["overlay_correction"]["task_id"] == GD003_ALIGNMENT_TASK
+    assert (
+        reference["normalization"]["primary_envelope_page_bbox_norm"]
+        == (reference["principal_building_mass"]["source_page_bbox_norm"])
+    )
+    assert reference["known_drawing_furniture_regions"]
+    assert reference["reference_derived"] is True
+    assert reference["engineering_authority"] is False
+    assert reference["approximate_group_envelope"] is True
+
+
+def test_owner_accepted_gd004_and_gd005_abstractions_and_pngs_are_unchanged() -> None:
+    expected = {
+        "GD-004_SHUANGLONGYING": (
+            "GD-004_SHUANGLONGYING.normalized-layout.json",
+            "gd-004-shuanglongying-normalized-overlay.png",
+            "b279266cb79037c33d41886775cf9341dd31fe692d2b6824dd82cd1f1f6cc076",
+        ),
+        "GD-005_PANLONG": (
+            "GD-005_PANLONG.normalized-layout.json",
+            "gd-005-panlong-normalized-overlay.png",
+            "1ce569bec357287f5671093cb8dcc4047744e2e292c76959ad60e2a2364ac4d8",
+        ),
+    }
+    for reference_id, (abstraction_name, png_name, png_sha256) in expected.items():
+        subprocess.run(
+            [
+                "git",
+                "diff",
+                "--quiet",
+                CORRECTION_BASE,
+                "--",
+                str(EVIDENCE_REL / abstraction_name),
+                str(EVIDENCE_REL / png_name),
+            ],
+            cwd=ROOT,
+            check=True,
+        )
+        item = next(
+            overlay
+            for overlay in _json(EVIDENCE / "overlay-review-pack.json")["overlays"]
+            if overlay["reference_id"] == reference_id
+        )
+        assert item["sha256"] == png_sha256

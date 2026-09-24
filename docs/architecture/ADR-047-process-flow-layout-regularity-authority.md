@@ -48,12 +48,25 @@ contract.
 
 ## Calibration and entry criteria
 
-The canonical Xinzhao `site_layout_input_v3.json` is not in the repository and
-must not be inferred from its SVG or hash. The repository also does not contain
-the original GD-005 drawing bytes. The proposed depth-alignment value `0.80`
-and thresholds for notches/appendages/compactness are not frozen acceptance
-gates: they require canonical fixture distribution, versioned definitions,
-and Owner approval. P1 implementation cannot treat these as passing defaults.
+At the original P0 freeze, the canonical Xinzhao `site_layout_input_v3.json`
+was unavailable and was not inferred from its SVG or hash. P0A later acquired
+the Owner-provided raw bytes, verified their digest, and reproduced the
+v2.2.1 Tool 7 result; the fixture and replay evidence are recorded in the
+P0A calibration document. P0B then received all five Owner-approved original
+reference PDFs as external attachments and recorded their SHA-256 digests and
+qualitative organization evidence. They are not committed as repository
+assets, are not engineering authority, and are not runtime training data. P0C
+subsequently created normalized provisional major-group abstractions and
+faded-source overlays from all five PDFs. They support qualitative rule
+drafting and provisional group-envelope axis observations, but not exact
+room-level geometry. There is still no structured positive layout geometry at
+room/footprint resolution for numeric calibration. Final Owner overlay review
+is complete and `PASS`; the abstractions are not runtime inputs. Positive depth pairs, exact positive footprints, and
+appendage-purpose evidence remain unavailable. The proposed depth-alignment
+value `0.80` and numeric thresholds for grid, occupancy, notches, or
+appendages remain unfrozen. Structural P1A entry can be considered separately
+from numeric P1B calibration, but implementation still requires explicit
+authorization.
 
 ## Consequences
 
@@ -68,6 +81,10 @@ and Owner approval. P1 implementation cannot treat these as passing defaults.
   implementation layer.
 - P0 adds no runtime behavior and authorizes no P1 implementation, release,
   deployment, or subsequent phase.
+- P0B/P0C's positive reference set and overlays make the qualitative
+  layout-rule draft reviewable. P0C proposes structural P1A entry readiness,
+  but numeric thresholds remain not ready and no runtime implementation is
+  authorized.
 
 ## References
 
