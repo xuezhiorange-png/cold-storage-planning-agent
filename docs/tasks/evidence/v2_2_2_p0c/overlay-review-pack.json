@@ -1,11 +1,11 @@
 {
   "identity": "v2.2.2-p0c-overlay-review-pack@1.0.0",
-  "correction_task_id": "V2_2_2_P0C_OWNER_OVERLAY_CORRECTION_R1",
+  "correction_task_id": "V2_2_2_P0C_GD003_FINAL_OVERLAY_ALIGNMENT_R1",
   "abstraction_visual_overlay_created": true,
   "owner_visual_review": "PENDING",
   "owner_review_by_reference": {
-    "GD-001_ZHUYUAN": "PENDING",
-    "GD-002_XIAOXIANG": "PENDING",
+    "GD-001_ZHUYUAN": "PASS",
+    "GD-002_XIAOXIANG": "PASS",
     "GD-003_MOUDING": "PENDING",
     "GD-004_SHUANGLONGYING": "PASS",
     "GD-005_PANLONG": "PASS"
@@ -38,7 +38,7 @@
     {
       "reference_id": "GD-003_MOUDING",
       "png": "gd-003-mouding-normalized-overlay.png",
-      "sha256": "26d149214866059ab58b2b340a9e866dd2a544534aba130bc9cde9e030a01f14",
+      "sha256": "fce420eb0f3eb977ef4d62ce8ca9c6c2625402e77b5ace9f6117ba52dcae3713",
       "source_sha256": "ba1885009205b7d5956cddc99bd21c7600bddb626377fc78f2211ddd5aa5f28b",
       "reference_derived": true,
       "engineering_authority": false,

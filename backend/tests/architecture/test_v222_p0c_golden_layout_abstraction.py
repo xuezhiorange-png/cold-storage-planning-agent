@@ -11,6 +11,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[3]
 P0C_BASE = "9bc00b6157bb549f1fd3c7112cfc30f29452b8e0"
 CORRECTION_BASE = "f1a8faed7ca700caab66166550b6f42827ff72f5"
+GD003_ALIGNMENT_BASE = "7799442d20bd502fe10b4e18c0bac64e996c1b72"
+GD003_ALIGNMENT_TASK = "V2_2_2_P0C_GD003_FINAL_OVERLAY_ALIGNMENT_R1"
 EVIDENCE_REL = Path("docs/tasks/evidence/v2_2_2_p0c")
 EVIDENCE = ROOT / EVIDENCE_REL
 ALLOWED_PATHS = {
@@ -140,10 +142,10 @@ def test_overlay_pack_contains_five_viewable_pngs_without_original_pdf_assets() 
     manifest = _json(EVIDENCE / "overlay-review-pack.json")
     assert manifest["abstraction_visual_overlay_created"] is True
     assert manifest["owner_visual_review"] == "PENDING"
-    assert manifest["correction_task_id"] == "V2_2_2_P0C_OWNER_OVERLAY_CORRECTION_R1"
+    assert manifest["correction_task_id"] == GD003_ALIGNMENT_TASK
     assert manifest["owner_review_by_reference"] == {
-        "GD-001_ZHUYUAN": "PENDING",
-        "GD-002_XIAOXIANG": "PENDING",
+        "GD-001_ZHUYUAN": "PASS",
+        "GD-002_XIAOXIANG": "PASS",
         "GD-003_MOUDING": "PENDING",
         "GD-004_SHUANGLONGYING": "PASS",
         "GD-005_PANLONG": "PASS",
@@ -163,6 +165,46 @@ def test_overlay_pack_contains_five_viewable_pngs_without_original_pdf_assets() 
             assert item["reference_derived"] is True
             assert item["engineering_authority"] is False
             assert item["approximate_group_envelope"] is True
+
+
+def test_gd003_alignment_correction_is_isolated_from_other_owner_reviewed_overlays() -> None:
+    subprocess.run(
+        ["git", "merge-base", "--is-ancestor", GD003_ALIGNMENT_BASE, "HEAD"],
+        cwd=ROOT,
+        check=True,
+    )
+    for abstraction_name, png_name in (
+        ("GD-001_ZHUYUAN.normalized-layout.json", "gd-001-zhuyuan-normalized-overlay.png"),
+        ("GD-002_XIAOXIANG.normalized-layout.json", "gd-002-xiaoxiang-normalized-overlay.png"),
+        (
+            "GD-004_SHUANGLONGYING.normalized-layout.json",
+            "gd-004-shuanglongying-normalized-overlay.png",
+        ),
+        ("GD-005_PANLONG.normalized-layout.json", "gd-005-panlong-normalized-overlay.png"),
+    ):
+        subprocess.run(
+            [
+                "git",
+                "diff",
+                "--quiet",
+                GD003_ALIGNMENT_BASE,
+                "--",
+                str(EVIDENCE_REL / abstraction_name),
+                str(EVIDENCE_REL / png_name),
+            ],
+            cwd=ROOT,
+            check=True,
+        )
+    reference = _json(EVIDENCE / "GD-003_MOUDING.normalized-layout.json")
+    assert reference["overlay_correction"]["task_id"] == GD003_ALIGNMENT_TASK
+    assert (
+        reference["normalization"]["primary_envelope_page_bbox_norm"]
+        == (reference["principal_building_mass"]["source_page_bbox_norm"])
+    )
+    assert reference["known_drawing_furniture_regions"]
+    assert reference["reference_derived"] is True
+    assert reference["engineering_authority"] is False
+    assert reference["approximate_group_envelope"] is True
 
 
 def test_owner_accepted_gd004_and_gd005_abstractions_and_pngs_are_unchanged() -> None:

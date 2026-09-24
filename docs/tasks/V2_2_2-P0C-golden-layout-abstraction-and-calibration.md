@@ -55,11 +55,11 @@ interchangeable with exact P0 zone-boundary metrics.
 Five original-page PNG overlays are stored under
 [`evidence/v2_2_2_p0c/`](evidence/v2_2_2_p0c/). They fade the source page and
 show approximate principal mass/group envelopes, candidate axis families, and
-depth-family markers. The first three overlays have been corrected under
-`V2_2_2_P0C_OWNER_OVERLAY_CORRECTION_R1` and are pending a new Owner review;
-GD-004 and GD-005 remain unchanged and retain their prior `PASS` review. The
-overlays are not engineering drawings or runtime fixtures. The source PDFs are
-not embedded in the repository.
+depth-family markers. GD-001 and GD-002 passed Owner overlay review. GD-003 is
+being corrected under `V2_2_2_P0C_GD003_FINAL_OVERLAY_ALIGNMENT_R1`; its final
+overlay is pending Owner review. GD-004 and GD-005 remain unchanged and retain
+their prior `PASS` review. The overlays are not engineering drawings or
+runtime fixtures. The source PDFs are not embedded in the repository.
 
 ## Owner overlay correction R1
 
@@ -93,9 +93,27 @@ OWNER_VISUAL_OVERLAY_REVIEW=PENDING
   retained.
 
 The overlay manifest and calibration matrix separate the review state of each
-image: GD-001/002/003 are pending the correction review; GD-004/005 remain
-accepted. The changed outlines and labels are only visual evidence and do not
-make any numeric threshold ready.
+image: GD-001/002 are accepted, GD-003 is pending the final alignment review,
+and GD-004/005 remain accepted. The changed outlines and labels are only visual
+evidence and do not make any numeric threshold ready.
+
+## GD-003 final overlay alignment correction
+
+The Owner accepted the corrected GD-001 and GD-002 overlays and rejected only
+the GD-003 placement of its finished-side and storage/cold group envelopes.
+The GD-003 correction uses one shared, approximate source-page bounding box
+for the principal building mass and every major group. The finished-side and
+storage/cold envelopes are constrained to the stepped principal-mass outline;
+an evidence-only trace of the right-side area table is used to prevent those
+envelopes from being mapped onto page furniture. If a group cannot be placed
+reliably inside the visible principal mass, it must be marked unavailable,
+not drawn in blank page space.
+
+These are manual visual traces from the source page only. They do not read,
+copy, or infer engineering dimensions, and the table trace is not engineering
+authority. GD-001, GD-002, GD-004, and GD-005 evidence remains byte-identical.
+GD-003 remains `OWNER_VISUAL_OVERLAY_REVIEW=PENDING` until the Owner reviews
+the regenerated single-image overlay.
 
 ## What the references support
 
