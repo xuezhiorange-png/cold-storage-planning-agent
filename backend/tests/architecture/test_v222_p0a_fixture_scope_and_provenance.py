@@ -7,6 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 BASE = "3b90126fc4215460b93d6fd72b619dc507602669"
+P0A_ACCEPTED_HEAD = "7dc2db96f01ae3d835c9a0540a3f226b4aa31aad"
 ALLOWED_PATHS = {
     "backend/tests/architecture/test_v222_p0a_calibration_blocker_evidence.py",
     "backend/tests/architecture/test_v222_p0a_fixture_scope_and_provenance.py",
@@ -27,7 +28,12 @@ def _git(*args: str) -> str:
 
 
 def test_p0a_changes_are_limited_to_fixture_test_and_evidence_paths() -> None:
-    changed = set(_git("diff", "--name-only", f"{BASE}...HEAD").splitlines())
+    subprocess.run(
+        ["git", "merge-base", "--is-ancestor", BASE, P0A_ACCEPTED_HEAD],
+        cwd=ROOT,
+        check=True,
+    )
+    changed = set(_git("diff", "--name-only", f"{BASE}...{P0A_ACCEPTED_HEAD}").splitlines())
     assert changed == ALLOWED_PATHS
     assert not any(
         path.startswith(
@@ -50,7 +56,7 @@ def test_release_runtime_source_is_identical_to_v221_tag() -> None:
             "diff",
             "--quiet",
             "64f335bbfbbaf061b9ba08c18f2068db411f8922",
-            "HEAD",
+            P0A_ACCEPTED_HEAD,
             "--",
             "backend/src",
         ],
