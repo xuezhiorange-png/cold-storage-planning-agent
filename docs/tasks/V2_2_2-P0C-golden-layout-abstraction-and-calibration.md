@@ -54,10 +54,48 @@ interchangeable with exact P0 zone-boundary metrics.
 
 Five original-page PNG overlays are stored under
 [`evidence/v2_2_2_p0c/`](evidence/v2_2_2_p0c/). They fade the source page and
-show the approximate principal envelope, major functional-group envelopes,
-candidate axis families, and depth-family markers. The overlays are pending
-Owner confirmation; they are not engineering drawings or runtime fixtures.
-The source PDFs are not embedded in the repository.
+show approximate principal mass/group envelopes, candidate axis families, and
+depth-family markers. The first three overlays have been corrected under
+`V2_2_2_P0C_OWNER_OVERLAY_CORRECTION_R1` and are pending a new Owner review;
+GD-004 and GD-005 remain unchanged and retain their prior `PASS` review. The
+overlays are not engineering drawings or runtime fixtures. The source PDFs are
+not embedded in the repository.
+
+## Owner overlay correction R1
+
+The normalized evidence and review images for GD-001 through GD-003 were
+revised from the same hash-verified source PDFs. No project dimensions were
+read into the abstractions, no engineering geometry was asserted, and no
+runtime behavior changed. Each revised abstraction records:
+
+```ini
+REFERENCE_DERIVED=true
+ENGINEERING_AUTHORITY=false
+APPROXIMATE_GROUP_ENVELOPE=true
+OWNER_VISUAL_OVERLAY_REVIEW=PENDING
+```
+
+- **GD-001 Zhuyuan:** the process group is now a broad, long-axis
+  `DOMINANT PROCESSING HALL`, with raw-side, cold/storage, finished-side, and
+  support groups shown separately. The visibly large right-side storage
+  volume is explicitly marked `ANNEX / EXCLUDED`, with a visual-only reason;
+  no connectivity or building authority is inferred.
+- **GD-002 Xiaoxiang:** the production area is represented by one
+  `CENTRAL PROCESS HUB`; left, right, and north/peripheral cold-storage banks
+  remain grouped separately from the finished-side and support areas.
+- **GD-003 Mouding:** the irregular site boundary context is a separate
+  source-page polygon. The principal building mass follows an approximate
+  stepped composition rather than a rectangle, while the central process
+  group remains orthogonal, concentrated, and distinct from storage/cold and
+  support groups. These are coarse visual traces, not exact outline metrics.
+- **GD-004 Shuanglongying and GD-005 Panlong:** normalized abstractions and
+  overlay PNG bytes remain unchanged; their prior Owner overlay `PASS` is
+  retained.
+
+The overlay manifest and calibration matrix separate the review state of each
+image: GD-001/002/003 are pending the correction review; GD-004/005 remain
+accepted. The changed outlines and labels are only visual evidence and do not
+make any numeric threshold ready.
 
 ## What the references support
 

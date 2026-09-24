@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -9,6 +10,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[3]
 P0C_BASE = "9bc00b6157bb549f1fd3c7112cfc30f29452b8e0"
+CORRECTION_BASE = "f1a8faed7ca700caab66166550b6f42827ff72f5"
 EVIDENCE_REL = Path("docs/tasks/evidence/v2_2_2_p0c")
 EVIDENCE = ROOT / EVIDENCE_REL
 ALLOWED_PATHS = {
@@ -138,9 +140,61 @@ def test_overlay_pack_contains_five_viewable_pngs_without_original_pdf_assets() 
     manifest = _json(EVIDENCE / "overlay-review-pack.json")
     assert manifest["abstraction_visual_overlay_created"] is True
     assert manifest["owner_visual_review"] == "PENDING"
+    assert manifest["correction_task_id"] == "V2_2_2_P0C_OWNER_OVERLAY_CORRECTION_R1"
+    assert manifest["owner_review_by_reference"] == {
+        "GD-001_ZHUYUAN": "PENDING",
+        "GD-002_XIAOXIANG": "PENDING",
+        "GD-003_MOUDING": "PENDING",
+        "GD-004_SHUANGLONGYING": "PASS",
+        "GD-005_PANLONG": "PASS",
+    }
     assert manifest["original_pdf_bytes_committed"] is False
     assert len(manifest["overlays"]) == 5
     assert "combined_pdf" not in manifest
     for item in manifest["overlays"]:
         path = EVIDENCE / item["png"]
         assert path.is_file() and path.stat().st_size > 0
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == item["sha256"]
+        if item["reference_id"] in {
+            "GD-001_ZHUYUAN",
+            "GD-002_XIAOXIANG",
+            "GD-003_MOUDING",
+        }:
+            assert item["reference_derived"] is True
+            assert item["engineering_authority"] is False
+            assert item["approximate_group_envelope"] is True
+
+
+def test_owner_accepted_gd004_and_gd005_abstractions_and_pngs_are_unchanged() -> None:
+    expected = {
+        "GD-004_SHUANGLONGYING": (
+            "GD-004_SHUANGLONGYING.normalized-layout.json",
+            "gd-004-shuanglongying-normalized-overlay.png",
+            "b279266cb79037c33d41886775cf9341dd31fe692d2b6824dd82cd1f1f6cc076",
+        ),
+        "GD-005_PANLONG": (
+            "GD-005_PANLONG.normalized-layout.json",
+            "gd-005-panlong-normalized-overlay.png",
+            "1ce569bec357287f5671093cb8dcc4047744e2e292c76959ad60e2a2364ac4d8",
+        ),
+    }
+    for reference_id, (abstraction_name, png_name, png_sha256) in expected.items():
+        subprocess.run(
+            [
+                "git",
+                "diff",
+                "--quiet",
+                CORRECTION_BASE,
+                "--",
+                str(EVIDENCE_REL / abstraction_name),
+                str(EVIDENCE_REL / png_name),
+            ],
+            cwd=ROOT,
+            check=True,
+        )
+        item = next(
+            overlay
+            for overlay in _json(EVIDENCE / "overlay-review-pack.json")["overlays"]
+            if overlay["reference_id"] == reference_id
+        )
+        assert item["sha256"] == png_sha256

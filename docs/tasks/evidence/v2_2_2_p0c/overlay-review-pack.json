@@ -1,30 +1,48 @@
 {
   "identity": "v2.2.2-p0c-overlay-review-pack@1.0.0",
+  "correction_task_id": "V2_2_2_P0C_OWNER_OVERLAY_CORRECTION_R1",
   "abstraction_visual_overlay_created": true,
   "owner_visual_review": "PENDING",
+  "owner_review_by_reference": {
+    "GD-001_ZHUYUAN": "PENDING",
+    "GD-002_XIAOXIANG": "PENDING",
+    "GD-003_MOUDING": "PENDING",
+    "GD-004_SHUANGLONGYING": "PASS",
+    "GD-005_PANLONG": "PASS"
+  },
   "reference_derived": true,
   "engineering_authority": false,
+  "approximate_group_envelope": true,
   "runtime_project_input": false,
   "original_pdf_bytes_committed": false,
-  "overlay_method": "faded_full_page_source_render_plus_dashed_approximate_envelope_unfilled_group_outlines_axes_and_shared_depth_brackets",
+  "overlay_method": "faded_full_page_source_render_plus_context_boundary_principal_mass_group_envelopes_axes_and_shared_depth_brackets",
   "overlays": [
     {
       "reference_id": "GD-001_ZHUYUAN",
       "png": "gd-001-zhuyuan-normalized-overlay.png",
-      "sha256": "cddf466f5b6ec9fc8be4b6e3abf58099ebc6c8db63022ff741a69ca25a2c60e8",
-      "source_sha256": "ee1c9dde1034dfa5fb652ef191a5868f514b04e701f5f339b400e52a1e46b5a6"
+      "sha256": "7f9a0056bc08309da46902c3fd53a0e825bac55e26e8155acf51eb4dbdd685ff",
+      "source_sha256": "ee1c9dde1034dfa5fb652ef191a5868f514b04e701f5f339b400e52a1e46b5a6",
+      "reference_derived": true,
+      "engineering_authority": false,
+      "approximate_group_envelope": true
     },
     {
       "reference_id": "GD-002_XIAOXIANG",
       "png": "gd-002-xiaoxiang-normalized-overlay.png",
-      "sha256": "a3e918ecf81d8f11be0957191f17412be34bfa9a18decc504c9e7d7b270071bb",
-      "source_sha256": "f527cc5cbf760bc992c83f69754ef722f42fdc74f1ebe2fe30df5ff7f84de4bf"
+      "sha256": "33d40afe4f84dfa5ffb988b8cc63198063a929b642a51e12b9d20ab56c081376",
+      "source_sha256": "f527cc5cbf760bc992c83f69754ef722f42fdc74f1ebe2fe30df5ff7f84de4bf",
+      "reference_derived": true,
+      "engineering_authority": false,
+      "approximate_group_envelope": true
     },
     {
       "reference_id": "GD-003_MOUDING",
       "png": "gd-003-mouding-normalized-overlay.png",
-      "sha256": "03a1b34377a42134aae0153f49399866b5e89fb15f788e8431e6f6b724db5eb6",
-      "source_sha256": "ba1885009205b7d5956cddc99bd21c7600bddb626377fc78f2211ddd5aa5f28b"
+      "sha256": "26d149214866059ab58b2b340a9e866dd2a544534aba130bc9cde9e030a01f14",
+      "source_sha256": "ba1885009205b7d5956cddc99bd21c7600bddb626377fc78f2211ddd5aa5f28b",
+      "reference_derived": true,
+      "engineering_authority": false,
+      "approximate_group_envelope": true
     },
     {
       "reference_id": "GD-004_SHUANGLONGYING",

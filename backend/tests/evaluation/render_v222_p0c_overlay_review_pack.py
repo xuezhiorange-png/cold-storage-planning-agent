@@ -135,7 +135,32 @@ def _group_label(group: dict[str, Any]) -> str:
         "COLD_STORAGE_GROUP": "COLD / STORAGE",
         "SUPPORT_GROUP": "SUPPORT",
     }
-    return labels.get(group["functional_group"], "OTHER GROUP")
+    return str(group.get("display_label") or labels.get(group["functional_group"], "OTHER GROUP"))
+
+
+def _draw_closed_polygon(
+    draw: ImageDraw.ImageDraw,
+    points: list[tuple[int, int]],
+    color: tuple[int, int, int, int],
+    width: int,
+    dash: int,
+) -> None:
+    if len(points) < 3:
+        raise ValueError("overlay polygon requires at least three points")
+    for index, point in enumerate(points):
+        _dashed_line(draw, point, points[(index + 1) % len(points)], color, width, dash)
+
+
+def _draw_tag(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    anchor: tuple[int, int],
+    font: ImageFont.ImageFont,
+    color: tuple[int, int, int, int],
+) -> None:
+    left, top, right, bottom = draw.textbbox(anchor, text, font=font)
+    draw.rectangle((left - 4, top - 2, right + 4, bottom + 2), fill=(255, 255, 255, 224))
+    draw.text(anchor, text, fill=color, font=font)
 
 
 def _render_one(reference_id: str, source: Path, output_dir: Path) -> dict[str, Any]:
@@ -160,32 +185,74 @@ def _render_one(reference_id: str, source: Path, output_dir: Path) -> dict[str, 
         _page_point(0, 0, page_bbox, base.size),
         _page_point(1, 1, page_bbox, base.size),
     ]
-    outline = abstraction["building_outline"]["polygons"][0]
-    outline_points = [_page_point(float(x), float(y), page_bbox, base.size) for x, y in outline]
     envelope_width = max(2, width // 1600)
     envelope_dash = max(8, width // 140)
-    for index, point in enumerate(outline_points):
-        _dashed_line(
+    envelope_font = _font(max(12, width // 210))
+
+    site_context = abstraction.get("site_boundary_context")
+    if isinstance(site_context, dict):
+        page_coordinate_frame = [0.0, 0.0, 1.0, 1.0]
+        for polygon in site_context.get("polygons", []):
+            site_points = [
+                _page_point(float(x), float(y), page_coordinate_frame, base.size)
+                for x, y in polygon
+            ]
+            _draw_closed_polygon(
+                draw,
+                site_points,
+                (80, 80, 80, 185),
+                max(2, width // 1700),
+                max(10, width // 110),
+            )
+        site_anchor = site_context.get("label_anchor_page_norm")
+        if isinstance(site_anchor, list) and len(site_anchor) == 2:
+            _draw_tag(
+                draw,
+                str(site_context["display_label"]),
+                _page_point(float(site_anchor[0]), float(site_anchor[1]), page_coordinate_frame, base.size),
+                envelope_font,
+                (70, 70, 70, 245),
+            )
+
+    outline_polygons = abstraction["building_outline"]["polygons"]
+    for outline in outline_polygons:
+        outline_points = [_page_point(float(x), float(y), page_bbox, base.size) for x, y in outline]
+        _draw_closed_polygon(
             draw,
-            point,
-            outline_points[(index + 1) % len(outline_points)],
-            (45, 45, 45, 205),
+            outline_points,
+            (35, 35, 35, 215),
             envelope_width,
             envelope_dash,
         )
-    envelope_tag = "APPROX. PRIMARY ENVELOPE"
-    envelope_font = _font(max(12, width // 210))
-    tag_box = draw.textbbox((0, 0), envelope_tag, font=envelope_font)
-    tag_width = tag_box[2] - tag_box[0]
-    tag_height = tag_box[3] - tag_box[1]
+    principal_mass = abstraction.get("principal_building_mass", {})
+    envelope_tag = str(principal_mass.get("display_label", "APPROX. PRIMARY ENVELOPE"))
     envelope_top_left = _page_point(0, 0, page_bbox, base.size)
     tag_x = envelope_top_left[0] + 4
-    tag_y = max(4, envelope_top_left[1] - tag_height - 10)
-    draw.rectangle(
-        (tag_x, tag_y, tag_x + tag_width + 10, tag_y + tag_height + 8),
-        fill=(255, 255, 255, 225),
-    )
-    draw.text((tag_x + 5, tag_y + 3), envelope_tag, fill=(45, 45, 45, 245), font=envelope_font)
+    envelope_tag_box = draw.textbbox((0, 0), envelope_tag, font=envelope_font)
+    envelope_tag_height = envelope_tag_box[3] - envelope_tag_box[1]
+    tag_y = max(4, envelope_top_left[1] - envelope_tag_height - 10)
+    _draw_tag(draw, envelope_tag, (tag_x + 5, tag_y + 3), envelope_font, (45, 45, 45, 245))
+
+    for excluded in abstraction.get("excluded_areas", []):
+        polygon = excluded.get("polygon_page_norm", [])
+        points = [_page_point(float(x), float(y), [0.0, 0.0, 1.0, 1.0], base.size) for x, y in polygon]
+        _draw_closed_polygon(
+            draw,
+            points,
+            (95, 95, 95, 235),
+            max(2, width // 1500),
+            max(8, width // 150),
+        )
+        if points:
+            label_x = min(point[0] for point in points) + 4
+            label_y = min(point[1] for point in points) + 4
+            _draw_tag(
+                draw,
+                str(excluded.get("display_label", "ANNEX / EXCLUDED")),
+                (label_x, label_y),
+                envelope_font,
+                (75, 75, 75, 250),
+            )
 
     normalized_rectangles: dict[str, list[float]] = {}
     for group in abstraction["major_zone_rectangles"]:
@@ -248,19 +315,54 @@ def _render_one(reference_id: str, source: Path, output_dir: Path) -> dict[str, 
 
 
 def render_pack(sources: dict[str, Path], output_dir: Path) -> dict[str, Any]:
-    if set(sources) != set(REFERENCES):
-        raise ValueError("exactly the five known source PDFs are required")
+    if not sources or not set(sources).issubset(REFERENCES):
+        raise ValueError("one or more known reference PDF paths are required")
     output_dir.mkdir(parents=True, exist_ok=True)
-    overlays = [_render_one(reference_id, sources[reference_id], output_dir) for reference_id in REFERENCES]
+    existing_manifest_path = EVIDENCE_DIR / "overlay-review-pack.json"
+    existing_manifest = (
+        json.loads(existing_manifest_path.read_text(encoding="utf-8"))
+        if existing_manifest_path.is_file()
+        else {}
+    )
+    overlays_by_id = {
+        item["reference_id"]: item for item in existing_manifest.get("overlays", [])
+    }
+    for reference_id, source in sources.items():
+        overlays_by_id[reference_id] = {
+            **_render_one(reference_id, source, output_dir),
+            "reference_derived": True,
+            "engineering_authority": False,
+            "approximate_group_envelope": True,
+        }
+    overlays = [overlays_by_id[reference_id] for reference_id in REFERENCES]
+    prior_review = existing_manifest.get("owner_review_by_reference", {})
+    initial_review = {
+        "GD-001_ZHUYUAN": "PENDING",
+        "GD-002_XIAOXIANG": "PENDING",
+        "GD-003_MOUDING": "PENDING",
+        "GD-004_SHUANGLONGYING": "PASS",
+        "GD-005_PANLONG": "PASS",
+    }
+    review_by_reference = {
+        reference_id: (
+            "PENDING"
+            if reference_id in sources
+            else prior_review.get(reference_id, initial_review[reference_id])
+        )
+        for reference_id in REFERENCES
+    }
     manifest = {
         "identity": "v2.2.2-p0c-overlay-review-pack@1.0.0",
+        "correction_task_id": "V2_2_2_P0C_OWNER_OVERLAY_CORRECTION_R1",
         "abstraction_visual_overlay_created": True,
         "owner_visual_review": "PENDING",
+        "owner_review_by_reference": review_by_reference,
         "reference_derived": True,
         "engineering_authority": False,
+        "approximate_group_envelope": True,
         "runtime_project_input": False,
         "original_pdf_bytes_committed": False,
-        "overlay_method": "faded_full_page_source_render_plus_dashed_approximate_envelope_unfilled_group_outlines_axes_and_shared_depth_brackets",
+        "overlay_method": "faded_full_page_source_render_plus_context_boundary_principal_mass_group_envelopes_axes_and_shared_depth_brackets",
         "overlays": overlays,
         "overlay_disclaimer": "Visual review aid only; page envelopes and group outlines are provisional manual traces and must not be interpreted as room-accurate engineering geometry.",
     }

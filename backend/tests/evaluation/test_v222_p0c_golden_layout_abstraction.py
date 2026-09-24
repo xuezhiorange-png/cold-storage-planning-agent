@@ -67,9 +67,67 @@ def test_metric_evidence_does_not_promote_coarse_envelopes_to_room_facts() -> No
 
 def test_mouding_keeps_site_constraint_separate_from_building_shape() -> None:
     reference = load_reference("GD-003_MOUDING")
-    assert reference["building_outline"]["class"] == "RECTANGLE"
+    assert reference["building_outline"]["class"] == "ORTHOGONAL_STEPPED_COMPOSITION"
+    assert reference["building_outline"]["classification_status"] == (
+        "APPROXIMATE_OVERLAY_ONLY_NOT_EXACT_CLASSIFIER_INPUT"
+    )
     assert reference["building_outline"]["site_context_class"] == "IRREGULAR_SITE_CONSTRAINED"
+    assert reference["site_boundary_context"]["class"] == "IRREGULAR_SITE_CONTEXT"
+    assert len(reference["site_boundary_context"]["polygons"][0]) > 4
+    assert len(reference["building_outline"]["polygons"][0]) > 4
+    assert reference["principal_building_mass"]["source_geometry_ref"] == "building_outline.polygons"
     assert reference_metrics(reference)["functional_grouping"] == "PASS_QUALITATIVE"
+
+
+def test_owner_corrections_make_zhuyuan_process_hall_and_annex_explicit() -> None:
+    reference = load_reference("GD-001_ZHUYUAN")
+    assert reference["overlay_correction"]["task_id"] == (
+        "V2_2_2_P0C_OWNER_OVERLAY_CORRECTION_R1"
+    )
+    assert reference["reference_derived"] is True
+    assert reference["engineering_authority"] is False
+    assert reference["approximate_group_envelope"] is True
+    process = next(
+        group for group in reference["major_zone_rectangles"]
+        if group["id"] == "dominant_processing_hall"
+    )
+    assert process["functional_group"] == "PROCESSING_CORE_GROUP"
+    assert process["rect"][2] >= process["rect"][3] * 2
+    assert {group["functional_group"] for group in reference["major_zone_rectangles"]} >= {
+        "RAW_SIDE_GROUP",
+        "COLD_STORAGE_GROUP",
+        "PROCESSING_CORE_GROUP",
+        "FINISHED_SIDE_GROUP",
+        "SUPPORT_GROUP",
+    }
+    annex = reference["excluded_areas"][0]
+    assert annex["kind"] == "ANNEX"
+    assert annex["exclusion_reason"]
+    assert min(point[0] for point in annex["polygon_page_norm"]) > (
+        reference["normalization"]["primary_envelope_page_bbox_norm"][2]
+    )
+
+
+def test_owner_correction_keeps_xiaoxiang_as_one_central_process_hub() -> None:
+    reference = load_reference("GD-002_XIAOXIANG")
+    process_groups = [
+        group for group in reference["major_zone_rectangles"]
+        if group["functional_group"] == "PROCESSING_CORE_GROUP"
+    ]
+    assert len(process_groups) == 1
+    assert process_groups[0]["id"] == "central_process_hub"
+    assert process_groups[0]["display_label"] == "CENTRAL PROCESS HUB"
+    assert process_groups[0]["rect"][2] > process_groups[0]["rect"][3]
+    cold_groups = [
+        group for group in reference["major_zone_rectangles"]
+        if group["functional_group"] == "COLD_STORAGE_GROUP"
+    ]
+    assert {group["id"] for group in cold_groups} == {
+        "north_cold_storage_bank",
+        "west_storage_branch",
+        "east_storage_branch",
+    }
+    assert reference["process_core"]["form"] == "SINGLE_CONNECTED_CENTRAL_PROCESS_HUB"
 
 
 def test_outline_classifier_distinguishes_rectangle_l_shape_and_reflex_from_notch() -> None:
