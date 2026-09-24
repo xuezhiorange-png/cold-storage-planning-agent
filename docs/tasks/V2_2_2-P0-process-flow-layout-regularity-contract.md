@@ -418,9 +418,14 @@ the v2.2.1 Tool 7 input boundary, and replayed against the v2.2.1 release
 runtime in P0A; see
 [`V2_2_2-P0A-canonical-fixture-regularity-calibration.md`](V2_2_2-P0A-canonical-fixture-regularity-calibration.md).
 The fixture is regression evidence, not engineering authority. P0B later
-added five Owner-labelled positive drawing references, but no structured
-positive layout geometry suitable for calculating regularity metrics. Numeric
-threshold calibration therefore remains unavailable.
+added five Owner-labelled positive drawing references. P0C then created
+normalized, provisional major-group abstractions and visual overlays from the
+five external PDFs. Those abstractions support qualitative organization rules
+and provisional group-envelope axis observations, but are not room-level
+engineering geometry and remain pending Owner overlay review. Exact positive
+depth pairs and complete positive footprint traces are still unavailable, so
+numeric threshold calibration remains incomplete. See
+[`V2_2_2-P0C-golden-layout-abstraction-and-calibration.md`](V2_2_2-P0C-golden-layout-abstraction-and-calibration.md).
 
 Do not reconstruct this input from conversation text, the SVG, screenshot, or
 layout hash. The historical v2.2.1 result
@@ -449,12 +454,14 @@ authoritative route evidence cannot support a metric; it must not have its
 frozen access/truck rules weakened. P3 SVG, P1A–P1F renderer, P4 Tool 7, and
 the drawing/page-composition path are not the next implementation target.
 
-Before implementation begins, Owner/project authority must review the P0A
-canonical Xinzhao regression evidence and approve/calibrate depth-alignment
-and building-outline classifier thresholds that require empirical evidence.
-P0A did not supply an Owner-labelled positive sample, so those thresholds
-remain not ready. Implementation requires separate authorization; this P0
-does not grant it.
+P0C proposes a split entry: the qualitative positive references are sufficient
+to begin a separately authorized structural P1A that organizes
+`group -> band -> zone`, separates process core from support branches, and
+prefers stable axis families. Numeric P1B gates remain not ready until the
+Owner reviews the P0C overlays and comparable room-level positive depth and
+footprint evidence is available. This readiness proposal does not authorize
+implementation; each implementation step still requires explicit
+authorization.
 
 ## 13. Scope guard
 

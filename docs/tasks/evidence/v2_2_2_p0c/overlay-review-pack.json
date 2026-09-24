@@ -1,0 +1,43 @@
+{
+  "identity": "v2.2.2-p0c-overlay-review-pack@1.0.0",
+  "abstraction_visual_overlay_created": true,
+  "owner_visual_review": "PENDING",
+  "reference_derived": true,
+  "engineering_authority": false,
+  "runtime_project_input": false,
+  "original_pdf_bytes_committed": false,
+  "overlay_method": "faded_full_page_source_render_plus_dashed_approximate_envelope_unfilled_group_outlines_axes_and_shared_depth_brackets",
+  "overlays": [
+    {
+      "reference_id": "GD-001_ZHUYUAN",
+      "png": "gd-001-zhuyuan-normalized-overlay.png",
+      "sha256": "cddf466f5b6ec9fc8be4b6e3abf58099ebc6c8db63022ff741a69ca25a2c60e8",
+      "source_sha256": "ee1c9dde1034dfa5fb652ef191a5868f514b04e701f5f339b400e52a1e46b5a6"
+    },
+    {
+      "reference_id": "GD-002_XIAOXIANG",
+      "png": "gd-002-xiaoxiang-normalized-overlay.png",
+      "sha256": "a3e918ecf81d8f11be0957191f17412be34bfa9a18decc504c9e7d7b270071bb",
+      "source_sha256": "f527cc5cbf760bc992c83f69754ef722f42fdc74f1ebe2fe30df5ff7f84de4bf"
+    },
+    {
+      "reference_id": "GD-003_MOUDING",
+      "png": "gd-003-mouding-normalized-overlay.png",
+      "sha256": "03a1b34377a42134aae0153f49399866b5e89fb15f788e8431e6f6b724db5eb6",
+      "source_sha256": "ba1885009205b7d5956cddc99bd21c7600bddb626377fc78f2211ddd5aa5f28b"
+    },
+    {
+      "reference_id": "GD-004_SHUANGLONGYING",
+      "png": "gd-004-shuanglongying-normalized-overlay.png",
+      "sha256": "b279266cb79037c33d41886775cf9341dd31fe692d2b6824dd82cd1f1f6cc076",
+      "source_sha256": "5b8139b34143599ade6cb285744adbae871bc36fef209c13c1d4acc776be514e"
+    },
+    {
+      "reference_id": "GD-005_PANLONG",
+      "png": "gd-005-panlong-normalized-overlay.png",
+      "sha256": "1ce569bec357287f5671093cb8dcc4047744e2e292c76959ad60e2a2364ac4d8",
+      "source_sha256": "02faa6384e8ac810e229de15f3f4e2a22687ebd3b39b2151651a75b263d80534"
+    }
+  ],
+  "overlay_disclaimer": "Visual review aid only; page envelopes and group outlines are provisional manual traces and must not be interpreted as room-accurate engineering geometry."
+}

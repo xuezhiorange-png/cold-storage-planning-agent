@@ -1,0 +1,58 @@
+{
+  "identity": "golden-layout-abstraction@1.0.0",
+  "reference_id": "GD-002_XIAOXIANG",
+  "owner_label": "PASS",
+  "source_file_name": "潇湘04-30.pdf",
+  "source_sha256": "f527cc5cbf760bc992c83f69754ef722f42fdc74f1ebe2fe30df5ff7f84de4bf",
+  "source_page": 1,
+  "source_rotation_deg": 0,
+  "source_vector_content": true,
+  "normalization_version": "1.0.0",
+  "reference_derived": true,
+  "engineering_authority": false,
+  "runtime_project_input": false,
+  "owner_overlay_review": "PENDING",
+  "geometry_method": "native_pdf_vector_and_page_geometry_with_manual_major_group_tracing",
+  "normalization": {
+    "coordinate_range": [0, 1],
+    "coordinate_convention": "x-right_y-down",
+    "primary_envelope_page_bbox_norm": [0.143, 0.053, 0.792, 0.802],
+    "source_bbox_is_approximate_visual_trace": true,
+    "real_dimensions_recorded": false
+  },
+  "building_outline": {
+    "polygons": [
+      [[0, 0], [1, 0], [1, 1], [0, 1]]
+    ],
+    "class": "RECTANGLE",
+    "classification_status": "PROVISIONAL_MAJOR_ENVELOPE",
+    "main_building_component_count": 1,
+    "subordinate_projection_pattern": "side blocks are visible; exact footprint connectivity requires owner overlay review"
+  },
+  "room_level_geometry_available": false,
+  "quantitative_outline_metrics_status": "UNAVAILABLE_COARSE_ENVELOPE_ONLY",
+  "major_zone_rectangles": [
+    {"id": "north_cold_storage_bank", "rect": [0.12, 0.02, 0.76, 0.20], "semantic_role": "OTHER_SUPPORT", "functional_group": "COLD_STORAGE_GROUP", "confidence": "MEDIUM"},
+    {"id": "west_storage_branch", "rect": [0.00, 0.22, 0.20, 0.72], "semantic_role": "UNAVAILABLE", "functional_group": "COLD_STORAGE_GROUP", "confidence": "LOW"},
+    {"id": "central_process_core", "rect": [0.20, 0.24, 0.62, 0.52], "semantic_role": "SORTING_PACKAGING", "functional_group": "PROCESSING_CORE_GROUP", "confidence": "MEDIUM"},
+    {"id": "east_storage_branch", "rect": [0.82, 0.22, 0.18, 0.72], "semantic_role": "UNAVAILABLE", "functional_group": "COLD_STORAGE_GROUP", "confidence": "LOW"},
+    {"id": "south_finished_storage_band", "rect": [0.20, 0.76, 0.62, 0.22], "semantic_role": "FINISHED_STORAGE", "functional_group": "FINISHED_SIDE_GROUP", "confidence": "MEDIUM"},
+    {"id": "perimeter_support", "rect": [0.00, 0.78, 0.20, 0.20], "semantic_role": "OTHER_SUPPORT", "functional_group": "SUPPORT_GROUP", "confidence": "LOW"}
+  ],
+  "axis_families": {"x": [0.00, 0.20, 0.38, 0.62, 0.82, 1.00], "y": [0.02, 0.22, 0.76, 0.98], "status": "REFERENCE_DERIVED_PROVISIONAL"},
+  "depth_families": [
+    {"id": "central_process-band", "orientation": "HORIZONTAL", "normalized_depth": 0.52, "members": ["central_process_core"], "eligibility": "NO_PAIR"},
+    {"id": "cold-bank", "orientation": "HORIZONTAL", "normalized_depth": 0.20, "members": ["north_cold_storage_bank"], "eligibility": "NO_PAIR"}
+  ],
+  "functional_groups": [
+    {"id": "COLD_STORAGE_GROUP", "members": ["north_cold_storage_bank", "west_storage_branch", "east_storage_branch"], "relationship": "grouped_banks_around_core"},
+    {"id": "PROCESSING_CORE_GROUP", "members": ["central_process_core"], "relationship": "central_hub_with_parallel_internal_lines"},
+    {"id": "FINISHED_SIDE_GROUP", "members": ["south_finished_storage_band"], "relationship": "distinct_adjacent_terminal_band"},
+    {"id": "SUPPORT_GROUP", "members": ["perimeter_support"], "relationship": "peripheral_support"}
+  ],
+  "process_core": {"member_ids": ["central_process_core"], "legibility": "PASS_QUALITATIVE", "route_direction": "UNAVAILABLE"},
+  "support_groups": {"member_ids": ["perimeter_support"], "subordination": "PASS_QUALITATIVE"},
+  "personnel_groups": {"member_ids": [], "status": "PARTIAL_VISUAL_ONLY"},
+  "site_constraint_notes": ["A broad irregular site boundary surrounds the building composition and is not treated as the building outline.", "Exact room labels and physical connectivity for side banks are not asserted."],
+  "route_backtrack_turn_metrics": "UNAVAILABLE_NO_AUTHORITATIVE_ROUTE_TRACE"
+}

@@ -949,3 +949,41 @@ release, or deployment. Future implementation, if separately authorized,
 targets the layout objective profile, deterministic P2C candidate family,
 P2 validated-candidate selector, and their domain/integration/evaluation
 tests. P3/P1 drawing projection and P4 are not the next implementation target.
+
+## V2.2.2 P0C — Golden layout abstraction and calibration (Draft)
+
+P0C adds five Owner-labelled Golden drawing abstractions and faded-source
+overlay evidence, plus a six-sample evidence matrix including the canonical
+Xinzhao negative. The normalized positive geometry is intentionally limited to
+provisional major-group envelopes; original PDFs remain external, and no
+engineering dimensions or runtime input are derived. The abstractions support
+qualitative structural patterns and a proposed P1A structural-entry split,
+while room-level depth/footprint facts and numeric acceptance thresholds stay
+not ready pending Owner overlay review and comparable geometry evidence.
+
+```ini
+TASK_ID=V2_2_2_P0C_GOLDEN_LAYOUT_ABSTRACTION_AND_CALIBRATION_R1
+PR_NUMBER=301
+ACTIVE_GOVERNANCE_LANE=V2.2.2_P0C
+POSITIVE_REFERENCE_ABSTRACTIONS=5
+NEGATIVE_STRUCTURED_REFERENCE_COUNT=1
+REFERENCE_NORMALIZATION_VERSION=1.0.0
+BUILDING_OUTLINE_CLASSIFIER=BUILDING_OUTLINE_CLASSIFIER_V1
+DEPTH_PAIR_POLICY_VERSION=1.0.0
+P1A_STRUCTURAL_IMPLEMENTATION_ENTRY_READY=true
+P1B_NUMERIC_THRESHOLD_IMPLEMENTATION_ENTRY_READY=false
+P1_IMPLEMENTATION_ENTRY_READY=false
+RUNTIME_CHANGED=false
+LAYOUT_RUNTIME_CHANGED=false
+MCP_CONTRACT_CHANGED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+P1_RUNTIME_IMPLEMENTATION_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```
+
+See the [P0C abstraction and calibration report](V2_2_2-P0C-golden-layout-abstraction-and-calibration.md)
+and its [normalized evidence pack](evidence/v2_2_2_p0c/).
