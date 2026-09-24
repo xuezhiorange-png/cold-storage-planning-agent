@@ -41,9 +41,9 @@ def _git(*args: str) -> str:
 
 
 def _changed_paths() -> set[str]:
-    changed = set(_git("diff", "--name-only", P0C_BASE).splitlines())
-    changed.update(_git("ls-files", "--others", "--exclude-standard").splitlines())
-    return changed
+    # Scope is about files included in the PR, not test-run artifacts created
+    # in the checkout (for example backend/artifacts/local reports).
+    return set(_git("diff", "--name-only", P0C_BASE, "HEAD").splitlines())
 
 
 def _json(path: Path) -> dict[str, Any]:
