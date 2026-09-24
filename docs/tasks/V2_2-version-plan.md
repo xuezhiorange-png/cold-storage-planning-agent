@@ -989,3 +989,40 @@ NO_STEP_IMPLIES_THE_NEXT=true
 
 See the [P0C abstraction and calibration report](V2_2_2-P0C-golden-layout-abstraction-and-calibration.md)
 and its [normalized evidence pack](evidence/v2_2_2_p0c/).
+
+## V2.2.2 P1A structural layout generation and selection (Draft review)
+
+P1A adds a deterministic semantic group/band/zone candidate policy and a
+non-weighted lexicographic quality comparison after P2D hard validation. It
+preserves P2B2 as the final tie-break, the P4 15-node budget, and Tool 7's
+public contract. The canonical Xinzhao fixture remains hard-valid and
+deterministic; its support-group edge count improves from 0 to 2, while the
+main-process direct-edge count remains 2/2 and major-zone grid alignment
+remains 0.4. The bounded search explores three candidates and passes one P2D
+full validation; it is not a global optimum. Numeric P1B thresholds remain
+inactive and Owner visual review is pending.
+
+See [V2.2.2 P1A structural layout evidence](V2_2_2-P1A-structural-layout-generation.md)
+and its [before/after Xinzhao artifacts](evidence/v2_2_2_p1a/xinzhao_p1a_comparison.md).
+
+```ini
+TASK_ID=V2_2_2_P1A_STRUCTURAL_LAYOUT_GENERATION_AND_SELECTION_R1
+BASE_MAIN_SHA=955e5e532236fb6c33a80709e90362b12124fb72
+ACTIVE_GOVERNANCE_LANE=V2.2.2_P1A
+STRUCTURAL_GROUP_BAND_ZONE_GENERATION=IMPLEMENTED
+P2D_HARD_GATE_PRESERVED=true
+TOOL7_CONTRACT_CHANGED=false
+P1B_NUMERIC_THRESHOLDS_ACTIVE=false
+XINZHAO_SUPPORT_GROUP_SHARED_EDGES=2
+XINZHAO_PROCESS_CORE_DIRECT_EDGES=2/2
+XINZHAO_MAJOR_ZONE_GRID_ALIGNMENT_RATE=0.4
+XINZHAO_SEARCH_BUDGET=15
+XINZHAO_SEARCH_TRUNCATED=true
+OWNER_XINZHAO_P1A_VISUAL_REVIEW=PENDING
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```
