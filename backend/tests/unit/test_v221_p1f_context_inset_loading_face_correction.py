@@ -69,9 +69,11 @@ def _selector_site_scenario() -> tuple[str, Any, Any]:
     assert result["project_layout_validated"] is True
     assert result["p2_complete"] is True
     trace = result["selection"]["candidate_validation_trace"]
-    assert len(trace) >= 2
-    assert trace[0]["p2d_full_pass"] is False
-    assert any(item["p2d_full_pass"] is True for item in trace[1:])
+    passing_candidate_hashes = {
+        item["p2c_candidate_hash"] for item in trace if item["p2d_full_pass"] is True
+    }
+    # P1A can emit a full-pass structured candidate first; ordering is not a P1F invariant.
+    assert result["selection"]["selected_p2c_candidate_hash"] in passing_candidate_hashes
 
     context = assemble_preview_context(_FIVE_KEYS)
     zone_plan = site_layout_preview._zone_plan_snapshot(execute_zone_preview_authority(context))
