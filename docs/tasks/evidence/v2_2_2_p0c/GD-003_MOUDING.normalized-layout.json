@@ -12,81 +12,27 @@
   "engineering_authority": false,
   "approximate_group_envelope": true,
   "runtime_project_input": false,
-  "owner_overlay_review": "PASS",
+  "owner_overlay_review": "PENDING",
   "overlay_correction": {
     "task_id": "V2_2_2_P0C_GD003_FINAL_OVERLAY_ALIGNMENT_R1",
     "previous_correction_task_id": "V2_2_2_P0C_OWNER_OVERLAY_CORRECTION_R1",
-    "corrects_owner_findings": [
-      "RECTANGULAR_PRIMARY_ENVELOPE_MASKED_SITE_ORGANIZATION",
-      "SITE_AND_BUILDING_CONTEXT_CONFLATED",
-      "FINISHED_AND_STORAGE_GROUPS_MAPPED_OUTSIDE_PRINCIPAL_BUILDING",
-      "GROUPS_OVERLAPPED_RIGHT_PAGE_AREA_TABLE_OR_BLANK_FIELD"
-    ],
+    "corrects_owner_findings": ["RECTANGULAR_PRIMARY_ENVELOPE_MASKED_SITE_ORGANIZATION", "SITE_AND_BUILDING_CONTEXT_CONFLATED", "FINISHED_AND_STORAGE_GROUPS_MAPPED_OUTSIDE_PRINCIPAL_BUILDING", "GROUPS_OVERLAPPED_RIGHT_PAGE_AREA_TABLE_OR_BLANK_FIELD"],
     "reference_derived": true,
     "engineering_authority": false,
     "approximate_group_envelope": true
   },
   "geometry_method": "native_pdf_vector_and_page_geometry_with_manual_major_group_tracing",
   "normalization": {
-    "coordinate_range": [
-      0,
-      1
-    ],
+    "coordinate_range": [0, 1],
     "coordinate_convention": "x-right_y-down",
-    "primary_envelope_page_bbox_norm": [
-      0.34,
-      0.47,
-      0.72,
-      0.87
-    ],
+    "primary_envelope_page_bbox_norm": [0.34, 0.47, 0.72, 0.87],
     "source_bbox_is_approximate_visual_trace": true,
     "source_bbox_alignment_basis": "visible principal factory composition on source page; excludes right-side schedule and unrelated blank drawing field",
     "real_dimensions_recorded": false
   },
   "building_outline": {
     "polygons": [
-      [
-        [
-          0,
-          0.1
-        ],
-        [
-          0.46,
-          0.1
-        ],
-        [
-          0.46,
-          0
-        ],
-        [
-          0.96,
-          0
-        ],
-        [
-          0.96,
-          0.9
-        ],
-        [
-          0.58,
-          0.9
-        ],
-        [
-          0.58,
-          1
-        ],
-        [
-          0.03,
-          1
-        ],
-        [
-          0.03,
-          0.84
-        ],
-        [
-          0,
-          0.84
-        ]
-      ]
+      [[0.00, 0.10], [0.46, 0.10], [0.46, 0.00], [0.96, 0.00], [0.96, 0.90], [0.58, 0.90], [0.58, 1.00], [0.03, 1.00], [0.03, 0.84], [0.00, 0.84]]
     ],
     "class": "ORTHOGONAL_STEPPED_COMPOSITION",
     "classification_status": "APPROXIMATE_OVERLAY_ONLY_NOT_EXACT_CLASSIFIER_INPUT",
@@ -98,58 +44,8 @@
     "coordinate_space": "SOURCE_PAGE_NORMALIZED",
     "class": "IRREGULAR_SITE_CONTEXT",
     "display_label": "SITE BOUNDARY CONTEXT",
-    "label_anchor_page_norm": [
-      0.22,
-      0.42
-    ],
-    "polygons": [
-      [
-        [
-          0.165,
-          0.49
-        ],
-        [
-          0.2,
-          0.452
-        ],
-        [
-          0.717,
-          0.12
-        ],
-        [
-          0.792,
-          0.077
-        ],
-        [
-          0.915,
-          0.5
-        ],
-        [
-          0.874,
-          0.526
-        ],
-        [
-          0.944,
-          0.738
-        ],
-        [
-          0.948,
-          0.934
-        ],
-        [
-          0.421,
-          0.934
-        ],
-        [
-          0.39,
-          0.889
-        ],
-        [
-          0.214,
-          0.494
-        ]
-      ]
-    ],
+    "label_anchor_page_norm": [0.220, 0.420],
+    "polygons": [[[0.165, 0.490], [0.200, 0.452], [0.717, 0.120], [0.792, 0.077], [0.915, 0.500], [0.874, 0.526], [0.944, 0.738], [0.948, 0.934], [0.421, 0.934], [0.390, 0.889], [0.214, 0.494]]],
     "reference_derived": true,
     "engineering_authority": false,
     "approximate_group_envelope": true
@@ -157,12 +53,7 @@
   "principal_building_mass": {
     "coordinate_space": "PRIMARY_ENVELOPE_LOCAL",
     "source_geometry_ref": "building_outline.polygons",
-    "source_page_bbox_norm": [
-      0.34,
-      0.47,
-      0.72,
-      0.87
-    ],
+    "source_page_bbox_norm": [0.34, 0.47, 0.72, 0.87],
     "display_label": "PRINCIPAL BUILDING MASS",
     "form": "APPROXIMATE_ORTHOGONAL_STEPPED_COMPOSITION",
     "reference_derived": true,
@@ -172,188 +63,29 @@
   "room_level_geometry_available": false,
   "quantitative_outline_metrics_status": "UNAVAILABLE_COARSE_ENVELOPE_ONLY",
   "known_drawing_furniture_regions": [
-    {
-      "id": "RIGHT_PAGE_AREA_TABLE",
-      "coordinate_space": "SOURCE_PAGE_NORMALIZED",
-      "page_bbox_norm": [
-        0.72,
-        0.62,
-        0.84,
-        0.72
-      ],
-      "geometry_method": "approximate_visual_trace_excluding_table_content",
-      "reference_derived": true,
-      "engineering_authority": false,
-      "approximate_group_envelope": true
-    }
+    {"id": "RIGHT_PAGE_AREA_TABLE", "coordinate_space": "SOURCE_PAGE_NORMALIZED", "page_bbox_norm": [0.72, 0.62, 0.84, 0.72], "geometry_method": "approximate_visual_trace_excluding_table_content", "reference_derived": true, "engineering_authority": false, "approximate_group_envelope": true}
   ],
   "major_zone_rectangles": [
-    {
-      "id": "raw_cold_bank",
-      "display_label": "RAW SIDE",
-      "rect": [
-        0.02,
-        0.34,
-        0.2,
-        0.4
-      ],
-      "semantic_role": "PRIMARY_PRECOOL",
-      "functional_group": "RAW_SIDE_GROUP",
-      "confidence": "MEDIUM"
-    },
-    {
-      "id": "central_process_core",
-      "display_label": "PROCESS CORE",
-      "rect": [
-        0.22,
-        0.2,
-        0.5,
-        0.48
-      ],
-      "semantic_role": "SORTING_PACKAGING",
-      "functional_group": "PROCESSING_CORE_GROUP",
-      "confidence": "MEDIUM"
-    },
-    {
-      "id": "finished_side_bank",
-      "display_label": "FINISHED SIDE",
-      "rect": [
-        0.72,
-        0.18,
-        0.24,
-        0.4
-      ],
-      "semantic_role": "FINISHED_STORAGE",
-      "functional_group": "FINISHED_SIDE_GROUP",
-      "confidence": "MEDIUM"
-    },
-    {
-      "id": "secondary_storage_band",
-      "display_label": "STORAGE / COLD",
-      "rect": [
-        0.72,
-        0.6,
-        0.24,
-        0.29
-      ],
-      "semantic_role": "OTHER_SUPPORT",
-      "functional_group": "COLD_STORAGE_GROUP",
-      "confidence": "MEDIUM"
-    },
-    {
-      "id": "peripheral_support_group",
-      "display_label": "SUPPORT",
-      "rect": [
-        0.05,
-        0.78,
-        0.53,
-        0.19
-      ],
-      "semantic_role": "OTHER_SUPPORT",
-      "functional_group": "SUPPORT_GROUP",
-      "confidence": "LOW"
-    }
+    {"id": "raw_cold_bank", "display_label": "RAW SIDE", "rect": [0.02, 0.34, 0.20, 0.40], "semantic_role": "PRIMARY_PRECOOL", "functional_group": "RAW_SIDE_GROUP", "confidence": "MEDIUM"},
+    {"id": "central_process_core", "display_label": "PROCESS CORE", "rect": [0.22, 0.20, 0.50, 0.48], "semantic_role": "SORTING_PACKAGING", "functional_group": "PROCESSING_CORE_GROUP", "confidence": "MEDIUM"},
+    {"id": "finished_side_bank", "display_label": "FINISHED SIDE", "rect": [0.72, 0.18, 0.24, 0.40], "semantic_role": "FINISHED_STORAGE", "functional_group": "FINISHED_SIDE_GROUP", "confidence": "MEDIUM"},
+    {"id": "secondary_storage_band", "display_label": "STORAGE / COLD", "rect": [0.72, 0.60, 0.24, 0.29], "semantic_role": "OTHER_SUPPORT", "functional_group": "COLD_STORAGE_GROUP", "confidence": "MEDIUM"},
+    {"id": "peripheral_support_group", "display_label": "SUPPORT", "rect": [0.05, 0.78, 0.53, 0.19], "semantic_role": "OTHER_SUPPORT", "functional_group": "SUPPORT_GROUP", "confidence": "LOW"}
   ],
-  "axis_families": {
-    "x": [
-      0.02,
-      0.22,
-      0.72,
-      0.96
-    ],
-    "y": [
-      0,
-      0.1,
-      0.18,
-      0.2,
-      0.34,
-      0.58,
-      0.6,
-      0.74,
-      0.78,
-      0.89,
-      0.9,
-      0.97,
-      1
-    ],
-    "status": "REFERENCE_DERIVED_PROVISIONAL"
-  },
+  "axis_families": {"x": [0.02, 0.22, 0.72, 0.96], "y": [0.00, 0.10, 0.18, 0.20, 0.34, 0.58, 0.60, 0.74, 0.78, 0.89, 0.90, 0.97, 1.00], "status": "REFERENCE_DERIVED_PROVISIONAL"},
   "depth_families": [
-    {
-      "id": "core-band",
-      "orientation": "HORIZONTAL",
-      "normalized_depth": 0.4,
-      "members": [
-        "raw_cold_bank",
-        "central_process_core",
-        "finished_side_bank"
-      ],
-      "eligibility": "REFERENCE_DISPLAY_ONLY_NOT_ROOM_LEVEL_MEASUREMENT"
-    },
-    {
-      "id": "storage-band",
-      "orientation": "HORIZONTAL",
-      "normalized_depth": 0.29,
-      "members": [
-        "secondary_storage_band"
-      ],
-      "eligibility": "NO_PAIR"
-    }
+    {"id": "core-band", "orientation": "HORIZONTAL", "normalized_depth": 0.40, "members": ["raw_cold_bank", "central_process_core", "finished_side_bank"], "eligibility": "REFERENCE_DISPLAY_ONLY_NOT_ROOM_LEVEL_MEASUREMENT"},
+    {"id": "storage-band", "orientation": "HORIZONTAL", "normalized_depth": 0.29, "members": ["secondary_storage_band"], "eligibility": "NO_PAIR"}
   ],
   "functional_groups": [
-    {
-      "id": "RAW_SIDE_GROUP",
-      "members": [
-        "raw_cold_bank"
-      ],
-      "relationship": "distinct_site_building_side_group"
-    },
-    {
-      "id": "PROCESSING_CORE_GROUP",
-      "members": [
-        "central_process_core"
-      ],
-      "relationship": "orthogonal_concentrated_core_inside_irregular_site_context"
-    },
-    {
-      "id": "FINISHED_SIDE_GROUP",
-      "members": [
-        "finished_side_bank"
-      ],
-      "relationship": "distinct_terminal_side_group"
-    },
-    {
-      "id": "SUPPORT_GROUP",
-      "members": [
-        "secondary_storage_band",
-        "peripheral_support_group"
-      ],
-      "relationship": "grouped_subordinate_site_elements"
-    }
+    {"id": "RAW_SIDE_GROUP", "members": ["raw_cold_bank"], "relationship": "distinct_site_building_side_group"},
+    {"id": "PROCESSING_CORE_GROUP", "members": ["central_process_core"], "relationship": "orthogonal_concentrated_core_inside_irregular_site_context"},
+    {"id": "FINISHED_SIDE_GROUP", "members": ["finished_side_bank"], "relationship": "distinct_terminal_side_group"},
+    {"id": "SUPPORT_GROUP", "members": ["secondary_storage_band", "peripheral_support_group"], "relationship": "grouped_subordinate_site_elements"}
   ],
-  "process_core": {
-    "member_ids": [
-      "central_process_core"
-    ],
-    "form": "CENTRAL_ORTHOGONAL_CONCENTRATED_HUB",
-    "legibility": "PASS_QUALITATIVE",
-    "route_direction": "UNAVAILABLE"
-  },
-  "support_groups": {
-    "member_ids": [
-      "peripheral_support_group"
-    ],
-    "subordination": "PASS_QUALITATIVE"
-  },
-  "personnel_groups": {
-    "member_ids": [],
-    "status": "PARTIAL_VISUAL_ONLY"
-  },
-  "site_constraint_notes": [
-    "The irregular outer site boundary is a separate context layer and is not used as the principal building envelope.",
-    "The principal building mass follows an approximate stepped composition; its core remains orthogonal, concentrated, and grouped rather than inheriting site irregularity.",
-    "Storage/cold and support remain separately grouped; no exact room boundary, engineering dimension, or building component count is asserted.",
-    "This positive sample prevents a rectangle-only acceptance rule."
-  ],
+  "process_core": {"member_ids": ["central_process_core"], "form": "CENTRAL_ORTHOGONAL_CONCENTRATED_HUB", "legibility": "PASS_QUALITATIVE", "route_direction": "UNAVAILABLE"},
+  "support_groups": {"member_ids": ["peripheral_support_group"], "subordination": "PASS_QUALITATIVE"},
+  "personnel_groups": {"member_ids": [], "status": "PARTIAL_VISUAL_ONLY"},
+  "site_constraint_notes": ["The irregular outer site boundary is a separate context layer and is not used as the principal building envelope.", "The principal building mass follows an approximate stepped composition; its core remains orthogonal, concentrated, and grouped rather than inheriting site irregularity.", "Storage/cold and support remain separately grouped; no exact room boundary, engineering dimension, or building component count is asserted.", "This positive sample prevents a rectangle-only acceptance rule."],
   "route_backtrack_turn_metrics": "UNAVAILABLE_NO_AUTHORITATIVE_ROUTE_TRACE"
 }

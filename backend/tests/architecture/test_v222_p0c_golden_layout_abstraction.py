@@ -13,6 +13,7 @@ P0C_BASE = "9bc00b6157bb549f1fd3c7112cfc30f29452b8e0"
 CORRECTION_BASE = "f1a8faed7ca700caab66166550b6f42827ff72f5"
 GD003_ALIGNMENT_BASE = "7799442d20bd502fe10b4e18c0bac64e996c1b72"
 GD003_ALIGNMENT_TASK = "V2_2_2_P0C_GD003_FINAL_OVERLAY_ALIGNMENT_R1"
+OWNER_REVIEW_CLOSURE_BASE = "e6fffcb4350181824fb2f01783565d1bb458a7a7"
 EVIDENCE_REL = Path("docs/tasks/evidence/v2_2_2_p0c")
 EVIDENCE = ROOT / EVIDENCE_REL
 ALLOWED_PATHS = {
@@ -165,6 +166,48 @@ def test_overlay_pack_contains_five_viewable_pngs_without_original_pdf_assets() 
             assert item["reference_derived"] is True
             assert item["engineering_authority"] is False
             assert item["approximate_group_envelope"] is True
+
+
+def test_owner_review_closure_preserves_historical_abstractions() -> None:
+    references = {
+        "GD-001_ZHUYUAN": "PASS",
+        "GD-002_XIAOXIANG": "PASS",
+        "GD-003_MOUDING": "PASS",
+        "GD-004_SHUANGLONGYING": "PASS",
+        "GD-005_PANLONG": "PASS",
+    }
+    historical_abstractions = [
+        str(EVIDENCE_REL / f"{reference_id}.normalized-layout.json") for reference_id in references
+    ]
+    subprocess.run(
+        ["git", "merge-base", "--is-ancestor", OWNER_REVIEW_CLOSURE_BASE, "HEAD"],
+        cwd=ROOT,
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "diff",
+            "--quiet",
+            OWNER_REVIEW_CLOSURE_BASE,
+            "--",
+            *historical_abstractions,
+        ],
+        cwd=ROOT,
+        check=True,
+    )
+
+    manifest = _json(EVIDENCE / "overlay-review-pack.json")
+    matrix = _json(EVIDENCE / "calibration-matrix.json")
+    assert manifest["owner_visual_review"] == "PASS"
+    assert manifest["owner_review_by_reference"] == references
+    assert matrix["owner_visual_overlay_review"] == "PASS"
+    assert matrix["owner_overlay_review_by_reference"] == references
+    assert {
+        row["fixture_id"]: row["overlay_review"]
+        for row in matrix["fixtures"]
+        if row["fixture_id"] in references
+    } == references
 
 
 def test_gd003_alignment_correction_is_isolated_from_other_owner_reviewed_overlays() -> None:
