@@ -394,12 +394,14 @@ hub, packaging as a side branch, finished/shipping organization, repeated
 axes/depths, simple rectangle/L-shaped building tendency, and personnel/logistics
 separation. `GOLDEN_ENGINEERING_AUTHORITY=false`.
 
-The repository records `ORIGINAL_GOLDEN_PDF_SUBMITTED=FALSE`; no original
-GD-005 drawing bytes are present. Therefore
-`ORIGINAL_GOLDEN_SOURCE_AVAILABLE=false`; this P0 does not claim to have
-inspected unavailable source bytes. Do not OCR or copy dimensions, coordinates,
-areas, or other project-specific engineering values; do not train runtime
-rules from the reference image.
+At this P0 freeze snapshot, `ORIGINAL_GOLDEN_PDF_SUBMITTED=FALSE` and
+`ORIGINAL_GOLDEN_SOURCE_AVAILABLE=false`: no original GD-005 drawing bytes
+were available to inspect. In the later P0B evidence task, Owner supplied the
+five original PDFs as external attachments and their raw SHA-256 values were
+verified. Those attachments are qualitative layout-organization evidence;
+their binaries are not copied into this repository. Do not OCR or copy
+dimensions, coordinates, areas, or other project-specific engineering values;
+do not train runtime rules from the reference images.
 
 At the P0 contract-freeze snapshot, the 20 t/day Xinzhao Tool 7 layout
 criticized by Owner did not yet have its canonical structured input in the
@@ -415,9 +417,10 @@ Owner-provided bytes were subsequently acquired, hash-verified, accepted by
 the v2.2.1 Tool 7 input boundary, and replayed against the v2.2.1 release
 runtime in P0A; see
 [`V2_2_2-P0A-canonical-fixture-regularity-calibration.md`](V2_2_2-P0A-canonical-fixture-regularity-calibration.md).
-The fixture is regression evidence, not engineering authority. Owner-labelled
-positive regularity samples and empirical threshold calibration remain
-unavailable.
+The fixture is regression evidence, not engineering authority. P0B later
+added five Owner-labelled positive drawing references, but no structured
+positive layout geometry suitable for calculating regularity metrics. Numeric
+threshold calibration therefore remains unavailable.
 
 Do not reconstruct this input from conversation text, the SVG, screenshot, or
 layout hash. The historical v2.2.1 result

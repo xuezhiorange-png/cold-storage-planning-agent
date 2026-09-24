@@ -932,13 +932,17 @@ NO_STEP_IMPLIES_THE_NEXT=true
 The Xinzhao canonical input was unavailable at P0 freeze, then supplied as
 original bytes and successfully replayed against v2.2.1 in P0A. See the
 [P0A evidence](V2_2_2-P0A-canonical-fixture-regularity-calibration.md).
-`GD-005_PANLONG` remains a non-engineering organization/style reference; the
-original source bytes are not present. Depth-alignment, exterior-notch,
-appendage, and compactness thresholds requiring empirical calibration remain
-explicit preconditions because Owner-labelled positive regularity samples
-remain unavailable; they are not invented pass values. See the
+`GD-005_PANLONG` remains a non-engineering organization/style reference. P0B
+verified the five Owner-supplied original drawing attachments and recorded
+their raw digests; the files remain external evidence rather than repository
+assets. The references enable qualitative organization-rule drafting, but do
+not expose structured positive layout geometry. Depth-alignment,
+exterior-notch, appendage, and compactness thresholds requiring empirical
+calibration therefore remain explicit preconditions; no pass values are
+inferred from the PDFs. See the
 [V2.2.2 P0 contract](V2_2_2-P0-process-flow-layout-regularity-contract.md)
-and [ADR-047](../architecture/ADR-047-process-flow-layout-regularity-authority.md).
+and [ADR-047](../architecture/ADR-047-process-flow-layout-regularity-authority.md),
+plus the [P0B positive-reference analysis](V2_2_2-P0B-owner-positive-layout-reference-set.md).
 
 P0 changes no runtime, P2/P2D rules, renderer, MCP contract, database, frontend,
 release, or deployment. Future implementation, if separately authorized,

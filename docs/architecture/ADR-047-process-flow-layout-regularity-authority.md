@@ -52,12 +52,16 @@ At the original P0 freeze, the canonical Xinzhao `site_layout_input_v3.json`
 was unavailable and was not inferred from its SVG or hash. P0A later acquired
 the Owner-provided raw bytes, verified their digest, and reproduced the
 v2.2.1 Tool 7 result; the fixture and replay evidence are recorded in the
-P0A calibration document. This resolves fixture availability only. The
-repository still does not contain the original GD-005 drawing bytes. The
-proposed depth-alignment value `0.80` and thresholds for
-notches/appendages/compactness are not frozen acceptance gates: they require
-Owner-labelled positive samples, versioned definitions, and Owner approval.
-P1 implementation cannot treat these as passing defaults.
+P0A calibration document. P0B then received all five Owner-approved original
+reference PDFs as external attachments and recorded their SHA-256 digests and
+qualitative organization evidence. They are not committed as repository
+assets, are not engineering authority, and are not runtime training data.
+The references support qualitative rule drafting, not numeric geometric
+measurement: no structured positive layout geometry is available from them.
+The proposed depth-alignment value `0.80` and thresholds for
+notches/appendages/compactness remain unfrozen and require structured positive
+and negative samples, versioned definitions, and Owner approval. P1
+implementation cannot treat these as passing defaults.
 
 ## Consequences
 
@@ -72,6 +76,8 @@ P1 implementation cannot treat these as passing defaults.
   implementation layer.
 - P0 adds no runtime behavior and authorizes no P1 implementation, release,
   deployment, or subsequent phase.
+- P0B's positive reference set makes the qualitative layout-rule draft
+  reviewable; it does not complete the calibration matrix or authorize P1.
 
 ## References
 
