@@ -12,6 +12,7 @@ from cold_storage.modules.layout.application import validated_candidate_selectio
 from cold_storage.modules.layout.domain.placement import SitePlacementResultV1
 from cold_storage.modules.layout.domain.structural_composition import (
     CENTRAL_PROCESS_HUB,
+    LINEAR_PROCESS_BAND,
     StructuralCompositionFamilyV1,
 )
 from cold_storage.modules.layout.domain.structural_quality import StructuralQualityFactsV1
@@ -47,6 +48,10 @@ class _FakeCandidateStream:
         return len(self._candidates)
 
     @property
+    def visited_node_count(self) -> int:
+        return 13 * len(self._candidates)
+
+    @property
     def search_tree_exhausted(self) -> bool:
         return True
 
@@ -68,6 +73,21 @@ class _FakeRoutedResult:
 
     def to_dict(self) -> dict[str, Any]:
         return dict(self._payload)
+
+
+@pytest.fixture(autouse=True)
+def _single_synthetic_lane(monkeypatch: pytest.MonkeyPatch) -> None:
+    family = StructuralCompositionFamilyV1(
+        CENTRAL_PROCESS_HUB,
+        "X",
+        "UNRESOLVED",
+        "SYNTHETIC_SELECTOR_TEST",
+    )
+    monkeypatch.setattr(
+        selection,
+        "composition_family_candidates",
+        lambda _site: (family,),
+    )
 
 
 def _candidate(marker: str, should_count: int) -> SitePlacementResultV1:
@@ -326,6 +346,48 @@ def test_exact_structural_tie_preserves_legacy_p2b2_tiebreak(monkeypatch) -> Non
     assert result.to_dict()["selected_layout"]["marker"] == "higher"
     assert result.internal_evaluation["p2b2_tiebreak_used"] is True
     assert result.internal_evaluation["first_decisive_component"] == "P2B2_FINAL_TIE_BREAK"
+
+
+def test_selector_enumerates_both_linear_directions_and_central_hub(monkeypatch) -> None:
+    lanes = (
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "X", "POSITIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "X", "NEGATIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(CENTRAL_PROCESS_HUB, "X", "UNRESOLVED", "LANE_TEST"),
+    )
+    monkeypatch.setattr(selection, "composition_family_candidates", lambda _site: lanes)
+    seen: list[tuple[str, str]] = []
+
+    def enumerate_lane(*_args, structural_family, search_phase, **_kwargs):
+        seen.append((structural_family.family, structural_family.dominant_direction))
+        marker = f"{structural_family.family}:{structural_family.dominant_direction}"
+        return _FakeCandidateStream([_candidate(marker, 0)])
+
+    monkeypatch.setattr(selection, "enumerate_placement_candidates", enumerate_lane)
+    monkeypatch.setattr(
+        selection,
+        "build_structural_quality_facts",
+        lambda *_args, **_kwargs: StructuralQualityFactsV1(
+            json.dumps({"structurally_generated": True}, sort_keys=True), (1,)
+        ),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=True, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(
+        zone_plan, handoff, geometry, placement_node_budget=45
+    )
+
+    assert set(seen) == {
+        (LINEAR_PROCESS_BAND, "POSITIVE"),
+        (LINEAR_PROCESS_BAND, "NEGATIVE"),
+        (CENTRAL_PROCESS_HUB, "UNRESOLVED"),
+    }
+    assert len(seen) == 3
+    assert result.internal_evaluation["distinct_full_pass_family_count"] == 3
 
 
 def test_internal_explanation_reports_first_decisive_structural_component(monkeypatch) -> None:

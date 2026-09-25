@@ -27,7 +27,7 @@ def _source(relative_path: str) -> str:
     return (LAYOUT / relative_path).read_text(encoding="utf-8")
 
 
-def test_p1a_keeps_tool7_public_input_contract_and_budget_unchanged() -> None:
+def test_p1a_keeps_tool7_contract_and_uses_evidence_supported_search_budget() -> None:
     assert PREVIEW_SITE_LAYOUT_INPUT_FIELDS == (
         "daily_inbound_mass_kg",
         "finished_storage_days",
@@ -38,7 +38,7 @@ def test_p1a_keeps_tool7_public_input_contract_and_budget_unchanged() -> None:
         "truck_access",
         "truck_maneuver",
     )
-    assert P4_PLACEMENT_NODE_BUDGET == 15
+    assert P4_PLACEMENT_NODE_BUDGET == 120
     preview_source = (BACKEND_SRC / "aily/application/site_layout_preview.py").read_text(
         encoding="utf-8"
     )
@@ -47,18 +47,23 @@ def test_p1a_keeps_tool7_public_input_contract_and_budget_unchanged() -> None:
     assert "route_site_placement(" not in preview_source
 
 
-def test_structural_search_is_group_band_zone_and_has_two_versioned_families() -> None:
+def test_structural_search_has_group_band_zone_and_three_required_family_lanes() -> None:
     placement_source = _source("domain/placement.py")
+    composition_source = _source("domain/structural_composition.py")
     assert "PLACEMENT_ZONE_ORDER" in placement_source
     assert placement_source.index('"sorting_packaging_room"') < placement_source.index(
         '"packaging_material_storage"'
     )
-    assert "MAIN_PROCESS_PREDECESSOR" in placement_source
+    assert "MAIN_PROCESS_PREDECESSOR" in composition_source
+    assert "composition_family_candidates" in composition_source
     assert "structural_anchor_references" in placement_source
     assert LINEAR_PROCESS_BAND == "LINEAR_PROCESS_BAND"
     assert CENTRAL_PROCESS_HUB == "CENTRAL_PROCESS_HUB"
     assert len(FUNCTIONAL_GROUPS) == 5
     assert MAIN_PROCESS_ZONE_CODES[-1] == "shipping_channel"
+    selector = _source("application/validated_candidate_selection.py")
+    assert "for family, lane_budget in zip(family_lanes, lane_budgets, strict=True)" in selector
+    assert "GENERAL_FALLBACK_PHASE" in selector
 
 
 def test_selector_enforces_p2d_full_pass_before_structural_quality_and_old_tie_break() -> None:
@@ -134,3 +139,63 @@ def test_xinzhao_evidence_pins_hashes_and_does_not_hide_unimproved_core_facts() 
         assert hashlib.sha256((evidence / artifact_name).read_bytes()).hexdigest() == expected_sha
     assert (evidence / "xinzhao_v221_before.png").is_file()
     assert (evidence / "xinzhao_p1a_after.png").is_file()
+
+
+def test_r2_evidence_reports_multi_family_limits_and_visual_non_improvement() -> None:
+    evidence = ROOT / "docs/tasks/evidence/v2_2_2_p1a"
+    metrics = json.loads((evidence / "xinzhao_p1a_r2_metrics.json").read_text(encoding="utf-8"))
+    budget = json.loads(
+        (evidence / "xinzhao_p1a_r2_budget_sensitivity.json").read_text(encoding="utf-8")
+    )
+    assert [row["node_budget"] for row in budget["runs"]] == [15, 30, 60, 120, 240]
+    assert budget["decision"]["smallest_tested_budget_yielding_two_p2d_full_pass_candidates"] == 120
+    assert budget["decision"]["distinct_full_pass_families_at_budget_120"] == 1
+    assert budget["decision"]["linear_lane_noncompletion_is_proven_infeasible"] is False
+    assert metrics["p2d_full_pass_candidate_count"] == 2
+    assert metrics["distinct_full_pass_family_count"] == 1
+    assert metrics["runner_up_present"] is True
+    assert metrics["first_decisive_component"] == "P2B2_FINAL_TIE_BREAK"
+    assert metrics["main_process_geometry_equal_to_v221"] is True
+    assert metrics["main_process_geometry_equal_to_r1"] is True
+    assert metrics["owner_xinzhao_p1a_r2_visual_review"] == "PENDING"
+
+    baseline = json.loads((evidence / "xinzhao_v221_before_layout.json").read_text())
+    r1 = json.loads((evidence / "xinzhao_p1a_after_layout.json").read_text())
+    r2 = json.loads((evidence / "xinzhao_p1a_r2_after_layout.json").read_text())
+    main_zones = (
+        "raw_fruit_buffer",
+        "primary_precooling_room",
+        "sorting_packaging_room",
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel",
+    )
+
+    def geometry(layout: dict[str, object]) -> dict[str, tuple[object, ...]]:
+        rows = layout["zones"]
+        assert isinstance(rows, list)
+        return {
+            str(row["zone_code"]): tuple(
+                row.get(field) for field in ("x", "y", "width_m", "depth_m", "rotation_deg")
+            )
+            for row in rows
+            if isinstance(row, dict) and row.get("zone_code") in main_zones
+        }
+
+    baseline_geometry = geometry(baseline)
+    r1_geometry = geometry(r1)
+    r2_geometry = geometry(r2)
+    assert set(r2_geometry) == set(main_zones)
+    assert r2_geometry == baseline_geometry == r1_geometry
+
+    for name in (
+        "xinzhao_v221_before.svg",
+        "xinzhao_p1a_after.svg",
+        "xinzhao_p1a_r2_after.svg",
+    ):
+        svg = (evidence / name).read_text(encoding="utf-8")
+        assert 'viewBox="0 0 1931.62 830"' in svg
+    assert "OWNER_XINZHAO_P1A_R2_VISUAL_REVIEW=PENDING" in (
+        evidence / "xinzhao_p1a_r2_comparison.md"
+    ).read_text(encoding="utf-8")

@@ -16,11 +16,13 @@ from cold_storage.modules.layout.domain.structural_composition import (
     MAIN_PROCESS_ZONE_CODES,
     STRUCTURAL_ANCHOR_REFERENCES,
     StructuralCompositionFamilyV1,
+    StructuralSkeletonV1,
     bind_functional_groups,
     composition_family_candidates,
     functional_group_for_zone,
     select_structural_composition_family,
     structural_anchor_references,
+    structural_skeleton_candidates,
 )
 from cold_storage.modules.layout.domain.structural_quality import (
     StructuralQualityFactsV1,
@@ -73,12 +75,33 @@ def test_composition_families_and_axis_order_are_deterministic() -> None:
     second = composition_family_candidates(site)
 
     assert [family.to_dict() for family in first] == [family.to_dict() for family in second]
-    assert [(family.family, family.dominant_direction) for family in first] == [
+    assert [
+        (family.family, family.dominant_axis, family.dominant_direction) for family in first
+    ] == [
+        (LINEAR_PROCESS_BAND, "X", "POSITIVE"),
+        (LINEAR_PROCESS_BAND, "X", "NEGATIVE"),
+        (CENTRAL_PROCESS_HUB, "X", "UNRESOLVED"),
+    ]
+    assert [(family.family, family.dominant_direction) for family in first[:3]] == [
         (LINEAR_PROCESS_BAND, "POSITIVE"),
         (LINEAR_PROCESS_BAND, "NEGATIVE"),
         (CENTRAL_PROCESS_HUB, "UNRESOLVED"),
     ]
-    assert all(family.dominant_axis == "X" for family in first)
+    assert all(family.dominant_axis == "X" for family in first[:3])
+
+
+def test_three_required_family_lanes_have_independent_skeletons() -> None:
+    lanes = structural_skeleton_candidates(
+        _site_geometry(), tuple(code for members in FUNCTIONAL_GROUPS.values() for code in members)
+    )
+    assert len(lanes) == 3
+    assert [(lane.family.family, lane.family.dominant_direction) for lane in lanes] == [
+        (LINEAR_PROCESS_BAND, "POSITIVE"),
+        (LINEAR_PROCESS_BAND, "NEGATIVE"),
+        (CENTRAL_PROCESS_HUB, "UNRESOLVED"),
+    ]
+    assert [lane.ordering_axis for lane in lanes] == ["X", "X", "Y"]
+    assert all(lane.core_zone_codes == ("sorting_packaging_room", "coating_room") for lane in lanes)
 
 
 def test_family_selection_uses_area_authority_not_golden_template() -> None:
@@ -117,18 +140,82 @@ def test_linear_family_requires_exact_shared_edge_and_direction() -> None:
     assert not placement_domain._linear_flow_anchor_matches(diagonal, predecessor, family_positive)
 
 
+def test_linear_skeleton_enforces_downstream_transition_and_terminal_bands() -> None:
+    family = StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "X", "POSITIVE", "UNIT_TEST")
+    skeleton = StructuralSkeletonV1(
+        family=family,
+        ordering_axis="X",
+        ordered_groups=("RAW_SIDE_GROUP", "PROCESSING_CORE_GROUP", "FINISHED_SIDE_GROUP"),
+        core_zone_codes=("sorting_packaging_room", "coating_room"),
+        support_root_zone_codes=("sorting_packaging_room", "packaging_material_storage"),
+        personnel_zone_codes=("office", "changing_room"),
+    )
+    placed = {
+        "raw_fruit_buffer": PlacedRectangleV1(
+            "raw_fruit_buffer", 0, 0, Decimal("10"), Decimal("10")
+        ),
+        "primary_precooling_room": PlacedRectangleV1(
+            "primary_precooling_room", 10, 0, Decimal("10"), Decimal("10")
+        ),
+        "sorting_packaging_room": PlacedRectangleV1(
+            "sorting_packaging_room", 20, 0, Decimal("20"), Decimal("20")
+        ),
+        "secondary_precooling_room": PlacedRectangleV1(
+            "secondary_precooling_room", 40, 0, Decimal("10"), Decimal("10")
+        ),
+        "coating_room": PlacedRectangleV1("coating_room", 40, 10, Decimal("10"), Decimal("10")),
+    }
+
+    assert placement_domain._candidate_fits_skeleton_region(
+        "secondary_precooling_room",
+        placed["secondary_precooling_room"],
+        {key: value for key, value in placed.items() if key != "secondary_precooling_room"},
+        skeleton,
+    )
+    assert placement_domain._candidate_fits_skeleton_region(
+        "coating_room",
+        placed["coating_room"],
+        {key: value for key, value in placed.items() if key != "coating_room"},
+        skeleton,
+    )
+    finished = PlacedRectangleV1("finished_goods_room", 50, 0, Decimal("30"), Decimal("20"))
+    assert placement_domain._candidate_fits_skeleton_region(
+        "finished_goods_room", finished, placed, skeleton
+    )
+    shipping = PlacedRectangleV1("shipping_channel", 80, 0, Decimal("5"), Decimal("20"))
+    assert placement_domain._candidate_fits_skeleton_region(
+        "shipping_channel", shipping, {**placed, "finished_goods_room": finished}, skeleton
+    )
+    upstream_secondary = PlacedRectangleV1(
+        "secondary_precooling_room", 10, 0, Decimal("10"), Decimal("10")
+    )
+    assert not placement_domain._candidate_fits_skeleton_region(
+        "secondary_precooling_room", upstream_secondary, placed, skeleton
+    )
+
+
 def test_support_branch_is_grouped_and_personnel_stays_outside_process_rank() -> None:
-    assert STRUCTURAL_ANCHOR_REFERENCES["secondary_fruit_buffer"] == ("packaging_material_storage",)
-    assert STRUCTURAL_ANCHOR_REFERENCES["frozen_fruit_room"] == (
+    assert STRUCTURAL_ANCHOR_REFERENCES["secondary_fruit_buffer"] == (
+        "sorting_packaging_room",
         "packaging_material_storage",
-        "secondary_fruit_buffer",
+        "frozen_fruit_room",
+    )
+    assert STRUCTURAL_ANCHOR_REFERENCES["frozen_fruit_room"] == (
+        "sorting_packaging_room",
+        "packaging_material_storage",
     )
     assert structural_anchor_references(
         "frozen_fruit_room",
         ("packaging_material_storage", "secondary_fruit_buffer"),
-    ) == ("packaging_material_storage", "secondary_fruit_buffer")
+    ) == ("packaging_material_storage",)
     assert "office" not in MAIN_PROCESS_ZONE_CODES
     assert "changing_room" not in MAIN_PROCESS_ZONE_CODES
+    structured_order = placement_domain.STRUCTURED_PLACEMENT_ZONE_ORDER
+    assert structured_order.index("shipping_channel") < structured_order.index("changing_room")
+    assert structured_order.index("office") < structured_order.index("packaging_material_storage")
+    assert structured_order.index("frozen_fruit_room") < structured_order.index(
+        "secondary_fruit_buffer"
+    )
     assert MAIN_PROCESS_ZONE_CODES == (
         "raw_fruit_buffer",
         "primary_precooling_room",

@@ -14,10 +14,11 @@ from cold_storage.modules.layout.domain.structural_composition import (
     FUNCTIONAL_GROUPS,
     LINEAR_PROCESS_BAND,
     MAIN_PROCESS_ZONE_CODES,
+    SUPPORT_GROUP,
     StructuralCompositionFamilyV1,
 )
 
-IDENTITY: Final = "structural-quality-vector@1.0.0"
+IDENTITY: Final = "structural-quality-vector@2.0.0"
 MAJOR_ZONE_CODES: Final = (
     "primary_precooling_room",
     "secondary_precooling_room",
@@ -136,6 +137,198 @@ def _group_edge_facts(
                 )
         facts[group] = edge_count
     return facts
+
+
+def _group_envelope_facts(
+    zones: Mapping[str, Mapping[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    """Derive exact group extents and shared-edge component facts."""
+    result: dict[str, dict[str, Any]] = {}
+    for group, members in FUNCTIONAL_GROUPS.items():
+        existing = tuple(code for code in members if code in zones)
+        bounds = {code: _bounds(zones[code]) for code in existing}
+        adjacency: dict[str, set[str]] = {code: set() for code in existing}
+        edge_count = 0
+        for index, first in enumerate(existing):
+            for second in existing[index + 1 :]:
+                if _shared_edge_orientation(bounds[first], bounds[second]) is not None:
+                    edge_count += 1
+                    adjacency[first].add(second)
+                    adjacency[second].add(first)
+        components = 0
+        unseen = set(existing)
+        while unseen:
+            components += 1
+            pending = [min(unseen)]
+            unseen.remove(pending[0])
+            while pending:
+                current = pending.pop()
+                for neighbor in sorted(adjacency[current] & unseen):
+                    unseen.remove(neighbor)
+                    pending.append(neighbor)
+        if bounds:
+            result[group] = {
+                "min_x": str(min(row[0] for row in bounds.values())),
+                "min_y": str(min(row[1] for row in bounds.values())),
+                "max_x": str(max(row[2] for row in bounds.values())),
+                "max_y": str(max(row[3] for row in bounds.values())),
+                "zone_count": len(existing),
+                "connected_shared_edge_component_count": components,
+                "shared_internal_edge_count": edge_count,
+            }
+        else:
+            result[group] = {
+                "min_x": None,
+                "min_y": None,
+                "max_x": None,
+                "max_y": None,
+                "zone_count": 0,
+                "connected_shared_edge_component_count": 0,
+                "shared_internal_edge_count": 0,
+            }
+    return result
+
+
+def _main_group_order_fact(
+    zones: Mapping[str, Mapping[str, Any]], family: StructuralCompositionFamilyV1
+) -> tuple[bool, str, dict[str, Any]]:
+    axis = (
+        family.dominant_axis
+        if family.family == LINEAR_PROCESS_BAND
+        else ("Y" if family.dominant_axis == "X" else "X")
+    )
+    group_intervals: list[tuple[int, Decimal, Decimal]] = []
+    terminal_codes = ("finished_goods_room", "shipping_channel")
+    group_codes = (
+        FUNCTIONAL_GROUPS["RAW_SIDE_GROUP"],
+        FUNCTIONAL_GROUPS["PROCESSING_CORE_GROUP"],
+        terminal_codes,
+    )
+    for codes in group_codes:
+        rows = [zones[code] for code in codes if code in zones]
+        if not rows:
+            return False, axis, {}
+        group_bounds = [_bounds(row) for row in rows]
+        low_index, high_index = (0, 2) if axis == "X" else (1, 3)
+        group_intervals.append(
+            (
+                len(rows),
+                min(bounds[low_index] for bounds in group_bounds),
+                max(bounds[high_index] for bounds in group_bounds),
+            )
+        )
+    _, raw_low, raw_high = group_intervals[0]
+    _, core_low, core_high = group_intervals[1]
+    _, finished_low, finished_high = group_intervals[2]
+    if family.family == LINEAR_PROCESS_BAND and family.dominant_direction == "POSITIVE":
+        valid = raw_high <= core_low and core_high <= finished_low
+    elif family.family == LINEAR_PROCESS_BAND:
+        valid = finished_high <= core_low and core_high <= raw_low
+    else:
+        valid = (raw_high <= core_low and core_high <= finished_low) or (
+            finished_high <= core_low and core_high <= raw_low
+        )
+    facts = {
+        "axis": axis,
+        "raw_interval": [str(raw_low), str(raw_high)],
+        "processing_core_interval": [str(core_low), str(core_high)],
+        "finished_interval": [str(finished_low), str(finished_high)],
+        "finished_terminal_zone_codes": list(terminal_codes),
+        "transition_zone_codes": ["secondary_precooling_room"],
+    }
+    return valid, axis, facts
+
+
+def _support_attachment_sides(zones: Mapping[str, Mapping[str, Any]]) -> tuple[str, ...]:
+    core_codes = ("sorting_packaging_room", "packaging_material_storage")
+    sides: set[str] = set()
+    for support in _SUPPORT_CODES:
+        if support not in zones:
+            continue
+        support_bounds = _bounds(zones[support])
+        for root in core_codes:
+            if root not in zones:
+                continue
+            root_bounds = _bounds(zones[root])
+            if _shared_edge_orientation(support_bounds, root_bounds) is None:
+                continue
+            if support_bounds[2] == root_bounds[0]:
+                sides.add("WEST")
+            elif support_bounds[0] == root_bounds[2]:
+                sides.add("EAST")
+            elif support_bounds[3] == root_bounds[1]:
+                sides.add("SOUTH")
+            elif support_bounds[1] == root_bounds[3]:
+                sides.add("NORTH")
+    return tuple(sorted(sides))
+
+
+def _process_core_face_facts(
+    zones: Mapping[str, Mapping[str, Any]],
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Measure exposed and support-occupied faces of the sorting core exactly."""
+    core_code = "sorting_packaging_room"
+    if core_code not in zones:
+        return (), ()
+    core = _bounds(zones[core_code])
+    faces = {"NORTH", "EAST", "SOUTH", "WEST"}
+    occupied_by_any: set[str] = set()
+    occupied_by_support: set[str] = set()
+    for code, zone in zones.items():
+        if code == core_code:
+            continue
+        bounds = _bounds(zone)
+        if _shared_edge_orientation(core, bounds) is None:
+            continue
+        if bounds[2] == core[0]:
+            side = "WEST"
+        elif bounds[0] == core[2]:
+            side = "EAST"
+        elif bounds[3] == core[1]:
+            side = "SOUTH"
+        else:
+            side = "NORTH"
+        occupied_by_any.add(side)
+        if code in _SUPPORT_CODES:
+            occupied_by_support.add(side)
+    return tuple(sorted(faces - occupied_by_any)), tuple(sorted(occupied_by_support))
+
+
+def _storage_bank_alignment_facts(
+    zones: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    banks = {
+        "RAW_SIDE_BANK": ("raw_fruit_buffer", "primary_precooling_room"),
+        "FINISHED_SIDE_BANK": ("secondary_precooling_room", "finished_goods_room"),
+        "FROZEN_SIDE_BRANCH": ("frozen_fruit_room",),
+    }
+    result: dict[str, Any] = {}
+    for bank, codes in banks.items():
+        pairs = [
+            (first, second)
+            for index, first in enumerate(codes)
+            for second in codes[index + 1 :]
+            if first in zones and second in zones
+        ]
+        aligned = 0
+        for first, second in pairs:
+            first_bounds = _bounds(zones[first])
+            second_bounds = _bounds(zones[second])
+            orientation = _shared_edge_orientation(first_bounds, second_bounds)
+            if orientation == "VERTICAL":
+                aligned += int(
+                    first_bounds[1] == second_bounds[1] and first_bounds[3] == second_bounds[3]
+                )
+            elif orientation == "HORIZONTAL":
+                aligned += int(
+                    first_bounds[0] == second_bounds[0] and first_bounds[2] == second_bounds[2]
+                )
+        result[bank] = {
+            "status": "MEASURED" if pairs else "NOT_APPLICABLE",
+            "aligned_pair_count": aligned,
+            "eligible_pair_count": len(pairs),
+        }
+    return result
 
 
 def _personnel_boundary_contacts(
@@ -291,6 +484,7 @@ def build_structural_quality_facts(
     family: StructuralCompositionFamilyV1,
     *,
     structurally_generated: bool,
+    search_phase: str = "STRUCTURED",
 ) -> StructuralQualityFactsV1:
     raw_zones = candidate.get("zones")
     if not isinstance(raw_zones, list):
@@ -304,6 +498,10 @@ def build_structural_quality_facts(
         raise ValueError("structural zone binding incomplete")
 
     group_edges = _group_edge_facts(zones)
+    group_envelopes = _group_envelope_facts(zones)
+    group_order_monotonic, group_order_axis, group_order_facts = _main_group_order_fact(
+        zones, family
+    )
     grid_count, grid_total, grid_rate = _major_axis_facts(zones)
     depth_aligned, depth_eligible, depth_status = _depth_alignment_facts(zones)
     outline, outline_rank = _outline_class(routed_layout)
@@ -328,6 +526,19 @@ def build_structural_quality_facts(
     support_route_pass_count = sum(
         int(topologies.get(identity) in {"DIRECT_SHARED_EDGE", "CORRIDOR_MEDIATED"})
         for identity in support_routes.values()
+    )
+    support_sides = _support_attachment_sides(zones)
+    exposed_core_faces, support_occupied_core_faces = _process_core_face_facts(zones)
+    support_components = group_envelopes[SUPPORT_GROUP]["connected_shared_edge_component_count"]
+    process_core_components = group_envelopes["PROCESSING_CORE_GROUP"][
+        "connected_shared_edge_component_count"
+    ]
+    process_core_contiguous = process_core_components == 1
+    storage_bank_alignment = _storage_bank_alignment_facts(zones)
+    storage_bank_aligned_pairs = sum(
+        row["aligned_pair_count"]
+        for row in storage_bank_alignment.values()
+        if isinstance(row, Mapping)
     )
     process_core_edges = sum(
         int(_shared_edge_orientation(_bounds(zones[first]), _bounds(zones[second])) is not None)
@@ -362,10 +573,23 @@ def build_structural_quality_facts(
     # facts, but not converted into centroid/Manhattan proxies.
     metrics: dict[str, Any] = {
         "identity": IDENTITY,
-        "structural_profile_identity": "structural-quality-profile@1.0.0",
+        "structural_profile_identity": "structural-quality-profile@2.0.0",
         "composition_family": family.to_dict(),
+        "search_phase": search_phase,
         "inferred_process_family": inferred_family,
         "composition_family_match": family_match,
+        "group_envelopes": group_envelopes,
+        "main_group_order_monotonic": {
+            "status": "MEASURED",
+            "value": group_order_monotonic,
+            "axis": group_order_axis,
+            "intervals": group_order_facts,
+        },
+        "process_core_contiguous": {
+            "status": "MEASURED",
+            "value": process_core_contiguous,
+            "component_count": process_core_components,
+        },
         "structurally_generated": structurally_generated,
         "structural_fallback_used": not structurally_generated,
         "functional_group_edge_counts": group_edges,
@@ -378,8 +602,23 @@ def build_structural_quality_facts(
         "support_branch_subordination": {
             "status": "MEASURED",
             "direct_group_edges": support_direct,
+            "attachment_sides": list(support_sides),
+            "attachment_side_count": len(support_sides),
+            "support_component_count": support_components,
             "authoritative_access_routes": support_route_pass_count,
             "required_access_routes": len(support_routes),
+            "support_chain_root": "sorting_packaging_room",
+        },
+        "process_core_faces": {
+            "status": "MEASURED",
+            "core_zone_code": "sorting_packaging_room",
+            "core_exposed_main_faces": list(exposed_core_faces),
+            "support_occupied_core_faces": list(support_occupied_core_faces),
+        },
+        "storage_bank_alignment": {
+            "status": "MEASURED",
+            "banks": storage_bank_alignment,
+            "aligned_pair_count": storage_bank_aligned_pairs,
         },
         "personnel_peripherality": {
             "status": "MEASURED",
@@ -411,12 +650,19 @@ def build_structural_quality_facts(
     # threshold.  P2B2's historical comparator is consulted only on exact ties.
     comparison_key = (
         int(structurally_generated),
+        int(group_order_monotonic),
+        int(process_core_contiguous),
         int(family_match),
         *tuple(group_edges[group] for group in FUNCTIONAL_GROUPS),
         process_core_edges,
         support_route_pass_count,
+        -len(support_sides),
+        -int(support_components),
         support_direct,
+        -len(support_occupied_core_faces),
+        len(exposed_core_faces),
         personnel_boundary_contacts,
+        storage_bank_aligned_pairs,
         grid_count,
         depth_aligned,
         -outline_rank,

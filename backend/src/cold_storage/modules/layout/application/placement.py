@@ -26,12 +26,16 @@ from cold_storage.modules.layout.domain.objective_profile import (
     validate_objective_profile,
 )
 from cold_storage.modules.layout.domain.placement import (
+    LEGACY_COMPAT_PHASE,
     PlacementCandidateEnumerationV1,
     SitePlacementResultV1,
     search_placement,
 )
 from cold_storage.modules.layout.domain.placement import (
     enumerate_placement_candidates as enumerate_domain_placement_candidates,
+)
+from cold_storage.modules.layout.domain.structural_composition import (
+    StructuralCompositionFamilyV1,
 )
 
 IDENTITY = "site-constrained-placement-application@1.0.0"
@@ -269,6 +273,8 @@ def enumerate_placement_candidates(
     *,
     node_budget: int = 50_000,
     complete_candidate_limit: int | None = None,
+    structural_family: StructuralCompositionFamilyV1 | None = None,
+    search_phase: str = LEGACY_COMPAT_PHASE,
 ) -> PlacementCandidateEnumerationV1:
     """Expose complete P2C candidates for downstream P2 validation.
 
@@ -300,4 +306,6 @@ def enumerate_placement_candidates(
         spatial_relationships=spatial_relationships,
         node_budget=node_budget,
         complete_candidate_limit=complete_candidate_limit,
+        structural_family=structural_family,
+        search_phase=search_phase,
     )

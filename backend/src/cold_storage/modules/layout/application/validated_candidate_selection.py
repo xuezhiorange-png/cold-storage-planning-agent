@@ -30,9 +30,15 @@ from cold_storage.modules.layout.domain.dimensioning import (
     canonical_json,
 )
 from cold_storage.modules.layout.domain.objective_profile import ObjectiveProfileV1
-from cold_storage.modules.layout.domain.placement import placement_candidate_is_better
+from cold_storage.modules.layout.domain.placement import (
+    GENERAL_FALLBACK_PHASE,
+    STRUCTURED_PHASE,
+    placement_candidate_is_better,
+)
 from cold_storage.modules.layout.domain.structural_composition import (
     StructuralCompositionFamilyV1,
+    composition_family_candidates,
+    select_structural_composition_family,
 )
 from cold_storage.modules.layout.domain.structural_quality import (
     StructuralQualityFactsV1,
@@ -114,8 +120,13 @@ def _p2d_trace_row(
     }
     interaction = p2d_body.get("personnel_truck_evaluation")
     interaction_status = interaction.get("status") if isinstance(interaction, Mapping) else None
+    search = candidate_body.get("search_provenance")
+    skeleton = search.get("structural_skeleton") if isinstance(search, Mapping) else None
+    family = skeleton.get("family") if isinstance(skeleton, Mapping) else None
     row.update(
         {
+            "composition_family": dict(family) if isinstance(family, Mapping) else None,
+            "search_phase": search.get("search_phase") if isinstance(search, Mapping) else None,
             "p2d_status": p2d_body.get("result_identity"),
             "p2d_full_pass": p2d_body.get("project_layout_validated") is True
             and p2d_body.get("p2_complete") is True,
@@ -133,23 +144,101 @@ def _p2d_trace_row(
     return row
 
 
+def _lane_budget_split(lane_budget: int) -> tuple[int, int]:
+    """Reserve one complete-path depth before assigning any fallback budget."""
+    if lane_budget < 13:
+        return lane_budget, 0
+    if lane_budget < 26:
+        return 13, lane_budget - 13
+    structured = max(13, (lane_budget * 3) // 5)
+    return structured, lane_budget - structured
+
+
+def _family_lane_budgets(total_budget: int, lane_count: int) -> tuple[int, ...]:
+    quotient, remainder = divmod(total_budget, lane_count)
+    return tuple(quotient + int(index < remainder) for index in range(lane_count))
+
+
+def _preferred_family_from_handoff(
+    site_body: Mapping[str, Any], handoff: object
+) -> StructuralCompositionFamilyV1 | None:
+    if isinstance(handoff, ZoneDimensioningResultV1):
+        body: object = handoff.to_dict()
+    elif isinstance(handoff, Mapping):
+        body = handoff
+    else:
+        return None
+    historical = body.get("p1e_historical_handoff") if isinstance(body, Mapping) else None
+    dimension = historical.get("dimension_handoff") if isinstance(historical, Mapping) else None
+    raw_authorities = dimension.get("authorities") if isinstance(dimension, Mapping) else None
+    if not isinstance(raw_authorities, list):
+        return None
+    authorities = {
+        str(row["zone_code"]): row
+        for row in raw_authorities
+        if isinstance(row, Mapping) and isinstance(row.get("zone_code"), str)
+    }
+    if len(authorities) != len(raw_authorities):
+        return None
+    try:
+        return select_structural_composition_family(site_body, authorities)
+    except (KeyError, TypeError, ValueError):
+        # Preference only orders lanes. The normal P1 validation remains
+        # responsible for rejecting invalid inputs, and no lane is removed.
+        return None
+
+
+def _placement_geometry_signature(candidate: Mapping[str, Any]) -> str:
+    zones = candidate.get("zones")
+    if not isinstance(zones, list):
+        return canonical_json(
+            {
+                "candidate_hash": candidate.get("canonical_candidate_hash"),
+                "marker": candidate.get("marker"),
+            }
+        )
+    geometry = [
+        {
+            field: row.get(field)
+            for field in ("zone_code", "x", "y", "width_m", "depth_m", "rotation_deg")
+        }
+        for row in zones
+        if isinstance(row, Mapping)
+    ]
+    geometry.sort(key=lambda row: str(row["zone_code"]))
+    return canonical_json(geometry)
+
+
 def _selection_provenance(
-    enumeration: Any,
+    lane_reports: list[dict[str, Any]],
     *,
+    placement_node_budget: int,
+    p2c_candidate_count: int,
     p2d_validated_count: int,
     p2d_full_pass_count: int,
     selected: bool,
 ) -> dict[str, Any]:
-    search_provenance = enumeration.provenance
+    tree_exhausted = all(row["search_tree_exhausted"] for row in lane_reports)
+    node_budget_exhausted = any(row["node_budget_exhausted"] for row in lane_reports)
     return {
         "identity": IDENTITY,
         "selection_basis": P2C_CANDIDATE_SELECTION_BASIS,
-        "p2c_candidate_enumeration": search_provenance,
-        "p2c_candidate_count": enumeration.candidate_count,
+        "p2c_candidate_enumeration": {
+            "candidate_family": "MULTI_FAMILY_STRUCTURAL_SKELETON_V1",
+            "node_budget": placement_node_budget,
+            "visited_nodes": sum(row["visited_nodes"] for row in lane_reports),
+            "complete_candidates": p2c_candidate_count,
+            "node_budget_exhausted": node_budget_exhausted,
+            "search_tree_exhausted": tree_exhausted,
+            "family_lanes": lane_reports,
+            "node_budget_is_only_search_cutoff": True,
+            "global_optimum_claimed": False,
+        },
+        "p2c_candidate_count": p2c_candidate_count,
         "p2d_validated_candidate_count": p2d_validated_count,
         "p2d_full_pass_candidate_count": p2d_full_pass_count,
         "selected_candidate": selected,
-        "objective_optimal_within_search_family": (selected and enumeration.search_tree_exhausted),
+        "objective_optimal_within_search_family": selected and tree_exhausted,
         "route_objective_optimization_active": False,
         "p4_candidate_selection": False,
         "no_mathematical_infeasibility_proof": True,
@@ -157,8 +246,13 @@ def _selection_provenance(
 
 
 def _record_is_better(
-    candidate: tuple[dict[str, Any], dict[str, Any], StructuralQualityFactsV1],
-    best: tuple[dict[str, Any], dict[str, Any], StructuralQualityFactsV1] | None,
+    candidate: tuple[
+        dict[str, Any], dict[str, Any], StructuralQualityFactsV1, StructuralCompositionFamilyV1
+    ],
+    best: tuple[
+        dict[str, Any], dict[str, Any], StructuralQualityFactsV1, StructuralCompositionFamilyV1
+    ]
+    | None,
     preferred_loading_side: str,
 ) -> bool:
     if best is None:
@@ -172,6 +266,8 @@ def _record_is_better(
 
 _STRUCTURAL_COMPONENTS = (
     "STRUCTURED_GENERATION",
+    "MAIN_GROUP_ORDER_MONOTONIC",
+    "PROCESS_CORE_CONTIGUOUS",
     "COMPOSITION_FAMILY_MATCH",
     "RAW_SIDE_GROUPING",
     "PROCESSING_CORE_GROUPING",
@@ -180,8 +276,13 @@ _STRUCTURAL_COMPONENTS = (
     "PERSONNEL_GROUPING",
     "PROCESS_CORE_LEGIBILITY",
     "AUTHORITATIVE_SUPPORT_ROUTE_COUNT",
+    "SUPPORT_ATTACHMENT_SIDE_COUNT",
+    "SUPPORT_COMPONENT_COUNT",
     "SUPPORT_BRANCH_DIRECT_EDGE_COUNT",
+    "SUPPORT_OCCUPIED_CORE_FACES",
+    "CORE_EXPOSED_MAIN_FACES",
     "PERSONNEL_PERIPHERAL_BOUNDARY_CONTACTS",
+    "STORAGE_BANK_ALIGNMENT",
     "MAJOR_AXIS_ALIGNMENT_INCIDENCES",
     "DEPTH_ALIGNMENT_ELIGIBLE_PAIRS",
     "BUILDING_OUTLINE_CLASS",
@@ -189,13 +290,27 @@ _STRUCTURAL_COMPONENTS = (
 
 
 def _internal_selection_evaluation(
-    selected: tuple[dict[str, Any], dict[str, Any], StructuralQualityFactsV1],
-    alternatives: list[tuple[dict[str, Any], dict[str, Any], StructuralQualityFactsV1]],
+    selected: tuple[
+        dict[str, Any], dict[str, Any], StructuralQualityFactsV1, StructuralCompositionFamilyV1
+    ],
+    alternatives: list[
+        tuple[
+            dict[str, Any], dict[str, Any], StructuralQualityFactsV1, StructuralCompositionFamilyV1
+        ]
+    ],
     *,
-    family: StructuralCompositionFamilyV1,
     structured_candidate_count: int,
     fallback_candidate_count: int,
     p2b2_tiebreak_used: bool,
+    lane_reports: list[dict[str, Any]],
+    full_pass_records: list[
+        tuple[
+            dict[str, Any],
+            dict[str, Any],
+            StructuralQualityFactsV1,
+            StructuralCompositionFamilyV1,
+        ]
+    ],
 ) -> dict[str, Any]:
     selected_facts = selected[2]
     runner_up = alternatives[0] if alternatives else None
@@ -220,7 +335,7 @@ def _internal_selection_evaluation(
     return {
         "identity": "p1a-structural-candidate-selection-evaluation@1.0.0",
         "selection_basis": P2C_CANDIDATE_SELECTION_BASIS,
-        "selected_composition_family": family.to_dict(),
+        "selected_composition_family": selected[3].to_dict(),
         "selected_candidate_hash": selected[0].get("canonical_candidate_hash"),
         "selected_p2d_result_hash": selected[1].get("canonical_result_hash"),
         "selected_structural_facts": selected_payload,
@@ -239,6 +354,10 @@ def _internal_selection_evaluation(
         "hard_feasibility_passed": True,
         "comparison_mode": "LEXICOGRAPHIC_ATOMIC_FACTS",
         "route_objective_optimization_active": False,
+        "family_lanes": lane_reports,
+        "distinct_full_pass_family_count": len(
+            {canonical_json(record[3].to_dict()) for record in full_pass_records}
+        ),
     }
 
 
@@ -261,14 +380,6 @@ def select_validated_placement(
     P2C search is bounded before a full pass is found, the result remains an
     explicit search-exhaustion result rather than an infeasibility proof.
     """
-    enumeration = enumerate_placement_candidates(
-        canonical_zone_plan,
-        p1_handoff,
-        site_geometry,
-        objective_profile,
-        node_budget=placement_node_budget,
-        complete_candidate_limit=complete_candidate_limit,
-    )
     site_body = site_geometry.to_dict()
     site = site_body.get("site")
     if not isinstance(site, Mapping) or not isinstance(site.get("preferred_loading_side"), str):
@@ -278,56 +389,171 @@ def select_validated_placement(
     trace: list[dict[str, Any]] = []
     p2d_validated_count = 0
     p2d_full_pass_count = 0
-    full_pass_records: list[tuple[dict[str, Any], dict[str, Any], StructuralQualityFactsV1]] = []
-    family = getattr(enumeration, "structural_composition_family", None)
-    if not isinstance(family, StructuralCompositionFamilyV1):
-        raise _error("STRUCTURAL_COMPOSITION_FAMILY_UNAVAILABLE")
-    structural_flag_getter = getattr(enumeration, "structurally_generated", None)
-
-    for candidate_index, candidate in enumerate(enumeration.iter_candidates(), start=1):
-        candidate_body = candidate.to_dict()
-        routed = route_site_placement(
-            canonical_zone_plan,
-            p1_handoff,
-            site_geometry,
-            candidate,
-            truck_maneuver_binding,
-            route_node_budget=route_node_budget,
-            truck_node_budget=truck_node_budget,
+    full_pass_records: list[
+        tuple[
+            dict[str, Any], dict[str, Any], StructuralQualityFactsV1, StructuralCompositionFamilyV1
+        ]
+    ] = []
+    lane_reports: list[dict[str, Any]] = []
+    family_lanes = composition_family_candidates(site_body)
+    preferred_family = _preferred_family_from_handoff(site_body, p1_handoff)
+    if preferred_family is not None:
+        preferred_match = next(
+            (family for family in family_lanes if family.to_dict() == preferred_family.to_dict()),
+            None,
         )
-        p2d_validated_count += 1
-        routed_body = routed.to_dict()
-        full_pass = (
-            routed_body.get("project_layout_validated") is True
-            and routed_body.get("p2_complete") is True
-        )
-        trace.append(_p2d_trace_row(candidate_index, candidate_body, p2d_body=routed_body))
-        if not full_pass:
-            continue
-        p2d_full_pass_count += 1
-        candidate_hash = candidate_body.get("canonical_candidate_hash")
-        structurally_generated = bool(
-            structural_flag_getter(candidate_hash)
-            if callable(structural_flag_getter) and isinstance(candidate_hash, str)
-            else False
-        )
-        try:
-            structural_facts = build_structural_quality_facts(
-                candidate_body,
-                routed_body,
-                site_body,
-                family,
-                structurally_generated=structurally_generated,
+        if preferred_match is not None:
+            family_lanes = (
+                preferred_match,
+                *(family for family in family_lanes if family is not preferred_match),
             )
-        except (KeyError, TypeError, ValueError) as exc:
-            raise _error(
-                "STRUCTURAL_QUALITY_FACTS_UNAVAILABLE",
-                candidate_index=candidate_index,
-                reason=type(exc).__name__,
-            ) from None
-        full_pass_records.append((candidate_body, routed_body, structural_facts))
+    lane_budgets = _family_lane_budgets(placement_node_budget, len(family_lanes))
+    p2c_candidate_count = 0
+    candidate_index = 0
 
-    best_record: tuple[dict[str, Any], dict[str, Any], StructuralQualityFactsV1] | None = None
+    for family, lane_budget in zip(family_lanes, lane_budgets, strict=True):
+        structured_budget, fallback_budget = _lane_budget_split(lane_budget)
+        lane_seen_geometry: set[str] = set()
+        lane_full_pass_count = 0
+        lane_report: dict[str, Any] = {
+            "composition_family": family.to_dict(),
+            "preferred_lane": preferred_family is not None
+            and family.to_dict() == preferred_family.to_dict(),
+            "lane_node_budget": lane_budget,
+            "structured_node_budget": structured_budget,
+            "fallback_node_budget": fallback_budget,
+            "phases": [],
+            "p2d_full_pass_candidate_count": 0,
+            "p2d_rejected_candidate_count": 0,
+            "p2d_rejection_warnings": [],
+        }
+
+        phase_budgets = [(STRUCTURED_PHASE, structured_budget)]
+        if fallback_budget:
+            phase_budgets.append((GENERAL_FALLBACK_PHASE, fallback_budget))
+
+        for phase, phase_budget in phase_budgets:
+            if phase == GENERAL_FALLBACK_PHASE and lane_full_pass_count:
+                break
+            enumeration = enumerate_placement_candidates(
+                canonical_zone_plan,
+                p1_handoff,
+                site_geometry,
+                objective_profile,
+                node_budget=phase_budget,
+                complete_candidate_limit=complete_candidate_limit,
+                structural_family=family,
+                search_phase=phase,
+            )
+            phase_full_pass_count = 0
+            phase_rejected_count = 0
+            phase_candidate_count = 0
+            structural_flag_getter = getattr(enumeration, "structurally_generated", None)
+            for candidate in enumeration.iter_candidates():
+                candidate_body = candidate.to_dict()
+                geometry_signature = _placement_geometry_signature(candidate_body)
+                if geometry_signature in lane_seen_geometry:
+                    continue
+                lane_seen_geometry.add(geometry_signature)
+                phase_candidate_count += 1
+                p2c_candidate_count += 1
+                candidate_index += 1
+                routed = route_site_placement(
+                    canonical_zone_plan,
+                    p1_handoff,
+                    site_geometry,
+                    candidate,
+                    truck_maneuver_binding,
+                    route_node_budget=route_node_budget,
+                    truck_node_budget=truck_node_budget,
+                )
+                p2d_validated_count += 1
+                routed_body = routed.to_dict()
+                full_pass = (
+                    routed_body.get("project_layout_validated") is True
+                    and routed_body.get("p2_complete") is True
+                )
+                trace.append(_p2d_trace_row(candidate_index, candidate_body, p2d_body=routed_body))
+                if not full_pass:
+                    phase_rejected_count += 1
+                    for warning in routed_body.get("warnings", []):
+                        if (
+                            isinstance(warning, str)
+                            and warning not in lane_report["p2d_rejection_warnings"]
+                        ):
+                            lane_report["p2d_rejection_warnings"].append(warning)
+                    continue
+                phase_full_pass_count += 1
+                lane_full_pass_count += 1
+                p2d_full_pass_count += 1
+                candidate_hash = candidate_body.get("canonical_candidate_hash")
+                structurally_generated = bool(
+                    phase == STRUCTURED_PHASE
+                    and callable(structural_flag_getter)
+                    and isinstance(candidate_hash, str)
+                    and structural_flag_getter(candidate_hash)
+                )
+                try:
+                    structural_facts = build_structural_quality_facts(
+                        candidate_body,
+                        routed_body,
+                        site_body,
+                        family,
+                        structurally_generated=structurally_generated,
+                        search_phase=phase,
+                    )
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise _error(
+                        "STRUCTURAL_QUALITY_FACTS_UNAVAILABLE",
+                        candidate_index=candidate_index,
+                        reason=type(exc).__name__,
+                    ) from None
+                full_pass_records.append((candidate_body, routed_body, structural_facts, family))
+
+            lane_report["phases"].append(
+                {
+                    "search_phase": phase,
+                    "node_budget": phase_budget,
+                    "visited_nodes": enumeration.visited_node_count,
+                    "complete_candidates": enumeration.candidate_count,
+                    "distinct_main_process_skeleton_count": int(
+                        getattr(enumeration, "distinct_main_process_skeleton_count", 0)
+                    ),
+                    "distinct_structural_core_root_count": int(
+                        getattr(enumeration, "distinct_structural_core_root_count", 0)
+                    ),
+                    "validated_unique_candidates": phase_candidate_count,
+                    "p2d_rejected_candidate_count": phase_rejected_count,
+                    "p2d_full_pass_candidate_count": phase_full_pass_count,
+                    "node_budget_exhausted": enumeration.node_budget_exhausted,
+                    "search_tree_exhausted": enumeration.search_tree_exhausted,
+                }
+            )
+            if phase == GENERAL_FALLBACK_PHASE and lane_full_pass_count == 0:
+                break
+
+        lane_report["p2d_full_pass_candidate_count"] = lane_full_pass_count
+        lane_report["p2d_rejected_candidate_count"] = sum(
+            row["p2d_rejected_candidate_count"] for row in lane_report["phases"]
+        )
+        lane_report["visited_nodes"] = sum(row["visited_nodes"] for row in lane_report["phases"])
+        lane_report["complete_candidates"] = sum(
+            row["complete_candidates"] for row in lane_report["phases"]
+        )
+        lane_report["node_budget_exhausted"] = any(
+            row["node_budget_exhausted"] for row in lane_report["phases"]
+        )
+        lane_report["search_tree_exhausted"] = all(
+            row["search_tree_exhausted"] for row in lane_report["phases"]
+        )
+        lane_reports.append(lane_report)
+
+    best_record: (
+        tuple[
+            dict[str, Any], dict[str, Any], StructuralQualityFactsV1, StructuralCompositionFamilyV1
+        ]
+        | None
+    ) = None
     for record in full_pass_records:
         if _record_is_better(record, best_record, preferred_loading_side):
             best_record = record
@@ -339,17 +565,21 @@ def select_validated_placement(
     fallback_candidate_count = len(full_pass_records) - structured_candidate_count
 
     provenance = _selection_provenance(
-        enumeration,
+        lane_reports,
+        placement_node_budget=placement_node_budget,
+        p2c_candidate_count=p2c_candidate_count,
         p2d_validated_count=p2d_validated_count,
         p2d_full_pass_count=p2d_full_pass_count,
         selected=best_record is not None,
     )
+    search_provenance = provenance["p2c_candidate_enumeration"]
     if best_record is None:
+        budget_exhausted = search_provenance["node_budget_exhausted"] is True
         warnings = [
             (
                 "P2C candidate search budget exhausted before a P2D-full-pass placement was found; "
                 "this is not a mathematical infeasibility proof."
-                if enumeration.node_budget_exhausted
+                if budget_exhausted
                 else "No P2D-full-pass candidate was found in the exhausted deterministic P2C "
                 "candidate family; this is not a mathematical infeasibility proof."
             )
@@ -363,12 +593,12 @@ def select_validated_placement(
             "selected_layout": None,
             "selected_p2c_candidate_hash": None,
             "selected_p2d_result_hash": None,
-            "p2c_candidate_count": enumeration.candidate_count,
+            "p2c_candidate_count": p2c_candidate_count,
             "p2d_validated_candidate_count": p2d_validated_count,
             "p2d_full_pass_candidate_count": p2d_full_pass_count,
             "candidate_validation_trace": trace,
             "selection_provenance": provenance,
-            "search_provenance": enumeration.provenance,
+            "search_provenance": search_provenance,
             "warnings": warnings,
             "route_objective_optimization_active": False,
             "project_layout_validated": False,
@@ -381,18 +611,29 @@ def select_validated_placement(
             {
                 "identity": "p1a-structural-candidate-selection-evaluation@1.0.0",
                 "selected": False,
-                "selected_composition_family": family.to_dict(),
+                "selected_composition_family": None,
+                "family_lanes": lane_reports,
                 "structural_candidate_count": 0,
                 "fallback_candidate_count": 0,
                 "hard_feasibility_passed": False,
                 "comparison_mode": "LEXICOGRAPHIC_ATOMIC_FACTS",
+                "distinct_full_pass_family_count": 0,
             },
         )
 
     assert best_record is not None
-    best_candidate_body, best_routed_body, _ = best_record
-    alternatives: list[tuple[dict[str, Any], dict[str, Any], StructuralQualityFactsV1]] = []
-    runner_up: tuple[dict[str, Any], dict[str, Any], StructuralQualityFactsV1] | None = None
+    best_candidate_body, best_routed_body, _, _ = best_record
+    alternatives: list[
+        tuple[
+            dict[str, Any], dict[str, Any], StructuralQualityFactsV1, StructuralCompositionFamilyV1
+        ]
+    ] = []
+    runner_up: (
+        tuple[
+            dict[str, Any], dict[str, Any], StructuralQualityFactsV1, StructuralCompositionFamilyV1
+        ]
+        | None
+    ) = None
     for record in full_pass_records:
         if record is best_record:
             continue
@@ -408,10 +649,11 @@ def select_validated_placement(
     internal_evaluation = _internal_selection_evaluation(
         best_record,
         alternatives,
-        family=family,
         structured_candidate_count=structured_candidate_count,
         fallback_candidate_count=fallback_candidate_count,
         p2b2_tiebreak_used=p2b2_tiebreak_used,
+        lane_reports=lane_reports,
+        full_pass_records=full_pass_records,
     )
     payload = {
         "identity": IDENTITY,
@@ -422,17 +664,17 @@ def select_validated_placement(
         "selected_layout": best_routed_body,
         "selected_p2c_candidate_hash": best_candidate_body.get("canonical_candidate_hash"),
         "selected_p2d_result_hash": best_routed_body.get("canonical_result_hash"),
-        "p2c_candidate_count": enumeration.candidate_count,
+        "p2c_candidate_count": p2c_candidate_count,
         "p2d_validated_candidate_count": p2d_validated_count,
         "p2d_full_pass_candidate_count": p2d_full_pass_count,
         "candidate_validation_trace": trace,
         "selection_provenance": provenance,
-        "search_provenance": enumeration.provenance,
+        "search_provenance": search_provenance,
         "warnings": [
             (
                 "Selected the highest-ranked P2C candidate among P2D-full-pass candidates "
                 "within the exhausted deterministic candidate family."
-                if enumeration.search_tree_exhausted
+                if search_provenance["search_tree_exhausted"]
                 else "Selected the highest-ranked P2C candidate among deterministically "
                 "explored P2D-full-pass candidates; the search-family optimum is not proven."
             )
