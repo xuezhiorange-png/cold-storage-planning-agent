@@ -22,6 +22,9 @@ from cold_storage.modules.layout.domain.dimensioning import (
     canonical_hash,
     canonical_json,
 )
+from cold_storage.modules.layout.domain.main_process_skeleton import (
+    MainProcessSkeletonCandidateV1,
+)
 from cold_storage.modules.layout.domain.objective_profile import (
     CARDINAL_LOADING_SIDE_METRIC,
     LOADING_SIDE_PREFERENCE,
@@ -44,6 +47,24 @@ from cold_storage.modules.layout.domain.site_geometry import (
     rectangles_share_positive_edge,
     segments_share_positive_length,
 )
+from cold_storage.modules.layout.domain.structural_composition import (
+    CENTRAL_PROCESS_HUB,
+    FINISHED_SIDE_GROUP,
+    FUNCTIONAL_GROUPS,
+    MAIN_PROCESS_SKELETON_ZONE_CODES,
+    MAIN_PROCESS_ZONE_CODES,
+    OFFSET_LINEAR_BAND,
+    PROCESSING_CORE_GROUP,
+    RAW_SIDE_GROUP,
+    STRAIGHT_LINEAR_BAND,
+    SUPPORT_GROUP,
+    StructuralCompositionFamilyV1,
+    StructuralSkeletonV1,
+    functional_group_for_zone,
+    select_structural_composition_family,
+    structural_anchor_references,
+    structural_skeleton_candidates,
+)
 
 IDENTITY: Final = "site-constrained-deterministic-placement@1.0.0"
 PLACEMENT_RESULT_IDENTITY: Final = "site_constrained_factory_layout@1.0.0"
@@ -52,10 +73,34 @@ SEARCH_PROFILE_IDENTITY: Final = "deterministic-placement-search@1.0.0"
 GRID_MM: Final = 1
 DEFAULT_NODE_BUDGET: Final = 50_000
 MAX_OPTIONS_PER_ZONE: Final = 48
+STRUCTURED_MAX_OPTIONS_PER_ZONE: Final = 6
+STRUCTURED_PHASE: Final = "STRUCTURED"
+GENERAL_FALLBACK_PHASE: Final = "GENERAL_FALLBACK"
+LEGACY_COMPAT_PHASE: Final = "LEGACY_COMPAT"
+# Bound the tail search under one already placed main-process skeleton so the
+# deterministic node budget reaches distinct process arrangements before it
+# is consumed by office/support permutations. A small fixed sample preserves
+# P2D-relevant personnel/support alternatives (notably truck-clear storage
+# positions) without treating those variations as new process skeletons.
+STRUCTURED_COMPLETIONS_PER_MAIN_SKELETON: Final = 2
+# Bound the tail search under a core root, but preserve a small set of
+# personnel/support variants for P2D to evaluate against its unchanged access,
+# truck, and single-building-footprint authorities.
+STRUCTURED_COMPLETIONS_PER_CORE_ROOT: Final = 4
+MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE: Final = 15
+CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT: Final = 2
+STRUCTURED_SKELETON_CONSTRUCTION_SHARE_NUMERATOR: Final = 1
+STRUCTURED_SKELETON_CONSTRUCTION_SHARE_DENOMINATOR: Final = 2
+CONSTRUCTIVE_FACE_PAIR_NODE_BUDGET: Final = 20
+CONSTRUCTIVE_SORTING_ROOT_NODE_BUDGET: Final = 16
+_CARDINAL_SIDES: Final = ("WEST", "EAST", "SOUTH", "NORTH")
+_OPPOSITE_SIDE: Final = {"WEST": "EAST", "EAST": "WEST", "SOUTH": "NORTH", "NORTH": "SOUTH"}
 
-# This is a constrained-first technical search order, not an objective order.
-# Every hard process edge is introduced after its predecessor, and office is
-# introduced after shipping so its separate MUST edge can be enforced.
+# Group -> band -> zone order: first the authoritative main process, then the
+# peripheral personnel interface whose main-entrance access is frozen, then
+# local support branches. The complete process skeleton is constructed and
+# frozen before either tail group is searched; this ordering only reserves
+# access-critical perimeter geometry before support occupies remaining faces.
 PLACEMENT_ZONE_ORDER: Final = (
     "raw_fruit_buffer",
     "primary_precooling_room",
@@ -64,13 +109,51 @@ PLACEMENT_ZONE_ORDER: Final = (
     "coating_room",
     "finished_goods_room",
     "shipping_channel",
-    "office",
     "changing_room",
+    "office",
     "packaging_material_storage",
     "secondary_fruit_buffer",
     "frozen_fruit_room",
 )
+STRUCTURED_PLACEMENT_ZONE_ORDER: Final = (
+    "sorting_packaging_room",
+    "primary_precooling_room",
+    "raw_fruit_buffer",
+    "secondary_precooling_room",
+    # Place the dimensioned transition room first so the flexible coating
+    # room can bridge the actual P2C core interfaces instead of guessing a
+    # future secondary-precooling rectangle.
+    "coating_room",
+    "finished_goods_room",
+    "shipping_channel",
+    # The process skeleton is already immutable. Place personnel/access tails
+    # before support so peripheral support cannot consume their feasible access
+    # corridor; neither tail can move any main-process rectangle.
+    "changing_room",
+    "office",
+    "packaging_material_storage",
+    "frozen_fruit_room",
+    "secondary_fruit_buffer",
+)
+LINEAR_STRUCTURED_PLACEMENT_ZONE_ORDER: Final = (
+    # A linear lane starts at the raw-side band and grows toward the core and
+    # finished side. This is a different search skeleton from the hub lane,
+    # not merely another sort order for the same root-first search.
+    "raw_fruit_buffer",
+    "primary_precooling_room",
+    "sorting_packaging_room",
+    "secondary_precooling_room",
+    "coating_room",
+    "finished_goods_room",
+    "shipping_channel",
+    "changing_room",
+    "office",
+    "packaging_material_storage",
+    "frozen_fruit_room",
+    "secondary_fruit_buffer",
+)
 FLEXIBLE_ZONE_CODES: Final = ("coating_room", "changing_room", "office")
+SUPPORT_ZONE_CODES: Final = FUNCTIONAL_GROUPS[SUPPORT_GROUP]
 
 
 @dataclass(frozen=True)
@@ -295,6 +378,162 @@ def _edge_anchors(
     return tuple(sorted(anchors))
 
 
+def _finished_anchors_for_truck_interface(
+    shipping_authority: Mapping[str, Any],
+    truck_entrance: SegmentMM,
+    boundary: PolygonMM,
+    finished_width_mm: int,
+    finished_depth_mm: int,
+) -> tuple[tuple[int, int], ...]:
+    """Derive finished-room anchors that can share the truck-side shipping zone."""
+    anchors: set[tuple[int, int]] = set()
+    for width_mm, depth_mm, rotation in _dimension_variants(shipping_authority, {}, boundary):
+        shipping_width, shipping_depth = (
+            (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
+        )
+        for x_mm, y_mm in _entrance_anchors(truck_entrance, shipping_width, shipping_depth):
+            truck_side_shipping = _rectangle_from_mm(
+                "shipping_channel",
+                x_mm,
+                y_mm,
+                width_mm,
+                depth_mm,
+                rotation,
+            )
+            anchors.update(_edge_anchors(truck_side_shipping, finished_width_mm, finished_depth_mm))
+    return tuple(sorted(anchors))
+
+
+def _minimum_authoritative_axis_extent(
+    context: _PlacementSearchContext, zone_code: str, axis: str
+) -> int:
+    """Return a deterministic lower extent from existing dimension variants."""
+    variants = _dimension_variants(context.authorities[zone_code], {}, context.boundary)
+    extents = [
+        (depth if rotation == 90 else width)
+        if axis == "X"
+        else (width if rotation == 90 else depth)
+        for width, depth, rotation in variants
+    ]
+    return min(extents) if extents else 0
+
+
+def _topology_root_ordering_penalty(
+    context: _PlacementSearchContext, rectangle: PlacedRectangleV1
+) -> int:
+    """Rank roots by a coarse complete-topology envelope; never prune roots.
+
+    Extents are derived from existing authoritative dimension variants. The
+    buildable polygon and obstacle constraints remain checked only by the
+    exact placement predicates. This estimate is deliberately ordering-only.
+    """
+    family = context.structural_composition_family
+    bounds = _bounds(rectangle)
+    axis = context.structural_skeleton.ordering_axis
+    low, high = (0, 2) if axis == "X" else (1, 3)
+    site_low, site_high = context.boundary_bounds[low], context.boundary_bounds[high]
+
+    if context.structural_topology in {STRAIGHT_LINEAR_BAND, OFFSET_LINEAR_BAND}:
+        upstream = max(
+            _minimum_authoritative_axis_extent(context, code, axis)
+            for code in ("raw_fruit_buffer", "primary_precooling_room")
+        )
+        downstream = max(
+            _minimum_authoritative_axis_extent(context, code, axis)
+            for code in (
+                "secondary_precooling_room",
+                "coating_room",
+                "finished_goods_room",
+                "shipping_channel",
+            )
+        )
+        if family.dominant_direction == "POSITIVE":
+            upstream_available = bounds[low] - site_low
+            downstream_available = site_high - bounds[high]
+        else:
+            upstream_available = site_high - bounds[high]
+            downstream_available = bounds[low] - site_low
+        return max(0, upstream - upstream_available) + max(0, downstream - downstream_available)
+
+    # For the hub, estimate required reach independently on each selected
+    # face-pair. Choose the least-penalty pairing for ordering, without
+    # rejecting a root based on this coarse rectangle-only estimate.
+    penalty_options: list[int] = []
+    for raw_side, finished_side in _family_attachment_sides(family):
+        penalty = 0
+        for side, codes in (
+            (raw_side, ("raw_fruit_buffer", "primary_precooling_room")),
+            (
+                finished_side,
+                (
+                    "secondary_precooling_room",
+                    "coating_room",
+                    "finished_goods_room",
+                    "shipping_channel",
+                ),
+            ),
+        ):
+            measure_axis = "X" if side in {"WEST", "EAST"} else "Y"
+            minimum_extent = max(
+                _minimum_authoritative_axis_extent(context, code, measure_axis) for code in codes
+            )
+            measure_low, measure_high = (0, 2) if measure_axis == "X" else (1, 3)
+            if side in {"WEST", "SOUTH"}:
+                available = bounds[measure_low] - context.boundary_bounds[measure_low]
+            else:
+                available = context.boundary_bounds[measure_high] - bounds[measure_high]
+            penalty += max(0, minimum_extent - available)
+        penalty_options.append(penalty)
+    return min(penalty_options, default=0)
+
+
+def _central_core_bridge_anchors(
+    sorting: PlacedRectangleV1,
+    secondary_authority: Mapping[str, Any],
+    *,
+    candidate_width_mm: int,
+    candidate_depth_mm: int,
+    candidate_rotation: int,
+    ordering_axis: str,
+    boundary: PolygonMM,
+) -> tuple[tuple[int, int], ...]:
+    """Align the flexible coating core with a dimensioned secondary interface."""
+    sort_left, sort_bottom, sort_right, sort_top = _bounds(sorting)
+    candidate_x_extent, candidate_y_extent = (
+        (candidate_depth_mm, candidate_width_mm)
+        if candidate_rotation == 90
+        else (candidate_width_mm, candidate_depth_mm)
+    )
+    secondary_extents: set[int] = set()
+    for width_mm, depth_mm, rotation in _dimension_variants(secondary_authority, {}, boundary):
+        actual_x, actual_y = (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
+        secondary_extents.add(actual_x if ordering_axis == "X" else actual_y)
+
+    anchors: set[tuple[int, int]] = set()
+    for secondary_extent in secondary_extents:
+        if ordering_axis == "Y":
+            candidate_y_positions = (
+                sort_top + secondary_extent - candidate_y_extent,
+                sort_bottom - secondary_extent,
+            )
+            anchors.update(
+                (x, y)
+                for y in candidate_y_positions
+                for x in (sort_left - candidate_x_extent, sort_right)
+            )
+        else:
+            candidate_x_positions = (
+                sort_right + secondary_extent - candidate_x_extent,
+                sort_left - secondary_extent,
+            )
+            anchors.update(
+                (x, y)
+                for x in candidate_x_positions
+                for y in (sort_bottom - candidate_y_extent, sort_top)
+            )
+    return tuple(sorted(anchors))
+
+
 def _free_anchors(
     placed: Mapping[str, PlacedRectangleV1],
     boundary: PolygonMM,
@@ -310,8 +549,11 @@ def _free_anchors(
         ys.update({point[1], point[1] - depth_mm})
     for polygon in obstacles:
         for point in polygon:
-            xs.update({point[0], point[0] - width_mm, point[0] + 1})
-            ys.update({point[1], point[1] - depth_mm, point[1] + 1})
+            # Obstacles are closed. Add exact one-grid-unit inboard anchors so
+            # a structured band can preserve a deterministic clearance while
+            # sharing the next legal site line.
+            xs.update({point[0], point[0] - width_mm, point[0] - width_mm - 1, point[0] + 1})
+            ys.update({point[1], point[1] - depth_mm, point[1] - depth_mm - 1, point[1] + 1})
     anchors: set[tuple[int, int]] = {(x, y) for x in xs for y in ys}
     for rectangle in placed.values():
         left, bottom, right, top = _bounds(rectangle)
@@ -319,6 +561,41 @@ def _free_anchors(
         ys.update({bottom - depth_mm, bottom, top - depth_mm, top})
         anchors.update(_edge_anchors(rectangle, width_mm, depth_mm))
     anchors.update((x, y) for x in xs for y in ys)
+    return tuple(sorted(anchors))
+
+
+def _structural_event_anchors(
+    placed: Mapping[str, PlacedRectangleV1],
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+    width_mm: int,
+    depth_mm: int,
+) -> tuple[tuple[int, int], ...]:
+    """Return bounded geometry-event anchors without a Cartesian free-grid."""
+    anchors: set[tuple[int, int]] = set()
+    for x, y in boundary:
+        anchors.update(
+            {
+                (x, y),
+                (x - width_mm, y),
+                (x, y - depth_mm),
+                (x - width_mm, y - depth_mm),
+            }
+        )
+    for rectangle in placed.values():
+        anchors.update(_edge_anchors(rectangle, width_mm, depth_mm))
+    for polygon in obstacles:
+        for x, y in polygon:
+            anchors.update(
+                {
+                    (x - width_mm - 1, y),
+                    (x + 1, y),
+                    (x, y - depth_mm - 1),
+                    (x, y + 1),
+                    (x - width_mm - 1, y - depth_mm - 1),
+                    (x + 1, y + 1),
+                }
+            )
     return tuple(sorted(anchors))
 
 
@@ -370,6 +647,17 @@ def _rectangle_is_usable(
     return not any(rectangles_overlap(rectangle, other) for other in placed.values())
 
 
+def _rectangle_shares_entrance_boundary(rectangle: PlacedRectangleV1, entrance: SegmentMM) -> bool:
+    left, bottom, right, top = _bounds(rectangle)
+    edges = (
+        ((left, bottom), (right, bottom)),
+        ((right, bottom), (right, top)),
+        ((right, top), (left, top)),
+        ((left, top), (left, bottom)),
+    )
+    return any(segments_share_positive_length(*edge, *entrance) for edge in edges)
+
+
 def _candidate_options(
     code: str,
     authority: Mapping[str, Any],
@@ -378,50 +666,1068 @@ def _candidate_options(
     boundary_bounds: tuple[int, int, int, int],
     obstacles: Sequence[PolygonMM],
     graph: AdjacencyGraphV1,
+    structural_family: StructuralCompositionFamilyV1,
+    main_entrance: SegmentMM,
+    *,
+    search_phase: str = LEGACY_COMPAT_PHASE,
+    structural_skeleton: StructuralSkeletonV1 | None = None,
+    zone_authorities: Mapping[str, Mapping[str, Any]] | None = None,
+    truck_entrance: SegmentMM | None = None,
 ) -> tuple[PlacedRectangleV1, ...]:
     variants = _dimension_variants(authority, placed, boundary)
     options: dict[tuple[int, int, int, int, int], PlacedRectangleV1] = {}
+    must_neighbors = _must_neighbors(code, placed, graph)
+    structural_refs = structural_anchor_references(code, tuple(placed))
+    structural_neighbors = tuple(placed[reference] for reference in structural_refs)
+    prioritized_bridge_keys: set[tuple[int, int, int, int, int]] = set()
+    prioritized_truck_finished_keys: set[tuple[int, int, int, int, int]] = set()
     for width_mm, depth_mm, rotation in variants:
-        neighbors = _must_neighbors(code, placed, graph)
         anchor_width_mm, anchor_depth_mm = (
             (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
         )
-        anchors = (
-            tuple(
-                sorted(
-                    {
-                        anchor
-                        for neighbor in neighbors
-                        for anchor in _edge_anchors(neighbor, anchor_width_mm, anchor_depth_mm)
-                    }
+        if search_phase == STRUCTURED_PHASE:
+            legacy_anchors: set[tuple[int, int]] = set()
+        elif must_neighbors:
+            legacy_anchors = {
+                anchor
+                for neighbor in must_neighbors
+                for anchor in _edge_anchors(neighbor, anchor_width_mm, anchor_depth_mm)
+            }
+        else:
+            legacy_anchors = set(
+                _free_anchors(placed, boundary, obstacles, anchor_width_mm, anchor_depth_mm)
+            )
+        structural_anchor_neighbors = tuple(
+            {
+                neighbor.zone_code: neighbor
+                for neighbor in (*must_neighbors, *structural_neighbors)
+            }.values()
+        )
+        if structural_anchor_neighbors:
+            structural_anchors = {
+                anchor
+                for neighbor in structural_anchor_neighbors
+                for anchor in _edge_anchors(neighbor, anchor_width_mm, anchor_depth_mm)
+            }
+        else:
+            structural_anchors = set()
+        if code == "raw_fruit_buffer":
+            # The first raw-side zone has no earlier room anchor; its
+            # structured skeleton roots only at exact buildable-boundary
+            # anchors, never at the unrestricted legacy site cross-product.
+            structural_anchors.update(
+                _structural_event_anchors(
+                    placed, boundary, obstacles, anchor_width_mm, anchor_depth_mm
                 )
             )
-            if neighbors
-            else _free_anchors(placed, boundary, obstacles, anchor_width_mm, anchor_depth_mm)
+        if code in SUPPORT_ZONE_CODES and search_phase == STRUCTURED_PHASE:
+            # Keep support placement within the skeleton search while also
+            # admitting exact site/obstacle event positions. A support room
+            # can remain edge-attached to the process core at more than one
+            # longitudinal offset; using only the room-edge-aligned anchor
+            # can hide hard-valid peripheral placements from P2D.
+            structural_anchors.update(
+                _structural_event_anchors(
+                    placed, boundary, obstacles, anchor_width_mm, anchor_depth_mm
+                )
+            )
+        if code == "sorting_packaging_room" and not placed:
+            if search_phase == STRUCTURED_PHASE and structural_skeleton is not None:
+                structural_anchors.update(
+                    (_mm(x, field="skeleton_root.x"), _mm(y, field="skeleton_root.y"))
+                    for x, y, root_rotation in structural_skeleton.root_anchor_candidates
+                    if root_rotation == rotation and x >= 0 and y >= 0
+                )
+                # Root the family at the site's exact boundary/obstacle events
+                # as well as the canonical group-derived starts. This is a
+                # bounded structural skeleton search, not a legacy free-grid:
+                # every admitted room still passes the exact site/no-build
+                # predicates and the downstream group-band constraints.
+                structural_anchors.update(
+                    _structural_event_anchors(
+                        placed, boundary, obstacles, anchor_width_mm, anchor_depth_mm
+                    )
+                )
+            else:
+                structural_anchors.update(
+                    _free_anchors(placed, boundary, obstacles, anchor_width_mm, anchor_depth_mm)
+                )
+        if (
+            code
+            in {
+                "coating_room",
+                "secondary_precooling_room",
+                "primary_precooling_room",
+            }
+            and placed
+        ):
+            # Main-flow zones may need to slide along an authoritative shared
+            # edge to clear another already-placed process room or a site
+            # obstacle. These are bounded geometry-event anchors; mandatory
+            # adjacency and the skeleton region predicate below still decide
+            # whether a candidate is admitted. They are not legacy free-form
+            # options and are never mixed into the structured phase by union.
+            structural_anchors.update(
+                _structural_event_anchors(
+                    placed, boundary, obstacles, anchor_width_mm, anchor_depth_mm
+                )
+            )
+        if (
+            code == "coating_room"
+            and search_phase == STRUCTURED_PHASE
+            and structural_family.family == "CENTRAL_PROCESS_HUB"
+            and structural_skeleton is not None
+            and "sorting_packaging_room" in placed
+        ):
+            secondary_authority = (
+                zone_authorities.get("secondary_precooling_room")
+                if zone_authorities is not None
+                else None
+            )
+            if isinstance(secondary_authority, Mapping):
+                bridge_anchors = _central_core_bridge_anchors(
+                    placed["sorting_packaging_room"],
+                    secondary_authority,
+                    candidate_width_mm=width_mm,
+                    candidate_depth_mm=depth_mm,
+                    candidate_rotation=rotation,
+                    ordering_axis=structural_skeleton.ordering_axis,
+                    boundary=boundary,
+                )
+                structural_anchors.update(bridge_anchors)
+                prioritized_bridge_keys.update(
+                    (x_mm, y_mm, width_mm, depth_mm, rotation) for x_mm, y_mm in bridge_anchors
+                )
+        if code == "changing_room":
+            entrance_anchors = _entrance_anchors(main_entrance, anchor_width_mm, anchor_depth_mm)
+            structural_anchors.update(entrance_anchors)
+            sorting = placed.get("sorting_packaging_room")
+            if sorting is not None:
+                core_edge_anchors = _edge_anchors(sorting, anchor_width_mm, anchor_depth_mm)
+                # Combine exact entrance-aligned X events with exact core-edge
+                # Y events (and vice versa) so a personnel room can bridge
+                # both authorities without moving either geometry.
+                structural_anchors.update(
+                    (entrance_x, core_y)
+                    for entrance_x, _entrance_y in entrance_anchors
+                    for _core_x, core_y in core_edge_anchors
+                )
+                structural_anchors.update(
+                    (core_x, entrance_y)
+                    for _entrance_x, entrance_y in entrance_anchors
+                    for core_x, _core_y in core_edge_anchors
+                )
+        if code == "shipping_channel" and truck_entrance is not None:
+            approach_anchors = _entrance_anchors(truck_entrance, anchor_width_mm, anchor_depth_mm)
+            structural_anchors.update(approach_anchors)
+            if search_phase == STRUCTURED_PHASE:
+                # Intersect the exact truck-entrance alignment events with
+                # the already-placed finished-goods edge events. This lets
+                # P2D evaluate a shipping interface that is both P2C-adjacent
+                # and entrance-aligned without P2C consuming maneuver poses
+                # or computing truck routes.
+                finished_edge_anchors = {
+                    anchor
+                    for neighbor in (*must_neighbors, *structural_neighbors)
+                    for anchor in _edge_anchors(neighbor, anchor_width_mm, anchor_depth_mm)
+                }
+                structural_anchors.update(
+                    (edge_x, entrance_y)
+                    for edge_x, _edge_y in finished_edge_anchors
+                    for _entry_x, entrance_y in approach_anchors
+                )
+                structural_anchors.update(
+                    (entrance_x, edge_y)
+                    for _entry_x, edge_y in finished_edge_anchors
+                    for entrance_x, _entry_y in approach_anchors
+                )
+        if (
+            code == "finished_goods_room"
+            and search_phase == STRUCTURED_PHASE
+            and truck_entrance is not None
+            and zone_authorities is not None
+            and isinstance(zone_authorities.get("shipping_channel"), Mapping)
+        ):
+            truck_side_finished = _finished_anchors_for_truck_interface(
+                zone_authorities["shipping_channel"],
+                truck_entrance,
+                boundary,
+                anchor_width_mm,
+                anchor_depth_mm,
+            )
+            structural_anchors.update(truck_side_finished)
+            prioritized_truck_finished_keys.update(
+                (x_mm, y_mm, width_mm, depth_mm, rotation) for x_mm, y_mm in truck_side_finished
+            )
+        anchors = (
+            tuple(sorted(structural_anchors))
+            if search_phase == STRUCTURED_PHASE
+            else tuple(sorted(structural_anchors | legacy_anchors))
         )
         for x_mm, y_mm in anchors:
             rectangle = _rectangle_from_mm(code, x_mm, y_mm, width_mm, depth_mm, rotation)
             if not _rectangle_is_usable(rectangle, placed, boundary, boundary_bounds, obstacles):
                 continue
             if any(
-                not rectangles_share_positive_edge(rectangle, neighbor) for neighbor in neighbors
+                not rectangles_share_positive_edge(rectangle, neighbor)
+                for neighbor in must_neighbors
+            ):
+                continue
+            if (
+                search_phase == STRUCTURED_PHASE
+                and structural_skeleton is not None
+                and not _candidate_fits_skeleton_region(
+                    code, rectangle, placed, structural_skeleton
+                )
             ):
                 continue
             key = (x_mm, y_mm, width_mm, depth_mm, rotation)
             options[key] = rectangle
 
-    ordered = sorted(
-        options.values(),
-        key=lambda rectangle: (
+    def stable_geometry_key(rectangle: PlacedRectangleV1) -> tuple[object, ...]:
+        width_mm = _mm(rectangle.width_m, field="candidate.width_m", positive=True)
+        depth_mm = _mm(rectangle.depth_m, field="candidate.depth_m", positive=True)
+        flexible_shape_skew = (
+            Fraction(abs(width_mm - depth_mm), max(width_mm, depth_mm))
+            if code in FLEXIBLE_ZONE_CODES
+            else Fraction(0)
+        )
+        changing_entrance_rank = int(
+            code == "changing_room"
+            and not _rectangle_shares_entrance_boundary(rectangle, main_entrance)
+        )
+        entrance_midpoint_rank = 0
+        if code == "changing_room":
+            entrance_start, entrance_end = main_entrance
+            entrance_midpoint = (
+                (entrance_start[0] + entrance_end[0]) // 2,
+                (entrance_start[1] + entrance_end[1]) // 2,
+            )
+            room_bounds = _bounds(rectangle)
+            entrance_midpoint_rank = int(
+                room_bounds[0] <= entrance_midpoint[0] <= room_bounds[2]
+                and room_bounds[1] <= entrance_midpoint[1] <= room_bounds[3]
+            )
+        changing_core_edge_rank = int(
+            code == "changing_room"
+            and "sorting_packaging_room" in placed
+            and not rectangles_share_positive_edge(rectangle, placed["sorting_packaging_room"])
+        )
+        office_process_attachment_rank = 0
+        if code == "office":
+            coating = placed.get("coating_room")
+            shipping = placed.get("shipping_channel")
+            office_process_attachment_rank = int(
+                coating is None
+                or shipping is None
+                or not rectangles_share_positive_edge(rectangle, coating)
+                or not rectangles_share_positive_edge(rectangle, shipping)
+            )
+        shipping_truck_entrance_rank = int(
+            code == "shipping_channel"
+            and truck_entrance is not None
+            and not _rectangle_shares_entrance_boundary(rectangle, truck_entrance)
+        )
+        shipping_entrance_axis_rank = 0
+        shipping_long_axis_rank = 0
+        if code == "shipping_channel" and truck_entrance is not None:
+            (entrance_start, entrance_end) = truck_entrance
+            truck_approach_axis = (
+                "X"
+                if entrance_start[0] == entrance_end[0]
+                else "Y"
+                if entrance_start[1] == entrance_end[1]
+                else None
+            )
+            if truck_approach_axis is not None:
+                left, bottom, right, top = _bounds(rectangle)
+                shipping_long_axis = "X" if right - left >= top - bottom else "Y"
+                shipping_long_axis_rank = int(shipping_long_axis != truck_approach_axis)
+                low_x, high_x = sorted((entrance_start[0], entrance_end[0]))
+                low_y, high_y = sorted((entrance_start[1], entrance_end[1]))
+                entrance_axis_aligned = any(
+                    (edge[0][1] == edge[1][1] and low_y <= edge[0][1] <= high_y)
+                    if truck_approach_axis == "X"
+                    else (edge[0][0] == edge[1][0] and low_x <= edge[0][0] <= high_x)
+                    for _, edge in _long_edges(rectangle)
+                )
+                shipping_entrance_axis_rank = int(not entrance_axis_aligned)
+        process_band_axis_rank = 0
+        if code == "secondary_precooling_room" and structural_skeleton is not None:
+            left, bottom, right, top = _bounds(rectangle)
+            zone_long_axis = "X" if right - left >= top - bottom else "Y"
+            process_band_axis_rank = int(zone_long_axis != structural_skeleton.ordering_axis)
+        finished_truck_interface_rank = int(
+            code == "finished_goods_room"
+            and (
+                _mm(rectangle.x, field="candidate.x"),
+                _mm(rectangle.y, field="candidate.y"),
+                _mm(rectangle.width_m, field="candidate.width_m"),
+                _mm(rectangle.depth_m, field="candidate.depth_m"),
+                rectangle.rotation_deg,
+            )
+            not in prioritized_truck_finished_keys
+        )
+        finished_core_axis_alignment_rank = 0
+        if code == "finished_goods_room" and structural_skeleton is not None:
+            # Reuse an exact transverse axis from the already placed process
+            # core before falling back to lexical coordinates. This keeps the
+            # terminal storage band attached to the core envelope instead of
+            # stretching across unrelated site space. It is a geometry fact,
+            # not a route-distance score or a pass/fail threshold.
+            transverse_bounds_index = (1, 3) if structural_skeleton.ordering_axis == "X" else (0, 2)
+            candidate_bounds = _bounds(rectangle)
+            candidate_axis_edges = (
+                candidate_bounds[transverse_bounds_index[0]],
+                candidate_bounds[transverse_bounds_index[1]],
+            )
+            core_axis_edges = tuple(
+                edge
+                for core_code in structural_skeleton.core_zone_codes
+                if (core_zone := placed.get(core_code)) is not None
+                for core_bounds in (_bounds(core_zone),)
+                for edge in (
+                    core_bounds[transverse_bounds_index[0]],
+                    core_bounds[transverse_bounds_index[1]],
+                )
+            )
+            if core_axis_edges:
+                finished_core_axis_alignment_rank = min(
+                    abs(candidate_edge - core_edge)
+                    for candidate_edge in candidate_axis_edges
+                    for core_edge in core_axis_edges
+                )
+        central_raw_side_rank = 0
+        central_band_alignment_rank = 0
+        support_region_rank = 0
+        support_perimeter_rank = 0
+        support_root_rank = 0
+        support_side_coherence_rank = 0
+        if (
+            code == "primary_precooling_room"
+            and structural_family.family == "CENTRAL_PROCESS_HUB"
+            and structural_skeleton is not None
+            and "sorting_packaging_room" in placed
+        ):
+            side = _adjacent_side(placed["sorting_packaging_room"], rectangle)
+            low_side = "WEST" if structural_skeleton.ordering_axis == "X" else "SOUTH"
+            high_side = "EAST" if structural_skeleton.ordering_axis == "X" else "NORTH"
+            central_raw_side_rank = 0 if side == low_side else 1 if side == high_side else 2
+            sorting_bounds = _bounds(placed["sorting_packaging_room"])
+            primary_bounds = _bounds(rectangle)
+            if structural_skeleton.ordering_axis == "Y":
+                if primary_bounds[0] == sorting_bounds[0]:
+                    central_band_alignment_rank = 0
+                elif primary_bounds[2] == sorting_bounds[2]:
+                    central_band_alignment_rank = 1
+                else:
+                    central_band_alignment_rank = 2
+            elif primary_bounds[1] == sorting_bounds[1]:
+                central_band_alignment_rank = 0
+            elif primary_bounds[3] == sorting_bounds[3]:
+                central_band_alignment_rank = 1
+            else:
+                central_band_alignment_rank = 2
+        if code in SUPPORT_ZONE_CODES and structural_skeleton is not None:
+            sorting = placed.get("sorting_packaging_room")
+            allowed_sides = (
+                {"NORTH", "SOUTH"} if structural_skeleton.ordering_axis == "X" else {"EAST", "WEST"}
+            )
+            direct_side = _adjacent_side(sorting, rectangle) if sorting is not None else None
+            shares_core_band = False
+            if sorting is not None:
+                axis_low, axis_high = (0, 2) if structural_skeleton.ordering_axis == "X" else (1, 3)
+                core_bounds = _bounds(sorting)
+                candidate_bounds = _bounds(rectangle)
+                shares_core_band = min(core_bounds[axis_high], candidate_bounds[axis_high]) > max(
+                    core_bounds[axis_low], candidate_bounds[axis_low]
+                )
+            attachment_side: str | None = None
+            if direct_side is not None:
+                support_root_rank = 0
+                support_region_rank = (
+                    0
+                    if direct_side in allowed_sides and shares_core_band
+                    else 1
+                    if direct_side in allowed_sides
+                    else 2
+                )
+                attachment_side = direct_side
+            elif code in {"secondary_fruit_buffer", "frozen_fruit_room"}:
+                support_parent = next(
+                    (
+                        placed[parent_code]
+                        for parent_code in (
+                            "frozen_fruit_room",
+                            "packaging_material_storage",
+                        )
+                        if parent_code != code
+                        and parent_code in placed
+                        and rectangles_share_positive_edge(rectangle, placed[parent_code])
+                    ),
+                    None,
+                )
+                if support_parent is not None:
+                    parent_adjacent_side: str | None = (
+                        _adjacent_side(sorting, support_parent) if sorting is not None else None
+                    )
+                    support_root_rank = 1
+                    support_region_rank = (
+                        0
+                        if parent_adjacent_side in allowed_sides and shares_core_band
+                        else 1
+                        if parent_adjacent_side in allowed_sides
+                        else 2
+                    )
+                    attachment_side = parent_adjacent_side
+                else:
+                    support_root_rank = 2
+                    support_region_rank = 2
+                    attachment_side = None
+            else:
+                support_root_rank = 2
+                support_region_rank = 2
+                attachment_side = None
+            support_perimeter_rank = int(not _rectangle_touches_boundary(rectangle, boundary))
+            occupied_support_sides = {
+                side
+                for support_code in SUPPORT_ZONE_CODES
+                if (support := placed.get(support_code)) is not None
+                if sorting is not None
+                if (side := _adjacent_side(sorting, support)) is not None
+            }
+            support_side_coherence_rank = (
+                (0 if attachment_side in occupied_support_sides else 1)
+                if occupied_support_sides
+                else 0
+            )
+        root_axis_rank: int | Decimal = 0
+        if code == "raw_fruit_buffer":
+            root_bounds = _bounds(rectangle)
+            root_axis = (
+                structural_skeleton.ordering_axis
+                if structural_skeleton is not None
+                else structural_family.dominant_axis
+            )
+            root_low, root_high = (
+                (root_bounds[0], root_bounds[2])
+                if root_axis == "X"
+                else (root_bounds[1], root_bounds[3])
+            )
+            direction = structural_family.dominant_direction
+            root_axis_rank = -root_low if direction == "NEGATIVE" else root_low
+        major_axis_rank = 0
+        site_center_distance = 0
+        if code in {"sorting_packaging_room", "primary_precooling_room"}:
+            left, bottom, right, top = _bounds(rectangle)
+            min_x, min_y, max_x, max_y = boundary_bounds
+            # Compare doubled centres using integers, so ranking is exact and
+            # independent of floating-point/epsilon behavior.
+            site_center_distance = abs((left + right) - (min_x + max_x)) + abs(
+                (bottom + top) - (min_y + max_y)
+            )
+        if code == "sorting_packaging_room":
+            left, bottom, right, top = _bounds(rectangle)
+            preferred_long_axis = structural_family.dominant_axis
+            if structural_family.family == "LINEAR_PROCESS_BAND":
+                # A linear band's axis describes group order, not the long
+                # dimension of each room. Orienting the dominant sorting hall
+                # across the band leaves room for raw/core/finished bands on
+                # either side instead of consuming the entire flow axis.
+                preferred_long_axis = "Y" if preferred_long_axis == "X" else "X"
+            major_axis_rank = int(
+                not (
+                    (right - left) >= (top - bottom)
+                    if preferred_long_axis == "X"
+                    else (top - bottom) >= (right - left)
+                )
+            )
+        linear_rank = 0
+        linear_predecessor = _structural_linear_predecessor(code)
+        if structural_family.family == "LINEAR_PROCESS_BAND" and linear_predecessor is not None:
+            predecessor = placed.get(linear_predecessor)
+            if predecessor is not None:
+                linear_rank = int(
+                    not _linear_flow_anchor_matches(rectangle, predecessor, structural_family)
+                )
+        return (
+            int(
+                code == "coating_room"
+                and (
+                    _mm(rectangle.x, field="candidate.x"),
+                    _mm(rectangle.y, field="candidate.y"),
+                    _mm(rectangle.width_m, field="candidate.width_m"),
+                    _mm(rectangle.depth_m, field="candidate.depth_m"),
+                    rectangle.rotation_deg,
+                )
+                not in prioritized_bridge_keys
+            ),
+            changing_entrance_rank,
+            entrance_midpoint_rank,
+            changing_core_edge_rank,
+            office_process_attachment_rank,
+            flexible_shape_skew,
+            process_band_axis_rank,
+            finished_core_axis_alignment_rank,
+            finished_truck_interface_rank,
+            shipping_entrance_axis_rank,
+            shipping_long_axis_rank,
+            shipping_truck_entrance_rank,
+            central_raw_side_rank,
+            central_band_alignment_rank,
+            support_root_rank,
+            support_region_rank,
+            support_side_coherence_rank,
+            support_perimeter_rank,
+            major_axis_rank,
+            site_center_distance,
+            root_axis_rank,
+            linear_rank,
+            -_finished_band_axis_reuse(code, rectangle, placed),
+            -_support_group_edge_count(code, rectangle, placed),
+            -_support_obstacle_x_alignment(code, rectangle, obstacles),
+            -_support_process_axis_reuse(code, rectangle, placed),
             -_should_local_count(code, rectangle, placed, graph),
             rectangle.x,
             rectangle.y,
             rectangle.width_m,
             rectangle.depth_m,
             rectangle.rotation_deg,
-        ),
+        )
+
+    def structurally_anchored(rectangle: PlacedRectangleV1) -> bool:
+        if code == "sorting_packaging_room" and not placed:
+            return True
+        if structural_family.family == "LINEAR_PROCESS_BAND":
+            if code == "coating_room":
+                sorting = placed.get("sorting_packaging_room")
+                secondary = placed.get("secondary_precooling_room")
+                return (
+                    sorting is not None
+                    and secondary is not None
+                    and rectangles_share_positive_edge(rectangle, sorting)
+                    and rectangles_share_positive_edge(rectangle, secondary)
+                )
+            if code == "finished_goods_room":
+                return _linear_group_flow_anchor_matches(
+                    rectangle,
+                    placed,
+                    ("secondary_precooling_room", "coating_room"),
+                    structural_family,
+                )
+            linear_predecessor = _structural_linear_predecessor(code)
+            if linear_predecessor is not None:
+                predecessor = placed.get(linear_predecessor)
+                return predecessor is not None and _linear_flow_anchor_matches(
+                    rectangle, predecessor, structural_family
+                )
+        if code == "primary_precooling_room":
+            return any(
+                rectangles_share_positive_edge(rectangle, neighbor) for neighbor in must_neighbors
+            )
+        if code == "changing_room" and _rectangle_shares_entrance_boundary(
+            rectangle, main_entrance
+        ):
+            return True
+        if code == "coating_room" and "sorting_packaging_room" in placed:
+            return rectangles_share_positive_edge(rectangle, placed["sorting_packaging_room"])
+        if not structural_neighbors:
+            if code != "raw_fruit_buffer":
+                return False
+            return _rectangle_touches_boundary(rectangle, boundary)
+        if code == "secondary_precooling_room":
+            # It is a frozen process interface adjacent to sorting and
+            # coating, not a spatial predecessor of the entire core envelope.
+            return any(
+                rectangles_share_positive_edge(rectangle, neighbor)
+                for neighbor in structural_neighbors
+            )
+        return any(
+            rectangles_share_positive_edge(rectangle, neighbor) for neighbor in structural_neighbors
+        )
+
+    structured = sorted(
+        (rectangle for rectangle in options.values() if structurally_anchored(rectangle)),
+        key=stable_geometry_key,
     )
-    return tuple(ordered[:MAX_OPTIONS_PER_ZONE])
+    general = sorted(
+        (rectangle for rectangle in options.values() if not structurally_anchored(rectangle)),
+        key=stable_geometry_key,
+    )
+    if search_phase == STRUCTURED_PHASE:
+        return tuple(structured[:STRUCTURED_MAX_OPTIONS_PER_ZONE])
+    if search_phase == GENERAL_FALLBACK_PHASE:
+        # The fallback removes the global skeleton predicates while keeping
+        # every exact P2C anchor and all unchanged hard geometry predicates.
+        return tuple((*general, *structured)[:MAX_OPTIONS_PER_ZONE])
+    if search_phase == LEGACY_COMPAT_PHASE:
+        return tuple((*structured, *general)[:MAX_OPTIONS_PER_ZONE])
+    raise _error("PLACEMENT_SEARCH_PHASE_INVALID", search_phase=search_phase)
+
+
+def _entrance_anchors(
+    entrance: SegmentMM, width_mm: int, depth_mm: int
+) -> tuple[tuple[int, int], ...]:
+    """Place a zone edge over an authoritative site entrance, without offsets."""
+    (x1, y1), (x2, y2) = entrance
+    anchors: set[tuple[int, int]] = set()
+    if x1 == x2:
+        low_y, high_y = sorted((y1, y2))
+        aligned_y = {
+            (low_y + high_y - depth_mm) // 2,
+            low_y,
+            high_y - depth_mm,
+        }
+        anchors.update((x1 - width_mm, y) for y in aligned_y)
+        anchors.update((x1, y) for y in aligned_y)
+    elif y1 == y2:
+        low_x, high_x = sorted((x1, x2))
+        aligned_x = {
+            (low_x + high_x - width_mm) // 2,
+            low_x,
+            high_x - width_mm,
+        }
+        anchors.update((x, y1 - depth_mm) for x in aligned_x)
+        anchors.update((x, y1) for x in aligned_x)
+    return tuple(sorted(anchors))
+
+
+def _finished_band_axis_reuse(
+    code: str,
+    rectangle: PlacedRectangleV1,
+    placed: Mapping[str, PlacedRectangleV1],
+) -> int:
+    """Prefer exact reuse of the current process-band axes for finished goods."""
+    if code != "finished_goods_room":
+        return 0
+    left, bottom, right, top = _bounds(rectangle)
+    major_x_axes = {
+        coordinate
+        for placed_code, existing in placed.items()
+        if placed_code
+        in {
+            "primary_precooling_room",
+            "secondary_precooling_room",
+            "sorting_packaging_room",
+            "coating_room",
+            "packaging_material_storage",
+        }
+        for coordinate in (_bounds(existing)[0], _bounds(existing)[2])
+    }
+    major_y_axes = {
+        coordinate
+        for placed_code, existing in placed.items()
+        if placed_code
+        in {
+            "primary_precooling_room",
+            "secondary_precooling_room",
+            "sorting_packaging_room",
+            "coating_room",
+            "packaging_material_storage",
+        }
+        for coordinate in (_bounds(existing)[1], _bounds(existing)[3])
+    }
+    return sum(coordinate in major_x_axes for coordinate in (left, right)) + sum(
+        coordinate in major_y_axes for coordinate in (bottom, top)
+    )
+
+
+def _support_group_edge_count(
+    code: str,
+    rectangle: PlacedRectangleV1,
+    placed: Mapping[str, PlacedRectangleV1],
+) -> int:
+    """Prefer support-to-support grouping over spreading branches around the core."""
+    if code not in SUPPORT_ZONE_CODES:
+        return 0
+    return sum(
+        int(
+            reference in SUPPORT_ZONE_CODES
+            and reference in placed
+            and rectangles_share_positive_edge(rectangle, placed[reference])
+        )
+        for reference in SUPPORT_ZONE_CODES
+        if reference != code
+    )
+
+
+def _support_obstacle_x_alignment(
+    code: str,
+    rectangle: PlacedRectangleV1,
+    obstacles: Sequence[PolygonMM],
+) -> int:
+    """Prefer the frozen-support block on an exact vertical site-constraint axis."""
+    if code != "frozen_fruit_room":
+        return 0
+    obstacle_x = {point[0] for polygon in obstacles for point in polygon}
+    left, _, right, _ = _bounds(rectangle)
+    return sum(coordinate in obstacle_x for coordinate in (left, right))
+
+
+def _support_process_axis_reuse(
+    code: str,
+    rectangle: PlacedRectangleV1,
+    placed: Mapping[str, PlacedRectangleV1],
+) -> int:
+    """Count exact support-zone boundary incidences on established process axes."""
+    if code not in SUPPORT_ZONE_CODES:
+        return 0
+    process_x_axes = {
+        coordinate
+        for process_code in MAIN_PROCESS_ZONE_CODES
+        if process_code in placed
+        for coordinate in (_bounds(placed[process_code])[0], _bounds(placed[process_code])[2])
+    }
+    process_y_axes = {
+        coordinate
+        for process_code in MAIN_PROCESS_ZONE_CODES
+        if process_code in placed
+        for coordinate in (_bounds(placed[process_code])[1], _bounds(placed[process_code])[3])
+    }
+    left, bottom, right, top = _bounds(rectangle)
+    return sum(coordinate in process_x_axes for coordinate in (left, right)) + sum(
+        coordinate in process_y_axes for coordinate in (bottom, top)
+    )
+
+
+def _linear_flow_anchor_matches(
+    rectangle: PlacedRectangleV1,
+    predecessor: PlacedRectangleV1,
+    family: StructuralCompositionFamilyV1,
+) -> bool:
+    first = _bounds(predecessor)
+    second = _bounds(rectangle)
+    if family.dominant_axis == "X":
+        if not (first[2] == second[0] or second[2] == first[0]):
+            return False
+        if min(first[3], second[3]) <= max(first[1], second[1]):
+            return False
+        delta = second[0] + second[2] - first[0] - first[2]
+    else:
+        if not (first[3] == second[1] or second[3] == first[1]):
+            return False
+        if min(first[2], second[2]) <= max(first[0], second[0]):
+            return False
+        delta = second[1] + second[3] - first[1] - first[3]
+    return (delta > 0 and family.dominant_direction == "POSITIVE") or (
+        delta < 0 and family.dominant_direction == "NEGATIVE"
+    )
+
+
+def _structural_linear_predecessor(code: str) -> str | None:
+    """Return the spatial predecessor used by each generated process band."""
+    predecessors = {
+        "primary_precooling_room": "raw_fruit_buffer",
+        "sorting_packaging_room": "primary_precooling_room",
+        # The secondary room is the downstream transition from sorting.
+        # Coating is a core-side interface adjacent to both, not a serial
+        # room on the dominant axis.
+        "secondary_precooling_room": "sorting_packaging_room",
+        "shipping_channel": "finished_goods_room",
+    }
+    return predecessors.get(code)
+
+
+def _linear_group_flow_anchor_matches(
+    rectangle: PlacedRectangleV1,
+    placed: Mapping[str, PlacedRectangleV1],
+    group_zone_codes: Sequence[str],
+    family: StructuralCompositionFamilyV1,
+) -> bool:
+    """Require contact at the exact downstream face of an already placed group."""
+    targets = tuple(placed[code] for code in group_zone_codes if code in placed)
+    if not targets:
+        return False
+    candidate = _bounds(rectangle)
+    target_bounds = tuple(_bounds(target) for target in targets)
+    if family.dominant_axis == "X":
+        if family.dominant_direction == "POSITIVE":
+            terminal = max(bounds[2] for bounds in target_bounds)
+            return candidate[0] == terminal and any(
+                bounds[2] == terminal
+                and min(candidate[3], bounds[3]) > max(candidate[1], bounds[1])
+                for bounds in target_bounds
+            )
+        terminal = min(bounds[0] for bounds in target_bounds)
+        return candidate[2] == terminal and any(
+            bounds[0] == terminal and min(candidate[3], bounds[3]) > max(candidate[1], bounds[1])
+            for bounds in target_bounds
+        )
+    if family.dominant_direction == "POSITIVE":
+        terminal = max(bounds[3] for bounds in target_bounds)
+        return candidate[1] == terminal and any(
+            bounds[3] == terminal and min(candidate[2], bounds[2]) > max(candidate[0], bounds[0])
+            for bounds in target_bounds
+        )
+    terminal = min(bounds[1] for bounds in target_bounds)
+    return candidate[3] == terminal and any(
+        bounds[1] == terminal and min(candidate[2], bounds[2]) > max(candidate[0], bounds[0])
+        for bounds in target_bounds
+    )
+
+
+def _adjacent_side(reference: PlacedRectangleV1, candidate: PlacedRectangleV1) -> str | None:
+    """Return candidate's exact cardinal side when it shares a positive edge."""
+    first = _bounds(reference)
+    second = _bounds(candidate)
+    if first[2] == second[0] and min(first[3], second[3]) > max(first[1], second[1]):
+        return "EAST"
+    if first[0] == second[2] and min(first[3], second[3]) > max(first[1], second[1]):
+        return "WEST"
+    if first[3] == second[1] and min(first[2], second[2]) > max(first[0], second[0]):
+        return "NORTH"
+    if first[1] == second[3] and min(first[2], second[2]) > max(first[0], second[0]):
+        return "SOUTH"
+    return None
+
+
+def _candidate_fits_skeleton_region(
+    code: str,
+    rectangle: PlacedRectangleV1,
+    placed: Mapping[str, PlacedRectangleV1],
+    skeleton: StructuralSkeletonV1,
+) -> bool:
+    """Apply group-to-band projection order while each group is generated."""
+    group = functional_group_for_zone(code)
+    if group == SUPPORT_GROUP:
+        # The support region is a search preference, not a new engineering
+        # hard constraint. Its exact face/attachment facts are ranked below;
+        # general fallback remains available for constrained sites.
+        return True
+    if group not in {RAW_SIDE_GROUP, PROCESSING_CORE_GROUP, FINISHED_SIDE_GROUP}:
+        return True
+
+    axis = skeleton.ordering_axis
+    low_index, high_index = (0, 2) if axis == "X" else (1, 3)
+    candidate_bounds = _bounds(rectangle)
+    candidate_interval = (candidate_bounds[low_index], candidate_bounds[high_index])
+
+    def interval(group_name: str) -> tuple[int, int] | None:
+        values = [
+            _bounds(existing)
+            for zone_code, existing in placed.items()
+            if functional_group_for_zone(zone_code) == group_name
+        ]
+        if not values:
+            return None
+        return min(row[low_index] for row in values), max(row[high_index] for row in values)
+
+    raw_interval = interval(RAW_SIDE_GROUP)
+    core_interval = interval(PROCESSING_CORE_GROUP)
+    finished_interval = interval(FINISHED_SIDE_GROUP)
+    if skeleton.family.family == "LINEAR_PROCESS_BAND":
+        sorting = placed.get("sorting_packaging_room")
+        secondary = placed.get("secondary_precooling_room")
+        finished = placed.get("finished_goods_room")
+        if code == "secondary_precooling_room":
+            return sorting is not None and _linear_flow_anchor_matches(
+                rectangle, sorting, skeleton.family
+            )
+        if code == "coating_room":
+            return (
+                sorting is not None
+                and secondary is not None
+                and rectangles_share_positive_edge(rectangle, sorting)
+                and rectangles_share_positive_edge(rectangle, secondary)
+            )
+        if code == "finished_goods_room":
+            return _linear_group_flow_anchor_matches(
+                rectangle,
+                placed,
+                ("secondary_precooling_room", "coating_room"),
+                skeleton.family,
+            )
+        if code == "shipping_channel":
+            return finished is not None and _linear_flow_anchor_matches(
+                rectangle, finished, skeleton.family
+            )
+    if group == RAW_SIDE_GROUP:
+        if skeleton.family.family == "CENTRAL_PROCESS_HUB":
+            sorting = placed.get("sorting_packaging_room")
+            if code == "primary_precooling_room":
+                if sorting is None:
+                    return False
+                occupied_core_sides = {
+                    side
+                    for zone_code in ("coating_room", "secondary_precooling_room")
+                    if (zone := placed.get(zone_code)) is not None
+                    if (side := _adjacent_side(sorting, zone)) is not None
+                }
+                primary_side = _adjacent_side(sorting, rectangle)
+                return primary_side is not None and primary_side not in occupied_core_sides
+            if code == "raw_fruit_buffer":
+                primary = placed.get("primary_precooling_room")
+                if sorting is None or primary is None:
+                    return False
+                primary_side = _adjacent_side(sorting, primary)
+                raw_side = _adjacent_side(primary, rectangle)
+                if primary_side is None or raw_side is None:
+                    return False
+                # The raw buffer may continue along the raw band or attach
+                # laterally to the primary room, but cannot be placed on the
+                # face that points back into the sorting core.
+                toward_core = {
+                    "NORTH": "SOUTH",
+                    "SOUTH": "NORTH",
+                    "EAST": "WEST",
+                    "WEST": "EAST",
+                }[primary_side]
+                if raw_side == toward_core:
+                    return False
+                primary_bounds = _bounds(primary)
+                if core_interval is None:
+                    return False
+                primary_interval = (
+                    primary_bounds[low_index],
+                    primary_bounds[high_index],
+                )
+                if primary_interval[1] <= core_interval[0]:
+                    return candidate_interval[1] <= core_interval[0]
+                if primary_interval[0] >= core_interval[1]:
+                    return candidate_interval[0] >= core_interval[1]
+                return False
+        if code == "primary_precooling_room":
+            if core_interval is None:
+                # LINEAR lanes grow raw -> core. At this point the raw room
+                # has been placed, while the core is intentionally not yet
+                # present; exact MUST adjacency is checked independently.
+                return (
+                    skeleton.family.family == "LINEAR_PROCESS_BAND" and "raw_fruit_buffer" in placed
+                )
+            if skeleton.family.family == "LINEAR_PROCESS_BAND":
+                if skeleton.family.dominant_direction == "POSITIVE":
+                    return candidate_interval[1] <= core_interval[0]
+                return candidate_interval[0] >= core_interval[1]
+            # The hub lane permits either exact side of the core; the raw
+            # buffer is subsequently constrained to continue outward from the
+            # selected primary-precooling side.
+            return (
+                candidate_interval[1] <= core_interval[0]
+                or candidate_interval[0] >= core_interval[1]
+            )
+        if code == "raw_fruit_buffer":
+            primary = placed.get("primary_precooling_room")
+            if primary is None:
+                # In the linear skeleton the raw buffer is the deterministic
+                # boundary-root zone, so it is generated before its primary
+                # precooling attachment and before the process core exists.
+                return skeleton.family.family == "LINEAR_PROCESS_BAND"
+            if core_interval is None:
+                return False
+            # The raw group is a band, not a single-file chain. Its buffer
+            # may attach to the primary room on a transverse face as long as
+            # the complete raw-group projection remains upstream of the core.
+            primary_bounds = _bounds(primary)
+            primary_interval = (primary_bounds[low_index], primary_bounds[high_index])
+            if primary_interval[1] <= core_interval[0]:
+                return candidate_interval[1] <= core_interval[0]
+            if primary_interval[0] >= core_interval[1]:
+                return candidate_interval[0] >= core_interval[1]
+            return False
+        return False
+    if group == PROCESSING_CORE_GROUP:
+        if core_interval is not None:
+            sorting = placed.get("sorting_packaging_room")
+            if sorting is None or code != "coating_room":
+                return False
+            # Sorting is the core anchor; the smaller coating function joins
+            # one of its free faces.  Requiring it to span the full process
+            # axis made it consume an entire end face and frequently stranded
+            # the frozen finished-goods adjacency.  This is an exact shared
+            # edge predicate, not a route proxy or a relaxation of P2D.
+            # The coating function may bridge a sorting-hall face to the
+            # secondary-precooling interface. It remains part of the core
+            # when it shares a real edge with sorting; containment within the
+            # hall's long-axis projection is not a frozen engineering rule.
+            return rectangles_share_positive_edge(rectangle, sorting)
+        if skeleton.family.family == "LINEAR_PROCESS_BAND":
+            # The linear skeleton deliberately generates RAW before CORE.
+            # Require the sorting root to continue in the lane's frozen
+            # direction from the already placed raw-side envelope.
+            if code != "sorting_packaging_room" or raw_interval is None:
+                return False
+            if skeleton.family.dominant_direction == "POSITIVE":
+                return raw_interval[1] <= candidate_interval[0]
+            return candidate_interval[1] <= raw_interval[0]
+        # The processing core is the structural skeleton root. It is placed
+        # before raw/finished bands so those groups organize around its actual
+        # feasible envelope instead of biasing it into residual space.
+        return (
+            code == "sorting_packaging_room" and raw_interval is None and finished_interval is None
+        )
+    if core_interval is None:
+        return False
+    if skeleton.family.family == "CENTRAL_PROCESS_HUB":
+        return True
+    if code == "secondary_precooling_room":
+        # P2D freezes secondary precooling between sorting and coating, while
+        # P1A places coating inside the process-core envelope. Keep secondary
+        # precooling as the explicit spatial interface to the core.  It is a
+        # transition zone, not a reason to force the finished-goods room past
+        # the entire core projection.
+        return True
+    if raw_interval is None:
+        return False
+    downstream = _structural_downstream_direction(skeleton, raw_interval, core_interval)
+    if downstream is None:
+        return False
+    finished = placed.get("finished_goods_room")
+    if code == "finished_goods_room":
+        # The frozen P2D graph requires this room to share edges with both
+        # coating and secondary precooling.  Its band therefore starts at the
+        # core interface and extends downstream; requiring full interval
+        # separation would make those unchanged hard adjacencies impossible.
+        return (
+            candidate_interval[1] > core_interval[1]
+            if downstream == "POSITIVE"
+            else candidate_interval[0] < core_interval[0]
+        )
+    if code == "shipping_channel" and finished is not None:
+        # Shipping is an interface attached to finished goods, not another
+        # serial room whose full rectangle must sit beyond the goods interval.
+        # Keep it on the downstream side of the process core; the final
+        # finished-group envelope check verifies the group order.
+        return (
+            candidate_interval[1] > core_interval[1]
+            if downstream == "POSITIVE"
+            else candidate_interval[0] < core_interval[0]
+        )
+    return (
+        candidate_interval[0] >= core_interval[1]
+        if downstream == "POSITIVE"
+        else candidate_interval[1] <= core_interval[0]
+    )
+
+
+def _structural_downstream_direction(
+    skeleton: StructuralSkeletonV1,
+    raw_interval: tuple[int, int] | None,
+    core_interval: tuple[int, int] | None,
+) -> str | None:
+    if skeleton.family.family == "LINEAR_PROCESS_BAND":
+        return skeleton.family.dominant_direction
+    if raw_interval is None or core_interval is None:
+        return None
+    if raw_interval[1] <= core_interval[0]:
+        return "POSITIVE"
+    if core_interval[1] <= raw_interval[0]:
+        return "NEGATIVE"
+    return None
+
+
+def _rectangle_touches_boundary(rectangle: PlacedRectangleV1, boundary: PolygonMM) -> bool:
+    left, bottom, right, top = _bounds(rectangle)
+    rectangle_edges = (
+        ((left, bottom), (right, bottom)),
+        ((right, bottom), (right, top)),
+        ((right, top), (left, top)),
+        ((left, top), (left, bottom)),
+    )
+    for site_start, site_end in zip(boundary, boundary[1:] + boundary[:1], strict=True):
+        for room_start, room_end in rectangle_edges:
+            if segments_share_positive_length(site_start, site_end, room_start, room_end):
+                return True
+    return False
 
 
 def _cross(a: tuple[int, int], b: tuple[int, int], c: tuple[int, int]) -> int:
@@ -525,6 +1831,29 @@ def _truck_segment(site_body: Mapping[str, Any]) -> SegmentMM:
         }
     except (KeyError, TypeError, InvalidOperation, ValueError):
         raise _error("INVALID_SITE_GEOMETRY_RESULT", field="truck_entrance") from None
+    return normalize_segment(numeric, error_code="INVALID_SITE_GEOMETRY_RESULT")
+
+
+def _main_entrance_segment(site_body: Mapping[str, Any]) -> SegmentMM:
+    entrances = site_body.get("entrances")
+    if not isinstance(entrances, Mapping):
+        raise _error("INVALID_SITE_GEOMETRY_RESULT", field="entrances")
+    value = entrances.get("main_entrance")
+    if not isinstance(value, Mapping):
+        raise _error("INVALID_SITE_GEOMETRY_RESULT", field="main_entrance")
+    try:
+        numeric = {
+            "start": {
+                "x": Decimal(str(value["start"]["x"])),
+                "y": Decimal(str(value["start"]["y"])),
+            },
+            "end": {
+                "x": Decimal(str(value["end"]["x"])),
+                "y": Decimal(str(value["end"]["y"])),
+            },
+        }
+    except (KeyError, TypeError, InvalidOperation, ValueError):
+        raise _error("INVALID_SITE_GEOMETRY_RESULT", field="main_entrance") from None
     return normalize_segment(numeric, error_code="INVALID_SITE_GEOMETRY_RESULT")
 
 
@@ -911,6 +2240,8 @@ def _is_better(
                 "search_provenance",
                 "canonical_candidate_hash",
                 "canonical_result_hash",
+                "_structural_generation_flag",
+                "_structural_composition_family",
             }
         }
     )
@@ -924,6 +2255,8 @@ def _is_better(
                 "search_provenance",
                 "canonical_candidate_hash",
                 "canonical_result_hash",
+                "_structural_generation_flag",
+                "_structural_composition_family",
             }
         }
     )
@@ -959,8 +2292,14 @@ class _PlacementSearchContext:
     complete_candidate_limit: int | None
     boundary: PolygonMM
     boundary_bounds: tuple[int, int, int, int]
+    main_entrance: SegmentMM
     obstacles: tuple[PolygonMM, ...]
     preferred_loading_side: str
+    placement_zone_order: tuple[str, ...]
+    structural_composition_family: StructuralCompositionFamilyV1
+    structural_skeleton: StructuralSkeletonV1
+    structural_topology: str
+    search_phase: str
 
 
 @dataclass
@@ -969,6 +2308,18 @@ class _PlacementSearchStats:
     generated_candidates: int = 0
     complete_candidates: int = 0
     node_budget_exhausted: bool = False
+    structured_main_skeleton_completions: dict[str, int] | None = None
+    structured_core_root_completions: dict[str, int] | None = None
+    constructed_main_skeletons: dict[str, MainProcessSkeletonCandidateV1] | None = None
+    skeleton_generation_patterns: dict[str, int] | None = None
+    rejection_reason_counts: dict[str, int] | None = None
+    skeleton_construction_attempts: list[dict[str, Any]] | None = None
+    skeleton_search_truncated: bool = False
+    root_preflight_rows: list[dict[str, Any]] | None = None
+    tail_nodes_by_skeleton: dict[str, int] | None = None
+    skeleton_tail_lifecycle: list[dict[str, Any]] | None = None
+    construction_nodes_by_skeleton: dict[str, int] | None = None
+    tail_zone_search_facts: dict[str, dict[str, dict[str, int]]] | None = None
 
 
 def _validated_search_context(
@@ -984,6 +2335,9 @@ def _validated_search_context(
     spatial_relationships: Sequence[Mapping[str, Any]],
     node_budget: int,
     complete_candidate_limit: int | None,
+    structural_family: StructuralCompositionFamilyV1 | None = None,
+    structural_topology: str | None = None,
+    search_phase: str = LEGACY_COMPAT_PHASE,
 ) -> _PlacementSearchContext:
     if set(authorities) != set(graph.nodes) or tuple(PLACEMENT_ZONE_ORDER) != tuple(
         code for code in PLACEMENT_ZONE_ORDER if code in graph.nodes
@@ -997,12 +2351,20 @@ def _validated_search_context(
         )
     if node_budget <= 0 or (complete_candidate_limit is not None and complete_candidate_limit <= 0):
         raise _error("INVALID_PLACEMENT_SEARCH_BUDGET")
+    if search_phase not in {STRUCTURED_PHASE, GENERAL_FALLBACK_PHASE, LEGACY_COMPAT_PHASE}:
+        raise _error("PLACEMENT_SEARCH_PHASE_INVALID", search_phase=search_phase)
     site = site_body.get("site")
     obstacles_body = site_body.get("obstacles")
-    if not isinstance(site, Mapping) or not isinstance(obstacles_body, Mapping):
+    entrances_body = site_body.get("entrances")
+    if (
+        not isinstance(site, Mapping)
+        or not isinstance(obstacles_body, Mapping)
+        or not isinstance(entrances_body, Mapping)
+    ):
         raise _error("INVALID_SITE_GEOMETRY_RESULT")
     boundary = _polygon(site.get("effective_buildable_boundary"))
     boundary_bounds = _boundary_extents(boundary)
+    main_entrance = _main_entrance_segment(site_body)
     raw_obstacles = obstacles_body.get("hard_obstacles", [])
     if not isinstance(raw_obstacles, list):
         raise _error("INVALID_SITE_GEOMETRY_RESULT", field="hard_obstacles")
@@ -1014,6 +2376,40 @@ def _validated_search_context(
     preferred = site.get("preferred_loading_side", "UNSPECIFIED")
     if not isinstance(preferred, str):
         raise _error("INVALID_LOADING_SIDE")
+    selected_family = structural_family or select_structural_composition_family(
+        site_body, authorities
+    )
+    selected_topology = structural_topology or (
+        CENTRAL_PROCESS_HUB
+        if selected_family.family == CENTRAL_PROCESS_HUB
+        else STRAIGHT_LINEAR_BAND
+    )
+    if selected_topology not in {
+        STRAIGHT_LINEAR_BAND,
+        OFFSET_LINEAR_BAND,
+        CENTRAL_PROCESS_HUB,
+    }:
+        raise _error("MAIN_PROCESS_TOPOLOGY_INVALID")
+    if (selected_topology == CENTRAL_PROCESS_HUB) != (
+        selected_family.family == CENTRAL_PROCESS_HUB
+    ):
+        raise _error("MAIN_PROCESS_TOPOLOGY_FAMILY_MISMATCH")
+    skeletons = structural_skeleton_candidates(
+        site_body,
+        tuple(authorities),
+        zone_authorities=authorities,
+        family_candidates=(selected_family,),
+    )
+    skeleton = next(
+        (
+            candidate
+            for candidate in skeletons
+            if candidate.family.to_dict() == selected_family.to_dict()
+        ),
+        None,
+    )
+    if skeleton is None:
+        raise _error("STRUCTURAL_SKELETON_UNAVAILABLE")
     return _PlacementSearchContext(
         authorities=authorities,
         site_body=site_body,
@@ -1029,9 +2425,135 @@ def _validated_search_context(
         complete_candidate_limit=complete_candidate_limit,
         boundary=boundary,
         boundary_bounds=boundary_bounds,
+        main_entrance=main_entrance,
         obstacles=obstacles,
         preferred_loading_side=preferred,
+        placement_zone_order=(
+            (
+                LINEAR_STRUCTURED_PLACEMENT_ZONE_ORDER
+                if selected_family.family == "LINEAR_PROCESS_BAND"
+                else STRUCTURED_PLACEMENT_ZONE_ORDER
+            )
+            if search_phase == STRUCTURED_PHASE
+            else PLACEMENT_ZONE_ORDER
+        ),
+        structural_composition_family=selected_family,
+        structural_skeleton=skeleton,
+        structural_topology=selected_topology,
+        search_phase=search_phase,
     )
+
+
+def _group_axis_interval(
+    group: str,
+    placed: Mapping[str, PlacedRectangleV1],
+    axis: str,
+) -> tuple[int, int] | None:
+    members = tuple(code for code in FUNCTIONAL_GROUPS[group] if code in placed)
+    if not members:
+        return None
+    bounds = tuple(_bounds(placed[code]) for code in members)
+    coordinate_pair = (0, 2) if axis == "X" else (1, 3)
+    return (
+        min(row[coordinate_pair[0]] for row in bounds),
+        max(row[coordinate_pair[1]] for row in bounds),
+    )
+
+
+def _main_group_order_monotonic(
+    placed: Mapping[str, PlacedRectangleV1], skeleton: StructuralSkeletonV1
+) -> bool:
+    raw = _group_axis_interval(RAW_SIDE_GROUP, placed, skeleton.ordering_axis)
+    core = _group_axis_interval(PROCESSING_CORE_GROUP, placed, skeleton.ordering_axis)
+    terminal_codes = ("finished_goods_room", "shipping_channel")
+    terminal_bounds = tuple(_bounds(placed[code]) for code in terminal_codes if code in placed)
+    if raw is None or core is None or len(terminal_bounds) != len(terminal_codes):
+        return False
+    if skeleton.family.family == "CENTRAL_PROCESS_HUB":
+        sorting = placed.get("sorting_packaging_room")
+        primary = placed.get("primary_precooling_room")
+        raw_zone = placed.get("raw_fruit_buffer")
+        secondary = placed.get("secondary_precooling_room")
+        if any(zone is None for zone in (sorting, primary, raw_zone, secondary)):
+            return False
+        raw_side = _adjacent_side(sorting, primary)  # type: ignore[arg-type]
+        raw_attachment = _adjacent_side(primary, raw_zone)  # type: ignore[arg-type]
+        if raw_side is None or raw_attachment is None:
+            return False
+        toward_core = {
+            "NORTH": "SOUTH",
+            "SOUTH": "NORTH",
+            "EAST": "WEST",
+            "WEST": "EAST",
+        }[raw_side]
+        if raw_attachment == toward_core:
+            return False
+        finished_side = _adjacent_side(sorting, secondary)  # type: ignore[arg-type]
+        # A hub is side-organized, not a one-dimensional three-band projection:
+        # raw and finished groups must attach to distinct sorting faces, while
+        # each group retains its explicit adjacent process chain.
+        return finished_side is not None and finished_side != raw_side
+    low_index, high_index = (0, 2) if skeleton.ordering_axis == "X" else (1, 3)
+    finished = (
+        min(row[low_index] for row in terminal_bounds),
+        max(row[high_index] for row in terminal_bounds),
+    )
+    downstream = _structural_downstream_direction(skeleton, raw, core)
+    if downstream == "POSITIVE":
+        return raw[1] <= core[0] and finished[1] > core[1]
+    if downstream == "NEGATIVE":
+        return core[1] <= raw[0] and finished[0] < core[0]
+    return False
+
+
+def _topology_geometry_valid(
+    placed: Mapping[str, PlacedRectangleV1], topology: str, longitudinal_axis: str
+) -> bool:
+    """Apply exact topology identity predicates after unchanged MUST edges.
+
+    Linear topology is classified from exact functional-group envelopes, not
+    from a requirement that every room share one common line. STRAIGHT uses a
+    common cross-axis interval across RAW, CORE, and FINISHED groups. OFFSET
+    requires adjacent group bands to overlap while the three-group common
+    interval is absent. The process-axis ordering and all mandatory room
+    adjacencies remain independently checked by their existing predicates.
+    """
+    if not set(MAIN_PROCESS_ZONE_CODES) <= set(placed):
+        return False
+    if topology == CENTRAL_PROCESS_HUB:
+        return True
+    cross_axis = "Y" if longitudinal_axis == "X" else "X"
+    axis_indices = (1, 3) if cross_axis == "Y" else (0, 2)
+    group_codes = (
+        ("raw_fruit_buffer", "primary_precooling_room"),
+        ("sorting_packaging_room", "coating_room"),
+        (
+            "secondary_precooling_room",
+            "finished_goods_room",
+            "shipping_channel",
+        ),
+    )
+    intervals: list[tuple[int, int]] = []
+    for codes in group_codes:
+        bounds = tuple(_bounds(placed[code]) for code in codes)
+        intervals.append(
+            (
+                min(row[axis_indices[0]] for row in bounds),
+                max(row[axis_indices[1]] for row in bounds),
+            )
+        )
+    common_low = max(row[0] for row in intervals)
+    common_high = min(row[1] for row in intervals)
+    common_band = common_low < common_high
+    if topology == STRAIGHT_LINEAR_BAND:
+        return common_band
+    if topology == OFFSET_LINEAR_BAND:
+        adjacent_bands_overlap = all(
+            max(first[0], second[0]) < min(first[1], second[1])
+            for first, second in zip(intervals, intervals[1:], strict=False)
+        )
+        return adjacent_bands_overlap and not common_band
+    return False
 
 
 def _search_provenance(
@@ -1054,8 +2576,645 @@ def _search_provenance(
         "search_tree_exhausted": search_tree_exhausted,
         "objective_optimal_within_search_family": objective_optimal_within_search_family,
         "node_budget_is_only_search_cutoff": True,
-        "candidate_family": "FINITE_ANCHOR_AND_EDGE_DRIVEN",
+        "candidate_family": "MULTI_FAMILY_STRUCTURAL_SKELETON_V1",
+        "structural_composition_identity": "structural-composition-family@1.0.0",
+        "structural_skeleton": context.structural_skeleton.to_dict(),
+        "search_phase": context.search_phase,
+        "placement_zone_order": list(context.placement_zone_order),
+        "structured_main_skeleton_diversity": {
+            "policy_identity": "main-process-skeleton-sampling@1.0.0",
+            "completion_cap_per_skeleton": STRUCTURED_COMPLETIONS_PER_MAIN_SKELETON,
+            "distinct_skeletons_with_complete_candidate": len(
+                stats.structured_main_skeleton_completions or {}
+            ),
+            "completion_counts": sorted(
+                (stats.structured_main_skeleton_completions or {}).values()
+            ),
+        },
+        "structured_core_root_diversity": {
+            "policy_identity": "process-core-root-sampling@1.0.0",
+            "distinct_roots_with_complete_candidate": len(
+                stats.structured_core_root_completions or {}
+            ),
+            "completion_cap_per_root": STRUCTURED_COMPLETIONS_PER_CORE_ROOT,
+        },
+        "main_process_skeleton_construction": {
+            "identity": "main-process-skeleton-construction@1.0.0",
+            "constructed_candidate_count": len(stats.constructed_main_skeletons or {}),
+            "generation_patterns": dict(sorted((stats.skeleton_generation_patterns or {}).items())),
+            "rejection_reason_counts": dict(sorted((stats.rejection_reason_counts or {}).items())),
+            "candidates": [
+                {
+                    "main_process_skeleton_hash": candidate.main_process_skeleton_hash,
+                    "family": candidate.family.to_dict(),
+                    "generation_pattern": candidate.generation_pattern,
+                }
+                for candidate in sorted(
+                    (stats.constructed_main_skeletons or {}).values(),
+                    key=lambda row: row.main_process_skeleton_hash,
+                )
+            ],
+        },
     }
+
+
+def _record_rejection(stats: _PlacementSearchStats, reason: str) -> None:
+    if stats.rejection_reason_counts is None:
+        stats.rejection_reason_counts = {}
+    stats.rejection_reason_counts[reason] = stats.rejection_reason_counts.get(reason, 0) + 1
+
+
+def _geometry_rejection_reason(
+    rectangle: PlacedRectangleV1,
+    placed: Mapping[str, PlacedRectangleV1],
+    context: _PlacementSearchContext,
+) -> str | None:
+    left, bottom, right, top = _bounds(rectangle)
+    min_x, min_y, max_x, max_y = context.boundary_bounds
+    if left < min_x or bottom < min_y or right > max_x or top > max_y:
+        return "SITE_OUTSIDE"
+    if not rectangle_inside_polygon(rectangle, context.boundary):
+        return "SITE_OUTSIDE"
+    if any(
+        rectangle_intersects_closed_obstacle(rectangle, obstacle) for obstacle in context.obstacles
+    ):
+        return "NO_BUILD_COLLISION"
+    if any(rectangles_overlap(rectangle, other) for other in placed.values()):
+        return "ZONE_OVERLAP"
+    return None
+
+
+def _constructive_edge_options(
+    context: _PlacementSearchContext,
+    code: str,
+    placed: Mapping[str, PlacedRectangleV1],
+    neighbor_code: str,
+    *,
+    required_side: str | tuple[str, ...] | None = None,
+    bridge_code: str | None = None,
+    bank_alignment_code: str | None = None,
+    prefer_truck_entrance: bool = False,
+    stats: _PlacementSearchStats,
+) -> tuple[PlacedRectangleV1, ...]:
+    """Construct exact adjacent options for one named skeleton edge."""
+    neighbor = placed[neighbor_code]
+    authority = context.authorities[code]
+    variants = _dimension_variants(authority, placed, context.boundary)
+    if not variants:
+        _record_rejection(stats, "DIMENSION_VARIANT_UNAVAILABLE")
+        return ()
+    options: dict[tuple[int, int, int, int], PlacedRectangleV1] = {}
+    graph_neighbors = _must_neighbors(code, placed, context.graph)
+    for width_mm, depth_mm, rotation in variants:
+        actual_width, actual_depth = (
+            (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
+        )
+        for x_mm, y_mm in _edge_anchors(neighbor, actual_width, actual_depth):
+            rectangle = _rectangle_from_mm(code, x_mm, y_mm, width_mm, depth_mm, rotation)
+            candidate_side = _adjacent_side(neighbor, rectangle)
+            if required_side is not None and candidate_side not in (
+                required_side if isinstance(required_side, tuple) else (required_side,)
+            ):
+                continue
+            rejection = _geometry_rejection_reason(rectangle, placed, context)
+            if rejection is not None:
+                _record_rejection(stats, rejection)
+                continue
+            if any(
+                not rectangles_share_positive_edge(rectangle, must_neighbor)
+                for must_neighbor in graph_neighbors
+            ):
+                _record_rejection(stats, "MUST_ADJACENCY_FAIL")
+                continue
+            left, bottom, right, top = _bounds(rectangle)
+            key = (left, bottom, right, top)
+            current = options.get(key)
+            current_variant = (
+                (
+                    _mm(current.width_m, field="candidate.width_m"),
+                    _mm(current.depth_m, field="candidate.depth_m"),
+                    current.rotation_deg,
+                )
+                if current is not None
+                else None
+            )
+            variant = (width_mm, depth_mm, rotation)
+            if current_variant is None or variant < current_variant:
+                options[key] = rectangle
+    rows = tuple(options[key] for key in sorted(options))
+    if not rows:
+        _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
+        return ()
+
+    def preference(
+        rectangle: PlacedRectangleV1,
+    ) -> tuple[int, int, int, int, int, int, int, int]:
+        alignment_penalty = 0
+        topology_alignment_penalty = 0
+        if bank_alignment_code is not None:
+            bank_reference = placed[bank_alignment_code]
+            reference_bounds = _bounds(bank_reference)
+            candidate_bounds = _bounds(rectangle)
+            candidate_side = _adjacent_side(neighbor, rectangle)
+            if candidate_side in {"EAST", "WEST"}:
+                alignment_penalty = int(
+                    candidate_bounds[1] != reference_bounds[1]
+                    or candidate_bounds[3] != reference_bounds[3]
+                )
+            else:
+                alignment_penalty = int(
+                    candidate_bounds[0] != reference_bounds[0]
+                    or candidate_bounds[2] != reference_bounds[2]
+                )
+        if context.structural_topology == OFFSET_LINEAR_BAND and code in {
+            "primary_precooling_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel",
+        }:
+            candidate_bounds = _bounds(rectangle)
+            neighbor_bounds = _bounds(neighbor)
+            candidate_side = _adjacent_side(neighbor, rectangle)
+            if candidate_side in {"NORTH", "SOUTH"}:
+                cross_axis_aligned = (
+                    candidate_bounds[0] == neighbor_bounds[0]
+                    and candidate_bounds[2] == neighbor_bounds[2]
+                )
+            else:
+                cross_axis_aligned = (
+                    candidate_bounds[1] == neighbor_bounds[1]
+                    and candidate_bounds[3] == neighbor_bounds[3]
+                )
+            # For the offset topology, aligned/unaligned is only an ordering
+            # preference. Positive edge adjacency and the exact final topology
+            # predicate remain mandatory.
+            topology_alignment_penalty = int(cross_axis_aligned)
+        bridge_penalty = int(
+            bridge_code is not None
+            and not rectangles_share_positive_edge(rectangle, placed[bridge_code])
+        )
+        entrance_penalty = int(
+            prefer_truck_entrance
+            and not _rectangle_shares_entrance_boundary(
+                rectangle, _truck_segment(context.site_body)
+            )
+        )
+        return (
+            alignment_penalty,
+            topology_alignment_penalty,
+            bridge_penalty,
+            entrance_penalty,
+            *_bounds(rectangle)[:2],
+            _bounds(rectangle)[2],
+            rectangle.rotation_deg,
+        )
+
+    return tuple(sorted(rows, key=preference))
+
+
+def _constructive_sorting_roots(
+    context: _PlacementSearchContext,
+    stats: _PlacementSearchStats,
+) -> tuple[PlacedRectangleV1, ...]:
+    authority = context.authorities["sorting_packaging_room"]
+    variants = _dimension_variants(authority, {}, context.boundary)
+    if not variants:
+        _record_rejection(stats, "DIMENSION_VARIANT_UNAVAILABLE")
+        return ()
+    skeleton_roots = set(context.structural_skeleton.root_anchor_candidates)
+    roots: dict[tuple[int, int, int, int], PlacedRectangleV1] = {}
+    for width_mm, depth_mm, rotation in variants:
+        actual_width, actual_depth = (
+            (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
+        )
+        anchors = set(
+            _structural_event_anchors(
+                {}, context.boundary, context.obstacles, actual_width, actual_depth
+            )
+        )
+        anchors.update(
+            (int(x * MILLIMETRES_PER_METRE), int(y * MILLIMETRES_PER_METRE))
+            for x, y, root_rotation in skeleton_roots
+            if root_rotation == rotation
+        )
+        for x_mm, y_mm in sorted(anchors):
+            rectangle = _rectangle_from_mm(
+                "sorting_packaging_room", x_mm, y_mm, width_mm, depth_mm, rotation
+            )
+            rejection = _geometry_rejection_reason(rectangle, {}, context)
+            if rejection is not None:
+                _record_rejection(stats, rejection)
+                continue
+            left, bottom, right, top = _bounds(rectangle)
+            key = (left, bottom, right, top)
+            current = roots.get(key)
+            current_variant = (
+                (
+                    _mm(current.width_m, field="sorting.width_m"),
+                    _mm(current.depth_m, field="sorting.depth_m"),
+                    current.rotation_deg,
+                )
+                if current is not None
+                else None
+            )
+            variant = (width_mm, depth_mm, rotation)
+            if current_variant is None or variant < current_variant:
+                roots[key] = rectangle
+
+    preferred_positions = {
+        (int(x * MILLIMETRES_PER_METRE), int(y * MILLIMETRES_PER_METRE))
+        for x, y, _rotation in skeleton_roots
+    }
+    canonical_roots = sorted(
+        roots.values(),
+        key=lambda row: (row.bounds_mm[1], row.bounds_mm[0], row.rotation_deg),
+    )
+    preflight_penalties = {
+        row.bounds_mm: _topology_root_ordering_penalty(context, row) for row in canonical_roots
+    }
+    if context.structural_topology == CENTRAL_PROCESS_HUB:
+        # Preserve the established, deterministic Hub root lane. Ordering the
+        # existing structural anchor events first is important: the recent
+        # envelope penalty reordered them and caused a known hard-valid Hub
+        # path to disappear inside its unchanged tail budget.
+        ordered = [row for row in canonical_roots if row.bounds_mm[:2] in preferred_positions]
+        remaining = [row for row in canonical_roots if row.bounds_mm[:2] not in preferred_positions]
+        if not ordered and remaining:
+            ordered.append(remaining.pop(0))
+    else:
+        first = min(
+            canonical_roots,
+            key=lambda row: (
+                preflight_penalties[row.bounds_mm],
+                row.bounds_mm[:2] not in preferred_positions,
+                row.bounds_mm[1],
+                row.bounds_mm[0],
+                row.rotation_deg,
+            ),
+        )
+        ordered = [first]
+        remaining = [row for row in canonical_roots if row != first]
+    if stats.root_preflight_rows is None:
+        stats.root_preflight_rows = []
+    while remaining:
+
+        def diversity_key(row: PlacedRectangleV1) -> tuple[int, int, int, int, int]:
+            x_mm, y_mm = row.bounds_mm[:2]
+            minimum_squared_distance = min(
+                (x_mm - chosen.bounds_mm[0]) ** 2 + (y_mm - chosen.bounds_mm[1]) ** 2
+                for chosen in ordered
+            )
+            # Max-min anchor spacing samples genuinely different potential
+            # process cores without introducing a weighted quality score.
+            if context.structural_topology == CENTRAL_PROCESS_HUB:
+                return (
+                    minimum_squared_distance,
+                    -y_mm,
+                    -x_mm,
+                    -row.rotation_deg,
+                    -row.bounds_mm[2],
+                )
+            return (
+                -preflight_penalties[row.bounds_mm],
+                minimum_squared_distance,
+                -y_mm,
+                -x_mm,
+                -row.rotation_deg,
+            )
+
+        next_root = max(remaining, key=diversity_key)
+        ordered.append(next_root)
+        remaining.remove(next_root)
+    stats.root_preflight_rows.extend(
+        {
+            "sorting_root_bounds_mm": list(row.bounds_mm),
+            "estimated_topology_envelope_penalty_mm": preflight_penalties[row.bounds_mm],
+            "use": "ORDERING_ONLY",
+            "hard_pruned": False,
+        }
+        for row in ordered
+    )
+    return tuple(ordered)
+
+
+def _family_attachment_sides(
+    family: StructuralCompositionFamilyV1,
+) -> tuple[tuple[str, str], ...]:
+    if family.family == "LINEAR_PROCESS_BAND":
+        raw_side = {
+            ("X", "POSITIVE"): "WEST",
+            ("X", "NEGATIVE"): "EAST",
+            ("Y", "POSITIVE"): "SOUTH",
+            ("Y", "NEGATIVE"): "NORTH",
+        }[(family.dominant_axis, family.dominant_direction)]
+        return ((raw_side, _OPPOSITE_SIDE[raw_side]),)
+    return (
+        ("SOUTH", "NORTH"),
+        ("SOUTH", "WEST"),
+        # Opposite-face and folded alternatives are all searched.  This order
+        # samples an orthogonal hub topology immediately after the established
+        # south/north construction so the first topology cannot starve the
+        # family lane. Exact site, dimension, obstacle and adjacency predicates
+        # still admit or reject every constructed skeleton.
+        ("NORTH", "SOUTH"),
+        ("EAST", "NORTH"),
+        ("WEST", "NORTH"),
+        ("WEST", "SOUTH"),
+        ("EAST", "SOUTH"),
+        ("NORTH", "EAST"),
+        ("NORTH", "WEST"),
+        ("SOUTH", "EAST"),
+        ("WEST", "EAST"),
+        ("EAST", "WEST"),
+    )
+
+
+def _construct_face_skeletons(
+    context: _PlacementSearchContext,
+    stats: _PlacementSearchStats,
+    sorting: PlacedRectangleV1,
+    raw_side: str,
+    finished_side: str,
+    skeleton_node_limit: int,
+    skeleton_limit: int,
+) -> Iterator[MainProcessSkeletonCandidateV1]:
+    """Construct one complete seven-zone skeleton for one core topology.
+
+    Shipping-interface alternatives are deliberately not allowed to consume
+    the whole constructive lane before another raw/finished face topology is
+    tried.  Candidate diversity must come from the main process geometry, not
+    merely from moving the terminal shipping rectangle.
+    """
+    placed: dict[str, PlacedRectangleV1] = {"sorting_packaging_room": sorting}
+    emitted_skeletons = 0
+    primary_options = _constructive_edge_options(
+        context,
+        "primary_precooling_room",
+        placed,
+        "sorting_packaging_room",
+        required_side=raw_side,
+        stats=stats,
+    )
+    for primary in primary_options:
+        if stats.visited_nodes >= skeleton_node_limit:
+            stats.skeleton_search_truncated = True
+            return
+        stats.visited_nodes += 1
+        placed["primary_precooling_room"] = primary
+        raw_options = _constructive_edge_options(
+            context,
+            "raw_fruit_buffer",
+            placed,
+            "primary_precooling_room",
+            required_side=(
+                (
+                    ("WEST", "EAST")
+                    if context.structural_skeleton.ordering_axis == "Y"
+                    else ("SOUTH", "NORTH")
+                )
+                if context.structural_composition_family.family == "LINEAR_PROCESS_BAND"
+                else tuple(side for side in _CARDINAL_SIDES if side != _OPPOSITE_SIDE[raw_side])
+            ),
+            bank_alignment_code="primary_precooling_room",
+            stats=stats,
+        )
+        for raw in raw_options:
+            if stats.visited_nodes >= skeleton_node_limit:
+                stats.skeleton_search_truncated = True
+                return
+            stats.visited_nodes += 1
+            placed["raw_fruit_buffer"] = raw
+            secondary_options = _constructive_edge_options(
+                context,
+                "secondary_precooling_room",
+                placed,
+                "sorting_packaging_room",
+                required_side=finished_side,
+                stats=stats,
+            )
+            for secondary in secondary_options:
+                if stats.visited_nodes >= skeleton_node_limit:
+                    stats.skeleton_search_truncated = True
+                    return
+                stats.visited_nodes += 1
+                placed["secondary_precooling_room"] = secondary
+                coating_options = _constructive_edge_options(
+                    context,
+                    "coating_room",
+                    placed,
+                    "secondary_precooling_room",
+                    bridge_code="sorting_packaging_room",
+                    stats=stats,
+                )
+                for coating in coating_options:
+                    if stats.visited_nodes >= skeleton_node_limit:
+                        stats.skeleton_search_truncated = True
+                        return
+                    stats.visited_nodes += 1
+                    placed["coating_room"] = coating
+                    finished_options = _constructive_edge_options(
+                        context,
+                        "finished_goods_room",
+                        placed,
+                        "coating_room",
+                        stats=stats,
+                    )
+                    for finished in finished_options:
+                        if stats.visited_nodes >= skeleton_node_limit:
+                            stats.skeleton_search_truncated = True
+                            return
+                        stats.visited_nodes += 1
+                        placed["finished_goods_room"] = finished
+                        shipping_options = _constructive_edge_options(
+                            context,
+                            "shipping_channel",
+                            placed,
+                            "finished_goods_room",
+                            prefer_truck_entrance=True,
+                            stats=stats,
+                        )
+                        if not shipping_options:
+                            _record_rejection(stats, "SHIPPING_INTERFACE_FAIL")
+                        for shipping in shipping_options:
+                            if stats.visited_nodes >= skeleton_node_limit:
+                                stats.skeleton_search_truncated = True
+                                return
+                            stats.visited_nodes += 1
+                            placed["shipping_channel"] = shipping
+                            if set(placed) != set(MAIN_PROCESS_ZONE_CODES):
+                                _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
+                            elif not _main_group_order_monotonic(
+                                placed, context.structural_skeleton
+                            ):
+                                _record_rejection(stats, "GROUP_ORDER_FAIL")
+                            elif not _topology_geometry_valid(
+                                placed,
+                                context.structural_topology,
+                                context.structural_skeleton.ordering_axis,
+                            ):
+                                _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
+                            else:
+                                try:
+                                    seed = MainProcessSkeletonCandidateV1.create(
+                                        family=context.structural_composition_family,
+                                        rectangles=placed,
+                                        topology=context.structural_topology,
+                                        generation_pattern=(
+                                            f"{context.structural_topology}:"
+                                            f"RAW_{raw_side}:"
+                                            f"RAW_BANK_{_adjacent_side(primary, raw)}:"
+                                            f"FINISHED_{finished_side}:"
+                                            f"ROOT_{sorting.x}_{sorting.y}_"
+                                            "CONSTRUCTIVE_PROCESS_CHAIN"
+                                        ),
+                                        hard_geometry_predicates_passed=(
+                                            "SITE_CONTAINMENT",
+                                            "NO_BUILD_CLEAR",
+                                            "NON_OVERLAP",
+                                            "MUST_ADJACENCY",
+                                            "GROUP_ORDER",
+                                            "TOPOLOGY_RULE",
+                                        ),
+                                    )
+                                except LayoutAuthorityError:
+                                    _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
+                                else:
+                                    emitted_skeletons += 1
+                                    yield seed
+                                    break
+                        if emitted_skeletons >= skeleton_limit:
+                            return
+
+
+def _construct_main_process_skeletons(
+    context: _PlacementSearchContext,
+    stats: _PlacementSearchStats,
+) -> Iterator[MainProcessSkeletonCandidateV1]:
+    """Build full seven-zone candidates before any support/personnel search."""
+    skeleton_completion_limit = min(
+        CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT,
+        max(1, context.node_budget // MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE),
+    )
+    if stats.constructed_main_skeletons is None:
+        stats.constructed_main_skeletons = {}
+    if stats.skeleton_generation_patterns is None:
+        stats.skeleton_generation_patterns = {}
+    if stats.skeleton_construction_attempts is None:
+        stats.skeleton_construction_attempts = []
+    roots = _constructive_sorting_roots(context, stats)
+    emitted = 0
+    previous_seed_node = 0
+    skeleton_node_limit = min(
+        context.node_budget,
+        max(
+            MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE,
+            (context.node_budget * STRUCTURED_SKELETON_CONSTRUCTION_SHARE_NUMERATOR)
+            // STRUCTURED_SKELETON_CONSTRUCTION_SHARE_DENOMINATOR,
+        ),
+    )
+    face_pairs = _family_attachment_sides(context.structural_composition_family)
+    for face_pair_index, (raw_side, finished_side) in enumerate(face_pairs):
+        if emitted >= skeleton_completion_limit:
+            return
+        remaining_face_pairs = len(face_pairs) - face_pair_index
+        remaining_construction_nodes = max(0, skeleton_node_limit - stats.visited_nodes)
+        even_face_pair_share = (
+            remaining_construction_nodes + remaining_face_pairs - 1
+        ) // remaining_face_pairs
+        face_pair_allowance = min(
+            remaining_construction_nodes,
+            max(CONSTRUCTIVE_FACE_PAIR_NODE_BUDGET, even_face_pair_share),
+        )
+        face_pair_node_limit = min(
+            skeleton_node_limit,
+            stats.visited_nodes + face_pair_allowance,
+        )
+        for sorting in roots:
+            if stats.visited_nodes >= face_pair_node_limit:
+                stats.skeleton_search_truncated = True
+                break
+            stats.visited_nodes += 1
+            sorting_root_node_limit = min(
+                face_pair_node_limit,
+                stats.visited_nodes + CONSTRUCTIVE_SORTING_ROOT_NODE_BUDGET,
+            )
+            emitted_for_face = 0
+            rejection_counts_before = dict(stats.rejection_reason_counts or {})
+            attempt_skeleton_hashes: list[str] = []
+            attempt_node_start = stats.visited_nodes
+            for seed in _construct_face_skeletons(
+                context,
+                stats,
+                sorting,
+                raw_side,
+                finished_side,
+                sorting_root_node_limit,
+                skeleton_limit=max(1, skeleton_completion_limit - emitted),
+            ):
+                if seed.main_process_skeleton_hash in stats.constructed_main_skeletons:
+                    _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
+                    continue
+                stats.constructed_main_skeletons[seed.main_process_skeleton_hash] = seed
+                if stats.construction_nodes_by_skeleton is None:
+                    stats.construction_nodes_by_skeleton = {}
+                stats.construction_nodes_by_skeleton[seed.main_process_skeleton_hash] = max(
+                    0, stats.visited_nodes - previous_seed_node
+                )
+                previous_seed_node = stats.visited_nodes
+                attempt_skeleton_hashes.append(seed.main_process_skeleton_hash)
+                stats.skeleton_generation_patterns[seed.generation_pattern] = (
+                    stats.skeleton_generation_patterns.get(seed.generation_pattern, 0) + 1
+                )
+                emitted += 1
+                emitted_for_face += 1
+                yield seed
+                if emitted >= skeleton_completion_limit:
+                    stats.skeleton_construction_attempts.append(
+                        {
+                            "raw_side": raw_side,
+                            "finished_side": finished_side,
+                            "sorting_root_mm": list(sorting.bounds_mm),
+                            "result": "SKELETON_CONSTRUCTED",
+                            "skeleton_hashes": attempt_skeleton_hashes,
+                            "face_pair_node_limit": face_pair_node_limit,
+                            "sorting_root_node_limit": sorting_root_node_limit,
+                            "search_truncated": False,
+                            "visited_node_delta": stats.visited_nodes - attempt_node_start,
+                        }
+                    )
+                    return
+            rejection_counts_after = stats.rejection_reason_counts or {}
+            stats.skeleton_construction_attempts.append(
+                {
+                    "raw_side": raw_side,
+                    "finished_side": finished_side,
+                    "sorting_root_mm": list(sorting.bounds_mm),
+                    "result": "SKELETON_CONSTRUCTED"
+                    if attempt_skeleton_hashes
+                    else "TRUNCATED"
+                    if stats.visited_nodes >= sorting_root_node_limit
+                    else "REJECTED",
+                    "face_pair_node_limit": face_pair_node_limit,
+                    "sorting_root_node_limit": sorting_root_node_limit,
+                    "search_truncated": stats.visited_nodes >= sorting_root_node_limit
+                    and not attempt_skeleton_hashes,
+                    "skeleton_hashes": attempt_skeleton_hashes,
+                    "rejection_reason_counts": {
+                        reason: rejection_counts_after.get(reason, 0) - count
+                        for reason, count in sorted(rejection_counts_before.items())
+                        if rejection_counts_after.get(reason, 0) > count
+                    }
+                    | {
+                        reason: count
+                        for reason, count in sorted(rejection_counts_after.items())
+                        if reason not in rejection_counts_before and count > 0
+                    },
+                    "visited_node_delta": stats.visited_nodes - attempt_node_start,
+                }
+            )
+            if emitted_for_face and context.structural_topology == CENTRAL_PROCESS_HUB:
+                break
 
 
 def _walk_complete_candidate_payloads(
@@ -1063,16 +3222,108 @@ def _walk_complete_candidate_payloads(
 ) -> Iterator[dict[str, Any]]:
     """Yield every complete P2C candidate until the node budget is exhausted."""
     placed: dict[str, PlacedRectangleV1] = {}
+    truck_entrance = _truck_segment(context.site_body)
+    if stats.structured_main_skeleton_completions is None:
+        stats.structured_main_skeleton_completions = {}
+    if stats.structured_core_root_completions is None:
+        stats.structured_core_root_completions = {}
+    main_skeleton_completions = stats.structured_main_skeleton_completions
+    core_root_completions = stats.structured_core_root_completions
+    assert main_skeleton_completions is not None
+    assert core_root_completions is not None
 
-    def visit(index: int) -> Iterator[dict[str, Any]]:
+    def main_skeleton_signature() -> str:
+        return canonical_json(
+            [
+                {
+                    "zone_code": code,
+                    "x": str(placed[code].x),
+                    "y": str(placed[code].y),
+                    "width_m": str(placed[code].width_m),
+                    "depth_m": str(placed[code].depth_m),
+                    "rotation_deg": placed[code].rotation_deg,
+                }
+                for code in MAIN_PROCESS_SKELETON_ZONE_CODES
+                if code in placed
+            ]
+        )
+
+    def core_root_signature() -> str | None:
+        sorting = placed.get("sorting_packaging_room")
+        if sorting is None:
+            return None
+        return canonical_json(
+            {
+                "x": str(sorting.x),
+                "y": str(sorting.y),
+                "width_m": str(sorting.width_m),
+                "depth_m": str(sorting.depth_m),
+                "rotation_deg": sorting.rotation_deg,
+            }
+        )
+
+    active_skeleton_node_limit: int | None = None
+    active_skeleton_budget_exhausted = False
+
+    def visit(
+        index: int,
+        structurally_generated: bool,
+        main_process_skeleton: MainProcessSkeletonCandidateV1 | None = None,
+    ) -> Iterator[dict[str, Any]]:
+        nonlocal active_skeleton_budget_exhausted
+        if (
+            active_skeleton_node_limit is not None
+            and stats.visited_nodes >= active_skeleton_node_limit
+        ):
+            active_skeleton_budget_exhausted = True
+            return
+        root_signature = core_root_signature()
+        if (
+            context.search_phase == STRUCTURED_PHASE
+            and index >= len(MAIN_PROCESS_ZONE_CODES)
+            and len(placed) >= len(MAIN_PROCESS_ZONE_CODES)
+            and main_skeleton_completions.get(main_skeleton_signature(), 0)
+            >= STRUCTURED_COMPLETIONS_PER_MAIN_SKELETON
+        ):
+            return
+        if (
+            context.search_phase == STRUCTURED_PHASE
+            and index > 0
+            and root_signature is not None
+            and core_root_completions.get(root_signature, 0) >= STRUCTURED_COMPLETIONS_PER_CORE_ROOT
+        ):
+            return
         if stats.visited_nodes >= context.node_budget:
             stats.node_budget_exhausted = True
             return
         stats.visited_nodes += 1
-        if index == len(PLACEMENT_ZONE_ORDER):
+        if main_process_skeleton is not None:
+            if stats.tail_nodes_by_skeleton is None:
+                stats.tail_nodes_by_skeleton = {}
+            skeleton_hash = main_process_skeleton.main_process_skeleton_hash
+            stats.tail_nodes_by_skeleton[skeleton_hash] = (
+                stats.tail_nodes_by_skeleton.get(skeleton_hash, 0) + 1
+            )
+        if (
+            context.search_phase == STRUCTURED_PHASE
+            and index == len(MAIN_PROCESS_ZONE_CODES)
+            and not _main_group_order_monotonic(placed, context.structural_skeleton)
+        ):
+            return
+        if index == len(context.placement_zone_order):
             _validate_graph_completeness(context.graph, placed)
             stats.complete_candidates += 1
-            yield _candidate_payload(
+            if context.search_phase == STRUCTURED_PHASE:
+                signature = main_skeleton_signature()
+                main_skeleton_completions[signature] = (
+                    main_skeleton_completions.get(signature, 0) + 1
+                )
+                root_signature = core_root_signature()
+                if root_signature is not None:
+                    core_root_completions[root_signature] = (
+                        core_root_completions.get(root_signature, 0) + 1
+                    )
+            payload = _candidate_payload(
                 placed,
                 context.authorities,
                 context.graph,
@@ -1090,9 +3341,18 @@ def _walk_complete_candidate_payloads(
                     objective_optimal_within_search_family=False,
                 ),
             )
+            payload["_structural_generation_flag"] = structurally_generated
+            payload["_structural_composition_family"] = (
+                context.structural_composition_family.to_dict()
+            )
+            payload["_structural_skeleton"] = context.structural_skeleton.to_dict()
+            payload["_search_phase"] = context.search_phase
+            if main_process_skeleton is not None:
+                payload["_main_process_skeleton"] = main_process_skeleton.to_dict()
+            yield payload
             return
-        code = PLACEMENT_ZONE_ORDER[index]
-        options = _candidate_options(
+        code = context.placement_zone_order[index]
+        option_arguments = (
             code,
             context.authorities[code],
             placed,
@@ -1100,16 +3360,156 @@ def _walk_complete_candidate_payloads(
             context.boundary_bounds,
             context.obstacles,
             context.graph,
+            context.structural_composition_family,
+            context.main_entrance,
         )
+        if context.search_phase == LEGACY_COMPAT_PHASE:
+            options = _candidate_options(*option_arguments)
+        else:
+            options = _candidate_options(
+                *option_arguments,
+                search_phase=context.search_phase,
+                structural_skeleton=context.structural_skeleton,
+                zone_authorities=context.authorities,
+                truck_entrance=truck_entrance,
+            )
+        if main_process_skeleton is not None and index >= len(MAIN_PROCESS_ZONE_CODES):
+            if stats.tail_zone_search_facts is None:
+                stats.tail_zone_search_facts = {}
+            skeleton_facts = stats.tail_zone_search_facts.setdefault(
+                main_process_skeleton.main_process_skeleton_hash, {}
+            )
+            zone_facts = skeleton_facts.setdefault(
+                code,
+                {
+                    "branch_visits": 0,
+                    "candidate_options": 0,
+                    "skeleton_region_options": 0,
+                    "empty_option_branches": 0,
+                },
+            )
+            zone_facts["branch_visits"] += 1
+            zone_facts["candidate_options"] += len(options)
+            skeleton_region_options = sum(
+                int(
+                    context.search_phase != STRUCTURED_PHASE
+                    or _candidate_fits_skeleton_region(
+                        code, rectangle, placed, context.structural_skeleton
+                    )
+                )
+                for rectangle in options
+            )
+            zone_facts["skeleton_region_options"] += skeleton_region_options
+            if not skeleton_region_options:
+                zone_facts["empty_option_branches"] += 1
         stats.generated_candidates += len(options)
         for rectangle in options:
+            if context.search_phase == STRUCTURED_PHASE and not _candidate_fits_skeleton_region(
+                code, rectangle, placed, context.structural_skeleton
+            ):
+                continue
+            structural_refs = structural_anchor_references(code, tuple(placed))
+            if context.search_phase == STRUCTURED_PHASE and code in MAIN_PROCESS_ZONE_CODES:
+                # Main-flow candidates are structurally generated only after
+                # passing the versioned group/band predicate and existing
+                # MUST-edge checks performed by _candidate_options.
+                anchored = _candidate_fits_skeleton_region(
+                    code, rectangle, placed, context.structural_skeleton
+                )
+            elif code == "sorting_packaging_room" and context.search_phase == STRUCTURED_PHASE:
+                anchored = True
+            elif code == "raw_fruit_buffer" and context.search_phase != STRUCTURED_PHASE:
+                anchored = _rectangle_touches_boundary(rectangle, context.boundary)
+            elif (
+                context.structural_composition_family.family == "LINEAR_PROCESS_BAND"
+                and _structural_linear_predecessor(code) is not None
+            ):
+                predecessor = placed.get(_structural_linear_predecessor(code) or "")
+                anchored = predecessor is not None and _linear_flow_anchor_matches(
+                    rectangle, predecessor, context.structural_composition_family
+                )
+            else:
+                anchored = any(
+                    rectangles_share_positive_edge(rectangle, placed[reference])
+                    for reference in structural_refs
+                )
+            if (
+                context.search_phase == STRUCTURED_PHASE
+                and code == "coating_room"
+                and "sorting_packaging_room" in placed
+            ):
+                anchored = anchored and rectangles_share_positive_edge(
+                    rectangle, placed["sorting_packaging_room"]
+                )
             placed[code] = rectangle
-            yield from visit(index + 1)
+            yield from visit(
+                index + 1,
+                structurally_generated
+                and anchored
+                and context.search_phase != GENERAL_FALLBACK_PHASE,
+                main_process_skeleton,
+            )
             placed.pop(code)
-            if stats.node_budget_exhausted:
+            if stats.node_budget_exhausted or active_skeleton_budget_exhausted:
                 return
 
-    yield from visit(0)
+    if context.search_phase == STRUCTURED_PHASE:
+        # Construct a small, deterministic set of genuinely distinct main
+        # process geometries before spending any nodes on support/personnel.
+        # This prevents the first seed's tail DFS from starving other skeleton
+        # topologies and makes the search order skeleton-first, then tail.
+        skeleton_seeds = tuple(_construct_main_process_skeletons(context, stats))
+        if not skeleton_seeds:
+            # No incomplete skeleton may be extended by the general zone DFS:
+            # that would reverse the skeleton-first authority boundary.
+            return
+        for seed_index, seed in enumerate(skeleton_seeds):
+            placed.update({row.zone_code: row for row in seed.zone_rectangles})
+            if len(placed) != len(MAIN_PROCESS_ZONE_CODES):
+                raise _error("MAIN_PROCESS_SKELETON_ZONE_SET_INVALID")
+            active_skeleton_budget_exhausted = False
+            remaining_seed_count = len(skeleton_seeds) - seed_index
+            remaining_nodes = max(0, context.node_budget - stats.visited_nodes)
+            tail_node_share = remaining_nodes // remaining_seed_count
+            active_skeleton_node_limit = min(
+                context.node_budget,
+                stats.visited_nodes + tail_node_share,
+            )
+            tail_node_limit = max(0, active_skeleton_node_limit - stats.visited_nodes)
+            tail_start_node = stats.visited_nodes
+            complete_start_count = stats.complete_candidates
+            yield from visit(len(MAIN_PROCESS_ZONE_CODES), True, seed)
+            complete_count = stats.complete_candidates - complete_start_count
+            if stats.skeleton_tail_lifecycle is None:
+                stats.skeleton_tail_lifecycle = []
+            stats.skeleton_tail_lifecycle.append(
+                {
+                    "topology": seed.topology,
+                    "skeleton_hash": seed.main_process_skeleton_hash,
+                    "construction_nodes": (stats.construction_nodes_by_skeleton or {}).get(
+                        seed.main_process_skeleton_hash, 0
+                    ),
+                    "tail_nodes": stats.visited_nodes - tail_start_node,
+                    "tail_node_limit": tail_node_limit,
+                    "complete_candidate_count": complete_count,
+                    "p2d_reached": complete_count > 0,
+                    "p2d_full_pass_count": 0,
+                    "first_failure_stage": "TAIL_SEARCH" if complete_count == 0 else None,
+                    "first_failure_reason": (
+                        "TAIL_NODE_SHARE_EXHAUSTED_WITHOUT_COMPLETE_P2C_CANDIDATE"
+                    )
+                    if complete_count == 0 and active_skeleton_budget_exhausted
+                    else "TAIL_SEARCH_COMPLETED_WITHOUT_COMPLETE_P2C_CANDIDATE"
+                    if complete_count == 0
+                    else None,
+                }
+            )
+            active_skeleton_node_limit = None
+            placed.clear()
+            if stats.node_budget_exhausted:
+                return
+    else:
+        yield from visit(0, True)
 
 
 def _materialize_candidate_result(
@@ -1117,6 +3517,11 @@ def _materialize_candidate_result(
 ) -> SitePlacementResultV1:
     content = dict(payload)
     content.pop("_loading_comparison", None)
+    content.pop("_structural_generation_flag", None)
+    content.pop("_structural_composition_family", None)
+    content.pop("_structural_skeleton", None)
+    content.pop("_search_phase", None)
+    content.pop("_main_process_skeleton", None)
     if provenance is not None:
         content["search_provenance"] = dict(provenance)
     content.setdefault("placement_engine_identity", IDENTITY)
@@ -1150,6 +3555,9 @@ class PlacementCandidateEnumerationV1:
         self._stats = _PlacementSearchStats()
         self._started = False
         self._finished = False
+        self._structural_flags: dict[str, bool] = {}
+        self._candidate_skeleton_hashes: dict[str, str | None] = {}
+        self._candidate_topologies: dict[str, str] = {}
 
     def iter_candidates(self) -> Iterator[SitePlacementResultV1]:
         if self._started:
@@ -1162,7 +3570,27 @@ class PlacementCandidateEnumerationV1:
             except StopIteration:
                 self._finished = True
                 return
-            yield _materialize_candidate_result(payload)
+            structural_flag = payload.get("_structural_generation_flag") is True
+            internal_skeleton = payload.get("_main_process_skeleton")
+            candidate = _materialize_candidate_result(payload)
+            candidate_hash = candidate.to_dict().get("canonical_candidate_hash")
+            if isinstance(candidate_hash, str):
+                self._structural_flags[candidate_hash] = structural_flag
+                skeleton_hash = (
+                    internal_skeleton.get("main_process_skeleton_hash")
+                    if isinstance(internal_skeleton, Mapping)
+                    else None
+                )
+                self._candidate_skeleton_hashes[candidate_hash] = (
+                    skeleton_hash if isinstance(skeleton_hash, str) else None
+                )
+                topology = (
+                    internal_skeleton.get("topology")
+                    if isinstance(internal_skeleton, Mapping)
+                    else self._context.structural_topology
+                )
+                self._candidate_topologies[candidate_hash] = str(topology)
+            yield candidate
 
     @property
     def completed(self) -> bool:
@@ -1177,12 +3605,58 @@ class PlacementCandidateEnumerationV1:
         return self._stats.generated_candidates
 
     @property
+    def distinct_main_process_skeleton_count(self) -> int:
+        return len(self._stats.constructed_main_skeletons or {})
+
+    @property
+    def skeleton_generation_report(self) -> dict[str, Any]:
+        return {
+            "identity": "main-process-skeleton-construction@1.0.0",
+            "topology": self._context.structural_topology,
+            "constructed_candidate_count": len(self._stats.constructed_main_skeletons or {}),
+            "candidates": [
+                candidate.to_dict()
+                for candidate in sorted(
+                    (self._stats.constructed_main_skeletons or {}).values(),
+                    key=lambda row: row.main_process_skeleton_hash,
+                )
+            ],
+            "rejection_reason_counts": dict(
+                sorted((self._stats.rejection_reason_counts or {}).items())
+            ),
+            "construction_attempts": list(self._stats.skeleton_construction_attempts or []),
+            "root_preflight_mode": "EXACT_NECESSARY_PREDICATE_OR_ORDERING_ONLY",
+            "heuristic_root_pruning": False,
+            "root_preflight_ordering": list(self._stats.root_preflight_rows or []),
+            "skeleton_tail_lifecycle": list(self._stats.skeleton_tail_lifecycle or []),
+            "tail_search_zone_facts": {
+                skeleton_hash: {
+                    zone_code: dict(zone_facts)
+                    for zone_code, zone_facts in sorted(zone_rows.items())
+                }
+                for skeleton_hash, zone_rows in sorted(
+                    (self._stats.tail_zone_search_facts or {}).items()
+                )
+            },
+            "node_budget_exhausted": self._stats.node_budget_exhausted,
+            "construction_search_truncated": self._stats.skeleton_search_truncated,
+        }
+
+    @property
+    def distinct_structural_core_root_count(self) -> int:
+        return len(self._stats.structured_core_root_completions or {})
+
+    @property
     def visited_node_count(self) -> int:
         return self._stats.visited_nodes
 
     @property
     def search_tree_exhausted(self) -> bool:
-        return self.completed and not self._stats.node_budget_exhausted
+        return (
+            self.completed
+            and not self._stats.node_budget_exhausted
+            and not self._stats.skeleton_search_truncated
+        )
 
     @property
     def node_budget_exhausted(self) -> bool:
@@ -1196,6 +3670,32 @@ class PlacementCandidateEnumerationV1:
             search_tree_exhausted=self.search_tree_exhausted,
             objective_optimal_within_search_family=self.search_tree_exhausted,
         )
+
+    @property
+    def structural_composition_family(self) -> StructuralCompositionFamilyV1:
+        return self._context.structural_composition_family
+
+    @property
+    def structural_skeleton(self) -> StructuralSkeletonV1:
+        return self._context.structural_skeleton
+
+    @property
+    def search_phase(self) -> str:
+        return self._context.search_phase
+
+    @property
+    def structural_topology(self) -> str:
+        return self._context.structural_topology
+
+    def structurally_generated(self, candidate_hash: str) -> bool:
+        """Report whether every assigned zone used a group/band anchor."""
+        return self._structural_flags.get(candidate_hash, False)
+
+    def candidate_main_process_skeleton_hash(self, candidate_hash: str) -> str | None:
+        return self._candidate_skeleton_hashes.get(candidate_hash)
+
+    def candidate_topology(self, candidate_hash: str) -> str | None:
+        return self._candidate_topologies.get(candidate_hash)
 
 
 def enumerate_placement_candidates(
@@ -1211,6 +3711,9 @@ def enumerate_placement_candidates(
     spatial_relationships: Sequence[Mapping[str, Any]] = (),
     node_budget: int = DEFAULT_NODE_BUDGET,
     complete_candidate_limit: int | None = None,
+    structural_family: StructuralCompositionFamilyV1 | None = None,
+    structural_topology: str | None = None,
+    search_phase: str = LEGACY_COMPAT_PHASE,
 ) -> PlacementCandidateEnumerationV1:
     """Expose the same validated P2C search family as a lazy candidate stream."""
     return PlacementCandidateEnumerationV1(
@@ -1226,6 +3729,9 @@ def enumerate_placement_candidates(
             spatial_relationships=spatial_relationships,
             node_budget=node_budget,
             complete_candidate_limit=complete_candidate_limit,
+            structural_family=structural_family,
+            structural_topology=structural_topology,
+            search_phase=search_phase,
         )
     )
 
@@ -1322,6 +3828,8 @@ def search_placement(
         return SitePlacementResultV1.from_payload(payload)
 
     best_payload.pop("_loading_comparison", None)
+    best_payload.pop("_structural_generation_flag", None)
+    best_payload.pop("_structural_composition_family", None)
     best_payload["search_provenance"] = provenance
     best_payload["status"] = "PLACEMENT_FOUND"
     best_payload["placement_available"] = True

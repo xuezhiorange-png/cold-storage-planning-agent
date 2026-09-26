@@ -989,3 +989,66 @@ NO_STEP_IMPLIES_THE_NEXT=true
 
 See the [P0C abstraction and calibration report](V2_2_2-P0C-golden-layout-abstraction-and-calibration.md)
 and its [normalized evidence pack](evidence/v2_2_2_p0c/).
+
+## V2.2.2 P1A structural layout generation and selection (Draft review)
+
+P1A R1 introduced deterministic structural family search with an initial
+15-node placement budget. R2 raised the production placement cutoff to 120
+after deterministic budget-sensitivity evidence; R3 retained 120. This is a
+bounded-search cutoff only: it is not a global-optimum claim and does not prove
+that either Linear lane is infeasible. At both 60 and 120 total nodes, the
+Xinzhao sensitivity evidence produced two P2D full-pass candidates but only
+one distinct full-pass main-process skeleton. R3 remains PARTIAL: its selected
+seven-zone main-process geometry equals the v2.2.1/R1/R2 geometry, and its
+Owner visual review is pending. The R4 candidate-space review is evidence and
+design only; it does not authorize runtime implementation or another budget
+increase. Tool 7's public contract and inactive P1B numeric thresholds remain
+unchanged.
+
+See [V2.2.2 P1A structural layout evidence](V2_2_2-P1A-structural-layout-generation.md)
+and its [before/after Xinzhao artifacts](evidence/v2_2_2_p1a/xinzhao_p1a_comparison.md).
+
+```ini
+TASK_ID=V2_2_2_P1A_STRUCTURAL_LAYOUT_GENERATION_AND_SELECTION_R1
+BASE_MAIN_SHA=955e5e532236fb6c33a80709e90362b12124fb72
+ACTIVE_GOVERNANCE_LANE=V2.2.2_P1A
+STRUCTURAL_GROUP_BAND_ZONE_GENERATION=IMPLEMENTED
+P2D_HARD_GATE_PRESERVED=true
+TOOL7_CONTRACT_CHANGED=false
+P1B_NUMERIC_THRESHOLDS_ACTIVE=false
+XINZHAO_SUPPORT_GROUP_SHARED_EDGES=2
+XINZHAO_PROCESS_CORE_DIRECT_EDGES=2/2
+XINZHAO_MAJOR_ZONE_GRID_ALIGNMENT_RATE=0.4
+P1A_R1_INITIAL_PRODUCTION_PLACEMENT_NODE_BUDGET=15
+P1A_R2_PRODUCTION_PLACEMENT_NODE_BUDGET=120
+P1A_R3_PRODUCTION_PLACEMENT_NODE_BUDGET=120
+CURRENT_PRODUCTION_PLACEMENT_NODE_BUDGET=120
+PLACEMENT_NODE_BUDGET_IS_DETERMINISTIC_BOUNDED_CUTOFF=true
+GLOBAL_OPTIMUM_CLAIMED=false
+LINEAR_FAMILY_INFEASIBILITY_PROVEN=false
+XINZHAO_BUDGET_60_DISTINCT_FULL_PASS_MAIN_SKELETON_COUNT=1
+XINZHAO_BUDGET_120_DISTINCT_FULL_PASS_MAIN_SKELETON_COUNT=1
+P1A_R3_RESULT=PARTIAL
+P1A_R3_MAIN_PROCESS_GEOMETRY_CHANGED=false
+P1A_R3_DISTINCT_FULL_PASS_MAIN_SKELETON_COUNT=1
+P1A_R3_LINEAR_FAMILY_INFEASIBILITY_PROVEN=false
+P1A_R4_RUNTIME_IMPLEMENTATION_AUTHORIZED=false
+P1A_R5_RUNTIME_IMPLEMENTATION_AUTHORIZED=true
+P1A_R5_RESULT=PARTIAL
+P1A_R5_PRODUCTION_PLACEMENT_NODE_BUDGET=120
+P1A_R5_TOPOLOGIES_EXPLORED=3
+P1A_R5_TOPOLOGIES_WITH_CONSTRUCTED_SKELETON=2
+P1A_R5_DISTINCT_P2D_FULL_PASS_MAIN_PROCESS_SKELETON_COUNT=1
+P1A_R5_SELECTED_MAIN_PROCESS_GEOMETRY_CHANGED=false
+P1A_R5_OFFSET_LINEAR_SKELETON_CONSTRUCTED=false
+P1A_R5_OWNER_VISUAL_REVIEW=PENDING
+P1B_NUMERIC_THRESHOLDS_ACTIVE=false
+OWNER_XINZHAO_P1A_R3_VISUAL_REVIEW=PENDING
+OWNER_XINZHAO_P1A_R5_VISUAL_REVIEW=PENDING
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```

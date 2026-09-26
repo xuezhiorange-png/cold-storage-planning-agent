@@ -10,6 +10,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[3]
 P0C_BASE = "9bc00b6157bb549f1fd3c7112cfc30f29452b8e0"
+P0C_ACCEPTED_HEAD = "44b24295bd5ec5fe5275f2f93b632651ec9589bf"
 CORRECTION_BASE = "f1a8faed7ca700caab66166550b6f42827ff72f5"
 GD003_ALIGNMENT_BASE = "7799442d20bd502fe10b4e18c0bac64e996c1b72"
 GD003_ALIGNMENT_TASK = "V2_2_2_P0C_GD003_FINAL_OVERLAY_ALIGNMENT_R1"
@@ -47,8 +48,10 @@ def _git(*args: str) -> str:
 
 def _changed_paths() -> set[str]:
     # Scope is about files included in the PR, not test-run artifacts created
-    # in the checkout (for example backend/artifacts/local reports).
-    return set(_git("diff", "--name-only", P0C_BASE, "HEAD").splitlines())
+    # in the checkout (for example backend/artifacts/local reports). Pin the
+    # historical P0C scope to its accepted head so later authorized P1 work
+    # does not rewrite the meaning of that earlier contract.
+    return set(_git("diff", "--name-only", P0C_BASE, P0C_ACCEPTED_HEAD).splitlines())
 
 
 def _json(path: Path) -> dict[str, Any]:
@@ -65,9 +68,16 @@ def test_p0c_is_limited_to_offline_evidence_docs_and_tests() -> None:
 
 
 def test_release_and_layout_runtime_are_unchanged() -> None:
-    subprocess.run(["git", "diff", "--quiet", P0C_BASE, "--", "backend/src"], cwd=ROOT, check=True)
     subprocess.run(
-        ["git", "diff", "--quiet", "64f335bbfbbaf061b9ba08c18f2068db411f8922", "--", "backend/src"],
+        [
+            "git",
+            "diff",
+            "--quiet",
+            "64f335bbfbbaf061b9ba08c18f2068db411f8922",
+            P0C_ACCEPTED_HEAD,
+            "--",
+            "backend/src",
+        ],
         cwd=ROOT,
         check=True,
     )

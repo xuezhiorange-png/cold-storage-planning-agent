@@ -1,0 +1,617 @@
+{
+  "distinct_full_pass_main_process_skeleton_count": 1,
+  "family_lanes": [
+    {
+      "complete_candidates": 2,
+      "composition_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "UNRESOLVED",
+        "family": "CENTRAL_PROCESS_HUB",
+        "generation_reason": "SORTING_PACKAGING_IS_EXPLICIT_PROCESS_CORE",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "fallback_node_budget": 0,
+      "lane_node_budget": 80,
+      "node_budget_exhausted": false,
+      "p2d_full_pass_candidate_count": 2,
+      "p2d_rejected_candidate_count": 0,
+      "p2d_rejection_warnings": [],
+      "phases": [
+        {
+          "complete_candidates": 2,
+          "distinct_main_process_skeleton_count": 2,
+          "distinct_structural_core_root_count": 1,
+          "main_process_skeleton_generation": {
+            "candidates": [
+              {
+                "authority": "CANDIDATE_SEARCH_GEOMETRY_ONLY",
+                "dominant_axis": "X",
+                "dominant_direction": "UNRESOLVED",
+                "family": {
+                  "dominant_axis": "X",
+                  "dominant_direction": "UNRESOLVED",
+                  "family": "CENTRAL_PROCESS_HUB",
+                  "generation_reason": "SORTING_PACKAGING_IS_EXPLICIT_PROCESS_CORE",
+                  "identity": "structural-composition-family@1.0.0"
+                },
+                "finished_group_envelope_mm": [
+                  1624,
+                  23650,
+                  41717,
+                  52300
+                ],
+                "generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_NORTH:ROOT_15.2_10.05_CONSTRUCTIVE_PROCESS_CHAIN",
+                "hard_geometry_predicates_passed": [
+                  "SITE_CONTAINMENT",
+                  "NO_BUILD_CLEAR",
+                  "NON_OVERLAP",
+                  "MUST_ADJACENCY",
+                  "GROUP_ORDER"
+                ],
+                "identity": "main-process-skeleton-candidate@1.0.0",
+                "main_process_skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+                "processing_core_envelope_mm": [
+                  9317,
+                  10050,
+                  60960,
+                  33700
+                ],
+                "raw_group_envelope_mm": [
+                  0,
+                  0,
+                  29900,
+                  10050
+                ],
+                "zone_rectangles": [
+                  {
+                    "depth_m": "8.7",
+                    "rotation_deg": 0,
+                    "width_m": "15.2",
+                    "x": "0",
+                    "y": "0",
+                    "zone_code": "raw_fruit_buffer"
+                  },
+                  {
+                    "depth_m": "10.05",
+                    "rotation_deg": 0,
+                    "width_m": "14.7",
+                    "x": "15.2",
+                    "y": "0",
+                    "zone_code": "primary_precooling_room"
+                  },
+                  {
+                    "depth_m": "13.6",
+                    "rotation_deg": 0,
+                    "width_m": "45.76",
+                    "x": "15.2",
+                    "y": "10.05",
+                    "zone_code": "sorting_packaging_room"
+                  },
+                  {
+                    "depth_m": "10.05",
+                    "rotation_deg": 0,
+                    "width_m": "9.8",
+                    "x": "15.2",
+                    "y": "23.65",
+                    "zone_code": "secondary_precooling_room"
+                  },
+                  {
+                    "depth_m": "13.6",
+                    "rotation_deg": 0,
+                    "width_m": "5.883",
+                    "x": "9.317",
+                    "y": "20.1",
+                    "zone_code": "coating_room"
+                  },
+                  {
+                    "depth_m": "18.6",
+                    "rotation_deg": 0,
+                    "width_m": "32.4",
+                    "x": "9.317",
+                    "y": "33.7",
+                    "zone_code": "finished_goods_room"
+                  },
+                  {
+                    "depth_m": "7.693",
+                    "rotation_deg": 90,
+                    "width_m": "6.5",
+                    "x": "1.624",
+                    "y": "33.7",
+                    "zone_code": "shipping_channel"
+                  }
+                ]
+              },
+              {
+                "authority": "CANDIDATE_SEARCH_GEOMETRY_ONLY",
+                "dominant_axis": "X",
+                "dominant_direction": "UNRESOLVED",
+                "family": {
+                  "dominant_axis": "X",
+                  "dominant_direction": "UNRESOLVED",
+                  "family": "CENTRAL_PROCESS_HUB",
+                  "generation_reason": "SORTING_PACKAGING_IS_EXPLICIT_PROCESS_CORE",
+                  "identity": "structural-composition-family@1.0.0"
+                },
+                "finished_group_envelope_mm": [
+                  320,
+                  17199,
+                  40413,
+                  50863
+                ],
+                "generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+                "hard_geometry_predicates_passed": [
+                  "SITE_CONTAINMENT",
+                  "NO_BUILD_CLEAR",
+                  "NON_OVERLAP",
+                  "MUST_ADJACENCY",
+                  "GROUP_ORDER"
+                ],
+                "identity": "main-process-skeleton-candidate@1.0.0",
+                "main_process_skeleton_hash": "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc",
+                "processing_core_envelope_mm": [
+                  16613,
+                  13399,
+                  74998,
+                  32263
+                ],
+                "raw_group_envelope_mm": [
+                  20538,
+                  774,
+                  43938,
+                  15974
+                ],
+                "zone_rectangles": [
+                  {
+                    "depth_m": "8.7",
+                    "rotation_deg": 90,
+                    "width_m": "15.2",
+                    "x": "20.538",
+                    "y": "0.774",
+                    "zone_code": "raw_fruit_buffer"
+                  },
+                  {
+                    "depth_m": "10.05",
+                    "rotation_deg": 0,
+                    "width_m": "14.7",
+                    "x": "29.238",
+                    "y": "3.349",
+                    "zone_code": "primary_precooling_room"
+                  },
+                  {
+                    "depth_m": "13.6",
+                    "rotation_deg": 0,
+                    "width_m": "45.76",
+                    "x": "29.238",
+                    "y": "13.399",
+                    "zone_code": "sorting_packaging_room"
+                  },
+                  {
+                    "depth_m": "10.05",
+                    "rotation_deg": 90,
+                    "width_m": "9.8",
+                    "x": "19.188",
+                    "y": "17.199",
+                    "zone_code": "secondary_precooling_room"
+                  },
+                  {
+                    "depth_m": "15.2",
+                    "rotation_deg": 90,
+                    "width_m": "5.264",
+                    "x": "16.613",
+                    "y": "26.999",
+                    "zone_code": "coating_room"
+                  },
+                  {
+                    "depth_m": "18.6",
+                    "rotation_deg": 0,
+                    "width_m": "32.4",
+                    "x": "8.013",
+                    "y": "32.263",
+                    "zone_code": "finished_goods_room"
+                  },
+                  {
+                    "depth_m": "7.693",
+                    "rotation_deg": 90,
+                    "width_m": "6.5",
+                    "x": "0.32",
+                    "y": "32.263",
+                    "zone_code": "shipping_channel"
+                  }
+                ]
+              }
+            ],
+            "constructed_candidate_count": 2,
+            "construction_attempts": [
+              {
+                "face_pair_node_limit": 20,
+                "finished_side": "NORTH",
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 117,
+                  "SITE_OUTSIDE": 303,
+                  "SKELETON_TOPOLOGY_INVALID": 10,
+                  "ZONE_OVERLAP": 128
+                },
+                "result": "SKELETON_CONSTRUCTED",
+                "search_truncated": false,
+                "skeleton_hashes": [
+                  "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+                ],
+                "sorting_root_mm": [
+                  15200,
+                  10050,
+                  60960,
+                  23650
+                ],
+                "sorting_root_node_limit": 17,
+                "visited_node_delta": 16
+              },
+              {
+                "face_pair_node_limit": 37,
+                "finished_side": "WEST",
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 51,
+                  "SITE_OUTSIDE": 36,
+                  "SKELETON_TOPOLOGY_INVALID": 8,
+                  "ZONE_OVERLAP": 10
+                },
+                "result": "REJECTED",
+                "search_truncated": false,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  15200,
+                  10050,
+                  60960,
+                  23650
+                ],
+                "sorting_root_node_limit": 34,
+                "visited_node_delta": 11
+              },
+              {
+                "face_pair_node_limit": 37,
+                "finished_side": "WEST",
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "SITE_OUTSIDE": 6,
+                  "SKELETON_TOPOLOGY_INVALID": 1
+                },
+                "result": "REJECTED",
+                "search_truncated": false,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  29700,
+                  0,
+                  75460,
+                  13600
+                ],
+                "sorting_root_node_limit": 37,
+                "visited_node_delta": 0
+              },
+              {
+                "face_pair_node_limit": 37,
+                "finished_side": "WEST",
+                "raw_side": "SOUTH",
+                "result": "SKELETON_CONSTRUCTED",
+                "search_truncated": false,
+                "skeleton_hashes": [
+                  "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc"
+                ],
+                "sorting_root_mm": [
+                  29238,
+                  13399,
+                  74998,
+                  26999
+                ],
+                "sorting_root_node_limit": 37,
+                "visited_node_delta": 6
+              }
+            ],
+            "construction_search_truncated": true,
+            "identity": "main-process-skeleton-construction@1.0.0",
+            "node_budget_exhausted": false,
+            "rejection_reason_counts": {
+              "NO_BUILD_COLLISION": 310,
+              "SITE_OUTSIDE": 645,
+              "SKELETON_TOPOLOGY_INVALID": 19,
+              "ZONE_OVERLAP": 339
+            }
+          },
+          "node_budget": 80,
+          "node_budget_exhausted": false,
+          "p2d_full_pass_candidate_count": 2,
+          "p2d_rejected_candidate_count": 0,
+          "search_phase": "STRUCTURED",
+          "search_tree_exhausted": false,
+          "validated_unique_candidates": 2,
+          "visited_nodes": 80
+        }
+      ],
+      "preferred_lane": true,
+      "search_tree_exhausted": false,
+      "structured_node_budget": 80,
+      "visited_nodes": 80
+    },
+    {
+      "complete_candidates": 0,
+      "composition_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "DOMINANT_SITE_AXIS_CANDIDATE",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "fallback_node_budget": 0,
+      "lane_node_budget": 20,
+      "node_budget_exhausted": false,
+      "p2d_full_pass_candidate_count": 0,
+      "p2d_rejected_candidate_count": 0,
+      "p2d_rejection_warnings": [],
+      "phases": [
+        {
+          "complete_candidates": 0,
+          "distinct_main_process_skeleton_count": 0,
+          "distinct_structural_core_root_count": 0,
+          "main_process_skeleton_generation": {
+            "candidates": [],
+            "constructed_candidate_count": 0,
+            "construction_attempts": [
+              {
+                "face_pair_node_limit": 15,
+                "finished_side": "EAST",
+                "raw_side": "WEST",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 6,
+                  "SKELETON_TOPOLOGY_INVALID": 1
+                },
+                "result": "REJECTED",
+                "search_truncated": false,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  14700,
+                  8700,
+                  60460,
+                  22300
+                ],
+                "sorting_root_node_limit": 15,
+                "visited_node_delta": 0
+              },
+              {
+                "face_pair_node_limit": 15,
+                "finished_side": "EAST",
+                "raw_side": "WEST",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 2,
+                  "SITE_OUTSIDE": 24,
+                  "SKELETON_TOPOLOGY_INVALID": 4
+                },
+                "result": "REJECTED",
+                "search_truncated": false,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  14700,
+                  8700,
+                  28300,
+                  54460
+                ],
+                "sorting_root_node_limit": 15,
+                "visited_node_delta": 4
+              },
+              {
+                "face_pair_node_limit": 15,
+                "finished_side": "EAST",
+                "raw_side": "WEST",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 7,
+                  "SITE_OUTSIDE": 24,
+                  "SKELETON_TOPOLOGY_INVALID": 4
+                },
+                "result": "REJECTED",
+                "search_truncated": false,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  29700,
+                  0,
+                  75460,
+                  13600
+                ],
+                "sorting_root_node_limit": 15,
+                "visited_node_delta": 5
+              },
+              {
+                "face_pair_node_limit": 15,
+                "finished_side": "EAST",
+                "raw_side": "WEST",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 14,
+                  "SKELETON_TOPOLOGY_INVALID": 1
+                },
+                "result": "TRUNCATED",
+                "search_truncated": true,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  29238,
+                  13399,
+                  74998,
+                  26999
+                ],
+                "sorting_root_node_limit": 15,
+                "visited_node_delta": 2
+              }
+            ],
+            "construction_search_truncated": true,
+            "identity": "main-process-skeleton-construction@1.0.0",
+            "node_budget_exhausted": false,
+            "rejection_reason_counts": {
+              "NO_BUILD_COLLISION": 65,
+              "SITE_OUTSIDE": 183,
+              "SKELETON_TOPOLOGY_INVALID": 10
+            }
+          },
+          "node_budget": 20,
+          "node_budget_exhausted": false,
+          "p2d_full_pass_candidate_count": 0,
+          "p2d_rejected_candidate_count": 0,
+          "search_phase": "STRUCTURED",
+          "search_tree_exhausted": false,
+          "validated_unique_candidates": 0,
+          "visited_nodes": 15
+        }
+      ],
+      "preferred_lane": false,
+      "search_tree_exhausted": false,
+      "structured_node_budget": 20,
+      "visited_nodes": 15
+    },
+    {
+      "complete_candidates": 0,
+      "composition_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "NEGATIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "DOMINANT_SITE_AXIS_CANDIDATE",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "fallback_node_budget": 0,
+      "lane_node_budget": 20,
+      "node_budget_exhausted": false,
+      "p2d_full_pass_candidate_count": 0,
+      "p2d_rejected_candidate_count": 0,
+      "p2d_rejection_warnings": [],
+      "phases": [
+        {
+          "complete_candidates": 0,
+          "distinct_main_process_skeleton_count": 0,
+          "distinct_structural_core_root_count": 0,
+          "main_process_skeleton_generation": {
+            "candidates": [],
+            "constructed_candidate_count": 0,
+            "construction_attempts": [
+              {
+                "face_pair_node_limit": 15,
+                "finished_side": "WEST",
+                "raw_side": "EAST",
+                "rejection_reason_counts": {
+                  "SITE_OUTSIDE": 36,
+                  "SKELETON_TOPOLOGY_INVALID": 6
+                },
+                "result": "REJECTED",
+                "search_truncated": false,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  15000,
+                  8700,
+                  60760,
+                  22300
+                ],
+                "sorting_root_node_limit": 15,
+                "visited_node_delta": 6
+              },
+              {
+                "face_pair_node_limit": 15,
+                "finished_side": "WEST",
+                "raw_side": "EAST",
+                "rejection_reason_counts": {
+                  "SITE_OUTSIDE": 21,
+                  "SKELETON_TOPOLOGY_INVALID": 3
+                },
+                "result": "REJECTED",
+                "search_truncated": false,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  19650,
+                  8700,
+                  65410,
+                  22300
+                ],
+                "sorting_root_node_limit": 15,
+                "visited_node_delta": 3
+              },
+              {
+                "face_pair_node_limit": 15,
+                "finished_side": "WEST",
+                "raw_side": "EAST",
+                "rejection_reason_counts": {
+                  "SITE_OUTSIDE": 6,
+                  "SKELETON_TOPOLOGY_INVALID": 1
+                },
+                "result": "REJECTED",
+                "search_truncated": false,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  29700,
+                  0,
+                  75460,
+                  13600
+                ],
+                "sorting_root_node_limit": 15,
+                "visited_node_delta": 0
+              },
+              {
+                "face_pair_node_limit": 15,
+                "finished_side": "WEST",
+                "raw_side": "EAST",
+                "rejection_reason_counts": {
+                  "SITE_OUTSIDE": 6,
+                  "SKELETON_TOPOLOGY_INVALID": 1
+                },
+                "result": "REJECTED",
+                "search_truncated": false,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  29238,
+                  13399,
+                  74998,
+                  26999
+                ],
+                "sorting_root_node_limit": 15,
+                "visited_node_delta": 0
+              },
+              {
+                "face_pair_node_limit": 15,
+                "finished_side": "WEST",
+                "raw_side": "EAST",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 4
+                },
+                "result": "TRUNCATED",
+                "search_truncated": true,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  28117,
+                  8125,
+                  41717,
+                  53885
+                ],
+                "sorting_root_node_limit": 15,
+                "visited_node_delta": 1
+              }
+            ],
+            "construction_search_truncated": true,
+            "identity": "main-process-skeleton-construction@1.0.0",
+            "node_budget_exhausted": false,
+            "rejection_reason_counts": {
+              "NO_BUILD_COLLISION": 40,
+              "SITE_OUTSIDE": 204,
+              "SKELETON_TOPOLOGY_INVALID": 11
+            }
+          },
+          "node_budget": 20,
+          "node_budget_exhausted": false,
+          "p2d_full_pass_candidate_count": 0,
+          "p2d_rejected_candidate_count": 0,
+          "search_phase": "STRUCTURED",
+          "search_tree_exhausted": false,
+          "validated_unique_candidates": 0,
+          "visited_nodes": 15
+        }
+      ],
+      "preferred_lane": false,
+      "search_tree_exhausted": false,
+      "structured_node_budget": 20,
+      "visited_nodes": 15
+    }
+  ],
+  "identity": "main-process-skeleton-search-evidence@1.0.0",
+  "r3_main_process_geometry_changed": false
+}

@@ -119,8 +119,11 @@ def test_placement_domain_has_only_domain_dependencies() -> None:
     allowed_domain = {
         "cold_storage.modules.layout.domain.adjacency",
         "cold_storage.modules.layout.domain.dimensioning",
+        "cold_storage.modules.layout.domain.main_process_skeleton",
         "cold_storage.modules.layout.domain.objective_profile",
         "cold_storage.modules.layout.domain.site_geometry",
+        "cold_storage.modules.layout.domain.structural_composition",
+        "cold_storage.modules.layout.domain.structural_quality",
     }
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.Import):
