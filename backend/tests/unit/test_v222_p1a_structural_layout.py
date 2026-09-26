@@ -8,6 +8,9 @@ import pytest
 
 from cold_storage.modules.layout.domain import placement as placement_domain
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
+from cold_storage.modules.layout.domain.main_process_skeleton import (
+    MainProcessSkeletonCandidateV1,
+)
 from cold_storage.modules.layout.domain.placement import PlacedRectangleV1
 from cold_storage.modules.layout.domain.structural_composition import (
     CENTRAL_PROCESS_HUB,
@@ -102,6 +105,45 @@ def test_three_required_family_lanes_have_independent_skeletons() -> None:
     ]
     assert [lane.ordering_axis for lane in lanes] == ["X", "X", "Y"]
     assert all(lane.core_zone_codes == ("sorting_packaging_room", "coating_room") for lane in lanes)
+
+
+def test_main_process_skeleton_identity_uses_exactly_the_seven_process_rectangles() -> None:
+    family = StructuralCompositionFamilyV1(CENTRAL_PROCESS_HUB, "X", "UNRESOLVED", "UNIT_TEST")
+    rectangles = {
+        code: PlacedRectangleV1(code, index * 10, 0, Decimal("10"), Decimal("5"))
+        for index, code in enumerate(MAIN_PROCESS_ZONE_CODES)
+    }
+    predicates = ("SITE_CONTAINMENT", "NO_BUILD_CLEAR", "NON_OVERLAP", "MUST_ADJACENCY")
+    first = MainProcessSkeletonCandidateV1.create(
+        family=family,
+        rectangles=rectangles,
+        generation_pattern="PATTERN_A",
+        hard_geometry_predicates_passed=predicates,
+    )
+    with_tail = MainProcessSkeletonCandidateV1.create(
+        family=family,
+        rectangles={
+            **rectangles,
+            "office": PlacedRectangleV1("office", 900, 900, Decimal("4"), Decimal("4")),
+        },
+        generation_pattern="PATTERN_B",
+        hard_geometry_predicates_passed=predicates,
+    )
+    moved_shipping = dict(rectangles)
+    moved_shipping["shipping_channel"] = PlacedRectangleV1(
+        "shipping_channel", 701, 0, Decimal("10"), Decimal("5")
+    )
+    changed = MainProcessSkeletonCandidateV1.create(
+        family=family,
+        rectangles=moved_shipping,
+        generation_pattern="PATTERN_A",
+        hard_geometry_predicates_passed=predicates,
+    )
+
+    assert tuple(row.zone_code for row in first.zone_rectangles) == MAIN_PROCESS_ZONE_CODES
+    assert first.main_process_skeleton_hash == with_tail.main_process_skeleton_hash
+    assert first.main_process_skeleton_hash != changed.main_process_skeleton_hash
+    assert first.to_dict()["authority"] == "CANDIDATE_SEARCH_GEOMETRY_ONLY"
 
 
 def test_family_selection_uses_area_authority_not_golden_template() -> None:

@@ -51,11 +51,9 @@ MAIN_PROCESS_ZONE_CODES: Final = (
     "finished_goods_room",
     "shipping_channel",
 )
-# The shipping channel is a hard-constrained terminal interface that can vary
-# along an otherwise unchanged process skeleton. Diversity sampling groups
-# candidates by the six raw/core/finished room geometries so it does not count
-# a different truck-interface coordinate as a new production composition.
-MAIN_PROCESS_SKELETON_ZONE_CODES: Final = MAIN_PROCESS_ZONE_CODES[:-1]
+# Skeleton identity includes every main-process rectangle, including the
+# shipping interface, as required by the constructive candidate contract.
+MAIN_PROCESS_SKELETON_ZONE_CODES: Final = MAIN_PROCESS_ZONE_CODES
 MAIN_PROCESS_PREDECESSOR: Final = {
     "primary_precooling_room": "raw_fruit_buffer",
     "sorting_packaging_room": "primary_precooling_room",

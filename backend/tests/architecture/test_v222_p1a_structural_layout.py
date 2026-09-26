@@ -5,12 +5,14 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import struct
 from pathlib import Path
 
 from cold_storage.modules.aily.application.site_layout_preview import (
     P4_PLACEMENT_NODE_BUDGET,
     PREVIEW_SITE_LAYOUT_INPUT_FIELDS,
 )
+from cold_storage.modules.layout.domain.placement import STRUCTURED_PLACEMENT_ZONE_ORDER
 from cold_storage.modules.layout.domain.structural_composition import (
     CENTRAL_PROCESS_HUB,
     FUNCTIONAL_GROUPS,
@@ -21,6 +23,7 @@ from cold_storage.modules.layout.domain.structural_composition import (
 ROOT = Path(__file__).resolve().parents[3]
 BACKEND_SRC = ROOT / "backend/src/cold_storage/modules"
 LAYOUT = BACKEND_SRC / "layout"
+P1A_EVIDENCE = ROOT / "docs/tasks/evidence/v2_2_2_p1a"
 
 
 def _source(relative_path: str) -> str:
@@ -64,6 +67,115 @@ def test_structural_search_has_group_band_zone_and_three_required_family_lanes()
     selector = _source("application/validated_candidate_selection.py")
     assert "for family, lane_budget in zip(family_lanes, lane_budgets, strict=True)" in selector
     assert "GENERAL_FALLBACK_PHASE" in selector
+
+
+def test_r3_constructs_seven_zone_skeleton_before_tail_search_and_records_rejections() -> None:
+    placement_source = _source("domain/placement.py")
+    constructor = placement_source.index("def _construct_main_process_skeletons(")
+    walker = placement_source.index("def _walk_complete_candidate_payloads(")
+    skeleton_seed = placement_source.index(
+        "skeleton_seeds = tuple(_construct_main_process_skeletons(context, stats))", walker
+    )
+    tail_walk = placement_source.index(
+        "yield from visit(len(MAIN_PROCESS_ZONE_CODES), True, seed)", skeleton_seed
+    )
+    assert constructor < walker < skeleton_seed < tail_walk
+    assert "placed.update({row.zone_code: row for row in seed.zone_rectangles})" in placement_source
+    assert "MAIN_PROCESS_SKELETON_ZONE_CODES" in placement_source
+    assert not set(STRUCTURED_PLACEMENT_ZONE_ORDER[len(MAIN_PROCESS_ZONE_CODES) :]) & set(
+        MAIN_PROCESS_ZONE_CODES
+    )
+
+    rejection_codes = (
+        "SITE_OUTSIDE",
+        "NO_BUILD_COLLISION",
+        "ZONE_OVERLAP",
+        "MUST_ADJACENCY_FAIL",
+        "GROUP_ORDER_FAIL",
+        "SHIPPING_INTERFACE_FAIL",
+        "DIMENSION_VARIANT_UNAVAILABLE",
+        "SKELETON_TOPOLOGY_INVALID",
+    )
+    for code in rejection_codes:
+        assert f'"{code}"' in placement_source
+
+    skeleton_source = _source("domain/main_process_skeleton.py")
+    assert 'IDENTITY: Final = "main-process-skeleton-candidate@1.0.0"' in skeleton_source
+    assert '"authority": "CANDIDATE_SEARCH_GEOMETRY_ONLY"' in skeleton_source
+    assert '"rotation_deg": rectangle.rotation_deg' in skeleton_source
+    assert "MAIN_PROCESS_ZONE_CODES" in skeleton_source
+
+
+def test_r3_evidence_is_explicitly_partial_and_keeps_the_xinzhao_geometry_gap() -> None:
+    metrics = json.loads((P1A_EVIDENCE / "xinzhao_p1a_r3_metrics.json").read_text(encoding="utf-8"))
+    search = json.loads(
+        (P1A_EVIDENCE / "xinzhao_p1a_r3_skeleton_search.json").read_text(encoding="utf-8")
+    )
+    assert metrics["result"] == "PARTIAL"
+    assert metrics["owner_xinzhao_p1a_r3_visual_review"] == "PENDING"
+    assert metrics["r3_main_process_geometry_changed"] is False
+    assert metrics["r3_main_process_changed_zone_count"] == 0
+    assert metrics["distinct_full_pass_main_process_skeleton_count"] == 1
+    assert metrics["p2d_full_pass_candidate_count"] == 2
+    assert metrics["first_decisive_component"] == "P2B2_FINAL_TIE_BREAK"
+    assert metrics["node_budget"] == 120
+    assert metrics["search_provenance"]["global_optimum_claimed"] is False
+    assert metrics["search_provenance"]["node_budget_is_only_search_cutoff"] is True
+
+    lanes = search["family_lanes"]
+    assert {
+        (lane["composition_family"]["family"], lane["composition_family"]["dominant_direction"])
+        for lane in lanes
+    } == {
+        ("LINEAR_PROCESS_BAND", "POSITIVE"),
+        ("LINEAR_PROCESS_BAND", "NEGATIVE"),
+        ("CENTRAL_PROCESS_HUB", "UNRESOLVED"),
+    }
+    central = next(
+        lane for lane in lanes if lane["composition_family"]["family"] == "CENTRAL_PROCESS_HUB"
+    )
+    constructed = [
+        candidate
+        for phase in central["phases"]
+        for candidate in phase["main_process_skeleton_generation"]["candidates"]
+    ]
+    assert len(constructed) == 2
+    assert all(len(candidate["zone_rectangles"]) == 7 for candidate in constructed)
+    assert len({candidate["main_process_skeleton_hash"] for candidate in constructed}) == 2
+    assert all(lane["search_tree_exhausted"] is False for lane in lanes)
+
+
+def test_r3_four_way_visual_artifacts_are_direct_rasters_with_pinned_hashes() -> None:
+    metrics = json.loads((P1A_EVIDENCE / "xinzhao_p1a_r3_metrics.json").read_text(encoding="utf-8"))
+    sources = {
+        "V221": ("xinzhao_v221_before.svg", "xinzhao_p1a_r3_compare_v221.png"),
+        "R1": ("xinzhao_p1a_after.svg", "xinzhao_p1a_r3_compare_r1.png"),
+        "R2": ("xinzhao_p1a_r2_after.svg", "xinzhao_p1a_r3_compare_r2.png"),
+        "R3": ("xinzhao_p1a_r3_after.svg", "xinzhao_p1a_r3_after.png"),
+    }
+    hashes: dict[str, str] = {}
+    for profile, (svg_name, png_name) in sources.items():
+        svg_bytes = (P1A_EVIDENCE / svg_name).read_bytes()
+        assert b'viewBox="0 0 1931.62 830"' in svg_bytes
+        png_bytes = (P1A_EVIDENCE / png_name).read_bytes()
+        assert png_bytes.startswith(b"\x89PNG\r\n\x1a\n")
+        width, height = struct.unpack(">II", png_bytes[16:24])
+        assert (width, height) == (2400, 2400)
+        digest = hashlib.sha256(png_bytes).hexdigest()
+        hashes[profile] = digest
+        record = metrics["visual_render_records"][profile]
+        assert record["sha256"] == digest
+        assert record["rasterizer"].startswith("macOS Quick Look")
+        assert (record["width"], record["height"]) == (width, height)
+
+    assert hashes["R2"] == hashes["R3"]
+    debug_svg_hash = hashlib.sha256(
+        (P1A_EVIDENCE / "xinzhao_p1a_r3_skeleton_debug.svg").read_bytes()
+    ).hexdigest()
+    assert debug_svg_hash == metrics["skeleton_debug_svg_sha256"]
+    debug_png = (P1A_EVIDENCE / "xinzhao_p1a_r3_skeleton_debug.png").read_bytes()
+    assert hashlib.sha256(debug_png).hexdigest() == metrics["skeleton_debug_png"]["sha256"]
+    assert struct.unpack(">II", debug_png[16:24]) == (2400, 2400)
 
 
 def test_selector_enforces_p2d_full_pass_before_structural_quality_and_old_tie_break() -> None:

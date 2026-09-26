@@ -36,6 +36,7 @@ from cold_storage.modules.layout.domain.placement import (
     placement_candidate_is_better,
 )
 from cold_storage.modules.layout.domain.structural_composition import (
+    MAIN_PROCESS_ZONE_CODES,
     StructuralCompositionFamilyV1,
     composition_family_candidates,
     select_structural_composition_family,
@@ -145,18 +146,37 @@ def _p2d_trace_row(
 
 
 def _lane_budget_split(lane_budget: int) -> tuple[int, int]:
-    """Reserve one complete-path depth before assigning any fallback budget."""
-    if lane_budget < 13:
-        return lane_budget, 0
-    if lane_budget < 26:
-        return 13, lane_budget - 13
-    structured = max(13, (lane_budget * 3) // 5)
-    return structured, lane_budget - structured
+    """Give structured construction first use of the lane's bounded budget.
+
+    General fallback is allocated only from a remainder when structured search
+    has actually exhausted its family before using the lane budget. A truncated
+    structured family is not evidence that its candidates do not exist.
+    """
+    return lane_budget, 0
 
 
-def _family_lane_budgets(total_budget: int, lane_count: int) -> tuple[int, ...]:
-    quotient, remainder = divmod(total_budget, lane_count)
-    return tuple(quotient + int(index < remainder) for index in range(lane_count))
+def _family_lane_budgets(
+    total_budget: int, lane_count: int, *, preferred_lane_index: int | None = None
+) -> tuple[int, ...]:
+    if lane_count <= 0 or total_budget <= 0:
+        raise _error("INVALID_PLACEMENT_SEARCH_BUDGET")
+    if preferred_lane_index is None or lane_count == 1:
+        quotient, remainder = divmod(total_budget, lane_count)
+        return tuple(quotient + int(index < remainder) for index in range(lane_count))
+    if not 0 <= preferred_lane_index < lane_count:
+        raise _error("STRUCTURAL_PREFERRED_LANE_INDEX_INVALID")
+    preferred_budget = max(1, (total_budget * 2) // 3)
+    remaining = total_budget - preferred_budget
+    other_lane_count = lane_count - 1
+    quotient, remainder = divmod(remaining, other_lane_count)
+    result = [0] * lane_count
+    result[preferred_lane_index] = preferred_budget
+    for index in range(lane_count):
+        if index == preferred_lane_index:
+            continue
+        other_index = index if index < preferred_lane_index else index - 1
+        result[index] = quotient + int(other_index < remainder)
+    return tuple(result)
 
 
 def _preferred_family_from_handoff(
@@ -209,6 +229,28 @@ def _placement_geometry_signature(candidate: Mapping[str, Any]) -> str:
     return canonical_json(geometry)
 
 
+def _main_process_geometry_signature(candidate: Mapping[str, Any]) -> str:
+    rows = candidate.get("zones")
+    if not isinstance(rows, list):
+        raise LayoutAuthorityError("MAIN_PROCESS_SKELETON_FACTS_UNAVAILABLE")
+    by_code = {
+        str(row["zone_code"]): row
+        for row in rows
+        if isinstance(row, Mapping) and isinstance(row.get("zone_code"), str)
+    }
+    if not set(MAIN_PROCESS_ZONE_CODES) <= set(by_code):
+        raise LayoutAuthorityError("MAIN_PROCESS_SKELETON_FACTS_UNAVAILABLE")
+    return canonical_json(
+        [
+            {
+                field: by_code[code].get(field)
+                for field in ("zone_code", "x", "y", "width_m", "depth_m", "rotation_deg")
+            }
+            for code in MAIN_PROCESS_ZONE_CODES
+        ]
+    )
+
+
 def _selection_provenance(
     lane_reports: list[dict[str, Any]],
     *,
@@ -220,6 +262,20 @@ def _selection_provenance(
 ) -> dict[str, Any]:
     tree_exhausted = all(row["search_tree_exhausted"] for row in lane_reports)
     node_budget_exhausted = any(row["node_budget_exhausted"] for row in lane_reports)
+    public_lane_reports = [
+        {
+            **lane,
+            "phases": [
+                {
+                    key: value
+                    for key, value in phase.items()
+                    if key != "main_process_skeleton_generation"
+                }
+                for phase in lane["phases"]
+            ],
+        }
+        for lane in lane_reports
+    ]
     return {
         "identity": IDENTITY,
         "selection_basis": P2C_CANDIDATE_SELECTION_BASIS,
@@ -230,7 +286,7 @@ def _selection_provenance(
             "complete_candidates": p2c_candidate_count,
             "node_budget_exhausted": node_budget_exhausted,
             "search_tree_exhausted": tree_exhausted,
-            "family_lanes": lane_reports,
+            "family_lanes": public_lane_reports,
             "node_budget_is_only_search_cutoff": True,
             "global_optimum_claimed": False,
         },
@@ -358,6 +414,9 @@ def _internal_selection_evaluation(
         "distinct_full_pass_family_count": len(
             {canonical_json(record[3].to_dict()) for record in full_pass_records}
         ),
+        "distinct_full_pass_main_process_skeleton_count": len(
+            {_main_process_geometry_signature(record[0]) for record in full_pass_records}
+        ),
     }
 
 
@@ -407,7 +466,23 @@ def select_validated_placement(
                 preferred_match,
                 *(family for family in family_lanes if family is not preferred_match),
             )
-    lane_budgets = _family_lane_budgets(placement_node_budget, len(family_lanes))
+    preferred_lane_index = (
+        next(
+            (
+                index
+                for index, family in enumerate(family_lanes)
+                if family.to_dict() == preferred_family.to_dict()
+            ),
+            None,
+        )
+        if preferred_family is not None
+        else None
+    )
+    lane_budgets = _family_lane_budgets(
+        placement_node_budget,
+        len(family_lanes),
+        preferred_lane_index=preferred_lane_index,
+    )
     p2c_candidate_count = 0
     candidate_index = 0
 
@@ -429,10 +504,10 @@ def select_validated_placement(
         }
 
         phase_budgets = [(STRUCTURED_PHASE, structured_budget)]
-        if fallback_budget:
-            phase_budgets.append((GENERAL_FALLBACK_PHASE, fallback_budget))
-
-        for phase, phase_budget in phase_budgets:
+        phase_index = 0
+        while phase_index < len(phase_budgets):
+            phase, phase_budget = phase_budgets[phase_index]
+            phase_index += 1
             if phase == GENERAL_FALLBACK_PHASE and lane_full_pass_count:
                 break
             enumeration = enumerate_placement_candidates(
@@ -527,8 +602,21 @@ def select_validated_placement(
                     "p2d_full_pass_candidate_count": phase_full_pass_count,
                     "node_budget_exhausted": enumeration.node_budget_exhausted,
                     "search_tree_exhausted": enumeration.search_tree_exhausted,
+                    "main_process_skeleton_generation": getattr(
+                        enumeration, "skeleton_generation_report", {}
+                    ),
                 }
             )
+            if (
+                phase == STRUCTURED_PHASE
+                and lane_full_pass_count == 0
+                and enumeration.search_tree_exhausted
+            ):
+                unused_lane_budget = max(0, lane_budget - enumeration.visited_node_count)
+                if unused_lane_budget:
+                    fallback_budget = unused_lane_budget
+                    lane_report["fallback_node_budget"] = fallback_budget
+                    phase_budgets.append((GENERAL_FALLBACK_PHASE, fallback_budget))
             if phase == GENERAL_FALLBACK_PHASE and lane_full_pass_count == 0:
                 break
 

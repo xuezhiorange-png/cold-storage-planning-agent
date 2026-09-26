@@ -13,6 +13,7 @@ from cold_storage.modules.layout.domain.placement import SitePlacementResultV1
 from cold_storage.modules.layout.domain.structural_composition import (
     CENTRAL_PROCESS_HUB,
     LINEAR_PROCESS_BAND,
+    MAIN_PROCESS_ZONE_CODES,
     StructuralCompositionFamilyV1,
 )
 from cold_storage.modules.layout.domain.structural_quality import StructuralQualityFactsV1
@@ -91,6 +92,7 @@ def _single_synthetic_lane(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _candidate(marker: str, should_count: int) -> SitePlacementResultV1:
+    marker_offset = sum(ord(character) for character in marker)
     return SitePlacementResultV1.from_payload(
         {
             "schema_version": "1.0.0",
@@ -102,6 +104,17 @@ def _candidate(marker: str, should_count: int) -> SitePlacementResultV1:
                 "should_adjacency": {"satisfied_count": should_count},
                 "loading_side": {"preferred_loading_side": "UNSPECIFIED"},
             },
+            "zones": [
+                {
+                    "zone_code": zone_code,
+                    "x": str(marker_offset + index * 10),
+                    "y": "0",
+                    "width_m": "5",
+                    "depth_m": "5",
+                    "rotation_deg": 0,
+                }
+                for index, zone_code in enumerate(MAIN_PROCESS_ZONE_CODES)
+            ],
         }
     )
 
