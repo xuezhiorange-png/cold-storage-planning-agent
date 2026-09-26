@@ -88,3 +88,16 @@ Cross-fixture validation reuses three authoritative full-chain P1F fixtures
 and two composition-only scenarios. It checks hard-pass status and deterministic
 replay without claiming that the composition-only scenarios are validated
 layouts. Owner review of the Xinzhao image remains a separate pending gate.
+
+## Legacy P2C compatibility correction
+
+The first exact-head CI run exposed a compatibility regression in callers that
+use P2C without an explicit R5 topology. The default topology had been selected
+before resolving the legacy preferred composition family, which could pair a
+Central Hub family with the Straight Linear topology and fail closed with
+`MAIN_PROCESS_TOPOLOGY_FAMILY_MISMATCH`. The default is now derived from the
+resolved family; explicit R5 lanes still pass their own topology identity.
+Existing P2C placement tests cover the legacy call path. After the correction,
+the P2C placement, R5 topology, and Xinzhao Tool 7 regression set passes
+locally; the exact-head CI for the correction is tracked separately from the
+failed first attempt.

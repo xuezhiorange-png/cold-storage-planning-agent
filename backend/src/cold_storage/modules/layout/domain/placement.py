@@ -2353,17 +2353,6 @@ def _validated_search_context(
         raise _error("INVALID_PLACEMENT_SEARCH_BUDGET")
     if search_phase not in {STRUCTURED_PHASE, GENERAL_FALLBACK_PHASE, LEGACY_COMPAT_PHASE}:
         raise _error("PLACEMENT_SEARCH_PHASE_INVALID", search_phase=search_phase)
-    selected_topology = structural_topology or (
-        CENTRAL_PROCESS_HUB
-        if structural_family is not None and structural_family.family == CENTRAL_PROCESS_HUB
-        else STRAIGHT_LINEAR_BAND
-    )
-    if selected_topology not in {
-        STRAIGHT_LINEAR_BAND,
-        OFFSET_LINEAR_BAND,
-        CENTRAL_PROCESS_HUB,
-    }:
-        raise _error("MAIN_PROCESS_TOPOLOGY_INVALID")
     site = site_body.get("site")
     obstacles_body = site_body.get("obstacles")
     entrances_body = site_body.get("entrances")
@@ -2390,6 +2379,17 @@ def _validated_search_context(
     selected_family = structural_family or select_structural_composition_family(
         site_body, authorities
     )
+    selected_topology = structural_topology or (
+        CENTRAL_PROCESS_HUB
+        if selected_family.family == CENTRAL_PROCESS_HUB
+        else STRAIGHT_LINEAR_BAND
+    )
+    if selected_topology not in {
+        STRAIGHT_LINEAR_BAND,
+        OFFSET_LINEAR_BAND,
+        CENTRAL_PROCESS_HUB,
+    }:
+        raise _error("MAIN_PROCESS_TOPOLOGY_INVALID")
     if (selected_topology == CENTRAL_PROCESS_HUB) != (
         selected_family.family == CENTRAL_PROCESS_HUB
     ):
