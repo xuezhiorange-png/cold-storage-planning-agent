@@ -9,7 +9,10 @@ from typing import Final
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError, canonical_hash
 from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
 from cold_storage.modules.layout.domain.structural_composition import (
+    CENTRAL_PROCESS_HUB,
     MAIN_PROCESS_ZONE_CODES,
+    OFFSET_LINEAR_BAND,
+    STRAIGHT_LINEAR_BAND,
     StructuralCompositionFamilyV1,
 )
 
@@ -51,6 +54,7 @@ class MainProcessSkeletonCandidateV1:
     """
 
     family: StructuralCompositionFamilyV1
+    topology: str
     dominant_axis: str
     dominant_direction: str
     zone_rectangles: tuple[PlacedRectangleV1, ...]
@@ -69,6 +73,7 @@ class MainProcessSkeletonCandidateV1:
         rectangles: Mapping[str, PlacedRectangleV1],
         generation_pattern: str,
         hard_geometry_predicates_passed: Sequence[str],
+        topology: str | None = None,
     ) -> MainProcessSkeletonCandidateV1:
         if set(rectangles) & set(MAIN_PROCESS_ZONE_CODES) != set(MAIN_PROCESS_ZONE_CODES):
             raise LayoutAuthorityError("MAIN_PROCESS_SKELETON_ZONE_SET_INVALID")
@@ -80,9 +85,19 @@ class MainProcessSkeletonCandidateV1:
             raise LayoutAuthorityError("MAIN_PROCESS_SKELETON_FACTS_UNAVAILABLE")
         if not hard_geometry_predicates_passed:
             raise LayoutAuthorityError("MAIN_PROCESS_SKELETON_HARD_PREDICATES_REQUIRED")
+        selected_topology = topology or (
+            CENTRAL_PROCESS_HUB if family.family == CENTRAL_PROCESS_HUB else STRAIGHT_LINEAR_BAND
+        )
+        if selected_topology not in {
+            STRAIGHT_LINEAR_BAND,
+            OFFSET_LINEAR_BAND,
+            CENTRAL_PROCESS_HUB,
+        }:
+            raise LayoutAuthorityError("MAIN_PROCESS_TOPOLOGY_INVALID")
         digest = canonical_hash([_rectangle_record(row) for row in ordered])
         return cls(
             family=family,
+            topology=selected_topology,
             dominant_axis=family.dominant_axis,
             dominant_direction=family.dominant_direction,
             zone_rectangles=ordered,
@@ -98,6 +113,7 @@ class MainProcessSkeletonCandidateV1:
         return {
             "identity": IDENTITY,
             "family": self.family.to_dict(),
+            "topology": self.topology,
             "dominant_axis": self.dominant_axis,
             "dominant_direction": self.dominant_direction,
             "zone_rectangles": [_rectangle_record(row) for row in self.zone_rectangles],

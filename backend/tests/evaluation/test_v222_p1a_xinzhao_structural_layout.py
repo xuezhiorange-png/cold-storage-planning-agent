@@ -8,7 +8,9 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from cold_storage.modules.aily.application.site_layout_preview import preview_site_layout
+import pytest
+
+from cold_storage.modules.aily.application import site_layout_preview as site_layout_preview_module
 from cold_storage.modules.layout.domain.structural_quality import (
     _bounds,
     _group_edge_facts,
@@ -27,6 +29,7 @@ R2_SVG = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r2_after.svg"
 R3_LAYOUT = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r3_after_layout.json"
 R3_SVG = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r3_after.svg"
 R3_METRICS = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r3_metrics.json"
+R5_METRICS = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r5_metrics.json"
 
 
 def _zone_map(layout: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
@@ -49,7 +52,9 @@ def _direct_core_edges(zones: Mapping[str, Mapping[str, Any]]) -> int:
     )
 
 
-def test_xinzhao_real_tool7_structural_candidate_is_full_pass_and_deterministic() -> None:
+def test_xinzhao_real_tool7_staged_topology_search_is_hard_valid_and_deterministic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     raw = FIXTURE.read_bytes()
     assert hashlib.sha256(raw).hexdigest() == EXPECTED_INPUT_SHA256
     payload = json.loads(raw)
@@ -58,10 +63,24 @@ def test_xinzhao_real_tool7_structural_candidate_is_full_pass_and_deterministic(
     saved_r2_layout = json.loads(R2_LAYOUT.read_text(encoding="utf-8"))
     saved_r3_layout = json.loads(R3_LAYOUT.read_text(encoding="utf-8"))
     r3_metrics = json.loads(R3_METRICS.read_text(encoding="utf-8"))
+    r5_metrics = json.loads(R5_METRICS.read_text(encoding="utf-8"))
     assert baseline["canonical_result_hash"] == V221_RESULT_HASH
 
-    first = preview_site_layout(payload)
-    second = preview_site_layout(payload)
+    evaluations: list[dict[str, Any]] = []
+    real_select = site_layout_preview_module.select_validated_placement
+
+    def capture_evaluation(*args: Any, **kwargs: Any) -> Any:
+        selection = real_select(*args, **kwargs)
+        evaluations.append(selection.internal_evaluation)
+        return selection
+
+    monkeypatch.setattr(
+        site_layout_preview_module,
+        "select_validated_placement",
+        capture_evaluation,
+    )
+    first = site_layout_preview_module.preview_site_layout(payload)
+    second = site_layout_preview_module.preview_site_layout(payload)
 
     for result in (first, second):
         layout = result["layout"]
@@ -77,35 +96,65 @@ def test_xinzhao_real_tool7_structural_candidate_is_full_pass_and_deterministic(
         assert result["drawing"]["svg"]
         assert result["selection"]["p2d_full_pass_candidate_count"] >= 1
         lane_reports = result["selection"]["search_provenance"]["family_lanes"]
-        assert {
-            (row["composition_family"]["family"], row["composition_family"]["dominant_direction"])
-            for row in lane_reports
-        } == {
-            ("LINEAR_PROCESS_BAND", "POSITIVE"),
-            ("LINEAR_PROCESS_BAND", "NEGATIVE"),
-            ("CENTRAL_PROCESS_HUB", "UNRESOLVED"),
-        }
-        assert result["selection"]["p2d_full_pass_candidate_count"] == 2
+        assert len(lane_reports) == 3
+        assert [row["lane_node_budget"] for row in lane_reports] == [40, 40, 40]
         assert result["selection"]["search_provenance"]["node_budget"] == 120
+
+    assert len(evaluations) == 2
+    first_evaluation = evaluations[0]
+    assert first_evaluation == evaluations[1]
+    assert first_evaluation["search_policy"] == "STAGED_COVERAGE_THEN_PREFERENCE"
+    assert {row["topology"] for row in first_evaluation["family_lanes"]} == {
+        "STRAIGHT_LINEAR_BAND",
+        "OFFSET_LINEAR_BAND",
+        "CENTRAL_PROCESS_HUB",
+    }
+    assert first_evaluation["topology_count_explored"] == 3
+    assert first_evaluation["topology_count_with_constructed_skeleton"] == 2
+    assert first_evaluation["constructed_main_process_skeleton_count"] == 1
+    assert r5_metrics["p2d_full_pass_candidate_count"] == 4
+    assert r5_metrics["constructed_skeleton_topologies"] == [
+        "CENTRAL_PROCESS_HUB",
+        "STRAIGHT_LINEAR_BAND",
+    ]
+    assert len(r5_metrics["constructed_main_process_skeleton_hashes"]) == 1
+    assert first_evaluation["p2d_full_pass_distinct_main_process_skeleton_count"] == 1
+    lifecycle_by_topology = {
+        row["topology"]: row for row in first_evaluation["skeleton_survival"]
+    }
+    assert lifecycle_by_topology["STRAIGHT_LINEAR_BAND"]["p2d_candidate_count"] == 2
+    assert lifecycle_by_topology["STRAIGHT_LINEAR_BAND"]["p2d_full_pass_count"] == 2
+    assert lifecycle_by_topology["CENTRAL_PROCESS_HUB"]["p2d_candidate_count"] == 2
+    assert lifecycle_by_topology["CENTRAL_PROCESS_HUB"]["p2d_full_pass_count"] == 2
+    assert "OFFSET_LINEAR_BAND" not in lifecycle_by_topology
+    assert first_evaluation["distinct_runner_up_present"] is False
+    assert (
+        first_evaluation["distinct_skeleton_first_decisive_component"]
+        == "ONLY_ONE_P2D_FULL_PASS_MAIN_SKELETON"
+    )
 
     assert first["canonical_result_hash"] == second["canonical_result_hash"]
     assert first["layout"]["canonical_result_hash"] == second["layout"]["canonical_result_hash"]
     assert first["drawing"]["svg"] == second["drawing"]["svg"]
-    assert first["drawing"]["svg"].encode("utf-8") == R3_SVG.read_bytes()
-    assert first["layout"] == saved_r3_layout
     assert first["svg_sha256"] == second["svg_sha256"]
+    assert first["canonical_result_hash"] == r5_metrics["r5_canonical_result_hash"]
+    assert first["svg_sha256"] == r5_metrics["r5_svg_sha256"]
     assert hashlib.sha256(first["drawing"]["svg"].encode("utf-8")).hexdigest() == (
         first["svg_sha256"].removeprefix("sha256:")
     )
-    assert first["canonical_result_hash"] == r3_metrics["canonical_result_hash"]
-    assert first["svg_sha256"] == r3_metrics["svg_sha256"]
     assert first["canonical_result_hash"] != V221_RESULT_HASH
     assert first["svg_sha256"] != V221_SVG_SHA256
     assert r3_metrics["result"] == "PARTIAL"
     assert r3_metrics["owner_xinzhao_p1a_r3_visual_review"] == "PENDING"
-    assert r3_metrics["distinct_full_pass_main_process_skeleton_count"] == 1
-    assert r3_metrics["r3_main_process_geometry_changed"] is False
-    assert r3_metrics["r3_main_process_changed_zone_count"] == 0
+    assert r5_metrics["result"] == "PARTIAL"
+    assert r5_metrics["owner_xinzhao_p1a_r5_visual_review"] == "PENDING"
+    assert r5_metrics["distinct_p2d_full_pass_main_process_skeleton_count"] == 1
+    assert r5_metrics["selected_main_process_geometry_changed_from_r3"] is False
+    assert r5_metrics["selected_main_process_changed_zone_count"] == 0
+    assert r5_metrics["r5_svg_hash_equals_r3"] is True
+    for record in r5_metrics["visual_render_records"].values():
+        rendered = (ROOT / "docs/tasks/evidence/v2_2_2_p1a" / record["file"]).read_bytes()
+        assert hashlib.sha256(rendered).hexdigest() == record["sha256"]
 
     old_zones = _zone_map(baseline)
     new_zones = _zone_map(first["layout"])
@@ -133,10 +182,11 @@ def test_xinzhao_real_tool7_structural_candidate_is_full_pass_and_deterministic(
     assert main_geometry(new_zones) == main_geometry(old_zones)
     assert main_geometry(new_zones) == main_geometry(r1_zones)
     assert main_geometry(new_zones) == main_geometry(r2_zones)
+    assert main_geometry(new_zones) == main_geometry(_zone_map(saved_r3_layout))
     old_groups = _group_edge_facts(old_zones)
     new_groups = _group_edge_facts(new_zones)
     assert old_groups["SUPPORT_GROUP"] == 0
-    assert new_groups["SUPPORT_GROUP"] == 2
+    assert new_groups["SUPPORT_GROUP"] == r5_metrics["support_group_shared_internal_edge_count"]
     # The core stays fully connected, but its direct-edge count does not
     # improve over the hard-valid v2.2.1 baseline and is reported as such.
     assert _direct_core_edges(old_zones) == 2

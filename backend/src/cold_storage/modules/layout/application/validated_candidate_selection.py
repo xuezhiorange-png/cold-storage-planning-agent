@@ -32,14 +32,20 @@ from cold_storage.modules.layout.domain.dimensioning import (
 from cold_storage.modules.layout.domain.objective_profile import ObjectiveProfileV1
 from cold_storage.modules.layout.domain.placement import (
     GENERAL_FALLBACK_PHASE,
+    MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE,
     STRUCTURED_PHASE,
     placement_candidate_is_better,
 )
 from cold_storage.modules.layout.domain.structural_composition import (
+    CENTRAL_PROCESS_HUB,
     MAIN_PROCESS_ZONE_CODES,
+    OFFSET_LINEAR_BAND,
+    STRAIGHT_LINEAR_BAND,
     StructuralCompositionFamilyV1,
+    StructuralTopologyLaneV1,
     composition_family_candidates,
     select_structural_composition_family,
+    structural_topology_lanes,
 )
 from cold_storage.modules.layout.domain.structural_quality import (
     StructuralQualityFactsV1,
@@ -160,28 +166,72 @@ def _family_lane_budgets(
 ) -> tuple[int, ...]:
     if lane_count <= 0 or total_budget <= 0:
         raise _error("INVALID_PLACEMENT_SEARCH_BUDGET")
-    if preferred_lane_index is None or lane_count == 1:
-        quotient, remainder = divmod(total_budget, lane_count)
-        return tuple(quotient + int(index < remainder) for index in range(lane_count))
-    if not 0 <= preferred_lane_index < lane_count:
+    if preferred_lane_index is not None and not 0 <= preferred_lane_index < lane_count:
         raise _error("STRUCTURAL_PREFERRED_LANE_INDEX_INVALID")
-    preferred_budget = max(1, (total_budget * 2) // 3)
-    remaining = total_budget - preferred_budget
-    other_lane_count = lane_count - 1
-    quotient, remainder = divmod(remaining, other_lane_count)
-    result = [0] * lane_count
-    result[preferred_lane_index] = preferred_budget
+    coverage_per_lane = min(
+        MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE,
+        total_budget // lane_count,
+    )
+    budgets = [coverage_per_lane] * lane_count
+    remaining = total_budget - sum(budgets)
+    quotient, remainder = divmod(remaining, lane_count)
     for index in range(lane_count):
-        if index == preferred_lane_index:
-            continue
-        other_index = index if index < preferred_lane_index else index - 1
-        result[index] = quotient + int(other_index < remainder)
-    return tuple(result)
+        budgets[index] += quotient
+    preferred_order = (preferred_lane_index,) if preferred_lane_index is not None else ()
+    preference_order = preferred_order + tuple(
+        index for index in range(lane_count) if index != preferred_lane_index
+    )
+    for index in preference_order[:remainder]:
+        budgets[index] += 1
+    return tuple(budgets)
 
 
-def _preferred_family_from_handoff(
-    site_body: Mapping[str, Any], handoff: object
-) -> StructuralCompositionFamilyV1 | None:
+def _preferred_topology_index(
+    lanes: tuple[StructuralTopologyLaneV1, ...],
+    preferred_family: StructuralCompositionFamilyV1 | None,
+) -> int | None:
+    if preferred_family is None:
+        return None
+    preferred_topology = (
+        CENTRAL_PROCESS_HUB
+        if preferred_family.family == CENTRAL_PROCESS_HUB
+        else STRAIGHT_LINEAR_BAND
+    )
+    return next(
+        (index for index, lane in enumerate(lanes) if lane.topology == preferred_topology),
+        None,
+    )
+
+
+def _selector_topology_lanes(
+    site_geometry: Mapping[str, object],
+    handoff: object | None = None,
+) -> tuple[StructuralTopologyLaneV1, ...]:
+    """Bind deterministic topology identities to site family candidates."""
+    site = site_geometry.get("site")
+    has_boundary = isinstance(site, Mapping) and isinstance(
+        site.get("effective_buildable_boundary"), Mapping
+    )
+    authorities = _zone_authorities_from_handoff(handoff)
+    if handoff is None or not has_boundary or authorities is None:
+        families = composition_family_candidates(site_geometry)
+        return tuple(
+            StructuralTopologyLaneV1(
+                CENTRAL_PROCESS_HUB
+                if family.family == CENTRAL_PROCESS_HUB
+                else STRAIGHT_LINEAR_BAND
+                if family.dominant_direction == "POSITIVE"
+                else OFFSET_LINEAR_BAND,
+                family,
+            )
+            for family in families
+        )
+    return structural_topology_lanes(site_geometry, authorities)
+
+
+def _zone_authorities_from_handoff(
+    handoff: object | None,
+) -> dict[str, Mapping[str, object]] | None:
     if isinstance(handoff, ZoneDimensioningResultV1):
         body: object = handoff.to_dict()
     elif isinstance(handoff, Mapping):
@@ -199,6 +249,15 @@ def _preferred_family_from_handoff(
         if isinstance(row, Mapping) and isinstance(row.get("zone_code"), str)
     }
     if len(authorities) != len(raw_authorities):
+        return None
+    return authorities
+
+
+def _preferred_family_from_handoff(
+    site_body: Mapping[str, Any], handoff: object
+) -> StructuralCompositionFamilyV1 | None:
+    authorities = _zone_authorities_from_handoff(handoff)
+    if authorities is None:
         return None
     try:
         return select_structural_composition_family(site_body, authorities)
@@ -264,7 +323,17 @@ def _selection_provenance(
     node_budget_exhausted = any(row["node_budget_exhausted"] for row in lane_reports)
     public_lane_reports = [
         {
-            **lane,
+            **{
+                key: value
+                for key, value in lane.items()
+                if key
+                not in {
+                    "topology",
+                    "scheduler_policy",
+                    "topology_coverage_node_budget",
+                    "preference_extra_node_budget",
+                }
+            },
             "phases": [
                 {
                     key: value
@@ -386,12 +455,94 @@ def _internal_selection_evaluation(
                     winner_value = winner
                     runner_up_value = other
                     break
+    selected_skeleton_signature = _main_process_geometry_signature(selected[0])
+    best_by_skeleton: dict[
+        str,
+        tuple[
+            dict[str, Any],
+            dict[str, Any],
+            StructuralQualityFactsV1,
+            StructuralCompositionFamilyV1,
+        ],
+    ] = {}
+    for record in full_pass_records:
+        signature = _main_process_geometry_signature(record[0])
+        current = best_by_skeleton.get(signature)
+        if _record_is_better(record, current, "UNSPECIFIED"):
+            best_by_skeleton[signature] = record
+    distinct_runner_up: (
+        tuple[
+            dict[str, Any],
+            dict[str, Any],
+            StructuralQualityFactsV1,
+            StructuralCompositionFamilyV1,
+        ]
+        | None
+    ) = None
+    for signature, record in best_by_skeleton.items():
+        if signature == selected_skeleton_signature:
+            continue
+        if _record_is_better(record, distinct_runner_up, "UNSPECIFIED"):
+            distinct_runner_up = record
+
+    distinct_first_component = "ONLY_ONE_P2D_FULL_PASS_MAIN_SKELETON"
+    distinct_winner_value: int | None = None
+    distinct_runner_value: int | None = None
+    if distinct_runner_up is not None:
+        distinct_first_component = "P2B2_FINAL_TIE_BREAK"
+        for index, component in enumerate(_STRUCTURAL_COMPONENTS):
+            winner_key = selected[2].comparison_key
+            runner_key = distinct_runner_up[2].comparison_key
+            if (
+                index < len(winner_key)
+                and index < len(runner_key)
+                and winner_key[index] != runner_key[index]
+            ):
+                distinct_first_component = component
+                distinct_winner_value = winner_key[index]
+                distinct_runner_value = runner_key[index]
+                break
+        else:
+            if selected[2].comparison_key == distinct_runner_up[2].comparison_key:
+                distinct_first_component = "P2B2_FINAL_TIE_BREAK"
+            else:
+                distinct_first_component = "STRUCTURAL_COMPARISON"
+
+    skeleton_survival = [
+        lifecycle
+        for lane in lane_reports
+        for phase in lane.get("phases", [])
+        if isinstance(phase, Mapping)
+        for generation in [phase.get("main_process_skeleton_generation", {})]
+        if isinstance(generation, Mapping)
+        for lifecycle in generation.get("skeleton_tail_lifecycle", [])
+        if isinstance(lifecycle, Mapping)
+    ]
+    topology_count_explored = len(
+        {str(lane.get("topology")) for lane in lane_reports if lane.get("topology")}
+    )
+    topology_count_constructed = len(
+        {
+            str(lifecycle.get("topology"))
+            for lifecycle in skeleton_survival
+            if lifecycle.get("skeleton_hash")
+        }
+    )
+    distinct_evaluated_skeletons = len(
+        {
+            str(lifecycle.get("skeleton_hash"))
+            for lifecycle in skeleton_survival
+            if lifecycle.get("p2d_reached") is True
+        }
+    )
+    distinct_full_pass_skeletons = len(best_by_skeleton)
     selected_payload = selected_facts.to_dict()
     selected_structured = selected_payload.get("structurally_generated") is True
     return {
         "identity": "p1a-structural-candidate-selection-evaluation@1.0.0",
         "selection_basis": P2C_CANDIDATE_SELECTION_BASIS,
         "selected_composition_family": selected[3].to_dict(),
+        "selected_topology": selected[0].get("_r5_topology"),
         "selected_candidate_hash": selected[0].get("canonical_candidate_hash"),
         "selected_p2d_result_hash": selected[1].get("canonical_result_hash"),
         "selected_structural_facts": selected_payload,
@@ -406,6 +557,30 @@ def _internal_selection_evaluation(
         "first_decisive_component": first_component,
         "winner_value": winner_value,
         "runner_up_value": runner_up_value,
+        "search_policy": "STAGED_COVERAGE_THEN_PREFERENCE",
+        "topology_count_explored": topology_count_explored,
+        "topology_count_with_constructed_skeleton": topology_count_constructed,
+        "constructed_main_process_skeleton_count": len(
+            {
+                str(lifecycle.get("skeleton_hash"))
+                for lifecycle in skeleton_survival
+                if lifecycle.get("skeleton_hash")
+            }
+        ),
+        "p2d_evaluated_distinct_main_process_skeleton_count": distinct_evaluated_skeletons,
+        "p2d_full_pass_distinct_main_process_skeleton_count": distinct_full_pass_skeletons,
+        "skeleton_survival": skeleton_survival,
+        "distinct_runner_up_present": distinct_runner_up is not None,
+        "distinct_runner_up_skeleton_hash": distinct_runner_up[0].get("_r5_skeleton_hash")
+        if distinct_runner_up is not None
+        else None,
+        "distinct_runner_up_topology": distinct_runner_up[0].get("_r5_topology")
+        if distinct_runner_up is not None
+        else None,
+        "distinct_runner_up_p2d_full_pass": distinct_runner_up is not None,
+        "distinct_skeleton_first_decisive_component": distinct_first_component,
+        "distinct_skeleton_winner_value": distinct_winner_value,
+        "distinct_skeleton_runner_up_value": distinct_runner_value,
         "p2b2_tiebreak_used": p2b2_tiebreak_used,
         "hard_feasibility_passed": True,
         "comparison_mode": "LEXICOGRAPHIC_ATOMIC_FACTS",
@@ -454,46 +629,61 @@ def select_validated_placement(
         ]
     ] = []
     lane_reports: list[dict[str, Any]] = []
-    family_lanes = composition_family_candidates(site_body)
+    skeleton_lifecycle_by_hash: dict[tuple[str, str], dict[str, Any]] = {}
+    topology_lanes = _selector_topology_lanes(site_body, p1_handoff)
     preferred_family = _preferred_family_from_handoff(site_body, p1_handoff)
-    if preferred_family is not None:
-        preferred_match = next(
-            (family for family in family_lanes if family.to_dict() == preferred_family.to_dict()),
-            None,
-        )
-        if preferred_match is not None:
-            family_lanes = (
-                preferred_match,
-                *(family for family in family_lanes if family is not preferred_match),
-            )
-    preferred_lane_index = (
-        next(
-            (
-                index
-                for index, family in enumerate(family_lanes)
-                if family.to_dict() == preferred_family.to_dict()
-            ),
-            None,
-        )
-        if preferred_family is not None
-        else None
-    )
+    preferred_lane_index = _preferred_topology_index(topology_lanes, preferred_family)
     lane_budgets = _family_lane_budgets(
         placement_node_budget,
-        len(family_lanes),
+        len(topology_lanes),
         preferred_lane_index=preferred_lane_index,
     )
+    topology_coverage_budget = min(
+        MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE,
+        placement_node_budget // len(topology_lanes),
+    )
+    lane_order = tuple(
+        index for index in range(len(topology_lanes)) if index != preferred_lane_index
+    ) + ((preferred_lane_index,) if preferred_lane_index is not None else ())
     p2c_candidate_count = 0
     candidate_index = 0
 
-    for family, lane_budget in zip(family_lanes, lane_budgets, strict=True):
+    for lane_index in lane_order:
+        lane = topology_lanes[lane_index]
+        family = lane.family
+        lane_budget = lane_budgets[lane_index]
         structured_budget, fallback_budget = _lane_budget_split(lane_budget)
         lane_seen_geometry: set[str] = set()
         lane_full_pass_count = 0
         lane_report: dict[str, Any] = {
             "composition_family": family.to_dict(),
-            "preferred_lane": preferred_family is not None
-            and family.to_dict() == preferred_family.to_dict(),
+            "topology": lane.topology,
+            "scheduler_policy": "STAGED_COVERAGE_THEN_PREFERENCE",
+            "topology_coverage_node_budget": topology_coverage_budget,
+            "diversity_expansion_node_budget": max(
+                0,
+                lane_budget
+                - topology_coverage_budget
+                - int(
+                    preferred_family is not None
+                    and lane_index == preferred_lane_index
+                    and (placement_node_budget - topology_coverage_budget * len(topology_lanes))
+                    % len(topology_lanes)
+                    > 0
+                ),
+            ),
+            "preference_extra_node_budget": (
+                int(
+                    preferred_family is not None
+                    and lane_index == preferred_lane_index
+                    and (placement_node_budget - topology_coverage_budget * len(topology_lanes))
+                    % len(topology_lanes)
+                    > 0
+                )
+                if preferred_lane_index is not None
+                else 0
+            ),
+            "preferred_lane": preferred_family is not None and lane_index == preferred_lane_index,
             "lane_node_budget": lane_budget,
             "structured_node_budget": structured_budget,
             "fallback_node_budget": fallback_budget,
@@ -518,6 +708,7 @@ def select_validated_placement(
                 node_budget=phase_budget,
                 complete_candidate_limit=complete_candidate_limit,
                 structural_family=family,
+                structural_topology=lane.topology,
                 search_phase=phase,
             )
             phase_full_pass_count = 0
@@ -526,6 +717,22 @@ def select_validated_placement(
             structural_flag_getter = getattr(enumeration, "structurally_generated", None)
             for candidate in enumeration.iter_candidates():
                 candidate_body = candidate.to_dict()
+                candidate_hash = candidate_body.get("canonical_candidate_hash")
+                skeleton_hash_getter = getattr(
+                    enumeration, "candidate_main_process_skeleton_hash", None
+                )
+                topology_getter = getattr(enumeration, "candidate_topology", None)
+                skeleton_hash = (
+                    skeleton_hash_getter(candidate_hash)
+                    if isinstance(candidate_hash, str) and callable(skeleton_hash_getter)
+                    else None
+                )
+                candidate_body["_r5_topology"] = (
+                    topology_getter(candidate_hash)
+                    if isinstance(candidate_hash, str) and callable(topology_getter)
+                    else lane.topology
+                )
+                candidate_body["_r5_skeleton_hash"] = skeleton_hash
                 geometry_signature = _placement_geometry_signature(candidate_body)
                 if geometry_signature in lane_seen_geometry:
                     continue
@@ -548,6 +755,31 @@ def select_validated_placement(
                     routed_body.get("project_layout_validated") is True
                     and routed_body.get("p2_complete") is True
                 )
+                if isinstance(skeleton_hash, str):
+                    lifecycle_key = (lane.topology, skeleton_hash)
+                    lifecycle = skeleton_lifecycle_by_hash.setdefault(
+                        lifecycle_key,
+                        {
+                            "topology": lane.topology,
+                            "skeleton_hash": skeleton_hash,
+                            "p2d_reached": True,
+                            "p2d_candidate_count": 0,
+                            "p2d_full_pass_count": 0,
+                            "first_failure_stage": None,
+                            "first_failure_reason": None,
+                        },
+                    )
+                    lifecycle["p2d_candidate_count"] += 1
+                    if full_pass:
+                        lifecycle["p2d_full_pass_count"] += 1
+                    elif lifecycle["first_failure_stage"] is None:
+                        lifecycle["first_failure_stage"] = "P2D"
+                        warnings = routed_body.get("warnings")
+                        lifecycle["first_failure_reason"] = (
+                            warnings[0]
+                            if isinstance(warnings, list) and warnings
+                            else "P2D_HARD_VALIDATION_FAILED"
+                        )
                 trace.append(_p2d_trace_row(candidate_index, candidate_body, p2d_body=routed_body))
                 if not full_pass:
                     phase_rejected_count += 1
@@ -585,6 +817,41 @@ def select_validated_placement(
                     ) from None
                 full_pass_records.append((candidate_body, routed_body, structural_facts, family))
 
+            generation_report = getattr(enumeration, "skeleton_generation_report", {})
+            if isinstance(generation_report, Mapping):
+                generation_report = dict(generation_report)
+                lifecycle_rows = generation_report.get("skeleton_tail_lifecycle", [])
+                enriched_lifecycle: list[dict[str, Any]] = []
+                for lifecycle_row in lifecycle_rows if isinstance(lifecycle_rows, list) else []:
+                    if not isinstance(lifecycle_row, Mapping):
+                        continue
+                    lifecycle_copy = dict(lifecycle_row)
+                    skeleton_hash_value = lifecycle_copy.get("skeleton_hash")
+                    p2d_lifecycle = skeleton_lifecycle_by_hash.get(
+                        (lane.topology, str(skeleton_hash_value)), {}
+                    )
+                    lifecycle_copy["p2d_reached"] = p2d_lifecycle.get("p2d_reached", False)
+                    lifecycle_copy["p2d_candidate_count"] = p2d_lifecycle.get(
+                        "p2d_candidate_count", 0
+                    )
+                    lifecycle_copy["p2d_full_pass_count"] = p2d_lifecycle.get(
+                        "p2d_full_pass_count", 0
+                    )
+                    if lifecycle_copy["p2d_reached"] and not lifecycle_copy["p2d_full_pass_count"]:
+                        lifecycle_copy["first_failure_stage"] = "P2D"
+                        lifecycle_copy["first_failure_reason"] = p2d_lifecycle.get(
+                            "first_failure_reason", "P2D_HARD_VALIDATION_FAILED"
+                        )
+                    elif not lifecycle_copy["p2d_reached"]:
+                        lifecycle_copy["first_failure_stage"] = "TAIL_SEARCH"
+                        lifecycle_copy["first_failure_reason"] = (
+                            "TAIL_NODE_SHARE_EXHAUSTED_WITHOUT_COMPLETE_P2C_CANDIDATE"
+                            if lifecycle_copy.get("tail_nodes", 0)
+                            >= lifecycle_copy.get("tail_node_limit", 0)
+                            else "TAIL_SEARCH_COMPLETED_WITHOUT_COMPLETE_P2C_CANDIDATE"
+                        )
+                    enriched_lifecycle.append(lifecycle_copy)
+                generation_report["skeleton_tail_lifecycle"] = enriched_lifecycle
             lane_report["phases"].append(
                 {
                     "search_phase": phase,
@@ -602,9 +869,7 @@ def select_validated_placement(
                     "p2d_full_pass_candidate_count": phase_full_pass_count,
                     "node_budget_exhausted": enumeration.node_budget_exhausted,
                     "search_tree_exhausted": enumeration.search_tree_exhausted,
-                    "main_process_skeleton_generation": getattr(
-                        enumeration, "skeleton_generation_report", {}
-                    ),
+                    "main_process_skeleton_generation": generation_report,
                 }
             )
             if (

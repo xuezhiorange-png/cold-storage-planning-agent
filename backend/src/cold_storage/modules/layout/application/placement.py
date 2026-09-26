@@ -274,6 +274,7 @@ def enumerate_placement_candidates(
     node_budget: int = 50_000,
     complete_candidate_limit: int | None = None,
     structural_family: StructuralCompositionFamilyV1 | None = None,
+    structural_topology: str | None = None,
     search_phase: str = LEGACY_COMPAT_PHASE,
 ) -> PlacementCandidateEnumerationV1:
     """Expose complete P2C candidates for downstream P2 validation.
@@ -307,5 +308,6 @@ def enumerate_placement_candidates(
         node_budget=node_budget,
         complete_candidate_limit=complete_candidate_limit,
         structural_family=structural_family,
+        structural_topology=structural_topology,
         search_phase=search_phase,
     )

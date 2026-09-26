@@ -1,0 +1,887 @@
+{
+  "identity": "p1a-r5-topology-search-evidence@1.0.0",
+  "placement_node_budget": 120,
+  "search_policy": "STAGED_COVERAGE_THEN_PREFERENCE",
+  "topology_lanes": [
+    {
+      "complete_candidates": 2,
+      "composition_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_ORDERING_ONLY",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "diversity_expansion_node_budget": 25,
+      "fallback_node_budget": 0,
+      "lane_node_budget": 40,
+      "node_budget_exhausted": false,
+      "p2d_full_pass_candidate_count": 2,
+      "p2d_rejected_candidate_count": 0,
+      "p2d_rejection_warnings": [],
+      "phases": [
+        {
+          "complete_candidates": 2,
+          "distinct_main_process_skeleton_count": 1,
+          "distinct_structural_core_root_count": 1,
+          "main_process_skeleton_generation": {
+            "candidates": [
+              {
+                "authority": "CANDIDATE_SEARCH_GEOMETRY_ONLY",
+                "dominant_axis": "Y",
+                "dominant_direction": "POSITIVE",
+                "family": {
+                  "dominant_axis": "Y",
+                  "dominant_direction": "POSITIVE",
+                  "family": "LINEAR_PROCESS_BAND",
+                  "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_ORDERING_ONLY",
+                  "identity": "structural-composition-family@1.0.0"
+                },
+                "finished_group_envelope_mm": [
+                  1624,
+                  23650,
+                  41717,
+                  52300
+                ],
+                "generation_pattern": "STRAIGHT_LINEAR_BAND:RAW_SOUTH:RAW_BANK_WEST:FINISHED_NORTH:ROOT_15.2_10.05_CONSTRUCTIVE_PROCESS_CHAIN",
+                "hard_geometry_predicates_passed": [
+                  "SITE_CONTAINMENT",
+                  "NO_BUILD_CLEAR",
+                  "NON_OVERLAP",
+                  "MUST_ADJACENCY",
+                  "GROUP_ORDER",
+                  "TOPOLOGY_RULE"
+                ],
+                "identity": "main-process-skeleton-candidate@1.0.0",
+                "main_process_skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+                "processing_core_envelope_mm": [
+                  9317,
+                  10050,
+                  60960,
+                  33700
+                ],
+                "raw_group_envelope_mm": [
+                  0,
+                  0,
+                  29900,
+                  10050
+                ],
+                "topology": "STRAIGHT_LINEAR_BAND",
+                "zone_rectangles": [
+                  {
+                    "depth_m": "8.7",
+                    "rotation_deg": 0,
+                    "width_m": "15.2",
+                    "x": "0",
+                    "y": "0",
+                    "zone_code": "raw_fruit_buffer"
+                  },
+                  {
+                    "depth_m": "10.05",
+                    "rotation_deg": 0,
+                    "width_m": "14.7",
+                    "x": "15.2",
+                    "y": "0",
+                    "zone_code": "primary_precooling_room"
+                  },
+                  {
+                    "depth_m": "13.6",
+                    "rotation_deg": 0,
+                    "width_m": "45.76",
+                    "x": "15.2",
+                    "y": "10.05",
+                    "zone_code": "sorting_packaging_room"
+                  },
+                  {
+                    "depth_m": "10.05",
+                    "rotation_deg": 0,
+                    "width_m": "9.8",
+                    "x": "15.2",
+                    "y": "23.65",
+                    "zone_code": "secondary_precooling_room"
+                  },
+                  {
+                    "depth_m": "13.6",
+                    "rotation_deg": 0,
+                    "width_m": "5.883",
+                    "x": "9.317",
+                    "y": "20.1",
+                    "zone_code": "coating_room"
+                  },
+                  {
+                    "depth_m": "18.6",
+                    "rotation_deg": 0,
+                    "width_m": "32.4",
+                    "x": "9.317",
+                    "y": "33.7",
+                    "zone_code": "finished_goods_room"
+                  },
+                  {
+                    "depth_m": "7.693",
+                    "rotation_deg": 90,
+                    "width_m": "6.5",
+                    "x": "1.624",
+                    "y": "33.7",
+                    "zone_code": "shipping_channel"
+                  }
+                ]
+              }
+            ],
+            "constructed_candidate_count": 1,
+            "construction_attempts": [
+              {
+                "face_pair_node_limit": 20,
+                "finished_side": "NORTH",
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 117,
+                  "SITE_OUTSIDE": 297,
+                  "SKELETON_TOPOLOGY_INVALID": 10,
+                  "ZONE_OVERLAP": 128
+                },
+                "result": "SKELETON_CONSTRUCTED",
+                "search_truncated": false,
+                "skeleton_hashes": [
+                  "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+                ],
+                "sorting_root_mm": [
+                  15200,
+                  10050,
+                  60960,
+                  23650
+                ],
+                "sorting_root_node_limit": 17,
+                "visited_node_delta": 16
+              },
+              {
+                "face_pair_node_limit": 20,
+                "finished_side": "NORTH",
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 7,
+                  "SITE_OUTSIDE": 5,
+                  "ZONE_OVERLAP": 2
+                },
+                "result": "TRUNCATED",
+                "search_truncated": true,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  29238,
+                  13399,
+                  74998,
+                  26999
+                ],
+                "sorting_root_node_limit": 20,
+                "visited_node_delta": 2
+              }
+            ],
+            "construction_search_truncated": true,
+            "heuristic_root_pruning": false,
+            "identity": "main-process-skeleton-construction@1.0.0",
+            "node_budget_exhausted": false,
+            "rejection_reason_counts": {
+              "NO_BUILD_COLLISION": 159,
+              "SITE_OUTSIDE": 439,
+              "SKELETON_TOPOLOGY_INVALID": 10,
+              "ZONE_OVERLAP": 130
+            },
+            "root_preflight_mode": "EXACT_NECESSARY_PREDICATE_OR_ORDERING_ONLY",
+            "root_preflight_ordering": [
+              {
+                "estimated_topology_envelope_penalty_mm": 0,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  15200,
+                  10050,
+                  60960,
+                  23650
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 0,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  29238,
+                  13399,
+                  74998,
+                  26999
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 1348,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  14700,
+                  8702,
+                  60460,
+                  22302
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 1349,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  14700,
+                  8701,
+                  60460,
+                  22301
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 10050,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  29700,
+                  0,
+                  75460,
+                  13600
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 19410,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  28117,
+                  8125,
+                  41717,
+                  53885
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 19410,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  14700,
+                  8701,
+                  28300,
+                  54461
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 19410,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  14700,
+                  8702,
+                  28300,
+                  54462
+                ],
+                "use": "ORDERING_ONLY"
+              }
+            ],
+            "skeleton_tail_lifecycle": [
+              {
+                "complete_candidate_count": 2,
+                "construction_nodes": 7,
+                "first_failure_reason": null,
+                "first_failure_stage": null,
+                "p2d_candidate_count": 2,
+                "p2d_full_pass_count": 2,
+                "p2d_reached": true,
+                "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+                "tail_node_limit": 20,
+                "tail_nodes": 7,
+                "topology": "STRAIGHT_LINEAR_BAND"
+              }
+            ],
+            "tail_search_zone_facts": {
+              "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953": {
+                "changing_room": {
+                  "branch_visits": 1,
+                  "candidate_options": 6,
+                  "empty_option_branches": 0,
+                  "skeleton_region_options": 6
+                },
+                "frozen_fruit_room": {
+                  "branch_visits": 1,
+                  "candidate_options": 5,
+                  "empty_option_branches": 0,
+                  "skeleton_region_options": 5
+                },
+                "office": {
+                  "branch_visits": 1,
+                  "candidate_options": 6,
+                  "empty_option_branches": 0,
+                  "skeleton_region_options": 6
+                },
+                "packaging_material_storage": {
+                  "branch_visits": 1,
+                  "candidate_options": 2,
+                  "empty_option_branches": 0,
+                  "skeleton_region_options": 2
+                },
+                "secondary_fruit_buffer": {
+                  "branch_visits": 1,
+                  "candidate_options": 6,
+                  "empty_option_branches": 0,
+                  "skeleton_region_options": 6
+                }
+              }
+            },
+            "topology": "STRAIGHT_LINEAR_BAND"
+          },
+          "node_budget": 40,
+          "node_budget_exhausted": false,
+          "p2d_full_pass_candidate_count": 2,
+          "p2d_rejected_candidate_count": 0,
+          "search_phase": "STRUCTURED",
+          "search_tree_exhausted": false,
+          "validated_unique_candidates": 2,
+          "visited_nodes": 27
+        }
+      ],
+      "preference_extra_node_budget": 0,
+      "preferred_lane": false,
+      "scheduler_policy": "STAGED_COVERAGE_THEN_PREFERENCE",
+      "search_tree_exhausted": false,
+      "structured_node_budget": 40,
+      "topology": "STRAIGHT_LINEAR_BAND",
+      "topology_coverage_node_budget": 15,
+      "visited_nodes": 27
+    },
+    {
+      "complete_candidates": 0,
+      "composition_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_ORDERING_ONLY",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "diversity_expansion_node_budget": 25,
+      "fallback_node_budget": 0,
+      "lane_node_budget": 40,
+      "node_budget_exhausted": false,
+      "p2d_full_pass_candidate_count": 0,
+      "p2d_rejected_candidate_count": 0,
+      "p2d_rejection_warnings": [],
+      "phases": [
+        {
+          "complete_candidates": 0,
+          "distinct_main_process_skeleton_count": 0,
+          "distinct_structural_core_root_count": 0,
+          "main_process_skeleton_generation": {
+            "candidates": [],
+            "constructed_candidate_count": 0,
+            "construction_attempts": [
+              {
+                "face_pair_node_limit": 20,
+                "finished_side": "NORTH",
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 55,
+                  "SITE_OUTSIDE": 203,
+                  "SKELETON_TOPOLOGY_INVALID": 11,
+                  "ZONE_OVERLAP": 116
+                },
+                "result": "TRUNCATED",
+                "search_truncated": true,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  15200,
+                  10050,
+                  60960,
+                  23650
+                ],
+                "sorting_root_node_limit": 17,
+                "visited_node_delta": 16
+              },
+              {
+                "face_pair_node_limit": 20,
+                "finished_side": "NORTH",
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 7,
+                  "SITE_OUTSIDE": 5,
+                  "ZONE_OVERLAP": 2
+                },
+                "result": "TRUNCATED",
+                "search_truncated": true,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  29238,
+                  13399,
+                  74998,
+                  26999
+                ],
+                "sorting_root_node_limit": 20,
+                "visited_node_delta": 2
+              }
+            ],
+            "construction_search_truncated": true,
+            "heuristic_root_pruning": false,
+            "identity": "main-process-skeleton-construction@1.0.0",
+            "node_budget_exhausted": false,
+            "rejection_reason_counts": {
+              "NO_BUILD_COLLISION": 97,
+              "SITE_OUTSIDE": 345,
+              "SKELETON_TOPOLOGY_INVALID": 11,
+              "ZONE_OVERLAP": 118
+            },
+            "root_preflight_mode": "EXACT_NECESSARY_PREDICATE_OR_ORDERING_ONLY",
+            "root_preflight_ordering": [
+              {
+                "estimated_topology_envelope_penalty_mm": 0,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  15200,
+                  10050,
+                  60960,
+                  23650
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 0,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  29238,
+                  13399,
+                  74998,
+                  26999
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 1348,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  14700,
+                  8702,
+                  60460,
+                  22302
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 1349,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  14700,
+                  8701,
+                  60460,
+                  22301
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 10050,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  29700,
+                  0,
+                  75460,
+                  13600
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 19410,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  28117,
+                  8125,
+                  41717,
+                  53885
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 19410,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  14700,
+                  8701,
+                  28300,
+                  54461
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 19410,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  14700,
+                  8702,
+                  28300,
+                  54462
+                ],
+                "use": "ORDERING_ONLY"
+              }
+            ],
+            "skeleton_tail_lifecycle": [],
+            "tail_search_zone_facts": {},
+            "topology": "OFFSET_LINEAR_BAND"
+          },
+          "node_budget": 40,
+          "node_budget_exhausted": false,
+          "p2d_full_pass_candidate_count": 0,
+          "p2d_rejected_candidate_count": 0,
+          "search_phase": "STRUCTURED",
+          "search_tree_exhausted": false,
+          "validated_unique_candidates": 0,
+          "visited_nodes": 20
+        }
+      ],
+      "preference_extra_node_budget": 0,
+      "preferred_lane": false,
+      "scheduler_policy": "STAGED_COVERAGE_THEN_PREFERENCE",
+      "search_tree_exhausted": false,
+      "structured_node_budget": 40,
+      "topology": "OFFSET_LINEAR_BAND",
+      "topology_coverage_node_budget": 15,
+      "visited_nodes": 20
+    },
+    {
+      "complete_candidates": 2,
+      "composition_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "UNRESOLVED",
+        "family": "CENTRAL_PROCESS_HUB",
+        "generation_reason": "SORTING_PACKAGING_IS_EXPLICIT_PROCESS_CORE",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "diversity_expansion_node_budget": 25,
+      "fallback_node_budget": 0,
+      "lane_node_budget": 40,
+      "node_budget_exhausted": false,
+      "p2d_full_pass_candidate_count": 2,
+      "p2d_rejected_candidate_count": 0,
+      "p2d_rejection_warnings": [],
+      "phases": [
+        {
+          "complete_candidates": 2,
+          "distinct_main_process_skeleton_count": 1,
+          "distinct_structural_core_root_count": 1,
+          "main_process_skeleton_generation": {
+            "candidates": [
+              {
+                "authority": "CANDIDATE_SEARCH_GEOMETRY_ONLY",
+                "dominant_axis": "X",
+                "dominant_direction": "UNRESOLVED",
+                "family": {
+                  "dominant_axis": "X",
+                  "dominant_direction": "UNRESOLVED",
+                  "family": "CENTRAL_PROCESS_HUB",
+                  "generation_reason": "SORTING_PACKAGING_IS_EXPLICIT_PROCESS_CORE",
+                  "identity": "structural-composition-family@1.0.0"
+                },
+                "finished_group_envelope_mm": [
+                  1624,
+                  23650,
+                  41717,
+                  52300
+                ],
+                "generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_NORTH:ROOT_15.2_10.05_CONSTRUCTIVE_PROCESS_CHAIN",
+                "hard_geometry_predicates_passed": [
+                  "SITE_CONTAINMENT",
+                  "NO_BUILD_CLEAR",
+                  "NON_OVERLAP",
+                  "MUST_ADJACENCY",
+                  "GROUP_ORDER",
+                  "TOPOLOGY_RULE"
+                ],
+                "identity": "main-process-skeleton-candidate@1.0.0",
+                "main_process_skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+                "processing_core_envelope_mm": [
+                  9317,
+                  10050,
+                  60960,
+                  33700
+                ],
+                "raw_group_envelope_mm": [
+                  0,
+                  0,
+                  29900,
+                  10050
+                ],
+                "topology": "CENTRAL_PROCESS_HUB",
+                "zone_rectangles": [
+                  {
+                    "depth_m": "8.7",
+                    "rotation_deg": 0,
+                    "width_m": "15.2",
+                    "x": "0",
+                    "y": "0",
+                    "zone_code": "raw_fruit_buffer"
+                  },
+                  {
+                    "depth_m": "10.05",
+                    "rotation_deg": 0,
+                    "width_m": "14.7",
+                    "x": "15.2",
+                    "y": "0",
+                    "zone_code": "primary_precooling_room"
+                  },
+                  {
+                    "depth_m": "13.6",
+                    "rotation_deg": 0,
+                    "width_m": "45.76",
+                    "x": "15.2",
+                    "y": "10.05",
+                    "zone_code": "sorting_packaging_room"
+                  },
+                  {
+                    "depth_m": "10.05",
+                    "rotation_deg": 0,
+                    "width_m": "9.8",
+                    "x": "15.2",
+                    "y": "23.65",
+                    "zone_code": "secondary_precooling_room"
+                  },
+                  {
+                    "depth_m": "13.6",
+                    "rotation_deg": 0,
+                    "width_m": "5.883",
+                    "x": "9.317",
+                    "y": "20.1",
+                    "zone_code": "coating_room"
+                  },
+                  {
+                    "depth_m": "18.6",
+                    "rotation_deg": 0,
+                    "width_m": "32.4",
+                    "x": "9.317",
+                    "y": "33.7",
+                    "zone_code": "finished_goods_room"
+                  },
+                  {
+                    "depth_m": "7.693",
+                    "rotation_deg": 90,
+                    "width_m": "6.5",
+                    "x": "1.624",
+                    "y": "33.7",
+                    "zone_code": "shipping_channel"
+                  }
+                ]
+              }
+            ],
+            "constructed_candidate_count": 1,
+            "construction_attempts": [
+              {
+                "face_pair_node_limit": 20,
+                "finished_side": "NORTH",
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 117,
+                  "SITE_OUTSIDE": 303,
+                  "SKELETON_TOPOLOGY_INVALID": 10,
+                  "ZONE_OVERLAP": 128
+                },
+                "result": "SKELETON_CONSTRUCTED",
+                "search_truncated": false,
+                "skeleton_hashes": [
+                  "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+                ],
+                "sorting_root_mm": [
+                  15200,
+                  10050,
+                  60960,
+                  23650
+                ],
+                "sorting_root_node_limit": 17,
+                "visited_node_delta": 16
+              },
+              {
+                "face_pair_node_limit": 20,
+                "finished_side": "WEST",
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 9,
+                  "SITE_OUTSIDE": 13,
+                  "SKELETON_TOPOLOGY_INVALID": 1,
+                  "ZONE_OVERLAP": 1
+                },
+                "result": "TRUNCATED",
+                "search_truncated": true,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  15200,
+                  10050,
+                  60960,
+                  23650
+                ],
+                "sorting_root_node_limit": 20,
+                "visited_node_delta": 2
+              }
+            ],
+            "construction_search_truncated": true,
+            "heuristic_root_pruning": false,
+            "identity": "main-process-skeleton-construction@1.0.0",
+            "node_budget_exhausted": false,
+            "rejection_reason_counts": {
+              "NO_BUILD_COLLISION": 165,
+              "SITE_OUTSIDE": 457,
+              "SKELETON_TOPOLOGY_INVALID": 11,
+              "ZONE_OVERLAP": 129
+            },
+            "root_preflight_mode": "EXACT_NECESSARY_PREDICATE_OR_ORDERING_ONLY",
+            "root_preflight_ordering": [
+              {
+                "estimated_topology_envelope_penalty_mm": 0,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  15200,
+                  10050,
+                  60960,
+                  23650
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 0,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  29700,
+                  0,
+                  75460,
+                  13600
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 0,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  29238,
+                  13399,
+                  74998,
+                  26999
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 0,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  28117,
+                  8125,
+                  41717,
+                  53885
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 0,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  14700,
+                  8701,
+                  60460,
+                  22301
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 0,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  14700,
+                  8702,
+                  60460,
+                  22302
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 0,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  14700,
+                  8701,
+                  28300,
+                  54461
+                ],
+                "use": "ORDERING_ONLY"
+              },
+              {
+                "estimated_topology_envelope_penalty_mm": 0,
+                "hard_pruned": false,
+                "sorting_root_bounds_mm": [
+                  14700,
+                  8702,
+                  28300,
+                  54462
+                ],
+                "use": "ORDERING_ONLY"
+              }
+            ],
+            "skeleton_tail_lifecycle": [
+              {
+                "complete_candidate_count": 2,
+                "construction_nodes": 7,
+                "first_failure_reason": null,
+                "first_failure_stage": null,
+                "p2d_candidate_count": 2,
+                "p2d_full_pass_count": 2,
+                "p2d_reached": true,
+                "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+                "tail_node_limit": 20,
+                "tail_nodes": 7,
+                "topology": "CENTRAL_PROCESS_HUB"
+              }
+            ],
+            "tail_search_zone_facts": {
+              "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953": {
+                "changing_room": {
+                  "branch_visits": 1,
+                  "candidate_options": 6,
+                  "empty_option_branches": 0,
+                  "skeleton_region_options": 6
+                },
+                "frozen_fruit_room": {
+                  "branch_visits": 1,
+                  "candidate_options": 5,
+                  "empty_option_branches": 0,
+                  "skeleton_region_options": 5
+                },
+                "office": {
+                  "branch_visits": 1,
+                  "candidate_options": 6,
+                  "empty_option_branches": 0,
+                  "skeleton_region_options": 6
+                },
+                "packaging_material_storage": {
+                  "branch_visits": 1,
+                  "candidate_options": 2,
+                  "empty_option_branches": 0,
+                  "skeleton_region_options": 2
+                },
+                "secondary_fruit_buffer": {
+                  "branch_visits": 1,
+                  "candidate_options": 6,
+                  "empty_option_branches": 0,
+                  "skeleton_region_options": 6
+                }
+              }
+            },
+            "topology": "CENTRAL_PROCESS_HUB"
+          },
+          "node_budget": 40,
+          "node_budget_exhausted": false,
+          "p2d_full_pass_candidate_count": 2,
+          "p2d_rejected_candidate_count": 0,
+          "search_phase": "STRUCTURED",
+          "search_tree_exhausted": false,
+          "validated_unique_candidates": 2,
+          "visited_nodes": 27
+        }
+      ],
+      "preference_extra_node_budget": 0,
+      "preferred_lane": true,
+      "scheduler_policy": "STAGED_COVERAGE_THEN_PREFERENCE",
+      "search_tree_exhausted": false,
+      "structured_node_budget": 40,
+      "topology": "CENTRAL_PROCESS_HUB",
+      "topology_coverage_node_budget": 15,
+      "visited_nodes": 27
+    }
+  ]
+}

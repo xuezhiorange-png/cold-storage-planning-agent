@@ -96,7 +96,7 @@ def test_application_selector_owns_p2d_filtering_and_p2c_ranking_only() -> None:
         "route_length_m",
         "centroid",
         "manhattan",
-        "straight_line",
+        "straight_line_distance",
         "site_layout_preview",
     ):
         assert forbidden not in source.lower()

@@ -65,8 +65,51 @@ def test_structural_search_has_group_band_zone_and_three_required_family_lanes()
     assert len(FUNCTIONAL_GROUPS) == 5
     assert MAIN_PROCESS_ZONE_CODES[-1] == "shipping_channel"
     selector = _source("application/validated_candidate_selection.py")
-    assert "for family, lane_budget in zip(family_lanes, lane_budgets, strict=True)" in selector
+    assert '"STAGED_COVERAGE_THEN_PREFERENCE"' in selector
+    assert "for lane_index in lane_order" in selector
+    assert "lane_budgets[lane_index]" in selector
     assert "GENERAL_FALLBACK_PHASE" in selector
+
+
+def test_r5_staged_topology_coverage_is_bounded_and_xinzhao_result_is_partial() -> None:
+    composition = _source("domain/structural_composition.py")
+    selector = _source("application/validated_candidate_selection.py")
+    placement = _source("domain/placement.py")
+    r5_metrics = json.loads(
+        (P1A_EVIDENCE / "xinzhao_p1a_r5_metrics.json").read_text(encoding="utf-8")
+    )
+    cross_fixture = json.loads(
+        (P1A_EVIDENCE / "xinzhao_p1a_r5_cross_fixture_regression.json").read_text(encoding="utf-8")
+    )
+
+    assert all(
+        topology in composition
+        for topology in (
+            "STRAIGHT_LINEAR_BAND",
+            "OFFSET_LINEAR_BAND",
+            "CENTRAL_PROCESS_HUB",
+        )
+    )
+    assert '"STAGED_COVERAGE_THEN_PREFERENCE"' in selector
+    assert '"root_preflight_mode": "EXACT_NECESSARY_PREDICATE_OR_ORDERING_ONLY"' in placement
+    assert '"heuristic_root_pruning": False' in placement
+    assert "WEIGHTED_SCORE" not in selector
+    assert "XINZHAO" not in selector.upper()
+    assert r5_metrics["production_placement_node_budget"] == 120
+    assert r5_metrics["production_budget_changed"] is False
+    assert r5_metrics["topology_count_explored"] == 3
+    assert r5_metrics["topology_count_with_constructed_skeleton"] == 2
+    assert r5_metrics["distinct_p2d_full_pass_main_process_skeleton_count"] == 1
+    assert r5_metrics["distinct_runner_up_present"] is False
+    assert r5_metrics["result"] == "PARTIAL"
+    assert r5_metrics["owner_xinzhao_p1a_r5_visual_review"] == "PENDING"
+    assert r5_metrics["p1b_threshold_activated"] is False
+    assert r5_metrics["weighted_score_used"] is False
+    assert cross_fixture["result"] == "PASS"
+    assert cross_fixture["full_chain_authoritative_fixture_count"] == 3
+    assert cross_fixture["composition_only_fixture_count"] == 2
+    assert cross_fixture["scenario_count"] == 5
+    assert cross_fixture["acceptance_facts"]["all_scenarios_pass"] is True
 
 
 def test_r3_constructs_seven_zone_skeleton_before_tail_search_and_records_rejections() -> None:

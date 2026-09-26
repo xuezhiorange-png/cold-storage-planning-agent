@@ -20,6 +20,36 @@ SKELETON_IDENTITY: Final = "structural-skeleton@1.0.0"
 LINEAR_PROCESS_BAND: Final = "LINEAR_PROCESS_BAND"
 CENTRAL_PROCESS_HUB: Final = "CENTRAL_PROCESS_HUB"
 
+MAIN_PROCESS_TOPOLOGY_IDENTITY: Final = "main-process-topology@1.0.0"
+STRAIGHT_LINEAR_BAND: Final = "STRAIGHT_LINEAR_BAND"
+OFFSET_LINEAR_BAND: Final = "OFFSET_LINEAR_BAND"
+
+
+@dataclass(frozen=True)
+class StructuralTopologyLaneV1:
+    """One concrete topology-search lane over existing composition authority."""
+
+    topology: str
+    family: StructuralCompositionFamilyV1
+
+    def __post_init__(self) -> None:
+        allowed = {STRAIGHT_LINEAR_BAND, OFFSET_LINEAR_BAND, CENTRAL_PROCESS_HUB}
+        if self.topology not in allowed:
+            raise LayoutAuthorityError("MAIN_PROCESS_TOPOLOGY_INVALID")
+        if self.topology == CENTRAL_PROCESS_HUB:
+            if self.family.family != CENTRAL_PROCESS_HUB:
+                raise LayoutAuthorityError("MAIN_PROCESS_TOPOLOGY_FAMILY_MISMATCH")
+        elif self.family.family != LINEAR_PROCESS_BAND:
+            raise LayoutAuthorityError("MAIN_PROCESS_TOPOLOGY_FAMILY_MISMATCH")
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "identity": MAIN_PROCESS_TOPOLOGY_IDENTITY,
+            "topology": self.topology,
+            "family": self.family.to_dict(),
+        }
+
+
 RAW_SIDE_GROUP: Final = "RAW_SIDE_GROUP"
 PROCESSING_CORE_GROUP: Final = "PROCESSING_CORE_GROUP"
 FINISHED_SIDE_GROUP: Final = "FINISHED_SIDE_GROUP"
@@ -189,6 +219,7 @@ def structural_skeleton_candidates(
     site_geometry: Mapping[str, object],
     zone_codes: Sequence[str],
     zone_authorities: Mapping[str, Mapping[str, object]] | None = None,
+    family_candidates: Sequence[StructuralCompositionFamilyV1] | None = None,
 ) -> tuple[StructuralSkeletonV1, ...]:
     """Build the three deterministic search lanes from current site facts."""
     groups = bind_functional_groups(zone_codes)
@@ -198,7 +229,8 @@ def structural_skeleton_candidates(
     )
     personnel_codes = tuple(code for code in FUNCTIONAL_GROUPS[PERSONNEL_GROUP] if code in groups)
     skeletons: list[StructuralSkeletonV1] = []
-    for family in composition_family_candidates(site_geometry):
+    selected_families = family_candidates or composition_family_candidates(site_geometry)
+    for family in selected_families:
         # A linear band runs on the dominant site axis. A central hub keeps the
         # processing core between raw and finished bands on its transverse axis.
         ordering_axis = family.dominant_axis
@@ -476,6 +508,110 @@ def composition_family_candidates(
             "SORTING_PACKAGING_IS_EXPLICIT_PROCESS_CORE",
         ),
     )
+
+
+def structural_topology_lanes(
+    site_geometry: Mapping[str, object],
+    zone_authorities: Mapping[str, Mapping[str, object]] | None = None,
+) -> tuple[StructuralTopologyLaneV1, ...]:
+    """Return the authorized R5 topology lanes in stable coverage order.
+
+    Linear lanes use the axis with the lower deterministic group-envelope
+    extent demand from the authoritative nominal room dimensions. This is an
+    ordering preference only; rotations and all exact geometry predicates
+    remain available to each lane. The hub lane retains the site-derived axis.
+    """
+    families = composition_family_candidates(site_geometry)
+    process_axis = (
+        _process_band_axis(site_geometry, zone_authorities)
+        if zone_authorities is not None
+        else families[0].dominant_axis
+    )
+    linear_positive = StructuralCompositionFamilyV1(
+        LINEAR_PROCESS_BAND,
+        process_axis,
+        "POSITIVE",
+        "AUTHORITATIVE_GROUP_ENVELOPE_ORDERING_ONLY",
+    )
+    linear_offset = StructuralCompositionFamilyV1(
+        LINEAR_PROCESS_BAND,
+        process_axis,
+        "POSITIVE",
+        "AUTHORITATIVE_GROUP_ENVELOPE_ORDERING_ONLY",
+    )
+    return (
+        StructuralTopologyLaneV1(STRAIGHT_LINEAR_BAND, linear_positive),
+        StructuralTopologyLaneV1(OFFSET_LINEAR_BAND, linear_offset),
+        StructuralTopologyLaneV1(CENTRAL_PROCESS_HUB, families[2]),
+    )
+
+
+def _process_band_axis(
+    site_geometry: Mapping[str, object],
+    zone_authorities: Mapping[str, Mapping[str, object]],
+) -> str:
+    """Rank X/Y using authoritative group spans; this never prunes a lane.
+
+    Each group's lower envelope demand is the largest nominal axis extent of
+    its member zones, allowing group members to occupy a bank. The sum of the
+    three group demands is compared with the corresponding effective-site
+    bounding span. Ratios are used solely to choose which process axis is
+    enumerated first/in the two linear topology lanes, not as acceptance
+    thresholds or as an infeasibility test.
+    """
+    site = site_geometry.get("site")
+    boundary = site.get("effective_buildable_boundary") if isinstance(site, Mapping) else None
+    points = boundary.get("points") if isinstance(boundary, Mapping) else None
+    if not isinstance(points, list) or not points:
+        raise LayoutAuthorityError("STRUCTURAL_SITE_GEOMETRY_INVALID")
+    coordinates: dict[str, list[Decimal]] = {"X": [], "Y": []}
+    for point in points:
+        if not isinstance(point, Mapping) or "x" not in point or "y" not in point:
+            raise LayoutAuthorityError("STRUCTURAL_SITE_GEOMETRY_INVALID")
+        coordinates["X"].append(_decimal(point["x"], field="boundary.x"))
+        coordinates["Y"].append(_decimal(point["y"], field="boundary.y"))
+
+    groups = (
+        ("raw_fruit_buffer", "primary_precooling_room"),
+        ("sorting_packaging_room", "coating_room"),
+        ("secondary_precooling_room", "finished_goods_room", "shipping_channel"),
+    )
+    ratios: dict[str, Decimal] = {}
+    for axis, dimension_key in (("X", "width_m"), ("Y", "depth_m")):
+        span = max(coordinates[axis]) - min(coordinates[axis])
+        if span <= 0:
+            raise LayoutAuthorityError("STRUCTURAL_SITE_GEOMETRY_INVALID")
+        group_extents: list[Decimal] = []
+        for members in groups:
+            member_extents: list[Decimal] = []
+            for zone_code in members:
+                authority = zone_authorities.get(zone_code)
+                geometry = authority.get("geometry") if isinstance(authority, Mapping) else None
+                if isinstance(geometry, Mapping) and dimension_key in geometry:
+                    member_extents.append(
+                        _decimal(geometry[dimension_key], field=f"{zone_code}.{dimension_key}")
+                    )
+                    continue
+                area_value = (
+                    authority.get("required_area_m2") if isinstance(authority, Mapping) else None
+                )
+                if area_value is None:
+                    raise LayoutAuthorityError(
+                        "STRUCTURAL_ZONE_DIMENSIONS_UNAVAILABLE", zone_code=zone_code
+                    )
+                # sqrt(area) is a deterministic geometric lower bound for
+                # flexible rectangles with no authoritative preferred aspect.
+                # It is only used in the axis ordering preference.
+                area = _decimal(area_value, field=f"{zone_code}.required_area_m2")
+                if area <= 0:
+                    raise LayoutAuthorityError(
+                        "STRUCTURAL_ZONE_DIMENSIONS_UNAVAILABLE", zone_code=zone_code
+                    )
+                member_extents.append(area.sqrt())
+            group_extents.append(max(member_extents))
+        ratios[axis] = sum(group_extents, Decimal("0")) / span
+    site_axis = _site_axis(site_geometry)
+    return min(("X", "Y"), key=lambda axis: (ratios[axis], axis != site_axis, axis))
 
 
 def select_structural_composition_family(

@@ -48,12 +48,15 @@ from cold_storage.modules.layout.domain.site_geometry import (
     segments_share_positive_length,
 )
 from cold_storage.modules.layout.domain.structural_composition import (
+    CENTRAL_PROCESS_HUB,
     FINISHED_SIDE_GROUP,
     FUNCTIONAL_GROUPS,
     MAIN_PROCESS_SKELETON_ZONE_CODES,
     MAIN_PROCESS_ZONE_CODES,
+    OFFSET_LINEAR_BAND,
     PROCESSING_CORE_GROUP,
     RAW_SIDE_GROUP,
+    STRAIGHT_LINEAR_BAND,
     SUPPORT_GROUP,
     StructuralCompositionFamilyV1,
     StructuralSkeletonV1,
@@ -84,7 +87,9 @@ STRUCTURED_COMPLETIONS_PER_MAIN_SKELETON: Final = 2
 # personnel/support variants for P2D to evaluate against its unchanged access,
 # truck, and single-building-footprint authorities.
 STRUCTURED_COMPLETIONS_PER_CORE_ROOT: Final = 4
+MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE: Final = 15
 CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT: Final = 2
+STRUCTURED_SKELETON_CONSTRUCTION_SHARE_NUMERATOR: Final = 1
 STRUCTURED_SKELETON_CONSTRUCTION_SHARE_DENOMINATOR: Final = 2
 CONSTRUCTIVE_FACE_PAIR_NODE_BUDGET: Final = 20
 CONSTRUCTIVE_SORTING_ROOT_NODE_BUDGET: Final = 16
@@ -397,6 +402,89 @@ def _finished_anchors_for_truck_interface(
             )
             anchors.update(_edge_anchors(truck_side_shipping, finished_width_mm, finished_depth_mm))
     return tuple(sorted(anchors))
+
+
+def _minimum_authoritative_axis_extent(
+    context: _PlacementSearchContext, zone_code: str, axis: str
+) -> int:
+    """Return a deterministic lower extent from existing dimension variants."""
+    variants = _dimension_variants(context.authorities[zone_code], {}, context.boundary)
+    extents = [
+        (depth if rotation == 90 else width)
+        if axis == "X"
+        else (width if rotation == 90 else depth)
+        for width, depth, rotation in variants
+    ]
+    return min(extents) if extents else 0
+
+
+def _topology_root_ordering_penalty(
+    context: _PlacementSearchContext, rectangle: PlacedRectangleV1
+) -> int:
+    """Rank roots by a coarse complete-topology envelope; never prune roots.
+
+    Extents are derived from existing authoritative dimension variants. The
+    buildable polygon and obstacle constraints remain checked only by the
+    exact placement predicates. This estimate is deliberately ordering-only.
+    """
+    family = context.structural_composition_family
+    bounds = _bounds(rectangle)
+    axis = context.structural_skeleton.ordering_axis
+    low, high = (0, 2) if axis == "X" else (1, 3)
+    site_low, site_high = context.boundary_bounds[low], context.boundary_bounds[high]
+
+    if context.structural_topology in {STRAIGHT_LINEAR_BAND, OFFSET_LINEAR_BAND}:
+        upstream = max(
+            _minimum_authoritative_axis_extent(context, code, axis)
+            for code in ("raw_fruit_buffer", "primary_precooling_room")
+        )
+        downstream = max(
+            _minimum_authoritative_axis_extent(context, code, axis)
+            for code in (
+                "secondary_precooling_room",
+                "coating_room",
+                "finished_goods_room",
+                "shipping_channel",
+            )
+        )
+        if family.dominant_direction == "POSITIVE":
+            upstream_available = bounds[low] - site_low
+            downstream_available = site_high - bounds[high]
+        else:
+            upstream_available = site_high - bounds[high]
+            downstream_available = bounds[low] - site_low
+        return max(0, upstream - upstream_available) + max(0, downstream - downstream_available)
+
+    # For the hub, estimate required reach independently on each selected
+    # face-pair. Choose the least-penalty pairing for ordering, without
+    # rejecting a root based on this coarse rectangle-only estimate.
+    penalty_options: list[int] = []
+    for raw_side, finished_side in _family_attachment_sides(family):
+        penalty = 0
+        for side, codes in (
+            (raw_side, ("raw_fruit_buffer", "primary_precooling_room")),
+            (
+                finished_side,
+                (
+                    "secondary_precooling_room",
+                    "coating_room",
+                    "finished_goods_room",
+                    "shipping_channel",
+                ),
+            ),
+        ):
+            measure_axis = "X" if side in {"WEST", "EAST"} else "Y"
+            minimum_extent = max(
+                _minimum_authoritative_axis_extent(context, code, measure_axis) for code in codes
+            )
+            measure_low, measure_high = (0, 2) if measure_axis == "X" else (1, 3)
+            if side in {"WEST", "SOUTH"}:
+                available = bounds[measure_low] - context.boundary_bounds[measure_low]
+            else:
+                available = context.boundary_bounds[measure_high] - bounds[measure_high]
+            penalty += max(0, minimum_extent - available)
+        penalty_options.append(penalty)
+    return min(penalty_options, default=0)
 
 
 def _central_core_bridge_anchors(
@@ -2210,6 +2298,7 @@ class _PlacementSearchContext:
     placement_zone_order: tuple[str, ...]
     structural_composition_family: StructuralCompositionFamilyV1
     structural_skeleton: StructuralSkeletonV1
+    structural_topology: str
     search_phase: str
 
 
@@ -2226,6 +2315,11 @@ class _PlacementSearchStats:
     rejection_reason_counts: dict[str, int] | None = None
     skeleton_construction_attempts: list[dict[str, Any]] | None = None
     skeleton_search_truncated: bool = False
+    root_preflight_rows: list[dict[str, Any]] | None = None
+    tail_nodes_by_skeleton: dict[str, int] | None = None
+    skeleton_tail_lifecycle: list[dict[str, Any]] | None = None
+    construction_nodes_by_skeleton: dict[str, int] | None = None
+    tail_zone_search_facts: dict[str, dict[str, dict[str, int]]] | None = None
 
 
 def _validated_search_context(
@@ -2242,6 +2336,7 @@ def _validated_search_context(
     node_budget: int,
     complete_candidate_limit: int | None,
     structural_family: StructuralCompositionFamilyV1 | None = None,
+    structural_topology: str | None = None,
     search_phase: str = LEGACY_COMPAT_PHASE,
 ) -> _PlacementSearchContext:
     if set(authorities) != set(graph.nodes) or tuple(PLACEMENT_ZONE_ORDER) != tuple(
@@ -2258,6 +2353,17 @@ def _validated_search_context(
         raise _error("INVALID_PLACEMENT_SEARCH_BUDGET")
     if search_phase not in {STRUCTURED_PHASE, GENERAL_FALLBACK_PHASE, LEGACY_COMPAT_PHASE}:
         raise _error("PLACEMENT_SEARCH_PHASE_INVALID", search_phase=search_phase)
+    selected_topology = structural_topology or (
+        CENTRAL_PROCESS_HUB
+        if structural_family is not None and structural_family.family == CENTRAL_PROCESS_HUB
+        else STRAIGHT_LINEAR_BAND
+    )
+    if selected_topology not in {
+        STRAIGHT_LINEAR_BAND,
+        OFFSET_LINEAR_BAND,
+        CENTRAL_PROCESS_HUB,
+    }:
+        raise _error("MAIN_PROCESS_TOPOLOGY_INVALID")
     site = site_body.get("site")
     obstacles_body = site_body.get("obstacles")
     entrances_body = site_body.get("entrances")
@@ -2284,8 +2390,15 @@ def _validated_search_context(
     selected_family = structural_family or select_structural_composition_family(
         site_body, authorities
     )
+    if (selected_topology == CENTRAL_PROCESS_HUB) != (
+        selected_family.family == CENTRAL_PROCESS_HUB
+    ):
+        raise _error("MAIN_PROCESS_TOPOLOGY_FAMILY_MISMATCH")
     skeletons = structural_skeleton_candidates(
-        site_body, tuple(authorities), zone_authorities=authorities
+        site_body,
+        tuple(authorities),
+        zone_authorities=authorities,
+        family_candidates=(selected_family,),
     )
     skeleton = next(
         (
@@ -2326,6 +2439,7 @@ def _validated_search_context(
         ),
         structural_composition_family=selected_family,
         structural_skeleton=skeleton,
+        structural_topology=selected_topology,
         search_phase=search_phase,
     )
 
@@ -2389,6 +2503,56 @@ def _main_group_order_monotonic(
         return raw[1] <= core[0] and finished[1] > core[1]
     if downstream == "NEGATIVE":
         return core[1] <= raw[0] and finished[0] < core[0]
+    return False
+
+
+def _topology_geometry_valid(
+    placed: Mapping[str, PlacedRectangleV1], topology: str, longitudinal_axis: str
+) -> bool:
+    """Apply exact topology identity predicates after unchanged MUST edges.
+
+    Linear topology is classified from exact functional-group envelopes, not
+    from a requirement that every room share one common line. STRAIGHT uses a
+    common cross-axis interval across RAW, CORE, and FINISHED groups. OFFSET
+    requires adjacent group bands to overlap while the three-group common
+    interval is absent. The process-axis ordering and all mandatory room
+    adjacencies remain independently checked by their existing predicates.
+    """
+    if not set(MAIN_PROCESS_ZONE_CODES) <= set(placed):
+        return False
+    if topology == CENTRAL_PROCESS_HUB:
+        return True
+    cross_axis = "Y" if longitudinal_axis == "X" else "X"
+    axis_indices = (1, 3) if cross_axis == "Y" else (0, 2)
+    group_codes = (
+        ("raw_fruit_buffer", "primary_precooling_room"),
+        ("sorting_packaging_room", "coating_room"),
+        (
+            "secondary_precooling_room",
+            "finished_goods_room",
+            "shipping_channel",
+        ),
+    )
+    intervals: list[tuple[int, int]] = []
+    for codes in group_codes:
+        bounds = tuple(_bounds(placed[code]) for code in codes)
+        intervals.append(
+            (
+                min(row[axis_indices[0]] for row in bounds),
+                max(row[axis_indices[1]] for row in bounds),
+            )
+        )
+    common_low = max(row[0] for row in intervals)
+    common_high = min(row[1] for row in intervals)
+    common_band = common_low < common_high
+    if topology == STRAIGHT_LINEAR_BAND:
+        return common_band
+    if topology == OFFSET_LINEAR_BAND:
+        adjacent_bands_overlap = all(
+            max(first[0], second[0]) < min(first[1], second[1])
+            for first, second in zip(intervals, intervals[1:], strict=False)
+        )
+        return adjacent_bands_overlap and not common_band
     return False
 
 
@@ -2542,8 +2706,11 @@ def _constructive_edge_options(
         _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
         return ()
 
-    def preference(rectangle: PlacedRectangleV1) -> tuple[int, int, int, int, int, int, int]:
+    def preference(
+        rectangle: PlacedRectangleV1,
+    ) -> tuple[int, int, int, int, int, int, int, int]:
         alignment_penalty = 0
+        topology_alignment_penalty = 0
         if bank_alignment_code is not None:
             bank_reference = placed[bank_alignment_code]
             reference_bounds = _bounds(bank_reference)
@@ -2559,6 +2726,30 @@ def _constructive_edge_options(
                     candidate_bounds[0] != reference_bounds[0]
                     or candidate_bounds[2] != reference_bounds[2]
                 )
+        if context.structural_topology == OFFSET_LINEAR_BAND and code in {
+            "primary_precooling_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel",
+        }:
+            candidate_bounds = _bounds(rectangle)
+            neighbor_bounds = _bounds(neighbor)
+            candidate_side = _adjacent_side(neighbor, rectangle)
+            if candidate_side in {"NORTH", "SOUTH"}:
+                cross_axis_aligned = (
+                    candidate_bounds[0] == neighbor_bounds[0]
+                    and candidate_bounds[2] == neighbor_bounds[2]
+                )
+            else:
+                cross_axis_aligned = (
+                    candidate_bounds[1] == neighbor_bounds[1]
+                    and candidate_bounds[3] == neighbor_bounds[3]
+                )
+            # For the offset topology, aligned/unaligned is only an ordering
+            # preference. Positive edge adjacency and the exact final topology
+            # predicate remain mandatory.
+            topology_alignment_penalty = int(cross_axis_aligned)
         bridge_penalty = int(
             bridge_code is not None
             and not rectangles_share_positive_edge(rectangle, placed[bridge_code])
@@ -2571,6 +2762,7 @@ def _constructive_edge_options(
         )
         return (
             alignment_penalty,
+            topology_alignment_penalty,
             bridge_penalty,
             entrance_penalty,
             *_bounds(rectangle)[:2],
@@ -2638,10 +2830,33 @@ def _constructive_sorting_roots(
         roots.values(),
         key=lambda row: (row.bounds_mm[1], row.bounds_mm[0], row.rotation_deg),
     )
-    ordered = [row for row in canonical_roots if row.bounds_mm[:2] in preferred_positions]
-    remaining = [row for row in canonical_roots if row.bounds_mm[:2] not in preferred_positions]
-    if not ordered and remaining:
-        ordered.append(remaining.pop(0))
+    preflight_penalties = {
+        row.bounds_mm: _topology_root_ordering_penalty(context, row) for row in canonical_roots
+    }
+    if context.structural_topology == CENTRAL_PROCESS_HUB:
+        # Preserve the established, deterministic Hub root lane. Ordering the
+        # existing structural anchor events first is important: the recent
+        # envelope penalty reordered them and caused a known hard-valid Hub
+        # path to disappear inside its unchanged tail budget.
+        ordered = [row for row in canonical_roots if row.bounds_mm[:2] in preferred_positions]
+        remaining = [row for row in canonical_roots if row.bounds_mm[:2] not in preferred_positions]
+        if not ordered and remaining:
+            ordered.append(remaining.pop(0))
+    else:
+        first = min(
+            canonical_roots,
+            key=lambda row: (
+                preflight_penalties[row.bounds_mm],
+                row.bounds_mm[:2] not in preferred_positions,
+                row.bounds_mm[1],
+                row.bounds_mm[0],
+                row.rotation_deg,
+            ),
+        )
+        ordered = [first]
+        remaining = [row for row in canonical_roots if row != first]
+    if stats.root_preflight_rows is None:
+        stats.root_preflight_rows = []
     while remaining:
 
         def diversity_key(row: PlacedRectangleV1) -> tuple[int, int, int, int, int]:
@@ -2652,17 +2867,34 @@ def _constructive_sorting_roots(
             )
             # Max-min anchor spacing samples genuinely different potential
             # process cores without introducing a weighted quality score.
+            if context.structural_topology == CENTRAL_PROCESS_HUB:
+                return (
+                    minimum_squared_distance,
+                    -y_mm,
+                    -x_mm,
+                    -row.rotation_deg,
+                    -row.bounds_mm[2],
+                )
             return (
+                -preflight_penalties[row.bounds_mm],
                 minimum_squared_distance,
                 -y_mm,
                 -x_mm,
                 -row.rotation_deg,
-                -row.bounds_mm[2],
             )
 
         next_root = max(remaining, key=diversity_key)
         ordered.append(next_root)
         remaining.remove(next_root)
+    stats.root_preflight_rows.extend(
+        {
+            "sorting_root_bounds_mm": list(row.bounds_mm),
+            "estimated_topology_envelope_penalty_mm": preflight_penalties[row.bounds_mm],
+            "use": "ORDERING_ONLY",
+            "hard_pruned": False,
+        }
+        for row in ordered
+    )
     return tuple(ordered)
 
 
@@ -2736,7 +2968,11 @@ def _construct_face_skeletons(
             placed,
             "primary_precooling_room",
             required_side=(
-                (raw_side,)
+                (
+                    ("WEST", "EAST")
+                    if context.structural_skeleton.ordering_axis == "Y"
+                    else ("SOUTH", "NORTH")
+                )
                 if context.structural_composition_family.family == "LINEAR_PROCESS_BAND"
                 else tuple(side for side in _CARDINAL_SIDES if side != _OPPOSITE_SIDE[raw_side])
             ),
@@ -2812,13 +3048,20 @@ def _construct_face_skeletons(
                                 placed, context.structural_skeleton
                             ):
                                 _record_rejection(stats, "GROUP_ORDER_FAIL")
+                            elif not _topology_geometry_valid(
+                                placed,
+                                context.structural_topology,
+                                context.structural_skeleton.ordering_axis,
+                            ):
+                                _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
                             else:
                                 try:
                                     seed = MainProcessSkeletonCandidateV1.create(
                                         family=context.structural_composition_family,
                                         rectangles=placed,
+                                        topology=context.structural_topology,
                                         generation_pattern=(
-                                            f"{context.structural_composition_family.family}:"
+                                            f"{context.structural_topology}:"
                                             f"RAW_{raw_side}:"
                                             f"RAW_BANK_{_adjacent_side(primary, raw)}:"
                                             f"FINISHED_{finished_side}:"
@@ -2831,6 +3074,7 @@ def _construct_face_skeletons(
                                             "NON_OVERLAP",
                                             "MUST_ADJACENCY",
                                             "GROUP_ORDER",
+                                            "TOPOLOGY_RULE",
                                         ),
                                     )
                                 except LayoutAuthorityError:
@@ -2848,6 +3092,10 @@ def _construct_main_process_skeletons(
     stats: _PlacementSearchStats,
 ) -> Iterator[MainProcessSkeletonCandidateV1]:
     """Build full seven-zone candidates before any support/personnel search."""
+    skeleton_completion_limit = min(
+        CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT,
+        max(1, context.node_budget // MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE),
+    )
     if stats.constructed_main_skeletons is None:
         stats.constructed_main_skeletons = {}
     if stats.skeleton_generation_patterns is None:
@@ -2856,19 +3104,31 @@ def _construct_main_process_skeletons(
         stats.skeleton_construction_attempts = []
     roots = _constructive_sorting_roots(context, stats)
     emitted = 0
+    previous_seed_node = 0
     skeleton_node_limit = min(
         context.node_budget,
         max(
-            15,
-            context.node_budget // STRUCTURED_SKELETON_CONSTRUCTION_SHARE_DENOMINATOR,
+            MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE,
+            (context.node_budget * STRUCTURED_SKELETON_CONSTRUCTION_SHARE_NUMERATOR)
+            // STRUCTURED_SKELETON_CONSTRUCTION_SHARE_DENOMINATOR,
         ),
     )
-    for raw_side, finished_side in _family_attachment_sides(context.structural_composition_family):
-        if emitted >= CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT:
+    face_pairs = _family_attachment_sides(context.structural_composition_family)
+    for face_pair_index, (raw_side, finished_side) in enumerate(face_pairs):
+        if emitted >= skeleton_completion_limit:
             return
+        remaining_face_pairs = len(face_pairs) - face_pair_index
+        remaining_construction_nodes = max(0, skeleton_node_limit - stats.visited_nodes)
+        even_face_pair_share = (
+            remaining_construction_nodes + remaining_face_pairs - 1
+        ) // remaining_face_pairs
+        face_pair_allowance = min(
+            remaining_construction_nodes,
+            max(CONSTRUCTIVE_FACE_PAIR_NODE_BUDGET, even_face_pair_share),
+        )
         face_pair_node_limit = min(
             skeleton_node_limit,
-            stats.visited_nodes + CONSTRUCTIVE_FACE_PAIR_NODE_BUDGET,
+            stats.visited_nodes + face_pair_allowance,
         )
         for sorting in roots:
             if stats.visited_nodes >= face_pair_node_limit:
@@ -2890,12 +3150,18 @@ def _construct_main_process_skeletons(
                 raw_side,
                 finished_side,
                 sorting_root_node_limit,
-                skeleton_limit=CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT - emitted,
+                skeleton_limit=max(1, skeleton_completion_limit - emitted),
             ):
                 if seed.main_process_skeleton_hash in stats.constructed_main_skeletons:
                     _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
                     continue
                 stats.constructed_main_skeletons[seed.main_process_skeleton_hash] = seed
+                if stats.construction_nodes_by_skeleton is None:
+                    stats.construction_nodes_by_skeleton = {}
+                stats.construction_nodes_by_skeleton[seed.main_process_skeleton_hash] = max(
+                    0, stats.visited_nodes - previous_seed_node
+                )
+                previous_seed_node = stats.visited_nodes
                 attempt_skeleton_hashes.append(seed.main_process_skeleton_hash)
                 stats.skeleton_generation_patterns[seed.generation_pattern] = (
                     stats.skeleton_generation_patterns.get(seed.generation_pattern, 0) + 1
@@ -2903,7 +3169,7 @@ def _construct_main_process_skeletons(
                 emitted += 1
                 emitted_for_face += 1
                 yield seed
-                if emitted >= CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT:
+                if emitted >= skeleton_completion_limit:
                     stats.skeleton_construction_attempts.append(
                         {
                             "raw_side": raw_side,
@@ -2947,7 +3213,7 @@ def _construct_main_process_skeletons(
                     "visited_node_delta": stats.visited_nodes - attempt_node_start,
                 }
             )
-            if emitted_for_face:
+            if emitted_for_face and context.structural_topology == CENTRAL_PROCESS_HUB:
                 break
 
 
@@ -3031,6 +3297,13 @@ def _walk_complete_candidate_payloads(
             stats.node_budget_exhausted = True
             return
         stats.visited_nodes += 1
+        if main_process_skeleton is not None:
+            if stats.tail_nodes_by_skeleton is None:
+                stats.tail_nodes_by_skeleton = {}
+            skeleton_hash = main_process_skeleton.main_process_skeleton_hash
+            stats.tail_nodes_by_skeleton[skeleton_hash] = (
+                stats.tail_nodes_by_skeleton.get(skeleton_hash, 0) + 1
+            )
         if (
             context.search_phase == STRUCTURED_PHASE
             and index == len(MAIN_PROCESS_ZONE_CODES)
@@ -3100,6 +3373,35 @@ def _walk_complete_candidate_payloads(
                 zone_authorities=context.authorities,
                 truck_entrance=truck_entrance,
             )
+        if main_process_skeleton is not None and index >= len(MAIN_PROCESS_ZONE_CODES):
+            if stats.tail_zone_search_facts is None:
+                stats.tail_zone_search_facts = {}
+            skeleton_facts = stats.tail_zone_search_facts.setdefault(
+                main_process_skeleton.main_process_skeleton_hash, {}
+            )
+            zone_facts = skeleton_facts.setdefault(
+                code,
+                {
+                    "branch_visits": 0,
+                    "candidate_options": 0,
+                    "skeleton_region_options": 0,
+                    "empty_option_branches": 0,
+                },
+            )
+            zone_facts["branch_visits"] += 1
+            zone_facts["candidate_options"] += len(options)
+            skeleton_region_options = sum(
+                int(
+                    context.search_phase != STRUCTURED_PHASE
+                    or _candidate_fits_skeleton_region(
+                        code, rectangle, placed, context.structural_skeleton
+                    )
+                )
+                for rectangle in options
+            )
+            zone_facts["skeleton_region_options"] += skeleton_region_options
+            if not skeleton_region_options:
+                zone_facts["empty_option_branches"] += 1
         stats.generated_candidates += len(options)
         for rectangle in options:
             if context.search_phase == STRUCTURED_PHASE and not _candidate_fits_skeleton_region(
@@ -3173,7 +3475,35 @@ def _walk_complete_candidate_payloads(
                 context.node_budget,
                 stats.visited_nodes + tail_node_share,
             )
+            tail_node_limit = max(0, active_skeleton_node_limit - stats.visited_nodes)
+            tail_start_node = stats.visited_nodes
+            complete_start_count = stats.complete_candidates
             yield from visit(len(MAIN_PROCESS_ZONE_CODES), True, seed)
+            complete_count = stats.complete_candidates - complete_start_count
+            if stats.skeleton_tail_lifecycle is None:
+                stats.skeleton_tail_lifecycle = []
+            stats.skeleton_tail_lifecycle.append(
+                {
+                    "topology": seed.topology,
+                    "skeleton_hash": seed.main_process_skeleton_hash,
+                    "construction_nodes": (stats.construction_nodes_by_skeleton or {}).get(
+                        seed.main_process_skeleton_hash, 0
+                    ),
+                    "tail_nodes": stats.visited_nodes - tail_start_node,
+                    "tail_node_limit": tail_node_limit,
+                    "complete_candidate_count": complete_count,
+                    "p2d_reached": complete_count > 0,
+                    "p2d_full_pass_count": 0,
+                    "first_failure_stage": "TAIL_SEARCH" if complete_count == 0 else None,
+                    "first_failure_reason": (
+                        "TAIL_NODE_SHARE_EXHAUSTED_WITHOUT_COMPLETE_P2C_CANDIDATE"
+                    )
+                    if complete_count == 0 and active_skeleton_budget_exhausted
+                    else "TAIL_SEARCH_COMPLETED_WITHOUT_COMPLETE_P2C_CANDIDATE"
+                    if complete_count == 0
+                    else None,
+                }
+            )
             active_skeleton_node_limit = None
             placed.clear()
             if stats.node_budget_exhausted:
@@ -3226,6 +3556,8 @@ class PlacementCandidateEnumerationV1:
         self._started = False
         self._finished = False
         self._structural_flags: dict[str, bool] = {}
+        self._candidate_skeleton_hashes: dict[str, str | None] = {}
+        self._candidate_topologies: dict[str, str] = {}
 
     def iter_candidates(self) -> Iterator[SitePlacementResultV1]:
         if self._started:
@@ -3239,10 +3571,25 @@ class PlacementCandidateEnumerationV1:
                 self._finished = True
                 return
             structural_flag = payload.get("_structural_generation_flag") is True
+            internal_skeleton = payload.get("_main_process_skeleton")
             candidate = _materialize_candidate_result(payload)
             candidate_hash = candidate.to_dict().get("canonical_candidate_hash")
             if isinstance(candidate_hash, str):
                 self._structural_flags[candidate_hash] = structural_flag
+                skeleton_hash = (
+                    internal_skeleton.get("main_process_skeleton_hash")
+                    if isinstance(internal_skeleton, Mapping)
+                    else None
+                )
+                self._candidate_skeleton_hashes[candidate_hash] = (
+                    skeleton_hash if isinstance(skeleton_hash, str) else None
+                )
+                topology = (
+                    internal_skeleton.get("topology")
+                    if isinstance(internal_skeleton, Mapping)
+                    else self._context.structural_topology
+                )
+                self._candidate_topologies[candidate_hash] = str(topology)
             yield candidate
 
     @property
@@ -3265,6 +3612,7 @@ class PlacementCandidateEnumerationV1:
     def skeleton_generation_report(self) -> dict[str, Any]:
         return {
             "identity": "main-process-skeleton-construction@1.0.0",
+            "topology": self._context.structural_topology,
             "constructed_candidate_count": len(self._stats.constructed_main_skeletons or {}),
             "candidates": [
                 candidate.to_dict()
@@ -3277,6 +3625,19 @@ class PlacementCandidateEnumerationV1:
                 sorted((self._stats.rejection_reason_counts or {}).items())
             ),
             "construction_attempts": list(self._stats.skeleton_construction_attempts or []),
+            "root_preflight_mode": "EXACT_NECESSARY_PREDICATE_OR_ORDERING_ONLY",
+            "heuristic_root_pruning": False,
+            "root_preflight_ordering": list(self._stats.root_preflight_rows or []),
+            "skeleton_tail_lifecycle": list(self._stats.skeleton_tail_lifecycle or []),
+            "tail_search_zone_facts": {
+                skeleton_hash: {
+                    zone_code: dict(zone_facts)
+                    for zone_code, zone_facts in sorted(zone_rows.items())
+                }
+                for skeleton_hash, zone_rows in sorted(
+                    (self._stats.tail_zone_search_facts or {}).items()
+                )
+            },
             "node_budget_exhausted": self._stats.node_budget_exhausted,
             "construction_search_truncated": self._stats.skeleton_search_truncated,
         }
@@ -3322,9 +3683,19 @@ class PlacementCandidateEnumerationV1:
     def search_phase(self) -> str:
         return self._context.search_phase
 
+    @property
+    def structural_topology(self) -> str:
+        return self._context.structural_topology
+
     def structurally_generated(self, candidate_hash: str) -> bool:
         """Report whether every assigned zone used a group/band anchor."""
         return self._structural_flags.get(candidate_hash, False)
+
+    def candidate_main_process_skeleton_hash(self, candidate_hash: str) -> str | None:
+        return self._candidate_skeleton_hashes.get(candidate_hash)
+
+    def candidate_topology(self, candidate_hash: str) -> str | None:
+        return self._candidate_topologies.get(candidate_hash)
 
 
 def enumerate_placement_candidates(
@@ -3341,6 +3712,7 @@ def enumerate_placement_candidates(
     node_budget: int = DEFAULT_NODE_BUDGET,
     complete_candidate_limit: int | None = None,
     structural_family: StructuralCompositionFamilyV1 | None = None,
+    structural_topology: str | None = None,
     search_phase: str = LEGACY_COMPAT_PHASE,
 ) -> PlacementCandidateEnumerationV1:
     """Expose the same validated P2C search family as a lazy candidate stream."""
@@ -3358,6 +3730,7 @@ def enumerate_placement_candidates(
             node_budget=node_budget,
             complete_candidate_limit=complete_candidate_limit,
             structural_family=structural_family,
+            structural_topology=structural_topology,
             search_phase=search_phase,
         )
     )
