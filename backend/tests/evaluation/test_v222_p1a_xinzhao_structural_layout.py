@@ -32,6 +32,7 @@ R3_METRICS = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r3_metrics.json"
 R5_LAYOUT = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r5_selected_layout.json"
 R5_METRICS = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r5_metrics.json"
 R6_METRICS = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r6_metrics.json"
+R11_BUDGET = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r11_budget_accounting.json"
 R5_SHARED_SKELETON = "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
 
 
@@ -69,6 +70,7 @@ def test_xinzhao_real_tool7_r9_preflight_is_hard_valid_and_deterministic(
     r3_metrics = json.loads(R3_METRICS.read_text(encoding="utf-8"))
     r5_metrics = json.loads(R5_METRICS.read_text(encoding="utf-8"))
     r6_metrics = json.loads(R6_METRICS.read_text(encoding="utf-8"))
+    r11_budget = json.loads(R11_BUDGET.read_text(encoding="utf-8"))
     assert baseline["canonical_result_hash"] == V221_RESULT_HASH
 
     evaluations: list[dict[str, Any]] = []
@@ -115,8 +117,8 @@ def test_xinzhao_real_tool7_r9_preflight_is_hard_valid_and_deterministic(
         "STRAIGHT_LINEAR_BAND",
     }
     assert first_evaluation["topology_count_explored"] == 3
-    assert first_evaluation["topology_count_with_constructed_skeleton"] == 2
-    assert first_evaluation["constructed_main_process_skeleton_count"] == 2
+    assert first_evaluation["topology_count_with_constructed_skeleton"] == 3
+    assert first_evaluation["constructed_main_process_skeleton_count"] == 11
     assert sum(int(row["visited_nodes"]) for row in first_evaluation["family_lanes"]) <= 120
     assert r5_metrics["p2d_full_pass_candidate_count"] == 4
     assert r5_metrics["constructed_skeleton_topologies"] == [
@@ -145,7 +147,7 @@ def test_xinzhao_real_tool7_r9_preflight_is_hard_valid_and_deterministic(
     )
     assert second_lifecycle["tail_nodes"] == 0
     assert second_lifecycle["tail_node_limit"] == 0
-    assert first_evaluation["p2d_evaluated_distinct_main_process_skeleton_count"] == 1
+    assert first_evaluation["p2d_evaluated_distinct_main_process_skeleton_count"] == 3
     assert first_evaluation["p2d_full_pass_distinct_main_process_skeleton_count"] == 1
     assert first_evaluation["distinct_runner_up_present"] is False
     assert first_evaluation["selected_main_process_skeleton_hash"] == R5_SHARED_SKELETON
@@ -191,7 +193,7 @@ def test_xinzhao_real_tool7_r9_preflight_is_hard_valid_and_deterministic(
     assert topology_diagnostics["cross_topology_duplicate_geometry_count"] == len(
         topology_diagnostics["cross_topology_duplicate_geometry_trace"]
     )
-    assert topology_diagnostics["global_unique_skeleton_geometry_count"] == 2
+    assert topology_diagnostics["global_unique_skeleton_geometry_count"] == 11
     assert not any(
         row.get("constructed_topology") == "CENTRAL_PROCESS_HUB"
         and row.get("skeleton_hash") == R5_SHARED_SKELETON
@@ -218,7 +220,7 @@ def test_xinzhao_real_tool7_r9_preflight_is_hard_valid_and_deterministic(
         )
     )
     assert first["canonical_result_hash"] != r5_metrics["r5_canonical_result_hash"]
-    assert first["canonical_result_hash"] == r6_metrics["r6_canonical_result_hash"]
+    assert first["canonical_result_hash"] == r11_budget["selected_canonical_result_hash"]
     assert first["svg_sha256"] == r5_metrics["r5_svg_sha256"]
     assert first["svg_sha256"] == r6_metrics["r6_svg_sha256"]
     assert hashlib.sha256(first["drawing"]["svg"].encode("utf-8")).hexdigest() == (
@@ -275,6 +277,6 @@ def test_xinzhao_real_tool7_r9_preflight_is_hard_valid_and_deterministic(
     assert _direct_core_edges(old_zones) == 2
     assert _direct_core_edges(new_zones) == 2
     assert first["selection"]["search_provenance"]["node_budget"] == 120
-    assert first["selection"]["search_provenance"]["node_budget_exhausted"] is False
+    assert first["selection"]["search_provenance"]["node_budget_exhausted"] is True
     assert first["selection"]["search_provenance"]["search_tree_exhausted"] is False
     assert first["selection"]["search_provenance"]["global_optimum_claimed"] is False
