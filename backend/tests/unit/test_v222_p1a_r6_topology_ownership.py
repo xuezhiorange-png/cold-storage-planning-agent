@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from cold_storage.modules.layout.domain.main_process_skeleton import (
     MainProcessSkeletonCandidateV1,
+    canonicalize_main_process_skeleton_for_evaluation,
 )
 from cold_storage.modules.layout.domain.main_process_topology import (
     classify_main_process_topology_v1,
@@ -155,31 +156,86 @@ def test_offset_transition_identity_requires_exact_nonzero_cross_axis_shift() ->
     )
 
 
-def test_global_geometry_registry_allows_only_canonical_owner_tail_search() -> None:
-    hub_first = decide_main_process_topology_ownership_v1(
+def test_new_non_owner_geometry_is_admitted_to_tail_search() -> None:
+    new_geometry = decide_main_process_topology_ownership_v1(
         lane_topology=CENTRAL_PROCESS_HUB,
         canonical_owner=STRAIGHT_LINEAR_BAND,
-        first_topology=None,
-        tail_search_topology=None,
+        first_discovery_topology=None,
+        tail_search_discovery_topology=None,
+        geometry_previously_seen=False,
+        tail_search_started=False,
     )
-    straight_owner = decide_main_process_topology_ownership_v1(
-        lane_topology=STRAIGHT_LINEAR_BAND,
+    duplicate_geometry = decide_main_process_topology_ownership_v1(
+        lane_topology=OFFSET_LINEAR_BAND,
         canonical_owner=STRAIGHT_LINEAR_BAND,
-        first_topology=CENTRAL_PROCESS_HUB,
-        tail_search_topology=None,
-    )
-    hub_duplicate_after_owner_tail = decide_main_process_topology_ownership_v1(
-        lane_topology=CENTRAL_PROCESS_HUB,
-        canonical_owner=STRAIGHT_LINEAR_BAND,
-        first_topology=CENTRAL_PROCESS_HUB,
-        tail_search_topology=STRAIGHT_LINEAR_BAND,
+        first_discovery_topology=CENTRAL_PROCESS_HUB,
+        tail_search_discovery_topology=CENTRAL_PROCESS_HUB,
+        geometry_previously_seen=True,
+        tail_search_started=True,
     )
 
-    assert hub_first.start_tail_search is False
-    assert hub_first.action == "SKIP_NON_OWNER_TAIL"
-    assert straight_owner.start_tail_search is True
-    assert straight_owner.cross_topology_duplicate is True
-    assert straight_owner.action == "CANONICAL_OWNER_TAIL_ONLY"
-    assert hub_duplicate_after_owner_tail.start_tail_search is False
-    assert hub_duplicate_after_owner_tail.cross_topology_duplicate is True
-    assert hub_duplicate_after_owner_tail.action == "SKIP_NON_OWNER_TAIL"
+    assert new_geometry.start_tail_search is True
+    assert new_geometry.action == "START_TAIL_FOR_NEW_GEOMETRY"
+    assert new_geometry.cross_topology_duplicate is False
+    assert duplicate_geometry.start_tail_search is False
+    assert duplicate_geometry.action == "SKIP_ALREADY_EVALUATED_GEOMETRY"
+    assert duplicate_geometry.cross_topology_duplicate is True
+
+
+def test_previously_seen_but_unevaluated_geometry_is_admitted() -> None:
+    decision = decide_main_process_topology_ownership_v1(
+        lane_topology=CENTRAL_PROCESS_HUB,
+        canonical_owner=STRAIGHT_LINEAR_BAND,
+        first_discovery_topology=STRAIGHT_LINEAR_BAND,
+        tail_search_discovery_topology=None,
+        geometry_previously_seen=True,
+        tail_search_started=False,
+    )
+
+    assert decision.start_tail_search is True
+    assert decision.action == "START_TAIL_FOR_PREVIOUSLY_SEEN_UNEVALUATED_GEOMETRY"
+    assert decision.cross_topology_duplicate is True
+
+
+def test_canonicalization_rebinds_family_and_preserves_exact_geometry() -> None:
+    rectangles = _straight_geometry()
+    discovery_family = StructuralCompositionFamilyV1(
+        CENTRAL_PROCESS_HUB, "Y", "UNRESOLVED", "TEST_DISCOVERY_LANE"
+    )
+    discovery_seed = MainProcessSkeletonCandidateV1.create(
+        family=discovery_family,
+        rectangles=rectangles,
+        topology=CENTRAL_PROCESS_HUB,
+        generation_pattern="HUB_DISCOVERY_STRAIGHT_GEOMETRY",
+        hard_geometry_predicates_passed=("EXACT_GEOMETRY",),
+        discovery_topology=CENTRAL_PROCESS_HUB,
+        discovery_family=discovery_family,
+    )
+    site_geometry = {
+        "site": {
+            "effective_buildable_boundary": {
+                "points": [
+                    {"x": "0", "y": "0"},
+                    {"x": "50", "y": "0"},
+                    {"x": "50", "y": "50"},
+                    {"x": "0", "y": "50"},
+                ]
+            }
+        }
+    }
+
+    canonical = canonicalize_main_process_skeleton_for_evaluation(
+        discovery_seed,
+        classify_main_process_topology_v1(rectangles),
+        site_geometry=site_geometry,
+    )
+
+    assert canonical.topology == STRAIGHT_LINEAR_BAND
+    assert canonical.canonical_topology_owner == STRAIGHT_LINEAR_BAND
+    assert canonical.family.family == LINEAR_PROCESS_BAND
+    assert canonical.family.dominant_axis == canonical.dominant_axis
+    assert canonical.family.dominant_direction == canonical.dominant_direction
+    assert canonical.discovery_topology == CENTRAL_PROCESS_HUB
+    assert canonical.discovery_family == discovery_family
+    assert canonical.main_process_skeleton_hash == discovery_seed.main_process_skeleton_hash
+    assert canonical.zone_rectangles == discovery_seed.zone_rectangles

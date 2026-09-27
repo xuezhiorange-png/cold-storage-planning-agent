@@ -113,17 +113,22 @@ def test_r5_staged_topology_coverage_is_bounded_and_xinzhao_result_is_partial() 
     assert cross_fixture["acceptance_facts"]["all_scenarios_pass"] is True
 
 
-def test_r3_constructs_seven_zone_skeleton_before_tail_search_and_records_rejections() -> None:
+def test_constructed_skeleton_is_canonicalized_before_tail_search() -> None:
     placement_source = _source("domain/placement.py")
     constructor = placement_source.index("def _construct_main_process_skeletons(")
     walker = placement_source.index("def _walk_complete_candidate_payloads(")
     skeleton_seed = placement_source.index(
-        "skeleton_seeds = tuple(_construct_main_process_skeletons(context, stats))", walker
+        "skeleton_seeds = tuple(_construct_main_process_skeletons(discovery_context, stats))",
+        walker,
+    )
+    canonicalize_tail = placement_source.index(
+        "context = _canonical_tail_search_context(discovery_context, seed)", skeleton_seed
     )
     tail_walk = placement_source.index(
-        "yield from visit(len(MAIN_PROCESS_ZONE_CODES), True, seed)", skeleton_seed
+        "yield from visit(len(MAIN_PROCESS_ZONE_CODES), True, seed)", canonicalize_tail
     )
-    assert constructor < walker < skeleton_seed < tail_walk
+    assert constructor < walker < skeleton_seed < canonicalize_tail < tail_walk
+    assert "canonicalize_main_process_skeleton_for_evaluation" in placement_source
     assert "placed.update({row.zone_code: row for row in seed.zone_rectangles})" in placement_source
     assert "MAIN_PROCESS_SKELETON_ZONE_CODES" in placement_source
     assert not set(STRUCTURED_PLACEMENT_ZONE_ORDER[len(MAIN_PROCESS_ZONE_CODES) :]) & set(

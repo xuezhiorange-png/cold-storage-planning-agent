@@ -524,7 +524,7 @@ def _internal_selection_evaluation(
     )
     topology_count_constructed = len(
         {
-            str(lifecycle.get("topology"))
+            str(lifecycle.get("discovery_topology", lifecycle.get("topology")))
             for lifecycle in skeleton_survival
             if lifecycle.get("skeleton_hash")
         }
@@ -562,6 +562,7 @@ def _internal_selection_evaluation(
         "search_policy": "STAGED_COVERAGE_THEN_PREFERENCE",
         "topology_count_explored": topology_count_explored,
         "topology_count_with_constructed_skeleton": topology_count_constructed,
+        "discovery_lane_count_with_constructed_skeleton": topology_count_constructed,
         "constructed_main_process_skeleton_count": len(
             {
                 str(lifecycle.get("skeleton_hash"))
@@ -632,19 +633,21 @@ def select_validated_placement(
         ]
     ] = []
     lane_reports: list[dict[str, Any]] = []
-    skeleton_lifecycle_by_hash: dict[tuple[str, str], dict[str, Any]] = {}
+    skeleton_lifecycle_by_hash: dict[str, dict[str, Any]] = {}
     global_skeleton_geometry_registry: dict[str, dict[str, Any]] = {}
     cross_topology_duplicate_trace: list[dict[str, Any]] = []
     r6_topology_diagnostics: dict[str, Any] = {
-        "identity": "p1a-r6-topology-search-evidence@1.0.0",
+        "identity": "p1a-r7-geometry-evaluation-evidence@1.0.0",
         "ownership_matrix": [],
         "ownership_duplicates": [],
+        "geometry_evaluation_admissions": [],
         "construction_attempts": [],
         "constructive_divergence_trace": [],
         "offset_transition_trace": [],
         "topology_classification_failures": [],
         "cross_topology_duplicate_geometry_trace": cross_topology_duplicate_trace,
         "global_unique_skeleton_geometry_count": 0,
+        "geometry_evaluation_registry": [],
     }
     topology_lanes = _selector_topology_lanes(site_body, p1_handoff)
     preferred_family = _preferred_family_from_handoff(site_body, p1_handoff)
@@ -752,6 +755,10 @@ def select_validated_placement(
                     enumeration, "candidate_main_process_skeleton_hash", None
                 )
                 topology_getter = getattr(enumeration, "candidate_topology", None)
+                family_getter = getattr(enumeration, "candidate_structural_family", None)
+                discovery_topology_getter = getattr(
+                    enumeration, "candidate_discovery_topology", None
+                )
                 skeleton_hash = (
                     skeleton_hash_getter(candidate_hash)
                     if isinstance(candidate_hash, str) and callable(skeleton_hash_getter)
@@ -763,6 +770,11 @@ def select_validated_placement(
                     else lane.topology
                 )
                 candidate_body["_r5_skeleton_hash"] = skeleton_hash
+                candidate_body["_r7_discovery_topology"] = (
+                    discovery_topology_getter(candidate_hash)
+                    if isinstance(candidate_hash, str) and callable(discovery_topology_getter)
+                    else lane.topology
+                )
                 geometry_signature = _placement_geometry_signature(candidate_body)
                 if geometry_signature in lane_seen_geometry:
                     continue
@@ -786,12 +798,15 @@ def select_validated_placement(
                     and routed_body.get("p2_complete") is True
                 )
                 if isinstance(skeleton_hash, str):
-                    lifecycle_key = (lane.topology, skeleton_hash)
                     lifecycle = skeleton_lifecycle_by_hash.setdefault(
-                        lifecycle_key,
+                        skeleton_hash,
                         {
-                            "topology": lane.topology,
                             "skeleton_hash": skeleton_hash,
+                            "discovery_topology": candidate_body.get("_r7_discovery_topology"),
+                            "canonical_topology_owner": candidate_body.get("_r5_topology"),
+                            "tail_search_started_by_topology": (
+                                candidate_body.get("_r7_discovery_topology")
+                            ),
                             "p2d_reached": True,
                             "p2d_candidate_count": 0,
                             "p2d_full_pass_count": 0,
@@ -800,8 +815,18 @@ def select_validated_placement(
                         },
                     )
                     lifecycle["p2d_candidate_count"] += 1
+                    registry_row = global_skeleton_geometry_registry.get(skeleton_hash)
+                    if registry_row is not None:
+                        registry_row["p2d_reached"] = True
+                        registry_row["p2d_candidate_count"] = (
+                            int(registry_row.get("p2d_candidate_count", 0)) + 1
+                        )
                     if full_pass:
                         lifecycle["p2d_full_pass_count"] += 1
+                        if registry_row is not None:
+                            registry_row["p2d_full_pass_count"] = (
+                                int(registry_row.get("p2d_full_pass_count", 0)) + 1
+                            )
                     elif lifecycle["first_failure_stage"] is None:
                         lifecycle["first_failure_stage"] = "P2D"
                         warnings = routed_body.get("warnings")
@@ -810,6 +835,11 @@ def select_validated_placement(
                             if isinstance(warnings, list) and warnings
                             else "P2D_HARD_VALIDATION_FAILED"
                         )
+                        if registry_row is not None:
+                            registry_row.setdefault("first_failure_stage", "P2D")
+                            registry_row.setdefault(
+                                "first_failure_reason", lifecycle["first_failure_reason"]
+                            )
                 trace.append(_p2d_trace_row(candidate_index, candidate_body, p2d_body=routed_body))
                 if not full_pass:
                     phase_rejected_count += 1
@@ -830,12 +860,17 @@ def select_validated_placement(
                     and isinstance(candidate_hash, str)
                     and structural_flag_getter(candidate_hash)
                 )
+                candidate_family = (
+                    family_getter(candidate_hash)
+                    if isinstance(candidate_hash, str) and callable(family_getter)
+                    else None
+                ) or family
                 try:
                     structural_facts = build_structural_quality_facts(
                         candidate_body,
                         routed_body,
                         site_body,
-                        family,
+                        candidate_family,
                         structurally_generated=structurally_generated,
                         search_phase=phase,
                     )
@@ -845,7 +880,9 @@ def select_validated_placement(
                         candidate_index=candidate_index,
                         reason=type(exc).__name__,
                     ) from None
-                full_pass_records.append((candidate_body, routed_body, structural_facts, family))
+                full_pass_records.append(
+                    (candidate_body, routed_body, structural_facts, candidate_family)
+                )
 
             generation_report = getattr(enumeration, "skeleton_generation_report", {})
             if isinstance(generation_report, Mapping):
@@ -858,8 +895,13 @@ def select_validated_placement(
                         r6_topology_diagnostics["ownership_matrix"].append(
                             {
                                 "skeleton_hash": skeleton_row.get("main_process_skeleton_hash"),
+                                "discovery_topology": skeleton_row.get(
+                                    "discovery_topology", lane.topology
+                                ),
                                 "constructed_topology": skeleton_row.get("topology"),
                                 "canonical_owner": skeleton_row.get("canonical_topology_owner"),
+                                "discovery_family": skeleton_row.get("discovery_family"),
+                                "canonical_family": skeleton_row.get("canonical_family"),
                                 "construction_policy": skeleton_row.get("construction_policy"),
                                 "topology_divergence_stage": skeleton_row.get(
                                     "topology_divergence_stage"
@@ -878,6 +920,9 @@ def select_validated_placement(
                         # Tool 7 response's historical candidate report.
                         for r6_field in (
                             "canonical_topology_owner",
+                            "discovery_topology",
+                            "discovery_family",
+                            "canonical_family",
                             "construction_policy",
                             "topology_divergence_stage",
                             "offset_transition_stage",
@@ -895,6 +940,7 @@ def select_validated_placement(
                             r6_topology_diagnostics["construction_attempts"].append(attempt_copy)
                 for source_key, target_key in (
                     ("_r6_topology_ownership_duplicates", "ownership_duplicates"),
+                    ("_r7_geometry_evaluation_admissions", "geometry_evaluation_admissions"),
                     ("_r6_offset_transition_trace", "offset_transition_trace"),
                     ("_r6_constructive_divergence_attempts", "constructive_divergence_trace"),
                     (
@@ -913,9 +959,21 @@ def select_validated_placement(
                         continue
                     lifecycle_copy = dict(lifecycle_row)
                     skeleton_hash_value = lifecycle_copy.get("skeleton_hash")
-                    p2d_lifecycle = skeleton_lifecycle_by_hash.get(
-                        (lane.topology, str(skeleton_hash_value)), {}
+                    raw_tail_facts = generation_report.get("tail_search_zone_facts", {})
+                    skeleton_tail_facts = (
+                        raw_tail_facts.get(str(skeleton_hash_value), {})
+                        if isinstance(raw_tail_facts, Mapping)
+                        else {}
                     )
+                    zero_option_tail_zones = sorted(
+                        str(zone_code)
+                        for zone_code, zone_facts in skeleton_tail_facts.items()
+                        if isinstance(zone_facts, Mapping)
+                        and int(zone_facts.get("branch_visits", 0)) > 0
+                        and int(zone_facts.get("candidate_options", 0)) == 0
+                    )
+                    lifecycle_copy["zero_option_tail_zone_codes"] = zero_option_tail_zones
+                    p2d_lifecycle = skeleton_lifecycle_by_hash.get(str(skeleton_hash_value), {})
                     lifecycle_copy["p2d_reached"] = p2d_lifecycle.get("p2d_reached", False)
                     lifecycle_copy["p2d_candidate_count"] = p2d_lifecycle.get(
                         "p2d_candidate_count", 0
@@ -935,6 +993,14 @@ def select_validated_placement(
                             if lifecycle_copy.get("tail_nodes", 0)
                             >= lifecycle_copy.get("tail_node_limit", 0)
                             else "TAIL_SEARCH_COMPLETED_WITHOUT_COMPLETE_P2C_CANDIDATE"
+                        )
+                        lifecycle_copy["first_failure_detail"] = (
+                            "TAIL_NODE_SHARE_EXHAUSTED;ZERO_OPTIONS:"
+                            + ",".join(zero_option_tail_zones)
+                            if lifecycle_copy["first_failure_reason"]
+                            == "TAIL_NODE_SHARE_EXHAUSTED_WITHOUT_COMPLETE_P2C_CANDIDATE"
+                            and zero_option_tail_zones
+                            else lifecycle_copy["first_failure_reason"]
                         )
                     enriched_lifecycle.append(lifecycle_copy)
                 generation_report["skeleton_tail_lifecycle"] = enriched_lifecycle
@@ -1006,8 +1072,8 @@ def select_validated_placement(
         r6_topology_diagnostics.get("ownership_duplicates", []),
         key=lambda row: (
             str(row.get("skeleton_hash")),
-            str(row.get("topology")),
-            str(row.get("canonical_owner")),
+            str(row.get("duplicate_discovery_topology")),
+            str(row.get("canonical_topology_owner")),
         ),
     )
     r6_topology_diagnostics["construction_attempts"] = sorted(
@@ -1037,8 +1103,8 @@ def select_validated_placement(
         cross_topology_duplicate_trace,
         key=lambda row: (
             str(row.get("skeleton_hash")),
-            str(row.get("first_topology")),
-            str(row.get("duplicate_topology")),
+            str(row.get("first_discovery_topology")),
+            str(row.get("duplicate_discovery_topology")),
         ),
     )
     r6_topology_diagnostics["cross_topology_duplicate_geometry_count"] = len(
@@ -1047,14 +1113,14 @@ def select_validated_placement(
     hub_duplicate_attempts = [
         row
         for row in r6_topology_diagnostics["ownership_duplicates"]
-        if row.get("topology") == CENTRAL_PROCESS_HUB
+        if row.get("duplicate_discovery_topology") == CENTRAL_PROCESS_HUB
     ]
     hub_attempts = [
         row
         for row in r6_topology_diagnostics["construction_attempts"]
         if row.get("topology") == CENTRAL_PROCESS_HUB
     ]
-    r6_topology_diagnostics["hub_search_continued_after_ownership_duplicate"] = any(
+    r6_topology_diagnostics["hub_search_continued_after_geometry_duplicate"] = any(
         any(
             int(attempt.get("construction_attempt_index", -1))
             > int(duplicate.get("construction_attempt_index", -1))
@@ -1064,6 +1130,16 @@ def select_validated_placement(
     )
     r6_topology_diagnostics["global_unique_skeleton_geometry_count"] = len(
         global_skeleton_geometry_registry
+    )
+    r6_topology_diagnostics["geometry_evaluation_registry"] = [
+        dict(row) for _, row in sorted(global_skeleton_geometry_registry.items())
+    ]
+    r6_topology_diagnostics["geometry_evaluation_admissions"] = sorted(
+        r6_topology_diagnostics["geometry_evaluation_admissions"],
+        key=lambda row: (
+            str(row.get("skeleton_hash")),
+            str(row.get("discovery_topology")),
+        ),
     )
 
     best_record: (

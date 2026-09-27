@@ -3,17 +3,22 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Final
 
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError, canonical_hash
+from cold_storage.modules.layout.domain.main_process_topology import (
+    MainProcessTopologyClassificationV1,
+)
 from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
 from cold_storage.modules.layout.domain.structural_composition import (
     CENTRAL_PROCESS_HUB,
+    LINEAR_PROCESS_BAND,
     MAIN_PROCESS_ZONE_CODES,
     OFFSET_LINEAR_BAND,
     STRAIGHT_LINEAR_BAND,
     StructuralCompositionFamilyV1,
+    composition_family_candidates,
 )
 
 IDENTITY: Final = "main-process-skeleton-candidate@1.0.0"
@@ -70,6 +75,8 @@ class MainProcessSkeletonCandidateV1:
     offset_transition_stage: str | None = None
     offset_direction: str | None = None
     offset_cross_axis_shift_mm: int | None = None
+    discovery_topology: str | None = None
+    discovery_family: StructuralCompositionFamilyV1 | None = None
 
     @classmethod
     def create(
@@ -85,6 +92,8 @@ class MainProcessSkeletonCandidateV1:
         offset_transition_stage: str | None = None,
         offset_direction: str | None = None,
         offset_cross_axis_shift_mm: int | None = None,
+        discovery_topology: str | None = None,
+        discovery_family: StructuralCompositionFamilyV1 | None = None,
     ) -> MainProcessSkeletonCandidateV1:
         if set(rectangles) & set(MAIN_PROCESS_ZONE_CODES) != set(MAIN_PROCESS_ZONE_CODES):
             raise LayoutAuthorityError("MAIN_PROCESS_SKELETON_ZONE_SET_INVALID")
@@ -124,6 +133,8 @@ class MainProcessSkeletonCandidateV1:
             offset_transition_stage=offset_transition_stage,
             offset_direction=offset_direction,
             offset_cross_axis_shift_mm=offset_cross_axis_shift_mm,
+            discovery_topology=discovery_topology or selected_topology,
+            discovery_family=discovery_family or family,
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -153,4 +164,73 @@ class MainProcessSkeletonCandidateV1:
             "offset_transition_stage": self.offset_transition_stage,
             "offset_direction": self.offset_direction,
             "offset_cross_axis_shift_mm": self.offset_cross_axis_shift_mm,
+            "discovery_topology": self.discovery_topology or self.topology,
+            "discovery_family": (self.discovery_family or self.family).to_dict(),
+            "canonical_family": self.family.to_dict(),
         }
+
+
+def canonicalize_main_process_skeleton_for_evaluation(
+    skeleton: MainProcessSkeletonCandidateV1,
+    classification: MainProcessTopologyClassificationV1,
+    *,
+    site_geometry: Mapping[str, object],
+) -> MainProcessSkeletonCandidateV1:
+    """Rebind evaluation identity to exact geometry classification, never geometry.
+
+    Discovery metadata remains attached to the immutable candidate for
+    diagnostics. Rectangle coordinates, dimensions, rotations and the
+    geometry-derived hash are preserved byte-for-byte.
+    """
+    owner = classification.canonical_owner
+    if owner is None:
+        raise LayoutAuthorityError("MAIN_PROCESS_TOPOLOGY_CLASSIFICATION_REQUIRED")
+    if owner in {STRAIGHT_LINEAR_BAND, OFFSET_LINEAR_BAND}:
+        if classification.process_axis not in {
+            "X",
+            "Y",
+        } or classification.process_direction not in {
+            "POSITIVE",
+            "NEGATIVE",
+        }:
+            raise LayoutAuthorityError("MAIN_PROCESS_TOPOLOGY_CLASSIFICATION_INCOMPLETE")
+        discovery_family = skeleton.discovery_family or skeleton.family
+        if (
+            skeleton.discovery_topology == owner
+            and discovery_family.family == LINEAR_PROCESS_BAND
+            and discovery_family.dominant_axis == classification.process_axis
+            and discovery_family.dominant_direction == classification.process_direction
+        ):
+            canonical_family = discovery_family
+        else:
+            canonical_family = StructuralCompositionFamilyV1(
+                family=LINEAR_PROCESS_BAND,
+                dominant_axis=classification.process_axis,
+                dominant_direction=classification.process_direction,
+                generation_reason="EXACT_GEOMETRY_CLASSIFICATION_V1",
+            )
+    elif owner == CENTRAL_PROCESS_HUB:
+        hub_family = next(
+            (
+                family
+                for family in composition_family_candidates(site_geometry)
+                if family.family == CENTRAL_PROCESS_HUB
+            ),
+            None,
+        )
+        if hub_family is None:
+            raise LayoutAuthorityError("CANONICAL_HUB_FAMILY_UNAVAILABLE")
+        canonical_family = hub_family
+    else:
+        raise LayoutAuthorityError("MAIN_PROCESS_TOPOLOGY_INVALID")
+
+    return replace(
+        skeleton,
+        family=canonical_family,
+        topology=owner,
+        dominant_axis=canonical_family.dominant_axis,
+        dominant_direction=canonical_family.dominant_direction,
+        canonical_topology_owner=owner,
+        discovery_topology=skeleton.discovery_topology or skeleton.topology,
+        discovery_family=skeleton.discovery_family or skeleton.family,
+    )

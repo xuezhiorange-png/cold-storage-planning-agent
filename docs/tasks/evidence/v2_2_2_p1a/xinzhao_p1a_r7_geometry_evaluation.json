@@ -1,0 +1,35 @@
+{
+  "identity": "p1a-r7-geometry-evaluation-evidence@1.0.0",
+  "r6_second_geometry_hash": "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc",
+  "discovery_topology": "CENTRAL_PROCESS_HUB",
+  "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+  "discovery_family": {
+    "family": "CENTRAL_PROCESS_HUB",
+    "dominant_axis": "X",
+    "dominant_direction": "UNRESOLVED"
+  },
+  "canonical_family": {
+    "family": "LINEAR_PROCESS_BAND",
+    "dominant_axis": "Y",
+    "dominant_direction": "POSITIVE"
+  },
+  "geometry_previously_seen": false,
+  "admission_event": "NEW_GEOMETRY_NON_OWNER_DISCOVERY",
+  "tail_search_started": true,
+  "tail_search_started_by_topology": "CENTRAL_PROCESS_HUB",
+  "construction_nodes": 20,
+  "tail_nodes": 12,
+  "tail_node_limit": 12,
+  "complete_p2c_candidate_count": 0,
+  "p2d_reached": false,
+  "p2d_full_pass_count": 0,
+  "first_failure_stage": "TAIL_SEARCH",
+  "first_failure_reason": "TAIL_NODE_SHARE_EXHAUSTED_WITHOUT_COMPLETE_P2C_CANDIDATE",
+  "first_failure_detail": "TAIL_NODE_SHARE_EXHAUSTED;ZERO_OPTIONS:packaging_material_storage",
+  "zero_option_tail_zone_codes": [
+    "packaging_material_storage"
+  ],
+  "canonical_geometry_changed": false,
+  "classification_is_admission_authority": false,
+  "discovery_provenance_affects_ranking": false
+}

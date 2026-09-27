@@ -62,12 +62,14 @@ class MainProcessTopologyClassificationV1:
 
 @dataclass(frozen=True)
 class MainProcessTopologyOwnershipDecisionV1:
-    """Deterministic lane ownership decision for global skeleton deduplication."""
+    """Deterministic geometry-evaluation admission, independent of topology owner."""
 
-    lane_topology: str
+    discovery_lane: str
     canonical_owner: str
-    first_topology: str | None
-    tail_search_topology: str | None
+    first_discovery_topology: str | None
+    tail_search_discovery_topology: str | None
+    geometry_previously_seen: bool
+    tail_search_started: bool
     cross_topology_duplicate: bool
     start_tail_search: bool
     action: str
@@ -77,29 +79,39 @@ def decide_main_process_topology_ownership_v1(
     *,
     lane_topology: str,
     canonical_owner: str,
-    first_topology: str | None,
-    tail_search_topology: str | None,
+    first_discovery_topology: str | None,
+    tail_search_discovery_topology: str | None,
+    geometry_previously_seen: bool,
+    tail_search_started: bool,
 ) -> MainProcessTopologyOwnershipDecisionV1:
-    """Allow one canonical lane to tail-search each exact geometry once."""
-    previous_owner = tail_search_topology or first_topology
-    cross_topology_duplicate = previous_owner is not None and previous_owner != lane_topology
-    if canonical_owner != lane_topology:
-        action = "SKIP_NON_OWNER_TAIL"
+    """Admit each unseen exact geometry to tail search once.
+
+    ``canonical_owner`` classifies geometry. It never grants or denies
+    evaluation admission; only the geometry-hash registry's lifecycle state
+    does that.
+    """
+    cross_topology_duplicate = (
+        geometry_previously_seen
+        and first_discovery_topology is not None
+        and first_discovery_topology != lane_topology
+    )
+    if tail_search_started:
+        action = "SKIP_ALREADY_EVALUATED_GEOMETRY"
         start_tail_search = False
-    elif tail_search_topology is not None:
-        action = "SKIP_TAIL_AND_P2D"
-        start_tail_search = False
-    elif first_topology is not None and first_topology != lane_topology:
-        action = "CANONICAL_OWNER_TAIL_ONLY"
-        start_tail_search = True
     else:
-        action = "START_CANONICAL_OWNER_TAIL"
+        action = (
+            "START_TAIL_FOR_PREVIOUSLY_SEEN_UNEVALUATED_GEOMETRY"
+            if geometry_previously_seen
+            else "START_TAIL_FOR_NEW_GEOMETRY"
+        )
         start_tail_search = True
     return MainProcessTopologyOwnershipDecisionV1(
-        lane_topology=lane_topology,
+        discovery_lane=lane_topology,
         canonical_owner=canonical_owner,
-        first_topology=first_topology,
-        tail_search_topology=tail_search_topology,
+        first_discovery_topology=first_discovery_topology,
+        tail_search_discovery_topology=tail_search_discovery_topology,
+        geometry_previously_seen=geometry_previously_seen,
+        tail_search_started=tail_search_started,
         cross_topology_duplicate=cross_topology_duplicate,
         start_tail_search=start_tail_search,
         action=action,

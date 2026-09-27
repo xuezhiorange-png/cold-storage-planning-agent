@@ -55,7 +55,7 @@ def _direct_core_edges(zones: Mapping[str, Mapping[str, Any]]) -> int:
     )
 
 
-def test_xinzhao_real_tool7_staged_topology_search_is_hard_valid_and_deterministic(
+def test_xinzhao_real_tool7_r7_geometry_admission_is_hard_valid_and_deterministic(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     raw = FIXTURE.read_bytes()
@@ -115,8 +115,8 @@ def test_xinzhao_real_tool7_staged_topology_search_is_hard_valid_and_determinist
         "STRAIGHT_LINEAR_BAND",
     }
     assert first_evaluation["topology_count_explored"] == 3
-    assert first_evaluation["topology_count_with_constructed_skeleton"] == 1
-    assert first_evaluation["constructed_main_process_skeleton_count"] == 1
+    assert first_evaluation["topology_count_with_constructed_skeleton"] == 2
+    assert first_evaluation["constructed_main_process_skeleton_count"] == 2
     assert sum(int(row["visited_nodes"]) for row in first_evaluation["family_lanes"]) <= 120
     assert r5_metrics["p2d_full_pass_candidate_count"] == 4
     assert r5_metrics["constructed_skeleton_topologies"] == [
@@ -125,11 +125,29 @@ def test_xinzhao_real_tool7_staged_topology_search_is_hard_valid_and_determinist
     ]
     assert len(r5_metrics["constructed_main_process_skeleton_hashes"]) == 1
     assert first_evaluation["p2d_full_pass_distinct_main_process_skeleton_count"] == 1
-    lifecycle_by_topology = {row["topology"]: row for row in first_evaluation["skeleton_survival"]}
-    assert lifecycle_by_topology["STRAIGHT_LINEAR_BAND"]["skeleton_hash"] == R5_SHARED_SKELETON
-    assert lifecycle_by_topology["STRAIGHT_LINEAR_BAND"]["p2d_candidate_count"] == 2
-    assert lifecycle_by_topology["STRAIGHT_LINEAR_BAND"]["p2d_full_pass_count"] == 2
-    assert set(lifecycle_by_topology) == {"STRAIGHT_LINEAR_BAND"}
+    lifecycle_by_hash = {row["skeleton_hash"]: row for row in first_evaluation["skeleton_survival"]}
+    assert lifecycle_by_hash[R5_SHARED_SKELETON]["discovery_topology"] == ("STRAIGHT_LINEAR_BAND")
+    assert lifecycle_by_hash[R5_SHARED_SKELETON]["p2d_candidate_count"] == 2
+    assert lifecycle_by_hash[R5_SHARED_SKELETON]["p2d_full_pass_count"] == 2
+    r6_second_geometry = "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc"
+    second_lifecycle = lifecycle_by_hash[r6_second_geometry]
+    assert second_lifecycle["discovery_topology"] == "CENTRAL_PROCESS_HUB"
+    assert second_lifecycle["canonical_topology_owner"] == "STRAIGHT_LINEAR_BAND"
+    assert second_lifecycle["canonical_family"]["family"] == "LINEAR_PROCESS_BAND"
+    assert second_lifecycle["tail_search_started_by_topology"] == "CENTRAL_PROCESS_HUB"
+    assert second_lifecycle["complete_candidate_count"] == 0
+    assert second_lifecycle["p2d_reached"] is False
+    assert second_lifecycle["first_failure_stage"] == "TAIL_SEARCH"
+    assert second_lifecycle["first_failure_reason"] == (
+        "TAIL_NODE_SHARE_EXHAUSTED_WITHOUT_COMPLETE_P2C_CANDIDATE"
+    )
+    assert second_lifecycle["first_failure_detail"] == (
+        "TAIL_NODE_SHARE_EXHAUSTED;ZERO_OPTIONS:packaging_material_storage"
+    )
+    assert second_lifecycle["zero_option_tail_zone_codes"] == ["packaging_material_storage"]
+    assert second_lifecycle["tail_nodes"] == second_lifecycle["tail_node_limit"]
+    assert first_evaluation["p2d_evaluated_distinct_main_process_skeleton_count"] == 1
+    assert first_evaluation["p2d_full_pass_distinct_main_process_skeleton_count"] == 1
     assert first_evaluation["distinct_runner_up_present"] is False
     assert first_evaluation["selected_main_process_skeleton_hash"] == R5_SHARED_SKELETON
     assert (
@@ -145,23 +163,35 @@ def test_xinzhao_real_tool7_staged_topology_search_is_hard_valid_and_determinist
     offset_rows = topology_diagnostics["offset_transition_trace"]
     assert offset_rows
     assert any(shift != 0 for row in offset_rows for shift in row["cross_axis_shifts_mm"])
-    assert topology_diagnostics["ownership_duplicates"]
-    assert not any(
-        row.get("topology") == "OFFSET_LINEAR_BAND"
+    admission_956 = next(
+        row
+        for row in topology_diagnostics["geometry_evaluation_admissions"]
+        if row["skeleton_hash"] == r6_second_geometry
+    )
+    assert admission_956["discovery_topology"] == "CENTRAL_PROCESS_HUB"
+    assert admission_956["canonical_topology_owner"] == "STRAIGHT_LINEAR_BAND"
+    assert admission_956["geometry_previously_seen"] is False
+    assert admission_956["action"] == "START_TAIL_FOR_NEW_GEOMETRY"
+    assert any(
+        row["discovery_topology"] == "CENTRAL_PROCESS_HUB"
+        and row["canonical_owner"] == "STRAIGHT_LINEAR_BAND"
+        and row["skeleton_hash"] == r6_second_geometry
         for row in topology_diagnostics["ownership_matrix"]
     )
-    assert any(
-        row["topology"] == "CENTRAL_PROCESS_HUB"
-        and row["canonical_owner"] == "STRAIGHT_LINEAR_BAND"
-        and row["skeleton_hash"]
-        == "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc"
-        for row in topology_diagnostics["ownership_duplicates"]
+    registry_956 = next(
+        row
+        for row in topology_diagnostics["geometry_evaluation_registry"]
+        if row["skeleton_hash"] == r6_second_geometry
     )
-    assert topology_diagnostics["hub_search_continued_after_ownership_duplicate"] is True
+    assert registry_956["first_discovery_topology"] == "CENTRAL_PROCESS_HUB"
+    assert registry_956["canonical_topology_owner"] == "STRAIGHT_LINEAR_BAND"
+    assert registry_956["tail_search_started"] is True
+    assert registry_956["tail_search_discovery_topology"] == "CENTRAL_PROCESS_HUB"
+    assert registry_956["p2d_reached"] is False
     assert topology_diagnostics["cross_topology_duplicate_geometry_count"] == len(
         topology_diagnostics["cross_topology_duplicate_geometry_trace"]
     )
-    assert topology_diagnostics["global_unique_skeleton_geometry_count"] >= 1
+    assert topology_diagnostics["global_unique_skeleton_geometry_count"] == 2
     assert not any(
         row.get("constructed_topology") == "CENTRAL_PROCESS_HUB"
         and row.get("skeleton_hash") == R5_SHARED_SKELETON
@@ -188,7 +218,7 @@ def test_xinzhao_real_tool7_staged_topology_search_is_hard_valid_and_determinist
         )
     )
     assert first["canonical_result_hash"] != r5_metrics["r5_canonical_result_hash"]
-    assert first["canonical_result_hash"] == r6_metrics["r6_canonical_result_hash"]
+    assert first["canonical_result_hash"] != r6_metrics["r6_canonical_result_hash"]
     assert first["svg_sha256"] == r5_metrics["r5_svg_sha256"]
     assert first["svg_sha256"] == r6_metrics["r6_svg_sha256"]
     assert hashlib.sha256(first["drawing"]["svg"].encode("utf-8")).hexdigest() == (

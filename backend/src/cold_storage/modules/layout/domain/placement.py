@@ -10,7 +10,7 @@ repeatable and has no floating-point tolerance.
 from __future__ import annotations
 
 from collections.abc import Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Context, Decimal, InvalidOperation, localcontext
 from fractions import Fraction
 from math import isqrt
@@ -24,6 +24,7 @@ from cold_storage.modules.layout.domain.dimensioning import (
 )
 from cold_storage.modules.layout.domain.main_process_skeleton import (
     MainProcessSkeletonCandidateV1,
+    canonicalize_main_process_skeleton_for_evaluation,
 )
 from cold_storage.modules.layout.domain.main_process_topology import (
     classify_main_process_topology_v1,
@@ -55,6 +56,7 @@ from cold_storage.modules.layout.domain.structural_composition import (
     CENTRAL_PROCESS_HUB,
     FINISHED_SIDE_GROUP,
     FUNCTIONAL_GROUPS,
+    LINEAR_PROCESS_BAND,
     MAIN_PROCESS_SKELETON_ZONE_CODES,
     MAIN_PROCESS_ZONE_CODES,
     OFFSET_LINEAR_BAND,
@@ -2338,6 +2340,7 @@ class _PlacementSearchStats:
     offset_transition_trace: list[dict[str, Any]] | None = None
     constructive_divergence_attempts: list[dict[str, Any]] | None = None
     topology_classification_failures: list[dict[str, Any]] | None = None
+    geometry_evaluation_admissions: list[dict[str, Any]] | None = None
     cross_topology_duplicate_count: int = 0
 
 
@@ -3201,209 +3204,8 @@ def _construct_face_skeletons(
                                             }
                                         )
                                         continue
-                                    seed_hash = MainProcessSkeletonCandidateV1.create(
-                                        family=context.structural_composition_family,
-                                        rectangles=placed,
-                                        topology=classification.canonical_owner,
-                                        generation_pattern=(
-                                            f"{context.structural_topology}:"
-                                            f"RAW_{raw_side}:"
-                                            f"RAW_BANK_{_adjacent_side(primary, raw)}:"
-                                            f"FINISHED_{finished_side}:"
-                                            f"ROOT_{sorting.x}_{sorting.y}_"
-                                            "CONSTRUCTIVE_PROCESS_CHAIN"
-                                        ),
-                                        hard_geometry_predicates_passed=(
-                                            "SITE_CONTAINMENT",
-                                            "NO_BUILD_CLEAR",
-                                            "NON_OVERLAP",
-                                            "MUST_ADJACENCY",
-                                            "GROUP_ORDER",
-                                            "TOPOLOGY_RULE",
-                                        ),
-                                    )
-                                    geometry_hash = seed_hash.main_process_skeleton_hash
-                                    registry = context.global_main_process_geometry_registry
-                                    existing = (
-                                        registry.get(geometry_hash)
-                                        if registry is not None
-                                        else None
-                                    )
-                                    first_topology = (
-                                        str(existing["first_topology"])
-                                        if existing is not None
-                                        else None
-                                    )
-                                    tail_search_topology = (
-                                        str(existing["tail_search_topology"])
-                                        if existing is not None
-                                        and existing.get("tail_search_topology") is not None
-                                        else None
-                                    )
-                                    ownership_decision = decide_main_process_topology_ownership_v1(
-                                        lane_topology=context.structural_topology,
-                                        canonical_owner=classification.canonical_owner,
-                                        first_topology=first_topology,
-                                        tail_search_topology=tail_search_topology,
-                                    )
-                                    if (
-                                        classification.canonical_owner
-                                        != context.structural_topology
-                                    ):
-                                        if registry is not None and existing is None:
-                                            registry[geometry_hash] = {
-                                                "first_topology": context.structural_topology,
-                                                "canonical_owner": classification.canonical_owner,
-                                                "tail_search_started": False,
-                                                "tail_search_topology": None,
-                                            }
-                                        if ownership_decision.cross_topology_duplicate:
-                                            stats.cross_topology_duplicate_count += 1
-                                            if (
-                                                context.global_cross_topology_duplicate_trace
-                                                is not None
-                                            ):
-                                                context.global_cross_topology_duplicate_trace.append(
-                                                    {
-                                                        "skeleton_hash": geometry_hash,
-                                                        "first_topology": first_topology,
-                                                        "duplicate_topology": (
-                                                            context.structural_topology
-                                                        ),
-                                                        "tail_search_topology": (
-                                                            tail_search_topology
-                                                        ),
-                                                        "canonical_owner": (
-                                                            classification.canonical_owner
-                                                        ),
-                                                        "tail_search_previously_started": (
-                                                            tail_search_topology is not None
-                                                        ),
-                                                        "duplicate_action": (
-                                                            ownership_decision.action
-                                                        ),
-                                                    }
-                                                )
-                                        if stats.topology_ownership_duplicates is None:
-                                            stats.topology_ownership_duplicates = []
-                                        stats.topology_ownership_duplicates.append(
-                                            {
-                                                "event": "TOPOLOGY_OWNERSHIP_DUPLICATE",
-                                                "topology": context.structural_topology,
-                                                "canonical_owner": classification.canonical_owner,
-                                                "skeleton_hash": geometry_hash,
-                                                "sorting_root_mm": list(_bounds(sorting)),
-                                                "raw_side": raw_side,
-                                                "finished_side": finished_side,
-                                                "offset_direction": offset_direction,
-                                                "cross_topology_duplicate": (
-                                                    ownership_decision.cross_topology_duplicate
-                                                ),
-                                                "duplicate_action": ownership_decision.action,
-                                                "construction_attempt_index": len(
-                                                    stats.skeleton_construction_attempts or []
-                                                ),
-                                            }
-                                        )
-                                        continue
-                                    if not _topology_geometry_valid(
-                                        placed,
-                                        context.structural_topology,
-                                        context.structural_skeleton.ordering_axis,
-                                    ):
-                                        _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
-                                        if stats.topology_classification_failures is None:
-                                            stats.topology_classification_failures = []
-                                        stats.topology_classification_failures.append(
-                                            {
-                                                "topology": context.structural_topology,
-                                                "canonical_owner": classification.canonical_owner,
-                                                "matched_topologies": list(
-                                                    classification.matched_topologies
-                                                ),
-                                                "process_axis": classification.process_axis,
-                                                "expected_process_axis": (
-                                                    context.structural_skeleton.ordering_axis
-                                                ),
-                                                "zone_bounds_mm": {
-                                                    code: list(_bounds(rectangle))
-                                                    for code, rectangle in sorted(placed.items())
-                                                },
-                                            }
-                                        )
-                                        continue
-                                    if registry is not None:
-                                        if not ownership_decision.start_tail_search:
-                                            if ownership_decision.cross_topology_duplicate:
-                                                stats.cross_topology_duplicate_count += 1
-                                            if (
-                                                ownership_decision.cross_topology_duplicate
-                                                and context.global_cross_topology_duplicate_trace
-                                                is not None
-                                            ):
-                                                context.global_cross_topology_duplicate_trace.append(
-                                                    {
-                                                        "skeleton_hash": geometry_hash,
-                                                        "first_topology": first_topology,
-                                                        "duplicate_topology": (
-                                                            context.structural_topology
-                                                        ),
-                                                        "tail_search_topology": (
-                                                            tail_search_topology
-                                                        ),
-                                                        "canonical_owner": (
-                                                            classification.canonical_owner
-                                                        ),
-                                                        "tail_search_previously_started": (
-                                                            tail_search_topology is not None
-                                                        ),
-                                                        "duplicate_action": (
-                                                            ownership_decision.action
-                                                        ),
-                                                    }
-                                                )
-                                            continue
-                                        if ownership_decision.cross_topology_duplicate:
-                                            stats.cross_topology_duplicate_count += 1
-                                            if (
-                                                context.global_cross_topology_duplicate_trace
-                                                is not None
-                                            ):
-                                                context.global_cross_topology_duplicate_trace.append(
-                                                    {
-                                                        "skeleton_hash": geometry_hash,
-                                                        "first_topology": first_topology,
-                                                        "duplicate_topology": (
-                                                            context.structural_topology
-                                                        ),
-                                                        "tail_search_topology": (
-                                                            tail_search_topology
-                                                        ),
-                                                        "canonical_owner": (
-                                                            classification.canonical_owner
-                                                        ),
-                                                        "tail_search_previously_started": (
-                                                            tail_search_topology is not None
-                                                        ),
-                                                        "duplicate_action": (
-                                                            ownership_decision.action
-                                                        ),
-                                                    }
-                                                )
-                                        if existing is not None:
-                                            existing["tail_search_started"] = True
-                                            existing["tail_search_topology"] = (
-                                                context.structural_topology
-                                            )
-                                        else:
-                                            registry[geometry_hash] = {
-                                                "first_topology": context.structural_topology,
-                                                "canonical_owner": context.structural_topology,
-                                                "tail_search_started": True,
-                                                "tail_search_topology": context.structural_topology,
-                                            }
                                     offset_shift = offset_shifts.get(_bounds(secondary))
-                                    seed = MainProcessSkeletonCandidateV1.create(
+                                    discovery_seed = MainProcessSkeletonCandidateV1.create(
                                         family=context.structural_composition_family,
                                         rectangles=placed,
                                         topology=context.structural_topology,
@@ -3444,6 +3246,159 @@ def _construct_face_skeletons(
                                         ),
                                         offset_direction=offset_direction,
                                         offset_cross_axis_shift_mm=offset_shift,
+                                        discovery_topology=context.structural_topology,
+                                        discovery_family=context.structural_composition_family,
+                                    )
+                                    seed = canonicalize_main_process_skeleton_for_evaluation(
+                                        discovery_seed,
+                                        classification,
+                                        site_geometry=context.site_body,
+                                    )
+                                    geometry_hash = seed.main_process_skeleton_hash
+                                    if not _topology_geometry_valid(
+                                        placed,
+                                        seed.topology,
+                                        seed.dominant_axis,
+                                    ):
+                                        _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
+                                        if stats.topology_classification_failures is None:
+                                            stats.topology_classification_failures = []
+                                        stats.topology_classification_failures.append(
+                                            {
+                                                "discovery_topology": context.structural_topology,
+                                                "canonical_owner": seed.canonical_topology_owner,
+                                                "matched_topologies": list(
+                                                    classification.matched_topologies
+                                                ),
+                                                "process_axis": classification.process_axis,
+                                                "expected_process_axis": seed.dominant_axis,
+                                                "zone_bounds_mm": {
+                                                    code: list(_bounds(rectangle))
+                                                    for code, rectangle in sorted(placed.items())
+                                                },
+                                            }
+                                        )
+                                        continue
+                                    registry = context.global_main_process_geometry_registry
+                                    existing = (
+                                        registry.get(geometry_hash)
+                                        if registry is not None
+                                        else None
+                                    )
+                                    first_discovery_topology = (
+                                        str(existing["first_discovery_topology"])
+                                        if existing is not None
+                                        else None
+                                    )
+                                    tail_search_discovery_topology = (
+                                        str(existing["tail_search_discovery_topology"])
+                                        if existing is not None
+                                        and existing.get("tail_search_discovery_topology")
+                                        is not None
+                                        else None
+                                    )
+                                    ownership_decision = decide_main_process_topology_ownership_v1(
+                                        lane_topology=context.structural_topology,
+                                        canonical_owner=seed.canonical_topology_owner,
+                                        first_discovery_topology=first_discovery_topology,
+                                        tail_search_discovery_topology=(
+                                            tail_search_discovery_topology
+                                        ),
+                                        geometry_previously_seen=existing is not None,
+                                        tail_search_started=(
+                                            existing is not None
+                                            and existing.get("tail_search_started") is True
+                                        ),
+                                    )
+                                    if not ownership_decision.start_tail_search:
+                                        if ownership_decision.cross_topology_duplicate:
+                                            stats.cross_topology_duplicate_count += 1
+                                        duplicate_row = {
+                                            "event": "EXISTING_GEOMETRY_DUPLICATE_DISCOVERY",
+                                            "skeleton_hash": geometry_hash,
+                                            "first_discovery_topology": first_discovery_topology,
+                                            "duplicate_discovery_topology": (
+                                                context.structural_topology
+                                            ),
+                                            "canonical_topology_owner": (
+                                                seed.canonical_topology_owner
+                                            ),
+                                            "tail_search_started_by_topology": (
+                                                tail_search_discovery_topology
+                                            ),
+                                            "cross_topology_duplicate": (
+                                                ownership_decision.cross_topology_duplicate
+                                            ),
+                                            "duplicate_action": ownership_decision.action,
+                                            "construction_attempt_index": len(
+                                                stats.skeleton_construction_attempts or []
+                                            ),
+                                        }
+                                        if stats.topology_ownership_duplicates is None:
+                                            stats.topology_ownership_duplicates = []
+                                        stats.topology_ownership_duplicates.append(duplicate_row)
+                                        if (
+                                            ownership_decision.cross_topology_duplicate
+                                            and context.global_cross_topology_duplicate_trace
+                                            is not None
+                                        ):
+                                            context.global_cross_topology_duplicate_trace.append(
+                                                duplicate_row
+                                            )
+                                        continue
+
+                                    if registry is not None:
+                                        registry_row = existing if existing is not None else {}
+                                        registry_row.update(
+                                            {
+                                                "skeleton_hash": geometry_hash,
+                                                "first_discovery_topology": (
+                                                    first_discovery_topology
+                                                    or context.structural_topology
+                                                ),
+                                                "canonical_topology_owner": (
+                                                    seed.canonical_topology_owner
+                                                ),
+                                                "canonical_family": seed.family.to_dict(),
+                                                "tail_search_started": True,
+                                                "tail_search_discovery_topology": (
+                                                    context.structural_topology
+                                                ),
+                                            }
+                                        )
+                                        registry_row.setdefault("p2d_reached", False)
+                                        registry_row.setdefault("p2d_candidate_count", 0)
+                                        registry_row.setdefault("p2d_full_pass_count", 0)
+                                        registry[geometry_hash] = registry_row
+                                    if stats.geometry_evaluation_admissions is None:
+                                        stats.geometry_evaluation_admissions = []
+                                    stats.geometry_evaluation_admissions.append(
+                                        {
+                                            "event": (
+                                                "NEW_GEOMETRY_NON_OWNER_DISCOVERY"
+                                                if context.structural_topology
+                                                != seed.canonical_topology_owner
+                                                else "NEW_GEOMETRY_DISCOVERY"
+                                            ),
+                                            "skeleton_hash": geometry_hash,
+                                            "discovery_topology": context.structural_topology,
+                                            "canonical_topology_owner": (
+                                                seed.canonical_topology_owner
+                                            ),
+                                            "discovery_lane_matches_canonical_owner": (
+                                                context.structural_topology
+                                                == seed.canonical_topology_owner
+                                            ),
+                                            "discovery_family": (
+                                                context.structural_composition_family.to_dict()
+                                            ),
+                                            "canonical_family": seed.family.to_dict(),
+                                            "geometry_previously_seen": (
+                                                ownership_decision.geometry_previously_seen
+                                            ),
+                                            "action": ownership_decision.action,
+                                            "evaluation_admission": "TAIL_SEARCH_STARTED",
+                                        }
                                     )
                                 except LayoutAuthorityError:
                                     _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
@@ -3628,6 +3583,47 @@ def _construct_main_process_skeletons(
             )
 
 
+def _canonical_tail_search_context(
+    discovery_context: _PlacementSearchContext,
+    skeleton: MainProcessSkeletonCandidateV1,
+) -> _PlacementSearchContext:
+    """Bind tail search to the canonical geometry family without moving it."""
+    canonical_topology = skeleton.canonical_topology_owner
+    canonical_family = skeleton.family
+    if canonical_topology != skeleton.topology or canonical_family.family not in {
+        CENTRAL_PROCESS_HUB,
+        LINEAR_PROCESS_BAND,
+    }:
+        raise _error("CANONICAL_SKELETON_IDENTITY_INCONSISTENT")
+    structural_skeleton = next(
+        (
+            row
+            for row in structural_skeleton_candidates(
+                discovery_context.site_body,
+                tuple(discovery_context.authorities),
+                zone_authorities=discovery_context.authorities,
+                family_candidates=(canonical_family,),
+            )
+            if row.family.to_dict() == canonical_family.to_dict()
+        ),
+        None,
+    )
+    if structural_skeleton is None:
+        raise _error("CANONICAL_STRUCTURAL_SKELETON_UNAVAILABLE")
+    placement_zone_order = (
+        LINEAR_STRUCTURED_PLACEMENT_ZONE_ORDER
+        if canonical_family.family == LINEAR_PROCESS_BAND
+        else STRUCTURED_PLACEMENT_ZONE_ORDER
+    )
+    return replace(
+        discovery_context,
+        structural_composition_family=canonical_family,
+        structural_skeleton=structural_skeleton,
+        structural_topology=canonical_topology,
+        placement_zone_order=placement_zone_order,
+    )
+
+
 def _walk_complete_candidate_payloads(
     context: _PlacementSearchContext, stats: _PlacementSearchStats
 ) -> Iterator[dict[str, Any]]:
@@ -3715,8 +3711,13 @@ def _walk_complete_candidate_payloads(
             stats.tail_nodes_by_skeleton[skeleton_hash] = (
                 stats.tail_nodes_by_skeleton.get(skeleton_hash, 0) + 1
             )
+        # Constructed main-process skeletons have already passed their
+        # discovery-topology construction predicates and exact canonical
+        # classification. Reapplying this lane-oriented proxy after family
+        # rebinding would turn canonical identity into a second admission gate.
         if (
             context.search_phase == STRUCTURED_PHASE
+            and main_process_skeleton is None
             and index == len(MAIN_PROCESS_ZONE_CODES)
             and not _main_group_order_monotonic(placed, context.structural_skeleton)
         ):
@@ -3759,7 +3760,7 @@ def _walk_complete_candidate_payloads(
             payload["_structural_skeleton"] = context.structural_skeleton.to_dict()
             payload["_search_phase"] = context.search_phase
             if main_process_skeleton is not None:
-                payload["_main_process_skeleton"] = main_process_skeleton.to_dict()
+                payload["_main_process_skeleton"] = main_process_skeleton.to_evaluation_dict()
             yield payload
             return
         code = context.placement_zone_order[index]
@@ -3869,12 +3870,14 @@ def _walk_complete_candidate_payloads(
         # process geometries before spending any nodes on support/personnel.
         # This prevents the first seed's tail DFS from starving other skeleton
         # topologies and makes the search order skeleton-first, then tail.
-        skeleton_seeds = tuple(_construct_main_process_skeletons(context, stats))
+        discovery_context = context
+        skeleton_seeds = tuple(_construct_main_process_skeletons(discovery_context, stats))
         if not skeleton_seeds:
             # No incomplete skeleton may be extended by the general zone DFS:
             # that would reverse the skeleton-first authority boundary.
             return
         for seed_index, seed in enumerate(skeleton_seeds):
+            context = _canonical_tail_search_context(discovery_context, seed)
             placed.update({row.zone_code: row for row in seed.zone_rectangles})
             if len(placed) != len(MAIN_PROCESS_ZONE_CODES):
                 raise _error("MAIN_PROCESS_SKELETON_ZONE_SET_INVALID")
@@ -3897,6 +3900,11 @@ def _walk_complete_candidate_payloads(
                 {
                     "topology": seed.topology,
                     "skeleton_hash": seed.main_process_skeleton_hash,
+                    "discovery_topology": seed.discovery_topology,
+                    "canonical_topology_owner": seed.canonical_topology_owner,
+                    "discovery_family": (seed.discovery_family or seed.family).to_dict(),
+                    "canonical_family": seed.family.to_dict(),
+                    "tail_search_started_by_topology": seed.discovery_topology,
                     "construction_nodes": (stats.construction_nodes_by_skeleton or {}).get(
                         seed.main_process_skeleton_hash, 0
                     ),
@@ -3917,6 +3925,7 @@ def _walk_complete_candidate_payloads(
             )
             active_skeleton_node_limit = None
             placed.clear()
+            context = discovery_context
             if stats.node_budget_exhausted:
                 return
     else:
@@ -3969,6 +3978,8 @@ class PlacementCandidateEnumerationV1:
         self._structural_flags: dict[str, bool] = {}
         self._candidate_skeleton_hashes: dict[str, str | None] = {}
         self._candidate_topologies: dict[str, str] = {}
+        self._candidate_families: dict[str, StructuralCompositionFamilyV1] = {}
+        self._candidate_discovery_topologies: dict[str, str] = {}
 
     def iter_candidates(self) -> Iterator[SitePlacementResultV1]:
         if self._started:
@@ -4001,6 +4012,29 @@ class PlacementCandidateEnumerationV1:
                     else self._context.structural_topology
                 )
                 self._candidate_topologies[candidate_hash] = str(topology)
+                family_body = (
+                    internal_skeleton.get("family")
+                    if isinstance(internal_skeleton, Mapping)
+                    else None
+                )
+                if isinstance(family_body, Mapping):
+                    family_name = family_body.get("family")
+                    axis = family_body.get("dominant_axis")
+                    direction = family_body.get("dominant_direction")
+                    reason = family_body.get("generation_reason")
+                    if all(
+                        isinstance(value, str) for value in (family_name, axis, direction, reason)
+                    ):
+                        self._candidate_families[candidate_hash] = StructuralCompositionFamilyV1(
+                            str(family_name), str(axis), str(direction), str(reason)
+                        )
+                discovery_topology = (
+                    internal_skeleton.get("discovery_topology")
+                    if isinstance(internal_skeleton, Mapping)
+                    else None
+                )
+                if isinstance(discovery_topology, str):
+                    self._candidate_discovery_topologies[candidate_hash] = discovery_topology
             yield candidate
 
     @property
@@ -4053,6 +4087,9 @@ class PlacementCandidateEnumerationV1:
             "construction_search_truncated": self._stats.skeleton_search_truncated,
             "_r6_topology_ownership_duplicates": list(
                 self._stats.topology_ownership_duplicates or []
+            ),
+            "_r7_geometry_evaluation_admissions": list(
+                self._stats.geometry_evaluation_admissions or []
             ),
             "_r6_offset_transition_trace": list(self._stats.offset_transition_trace or []),
             "_r6_constructive_divergence_attempts": list(
@@ -4118,6 +4155,14 @@ class PlacementCandidateEnumerationV1:
 
     def candidate_topology(self, candidate_hash: str) -> str | None:
         return self._candidate_topologies.get(candidate_hash)
+
+    def candidate_structural_family(
+        self, candidate_hash: str
+    ) -> StructuralCompositionFamilyV1 | None:
+        return self._candidate_families.get(candidate_hash)
+
+    def candidate_discovery_topology(self, candidate_hash: str) -> str | None:
+        return self._candidate_discovery_topologies.get(candidate_hash)
 
 
 def enumerate_placement_candidates(
