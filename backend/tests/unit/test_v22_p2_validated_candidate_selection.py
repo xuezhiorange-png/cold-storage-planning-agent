@@ -40,21 +40,75 @@ class _FakeCandidateStream:
             "UNRESOLVED",
             "SYNTHETIC_SELECTOR_TEST",
         )
+        self._cursor = 0
+        self._candidate_quantum_progress = 0
+        self._node_count = 0
+        self.skeleton_generation_report: dict[str, Any] = {}
 
     def iter_candidates(self):
         yield from self._candidates
 
+    def advance_quantum(self, node_limit: int) -> Any:
+        from types import SimpleNamespace
+
+        if self._cursor >= len(self._candidates):
+            return SimpleNamespace(
+                candidates=(),
+                nodes_visited=0,
+                status="SEARCH_EXHAUSTED",
+                work_item={"cursor": self._cursor},
+                search_exhausted=self.search_tree_exhausted,
+                completed=True,
+            )
+        nodes_visited = min(13 - self._candidate_quantum_progress, node_limit)
+        self._candidate_quantum_progress += nodes_visited
+        self._node_count += nodes_visited
+        self.skeleton_generation_report["construction_node_count"] = self._node_count
+        if self._candidate_quantum_progress < 13:
+            return SimpleNamespace(
+                candidates=(),
+                nodes_visited=nodes_visited,
+                status="QUANTUM_EXHAUSTED",
+                work_item={"cursor": self._cursor},
+                search_exhausted=False,
+                completed=False,
+            )
+        candidate = self._candidates[self._cursor]
+        self._cursor += 1
+        self._candidate_quantum_progress = 0
+        completed = self._cursor == len(self._candidates)
+        return SimpleNamespace(
+            candidates=(candidate,),
+            nodes_visited=nodes_visited,
+            status="SEARCH_EXHAUSTED" if completed else "QUANTUM_EXHAUSTED",
+            work_item={"cursor": self._cursor},
+            search_exhausted=completed and bool(self._provenance["search_tree_exhausted"]),
+            completed=completed,
+        )
+
     @property
     def candidate_count(self) -> int:
-        return len(self._candidates)
+        return self._cursor
+
+    @property
+    def distinct_main_process_skeleton_count(self) -> int:
+        return 0
+
+    @property
+    def distinct_structural_core_root_count(self) -> int:
+        return 0
 
     @property
     def visited_node_count(self) -> int:
-        return 13 * len(self._candidates)
+        return self._node_count
 
     @property
     def search_tree_exhausted(self) -> bool:
-        return True
+        return self.completed and bool(self._provenance["search_tree_exhausted"])
+
+    @property
+    def completed(self) -> bool:
+        return self._cursor >= len(self._candidates)
 
     @property
     def node_budget_exhausted(self) -> bool:
@@ -401,6 +455,95 @@ def test_selector_enumerates_both_linear_directions_and_central_hub(monkeypatch)
     }
     assert len(seen) == 3
     assert result.internal_evaluation["distinct_full_pass_family_count"] == 3
+
+
+def test_multi_round_scheduler_preserves_fair_lane_coverage_without_stranding_budget(
+    monkeypatch,
+) -> None:
+    lanes = (
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "Y", "POSITIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "Y", "NEGATIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(CENTRAL_PROCESS_HUB, "Y", "UNRESOLVED", "LANE_TEST"),
+    )
+    monkeypatch.setattr(selection, "composition_family_candidates", lambda _site: lanes)
+    monkeypatch.setattr(
+        selection,
+        "enumerate_placement_candidates",
+        lambda *_args, structural_family, **_kwargs: _FakeCandidateStream(
+            [
+                _candidate(
+                    f"{structural_family.family}-{structural_family.dominant_direction}-1", 0
+                ),
+                _candidate(
+                    f"{structural_family.family}-{structural_family.dominant_direction}-2", 0
+                ),
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        selection,
+        "build_structural_quality_facts",
+        lambda *_args, **_kwargs: StructuralQualityFactsV1("{}", (1,)),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=True, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(
+        zone_plan, handoff, geometry, placement_node_budget=120
+    )
+    accounting = result.internal_evaluation["r6_topology_diagnostics"]["r11_budget_accounting"]
+    queue = result.internal_evaluation["r6_topology_diagnostics"]["r11_work_queue"]
+
+    assert accounting["global_nodes_visited"] == 78
+    assert accounting["global_nodes_remaining"] == 42
+    assert accounting["work_round_count"] == 2
+    assert accounting["active_work_item_count"] == 0
+    assert accounting["truncated_active_work_item_count"] == 0
+    assert accounting["unused_global_nodes_with_active_truncated_work"] == 0
+    assert [row["round"] for row in queue] == [1, 1, 1, 2, 2, 2]
+    assert len({row["topology"] for row in queue[:3]}) == 3
+
+
+def test_global_budget_exhaustion_never_reports_stranded_unused_nodes(monkeypatch) -> None:
+    lanes = (
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "Y", "POSITIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "Y", "NEGATIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(CENTRAL_PROCESS_HUB, "Y", "UNRESOLVED", "LANE_TEST"),
+    )
+    monkeypatch.setattr(selection, "composition_family_candidates", lambda _site: lanes)
+    monkeypatch.setattr(
+        selection,
+        "enumerate_placement_candidates",
+        lambda *_args, structural_family, **_kwargs: _FakeCandidateStream(
+            [
+                _candidate(
+                    f"{structural_family.family}-{structural_family.dominant_direction}-{i}", 0
+                )
+                for i in range(1, 5)
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=False, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(
+        zone_plan, handoff, geometry, placement_node_budget=30
+    )
+    accounting = result.internal_evaluation["r6_topology_diagnostics"]["r11_budget_accounting"]
+
+    assert accounting["global_nodes_visited"] == 30
+    assert accounting["global_nodes_remaining"] == 0
+    assert accounting["truncated_active_work_item_count"] > 0
+    assert accounting["unused_global_nodes_with_active_truncated_work"] == 0
+    assert accounting["early_stop_reason"] == "GLOBAL_PLACEMENT_NODE_BUDGET_EXHAUSTED"
 
 
 def test_internal_explanation_reports_first_decisive_structural_component(monkeypatch) -> None:

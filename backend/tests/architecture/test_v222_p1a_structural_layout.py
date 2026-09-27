@@ -66,10 +66,33 @@ def test_structural_search_has_group_band_zone_and_three_required_family_lanes()
     assert MAIN_PROCESS_ZONE_CODES[-1] == "shipping_channel"
     selector = _source("application/validated_candidate_selection.py")
     assert '"STAGED_COVERAGE_THEN_PREFERENCE"' in selector
-    assert "for lane_position, lane_index in enumerate(lane_order)" in selector
-    assert "divmod(global_node_budget_remaining, lanes_left)" in selector
-    assert 'global_node_budget_remaining -= lane_report["visited_nodes"]' in selector
+    assert "while active_states and global_node_budget_remaining > 0" in selector
+    assert "advance_quantum(quantum_limit)" in selector
+    assert "PLACEMENT_SEARCH_QUANTUM_NODES" in selector
+    assert "global_node_budget_remaining -= visited" in selector
+    assert "for lane_position, lane_index in enumerate(lane_order)" not in selector
+    assert "divmod(global_node_budget_remaining, lanes_left)" not in selector
     assert "GENERAL_FALLBACK_PHASE" in selector
+
+
+def test_r11_scheduler_is_resumable_and_does_not_publish_internal_queue() -> None:
+    selector = _source("application/validated_candidate_selection.py")
+    placement = _source("domain/placement.py")
+    public_projection = selector[
+        selector.index("def _selection_provenance(") : selector.index("def _record_is_better(")
+    ]
+
+    assert (
+        "self._iterator = _walk_complete_candidate_payloads(self._context, self._stats)"
+        in placement
+    )
+    assert "def advance_quantum(self, node_limit: int)" in placement
+    assert '"QUANTUM_EXHAUSTED"' in placement
+    assert "GLOBAL_PLACEMENT_NODE_BUDGET_EXHAUSTED" in selector
+    assert '"r11_work_queue"' in selector
+    assert '"r11_scheduler_trace"' in selector
+    assert '"r11_work_queue"' not in public_projection
+    assert '"r11_scheduler_trace"' not in public_projection
 
 
 def test_r5_staged_topology_coverage_is_bounded_and_xinzhao_result_is_partial() -> None:
@@ -118,14 +141,15 @@ def test_constructed_skeleton_is_canonicalized_before_tail_search() -> None:
     constructor = placement_source.index("def _construct_main_process_skeletons(")
     walker = placement_source.index("def _walk_complete_candidate_payloads(")
     skeleton_seed = placement_source.index(
-        "skeleton_seeds = tuple(_construct_main_process_skeletons(discovery_context, stats))",
+        "for seed_or_quantum in _construct_main_process_skeletons(discovery_context, stats):",
         walker,
     )
     canonicalize_tail = placement_source.index(
         "context = _canonical_tail_search_context(discovery_context, seed)", skeleton_seed
     )
     tail_walk = placement_source.index(
-        "yield from visit(len(MAIN_PROCESS_ZONE_CODES), True, seed)", canonicalize_tail
+        "for tail_event in visit(len(MAIN_PROCESS_ZONE_CODES), True, seed):",
+        canonicalize_tail,
     )
     assert constructor < walker < skeleton_seed < canonicalize_tail < tail_walk
     assert "canonicalize_main_process_skeleton_for_evaluation" in placement_source

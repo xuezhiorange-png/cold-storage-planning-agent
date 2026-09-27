@@ -101,16 +101,15 @@ MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE: Final = 15
 CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT: Final = 2
 STRUCTURED_SKELETON_CONSTRUCTION_SHARE_NUMERATOR: Final = 1
 STRUCTURED_SKELETON_CONSTRUCTION_SHARE_DENOMINATOR: Final = 2
-# R6 exact traces show the existing 20-node half-share reaches Offset's
-# topology transition but truncates before the seven-zone seed closes, and
-# lets the first Hub face pair consume the lane before ownership duplicates
-# can be skipped. Keep the global lane budget fixed while reserving 30/40
-# nodes for these alternative constructive topologies; Straight retains the
-# historical half-share because its known seed closes within that allowance.
+# Construction-share values are scheduler quantum ceilings, not lifetime
+# search termination limits. Each topology keeps its generator continuation.
 ALTERNATIVE_TOPOLOGY_CONSTRUCTION_SHARE_NUMERATOR: Final = 3
 ALTERNATIVE_TOPOLOGY_CONSTRUCTION_SHARE_DENOMINATOR: Final = 4
 CONSTRUCTIVE_FACE_PAIR_NODE_BUDGET: Final = 20
 CONSTRUCTIVE_SORTING_ROOT_NODE_BUDGET: Final = 16
+# A scheduler turn is a bounded fairness quantum. Its generator remains alive
+# after yielding, so reaching this limit never declares the search exhausted.
+PLACEMENT_SEARCH_QUANTUM_NODES: Final = CONSTRUCTIVE_SORTING_ROOT_NODE_BUDGET
 _CARDINAL_SIDES: Final = ("WEST", "EAST", "SOUTH", "NORTH")
 _OPPOSITE_SIDE: Final = {"WEST": "EAST", "EAST": "WEST", "SOUTH": "NORTH", "NORTH": "SOUTH"}
 
@@ -2347,6 +2346,41 @@ class _PlacementSearchStats:
     geometry_evaluation_admissions: list[dict[str, Any]] | None = None
     tail_slot_preflight_rows: list[dict[str, Any]] | None = None
     cross_topology_duplicate_count: int = 0
+    quantum_node_limit: int | None = None
+    quantum_nodes_visited: int = 0
+    current_work_item: dict[str, Any] | None = None
+    normal_stop_reason: str | None = None
+    construction_node_count: int = 0
+
+
+@dataclass(frozen=True)
+class _SearchQuantumYield:
+    """Internal cooperative yield; the owning generator remains resumable."""
+
+    work_item: Mapping[str, Any] | None
+
+
+@dataclass(frozen=True)
+class PlacementCandidateQuantumAdvanceV1:
+    """One bounded advance of a persistent P2C candidate stream."""
+
+    candidates: tuple[SitePlacementResultV1, ...]
+    nodes_visited: int
+    status: str
+    work_item: Mapping[str, Any] | None
+    search_exhausted: bool
+    completed: bool
+
+
+def _quantum_checkpoint(stats: _PlacementSearchStats) -> _SearchQuantumYield | None:
+    if stats.quantum_node_limit is None:
+        return None
+    stats.quantum_nodes_visited += 1
+    if stats.quantum_nodes_visited < stats.quantum_node_limit:
+        return None
+    stats.quantum_nodes_visited = 0
+    work_item = dict(stats.current_work_item) if stats.current_work_item is not None else None
+    return _SearchQuantumYield(work_item)
 
 
 def _validated_search_context(
@@ -3070,7 +3104,7 @@ def _construct_face_skeletons(
     skeleton_node_limit: int,
     skeleton_limit: int,
     offset_direction: str | None = None,
-) -> Iterator[MainProcessSkeletonCandidateV1]:
+) -> Iterator[MainProcessSkeletonCandidateV1 | _SearchQuantumYield]:
     """Construct one complete seven-zone skeleton for one core topology.
 
     Shipping-interface alternatives are deliberately not allowed to consume
@@ -3089,10 +3123,23 @@ def _construct_face_skeletons(
         stats=stats,
     )
     for primary in primary_options:
-        if stats.visited_nodes >= skeleton_node_limit:
+        if stats.visited_nodes >= context.node_budget:
+            stats.node_budget_exhausted = True
             stats.skeleton_search_truncated = True
             return
+        stats.current_work_item = {
+            "topology": context.structural_topology,
+            "sorting_root_mm": list(sorting.bounds_mm),
+            "raw_side": raw_side,
+            "finished_side": finished_side,
+            "offset_direction": offset_direction,
+            "branch": "PRIMARY",
+        }
         stats.visited_nodes += 1
+        stats.construction_node_count += 1
+        quantum = _quantum_checkpoint(stats)
+        if quantum is not None:
+            yield quantum
         placed["primary_precooling_room"] = primary
         raw_options = _constructive_edge_options(
             context,
@@ -3112,10 +3159,23 @@ def _construct_face_skeletons(
             stats=stats,
         )
         for raw in raw_options:
-            if stats.visited_nodes >= skeleton_node_limit:
+            if stats.visited_nodes >= context.node_budget:
+                stats.node_budget_exhausted = True
                 stats.skeleton_search_truncated = True
                 return
+            stats.current_work_item = {
+                "topology": context.structural_topology,
+                "sorting_root_mm": list(sorting.bounds_mm),
+                "raw_side": raw_side,
+                "finished_side": finished_side,
+                "offset_direction": offset_direction,
+                "branch": "RAW",
+            }
             stats.visited_nodes += 1
+            stats.construction_node_count += 1
+            quantum = _quantum_checkpoint(stats)
+            if quantum is not None:
+                yield quantum
             placed["raw_fruit_buffer"] = raw
             secondary_options = _constructive_edge_options(
                 context,
@@ -3143,10 +3203,23 @@ def _construct_face_skeletons(
                 if not secondary_options:
                     _record_rejection(stats, "OFFSET_TRANSITION_UNAVAILABLE")
             for secondary in secondary_options:
-                if stats.visited_nodes >= skeleton_node_limit:
+                if stats.visited_nodes >= context.node_budget:
+                    stats.node_budget_exhausted = True
                     stats.skeleton_search_truncated = True
                     return
+                stats.current_work_item = {
+                    "topology": context.structural_topology,
+                    "sorting_root_mm": list(sorting.bounds_mm),
+                    "raw_side": raw_side,
+                    "finished_side": finished_side,
+                    "offset_direction": offset_direction,
+                    "branch": "SECONDARY",
+                }
                 stats.visited_nodes += 1
+                stats.construction_node_count += 1
+                quantum = _quantum_checkpoint(stats)
+                if quantum is not None:
+                    yield quantum
                 placed["secondary_precooling_room"] = secondary
                 coating_options = _constructive_edge_options(
                     context,
@@ -3157,10 +3230,23 @@ def _construct_face_skeletons(
                     stats=stats,
                 )
                 for coating in coating_options:
-                    if stats.visited_nodes >= skeleton_node_limit:
+                    if stats.visited_nodes >= context.node_budget:
+                        stats.node_budget_exhausted = True
                         stats.skeleton_search_truncated = True
                         return
+                    stats.current_work_item = {
+                        "topology": context.structural_topology,
+                        "sorting_root_mm": list(sorting.bounds_mm),
+                        "raw_side": raw_side,
+                        "finished_side": finished_side,
+                        "offset_direction": offset_direction,
+                        "branch": "COATING",
+                    }
                     stats.visited_nodes += 1
+                    stats.construction_node_count += 1
+                    quantum = _quantum_checkpoint(stats)
+                    if quantum is not None:
+                        yield quantum
                     placed["coating_room"] = coating
                     finished_options = _constructive_edge_options(
                         context,
@@ -3175,10 +3261,23 @@ def _construct_face_skeletons(
                         stats=stats,
                     )
                     for finished in finished_options:
-                        if stats.visited_nodes >= skeleton_node_limit:
+                        if stats.visited_nodes >= context.node_budget:
+                            stats.node_budget_exhausted = True
                             stats.skeleton_search_truncated = True
                             return
+                        stats.current_work_item = {
+                            "topology": context.structural_topology,
+                            "sorting_root_mm": list(sorting.bounds_mm),
+                            "raw_side": raw_side,
+                            "finished_side": finished_side,
+                            "offset_direction": offset_direction,
+                            "branch": "FINISHED",
+                        }
                         stats.visited_nodes += 1
+                        stats.construction_node_count += 1
+                        quantum = _quantum_checkpoint(stats)
+                        if quantum is not None:
+                            yield quantum
                         placed["finished_goods_room"] = finished
                         shipping_options = _constructive_edge_options(
                             context,
@@ -3191,10 +3290,23 @@ def _construct_face_skeletons(
                         if not shipping_options:
                             _record_rejection(stats, "SHIPPING_INTERFACE_FAIL")
                         for shipping in shipping_options:
-                            if stats.visited_nodes >= skeleton_node_limit:
+                            if stats.visited_nodes >= context.node_budget:
+                                stats.node_budget_exhausted = True
                                 stats.skeleton_search_truncated = True
                                 return
+                            stats.current_work_item = {
+                                "topology": context.structural_topology,
+                                "sorting_root_mm": list(sorting.bounds_mm),
+                                "raw_side": raw_side,
+                                "finished_side": finished_side,
+                                "offset_direction": offset_direction,
+                                "branch": "SHIPPING",
+                            }
                             stats.visited_nodes += 1
+                            stats.construction_node_count += 1
+                            quantum = _quantum_checkpoint(stats)
+                            if quantum is not None:
+                                yield quantum
                             placed["shipping_channel"] = shipping
                             if set(placed) != set(MAIN_PROCESS_ZONE_CODES):
                                 _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
@@ -3601,7 +3713,7 @@ def _construct_face_skeletons(
 def _construct_main_process_skeletons(
     context: _PlacementSearchContext,
     stats: _PlacementSearchStats,
-) -> Iterator[MainProcessSkeletonCandidateV1]:
+) -> Iterator[MainProcessSkeletonCandidateV1 | _SearchQuantumYield]:
     """Build full seven-zone candidates before any support/personnel search."""
     skeleton_completion_limit = min(
         CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT,
@@ -3616,25 +3728,6 @@ def _construct_main_process_skeletons(
     roots = _constructive_sorting_roots(context, stats)
     emitted = 0
     previous_seed_node = 0
-    skeleton_node_limit = min(
-        context.node_budget,
-        max(
-            MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE,
-            (
-                context.node_budget
-                * (
-                    ALTERNATIVE_TOPOLOGY_CONSTRUCTION_SHARE_NUMERATOR
-                    if context.structural_topology in {OFFSET_LINEAR_BAND, CENTRAL_PROCESS_HUB}
-                    else STRUCTURED_SKELETON_CONSTRUCTION_SHARE_NUMERATOR
-                )
-            )
-            // (
-                ALTERNATIVE_TOPOLOGY_CONSTRUCTION_SHARE_DENOMINATOR
-                if context.structural_topology in {OFFSET_LINEAR_BAND, CENTRAL_PROCESS_HUB}
-                else STRUCTURED_SKELETON_CONSTRUCTION_SHARE_DENOMINATOR
-            ),
-        ),
-    )
     if stats.constructive_divergence_attempts is None:
         stats.constructive_divergence_attempts = []
     directions: tuple[str | None, ...] = (
@@ -3665,29 +3758,32 @@ def _construct_main_process_skeletons(
     )
     for face_pair_index, (raw_side, finished_side, offset_direction) in enumerate(attempts):
         if emitted >= skeleton_completion_limit:
+            stats.normal_stop_reason = "TAIL_ADMISSIBLE_SKELETON_COMPLETION_LIMIT"
             return
-        remaining_face_pairs = len(attempts) - face_pair_index
-        remaining_construction_nodes = max(0, skeleton_node_limit - stats.visited_nodes)
-        even_face_pair_share = (
-            remaining_construction_nodes + remaining_face_pairs - 1
-        ) // remaining_face_pairs
-        face_pair_allowance = min(
-            remaining_construction_nodes,
-            max(CONSTRUCTIVE_FACE_PAIR_NODE_BUDGET, even_face_pair_share),
-        )
-        face_pair_node_limit = min(
-            skeleton_node_limit,
-            stats.visited_nodes + face_pair_allowance,
-        )
         for sorting in roots:
-            if stats.visited_nodes >= face_pair_node_limit:
+            if stats.visited_nodes >= context.node_budget:
+                stats.node_budget_exhausted = True
                 stats.skeleton_search_truncated = True
-                break
+                return
+            stats.current_work_item = {
+                "topology": context.structural_topology,
+                "family": context.structural_composition_family.to_dict(),
+                "axis": context.structural_composition_family.dominant_axis,
+                "direction": context.structural_composition_family.dominant_direction,
+                "sorting_root_mm": list(sorting.bounds_mm),
+                "raw_side": raw_side,
+                "finished_side": finished_side,
+                "offset_direction": offset_direction,
+                "branch": "SORTING_ROOT",
+                "face_pair_index": face_pair_index,
+            }
             stats.visited_nodes += 1
-            sorting_root_node_limit = min(
-                face_pair_node_limit,
-                stats.visited_nodes + CONSTRUCTIVE_SORTING_ROOT_NODE_BUDGET,
-            )
+            stats.construction_node_count += 1
+            quantum = _quantum_checkpoint(stats)
+            if quantum is not None:
+                yield quantum
+            face_pair_node_quantum = CONSTRUCTIVE_FACE_PAIR_NODE_BUDGET
+            sorting_root_node_quantum = CONSTRUCTIVE_SORTING_ROOT_NODE_BUDGET
             emitted_for_face = 0
             rejection_counts_before = dict(stats.rejection_reason_counts or {})
             attempt_skeleton_hashes: list[str] = []
@@ -3698,10 +3794,13 @@ def _construct_main_process_skeletons(
                 sorting,
                 raw_side,
                 finished_side,
-                sorting_root_node_limit,
+                context.node_budget,
                 skeleton_limit=max(1, skeleton_completion_limit - emitted),
                 offset_direction=offset_direction,
             ):
+                if isinstance(seed, _SearchQuantumYield):
+                    yield seed
+                    continue
                 if seed.main_process_skeleton_hash in stats.constructed_main_skeletons:
                     _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
                     continue
@@ -3720,6 +3819,7 @@ def _construct_main_process_skeletons(
                 emitted_for_face += 1
                 yield seed
                 if emitted >= skeleton_completion_limit:
+                    stats.normal_stop_reason = "TAIL_ADMISSIBLE_SKELETON_COMPLETION_LIMIT"
                     stats.skeleton_construction_attempts.append(
                         {
                             "topology": context.structural_topology,
@@ -3730,13 +3830,15 @@ def _construct_main_process_skeletons(
                             "sorting_root_mm": list(sorting.bounds_mm),
                             "result": "SKELETON_CONSTRUCTED",
                             "skeleton_hashes": attempt_skeleton_hashes,
-                            "face_pair_node_limit": face_pair_node_limit,
-                            "sorting_root_node_limit": sorting_root_node_limit,
+                            "face_pair_node_quantum": face_pair_node_quantum,
+                            "sorting_root_node_quantum": sorting_root_node_quantum,
                             "search_truncated": False,
                             "visited_node_delta": stats.visited_nodes - attempt_node_start,
                         }
                     )
                     return
+            if stats.node_budget_exhausted:
+                return
             rejection_counts_after = stats.rejection_reason_counts or {}
             stats.skeleton_construction_attempts.append(
                 {
@@ -3746,15 +3848,14 @@ def _construct_main_process_skeletons(
                     "raw_side": raw_side,
                     "finished_side": finished_side,
                     "sorting_root_mm": list(sorting.bounds_mm),
-                    "result": "SKELETON_CONSTRUCTED"
+                    "result": "TRUNCATED"
+                    if stats.node_budget_exhausted
+                    else "SKELETON_CONSTRUCTED"
                     if attempt_skeleton_hashes
-                    else "TRUNCATED"
-                    if stats.visited_nodes >= sorting_root_node_limit
                     else "REJECTED",
-                    "face_pair_node_limit": face_pair_node_limit,
-                    "sorting_root_node_limit": sorting_root_node_limit,
-                    "search_truncated": stats.visited_nodes >= sorting_root_node_limit
-                    and not attempt_skeleton_hashes,
+                    "face_pair_node_quantum": face_pair_node_quantum,
+                    "sorting_root_node_quantum": sorting_root_node_quantum,
+                    "search_truncated": stats.node_budget_exhausted,
                     "skeleton_hashes": attempt_skeleton_hashes,
                     "rejection_reason_counts": {
                         reason: rejection_counts_after.get(reason, 0) - count
@@ -3814,7 +3915,7 @@ def _canonical_tail_search_context(
 
 def _walk_complete_candidate_payloads(
     context: _PlacementSearchContext, stats: _PlacementSearchStats
-) -> Iterator[dict[str, Any]]:
+) -> Iterator[dict[str, Any] | _SearchQuantumYield]:
     """Yield every complete P2C candidate until the node budget is exhausted."""
     placed: dict[str, PlacedRectangleV1] = {}
     truck_entrance = _truck_segment(context.site_body)
@@ -3857,21 +3958,11 @@ def _walk_complete_candidate_payloads(
             }
         )
 
-    active_skeleton_node_limit: int | None = None
-    active_skeleton_budget_exhausted = False
-
     def visit(
         index: int,
         structurally_generated: bool,
         main_process_skeleton: MainProcessSkeletonCandidateV1 | None = None,
-    ) -> Iterator[dict[str, Any]]:
-        nonlocal active_skeleton_budget_exhausted
-        if (
-            active_skeleton_node_limit is not None
-            and stats.visited_nodes >= active_skeleton_node_limit
-        ):
-            active_skeleton_budget_exhausted = True
-            return
+    ) -> Iterator[dict[str, Any] | _SearchQuantumYield]:
         root_signature = core_root_signature()
         if (
             context.search_phase == STRUCTURED_PHASE
@@ -3892,6 +3983,18 @@ def _walk_complete_candidate_payloads(
             stats.node_budget_exhausted = True
             return
         stats.visited_nodes += 1
+        stats.current_work_item = {
+            "topology": context.structural_topology,
+            "skeleton_hash": (
+                main_process_skeleton.main_process_skeleton_hash
+                if main_process_skeleton is not None
+                else None
+            ),
+            "zone_code": context.placement_zone_order[index]
+            if index < len(context.placement_zone_order)
+            else None,
+            "branch": "TAIL" if main_process_skeleton is not None else "GENERAL",
+        }
         if main_process_skeleton is not None:
             if stats.tail_nodes_by_skeleton is None:
                 stats.tail_nodes_by_skeleton = {}
@@ -3899,6 +4002,9 @@ def _walk_complete_candidate_payloads(
             stats.tail_nodes_by_skeleton[skeleton_hash] = (
                 stats.tail_nodes_by_skeleton.get(skeleton_hash, 0) + 1
             )
+        quantum = _quantum_checkpoint(stats)
+        if quantum is not None:
+            yield quantum
         # Constructed main-process skeletons have already passed their
         # discovery-topology construction predicates and exact canonical
         # classification. Reapplying this lane-oriented proxy after family
@@ -4050,7 +4156,7 @@ def _walk_complete_candidate_payloads(
                 main_process_skeleton,
             )
             placed.pop(code)
-            if stats.node_budget_exhausted or active_skeleton_budget_exhausted:
+            if stats.node_budget_exhausted:
                 return
 
     if context.search_phase == STRUCTURED_PHASE:
@@ -4059,59 +4165,74 @@ def _walk_complete_candidate_payloads(
         # This prevents the first seed's tail DFS from starving other skeleton
         # topologies and makes the search order skeleton-first, then tail.
         discovery_context = context
-        skeleton_seeds = tuple(_construct_main_process_skeletons(discovery_context, stats))
+        skeleton_seeds: list[MainProcessSkeletonCandidateV1] = []
+        for seed_or_quantum in _construct_main_process_skeletons(discovery_context, stats):
+            if isinstance(seed_or_quantum, _SearchQuantumYield):
+                yield seed_or_quantum
+                continue
+            skeleton_seeds.append(seed_or_quantum)
+            if stats.node_budget_exhausted:
+                break
         if not skeleton_seeds:
             # No incomplete skeleton may be extended by the general zone DFS:
             # that would reverse the skeleton-first authority boundary.
             return
-        for seed_index, seed in enumerate(skeleton_seeds):
+        for seed in skeleton_seeds:
             context = _canonical_tail_search_context(discovery_context, seed)
             placed.update({row.zone_code: row for row in seed.zone_rectangles})
             if len(placed) != len(MAIN_PROCESS_ZONE_CODES):
                 raise _error("MAIN_PROCESS_SKELETON_ZONE_SET_INVALID")
-            active_skeleton_budget_exhausted = False
-            remaining_seed_count = len(skeleton_seeds) - seed_index
-            remaining_nodes = max(0, context.node_budget - stats.visited_nodes)
-            tail_node_share = remaining_nodes // remaining_seed_count
-            active_skeleton_node_limit = min(
-                context.node_budget,
-                stats.visited_nodes + tail_node_share,
-            )
-            tail_node_limit = max(0, active_skeleton_node_limit - stats.visited_nodes)
+            tail_node_limit = max(0, context.node_budget - stats.visited_nodes)
             tail_start_node = stats.visited_nodes
             complete_start_count = stats.complete_candidates
-            yield from visit(len(MAIN_PROCESS_ZONE_CODES), True, seed)
-            complete_count = stats.complete_candidates - complete_start_count
+            lifecycle_row = {
+                "topology": seed.topology,
+                "skeleton_hash": seed.main_process_skeleton_hash,
+                "discovery_topology": seed.discovery_topology,
+                "canonical_topology_owner": seed.canonical_topology_owner,
+                "discovery_family": (seed.discovery_family or seed.family).to_dict(),
+                "canonical_family": seed.family.to_dict(),
+                "tail_search_started_by_topology": seed.discovery_topology,
+                "construction_nodes": (stats.construction_nodes_by_skeleton or {}).get(
+                    seed.main_process_skeleton_hash, 0
+                ),
+                "tail_nodes": 0,
+                "tail_node_limit": tail_node_limit,
+                "complete_candidate_count": 0,
+                "p2d_reached": False,
+                "p2d_full_pass_count": 0,
+                "search_status": "ACTIVE",
+                "first_failure_stage": None,
+                "first_failure_reason": None,
+            }
             if stats.skeleton_tail_lifecycle is None:
                 stats.skeleton_tail_lifecycle = []
-            stats.skeleton_tail_lifecycle.append(
-                {
-                    "topology": seed.topology,
-                    "skeleton_hash": seed.main_process_skeleton_hash,
-                    "discovery_topology": seed.discovery_topology,
-                    "canonical_topology_owner": seed.canonical_topology_owner,
-                    "discovery_family": (seed.discovery_family or seed.family).to_dict(),
-                    "canonical_family": seed.family.to_dict(),
-                    "tail_search_started_by_topology": seed.discovery_topology,
-                    "construction_nodes": (stats.construction_nodes_by_skeleton or {}).get(
-                        seed.main_process_skeleton_hash, 0
-                    ),
-                    "tail_nodes": stats.visited_nodes - tail_start_node,
-                    "tail_node_limit": tail_node_limit,
-                    "complete_candidate_count": complete_count,
-                    "p2d_reached": complete_count > 0,
-                    "p2d_full_pass_count": 0,
-                    "first_failure_stage": "TAIL_SEARCH" if complete_count == 0 else None,
-                    "first_failure_reason": (
-                        "TAIL_NODE_SHARE_EXHAUSTED_WITHOUT_COMPLETE_P2C_CANDIDATE"
-                    )
-                    if complete_count == 0 and active_skeleton_budget_exhausted
-                    else "TAIL_SEARCH_COMPLETED_WITHOUT_COMPLETE_P2C_CANDIDATE"
-                    if complete_count == 0
-                    else None,
-                }
+            stats.skeleton_tail_lifecycle.append(lifecycle_row)
+            for tail_event in visit(len(MAIN_PROCESS_ZONE_CODES), True, seed):
+                complete_count_so_far = stats.complete_candidates - complete_start_count
+                lifecycle_row["tail_nodes"] = stats.visited_nodes - tail_start_node
+                lifecycle_row["complete_candidate_count"] = complete_count_so_far
+                lifecycle_row["p2d_reached"] = complete_count_so_far > 0
+                if isinstance(tail_event, _SearchQuantumYield):
+                    lifecycle_row["search_status"] = "QUANTUM_EXHAUSTED"
+                    yield tail_event
+                else:
+                    yield tail_event
+            complete_count = stats.complete_candidates - complete_start_count
+            lifecycle_row["tail_nodes"] = stats.visited_nodes - tail_start_node
+            lifecycle_row["complete_candidate_count"] = complete_count
+            lifecycle_row["p2d_reached"] = complete_count > 0
+            lifecycle_row["search_status"] = (
+                "SEARCH_EXHAUSTED" if not stats.node_budget_exhausted else "ACTIVE"
             )
-            active_skeleton_node_limit = None
+            if complete_count == 0 and stats.node_budget_exhausted:
+                lifecycle_row["first_failure_stage"] = "TAIL_SEARCH"
+                lifecycle_row["first_failure_reason"] = "GLOBAL_PLACEMENT_NODE_BUDGET_EXHAUSTED"
+            elif complete_count == 0:
+                lifecycle_row["first_failure_stage"] = "TAIL_SEARCH"
+                lifecycle_row["first_failure_reason"] = (
+                    "TAIL_SEARCH_COMPLETED_WITHOUT_COMPLETE_P2C_CANDIDATE"
+                )
             placed.clear()
             context = discovery_context
             if stats.node_budget_exhausted:
@@ -4150,12 +4271,10 @@ def _materialize_candidate_result(
 
 
 class PlacementCandidateEnumerationV1:
-    """One-shot deterministic stream of complete, P2C-ranked candidates.
+    """Deterministic P2C stream with an optional resumable quantum interface.
 
-    The stream retains no complete-candidate list.  Callers compare each
-    materialized candidate and may discard it before requesting the next one.
-    ``complete_candidate_limit`` is accepted for compatibility and evidence,
-    but never terminates this stream.
+    The same generator and its branch stack survive every ``advance_quantum``
+    call. No prefix is replayed when a scheduler gives the lane another turn.
     """
 
     def __init__(self, context: _PlacementSearchContext) -> None:
@@ -4168,62 +4287,130 @@ class PlacementCandidateEnumerationV1:
         self._candidate_topologies: dict[str, str] = {}
         self._candidate_families: dict[str, StructuralCompositionFamilyV1] = {}
         self._candidate_discovery_topologies: dict[str, str] = {}
+        self._iterator: Iterator[dict[str, Any] | _SearchQuantumYield] | None = None
+        self._quantum_mode = False
+
+    def _ensure_iterator(self) -> Iterator[dict[str, Any] | _SearchQuantumYield]:
+        if self._iterator is None:
+            self._iterator = _walk_complete_candidate_payloads(self._context, self._stats)
+        return self._iterator
+
+    def _materialize_payload(self, payload: Mapping[str, Any]) -> SitePlacementResultV1:
+        structural_flag = payload.get("_structural_generation_flag") is True
+        internal_skeleton = payload.get("_main_process_skeleton")
+        candidate = _materialize_candidate_result(payload)
+        candidate_hash = candidate.to_dict().get("canonical_candidate_hash")
+        if isinstance(candidate_hash, str):
+            self._structural_flags[candidate_hash] = structural_flag
+            skeleton_hash = (
+                internal_skeleton.get("main_process_skeleton_hash")
+                if isinstance(internal_skeleton, Mapping)
+                else None
+            )
+            self._candidate_skeleton_hashes[candidate_hash] = (
+                skeleton_hash if isinstance(skeleton_hash, str) else None
+            )
+            topology = (
+                internal_skeleton.get("topology")
+                if isinstance(internal_skeleton, Mapping)
+                else self._context.structural_topology
+            )
+            self._candidate_topologies[candidate_hash] = str(topology)
+            family_body = (
+                internal_skeleton.get("family") if isinstance(internal_skeleton, Mapping) else None
+            )
+            if isinstance(family_body, Mapping):
+                family_name = family_body.get("family")
+                axis = family_body.get("dominant_axis")
+                direction = family_body.get("dominant_direction")
+                reason = family_body.get("generation_reason")
+                if all(isinstance(value, str) for value in (family_name, axis, direction, reason)):
+                    self._candidate_families[candidate_hash] = StructuralCompositionFamilyV1(
+                        str(family_name), str(axis), str(direction), str(reason)
+                    )
+            discovery_topology = (
+                internal_skeleton.get("discovery_topology")
+                if isinstance(internal_skeleton, Mapping)
+                else None
+            )
+            if isinstance(discovery_topology, str):
+                self._candidate_discovery_topologies[candidate_hash] = discovery_topology
+        return candidate
 
     def iter_candidates(self) -> Iterator[SitePlacementResultV1]:
-        if self._started:
+        if self._started or self._quantum_mode:
             raise RuntimeError("placement candidate enumeration is one-shot")
         self._started = True
-        iterator = _walk_complete_candidate_payloads(self._context, self._stats)
+        iterator = self._ensure_iterator()
         while True:
             try:
-                payload = next(iterator)
+                item = next(iterator)
             except StopIteration:
                 self._finished = True
                 return
-            structural_flag = payload.get("_structural_generation_flag") is True
-            internal_skeleton = payload.get("_main_process_skeleton")
-            candidate = _materialize_candidate_result(payload)
-            candidate_hash = candidate.to_dict().get("canonical_candidate_hash")
-            if isinstance(candidate_hash, str):
-                self._structural_flags[candidate_hash] = structural_flag
-                skeleton_hash = (
-                    internal_skeleton.get("main_process_skeleton_hash")
-                    if isinstance(internal_skeleton, Mapping)
-                    else None
+            if isinstance(item, _SearchQuantumYield):
+                continue
+            yield self._materialize_payload(item)
+
+    def advance_quantum(self, node_limit: int) -> PlacementCandidateQuantumAdvanceV1:
+        """Advance this persistent generator by at most one scheduler slice."""
+        if self._finished:
+            return PlacementCandidateQuantumAdvanceV1((), 0, "COMPLETED", None, True, True)
+        if self._started and not self._quantum_mode:
+            raise RuntimeError("candidate iterator already started without quantum scheduling")
+        if node_limit <= 0:
+            raise ValueError("node_limit must be positive")
+        self._started = True
+        self._quantum_mode = True
+        share_numerator = (
+            ALTERNATIVE_TOPOLOGY_CONSTRUCTION_SHARE_NUMERATOR
+            if self._context.structural_topology in {OFFSET_LINEAR_BAND, CENTRAL_PROCESS_HUB}
+            else STRUCTURED_SKELETON_CONSTRUCTION_SHARE_NUMERATOR
+        )
+        share_denominator = (
+            ALTERNATIVE_TOPOLOGY_CONSTRUCTION_SHARE_DENOMINATOR
+            if self._context.structural_topology in {OFFSET_LINEAR_BAND, CENTRAL_PROCESS_HUB}
+            else STRUCTURED_SKELETON_CONSTRUCTION_SHARE_DENOMINATOR
+        )
+        share_quantum_ceiling = max(
+            1, self._context.node_budget * share_numerator // share_denominator
+        )
+        self._stats.quantum_node_limit = min(
+            node_limit,
+            CONSTRUCTIVE_FACE_PAIR_NODE_BUDGET,
+            CONSTRUCTIVE_SORTING_ROOT_NODE_BUDGET,
+            share_quantum_ceiling,
+        )
+        self._stats.quantum_nodes_visited = 0
+        start_nodes = self._stats.visited_nodes
+        candidates: list[SitePlacementResultV1] = []
+        iterator = self._ensure_iterator()
+        while True:
+            try:
+                item = next(iterator)
+            except StopIteration:
+                self._finished = True
+                self._stats.quantum_node_limit = None
+                search_exhausted = self.search_tree_exhausted
+                return PlacementCandidateQuantumAdvanceV1(
+                    tuple(candidates),
+                    self._stats.visited_nodes - start_nodes,
+                    "SEARCH_EXHAUSTED" if search_exhausted else "COMPLETED",
+                    dict(self._stats.current_work_item or {}),
+                    search_exhausted,
+                    True,
                 )
-                self._candidate_skeleton_hashes[candidate_hash] = (
-                    skeleton_hash if isinstance(skeleton_hash, str) else None
+            if isinstance(item, _SearchQuantumYield):
+                work_item = dict(item.work_item or {})
+                return PlacementCandidateQuantumAdvanceV1(
+                    tuple(candidates),
+                    self._stats.visited_nodes - start_nodes,
+                    "QUANTUM_EXHAUSTED",
+                    work_item,
+                    False,
+                    False,
                 )
-                topology = (
-                    internal_skeleton.get("topology")
-                    if isinstance(internal_skeleton, Mapping)
-                    else self._context.structural_topology
-                )
-                self._candidate_topologies[candidate_hash] = str(topology)
-                family_body = (
-                    internal_skeleton.get("family")
-                    if isinstance(internal_skeleton, Mapping)
-                    else None
-                )
-                if isinstance(family_body, Mapping):
-                    family_name = family_body.get("family")
-                    axis = family_body.get("dominant_axis")
-                    direction = family_body.get("dominant_direction")
-                    reason = family_body.get("generation_reason")
-                    if all(
-                        isinstance(value, str) for value in (family_name, axis, direction, reason)
-                    ):
-                        self._candidate_families[candidate_hash] = StructuralCompositionFamilyV1(
-                            str(family_name), str(axis), str(direction), str(reason)
-                        )
-                discovery_topology = (
-                    internal_skeleton.get("discovery_topology")
-                    if isinstance(internal_skeleton, Mapping)
-                    else None
-                )
-                if isinstance(discovery_topology, str):
-                    self._candidate_discovery_topologies[candidate_hash] = discovery_topology
-            yield candidate
+            candidates.append(self._materialize_payload(item))
 
     @property
     def completed(self) -> bool:
@@ -4274,6 +4461,10 @@ class PlacementCandidateEnumerationV1:
             },
             "node_budget_exhausted": self._stats.node_budget_exhausted,
             "construction_search_truncated": self._stats.skeleton_search_truncated,
+            "normal_stop_reason": self._stats.normal_stop_reason,
+            "construction_node_count": self._stats.construction_node_count,
+            "tail_node_count": sum((self._stats.tail_nodes_by_skeleton or {}).values()),
+            "continuation_work_item": dict(self._stats.current_work_item or {}),
             "_r6_topology_ownership_duplicates": list(
                 self._stats.topology_ownership_duplicates or []
             ),
@@ -4304,6 +4495,7 @@ class PlacementCandidateEnumerationV1:
             self.completed
             and not self._stats.node_budget_exhausted
             and not self._stats.skeleton_search_truncated
+            and self._stats.normal_stop_reason is None
         )
 
     @property
@@ -4439,6 +4631,8 @@ def search_placement(
     stats = _PlacementSearchStats()
     best_payload: dict[str, Any] | None = None
     for payload in _walk_complete_candidate_payloads(context, stats):
+        if isinstance(payload, _SearchQuantumYield):
+            continue
         if _is_better(payload, best_payload, context.preferred_loading_side):
             best_payload = payload
     search_tree_exhausted = not stats.node_budget_exhausted

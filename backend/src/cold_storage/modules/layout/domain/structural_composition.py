@@ -516,10 +516,12 @@ def structural_topology_lanes(
 ) -> tuple[StructuralTopologyLaneV1, ...]:
     """Return the authorized R5 topology lanes in stable coverage order.
 
-    Linear lanes use the axis with the lower deterministic group-envelope
-    extent demand from the authoritative nominal room dimensions. This is an
-    ordering preference only; rotations and all exact geometry predicates
-    remain available to each lane. The hub lane retains the site-derived axis.
+    The current production search admits Linear lanes only on the single axis
+    selected by authoritative group-envelope extent demand. R10 established
+    that the alternate axis is not runtime-enumerated; this selector therefore
+    affects candidate-space admission, not merely ordering. Exact geometry
+    predicates remain authoritative within the admitted lanes. The hub lane
+    retains the site-derived axis.
     """
     families = composition_family_candidates(site_geometry)
     process_axis = (
@@ -531,13 +533,13 @@ def structural_topology_lanes(
         LINEAR_PROCESS_BAND,
         process_axis,
         "POSITIVE",
-        "AUTHORITATIVE_GROUP_ENVELOPE_ORDERING_ONLY",
+        "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
     )
     linear_offset = StructuralCompositionFamilyV1(
         LINEAR_PROCESS_BAND,
         process_axis,
         "POSITIVE",
-        "AUTHORITATIVE_GROUP_ENVELOPE_ORDERING_ONLY",
+        "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
     )
     return (
         StructuralTopologyLaneV1(STRAIGHT_LINEAR_BAND, linear_positive),
@@ -550,14 +552,14 @@ def _process_band_axis(
     site_geometry: Mapping[str, object],
     zone_authorities: Mapping[str, Mapping[str, object]],
 ) -> str:
-    """Rank X/Y using authoritative group spans; this never prunes a lane.
+    """Select the production Linear axis using authoritative group spans.
 
     Each group's lower envelope demand is the largest nominal axis extent of
     its member zones, allowing group members to occupy a bank. The sum of the
     three group demands is compared with the corresponding effective-site
-    bounding span. Ratios are used solely to choose which process axis is
-    enumerated first/in the two linear topology lanes, not as acceptance
-    thresholds or as an infeasibility test.
+    bounding span. The selected axis is the only one admitted to the current
+    production Linear lanes. Ratios are not acceptance thresholds and do not
+    prove an alternate axis infeasible.
     """
     site = site_geometry.get("site")
     boundary = site.get("effective_buildable_boundary") if isinstance(site, Mapping) else None
@@ -601,7 +603,7 @@ def _process_band_axis(
                     )
                 # sqrt(area) is a deterministic geometric lower bound for
                 # flexible rectangles with no authoritative preferred aspect.
-                # It is only used in the axis ordering preference.
+                # It contributes to selecting the single current runtime axis.
                 area = _decimal(area_value, field=f"{zone_code}.required_area_m2")
                 if area <= 0:
                     raise LayoutAuthorityError(

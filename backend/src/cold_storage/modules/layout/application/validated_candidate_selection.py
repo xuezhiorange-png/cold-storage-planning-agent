@@ -33,6 +33,7 @@ from cold_storage.modules.layout.domain.objective_profile import ObjectiveProfil
 from cold_storage.modules.layout.domain.placement import (
     GENERAL_FALLBACK_PHASE,
     MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE,
+    PLACEMENT_SEARCH_QUANTUM_NODES,
     STRUCTURED_PHASE,
     placement_candidate_is_better,
 )
@@ -649,6 +650,9 @@ def select_validated_placement(
         "cross_topology_duplicate_geometry_trace": cross_topology_duplicate_trace,
         "global_unique_skeleton_geometry_count": 0,
         "geometry_evaluation_registry": [],
+        "r11_scheduler_trace": [],
+        "r11_work_queue": [],
+        "r11_budget_accounting": {},
     }
     topology_lanes = _selector_topology_lanes(site_body, p1_handoff)
     preferred_family = _preferred_family_from_handoff(site_body, p1_handoff)
@@ -673,398 +677,510 @@ def select_validated_placement(
         if lane.topology == topology
     )
     global_node_budget_remaining = placement_node_budget
+    global_node_visits = 0
     p2c_candidate_count = 0
     candidate_index = 0
+    lane_state: dict[int, dict[str, Any]] = {}
+    phase_states: list[dict[str, Any]] = []
 
-    for lane_position, lane_index in enumerate(lane_order):
+    def make_enumeration(lane_index: int, phase: str) -> Any:
         lane = topology_lanes[lane_index]
-        family = lane.family
-        lanes_left = len(lane_order) - lane_position
-        lane_budget, _lane_remainder = divmod(global_node_budget_remaining, lanes_left)
-        if lane_budget <= 0:
-            raise _error("STRUCTURAL_LANE_BUDGET_UNAVAILABLE", topology=lane.topology)
-        structured_budget, fallback_budget = _lane_budget_split(lane_budget)
-        lane_seen_geometry: set[str] = set()
-        lane_full_pass_count = 0
+        return enumerate_placement_candidates(
+            canonical_zone_plan,
+            p1_handoff,
+            site_geometry,
+            objective_profile,
+            node_budget=placement_node_budget,
+            complete_candidate_limit=complete_candidate_limit,
+            structural_family=lane.family,
+            structural_topology=lane.topology,
+            search_phase=phase,
+            global_main_process_geometry_registry=global_skeleton_geometry_registry,
+            global_cross_topology_duplicate_trace=cross_topology_duplicate_trace,
+        )
+
+    for lane_index in lane_order:
+        lane = topology_lanes[lane_index]
         lane_report: dict[str, Any] = {
-            "composition_family": family.to_dict(),
+            "composition_family": lane.family.to_dict(),
             "topology": lane.topology,
             "scheduler_policy": "STAGED_COVERAGE_THEN_PREFERENCE",
             "topology_coverage_node_budget": topology_coverage_budget,
-            "diversity_expansion_node_budget": max(
-                0,
-                lane_budget
-                - topology_coverage_budget
-                - int(
-                    preferred_family is not None
-                    and lane_index == preferred_lane_index
-                    and (placement_node_budget - topology_coverage_budget * len(topology_lanes))
-                    % len(topology_lanes)
-                    > 0
-                ),
-            ),
-            "preference_extra_node_budget": (
-                int(
-                    preferred_family is not None
-                    and lane_index == preferred_lane_index
-                    and (placement_node_budget - topology_coverage_budget * len(topology_lanes))
-                    % len(topology_lanes)
-                    > 0
-                )
-                if preferred_lane_index is not None
-                else 0
-            ),
+            "diversity_expansion_node_budget": 0,
+            "preference_extra_node_budget": 0,
             "preferred_lane": preferred_family is not None and lane_index == preferred_lane_index,
-            "lane_node_budget": lane_budget,
-            "global_budget_before_lane": global_node_budget_remaining,
-            "structured_node_budget": structured_budget,
-            "fallback_node_budget": fallback_budget,
+            "lane_node_budget": placement_node_budget,
+            "global_budget_before_lane": None,
+            "structured_node_budget": placement_node_budget,
+            "fallback_node_budget": 0,
             "phases": [],
             "p2d_full_pass_candidate_count": 0,
             "p2d_rejected_candidate_count": 0,
             "p2d_rejection_warnings": [],
+            "visited_nodes": 0,
+            "complete_candidates": 0,
+            "node_budget_exhausted": False,
+            "search_tree_exhausted": False,
         }
-
-        phase_budgets = [(STRUCTURED_PHASE, structured_budget)]
-        phase_index = 0
-        while phase_index < len(phase_budgets):
-            phase, phase_budget = phase_budgets[phase_index]
-            phase_index += 1
-            if phase == GENERAL_FALLBACK_PHASE and lane_full_pass_count:
-                break
-            enumeration = enumerate_placement_candidates(
-                canonical_zone_plan,
-                p1_handoff,
-                site_geometry,
-                objective_profile,
-                node_budget=phase_budget,
-                complete_candidate_limit=complete_candidate_limit,
-                structural_family=family,
-                structural_topology=lane.topology,
-                search_phase=phase,
-                global_main_process_geometry_registry=global_skeleton_geometry_registry,
-                global_cross_topology_duplicate_trace=cross_topology_duplicate_trace,
-            )
-            phase_full_pass_count = 0
-            phase_rejected_count = 0
-            phase_candidate_count = 0
-            structural_flag_getter = getattr(enumeration, "structurally_generated", None)
-            for candidate in enumeration.iter_candidates():
-                candidate_body = candidate.to_dict()
-                candidate_hash = candidate_body.get("canonical_candidate_hash")
-                skeleton_hash_getter = getattr(
-                    enumeration, "candidate_main_process_skeleton_hash", None
-                )
-                topology_getter = getattr(enumeration, "candidate_topology", None)
-                family_getter = getattr(enumeration, "candidate_structural_family", None)
-                discovery_topology_getter = getattr(
-                    enumeration, "candidate_discovery_topology", None
-                )
-                skeleton_hash = (
-                    skeleton_hash_getter(candidate_hash)
-                    if isinstance(candidate_hash, str) and callable(skeleton_hash_getter)
-                    else None
-                )
-                candidate_body["_r5_topology"] = (
-                    topology_getter(candidate_hash)
-                    if isinstance(candidate_hash, str) and callable(topology_getter)
-                    else lane.topology
-                )
-                candidate_body["_r5_skeleton_hash"] = skeleton_hash
-                candidate_body["_r7_discovery_topology"] = (
-                    discovery_topology_getter(candidate_hash)
-                    if isinstance(candidate_hash, str) and callable(discovery_topology_getter)
-                    else lane.topology
-                )
-                geometry_signature = _placement_geometry_signature(candidate_body)
-                if geometry_signature in lane_seen_geometry:
-                    continue
-                lane_seen_geometry.add(geometry_signature)
-                phase_candidate_count += 1
-                p2c_candidate_count += 1
-                candidate_index += 1
-                routed = route_site_placement(
-                    canonical_zone_plan,
-                    p1_handoff,
-                    site_geometry,
-                    candidate,
-                    truck_maneuver_binding,
-                    route_node_budget=route_node_budget,
-                    truck_node_budget=truck_node_budget,
-                )
-                p2d_validated_count += 1
-                routed_body = routed.to_dict()
-                full_pass = (
-                    routed_body.get("project_layout_validated") is True
-                    and routed_body.get("p2_complete") is True
-                )
-                if isinstance(skeleton_hash, str):
-                    lifecycle = skeleton_lifecycle_by_hash.setdefault(
-                        skeleton_hash,
-                        {
-                            "skeleton_hash": skeleton_hash,
-                            "discovery_topology": candidate_body.get("_r7_discovery_topology"),
-                            "canonical_topology_owner": candidate_body.get("_r5_topology"),
-                            "tail_search_started_by_topology": (
-                                candidate_body.get("_r7_discovery_topology")
-                            ),
-                            "p2d_reached": True,
-                            "p2d_candidate_count": 0,
-                            "p2d_full_pass_count": 0,
-                            "first_failure_stage": None,
-                            "first_failure_reason": None,
-                        },
-                    )
-                    lifecycle["p2d_candidate_count"] += 1
-                    registry_row = global_skeleton_geometry_registry.get(skeleton_hash)
-                    if registry_row is not None:
-                        registry_row["p2d_reached"] = True
-                        registry_row["p2d_candidate_count"] = (
-                            int(registry_row.get("p2d_candidate_count", 0)) + 1
-                        )
-                    if full_pass:
-                        lifecycle["p2d_full_pass_count"] += 1
-                        if registry_row is not None:
-                            registry_row["p2d_full_pass_count"] = (
-                                int(registry_row.get("p2d_full_pass_count", 0)) + 1
-                            )
-                    elif lifecycle["first_failure_stage"] is None:
-                        lifecycle["first_failure_stage"] = "P2D"
-                        warnings = routed_body.get("warnings")
-                        lifecycle["first_failure_reason"] = (
-                            warnings[0]
-                            if isinstance(warnings, list) and warnings
-                            else "P2D_HARD_VALIDATION_FAILED"
-                        )
-                        if registry_row is not None:
-                            registry_row.setdefault("first_failure_stage", "P2D")
-                            registry_row.setdefault(
-                                "first_failure_reason", lifecycle["first_failure_reason"]
-                            )
-                trace.append(_p2d_trace_row(candidate_index, candidate_body, p2d_body=routed_body))
-                if not full_pass:
-                    phase_rejected_count += 1
-                    for warning in routed_body.get("warnings", []):
-                        if (
-                            isinstance(warning, str)
-                            and warning not in lane_report["p2d_rejection_warnings"]
-                        ):
-                            lane_report["p2d_rejection_warnings"].append(warning)
-                    continue
-                phase_full_pass_count += 1
-                lane_full_pass_count += 1
-                p2d_full_pass_count += 1
-                candidate_hash = candidate_body.get("canonical_candidate_hash")
-                structurally_generated = bool(
-                    phase == STRUCTURED_PHASE
-                    and callable(structural_flag_getter)
-                    and isinstance(candidate_hash, str)
-                    and structural_flag_getter(candidate_hash)
-                )
-                candidate_family = (
-                    family_getter(candidate_hash)
-                    if isinstance(candidate_hash, str) and callable(family_getter)
-                    else None
-                ) or family
-                try:
-                    structural_facts = build_structural_quality_facts(
-                        candidate_body,
-                        routed_body,
-                        site_body,
-                        candidate_family,
-                        structurally_generated=structurally_generated,
-                        search_phase=phase,
-                    )
-                except (KeyError, TypeError, ValueError) as exc:
-                    raise _error(
-                        "STRUCTURAL_QUALITY_FACTS_UNAVAILABLE",
-                        candidate_index=candidate_index,
-                        reason=type(exc).__name__,
-                    ) from None
-                full_pass_records.append(
-                    (candidate_body, routed_body, structural_facts, candidate_family)
-                )
-
-            generation_report = getattr(enumeration, "skeleton_generation_report", {})
-            if isinstance(generation_report, Mapping):
-                generation_report = dict(generation_report)
-                topology_candidates = generation_report.get("candidates", [])
-                if isinstance(topology_candidates, list):
-                    for skeleton_row in topology_candidates:
-                        if not isinstance(skeleton_row, Mapping):
-                            continue
-                        r6_topology_diagnostics["ownership_matrix"].append(
-                            {
-                                "skeleton_hash": skeleton_row.get("main_process_skeleton_hash"),
-                                "discovery_topology": skeleton_row.get(
-                                    "discovery_topology", lane.topology
-                                ),
-                                "constructed_topology": skeleton_row.get("topology"),
-                                "canonical_owner": skeleton_row.get("canonical_topology_owner"),
-                                "discovery_family": skeleton_row.get("discovery_family"),
-                                "canonical_family": skeleton_row.get("canonical_family"),
-                                "construction_policy": skeleton_row.get("construction_policy"),
-                                "topology_divergence_stage": skeleton_row.get(
-                                    "topology_divergence_stage"
-                                ),
-                                "offset_transition_stage": skeleton_row.get(
-                                    "offset_transition_stage"
-                                ),
-                                "offset_direction": skeleton_row.get("offset_direction"),
-                                "offset_cross_axis_shift_mm": skeleton_row.get(
-                                    "offset_cross_axis_shift_mm"
-                                ),
-                            }
-                        )
-                        # These R6 identity/provenance fields are available in
-                        # the internal evaluation sidecar above, not in the
-                        # Tool 7 response's historical candidate report.
-                        for r6_field in (
-                            "canonical_topology_owner",
-                            "discovery_topology",
-                            "discovery_family",
-                            "canonical_family",
-                            "construction_policy",
-                            "topology_divergence_stage",
-                            "offset_transition_stage",
-                            "offset_direction",
-                            "offset_cross_axis_shift_mm",
-                        ):
-                            if isinstance(skeleton_row, dict):
-                                skeleton_row.pop(r6_field, None)
-                attempts = generation_report.get("construction_attempts", [])
-                if isinstance(attempts, list):
-                    for attempt in attempts:
-                        if isinstance(attempt, Mapping):
-                            attempt_copy = dict(attempt)
-                            attempt_copy.setdefault("topology", lane.topology)
-                            r6_topology_diagnostics["construction_attempts"].append(attempt_copy)
-                for source_key, target_key in (
-                    ("_r6_topology_ownership_duplicates", "ownership_duplicates"),
-                    ("_r7_geometry_evaluation_admissions", "geometry_evaluation_admissions"),
-                    ("tail_slot_preflight_rows", "tail_slot_preflight_trace"),
-                    ("_r6_offset_transition_trace", "offset_transition_trace"),
-                    ("_r6_constructive_divergence_attempts", "constructive_divergence_trace"),
-                    (
-                        "_r6_topology_classification_failures",
-                        "topology_classification_failures",
-                    ),
-                ):
-                    rows = generation_report.pop(source_key, [])
-                    if isinstance(rows, list):
-                        r6_topology_diagnostics[target_key].extend(rows)
-                generation_report.pop("_r6_cross_topology_duplicate_count", None)
-                lifecycle_rows = generation_report.get("skeleton_tail_lifecycle", [])
-                enriched_lifecycle: list[dict[str, Any]] = []
-                for lifecycle_row in lifecycle_rows if isinstance(lifecycle_rows, list) else []:
-                    if not isinstance(lifecycle_row, Mapping):
-                        continue
-                    lifecycle_copy = dict(lifecycle_row)
-                    skeleton_hash_value = lifecycle_copy.get("skeleton_hash")
-                    raw_tail_facts = generation_report.get("tail_search_zone_facts", {})
-                    skeleton_tail_facts = (
-                        raw_tail_facts.get(str(skeleton_hash_value), {})
-                        if isinstance(raw_tail_facts, Mapping)
-                        else {}
-                    )
-                    zero_option_tail_zones = sorted(
-                        str(zone_code)
-                        for zone_code, zone_facts in skeleton_tail_facts.items()
-                        if isinstance(zone_facts, Mapping)
-                        and int(zone_facts.get("branch_visits", 0)) > 0
-                        and int(zone_facts.get("candidate_options", 0)) == 0
-                    )
-                    lifecycle_copy["zero_option_tail_zone_codes"] = zero_option_tail_zones
-                    p2d_lifecycle = skeleton_lifecycle_by_hash.get(str(skeleton_hash_value), {})
-                    lifecycle_copy["p2d_reached"] = p2d_lifecycle.get("p2d_reached", False)
-                    lifecycle_copy["p2d_candidate_count"] = p2d_lifecycle.get(
-                        "p2d_candidate_count", 0
-                    )
-                    lifecycle_copy["p2d_full_pass_count"] = p2d_lifecycle.get(
-                        "p2d_full_pass_count", 0
-                    )
-                    if lifecycle_copy["p2d_reached"] and not lifecycle_copy["p2d_full_pass_count"]:
-                        lifecycle_copy["first_failure_stage"] = "P2D"
-                        lifecycle_copy["first_failure_reason"] = p2d_lifecycle.get(
-                            "first_failure_reason", "P2D_HARD_VALIDATION_FAILED"
-                        )
-                    elif (
-                        not lifecycle_copy["p2d_reached"]
-                        and lifecycle_copy.get("first_failure_stage") != "TAIL_SLOT_PREFLIGHT"
-                    ):
-                        lifecycle_copy["first_failure_stage"] = "TAIL_SEARCH"
-                        lifecycle_copy["first_failure_reason"] = (
-                            "TAIL_NODE_SHARE_EXHAUSTED_WITHOUT_COMPLETE_P2C_CANDIDATE"
-                            if lifecycle_copy.get("tail_nodes", 0)
-                            >= lifecycle_copy.get("tail_node_limit", 0)
-                            else "TAIL_SEARCH_COMPLETED_WITHOUT_COMPLETE_P2C_CANDIDATE"
-                        )
-                        lifecycle_copy["first_failure_detail"] = (
-                            "TAIL_NODE_SHARE_EXHAUSTED;ZERO_OPTIONS:"
-                            + ",".join(zero_option_tail_zones)
-                            if lifecycle_copy["first_failure_reason"]
-                            == "TAIL_NODE_SHARE_EXHAUSTED_WITHOUT_COMPLETE_P2C_CANDIDATE"
-                            and zero_option_tail_zones
-                            else lifecycle_copy["first_failure_reason"]
-                        )
-                    enriched_lifecycle.append(lifecycle_copy)
-                generation_report["skeleton_tail_lifecycle"] = enriched_lifecycle
-                lane_report["phases"].append(
-                    {
-                        "search_phase": phase,
-                        "node_budget": phase_budget,
-                        "visited_nodes": enumeration.visited_node_count,
-                        "complete_candidates": enumeration.candidate_count,
-                        "distinct_main_process_skeleton_count": int(
-                            getattr(enumeration, "distinct_main_process_skeleton_count", 0)
-                        ),
-                        "distinct_structural_core_root_count": int(
-                            getattr(enumeration, "distinct_structural_core_root_count", 0)
-                        ),
-                        "validated_unique_candidates": phase_candidate_count,
-                        "p2d_rejected_candidate_count": phase_rejected_count,
-                        "p2d_full_pass_candidate_count": phase_full_pass_count,
-                        "node_budget_exhausted": enumeration.node_budget_exhausted,
-                        "search_tree_exhausted": enumeration.search_tree_exhausted,
-                        "main_process_skeleton_generation": generation_report,
-                    }
-                )
-            if (
-                phase == STRUCTURED_PHASE
-                and lane_full_pass_count == 0
-                and enumeration.search_tree_exhausted
-            ):
-                unused_lane_budget = max(0, lane_budget - enumeration.visited_node_count)
-                if unused_lane_budget:
-                    fallback_budget = unused_lane_budget
-                    lane_report["fallback_node_budget"] = fallback_budget
-                    phase_budgets.append((GENERAL_FALLBACK_PHASE, fallback_budget))
-            if phase == GENERAL_FALLBACK_PHASE and lane_full_pass_count == 0:
-                break
-
-        lane_report["p2d_full_pass_candidate_count"] = lane_full_pass_count
-        lane_report["p2d_rejected_candidate_count"] = sum(
-            row["p2d_rejected_candidate_count"] for row in lane_report["phases"]
-        )
-        lane_report["visited_nodes"] = sum(row["visited_nodes"] for row in lane_report["phases"])
-        lane_report["complete_candidates"] = sum(
-            row["complete_candidates"] for row in lane_report["phases"]
-        )
-        lane_report["node_budget_exhausted"] = any(
-            row["node_budget_exhausted"] for row in lane_report["phases"]
-        )
-        lane_report["search_tree_exhausted"] = all(
-            row["search_tree_exhausted"] for row in lane_report["phases"]
-        )
-        global_node_budget_remaining -= lane_report["visited_nodes"]
-        if global_node_budget_remaining < 0:
-            raise _error(
-                "STRUCTURAL_GLOBAL_NODE_BUDGET_EXCEEDED",
-                topology=lane.topology,
-                remaining=global_node_budget_remaining,
-            )
-        lane_report["global_budget_after_lane"] = global_node_budget_remaining
         lane_reports.append(lane_report)
+        lane_state[lane_index] = {
+            "seen_geometry": set(),
+            "full_pass_count": 0,
+            "report": lane_report,
+        }
+        phase_states.append(
+            {
+                "lane_index": lane_index,
+                "phase": STRUCTURED_PHASE,
+                "phase_budget": placement_node_budget,
+                "enumeration": make_enumeration(lane_index, STRUCTURED_PHASE),
+                "candidate_count": 0,
+                "rejected_count": 0,
+                "full_pass_count": 0,
+                "status": "ACTIVE",
+                "finalized": False,
+            }
+        )
+
+    def process_candidate(state: dict[str, Any], candidate: Any) -> None:
+        nonlocal p2c_candidate_count, candidate_index, p2d_validated_count
+        nonlocal p2d_full_pass_count
+        lane_index = int(state["lane_index"])
+        lane = topology_lanes[lane_index]
+        phase = str(state["phase"])
+        enumeration = state["enumeration"]
+        lane_report = lane_state[lane_index]["report"]
+        candidate_body = candidate.to_dict()
+        candidate_hash = candidate_body.get("canonical_candidate_hash")
+        skeleton_hash_getter = getattr(enumeration, "candidate_main_process_skeleton_hash", None)
+        topology_getter = getattr(enumeration, "candidate_topology", None)
+        family_getter = getattr(enumeration, "candidate_structural_family", None)
+        discovery_topology_getter = getattr(enumeration, "candidate_discovery_topology", None)
+        skeleton_hash = (
+            skeleton_hash_getter(candidate_hash)
+            if isinstance(candidate_hash, str) and callable(skeleton_hash_getter)
+            else None
+        )
+        candidate_body["_r5_topology"] = (
+            topology_getter(candidate_hash)
+            if isinstance(candidate_hash, str) and callable(topology_getter)
+            else lane.topology
+        )
+        candidate_body["_r5_skeleton_hash"] = skeleton_hash
+        candidate_body["_r7_discovery_topology"] = (
+            discovery_topology_getter(candidate_hash)
+            if isinstance(candidate_hash, str) and callable(discovery_topology_getter)
+            else lane.topology
+        )
+        geometry_signature = _placement_geometry_signature(candidate_body)
+        seen_geometry = lane_state[lane_index]["seen_geometry"]
+        if geometry_signature in seen_geometry:
+            return
+        seen_geometry.add(geometry_signature)
+        state["candidate_count"] += 1
+        p2c_candidate_count += 1
+        candidate_index += 1
+        routed = route_site_placement(
+            canonical_zone_plan,
+            p1_handoff,
+            site_geometry,
+            candidate,
+            truck_maneuver_binding,
+            route_node_budget=route_node_budget,
+            truck_node_budget=truck_node_budget,
+        )
+        p2d_validated_count += 1
+        routed_body = routed.to_dict()
+        full_pass = (
+            routed_body.get("project_layout_validated") is True
+            and routed_body.get("p2_complete") is True
+        )
+        if isinstance(skeleton_hash, str):
+            lifecycle = skeleton_lifecycle_by_hash.setdefault(
+                skeleton_hash,
+                {
+                    "skeleton_hash": skeleton_hash,
+                    "discovery_topology": candidate_body.get("_r7_discovery_topology"),
+                    "canonical_topology_owner": candidate_body.get("_r5_topology"),
+                    "tail_search_started_by_topology": candidate_body.get("_r7_discovery_topology"),
+                    "p2d_reached": True,
+                    "p2d_candidate_count": 0,
+                    "p2d_full_pass_count": 0,
+                    "first_failure_stage": None,
+                    "first_failure_reason": None,
+                },
+            )
+            lifecycle["p2d_candidate_count"] += 1
+            registry_row = global_skeleton_geometry_registry.get(skeleton_hash)
+            if registry_row is not None:
+                registry_row["p2d_reached"] = True
+                registry_row["p2d_candidate_count"] = (
+                    int(registry_row.get("p2d_candidate_count", 0)) + 1
+                )
+            if full_pass:
+                lifecycle["p2d_full_pass_count"] += 1
+                if registry_row is not None:
+                    registry_row["p2d_full_pass_count"] = (
+                        int(registry_row.get("p2d_full_pass_count", 0)) + 1
+                    )
+            elif lifecycle["first_failure_stage"] is None:
+                lifecycle["first_failure_stage"] = "P2D"
+                warnings = routed_body.get("warnings")
+                lifecycle["first_failure_reason"] = (
+                    warnings[0]
+                    if isinstance(warnings, list) and warnings
+                    else "P2D_HARD_VALIDATION_FAILED"
+                )
+                if registry_row is not None:
+                    registry_row.setdefault("first_failure_stage", "P2D")
+                    registry_row.setdefault(
+                        "first_failure_reason", lifecycle["first_failure_reason"]
+                    )
+        trace.append(_p2d_trace_row(candidate_index, candidate_body, p2d_body=routed_body))
+        if not full_pass:
+            state["rejected_count"] += 1
+            for warning in routed_body.get("warnings", []):
+                if (
+                    isinstance(warning, str)
+                    and warning not in lane_report["p2d_rejection_warnings"]
+                ):
+                    lane_report["p2d_rejection_warnings"].append(warning)
+            return
+        state["full_pass_count"] += 1
+        lane_state[lane_index]["full_pass_count"] += 1
+        lane_report["p2d_full_pass_candidate_count"] += 1
+        p2d_full_pass_count += 1
+        structural_flag_getter = getattr(enumeration, "structurally_generated", None)
+        structurally_generated = bool(
+            phase == STRUCTURED_PHASE
+            and callable(structural_flag_getter)
+            and isinstance(candidate_hash, str)
+            and structural_flag_getter(candidate_hash)
+        )
+        candidate_family = (
+            family_getter(candidate_hash)
+            if isinstance(candidate_hash, str) and callable(family_getter)
+            else None
+        ) or lane.family
+        try:
+            structural_facts = build_structural_quality_facts(
+                candidate_body,
+                routed_body,
+                site_body,
+                candidate_family,
+                structurally_generated=structurally_generated,
+                search_phase=phase,
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise _error(
+                "STRUCTURAL_QUALITY_FACTS_UNAVAILABLE",
+                candidate_index=candidate_index,
+                reason=type(exc).__name__,
+            ) from None
+        full_pass_records.append((candidate_body, routed_body, structural_facts, candidate_family))
+
+    def finalize_phase(state: dict[str, Any]) -> None:
+        if state["finalized"]:
+            return
+        lane_index = int(state["lane_index"])
+        lane = topology_lanes[lane_index]
+        lane_report = lane_state[lane_index]["report"]
+        enumeration = state["enumeration"]
+        phase = str(state["phase"])
+        generation_report = dict(enumeration.skeleton_generation_report)
+        for skeleton_row in generation_report.get("candidates", []):
+            if not isinstance(skeleton_row, dict):
+                continue
+            r6_topology_diagnostics["ownership_matrix"].append(
+                {
+                    "skeleton_hash": skeleton_row.get("main_process_skeleton_hash"),
+                    "discovery_topology": skeleton_row.get("discovery_topology", lane.topology),
+                    "constructed_topology": skeleton_row.get("topology"),
+                    "canonical_owner": skeleton_row.get("canonical_topology_owner"),
+                    "discovery_family": skeleton_row.get("discovery_family"),
+                    "canonical_family": skeleton_row.get("canonical_family"),
+                    "construction_policy": skeleton_row.get("construction_policy"),
+                    "topology_divergence_stage": skeleton_row.get("topology_divergence_stage"),
+                    "offset_transition_stage": skeleton_row.get("offset_transition_stage"),
+                    "offset_direction": skeleton_row.get("offset_direction"),
+                    "offset_cross_axis_shift_mm": skeleton_row.get("offset_cross_axis_shift_mm"),
+                }
+            )
+            for field in (
+                "canonical_topology_owner",
+                "discovery_topology",
+                "discovery_family",
+                "canonical_family",
+                "construction_policy",
+                "topology_divergence_stage",
+                "offset_transition_stage",
+                "offset_direction",
+                "offset_cross_axis_shift_mm",
+            ):
+                skeleton_row.pop(field, None)
+        attempts = generation_report.get("construction_attempts", [])
+        if isinstance(attempts, list):
+            r6_topology_diagnostics["construction_attempts"].extend(
+                dict(row, topology=row.get("topology", lane.topology))
+                for row in attempts
+                if isinstance(row, Mapping)
+            )
+        for source_key, target_key in (
+            ("_r6_topology_ownership_duplicates", "ownership_duplicates"),
+            ("_r7_geometry_evaluation_admissions", "geometry_evaluation_admissions"),
+            ("tail_slot_preflight_rows", "tail_slot_preflight_trace"),
+            ("_r6_offset_transition_trace", "offset_transition_trace"),
+            ("_r6_constructive_divergence_attempts", "constructive_divergence_trace"),
+            ("_r6_topology_classification_failures", "topology_classification_failures"),
+        ):
+            rows = generation_report.pop(source_key, [])
+            if isinstance(rows, list):
+                r6_topology_diagnostics[target_key].extend(rows)
+        generation_report.pop("_r6_cross_topology_duplicate_count", None)
+        enriched_lifecycle = []
+        raw_rows = generation_report.get("skeleton_tail_lifecycle", [])
+        raw_facts = generation_report.get("tail_search_zone_facts", {})
+        for row in raw_rows if isinstance(raw_rows, list) else []:
+            if not isinstance(row, Mapping):
+                continue
+            item = dict(row)
+            skeleton_hash = str(item.get("skeleton_hash"))
+            zone_facts = raw_facts.get(skeleton_hash, {}) if isinstance(raw_facts, Mapping) else {}
+            item["zero_option_tail_zone_codes"] = sorted(
+                str(code)
+                for code, facts in zone_facts.items()
+                if isinstance(facts, Mapping)
+                and int(facts.get("branch_visits", 0)) > 0
+                and int(facts.get("candidate_options", 0)) == 0
+            )
+            p2d = skeleton_lifecycle_by_hash.get(skeleton_hash, {})
+            item["p2d_reached"] = p2d.get("p2d_reached", False)
+            item["p2d_candidate_count"] = p2d.get("p2d_candidate_count", 0)
+            item["p2d_full_pass_count"] = p2d.get("p2d_full_pass_count", 0)
+            if item["p2d_reached"] and not item["p2d_full_pass_count"]:
+                item["first_failure_stage"] = "P2D"
+                item["first_failure_reason"] = p2d.get(
+                    "first_failure_reason", "P2D_HARD_VALIDATION_FAILED"
+                )
+            enriched_lifecycle.append(item)
+        generation_report["skeleton_tail_lifecycle"] = enriched_lifecycle
+        phase_row = {
+            "search_phase": phase,
+            "node_budget": state["phase_budget"],
+            "visited_nodes": enumeration.visited_node_count,
+            "complete_candidates": enumeration.candidate_count,
+            "distinct_main_process_skeleton_count": (
+                enumeration.distinct_main_process_skeleton_count
+            ),
+            "distinct_structural_core_root_count": enumeration.distinct_structural_core_root_count,
+            "validated_unique_candidates": state["candidate_count"],
+            "p2d_rejected_candidate_count": state["rejected_count"],
+            "p2d_full_pass_candidate_count": state["full_pass_count"],
+            "node_budget_exhausted": enumeration.node_budget_exhausted,
+            "search_tree_exhausted": enumeration.search_tree_exhausted,
+            "main_process_skeleton_generation": generation_report,
+        }
+        lane_report["phases"].append(phase_row)
+        lane_report["visited_nodes"] += enumeration.visited_node_count
+        lane_report["complete_candidates"] += enumeration.candidate_count
+        lane_report["p2d_rejected_candidate_count"] += state["rejected_count"]
+        lane_report["node_budget_exhausted"] = (
+            lane_report["node_budget_exhausted"] or enumeration.node_budget_exhausted
+        )
+        state["finalized"] = True
+
+    active_states = list(phase_states)
+    scheduler_round = 0
+    while active_states and global_node_budget_remaining > 0:
+        scheduler_round += 1
+        round_states = list(active_states)
+        active_states = []
+        for turn_index, state in enumerate(round_states):
+            if global_node_budget_remaining <= 0:
+                active_states.append(state)
+                continue
+            enumeration = state["enumeration"]
+            status_before = str(state["status"])
+            turns_remaining = len(round_states) - turn_index
+            fair_share = (global_node_budget_remaining + turns_remaining - 1) // turns_remaining
+            quantum_limit = min(PLACEMENT_SEARCH_QUANTUM_NODES, fair_share)
+            advance = enumeration.advance_quantum(quantum_limit)
+            visited = advance.nodes_visited
+            if visited > global_node_budget_remaining:
+                raise _error(
+                    "STRUCTURAL_GLOBAL_NODE_BUDGET_EXCEEDED",
+                    topology=enumeration.structural_topology,
+                )
+            global_node_visits += visited
+            global_node_budget_remaining -= visited
+            state["status"] = advance.status
+            lane_index = int(state["lane_index"])
+            work_item = dict(advance.work_item or {})
+            work_item_id = canonical_hash(
+                {
+                    "topology": topology_lanes[lane_index].topology,
+                    "phase": state["phase"],
+                    "work_item": work_item,
+                }
+            )
+            work_row = {
+                "round": scheduler_round,
+                "work_item_id": work_item_id,
+                "topology": topology_lanes[lane_index].topology,
+                "root": work_item.get("sorting_root_mm"),
+                "face_pair": [work_item.get("raw_side"), work_item.get("finished_side")],
+                "offset_direction": work_item.get("offset_direction"),
+                "nodes_before": global_node_visits - visited,
+                "nodes_after": global_node_visits,
+                "status_before": status_before,
+                "status_after": advance.status,
+                "continuation_created": not advance.completed,
+                "quantum_node_limit": quantum_limit,
+                "nodes_visited": visited,
+                "work_item": work_item,
+            }
+            r6_topology_diagnostics["r11_scheduler_trace"].append(work_row)
+            r6_topology_diagnostics["r11_work_queue"].append(work_row)
+            for candidate in advance.candidates:
+                process_candidate(state, candidate)
+            if advance.completed:
+                finalize_phase(state)
+                if (
+                    state["phase"] == STRUCTURED_PHASE
+                    and lane_state[lane_index]["full_pass_count"] == 0
+                    and enumeration.search_tree_exhausted
+                    and global_node_budget_remaining > 0
+                ):
+                    lane_report = lane_state[lane_index]["report"]
+                    lane_report["fallback_node_budget"] = global_node_budget_remaining
+                    fallback_state = {
+                        "lane_index": lane_index,
+                        "phase": GENERAL_FALLBACK_PHASE,
+                        "phase_budget": placement_node_budget,
+                        "enumeration": make_enumeration(lane_index, GENERAL_FALLBACK_PHASE),
+                        "candidate_count": 0,
+                        "rejected_count": 0,
+                        "full_pass_count": 0,
+                        "status": "ACTIVE",
+                        "finalized": False,
+                    }
+                    phase_states.append(fallback_state)
+                    active_states.append(fallback_state)
+            else:
+                active_states.append(state)
+
+    for state in phase_states:
+        finalize_phase(state)
+
+    global_node_budget_remaining = placement_node_budget - global_node_visits
+    global_budget_exhausted = global_node_budget_remaining == 0
+    if global_budget_exhausted:
+        # The per-enumeration budget is a guardrail, while the shared scheduler
+        # owns the actual production cutoff. Preserve the distinction in the
+        # phase diagnostics without claiming that any lane's search tree ended.
+        for state in active_states:
+            lane_report = lane_state[int(state["lane_index"])]["report"]
+            lane_report["node_budget_exhausted"] = True
+    for lane_index in lane_order:
+        lane_report = lane_state[lane_index]["report"]
+        phase_rows = lane_report["phases"]
+        lane_report["p2d_full_pass_candidate_count"] = lane_state[lane_index]["full_pass_count"]
+        lane_report["search_tree_exhausted"] = bool(phase_rows) and all(
+            bool(row["search_tree_exhausted"]) for row in phase_rows
+        )
+    construction_nodes = sum(
+        int(phase["main_process_skeleton_generation"].get("construction_node_count", 0))
+        for lane_report in lane_reports
+        for phase in lane_report["phases"]
+        if phase["search_phase"] == STRUCTURED_PHASE
+    )
+    tail_nodes = sum(
+        int(phase["main_process_skeleton_generation"].get("tail_node_count", 0))
+        for lane_report in lane_reports
+        for phase in lane_report["phases"]
+    )
+    general_fallback_nodes = sum(
+        int(phase["visited_nodes"])
+        for lane_report in lane_reports
+        for phase in lane_report["phases"]
+        if phase["search_phase"] != STRUCTURED_PHASE
+    )
+    classified_node_total = construction_nodes + tail_nodes + general_fallback_nodes
+    if classified_node_total != global_node_visits:
+        raise _error(
+            "PLACEMENT_NODE_ACCOUNTING_INCONSISTENT",
+            global_node_visits=global_node_visits,
+            classified_node_total=classified_node_total,
+        )
+    r6_topology_diagnostics["r11_budget_accounting"] = {
+        "global_budget": placement_node_budget,
+        "global_nodes_visited": global_node_visits,
+        "global_nodes_remaining": global_node_budget_remaining,
+        "construction_nodes": construction_nodes,
+        "tail_nodes": tail_nodes,
+        "general_fallback_nodes": general_fallback_nodes,
+        "classified_node_total": classified_node_total,
+        "global_node_visits_match_classified_total": True,
+        "replayed_prefix_node_count": 0,
+        "stranded_budget_allowed": False,
+        "global_budget_exhausted": global_budget_exhausted,
+        "nodes_by_work_item": {
+            str(work_item_id): sum(
+                int(row["nodes_visited"])
+                for row in r6_topology_diagnostics["r11_scheduler_trace"]
+                if row["work_item_id"] == work_item_id
+            )
+            for work_item_id in sorted(
+                {str(row["work_item_id"]) for row in r6_topology_diagnostics["r11_scheduler_trace"]}
+            )
+        },
+        "nodes_by_topology": {
+            topology: sum(
+                int(row["nodes_visited"])
+                for row in r6_topology_diagnostics["r11_scheduler_trace"]
+                if row["topology"] == topology
+            )
+            for topology in sorted(
+                {str(row["topology"]) for row in r6_topology_diagnostics["r11_scheduler_trace"]}
+            )
+        },
+        "nodes_by_round": {
+            str(round_number): sum(
+                int(row["nodes_visited"])
+                for row in r6_topology_diagnostics["r11_scheduler_trace"]
+                if row["round"] == round_number
+            )
+            for round_number in sorted(
+                {int(row["round"]) for row in r6_topology_diagnostics["r11_scheduler_trace"]}
+            )
+        },
+        "preflight_compute_nodes": 0,
+        "work_round_count": scheduler_round,
+        "active_work_item_count": sum(
+            not state["enumeration"].completed for state in active_states
+        ),
+        "exhausted_work_item_count": sum(
+            state["enumeration"].completed and state["enumeration"].search_tree_exhausted
+            for state in phase_states
+        ),
+        "truncated_active_work_item_count": sum(
+            not state["enumeration"].completed
+            and state["status"] in {"ACTIVE", "QUANTUM_EXHAUSTED"}
+            for state in active_states
+        ),
+        "unused_global_nodes_with_active_truncated_work": (
+            global_node_budget_remaining
+            if active_states and global_node_budget_remaining > 0
+            else 0
+        ),
+        "early_stop_reason": (
+            "GLOBAL_PLACEMENT_NODE_BUDGET_EXHAUSTED"
+            if global_budget_exhausted
+            else "ALL_ACTIVE_WORK_EXHAUSTED_OR_NORMAL_COMPLETION_LIMIT"
+            if not active_states
+            else "SCHEDULER_STOPPED_WITH_ACTIVE_WORK"
+        ),
+    }
 
     r6_topology_diagnostics["ownership_matrix"] = sorted(
         r6_topology_diagnostics["ownership_matrix"],

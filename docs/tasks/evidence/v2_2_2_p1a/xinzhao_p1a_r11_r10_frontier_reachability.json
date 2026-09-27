@@ -1,0 +1,25 @@
+{
+  "identity": "v222-p1a-r11-r10-frontier-reachability@1.0.0",
+  "diagnostic_targets_are_runtime_special_cases": false,
+  "targets": [
+    {
+      "hash": "sha256:868c0c93d713d367b2f07800e8a97432bab35c44f5f0e5d97dbf830efbcae63f",
+      "diagnostic_variant": "OFFSET_LINEAR_BAND/Y/POSITIVE",
+      "production_reached": false,
+      "packaging_slot_exists_in_r10_diagnostic": true,
+      "p2c_complete_count_in_r10_diagnostic": 2,
+      "p2d_reached_in_r10_diagnostic": true,
+      "p2d_result_in_r10_diagnostic": "ACCESS_REQUIREMENT_VALIDATION_INCOMPLETE"
+    },
+    {
+      "hash": "sha256:e73b384763b2564a9234b7102a80847f7048d066097e206c21242100fbdbf92d",
+      "diagnostic_variant": "OFFSET_LINEAR_BAND/Y/POSITIVE",
+      "production_reached": false,
+      "packaging_slot_exists_in_r10_diagnostic": true,
+      "p2c_complete_count_in_r10_diagnostic": 0,
+      "p2d_reached_in_r10_diagnostic": false,
+      "first_failure_stage_in_r10_diagnostic": "TAIL_SEARCH"
+    }
+  ],
+  "result": "neither known R10 frontier geometry was reached by R11 production search"
+}

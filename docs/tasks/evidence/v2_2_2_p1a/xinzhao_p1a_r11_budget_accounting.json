@@ -1,0 +1,36 @@
+{
+  "identity": "v222-p1a-r11-budget-accounting@1.0.0",
+  "source": "real Tool 7 selector capture on canonical Xinzhao input",
+  "production_budget_changed": false,
+  "global_budget": 120,
+  "global_nodes_visited": 120,
+  "global_nodes_remaining": 0,
+  "construction_nodes": 106,
+  "tail_nodes": 14,
+  "general_fallback_nodes": 0,
+  "classified_node_total": 120,
+  "global_node_visits_match_classified_total": true,
+  "replayed_prefix_node_count": 0,
+  "preflight_compute_nodes": 0,
+  "preflight_compute_counts_as_placement_node": false,
+  "work_round_count": 3,
+  "nodes_by_round": {
+    "1": 48,
+    "2": 48,
+    "3": 24
+  },
+  "nodes_by_topology": {
+    "OFFSET_LINEAR_BAND": 39,
+    "CENTRAL_PROCESS_HUB": 41,
+    "STRAIGHT_LINEAR_BAND": 40
+  },
+  "active_work_item_count": 2,
+  "exhausted_work_item_count": 0,
+  "truncated_active_work_item_count": 2,
+  "unused_global_nodes_with_active_truncated_work": 0,
+  "stranded_budget_allowed": false,
+  "global_budget_exhausted": true,
+  "early_stop_reason": "GLOBAL_PLACEMENT_NODE_BUDGET_EXHAUSTED",
+  "p2c_candidate_count": 4,
+  "p2d_full_pass_candidate_count": 0
+}

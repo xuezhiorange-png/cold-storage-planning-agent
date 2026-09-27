@@ -1,0 +1,20 @@
+{
+  "identity": "v222-p1a-r11-constructive-work-queue@1.0.0",
+  "work_items": [
+    {"round": 1, "work_item_id": "sha256:65fdfcd7ec428bc94b631733284e6f6f22068fa05bbd5f55d230fc2b5a99a94c", "topology": "OFFSET_LINEAR_BAND", "root": [15200, 10050, 60960, 23650], "face_pair": ["SOUTH", "NORTH"], "offset_direction": "POSITIVE", "nodes_before": 0, "nodes_after": 16, "status_before": "ACTIVE", "status_after": "QUANTUM_EXHAUSTED", "continuation_created": true},
+    {"round": 1, "work_item_id": "sha256:a24024dd925e734de8dbc00cee0b1756d1fc6fb8d2c734978bdc1c7d5101c90a", "topology": "CENTRAL_PROCESS_HUB", "root": [29238, 13399, 74998, 26999], "face_pair": ["SOUTH", "WEST"], "offset_direction": null, "nodes_before": 16, "nodes_after": 32, "status_before": "ACTIVE", "status_after": "QUANTUM_EXHAUSTED", "continuation_created": true},
+    {"round": 1, "work_item_id": "sha256:76a22d69abaa0359696a5141a18653b0aab1b0edd997aecdc1ec959e36c27742", "topology": "STRAIGHT_LINEAR_BAND", "root": [15200, 10050, 60960, 23650], "face_pair": ["SOUTH", "NORTH"], "offset_direction": null, "nodes_before": 32, "nodes_after": 48, "status_before": "ACTIVE", "status_after": "QUANTUM_EXHAUSTED", "continuation_created": true},
+    {"round": 2, "work_item_id": "sha256:8f02d5573002ea1e83b99fe5c83e036c1792b12dcc97effa09585f94d9278da4", "topology": "OFFSET_LINEAR_BAND", "root": null, "face_pair": [null, null], "offset_direction": null, "nodes_before": 48, "nodes_after": 64, "status_before": "QUANTUM_EXHAUSTED", "status_after": "QUANTUM_EXHAUSTED", "continuation_created": true, "branch": "TAIL", "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"},
+    {"round": 2, "work_item_id": "sha256:44ee7c3ff7576b43e83142d40cb4c45651743eaf7393f5c58b9fa744612e38d0", "topology": "CENTRAL_PROCESS_HUB", "root": [29238, 13399, 74998, 26999], "face_pair": ["SOUTH", "WEST"], "offset_direction": null, "nodes_before": 64, "nodes_after": 80, "status_before": "QUANTUM_EXHAUSTED", "status_after": "QUANTUM_EXHAUSTED", "continuation_created": true},
+    {"round": 2, "work_item_id": "sha256:76a22d69abaa0359696a5141a18653b0aab1b0edd997aecdc1ec959e36c27742", "topology": "STRAIGHT_LINEAR_BAND", "root": [15200, 10050, 60960, 23650], "face_pair": ["SOUTH", "NORTH"], "offset_direction": null, "nodes_before": 80, "nodes_after": 96, "status_before": "QUANTUM_EXHAUSTED", "status_after": "QUANTUM_EXHAUSTED", "continuation_created": true},
+    {"round": 3, "work_item_id": "sha256:a40c95059fbf19536d6298f2d789a20000a218930d754dae8a7f5d4ca4233613", "topology": "OFFSET_LINEAR_BAND", "root": null, "face_pair": [null, null], "offset_direction": null, "nodes_before": 96, "nodes_after": 103, "status_before": "QUANTUM_EXHAUSTED", "status_after": "COMPLETED", "continuation_created": false, "branch": "TAIL", "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"},
+    {"round": 3, "work_item_id": "sha256:44ee7c3ff7576b43e83142d40cb4c45651743eaf7393f5c58b9fa744612e38d0", "topology": "CENTRAL_PROCESS_HUB", "root": [29238, 13399, 74998, 26999], "face_pair": ["SOUTH", "WEST"], "offset_direction": null, "nodes_before": 103, "nodes_after": 112, "status_before": "QUANTUM_EXHAUSTED", "status_after": "QUANTUM_EXHAUSTED", "continuation_created": true},
+    {"round": 3, "work_item_id": "sha256:76a22d69abaa0359696a5141a18653b0aab1b0edd997aecdc1ec959e36c27742", "topology": "STRAIGHT_LINEAR_BAND", "root": [15200, 10050, 60960, 23650], "face_pair": ["SOUTH", "NORTH"], "offset_direction": null, "nodes_before": 112, "nodes_after": 120, "status_before": "QUANTUM_EXHAUSTED", "status_after": "QUANTUM_EXHAUSTED", "continuation_created": true}
+  ],
+  "status_semantics": {
+    "QUANTUM_EXHAUSTED": "yielded current search state for continuation; not search exhaustion",
+    "SEARCH_EXHAUSTED": "generator has no remaining search branch",
+    "COMPLETED": "enumerator normal stop or exhaustive completion"
+  },
+  "replayed_prefix_node_count": 0
+}

@@ -1,0 +1,20 @@
+{
+  "identity": "v222-p1a-r11-cross-fixture-regression@1.0.0",
+  "hard_valid_to_invalid_regression_count": 1,
+  "regressions": [
+    {
+      "test": "tests/unit/test_v22_p4_site_layout_mcp.py::test_tool7_real_chain_selects_later_p2d_full_pass_and_projects_svg",
+      "baseline": "passing at the R10 exact-head CI supplied by owner",
+      "r11_result": "FAIL",
+      "actual_tool7_error": "VALIDATED_LAYOUT_SEARCH_EXHAUSTED",
+      "expected": "hard-valid selected layout, full P2D pass, and SVG projection",
+      "observed_p2c_complete_candidates": 4,
+      "observed_p2d_full_pass_candidates": 0,
+      "observed_access": "11/12 for evaluated candidates",
+      "observed_truck_route_failure": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+      "p2d_or_access_or_truck_rules_changed": false
+    }
+  ],
+  "classification": "FAIL_REGRESSION",
+  "mitigation_in_r11": "none; preserve the regression as a blocker rather than weakening hard validation"
+}

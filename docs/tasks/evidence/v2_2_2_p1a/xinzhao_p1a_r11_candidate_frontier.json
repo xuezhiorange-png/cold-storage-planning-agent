@@ -1,0 +1,20 @@
+{
+  "identity": "v222-p1a-r11-candidate-frontier@1.0.0",
+  "production_node_budget": 120,
+  "distinct_constructed_skeleton_count": 11,
+  "packaging_preflight_rejected_distinct_skeleton_count": 8,
+  "tail_admissible_distinct_skeleton_count": 3,
+  "p2d_evaluated_distinct_skeleton_count": 2,
+  "p2d_full_pass_distinct_skeleton_count": 0,
+  "p2c_complete_candidate_count": 4,
+  "skeletons": [
+    {"hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c", "discovery_topology": "OFFSET_LINEAR_BAND", "canonical_owner": "STRAIGHT_LINEAR_BAND", "packaging_slot_exists": true, "tail_search_started": true, "p2d_candidate_count": 2, "p2d_full_pass_count": 0, "first_failure_stage": "P2D", "first_failure_reason": "ACCESS_REQUIREMENT_VALIDATION_INCOMPLETE"},
+    {"hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3", "discovery_topology": "OFFSET_LINEAR_BAND", "canonical_owner": "STRAIGHT_LINEAR_BAND", "packaging_slot_exists": true, "tail_search_started": true, "p2d_candidate_count": 2, "p2d_full_pass_count": 0, "first_failure_stage": "P2D", "first_failure_reason": "ACCESS_REQUIREMENT_VALIDATION_INCOMPLETE"},
+    {"hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953", "discovery_topology": "STRAIGHT_LINEAR_BAND", "canonical_owner": "STRAIGHT_LINEAR_BAND", "packaging_slot_exists": true, "tail_search_started": true, "p2d_candidate_count": 0, "p2d_full_pass_count": 0, "first_failure_stage": "TAIL_SEARCH", "first_failure_reason": "TAIL_SEARCH_NOT_COMPLETED_WITHIN_GLOBAL_BUDGET"},
+    {"hash": "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc", "discovery_topology": "CENTRAL_PROCESS_HUB", "canonical_owner": "STRAIGHT_LINEAR_BAND", "packaging_slot_exists": false, "tail_search_started": false, "p2d_candidate_count": 0, "p2d_full_pass_count": 0, "first_failure_stage": "TAIL_SLOT_PREFLIGHT", "first_failure_reason": "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT"}
+  ],
+  "tool7_result": "VALIDATED_LAYOUT_SEARCH_EXHAUSTED",
+  "selected_layout_available": false,
+  "canonical_result_hash": null,
+  "svg_sha256": null
+}
