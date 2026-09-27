@@ -1,0 +1,190 @@
+{
+  "accounting_explanation": "The selector partitions the 120-node global budget into topology-lane shares before candidate enumeration. A lane tail then divides only its own remaining nodes among its remaining constructed skeleton seeds. Nodes left unused in other topology lanes are not recycled into this already bounded per-skeleton tail share.",
+  "captured_constructed_seeds_by_discovery_lane": [
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "UNRESOLVED",
+        "family": "CENTRAL_PROCESS_HUB",
+        "generation_reason": "SORTING_PACKAGING_IS_EXPLICIT_PROCESS_CORE",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "discovery_topology": "CENTRAL_PROCESS_HUB",
+      "skeleton_hash": "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc"
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_ORDERING_ONLY",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_ORDERING_ONLY",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    }
+  ],
+  "discovery_lane": "CENTRAL_PROCESS_HUB",
+  "discovery_lane_budget": 45,
+  "discovery_lane_fallback_node_budget": 0,
+  "discovery_lane_structured_node_budget": 45,
+  "discovery_lane_visited_nodes": 45,
+  "live_replay_lane_visit_breakdown": [
+    {
+      "composition_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_ORDERING_ONLY",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "global_budget_after_lane": 90,
+      "lane_node_budget": 40,
+      "topology": null,
+      "visited_nodes": 30
+    },
+    {
+      "composition_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "UNRESOLVED",
+        "family": "CENTRAL_PROCESS_HUB",
+        "generation_reason": "SORTING_PACKAGING_IS_EXPLICIT_PROCESS_CORE",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "global_budget_after_lane": 45,
+      "lane_node_budget": 45,
+      "topology": null,
+      "visited_nodes": 45
+    },
+    {
+      "composition_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_ORDERING_ONLY",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "global_budget_after_lane": 16,
+      "lane_node_budget": 45,
+      "topology": null,
+      "visited_nodes": 29
+    }
+  ],
+  "live_replay_matches_saved_r7_budget_accounting": false,
+  "production_budget_changed": false,
+  "production_global_budget": 120,
+  "production_global_node_visits": 104,
+  "production_global_nodes_unused": 16,
+  "production_skeleton_survival": {
+    "canonical_family": {
+      "dominant_axis": "Y",
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+      "identity": "structural-composition-family@1.0.0"
+    },
+    "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+    "complete_candidate_count": 0,
+    "construction_nodes": 20,
+    "discovery_family": {
+      "dominant_axis": "X",
+      "dominant_direction": "UNRESOLVED",
+      "family": "CENTRAL_PROCESS_HUB",
+      "generation_reason": "SORTING_PACKAGING_IS_EXPLICIT_PROCESS_CORE",
+      "identity": "structural-composition-family@1.0.0"
+    },
+    "discovery_topology": "CENTRAL_PROCESS_HUB",
+    "first_failure_detail": "TAIL_NODE_SHARE_EXHAUSTED;ZERO_OPTIONS:packaging_material_storage",
+    "first_failure_reason": "TAIL_NODE_SHARE_EXHAUSTED_WITHOUT_COMPLETE_P2C_CANDIDATE",
+    "first_failure_stage": "TAIL_SEARCH",
+    "p2d_candidate_count": 0,
+    "p2d_full_pass_count": 0,
+    "p2d_reached": false,
+    "skeleton_hash": "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc",
+    "tail_node_limit": 12,
+    "tail_nodes": 12,
+    "tail_search_started_by_topology": "CENTRAL_PROCESS_HUB",
+    "topology": "STRAIGHT_LINEAR_BAND",
+    "zero_option_tail_zone_codes": [
+      "packaging_material_storage"
+    ]
+  },
+  "production_tail_node_limit_for_956e": 12,
+  "production_tail_nodes_used_for_956e": 12,
+  "remaining_lane_budget_at_956e_tail_start": 12,
+  "saved_r7_metrics_global_node_visits": 92,
+  "saved_r7_metrics_global_nodes_remaining": 28,
+  "saved_vs_live_accounting_discrepancy": {
+    "canonical_result_hash_matches_r7": true,
+    "effect_on_956e_tail_share": "NONE; live replay still assigns and consumes 12 nodes",
+    "live_replay_sum_of_lane_visits": 104,
+    "saved_snapshot_visits": 92,
+    "status": "PRESENT"
+  },
+  "tail_share_starvation_confirmed": true,
+  "target_lane_constructed_seed_count": 1,
+  "target_lane_constructed_seed_hashes": [
+    "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc"
+  ],
+  "target_lane_phase_accounting": [
+    {
+      "complete_candidates": 0,
+      "phase_node_budget": 45,
+      "search_phase": "STRUCTURED",
+      "visited_nodes": 45
+    }
+  ],
+  "target_lane_skeleton_tail_lifecycles": [
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "complete_candidate_count": 0,
+      "construction_nodes": 20,
+      "discovery_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "UNRESOLVED",
+        "family": "CENTRAL_PROCESS_HUB",
+        "generation_reason": "SORTING_PACKAGING_IS_EXPLICIT_PROCESS_CORE",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "discovery_topology": "CENTRAL_PROCESS_HUB",
+      "first_failure_detail": "TAIL_NODE_SHARE_EXHAUSTED;ZERO_OPTIONS:packaging_material_storage",
+      "first_failure_reason": "TAIL_NODE_SHARE_EXHAUSTED_WITHOUT_COMPLETE_P2C_CANDIDATE",
+      "first_failure_stage": "TAIL_SEARCH",
+      "p2d_candidate_count": 0,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": false,
+      "skeleton_hash": "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc",
+      "tail_node_limit": 12,
+      "tail_nodes": 12,
+      "tail_search_started_by_topology": "CENTRAL_PROCESS_HUB",
+      "topology": "STRAIGHT_LINEAR_BAND",
+      "zero_option_tail_zone_codes": [
+        "packaging_material_storage"
+      ]
+    }
+  ],
+  "unused_global_nodes_recyclable_by_current_scheduler": false
+}
