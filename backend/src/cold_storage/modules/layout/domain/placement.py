@@ -71,6 +71,10 @@ from cold_storage.modules.layout.domain.structural_composition import (
     structural_anchor_references,
     structural_skeleton_candidates,
 )
+from cold_storage.modules.layout.domain.tail_slot_feasibility import (
+    EXACT_ORTHOGONAL_EVENT_ENUMERATION,
+    evaluate_tail_zone_slot_feasibility_v1,
+)
 
 IDENTITY: Final = "site-constrained-deterministic-placement@1.0.0"
 PLACEMENT_RESULT_IDENTITY: Final = "site_constrained_factory_layout@1.0.0"
@@ -2341,6 +2345,7 @@ class _PlacementSearchStats:
     constructive_divergence_attempts: list[dict[str, Any]] | None = None
     topology_classification_failures: list[dict[str, Any]] | None = None
     geometry_evaluation_admissions: list[dict[str, Any]] | None = None
+    tail_slot_preflight_rows: list[dict[str, Any]] | None = None
     cross_topology_duplicate_count: int = 0
 
 
@@ -2542,6 +2547,24 @@ def _topology_geometry_valid(
     if topology in {STRAIGHT_LINEAR_BAND, OFFSET_LINEAR_BAND}:
         return classification.process_axis == longitudinal_axis
     return topology == CENTRAL_PROCESS_HUB
+
+
+def _packaging_tail_slot_preflight(
+    context: _PlacementSearchContext,
+    skeleton: MainProcessSkeletonCandidateV1,
+) -> dict[str, Any]:
+    authority = context.authorities["packaging_material_storage"]
+    dimension_variants = _dimension_variants(authority, {}, context.boundary)
+    proof = evaluate_tail_zone_slot_feasibility_v1(
+        zone_code="packaging_material_storage",
+        dimension_variants=dimension_variants,
+        dimension_authority_complete=_authority_mode(authority)
+        in {"FIXED_RECTANGLE", "DETERMINISTIC_GRID_RECTANGLE"},
+        boundary=context.boundary,
+        obstacles=context.obstacles,
+        fixed_main_process_rectangles=skeleton.zone_rectangles,
+    )
+    return proof.to_dict()
 
 
 def _search_provenance(
@@ -3290,6 +3313,164 @@ def _construct_face_skeletons(
                                         if existing is not None
                                         else None
                                     )
+                                    cached_preflight_status = (
+                                        existing.get("packaging_preflight_status")
+                                        if existing is not None
+                                        else None
+                                    )
+                                    if cached_preflight_status == "NO_LEGAL_SLOT":
+                                        assert existing is not None
+                                        duplicate_preflight_row = {
+                                            "event": "DUPLICATE_PRETAIL_REJECTED_GEOMETRY",
+                                            "skeleton_hash": geometry_hash,
+                                            "discovery_topology": context.structural_topology,
+                                            "canonical_topology_owner": (
+                                                seed.canonical_topology_owner
+                                            ),
+                                            "packaging_preflight_status": (cached_preflight_status),
+                                            "packaging_slot_exists": False,
+                                            "tail_admissible": False,
+                                            "tail_search_started": False,
+                                            "preflight_reexecuted": False,
+                                        }
+                                        if stats.tail_slot_preflight_rows is None:
+                                            stats.tail_slot_preflight_rows = []
+                                        stats.tail_slot_preflight_rows.append(
+                                            duplicate_preflight_row
+                                        )
+                                        if (
+                                            context.global_cross_topology_duplicate_trace
+                                            is not None
+                                            and existing.get("first_discovery_topology")
+                                            != context.structural_topology
+                                        ):
+                                            stats.cross_topology_duplicate_count += 1
+                                            context.global_cross_topology_duplicate_trace.append(
+                                                duplicate_preflight_row
+                                            )
+                                        continue
+
+                                    if cached_preflight_status is None:
+                                        preflight_result = _packaging_tail_slot_preflight(
+                                            context, seed
+                                        )
+                                        proof_mode = str(preflight_result["proof_mode"])
+                                        slot_exists = preflight_result["legal_slot_exists"]
+                                        preflight_status = (
+                                            "NO_LEGAL_SLOT"
+                                            if slot_exists is False
+                                            and proof_mode == EXACT_ORTHOGONAL_EVENT_ENUMERATION
+                                            else "LEGAL_SLOT_EXISTS"
+                                            if slot_exists is True
+                                            else "UNAVAILABLE"
+                                        )
+                                        tail_search_admitted = preflight_status != "NO_LEGAL_SLOT"
+                                        preflight_row = {
+                                            "event": "TAIL_SLOT_PREFLIGHT",
+                                            "stage": "TAIL_SLOT_PREFLIGHT",
+                                            "skeleton_hash": geometry_hash,
+                                            "discovery_topology": context.structural_topology,
+                                            "canonical_topology_owner": (
+                                                seed.canonical_topology_owner
+                                            ),
+                                            "canonical_family": seed.family.to_dict(),
+                                            "packaging_preflight_status": preflight_status,
+                                            "packaging_slot_exists": slot_exists,
+                                            "tail_admissible": (
+                                                False
+                                                if preflight_status == "NO_LEGAL_SLOT"
+                                                else None
+                                                if preflight_status == "UNAVAILABLE"
+                                                else True
+                                            ),
+                                            "tail_search_started": tail_search_admitted,
+                                            "preflight_reexecuted": True,
+                                            "preflight": preflight_result,
+                                        }
+                                        if stats.tail_slot_preflight_rows is None:
+                                            stats.tail_slot_preflight_rows = []
+                                        stats.tail_slot_preflight_rows.append(preflight_row)
+                                        if registry is not None:
+                                            registry_row = existing if existing is not None else {}
+                                            registry_row.update(
+                                                {
+                                                    "skeleton_hash": geometry_hash,
+                                                    "first_discovery_topology": (
+                                                        first_discovery_topology
+                                                        or context.structural_topology
+                                                    ),
+                                                    "canonical_topology_owner": (
+                                                        seed.canonical_topology_owner
+                                                    ),
+                                                    "canonical_family": seed.family.to_dict(),
+                                                    "packaging_preflight_status": preflight_status,
+                                                    "packaging_slot_exists": slot_exists,
+                                                    "tail_admissible": preflight_row[
+                                                        "tail_admissible"
+                                                    ],
+                                                    "tail_search_started": False,
+                                                    "tail_search_discovery_topology": None,
+                                                    "p2d_reached": False,
+                                                    "p2d_candidate_count": 0,
+                                                    "p2d_full_pass_count": 0,
+                                                }
+                                            )
+                                            registry[geometry_hash] = registry_row
+                                        if preflight_status == "NO_LEGAL_SLOT":
+                                            _record_rejection(
+                                                stats,
+                                                "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT",
+                                            )
+                                            if stats.skeleton_tail_lifecycle is None:
+                                                stats.skeleton_tail_lifecycle = []
+                                            stats.skeleton_tail_lifecycle.append(
+                                                {
+                                                    "topology": seed.topology,
+                                                    "skeleton_hash": geometry_hash,
+                                                    "discovery_topology": (
+                                                        context.structural_topology
+                                                    ),
+                                                    "canonical_topology_owner": (
+                                                        seed.canonical_topology_owner
+                                                    ),
+                                                    "canonical_family": seed.family.to_dict(),
+                                                    "packaging_preflight_executed": True,
+                                                    "packaging_slot_exists": False,
+                                                    "tail_admissible": False,
+                                                    "tail_search_started": False,
+                                                    "tail_nodes": 0,
+                                                    "tail_node_limit": 0,
+                                                    "complete_candidate_count": 0,
+                                                    "p2d_reached": False,
+                                                    "first_failure_stage": "TAIL_SLOT_PREFLIGHT",
+                                                    "first_failure_reason": (
+                                                        "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT"
+                                                    ),
+                                                }
+                                            )
+                                            continue
+                                    else:
+                                        assert existing is not None
+                                        preflight_status = str(cached_preflight_status)
+                                        slot_exists = existing.get("packaging_slot_exists")
+                                        preflight_row = {
+                                            "event": "CACHED_TAIL_SLOT_PREFLIGHT",
+                                            "stage": "TAIL_SLOT_PREFLIGHT",
+                                            "skeleton_hash": geometry_hash,
+                                            "discovery_topology": context.structural_topology,
+                                            "canonical_topology_owner": (
+                                                seed.canonical_topology_owner
+                                            ),
+                                            "packaging_preflight_status": preflight_status,
+                                            "packaging_slot_exists": slot_exists,
+                                            "tail_admissible": existing.get("tail_admissible"),
+                                            "tail_search_started": False,
+                                            "preflight_reexecuted": False,
+                                        }
+                                        if stats.tail_slot_preflight_rows is None:
+                                            stats.tail_slot_preflight_rows = []
+                                        stats.tail_slot_preflight_rows.append(preflight_row)
+
                                     tail_search_discovery_topology = (
                                         str(existing["tail_search_discovery_topology"])
                                         if existing is not None
@@ -3363,6 +3544,13 @@ def _construct_face_skeletons(
                                                 "tail_search_started": True,
                                                 "tail_search_discovery_topology": (
                                                     context.structural_topology
+                                                ),
+                                                "packaging_preflight_status": preflight_status,
+                                                "packaging_slot_exists": slot_exists,
+                                                "tail_admissible": (
+                                                    existing.get("tail_admissible")
+                                                    if existing is not None
+                                                    else preflight_row.get("tail_admissible")
                                                 ),
                                             }
                                         )
@@ -4073,6 +4261,7 @@ class PlacementCandidateEnumerationV1:
             "root_preflight_mode": "EXACT_NECESSARY_PREDICATE_OR_ORDERING_ONLY",
             "heuristic_root_pruning": False,
             "root_preflight_ordering": list(self._stats.root_preflight_rows or []),
+            "tail_slot_preflight_rows": list(self._stats.tail_slot_preflight_rows or []),
             "skeleton_tail_lifecycle": list(self._stats.skeleton_tail_lifecycle or []),
             "tail_search_zone_facts": {
                 skeleton_hash: {

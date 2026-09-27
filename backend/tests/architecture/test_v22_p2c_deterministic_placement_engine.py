@@ -125,6 +125,7 @@ def test_placement_domain_has_only_domain_dependencies() -> None:
         "cold_storage.modules.layout.domain.site_geometry",
         "cold_storage.modules.layout.domain.structural_composition",
         "cold_storage.modules.layout.domain.structural_quality",
+        "cold_storage.modules.layout.domain.tail_slot_feasibility",
     }
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.Import):

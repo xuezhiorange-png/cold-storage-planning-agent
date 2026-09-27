@@ -641,6 +641,7 @@ def select_validated_placement(
         "ownership_matrix": [],
         "ownership_duplicates": [],
         "geometry_evaluation_admissions": [],
+        "tail_slot_preflight_trace": [],
         "construction_attempts": [],
         "constructive_divergence_trace": [],
         "offset_transition_trace": [],
@@ -941,6 +942,7 @@ def select_validated_placement(
                 for source_key, target_key in (
                     ("_r6_topology_ownership_duplicates", "ownership_duplicates"),
                     ("_r7_geometry_evaluation_admissions", "geometry_evaluation_admissions"),
+                    ("tail_slot_preflight_rows", "tail_slot_preflight_trace"),
                     ("_r6_offset_transition_trace", "offset_transition_trace"),
                     ("_r6_constructive_divergence_attempts", "constructive_divergence_trace"),
                     (
@@ -986,7 +988,10 @@ def select_validated_placement(
                         lifecycle_copy["first_failure_reason"] = p2d_lifecycle.get(
                             "first_failure_reason", "P2D_HARD_VALIDATION_FAILED"
                         )
-                    elif not lifecycle_copy["p2d_reached"]:
+                    elif (
+                        not lifecycle_copy["p2d_reached"]
+                        and lifecycle_copy.get("first_failure_stage") != "TAIL_SLOT_PREFLIGHT"
+                    ):
                         lifecycle_copy["first_failure_stage"] = "TAIL_SEARCH"
                         lifecycle_copy["first_failure_reason"] = (
                             "TAIL_NODE_SHARE_EXHAUSTED_WITHOUT_COMPLETE_P2C_CANDIDATE"
@@ -1139,6 +1144,14 @@ def select_validated_placement(
         key=lambda row: (
             str(row.get("skeleton_hash")),
             str(row.get("discovery_topology")),
+        ),
+    )
+    r6_topology_diagnostics["tail_slot_preflight_trace"] = sorted(
+        r6_topology_diagnostics["tail_slot_preflight_trace"],
+        key=lambda row: (
+            str(row.get("skeleton_hash")),
+            str(row.get("discovery_topology")),
+            str(row.get("event")),
         ),
     )
 

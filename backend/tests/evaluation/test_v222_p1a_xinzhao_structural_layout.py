@@ -55,7 +55,7 @@ def _direct_core_edges(zones: Mapping[str, Mapping[str, Any]]) -> int:
     )
 
 
-def test_xinzhao_real_tool7_r7_geometry_admission_is_hard_valid_and_deterministic(
+def test_xinzhao_real_tool7_r9_preflight_is_hard_valid_and_deterministic(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     raw = FIXTURE.read_bytes()
@@ -134,18 +134,17 @@ def test_xinzhao_real_tool7_r7_geometry_admission_is_hard_valid_and_deterministi
     assert second_lifecycle["discovery_topology"] == "CENTRAL_PROCESS_HUB"
     assert second_lifecycle["canonical_topology_owner"] == "STRAIGHT_LINEAR_BAND"
     assert second_lifecycle["canonical_family"]["family"] == "LINEAR_PROCESS_BAND"
-    assert second_lifecycle["tail_search_started_by_topology"] == "CENTRAL_PROCESS_HUB"
+    assert second_lifecycle["packaging_preflight_executed"] is True
+    assert second_lifecycle["packaging_slot_exists"] is False
+    assert second_lifecycle["tail_search_started"] is False
     assert second_lifecycle["complete_candidate_count"] == 0
     assert second_lifecycle["p2d_reached"] is False
-    assert second_lifecycle["first_failure_stage"] == "TAIL_SEARCH"
+    assert second_lifecycle["first_failure_stage"] == "TAIL_SLOT_PREFLIGHT"
     assert second_lifecycle["first_failure_reason"] == (
-        "TAIL_NODE_SHARE_EXHAUSTED_WITHOUT_COMPLETE_P2C_CANDIDATE"
+        "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT"
     )
-    assert second_lifecycle["first_failure_detail"] == (
-        "TAIL_NODE_SHARE_EXHAUSTED;ZERO_OPTIONS:packaging_material_storage"
-    )
-    assert second_lifecycle["zero_option_tail_zone_codes"] == ["packaging_material_storage"]
-    assert second_lifecycle["tail_nodes"] == second_lifecycle["tail_node_limit"]
+    assert second_lifecycle["tail_nodes"] == 0
+    assert second_lifecycle["tail_node_limit"] == 0
     assert first_evaluation["p2d_evaluated_distinct_main_process_skeleton_count"] == 1
     assert first_evaluation["p2d_full_pass_distinct_main_process_skeleton_count"] == 1
     assert first_evaluation["distinct_runner_up_present"] is False
@@ -163,19 +162,17 @@ def test_xinzhao_real_tool7_r7_geometry_admission_is_hard_valid_and_deterministi
     offset_rows = topology_diagnostics["offset_transition_trace"]
     assert offset_rows
     assert any(shift != 0 for row in offset_rows for shift in row["cross_axis_shifts_mm"])
-    admission_956 = next(
+    preflight_956 = next(
         row
-        for row in topology_diagnostics["geometry_evaluation_admissions"]
+        for row in topology_diagnostics["tail_slot_preflight_trace"]
         if row["skeleton_hash"] == r6_second_geometry
     )
-    assert admission_956["discovery_topology"] == "CENTRAL_PROCESS_HUB"
-    assert admission_956["canonical_topology_owner"] == "STRAIGHT_LINEAR_BAND"
-    assert admission_956["geometry_previously_seen"] is False
-    assert admission_956["action"] == "START_TAIL_FOR_NEW_GEOMETRY"
-    assert any(
-        row["discovery_topology"] == "CENTRAL_PROCESS_HUB"
-        and row["canonical_owner"] == "STRAIGHT_LINEAR_BAND"
-        and row["skeleton_hash"] == r6_second_geometry
+    assert preflight_956["discovery_topology"] == "CENTRAL_PROCESS_HUB"
+    assert preflight_956["canonical_topology_owner"] == "STRAIGHT_LINEAR_BAND"
+    assert preflight_956["packaging_preflight_status"] == "NO_LEGAL_SLOT"
+    assert preflight_956["tail_search_started"] is False
+    assert not any(
+        row.get("skeleton_hash") == r6_second_geometry
         for row in topology_diagnostics["ownership_matrix"]
     )
     registry_956 = next(
@@ -185,8 +182,11 @@ def test_xinzhao_real_tool7_r7_geometry_admission_is_hard_valid_and_deterministi
     )
     assert registry_956["first_discovery_topology"] == "CENTRAL_PROCESS_HUB"
     assert registry_956["canonical_topology_owner"] == "STRAIGHT_LINEAR_BAND"
-    assert registry_956["tail_search_started"] is True
-    assert registry_956["tail_search_discovery_topology"] == "CENTRAL_PROCESS_HUB"
+    assert registry_956["packaging_preflight_status"] == "NO_LEGAL_SLOT"
+    assert registry_956["packaging_slot_exists"] is False
+    assert registry_956["tail_admissible"] is False
+    assert registry_956["tail_search_started"] is False
+    assert registry_956["tail_search_discovery_topology"] is None
     assert registry_956["p2d_reached"] is False
     assert topology_diagnostics["cross_topology_duplicate_geometry_count"] == len(
         topology_diagnostics["cross_topology_duplicate_geometry_trace"]
@@ -218,7 +218,7 @@ def test_xinzhao_real_tool7_r7_geometry_admission_is_hard_valid_and_deterministi
         )
     )
     assert first["canonical_result_hash"] != r5_metrics["r5_canonical_result_hash"]
-    assert first["canonical_result_hash"] != r6_metrics["r6_canonical_result_hash"]
+    assert first["canonical_result_hash"] == r6_metrics["r6_canonical_result_hash"]
     assert first["svg_sha256"] == r5_metrics["r5_svg_sha256"]
     assert first["svg_sha256"] == r6_metrics["r6_svg_sha256"]
     assert hashlib.sha256(first["drawing"]["svg"].encode("utf-8")).hexdigest() == (
