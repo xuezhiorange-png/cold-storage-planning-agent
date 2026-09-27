@@ -25,6 +25,10 @@ from cold_storage.modules.layout.domain.dimensioning import (
 from cold_storage.modules.layout.domain.main_process_skeleton import (
     MainProcessSkeletonCandidateV1,
 )
+from cold_storage.modules.layout.domain.main_process_topology import (
+    classify_main_process_topology_v1,
+    decide_main_process_topology_ownership_v1,
+)
 from cold_storage.modules.layout.domain.objective_profile import (
     CARDINAL_LOADING_SIDE_METRIC,
     LOADING_SIDE_PREFERENCE,
@@ -91,6 +95,14 @@ MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE: Final = 15
 CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT: Final = 2
 STRUCTURED_SKELETON_CONSTRUCTION_SHARE_NUMERATOR: Final = 1
 STRUCTURED_SKELETON_CONSTRUCTION_SHARE_DENOMINATOR: Final = 2
+# R6 exact traces show the existing 20-node half-share reaches Offset's
+# topology transition but truncates before the seven-zone seed closes, and
+# lets the first Hub face pair consume the lane before ownership duplicates
+# can be skipped. Keep the global lane budget fixed while reserving 30/40
+# nodes for these alternative constructive topologies; Straight retains the
+# historical half-share because its known seed closes within that allowance.
+ALTERNATIVE_TOPOLOGY_CONSTRUCTION_SHARE_NUMERATOR: Final = 3
+ALTERNATIVE_TOPOLOGY_CONSTRUCTION_SHARE_DENOMINATOR: Final = 4
 CONSTRUCTIVE_FACE_PAIR_NODE_BUDGET: Final = 20
 CONSTRUCTIVE_SORTING_ROOT_NODE_BUDGET: Final = 16
 _CARDINAL_SIDES: Final = ("WEST", "EAST", "SOUTH", "NORTH")
@@ -2300,6 +2312,8 @@ class _PlacementSearchContext:
     structural_skeleton: StructuralSkeletonV1
     structural_topology: str
     search_phase: str
+    global_main_process_geometry_registry: dict[str, dict[str, Any]] | None
+    global_cross_topology_duplicate_trace: list[dict[str, Any]] | None
 
 
 @dataclass
@@ -2320,6 +2334,11 @@ class _PlacementSearchStats:
     skeleton_tail_lifecycle: list[dict[str, Any]] | None = None
     construction_nodes_by_skeleton: dict[str, int] | None = None
     tail_zone_search_facts: dict[str, dict[str, dict[str, int]]] | None = None
+    topology_ownership_duplicates: list[dict[str, Any]] | None = None
+    offset_transition_trace: list[dict[str, Any]] | None = None
+    constructive_divergence_attempts: list[dict[str, Any]] | None = None
+    topology_classification_failures: list[dict[str, Any]] | None = None
+    cross_topology_duplicate_count: int = 0
 
 
 def _validated_search_context(
@@ -2338,6 +2357,8 @@ def _validated_search_context(
     structural_family: StructuralCompositionFamilyV1 | None = None,
     structural_topology: str | None = None,
     search_phase: str = LEGACY_COMPAT_PHASE,
+    global_main_process_geometry_registry: dict[str, dict[str, Any]] | None = None,
+    global_cross_topology_duplicate_trace: list[dict[str, Any]] | None = None,
 ) -> _PlacementSearchContext:
     if set(authorities) != set(graph.nodes) or tuple(PLACEMENT_ZONE_ORDER) != tuple(
         code for code in PLACEMENT_ZONE_ORDER if code in graph.nodes
@@ -2441,6 +2462,8 @@ def _validated_search_context(
         structural_skeleton=skeleton,
         structural_topology=selected_topology,
         search_phase=search_phase,
+        global_main_process_geometry_registry=global_main_process_geometry_registry,
+        global_cross_topology_duplicate_trace=global_cross_topology_duplicate_trace,
     )
 
 
@@ -2509,51 +2532,13 @@ def _main_group_order_monotonic(
 def _topology_geometry_valid(
     placed: Mapping[str, PlacedRectangleV1], topology: str, longitudinal_axis: str
 ) -> bool:
-    """Apply exact topology identity predicates after unchanged MUST edges.
-
-    Linear topology is classified from exact functional-group envelopes, not
-    from a requirement that every room share one common line. STRAIGHT uses a
-    common cross-axis interval across RAW, CORE, and FINISHED groups. OFFSET
-    requires adjacent group bands to overlap while the three-group common
-    interval is absent. The process-axis ordering and all mandatory room
-    adjacencies remain independently checked by their existing predicates.
-    """
-    if not set(MAIN_PROCESS_ZONE_CODES) <= set(placed):
+    """Require the lane to own its exact geometry under canonical precedence."""
+    classification = classify_main_process_topology_v1(placed)
+    if classification.canonical_owner != topology:
         return False
-    if topology == CENTRAL_PROCESS_HUB:
-        return True
-    cross_axis = "Y" if longitudinal_axis == "X" else "X"
-    axis_indices = (1, 3) if cross_axis == "Y" else (0, 2)
-    group_codes = (
-        ("raw_fruit_buffer", "primary_precooling_room"),
-        ("sorting_packaging_room", "coating_room"),
-        (
-            "secondary_precooling_room",
-            "finished_goods_room",
-            "shipping_channel",
-        ),
-    )
-    intervals: list[tuple[int, int]] = []
-    for codes in group_codes:
-        bounds = tuple(_bounds(placed[code]) for code in codes)
-        intervals.append(
-            (
-                min(row[axis_indices[0]] for row in bounds),
-                max(row[axis_indices[1]] for row in bounds),
-            )
-        )
-    common_low = max(row[0] for row in intervals)
-    common_high = min(row[1] for row in intervals)
-    common_band = common_low < common_high
-    if topology == STRAIGHT_LINEAR_BAND:
-        return common_band
-    if topology == OFFSET_LINEAR_BAND:
-        adjacent_bands_overlap = all(
-            max(first[0], second[0]) < min(first[1], second[1])
-            for first, second in zip(intervals, intervals[1:], strict=False)
-        )
-        return adjacent_bands_overlap and not common_band
-    return False
+    if topology in {STRAIGHT_LINEAR_BAND, OFFSET_LINEAR_BAND}:
+        return classification.process_axis == longitudinal_axis
+    return topology == CENTRAL_PROCESS_HUB
 
 
 def _search_provenance(
@@ -2653,6 +2638,7 @@ def _constructive_edge_options(
     required_side: str | tuple[str, ...] | None = None,
     bridge_code: str | None = None,
     bank_alignment_code: str | None = None,
+    anchor_reference_codes: Sequence[str] = (),
     prefer_truck_entrance: bool = False,
     stats: _PlacementSearchStats,
 ) -> tuple[PlacedRectangleV1, ...]:
@@ -2665,11 +2651,19 @@ def _constructive_edge_options(
         return ()
     options: dict[tuple[int, int, int, int], PlacedRectangleV1] = {}
     graph_neighbors = _must_neighbors(code, placed, context.graph)
+    anchor_references = tuple(
+        placed[reference_code]
+        for reference_code in anchor_reference_codes
+        if reference_code in placed and reference_code != neighbor_code
+    )
     for width_mm, depth_mm, rotation in variants:
         actual_width, actual_depth = (
             (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
         )
-        for x_mm, y_mm in _edge_anchors(neighbor, actual_width, actual_depth):
+        candidate_anchors = set(_edge_anchors(neighbor, actual_width, actual_depth))
+        for anchor_reference in anchor_references:
+            candidate_anchors.update(_edge_anchors(anchor_reference, actual_width, actual_depth))
+        for x_mm, y_mm in sorted(candidate_anchors):
             rectangle = _rectangle_from_mm(code, x_mm, y_mm, width_mm, depth_mm, rotation)
             candidate_side = _adjacent_side(neighbor, rectangle)
             if required_side is not None and candidate_side not in (
@@ -2900,6 +2894,7 @@ def _constructive_sorting_roots(
 
 def _family_attachment_sides(
     family: StructuralCompositionFamilyV1,
+    topology: str | None = None,
 ) -> tuple[tuple[str, str], ...]:
     if family.family == "LINEAR_PROCESS_BAND":
         raw_side = {
@@ -2909,14 +2904,27 @@ def _family_attachment_sides(
             ("Y", "NEGATIVE"): "NORTH",
         }[(family.dominant_axis, family.dominant_direction)]
         return ((raw_side, _OPPOSITE_SIDE[raw_side]),)
+    if topology == CENTRAL_PROCESS_HUB:
+        # Distinct adjacent faces are explored first because they create a
+        # genuine two-dimensional hub candidate space; opposite-face pairs
+        # remain available after this constructive divergence is attempted.
+        return (
+            ("SOUTH", "WEST"),
+            ("SOUTH", "EAST"),
+            ("NORTH", "WEST"),
+            ("NORTH", "EAST"),
+            ("WEST", "SOUTH"),
+            ("WEST", "NORTH"),
+            ("EAST", "SOUTH"),
+            ("EAST", "NORTH"),
+            ("SOUTH", "NORTH"),
+            ("NORTH", "SOUTH"),
+            ("WEST", "EAST"),
+            ("EAST", "WEST"),
+        )
     return (
         ("SOUTH", "NORTH"),
         ("SOUTH", "WEST"),
-        # Opposite-face and folded alternatives are all searched.  This order
-        # samples an orthogonal hub topology immediately after the established
-        # south/north construction so the first topology cannot starve the
-        # family lane. Exact site, dimension, obstacle and adjacency predicates
-        # still admit or reject every constructed skeleton.
         ("NORTH", "SOUTH"),
         ("EAST", "NORTH"),
         ("WEST", "NORTH"),
@@ -2930,6 +2938,103 @@ def _family_attachment_sides(
     )
 
 
+def _offset_transition_options(
+    context: _PlacementSearchContext,
+    placed: Mapping[str, PlacedRectangleV1],
+    sorting: PlacedRectangleV1,
+    candidates: Sequence[PlacedRectangleV1],
+    direction: str,
+    required_side: str,
+    stats: _PlacementSearchStats,
+) -> tuple[tuple[PlacedRectangleV1, ...], dict[tuple[int, int, int, int], int]]:
+    """Construct only exact CORE->FINISHED edge options with nonzero band shift."""
+    process_axis = context.structural_skeleton.ordering_axis
+    cross_axis = "Y" if process_axis == "X" else "X"
+    raw = _group_axis_interval(RAW_SIDE_GROUP, placed, cross_axis)
+    core = _group_axis_interval(PROCESSING_CORE_GROUP, placed, cross_axis)
+    if raw is None or core is None:
+        return (), {}
+    common_low = max(raw[0], core[0])
+    common_high = min(raw[1], core[1])
+    if common_low >= common_high:
+        return (), {}
+    cross_low_index, cross_high_index = (1, 3) if cross_axis == "Y" else (0, 2)
+    sorting_bounds = _bounds(sorting)
+    sorting_cross_low = sorting_bounds[cross_low_index]
+    sorting_cross_high = sorting_bounds[cross_high_index]
+    expanded_options = {_bounds(row): row for row in candidates}
+    authority = context.authorities["secondary_precooling_room"]
+    for width_mm, depth_mm, rotation in _dimension_variants(authority, placed, context.boundary):
+        actual_width, actual_depth = (
+            (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
+        )
+        cross_extent = actual_width if cross_axis == "X" else actual_depth
+        cross_start = common_high if direction == "POSITIVE" else common_low - cross_extent
+        for anchor_x, anchor_y in _edge_anchors(sorting, actual_width, actual_depth):
+            x_mm = cross_start if cross_axis == "X" else anchor_x
+            y_mm = cross_start if cross_axis == "Y" else anchor_y
+            candidate = _rectangle_from_mm(
+                "secondary_precooling_room", x_mm, y_mm, width_mm, depth_mm, rotation
+            )
+            candidate_side = _adjacent_side(sorting, candidate)
+            if candidate_side != required_side:
+                continue
+            rejection = _geometry_rejection_reason(candidate, placed, context)
+            if rejection is not None:
+                _record_rejection(stats, rejection)
+                continue
+            if candidate_side not in _CARDINAL_SIDES or not rectangles_share_positive_edge(
+                sorting, candidate
+            ):
+                continue
+            if any(
+                not rectangles_share_positive_edge(candidate, neighbor)
+                for neighbor in _must_neighbors("secondary_precooling_room", placed, context.graph)
+            ):
+                _record_rejection(stats, "MUST_ADJACENCY_FAIL")
+                continue
+            expanded_options[_bounds(candidate)] = candidate
+    shifts_by_key: dict[tuple[int, int, int, int], int] = {}
+    selected: list[PlacedRectangleV1] = []
+    for candidate in (expanded_options[key] for key in sorted(expanded_options)):
+        bounds = _bounds(candidate)
+        interval = (bounds[cross_low_index], bounds[cross_high_index])
+        core_overlap = max(interval[0], core[0]) < min(interval[1], core[1])
+        if not core_overlap:
+            continue
+        if _adjacent_side(sorting, candidate) not in {"NORTH", "SOUTH", "EAST", "WEST"}:
+            continue
+        if direction == "POSITIVE":
+            shift_mm = interval[0] - sorting_cross_low
+            transition_valid = shift_mm > 0 and interval[0] >= common_high
+        else:
+            shift_mm = interval[1] - sorting_cross_high
+            transition_valid = shift_mm < 0 and interval[1] <= common_low
+        if transition_valid:
+            selected.append(candidate)
+            shifts_by_key[bounds] = shift_mm
+    selected.sort(key=lambda row: (*_bounds(row), row.rotation_deg))
+    if stats.offset_transition_trace is None:
+        stats.offset_transition_trace = []
+    stats.offset_transition_trace.append(
+        {
+            "topology": OFFSET_LINEAR_BAND,
+            "transition_stage": "CORE_TO_FINISHED",
+            "direction": direction,
+            "cross_axis": cross_axis,
+            "sorting_root_mm": list(sorting.bounds_mm),
+            "raw_side": _adjacent_side(sorting, placed["primary_precooling_room"]),
+            "finished_side": required_side,
+            "raw_core_common_interval_mm": [common_low, common_high],
+            "candidate_option_count": len(candidates),
+            "transition_option_count": len(selected),
+            "cross_axis_shifts_mm": sorted(shifts_by_key.values()),
+            "transition_option_bounds_mm": [list(_bounds(row)) for row in selected],
+        }
+    )
+    return tuple(selected), shifts_by_key
+
+
 def _construct_face_skeletons(
     context: _PlacementSearchContext,
     stats: _PlacementSearchStats,
@@ -2938,6 +3043,7 @@ def _construct_face_skeletons(
     finished_side: str,
     skeleton_node_limit: int,
     skeleton_limit: int,
+    offset_direction: str | None = None,
 ) -> Iterator[MainProcessSkeletonCandidateV1]:
     """Construct one complete seven-zone skeleton for one core topology.
 
@@ -2993,6 +3099,23 @@ def _construct_face_skeletons(
                 required_side=finished_side,
                 stats=stats,
             )
+            offset_shifts: dict[tuple[int, int, int, int], int] = {}
+            if context.structural_topology == OFFSET_LINEAR_BAND:
+                if offset_direction not in {"POSITIVE", "NEGATIVE"}:
+                    _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
+                    continue
+                secondary_options_tuple, offset_shifts = _offset_transition_options(
+                    context,
+                    placed,
+                    sorting,
+                    secondary_options,
+                    offset_direction,
+                    finished_side,
+                    stats,
+                )
+                secondary_options = secondary_options_tuple
+                if not secondary_options:
+                    _record_rejection(stats, "OFFSET_TRANSITION_UNAVAILABLE")
             for secondary in secondary_options:
                 if stats.visited_nodes >= skeleton_node_limit:
                     stats.skeleton_search_truncated = True
@@ -3018,6 +3141,11 @@ def _construct_face_skeletons(
                         "finished_goods_room",
                         placed,
                         "coating_room",
+                        anchor_reference_codes=(
+                            ("secondary_precooling_room",)
+                            if context.structural_topology == OFFSET_LINEAR_BAND
+                            else ()
+                        ),
                         stats=stats,
                     )
                     for finished in finished_options:
@@ -3048,14 +3176,233 @@ def _construct_face_skeletons(
                                 placed, context.structural_skeleton
                             ):
                                 _record_rejection(stats, "GROUP_ORDER_FAIL")
-                            elif not _topology_geometry_valid(
-                                placed,
-                                context.structural_topology,
-                                context.structural_skeleton.ordering_axis,
-                            ):
-                                _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
                             else:
                                 try:
+                                    classification = classify_main_process_topology_v1(placed)
+                                    if classification.canonical_owner is None:
+                                        _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
+                                        if stats.topology_classification_failures is None:
+                                            stats.topology_classification_failures = []
+                                        stats.topology_classification_failures.append(
+                                            {
+                                                "topology": context.structural_topology,
+                                                "canonical_owner": None,
+                                                "matched_topologies": list(
+                                                    classification.matched_topologies
+                                                ),
+                                                "process_axis": classification.process_axis,
+                                                "expected_process_axis": (
+                                                    context.structural_skeleton.ordering_axis
+                                                ),
+                                                "zone_bounds_mm": {
+                                                    code: list(_bounds(rectangle))
+                                                    for code, rectangle in sorted(placed.items())
+                                                },
+                                            }
+                                        )
+                                        continue
+                                    seed_hash = MainProcessSkeletonCandidateV1.create(
+                                        family=context.structural_composition_family,
+                                        rectangles=placed,
+                                        topology=classification.canonical_owner,
+                                        generation_pattern=(
+                                            f"{context.structural_topology}:"
+                                            f"RAW_{raw_side}:"
+                                            f"RAW_BANK_{_adjacent_side(primary, raw)}:"
+                                            f"FINISHED_{finished_side}:"
+                                            f"ROOT_{sorting.x}_{sorting.y}_"
+                                            "CONSTRUCTIVE_PROCESS_CHAIN"
+                                        ),
+                                        hard_geometry_predicates_passed=(
+                                            "SITE_CONTAINMENT",
+                                            "NO_BUILD_CLEAR",
+                                            "NON_OVERLAP",
+                                            "MUST_ADJACENCY",
+                                            "GROUP_ORDER",
+                                            "TOPOLOGY_RULE",
+                                        ),
+                                    )
+                                    geometry_hash = seed_hash.main_process_skeleton_hash
+                                    registry = context.global_main_process_geometry_registry
+                                    existing = (
+                                        registry.get(geometry_hash)
+                                        if registry is not None
+                                        else None
+                                    )
+                                    first_topology = (
+                                        str(existing["first_topology"])
+                                        if existing is not None
+                                        else None
+                                    )
+                                    tail_search_topology = (
+                                        str(existing["tail_search_topology"])
+                                        if existing is not None
+                                        and existing.get("tail_search_topology") is not None
+                                        else None
+                                    )
+                                    ownership_decision = decide_main_process_topology_ownership_v1(
+                                        lane_topology=context.structural_topology,
+                                        canonical_owner=classification.canonical_owner,
+                                        first_topology=first_topology,
+                                        tail_search_topology=tail_search_topology,
+                                    )
+                                    if (
+                                        classification.canonical_owner
+                                        != context.structural_topology
+                                    ):
+                                        if registry is not None and existing is None:
+                                            registry[geometry_hash] = {
+                                                "first_topology": context.structural_topology,
+                                                "canonical_owner": classification.canonical_owner,
+                                                "tail_search_started": False,
+                                                "tail_search_topology": None,
+                                            }
+                                        if ownership_decision.cross_topology_duplicate:
+                                            stats.cross_topology_duplicate_count += 1
+                                            if (
+                                                context.global_cross_topology_duplicate_trace
+                                                is not None
+                                            ):
+                                                context.global_cross_topology_duplicate_trace.append(
+                                                    {
+                                                        "skeleton_hash": geometry_hash,
+                                                        "first_topology": first_topology,
+                                                        "duplicate_topology": (
+                                                            context.structural_topology
+                                                        ),
+                                                        "tail_search_topology": (
+                                                            tail_search_topology
+                                                        ),
+                                                        "canonical_owner": (
+                                                            classification.canonical_owner
+                                                        ),
+                                                        "tail_search_previously_started": (
+                                                            tail_search_topology is not None
+                                                        ),
+                                                        "duplicate_action": (
+                                                            ownership_decision.action
+                                                        ),
+                                                    }
+                                                )
+                                        if stats.topology_ownership_duplicates is None:
+                                            stats.topology_ownership_duplicates = []
+                                        stats.topology_ownership_duplicates.append(
+                                            {
+                                                "event": "TOPOLOGY_OWNERSHIP_DUPLICATE",
+                                                "topology": context.structural_topology,
+                                                "canonical_owner": classification.canonical_owner,
+                                                "skeleton_hash": geometry_hash,
+                                                "sorting_root_mm": list(_bounds(sorting)),
+                                                "raw_side": raw_side,
+                                                "finished_side": finished_side,
+                                                "offset_direction": offset_direction,
+                                                "cross_topology_duplicate": (
+                                                    ownership_decision.cross_topology_duplicate
+                                                ),
+                                                "duplicate_action": ownership_decision.action,
+                                                "construction_attempt_index": len(
+                                                    stats.skeleton_construction_attempts or []
+                                                ),
+                                            }
+                                        )
+                                        continue
+                                    if not _topology_geometry_valid(
+                                        placed,
+                                        context.structural_topology,
+                                        context.structural_skeleton.ordering_axis,
+                                    ):
+                                        _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
+                                        if stats.topology_classification_failures is None:
+                                            stats.topology_classification_failures = []
+                                        stats.topology_classification_failures.append(
+                                            {
+                                                "topology": context.structural_topology,
+                                                "canonical_owner": classification.canonical_owner,
+                                                "matched_topologies": list(
+                                                    classification.matched_topologies
+                                                ),
+                                                "process_axis": classification.process_axis,
+                                                "expected_process_axis": (
+                                                    context.structural_skeleton.ordering_axis
+                                                ),
+                                                "zone_bounds_mm": {
+                                                    code: list(_bounds(rectangle))
+                                                    for code, rectangle in sorted(placed.items())
+                                                },
+                                            }
+                                        )
+                                        continue
+                                    if registry is not None:
+                                        if not ownership_decision.start_tail_search:
+                                            if ownership_decision.cross_topology_duplicate:
+                                                stats.cross_topology_duplicate_count += 1
+                                            if (
+                                                ownership_decision.cross_topology_duplicate
+                                                and context.global_cross_topology_duplicate_trace
+                                                is not None
+                                            ):
+                                                context.global_cross_topology_duplicate_trace.append(
+                                                    {
+                                                        "skeleton_hash": geometry_hash,
+                                                        "first_topology": first_topology,
+                                                        "duplicate_topology": (
+                                                            context.structural_topology
+                                                        ),
+                                                        "tail_search_topology": (
+                                                            tail_search_topology
+                                                        ),
+                                                        "canonical_owner": (
+                                                            classification.canonical_owner
+                                                        ),
+                                                        "tail_search_previously_started": (
+                                                            tail_search_topology is not None
+                                                        ),
+                                                        "duplicate_action": (
+                                                            ownership_decision.action
+                                                        ),
+                                                    }
+                                                )
+                                            continue
+                                        if ownership_decision.cross_topology_duplicate:
+                                            stats.cross_topology_duplicate_count += 1
+                                            if (
+                                                context.global_cross_topology_duplicate_trace
+                                                is not None
+                                            ):
+                                                context.global_cross_topology_duplicate_trace.append(
+                                                    {
+                                                        "skeleton_hash": geometry_hash,
+                                                        "first_topology": first_topology,
+                                                        "duplicate_topology": (
+                                                            context.structural_topology
+                                                        ),
+                                                        "tail_search_topology": (
+                                                            tail_search_topology
+                                                        ),
+                                                        "canonical_owner": (
+                                                            classification.canonical_owner
+                                                        ),
+                                                        "tail_search_previously_started": (
+                                                            tail_search_topology is not None
+                                                        ),
+                                                        "duplicate_action": (
+                                                            ownership_decision.action
+                                                        ),
+                                                    }
+                                                )
+                                        if existing is not None:
+                                            existing["tail_search_started"] = True
+                                            existing["tail_search_topology"] = (
+                                                context.structural_topology
+                                            )
+                                        else:
+                                            registry[geometry_hash] = {
+                                                "first_topology": context.structural_topology,
+                                                "canonical_owner": context.structural_topology,
+                                                "tail_search_started": True,
+                                                "tail_search_topology": context.structural_topology,
+                                            }
+                                    offset_shift = offset_shifts.get(_bounds(secondary))
                                     seed = MainProcessSkeletonCandidateV1.create(
                                         family=context.structural_composition_family,
                                         rectangles=placed,
@@ -3076,6 +3423,27 @@ def _construct_face_skeletons(
                                             "GROUP_ORDER",
                                             "TOPOLOGY_RULE",
                                         ),
+                                        construction_policy=(
+                                            "STRAIGHT_LINEAR_BAND_V1"
+                                            if context.structural_topology == STRAIGHT_LINEAR_BAND
+                                            else "OFFSET_LINEAR_BAND_V1"
+                                            if context.structural_topology == OFFSET_LINEAR_BAND
+                                            else "CENTRAL_PROCESS_HUB_V1"
+                                        ),
+                                        topology_divergence_stage=(
+                                            "CORE_TO_FINISHED"
+                                            if context.structural_topology == OFFSET_LINEAR_BAND
+                                            else "RAW_FINISHED_FACE_PAIR"
+                                            if context.structural_topology == CENTRAL_PROCESS_HUB
+                                            else "ROOT_OR_GROUP_BAND_FORMATION"
+                                        ),
+                                        offset_transition_stage=(
+                                            "CORE_TO_FINISHED"
+                                            if context.structural_topology == OFFSET_LINEAR_BAND
+                                            else None
+                                        ),
+                                        offset_direction=offset_direction,
+                                        offset_cross_axis_shift_mm=offset_shift,
                                     )
                                 except LayoutAuthorityError:
                                     _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
@@ -3109,15 +3477,53 @@ def _construct_main_process_skeletons(
         context.node_budget,
         max(
             MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE,
-            (context.node_budget * STRUCTURED_SKELETON_CONSTRUCTION_SHARE_NUMERATOR)
-            // STRUCTURED_SKELETON_CONSTRUCTION_SHARE_DENOMINATOR,
+            (
+                context.node_budget
+                * (
+                    ALTERNATIVE_TOPOLOGY_CONSTRUCTION_SHARE_NUMERATOR
+                    if context.structural_topology in {OFFSET_LINEAR_BAND, CENTRAL_PROCESS_HUB}
+                    else STRUCTURED_SKELETON_CONSTRUCTION_SHARE_NUMERATOR
+                )
+            )
+            // (
+                ALTERNATIVE_TOPOLOGY_CONSTRUCTION_SHARE_DENOMINATOR
+                if context.structural_topology in {OFFSET_LINEAR_BAND, CENTRAL_PROCESS_HUB}
+                else STRUCTURED_SKELETON_CONSTRUCTION_SHARE_DENOMINATOR
+            ),
         ),
     )
-    face_pairs = _family_attachment_sides(context.structural_composition_family)
-    for face_pair_index, (raw_side, finished_side) in enumerate(face_pairs):
+    if stats.constructive_divergence_attempts is None:
+        stats.constructive_divergence_attempts = []
+    directions: tuple[str | None, ...] = (
+        ("POSITIVE", "NEGATIVE") if context.structural_topology == OFFSET_LINEAR_BAND else (None,)
+    )
+    stats.constructive_divergence_attempts.append(
+        {
+            "topology": context.structural_topology,
+            "attempted": True,
+            "construction_policy": f"{context.structural_topology}_V1",
+            "divergence_stage": (
+                "CORE_TO_FINISHED"
+                if context.structural_topology == OFFSET_LINEAR_BAND
+                else "RAW_FINISHED_FACE_PAIR"
+                if context.structural_topology == CENTRAL_PROCESS_HUB
+                else "ROOT_OR_GROUP_BAND_FORMATION"
+            ),
+            "offset_directions": [value for value in directions if value is not None],
+        }
+    )
+    face_pairs = _family_attachment_sides(
+        context.structural_composition_family, context.structural_topology
+    )
+    attempts = tuple(
+        (raw_side, finished_side, offset_direction)
+        for raw_side, finished_side in face_pairs
+        for offset_direction in directions
+    )
+    for face_pair_index, (raw_side, finished_side, offset_direction) in enumerate(attempts):
         if emitted >= skeleton_completion_limit:
             return
-        remaining_face_pairs = len(face_pairs) - face_pair_index
+        remaining_face_pairs = len(attempts) - face_pair_index
         remaining_construction_nodes = max(0, skeleton_node_limit - stats.visited_nodes)
         even_face_pair_share = (
             remaining_construction_nodes + remaining_face_pairs - 1
@@ -3151,6 +3557,7 @@ def _construct_main_process_skeletons(
                 finished_side,
                 sorting_root_node_limit,
                 skeleton_limit=max(1, skeleton_completion_limit - emitted),
+                offset_direction=offset_direction,
             ):
                 if seed.main_process_skeleton_hash in stats.constructed_main_skeletons:
                     _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
@@ -3172,6 +3579,9 @@ def _construct_main_process_skeletons(
                 if emitted >= skeleton_completion_limit:
                     stats.skeleton_construction_attempts.append(
                         {
+                            "topology": context.structural_topology,
+                            "offset_direction": offset_direction,
+                            "construction_attempt_index": len(stats.skeleton_construction_attempts),
                             "raw_side": raw_side,
                             "finished_side": finished_side,
                             "sorting_root_mm": list(sorting.bounds_mm),
@@ -3187,6 +3597,9 @@ def _construct_main_process_skeletons(
             rejection_counts_after = stats.rejection_reason_counts or {}
             stats.skeleton_construction_attempts.append(
                 {
+                    "topology": context.structural_topology,
+                    "offset_direction": offset_direction,
+                    "construction_attempt_index": len(stats.skeleton_construction_attempts),
                     "raw_side": raw_side,
                     "finished_side": finished_side,
                     "sorting_root_mm": list(sorting.bounds_mm),
@@ -3213,8 +3626,6 @@ def _construct_main_process_skeletons(
                     "visited_node_delta": stats.visited_nodes - attempt_node_start,
                 }
             )
-            if emitted_for_face and context.structural_topology == CENTRAL_PROCESS_HUB:
-                break
 
 
 def _walk_complete_candidate_payloads(
@@ -3615,7 +4026,7 @@ class PlacementCandidateEnumerationV1:
             "topology": self._context.structural_topology,
             "constructed_candidate_count": len(self._stats.constructed_main_skeletons or {}),
             "candidates": [
-                candidate.to_dict()
+                candidate.to_evaluation_dict()
                 for candidate in sorted(
                     (self._stats.constructed_main_skeletons or {}).values(),
                     key=lambda row: row.main_process_skeleton_hash,
@@ -3640,6 +4051,17 @@ class PlacementCandidateEnumerationV1:
             },
             "node_budget_exhausted": self._stats.node_budget_exhausted,
             "construction_search_truncated": self._stats.skeleton_search_truncated,
+            "_r6_topology_ownership_duplicates": list(
+                self._stats.topology_ownership_duplicates or []
+            ),
+            "_r6_offset_transition_trace": list(self._stats.offset_transition_trace or []),
+            "_r6_constructive_divergence_attempts": list(
+                self._stats.constructive_divergence_attempts or []
+            ),
+            "_r6_topology_classification_failures": list(
+                self._stats.topology_classification_failures or []
+            ),
+            "_r6_cross_topology_duplicate_count": self._stats.cross_topology_duplicate_count,
         }
 
     @property
@@ -3714,6 +4136,8 @@ def enumerate_placement_candidates(
     structural_family: StructuralCompositionFamilyV1 | None = None,
     structural_topology: str | None = None,
     search_phase: str = LEGACY_COMPAT_PHASE,
+    global_main_process_geometry_registry: dict[str, dict[str, Any]] | None = None,
+    global_cross_topology_duplicate_trace: list[dict[str, Any]] | None = None,
 ) -> PlacementCandidateEnumerationV1:
     """Expose the same validated P2C search family as a lazy candidate stream."""
     return PlacementCandidateEnumerationV1(
@@ -3732,6 +4156,8 @@ def enumerate_placement_candidates(
             structural_family=structural_family,
             structural_topology=structural_topology,
             search_phase=search_phase,
+            global_main_process_geometry_registry=global_main_process_geometry_registry,
+            global_cross_topology_duplicate_trace=global_cross_topology_duplicate_trace,
         )
     )
 

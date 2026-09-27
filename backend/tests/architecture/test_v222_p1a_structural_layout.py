@@ -66,8 +66,9 @@ def test_structural_search_has_group_band_zone_and_three_required_family_lanes()
     assert MAIN_PROCESS_ZONE_CODES[-1] == "shipping_channel"
     selector = _source("application/validated_candidate_selection.py")
     assert '"STAGED_COVERAGE_THEN_PREFERENCE"' in selector
-    assert "for lane_index in lane_order" in selector
-    assert "lane_budgets[lane_index]" in selector
+    assert "for lane_position, lane_index in enumerate(lane_order)" in selector
+    assert "divmod(global_node_budget_remaining, lanes_left)" in selector
+    assert 'global_node_budget_remaining -= lane_report["visited_nodes"]' in selector
     assert "GENERAL_FALLBACK_PHASE" in selector
 
 

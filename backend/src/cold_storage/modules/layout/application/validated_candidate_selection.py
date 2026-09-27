@@ -428,6 +428,7 @@ def _internal_selection_evaluation(
     fallback_candidate_count: int,
     p2b2_tiebreak_used: bool,
     lane_reports: list[dict[str, Any]],
+    r6_topology_diagnostics: Mapping[str, Any],
     full_pass_records: list[
         tuple[
             dict[str, Any],
@@ -544,6 +545,7 @@ def _internal_selection_evaluation(
         "selected_composition_family": selected[3].to_dict(),
         "selected_topology": selected[0].get("_r5_topology"),
         "selected_candidate_hash": selected[0].get("canonical_candidate_hash"),
+        "selected_main_process_skeleton_hash": selected[0].get("_r5_skeleton_hash"),
         "selected_p2d_result_hash": selected[1].get("canonical_result_hash"),
         "selected_structural_facts": selected_payload,
         "structural_candidate_count": structured_candidate_count,
@@ -592,6 +594,7 @@ def _internal_selection_evaluation(
         "distinct_full_pass_main_process_skeleton_count": len(
             {_main_process_geometry_signature(record[0]) for record in full_pass_records}
         ),
+        "r6_topology_diagnostics": dict(r6_topology_diagnostics),
     }
 
 
@@ -630,28 +633,52 @@ def select_validated_placement(
     ] = []
     lane_reports: list[dict[str, Any]] = []
     skeleton_lifecycle_by_hash: dict[tuple[str, str], dict[str, Any]] = {}
+    global_skeleton_geometry_registry: dict[str, dict[str, Any]] = {}
+    cross_topology_duplicate_trace: list[dict[str, Any]] = []
+    r6_topology_diagnostics: dict[str, Any] = {
+        "identity": "p1a-r6-topology-search-evidence@1.0.0",
+        "ownership_matrix": [],
+        "ownership_duplicates": [],
+        "construction_attempts": [],
+        "constructive_divergence_trace": [],
+        "offset_transition_trace": [],
+        "topology_classification_failures": [],
+        "cross_topology_duplicate_geometry_trace": cross_topology_duplicate_trace,
+        "global_unique_skeleton_geometry_count": 0,
+    }
     topology_lanes = _selector_topology_lanes(site_body, p1_handoff)
     preferred_family = _preferred_family_from_handoff(site_body, p1_handoff)
     preferred_lane_index = _preferred_topology_index(topology_lanes, preferred_family)
-    lane_budgets = _family_lane_budgets(
-        placement_node_budget,
-        len(topology_lanes),
-        preferred_lane_index=preferred_lane_index,
-    )
     topology_coverage_budget = min(
         MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE,
         placement_node_budget // len(topology_lanes),
     )
+    # Discover non-canonical owners before the precedence owner so geometries
+    # seen first in Offset/Hub lanes can be consumed at most once by their
+    # canonical Straight lane. Lane order is identity servicing, not a quality
+    # bonus; candidate comparison remains hard-gate then atomic structural facts.
+    canonical_service_order = (
+        OFFSET_LINEAR_BAND,
+        CENTRAL_PROCESS_HUB,
+        STRAIGHT_LINEAR_BAND,
+    )
     lane_order = tuple(
-        index for index in range(len(topology_lanes)) if index != preferred_lane_index
-    ) + ((preferred_lane_index,) if preferred_lane_index is not None else ())
+        index
+        for topology in canonical_service_order
+        for index, lane in enumerate(topology_lanes)
+        if lane.topology == topology
+    )
+    global_node_budget_remaining = placement_node_budget
     p2c_candidate_count = 0
     candidate_index = 0
 
-    for lane_index in lane_order:
+    for lane_position, lane_index in enumerate(lane_order):
         lane = topology_lanes[lane_index]
         family = lane.family
-        lane_budget = lane_budgets[lane_index]
+        lanes_left = len(lane_order) - lane_position
+        lane_budget, _lane_remainder = divmod(global_node_budget_remaining, lanes_left)
+        if lane_budget <= 0:
+            raise _error("STRUCTURAL_LANE_BUDGET_UNAVAILABLE", topology=lane.topology)
         structured_budget, fallback_budget = _lane_budget_split(lane_budget)
         lane_seen_geometry: set[str] = set()
         lane_full_pass_count = 0
@@ -685,6 +712,7 @@ def select_validated_placement(
             ),
             "preferred_lane": preferred_family is not None and lane_index == preferred_lane_index,
             "lane_node_budget": lane_budget,
+            "global_budget_before_lane": global_node_budget_remaining,
             "structured_node_budget": structured_budget,
             "fallback_node_budget": fallback_budget,
             "phases": [],
@@ -710,6 +738,8 @@ def select_validated_placement(
                 structural_family=family,
                 structural_topology=lane.topology,
                 search_phase=phase,
+                global_main_process_geometry_registry=global_skeleton_geometry_registry,
+                global_cross_topology_duplicate_trace=cross_topology_duplicate_trace,
             )
             phase_full_pass_count = 0
             phase_rejected_count = 0
@@ -820,6 +850,62 @@ def select_validated_placement(
             generation_report = getattr(enumeration, "skeleton_generation_report", {})
             if isinstance(generation_report, Mapping):
                 generation_report = dict(generation_report)
+                topology_candidates = generation_report.get("candidates", [])
+                if isinstance(topology_candidates, list):
+                    for skeleton_row in topology_candidates:
+                        if not isinstance(skeleton_row, Mapping):
+                            continue
+                        r6_topology_diagnostics["ownership_matrix"].append(
+                            {
+                                "skeleton_hash": skeleton_row.get("main_process_skeleton_hash"),
+                                "constructed_topology": skeleton_row.get("topology"),
+                                "canonical_owner": skeleton_row.get("canonical_topology_owner"),
+                                "construction_policy": skeleton_row.get("construction_policy"),
+                                "topology_divergence_stage": skeleton_row.get(
+                                    "topology_divergence_stage"
+                                ),
+                                "offset_transition_stage": skeleton_row.get(
+                                    "offset_transition_stage"
+                                ),
+                                "offset_direction": skeleton_row.get("offset_direction"),
+                                "offset_cross_axis_shift_mm": skeleton_row.get(
+                                    "offset_cross_axis_shift_mm"
+                                ),
+                            }
+                        )
+                        # These R6 identity/provenance fields are available in
+                        # the internal evaluation sidecar above, not in the
+                        # Tool 7 response's historical candidate report.
+                        for r6_field in (
+                            "canonical_topology_owner",
+                            "construction_policy",
+                            "topology_divergence_stage",
+                            "offset_transition_stage",
+                            "offset_direction",
+                            "offset_cross_axis_shift_mm",
+                        ):
+                            if isinstance(skeleton_row, dict):
+                                skeleton_row.pop(r6_field, None)
+                attempts = generation_report.get("construction_attempts", [])
+                if isinstance(attempts, list):
+                    for attempt in attempts:
+                        if isinstance(attempt, Mapping):
+                            attempt_copy = dict(attempt)
+                            attempt_copy.setdefault("topology", lane.topology)
+                            r6_topology_diagnostics["construction_attempts"].append(attempt_copy)
+                for source_key, target_key in (
+                    ("_r6_topology_ownership_duplicates", "ownership_duplicates"),
+                    ("_r6_offset_transition_trace", "offset_transition_trace"),
+                    ("_r6_constructive_divergence_attempts", "constructive_divergence_trace"),
+                    (
+                        "_r6_topology_classification_failures",
+                        "topology_classification_failures",
+                    ),
+                ):
+                    rows = generation_report.pop(source_key, [])
+                    if isinstance(rows, list):
+                        r6_topology_diagnostics[target_key].extend(rows)
+                generation_report.pop("_r6_cross_topology_duplicate_count", None)
                 lifecycle_rows = generation_report.get("skeleton_tail_lifecycle", [])
                 enriched_lifecycle: list[dict[str, Any]] = []
                 for lifecycle_row in lifecycle_rows if isinstance(lifecycle_rows, list) else []:
@@ -852,26 +938,26 @@ def select_validated_placement(
                         )
                     enriched_lifecycle.append(lifecycle_copy)
                 generation_report["skeleton_tail_lifecycle"] = enriched_lifecycle
-            lane_report["phases"].append(
-                {
-                    "search_phase": phase,
-                    "node_budget": phase_budget,
-                    "visited_nodes": enumeration.visited_node_count,
-                    "complete_candidates": enumeration.candidate_count,
-                    "distinct_main_process_skeleton_count": int(
-                        getattr(enumeration, "distinct_main_process_skeleton_count", 0)
-                    ),
-                    "distinct_structural_core_root_count": int(
-                        getattr(enumeration, "distinct_structural_core_root_count", 0)
-                    ),
-                    "validated_unique_candidates": phase_candidate_count,
-                    "p2d_rejected_candidate_count": phase_rejected_count,
-                    "p2d_full_pass_candidate_count": phase_full_pass_count,
-                    "node_budget_exhausted": enumeration.node_budget_exhausted,
-                    "search_tree_exhausted": enumeration.search_tree_exhausted,
-                    "main_process_skeleton_generation": generation_report,
-                }
-            )
+                lane_report["phases"].append(
+                    {
+                        "search_phase": phase,
+                        "node_budget": phase_budget,
+                        "visited_nodes": enumeration.visited_node_count,
+                        "complete_candidates": enumeration.candidate_count,
+                        "distinct_main_process_skeleton_count": int(
+                            getattr(enumeration, "distinct_main_process_skeleton_count", 0)
+                        ),
+                        "distinct_structural_core_root_count": int(
+                            getattr(enumeration, "distinct_structural_core_root_count", 0)
+                        ),
+                        "validated_unique_candidates": phase_candidate_count,
+                        "p2d_rejected_candidate_count": phase_rejected_count,
+                        "p2d_full_pass_candidate_count": phase_full_pass_count,
+                        "node_budget_exhausted": enumeration.node_budget_exhausted,
+                        "search_tree_exhausted": enumeration.search_tree_exhausted,
+                        "main_process_skeleton_generation": generation_report,
+                    }
+                )
             if (
                 phase == STRUCTURED_PHASE
                 and lane_full_pass_count == 0
@@ -899,7 +985,86 @@ def select_validated_placement(
         lane_report["search_tree_exhausted"] = all(
             row["search_tree_exhausted"] for row in lane_report["phases"]
         )
+        global_node_budget_remaining -= lane_report["visited_nodes"]
+        if global_node_budget_remaining < 0:
+            raise _error(
+                "STRUCTURAL_GLOBAL_NODE_BUDGET_EXCEEDED",
+                topology=lane.topology,
+                remaining=global_node_budget_remaining,
+            )
+        lane_report["global_budget_after_lane"] = global_node_budget_remaining
         lane_reports.append(lane_report)
+
+    r6_topology_diagnostics["ownership_matrix"] = sorted(
+        r6_topology_diagnostics["ownership_matrix"],
+        key=lambda row: (
+            str(row.get("skeleton_hash")),
+            str(row.get("constructed_topology")),
+        ),
+    )
+    r6_topology_diagnostics["ownership_duplicates"] = sorted(
+        r6_topology_diagnostics.get("ownership_duplicates", []),
+        key=lambda row: (
+            str(row.get("skeleton_hash")),
+            str(row.get("topology")),
+            str(row.get("canonical_owner")),
+        ),
+    )
+    r6_topology_diagnostics["construction_attempts"] = sorted(
+        r6_topology_diagnostics["construction_attempts"],
+        key=lambda row: (
+            str(row.get("topology")),
+            int(row.get("construction_attempt_index", 0)),
+            tuple(row.get("sorting_root_mm", [])),
+            str(row.get("raw_side")),
+            str(row.get("finished_side")),
+            str(row.get("offset_direction")),
+        ),
+    )
+    r6_topology_diagnostics["constructive_divergence_trace"] = sorted(
+        r6_topology_diagnostics["constructive_divergence_trace"],
+        key=lambda row: (str(row.get("topology")), str(row.get("construction_policy"))),
+    )
+    r6_topology_diagnostics["offset_transition_trace"] = sorted(
+        r6_topology_diagnostics["offset_transition_trace"],
+        key=lambda row: (
+            str(row.get("direction")),
+            str(row.get("transition_stage")),
+            tuple(row.get("raw_core_common_interval_mm", [])),
+        ),
+    )
+    r6_topology_diagnostics["cross_topology_duplicate_geometry_trace"] = sorted(
+        cross_topology_duplicate_trace,
+        key=lambda row: (
+            str(row.get("skeleton_hash")),
+            str(row.get("first_topology")),
+            str(row.get("duplicate_topology")),
+        ),
+    )
+    r6_topology_diagnostics["cross_topology_duplicate_geometry_count"] = len(
+        r6_topology_diagnostics["cross_topology_duplicate_geometry_trace"]
+    )
+    hub_duplicate_attempts = [
+        row
+        for row in r6_topology_diagnostics["ownership_duplicates"]
+        if row.get("topology") == CENTRAL_PROCESS_HUB
+    ]
+    hub_attempts = [
+        row
+        for row in r6_topology_diagnostics["construction_attempts"]
+        if row.get("topology") == CENTRAL_PROCESS_HUB
+    ]
+    r6_topology_diagnostics["hub_search_continued_after_ownership_duplicate"] = any(
+        any(
+            int(attempt.get("construction_attempt_index", -1))
+            > int(duplicate.get("construction_attempt_index", -1))
+            for attempt in hub_attempts
+        )
+        for duplicate in hub_duplicate_attempts
+    )
+    r6_topology_diagnostics["global_unique_skeleton_geometry_count"] = len(
+        global_skeleton_geometry_registry
+    )
 
     best_record: (
         tuple[
@@ -971,6 +1136,7 @@ def select_validated_placement(
                 "hard_feasibility_passed": False,
                 "comparison_mode": "LEXICOGRAPHIC_ATOMIC_FACTS",
                 "distinct_full_pass_family_count": 0,
+                "r6_topology_diagnostics": r6_topology_diagnostics,
             },
         )
 
@@ -1007,6 +1173,7 @@ def select_validated_placement(
         p2b2_tiebreak_used=p2b2_tiebreak_used,
         lane_reports=lane_reports,
         full_pass_records=full_pass_records,
+        r6_topology_diagnostics=r6_topology_diagnostics,
     )
     payload = {
         "identity": IDENTITY,

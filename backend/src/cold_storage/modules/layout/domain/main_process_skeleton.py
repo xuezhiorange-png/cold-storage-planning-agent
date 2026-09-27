@@ -64,6 +64,12 @@ class MainProcessSkeletonCandidateV1:
     main_process_skeleton_hash: str
     generation_pattern: str
     hard_geometry_predicates_passed: tuple[str, ...]
+    canonical_topology_owner: str
+    construction_policy: str
+    topology_divergence_stage: str
+    offset_transition_stage: str | None = None
+    offset_direction: str | None = None
+    offset_cross_axis_shift_mm: int | None = None
 
     @classmethod
     def create(
@@ -74,6 +80,11 @@ class MainProcessSkeletonCandidateV1:
         generation_pattern: str,
         hard_geometry_predicates_passed: Sequence[str],
         topology: str | None = None,
+        construction_policy: str | None = None,
+        topology_divergence_stage: str = "ROOT_OR_GROUP_BAND_FORMATION",
+        offset_transition_stage: str | None = None,
+        offset_direction: str | None = None,
+        offset_cross_axis_shift_mm: int | None = None,
     ) -> MainProcessSkeletonCandidateV1:
         if set(rectangles) & set(MAIN_PROCESS_ZONE_CODES) != set(MAIN_PROCESS_ZONE_CODES):
             raise LayoutAuthorityError("MAIN_PROCESS_SKELETON_ZONE_SET_INVALID")
@@ -107,6 +118,12 @@ class MainProcessSkeletonCandidateV1:
             main_process_skeleton_hash=digest,
             generation_pattern=generation_pattern,
             hard_geometry_predicates_passed=tuple(hard_geometry_predicates_passed),
+            canonical_topology_owner=selected_topology,
+            construction_policy=construction_policy or f"{selected_topology}_V1",
+            topology_divergence_stage=topology_divergence_stage,
+            offset_transition_stage=offset_transition_stage,
+            offset_direction=offset_direction,
+            offset_cross_axis_shift_mm=offset_cross_axis_shift_mm,
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -124,4 +141,16 @@ class MainProcessSkeletonCandidateV1:
             "generation_pattern": self.generation_pattern,
             "hard_geometry_predicates_passed": list(self.hard_geometry_predicates_passed),
             "authority": "CANDIDATE_SEARCH_GEOMETRY_ONLY",
+        }
+
+    def to_evaluation_dict(self) -> dict[str, object]:
+        """Add R6-only topology provenance outside Tool 7 serialization."""
+        return {
+            **self.to_dict(),
+            "canonical_topology_owner": self.canonical_topology_owner,
+            "construction_policy": self.construction_policy,
+            "topology_divergence_stage": self.topology_divergence_stage,
+            "offset_transition_stage": self.offset_transition_stage,
+            "offset_direction": self.offset_direction,
+            "offset_cross_axis_shift_mm": self.offset_cross_axis_shift_mm,
         }

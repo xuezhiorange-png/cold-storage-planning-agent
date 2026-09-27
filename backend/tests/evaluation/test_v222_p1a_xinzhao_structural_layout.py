@@ -29,7 +29,10 @@ R2_SVG = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r2_after.svg"
 R3_LAYOUT = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r3_after_layout.json"
 R3_SVG = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r3_after.svg"
 R3_METRICS = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r3_metrics.json"
+R5_LAYOUT = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r5_selected_layout.json"
 R5_METRICS = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r5_metrics.json"
+R6_METRICS = ROOT / "docs/tasks/evidence/v2_2_2_p1a/xinzhao_p1a_r6_metrics.json"
+R5_SHARED_SKELETON = "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
 
 
 def _zone_map(layout: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
@@ -62,8 +65,10 @@ def test_xinzhao_real_tool7_staged_topology_search_is_hard_valid_and_determinist
     saved_r1_layout = json.loads(R1_LAYOUT.read_text(encoding="utf-8"))
     saved_r2_layout = json.loads(R2_LAYOUT.read_text(encoding="utf-8"))
     saved_r3_layout = json.loads(R3_LAYOUT.read_text(encoding="utf-8"))
+    saved_r5_layout = json.loads(R5_LAYOUT.read_text(encoding="utf-8"))
     r3_metrics = json.loads(R3_METRICS.read_text(encoding="utf-8"))
     r5_metrics = json.loads(R5_METRICS.read_text(encoding="utf-8"))
+    r6_metrics = json.loads(R6_METRICS.read_text(encoding="utf-8"))
     assert baseline["canonical_result_hash"] == V221_RESULT_HASH
 
     evaluations: list[dict[str, Any]] = []
@@ -97,7 +102,7 @@ def test_xinzhao_real_tool7_staged_topology_search_is_hard_valid_and_determinist
         assert result["selection"]["p2d_full_pass_candidate_count"] >= 1
         lane_reports = result["selection"]["search_provenance"]["family_lanes"]
         assert len(lane_reports) == 3
-        assert [row["lane_node_budget"] for row in lane_reports] == [40, 40, 40]
+        assert sum(int(row["visited_nodes"]) for row in lane_reports) <= 120
         assert result["selection"]["search_provenance"]["node_budget"] == 120
 
     assert len(evaluations) == 2
@@ -105,13 +110,14 @@ def test_xinzhao_real_tool7_staged_topology_search_is_hard_valid_and_determinist
     assert first_evaluation == evaluations[1]
     assert first_evaluation["search_policy"] == "STAGED_COVERAGE_THEN_PREFERENCE"
     assert {row["topology"] for row in first_evaluation["family_lanes"]} == {
-        "STRAIGHT_LINEAR_BAND",
         "OFFSET_LINEAR_BAND",
         "CENTRAL_PROCESS_HUB",
+        "STRAIGHT_LINEAR_BAND",
     }
     assert first_evaluation["topology_count_explored"] == 3
-    assert first_evaluation["topology_count_with_constructed_skeleton"] == 2
+    assert first_evaluation["topology_count_with_constructed_skeleton"] == 1
     assert first_evaluation["constructed_main_process_skeleton_count"] == 1
+    assert sum(int(row["visited_nodes"]) for row in first_evaluation["family_lanes"]) <= 120
     assert r5_metrics["p2d_full_pass_candidate_count"] == 4
     assert r5_metrics["constructed_skeleton_topologies"] == [
         "CENTRAL_PROCESS_HUB",
@@ -119,26 +125,72 @@ def test_xinzhao_real_tool7_staged_topology_search_is_hard_valid_and_determinist
     ]
     assert len(r5_metrics["constructed_main_process_skeleton_hashes"]) == 1
     assert first_evaluation["p2d_full_pass_distinct_main_process_skeleton_count"] == 1
-    lifecycle_by_topology = {
-        row["topology"]: row for row in first_evaluation["skeleton_survival"]
-    }
+    lifecycle_by_topology = {row["topology"]: row for row in first_evaluation["skeleton_survival"]}
+    assert lifecycle_by_topology["STRAIGHT_LINEAR_BAND"]["skeleton_hash"] == R5_SHARED_SKELETON
     assert lifecycle_by_topology["STRAIGHT_LINEAR_BAND"]["p2d_candidate_count"] == 2
     assert lifecycle_by_topology["STRAIGHT_LINEAR_BAND"]["p2d_full_pass_count"] == 2
-    assert lifecycle_by_topology["CENTRAL_PROCESS_HUB"]["p2d_candidate_count"] == 2
-    assert lifecycle_by_topology["CENTRAL_PROCESS_HUB"]["p2d_full_pass_count"] == 2
-    assert "OFFSET_LINEAR_BAND" not in lifecycle_by_topology
+    assert set(lifecycle_by_topology) == {"STRAIGHT_LINEAR_BAND"}
     assert first_evaluation["distinct_runner_up_present"] is False
+    assert first_evaluation["selected_main_process_skeleton_hash"] == R5_SHARED_SKELETON
     assert (
         first_evaluation["distinct_skeleton_first_decisive_component"]
         == "ONLY_ONE_P2D_FULL_PASS_MAIN_SKELETON"
+    )
+    topology_diagnostics = first_evaluation["r6_topology_diagnostics"]
+    assert {
+        row["topology"]
+        for row in topology_diagnostics["constructive_divergence_trace"]
+        if row["attempted"] is True
+    } == {"STRAIGHT_LINEAR_BAND", "OFFSET_LINEAR_BAND", "CENTRAL_PROCESS_HUB"}
+    offset_rows = topology_diagnostics["offset_transition_trace"]
+    assert offset_rows
+    assert any(shift != 0 for row in offset_rows for shift in row["cross_axis_shifts_mm"])
+    assert topology_diagnostics["ownership_duplicates"]
+    assert not any(
+        row.get("topology") == "OFFSET_LINEAR_BAND"
+        for row in topology_diagnostics["ownership_matrix"]
+    )
+    assert any(
+        row["topology"] == "CENTRAL_PROCESS_HUB"
+        and row["canonical_owner"] == "STRAIGHT_LINEAR_BAND"
+        and row["skeleton_hash"]
+        == "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc"
+        for row in topology_diagnostics["ownership_duplicates"]
+    )
+    assert topology_diagnostics["hub_search_continued_after_ownership_duplicate"] is True
+    assert topology_diagnostics["cross_topology_duplicate_geometry_count"] == len(
+        topology_diagnostics["cross_topology_duplicate_geometry_trace"]
+    )
+    assert topology_diagnostics["global_unique_skeleton_geometry_count"] >= 1
+    assert not any(
+        row.get("constructed_topology") == "CENTRAL_PROCESS_HUB"
+        and row.get("skeleton_hash") == R5_SHARED_SKELETON
+        for row in topology_diagnostics["ownership_matrix"]
     )
 
     assert first["canonical_result_hash"] == second["canonical_result_hash"]
     assert first["layout"]["canonical_result_hash"] == second["layout"]["canonical_result_hash"]
     assert first["drawing"]["svg"] == second["drawing"]["svg"]
     assert first["svg_sha256"] == second["svg_sha256"]
-    assert first["canonical_result_hash"] == r5_metrics["r5_canonical_result_hash"]
+    assert json.dumps(first["layout"], sort_keys=True, separators=(",", ":")) == json.dumps(
+        second["layout"], sort_keys=True, separators=(",", ":")
+    )
+    public_serialization = json.dumps(first, ensure_ascii=False, sort_keys=True)
+    assert all(
+        field not in public_serialization
+        for field in (
+            "canonical_topology_owner",
+            "construction_policy",
+            "topology_divergence_stage",
+            "offset_transition_stage",
+            "offset_direction",
+            "offset_cross_axis_shift_mm",
+        )
+    )
+    assert first["canonical_result_hash"] != r5_metrics["r5_canonical_result_hash"]
+    assert first["canonical_result_hash"] == r6_metrics["r6_canonical_result_hash"]
     assert first["svg_sha256"] == r5_metrics["r5_svg_sha256"]
+    assert first["svg_sha256"] == r6_metrics["r6_svg_sha256"]
     assert hashlib.sha256(first["drawing"]["svg"].encode("utf-8")).hexdigest() == (
         first["svg_sha256"].removeprefix("sha256:")
     )
@@ -160,6 +212,7 @@ def test_xinzhao_real_tool7_staged_topology_search_is_hard_valid_and_determinist
     new_zones = _zone_map(first["layout"])
     r1_zones = _zone_map(saved_r1_layout)
     r2_zones = _zone_map(saved_r2_layout)
+    r5_zones = _zone_map(saved_r5_layout)
     main_zone_codes = (
         "raw_fruit_buffer",
         "primary_precooling_room",
@@ -173,8 +226,7 @@ def test_xinzhao_real_tool7_staged_topology_search_is_hard_valid_and_determinist
     def main_geometry(zones: Mapping[str, Mapping[str, Any]]) -> dict[str, tuple[Any, ...]]:
         return {
             code: tuple(
-                zones[code].get(field)
-                for field in ("x", "y", "width_m", "depth_m", "rotation_deg")
+                zones[code].get(field) for field in ("x", "y", "width_m", "depth_m", "rotation_deg")
             )
             for code in main_zone_codes
         }
@@ -183,6 +235,7 @@ def test_xinzhao_real_tool7_staged_topology_search_is_hard_valid_and_determinist
     assert main_geometry(new_zones) == main_geometry(r1_zones)
     assert main_geometry(new_zones) == main_geometry(r2_zones)
     assert main_geometry(new_zones) == main_geometry(_zone_map(saved_r3_layout))
+    assert main_geometry(new_zones) == main_geometry(r5_zones)
     old_groups = _group_edge_facts(old_zones)
     new_groups = _group_edge_facts(new_zones)
     assert old_groups["SUPPORT_GROUP"] == 0

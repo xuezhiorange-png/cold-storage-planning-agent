@@ -1,0 +1,21 @@
+{
+  "identity": "p1a-r6-cross-topology-geometry-dedup-evidence@1.0.0",
+  "global_geometry_registry_enabled": true,
+  "global_unique_geometry_count": 2,
+  "cross_topology_same_hash_duplicate_count": 0,
+  "cross_topology_same_hash_duplicate_trace": [],
+  "ownership_mismatch_count": 1,
+  "ownership_mismatches": [
+    {
+      "hash": "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc",
+      "discovered_by": "CENTRAL_PROCESS_HUB",
+      "canonical_owner": "STRAIGHT_LINEAR_BAND",
+      "tail_search_skipped": true,
+      "p2d_skipped": true,
+      "later_hub_attempts_observed": true
+    }
+  ],
+  "r5_shared_geometry_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+  "r5_shared_geometry_owner": "STRAIGHT_LINEAR_BAND",
+  "hub_reaccepted_r5_shared_geometry": false
+}
