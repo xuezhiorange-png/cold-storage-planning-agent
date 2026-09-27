@@ -4160,24 +4160,18 @@ def _walk_complete_candidate_payloads(
                 return
 
     if context.search_phase == STRUCTURED_PHASE:
-        # Construct a small, deterministic set of genuinely distinct main
-        # process geometries before spending any nodes on support/personnel.
-        # This prevents the first seed's tail DFS from starving other skeleton
-        # topologies and makes the search order skeleton-first, then tail.
+        # Admit each exact, preflight-passing skeleton to tail search as soon
+        # as it is constructed. Draining the constructor first can consume the
+        # shared budget collecting seeds while leaving no quantum for the
+        # already-admissible seed's tail, regressing existing full-chain cases.
         discovery_context = context
-        skeleton_seeds: list[MainProcessSkeletonCandidateV1] = []
+        constructor_emitted_seed = False
         for seed_or_quantum in _construct_main_process_skeletons(discovery_context, stats):
             if isinstance(seed_or_quantum, _SearchQuantumYield):
                 yield seed_or_quantum
                 continue
-            skeleton_seeds.append(seed_or_quantum)
-            if stats.node_budget_exhausted:
-                break
-        if not skeleton_seeds:
-            # No incomplete skeleton may be extended by the general zone DFS:
-            # that would reverse the skeleton-first authority boundary.
-            return
-        for seed in skeleton_seeds:
+            constructor_emitted_seed = True
+            seed = seed_or_quantum
             context = _canonical_tail_search_context(discovery_context, seed)
             placed.update({row.zone_code: row for row in seed.zone_rectangles})
             if len(placed) != len(MAIN_PROCESS_ZONE_CODES):
@@ -4237,6 +4231,10 @@ def _walk_complete_candidate_payloads(
             context = discovery_context
             if stats.node_budget_exhausted:
                 return
+        if not constructor_emitted_seed:
+            # No incomplete skeleton may be extended by the general zone DFS:
+            # that would reverse the skeleton-first authority boundary.
+            return
     else:
         yield from visit(0, True)
 

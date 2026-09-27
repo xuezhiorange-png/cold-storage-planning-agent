@@ -1063,20 +1063,35 @@ P1A_R10_MATRIX_SEARCH_EXHAUSTED_VARIANTS=0
 P1A_R10_RUNTIME_EXCLUDED_FULL_PASS_SKELETON_FOUND=false
 P1A_R10_LINEAR_INFEASIBILITY_PROVEN=false
 P1A_R10_NEXT_IMPLEMENTATION_PATH=CONSTRUCTIVE_SEARCH_COVERAGE_REDESIGN
-P1A_R11_RESULT=FAIL_REGRESSION
+P1A_R11_INITIAL_HEAD_SHA=e57c6a45cc149d98867670ed1b78f260d2ebbccb
+P1A_R11_INITIAL_HEAD_RESULT=FAIL_REGRESSION
+P1A_R11_RESULT=PASS
 P1A_R11_RESUMABLE_CONSTRUCTIVE_SEARCH_IMPLEMENTED=true
 P1A_R11_GLOBAL_MULTI_ROUND_SCHEDULER_IMPLEMENTED=true
 P1A_R11_PRODUCTION_PLACEMENT_NODE_BUDGET=120
 P1A_R11_GLOBAL_NODE_VISITS=120
 P1A_R11_UNUSED_GLOBAL_NODES_WITH_ACTIVE_TRUNCATED_WORK=0
+P1A_R11_CONSTRUCTED_DISTINCT_MAIN_PROCESS_SKELETON_COUNT=11
+P1A_R11_PREFLIGHT_REJECTED_DISTINCT_SKELETON_COUNT=8
 P1A_R11_TAIL_ADMISSIBLE_DISTINCT_MAIN_PROCESS_SKELETON_COUNT=3
-P1A_R11_P2D_EVALUATED_DISTINCT_MAIN_PROCESS_SKELETON_COUNT=2
-P1A_R11_P2D_FULL_PASS_DISTINCT_MAIN_PROCESS_SKELETON_COUNT=0
+P1A_R11_P2D_EVALUATED_DISTINCT_MAIN_PROCESS_SKELETON_COUNT=3
+P1A_R11_P2D_FULL_PASS_DISTINCT_MAIN_PROCESS_SKELETON_COUNT=1
+P1A_R11_P2D_FULL_PASS_CANDIDATE_COUNT=2
 P1A_R11_R10_868C_REACHED_BY_PRODUCTION=false
 P1A_R11_R10_E73B_REACHED_BY_PRODUCTION=false
-P1A_R11_TOOL7_FULL_CHAIN_CROSS_FIXTURE_REGRESSION=true
-P1A_R11_HARD_VALID_TO_INVALID_REGRESSION_COUNT=1
-P1A_R11_SELECTED_LAYOUT_AVAILABLE=false
+P1A_R11_TOOL7_FULL_CHAIN_CROSS_FIXTURE_REGRESSION=false
+P1A_R11_HARD_VALID_TO_INVALID_REGRESSION_COUNT=0
+P1A_R11_SELECTED_LAYOUT_AVAILABLE=true
+P1A_R11_SELECTED_SKELETON_HASH=sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953
+P1A_R11_SELECTED_MAIN_PROCESS_GEOMETRY_CHANGED=false
+P1A_R11_CANONICAL_RESULT_HASH=sha256:ed11e746cd65142b26cfb20e371dda3a91b39501175681d2538d4359ee017c0d
+P1A_R11_SVG_SHA256=sha256:342775cb44d7165a9a64ad7e7f31cd287c04d5a1655bcc8f31ec1c1224f85981
+P1A_R11_PROJECT_LAYOUT_VALIDATED=true
+P1A_R11_P2_COMPLETE=true
+P1A_R11_ACCESS_PASS_COUNT=12
+P1A_R11_ACCESS_REQUIREMENT_COUNT=12
+P1A_R11_TRUCK_ROUTE_VALIDATED=true
+P1A_R11_BUILDING_FOOTPRINT_PRESENT=true
 P1A_R11_OWNER_VISUAL_BLOCKER_RESOLVED=false
 P1A_R11_READY_AUTHORIZED=false
 P1A_R11_MERGE_AUTHORIZED=false
@@ -1091,12 +1106,16 @@ DEPLOYMENT_AUTHORIZED=false
 NO_STEP_IMPLIES_THE_NEXT=true
 ```
 
-R11 implements resumable, multi-round constructive coverage without increasing
-the 120-node global cutoff. The Xinzhao replay reaches three packaging-slot
-admissible skeletons and evaluates two distinct skeletons through P2D, while
-using all 120 nodes with no stranded budget. However, the real Tool 7 full-chain
-regression fixture returns `VALIDATED_LAYOUT_SEARCH_EXHAUSTED` instead of its
-previous hard-valid layout. R11 is therefore recorded as `FAIL_REGRESSION`, not
-as a completed P1A acceptance. See
+R11 initially exposed a real full-chain regression because constructor seeds
+were collected before tail search. A forward-only correction now tail-searches
+each exact-preflight-passing seed as it is yielded and resumes the same
+constructor cursor. The corrected run remains within the 120-node cutoff,
+constructs 11 distinct main-process geometries, rejects eight at the packaging
+slot preflight, and sends three tail-admissible geometries through P2D. One
+distinct skeleton is full-pass and remains selected; no new main-process
+geometry or visual acceptance is claimed. The P4 full-chain and P1F regression
+checks pass, with zero hard-valid-to-invalid regressions. R11 closes its
+resumable-search coverage task but does not complete P1A or resolve the Owner
+visual blocker. See
 [`V2_2_2-P1A-R11-resumable-constructive-coverage-scheduler.md`](V2_2_2-P1A-R11-resumable-constructive-coverage-scheduler.md)
 and its [scheduler evidence](evidence/v2_2_2_p1a/).

@@ -26,15 +26,17 @@ def test_r10_axis_direction_matrix_runs_all_variants_with_real_tool7(
     assert all(row["diagnostic_node_limit"] == 120 for row in matrix["variants"])
     assert matrix["aggregate"]["search_truncated_variant_count"] == 9
     assert matrix["aggregate"]["search_exhausted_variant_count"] == 0
-    assert matrix["aggregate"]["distinct_main_skeleton_count"] == 15
+    # Live replay now uses the R11 resumable scheduler; the frozen R10 evidence
+    # artifact remains the historical 15-skeleton result.
+    assert matrix["aggregate"]["distinct_main_skeleton_count"] == 17
     assert matrix["aggregate"]["tail_admissible_distinct_skeleton_count"] == 3
-    assert matrix["aggregate"]["p2d_evaluated_distinct_skeleton_count"] == 2
+    assert matrix["aggregate"]["p2d_evaluated_distinct_skeleton_count"] == 3
     assert matrix["aggregate"]["p2d_full_pass_distinct_skeleton_count"] == 1
     assert matrix["aggregate"]["runtime_excluded_full_pass_skeleton_found"] is False
     assert matrix["findings"]["ordering_only_claim_accurate"] is False
     assert matrix["production_search_accounting"]["production_budget"] == 120
-    assert matrix["production_search_accounting"]["placement_node_visits"] == 98
-    assert matrix["production_search_accounting"]["placement_nodes_remaining"] == 22
+    assert matrix["production_search_accounting"]["placement_node_visits"] == 120
+    assert matrix["production_search_accounting"]["placement_nodes_remaining"] == 0
     assert matrix["default_tool7_response_ok"] is True
 
     variants = {row["variant_id"]: row for row in matrix["variants"]}
