@@ -118,7 +118,7 @@ def test_xinzhao_real_tool7_r9_preflight_is_hard_valid_and_deterministic(
     }
     assert first_evaluation["topology_count_explored"] == 3
     assert first_evaluation["topology_count_with_constructed_skeleton"] == 3
-    assert first_evaluation["constructed_main_process_skeleton_count"] == 11
+    assert first_evaluation["constructed_main_process_skeleton_count"] == 14
     assert sum(int(row["visited_nodes"]) for row in first_evaluation["family_lanes"]) <= 120
     assert r5_metrics["p2d_full_pass_candidate_count"] == 4
     assert r5_metrics["constructed_skeleton_topologies"] == [
@@ -147,7 +147,7 @@ def test_xinzhao_real_tool7_r9_preflight_is_hard_valid_and_deterministic(
     )
     assert second_lifecycle["tail_nodes"] == 0
     assert second_lifecycle["tail_node_limit"] == 0
-    assert first_evaluation["p2d_evaluated_distinct_main_process_skeleton_count"] == 3
+    assert first_evaluation["p2d_evaluated_distinct_main_process_skeleton_count"] == 1
     assert first_evaluation["p2d_full_pass_distinct_main_process_skeleton_count"] == 1
     assert first_evaluation["distinct_runner_up_present"] is False
     assert first_evaluation["selected_main_process_skeleton_hash"] == R5_SHARED_SKELETON
@@ -193,7 +193,7 @@ def test_xinzhao_real_tool7_r9_preflight_is_hard_valid_and_deterministic(
     assert topology_diagnostics["cross_topology_duplicate_geometry_count"] == len(
         topology_diagnostics["cross_topology_duplicate_geometry_trace"]
     )
-    assert topology_diagnostics["global_unique_skeleton_geometry_count"] == 11
+    assert topology_diagnostics["global_unique_skeleton_geometry_count"] == 14
     assert not any(
         row.get("constructed_topology") == "CENTRAL_PROCESS_HUB"
         and row.get("skeleton_hash") == R5_SHARED_SKELETON

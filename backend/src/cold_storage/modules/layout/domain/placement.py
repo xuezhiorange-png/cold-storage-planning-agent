@@ -3751,6 +3751,51 @@ def _construct_face_skeletons(
                                         truck_preflight_row
                                     )
                                     if truck_preflight_row["preflight_status"] == "REJECT":
+                                        if stats.skeleton_tail_lifecycle is None:
+                                            stats.skeleton_tail_lifecycle = []
+                                        stats.skeleton_tail_lifecycle.append(
+                                            {
+                                                "topology": seed.topology,
+                                                "skeleton_hash": geometry_hash,
+                                                "discovery_topology": context.structural_topology,
+                                                "canonical_topology_owner": (
+                                                    seed.canonical_topology_owner
+                                                ),
+                                                "canonical_family": seed.family.to_dict(),
+                                                "packaging_preflight_executed": True,
+                                                "packaging_preflight_status": preflight_status,
+                                                "packaging_slot_exists": slot_exists,
+                                                "main_skeleton_truck_preflight_executed": True,
+                                                "main_skeleton_truck_preflight_status": "REJECT",
+                                                "truck_preflight_failure_codes": list(
+                                                    truck_preflight_row.get("failure_codes", [])
+                                                ),
+                                                "truck_preflight_visited_nodes": int(
+                                                    truck_preflight_row.get("visited_nodes", 0)
+                                                ),
+                                                "truck_preflight_node_budget": int(
+                                                    truck_preflight_row.get("node_budget", 0)
+                                                ),
+                                                "truck_preflight_node_budget_exhausted": (
+                                                    truck_preflight_row.get("node_budget_exhausted")
+                                                ),
+                                                "truck_preflight_search_tree_exhausted": (
+                                                    truck_preflight_row.get("search_tree_exhausted")
+                                                ),
+                                                "tail_search_started": False,
+                                                "tail_nodes": 0,
+                                                "tail_node_limit": 0,
+                                                "complete_candidate_count": 0,
+                                                "p2d_reached": False,
+                                                "first_failure_stage": (
+                                                    "MAIN_SKELETON_TRUCK_PREFLIGHT"
+                                                ),
+                                                "first_failure_reason": (
+                                                    truck_preflight_row.get("failure_reason")
+                                                    or "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+                                                ),
+                                            }
+                                        )
                                         continue
 
                                     tail_search_discovery_topology = (
