@@ -1,0 +1,1438 @@
+{
+  "fixtures": [
+    {
+      "access_pass_count": 12,
+      "access_requirement_count": 12,
+      "canonical_result_hash": "sha256:037b722f4b16c90c41d1651a70ec4af6b14e83bb9e8a8804682f59e335eb160b",
+      "error_code": null,
+      "fixture": "P1F_P4_REAL_SELECTOR_SITE_WITH_NO_BUILD_ZONES",
+      "hard_valid": true,
+      "preflight_trace": [
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:040612b9a4f63a513e9658488a700cca29fa1f7a6b077e74915129ec047b6c41",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "9.317",
+              "y": "39.75"
+            },
+            "start": {
+              "x": "1.624",
+              "y": "39.75"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "OFFSET_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:056127fa9bd67aa9a50430e7c54308cb3104e2df52e6bec4ab584f75b95d3076",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "41.717",
+              "y": "39.75"
+            },
+            "start": {
+              "x": "34.024",
+              "y": "39.75"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:0a3ee4102464b008fd8a7b17ae0e344e646bda6391b98ba1f25723c69ca9ff7e",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "34.024",
+              "y": "27.2"
+            },
+            "start": {
+              "x": "26.331",
+              "y": "27.2"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "OFFSET_LINEAR_BAND",
+          "event": "CACHED_MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "failure_codes": [],
+          "failure_reason": null,
+          "main_skeleton_hash": "sha256:1c5379589c1da63835062ea8943a14d9af8f24611081395a176e4d5ef60709dc",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "ALLOW_TAIL_SEARCH",
+          "preflight_compute_nodes": 3,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": false,
+          "preflight_status": "PASS",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "1.624",
+              "y": "33.7"
+            },
+            "start": {
+              "x": "1.624",
+              "y": "26.007"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": true,
+          "truck_route_validated": true,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 3,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "OFFSET_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:2210108ffde845ebffe1ca9debee8334008f8e5b73680b7af3647fd0168eb93b",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "9.317",
+              "y": "27.2"
+            },
+            "start": {
+              "x": "1.624",
+              "y": "27.2"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "OFFSET_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:2550905476b7c61276cf09262cc7c78765dad2da4806159f31ea62149709f78d",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "34.024",
+              "y": "41.393"
+            },
+            "start": {
+              "x": "34.024",
+              "y": "33.7"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:292b48dc852c4b07f9d2a79e5dab44c1e83d3ca54f7b2698213a911cfd17e88b",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "9.317",
+              "y": "27.2"
+            },
+            "start": {
+              "x": "1.624",
+              "y": "27.2"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:30ce5436bc01b534dcc26ae6c27faaa95cc389fd74b8822f293689d628aa721b",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "41.717",
+              "y": "45.8"
+            },
+            "start": {
+              "x": "34.024",
+              "y": "45.8"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "OFFSET_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "13.793",
+              "y": "27.2"
+            },
+            "start": {
+              "x": "6.1",
+              "y": "27.2"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:38850700006a7a670ec8c5277be9c0a6a386c0f8a468f8e04905771899db8d0f",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "41.717",
+              "y": "27.2"
+            },
+            "start": {
+              "x": "34.024",
+              "y": "27.2"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:3b9be756f705a0421766027e4d863c900e8309c5138b170b0c2d82f89162984b",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "34.024",
+              "y": "46.846"
+            },
+            "start": {
+              "x": "34.024",
+              "y": "39.153"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "OFFSET_LINEAR_BAND",
+          "event": "CACHED_MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "failure_codes": [],
+          "failure_reason": null,
+          "main_skeleton_hash": "sha256:552bd3adb1773a9d5de871f9b2a624f9d8def9fad7d0259a17b0221c9c0cd9a5",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "ALLOW_TAIL_SEARCH",
+          "preflight_compute_nodes": 3,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": false,
+          "preflight_status": "PASS",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "1.624",
+              "y": "33.7"
+            },
+            "start": {
+              "x": "1.624",
+              "y": "26.007"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": true,
+          "truck_route_validated": true,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 3,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "CACHED_MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "failure_codes": [],
+          "failure_reason": null,
+          "main_skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "ALLOW_TAIL_SEARCH",
+          "preflight_compute_nodes": 3,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": false,
+          "preflight_status": "PASS",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "9.317",
+              "y": "33.7"
+            },
+            "start": {
+              "x": "1.624",
+              "y": "33.7"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": true,
+          "truck_route_validated": true,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 3,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:64876d363244caecbf775e6e509feee7fdc4166af8b1e51ef48ba185fc5847ee",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "34.024",
+              "y": "41.393"
+            },
+            "start": {
+              "x": "34.024",
+              "y": "33.7"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "CACHED_MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "failure_codes": [],
+          "failure_reason": null,
+          "main_skeleton_hash": "sha256:75385e255169d9cd18e35d15b4701cca1b8785763454b6293741b34ec853d8e7",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "ALLOW_TAIL_SEARCH",
+          "preflight_compute_nodes": 3,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": false,
+          "preflight_status": "PASS",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "1.624",
+              "y": "33.7"
+            },
+            "start": {
+              "x": "1.624",
+              "y": "26.007"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": true,
+          "truck_route_validated": true,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 3,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:77439bd2b29f284aefd4ac830cc95766f70e89d1930edefa9f53c67e240add36",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "2.817",
+              "y": "41.393"
+            },
+            "start": {
+              "x": "2.817",
+              "y": "33.7"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:8997221d9af99eb98d96af0a32e67f9b77ffc2b063848bf60a027863c9f68447",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "41.717",
+              "y": "33.7"
+            },
+            "start": {
+              "x": "34.024",
+              "y": "33.7"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "OFFSET_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:8fafa2f9d3fb479198f6407fc81e8001c671edab5d35ba063cab0222c10432ab",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "41.717",
+              "y": "33.7"
+            },
+            "start": {
+              "x": "34.024",
+              "y": "33.7"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:928836937f040195bde1c67418c9d3efab8cdabbd3d45a0513af26a604b2c597",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "9.317",
+              "y": "45.8"
+            },
+            "start": {
+              "x": "1.624",
+              "y": "45.8"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "OFFSET_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "6.1",
+              "y": "33.7"
+            },
+            "start": {
+              "x": "6.1",
+              "y": "26.007"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:baeb5d29031ef228809e421ba087c150a0d52a5dd3df806759bd0573360cc525",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "35.217",
+              "y": "33.7"
+            },
+            "start": {
+              "x": "35.217",
+              "y": "26.007"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:c1f569e9f38bbfc5dc22c0f8978ea0f9bb2d416dc9f694751d934ec36fd7e42e",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "41.717",
+              "y": "39.75"
+            },
+            "start": {
+              "x": "34.024",
+              "y": "39.75"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "CACHED_MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "failure_codes": [],
+          "failure_reason": null,
+          "main_skeleton_hash": "sha256:e05ce4ee27571b7e7fb7fdb72517353584455740217651f2f083927ba7ada834",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "ALLOW_TAIL_SEARCH",
+          "preflight_compute_nodes": 17,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": false,
+          "preflight_status": "PASS",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "9.317",
+              "y": "33.701"
+            },
+            "start": {
+              "x": "1.624",
+              "y": "33.701"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": true,
+          "truck_route_validated": true,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 17,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:f10f865d3e9d69cd758dadc259d19be3d7b35b7f7bac7ea05facb450983d0325",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "2.817",
+              "y": "46.846"
+            },
+            "start": {
+              "x": "2.817",
+              "y": "39.153"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "OFFSET_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:f35b8abb799664ff656376309898a0afc2d3178e41874edbdb847f2eee8f2534",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "41.717",
+              "y": "45.8"
+            },
+            "start": {
+              "x": "34.024",
+              "y": "45.8"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:f7b2aee2a1adfcde72712c1b3098da52bd8e8404f642223d2e58b870c213ca04",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "2.817",
+              "y": "52.3"
+            },
+            "start": {
+              "x": "2.817",
+              "y": "44.607"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:f7f7f8fde79bcbf8c38b2f31db9797d31827e9c761d402a593aceaf76d54c8fb",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "27.524",
+              "y": "33.7"
+            },
+            "start": {
+              "x": "27.524",
+              "y": "26.007"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "main_skeleton_hash": "sha256:f84cfd087ab2d61ac4ad4ef3a3dd8b91e1e3e0b03dc5435816bc2fc452c87ae4",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "34.024",
+              "y": "52.3"
+            },
+            "start": {
+              "x": "34.024",
+              "y": "44.607"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        }
+      ],
+      "selected_main_process_skeleton_hash": "sha256:e05ce4ee27571b7e7fb7fdb72517353584455740217651f2f083927ba7ada834",
+      "truck_route_validated": true,
+      "zone_count": 12
+    }
+  ],
+  "hard_valid_to_invalid_regression_count": 0,
+  "identity": "v222-p1a-r15-cross-fixture-regression@1.0.0",
+  "no_previously_valid_fixture_regressed": true
+}

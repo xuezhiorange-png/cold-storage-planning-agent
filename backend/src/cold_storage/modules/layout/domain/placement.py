@@ -677,6 +677,25 @@ def _rectangle_shares_entrance_boundary(rectangle: PlacedRectangleV1, entrance: 
     return any(segments_share_positive_length(*edge, *entrance) for edge in edges)
 
 
+def _rectangle_distance_squared_to_entrance(
+    rectangle: PlacedRectangleV1, entrance: SegmentMM
+) -> int:
+    """Exact orthogonal rectangle-to-entrance distance used only for option order."""
+    left, bottom, right, top = _bounds(rectangle)
+    (x1, y1), (x2, y2) = entrance
+    if x1 == x2:
+        dx = max(left - x1, 0, x1 - right)
+        entrance_low, entrance_high = sorted((y1, y2))
+        dy = max(bottom - entrance_high, 0, entrance_low - top)
+    elif y1 == y2:
+        dy = max(bottom - y1, 0, y1 - top)
+        entrance_low, entrance_high = sorted((x1, x2))
+        dx = max(left - entrance_high, 0, entrance_low - right)
+    else:
+        raise ValueError("truck entrance must be axis-aligned")
+    return dx * dx + dy * dy
+
+
 def _candidate_options(
     code: str,
     authority: Mapping[str, Any],
@@ -1309,6 +1328,136 @@ def _entrance_anchors(
         anchors.update((x, y1 - depth_mm) for x in aligned_x)
         anchors.update((x, y1) for x in aligned_x)
     return tuple(sorted(anchors))
+
+
+def _truck_dock_points_at_entrance(context: _PlacementSearchContext) -> tuple[tuple[int, int], ...]:
+    """Project authoritative dock-template endpoints from truck entrance events.
+
+    These points only seed and order shipping-interface geometry. They do not
+    assert maneuver feasibility; the existing truck-chain validator remains
+    the sole admission predicate for every completed seven-zone skeleton.
+    """
+    binding = getattr(context, "truck_maneuver_binding", None)
+    if binding is None:
+        return ()
+    project = getattr(binding, "maneuver_project_input", None)
+    if project is None and isinstance(binding, Mapping):
+        project_body = binding.get("maneuver_project_input")
+        if isinstance(project_body, Mapping):
+            template_set = project_body.get("template_set")
+            templates = (
+                template_set.get("templates", ()) if isinstance(template_set, Mapping) else ()
+            )
+        else:
+            templates = ()
+    else:
+        template_set = getattr(project, "template_set", None)
+        templates = getattr(template_set, "templates", ())
+
+    entrance = _truck_segment(context.site_body)
+    start, end = entrance
+    if start[0] == end[0]:
+        low, high = sorted((start[1], end[1]))
+        entry_points = ((start[0], low), (start[0], (low + high) // 2), (start[0], high))
+    else:
+        low, high = sorted((start[0], end[0]))
+        entry_points = ((low, start[1]), ((low + high) // 2, start[1]), (high, start[1]))
+
+    points: set[tuple[int, int]] = set()
+    for template in templates:
+        maneuver_class = getattr(template, "maneuver_class", None)
+        reference_frame = getattr(template, "reference_frame", None)
+        dock_pose = getattr(template, "final_dock_pose", None)
+        if isinstance(template, Mapping):
+            maneuver_class = template.get("maneuver_class", maneuver_class)
+            reference_frame = template.get("reference_frame", reference_frame)
+            dock_pose = template.get("final_dock_pose", dock_pose)
+        if maneuver_class != "DOCK_REVERSE" or not isinstance(reference_frame, Mapping):
+            continue
+        entry_pose = reference_frame.get("entry_pose")
+        if not isinstance(entry_pose, Mapping) or not isinstance(dock_pose, Mapping):
+            continue
+        entry = (
+            _mm(entry_pose.get("x"), field="truck_template.entry_pose.x"),
+            _mm(entry_pose.get("y"), field="truck_template.entry_pose.y"),
+        )
+        dock = (
+            _mm(dock_pose.get("x"), field="truck_template.final_dock_pose.x"),
+            _mm(dock_pose.get("y"), field="truck_template.final_dock_pose.y"),
+        )
+        for entry_point in entry_points:
+            for rotation in (0, 90, 180, 270):
+                rotated_entry = _rotate_orthogonal_mm(entry, rotation)
+                rotated_dock = _rotate_orthogonal_mm(dock, rotation)
+                translation = (
+                    entry_point[0] - rotated_entry[0],
+                    entry_point[1] - rotated_entry[1],
+                )
+                points.add((translation[0] + rotated_dock[0], translation[1] + rotated_dock[1]))
+    return tuple(sorted(points))
+
+
+def _rotate_orthogonal_mm(point: tuple[int, int], rotation_deg: int) -> tuple[int, int]:
+    x, y = point
+    if rotation_deg == 0:
+        return x, y
+    if rotation_deg == 90:
+        return -y, x
+    if rotation_deg == 180:
+        return -x, -y
+    return y, -x
+
+
+def _shipping_rectangles_for_dock_events(
+    context: _PlacementSearchContext,
+) -> tuple[PlacedRectangleV1, ...]:
+    """Create finite shipping-rectangle candidates whose loading face includes
+    a dock-template point projected from the authoritative entrance events.
+    Exact placement and truck feasibility are checked by existing predicates.
+    """
+    points = _truck_dock_points_at_entrance(context)
+    if not points:
+        return ()
+    authority = context.authorities.get("shipping_channel")
+    if authority is None:
+        return ()
+    candidates: dict[tuple[int, int, int, int], PlacedRectangleV1] = {}
+    for width_mm, depth_mm, rotation in _dimension_variants(authority, {}, context.boundary):
+        sample = _rectangle_from_mm("shipping_channel", 0, 0, width_mm, depth_mm, rotation)
+        _, local_face, _, _ = _loading_face(sample, context.site_body)
+        actual_width, actual_depth = (
+            (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
+        )
+        for dock_x, dock_y in points:
+            if local_face[0][1] == local_face[1][1]:
+                x_origins = {
+                    dock_x,
+                    dock_x - actual_width,
+                    context.boundary_bounds[0],
+                    context.boundary_bounds[2] - actual_width,
+                }
+                y_origin = dock_y - local_face[0][1]
+                origins = ((x, y_origin) for x in sorted(x_origins))
+            else:
+                y_origins = {
+                    dock_y,
+                    dock_y - actual_depth,
+                    context.boundary_bounds[1],
+                    context.boundary_bounds[3] - actual_depth,
+                }
+                x_origin = dock_x - local_face[0][0]
+                origins = ((x_origin, y) for y in sorted(y_origins))
+            for x_mm, y_mm in origins:
+                rectangle = _rectangle_from_mm(
+                    "shipping_channel", x_mm, y_mm, width_mm, depth_mm, rotation
+                )
+                _, loading_face, _, _ = _loading_face(rectangle, context.site_body)
+                if not _on_segment((dock_x, dock_y), loading_face[0], loading_face[1]):
+                    continue
+                if _geometry_rejection_reason(rectangle, {}, context) is not None:
+                    continue
+                candidates[_bounds(rectangle)] = rectangle
+    return tuple(candidates[key] for key in sorted(candidates))
 
 
 def _finished_band_axis_reuse(
@@ -2706,6 +2855,265 @@ def _main_skeleton_truck_maneuver_preflight(
     }
 
 
+def _shipping_loading_face_approach_axis_penalty(
+    context: _PlacementSearchContext, rectangle: PlacedRectangleV1
+) -> int:
+    """Prefer a loading-face axis aligned with the approach normal.
+
+    This is an exact, categorical branch-order fact derived from the existing
+    truck-entrance segment and the shared loading-face authority. It is not a
+    hard prune; the authoritative maneuver validator still decides admission.
+    """
+    _, loading_face, _, _ = _loading_face(rectangle, context.site_body)
+    entrance = _truck_segment(context.site_body)
+    entrance_is_vertical = entrance[0][0] == entrance[1][0]
+    loading_face_is_horizontal = loading_face[0][1] == loading_face[1][1]
+    return int(entrance_is_vertical != loading_face_is_horizontal)
+
+
+def _loading_face_dock_endpoint_penalty(
+    context: _PlacementSearchContext, rectangle: PlacedRectangleV1
+) -> int:
+    """Visit exact dock events at loading-face endpoints before interior events."""
+    _, loading_face, _, _ = _loading_face(rectangle, context.site_body)
+    dock_points = _truck_dock_points_at_entrance(context)
+    if any(point == loading_face[0] or point == loading_face[1] for point in dock_points):
+        return 0
+    if any(_on_segment(point, loading_face[0], loading_face[1]) for point in dock_points):
+        return 1
+    return 2
+
+
+def _shipping_options_by_loading_face_approach(
+    context: _PlacementSearchContext,
+    options: Sequence[PlacedRectangleV1],
+) -> tuple[PlacedRectangleV1, ...]:
+    """Keep established edge options ahead of added dock-event branches."""
+    del context
+    return tuple(options)
+
+
+def _interleave_finished_truck_interface_options(
+    options: Sequence[PlacedRectangleV1],
+    truck_interface_only_bounds: set[tuple[int, int, int, int]],
+) -> tuple[PlacedRectangleV1, ...]:
+    """Sample a dock-paired finished-room branch without starving legacy options."""
+    ordered = tuple(options)
+    established = tuple(row for row in ordered if _bounds(row) not in truck_interface_only_bounds)
+    interface = tuple(row for row in ordered if _bounds(row) in truck_interface_only_bounds)
+    if not established or not interface:
+        return ordered
+    return (established[0], interface[0], *established[1:], *interface[1:])
+
+
+def _finished_options_by_shipping_approach(
+    context: _PlacementSearchContext,
+    placed: Mapping[str, PlacedRectangleV1],
+    options: Sequence[PlacedRectangleV1],
+) -> tuple[PlacedRectangleV1, ...]:
+    """Preserve the established finished-room branch order deterministically."""
+    del context, placed
+    return tuple(options)
+
+
+def _constructive_main_skeleton_tail_admission(
+    context: _PlacementSearchContext,
+    stats: _PlacementSearchStats,
+    skeleton: MainProcessSkeletonCandidateV1,
+) -> bool:
+    """Admit only tail-capable, truck-feasible skeletons to completion quota.
+
+    Both checks reuse their existing exact authorities.  A failed candidate is
+    recorded in the geometry registry and the constructive generator may
+    continue to its next shipping/interface branch without spending a tail
+    search or skeleton-completion slot.
+    """
+    geometry_hash = skeleton.main_process_skeleton_hash
+    registry = context.global_main_process_geometry_registry
+    existing = registry.get(geometry_hash) if registry is not None else None
+    first_discovery_topology = (
+        str(existing.get("first_discovery_topology"))
+        if existing is not None and existing.get("first_discovery_topology") is not None
+        else context.structural_topology
+    )
+
+    if existing is not None and existing.get("tail_search_started") is True:
+        duplicate_row = {
+            "event": "EXISTING_GEOMETRY_DUPLICATE_DISCOVERY",
+            "skeleton_hash": geometry_hash,
+            "first_discovery_topology": first_discovery_topology,
+            "duplicate_discovery_topology": context.structural_topology,
+            "canonical_topology_owner": skeleton.canonical_topology_owner,
+            "tail_search_started_by_topology": existing.get("tail_search_discovery_topology"),
+            "cross_topology_duplicate": first_discovery_topology != context.structural_topology,
+            "duplicate_action": "SKIP_ALREADY_EVALUATED_GEOMETRY",
+        }
+        if stats.topology_ownership_duplicates is None:
+            stats.topology_ownership_duplicates = []
+        stats.topology_ownership_duplicates.append(duplicate_row)
+        if duplicate_row["cross_topology_duplicate"]:
+            stats.cross_topology_duplicate_count += 1
+            if context.global_cross_topology_duplicate_trace is not None:
+                context.global_cross_topology_duplicate_trace.append(duplicate_row)
+        return False
+
+    packaging_status = existing.get("packaging_preflight_status") if existing else None
+    if packaging_status is None:
+        packaging = _packaging_tail_slot_preflight(context, skeleton)
+        proof_mode = str(packaging["proof_mode"])
+        slot_exists = packaging["legal_slot_exists"]
+        packaging_status = (
+            "NO_LEGAL_SLOT"
+            if slot_exists is False and proof_mode == EXACT_ORTHOGONAL_EVENT_ENUMERATION
+            else "LEGAL_SLOT_EXISTS"
+            if slot_exists is True
+            else "UNAVAILABLE"
+        )
+        packaging_row = {
+            "event": "TAIL_SLOT_PREFLIGHT_CONSTRUCTION_GATE",
+            "stage": "TAIL_SLOT_PREFLIGHT",
+            "skeleton_hash": geometry_hash,
+            "discovery_topology": context.structural_topology,
+            "canonical_topology_owner": skeleton.canonical_topology_owner,
+            "canonical_family": skeleton.family.to_dict(),
+            "packaging_preflight_status": packaging_status,
+            "packaging_slot_exists": slot_exists,
+            "tail_admissible": (
+                False
+                if packaging_status == "NO_LEGAL_SLOT"
+                else None
+                if packaging_status == "UNAVAILABLE"
+                else True
+            ),
+            "tail_search_started": False,
+            "preflight_reexecuted": True,
+            "preflight": packaging,
+        }
+        if stats.tail_slot_preflight_rows is None:
+            stats.tail_slot_preflight_rows = []
+        stats.tail_slot_preflight_rows.append(packaging_row)
+    else:
+        slot_exists = existing.get("packaging_slot_exists") if existing else None
+
+    registry_row = existing if existing is not None else {}
+    registry_row.update(
+        {
+            "skeleton_hash": geometry_hash,
+            "first_discovery_topology": first_discovery_topology,
+            "canonical_topology_owner": skeleton.canonical_topology_owner,
+            "canonical_family": skeleton.family.to_dict(),
+            "packaging_preflight_status": packaging_status,
+            "packaging_slot_exists": slot_exists,
+            "tail_admissible": (
+                False
+                if packaging_status == "NO_LEGAL_SLOT"
+                else None
+                if packaging_status == "UNAVAILABLE"
+                else True
+            ),
+            "tail_search_started": False,
+        }
+    )
+    if registry is not None:
+        registry[geometry_hash] = registry_row
+
+    if packaging_status == "NO_LEGAL_SLOT":
+        _record_rejection(stats, "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT")
+        if stats.skeleton_tail_lifecycle is None:
+            stats.skeleton_tail_lifecycle = []
+        stats.skeleton_tail_lifecycle.append(
+            {
+                "topology": skeleton.topology,
+                "skeleton_hash": geometry_hash,
+                "discovery_topology": context.structural_topology,
+                "canonical_topology_owner": skeleton.canonical_topology_owner,
+                "canonical_family": skeleton.family.to_dict(),
+                "packaging_preflight_executed": True,
+                "packaging_slot_exists": False,
+                "tail_admissible": False,
+                "tail_search_started": False,
+                "tail_nodes": 0,
+                "tail_node_limit": 0,
+                "complete_candidate_count": 0,
+                "p2d_reached": False,
+                "first_failure_stage": "TAIL_SLOT_PREFLIGHT",
+                "first_failure_reason": "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT",
+            }
+        )
+        return False
+
+    cached_truck_preflight = registry_row.get("main_skeleton_truck_preflight")
+    if isinstance(cached_truck_preflight, Mapping):
+        truck_row = dict(cached_truck_preflight)
+        truck_row.update(
+            {
+                "event": "CACHED_MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+                "discovery_topology": context.structural_topology,
+                "preflight_reexecuted": False,
+                "preflight_compute_nodes": 0,
+            }
+        )
+    else:
+        truck_result = _main_skeleton_truck_maneuver_preflight(context, skeleton)
+        truck_row = {
+            **truck_result,
+            "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+            "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+            "discovery_topology": context.structural_topology,
+            "canonical_topology_owner": skeleton.canonical_topology_owner,
+            "canonical_family": skeleton.family.to_dict(),
+            "preflight_reexecuted": True,
+            "preflight_compute_nodes": int(truck_result["visited_nodes"]),
+        }
+        registry_row["main_skeleton_truck_preflight"] = dict(truck_row)
+        registry_row.setdefault("p2d_reached", False)
+        registry_row.setdefault("p2d_candidate_count", 0)
+        registry_row.setdefault("p2d_full_pass_count", 0)
+        if registry is not None:
+            registry[geometry_hash] = registry_row
+
+    if truck_row["preflight_status"] == "REJECT":
+        if stats.main_skeleton_truck_preflight_rows is None:
+            stats.main_skeleton_truck_preflight_rows = []
+        stats.main_skeleton_truck_preflight_rows.append(truck_row)
+        _record_rejection(
+            stats,
+            str(truck_row.get("failure_reason") or "TRUCK_MANEUVER_SEARCH_EXHAUSTED"),
+        )
+        if stats.skeleton_tail_lifecycle is None:
+            stats.skeleton_tail_lifecycle = []
+        stats.skeleton_tail_lifecycle.append(
+            {
+                "topology": skeleton.topology,
+                "skeleton_hash": geometry_hash,
+                "discovery_topology": context.structural_topology,
+                "canonical_topology_owner": skeleton.canonical_topology_owner,
+                "canonical_family": skeleton.family.to_dict(),
+                "packaging_preflight_executed": True,
+                "packaging_preflight_status": packaging_status,
+                "packaging_slot_exists": slot_exists,
+                "main_skeleton_truck_preflight_executed": True,
+                "main_skeleton_truck_preflight_status": "REJECT",
+                "truck_preflight_failure_codes": list(truck_row.get("failure_codes", [])),
+                "truck_preflight_visited_nodes": int(truck_row.get("visited_nodes", 0)),
+                "truck_preflight_node_budget": int(truck_row.get("node_budget", 0)),
+                "truck_preflight_node_budget_exhausted": truck_row.get("node_budget_exhausted"),
+                "truck_preflight_search_tree_exhausted": truck_row.get("search_tree_exhausted"),
+                "tail_search_started": False,
+                "tail_nodes": 0,
+                "tail_node_limit": 0,
+                "complete_candidate_count": 0,
+                "p2d_reached": False,
+                "first_failure_stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+                "first_failure_reason": (
+                    truck_row.get("failure_reason") or "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+                ),
+            }
+        )
+        return False
+    return True
+
+
 def _search_provenance(
     context: _PlacementSearchContext,
     stats: _PlacementSearchStats,
@@ -2815,6 +3223,12 @@ def _constructive_edge_options(
         _record_rejection(stats, "DIMENSION_VARIANT_UNAVAILABLE")
         return ()
     options: dict[tuple[int, int, int, int], PlacedRectangleV1] = {}
+    truck_interface_shipping = (
+        _shipping_rectangles_for_dock_events(context)
+        if code in {"shipping_channel", "finished_goods_room"}
+        else ()
+    )
+    truck_interface_only_bounds: set[tuple[int, int, int, int]] = set()
     graph_neighbors = _must_neighbors(code, placed, context.graph)
     anchor_references = tuple(
         placed[reference_code]
@@ -2826,8 +3240,26 @@ def _constructive_edge_options(
             (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
         )
         candidate_anchors = set(_edge_anchors(neighbor, actual_width, actual_depth))
+        established_anchors = set(candidate_anchors)
+        if code == "shipping_channel":
+            truck_event_anchors = {
+                (rectangle.bounds_mm[0], rectangle.bounds_mm[1])
+                for rectangle in truck_interface_shipping
+            }
+            candidate_anchors.update(truck_event_anchors)
+        elif code == "finished_goods_room":
+            truck_event_anchors = set()
+            for shipping_rectangle in truck_interface_shipping:
+                truck_event_anchors.update(
+                    _edge_anchors(shipping_rectangle, actual_width, actual_depth)
+                )
+            candidate_anchors.update(truck_event_anchors)
+        else:
+            truck_event_anchors = set()
         for anchor_reference in anchor_references:
-            candidate_anchors.update(_edge_anchors(anchor_reference, actual_width, actual_depth))
+            reference_anchors = set(_edge_anchors(anchor_reference, actual_width, actual_depth))
+            established_anchors.update(reference_anchors)
+            candidate_anchors.update(reference_anchors)
         for x_mm, y_mm in sorted(candidate_anchors):
             rectangle = _rectangle_from_mm(code, x_mm, y_mm, width_mm, depth_mm, rotation)
             candidate_side = _adjacent_side(neighbor, rectangle)
@@ -2847,6 +3279,12 @@ def _constructive_edge_options(
                 continue
             left, bottom, right, top = _bounds(rectangle)
             key = (left, bottom, right, top)
+            if (
+                code in {"shipping_channel", "finished_goods_room"}
+                and (x_mm, y_mm) in truck_event_anchors
+                and (x_mm, y_mm) not in established_anchors
+            ):
+                truck_interface_only_bounds.add(key)
             current = options.get(key)
             current_variant = (
                 (
@@ -2867,9 +3305,11 @@ def _constructive_edge_options(
 
     def preference(
         rectangle: PlacedRectangleV1,
-    ) -> tuple[int, int, int, int, int, int, int, int]:
+    ) -> tuple[int, ...]:
         alignment_penalty = 0
         topology_alignment_penalty = 0
+        truck_distance_squared = 0
+        truck_dock_ordering = (0, 0, 0)
         if bank_alignment_code is not None:
             bank_reference = placed[bank_alignment_code]
             reference_bounds = _bounds(bank_reference)
@@ -2919,17 +3359,45 @@ def _constructive_edge_options(
                 rectangle, _truck_segment(context.site_body)
             )
         )
+        if code == "shipping_channel" and prefer_truck_entrance:
+            truck_distance_squared = _rectangle_distance_squared_to_entrance(
+                rectangle, _truck_segment(context.site_body)
+            )
+            _, loading_face, _, _ = _loading_face(rectangle, context.site_body)
+            dock_location_penalty = _loading_face_dock_endpoint_penalty(context, rectangle)
+            truck_dock_ordering = (
+                _shipping_loading_face_approach_axis_penalty(context, rectangle),
+                0 if dock_location_penalty == 0 else 1 if dock_location_penalty == 1 else 2,
+                int(
+                    not any(
+                        _on_segment(point, loading_face[0], loading_face[1])
+                        for point in _truck_dock_points_at_entrance(context)
+                    )
+                ),
+            )
         return (
             alignment_penalty,
             topology_alignment_penalty,
             bridge_penalty,
             entrance_penalty,
+            int(_bounds(rectangle) in truck_interface_only_bounds),
+            *truck_dock_ordering,
+            truck_distance_squared,
             *_bounds(rectangle)[:2],
             _bounds(rectangle)[2],
             rectangle.rotation_deg,
         )
 
-    return tuple(sorted(rows, key=preference))
+    ordered_rows = tuple(sorted(rows, key=preference))
+    if code == "finished_goods_room" and truck_interface_only_bounds:
+        # Preserve one established branch first, then interleave a room
+        # explicitly paired to an entrance/dock-derived shipping event.
+        # This is deterministic coverage ordering, not a hard constraint
+        # or topology ranking bonus.
+        return _interleave_finished_truck_interface_options(
+            ordered_rows, truck_interface_only_bounds
+        )
+    return ordered_rows
 
 
 def _constructive_sorting_roots(
@@ -3200,6 +3668,26 @@ def _offset_transition_options(
     return tuple(selected), shifts_by_key
 
 
+def _interleave_raw_bank_options(
+    primary: PlacedRectangleV1,
+    options: Sequence[PlacedRectangleV1],
+    side_order: Sequence[str],
+) -> tuple[PlacedRectangleV1, ...]:
+    """Visit each legal raw-bank attachment face before repeating one face."""
+    grouped: dict[str, list[PlacedRectangleV1]] = {}
+    for option in options:
+        side = _adjacent_side(primary, option)
+        if side is not None:
+            grouped.setdefault(side, []).append(option)
+    interleaved: list[PlacedRectangleV1] = []
+    while any(grouped.values()):
+        for side in side_order:
+            candidates = grouped.get(side)
+            if candidates:
+                interleaved.append(candidates.pop(0))
+    return tuple(interleaved)
+
+
 def _construct_face_skeletons(
     context: _PlacementSearchContext,
     stats: _PlacementSearchStats,
@@ -3227,6 +3715,13 @@ def _construct_face_skeletons(
         required_side=raw_side,
         stats=stats,
     )
+    raw_required_sides: tuple[str, ...] = (
+        ("WEST", "EAST") if context.structural_skeleton.ordering_axis == "Y" else ("SOUTH", "NORTH")
+    )
+    if context.structural_composition_family.family != "LINEAR_PROCESS_BAND":
+        raw_required_sides = tuple(
+            side for side in _CARDINAL_SIDES if side != _OPPOSITE_SIDE[raw_side]
+        )
     for primary in primary_options:
         if stats.visited_nodes >= context.node_budget:
             stats.node_budget_exhausted = True
@@ -3245,24 +3740,28 @@ def _construct_face_skeletons(
         quantum = _quantum_checkpoint(stats)
         if quantum is not None:
             yield quantum
+        for descendant in (
+            "raw_fruit_buffer",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel",
+        ):
+            placed.pop(descendant, None)
         placed["primary_precooling_room"] = primary
         raw_options = _constructive_edge_options(
             context,
             "raw_fruit_buffer",
             placed,
             "primary_precooling_room",
-            required_side=(
-                (
-                    ("WEST", "EAST")
-                    if context.structural_skeleton.ordering_axis == "Y"
-                    else ("SOUTH", "NORTH")
-                )
-                if context.structural_composition_family.family == "LINEAR_PROCESS_BAND"
-                else tuple(side for side in _CARDINAL_SIDES if side != _OPPOSITE_SIDE[raw_side])
-            ),
+            required_side=raw_required_sides,
             bank_alignment_code="primary_precooling_room",
             stats=stats,
         )
+        # Sample each legal raw-bank attachment face before consuming the
+        # remaining options on one face.  This is deterministic candidate
+        # coverage, not a geometry preference or a hard constraint.
+        raw_options = _interleave_raw_bank_options(primary, raw_options, raw_required_sides)
         for raw in raw_options:
             if stats.visited_nodes >= context.node_budget:
                 stats.node_budget_exhausted = True
@@ -3281,6 +3780,13 @@ def _construct_face_skeletons(
             quantum = _quantum_checkpoint(stats)
             if quantum is not None:
                 yield quantum
+            for descendant in (
+                "secondary_precooling_room",
+                "coating_room",
+                "finished_goods_room",
+                "shipping_channel",
+            ):
+                placed.pop(descendant, None)
             placed["raw_fruit_buffer"] = raw
             secondary_options = _constructive_edge_options(
                 context,
@@ -3325,6 +3831,8 @@ def _construct_face_skeletons(
                 quantum = _quantum_checkpoint(stats)
                 if quantum is not None:
                     yield quantum
+                for descendant in ("coating_room", "finished_goods_room", "shipping_channel"):
+                    placed.pop(descendant, None)
                 placed["secondary_precooling_room"] = secondary
                 coating_options = _constructive_edge_options(
                     context,
@@ -3352,6 +3860,8 @@ def _construct_face_skeletons(
                     quantum = _quantum_checkpoint(stats)
                     if quantum is not None:
                         yield quantum
+                    placed.pop("finished_goods_room", None)
+                    placed.pop("shipping_channel", None)
                     placed["coating_room"] = coating
                     finished_options = _constructive_edge_options(
                         context,
@@ -3364,6 +3874,11 @@ def _construct_face_skeletons(
                             else ()
                         ),
                         stats=stats,
+                    )
+                    finished_options = _finished_options_by_shipping_approach(
+                        context,
+                        placed,
+                        finished_options,
                     )
                     for finished in finished_options:
                         if stats.visited_nodes >= context.node_budget:
@@ -3383,6 +3898,7 @@ def _construct_face_skeletons(
                         quantum = _quantum_checkpoint(stats)
                         if quantum is not None:
                             yield quantum
+                        placed.pop("shipping_channel", None)
                         placed["finished_goods_room"] = finished
                         shipping_options = _constructive_edge_options(
                             context,
@@ -3391,6 +3907,9 @@ def _construct_face_skeletons(
                             "finished_goods_room",
                             prefer_truck_entrance=True,
                             stats=stats,
+                        )
+                        shipping_options = _shipping_options_by_loading_face_approach(
+                            context, shipping_options
                         )
                         if not shipping_options:
                             _record_rejection(stats, "SHIPPING_INTERFACE_FAIL")
@@ -3518,6 +4037,10 @@ def _construct_face_skeletons(
                                                 },
                                             }
                                         )
+                                        continue
+                                    if not _constructive_main_skeleton_tail_admission(
+                                        context, stats, seed
+                                    ):
                                         continue
                                     registry = context.global_main_process_geometry_registry
                                     existing = (
@@ -3699,7 +4222,12 @@ def _construct_face_skeletons(
                                             "event": "CACHED_MAIN_SKELETON_TRUCK_PREFLIGHT",
                                             "discovery_topology": context.structural_topology,
                                             "preflight_reexecuted": False,
-                                            "preflight_compute_nodes": 0,
+                                            "preflight_compute_nodes": int(
+                                                cached_truck_preflight.get(
+                                                    "preflight_compute_nodes",
+                                                    cached_truck_preflight.get("visited_nodes", 0),
+                                                )
+                                            ),
                                         }
                                     else:
                                         truck_preflight_result = (
@@ -3719,32 +4247,32 @@ def _construct_face_skeletons(
                                                 truck_preflight_result["visited_nodes"]
                                             ),
                                         }
-                                        if registry is not None:
-                                            registry_row = (
-                                                existing
-                                                if existing is not None
-                                                else registry.get(geometry_hash, {})
-                                            )
-                                            registry_row.update(
-                                                {
-                                                    "skeleton_hash": geometry_hash,
-                                                    "first_discovery_topology": (
-                                                        first_discovery_topology
-                                                        or context.structural_topology
-                                                    ),
-                                                    "main_skeleton_truck_preflight": dict(
-                                                        truck_preflight_row
-                                                    ),
-                                                }
-                                            )
-                                            registry_row.setdefault("tail_search_started", False)
-                                            registry_row.setdefault(
-                                                "tail_search_discovery_topology", None
-                                            )
-                                            registry_row.setdefault("p2d_reached", False)
-                                            registry_row.setdefault("p2d_candidate_count", 0)
-                                            registry_row.setdefault("p2d_full_pass_count", 0)
-                                            registry[geometry_hash] = registry_row
+                                    if registry is not None:
+                                        registry_row = (
+                                            existing
+                                            if existing is not None
+                                            else registry.get(geometry_hash, {})
+                                        )
+                                        registry_row.update(
+                                            {
+                                                "skeleton_hash": geometry_hash,
+                                                "first_discovery_topology": (
+                                                    first_discovery_topology
+                                                    or context.structural_topology
+                                                ),
+                                                "main_skeleton_truck_preflight": dict(
+                                                    truck_preflight_row
+                                                ),
+                                            }
+                                        )
+                                        registry_row.setdefault("tail_search_started", False)
+                                        registry_row.setdefault(
+                                            "tail_search_discovery_topology", None
+                                        )
+                                        registry_row.setdefault("p2d_reached", False)
+                                        registry_row.setdefault("p2d_candidate_count", 0)
+                                        registry_row.setdefault("p2d_full_pass_count", 0)
+                                        registry[geometry_hash] = registry_row
                                     if stats.main_skeleton_truck_preflight_rows is None:
                                         stats.main_skeleton_truck_preflight_rows = []
                                     stats.main_skeleton_truck_preflight_rows.append(
@@ -3932,10 +4460,9 @@ def _construct_face_skeletons(
                                     )
                                 except LayoutAuthorityError:
                                     _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
-                                else:
-                                    emitted_skeletons += 1
-                                    yield seed
-                                    break
+                        else:
+                            emitted_skeletons += 1
+                            yield seed
                         if emitted_skeletons >= skeleton_limit:
                             return
 

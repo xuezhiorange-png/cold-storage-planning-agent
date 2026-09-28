@@ -33,6 +33,18 @@ def test_preflight_is_after_complete_skeleton_and_before_tail_dfs() -> None:
     assert "set(zones) != set(MAIN_PROCESS_SKELETON_ZONE_CODES)" in preflight
 
 
+def test_constructive_search_prunes_before_emission_and_keeps_shipping_branches() -> None:
+    source = PLACEMENT.read_text(encoding="utf-8")
+    constructor = source.split("def _construct_face_skeletons(", 1)[1].split(
+        "\ndef _construct_main_process_skeletons(", 1
+    )[0]
+    assert "for shipping in shipping_options:" in constructor
+    assert constructor.index("_constructive_main_skeleton_tail_admission(") < constructor.index(
+        "yield seed"
+    )
+    assert "yield seed\n                                    break" not in constructor
+
+
 def test_preflight_reuses_loading_face_and_the_single_authoritative_truck_predicate() -> None:
     placement_source = PLACEMENT.read_text(encoding="utf-8")
     app_placement_source = APP_PLACEMENT.read_text(encoding="utf-8")

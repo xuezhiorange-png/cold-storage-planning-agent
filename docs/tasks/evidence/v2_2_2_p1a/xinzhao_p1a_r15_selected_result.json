@@ -1,0 +1,80 @@
+{
+  "access_pass_count": 12,
+  "access_requirement_count": 12,
+  "building_footprint_present": true,
+  "canonical_result_hash": "sha256:037b722f4b16c90c41d1651a70ec4af6b14e83bb9e8a8804682f59e335eb160b",
+  "distinct_new_p2d_full_pass_hashes": [
+    "sha256:e05ce4ee27571b7e7fb7fdb72517353584455740217651f2f083927ba7ada834"
+  ],
+  "distinct_p2d_full_pass_hashes": [
+    "sha256:e05ce4ee27571b7e7fb7fdb72517353584455740217651f2f083927ba7ada834"
+  ],
+  "identity": "v222-p1a-r15-selected-result@1.0.0",
+  "p2_complete": true,
+  "project_layout_validated": true,
+  "selected_main_process_geometry": {
+    "coating_room": {
+      "depth_m": "13.6",
+      "rotation_deg": 0,
+      "width_m": "5.883",
+      "x": "9.317",
+      "y": "20.1"
+    },
+    "finished_goods_room": {
+      "depth_m": "18.6",
+      "rotation_deg": 0,
+      "width_m": "32.4",
+      "x": "9.317",
+      "y": "33.7"
+    },
+    "primary_precooling_room": {
+      "depth_m": "10.05",
+      "rotation_deg": 0,
+      "width_m": "14.7",
+      "x": "15.2",
+      "y": "0"
+    },
+    "raw_fruit_buffer": {
+      "depth_m": "8.7",
+      "rotation_deg": 0,
+      "width_m": "15.2",
+      "x": "0",
+      "y": "0"
+    },
+    "secondary_precooling_room": {
+      "depth_m": "10.05",
+      "rotation_deg": 0,
+      "width_m": "9.8",
+      "x": "15.2",
+      "y": "23.65"
+    },
+    "shipping_channel": {
+      "depth_m": "7.693",
+      "rotation_deg": 90,
+      "width_m": "6.5",
+      "x": "1.624",
+      "y": "33.701"
+    },
+    "sorting_packaging_room": {
+      "depth_m": "13.6",
+      "rotation_deg": 0,
+      "width_m": "45.76",
+      "x": "15.2",
+      "y": "10.05"
+    }
+  },
+  "selected_main_process_skeleton_hash": "sha256:e05ce4ee27571b7e7fb7fdb72517353584455740217651f2f083927ba7ada834",
+  "selection_status": "VALIDATED_LAYOUT_SELECTED",
+  "selector_p2d_candidate_count": 5,
+  "svg_sha256": "sha256:6c4e43594161de0a8b31b5fed47292b35da726cf9725c08bddac2fab01749cd1",
+  "tool7_error_code": null,
+  "truck_preflight_pass_hashes": [
+    "sha256:1c5379589c1da63835062ea8943a14d9af8f24611081395a176e4d5ef60709dc",
+    "sha256:552bd3adb1773a9d5de871f9b2a624f9d8def9fad7d0259a17b0221c9c0cd9a5",
+    "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+    "sha256:75385e255169d9cd18e35d15b4701cca1b8785763454b6293741b34ec853d8e7",
+    "sha256:e05ce4ee27571b7e7fb7fdb72517353584455740217651f2f083927ba7ada834"
+  ],
+  "truck_route_validated": true,
+  "zone_count": 12
+}
