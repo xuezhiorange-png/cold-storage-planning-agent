@@ -1,0 +1,65 @@
+{
+  "identity": "v222-p1a-r13-budget-accounting@1.0.0",
+  "placement_nodes_by_round": {
+    "1": 48,
+    "2": 48,
+    "3": 24
+  },
+  "placement_nodes_by_topology": {
+    "CENTRAL_PROCESS_HUB": 40,
+    "OFFSET_LINEAR_BAND": 40,
+    "STRAIGHT_LINEAR_BAND": 40
+  },
+  "preflight_compute_counts_as_placement_node": false,
+  "preflight_rows": [
+    {
+      "cached": false,
+      "compute_nodes": 39,
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "REJECT",
+      "visited_nodes": 39
+    },
+    {
+      "cached": false,
+      "compute_nodes": 39,
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb",
+      "status": "REJECT",
+      "visited_nodes": 39
+    },
+    {
+      "cached": false,
+      "compute_nodes": 3,
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS",
+      "visited_nodes": 3
+    },
+    {
+      "cached": false,
+      "compute_nodes": 39,
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8",
+      "status": "REJECT",
+      "visited_nodes": 39
+    },
+    {
+      "cached": false,
+      "compute_nodes": 39,
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "REJECT",
+      "visited_nodes": 39
+    },
+    {
+      "cached": false,
+      "compute_nodes": 39,
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa",
+      "status": "REJECT",
+      "visited_nodes": 39
+    }
+  ],
+  "preflight_truck_nodes_visited": 198,
+  "production_placement_node_budget": 120,
+  "production_placement_node_budget_changed": false,
+  "production_placement_nodes_remaining": 0,
+  "production_placement_nodes_visited": 120,
+  "truck_node_budget": 5000,
+  "truck_node_budget_changed": false
+}

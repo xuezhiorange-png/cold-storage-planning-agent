@@ -28,9 +28,13 @@ def test_r10_axis_direction_matrix_runs_all_variants_with_real_tool7(
     assert matrix["aggregate"]["search_exhausted_variant_count"] == 0
     # Live replay now uses the R11 resumable scheduler; the frozen R10 evidence
     # artifact remains the historical 15-skeleton result.
-    assert matrix["aggregate"]["distinct_main_skeleton_count"] == 17
-    assert matrix["aggregate"]["tail_admissible_distinct_skeleton_count"] == 3
-    assert matrix["aggregate"]["p2d_evaluated_distinct_skeleton_count"] == 3
+    # R13's truck necessary preflight rejects proven no-route seeds before
+    # tail search, so bounded construction reaches more exact geometries.
+    assert matrix["aggregate"]["distinct_main_skeleton_count"] == 20
+    # R10's tail-admissible measure is its packaging-slot preflight; R13 then
+    # applies the independent truck necessary condition before P2D.
+    assert matrix["aggregate"]["tail_admissible_distinct_skeleton_count"] == 6
+    assert matrix["aggregate"]["p2d_evaluated_distinct_skeleton_count"] == 1
     assert matrix["aggregate"]["p2d_full_pass_distinct_skeleton_count"] == 1
     assert matrix["aggregate"]["runtime_excluded_full_pass_skeleton_found"] is False
     assert matrix["findings"]["ordering_only_claim_accurate"] is False

@@ -1,0 +1,20 @@
+{
+  "fixtures": [
+    {
+      "fixture": "XINZHAO_CANONICAL_V22",
+      "hard_valid": true,
+      "preflight_reject_count": 5,
+      "selected_main_process_skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "fixture": "P1F_P4_REAL_SELECTOR_SITE_WITH_NO_BUILD_ZONES",
+      "hard_valid": true,
+      "preflight_examined_skeleton_count": 6,
+      "preflight_reject_count": 5,
+      "selected_layout_canonical_result_hash": "sha256:ed11e746cd65142b26cfb20e371dda3a91b39501175681d2538d4359ee017c0d"
+    }
+  ],
+  "hard_valid_to_invalid_regression_count": 0,
+  "identity": "v222-p1a-r13-cross-fixture-regression@1.0.0",
+  "no_false_main_skeleton_rejection_observed": true
+}

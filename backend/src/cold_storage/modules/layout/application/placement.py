@@ -8,12 +8,13 @@ for the three explicitly flexible zones.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import asdict
 from typing import Any
 
 from cold_storage.modules.layout.application.dimension_zones import ZoneDimensioningResultV1
 from cold_storage.modules.layout.application.site_geometry import ValidatedSiteGeometryV1
+from cold_storage.modules.layout.domain.access_routing import DEFAULT_TRUCK_NODE_BUDGET
 from cold_storage.modules.layout.domain.adjacency import ZONE_CODES, process_graph
 from cold_storage.modules.layout.domain.dimensioning import (
     LayoutAuthorityError,
@@ -36,6 +37,9 @@ from cold_storage.modules.layout.domain.placement import (
 )
 from cold_storage.modules.layout.domain.structural_composition import (
     StructuralCompositionFamilyV1,
+)
+from cold_storage.modules.layout.domain.truck_maneuver import (
+    BoundTruckManeuverProjectInputV1,
 )
 
 IDENTITY = "site-constrained-placement-application@1.0.0"
@@ -272,6 +276,9 @@ def enumerate_placement_candidates(
     objective_profile: ObjectiveProfileV1 | Mapping[str, object] | None = None,
     *,
     node_budget: int = 50_000,
+    truck_maneuver_binding: BoundTruckManeuverProjectInputV1 | Mapping[str, Any] | None = None,
+    truck_node_budget: int = DEFAULT_TRUCK_NODE_BUDGET,
+    truck_maneuver_validator: Callable[..., Mapping[str, Any]] | None = None,
     complete_candidate_limit: int | None = None,
     structural_family: StructuralCompositionFamilyV1 | None = None,
     structural_topology: str | None = None,
@@ -281,9 +288,12 @@ def enumerate_placement_candidates(
 ) -> PlacementCandidateEnumerationV1:
     """Expose complete P2C candidates for downstream P2 validation.
 
-    This is still a P2C-only application boundary: it verifies the same P1
-    authority and site inputs as :func:`place_zones`, then delegates to the
-    domain's deterministic candidate stream.  It does not invoke P2D routing.
+    This verifies the same P1 authority and site inputs as :func:`place_zones`,
+    then delegates to the domain's deterministic candidate stream. When a
+    bound truck input is supplied, the structured Tool 7 path may use the
+    existing truck maneuver validator only as a necessary-condition preflight
+    on a frozen main-process skeleton; complete candidates still go through
+    the unchanged P2D application validation.
     """
     if not isinstance(canonical_zone_plan, Mapping):
         raise _error("ZONE_PLAN_IDENTITY_INVALID")
@@ -308,6 +318,9 @@ def enumerate_placement_candidates(
         access_requirements=access_requirements,
         spatial_relationships=spatial_relationships,
         node_budget=node_budget,
+        truck_maneuver_binding=truck_maneuver_binding,
+        truck_node_budget=truck_node_budget,
+        truck_maneuver_validator=truck_maneuver_validator,
         complete_candidate_limit=complete_candidate_limit,
         structural_family=structural_family,
         structural_topology=structural_topology,

@@ -1,11 +1,12 @@
 """Select a P2C placement only after P2D validation.
 
 P2C owns deterministic placement candidate generation and its frozen
-lexicographic objective.  P2D owns route, truck, access and final-layout
-validation.  This application boundary is the only place that composes those
-two responsibilities: every complete P2C candidate is passed through P2D,
-and the highest-ranked P2C candidate among the P2D-full-pass candidates is
-selected.
+lexicographic objective. P2D owns final route, truck, access and layout
+validation. This application boundary composes those responsibilities: every
+complete P2C candidate is passed through P2D, and the highest-ranked P2C
+candidate among the P2D-full-pass candidates is selected. The structured
+Tool 7 path may also supply the same truck authority to P2C for a necessary
+condition check before tail search; that check never replaces final P2D.
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ from cold_storage.modules.layout.application.placement import (
     enumerate_placement_candidates,
 )
 from cold_storage.modules.layout.application.site_geometry import ValidatedSiteGeometryV1
+from cold_storage.modules.layout.domain.access_routing import validate_truck_maneuver_chain
 from cold_storage.modules.layout.domain.dimensioning import (
     LayoutAuthorityError,
     canonical_hash,
@@ -643,6 +645,7 @@ def select_validated_placement(
         "ownership_duplicates": [],
         "geometry_evaluation_admissions": [],
         "tail_slot_preflight_trace": [],
+        "main_skeleton_truck_preflight_trace": [],
         "construction_attempts": [],
         "constructive_divergence_trace": [],
         "offset_transition_trace": [],
@@ -691,6 +694,9 @@ def select_validated_placement(
             site_geometry,
             objective_profile,
             node_budget=placement_node_budget,
+            truck_maneuver_binding=truck_maneuver_binding,
+            truck_node_budget=truck_node_budget,
+            truck_maneuver_validator=validate_truck_maneuver_chain,
             complete_candidate_limit=complete_candidate_limit,
             structural_family=lane.family,
             structural_topology=lane.topology,
@@ -888,6 +894,10 @@ def select_validated_placement(
         enumeration = state["enumeration"]
         phase = str(state["phase"])
         generation_report = dict(enumeration.skeleton_generation_report)
+        preflight_rows = getattr(enumeration, "main_skeleton_truck_preflight_rows", ())
+        r6_topology_diagnostics["main_skeleton_truck_preflight_trace"].extend(
+            dict(row) for row in preflight_rows if isinstance(row, Mapping)
+        )
         for skeleton_row in generation_report.get("candidates", []):
             if not isinstance(skeleton_row, dict):
                 continue
@@ -1266,6 +1276,14 @@ def select_validated_placement(
         r6_topology_diagnostics["tail_slot_preflight_trace"],
         key=lambda row: (
             str(row.get("skeleton_hash")),
+            str(row.get("discovery_topology")),
+            str(row.get("event")),
+        ),
+    )
+    r6_topology_diagnostics["main_skeleton_truck_preflight_trace"] = sorted(
+        r6_topology_diagnostics["main_skeleton_truck_preflight_trace"],
+        key=lambda row: (
+            str(row.get("main_skeleton_hash")),
             str(row.get("discovery_topology")),
             str(row.get("event")),
         ),

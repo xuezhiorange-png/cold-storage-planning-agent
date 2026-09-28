@@ -1,15 +1,17 @@
-"""Deterministic, placement-only geometry search for the V2.2 P2C MVP.
+"""Deterministic placement search for the V2.2 P2C MVP.
 
 This module consumes already-bound zone dimensions and site geometry.  It does
 not calculate zone areas, generate a building envelope, or validate portals,
-corridors, truck manoeuvres, or routes.  All geometry is represented as
-integer millimetres at the predicate boundary so the incomplete search is
-repeatable and has no floating-point tolerance.
+corridors, or final routes. The Tool 7 structured path may run the existing
+authoritative truck-maneuver validator as a necessary-condition preflight on a
+frozen seven-zone main-process skeleton before tail search. All geometry is
+represented as integer millimetres at the predicate boundary so the bounded
+search is repeatable and has no floating-point tolerance.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from decimal import Context, Decimal, InvalidOperation, localcontext
 from fractions import Fraction
@@ -2306,6 +2308,9 @@ class _PlacementSearchContext:
     access_requirements: tuple[Mapping[str, Any], ...]
     spatial_relationships: tuple[Mapping[str, Any], ...]
     node_budget: int
+    truck_maneuver_binding: Any
+    truck_node_budget: int
+    truck_maneuver_validator: Callable[..., Mapping[str, Any]] | None
     complete_candidate_limit: int | None
     boundary: PolygonMM
     boundary_bounds: tuple[int, int, int, int]
@@ -2345,6 +2350,7 @@ class _PlacementSearchStats:
     topology_classification_failures: list[dict[str, Any]] | None = None
     geometry_evaluation_admissions: list[dict[str, Any]] | None = None
     tail_slot_preflight_rows: list[dict[str, Any]] | None = None
+    main_skeleton_truck_preflight_rows: list[dict[str, Any]] | None = None
     cross_topology_duplicate_count: int = 0
     quantum_node_limit: int | None = None
     quantum_nodes_visited: int = 0
@@ -2395,6 +2401,9 @@ def _validated_search_context(
     access_requirements: Sequence[Mapping[str, Any]],
     spatial_relationships: Sequence[Mapping[str, Any]],
     node_budget: int,
+    truck_maneuver_binding: Any = None,
+    truck_node_budget: int = 20_000,
+    truck_maneuver_validator: Callable[..., Mapping[str, Any]] | None = None,
     complete_candidate_limit: int | None,
     structural_family: StructuralCompositionFamilyV1 | None = None,
     structural_topology: str | None = None,
@@ -2485,6 +2494,9 @@ def _validated_search_context(
         access_requirements=tuple(access_requirements),
         spatial_relationships=tuple(spatial_relationships),
         node_budget=node_budget,
+        truck_maneuver_binding=truck_maneuver_binding,
+        truck_node_budget=truck_node_budget,
+        truck_maneuver_validator=truck_maneuver_validator,
         complete_candidate_limit=complete_candidate_limit,
         boundary=boundary,
         boundary_bounds=boundary_bounds,
@@ -2599,6 +2611,99 @@ def _packaging_tail_slot_preflight(
         fixed_main_process_rectangles=skeleton.zone_rectangles,
     )
     return proof.to_dict()
+
+
+def _truck_maneuver_preflight_decision(result: Mapping[str, Any]) -> tuple[str, str | None]:
+    """Reject only a completed authoritative search with no truck witness."""
+    if result.get("truck_route_validated") is True:
+        return "PASS", None
+    search = result.get("search_provenance")
+    search = search if isinstance(search, Mapping) else {}
+    if (
+        result.get("status") == "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        and search.get("search_tree_exhausted") is True
+        and search.get("node_budget_exhausted") is False
+    ):
+        return "REJECT", "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+    if search.get("node_budget_exhausted") is True:
+        return "UNRESOLVED", "TRUCK_MANEUVER_SEARCH_BUDGET_EXHAUSTED"
+    return "UNRESOLVED", None
+
+
+def _main_skeleton_truck_maneuver_preflight(
+    context: _PlacementSearchContext,
+    skeleton: MainProcessSkeletonCandidateV1,
+) -> dict[str, Any]:
+    """Apply the existing truck authority to only the frozen seven-zone skeleton.
+
+    A completed no-route search is a necessary-condition rejection. Missing
+    authority and bounded-search exhaustion are unresolved and still proceed
+    to the normal tail/P2D path, where the existing fail-closed result remains
+    authoritative.
+    """
+    zones = {rectangle.zone_code: rectangle for rectangle in skeleton.zone_rectangles}
+    if set(zones) != set(MAIN_PROCESS_SKELETON_ZONE_CODES):
+        raise _error("MAIN_PROCESS_SKELETON_ZONE_SET_INVALID")
+    loading_side, loading_face, _, _ = _loading_face(zones["shipping_channel"], context.site_body)
+    validator = context.truck_maneuver_validator
+    if validator is None:
+        return {
+            "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+            "main_skeleton_hash": skeleton.main_process_skeleton_hash,
+            "preflight_status": "UNRESOLVED",
+            "preflight_action": "ALLOW_TAIL_SEARCH",
+            "tail_search_started": False,
+            "truck_route_validated": False,
+            "failure_codes": ["TRUCK_PREFLIGHT_AUTHORITY_NOT_INJECTED"],
+            "failure_reason": None,
+            "search_profile_identity": None,
+            "visited_nodes": 0,
+            "node_budget": context.truck_node_budget,
+            "node_budget_exhausted": False,
+            "search_tree_exhausted": False,
+            "shipping_loading_face_side": loading_side,
+            "shipping_loading_face_segment": {
+                "start": {"x": _m(loading_face[0][0]), "y": _m(loading_face[0][1])},
+                "end": {"x": _m(loading_face[1][0]), "y": _m(loading_face[1][1])},
+            },
+            "zones_checked": list(MAIN_PROCESS_SKELETON_ZONE_CODES),
+            "truck_validation_result_hash": None,
+        }
+    result = validator(
+        context.truck_maneuver_binding,
+        truck_entrance=_truck_segment(context.site_body),
+        shipping_loading_face=loading_face,
+        boundary=context.boundary,
+        obstacles=context.obstacles,
+        zones=zones,
+        node_budget=context.truck_node_budget,
+    )
+    status, failure_reason = _truck_maneuver_preflight_decision(result)
+    search = result.get("search_provenance")
+    search = search if isinstance(search, Mapping) else {}
+    face_segment = {
+        "start": {"x": _m(loading_face[0][0]), "y": _m(loading_face[0][1])},
+        "end": {"x": _m(loading_face[1][0]), "y": _m(loading_face[1][1])},
+    }
+    return {
+        "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+        "main_skeleton_hash": skeleton.main_process_skeleton_hash,
+        "preflight_status": status,
+        "preflight_action": "REJECT_SKELETON" if status == "REJECT" else "ALLOW_TAIL_SEARCH",
+        "tail_search_started": False,
+        "truck_route_validated": result.get("truck_route_validated") is True,
+        "failure_codes": list(result.get("codes", [])),
+        "failure_reason": failure_reason,
+        "search_profile_identity": result.get("search_profile_identity"),
+        "visited_nodes": int(search.get("visited_nodes", 0)),
+        "node_budget": int(search.get("node_budget", context.truck_node_budget)),
+        "node_budget_exhausted": search.get("node_budget_exhausted") is True,
+        "search_tree_exhausted": search.get("search_tree_exhausted") is True,
+        "shipping_loading_face_side": loading_side,
+        "shipping_loading_face_segment": face_segment,
+        "zones_checked": list(MAIN_PROCESS_SKELETON_ZONE_CODES),
+        "truck_validation_result_hash": result.get("canonical_result_hash"),
+    }
 
 
 def _search_provenance(
@@ -3583,6 +3688,71 @@ def _construct_face_skeletons(
                                             stats.tail_slot_preflight_rows = []
                                         stats.tail_slot_preflight_rows.append(preflight_row)
 
+                                    cached_truck_preflight = (
+                                        existing.get("main_skeleton_truck_preflight")
+                                        if existing is not None
+                                        else None
+                                    )
+                                    if isinstance(cached_truck_preflight, Mapping):
+                                        truck_preflight_row = {
+                                            **dict(cached_truck_preflight),
+                                            "event": "CACHED_MAIN_SKELETON_TRUCK_PREFLIGHT",
+                                            "discovery_topology": context.structural_topology,
+                                            "preflight_reexecuted": False,
+                                            "preflight_compute_nodes": 0,
+                                        }
+                                    else:
+                                        truck_preflight_result = (
+                                            _main_skeleton_truck_maneuver_preflight(context, seed)
+                                        )
+                                        truck_preflight_row = {
+                                            **truck_preflight_result,
+                                            "event": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+                                            "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+                                            "discovery_topology": context.structural_topology,
+                                            "canonical_topology_owner": (
+                                                seed.canonical_topology_owner
+                                            ),
+                                            "canonical_family": seed.family.to_dict(),
+                                            "preflight_reexecuted": True,
+                                            "preflight_compute_nodes": int(
+                                                truck_preflight_result["visited_nodes"]
+                                            ),
+                                        }
+                                        if registry is not None:
+                                            registry_row = (
+                                                existing
+                                                if existing is not None
+                                                else registry.get(geometry_hash, {})
+                                            )
+                                            registry_row.update(
+                                                {
+                                                    "skeleton_hash": geometry_hash,
+                                                    "first_discovery_topology": (
+                                                        first_discovery_topology
+                                                        or context.structural_topology
+                                                    ),
+                                                    "main_skeleton_truck_preflight": dict(
+                                                        truck_preflight_row
+                                                    ),
+                                                }
+                                            )
+                                            registry_row.setdefault("tail_search_started", False)
+                                            registry_row.setdefault(
+                                                "tail_search_discovery_topology", None
+                                            )
+                                            registry_row.setdefault("p2d_reached", False)
+                                            registry_row.setdefault("p2d_candidate_count", 0)
+                                            registry_row.setdefault("p2d_full_pass_count", 0)
+                                            registry[geometry_hash] = registry_row
+                                    if stats.main_skeleton_truck_preflight_rows is None:
+                                        stats.main_skeleton_truck_preflight_rows = []
+                                    stats.main_skeleton_truck_preflight_rows.append(
+                                        truck_preflight_row
+                                    )
+                                    if truck_preflight_row["preflight_status"] == "REJECT":
+                                        continue
+
                                     tail_search_discovery_topology = (
                                         str(existing["tail_search_discovery_topology"])
                                         if existing is not None
@@ -3602,6 +3772,9 @@ def _construct_face_skeletons(
                                             existing is not None
                                             and existing.get("tail_search_started") is True
                                         ),
+                                    )
+                                    truck_preflight_row["tail_search_started"] = (
+                                        ownership_decision.start_tail_search
                                     )
                                     if not ownership_decision.start_tail_search:
                                         if ownership_decision.cross_topology_duplicate:
@@ -3641,7 +3814,11 @@ def _construct_face_skeletons(
                                         continue
 
                                     if registry is not None:
-                                        registry_row = existing if existing is not None else {}
+                                        registry_row = (
+                                            existing
+                                            if existing is not None
+                                            else registry.get(geometry_hash, {})
+                                        )
                                         registry_row.update(
                                             {
                                                 "skeleton_hash": geometry_hash,
@@ -3666,6 +3843,14 @@ def _construct_face_skeletons(
                                                 ),
                                             }
                                         )
+                                        truck_preflight = registry_row.get(
+                                            "main_skeleton_truck_preflight"
+                                        )
+                                        if isinstance(truck_preflight, Mapping):
+                                            registry_row["main_skeleton_truck_preflight"] = {
+                                                **dict(truck_preflight),
+                                                "tail_search_started": True,
+                                            }
                                         registry_row.setdefault("p2d_reached", False)
                                         registry_row.setdefault("p2d_candidate_count", 0)
                                         registry_row.setdefault("p2d_full_pass_count", 0)
@@ -4484,6 +4669,11 @@ class PlacementCandidateEnumerationV1:
         return len(self._stats.structured_core_root_completions or {})
 
     @property
+    def main_skeleton_truck_preflight_rows(self) -> list[dict[str, Any]]:
+        """Internal selector diagnostics, kept out of Tool 7 serialization."""
+        return list(self._stats.main_skeleton_truck_preflight_rows or [])
+
+    @property
     def visited_node_count(self) -> int:
         return self._stats.visited_nodes
 
@@ -4556,6 +4746,9 @@ def enumerate_placement_candidates(
     access_requirements: Sequence[Mapping[str, Any]] = (),
     spatial_relationships: Sequence[Mapping[str, Any]] = (),
     node_budget: int = DEFAULT_NODE_BUDGET,
+    truck_maneuver_binding: Any = None,
+    truck_node_budget: int = 20_000,
+    truck_maneuver_validator: Callable[..., Mapping[str, Any]] | None = None,
     complete_candidate_limit: int | None = None,
     structural_family: StructuralCompositionFamilyV1 | None = None,
     structural_topology: str | None = None,
@@ -4576,6 +4769,9 @@ def enumerate_placement_candidates(
             access_requirements=access_requirements,
             spatial_relationships=spatial_relationships,
             node_budget=node_budget,
+            truck_maneuver_binding=truck_maneuver_binding,
+            truck_node_budget=truck_node_budget,
+            truck_maneuver_validator=truck_maneuver_validator,
             complete_candidate_limit=complete_candidate_limit,
             structural_family=structural_family,
             structural_topology=structural_topology,

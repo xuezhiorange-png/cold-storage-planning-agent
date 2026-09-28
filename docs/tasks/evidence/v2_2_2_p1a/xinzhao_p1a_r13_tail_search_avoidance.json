@@ -1,0 +1,151 @@
+{
+  "identity": "v222-p1a-r13-tail-search-avoidance@1.0.0",
+  "r12_baseline": {
+    "complete_p2c_candidate_count": 6,
+    "control_candidates": 2,
+    "target_a_candidates": 2,
+    "target_access_outcome": "TRUCK_MANEUVER_SEARCH_EXHAUSTED_AFTER_COMPLETE_TAIL",
+    "target_b_candidates": 2
+  },
+  "r13": {
+    "complete_p2c_candidate_count": 2,
+    "main_skeletons_examined": 6,
+    "preflight_pass_count": 1,
+    "preflight_reject_count": 5,
+    "rejected_skeleton_hashes": [
+      "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb",
+      "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8",
+      "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa"
+    ],
+    "tail_entered_skeleton_hashes": [
+      "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    ],
+    "tail_search_avoided_count": 5,
+    "tail_search_entered_count": 1
+  },
+  "target_rows": [
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "complete_p2c_candidate_count": 2,
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "event": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+      "failure_codes": [],
+      "failure_reason": null,
+      "label": "CONTROL",
+      "node_budget": 5000,
+      "node_budget_exhausted": false,
+      "observed": true,
+      "p2d_full_pass_count": 2,
+      "p2d_reached": true,
+      "preflight_action": "ALLOW_TAIL_SEARCH",
+      "preflight_status": "PASS",
+      "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+      "search_tree_exhausted": true,
+      "shipping_loading_face_segment": {
+        "end": {
+          "x": "9.317",
+          "y": "33.7"
+        },
+        "start": {
+          "x": "1.624",
+          "y": "33.7"
+        }
+      },
+      "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "tail_search_started": true,
+      "visited_nodes": 3
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "complete_p2c_candidate_count": 0,
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "event": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+      "label": "TARGET_A",
+      "node_budget": 5000,
+      "node_budget_exhausted": false,
+      "observed": true,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": false,
+      "preflight_action": "REJECT_SKELETON",
+      "preflight_status": "REJECT",
+      "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+      "search_tree_exhausted": true,
+      "shipping_loading_face_segment": {
+        "end": {
+          "x": "0.8",
+          "y": "41.393"
+        },
+        "start": {
+          "x": "0.8",
+          "y": "33.7"
+        }
+      },
+      "shipping_loading_face_side": "LEFT_LONG_EDGE",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "tail_search_started": false,
+      "visited_nodes": 39
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "complete_p2c_candidate_count": 0,
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "event": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+      "label": "TARGET_B",
+      "node_budget": 5000,
+      "node_budget_exhausted": false,
+      "observed": true,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": false,
+      "preflight_action": "REJECT_SKELETON",
+      "preflight_status": "REJECT",
+      "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+      "search_tree_exhausted": true,
+      "shipping_loading_face_segment": {
+        "end": {
+          "x": "6.1",
+          "y": "33.7"
+        },
+        "start": {
+          "x": "6.1",
+          "y": "26.007"
+        }
+      },
+      "shipping_loading_face_side": "LEFT_LONG_EDGE",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "tail_search_started": false,
+      "visited_nodes": 39
+    }
+  ]
+}
