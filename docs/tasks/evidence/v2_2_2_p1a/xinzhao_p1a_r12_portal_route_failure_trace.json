@@ -1,0 +1,1590 @@
+{
+  "identity": "v222-p1a-r12-portal-route-failure-trace@1.0.0",
+  "portal_pair_count": 12,
+  "portal_pair_failure_counts": {
+    "FAIL": 6,
+    "PASS": 6
+  },
+  "portal_pair_pass_count": 6,
+  "requirements": [
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "direct_failure_reason": "DIRECT_NOT_APPLICABLE_BOUNDARY_ENDPOINT",
+      "portal_pair_count": 2,
+      "portal_pair_failure_counts": {
+        "FAIL": 1,
+        "PASS": 1
+      },
+      "portal_pair_pass_count": 1,
+      "portal_pairs": [
+        {
+          "attempt_index": 1,
+          "failure_reason": "ROUTE_SEARCH_EXHAUSTED",
+          "from_portal_clear_width_m": "1.5",
+          "from_portal_edge_class": "BOUNDARY_ACCESS",
+          "from_portal_segment_mm": [
+            [
+              75460,
+              24775
+            ],
+            [
+              75460,
+              26275
+            ]
+          ],
+          "outcome": "FAIL",
+          "portal_pair_index": 1,
+          "route_end_mm": [
+            43810,
+            23650
+          ],
+          "route_length_mm": null,
+          "route_points_mm": [],
+          "route_safety_rejections": {
+            "CORRIDOR_INCIDENT_ZONE_CROSSING": 24,
+            "CORRIDOR_OBSTACLE_INTERSECTION": 25,
+            "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 4,
+            "CORRIDOR_UNRELATED_ZONE_INTERSECTION": 37
+          },
+          "route_start_mm": [
+            74460,
+            25525
+          ],
+          "to_portal_clear_width_m": "1.5",
+          "to_portal_edge_class": "LONG_EDGE",
+          "to_portal_segment_mm": [
+            [
+              43060,
+              23650
+            ],
+            [
+              44560,
+              23650
+            ]
+          ],
+          "turn_count": null
+        },
+        {
+          "attempt_index": 2,
+          "failure_reason": "CORRIDOR_INCIDENT_ZONE_CROSSING",
+          "from_portal_clear_width_m": "1.5",
+          "from_portal_edge_class": "BOUNDARY_ACCESS",
+          "from_portal_segment_mm": [
+            [
+              75460,
+              24775
+            ],
+            [
+              75460,
+              26275
+            ]
+          ],
+          "outcome": "PASS",
+          "portal_pair_index": 2,
+          "route_end_mm": [
+            43810,
+            24885
+          ],
+          "route_length_mm": 32010,
+          "route_points_mm": [
+            [
+              74460,
+              25525
+            ],
+            [
+              74460,
+              25885
+            ],
+            [
+              43810,
+              25885
+            ],
+            [
+              43810,
+              24885
+            ]
+          ],
+          "route_safety_rejections": {
+            "CORRIDOR_INCIDENT_ZONE_CROSSING": 16,
+            "CORRIDOR_OBSTACLE_INTERSECTION": 11,
+            "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 4
+          },
+          "route_start_mm": [
+            74460,
+            25525
+          ],
+          "to_portal_clear_width_m": "1.5",
+          "to_portal_edge_class": "LONG_EDGE",
+          "to_portal_segment_mm": [
+            [
+              43060,
+              24885
+            ],
+            [
+              44560,
+              24885
+            ]
+          ],
+          "turn_count": 2
+        }
+      ],
+      "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {
+        "CORRIDOR_INCIDENT_ZONE_CROSSING": 40,
+        "CORRIDOR_OBSTACLE_INTERSECTION": 36,
+        "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 8,
+        "CORRIDOR_UNRELATED_ZONE_INTERSECTION": 37
+      },
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "direct_failure_reason": "NOT_APPLICABLE_TRUCK_MANEUVER_AUTHORITY",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "direct_failure_reason": "DIRECT_NOT_APPLICABLE_BOUNDARY_ENDPOINT",
+      "portal_pair_count": 2,
+      "portal_pair_failure_counts": {
+        "FAIL": 1,
+        "PASS": 1
+      },
+      "portal_pair_pass_count": 1,
+      "portal_pairs": [
+        {
+          "attempt_index": 1,
+          "failure_reason": "ROUTE_SEARCH_EXHAUSTED",
+          "from_portal_clear_width_m": "1.5",
+          "from_portal_edge_class": "BOUNDARY_ACCESS",
+          "from_portal_segment_mm": [
+            [
+              75460,
+              24775
+            ],
+            [
+              75460,
+              26275
+            ]
+          ],
+          "outcome": "FAIL",
+          "portal_pair_index": 1,
+          "route_end_mm": [
+            43810,
+            23650
+          ],
+          "route_length_mm": null,
+          "route_points_mm": [],
+          "route_safety_rejections": {
+            "CORRIDOR_INCIDENT_ZONE_CROSSING": 27,
+            "CORRIDOR_OBSTACLE_INTERSECTION": 24,
+            "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 4,
+            "CORRIDOR_UNRELATED_ZONE_INTERSECTION": 35
+          },
+          "route_start_mm": [
+            74460,
+            25525
+          ],
+          "to_portal_clear_width_m": "1.5",
+          "to_portal_edge_class": "LONG_EDGE",
+          "to_portal_segment_mm": [
+            [
+              43060,
+              23650
+            ],
+            [
+              44560,
+              23650
+            ]
+          ],
+          "turn_count": null
+        },
+        {
+          "attempt_index": 2,
+          "failure_reason": "CORRIDOR_INCIDENT_ZONE_CROSSING",
+          "from_portal_clear_width_m": "1.5",
+          "from_portal_edge_class": "BOUNDARY_ACCESS",
+          "from_portal_segment_mm": [
+            [
+              75460,
+              24775
+            ],
+            [
+              75460,
+              26275
+            ]
+          ],
+          "outcome": "PASS",
+          "portal_pair_index": 2,
+          "route_end_mm": [
+            43810,
+            24885
+          ],
+          "route_length_mm": 32010,
+          "route_points_mm": [
+            [
+              74460,
+              25525
+            ],
+            [
+              74460,
+              25885
+            ],
+            [
+              43810,
+              25885
+            ],
+            [
+              43810,
+              24885
+            ]
+          ],
+          "route_safety_rejections": {
+            "CORRIDOR_INCIDENT_ZONE_CROSSING": 16,
+            "CORRIDOR_OBSTACLE_INTERSECTION": 11,
+            "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 4
+          },
+          "route_start_mm": [
+            74460,
+            25525
+          ],
+          "to_portal_clear_width_m": "1.5",
+          "to_portal_edge_class": "LONG_EDGE",
+          "to_portal_segment_mm": [
+            [
+              43060,
+              24885
+            ],
+            [
+              44560,
+              24885
+            ]
+          ],
+          "turn_count": 2
+        }
+      ],
+      "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {
+        "CORRIDOR_INCIDENT_ZONE_CROSSING": 43,
+        "CORRIDOR_OBSTACLE_INTERSECTION": 35,
+        "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 8,
+        "CORRIDOR_UNRELATED_ZONE_INTERSECTION": 35
+      },
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "direct_failure_reason": "NOT_APPLICABLE_TRUCK_MANEUVER_AUTHORITY",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "direct_failure_reason": "DIRECT_NOT_APPLICABLE_BOUNDARY_ENDPOINT",
+      "portal_pair_count": 2,
+      "portal_pair_failure_counts": {
+        "FAIL": 1,
+        "PASS": 1
+      },
+      "portal_pair_pass_count": 1,
+      "portal_pairs": [
+        {
+          "attempt_index": 1,
+          "failure_reason": "ROUTE_SEARCH_EXHAUSTED",
+          "from_portal_clear_width_m": "1.5",
+          "from_portal_edge_class": "BOUNDARY_ACCESS",
+          "from_portal_segment_mm": [
+            [
+              75460,
+              24775
+            ],
+            [
+              75460,
+              26275
+            ]
+          ],
+          "outcome": "FAIL",
+          "portal_pair_index": 1,
+          "route_end_mm": [
+            43810,
+            23650
+          ],
+          "route_length_mm": null,
+          "route_points_mm": [],
+          "route_safety_rejections": {
+            "CORRIDOR_INCIDENT_ZONE_CROSSING": 22,
+            "CORRIDOR_OBSTACLE_INTERSECTION": 58,
+            "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 36,
+            "CORRIDOR_UNRELATED_ZONE_INTERSECTION": 161
+          },
+          "route_start_mm": [
+            74460,
+            25525
+          ],
+          "to_portal_clear_width_m": "1.5",
+          "to_portal_edge_class": "LONG_EDGE",
+          "to_portal_segment_mm": [
+            [
+              43060,
+              23650
+            ],
+            [
+              44560,
+              23650
+            ]
+          ],
+          "turn_count": null
+        },
+        {
+          "attempt_index": 2,
+          "failure_reason": "CORRIDOR_INCIDENT_ZONE_CROSSING",
+          "from_portal_clear_width_m": "1.5",
+          "from_portal_edge_class": "BOUNDARY_ACCESS",
+          "from_portal_segment_mm": [
+            [
+              75460,
+              24775
+            ],
+            [
+              75460,
+              26275
+            ]
+          ],
+          "outcome": "PASS",
+          "portal_pair_index": 2,
+          "route_end_mm": [
+            43810,
+            24885
+          ],
+          "route_length_mm": 32010,
+          "route_points_mm": [
+            [
+              74460,
+              25525
+            ],
+            [
+              74460,
+              25885
+            ],
+            [
+              43810,
+              25885
+            ],
+            [
+              43810,
+              24885
+            ]
+          ],
+          "route_safety_rejections": {
+            "CORRIDOR_INCIDENT_ZONE_CROSSING": 16,
+            "CORRIDOR_OBSTACLE_INTERSECTION": 12,
+            "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 4
+          },
+          "route_start_mm": [
+            74460,
+            25525
+          ],
+          "to_portal_clear_width_m": "1.5",
+          "to_portal_edge_class": "LONG_EDGE",
+          "to_portal_segment_mm": [
+            [
+              43060,
+              24885
+            ],
+            [
+              44560,
+              24885
+            ]
+          ],
+          "turn_count": 2
+        }
+      ],
+      "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {
+        "CORRIDOR_INCIDENT_ZONE_CROSSING": 38,
+        "CORRIDOR_OBSTACLE_INTERSECTION": 70,
+        "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 40,
+        "CORRIDOR_UNRELATED_ZONE_INTERSECTION": 161
+      },
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "direct_failure_reason": "NOT_APPLICABLE_TRUCK_MANEUVER_AUTHORITY",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+      "requirement_status": "BLOCKED",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "direct_failure_reason": "DIRECT_NOT_APPLICABLE_BOUNDARY_ENDPOINT",
+      "portal_pair_count": 2,
+      "portal_pair_failure_counts": {
+        "FAIL": 1,
+        "PASS": 1
+      },
+      "portal_pair_pass_count": 1,
+      "portal_pairs": [
+        {
+          "attempt_index": 1,
+          "failure_reason": "ROUTE_SEARCH_EXHAUSTED",
+          "from_portal_clear_width_m": "1.5",
+          "from_portal_edge_class": "BOUNDARY_ACCESS",
+          "from_portal_segment_mm": [
+            [
+              75460,
+              24775
+            ],
+            [
+              75460,
+              26275
+            ]
+          ],
+          "outcome": "FAIL",
+          "portal_pair_index": 1,
+          "route_end_mm": [
+            43810,
+            23650
+          ],
+          "route_length_mm": null,
+          "route_points_mm": [],
+          "route_safety_rejections": {
+            "CORRIDOR_INCIDENT_ZONE_CROSSING": 25,
+            "CORRIDOR_OBSTACLE_INTERSECTION": 57,
+            "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 36,
+            "CORRIDOR_UNRELATED_ZONE_INTERSECTION": 159
+          },
+          "route_start_mm": [
+            74460,
+            25525
+          ],
+          "to_portal_clear_width_m": "1.5",
+          "to_portal_edge_class": "LONG_EDGE",
+          "to_portal_segment_mm": [
+            [
+              43060,
+              23650
+            ],
+            [
+              44560,
+              23650
+            ]
+          ],
+          "turn_count": null
+        },
+        {
+          "attempt_index": 2,
+          "failure_reason": "CORRIDOR_INCIDENT_ZONE_CROSSING",
+          "from_portal_clear_width_m": "1.5",
+          "from_portal_edge_class": "BOUNDARY_ACCESS",
+          "from_portal_segment_mm": [
+            [
+              75460,
+              24775
+            ],
+            [
+              75460,
+              26275
+            ]
+          ],
+          "outcome": "PASS",
+          "portal_pair_index": 2,
+          "route_end_mm": [
+            43810,
+            24885
+          ],
+          "route_length_mm": 32010,
+          "route_points_mm": [
+            [
+              74460,
+              25525
+            ],
+            [
+              74460,
+              25885
+            ],
+            [
+              43810,
+              25885
+            ],
+            [
+              43810,
+              24885
+            ]
+          ],
+          "route_safety_rejections": {
+            "CORRIDOR_INCIDENT_ZONE_CROSSING": 16,
+            "CORRIDOR_OBSTACLE_INTERSECTION": 12,
+            "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 4
+          },
+          "route_start_mm": [
+            74460,
+            25525
+          ],
+          "to_portal_clear_width_m": "1.5",
+          "to_portal_edge_class": "LONG_EDGE",
+          "to_portal_segment_mm": [
+            [
+              43060,
+              24885
+            ],
+            [
+              44560,
+              24885
+            ]
+          ],
+          "turn_count": 2
+        }
+      ],
+      "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {
+        "CORRIDOR_INCIDENT_ZONE_CROSSING": 41,
+        "CORRIDOR_OBSTACLE_INTERSECTION": 69,
+        "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 40,
+        "CORRIDOR_UNRELATED_ZONE_INTERSECTION": 159
+      },
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "direct_failure_reason": "NOT_APPLICABLE_TRUCK_MANEUVER_AUTHORITY",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+      "requirement_status": "BLOCKED",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "direct_failure_reason": "DIRECT_NOT_APPLICABLE_BOUNDARY_ENDPOINT",
+      "portal_pair_count": 2,
+      "portal_pair_failure_counts": {
+        "FAIL": 1,
+        "PASS": 1
+      },
+      "portal_pair_pass_count": 1,
+      "portal_pairs": [
+        {
+          "attempt_index": 1,
+          "failure_reason": "ROUTE_SEARCH_EXHAUSTED",
+          "from_portal_clear_width_m": "1.5",
+          "from_portal_edge_class": "BOUNDARY_ACCESS",
+          "from_portal_segment_mm": [
+            [
+              75460,
+              24775
+            ],
+            [
+              75460,
+              26275
+            ]
+          ],
+          "outcome": "FAIL",
+          "portal_pair_index": 1,
+          "route_end_mm": [
+            43810,
+            23650
+          ],
+          "route_length_mm": null,
+          "route_points_mm": [],
+          "route_safety_rejections": {
+            "CORRIDOR_INCIDENT_ZONE_CROSSING": 22,
+            "CORRIDOR_OBSTACLE_INTERSECTION": 38,
+            "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 20,
+            "CORRIDOR_UNRELATED_ZONE_INTERSECTION": 78
+          },
+          "route_start_mm": [
+            74460,
+            25525
+          ],
+          "to_portal_clear_width_m": "1.5",
+          "to_portal_edge_class": "LONG_EDGE",
+          "to_portal_segment_mm": [
+            [
+              43060,
+              23650
+            ],
+            [
+              44560,
+              23650
+            ]
+          ],
+          "turn_count": null
+        },
+        {
+          "attempt_index": 2,
+          "failure_reason": "CORRIDOR_INCIDENT_ZONE_CROSSING",
+          "from_portal_clear_width_m": "1.5",
+          "from_portal_edge_class": "BOUNDARY_ACCESS",
+          "from_portal_segment_mm": [
+            [
+              75460,
+              24775
+            ],
+            [
+              75460,
+              26275
+            ]
+          ],
+          "outcome": "PASS",
+          "portal_pair_index": 2,
+          "route_end_mm": [
+            43810,
+            24885
+          ],
+          "route_length_mm": 32010,
+          "route_points_mm": [
+            [
+              74460,
+              25525
+            ],
+            [
+              74460,
+              25885
+            ],
+            [
+              43810,
+              25885
+            ],
+            [
+              43810,
+              24885
+            ]
+          ],
+          "route_safety_rejections": {
+            "CORRIDOR_INCIDENT_ZONE_CROSSING": 16,
+            "CORRIDOR_OBSTACLE_INTERSECTION": 11,
+            "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 4
+          },
+          "route_start_mm": [
+            74460,
+            25525
+          ],
+          "to_portal_clear_width_m": "1.5",
+          "to_portal_edge_class": "LONG_EDGE",
+          "to_portal_segment_mm": [
+            [
+              43060,
+              24885
+            ],
+            [
+              44560,
+              24885
+            ]
+          ],
+          "turn_count": 2
+        }
+      ],
+      "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {
+        "CORRIDOR_INCIDENT_ZONE_CROSSING": 38,
+        "CORRIDOR_OBSTACLE_INTERSECTION": 49,
+        "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 24,
+        "CORRIDOR_UNRELATED_ZONE_INTERSECTION": 78
+      },
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "direct_failure_reason": "NOT_APPLICABLE_TRUCK_MANEUVER_AUTHORITY",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+      "requirement_status": "BLOCKED",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "direct_failure_reason": "DIRECT_NOT_APPLICABLE_BOUNDARY_ENDPOINT",
+      "portal_pair_count": 2,
+      "portal_pair_failure_counts": {
+        "FAIL": 1,
+        "PASS": 1
+      },
+      "portal_pair_pass_count": 1,
+      "portal_pairs": [
+        {
+          "attempt_index": 1,
+          "failure_reason": "ROUTE_SEARCH_EXHAUSTED",
+          "from_portal_clear_width_m": "1.5",
+          "from_portal_edge_class": "BOUNDARY_ACCESS",
+          "from_portal_segment_mm": [
+            [
+              75460,
+              24775
+            ],
+            [
+              75460,
+              26275
+            ]
+          ],
+          "outcome": "FAIL",
+          "portal_pair_index": 1,
+          "route_end_mm": [
+            43810,
+            23650
+          ],
+          "route_length_mm": null,
+          "route_points_mm": [],
+          "route_safety_rejections": {
+            "CORRIDOR_INCIDENT_ZONE_CROSSING": 25,
+            "CORRIDOR_OBSTACLE_INTERSECTION": 37,
+            "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 20,
+            "CORRIDOR_UNRELATED_ZONE_INTERSECTION": 76
+          },
+          "route_start_mm": [
+            74460,
+            25525
+          ],
+          "to_portal_clear_width_m": "1.5",
+          "to_portal_edge_class": "LONG_EDGE",
+          "to_portal_segment_mm": [
+            [
+              43060,
+              23650
+            ],
+            [
+              44560,
+              23650
+            ]
+          ],
+          "turn_count": null
+        },
+        {
+          "attempt_index": 2,
+          "failure_reason": "CORRIDOR_INCIDENT_ZONE_CROSSING",
+          "from_portal_clear_width_m": "1.5",
+          "from_portal_edge_class": "BOUNDARY_ACCESS",
+          "from_portal_segment_mm": [
+            [
+              75460,
+              24775
+            ],
+            [
+              75460,
+              26275
+            ]
+          ],
+          "outcome": "PASS",
+          "portal_pair_index": 2,
+          "route_end_mm": [
+            43810,
+            24885
+          ],
+          "route_length_mm": 32010,
+          "route_points_mm": [
+            [
+              74460,
+              25525
+            ],
+            [
+              74460,
+              25885
+            ],
+            [
+              43810,
+              25885
+            ],
+            [
+              43810,
+              24885
+            ]
+          ],
+          "route_safety_rejections": {
+            "CORRIDOR_INCIDENT_ZONE_CROSSING": 16,
+            "CORRIDOR_OBSTACLE_INTERSECTION": 11,
+            "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 4
+          },
+          "route_start_mm": [
+            74460,
+            25525
+          ],
+          "to_portal_clear_width_m": "1.5",
+          "to_portal_edge_class": "LONG_EDGE",
+          "to_portal_segment_mm": [
+            [
+              43060,
+              24885
+            ],
+            [
+              44560,
+              24885
+            ]
+          ],
+          "turn_count": 2
+        }
+      ],
+      "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {
+        "CORRIDOR_INCIDENT_ZONE_CROSSING": 41,
+        "CORRIDOR_OBSTACLE_INTERSECTION": 48,
+        "CORRIDOR_OUTSIDE_BUILDABLE_BOUNDARY": 24,
+        "CORRIDOR_UNRELATED_ZONE_INTERSECTION": 76
+      },
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "direct_failure_reason": "DIRECT_SHARED_EDGE_SELECTED",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+      "requirement_status": "PASS",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "direct_failure_reason": "NOT_APPLICABLE_TRUCK_MANEUVER_AUTHORITY",
+      "portal_pair_count": 0,
+      "portal_pair_failure_counts": {},
+      "portal_pair_pass_count": 0,
+      "portal_pairs": [],
+      "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+      "requirement_status": "BLOCKED",
+      "route_safety_rejection_counts": {},
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    }
+  ],
+  "route_node_budget": 5000
+}

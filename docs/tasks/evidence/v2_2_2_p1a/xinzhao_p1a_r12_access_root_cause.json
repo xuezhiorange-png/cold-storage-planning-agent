@@ -1,0 +1,261 @@
+{
+  "corridor_geometry_failure_present": false,
+  "diagnostic_only": true,
+  "edge_orientation_failure_present": false,
+  "failure_categories_observed": [
+    "MAIN_SKELETON_ACCESS_GEOMETRY_CONFLICT",
+    "OTHER_EXACT_ACCESS_CONFLICT"
+  ],
+  "identity": "v222-p1a-r12-access-root-cause@1.0.0",
+  "main_flow_access_failure_present": false,
+  "next_implementation_path": "MAIN_SKELETON_ACCESS_NECESSARY_PREFLIGHT",
+  "packaging_access_failure_present": false,
+  "personnel_access_failure_present": false,
+  "portal_width_failure_present": false,
+  "route_budget_causal": false,
+  "route_budget_sensitivity": {
+    "candidate_requirement_runs": [],
+    "executed": false,
+    "production_route_node_budget": 5000,
+    "reason": "NO_ROUTE_SEARCH_EXHAUSTED_FAILURE",
+    "route_budget_causal": false
+  },
+  "route_search_exhaustion_present": false,
+  "runtime_changed": false,
+  "targets": [
+    {
+      "common_failed_requirement_ids": [
+        "access:truck_entrance->shipping_channel@1.0.0"
+      ],
+      "failure_details": [
+        {
+          "codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "counterfactual": {
+            "codes": [
+              "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+            ],
+            "exact_no_route_within_enumerated_authority": true,
+            "maneuver_chain": [],
+            "preserved_zone_codes": [
+              "coating_room",
+              "finished_goods_room",
+              "primary_precooling_room",
+              "raw_fruit_buffer",
+              "secondary_precooling_room",
+              "shipping_channel",
+              "sorting_packaging_room"
+            ],
+            "removed_unrelated_tail_zone_codes": [
+              "changing_room",
+              "frozen_fruit_room",
+              "office",
+              "packaging_material_storage",
+              "secondary_fruit_buffer"
+            ],
+            "search_provenance": {
+              "node_budget": 5000,
+              "node_budget_exhausted": false,
+              "search_tree_exhausted": true,
+              "template_reuse_allowed": false,
+              "visited_nodes": 39
+            },
+            "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+            "truck_route_validated": false
+          },
+          "direct_failure_reason": "NOT_APPLICABLE_TRUCK_MANEUVER_AUTHORITY",
+          "failure_classes": [
+            "OTHER_EXACT_ACCESS_CONFLICT",
+            "MAIN_SKELETON_ACCESS_GEOMETRY_CONFLICT"
+          ],
+          "failure_disappears_when_unrelated_tail_removed": false,
+          "failure_present_with_main_skeleton_only": true,
+          "flow_kind": "TRUCK",
+          "from_ref": "truck_entrance",
+          "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+          "status": "BLOCKED",
+          "to_ref": "shipping_channel"
+        },
+        {
+          "codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "counterfactual": {
+            "codes": [
+              "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+            ],
+            "exact_no_route_within_enumerated_authority": true,
+            "maneuver_chain": [],
+            "preserved_zone_codes": [
+              "coating_room",
+              "finished_goods_room",
+              "primary_precooling_room",
+              "raw_fruit_buffer",
+              "secondary_precooling_room",
+              "shipping_channel",
+              "sorting_packaging_room"
+            ],
+            "removed_unrelated_tail_zone_codes": [
+              "changing_room",
+              "frozen_fruit_room",
+              "office",
+              "packaging_material_storage",
+              "secondary_fruit_buffer"
+            ],
+            "search_provenance": {
+              "node_budget": 5000,
+              "node_budget_exhausted": false,
+              "search_tree_exhausted": true,
+              "template_reuse_allowed": false,
+              "visited_nodes": 39
+            },
+            "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+            "truck_route_validated": false
+          },
+          "direct_failure_reason": "NOT_APPLICABLE_TRUCK_MANEUVER_AUTHORITY",
+          "failure_classes": [
+            "OTHER_EXACT_ACCESS_CONFLICT",
+            "MAIN_SKELETON_ACCESS_GEOMETRY_CONFLICT"
+          ],
+          "failure_disappears_when_unrelated_tail_removed": false,
+          "failure_present_with_main_skeleton_only": true,
+          "flow_kind": "TRUCK",
+          "from_ref": "truck_entrance",
+          "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+          "status": "BLOCKED",
+          "to_ref": "shipping_channel"
+        }
+      ],
+      "failure_invariant_across_tail_variants": true,
+      "invariant_requirement_ids": [
+        "access:truck_entrance->shipping_channel@1.0.0"
+      ],
+      "label": "TARGET_A",
+      "main_skeleton_access_infeasibility_proven": true,
+      "main_skeleton_infeasibility_requirement_ids": [
+        "access:truck_entrance->shipping_channel@1.0.0"
+      ],
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "tail_access_witness_existence_unresolved": false,
+      "variant_count": 2
+    },
+    {
+      "common_failed_requirement_ids": [
+        "access:truck_entrance->shipping_channel@1.0.0"
+      ],
+      "failure_details": [
+        {
+          "codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "counterfactual": {
+            "codes": [
+              "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+            ],
+            "exact_no_route_within_enumerated_authority": true,
+            "maneuver_chain": [],
+            "preserved_zone_codes": [
+              "coating_room",
+              "finished_goods_room",
+              "primary_precooling_room",
+              "raw_fruit_buffer",
+              "secondary_precooling_room",
+              "shipping_channel",
+              "sorting_packaging_room"
+            ],
+            "removed_unrelated_tail_zone_codes": [
+              "changing_room",
+              "frozen_fruit_room",
+              "office",
+              "packaging_material_storage",
+              "secondary_fruit_buffer"
+            ],
+            "search_provenance": {
+              "node_budget": 5000,
+              "node_budget_exhausted": false,
+              "search_tree_exhausted": true,
+              "template_reuse_allowed": false,
+              "visited_nodes": 39
+            },
+            "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+            "truck_route_validated": false
+          },
+          "direct_failure_reason": "NOT_APPLICABLE_TRUCK_MANEUVER_AUTHORITY",
+          "failure_classes": [
+            "OTHER_EXACT_ACCESS_CONFLICT",
+            "MAIN_SKELETON_ACCESS_GEOMETRY_CONFLICT"
+          ],
+          "failure_disappears_when_unrelated_tail_removed": false,
+          "failure_present_with_main_skeleton_only": true,
+          "flow_kind": "TRUCK",
+          "from_ref": "truck_entrance",
+          "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+          "status": "BLOCKED",
+          "to_ref": "shipping_channel"
+        },
+        {
+          "codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "counterfactual": {
+            "codes": [
+              "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+            ],
+            "exact_no_route_within_enumerated_authority": true,
+            "maneuver_chain": [],
+            "preserved_zone_codes": [
+              "coating_room",
+              "finished_goods_room",
+              "primary_precooling_room",
+              "raw_fruit_buffer",
+              "secondary_precooling_room",
+              "shipping_channel",
+              "sorting_packaging_room"
+            ],
+            "removed_unrelated_tail_zone_codes": [
+              "changing_room",
+              "frozen_fruit_room",
+              "office",
+              "packaging_material_storage",
+              "secondary_fruit_buffer"
+            ],
+            "search_provenance": {
+              "node_budget": 5000,
+              "node_budget_exhausted": false,
+              "search_tree_exhausted": true,
+              "template_reuse_allowed": false,
+              "visited_nodes": 39
+            },
+            "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+            "truck_route_validated": false
+          },
+          "direct_failure_reason": "NOT_APPLICABLE_TRUCK_MANEUVER_AUTHORITY",
+          "failure_classes": [
+            "OTHER_EXACT_ACCESS_CONFLICT",
+            "MAIN_SKELETON_ACCESS_GEOMETRY_CONFLICT"
+          ],
+          "failure_disappears_when_unrelated_tail_removed": false,
+          "failure_present_with_main_skeleton_only": true,
+          "flow_kind": "TRUCK",
+          "from_ref": "truck_entrance",
+          "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+          "status": "BLOCKED",
+          "to_ref": "shipping_channel"
+        }
+      ],
+      "failure_invariant_across_tail_variants": true,
+      "invariant_requirement_ids": [
+        "access:truck_entrance->shipping_channel@1.0.0"
+      ],
+      "label": "TARGET_B",
+      "main_skeleton_access_infeasibility_proven": true,
+      "main_skeleton_infeasibility_requirement_ids": [
+        "access:truck_entrance->shipping_channel@1.0.0"
+      ],
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "tail_access_witness_existence_unresolved": false,
+      "variant_count": 2
+    }
+  ]
+}

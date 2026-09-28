@@ -1,0 +1,561 @@
+{
+  "failed_rows": [
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "BLOCKED"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "BLOCKED"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "BLOCKED"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "BLOCKED"
+    }
+  ],
+  "identity": "v222-p1a-r12-failed-requirement-matrix@1.0.0",
+  "matrix_dimensions": [
+    "candidate",
+    "requirement",
+    "status",
+    "failure_codes"
+  ],
+  "rows": [
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "codes": [],
+      "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "codes": [],
+      "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "codes": [],
+      "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "codes": [],
+      "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "codes": [],
+      "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "codes": [],
+      "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "codes": [],
+      "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "codes": [],
+      "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:136fabcde30787328906ec9df370912eaf07b3d37231f87cb6b046c16526d1fb",
+      "codes": [],
+      "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "codes": [],
+      "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "codes": [],
+      "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "codes": [],
+      "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "codes": [],
+      "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "codes": [],
+      "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "codes": [],
+      "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "codes": [],
+      "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "codes": [],
+      "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:a9ea010dc7a074948178cb87f63e12f0db6fc13458933f400ba55fb4b657a567",
+      "codes": [],
+      "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "codes": [],
+      "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "codes": [],
+      "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "codes": [],
+      "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "codes": [],
+      "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "codes": [],
+      "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "codes": [],
+      "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "codes": [],
+      "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "codes": [],
+      "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:8a0c3412e137a2962ecfee728030fa41a377d80a1b425521d40d80b4a3d30c21",
+      "codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "BLOCKED"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "codes": [],
+      "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "codes": [],
+      "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "codes": [],
+      "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "codes": [],
+      "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "codes": [],
+      "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "codes": [],
+      "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "codes": [],
+      "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "codes": [],
+      "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:f2274aed4c1583ec71eac3e843d7ed2ba6f974c63b177c120acd6cf7d6ca37b9",
+      "codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "status": "BLOCKED"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "codes": [],
+      "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "codes": [],
+      "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "codes": [],
+      "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "codes": [],
+      "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "codes": [],
+      "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "codes": [],
+      "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "codes": [],
+      "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "codes": [],
+      "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:73e1f7e307496ffd600eb3e20b4f4adf80ef9c3dab35a10db384d9fbaf8a35a7",
+      "codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "BLOCKED"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "codes": [],
+      "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "codes": [],
+      "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "codes": [],
+      "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "codes": [],
+      "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "codes": [],
+      "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "codes": [],
+      "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "codes": [],
+      "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "codes": [],
+      "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "codes": [],
+      "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "PASS"
+    },
+    {
+      "candidate_hash": "sha256:deea24fbe08e860eba36502b1e53b3dae35f1809a2fc7617e4e2e5437805263c",
+      "codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "requirement_identity": "access:truck_entrance->shipping_channel@1.0.0",
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "status": "BLOCKED"
+    }
+  ]
+}
