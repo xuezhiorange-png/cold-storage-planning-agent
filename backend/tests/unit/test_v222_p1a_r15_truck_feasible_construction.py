@@ -10,6 +10,10 @@ import pytest
 
 from cold_storage.modules.layout.domain import placement
 from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
+from cold_storage.modules.layout.domain.structural_composition import (
+    LINEAR_PROCESS_BAND,
+    StructuralCompositionFamilyV1,
+)
 
 
 class _Family:
@@ -448,3 +452,118 @@ def test_loading_face_endpoint_dock_event_does_not_displace_established_branch_o
     assert placement._shipping_options_by_loading_face_approach(
         context, (interior_dock, endpoint_dock)
     ) == (interior_dock, endpoint_dock)
+
+
+def test_rejected_shipping_seed_is_not_yielded_and_later_candidate_continues(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    family = StructuralCompositionFamilyV1(
+        family=LINEAR_PROCESS_BAND,
+        dominant_axis="Y",
+        dominant_direction="POSITIVE",
+        generation_reason="R15_SEED_CONTROL_FLOW_REGRESSION",
+    )
+    zone_codes = (
+        "raw_fruit_buffer",
+        "primary_precooling_room",
+        "sorting_packaging_room",
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel",
+    )
+    rectangles = {
+        code: PlacedRectangleV1(
+            code,
+            Decimal(index * 10),
+            Decimal("20"),
+            Decimal("4"),
+            Decimal("3"),
+            0,
+        )
+        for index, code in enumerate(zone_codes, start=1)
+    }
+    invalid_shipping = PlacedRectangleV1(
+        "shipping_channel", Decimal("70"), Decimal("1"), Decimal("4"), Decimal("3"), 0
+    )
+    options_by_zone = {code: (row,) for code, row in rectangles.items()}
+    options_by_zone["shipping_channel"] = (rectangles["shipping_channel"], invalid_shipping)
+    monkeypatch.setattr(
+        placement,
+        "_constructive_edge_options",
+        lambda _context, zone_code, *_args, **_kwargs: options_by_zone[zone_code],
+    )
+    monkeypatch.setattr(placement, "_adjacent_side", lambda *_args: "WEST")
+    monkeypatch.setattr(placement, "_finished_options_by_shipping_approach", lambda _c, _p, xs: xs)
+    monkeypatch.setattr(placement, "_shipping_options_by_loading_face_approach", lambda _c, xs: xs)
+    monkeypatch.setattr(placement, "_main_group_order_monotonic", lambda *_args: True)
+    monkeypatch.setattr(placement, "_topology_geometry_valid", lambda *_args: True)
+    monkeypatch.setattr(
+        placement, "_constructive_main_skeleton_tail_admission", lambda *_args: True
+    )
+    monkeypatch.setattr(
+        placement,
+        "_packaging_tail_slot_preflight",
+        lambda *_args: {
+            "proof_mode": placement.EXACT_ORTHOGONAL_EVENT_ENUMERATION,
+            "legal_slot_exists": True,
+        },
+    )
+    monkeypatch.setattr(
+        placement,
+        "_main_skeleton_truck_maneuver_preflight",
+        lambda *_args: _truck_row("PASS"),
+    )
+
+    def replay() -> tuple[str, ...]:
+        classification_rows = iter(
+            (
+                SimpleNamespace(
+                    canonical_owner=None,
+                    matched_topologies=(),
+                    process_axis=None,
+                    process_direction=None,
+                ),
+                SimpleNamespace(
+                    canonical_owner=placement.STRAIGHT_LINEAR_BAND,
+                    matched_topologies=(placement.STRAIGHT_LINEAR_BAND,),
+                    process_axis="Y",
+                    process_direction="POSITIVE",
+                ),
+            )
+        )
+        monkeypatch.setattr(
+            placement,
+            "classify_main_process_topology_v1",
+            lambda _placed: next(classification_rows),
+        )
+        context = SimpleNamespace(
+            node_budget=120,
+            structural_topology=placement.STRAIGHT_LINEAR_BAND,
+            structural_composition_family=family,
+            structural_skeleton=SimpleNamespace(ordering_axis="Y", family=family),
+            site_body={},
+            global_main_process_geometry_registry={},
+            global_cross_topology_duplicate_trace=[],
+        )
+        output = list(
+            placement._construct_face_skeletons(
+                context,
+                placement._PlacementSearchStats(),
+                rectangles["sorting_packaging_room"],
+                "WEST",
+                "EAST",
+                skeleton_node_limit=120,
+                skeleton_limit=4,
+            )
+        )
+        return tuple(
+            item.main_process_skeleton_hash
+            for item in output
+            if isinstance(item, placement.MainProcessSkeletonCandidateV1)
+        )
+
+    first = replay()
+    second = replay()
+    assert len(first) == 1
+    assert first == second

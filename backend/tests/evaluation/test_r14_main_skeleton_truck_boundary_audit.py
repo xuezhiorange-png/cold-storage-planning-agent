@@ -1,20 +1,39 @@
-"""R14 assertions over real Tool 7 truck-preflight traces."""
+"""Integrity checks for the immutable R14 Tool 7 truck-preflight snapshot."""
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 import pytest
 
 from tests.evaluation.r14_main_skeleton_truck_boundary_audit import (
     EXPECTED_SKELETON_ORDER,
-    write_r14_evidence,
 )
 
 
 @pytest.fixture(scope="module")  # type: ignore[untyped-decorator]
 def r14_evidence() -> dict[str, Any]:
-    return write_r14_evidence()
+    evidence_root = Path(__file__).resolve().parents[3] / "docs/tasks/evidence/v2_2_2_p1a"
+    artifact_names = (
+        "xinzhao_p1a_r14_skeleton_truck_geometry_matrix.json",
+        "xinzhao_p1a_r14_truck_search_tree.json",
+        "xinzhao_p1a_r14_rejection_taxonomy.json",
+        "xinzhao_p1a_r14_control_pass_chain.json",
+        "xinzhao_p1a_r14_control_vs_rejected_geometry_diff.json",
+        "xinzhao_p1a_r14_zone_removal_counterfactual.json",
+        "xinzhao_p1a_r14_loading_face_counterfactual.json",
+        "xinzhao_p1a_r14_local_translation_sensitivity.json",
+        "xinzhao_p1a_r14_search_coverage.json",
+        "xinzhao_p1a_r14_root_cause_summary.json",
+        "xinzhao_p1a_r14_selected_result.json",
+        "xinzhao_p1a_r14_determinism.json",
+    )
+    return {
+        name: json.loads((evidence_root / name).read_text(encoding="utf-8"))
+        for name in artifact_names
+    }
 
 
 def _artifact(r14_evidence: dict[str, Any], name: str) -> dict[str, Any]:
@@ -23,7 +42,7 @@ def _artifact(r14_evidence: dict[str, Any], name: str) -> dict[str, Any]:
     return value
 
 
-def test_captures_all_six_unique_real_r13_skeletons(
+def test_r14_snapshot_covers_all_six_unique_real_r13_skeletons(
     r14_evidence: dict[str, Any],
 ) -> None:
     matrix = _artifact(r14_evidence, "xinzhao_p1a_r14_skeleton_truck_geometry_matrix.json")

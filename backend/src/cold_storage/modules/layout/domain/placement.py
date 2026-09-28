@@ -4460,9 +4460,14 @@ def _construct_face_skeletons(
                                     )
                                 except LayoutAuthorityError:
                                     _record_rejection(stats, "SKELETON_TOPOLOGY_INVALID")
-                        else:
-                            emitted_skeletons += 1
-                            yield seed
+                                else:
+                                    # Emit this seed only after every exact geometry,
+                                    # packaging-slot, truck, and ownership gate above
+                                    # completed successfully. This is the try/except
+                                    # success clause; a for-else here can run after an
+                                    # invalid branch and reference an unbound `seed`.
+                                    emitted_skeletons += 1
+                                    yield seed
                         if emitted_skeletons >= skeleton_limit:
                             return
 

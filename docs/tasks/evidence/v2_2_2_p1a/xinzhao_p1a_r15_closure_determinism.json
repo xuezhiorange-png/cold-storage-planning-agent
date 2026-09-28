@@ -1,0 +1,8 @@
+{
+  "same_input_same_canonical_result_hash": true,
+  "same_input_same_preflight_result": true,
+  "same_input_same_selected_layout": true,
+  "same_input_same_svg_bytes": true,
+  "same_input_same_svg_hash": true,
+  "same_input_same_work_queue_trace": true
+}

@@ -1,0 +1,39 @@
+{
+  "active_work_item_count": 1,
+  "classified_node_total": 120,
+  "construction_nodes": 92,
+  "early_stop_reason": "GLOBAL_PLACEMENT_NODE_BUDGET_EXHAUSTED",
+  "exhausted_work_item_count": 0,
+  "general_fallback_nodes": 0,
+  "global_budget": 120,
+  "global_budget_exhausted": true,
+  "global_node_visits_match_classified_total": true,
+  "global_nodes_remaining": 0,
+  "global_nodes_visited": 120,
+  "nodes_by_round": {
+    "1": 48,
+    "2": 45,
+    "3": 27
+  },
+  "nodes_by_topology": {
+    "CENTRAL_PROCESS_HUB": 46,
+    "OFFSET_LINEAR_BAND": 45,
+    "STRAIGHT_LINEAR_BAND": 29
+  },
+  "nodes_by_work_item": {
+    "sha256:233405fba4baa33be2ff24a20cdae684c5da2372c9763c5e6d13525594e85c8c": 13,
+    "sha256:4cad8f4398bce87995d470a92ab6a76a11ae2ac13b589a580f7fb851c0a5e3ba": 30,
+    "sha256:65fdfcd7ec428bc94b631733284e6f6f22068fa05bbd5f55d230fc2b5a99a94c": 16,
+    "sha256:7272d3ed9d645fee056240095be2e027a7070404baf2966ced0e96256b808806": 16,
+    "sha256:8e5606f38fac629a5818a37b89645ef4950886573a8745f9b7d310abb0846731": 16,
+    "sha256:a4858a0100c45ec4c4798886b53affa32e88574ba81f45d005fa84c3c8484fb1": 16,
+    "sha256:a8d88cfa01339258c56aaa3eea813d5692c00f3642feea74eb7ad90b18ec16ba": 13
+  },
+  "preflight_compute_nodes": 0,
+  "replayed_prefix_node_count": 0,
+  "stranded_budget_allowed": false,
+  "tail_nodes": 28,
+  "truncated_active_work_item_count": 1,
+  "unused_global_nodes_with_active_truncated_work": 0,
+  "work_round_count": 3
+}

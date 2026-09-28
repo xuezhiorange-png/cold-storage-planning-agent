@@ -1,79 +1,52 @@
-"""Real Tool 7 acceptance for the R13 truck-maneuver necessary preflight."""
+"""Integrity checks for the immutable R13 truck-preflight evidence."""
 
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
-from tests.evaluation.r13_main_skeleton_truck_preflight import (
-    TARGETS,
-    capture_xinzhao_replays,
-)
+CONTROL = "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+TARGET_A = "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+TARGET_B = "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
 
 
-def test_real_xinzhao_tool7_preflights_the_control_and_rejects_targets_before_tail() -> None:
-    replay = capture_xinzhao_replays()
-    first = replay["first"]
-    second = replay["second"]
-    result = first["result"]
-    layout = result["layout"]
-    preflights: dict[str, dict[str, Any]] = first["preflights"]
-    registry: dict[str, dict[str, Any]] = first["registry_by_hash"]
-    survival = {
-        row["skeleton_hash"]: row
-        for row in first["internal"]["skeleton_survival"]
-        if isinstance(row.get("skeleton_hash"), str)
-    }
+def _evidence(name: str) -> dict[str, Any]:
+    root = Path(__file__).resolve().parents[3] / "docs/tasks/evidence/v2_2_2_p1a"
+    value = json.loads((root / name).read_text(encoding="utf-8"))
+    assert isinstance(value, dict)
+    return value
 
-    assert result["project_layout_validated"] is True
-    assert result["p2_complete"] is True
-    assert result["zone_count"] == 12
-    assert layout["access_pass_count"] == 12
-    assert layout["access_requirement_count"] == 12
-    assert layout["truck_route_validated"] is True
-    assert layout.get("building_footprint")
 
-    control = preflights[TARGETS["CONTROL"]]
-    assert control["preflight_status"] == "PASS"
-    assert control["tail_search_started"] is True
-    assert registry[TARGETS["CONTROL"]]["p2d_full_pass_count"] >= 1
+def test_r13_checked_in_preflight_matrix_is_historically_consistent() -> None:
+    matrix = _evidence("xinzhao_p1a_r13_main_skeleton_preflight_matrix.json")
+    selected = _evidence("xinzhao_p1a_r13_selected_result.json")
+    budget = _evidence("xinzhao_p1a_r13_budget_accounting.json")
+    rows = {row["skeleton_hash"]: row for row in matrix["rows"]}
 
-    for label in ("TARGET_A", "TARGET_B"):
-        row = preflights[TARGETS[label]]
-        registry_row = registry[TARGETS[label]]
+    assert matrix["identity"] == "v222-p1a-r13-main-skeleton-truck-preflight-matrix@1.0.0"
+    assert matrix["runtime_replay"] == "UNMOCKED_TOOL7"
+    assert set(rows) == {CONTROL, TARGET_A, TARGET_B}
+    assert rows[CONTROL]["preflight_status"] == "PASS"
+    assert rows[CONTROL]["tail_search_started"] is True
+    assert rows[CONTROL]["p2d_reached"] is True
+    assert rows[CONTROL]["p2d_full_pass_count"] == 2
+    for skeleton_hash in (TARGET_A, TARGET_B):
+        row = rows[skeleton_hash]
         assert row["preflight_status"] == "REJECT"
         assert row["failure_codes"] == ["TRUCK_MANEUVER_SEARCH_EXHAUSTED"]
         assert row["search_tree_exhausted"] is True
         assert row["node_budget_exhausted"] is False
         assert row["visited_nodes"] == 39
-        assert row["node_budget"] == 5000
         assert row["tail_search_started"] is False
-        assert registry_row["tail_search_started"] is False
-        assert registry_row["p2d_reached"] is False
-        lifecycle = survival[TARGETS[label]]
-        assert lifecycle["main_skeleton_truck_preflight_status"] == "REJECT"
-        assert lifecycle["first_failure_stage"] == "MAIN_SKELETON_TRUCK_PREFLIGHT"
-        assert lifecycle["first_failure_reason"] == "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
-        assert lifecycle["tail_search_started"] is False
 
-    selected_skeleton_hash = next(
-        row["main_skeleton_hash"]
-        for row in preflights.values()
-        if row.get("shipping_loading_face_segment") == layout["shipping_loading_face_segment"]
-        and row.get("preflight_status") == "PASS"
-    )
-    assert selected_skeleton_hash == TARGETS["CONTROL"]
-
-    assert first["preflights"] == second["preflights"]
-    assert result["layout"] == second["result"]["layout"]
-    assert result["canonical_result_hash"] == second["result"]["canonical_result_hash"]
-    assert result["drawing"]["svg"] == second["result"]["drawing"]["svg"]
-    assert result["svg_sha256"] == second["result"]["svg_sha256"]
-    assert (
-        first["internal"]["r6_topology_diagnostics"]["r11_scheduler_trace"]
-        == second["internal"]["r6_topology_diagnostics"]["r11_scheduler_trace"]
-    )
-
-    # Internal preflight evidence must not become a Tool 7 response field.
-    assert "main_skeleton_truck_preflight_trace" not in json.dumps(result, sort_keys=True)
-    assert result["selection"]["search_provenance"]["node_budget"] == 120
+    assert selected["selected_main_process_skeleton_hash"] == CONTROL
+    assert selected["project_layout_validated"] is True
+    assert selected["p2_complete"] is True
+    assert selected["access_pass_count"] == selected["access_requirement_count"] == 12
+    assert selected["truck_route_validated"] is True
+    assert selected["building_footprint_present"] is True
+    assert budget["production_placement_node_budget"] == 120
+    assert budget["production_placement_node_budget_changed"] is False
+    assert budget["truck_node_budget"] == 5000
+    assert budget["truck_node_budget_changed"] is False

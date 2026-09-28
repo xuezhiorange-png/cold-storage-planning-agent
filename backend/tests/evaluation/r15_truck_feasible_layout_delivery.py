@@ -48,6 +48,7 @@ def run_tool7_with_internal_evaluation(
         selection = real_select(*args, **kwargs)
         internal = selection.internal_evaluation
         internal["_selector_result"] = selection.to_dict()
+        internal["_selector_internal_evaluation"] = selection.internal_evaluation
         captured.append(internal)
         return selection
 
@@ -189,6 +190,17 @@ def _shared_canvas_wrapper(svg: str, canvas_width: float, canvas_height: float) 
             "preserveAspectRatio": "xMinYMin meet",
         },
     )
+    ET.SubElement(
+        outer,
+        f"{{{SVG_NAMESPACE}}}rect",
+        {
+            "x": "0",
+            "y": "0",
+            "width": f"{canvas_width:.3f}",
+            "height": f"{canvas_height:.3f}",
+            "fill": "#ffffff",
+        },
+    )
     nested = ET.SubElement(
         outer,
         f"{{{SVG_NAMESPACE}}}svg",
@@ -221,6 +233,17 @@ def _side_by_side_svg(
             "preserveAspectRatio": "xMinYMin meet",
         },
     )
+    ET.SubElement(
+        outer,
+        f"{{{SVG_NAMESPACE}}}rect",
+        {
+            "x": "0",
+            "y": "0",
+            "width": f"{canvas_width * 2 + gutter:.3f}",
+            "height": f"{canvas_height:.3f}",
+            "fill": "#ffffff",
+        },
+    )
     for index, source in enumerate(sources):
         min_x, min_y, width, height = _svg_view_box(before_svg if index == 0 else after_svg)
         nested = ET.SubElement(
@@ -241,8 +264,8 @@ def _side_by_side_svg(
 
 
 def _render_shared_canvas_pngs(before_svg: str, after_svg: str) -> bool:
-    qlmanage = shutil.which("qlmanage")
-    if qlmanage is None:
+    sips = shutil.which("sips")
+    if sips is None:
         return False
     before_box = _svg_view_box(before_svg)
     after_box = _svg_view_box(after_svg)
@@ -262,88 +285,63 @@ def _render_shared_canvas_pngs(before_svg: str, after_svg: str) -> bool:
             _side_by_side_svg(before_svg, after_svg, canvas_width, canvas_height),
             encoding="utf-8",
         )
-        output_dir = temp / "rendered"
-        output_dir.mkdir()
-        subprocess.run(
-            [qlmanage, "-t", "-s", "2200", "-o", str(output_dir), *(str(row) for row in wrappers)],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        for label in ("before", "after"):
-            rendered = output_dir / f"{label}.svg.png"
-            target = EVIDENCE_DIR / f"xinzhao_p1a_r15_{label}.png"
-            if not rendered.exists():
-                raise AssertionError(f"Quick Look did not render {label} SVG")
-            shutil.copyfile(rendered, target)
-        (EVIDENCE_DIR / "xinzhao_p1a_r15_side_by_side.svg").write_text(
-            comparison_svg.read_text(encoding="utf-8"), encoding="utf-8"
-        )
-        swift_source = r"""
-import CoreGraphics
-import Foundation
-import ImageIO
-import UniformTypeIdentifiers
-let beforeURL = URL(fileURLWithPath: CommandLine.arguments[1])
-let afterURL = URL(fileURLWithPath: CommandLine.arguments[2])
-let outputURL = URL(fileURLWithPath: CommandLine.arguments[3])
-let beforeSource = CGImageSourceCreateWithURL(beforeURL as CFURL, nil)!
-let afterSource = CGImageSourceCreateWithURL(afterURL as CFURL, nil)!
-let before = CGImageSourceCreateImageAtIndex(beforeSource, 0, nil)!
-let after = CGImageSourceCreateImageAtIndex(afterSource, 0, nil)!
-let gutter = 48
-let width = before.width * 2 + gutter
-let height = max(before.height, after.height)
-let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
-    bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
-    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-context.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
-context.fill(CGRect(x: 0, y: 0, width: width, height: height))
-context.draw(before, in: CGRect(x: 0, y: 0, width: before.width, height: before.height))
-context.draw(after, in: CGRect(x: before.width + gutter, y: 0,
-    width: after.width, height: after.height))
-let image = context.makeImage()!
-let destination = CGImageDestinationCreateWithURL(
-    outputURL as CFURL, UTType.png.identifier as CFString, 1, nil)!
-CGImageDestinationAddImage(destination, image, nil)
-if !CGImageDestinationFinalize(destination) { fatalError("side-by-side PNG encoding failed") }
-"""
+        for label, wrapper in zip(("before", "after"), wrappers, strict=True):
+            subprocess.run(
+                [
+                    sips,
+                    "-s",
+                    "format",
+                    "png",
+                    str(wrapper),
+                    "--out",
+                    str(EVIDENCE_DIR / f"xinzhao_p1a_r15_{label}.png"),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
         subprocess.run(
             [
-                "swift",
-                "-e",
-                swift_source,
-                str(EVIDENCE_DIR / "xinzhao_p1a_r15_before.png"),
-                str(EVIDENCE_DIR / "xinzhao_p1a_r15_after.png"),
+                sips,
+                "-s",
+                "format",
+                "png",
+                str(comparison_svg),
+                "--out",
                 str(EVIDENCE_DIR / "xinzhao_p1a_r15_side_by_side.png"),
             ],
             check=True,
             capture_output=True,
             text=True,
         )
+        (EVIDENCE_DIR / "xinzhao_p1a_r15_side_by_side.svg").write_text(
+            comparison_svg.read_text(encoding="utf-8"), encoding="utf-8"
+        )
     return True
 
 
 def _render_before_png(before_svg: str) -> bool:
-    qlmanage = shutil.which("qlmanage")
-    if qlmanage is None:
+    sips = shutil.which("sips")
+    if sips is None:
         return False
     with tempfile.TemporaryDirectory(prefix="r15-before-render-") as temp_name:
         temp = Path(temp_name)
         source = temp / "before.svg"
         source.write_text(before_svg, encoding="utf-8")
-        output_dir = temp / "rendered"
-        output_dir.mkdir()
         subprocess.run(
-            [qlmanage, "-t", "-s", "2200", "-o", str(output_dir), str(source)],
+            [
+                sips,
+                "-s",
+                "format",
+                "png",
+                str(source),
+                "--out",
+                str(EVIDENCE_DIR / "xinzhao_p1a_r15_before.png"),
+            ],
             check=True,
             capture_output=True,
             text=True,
         )
-        rendered = output_dir / "before.svg.png"
-        if not rendered.exists():
-            raise AssertionError("Quick Look did not render the R15 control SVG")
-        shutil.copyfile(rendered, EVIDENCE_DIR / "xinzhao_p1a_r15_before.png")
     return True
 
 
@@ -594,6 +592,208 @@ def build_r15_evidence(
         "geometry_diff": geometry_diff,
         "determinism": determinism,
         "cross_fixture_regression": cross_fixture_body,
+        "before_svg_sha256": before_digest,
+        "after_svg_sha256": after_digest,
+        "images_created": images_created,
+    }
+
+
+def _constructed_skeleton_rows(internal: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+    result: dict[str, dict[str, Any]] = {}
+    lanes = internal.get("family_lanes", [])
+    for lane in lanes if isinstance(lanes, list) else []:
+        if not isinstance(lane, Mapping):
+            continue
+        phases = lane.get("phases", [])
+        for phase in phases if isinstance(phases, list) else []:
+            if not isinstance(phase, Mapping):
+                continue
+            generation = phase.get("main_process_skeleton_generation", {})
+            if not isinstance(generation, Mapping):
+                continue
+            candidates = generation.get("candidates", [])
+            for candidate in candidates if isinstance(candidates, list) else []:
+                if not isinstance(candidate, Mapping):
+                    continue
+                skeleton_hash = candidate.get("main_process_skeleton_hash")
+                if isinstance(skeleton_hash, str):
+                    result.setdefault(skeleton_hash, dict(candidate))
+    return result
+
+
+def _candidate_geometry(candidate: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+    rows = candidate.get("zone_rectangles", [])
+    if not isinstance(rows, list):
+        return {}
+    return {
+        str(row["zone_code"]): {
+            key: row.get(key) for key in ("x", "y", "width_m", "depth_m", "rotation_deg")
+        }
+        for row in rows
+        if isinstance(row, Mapping) and isinstance(row.get("zone_code"), str)
+    }
+
+
+def _meaningful_geometry_change(changed_codes: list[str]) -> tuple[bool, str]:
+    non_shipping = sorted(code for code in changed_codes if code != "shipping_channel")
+    if non_shipping:
+        return True, "NON_SHIPPING_MAIN_PROCESS_ZONE_GEOMETRY_CHANGED"
+    if len(changed_codes) >= 2:
+        return True, "MULTIPLE_MAIN_PROCESS_ZONE_GEOMETRIES_CHANGED"
+    if changed_codes == ["shipping_channel"]:
+        return False, "SINGLE_ZONE_SHIPPING_CHANNEL_CHANGE_ONLY"
+    return False, "NO_MAIN_PROCESS_GEOMETRY_CHANGE"
+
+
+def build_r15_closure_evidence(
+    replay: Mapping[str, Any], cross_fixture: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Write recovery evidence without rewriting the original R15 FAIL snapshot."""
+    first = replay["first"]
+    second = replay["second"]
+    result = first["result"]
+    internal = first["internal"]
+    second_result = second["result"]
+    second_internal = second["internal"]
+    selection = internal.get("_selector_internal_evaluation", {})
+    if not isinstance(selection, Mapping):
+        raise AssertionError("R15 closure selector result is unavailable")
+    layout = result.get("layout")
+    layout = layout if isinstance(layout, Mapping) else {}
+    selected_rows = _main_zone_rows(layout) if isinstance(layout.get("zones"), list) else []
+    selected_hash = _zone_skeleton_hash(selected_rows) if selected_rows else None
+    selected_geometry = _zone_geometry(selected_rows) if selected_rows else {}
+    control_layout = json.loads(CONTROL_LAYOUT.read_text(encoding="utf-8"))
+    control_geometry = _zone_geometry(_main_zone_rows(control_layout))
+    selected_changed = _geometry_changes(control_geometry, selected_geometry)
+    selected_meaningful, selected_reason = _meaningful_geometry_change(selected_changed)
+
+    registry = _registry(internal)
+    generated = _constructed_skeleton_rows(internal)
+    full_pass_hashes = sorted(
+        skeleton_hash
+        for skeleton_hash, row in registry.items()
+        if int(row.get("p2d_full_pass_count", 0)) > 0
+    )
+    distinct_rows: list[dict[str, Any]] = []
+    meaningful_full_pass_hashes: list[str] = []
+    for skeleton_hash in full_pass_hashes:
+        candidate = generated.get(skeleton_hash)
+        geometry = _candidate_geometry(candidate) if candidate is not None else {}
+        changed_codes = _geometry_changes(control_geometry, geometry)
+        meaningful, reason = _meaningful_geometry_change(changed_codes)
+        row = registry[skeleton_hash]
+        distinct_rows.append(
+            {
+                "skeleton_hash": skeleton_hash,
+                "canonical_topology_owner": row.get("canonical_topology_owner"),
+                "discovery_topology": row.get("first_discovery_topology"),
+                "p2d_candidate_count": row.get("p2d_candidate_count"),
+                "p2d_full_pass_count": row.get("p2d_full_pass_count"),
+                "changed_main_process_zone_codes": changed_codes,
+                "meaningful_geometry_change": meaningful,
+                "meaningful_geometry_change_reason": reason,
+                "main_process_geometry": geometry,
+            }
+        )
+        if skeleton_hash != CONTROL_HASH and meaningful:
+            meaningful_full_pass_hashes.append(skeleton_hash)
+
+    before_svg = CONTROL_SVG.read_text(encoding="utf-8")
+    after_svg = result.get("drawing", {}).get("svg")
+    if not isinstance(after_svg, str):
+        after_svg = before_svg
+    before_digest = "sha256:" + hashlib.sha256(before_svg.encode("utf-8")).hexdigest()
+    after_digest = "sha256:" + hashlib.sha256(after_svg.encode("utf-8")).hexdigest()
+    determinism = {
+        "same_input_same_preflight_result": _unique_preflight_rows(internal)
+        == _unique_preflight_rows(second_internal),
+        "same_input_same_work_queue_trace": _diagnostics(internal).get("r11_scheduler_trace")
+        == _diagnostics(second_internal).get("r11_scheduler_trace"),
+        "same_input_same_selected_layout": result.get("layout") == second_result.get("layout"),
+        "same_input_same_canonical_result_hash": result.get("canonical_result_hash")
+        == second_result.get("canonical_result_hash"),
+        "same_input_same_svg_bytes": result.get("drawing", {}).get("svg")
+        == second_result.get("drawing", {}).get("svg"),
+        "same_input_same_svg_hash": result.get("svg_sha256") == second_result.get("svg_sha256"),
+    }
+    accounting = _diagnostics(internal).get("r11_budget_accounting", {})
+    candidate_matrix = {
+        "identity": "v222-p1a-r15-closure-candidate-matrix@1.0.0",
+        "task_id": "V2_2_2_P1A_R15_TRUCK_FEASIBLE_DISTINCT_LAYOUT_DELIVERY_R1",
+        "mode": "R15_CLOSURE",
+        "previous_r15_result": "FAIL",
+        "current_production_placement_node_budget": 120,
+        "global_nodes_visited": accounting.get("global_nodes_visited"),
+        "main_skeletons_examined": len(_unique_preflight_rows(internal)),
+        "truck_preflight_pass_count": sum(
+            row.get("preflight_status") == "PASS"
+            for row in _unique_preflight_rows(internal).values()
+        ),
+        "truck_preflight_reject_count": sum(
+            row.get("preflight_status") == "REJECT"
+            for row in _unique_preflight_rows(internal).values()
+        ),
+        "distinct_p2d_full_pass_skeleton_count": len(full_pass_hashes),
+        "distinct_meaningful_p2d_full_pass_skeleton_count": len(meaningful_full_pass_hashes),
+        "meaningful_distinct_full_pass_hashes": sorted(meaningful_full_pass_hashes),
+        "rows": distinct_rows,
+    }
+    selected_result = {
+        "identity": "v222-p1a-r15-closure-selected-result@1.0.0",
+        "control_skeleton_hash": CONTROL_HASH,
+        "selected_main_process_skeleton_hash": selected_hash,
+        "selected_is_control": selected_hash == CONTROL_HASH,
+        "control_p2d_full_pass_count": registry.get(CONTROL_HASH, {}).get("p2d_full_pass_count", 0),
+        "project_layout_validated": result.get("project_layout_validated") is True,
+        "p2_complete": result.get("p2_complete") is True,
+        "zone_count": result.get("zone_count"),
+        "access_pass_count": layout.get("access_pass_count"),
+        "access_requirement_count": layout.get("access_requirement_count"),
+        "truck_route_validated": layout.get("truck_route_validated") is True,
+        "building_footprint_present": bool(layout.get("building_footprint")),
+        "changed_main_process_zone_codes": selected_changed,
+        "meaningful_structural_geometry_change": selected_meaningful,
+        "meaningful_geometry_change_reason": selected_reason,
+        "canonical_result_hash": result.get("canonical_result_hash"),
+        "svg_sha256": result.get("svg_sha256"),
+        "selection_first_decisive_component": selection.get("first_decisive_component"),
+        "selection_winner_value": selection.get("winner_value"),
+        "selection_runner_up_value": selection.get("runner_up_value"),
+        "p2b2_tiebreak_used": selection.get("p2b2_tiebreak_used"),
+        "distinct_skeleton_first_decisive_component": selection.get(
+            "distinct_skeleton_first_decisive_component"
+        ),
+        "distinct_runner_up_skeleton_hash": selection.get("distinct_runner_up_skeleton_hash"),
+        "distinct_skeleton_winner_value": selection.get("distinct_skeleton_winner_value"),
+        "distinct_skeleton_runner_up_value": selection.get("distinct_skeleton_runner_up_value"),
+        "ranking_changed": False,
+    }
+    cross_fixture_evidence = dict(cross_fixture)
+    cross_fixture_evidence["hard_valid_to_invalid_regression_count"] = int(
+        cross_fixture_evidence.get("hard_valid_to_invalid_regression_count", 0)
+    )
+    cross_fixture_evidence["no_previously_valid_fixture_regressed"] = (
+        cross_fixture_evidence["hard_valid_to_invalid_regression_count"] == 0
+    )
+
+    EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
+    _json_write(EVIDENCE_DIR / "xinzhao_p1a_r15_closure_candidate_matrix.json", candidate_matrix)
+    _json_write(EVIDENCE_DIR / "xinzhao_p1a_r15_closure_selected_result.json", selected_result)
+    _json_write(EVIDENCE_DIR / "xinzhao_p1a_r15_closure_determinism.json", determinism)
+    _json_write(EVIDENCE_DIR / "xinzhao_p1a_r15_closure_budget_accounting.json", accounting)
+    _json_write(
+        EVIDENCE_DIR / "xinzhao_p1a_r15_closure_cross_fixture_regression.json",
+        cross_fixture_evidence,
+    )
+    (EVIDENCE_DIR / "xinzhao_p1a_r15_before.svg").write_text(before_svg, encoding="utf-8")
+    (EVIDENCE_DIR / "xinzhao_p1a_r15_after.svg").write_text(after_svg, encoding="utf-8")
+    images_created = _render_shared_canvas_pngs(before_svg, after_svg)
+    return {
+        "candidate_matrix": candidate_matrix,
+        "selected_result": selected_result,
+        "determinism": determinism,
+        "cross_fixture_regression": cross_fixture_evidence,
         "before_svg_sha256": before_digest,
         "after_svg_sha256": after_digest,
         "images_created": images_created,
