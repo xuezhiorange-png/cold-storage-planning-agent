@@ -1,0 +1,955 @@
+{
+  "identity": "v222-p1a-r14-control-rejected-geometry-diff@1.0.0",
+  "rows": [
+    {
+      "loading_face_orientation_changed": true,
+      "loading_face_side_changed": true,
+      "loading_face_translation_mm": {
+        "end_dx": -8517,
+        "end_dy": 7693,
+        "start_dx": -824,
+        "start_dy": 0
+      },
+      "shipping_channel_centroid_delta_mm": {
+        "x": "-1420.5",
+        "y": "596.5"
+      },
+      "shipping_channel_distance_to_truck_entrance_squared_mm2": {
+        "control": "2637376",
+        "delta": "-1997376",
+        "rejected": "640000"
+      },
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "zone_diffs": [
+        {
+          "control_geometry": {
+            "depth_mm": 8700,
+            "rotation_deg": 0,
+            "width_mm": 15200,
+            "x_mm": 0,
+            "y_mm": 0,
+            "zone_code": "raw_fruit_buffer"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 0,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 8700,
+            "rotation_deg": 0,
+            "width_mm": 15200,
+            "x_mm": 0,
+            "y_mm": 0,
+            "zone_code": "raw_fruit_buffer"
+          },
+          "rotation_changed": false,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 14700,
+            "x_mm": 15200,
+            "y_mm": 0,
+            "zone_code": "primary_precooling_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 0,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 14700,
+            "x_mm": 15200,
+            "y_mm": 0,
+            "zone_code": "primary_precooling_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 13600,
+            "rotation_deg": 0,
+            "width_mm": 45760,
+            "x_mm": 15200,
+            "y_mm": 10050,
+            "zone_code": "sorting_packaging_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 0,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 13600,
+            "rotation_deg": 0,
+            "width_mm": 45760,
+            "x_mm": 15200,
+            "y_mm": 10050,
+            "zone_code": "sorting_packaging_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "sorting_packaging_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 9800,
+            "x_mm": 15200,
+            "y_mm": 23650,
+            "zone_code": "secondary_precooling_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 14700,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 9800,
+            "x_mm": 29900,
+            "y_mm": 23650,
+            "zone_code": "secondary_precooling_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 13600,
+            "rotation_deg": 0,
+            "width_mm": 5883,
+            "x_mm": 9317,
+            "y_mm": 20100,
+            "zone_code": "coating_room"
+          },
+          "delta_depth_mm": 1600,
+          "delta_width_mm": -619,
+          "delta_x_mm": 5383,
+          "delta_y_mm": 8336,
+          "rejected_geometry": {
+            "depth_mm": 15200,
+            "rotation_deg": 90,
+            "width_mm": 5264,
+            "x_mm": 14700,
+            "y_mm": 28436,
+            "zone_code": "coating_room"
+          },
+          "rotation_changed": true,
+          "zone_code": "coating_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 18600,
+            "rotation_deg": 0,
+            "width_mm": 32400,
+            "x_mm": 9317,
+            "y_mm": 33700,
+            "zone_code": "finished_goods_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": -2017,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 18600,
+            "rotation_deg": 0,
+            "width_mm": 32400,
+            "x_mm": 7300,
+            "y_mm": 33700,
+            "zone_code": "finished_goods_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 7693,
+            "rotation_deg": 90,
+            "width_mm": 6500,
+            "x_mm": 1624,
+            "y_mm": 33700,
+            "zone_code": "shipping_channel"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": -824,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 7693,
+            "rotation_deg": 0,
+            "width_mm": 6500,
+            "x_mm": 800,
+            "y_mm": 33700,
+            "zone_code": "shipping_channel"
+          },
+          "rotation_changed": true,
+          "zone_code": "shipping_channel"
+        }
+      ]
+    },
+    {
+      "loading_face_orientation_changed": false,
+      "loading_face_side_changed": false,
+      "loading_face_translation_mm": {
+        "end_dx": 4476,
+        "end_dy": -6500,
+        "start_dx": 4476,
+        "start_dy": -6500
+      },
+      "shipping_channel_centroid_delta_mm": {
+        "x": "4476.0",
+        "y": "-6500.0"
+      },
+      "shipping_channel_distance_to_truck_entrance_squared_mm2": {
+        "control": "2637376",
+        "delta": "34572624",
+        "rejected": "37210000"
+      },
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb",
+      "zone_diffs": [
+        {
+          "control_geometry": {
+            "depth_mm": 8700,
+            "rotation_deg": 0,
+            "width_mm": 15200,
+            "x_mm": 0,
+            "y_mm": 0,
+            "zone_code": "raw_fruit_buffer"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 0,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 8700,
+            "rotation_deg": 0,
+            "width_mm": 15200,
+            "x_mm": 0,
+            "y_mm": 0,
+            "zone_code": "raw_fruit_buffer"
+          },
+          "rotation_changed": false,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 14700,
+            "x_mm": 15200,
+            "y_mm": 0,
+            "zone_code": "primary_precooling_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 0,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 14700,
+            "x_mm": 15200,
+            "y_mm": 0,
+            "zone_code": "primary_precooling_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 13600,
+            "rotation_deg": 0,
+            "width_mm": 45760,
+            "x_mm": 15200,
+            "y_mm": 10050,
+            "zone_code": "sorting_packaging_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 0,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 13600,
+            "rotation_deg": 0,
+            "width_mm": 45760,
+            "x_mm": 15200,
+            "y_mm": 10050,
+            "zone_code": "sorting_packaging_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "sorting_packaging_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 9800,
+            "x_mm": 15200,
+            "y_mm": 23650,
+            "zone_code": "secondary_precooling_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 14700,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 9800,
+            "x_mm": 29900,
+            "y_mm": 23650,
+            "zone_code": "secondary_precooling_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 13600,
+            "rotation_deg": 0,
+            "width_mm": 5883,
+            "x_mm": 9317,
+            "y_mm": 20100,
+            "zone_code": "coating_room"
+          },
+          "delta_depth_mm": 1600,
+          "delta_width_mm": -619,
+          "delta_x_mm": 5383,
+          "delta_y_mm": 8336,
+          "rejected_geometry": {
+            "depth_mm": 15200,
+            "rotation_deg": 90,
+            "width_mm": 5264,
+            "x_mm": 14700,
+            "y_mm": 28436,
+            "zone_code": "coating_room"
+          },
+          "rotation_changed": true,
+          "zone_code": "coating_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 18600,
+            "rotation_deg": 0,
+            "width_mm": 32400,
+            "x_mm": 9317,
+            "y_mm": 33700,
+            "zone_code": "finished_goods_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": -3217,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 18600,
+            "rotation_deg": 0,
+            "width_mm": 32400,
+            "x_mm": 6100,
+            "y_mm": 33700,
+            "zone_code": "finished_goods_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 7693,
+            "rotation_deg": 90,
+            "width_mm": 6500,
+            "x_mm": 1624,
+            "y_mm": 33700,
+            "zone_code": "shipping_channel"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 4476,
+          "delta_y_mm": -6500,
+          "rejected_geometry": {
+            "depth_mm": 7693,
+            "rotation_deg": 90,
+            "width_mm": 6500,
+            "x_mm": 6100,
+            "y_mm": 27200,
+            "zone_code": "shipping_channel"
+          },
+          "rotation_changed": false,
+          "zone_code": "shipping_channel"
+        }
+      ]
+    },
+    {
+      "loading_face_orientation_changed": true,
+      "loading_face_side_changed": true,
+      "loading_face_translation_mm": {
+        "end_dx": -8517,
+        "end_dy": 13146,
+        "start_dx": -824,
+        "start_dy": 5453
+      },
+      "shipping_channel_centroid_delta_mm": {
+        "x": "-1420.5",
+        "y": "6049.5"
+      },
+      "shipping_channel_distance_to_truck_entrance_squared_mm2": {
+        "control": "2637376",
+        "delta": "27726928",
+        "rejected": "30364304"
+      },
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8",
+      "zone_diffs": [
+        {
+          "control_geometry": {
+            "depth_mm": 8700,
+            "rotation_deg": 0,
+            "width_mm": 15200,
+            "x_mm": 0,
+            "y_mm": 0,
+            "zone_code": "raw_fruit_buffer"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 0,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 8700,
+            "rotation_deg": 0,
+            "width_mm": 15200,
+            "x_mm": 0,
+            "y_mm": 0,
+            "zone_code": "raw_fruit_buffer"
+          },
+          "rotation_changed": false,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 14700,
+            "x_mm": 15200,
+            "y_mm": 0,
+            "zone_code": "primary_precooling_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 0,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 14700,
+            "x_mm": 15200,
+            "y_mm": 0,
+            "zone_code": "primary_precooling_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 13600,
+            "rotation_deg": 0,
+            "width_mm": 45760,
+            "x_mm": 15200,
+            "y_mm": 10050,
+            "zone_code": "sorting_packaging_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 0,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 13600,
+            "rotation_deg": 0,
+            "width_mm": 45760,
+            "x_mm": 15200,
+            "y_mm": 10050,
+            "zone_code": "sorting_packaging_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "sorting_packaging_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 9800,
+            "x_mm": 15200,
+            "y_mm": 23650,
+            "zone_code": "secondary_precooling_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 14700,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 9800,
+            "x_mm": 29900,
+            "y_mm": 23650,
+            "zone_code": "secondary_precooling_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 13600,
+            "rotation_deg": 0,
+            "width_mm": 5883,
+            "x_mm": 9317,
+            "y_mm": 20100,
+            "zone_code": "coating_room"
+          },
+          "delta_depth_mm": 1600,
+          "delta_width_mm": -619,
+          "delta_x_mm": 5383,
+          "delta_y_mm": 8336,
+          "rejected_geometry": {
+            "depth_mm": 15200,
+            "rotation_deg": 90,
+            "width_mm": 5264,
+            "x_mm": 14700,
+            "y_mm": 28436,
+            "zone_code": "coating_room"
+          },
+          "rotation_changed": true,
+          "zone_code": "coating_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 18600,
+            "rotation_deg": 0,
+            "width_mm": 32400,
+            "x_mm": 9317,
+            "y_mm": 33700,
+            "zone_code": "finished_goods_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": -2017,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 18600,
+            "rotation_deg": 0,
+            "width_mm": 32400,
+            "x_mm": 7300,
+            "y_mm": 33700,
+            "zone_code": "finished_goods_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 7693,
+            "rotation_deg": 90,
+            "width_mm": 6500,
+            "x_mm": 1624,
+            "y_mm": 33700,
+            "zone_code": "shipping_channel"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": -824,
+          "delta_y_mm": 5453,
+          "rejected_geometry": {
+            "depth_mm": 7693,
+            "rotation_deg": 0,
+            "width_mm": 6500,
+            "x_mm": 800,
+            "y_mm": 39153,
+            "zone_code": "shipping_channel"
+          },
+          "rotation_changed": true,
+          "zone_code": "shipping_channel"
+        }
+      ]
+    },
+    {
+      "loading_face_orientation_changed": true,
+      "loading_face_side_changed": true,
+      "loading_face_translation_mm": {
+        "end_dx": -3217,
+        "end_dy": 0,
+        "start_dx": 4476,
+        "start_dy": -7693
+      },
+      "shipping_channel_centroid_delta_mm": {
+        "x": "3879.5",
+        "y": "-7096.5"
+      },
+      "shipping_channel_distance_to_truck_entrance_squared_mm2": {
+        "control": "2637376",
+        "delta": "34572624",
+        "rejected": "37210000"
+      },
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "zone_diffs": [
+        {
+          "control_geometry": {
+            "depth_mm": 8700,
+            "rotation_deg": 0,
+            "width_mm": 15200,
+            "x_mm": 0,
+            "y_mm": 0,
+            "zone_code": "raw_fruit_buffer"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 0,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 8700,
+            "rotation_deg": 0,
+            "width_mm": 15200,
+            "x_mm": 0,
+            "y_mm": 0,
+            "zone_code": "raw_fruit_buffer"
+          },
+          "rotation_changed": false,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 14700,
+            "x_mm": 15200,
+            "y_mm": 0,
+            "zone_code": "primary_precooling_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 0,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 14700,
+            "x_mm": 15200,
+            "y_mm": 0,
+            "zone_code": "primary_precooling_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 13600,
+            "rotation_deg": 0,
+            "width_mm": 45760,
+            "x_mm": 15200,
+            "y_mm": 10050,
+            "zone_code": "sorting_packaging_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 0,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 13600,
+            "rotation_deg": 0,
+            "width_mm": 45760,
+            "x_mm": 15200,
+            "y_mm": 10050,
+            "zone_code": "sorting_packaging_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "sorting_packaging_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 9800,
+            "x_mm": 15200,
+            "y_mm": 23650,
+            "zone_code": "secondary_precooling_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 14700,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 9800,
+            "x_mm": 29900,
+            "y_mm": 23650,
+            "zone_code": "secondary_precooling_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 13600,
+            "rotation_deg": 0,
+            "width_mm": 5883,
+            "x_mm": 9317,
+            "y_mm": 20100,
+            "zone_code": "coating_room"
+          },
+          "delta_depth_mm": 1600,
+          "delta_width_mm": -619,
+          "delta_x_mm": 5383,
+          "delta_y_mm": 8336,
+          "rejected_geometry": {
+            "depth_mm": 15200,
+            "rotation_deg": 90,
+            "width_mm": 5264,
+            "x_mm": 14700,
+            "y_mm": 28436,
+            "zone_code": "coating_room"
+          },
+          "rotation_changed": true,
+          "zone_code": "coating_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 18600,
+            "rotation_deg": 0,
+            "width_mm": 32400,
+            "x_mm": 9317,
+            "y_mm": 33700,
+            "zone_code": "finished_goods_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": -3217,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 18600,
+            "rotation_deg": 0,
+            "width_mm": 32400,
+            "x_mm": 6100,
+            "y_mm": 33700,
+            "zone_code": "finished_goods_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 7693,
+            "rotation_deg": 90,
+            "width_mm": 6500,
+            "x_mm": 1624,
+            "y_mm": 33700,
+            "zone_code": "shipping_channel"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 4476,
+          "delta_y_mm": -7693,
+          "rejected_geometry": {
+            "depth_mm": 7693,
+            "rotation_deg": 0,
+            "width_mm": 6500,
+            "x_mm": 6100,
+            "y_mm": 26007,
+            "zone_code": "shipping_channel"
+          },
+          "rotation_changed": true,
+          "zone_code": "shipping_channel"
+        }
+      ]
+    },
+    {
+      "loading_face_orientation_changed": true,
+      "loading_face_side_changed": true,
+      "loading_face_translation_mm": {
+        "end_dx": -8517,
+        "end_dy": 18600,
+        "start_dx": -824,
+        "start_dy": 10907
+      },
+      "shipping_channel_centroid_delta_mm": {
+        "x": "-1420.5",
+        "y": "11503.5"
+      },
+      "shipping_channel_distance_to_truck_entrance_squared_mm2": {
+        "control": "2637376",
+        "delta": "116943460",
+        "rejected": "119580836"
+      },
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa",
+      "zone_diffs": [
+        {
+          "control_geometry": {
+            "depth_mm": 8700,
+            "rotation_deg": 0,
+            "width_mm": 15200,
+            "x_mm": 0,
+            "y_mm": 0,
+            "zone_code": "raw_fruit_buffer"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 0,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 8700,
+            "rotation_deg": 0,
+            "width_mm": 15200,
+            "x_mm": 0,
+            "y_mm": 0,
+            "zone_code": "raw_fruit_buffer"
+          },
+          "rotation_changed": false,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 14700,
+            "x_mm": 15200,
+            "y_mm": 0,
+            "zone_code": "primary_precooling_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 0,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 14700,
+            "x_mm": 15200,
+            "y_mm": 0,
+            "zone_code": "primary_precooling_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 13600,
+            "rotation_deg": 0,
+            "width_mm": 45760,
+            "x_mm": 15200,
+            "y_mm": 10050,
+            "zone_code": "sorting_packaging_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 0,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 13600,
+            "rotation_deg": 0,
+            "width_mm": 45760,
+            "x_mm": 15200,
+            "y_mm": 10050,
+            "zone_code": "sorting_packaging_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "sorting_packaging_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 9800,
+            "x_mm": 15200,
+            "y_mm": 23650,
+            "zone_code": "secondary_precooling_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": 14700,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 10050,
+            "rotation_deg": 0,
+            "width_mm": 9800,
+            "x_mm": 29900,
+            "y_mm": 23650,
+            "zone_code": "secondary_precooling_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 13600,
+            "rotation_deg": 0,
+            "width_mm": 5883,
+            "x_mm": 9317,
+            "y_mm": 20100,
+            "zone_code": "coating_room"
+          },
+          "delta_depth_mm": 1600,
+          "delta_width_mm": -619,
+          "delta_x_mm": 5383,
+          "delta_y_mm": 8336,
+          "rejected_geometry": {
+            "depth_mm": 15200,
+            "rotation_deg": 90,
+            "width_mm": 5264,
+            "x_mm": 14700,
+            "y_mm": 28436,
+            "zone_code": "coating_room"
+          },
+          "rotation_changed": true,
+          "zone_code": "coating_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 18600,
+            "rotation_deg": 0,
+            "width_mm": 32400,
+            "x_mm": 9317,
+            "y_mm": 33700,
+            "zone_code": "finished_goods_room"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": -2017,
+          "delta_y_mm": 0,
+          "rejected_geometry": {
+            "depth_mm": 18600,
+            "rotation_deg": 0,
+            "width_mm": 32400,
+            "x_mm": 7300,
+            "y_mm": 33700,
+            "zone_code": "finished_goods_room"
+          },
+          "rotation_changed": false,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "control_geometry": {
+            "depth_mm": 7693,
+            "rotation_deg": 90,
+            "width_mm": 6500,
+            "x_mm": 1624,
+            "y_mm": 33700,
+            "zone_code": "shipping_channel"
+          },
+          "delta_depth_mm": 0,
+          "delta_width_mm": 0,
+          "delta_x_mm": -824,
+          "delta_y_mm": 10907,
+          "rejected_geometry": {
+            "depth_mm": 7693,
+            "rotation_deg": 0,
+            "width_mm": 6500,
+            "x_mm": 800,
+            "y_mm": 44607,
+            "zone_code": "shipping_channel"
+          },
+          "rotation_changed": true,
+          "zone_code": "shipping_channel"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1279 @@
+{
+  "identity": "v222-p1a-r14-skeleton-truck-geometry-matrix@1.0.0",
+  "rows": [
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "effective_buildable_boundary": {
+        "points_mm": [
+          [
+            0,
+            0
+          ],
+          [
+            75460,
+            0
+          ],
+          [
+            75460,
+            55000
+          ],
+          [
+            0,
+            55000
+          ]
+        ]
+      },
+      "final_dock_pose_points_mm": [
+        [
+          1624,
+          33700
+        ]
+      ],
+      "final_dock_pose_points_on_loading_face": {
+        "1624,33700": true
+      },
+      "hard_obstacles": [
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_01",
+          "points_mm": [
+            [
+              0,
+              8701
+            ],
+            [
+              14699,
+              8701
+            ],
+            [
+              14699,
+              18750
+            ],
+            [
+              0,
+              18750
+            ]
+          ]
+        },
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_02",
+          "points_mm": [
+            [
+              41718,
+              27000
+            ],
+            [
+              74999,
+              27000
+            ],
+            [
+              74999,
+              39385
+            ],
+            [
+              41718,
+              39385
+            ]
+          ]
+        },
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_03",
+          "points_mm": [
+            [
+              41718,
+              39386
+            ],
+            [
+              74999,
+              39386
+            ],
+            [
+              74999,
+              53886
+            ],
+            [
+              41718,
+              53886
+            ]
+          ]
+        }
+      ],
+      "main_process_zones": [
+        {
+          "depth_mm": 8700,
+          "rotation_deg": 0,
+          "width_mm": 15200,
+          "x_mm": 0,
+          "y_mm": 0,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "depth_mm": 10050,
+          "rotation_deg": 0,
+          "width_mm": 14700,
+          "x_mm": 15200,
+          "y_mm": 0,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "depth_mm": 13600,
+          "rotation_deg": 0,
+          "width_mm": 45760,
+          "x_mm": 15200,
+          "y_mm": 10050,
+          "zone_code": "sorting_packaging_room"
+        },
+        {
+          "depth_mm": 10050,
+          "rotation_deg": 0,
+          "width_mm": 9800,
+          "x_mm": 15200,
+          "y_mm": 23650,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "depth_mm": 13600,
+          "rotation_deg": 0,
+          "width_mm": 5883,
+          "x_mm": 9317,
+          "y_mm": 20100,
+          "zone_code": "coating_room"
+        },
+        {
+          "depth_mm": 18600,
+          "rotation_deg": 0,
+          "width_mm": 32400,
+          "x_mm": 9317,
+          "y_mm": 33700,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "depth_mm": 7693,
+          "rotation_deg": 90,
+          "width_mm": 6500,
+          "x_mm": 1624,
+          "y_mm": 33700,
+          "zone_code": "shipping_channel"
+        }
+      ],
+      "preflight": {
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "PASS",
+        "visited_nodes": 3
+      },
+      "shipping_channel": {
+        "depth_mm": 7693,
+        "rotation_deg": 90,
+        "width_mm": 6500,
+        "x_mm": 1624,
+        "y_mm": 33700,
+        "zone_code": "shipping_channel"
+      },
+      "shipping_channel_centroid_mm": {
+        "x": "5470.5",
+        "y": "36950.0"
+      },
+      "shipping_channel_distance_to_truck_entrance_squared_mm2": "2637376",
+      "shipping_loading_face": {
+        "end_mm": [
+          9317,
+          33700
+        ],
+        "side": "BOTTOM_LONG_EDGE",
+        "start_mm": [
+          1624,
+          33700
+        ]
+      },
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "truck_entrance": {
+        "end_mm": [
+          0,
+          33701
+        ],
+        "start_mm": [
+          0,
+          33700
+        ]
+      }
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "effective_buildable_boundary": {
+        "points_mm": [
+          [
+            0,
+            0
+          ],
+          [
+            75460,
+            0
+          ],
+          [
+            75460,
+            55000
+          ],
+          [
+            0,
+            55000
+          ]
+        ]
+      },
+      "final_dock_pose_points_mm": [
+        [
+          1624,
+          33700
+        ],
+        [
+          1624,
+          33701
+        ]
+      ],
+      "final_dock_pose_points_on_loading_face": {
+        "1624,33700": false,
+        "1624,33701": false
+      },
+      "hard_obstacles": [
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_01",
+          "points_mm": [
+            [
+              0,
+              8701
+            ],
+            [
+              14699,
+              8701
+            ],
+            [
+              14699,
+              18750
+            ],
+            [
+              0,
+              18750
+            ]
+          ]
+        },
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_02",
+          "points_mm": [
+            [
+              41718,
+              27000
+            ],
+            [
+              74999,
+              27000
+            ],
+            [
+              74999,
+              39385
+            ],
+            [
+              41718,
+              39385
+            ]
+          ]
+        },
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_03",
+          "points_mm": [
+            [
+              41718,
+              39386
+            ],
+            [
+              74999,
+              39386
+            ],
+            [
+              74999,
+              53886
+            ],
+            [
+              41718,
+              53886
+            ]
+          ]
+        }
+      ],
+      "main_process_zones": [
+        {
+          "depth_mm": 8700,
+          "rotation_deg": 0,
+          "width_mm": 15200,
+          "x_mm": 0,
+          "y_mm": 0,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "depth_mm": 10050,
+          "rotation_deg": 0,
+          "width_mm": 14700,
+          "x_mm": 15200,
+          "y_mm": 0,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "depth_mm": 13600,
+          "rotation_deg": 0,
+          "width_mm": 45760,
+          "x_mm": 15200,
+          "y_mm": 10050,
+          "zone_code": "sorting_packaging_room"
+        },
+        {
+          "depth_mm": 10050,
+          "rotation_deg": 0,
+          "width_mm": 9800,
+          "x_mm": 29900,
+          "y_mm": 23650,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "depth_mm": 15200,
+          "rotation_deg": 90,
+          "width_mm": 5264,
+          "x_mm": 14700,
+          "y_mm": 28436,
+          "zone_code": "coating_room"
+        },
+        {
+          "depth_mm": 18600,
+          "rotation_deg": 0,
+          "width_mm": 32400,
+          "x_mm": 7300,
+          "y_mm": 33700,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "depth_mm": 7693,
+          "rotation_deg": 0,
+          "width_mm": 6500,
+          "x_mm": 800,
+          "y_mm": 33700,
+          "zone_code": "shipping_channel"
+        }
+      ],
+      "preflight": {
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "REJECT",
+        "visited_nodes": 39
+      },
+      "shipping_channel": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 800,
+        "y_mm": 33700,
+        "zone_code": "shipping_channel"
+      },
+      "shipping_channel_centroid_mm": {
+        "x": "4050.0",
+        "y": "37546.5"
+      },
+      "shipping_channel_distance_to_truck_entrance_squared_mm2": "640000",
+      "shipping_loading_face": {
+        "end_mm": [
+          800,
+          41393
+        ],
+        "side": "LEFT_LONG_EDGE",
+        "start_mm": [
+          800,
+          33700
+        ]
+      },
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "truck_entrance": {
+        "end_mm": [
+          0,
+          33701
+        ],
+        "start_mm": [
+          0,
+          33700
+        ]
+      }
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "effective_buildable_boundary": {
+        "points_mm": [
+          [
+            0,
+            0
+          ],
+          [
+            75460,
+            0
+          ],
+          [
+            75460,
+            55000
+          ],
+          [
+            0,
+            55000
+          ]
+        ]
+      },
+      "final_dock_pose_points_mm": [
+        [
+          1624,
+          33700
+        ],
+        [
+          1624,
+          33701
+        ]
+      ],
+      "final_dock_pose_points_on_loading_face": {
+        "1624,33700": false,
+        "1624,33701": false
+      },
+      "hard_obstacles": [
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_01",
+          "points_mm": [
+            [
+              0,
+              8701
+            ],
+            [
+              14699,
+              8701
+            ],
+            [
+              14699,
+              18750
+            ],
+            [
+              0,
+              18750
+            ]
+          ]
+        },
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_02",
+          "points_mm": [
+            [
+              41718,
+              27000
+            ],
+            [
+              74999,
+              27000
+            ],
+            [
+              74999,
+              39385
+            ],
+            [
+              41718,
+              39385
+            ]
+          ]
+        },
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_03",
+          "points_mm": [
+            [
+              41718,
+              39386
+            ],
+            [
+              74999,
+              39386
+            ],
+            [
+              74999,
+              53886
+            ],
+            [
+              41718,
+              53886
+            ]
+          ]
+        }
+      ],
+      "main_process_zones": [
+        {
+          "depth_mm": 8700,
+          "rotation_deg": 0,
+          "width_mm": 15200,
+          "x_mm": 0,
+          "y_mm": 0,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "depth_mm": 10050,
+          "rotation_deg": 0,
+          "width_mm": 14700,
+          "x_mm": 15200,
+          "y_mm": 0,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "depth_mm": 13600,
+          "rotation_deg": 0,
+          "width_mm": 45760,
+          "x_mm": 15200,
+          "y_mm": 10050,
+          "zone_code": "sorting_packaging_room"
+        },
+        {
+          "depth_mm": 10050,
+          "rotation_deg": 0,
+          "width_mm": 9800,
+          "x_mm": 29900,
+          "y_mm": 23650,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "depth_mm": 15200,
+          "rotation_deg": 90,
+          "width_mm": 5264,
+          "x_mm": 14700,
+          "y_mm": 28436,
+          "zone_code": "coating_room"
+        },
+        {
+          "depth_mm": 18600,
+          "rotation_deg": 0,
+          "width_mm": 32400,
+          "x_mm": 6100,
+          "y_mm": 33700,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "depth_mm": 7693,
+          "rotation_deg": 90,
+          "width_mm": 6500,
+          "x_mm": 6100,
+          "y_mm": 27200,
+          "zone_code": "shipping_channel"
+        }
+      ],
+      "preflight": {
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "REJECT",
+        "visited_nodes": 39
+      },
+      "shipping_channel": {
+        "depth_mm": 7693,
+        "rotation_deg": 90,
+        "width_mm": 6500,
+        "x_mm": 6100,
+        "y_mm": 27200,
+        "zone_code": "shipping_channel"
+      },
+      "shipping_channel_centroid_mm": {
+        "x": "9946.5",
+        "y": "30450.0"
+      },
+      "shipping_channel_distance_to_truck_entrance_squared_mm2": "37210000",
+      "shipping_loading_face": {
+        "end_mm": [
+          13793,
+          27200
+        ],
+        "side": "BOTTOM_LONG_EDGE",
+        "start_mm": [
+          6100,
+          27200
+        ]
+      },
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb",
+      "truck_entrance": {
+        "end_mm": [
+          0,
+          33701
+        ],
+        "start_mm": [
+          0,
+          33700
+        ]
+      }
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "effective_buildable_boundary": {
+        "points_mm": [
+          [
+            0,
+            0
+          ],
+          [
+            75460,
+            0
+          ],
+          [
+            75460,
+            55000
+          ],
+          [
+            0,
+            55000
+          ]
+        ]
+      },
+      "final_dock_pose_points_mm": [
+        [
+          1624,
+          33700
+        ],
+        [
+          1624,
+          33701
+        ]
+      ],
+      "final_dock_pose_points_on_loading_face": {
+        "1624,33700": false,
+        "1624,33701": false
+      },
+      "hard_obstacles": [
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_01",
+          "points_mm": [
+            [
+              0,
+              8701
+            ],
+            [
+              14699,
+              8701
+            ],
+            [
+              14699,
+              18750
+            ],
+            [
+              0,
+              18750
+            ]
+          ]
+        },
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_02",
+          "points_mm": [
+            [
+              41718,
+              27000
+            ],
+            [
+              74999,
+              27000
+            ],
+            [
+              74999,
+              39385
+            ],
+            [
+              41718,
+              39385
+            ]
+          ]
+        },
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_03",
+          "points_mm": [
+            [
+              41718,
+              39386
+            ],
+            [
+              74999,
+              39386
+            ],
+            [
+              74999,
+              53886
+            ],
+            [
+              41718,
+              53886
+            ]
+          ]
+        }
+      ],
+      "main_process_zones": [
+        {
+          "depth_mm": 8700,
+          "rotation_deg": 0,
+          "width_mm": 15200,
+          "x_mm": 0,
+          "y_mm": 0,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "depth_mm": 10050,
+          "rotation_deg": 0,
+          "width_mm": 14700,
+          "x_mm": 15200,
+          "y_mm": 0,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "depth_mm": 13600,
+          "rotation_deg": 0,
+          "width_mm": 45760,
+          "x_mm": 15200,
+          "y_mm": 10050,
+          "zone_code": "sorting_packaging_room"
+        },
+        {
+          "depth_mm": 10050,
+          "rotation_deg": 0,
+          "width_mm": 9800,
+          "x_mm": 29900,
+          "y_mm": 23650,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "depth_mm": 15200,
+          "rotation_deg": 90,
+          "width_mm": 5264,
+          "x_mm": 14700,
+          "y_mm": 28436,
+          "zone_code": "coating_room"
+        },
+        {
+          "depth_mm": 18600,
+          "rotation_deg": 0,
+          "width_mm": 32400,
+          "x_mm": 7300,
+          "y_mm": 33700,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "depth_mm": 7693,
+          "rotation_deg": 0,
+          "width_mm": 6500,
+          "x_mm": 800,
+          "y_mm": 39153,
+          "zone_code": "shipping_channel"
+        }
+      ],
+      "preflight": {
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "REJECT",
+        "visited_nodes": 39
+      },
+      "shipping_channel": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 800,
+        "y_mm": 39153,
+        "zone_code": "shipping_channel"
+      },
+      "shipping_channel_centroid_mm": {
+        "x": "4050.0",
+        "y": "42999.5"
+      },
+      "shipping_channel_distance_to_truck_entrance_squared_mm2": "30364304",
+      "shipping_loading_face": {
+        "end_mm": [
+          800,
+          46846
+        ],
+        "side": "LEFT_LONG_EDGE",
+        "start_mm": [
+          800,
+          39153
+        ]
+      },
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8",
+      "truck_entrance": {
+        "end_mm": [
+          0,
+          33701
+        ],
+        "start_mm": [
+          0,
+          33700
+        ]
+      }
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "effective_buildable_boundary": {
+        "points_mm": [
+          [
+            0,
+            0
+          ],
+          [
+            75460,
+            0
+          ],
+          [
+            75460,
+            55000
+          ],
+          [
+            0,
+            55000
+          ]
+        ]
+      },
+      "final_dock_pose_points_mm": [
+        [
+          1624,
+          33700
+        ],
+        [
+          1624,
+          33701
+        ]
+      ],
+      "final_dock_pose_points_on_loading_face": {
+        "1624,33700": false,
+        "1624,33701": false
+      },
+      "hard_obstacles": [
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_01",
+          "points_mm": [
+            [
+              0,
+              8701
+            ],
+            [
+              14699,
+              8701
+            ],
+            [
+              14699,
+              18750
+            ],
+            [
+              0,
+              18750
+            ]
+          ]
+        },
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_02",
+          "points_mm": [
+            [
+              41718,
+              27000
+            ],
+            [
+              74999,
+              27000
+            ],
+            [
+              74999,
+              39385
+            ],
+            [
+              41718,
+              39385
+            ]
+          ]
+        },
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_03",
+          "points_mm": [
+            [
+              41718,
+              39386
+            ],
+            [
+              74999,
+              39386
+            ],
+            [
+              74999,
+              53886
+            ],
+            [
+              41718,
+              53886
+            ]
+          ]
+        }
+      ],
+      "main_process_zones": [
+        {
+          "depth_mm": 8700,
+          "rotation_deg": 0,
+          "width_mm": 15200,
+          "x_mm": 0,
+          "y_mm": 0,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "depth_mm": 10050,
+          "rotation_deg": 0,
+          "width_mm": 14700,
+          "x_mm": 15200,
+          "y_mm": 0,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "depth_mm": 13600,
+          "rotation_deg": 0,
+          "width_mm": 45760,
+          "x_mm": 15200,
+          "y_mm": 10050,
+          "zone_code": "sorting_packaging_room"
+        },
+        {
+          "depth_mm": 10050,
+          "rotation_deg": 0,
+          "width_mm": 9800,
+          "x_mm": 29900,
+          "y_mm": 23650,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "depth_mm": 15200,
+          "rotation_deg": 90,
+          "width_mm": 5264,
+          "x_mm": 14700,
+          "y_mm": 28436,
+          "zone_code": "coating_room"
+        },
+        {
+          "depth_mm": 18600,
+          "rotation_deg": 0,
+          "width_mm": 32400,
+          "x_mm": 6100,
+          "y_mm": 33700,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "depth_mm": 7693,
+          "rotation_deg": 0,
+          "width_mm": 6500,
+          "x_mm": 6100,
+          "y_mm": 26007,
+          "zone_code": "shipping_channel"
+        }
+      ],
+      "preflight": {
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "REJECT",
+        "visited_nodes": 39
+      },
+      "shipping_channel": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 6100,
+        "y_mm": 26007,
+        "zone_code": "shipping_channel"
+      },
+      "shipping_channel_centroid_mm": {
+        "x": "9350.0",
+        "y": "29853.5"
+      },
+      "shipping_channel_distance_to_truck_entrance_squared_mm2": "37210000",
+      "shipping_loading_face": {
+        "end_mm": [
+          6100,
+          33700
+        ],
+        "side": "LEFT_LONG_EDGE",
+        "start_mm": [
+          6100,
+          26007
+        ]
+      },
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "truck_entrance": {
+        "end_mm": [
+          0,
+          33701
+        ],
+        "start_mm": [
+          0,
+          33700
+        ]
+      }
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "effective_buildable_boundary": {
+        "points_mm": [
+          [
+            0,
+            0
+          ],
+          [
+            75460,
+            0
+          ],
+          [
+            75460,
+            55000
+          ],
+          [
+            0,
+            55000
+          ]
+        ]
+      },
+      "final_dock_pose_points_mm": [
+        [
+          1624,
+          33700
+        ],
+        [
+          1624,
+          33701
+        ]
+      ],
+      "final_dock_pose_points_on_loading_face": {
+        "1624,33700": false,
+        "1624,33701": false
+      },
+      "hard_obstacles": [
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_01",
+          "points_mm": [
+            [
+              0,
+              8701
+            ],
+            [
+              14699,
+              8701
+            ],
+            [
+              14699,
+              18750
+            ],
+            [
+              0,
+              18750
+            ]
+          ]
+        },
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_02",
+          "points_mm": [
+            [
+              41718,
+              27000
+            ],
+            [
+              74999,
+              27000
+            ],
+            [
+              74999,
+              39385
+            ],
+            [
+              41718,
+              39385
+            ]
+          ]
+        },
+        {
+          "id_source": "stable validator input order; source supplied no obstacle ID",
+          "obstacle_id": "NO_BUILD_POLYGON_03",
+          "points_mm": [
+            [
+              41718,
+              39386
+            ],
+            [
+              74999,
+              39386
+            ],
+            [
+              74999,
+              53886
+            ],
+            [
+              41718,
+              53886
+            ]
+          ]
+        }
+      ],
+      "main_process_zones": [
+        {
+          "depth_mm": 8700,
+          "rotation_deg": 0,
+          "width_mm": 15200,
+          "x_mm": 0,
+          "y_mm": 0,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "depth_mm": 10050,
+          "rotation_deg": 0,
+          "width_mm": 14700,
+          "x_mm": 15200,
+          "y_mm": 0,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "depth_mm": 13600,
+          "rotation_deg": 0,
+          "width_mm": 45760,
+          "x_mm": 15200,
+          "y_mm": 10050,
+          "zone_code": "sorting_packaging_room"
+        },
+        {
+          "depth_mm": 10050,
+          "rotation_deg": 0,
+          "width_mm": 9800,
+          "x_mm": 29900,
+          "y_mm": 23650,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "depth_mm": 15200,
+          "rotation_deg": 90,
+          "width_mm": 5264,
+          "x_mm": 14700,
+          "y_mm": 28436,
+          "zone_code": "coating_room"
+        },
+        {
+          "depth_mm": 18600,
+          "rotation_deg": 0,
+          "width_mm": 32400,
+          "x_mm": 7300,
+          "y_mm": 33700,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "depth_mm": 7693,
+          "rotation_deg": 0,
+          "width_mm": 6500,
+          "x_mm": 800,
+          "y_mm": 44607,
+          "zone_code": "shipping_channel"
+        }
+      ],
+      "preflight": {
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "REJECT",
+        "visited_nodes": 39
+      },
+      "shipping_channel": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 800,
+        "y_mm": 44607,
+        "zone_code": "shipping_channel"
+      },
+      "shipping_channel_centroid_mm": {
+        "x": "4050.0",
+        "y": "48453.5"
+      },
+      "shipping_channel_distance_to_truck_entrance_squared_mm2": "119580836",
+      "shipping_loading_face": {
+        "end_mm": [
+          800,
+          52300
+        ],
+        "side": "LEFT_LONG_EDGE",
+        "start_mm": [
+          800,
+          44607
+        ]
+      },
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa",
+      "truck_entrance": {
+        "end_mm": [
+          0,
+          33701
+        ],
+        "start_mm": [
+          0,
+          33700
+        ]
+      }
+    }
+  ],
+  "source": "UNMOCKED_TOOL7_PROCESS_LOCAL_VALIDATOR_OBSERVER"
+}

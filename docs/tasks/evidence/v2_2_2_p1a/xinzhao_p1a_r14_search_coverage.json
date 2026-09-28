@@ -1,0 +1,51 @@
+{
+  "active_truncated_work_item_count": 3,
+  "active_work_item_count": 3,
+  "exhausted_work_item_count": 0,
+  "global_placement_budget_exhausted": true,
+  "identity": "v222-p1a-r14-search-coverage@1.0.0",
+  "main_skeleton_search_tree_exhausted": false,
+  "no_other_truck_feasible_skeleton_exists": false,
+  "no_other_truck_feasible_skeleton_observed_within_current_search_coverage": true,
+  "production_node_budget": 120,
+  "production_nodes_remaining": 0,
+  "production_nodes_visited": 120,
+  "search_coverage_insufficient_for_design_decision": true,
+  "source_budget_accounting": {
+    "active_work_item_count": 3,
+    "classified_node_total": 120,
+    "construction_nodes": 113,
+    "early_stop_reason": "GLOBAL_PLACEMENT_NODE_BUDGET_EXHAUSTED",
+    "exhausted_work_item_count": 0,
+    "general_fallback_nodes": 0,
+    "global_budget": 120,
+    "global_budget_exhausted": true,
+    "global_node_visits_match_classified_total": true,
+    "global_nodes_remaining": 0,
+    "global_nodes_visited": 120,
+    "nodes_by_round": {
+      "1": 48,
+      "2": 48,
+      "3": 24
+    },
+    "nodes_by_topology": {
+      "CENTRAL_PROCESS_HUB": 40,
+      "OFFSET_LINEAR_BAND": 40,
+      "STRAIGHT_LINEAR_BAND": 40
+    },
+    "nodes_by_work_item": {
+      "sha256:44ee7c3ff7576b43e83142d40cb4c45651743eaf7393f5c58b9fa744612e38d0": 24,
+      "sha256:65fdfcd7ec428bc94b631733284e6f6f22068fa05bbd5f55d230fc2b5a99a94c": 40,
+      "sha256:76a22d69abaa0359696a5141a18653b0aab1b0edd997aecdc1ec959e36c27742": 40,
+      "sha256:a24024dd925e734de8dbc00cee0b1756d1fc6fb8d2c734978bdc1c7d5101c90a": 16
+    },
+    "preflight_compute_nodes": 0,
+    "replayed_prefix_node_count": 0,
+    "stranded_budget_allowed": false,
+    "tail_nodes": 7,
+    "truncated_active_work_item_count": 3,
+    "unused_global_nodes_with_active_truncated_work": 0,
+    "work_round_count": 3
+  },
+  "unexplored_constructive_work_remains": true
+}

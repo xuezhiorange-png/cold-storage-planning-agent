@@ -1,0 +1,152 @@
+{
+  "identity": "v222-p1a-r14-rejection-taxonomy@1.0.0",
+  "rejected_skeletons": [
+    {
+      "direct_failure_classes": [
+        "BOUNDARY_CONFLICT",
+        "FINAL_DOCK_NOT_ON_LOADING_FACE"
+      ],
+      "failure_node_counts": {
+        "BOUNDARY_CONFLICT": 18,
+        "FINAL_DOCK_NOT_ON_LOADING_FACE": 6
+      },
+      "first_decisive_blocking_zone_codes": {},
+      "first_decisive_entry_rotations": {
+        "0": 6,
+        "180": 6,
+        "270": 6,
+        "90": 6
+      },
+      "first_decisive_failure_class": "MULTI_CAUSAL_EXHAUSTION",
+      "first_decisive_template_identities": {
+        "truck-maneuver-template:fixture-project:dock@1.0.0": 6,
+        "truck-maneuver-template:fixture-project:straight@1.0.0": 6,
+        "truck-maneuver-template:fixture-project:turn@1.0.0": 12
+      },
+      "multi_causal_exhaustion": true,
+      "node_budget_exhausted": false,
+      "search_tree_exhausted": true,
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "direct_failure_classes": [
+        "BOUNDARY_CONFLICT",
+        "FINAL_DOCK_NOT_ON_LOADING_FACE"
+      ],
+      "failure_node_counts": {
+        "BOUNDARY_CONFLICT": 18,
+        "FINAL_DOCK_NOT_ON_LOADING_FACE": 6
+      },
+      "first_decisive_blocking_zone_codes": {},
+      "first_decisive_entry_rotations": {
+        "0": 6,
+        "180": 6,
+        "270": 6,
+        "90": 6
+      },
+      "first_decisive_failure_class": "MULTI_CAUSAL_EXHAUSTION",
+      "first_decisive_template_identities": {
+        "truck-maneuver-template:fixture-project:dock@1.0.0": 6,
+        "truck-maneuver-template:fixture-project:straight@1.0.0": 6,
+        "truck-maneuver-template:fixture-project:turn@1.0.0": 12
+      },
+      "multi_causal_exhaustion": true,
+      "node_budget_exhausted": false,
+      "search_tree_exhausted": true,
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb"
+    },
+    {
+      "direct_failure_classes": [
+        "BOUNDARY_CONFLICT",
+        "FINAL_DOCK_NOT_ON_LOADING_FACE"
+      ],
+      "failure_node_counts": {
+        "BOUNDARY_CONFLICT": 18,
+        "FINAL_DOCK_NOT_ON_LOADING_FACE": 6
+      },
+      "first_decisive_blocking_zone_codes": {},
+      "first_decisive_entry_rotations": {
+        "0": 6,
+        "180": 6,
+        "270": 6,
+        "90": 6
+      },
+      "first_decisive_failure_class": "MULTI_CAUSAL_EXHAUSTION",
+      "first_decisive_template_identities": {
+        "truck-maneuver-template:fixture-project:dock@1.0.0": 6,
+        "truck-maneuver-template:fixture-project:straight@1.0.0": 6,
+        "truck-maneuver-template:fixture-project:turn@1.0.0": 12
+      },
+      "multi_causal_exhaustion": true,
+      "node_budget_exhausted": false,
+      "search_tree_exhausted": true,
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8"
+    },
+    {
+      "direct_failure_classes": [
+        "BOUNDARY_CONFLICT",
+        "FINAL_DOCK_NOT_ON_LOADING_FACE"
+      ],
+      "failure_node_counts": {
+        "BOUNDARY_CONFLICT": 18,
+        "FINAL_DOCK_NOT_ON_LOADING_FACE": 6
+      },
+      "first_decisive_blocking_zone_codes": {},
+      "first_decisive_entry_rotations": {
+        "0": 6,
+        "180": 6,
+        "270": 6,
+        "90": 6
+      },
+      "first_decisive_failure_class": "MULTI_CAUSAL_EXHAUSTION",
+      "first_decisive_template_identities": {
+        "truck-maneuver-template:fixture-project:dock@1.0.0": 6,
+        "truck-maneuver-template:fixture-project:straight@1.0.0": 6,
+        "truck-maneuver-template:fixture-project:turn@1.0.0": 12
+      },
+      "multi_causal_exhaustion": true,
+      "node_budget_exhausted": false,
+      "search_tree_exhausted": true,
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "direct_failure_classes": [
+        "BOUNDARY_CONFLICT",
+        "FINAL_DOCK_NOT_ON_LOADING_FACE"
+      ],
+      "failure_node_counts": {
+        "BOUNDARY_CONFLICT": 18,
+        "FINAL_DOCK_NOT_ON_LOADING_FACE": 6
+      },
+      "first_decisive_blocking_zone_codes": {},
+      "first_decisive_entry_rotations": {
+        "0": 6,
+        "180": 6,
+        "270": 6,
+        "90": 6
+      },
+      "first_decisive_failure_class": "MULTI_CAUSAL_EXHAUSTION",
+      "first_decisive_template_identities": {
+        "truck-maneuver-template:fixture-project:dock@1.0.0": 6,
+        "truck-maneuver-template:fixture-project:straight@1.0.0": 6,
+        "truck-maneuver-template:fixture-project:turn@1.0.0": 12
+      },
+      "multi_causal_exhaustion": true,
+      "node_budget_exhausted": false,
+      "search_tree_exhausted": true,
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa"
+    }
+  ],
+  "rejection_counts": {
+    "BOUNDARY_CONFLICT": 90,
+    "CHAIN_CONTINUITY_INVALID": 0,
+    "ENTRY_POSE_INVALID": 0,
+    "FINAL_DOCK_NOT_ON_LOADING_FACE": 30,
+    "FINAL_DOCK_POSE_MISSING": 0,
+    "HARD_OBSTACLE_CONFLICT": 0,
+    "MAIN_ZONE_ENVELOPE_CONFLICT": 0,
+    "NO_TEMPLATE_FOR_REQUIRED_CLASS": 0,
+    "OTHER_EXACT_TRUCK_CONFLICT": 0
+  },
+  "taxonomy_scope": "one primary reason at the first rejecting authoritative predicate for each attempted node"
+}
