@@ -22,27 +22,46 @@ def _called_names(node: ast.AST) -> set[str]:
     }
 
 
-def test_runtime_constructs_envelope_grid_bands_before_search_roots() -> None:
+def test_structured_runtime_directly_synthesizes_family_geometry_without_event_axis_dfs() -> None:
     source = PLACEMENT.read_text(encoding="utf-8")
     tree = ast.parse(source)
     context = _function(tree, "_validated_search_context")
-    constructor = _function(tree, "_construct_main_process_skeletons")
-    root_search = _function(tree, "_constructive_sorting_roots")
-    edge_search = _function(tree, "_constructive_edge_options")
+    walk = _function(tree, "_walk_complete_candidate_payloads")
+    synthesizer = _function(tree, "_direct_structured_candidates")
+    adjacent = _function(tree, "_direct_adjacent_rectangle")
 
     assert "construct_structured_building_plan_v1" in _called_names(context)
     assert "structured_building_plan" in ast.unparse(context)
-    assert "construct_structured_building_plan_v1" in _called_names(constructor)
-    assert "BASE_LAYOUT_FAMILIES" in ast.unparse(constructor)
-    assert "envelope_family" in ast.unparse(constructor)
-    assert "NO_SITE_FEASIBLE_ENVELOPE" in ast.unparse(constructor)
-    assert "TAIL_ADMISSIBLE_SKELETON_COMPLETION_LIMIT" in ast.unparse(constructor)
-    assert "preferred_axis" in ast.unparse(constructor)
-    assert "alternate_axis" in ast.unparse(constructor)
-    assert "process_axis" in ast.unparse(constructor)
-    assert "structured_building_plan" in ast.unparse(root_search)
-    assert "structured_plan.admits" in ast.unparse(edge_search)
-    assert "aligned_edge_count" in ast.unparse(edge_search)
+    walk_source = ast.unparse(walk)
+    assert "_direct_structured_candidates" in _called_names(walk)
+    assert walk_source.index("_direct_structured_candidates") < walk_source.index("def visit")
+    assert {
+        "construct_structured_building_plan_v1",
+        "_synthesize_family_main_process",
+        "_direct_family_tail_zones",
+        "_constructive_main_skeleton_tail_admission",
+        "_candidate_payload",
+    } <= _called_names(synthesizer)
+    adjacent_source = ast.unparse(adjacent)
+    assert "plan.admits" in adjacent_source
+    assert "_geometry_rejection_reason" in adjacent_source
+    assert "_candidate_options" not in adjacent_source
+    assert "event_x" not in adjacent_source
+    assert "event_y" not in adjacent_source
+    assert "_DIRECT_FAMILY_EDGES" in source
+    for family in (
+        "LINEAR_3_BAND",
+        "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "LONGITUDINAL_PROCESS_SPINE",
+    ):
+        assert f"{family}: (" in source
+    assert {
+        "_synthesize_linear_3_band_main_process",
+        "_synthesize_central_process_with_side_banks_main_process",
+        "_synthesize_longitudinal_process_spine_main_process",
+    } <= {node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
+    assert "STRUCTURED_PHASE" in walk_source
+    assert "GENERAL_FALLBACK_PHASE" in source
 
 
 def test_full_program_closure_gate_precedes_candidate_emission() -> None:
@@ -68,6 +87,10 @@ def test_full_program_closure_gate_precedes_candidate_emission() -> None:
     assert "with_placements" in ast.unparse(closure)
     assert "RECTANGLE" in ast.unparse(closure)
     assert "SIMPLE_L" in ast.unparse(closure)
+    direct_closure = _function(tree, "_direct_envelope_closure_rejection")
+    assert "SUPPORT_BAND" in ast.unparse(direct_closure)
+    assert "PERSONNEL_EDGE_BAND" in ast.unparse(direct_closure)
+    assert "PROCESS_CORE_NOT_CONTIGUOUS" in ast.unparse(direct_closure)
 
 
 def test_domain_model_explicitly_encodes_envelope_grid_bands_and_zone_assignment() -> None:

@@ -480,6 +480,189 @@ def _simple_l_envelopes(
     return tuple(sorted(envelopes.values(), key=envelope_order))
 
 
+def _simple_l_envelopes_for_terminal(
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+    minimum_program_area_mm2: int,
+    minimum_width_mm: int,
+    minimum_height_mm: int,
+    support_side: str,
+    support_width_mm: int,
+    support_length_mm: int,
+    personnel_side: str,
+    personnel_width_mm: int,
+    personnel_length_mm: int,
+    main_entrance: SegmentMM | None,
+    terminal: PlacedRectangleV1,
+) -> tuple[BuildingEnvelopeV1, ...]:
+    """Compose L envelopes from a finite census of exact-clear rectangles.
+
+    Event cells are split at site vertices, obstacle edges and the fixed
+    terminal edges.  A two-dimensional prefix table makes the clear-rectangle
+    census bounded and cheap; final components are still rechecked by the
+    authoritative polygon/obstacle predicates.
+    """
+    site = _site_bounds(boundary)
+    terminal_bounds = terminal.bounds_mm
+    clear_rectangles = _maximal_clear_event_rectangles(
+        tuple(boundary), tuple(tuple(row) for row in obstacles), terminal_bounds
+    )
+    candidates: dict[tuple[BoundsMM, ...], BuildingEnvelopeV1] = {}
+    for first_index, first in enumerate(clear_rectangles):
+        for second in clear_rectangles[first_index + 1 :]:
+            bounds = (
+                min(first[0], second[0]),
+                min(first[1], second[1]),
+                max(first[2], second[2]),
+                max(first[3], second[3]),
+            )
+            x0, y0, x1, y1 = bounds
+            if x1 - x0 < minimum_width_mm or y1 - y0 < minimum_height_mm:
+                continue
+            first_vertical = first[1] == y0 and first[3] == y1
+            second_vertical = second[1] == y0 and second[3] == y1
+            first_horizontal = first[0] == x0 and first[2] == x1
+            second_horizontal = second[0] == x0 and second[2] == x1
+            if not (
+                (first_vertical and second_horizontal) or (second_vertical and first_horizontal)
+            ):
+                continue
+            vertical, horizontal = (first, second) if first_vertical else (second, first)
+            overlap_width = min(vertical[2], horizontal[2]) - max(vertical[0], horizontal[0])
+            overlap_height = min(vertical[3], horizontal[3]) - max(vertical[1], horizontal[1])
+            missing_width = x1 - x0 - (vertical[2] - vertical[0])
+            missing_height = y1 - y0 - (horizontal[3] - horizontal[1])
+            if min(overlap_width, overlap_height, missing_width, missing_height) <= 0:
+                continue
+            component_area = (
+                sum((right - left) * (top - bottom) for left, bottom, right, top in (first, second))
+                - overlap_width * overlap_height
+            )
+            if component_area < minimum_program_area_mm2:
+                continue
+            components = tuple(sorted((first, second)))
+            envelope = BuildingEnvelopeV1(SIMPLE_L, bounds, components, tuple(obstacles), site)
+            if not envelope.contains(terminal):
+                continue
+            if not _envelope_has_edge_band_slot(
+                components, bounds, support_side, support_width_mm, support_length_mm
+            ) or not _envelope_has_edge_band_slot(
+                components, bounds, personnel_side, personnel_width_mm, personnel_length_mm
+            ):
+                continue
+            candidates[components] = envelope
+
+    def order_key(
+        envelope: BuildingEnvelopeV1,
+    ) -> tuple[int, int, BoundsMM, tuple[BoundsMM, ...]]:
+        area = sum(
+            (right - left) * (top - bottom) for left, bottom, right, top in envelope.components_mm
+        )
+        entrance_miss = 1
+        if main_entrance is not None:
+            (ax, ay), (bx, by) = main_entrance
+            x0, y0, x1, y1 = envelope.bounds_mm
+            entrance_miss = int(not (x0 <= ax <= x1 and y0 <= ay <= y1))
+        return entrance_miss, area, envelope.bounds_mm, envelope.components_mm
+
+    return tuple(sorted(candidates.values(), key=order_key))
+
+
+@lru_cache(maxsize=64)
+def _maximal_clear_event_rectangles(
+    boundary: PolygonMM,
+    obstacles: tuple[PolygonMM, ...],
+    terminal_bounds: BoundsMM,
+) -> tuple[BoundsMM, ...]:
+    """Return exact, maximal event-aligned rectangles clear of site obstacles."""
+    site = _site_bounds(boundary)
+    x_events = {point[0] for point in boundary}
+    y_events = {point[1] for point in boundary}
+    for obstacle in obstacles:
+        for x_mm, y_mm in obstacle:
+            x_events.update((x_mm - 1, x_mm, x_mm + 1))
+            y_events.update((y_mm - 1, y_mm, y_mm + 1))
+    x_events.update((terminal_bounds[0], terminal_bounds[2]))
+    y_events.update((terminal_bounds[1], terminal_bounds[3]))
+    xs = tuple(sorted(value for value in x_events if site[0] <= value <= site[2]))
+    ys = tuple(sorted(value for value in y_events if site[1] <= value <= site[3]))
+    if len(xs) < 2 or len(ys) < 2:
+        return ()
+
+    columns, rows = len(xs) - 1, len(ys) - 1
+    invalid = [[0] * columns for _ in range(rows)]
+    for row in range(rows):
+        for column in range(columns):
+            left, right = xs[column], xs[column + 1]
+            bottom, top = ys[row], ys[row + 1]
+            cell = PlacedRectangleV1(
+                "event_cell",
+                Decimal(left) / 1000,
+                Decimal(bottom) / 1000,
+                Decimal(right - left) / 1000,
+                Decimal(top - bottom) / 1000,
+            )
+            invalid[row][column] = int(
+                not rectangle_inside_polygon(cell, boundary)
+                or any(
+                    rectangle_intersects_closed_obstacle(cell, obstacle) for obstacle in obstacles
+                )
+            )
+    prefix = [[0] * (columns + 1) for _ in range(rows + 1)]
+    for row in range(rows):
+        for column in range(columns):
+            prefix[row + 1][column + 1] = (
+                invalid[row][column]
+                + prefix[row][column + 1]
+                + prefix[row + 1][column]
+                - prefix[row][column]
+            )
+
+    def blocked(left: int, bottom: int, right: int, top: int) -> bool:
+        return (
+            prefix[top][right] - prefix[bottom][right] - prefix[top][left] + prefix[bottom][left]
+        ) > 0
+
+    valid_rectangles: list[BoundsMM] = []
+    for left_index in range(columns):
+        for right_index in range(left_index + 1, columns + 1):
+            for bottom_index in range(rows):
+                for top_index in range(bottom_index + 1, rows + 1):
+                    if blocked(left_index, bottom_index, right_index, top_index):
+                        continue
+                    bounds = (
+                        xs[left_index],
+                        ys[bottom_index],
+                        xs[right_index],
+                        ys[top_index],
+                    )
+                    rectangle = PlacedRectangleV1(
+                        "maximal_event_rectangle",
+                        Decimal(bounds[0]) / 1000,
+                        Decimal(bounds[1]) / 1000,
+                        Decimal(bounds[2] - bounds[0]) / 1000,
+                        Decimal(bounds[3] - bounds[1]) / 1000,
+                    )
+                    if not rectangle_inside_polygon(rectangle, boundary) or any(
+                        rectangle_intersects_closed_obstacle(rectangle, obstacle)
+                        for obstacle in obstacles
+                    ):
+                        continue
+                    expandable = (
+                        left_index > 0
+                        and not blocked(left_index - 1, bottom_index, right_index, top_index),
+                        right_index < columns
+                        and not blocked(left_index, bottom_index, right_index + 1, top_index),
+                        bottom_index > 0
+                        and not blocked(left_index, bottom_index - 1, right_index, top_index),
+                        top_index < rows
+                        and not blocked(left_index, bottom_index, right_index, top_index + 1),
+                    )
+                    if not any(expandable):
+                        valid_rectangles.append(bounds)
+    return tuple(sorted(set(valid_rectangles)))
+
+
 def _envelope_has_edge_band_slot(
     components: tuple[BoundsMM, ...],
     bounds: BoundsMM,
@@ -656,6 +839,7 @@ def _program_envelope_dimensions(
     layout_family: str,
     personnel_side: str,
     *,
+    support_side: str | None = None,
     include_peripheral_strips: bool = True,
 ) -> tuple[int, int]:
     """Derive the minimum envelope dimensions from the complete 12-zone program.
@@ -681,12 +865,8 @@ def _program_envelope_dimensions(
         for code in FUNCTIONAL_GROUPS[FINISHED_SIDE_GROUP]
     )
     main_cross = max(core_cross, raw_cross, finished_cross)
-    support_width = max(
-        _minimum_turnable_extent(authorities[code]) for code in FUNCTIONAL_GROUPS[SUPPORT_GROUP]
-    )
-    personnel_width = max(
-        _minimum_turnable_extent(authorities[code]) for code in FUNCTIONAL_GROUPS[PERSONNEL_GROUP]
-    )
+    support_width, support_length = _peripheral_band_dimensions(authorities, SUPPORT_GROUP)
+    personnel_width, personnel_length = _peripheral_band_dimensions(authorities, PERSONNEL_GROUP)
     band_extents = _program_band_extents(authorities, process_axis, main_cross)
     if layout_family in {LINEAR_3_BAND, SIMPLE_L_SITE_ADAPTIVE}:
         main_flow_extent = sum(band_extents)
@@ -697,7 +877,6 @@ def _program_envelope_dimensions(
         main_flow_extent = max(band_extents)
     else:
         raise _error("STRUCTURED_LAYOUT_FAMILY_INVALID", layout_family=layout_family)
-    cross_axis = "Y" if process_axis == "X" else "X"
     main_cross_extent = max(
         _authority_extent(authorities[code], cross_axis)
         if authorities[code].get("dimension_mode") != "FLEXIBLE_RECTANGLE"
@@ -710,15 +889,26 @@ def _program_envelope_dimensions(
         if process_axis == "X"
         else (main_cross_extent, main_flow_extent)
     )
-    support_side = {"WEST": "EAST", "EAST": "WEST", "NORTH": "SOUTH", "SOUTH": "NORTH"}[
-        personnel_side
-    ]
+    selected_support_side = (
+        support_side
+        or {
+            "WEST": "EAST",
+            "EAST": "WEST",
+            "NORTH": "SOUTH",
+            "SOUTH": "NORTH",
+        }[personnel_side]
+    )
     if include_peripheral_strips:
-        for side, strip in ((support_side, support_width), (personnel_side, personnel_width)):
+        for side, strip, length in (
+            (selected_support_side, support_width, support_length),
+            (personnel_side, personnel_width, personnel_length),
+        ):
             if side in {"WEST", "EAST"}:
                 width_mm += strip
+                height_mm = max(height_mm, length)
             else:
                 height_mm += strip
+                width_mm = max(width_mm, length)
     total_program_area = sum(_required_area_mm2(row) for row in authorities.values())
     if width_mm * height_mm < total_program_area:
         if process_axis == "X":
@@ -736,11 +926,18 @@ def _program_envelope_bounds(
     personnel_side: str,
     obstacles: Sequence[PolygonMM],
     envelope_family: str,
+    candidate_index: int = 0,
+    required_terminal_rectangle: PlacedRectangleV1 | None = None,
+    support_side: str | None = None,
 ) -> BoundsMM:
     """Place the program-derived rectangular envelope at exact site events."""
     site = _site_bounds(boundary)
     width_mm, height_mm = _program_envelope_dimensions(
-        authorities, process_axis, layout_family, personnel_side
+        authorities,
+        process_axis,
+        layout_family,
+        personnel_side,
+        support_side=support_side,
     )
     if width_mm > site[2] - site[0] or height_mm > site[3] - site[1]:
         raise _error(
@@ -780,6 +977,12 @@ def _program_envelope_bounds(
                 )
             ):
                 continue
+            if required_terminal_rectangle is not None:
+                left, bottom, right, top = required_terminal_rectangle.bounds_mm
+                if not (
+                    x0 <= left and y0 <= bottom and right <= x0 + width_mm and top <= y0 + height_mm
+                ):
+                    continue
             feasible.append(bounds)
     if not feasible:
         raise _error(
@@ -799,7 +1002,14 @@ def _program_envelope_bounds(
         }[personnel_side]
         return primary_gap, y0, x0, y1 - y0
 
-    return min(feasible, key=entrance_attachment_penalty)
+    ordered = sorted(feasible, key=entrance_attachment_penalty)
+    if candidate_index >= len(ordered):
+        raise _error(
+            "PROGRAM_BUILDING_ENVELOPE_VARIANT_UNAVAILABLE",
+            candidate_index=candidate_index,
+            candidate_count=len(ordered),
+        )
+    return ordered[candidate_index]
 
 
 def _band_bounds(
@@ -1006,6 +1216,9 @@ def construct_structured_building_plan_v1(
     layout_family: str,
     envelope_family: str = RECTANGLE,
     main_entrance: SegmentMM | None = None,
+    envelope_candidate_index: int = 0,
+    required_terminal_rectangle: PlacedRectangleV1 | None = None,
+    support_side: str | None = None,
 ) -> StructuredBuildingSkeletonV1:
     """Create the envelope, event grid, then bands before any zone is placed."""
     if process_axis not in {"X", "Y"}:
@@ -1014,12 +1227,15 @@ def construct_structured_building_plan_v1(
         raise _error("STRUCTURED_LAYOUT_FAMILY_INVALID", layout_family=layout_family)
     site_bounds = _site_bounds(boundary)
     personnel_side = _entrance_side(main_entrance, site_bounds)
-    support_side = {
+    default_support_side = {
         "WEST": "EAST",
         "EAST": "WEST",
         "NORTH": "SOUTH",
         "SOUTH": "NORTH",
     }[personnel_side]
+    selected_support_side = support_side or default_support_side
+    if selected_support_side not in {"WEST", "EAST", "NORTH", "SOUTH"}:
+        raise _error("STRUCTURED_SUPPORT_SIDE_INVALID", support_side=selected_support_side)
     support_width, support_length = _peripheral_band_dimensions(authorities, SUPPORT_GROUP)
     personnel_width, personnel_length = _peripheral_band_dimensions(authorities, PERSONNEL_GROUP)
     if envelope_family == RECTANGLE:
@@ -1031,6 +1247,9 @@ def construct_structured_building_plan_v1(
             personnel_side,
             obstacles,
             envelope_family,
+            envelope_candidate_index,
+            required_terminal_rectangle,
+            selected_support_side,
         )
         envelope = BuildingEnvelopeV1(
             RECTANGLE, envelope_bounds, (envelope_bounds,), tuple(obstacles), site_bounds
@@ -1042,25 +1261,55 @@ def construct_structured_building_plan_v1(
             process_axis,
             layout_family,
             personnel_side,
+            support_side=selected_support_side,
             include_peripheral_strips=False,
         )
-        candidates = _simple_l_envelopes(
-            boundary,
-            obstacles,
-            minimum_program_area,
-            minimum_width,
-            minimum_height,
-            support_side,
-            support_width,
-            support_length,
-            personnel_side,
-            personnel_width,
-            personnel_length,
-            main_entrance,
-        )
+        if required_terminal_rectangle is not None:
+            candidates = _simple_l_envelopes_for_terminal(
+                boundary,
+                obstacles,
+                minimum_program_area,
+                minimum_width,
+                minimum_height,
+                selected_support_side,
+                support_width,
+                support_length,
+                personnel_side,
+                personnel_width,
+                personnel_length,
+                main_entrance,
+                required_terminal_rectangle,
+            )
+        else:
+            candidates = _simple_l_envelopes(
+                boundary,
+                obstacles,
+                minimum_program_area,
+                minimum_width,
+                minimum_height,
+                selected_support_side,
+                support_width,
+                support_length,
+                personnel_side,
+                personnel_width,
+                personnel_length,
+                main_entrance,
+            )
         if not candidates:
             raise _error("SIMPLE_L_ENVELOPE_UNAVAILABLE")
-        envelope = candidates[0]
+        compatible = tuple(
+            candidate
+            for candidate in candidates
+            if required_terminal_rectangle is None
+            or candidate.contains(required_terminal_rectangle)
+        )
+        if envelope_candidate_index >= len(compatible):
+            raise _error(
+                "SIMPLE_L_ENVELOPE_TERMINAL_VARIANT_UNAVAILABLE",
+                candidate_index=envelope_candidate_index,
+                candidate_count=len(compatible),
+            )
+        envelope = compatible[envelope_candidate_index]
         envelope_bounds = envelope.bounds_mm
     else:
         raise _error("BUILDING_ENVELOPE_FAMILY_INVALID", envelope_family=envelope_family)
@@ -1089,7 +1338,7 @@ def construct_structured_building_plan_v1(
         extents,
         cross_extents,
         main_bounds=envelope_bounds,
-        support_side=support_side,
+        support_side=selected_support_side,
         personnel_side=personnel_side,
         support_width=support_width,
         personnel_width=personnel_width,
@@ -1106,7 +1355,7 @@ def construct_structured_building_plan_v1(
         extents,
         cross_extents,
         main_bounds=envelope_bounds,
-        support_side=support_side,
+        support_side=selected_support_side,
         personnel_side=personnel_side,
         support_width=support_width,
         personnel_width=personnel_width,
@@ -1129,7 +1378,7 @@ def construct_structured_building_plan_v1(
         extents,
         cross_extents,
         main_bounds=main_bounds,
-        support_side=support_side,
+        support_side=selected_support_side,
         personnel_side=personnel_side,
         support_width=support_width,
         personnel_width=personnel_width,
@@ -1146,7 +1395,7 @@ def construct_structured_building_plan_v1(
         extents,
         cross_extents,
         main_bounds=main_bounds,
-        support_side=support_side,
+        support_side=selected_support_side,
         personnel_side=personnel_side,
         support_width=support_width,
         personnel_width=personnel_width,
@@ -1163,7 +1412,7 @@ def construct_structured_building_plan_v1(
         extents,
         cross_extents,
         main_bounds=main_bounds,
-        support_side=support_side,
+        support_side=selected_support_side,
         personnel_side=personnel_side,
         support_width=support_width,
         personnel_width=personnel_width,
@@ -1172,6 +1421,19 @@ def construct_structured_building_plan_v1(
         main_entrance=main_entrance,
         envelope_components=envelope.components_mm,
     )
+    if required_terminal_rectangle is not None:
+        if not envelope.contains(required_terminal_rectangle):
+            raise _error("STRUCTURED_TERMINAL_ZONE_OUTSIDE_ENVELOPE")
+        left, bottom, right, top = finished_band
+        terminal_left, terminal_bottom, terminal_right, terminal_top = (
+            required_terminal_rectangle.bounds_mm
+        )
+        finished_band = (
+            min(left, terminal_left),
+            min(bottom, terminal_bottom),
+            max(right, terminal_right),
+            max(top, terminal_top),
+        )
     band_bounds = {
         RAW_SIDE_BAND: raw_band,
         PROCESS_CORE_BAND: process_band,
@@ -1241,7 +1503,7 @@ def construct_structured_building_plan_v1(
             band_bounds[band_code],
             process_axis,
             ordering_role,
-            support_side
+            selected_support_side
             if band_code == SUPPORT_BAND
             else personnel_side
             if band_code == PERSONNEL_EDGE_BAND
@@ -1261,7 +1523,7 @@ def construct_structured_building_plan_v1(
         envelope,
         grid,
         bands,
-        support_side=support_side,
+        support_side=selected_support_side,
         personnel_side=personnel_side,
     )
 

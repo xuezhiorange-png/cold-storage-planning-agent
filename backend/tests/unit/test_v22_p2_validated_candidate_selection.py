@@ -263,10 +263,13 @@ def test_selection_is_deterministic_for_same_candidate_stream(monkeypatch) -> No
 
 
 def test_no_full_pass_reports_search_exhaustion_not_infeasibility(monkeypatch) -> None:
-    stream = _FakeCandidateStream([_candidate("A", 3)])
-    stream._provenance["search_tree_exhausted"] = False
-    stream._provenance["node_budget_exhausted"] = True
-    monkeypatch.setattr(selection, "enumerate_placement_candidates", lambda *args, **kwargs: stream)
+    def stream_factory(*_args, **_kwargs) -> _FakeCandidateStream:
+        stream = _FakeCandidateStream([_candidate("A", 3)])
+        stream._provenance["search_tree_exhausted"] = False
+        stream._provenance["node_budget_exhausted"] = True
+        return stream
+
+    monkeypatch.setattr(selection, "enumerate_placement_candidates", stream_factory)
     monkeypatch.setattr(
         selection,
         "route_site_placement",
@@ -518,10 +521,11 @@ def test_multi_round_scheduler_preserves_fair_lane_coverage_without_stranding_bu
         StructuralCompositionFamilyV1(CENTRAL_PROCESS_HUB, "Y", "UNRESOLVED", "LANE_TEST"),
     )
     monkeypatch.setattr(selection, "composition_family_candidates", lambda _site: lanes)
-    monkeypatch.setattr(
-        selection,
-        "enumerate_placement_candidates",
-        lambda *_args, structural_family, **_kwargs: _FakeCandidateStream(
+    enumeration_budgets: list[tuple[str, int]] = []
+
+    def enumerate_lane(*_args, structural_family, search_phase, node_budget, **_kwargs):
+        enumeration_budgets.append((search_phase, node_budget))
+        return _FakeCandidateStream(
             [
                 _candidate(
                     f"{structural_family.family}-{structural_family.dominant_direction}-1", 0
@@ -530,8 +534,9 @@ def test_multi_round_scheduler_preserves_fair_lane_coverage_without_stranding_bu
                     f"{structural_family.family}-{structural_family.dominant_direction}-2", 0
                 ),
             ]
-        ),
-    )
+        )
+
+    monkeypatch.setattr(selection, "enumerate_placement_candidates", enumerate_lane)
     monkeypatch.setattr(
         selection,
         "build_structural_quality_facts",
@@ -552,12 +557,18 @@ def test_multi_round_scheduler_preserves_fair_lane_coverage_without_stranding_bu
 
     assert accounting["global_nodes_visited"] == 78
     assert accounting["global_nodes_remaining"] == 42
-    assert accounting["work_round_count"] == 2
+    # The selected direct-synthesis lane runs first; the two lanes without a
+    # full-pass candidate then share the remaining fallback pool in parallel.
+    assert accounting["work_round_count"] == 4
     assert accounting["active_work_item_count"] == 0
     assert accounting["truncated_active_work_item_count"] == 0
     assert accounting["unused_global_nodes_with_active_truncated_work"] == 0
-    assert [row["round"] for row in queue] == [1, 1, 1, 2, 2, 2]
-    assert len({row["topology"] for row in queue[:3]}) == 3
+    assert [row["round"] for row in queue] == [1, 2, 3, 3, 4, 4]
+    assert len({row["topology"] for row in queue[:2]}) == 1
+    assert len({row["topology"] for row in queue[2:4]}) == 2
+    assert len({row["topology"] for row in queue[4:]}) == 2
+    assert (selection.STRUCTURED_PHASE, len(selection.BASE_LAYOUT_FAMILIES)) in enumeration_budgets
+    assert (selection.LEGACY_COMPAT_PHASE, 120) in enumeration_budgets
 
 
 def test_global_budget_exhaustion_never_reports_stranded_unused_nodes(monkeypatch) -> None:

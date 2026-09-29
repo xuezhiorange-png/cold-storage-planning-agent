@@ -283,6 +283,7 @@ def enumerate_placement_candidates(
     structural_family: StructuralCompositionFamilyV1 | None = None,
     structural_topology: str | None = None,
     search_phase: str = LEGACY_COMPAT_PHASE,
+    direct_synthesis_enabled: bool = True,
     global_main_process_geometry_registry: dict[str, dict[str, Any]] | None = None,
     global_cross_topology_duplicate_trace: list[dict[str, Any]] | None = None,
 ) -> PlacementCandidateEnumerationV1:
@@ -325,6 +326,7 @@ def enumerate_placement_candidates(
         structural_family=structural_family,
         structural_topology=structural_topology,
         search_phase=search_phase,
+        direct_synthesis_enabled=direct_synthesis_enabled,
         global_main_process_geometry_registry=global_main_process_geometry_registry,
         global_cross_topology_duplicate_trace=global_cross_topology_duplicate_trace,
     )

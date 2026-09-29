@@ -33,7 +33,7 @@ from cold_storage.modules.layout.domain.dimensioning import (
 )
 from cold_storage.modules.layout.domain.objective_profile import ObjectiveProfileV1
 from cold_storage.modules.layout.domain.placement import (
-    GENERAL_FALLBACK_PHASE,
+    LEGACY_COMPAT_PHASE,
     MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE,
     PLACEMENT_SEARCH_QUANTUM_NODES,
     STRUCTURED_PHASE,
@@ -56,6 +56,7 @@ from cold_storage.modules.layout.domain.structural_quality import (
     build_structural_quality_facts,
     structural_candidate_is_better,
 )
+from cold_storage.modules.layout.domain.structured_building import BASE_LAYOUT_FAMILIES
 from cold_storage.modules.layout.domain.truck_maneuver import (
     BoundTruckManeuverProjectInputV1,
 )
@@ -757,6 +758,9 @@ def select_validated_placement(
         for index, lane in enumerate(topology_lanes)
         if lane.topology == topology
     )
+    direct_synthesis_lane_index = (
+        preferred_lane_index if preferred_lane_index is not None else lane_order[0]
+    )
     global_node_budget_remaining = placement_node_budget
     global_node_visits = 0
     p2c_candidate_count = 0
@@ -766,12 +770,17 @@ def select_validated_placement(
 
     def make_enumeration(lane_index: int, phase: str) -> Any:
         lane = topology_lanes[lane_index]
+        phase_budget = (
+            min(placement_node_budget, len(BASE_LAYOUT_FAMILIES))
+            if phase == STRUCTURED_PHASE
+            else placement_node_budget
+        )
         return enumerate_placement_candidates(
             canonical_zone_plan,
             p1_handoff,
             site_geometry,
             objective_profile,
-            node_budget=placement_node_budget,
+            node_budget=phase_budget,
             truck_maneuver_binding=truck_maneuver_binding,
             truck_node_budget=truck_node_budget,
             truck_maneuver_validator=validate_truck_maneuver_chain,
@@ -779,6 +788,7 @@ def select_validated_placement(
             structural_family=lane.family,
             structural_topology=lane.topology,
             search_phase=phase,
+            direct_synthesis_enabled=True,
             global_main_process_geometry_registry=global_skeleton_geometry_registry,
             global_cross_topology_duplicate_trace=cross_topology_duplicate_trace,
         )
@@ -795,7 +805,7 @@ def select_validated_placement(
             "preferred_lane": preferred_family is not None and lane_index == preferred_lane_index,
             "lane_node_budget": placement_node_budget,
             "global_budget_before_lane": None,
-            "structured_node_budget": placement_node_budget,
+            "structured_node_budget": min(placement_node_budget, len(BASE_LAYOUT_FAMILIES)),
             "fallback_node_budget": 0,
             "phases": [],
             "p2d_full_pass_candidate_count": 0,
@@ -812,19 +822,24 @@ def select_validated_placement(
             "full_pass_count": 0,
             "report": lane_report,
         }
-        phase_states.append(
-            {
-                "lane_index": lane_index,
-                "phase": STRUCTURED_PHASE,
-                "phase_budget": placement_node_budget,
-                "enumeration": make_enumeration(lane_index, STRUCTURED_PHASE),
-                "candidate_count": 0,
-                "rejected_count": 0,
-                "full_pass_count": 0,
-                "status": "ACTIVE",
-                "finalized": False,
-            }
-        )
+        if lane_index == direct_synthesis_lane_index:
+            phase_states.append(
+                {
+                    "lane_index": lane_index,
+                    "phase": STRUCTURED_PHASE,
+                    "phase_budget": min(placement_node_budget, len(BASE_LAYOUT_FAMILIES)),
+                    "enumeration": make_enumeration(lane_index, STRUCTURED_PHASE),
+                    "candidate_count": 0,
+                    "rejected_count": 0,
+                    "full_pass_count": 0,
+                    "status": "ACTIVE",
+                    "finalized": False,
+                }
+            )
+        else:
+            lane_report["structured_phase_status"] = (
+                "ALL_LAYOUT_FAMILIES_COVERED_BY_DIRECT_SYNTHESIS_LANE"
+            )
 
     def process_candidate(state: dict[str, Any], candidate: Any) -> None:
         nonlocal p2c_candidate_count, candidate_index, p2d_validated_count
@@ -1133,27 +1148,30 @@ def select_validated_placement(
                 process_candidate(state, candidate)
             if advance.completed:
                 finalize_phase(state)
-                if (
-                    state["phase"] == STRUCTURED_PHASE
-                    and lane_state[lane_index]["full_pass_count"] == 0
-                    and enumeration.search_tree_exhausted
-                    and global_node_budget_remaining > 0
-                ):
-                    lane_report = lane_state[lane_index]["report"]
-                    lane_report["fallback_node_budget"] = global_node_budget_remaining
-                    fallback_state = {
-                        "lane_index": lane_index,
-                        "phase": GENERAL_FALLBACK_PHASE,
-                        "phase_budget": placement_node_budget,
-                        "enumeration": make_enumeration(lane_index, GENERAL_FALLBACK_PHASE),
-                        "candidate_count": 0,
-                        "rejected_count": 0,
-                        "full_pass_count": 0,
-                        "status": "ACTIVE",
-                        "finalized": False,
-                    }
-                    phase_states.append(fallback_state)
-                    active_states.append(fallback_state)
+                if state["phase"] == STRUCTURED_PHASE and global_node_budget_remaining > 0:
+                    fallback_order = lane_order
+                    for fallback_lane in fallback_order:
+                        if lane_state[fallback_lane]["full_pass_count"] > 0:
+                            continue
+                        fallback_report = lane_state[fallback_lane]["report"]
+                        fallback_report["fallback_admission_reason"] = (
+                            "STRUCTURED_PHASE_COMPLETED_WITH_REMAINING_GLOBAL_BUDGET"
+                        )
+                        fallback_report["fallback_node_budget"] = global_node_budget_remaining
+                        fallback_report["fallback_budget_is_shared_pool"] = True
+                        fallback_state = {
+                            "lane_index": fallback_lane,
+                            "phase": LEGACY_COMPAT_PHASE,
+                            "phase_budget": placement_node_budget,
+                            "enumeration": make_enumeration(fallback_lane, LEGACY_COMPAT_PHASE),
+                            "candidate_count": 0,
+                            "rejected_count": 0,
+                            "full_pass_count": 0,
+                            "status": "ACTIVE",
+                            "finalized": False,
+                        }
+                        phase_states.append(fallback_state)
+                        active_states.append(fallback_state)
             else:
                 active_states.append(state)
 
