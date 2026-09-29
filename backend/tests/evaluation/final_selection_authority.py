@@ -16,6 +16,7 @@ from typing import Any
 from cold_storage.modules.aily.application import site_layout_preview
 from cold_storage.modules.layout.application import validated_candidate_selection as selection
 from cold_storage.modules.layout.application.svg_projection import project_validated_layout_to_svg
+from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from tests.evaluation.r13_main_skeleton_truck_preflight import FIXTURE
 from tests.evaluation.r15_truck_feasible_layout_delivery import (
     CONTROL_SVG,
@@ -29,7 +30,9 @@ SELECTION_EVIDENCE = EVIDENCE_DIR / "xinzhao_p1a_final_selection_candidates.json
 SELECTION_RESULT = EVIDENCE_DIR / "xinzhao_p1a_final_selection_result.json"
 
 
-def _capture_tool7(payload: Mapping[str, Any]) -> dict[str, Any]:
+def _capture_tool7(
+    payload: Mapping[str, Any], *, allow_failed_selection: bool = False
+) -> dict[str, Any]:
     captured_records: list[dict[str, Any]] = []
     selection_holder: dict[str, Any] = {}
     site_holder: dict[str, Any] = {}
@@ -64,8 +67,14 @@ def _capture_tool7(payload: Mapping[str, Any]) -> dict[str, Any]:
 
     site_layout_preview.select_validated_placement = capture_select
     selection.build_structural_quality_facts = capture_facts
+    preview_error: str | None = None
     try:
         result = site_layout_preview.preview_site_layout(dict(payload))
+    except LayoutAuthorityError as exc:
+        if not allow_failed_selection:
+            raise
+        result = None
+        preview_error = exc.code
     finally:
         site_layout_preview.select_validated_placement = real_select
         selection.build_structural_quality_facts = real_build
@@ -77,6 +86,7 @@ def _capture_tool7(payload: Mapping[str, Any]) -> dict[str, Any]:
         "internal": selection_holder["internal"],
         "site_geometry": site_holder["geometry"],
         "full_pass_records": captured_records,
+        "preview_error": preview_error,
     }
 
 

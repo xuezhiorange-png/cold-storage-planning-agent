@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+import pytest
+
+from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1, normalize_polygon
 from cold_storage.modules.layout.domain.structural_composition import FUNCTIONAL_GROUPS
 from cold_storage.modules.layout.domain.structured_building import (
+    BASE_LAYOUT_FAMILIES,
     CENTRAL_PROCESS_WITH_SIDE_BANKS,
     FINISHED_SIDE_BAND,
     LINEAR_3_BAND,
@@ -15,8 +19,8 @@ from cold_storage.modules.layout.domain.structured_building import (
     RECTANGLE,
     SIMPLE_L,
     SUPPORT_BAND,
+    BuildingEnvelopeV1,
     construct_structured_building_plan_v1,
-    structured_layout_family_for_topology,
 )
 
 
@@ -62,7 +66,9 @@ def test_rectangle_envelope_and_three_main_bands_are_constructed_before_zones() 
     )
 
     assert plan.envelope.family == RECTANGLE
-    assert plan.envelope.bounds_mm == (0, 0, 100_000, 80_000)
+    assert plan.envelope.bounds_mm == (70_000, 0, 100_000, 70_000)
+    assert plan.envelope.site_bounds_mm == (0, 0, 100_000, 80_000)
+    assert plan.envelope.bounds_mm != plan.envelope.site_bounds_mm
     assert plan.zone_placements == ()
     assert {row.band_code for row in plan.bands} == {
         RAW_SIDE_BAND,
@@ -76,8 +82,11 @@ def test_rectangle_envelope_and_three_main_bands_are_constructed_before_zones() 
     assert plan.band_for_zone("shipping_channel").band_code == FINISHED_SIDE_BAND
     assert plan.band_for_zone("packaging_material_storage").band_code == SUPPORT_BAND
     assert plan.band_for_zone("office").band_code == PERSONNEL_EDGE_BAND
-    assert plan.primary_grid.x_axes_mm == (0, 10_000, 20_000, 100_000)
-    assert plan.primary_grid.y_axes_mm == (0, 10_000, 20_000, 30_000, 40_000, 80_000)
+    assert plan.primary_grid.x_axes_mm == (70_000, 100_000)
+    assert plan.primary_grid.y_axes_mm == (0, 10_000, 20_000, 60_000, 70_000)
+    assert len(plan.primary_grid.y_axes_mm) < len(plan.primary_grid.event_y_mm)
+    assert plan.band_for_zone("packaging_material_storage").bounds_mm != plan.envelope.bounds_mm
+    assert plan.band_for_zone("office").bounds_mm != plan.envelope.bounds_mm
     assert plan.band_for_zone("sorting_packaging_room").bounds_mm != plan.envelope.bounds_mm
 
 
@@ -92,7 +101,7 @@ def test_zones_are_admitted_only_inside_their_planned_band_and_envelope() -> Non
     sorting_band = plan.band_for_zone("sorting_packaging_room")
     valid = PlacedRectangleV1(
         "sorting_packaging_room",
-        Decimal("1"),
+        Decimal(sorting_band.bounds_mm[0]) / 1000,
         Decimal(sorting_band.bounds_mm[1]) / 1000,
         Decimal("10"),
         Decimal("10"),
@@ -133,7 +142,12 @@ def test_linear_process_band_contains_authoritative_rotated_coating_transition()
         layout_family=LINEAR_3_BAND,
     )
     coating = PlacedRectangleV1(
-        "coating_room", Decimal("14.7"), Decimal("28.436"), Decimal("5.264"), Decimal("15.2"), 90
+        "coating_room",
+        Decimal(plan.band_for_zone("coating_room").bounds_mm[0]) / 1000,
+        Decimal(plan.band_for_zone("coating_room").bounds_mm[1]) / 1000,
+        Decimal("5.264"),
+        Decimal("15.2"),
+        90,
     )
 
     assert plan.admits("coating_room", coating)
@@ -148,31 +162,38 @@ def test_completed_plan_records_band_assignment_and_shared_primary_axes() -> Non
         layout_family=LINEAR_3_BAND,
     )
     placements: dict[str, PlacedRectangleV1] = {}
-    for code in FUNCTIONAL_GROUPS["RAW_SIDE_GROUP"]:
-        placements[code] = PlacedRectangleV1(code, Decimal("0"), Decimal("0"), 1, 1)
-    for code in FUNCTIONAL_GROUPS["PROCESSING_CORE_GROUP"]:
-        placements[code] = PlacedRectangleV1(code, Decimal("0"), Decimal("10"), 1, 1)
-    for code in FUNCTIONAL_GROUPS["FINISHED_SIDE_GROUP"]:
-        placements[code] = PlacedRectangleV1(code, Decimal("0"), Decimal("20"), 1, 1)
-    for code in FUNCTIONAL_GROUPS["SUPPORT_GROUP"]:
-        placements[code] = PlacedRectangleV1(code, Decimal("0"), Decimal("30"), 1, 1)
-    for code in FUNCTIONAL_GROUPS["PERSONNEL_GROUP"]:
-        placements[code] = PlacedRectangleV1(code, Decimal("0"), Decimal("40"), 1, 1)
+    for band_code, members in (
+        (RAW_SIDE_BAND, FUNCTIONAL_GROUPS["RAW_SIDE_GROUP"]),
+        (PROCESS_CORE_BAND, FUNCTIONAL_GROUPS["PROCESSING_CORE_GROUP"]),
+        (FINISHED_SIDE_BAND, FUNCTIONAL_GROUPS["FINISHED_SIDE_GROUP"]),
+        (SUPPORT_BAND, FUNCTIONAL_GROUPS["SUPPORT_GROUP"]),
+        (PERSONNEL_EDGE_BAND, FUNCTIONAL_GROUPS["PERSONNEL_GROUP"]),
+    ):
+        band = next(row for row in plan.bands if row.band_code == band_code)
+        x0, y0, _x1, _y1 = band.bounds_mm
+        for code in members:
+            placements[code] = PlacedRectangleV1(
+                code, Decimal(x0) / 1000, Decimal(y0) / 1000, Decimal("1"), Decimal("1")
+            )
 
     completed = plan.with_placements(placements)
     body = completed.to_dict()
     assert len(body["band_zone_placements"]) == 12
     assert body["primary_grid"]["grid_axis_usage"]
-    assert all(row["aligned_primary_edge_count"] > 0 for row in body["band_zone_placements"])
-
-
-def test_topology_lanes_map_to_distinct_band_arrangements_deterministically() -> None:
-    assert structured_layout_family_for_topology("STRAIGHT_LINEAR_BAND") == LINEAR_3_BAND
-    assert (
-        structured_layout_family_for_topology("CENTRAL_PROCESS_HUB")
-        == CENTRAL_PROCESS_WITH_SIDE_BANKS
+    assert all(
+        row["aligned_primary_edge_count"] > 0
+        for row in body["band_zone_placements"]
+        if row["band_code"] in {RAW_SIDE_BAND, PROCESS_CORE_BAND, FINISHED_SIDE_BAND}
     )
-    assert structured_layout_family_for_topology("OFFSET_LINEAR_BAND") == LONGITUDINAL_PROCESS_SPINE
+    assert body["primary_grid"]["single_use_primary_axis_count"] == 0
+
+
+def test_layout_families_are_first_class_and_construct_independently() -> None:
+    assert BASE_LAYOUT_FAMILIES == (
+        LINEAR_3_BAND,
+        CENTRAL_PROCESS_WITH_SIDE_BANKS,
+        LONGITUDINAL_PROCESS_SPINE,
+    )
     first = construct_structured_building_plan_v1(
         boundary=_rectangle_boundary(),
         obstacles=(),
@@ -188,6 +209,35 @@ def test_topology_lanes_map_to_distinct_band_arrangements_deterministically() ->
         layout_family=LINEAR_3_BAND,
     )
     assert first.to_dict() == second.to_dict()
+    family_plans = {
+        family: construct_structured_building_plan_v1(
+            boundary=_rectangle_boundary(),
+            obstacles=(),
+            authorities=_authorities(),
+            process_axis="Y",
+            layout_family=family,
+        )
+        for family in BASE_LAYOUT_FAMILIES
+    }
+    assert set(family_plans) == set(BASE_LAYOUT_FAMILIES)
+    assert len(
+        {
+            tuple(
+                row.bounds_mm
+                for row in plan.bands
+                if row.band_code
+                in {
+                    RAW_SIDE_BAND,
+                    PROCESS_CORE_BAND,
+                    FINISHED_SIDE_BAND,
+                }
+            )
+            for plan in family_plans.values()
+        }
+    ) == len(BASE_LAYOUT_FAMILIES)
+    assert len({plan.envelope.bounds_mm for plan in family_plans.values()}) == len(
+        BASE_LAYOUT_FAMILIES
+    )
     assert (
         first.band_for_zone("raw_fruit_buffer").bounds_mm[3]
         < (first.band_for_zone("finished_goods_room").bounds_mm[3])
@@ -208,14 +258,113 @@ def test_simple_l_envelope_is_derived_from_orthogonal_site_geometry() -> None:
             ],
         }
     )
+    with pytest.raises(LayoutAuthorityError, match="SIMPLE_L_ENVELOPE_UNAVAILABLE"):
+        construct_structured_building_plan_v1(
+            boundary=l_boundary,
+            obstacles=(),
+            authorities=_authorities(),
+            process_axis="Y",
+            layout_family=LINEAR_3_BAND,
+            envelope_family=SIMPLE_L,
+        )
+
+
+def test_simple_l_envelope_uses_exact_buildable_cells_around_site_obstacles() -> None:
+    boundary = _rectangle_boundary(100, 80)
+    obstacles = (
+        normalize_polygon(
+            {
+                "type": "polygon",
+                "points": [
+                    {"x": 70, "y": 40},
+                    {"x": 100, "y": 40},
+                    {"x": 100, "y": 80},
+                    {"x": 70, "y": 80},
+                ],
+            }
+        ),
+        normalize_polygon(
+            {
+                "type": "polygon",
+                "points": [
+                    {"x": 0, "y": 30},
+                    {"x": 20, "y": 30},
+                    {"x": 20, "y": 50},
+                    {"x": 0, "y": 50},
+                ],
+            }
+        ),
+    )
+
     plan = construct_structured_building_plan_v1(
-        boundary=l_boundary,
-        obstacles=(),
+        boundary=boundary,
+        obstacles=obstacles,
         authorities=_authorities(),
         process_axis="Y",
-        layout_family=LINEAR_3_BAND,
+        layout_family=CENTRAL_PROCESS_WITH_SIDE_BANKS,
         envelope_family=SIMPLE_L,
+        main_entrance=((100_000, 39_000), (100_000, 41_000)),
     )
 
     assert plan.envelope.family == SIMPLE_L
-    assert plan.envelope.components_mm == ((0, 0, 4000, 10000), (4000, 0, 10000, 4000))
+    assert len(plan.envelope.components_mm) == 2
+    assert plan.envelope.site_bounds_mm == (0, 0, 100_000, 80_000)
+    assert plan.envelope.bounds_mm != plan.envelope.site_bounds_mm
+    for zone_code in ("packaging_material_storage", "office"):
+        band = plan.band_for_zone(zone_code)
+        assert band.bounds_mm != plan.envelope.bounds_mm
+        assert any(
+            band.bounds_mm[0] >= x0
+            and band.bounds_mm[1] >= y0
+            and band.bounds_mm[2] <= x1
+            and band.bounds_mm[3] <= y1
+            for x0, y0, x1, y1 in plan.envelope.components_mm
+        )
+    assert (
+        sum((x1 - x0) * (y1 - y0) for x0, y0, x1, y1 in plan.envelope.components_mm)
+        >= 12 * 100_000_000
+    )
+
+
+def test_simple_l_envelope_contains_rectangles_across_contiguous_components_only() -> None:
+    envelope = BuildingEnvelopeV1(
+        family=SIMPLE_L,
+        bounds_mm=(0, 0, 10_000, 10_000),
+        components_mm=((0, 0, 4_000, 10_000), (4_000, 0, 10_000, 4_000)),
+        hard_obstacles_mm=(),
+        site_bounds_mm=(0, 0, 10_000, 10_000),
+    )
+    cross_seam = PlacedRectangleV1(
+        "finished_goods_room", Decimal("2"), Decimal("1"), Decimal("6"), Decimal("2")
+    )
+    inside_notch = PlacedRectangleV1(
+        "finished_goods_room", Decimal("2"), Decimal("5"), Decimal("6"), Decimal("1")
+    )
+
+    assert envelope.contains(cross_seam)
+    assert not envelope.contains(inside_notch)
+
+
+def test_rectangle_envelope_uses_exact_site_and_obstacle_events() -> None:
+    obstacle = normalize_polygon(
+        {
+            "type": "polygon",
+            "points": [
+                {"x": 90, "y": 0},
+                {"x": 95, "y": 0},
+                {"x": 95, "y": 80},
+                {"x": 90, "y": 80},
+            ],
+        }
+    )
+    plan = construct_structured_building_plan_v1(
+        boundary=_rectangle_boundary(),
+        obstacles=(obstacle,),
+        authorities=_authorities(),
+        process_axis="Y",
+        layout_family=LINEAR_3_BAND,
+    )
+
+    assert plan.envelope.bounds_mm != (0, 0, 100_000, 80_000)
+    assert plan.envelope.bounds_mm[2] <= 90_000
+    assert plan.envelope.site_bounds_mm == (0, 0, 100_000, 80_000)

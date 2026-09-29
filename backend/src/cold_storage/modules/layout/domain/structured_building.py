@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import ROUND_CEILING, Decimal
+from functools import lru_cache
 from math import isqrt
 from typing import Final
 
@@ -17,6 +18,7 @@ from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.domain.site_geometry import (
     PlacedRectangleV1,
     PolygonMM,
+    SegmentMM,
     rectangle_inside_polygon,
     rectangle_intersects_closed_obstacle,
 )
@@ -38,6 +40,11 @@ LINEAR_3_BAND: Final = "LINEAR_3_BAND"
 CENTRAL_PROCESS_WITH_SIDE_BANKS: Final = "CENTRAL_PROCESS_WITH_SIDE_BANKS"
 LONGITUDINAL_PROCESS_SPINE: Final = "LONGITUDINAL_PROCESS_SPINE"
 SIMPLE_L_SITE_ADAPTIVE: Final = "SIMPLE_L_SITE_ADAPTIVE"
+BASE_LAYOUT_FAMILIES: Final = (
+    LINEAR_3_BAND,
+    CENTRAL_PROCESS_WITH_SIDE_BANKS,
+    LONGITUDINAL_PROCESS_SPINE,
+)
 
 RAW_SIDE_BAND: Final = "RAW_SIDE_BAND"
 PROCESS_CORE_BAND: Final = "PROCESS_CORE_BAND"
@@ -66,7 +73,7 @@ def _error(code: str, **details: object) -> LayoutAuthorityError:
     return LayoutAuthorityError(code, **details)
 
 
-def _envelope_bounds(boundary: PolygonMM) -> BoundsMM:
+def _site_bounds(boundary: PolygonMM) -> BoundsMM:
     if len(boundary) < 3:
         raise _error("STRUCTURED_ENVELOPE_BOUNDARY_INVALID")
     return (
@@ -104,20 +111,44 @@ def _projected_minimum_mm(authority: Mapping[str, object], axis: str) -> int:
 
 @dataclass(frozen=True)
 class BuildingEnvelopeV1:
-    """A search envelope with exact site/no-build geometry retained."""
+    """A program-derived planned building envelope, distinct from site bounds."""
 
     family: str
     bounds_mm: BoundsMM
     components_mm: tuple[BoundsMM, ...]
     hard_obstacles_mm: tuple[PolygonMM, ...]
+    site_bounds_mm: BoundsMM
     extension_reason: str | None = None
 
     def contains(self, rectangle: PlacedRectangleV1) -> bool:
         left, bottom, right, top = rectangle.bounds_mm
-        return any(
-            left >= x0 and bottom >= y0 and right <= x1 and top <= y1
-            for x0, y0, x1, y1 in self.components_mm
-        )
+        if not self.components_mm or right <= left or top <= bottom:
+            return False
+        x_events = {left, right}
+        for x0, _y0, x1, _y1 in self.components_mm:
+            if left < x0 < right:
+                x_events.add(x0)
+            if left < x1 < right:
+                x_events.add(x1)
+        ordered_x = sorted(x_events)
+        for slab_left, slab_right in zip(ordered_x, ordered_x[1:], strict=False):
+            if slab_left == slab_right:
+                continue
+            covered_to = bottom
+            intervals = sorted(
+                (y0, y1)
+                for x0, y0, x1, y1 in self.components_mm
+                if x0 <= slab_left and x1 >= slab_right and y1 > bottom and y0 < top
+            )
+            for interval_low, interval_high in intervals:
+                if interval_low > covered_to:
+                    break
+                covered_to = max(covered_to, interval_high)
+                if covered_to >= top:
+                    break
+            if covered_to < top:
+                return False
+        return True
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -126,13 +157,14 @@ class BuildingEnvelopeV1:
             "bounds_mm": list(self.bounds_mm),
             "components_mm": [list(row) for row in self.components_mm],
             "hard_obstacle_count": len(self.hard_obstacles_mm),
+            "site_bounds_mm": list(self.site_bounds_mm),
             "extension_reason": self.extension_reason,
         }
 
 
 @dataclass(frozen=True)
 class PrimaryGridV1:
-    """Finite exact event axes used to seed shared room/band boundaries."""
+    """Structural axes and separate local exact-event axes."""
 
     x_axes_mm: tuple[int, ...]
     y_axes_mm: tuple[int, ...]
@@ -170,12 +202,23 @@ class PrimaryGridV1:
         )
 
     def to_dict(self) -> dict[str, object]:
+        envelope_axes = set()
+        if self.x_axes_mm:
+            envelope_axes.update({("X", self.x_axes_mm[0]), ("X", self.x_axes_mm[-1])})
+        if self.y_axes_mm:
+            envelope_axes.update({("Y", self.y_axes_mm[0]), ("Y", self.y_axes_mm[-1])})
+        single_use = sum(
+            len(zones) == 1 and (axis, coordinate) not in envelope_axes
+            for axis, coordinate, zones in self.axis_usage
+        )
         return {
             "identity": "primary-grid@1.0.0",
             "primary_x_axes_mm": list(self.x_axes_mm),
             "primary_y_axes_mm": list(self.y_axes_mm),
             "event_x_mm": list(self.event_x_mm),
             "event_y_mm": list(self.event_y_mm),
+            "primary_axis_usage_count": len(self.axis_usage),
+            "single_use_primary_axis_count": single_use,
             "grid_axis_usage": [
                 {"axis": axis, "coordinate_mm": coordinate, "zone_codes": list(zones)}
                 for axis, coordinate, zones in self.axis_usage
@@ -193,6 +236,7 @@ class FunctionalBandV1:
     bounds_mm: BoundsMM
     process_axis: str
     ordering_role: str
+    attachment_side: str | None = None
 
     def contains(self, rectangle: PlacedRectangleV1) -> bool:
         left, bottom, right, top = rectangle.bounds_mm
@@ -207,6 +251,7 @@ class FunctionalBandV1:
             "bounds_mm": list(self.bounds_mm),
             "process_axis": self.process_axis,
             "ordering_role": self.ordering_role,
+            "attachment_side": self.attachment_side,
         }
 
 
@@ -228,6 +273,8 @@ class StructuredBuildingSkeletonV1:
     primary_grid: PrimaryGridV1
     bands: tuple[FunctionalBandV1, ...]
     zone_placements: tuple[BandZonePlacementV1, ...] = ()
+    support_side: str = "WEST"
+    personnel_side: str = "EAST"
 
     def __post_init__(self) -> None:
         if self.layout_family not in _LAYOUT_FAMILIES:
@@ -271,6 +318,8 @@ class StructuredBuildingSkeletonV1:
             self.primary_grid.with_placements(placements),
             self.bands,
             tuple(rows),
+            self.support_side,
+            self.personnel_side,
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -278,6 +327,8 @@ class StructuredBuildingSkeletonV1:
             "identity": IDENTITY,
             "layout_family": self.layout_family,
             "process_axis": self.process_axis,
+            "support_attachment_side": self.support_side,
+            "personnel_peripheral_side": self.personnel_side,
             "envelope": self.envelope.to_dict(),
             "primary_grid": self.primary_grid.to_dict(),
             "functional_bands": [row.to_dict() for row in self.bands],
@@ -293,55 +344,161 @@ class StructuredBuildingSkeletonV1:
         }
 
 
+@lru_cache(maxsize=8)
 def _simple_l_envelopes(
-    boundary: PolygonMM, obstacles: Sequence[PolygonMM], bounds: BoundsMM
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+    minimum_program_area_mm2: int,
+    minimum_width_mm: int,
+    minimum_height_mm: int,
+    support_side: str,
+    support_width_mm: int,
+    support_length_mm: int,
+    personnel_side: str,
+    personnel_width_mm: int,
+    personnel_length_mm: int,
+    main_entrance: SegmentMM | None,
 ) -> tuple[BuildingEnvelopeV1, ...]:
-    x0, y0, x1, y1 = bounds
-    x_events = {x0, x1, *(point[0] for point in boundary)}
-    y_events = {y0, y1, *(point[1] for point in boundary)}
-    x_events.update(point[0] for polygon in obstacles for point in polygon)
-    y_events.update(point[1] for polygon in obstacles for point in polygon)
-    candidates: dict[tuple[BoundsMM, ...], BuildingEnvelopeV1] = {}
-    for split_x in sorted(x_events):
-        if not x0 < split_x < x1:
-            continue
-        for split_y in sorted(y_events):
-            if not y0 < split_y < y1:
-                continue
-            component_sets = (
-                ((x0, y0, split_x, y1), (split_x, y0, x1, split_y)),
-                ((x0, y0, x1, split_y), (x0, split_y, split_x, y1)),
-                ((split_x, y0, x1, y1), (x0, y0, split_x, split_y)),
-                ((x0, split_y, x1, y1), (x0, y0, split_x, split_y)),
-            )
-            for components in component_sets:
-                if any(a >= c or b >= d for a, b, c, d in components):
-                    continue
-                safe = True
-                for index, component in enumerate(components):
-                    cell = PlacedRectangleV1(
-                        f"envelope_component_{index}",
-                        Decimal(component[0]) / 1000,
-                        Decimal(component[1]) / 1000,
-                        Decimal(component[2] - component[0]) / 1000,
-                        Decimal(component[3] - component[1]) / 1000,
+    site = _site_bounds(boundary)
+    # Event coordinates are exact site/obstacle vertices.  One lattice tick
+    # outside a closed no-build edge is included because contact itself is
+    # rejected by the existing obstacle predicate; this is a geometry event,
+    # not a tolerance or clearance rule.
+    x_events = {point[0] for point in boundary}
+    y_events = {point[1] for point in boundary}
+    for obstacle in obstacles:
+        for x_mm, y_mm in obstacle:
+            x_events.update((x_mm - 1, x_mm, x_mm + 1))
+            y_events.update((y_mm - 1, y_mm, y_mm + 1))
+    x_events.update((site[0], site[2]))
+    y_events.update((site[1], site[3]))
+    x_events = {value for value in x_events if site[0] <= value <= site[2]}
+    y_events = {value for value in y_events if site[1] <= value <= site[3]}
+    envelopes: dict[tuple[BoundsMM, ...], BuildingEnvelopeV1] = {}
+    for x0 in sorted(x_events):
+        for x1 in sorted(value for value in x_events if value > x0):
+            for y0 in sorted(y_events):
+                for y1 in sorted(value for value in y_events if value > y0):
+                    for split_x in sorted(value for value in x_events if x0 < value < x1):
+                        for split_y in sorted(value for value in y_events if y0 < value < y1):
+                            component_sets = (
+                                ((x0, y0, split_x, y1), (split_x, y0, x1, split_y)),
+                                ((x0, y0, x1, split_y), (x0, split_y, split_x, y1)),
+                                ((split_x, y0, x1, y1), (x0, y0, split_x, split_y)),
+                                ((x0, split_y, x1, y1), (x0, y0, split_x, split_y)),
+                            )
+                            for components in component_sets:
+                                if any(a >= c or b >= d for a, b, c, d in components):
+                                    continue
+                                bounds = (
+                                    min(row[0] for row in components),
+                                    min(row[1] for row in components),
+                                    max(row[2] for row in components),
+                                    max(row[3] for row in components),
+                                )
+                                if (
+                                    bounds[2] - bounds[0] < minimum_width_mm
+                                    or bounds[3] - bounds[1] < minimum_height_mm
+                                ):
+                                    continue
+                                area = sum((c - a) * (d - b) for a, b, c, d in components)
+                                if area < minimum_program_area_mm2:
+                                    continue
+                                components_key = tuple(sorted(components))
+                                if not _envelope_has_edge_band_slot(
+                                    components_key,
+                                    bounds,
+                                    support_side,
+                                    support_width_mm,
+                                    support_length_mm,
+                                ) or not _envelope_has_edge_band_slot(
+                                    components_key,
+                                    bounds,
+                                    personnel_side,
+                                    personnel_width_mm,
+                                    personnel_length_mm,
+                                ):
+                                    continue
+                                safe = True
+                                for index, component in enumerate(components):
+                                    cell = PlacedRectangleV1(
+                                        f"envelope_component_{index}",
+                                        Decimal(component[0]) / 1000,
+                                        Decimal(component[1]) / 1000,
+                                        Decimal(component[2] - component[0]) / 1000,
+                                        Decimal(component[3] - component[1]) / 1000,
+                                    )
+                                    if not rectangle_inside_polygon(cell, boundary) or any(
+                                        rectangle_intersects_closed_obstacle(cell, obstacle)
+                                        for obstacle in obstacles
+                                    ):
+                                        safe = False
+                                        break
+                                if not safe:
+                                    continue
+                                bounds = (
+                                    min(row[0] for row in components_key),
+                                    min(row[1] for row in components_key),
+                                    max(row[2] for row in components_key),
+                                    max(row[3] for row in components_key),
+                                )
+                                envelopes[components_key] = BuildingEnvelopeV1(
+                                    SIMPLE_L,
+                                    bounds,
+                                    components_key,
+                                    tuple(obstacles),
+                                    site,
+                                )
+
+    def envelope_order(
+        envelope: BuildingEnvelopeV1,
+    ) -> tuple[int, int, BoundsMM, tuple[BoundsMM, ...]]:
+        x0, y0, x1, y1 = envelope.bounds_mm
+        area = sum((x2 - x1_) * (y2 - y1_) for x1_, y1_, x2, y2 in envelope.components_mm)
+        entrance_miss = 1
+        if main_entrance is not None:
+            (ax, ay), (bx, by) = main_entrance
+            entrance_miss = int(
+                not any(
+                    (
+                        ax == bx == edge_x
+                        and min(y1_, y2) <= min(ay, by)
+                        and max(y1_, y2) >= max(ay, by)
                     )
-                    if not rectangle_inside_polygon(cell, boundary) or any(
-                        rectangle_intersects_closed_obstacle(cell, obstacle)
-                        for obstacle in obstacles
-                    ):
-                        safe = False
-                        break
-                if not safe:
-                    continue
-                components_key = tuple(sorted(components))
-                candidates[components_key] = BuildingEnvelopeV1(
-                    SIMPLE_L,
-                    bounds,
-                    components_key,
-                    tuple(obstacles),
+                    or (
+                        ay == by == edge_y
+                        and min(x1_, x2) <= min(ax, bx)
+                        and max(x1_, x2) >= max(ax, bx)
+                    )
+                    for x1_, y1_, x2, y2 in envelope.components_mm
+                    for edge_x in (x1_, x2)
+                    for edge_y in (y1_, y2)
                 )
-    return tuple(candidates[key] for key in sorted(candidates))
+            )
+        return entrance_miss, area, envelope.bounds_mm, envelope.components_mm
+
+    return tuple(sorted(envelopes.values(), key=envelope_order))
+
+
+def _envelope_has_edge_band_slot(
+    components: tuple[BoundsMM, ...],
+    bounds: BoundsMM,
+    side: str,
+    band_width_mm: int,
+    band_length_mm: int,
+) -> bool:
+    """Check necessary dimensional capacity on the selected exterior edge."""
+    x0, y0, x1, y1 = bounds
+    for cx0, cy0, cx1, cy1 in components:
+        if side in {"WEST", "EAST"}:
+            touches_edge = cx0 == x0 if side == "WEST" else cx1 == x1
+            if touches_edge and cx1 - cx0 >= band_width_mm and cy1 - cy0 >= band_length_mm:
+                return True
+        else:
+            touches_edge = cy0 == y0 if side == "SOUTH" else cy1 == y1
+            if touches_edge and cx1 - cx0 >= band_length_mm and cy1 - cy0 >= band_width_mm:
+                return True
+    return False
 
 
 def _band_extents(
@@ -363,6 +520,8 @@ def _maximum_group_extents(
     authorities: Mapping[str, Mapping[str, object]], axis: str
 ) -> tuple[int, int, int]:
     def maximum(code: str) -> int:
+        if authorities[code].get("dimension_mode") == "FLEXIBLE_RECTANGLE":
+            return _projected_minimum_mm(authorities[code], axis)
         geometry = authorities[code].get("geometry")
         if isinstance(geometry, Mapping):
             width = geometry.get("width_m")
@@ -374,8 +533,33 @@ def _maximum_group_extents(
 
     raw = max(maximum(code) for code in FUNCTIONAL_GROUPS[RAW_SIDE_GROUP])
     core = max(maximum(code) for code in FUNCTIONAL_GROUPS[PROCESSING_CORE_GROUP])
-    finished = max(maximum(code) for code in FUNCTIONAL_GROUPS[FINISHED_SIDE_GROUP])
+    finished = max(
+        maximum("secondary_precooling_room") + maximum("finished_goods_room"),
+        maximum("shipping_channel"),
+    )
     return raw, core, finished
+
+
+def _program_band_extents(
+    authorities: Mapping[str, Mapping[str, object]], axis: str, shared_cross_span: int
+) -> tuple[int, int, int]:
+    """Necessary process-axis spans for the three main functional bands."""
+
+    def group_extent(codes: Sequence[str]) -> int:
+        projected = max(
+            _authority_extent(authorities[code], axis)
+            if authorities[code].get("dimension_mode") != "FLEXIBLE_RECTANGLE"
+            else _minimum_turnable_extent(authorities[code])
+            for code in codes
+        )
+        required_area = sum(_required_area_mm2(authorities[code]) for code in codes)
+        return max(projected, _ceil_ratio(required_area, shared_cross_span))
+
+    return (
+        group_extent(FUNCTIONAL_GROUPS[RAW_SIDE_GROUP]),
+        group_extent(FUNCTIONAL_GROUPS[PROCESSING_CORE_GROUP]),
+        group_extent(FUNCTIONAL_GROUPS[FINISHED_SIDE_GROUP]),
+    )
 
 
 def _authority_projection(authority: Mapping[str, object], axis: str) -> int:
@@ -387,6 +571,237 @@ def _authority_projection(authority: Mapping[str, object], axis: str) -> int:
     return _projected_minimum_mm(authority, axis)
 
 
+def _authority_extent(authority: Mapping[str, object], axis: str) -> int:
+    geometry = authority.get("geometry")
+    if not isinstance(geometry, Mapping):
+        return _projected_minimum_mm(authority, axis)
+    value = geometry.get("width_m" if axis == "X" else "depth_m")
+    if value is None:
+        return _projected_minimum_mm(authority, axis)
+    return int(Decimal(str(value)) * 1000)
+
+
+def _minimum_turnable_extent(authority: Mapping[str, object]) -> int:
+    geometry = authority.get("geometry")
+    if isinstance(geometry, Mapping):
+        width = geometry.get("width_m")
+        depth = geometry.get("depth_m")
+        if width is not None and depth is not None:
+            return min(int(Decimal(str(width)) * 1000), int(Decimal(str(depth)) * 1000))
+    return _projected_minimum_mm(authority, "X")
+
+
+def _peripheral_band_dimensions(
+    authorities: Mapping[str, Mapping[str, object]], group_code: str
+) -> tuple[int, int]:
+    """Return exact short-side thickness and summed long-side room span."""
+    short_sides: list[int] = []
+    length = 0
+    for code in FUNCTIONAL_GROUPS[group_code]:
+        geometry = authorities[code].get("geometry")
+        if isinstance(geometry, Mapping):
+            width = geometry.get("width_m")
+            depth = geometry.get("depth_m")
+        else:
+            width = depth = None
+        if width is None or depth is None:
+            side = _minimum_turnable_extent(authorities[code])
+            width_mm = depth_mm = side
+        else:
+            width_mm = int(Decimal(str(width)) * 1000)
+            depth_mm = int(Decimal(str(depth)) * 1000)
+        short_sides.append(min(width_mm, depth_mm))
+        length += max(width_mm, depth_mm)
+    return max(short_sides), length
+
+
+def _required_area_mm2(authority: Mapping[str, object]) -> int:
+    value = authority.get("required_area_m2")
+    if value is None:
+        geometry = authority.get("geometry")
+        value = geometry.get("required_area_m2") if isinstance(geometry, Mapping) else None
+    if value is None:
+        raise _error("STRUCTURED_ZONE_DIMENSION_AUTHORITY_MISSING")
+    area = Decimal(str(value)) * 1_000_000
+    return int(area.to_integral_value(rounding=ROUND_CEILING))
+
+
+def _ceil_ratio(numerator: int, denominator: int) -> int:
+    if denominator <= 0:
+        raise _error("STRUCTURED_ENVELOPE_DIMENSION_INVALID")
+    return (numerator + denominator - 1) // denominator
+
+
+def _entrance_side(entrance: SegmentMM | None, bounds: BoundsMM) -> str:
+    if entrance is None:
+        return "EAST"
+    (ax, ay), (bx, by) = entrance
+    x0, y0, x1, y1 = bounds
+    if ax == bx:
+        return "WEST" if abs(ax - x0) <= abs(ax - x1) else "EAST"
+    if ay == by:
+        return "SOUTH" if abs(ay - y0) <= abs(ay - y1) else "NORTH"
+    distances = {
+        "WEST": min(abs(ax - x0), abs(bx - x0)),
+        "EAST": min(abs(ax - x1), abs(bx - x1)),
+        "SOUTH": min(abs(ay - y0), abs(by - y0)),
+        "NORTH": min(abs(ay - y1), abs(by - y1)),
+    }
+    return min(distances, key=lambda side: (distances[side], side))
+
+
+def _program_envelope_dimensions(
+    authorities: Mapping[str, Mapping[str, object]],
+    process_axis: str,
+    layout_family: str,
+    personnel_side: str,
+    *,
+    include_peripheral_strips: bool = True,
+) -> tuple[int, int]:
+    """Derive the minimum envelope dimensions from the complete 12-zone program.
+
+    Main-band spans are derived from authoritative room projections and the
+    exact area needed to pack each group into the shared band depth. Support
+    and personnel strips are then added on their selected exterior sides.
+    The returned dimensions are family-specific and are never sourced from the
+    site bounding box.
+    """
+    cross_axis = "Y" if process_axis == "X" else "X"
+    core_cross = max(
+        _authority_extent(authorities[code], cross_axis)
+        if authorities[code].get("dimension_mode") != "FLEXIBLE_RECTANGLE"
+        else _minimum_turnable_extent(authorities[code])
+        for code in FUNCTIONAL_GROUPS[PROCESSING_CORE_GROUP]
+    )
+    raw_cross = max(
+        _minimum_turnable_extent(authorities[code]) for code in FUNCTIONAL_GROUPS[RAW_SIDE_GROUP]
+    )
+    finished_cross = max(
+        _minimum_turnable_extent(authorities[code])
+        for code in FUNCTIONAL_GROUPS[FINISHED_SIDE_GROUP]
+    )
+    main_cross = max(core_cross, raw_cross, finished_cross)
+    support_width = max(
+        _minimum_turnable_extent(authorities[code]) for code in FUNCTIONAL_GROUPS[SUPPORT_GROUP]
+    )
+    personnel_width = max(
+        _minimum_turnable_extent(authorities[code]) for code in FUNCTIONAL_GROUPS[PERSONNEL_GROUP]
+    )
+    band_extents = _program_band_extents(authorities, process_axis, main_cross)
+    if layout_family in {LINEAR_3_BAND, SIMPLE_L_SITE_ADAPTIVE}:
+        main_flow_extent = sum(band_extents)
+    elif layout_family == CENTRAL_PROCESS_WITH_SIDE_BANKS:
+        raw_extent, core_extent, finished_extent = band_extents
+        main_flow_extent = max(core_extent, 2 * max(raw_extent, finished_extent))
+    elif layout_family == LONGITUDINAL_PROCESS_SPINE:
+        main_flow_extent = max(band_extents)
+    else:
+        raise _error("STRUCTURED_LAYOUT_FAMILY_INVALID", layout_family=layout_family)
+    cross_axis = "Y" if process_axis == "X" else "X"
+    main_cross_extent = max(
+        _authority_extent(authorities[code], cross_axis)
+        if authorities[code].get("dimension_mode") != "FLEXIBLE_RECTANGLE"
+        else _minimum_turnable_extent(authorities[code])
+        for group in (RAW_SIDE_GROUP, PROCESSING_CORE_GROUP, FINISHED_SIDE_GROUP)
+        for code in FUNCTIONAL_GROUPS[group]
+    )
+    width_mm, height_mm = (
+        (main_flow_extent, main_cross_extent)
+        if process_axis == "X"
+        else (main_cross_extent, main_flow_extent)
+    )
+    support_side = {"WEST": "EAST", "EAST": "WEST", "NORTH": "SOUTH", "SOUTH": "NORTH"}[
+        personnel_side
+    ]
+    if include_peripheral_strips:
+        for side, strip in ((support_side, support_width), (personnel_side, personnel_width)):
+            if side in {"WEST", "EAST"}:
+                width_mm += strip
+            else:
+                height_mm += strip
+    total_program_area = sum(_required_area_mm2(row) for row in authorities.values())
+    if width_mm * height_mm < total_program_area:
+        if process_axis == "X":
+            height_mm = _ceil_ratio(total_program_area, width_mm)
+        else:
+            width_mm = _ceil_ratio(total_program_area, height_mm)
+    return width_mm, height_mm
+
+
+def _program_envelope_bounds(
+    authorities: Mapping[str, Mapping[str, object]],
+    boundary: PolygonMM,
+    process_axis: str,
+    layout_family: str,
+    personnel_side: str,
+    obstacles: Sequence[PolygonMM],
+    envelope_family: str,
+) -> BoundsMM:
+    """Place the program-derived rectangular envelope at exact site events."""
+    site = _site_bounds(boundary)
+    width_mm, height_mm = _program_envelope_dimensions(
+        authorities, process_axis, layout_family, personnel_side
+    )
+    if width_mm > site[2] - site[0] or height_mm > site[3] - site[1]:
+        raise _error(
+            "FULL_PROGRAM_BUILDING_ENVELOPE_UNAVAILABLE",
+            width_mm=width_mm,
+            height_mm=height_mm,
+            site_bounds_mm=list(site),
+        )
+    # Enumerate exact geometry events rather than treating the site bounding
+    # rectangle as the building.  For RECTANGLE, the selected planned body
+    # must itself be inside the effective site and clear of hard obstacles.
+    x_events = {point[0] for point in boundary}
+    y_events = {point[1] for point in boundary}
+    for obstacle in obstacles:
+        x_events.update(point[0] for point in obstacle)
+        y_events.update(point[1] for point in obstacle)
+    x_origins = {coordinate + shift for coordinate in x_events for shift in (0, -width_mm)}
+    y_origins = {coordinate + shift for coordinate in y_events for shift in (0, -height_mm)}
+    x_origins.update((site[0], site[2] - width_mm))
+    y_origins.update((site[1], site[3] - height_mm))
+    feasible: list[BoundsMM] = []
+    for x0 in sorted(value for value in x_origins if site[0] <= value <= site[2] - width_mm):
+        for y0 in sorted(value for value in y_origins if site[1] <= value <= site[3] - height_mm):
+            bounds = (x0, y0, x0 + width_mm, y0 + height_mm)
+            rectangle = PlacedRectangleV1(
+                "planned_building_envelope",
+                Decimal(x0) / 1000,
+                Decimal(y0) / 1000,
+                Decimal(width_mm) / 1000,
+                Decimal(height_mm) / 1000,
+            )
+            if envelope_family == RECTANGLE and (
+                not rectangle_inside_polygon(rectangle, boundary)
+                or any(
+                    rectangle_intersects_closed_obstacle(rectangle, obstacle)
+                    for obstacle in obstacles
+                )
+            ):
+                continue
+            feasible.append(bounds)
+    if not feasible:
+        raise _error(
+            "PROGRAM_BUILDING_ENVELOPE_NO_EXACT_SITE_SLOT",
+            width_mm=width_mm,
+            height_mm=height_mm,
+            site_bounds_mm=list(site),
+        )
+
+    def entrance_attachment_penalty(bounds: BoundsMM) -> tuple[int, int, int, int]:
+        x0, y0, x1, y1 = bounds
+        primary_gap = {
+            "WEST": x0 - site[0],
+            "EAST": site[2] - x1,
+            "SOUTH": y0 - site[1],
+            "NORTH": site[3] - y1,
+        }[personnel_side]
+        return primary_gap, y0, x0, y1 - y0
+
+    return min(feasible, key=entrance_attachment_penalty)
+
+
 def _band_bounds(
     layout_family: str,
     group_band: str,
@@ -394,27 +809,87 @@ def _band_bounds(
     axis: str,
     extents: tuple[int, int, int],
     cross_extents: tuple[int, int, int],
+    *,
+    main_bounds: BoundsMM,
+    support_side: str,
+    personnel_side: str,
+    support_width: int,
+    personnel_width: int,
+    support_length: int,
+    personnel_length: int,
+    main_entrance: SegmentMM | None,
+    envelope_components: tuple[BoundsMM, ...],
 ) -> BoundsMM:
-    x0, y0, x1, y1 = envelope
+    x0, y0, x1, y1 = main_bounds
     low = x0 if axis == "X" else y0
     high = x1 if axis == "X" else y1
     span = high - low
     raw, core, finished = extents
 
-    if layout_family == LINEAR_3_BAND:
+    if group_band in {SUPPORT_BAND, PERSONNEL_EDGE_BAND}:
+        side = support_side if group_band == SUPPORT_BAND else personnel_side
+        width = support_width if group_band == SUPPORT_BAND else personnel_width
+        length = support_length if group_band == SUPPORT_BAND else personnel_length
+        target = (
+            sum(point[1] for point in main_entrance) // 2
+            if side in {"WEST", "EAST"}
+            and group_band == PERSONNEL_EDGE_BAND
+            and main_entrance is not None
+            else sum(point[0] for point in main_entrance) // 2
+            if side in {"NORTH", "SOUTH"}
+            and group_band == PERSONNEL_EDGE_BAND
+            and main_entrance is not None
+            else (y0 + y1) // 2
+            if side in {"WEST", "EAST"}
+            else (x0 + x1) // 2
+        )
+        feasible_bands: list[tuple[tuple[int, int, BoundsMM], BoundsMM]] = []
+        for component in envelope_components:
+            cx0, cy0, cx1, cy1 = component
+            if side in {"WEST", "EAST"}:
+                touches_side = cx0 == x0 if side == "WEST" else cx1 == x1
+                if not touches_side or cx1 - cx0 < width or cy1 - cy0 < length:
+                    continue
+                low = min(max(target - length // 2, cy0), cy1 - length)
+                left = cx0 if side == "WEST" else cx1 - width
+                band = (left, low, left + width, low + length)
+            else:
+                touches_side = cy0 == y0 if side == "SOUTH" else cy1 == y1
+                if not touches_side or cx1 - cx0 < length or cy1 - cy0 < width:
+                    continue
+                low = min(max(target - length // 2, cx0), cx1 - length)
+                bottom = cy0 if side == "SOUTH" else cy1 - width
+                band = (low, bottom, low + length, bottom + width)
+            band_center = (
+                (band[1] + band[3]) // 2 if side in {"WEST", "EAST"} else (band[0] + band[2]) // 2
+            )
+            feasible_bands.append(
+                ((abs(band_center - target), (cx1 - cx0) * (cy1 - cy0), component), band)
+            )
+        if not feasible_bands:
+            raise _error(
+                "STRUCTURED_PERIPHERAL_BAND_NO_ENVELOPE_SLOT",
+                band_code=group_band,
+                side=side,
+                required_width_mm=width,
+                required_length_mm=length,
+            )
+        return min(feasible_bands, key=lambda row: row[0])[1]
+
+    if layout_family in {LINEAR_3_BAND, SIMPLE_L_SITE_ADAPTIVE}:
+        # The linear family owns three ordered process-axis intervals inside
+        # the central building body. Transition bands overlap by dimensions
+        # derived from the frozen room program, not by visual thresholds.
         if group_band == RAW_SIDE_BAND:
-            lo, hi = low, min(high, low + raw + core // 2)
+            lo, hi = low, min(high, low + raw)
         elif group_band == PROCESS_CORE_BAND:
-            # The core contains both sorting and coating.  Their authoritative
-            # rectangles can occupy a downstream transition while remaining
-            # one process band, so the band deliberately overlaps the
-            # finished-side envelope rather than cutting coating off at a
-            # centroid-derived midline.
-            lo, hi = max(low, low + raw // 2), min(high, low + raw + core + finished)
+            lo = max(low, low + raw)
+            hi = min(high, lo + core)
         elif group_band == FINISHED_SIDE_BAND:
-            lo, hi = max(low, low + raw + core // 2), high
+            lo = max(low, high - finished)
+            hi = high
         else:
-            lo, hi = low, high
+            raise _error("STRUCTURED_BAND_FAMILY_INVALID", band_code=group_band)
         if axis == "X":
             return lo, y0, hi, y1
         return x0, lo, x1, hi
@@ -425,13 +900,12 @@ def _band_bounds(
     axis_middle = low + span // 2
     if layout_family == CENTRAL_PROCESS_WITH_SIDE_BANKS:
         if group_band == PROCESS_CORE_BAND:
-            core_cross = cross_extents[1]
-            span = min(cross_span, core_cross + min(cross_extents[0], cross_extents[2]) // 2)
-            cross_a = cross_low + max(0, (cross_span - span) // 2)
-            cross_b = min(cross_high, cross_a + span)
+            core_cross = min(cross_span, cross_extents[1])
+            cross_a = cross_low + max(0, (cross_span - core_cross) // 2)
+            cross_b = min(cross_high, cross_a + core_cross)
             return (x0, cross_a, x1, cross_b) if axis == "X" else (cross_a, y0, cross_b, y1)
         if group_band == RAW_SIDE_BAND:
-            axis_a, axis_b = low, min(high, axis_middle + core // 2)
+            axis_a, axis_b = low, min(high, axis_middle)
             return (
                 (axis_a, cross_low, axis_b, cross_high)
                 if axis == "X"
@@ -443,7 +917,7 @@ def _band_bounds(
                 )
             )
         if group_band == FINISHED_SIDE_BAND:
-            axis_a, axis_b = max(low, axis_middle - core // 2), high
+            axis_a, axis_b = max(low, axis_middle), high
             return (
                 (axis_a, cross_low, axis_b, cross_high)
                 if axis == "X"
@@ -454,7 +928,7 @@ def _band_bounds(
                     axis_b,
                 )
             )
-        return x0, y0, x1, y1
+        raise _error("STRUCTURED_BAND_FAMILY_INVALID", band_code=group_band)
     if layout_family == LONGITUDINAL_PROCESS_SPINE:
         raw_cross, core_cross, finished_cross = cross_extents
         transition_extension = min(raw_cross, finished_cross) // 2
@@ -496,7 +970,7 @@ def _band_bounds(
                     high,
                 )
             )
-        return x0, y0, x1, y1
+        raise _error("STRUCTURED_BAND_FAMILY_INVALID", band_code=group_band)
 
     if group_band == PROCESS_CORE_BAND:
         required = min(core, cross_span)
@@ -520,9 +994,7 @@ def _band_bounds(
         if axis == "X":
             return lo, cross_a, hi, cross_b
         return cross_a, lo, cross_b, hi
-    # Support is kept in the envelope as a subordinate branch; personnel has
-    # a peripheral envelope. The exact tail/access authorities still decide.
-    return x0, y0, x1, y1
+    raise _error("STRUCTURED_BAND_FAMILY_INVALID", band_code=group_band)
 
 
 def construct_structured_building_plan_v1(
@@ -533,22 +1005,63 @@ def construct_structured_building_plan_v1(
     process_axis: str,
     layout_family: str,
     envelope_family: str = RECTANGLE,
+    main_entrance: SegmentMM | None = None,
 ) -> StructuredBuildingSkeletonV1:
     """Create the envelope, event grid, then bands before any zone is placed."""
     if process_axis not in {"X", "Y"}:
         raise _error("STRUCTURED_PROCESS_AXIS_INVALID")
     if layout_family not in _LAYOUT_FAMILIES:
         raise _error("STRUCTURED_LAYOUT_FAMILY_INVALID", layout_family=layout_family)
-    envelope_bounds = _envelope_bounds(boundary)
+    site_bounds = _site_bounds(boundary)
+    personnel_side = _entrance_side(main_entrance, site_bounds)
+    support_side = {
+        "WEST": "EAST",
+        "EAST": "WEST",
+        "NORTH": "SOUTH",
+        "SOUTH": "NORTH",
+    }[personnel_side]
+    support_width, support_length = _peripheral_band_dimensions(authorities, SUPPORT_GROUP)
+    personnel_width, personnel_length = _peripheral_band_dimensions(authorities, PERSONNEL_GROUP)
     if envelope_family == RECTANGLE:
+        envelope_bounds = _program_envelope_bounds(
+            authorities,
+            boundary,
+            process_axis,
+            layout_family,
+            personnel_side,
+            obstacles,
+            envelope_family,
+        )
         envelope = BuildingEnvelopeV1(
-            RECTANGLE, envelope_bounds, (envelope_bounds,), tuple(obstacles)
+            RECTANGLE, envelope_bounds, (envelope_bounds,), tuple(obstacles), site_bounds
         )
     elif envelope_family == SIMPLE_L:
-        candidates = _simple_l_envelopes(boundary, obstacles, envelope_bounds)
+        minimum_program_area = sum(_required_area_mm2(row) for row in authorities.values())
+        minimum_width, minimum_height = _program_envelope_dimensions(
+            authorities,
+            process_axis,
+            layout_family,
+            personnel_side,
+            include_peripheral_strips=False,
+        )
+        candidates = _simple_l_envelopes(
+            boundary,
+            obstacles,
+            minimum_program_area,
+            minimum_width,
+            minimum_height,
+            support_side,
+            support_width,
+            support_length,
+            personnel_side,
+            personnel_width,
+            personnel_length,
+            main_entrance,
+        )
         if not candidates:
             raise _error("SIMPLE_L_ENVELOPE_UNAVAILABLE")
         envelope = candidates[0]
+        envelope_bounds = envelope.bounds_mm
     else:
         raise _error("BUILDING_ENVELOPE_FAMILY_INVALID", envelope_family=envelope_family)
 
@@ -568,48 +1081,123 @@ def construct_structured_building_plan_v1(
     extents = _maximum_group_extents(authorities, process_axis)
     cross_axis = "Y" if process_axis == "X" else "X"
     cross_extents = _maximum_group_extents(authorities, cross_axis)
-    # Primary axes are derived from shared room-bank dimensions. X supports a
-    # two-room raw bank and the shared process-core origin; Y carries the
-    # ordered raw/core/finished chain cuts. These are construction axes, not a
-    # per-room free coordinate grid.
-    x_low, y_low = envelope_bounds[0], envelope_bounds[1]
-    raw_width = _authority_projection(authorities["raw_fruit_buffer"], "X")
-    primary_width = _authority_projection(authorities["primary_precooling_room"], "X")
-    sorting_width = _authority_projection(authorities["sorting_packaging_room"], "X")
-    x_axes.update(
-        coordinate
-        for coordinate in (
-            x_low + raw_width,
-            x_low + raw_width + primary_width,
-            x_low + raw_width + sorting_width,
-        )
-        if envelope_bounds[0] < coordinate < envelope_bounds[2]
+    support_side_bounds = _band_bounds(
+        layout_family,
+        SUPPORT_BAND,
+        envelope_bounds,
+        process_axis,
+        extents,
+        cross_extents,
+        main_bounds=envelope_bounds,
+        support_side=support_side,
+        personnel_side=personnel_side,
+        support_width=support_width,
+        personnel_width=personnel_width,
+        support_length=support_length,
+        personnel_length=personnel_length,
+        main_entrance=main_entrance,
+        envelope_components=envelope.components_mm,
     )
-    raw_band_y = max(
-        _authority_projection(authorities[code], "Y") for code in FUNCTIONAL_GROUPS[RAW_SIDE_GROUP]
+    personnel_side_bounds = _band_bounds(
+        layout_family,
+        PERSONNEL_EDGE_BAND,
+        envelope_bounds,
+        process_axis,
+        extents,
+        cross_extents,
+        main_bounds=envelope_bounds,
+        support_side=support_side,
+        personnel_side=personnel_side,
+        support_width=support_width,
+        personnel_width=personnel_width,
+        support_length=support_length,
+        personnel_length=personnel_length,
+        main_entrance=main_entrance,
+        envelope_components=envelope.components_mm,
     )
-    y_extents = (
-        raw_band_y,
-        _authority_projection(authorities["sorting_packaging_room"], "Y"),
-        _authority_projection(authorities["secondary_precooling_room"], "Y"),
-        _authority_projection(authorities["finished_goods_room"], "Y"),
+    main_bounds = envelope_bounds
+    extents = _program_band_extents(
+        authorities,
+        process_axis,
+        main_bounds[3] - main_bounds[1] if process_axis == "X" else main_bounds[2] - main_bounds[0],
     )
-    y_offset = 0
-    for extent in y_extents:
-        y_offset += extent
-        coordinate = y_low + y_offset
-        if envelope_bounds[1] < coordinate < envelope_bounds[3]:
-            y_axes.add(coordinate)
-    low = envelope_bounds[0] if process_axis == "X" else envelope_bounds[1]
-    high = envelope_bounds[2] if process_axis == "X" else envelope_bounds[3]
-    if layout_family == LINEAR_3_BAND:
-        raw, core, finished = extents
-        cuts = (low + raw, low + raw + core, low + raw + core + finished)
-        for cut in cuts:
-            if low < cut < high:
-                (x_axes if process_axis == "X" else y_axes).add(cut)
-    event_x = set(x_axes)
-    event_y = set(y_axes)
+    raw_band = _band_bounds(
+        layout_family,
+        RAW_SIDE_BAND,
+        envelope_bounds,
+        process_axis,
+        extents,
+        cross_extents,
+        main_bounds=main_bounds,
+        support_side=support_side,
+        personnel_side=personnel_side,
+        support_width=support_width,
+        personnel_width=personnel_width,
+        support_length=support_length,
+        personnel_length=personnel_length,
+        main_entrance=main_entrance,
+        envelope_components=envelope.components_mm,
+    )
+    process_band = _band_bounds(
+        layout_family,
+        PROCESS_CORE_BAND,
+        envelope_bounds,
+        process_axis,
+        extents,
+        cross_extents,
+        main_bounds=main_bounds,
+        support_side=support_side,
+        personnel_side=personnel_side,
+        support_width=support_width,
+        personnel_width=personnel_width,
+        support_length=support_length,
+        personnel_length=personnel_length,
+        main_entrance=main_entrance,
+        envelope_components=envelope.components_mm,
+    )
+    finished_band = _band_bounds(
+        layout_family,
+        FINISHED_SIDE_BAND,
+        envelope_bounds,
+        process_axis,
+        extents,
+        cross_extents,
+        main_bounds=main_bounds,
+        support_side=support_side,
+        personnel_side=personnel_side,
+        support_width=support_width,
+        personnel_width=personnel_width,
+        support_length=support_length,
+        personnel_length=personnel_length,
+        main_entrance=main_entrance,
+        envelope_components=envelope.components_mm,
+    )
+    band_bounds = {
+        RAW_SIDE_BAND: raw_band,
+        PROCESS_CORE_BAND: process_band,
+        FINISHED_SIDE_BAND: finished_band,
+        SUPPORT_BAND: support_side_bounds,
+        PERSONNEL_EDGE_BAND: personnel_side_bounds,
+    }
+
+    # Primary axes consist only of envelope and major-band boundaries.
+    # Boundary, obstacle, and dimension events remain local search axes.
+    x_axes = {envelope_bounds[0], envelope_bounds[2]}
+    y_axes = {envelope_bounds[1], envelope_bounds[3]}
+    for bounds in (raw_band, process_band, finished_band):
+        x_axes.update((bounds[0], bounds[2]))
+        y_axes.update((bounds[1], bounds[3]))
+    event_x = {point[0] for point in boundary}
+    event_y = {point[1] for point in boundary}
+    for obstacle in obstacles:
+        event_x.update(point[0] for point in obstacle)
+        event_y.update(point[1] for point in obstacle)
+    event_x.update(x_axes)
+    event_y.update(y_axes)
+    for bounds in (support_side_bounds, personnel_side_bounds):
+        event_x.update((bounds[0], bounds[2]))
+        event_y.update((bounds[1], bounds[3]))
+    dimension_events: set[int] = set()
     for authority in authorities.values():
         geometry = authority.get("geometry")
         if not isinstance(geometry, Mapping):
@@ -618,9 +1206,25 @@ def construct_structured_building_plan_v1(
             value = geometry.get(key)
             if value is None:
                 continue
-            extent = int(Decimal(str(value)) * 1000)
-            event_x.update(coordinate + sign * extent for coordinate in x_axes for sign in (-1, 1))
-            event_y.update(coordinate + sign * extent for coordinate in y_axes for sign in (-1, 1))
+            dimension_events.add(int(Decimal(str(value)) * 1000))
+    # Dimension-derived local origins are based only on original geometry
+    # events.  Recursively expanding already-derived events creates a
+    # combinatorial coordinate closure and accidentally turns local placement
+    # anchors into a second, unbounded grid.
+    base_event_x = tuple(sorted(event_x))
+    base_event_y = tuple(sorted(event_y))
+    event_x.update(
+        coordinate + sign * extent
+        for coordinate in base_event_x
+        for extent in dimension_events
+        for sign in (-1, 1)
+    )
+    event_y.update(
+        coordinate + sign * extent
+        for coordinate in base_event_y
+        for extent in dimension_events
+        for sign in (-1, 1)
+    )
     event_x = {value for value in event_x if envelope_bounds[0] <= value <= envelope_bounds[2]}
     event_y = {value for value in event_y if envelope_bounds[1] <= value <= envelope_bounds[3]}
     grid = PrimaryGridV1(
@@ -634,16 +1238,14 @@ def construct_structured_building_plan_v1(
             band_code,
             group_code,
             tuple(FUNCTIONAL_GROUPS[group_code]),
-            _band_bounds(
-                layout_family,
-                band_code,
-                envelope_bounds,
-                process_axis,
-                extents,
-                cross_extents,
-            ),
+            band_bounds[band_code],
             process_axis,
             ordering_role,
+            support_side
+            if band_code == SUPPORT_BAND
+            else personnel_side
+            if band_code == PERSONNEL_EDGE_BAND
+            else None,
         )
         for band_code, group_code, ordering_role in (
             (RAW_SIDE_BAND, RAW_SIDE_GROUP, "UPSTREAM"),
@@ -653,17 +1255,15 @@ def construct_structured_building_plan_v1(
             (PERSONNEL_EDGE_BAND, PERSONNEL_GROUP, "PERIPHERAL"),
         )
     )
-    return StructuredBuildingSkeletonV1(layout_family, process_axis, envelope, grid, bands)
-
-
-def structured_layout_family_for_topology(topology: str) -> str:
-    if topology == "STRAIGHT_LINEAR_BAND":
-        return LINEAR_3_BAND
-    if topology == "OFFSET_LINEAR_BAND":
-        return LONGITUDINAL_PROCESS_SPINE
-    if topology == "CENTRAL_PROCESS_HUB":
-        return CENTRAL_PROCESS_WITH_SIDE_BANKS
-    raise _error("MAIN_PROCESS_TOPOLOGY_INVALID")
+    return StructuredBuildingSkeletonV1(
+        layout_family,
+        process_axis,
+        envelope,
+        grid,
+        bands,
+        support_side=support_side,
+        personnel_side=personnel_side,
+    )
 
 
 def zone_band_assignment(zone_code: str) -> str:
@@ -673,6 +1273,7 @@ def zone_band_assignment(zone_code: str) -> str:
 
 __all__ = [
     "BuildingEnvelopeV1",
+    "BASE_LAYOUT_FAMILIES",
     "BandZonePlacementV1",
     "CENTRAL_PROCESS_WITH_SIDE_BANKS",
     "FINISHED_SIDE_BAND",
@@ -690,6 +1291,5 @@ __all__ = [
     "SUPPORT_BAND",
     "StructuredBuildingSkeletonV1",
     "construct_structured_building_plan_v1",
-    "structured_layout_family_for_topology",
     "zone_band_assignment",
 ]

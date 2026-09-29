@@ -77,6 +77,9 @@ class MainProcessSkeletonCandidateV1:
     offset_cross_axis_shift_mm: int | None = None
     discovery_topology: str | None = None
     discovery_family: StructuralCompositionFamilyV1 | None = None
+    building_layout_family: str | None = None
+    building_envelope_family: str | None = None
+    planned_envelope_bounds_mm: tuple[int, int, int, int] | None = None
 
     @classmethod
     def create(
@@ -94,6 +97,9 @@ class MainProcessSkeletonCandidateV1:
         offset_cross_axis_shift_mm: int | None = None,
         discovery_topology: str | None = None,
         discovery_family: StructuralCompositionFamilyV1 | None = None,
+        building_layout_family: str | None = None,
+        building_envelope_family: str | None = None,
+        planned_envelope_bounds_mm: tuple[int, int, int, int] | None = None,
     ) -> MainProcessSkeletonCandidateV1:
         if set(rectangles) & set(MAIN_PROCESS_ZONE_CODES) != set(MAIN_PROCESS_ZONE_CODES):
             raise LayoutAuthorityError("MAIN_PROCESS_SKELETON_ZONE_SET_INVALID")
@@ -135,6 +141,9 @@ class MainProcessSkeletonCandidateV1:
             offset_cross_axis_shift_mm=offset_cross_axis_shift_mm,
             discovery_topology=discovery_topology or selected_topology,
             discovery_family=discovery_family or family,
+            building_layout_family=building_layout_family,
+            building_envelope_family=building_envelope_family,
+            planned_envelope_bounds_mm=planned_envelope_bounds_mm,
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -167,6 +176,13 @@ class MainProcessSkeletonCandidateV1:
             "discovery_topology": self.discovery_topology or self.topology,
             "discovery_family": (self.discovery_family or self.family).to_dict(),
             "canonical_family": self.family.to_dict(),
+            "building_layout_family": self.building_layout_family,
+            "building_envelope_family": self.building_envelope_family,
+            "planned_envelope_bounds_mm": (
+                list(self.planned_envelope_bounds_mm)
+                if self.planned_envelope_bounds_mm is not None
+                else None
+            ),
         }
 
 
