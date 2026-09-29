@@ -29,6 +29,7 @@ from cold_storage.modules.layout.domain.structural_composition import (
 )
 from cold_storage.modules.layout.domain.structural_quality import (
     StructuralQualityFactsV1,
+    _finished_shipping_interface_alignment,
     structural_candidate_is_better,
 )
 
@@ -277,3 +278,33 @@ def test_structural_quality_comparison_is_lexicographic_and_unweighted() -> None
     assert structural_candidate_is_better(best, lower)
     assert not structural_candidate_is_better(lower, best)
     assert not structural_candidate_is_better(tie, best)
+
+
+def test_finished_shipping_interface_alignment_distinguishes_exact_edge_endpoint() -> None:
+    finished = {
+        "x": "9.317",
+        "y": "33.7",
+        "width_m": "32.4",
+        "depth_m": "18.6",
+        "rotation_deg": 0,
+    }
+    aligned_shipping = {
+        "x": "1.624",
+        "y": "33.7",
+        "width_m": "6.5",
+        "depth_m": "7.693",
+        "rotation_deg": 90,
+    }
+    one_millimetre_offset_shipping = {**aligned_shipping, "y": "33.701"}
+
+    aligned_count, aligned_facts = _finished_shipping_interface_alignment(
+        {"finished_goods_room": finished, "shipping_channel": aligned_shipping}
+    )
+    offset_count, offset_facts = _finished_shipping_interface_alignment(
+        {"finished_goods_room": finished, "shipping_channel": one_millimetre_offset_shipping}
+    )
+
+    assert aligned_count == 1
+    assert aligned_facts["shared_edge_orientation"] == "VERTICAL"
+    assert offset_count == 0
+    assert offset_facts["shared_edge_orientation"] == "VERTICAL"

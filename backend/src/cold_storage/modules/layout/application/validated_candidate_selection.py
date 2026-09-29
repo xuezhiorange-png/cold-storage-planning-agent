@@ -37,7 +37,8 @@ from cold_storage.modules.layout.domain.placement import (
     MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE,
     PLACEMENT_SEARCH_QUANTUM_NODES,
     STRUCTURED_PHASE,
-    placement_candidate_is_better,
+    compare_placement_candidate_business_objectives,
+    placement_candidate_canonical_tiebreak_key,
 )
 from cold_storage.modules.layout.domain.structural_composition import (
     CENTRAL_PROCESS_HUB,
@@ -389,7 +390,14 @@ def _record_is_better(
     best_facts = best[2]
     if candidate_facts.comparison_key != best_facts.comparison_key:
         return structural_candidate_is_better(candidate_facts, best_facts)
-    return placement_candidate_is_better(candidate[0], best[0], preferred_loading_side)
+    business_comparison = compare_placement_candidate_business_objectives(
+        candidate[0], best[0], preferred_loading_side
+    )
+    if business_comparison != 0:
+        return business_comparison > 0
+    return placement_candidate_canonical_tiebreak_key(candidate[0]) < (
+        placement_candidate_canonical_tiebreak_key(best[0])
+    )
 
 
 _STRUCTURAL_COMPONENTS = (
@@ -403,6 +411,7 @@ _STRUCTURAL_COMPONENTS = (
     "SUPPORT_GROUPING",
     "PERSONNEL_GROUPING",
     "PROCESS_CORE_LEGIBILITY",
+    "FINISHED_SHIPPING_INTERFACE_ALIGNMENT",
     "AUTHORITATIVE_SUPPORT_ROUTE_COUNT",
     "SUPPORT_ATTACHMENT_SIDE_COUNT",
     "SUPPORT_COMPONENT_COUNT",
@@ -415,6 +424,55 @@ _STRUCTURAL_COMPONENTS = (
     "DEPTH_ALIGNMENT_ELIGIBLE_PAIRS",
     "BUILDING_OUTLINE_CLASS",
 )
+
+
+def _first_decisive_component(
+    candidate: tuple[
+        dict[str, Any], dict[str, Any], StructuralQualityFactsV1, StructuralCompositionFamilyV1
+    ],
+    other: tuple[
+        dict[str, Any], dict[str, Any], StructuralQualityFactsV1, StructuralCompositionFamilyV1
+    ],
+    preferred_loading_side: str,
+) -> tuple[str, object, object]:
+    candidate_key = candidate[2].comparison_key
+    other_key = other[2].comparison_key
+    for index, component in enumerate(_STRUCTURAL_COMPONENTS):
+        if (
+            index < len(candidate_key)
+            and index < len(other_key)
+            and candidate_key[index] != other_key[index]
+        ):
+            return component, candidate_key[index], other_key[index]
+
+    candidate_vector = candidate[0].get("placement_objective_vector", {})
+    other_vector = other[0].get("placement_objective_vector", {})
+    if isinstance(candidate_vector, Mapping) and isinstance(other_vector, Mapping):
+        candidate_should = candidate_vector.get("should_adjacency", {})
+        other_should = other_vector.get("should_adjacency", {})
+        if isinstance(candidate_should, Mapping) and isinstance(other_should, Mapping):
+            candidate_count = candidate_should.get("satisfied_count")
+            other_count = other_should.get("satisfied_count")
+            if candidate_count != other_count:
+                return "P2B2_SHOULD_ADJACENCY", candidate_count, other_count
+        candidate_loading = candidate_vector.get("loading_side", {})
+        other_loading = other_vector.get("loading_side", {})
+        if isinstance(candidate_loading, Mapping) and isinstance(other_loading, Mapping):
+            if preferred_loading_side in {"NORTH", "EAST", "SOUTH", "WEST"}:
+                candidate_match = candidate_loading.get("match")
+                other_match = other_loading.get("match")
+                if candidate_match != other_match:
+                    return "P2B2_LOADING_SIDE_PREFERENCE", candidate_match, other_match
+            elif preferred_loading_side == "NEAREST_TRUCK_ENTRANCE":
+                candidate_distance = candidate_loading.get("distance_squared_mm2")
+                other_distance = other_loading.get("distance_squared_mm2")
+                if candidate_distance != other_distance:
+                    return (
+                        "P2B2_NEAREST_TRUCK_ENTRANCE",
+                        candidate_distance,
+                        other_distance,
+                    )
+    return "CANONICAL_JSON_FINAL_TIE_BREAK", "CANONICAL_ORDER_WINNER", "CANONICAL_ORDER_RUNNER_UP"
 
 
 def _internal_selection_evaluation(
@@ -430,6 +488,8 @@ def _internal_selection_evaluation(
     structured_candidate_count: int,
     fallback_candidate_count: int,
     p2b2_tiebreak_used: bool,
+    canonical_json_tiebreak_used: bool,
+    preferred_loading_side: str,
     lane_reports: list[dict[str, Any]],
     r6_topology_diagnostics: Mapping[str, Any],
     full_pass_records: list[
@@ -444,21 +504,12 @@ def _internal_selection_evaluation(
     selected_facts = selected[2]
     runner_up = alternatives[0] if alternatives else None
     first_component = "ONLY_FULL_PASS_CANDIDATE_IN_EXPLORED_FAMILY"
-    winner_value: int | None = None
-    runner_up_value: int | None = None
+    winner_value: object = None
+    runner_up_value: object = None
     if runner_up is not None:
-        first_component = "P2B2_FINAL_TIE_BREAK" if p2b2_tiebreak_used else "STRUCTURAL_QUALITY_TIE"
-        for index, component in enumerate(_STRUCTURAL_COMPONENTS):
-            if index < len(selected_facts.comparison_key) and index < len(
-                runner_up[2].comparison_key
-            ):
-                winner = selected_facts.comparison_key[index]
-                other = runner_up[2].comparison_key[index]
-                if winner != other:
-                    first_component = component
-                    winner_value = winner
-                    runner_up_value = other
-                    break
+        first_component, winner_value, runner_up_value = _first_decisive_component(
+            selected, runner_up, preferred_loading_side
+        )
     selected_skeleton_signature = _main_process_geometry_signature(selected[0])
     best_by_skeleton: dict[
         str,
@@ -472,7 +523,7 @@ def _internal_selection_evaluation(
     for record in full_pass_records:
         signature = _main_process_geometry_signature(record[0])
         current = best_by_skeleton.get(signature)
-        if _record_is_better(record, current, "UNSPECIFIED"):
+        if _record_is_better(record, current, preferred_loading_side):
             best_by_skeleton[signature] = record
     distinct_runner_up: (
         tuple[
@@ -486,31 +537,43 @@ def _internal_selection_evaluation(
     for signature, record in best_by_skeleton.items():
         if signature == selected_skeleton_signature:
             continue
-        if _record_is_better(record, distinct_runner_up, "UNSPECIFIED"):
+        if _record_is_better(record, distinct_runner_up, preferred_loading_side):
             distinct_runner_up = record
 
     distinct_first_component = "ONLY_ONE_P2D_FULL_PASS_MAIN_SKELETON"
-    distinct_winner_value: int | None = None
-    distinct_runner_value: int | None = None
+    distinct_winner_value: object = None
+    distinct_runner_value: object = None
     if distinct_runner_up is not None:
-        distinct_first_component = "P2B2_FINAL_TIE_BREAK"
-        for index, component in enumerate(_STRUCTURAL_COMPONENTS):
-            winner_key = selected[2].comparison_key
-            runner_key = distinct_runner_up[2].comparison_key
-            if (
-                index < len(winner_key)
-                and index < len(runner_key)
-                and winner_key[index] != runner_key[index]
-            ):
-                distinct_first_component = component
-                distinct_winner_value = winner_key[index]
-                distinct_runner_value = runner_key[index]
-                break
-        else:
-            if selected[2].comparison_key == distinct_runner_up[2].comparison_key:
-                distinct_first_component = "P2B2_FINAL_TIE_BREAK"
-            else:
-                distinct_first_component = "STRUCTURAL_COMPARISON"
+        (
+            distinct_first_component,
+            distinct_winner_value,
+            distinct_runner_value,
+        ) = _first_decisive_component(selected, distinct_runner_up, preferred_loading_side)
+    distinct_business_comparison = (
+        compare_placement_candidate_business_objectives(
+            selected[0], distinct_runner_up[0], preferred_loading_side
+        )
+        if distinct_runner_up is not None
+        else 0
+    )
+    distinct_structural_tie = bool(
+        distinct_runner_up is not None
+        and selected[2].comparison_key == distinct_runner_up[2].comparison_key
+    )
+    distinct_canonical_tiebreak_used = False
+    if (
+        distinct_runner_up is not None
+        and distinct_structural_tie
+        and distinct_business_comparison == 0
+    ):
+        distinct_canonical_tiebreak_used = placement_candidate_canonical_tiebreak_key(
+            selected[0]
+        ) != placement_candidate_canonical_tiebreak_key(distinct_runner_up[0])
+    ordinary_runner_same_skeleton = bool(
+        runner_up is not None
+        and _main_process_geometry_signature(selected[0])
+        == _main_process_geometry_signature(runner_up[0])
+    )
 
     skeleton_survival = [
         lifecycle
@@ -558,6 +621,9 @@ def _internal_selection_evaluation(
         "runner_up_candidate_hash": runner_up[0].get("canonical_candidate_hash")
         if runner_up is not None
         else None,
+        "runner_up_main_process_skeleton_hash": runner_up[0].get("_r5_skeleton_hash")
+        if runner_up is not None
+        else None,
         "runner_up_structural_facts": runner_up[2].to_dict() if runner_up is not None else None,
         "first_decisive_component": first_component,
         "winner_value": winner_value,
@@ -587,7 +653,19 @@ def _internal_selection_evaluation(
         "distinct_skeleton_first_decisive_component": distinct_first_component,
         "distinct_skeleton_winner_value": distinct_winner_value,
         "distinct_skeleton_runner_up_value": distinct_runner_value,
+        "distinct_skeleton_p2b2_business_objective_used": (
+            distinct_structural_tie and distinct_business_comparison != 0
+        ),
+        "distinct_skeleton_canonical_json_tiebreak_used": distinct_canonical_tiebreak_used,
         "p2b2_tiebreak_used": p2b2_tiebreak_used,
+        "canonical_json_tiebreak_used": canonical_json_tiebreak_used,
+        "canonical_json_tiebreak_scope": (
+            "SAME_MAIN_PROCESS_SKELETON_TAIL_VARIANTS"
+            if canonical_json_tiebreak_used and ordinary_runner_same_skeleton
+            else "DISTINCT_MAIN_PROCESS_SKELETONS"
+            if canonical_json_tiebreak_used
+            else "NOT_USED"
+        ),
         "hard_feasibility_passed": True,
         "comparison_mode": "LEXICOGRAPHIC_ATOMIC_FACTS",
         "route_objective_optimization_active": False,
@@ -1383,17 +1461,30 @@ def select_validated_placement(
             runner_up = record
     if runner_up is not None:
         alternatives.append(runner_up)
-    p2b2_tiebreak_used = bool(
-        runner_up is not None
-        and best_record[2].comparison_key == runner_up[2].comparison_key
-        and placement_candidate_is_better(best_candidate_body, runner_up[0], preferred_loading_side)
+    structural_tie = bool(
+        runner_up is not None and best_record[2].comparison_key == runner_up[2].comparison_key
     )
+    business_comparison = (
+        compare_placement_candidate_business_objectives(
+            best_candidate_body, runner_up[0], preferred_loading_side
+        )
+        if runner_up is not None
+        else 0
+    )
+    p2b2_tiebreak_used = structural_tie and business_comparison != 0
+    canonical_json_tiebreak_used = False
+    if runner_up is not None and structural_tie and business_comparison == 0:
+        canonical_json_tiebreak_used = placement_candidate_canonical_tiebreak_key(
+            best_candidate_body
+        ) != placement_candidate_canonical_tiebreak_key(runner_up[0])
     internal_evaluation = _internal_selection_evaluation(
         best_record,
         alternatives,
         structured_candidate_count=structured_candidate_count,
         fallback_candidate_count=fallback_candidate_count,
         p2b2_tiebreak_used=p2b2_tiebreak_used,
+        canonical_json_tiebreak_used=canonical_json_tiebreak_used,
+        preferred_loading_side=preferred_loading_side,
         lane_reports=lane_reports,
         full_pass_records=full_pass_records,
         r6_topology_diagnostics=r6_topology_diagnostics,

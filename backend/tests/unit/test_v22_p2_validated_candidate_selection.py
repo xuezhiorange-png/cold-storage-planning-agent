@@ -394,7 +394,7 @@ def test_structured_full_pass_precedes_legacy_fallback(monkeypatch) -> None:
     assert result.internal_evaluation["structural_fallback_used"] is False
 
 
-def test_exact_structural_tie_preserves_legacy_p2b2_tiebreak(monkeypatch) -> None:
+def test_structural_tie_uses_p2b2_business_objective_before_canonical_fallback(monkeypatch) -> None:
     _install_tied_structural_facts(monkeypatch)
     candidates = [_candidate("lower", 3), _candidate("higher", 4)]
     monkeypatch.setattr(
@@ -412,7 +412,59 @@ def test_exact_structural_tie_preserves_legacy_p2b2_tiebreak(monkeypatch) -> Non
     result = selection.select_validated_placement(zone_plan, handoff, geometry)
     assert result.to_dict()["selected_layout"]["marker"] == "higher"
     assert result.internal_evaluation["p2b2_tiebreak_used"] is True
-    assert result.internal_evaluation["first_decisive_component"] == "P2B2_FINAL_TIE_BREAK"
+    assert result.internal_evaluation["canonical_json_tiebreak_used"] is False
+    assert result.internal_evaluation["first_decisive_component"] == "P2B2_SHOULD_ADJACENCY"
+
+
+def test_canonical_json_is_used_only_after_structural_and_p2b2_tie(monkeypatch) -> None:
+    _install_tied_structural_facts(monkeypatch)
+    candidates = [_candidate("zeta", 4), _candidate("alpha", 4)]
+    monkeypatch.setattr(
+        selection,
+        "enumerate_placement_candidates",
+        lambda *args, **kwargs: _FakeCandidateStream(candidates),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=True, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(zone_plan, handoff, geometry)
+    assert result.to_dict()["selected_layout"]["marker"] == "alpha"
+    assert result.internal_evaluation["p2b2_tiebreak_used"] is False
+    assert result.internal_evaluation["canonical_json_tiebreak_used"] is True
+    assert result.internal_evaluation["first_decisive_component"] == (
+        "CANONICAL_JSON_FINAL_TIE_BREAK"
+    )
+
+
+def test_structural_facts_precede_p2b2_business_objective(monkeypatch) -> None:
+    candidates = [_candidate("structurally-better", 1), _candidate("business-better", 9)]
+    monkeypatch.setattr(
+        selection,
+        "enumerate_placement_candidates",
+        lambda *args, **kwargs: _FakeCandidateStream(candidates),
+    )
+    monkeypatch.setattr(
+        selection,
+        "build_structural_quality_facts",
+        lambda candidate, *_args, **_kwargs: StructuralQualityFactsV1(
+            json.dumps({"marker": candidate["marker"]}, sort_keys=True),
+            (int(candidate["marker"] == "structurally-better"),),
+        ),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=True, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(zone_plan, handoff, geometry)
+    assert result.to_dict()["selected_layout"]["marker"] == "structurally-better"
+    assert result.internal_evaluation["first_decisive_component"] == "STRUCTURED_GENERATION"
 
 
 def test_selector_enumerates_both_linear_directions_and_central_hub(monkeypatch) -> None:

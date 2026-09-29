@@ -294,6 +294,45 @@ def _process_core_face_facts(
     return tuple(sorted(faces - occupied_by_any)), tuple(sorted(occupied_by_support))
 
 
+def _finished_shipping_interface_alignment(
+    zones: Mapping[str, Mapping[str, Any]],
+) -> tuple[int, dict[str, Any]]:
+    """Count exact interface endpoints aligned with the finished-goods face."""
+    finished = zones.get("finished_goods_room")
+    shipping = zones.get("shipping_channel")
+    if finished is None or shipping is None:
+        return 0, {
+            "status": "UNAVAILABLE",
+            "shared_edge_orientation": None,
+            "finished_face_endpoint_alignment_count": 0,
+        }
+    finished_bounds = _bounds(finished)
+    shipping_bounds = _bounds(shipping)
+    orientation = _shared_edge_orientation(finished_bounds, shipping_bounds)
+    if orientation == "VERTICAL":
+        interface_low = max(finished_bounds[1], shipping_bounds[1])
+        interface_high = min(finished_bounds[3], shipping_bounds[3])
+        finished_face_low, finished_face_high = finished_bounds[1], finished_bounds[3]
+    elif orientation == "HORIZONTAL":
+        interface_low = max(finished_bounds[0], shipping_bounds[0])
+        interface_high = min(finished_bounds[2], shipping_bounds[2])
+        finished_face_low, finished_face_high = finished_bounds[0], finished_bounds[2]
+    else:
+        return 0, {
+            "status": "MEASURED",
+            "shared_edge_orientation": None,
+            "finished_face_endpoint_alignment_count": 0,
+        }
+    aligned_endpoints = int(interface_low == finished_face_low) + int(
+        interface_high == finished_face_high
+    )
+    return aligned_endpoints, {
+        "status": "MEASURED",
+        "shared_edge_orientation": orientation,
+        "finished_face_endpoint_alignment_count": aligned_endpoints,
+    }
+
+
 def _storage_bank_alignment_facts(
     zones: Mapping[str, Mapping[str, Any]],
 ) -> dict[str, Any]:
@@ -547,6 +586,9 @@ def build_structural_quality_facts(
             ("sorting_packaging_room", "secondary_precooling_room"),
         )
     )
+    finished_shipping_alignment, finished_shipping_alignment_facts = (
+        _finished_shipping_interface_alignment(zones)
+    )
     personnel_boundary_contacts = _personnel_boundary_contacts(zones, site_geometry)
 
     # A central core is the selected family when sorting is the largest
@@ -599,6 +641,7 @@ def build_structural_quality_facts(
             "direct_main_process_edges": process_core_edges,
             "required_edges": 2,
         },
+        "finished_shipping_interface_alignment": finished_shipping_alignment_facts,
         "support_branch_subordination": {
             "status": "MEASURED",
             "direct_group_edges": support_direct,
@@ -655,6 +698,7 @@ def build_structural_quality_facts(
         int(family_match),
         *tuple(group_edges[group] for group in FUNCTIONAL_GROUPS),
         process_core_edges,
+        finished_shipping_alignment,
         support_route_pass_count,
         -len(support_sides),
         -int(support_components),

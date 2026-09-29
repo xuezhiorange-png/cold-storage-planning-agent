@@ -82,7 +82,8 @@ def test_application_selector_owns_p2d_filtering_and_p2c_ranking_only() -> None:
     for token in (
         "enumerate_placement_candidates(",
         "route_site_placement(",
-        "placement_candidate_is_better(",
+        "compare_placement_candidate_business_objectives(",
+        "placement_candidate_canonical_tiebreak_key(",
         "P2C_CANDIDATE_SELECTION_BASIS",
         "candidate_validation_trace",
         "objective_optimal_within_search_family",

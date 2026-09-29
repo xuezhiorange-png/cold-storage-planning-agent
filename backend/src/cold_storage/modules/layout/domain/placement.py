@@ -2382,27 +2382,46 @@ def _is_better(
 ) -> bool:
     if best is None:
         return True
+    business_comparison = compare_placement_candidate_business_objectives(
+        candidate, best, preferred_loading_side
+    )
+    if business_comparison != 0:
+        return business_comparison > 0
+    return placement_candidate_canonical_tiebreak_key(candidate) < (
+        placement_candidate_canonical_tiebreak_key(best)
+    )
+
+
+def compare_placement_candidate_business_objectives(
+    candidate: Mapping[str, Any], best: Mapping[str, Any], preferred_loading_side: str
+) -> int:
+    """Compare only authorized P2B2 objectives, excluding deterministic fallback."""
     candidate_vector = candidate["placement_objective_vector"]
     best_vector = best["placement_objective_vector"]
     candidate_should = int(candidate_vector["should_adjacency"]["satisfied_count"])
     best_should = int(best_vector["should_adjacency"]["satisfied_count"])
     if candidate_should != best_should:
-        return candidate_should > best_should
+        return 1 if candidate_should > best_should else -1
     if preferred_loading_side in {"NORTH", "EAST", "SOUTH", "WEST"}:
         candidate_match = bool(candidate_vector["loading_side"].get("match"))
         best_match = bool(best_vector["loading_side"].get("match"))
         if candidate_match != best_match:
-            return candidate_match
+            return 1 if candidate_match else -1
     elif preferred_loading_side == "NEAREST_TRUCK_ENTRANCE":
         candidate_distance = Fraction(str(candidate_vector["loading_side"]["distance_squared_mm2"]))
         best_distance = Fraction(str(best_vector["loading_side"]["distance_squared_mm2"]))
         if candidate_distance != best_distance:
-            return candidate_distance < best_distance
-    candidate_json = canonical_json(
+            return 1 if candidate_distance < best_distance else -1
+    return 0
+
+
+def placement_candidate_canonical_tiebreak_key(candidate: Mapping[str, Any]) -> str:
+    """Return stable serialization used only after all objectives compare equal."""
+    return canonical_json(
         {
-            k: v
-            for k, v in candidate.items()
-            if k
+            key: value
+            for key, value in candidate.items()
+            if key
             not in {
                 "_loading_comparison",
                 "search_provenance",
@@ -2413,22 +2432,6 @@ def _is_better(
             }
         }
     )
-    best_json = canonical_json(
-        {
-            k: v
-            for k, v in best.items()
-            if k
-            not in {
-                "_loading_comparison",
-                "search_provenance",
-                "canonical_candidate_hash",
-                "canonical_result_hash",
-                "_structural_generation_flag",
-                "_structural_composition_family",
-            }
-        }
-    )
-    return candidate_json < best_json
 
 
 def _validate_graph_completeness(

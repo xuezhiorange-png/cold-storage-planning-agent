@@ -251,15 +251,32 @@ def test_r3_four_way_visual_artifacts_are_direct_rasters_with_pinned_hashes() ->
     assert struct.unpack(">II", debug_png[16:24]) == (2400, 2400)
 
 
-def test_selector_enforces_p2d_full_pass_before_structural_quality_and_old_tie_break() -> None:
+def test_selector_orders_structural_p2b2_and_canonical_tiebreak_stages() -> None:
     selector = _source("application/validated_candidate_selection.py")
+    placement = _source("domain/placement.py")
     hard_gate = selector.index("if not full_pass:")
     structural_evaluation = selector.index("build_structural_quality_facts(")
     assert hard_gate < structural_evaluation
     assert "structural_candidate_is_better" in selector
-    assert "placement_candidate_is_better" in selector
+    assert "compare_placement_candidate_business_objectives" in selector
+    assert "placement_candidate_canonical_tiebreak_key" in selector
     assert "candidate_facts.comparison_key != best_facts.comparison_key" in selector
-    assert "P2B2_FINAL_TIE_BREAK" in selector
+    record_comparator = selector[
+        selector.index("def _record_is_better") : selector.index("_STRUCTURAL_COMPONENTS")
+    ]
+    assert (
+        record_comparator.index("structural_candidate_is_better")
+        < record_comparator.index("compare_placement_candidate_business_objectives")
+        < record_comparator.index("placement_candidate_canonical_tiebreak_key")
+    )
+    domain_comparator = placement[
+        placement.index("def _is_better(") : placement.index("def _validate_graph_completeness")
+    ]
+    assert domain_comparator.index(
+        "compare_placement_candidate_business_objectives"
+    ) < domain_comparator.index("placement_candidate_canonical_tiebreak_key")
+    assert "CANONICAL_JSON_FINAL_TIE_BREAK" in selector
+    assert '"FINISHED_SHIPPING_INTERFACE_ALIGNMENT"' in selector
     assert "LEXICOGRAPHIC_ATOMIC_FACTS" in selector
     assert "weighted_score" not in selector.lower()
     assert "selection_body" not in selector
