@@ -46,4 +46,4 @@ def test_existing_internal_caps_are_fairness_quanta_not_global_budget_growth() -
     assert placement_domain.CONSTRUCTIVE_FACE_PAIR_NODE_BUDGET == 20
     assert placement_domain.PLACEMENT_SEARCH_QUANTUM_NODES == 16
     assert placement_domain.DEFAULT_NODE_BUDGET == 50_000
-    assert placement_domain.CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT == 2
+    assert placement_domain.CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT == 8

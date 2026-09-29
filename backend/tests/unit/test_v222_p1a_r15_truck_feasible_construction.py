@@ -542,6 +542,10 @@ def test_rejected_shipping_seed_is_not_yielded_and_later_candidate_continues(
             structural_topology=placement.STRAIGHT_LINEAR_BAND,
             structural_composition_family=family,
             structural_skeleton=SimpleNamespace(ordering_axis="Y", family=family),
+            structured_building_plan=SimpleNamespace(
+                envelope=SimpleNamespace(family=placement.RECTANGLE),
+                layout_family=placement.LINEAR_3_BAND,
+            ),
             site_body={},
             global_main_process_geometry_registry={},
             global_cross_topology_duplicate_trace=[],

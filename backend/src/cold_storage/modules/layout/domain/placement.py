@@ -73,6 +73,17 @@ from cold_storage.modules.layout.domain.structural_composition import (
     structural_anchor_references,
     structural_skeleton_candidates,
 )
+from cold_storage.modules.layout.domain.structured_building import (
+    CENTRAL_PROCESS_WITH_SIDE_BANKS,
+    LINEAR_3_BAND,
+    LONGITUDINAL_PROCESS_SPINE,
+    RECTANGLE,
+    SIMPLE_L,
+    SIMPLE_L_SITE_ADAPTIVE,
+    StructuredBuildingSkeletonV1,
+    construct_structured_building_plan_v1,
+    structured_layout_family_for_topology,
+)
 from cold_storage.modules.layout.domain.tail_slot_feasibility import (
     EXACT_ORTHOGONAL_EVENT_ENUMERATION,
     evaluate_tail_zone_slot_feasibility_v1,
@@ -92,15 +103,19 @@ LEGACY_COMPAT_PHASE: Final = "LEGACY_COMPAT"
 # Bound the tail search under one already placed main-process skeleton so the
 # deterministic node budget reaches distinct process arrangements before it
 # is consumed by office/support permutations. A small fixed sample preserves
-# P2D-relevant personnel/support alternatives (notably truck-clear storage
-# positions) without treating those variations as new process skeletons.
+# P2D-relevant personnel/support alternatives without treating those
+# variations as new process skeletons.
 STRUCTURED_COMPLETIONS_PER_MAIN_SKELETON: Final = 2
 # Bound the tail search under a core root, but preserve a small set of
 # personnel/support variants for P2D to evaluate against its unchanged access,
 # truck, and single-building-footprint authorities.
 STRUCTURED_COMPLETIONS_PER_CORE_ROOT: Final = 4
 MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE: Final = 15
-CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT: Final = 2
+# At the frozen 120-node global cutoff this permits up to eight geometry
+# seeds (120 / 15), rather than stopping each topology after two raw seeds.
+# The shared scheduler remains the actual global bound; rejected preflights
+# therefore cannot turn this per-lane ceiling into a production quota.
+CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT: Final = 8
 STRUCTURED_SKELETON_CONSTRUCTION_SHARE_NUMERATOR: Final = 1
 STRUCTURED_SKELETON_CONSTRUCTION_SHARE_DENOMINATOR: Final = 2
 # Construction-share values are scheduler quantum ceilings, not lifetime
@@ -709,6 +724,7 @@ def _candidate_options(
     *,
     search_phase: str = LEGACY_COMPAT_PHASE,
     structural_skeleton: StructuralSkeletonV1 | None = None,
+    structured_building_plan: StructuredBuildingSkeletonV1 | None = None,
     zone_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     truck_entrance: SegmentMM | None = None,
 ) -> tuple[PlacedRectangleV1, ...]:
@@ -917,6 +933,12 @@ def _candidate_options(
                 and not _candidate_fits_skeleton_region(
                     code, rectangle, placed, structural_skeleton
                 )
+            ):
+                continue
+            if (
+                search_phase == STRUCTURED_PHASE
+                and structured_building_plan is not None
+                and not structured_building_plan.admits(code, rectangle)
             ):
                 continue
             key = (x_mm, y_mm, width_mm, depth_mm, rotation)
@@ -2472,6 +2494,7 @@ class _PlacementSearchContext:
     placement_zone_order: tuple[str, ...]
     structural_composition_family: StructuralCompositionFamilyV1
     structural_skeleton: StructuralSkeletonV1
+    structured_building_plan: StructuredBuildingSkeletonV1
     structural_topology: str
     search_phase: str
     global_main_process_geometry_registry: dict[str, dict[str, Any]] | None
@@ -2634,6 +2657,14 @@ def _validated_search_context(
     )
     if skeleton is None:
         raise _error("STRUCTURAL_SKELETON_UNAVAILABLE")
+    structured_building_plan = construct_structured_building_plan_v1(
+        boundary=boundary,
+        obstacles=obstacles,
+        authorities=authorities,
+        process_axis=skeleton.ordering_axis,
+        layout_family=structured_layout_family_for_topology(selected_topology),
+        envelope_family=RECTANGLE,
+    )
     return _PlacementSearchContext(
         authorities=authorities,
         site_body=site_body,
@@ -2666,6 +2697,7 @@ def _validated_search_context(
         ),
         structural_composition_family=selected_family,
         structural_skeleton=skeleton,
+        structured_building_plan=structured_building_plan,
         structural_topology=selected_topology,
         search_phase=search_phase,
         global_main_process_geometry_registry=global_main_process_geometry_registry,
@@ -3274,6 +3306,10 @@ def _constructive_edge_options(
             if rejection is not None:
                 _record_rejection(stats, rejection)
                 continue
+            structured_plan = getattr(context, "structured_building_plan", None)
+            if structured_plan is not None and not structured_plan.admits(code, rectangle):
+                _record_rejection(stats, "ENVELOPE_OR_BAND_REJECT")
+                continue
             if any(
                 not rectangles_share_positive_edge(rectangle, must_neighbor)
                 for must_neighbor in graph_neighbors
@@ -3386,6 +3422,11 @@ def _constructive_edge_options(
             int(_bounds(rectangle) in truck_interface_only_bounds),
             *truck_dock_ordering,
             truck_distance_squared,
+            -(
+                context.structured_building_plan.primary_grid.aligned_edge_count(rectangle)
+                if hasattr(context, "structured_building_plan")
+                else 0
+            ),
             *_bounds(rectangle)[:2],
             _bounds(rectangle)[2],
             rectangle.rotation_deg,
@@ -3428,6 +3469,25 @@ def _constructive_sorting_roots(
             for x, y, root_rotation in skeleton_roots
             if root_rotation == rotation
         )
+        process_band = next(
+            band
+            for band in context.structured_building_plan.bands
+            if band.band_code == "PROCESS_CORE_BAND"
+        )
+        grid = context.structured_building_plan.primary_grid
+        planned_origins = {
+            *((x_mm, y_mm) for x_mm in grid.event_x_mm for y_mm in grid.y_axes_mm),
+            *((x_mm, y_mm) for x_mm in grid.x_axes_mm for y_mm in grid.event_y_mm),
+        }
+        anchors.update(
+            (x_mm, y_mm)
+            for x_mm, y_mm in planned_origins
+            if process_band.contains(
+                _rectangle_from_mm(
+                    "sorting_packaging_room", x_mm, y_mm, width_mm, depth_mm, rotation
+                )
+            )
+        )
         for x_mm, y_mm in sorted(anchors):
             rectangle = _rectangle_from_mm(
                 "sorting_packaging_room", x_mm, y_mm, width_mm, depth_mm, rotation
@@ -3435,6 +3495,9 @@ def _constructive_sorting_roots(
             rejection = _geometry_rejection_reason(rectangle, {}, context)
             if rejection is not None:
                 _record_rejection(stats, rejection)
+                continue
+            if not context.structured_building_plan.admits("sorting_packaging_room", rectangle):
+                _record_rejection(stats, "ENVELOPE_OR_BAND_REJECT")
                 continue
             left, bottom, right, top = _bounds(rectangle)
             key = (left, bottom, right, top)
@@ -3463,6 +3526,9 @@ def _constructive_sorting_roots(
     preflight_penalties = {
         row.bounds_mm: _topology_root_ordering_penalty(context, row) for row in canonical_roots
     }
+    if not canonical_roots:
+        _record_rejection(stats, "NO_ROOT_INSIDE_STRUCTURED_PROCESS_BAND")
+        return ()
     if context.structural_topology == CENTRAL_PROCESS_HUB:
         # Preserve the established, deterministic Hub root lane. Ordering the
         # existing structural anchor events first is important: the recent
@@ -3732,6 +3798,8 @@ def _construct_face_skeletons(
             return
         stats.current_work_item = {
             "topology": context.structural_topology,
+            "envelope_family": context.structured_building_plan.envelope.family,
+            "band_family": context.structured_building_plan.layout_family,
             "sorting_root_mm": list(sorting.bounds_mm),
             "raw_side": raw_side,
             "finished_side": finished_side,
@@ -3772,6 +3840,8 @@ def _construct_face_skeletons(
                 return
             stats.current_work_item = {
                 "topology": context.structural_topology,
+                "envelope_family": context.structured_building_plan.envelope.family,
+                "band_family": context.structured_building_plan.layout_family,
                 "sorting_root_mm": list(sorting.bounds_mm),
                 "raw_side": raw_side,
                 "finished_side": finished_side,
@@ -3823,6 +3893,8 @@ def _construct_face_skeletons(
                     return
                 stats.current_work_item = {
                     "topology": context.structural_topology,
+                    "envelope_family": context.structured_building_plan.envelope.family,
+                    "band_family": context.structured_building_plan.layout_family,
                     "sorting_root_mm": list(sorting.bounds_mm),
                     "raw_side": raw_side,
                     "finished_side": finished_side,
@@ -3852,6 +3924,8 @@ def _construct_face_skeletons(
                         return
                     stats.current_work_item = {
                         "topology": context.structural_topology,
+                        "envelope_family": context.structured_building_plan.envelope.family,
+                        "band_family": context.structured_building_plan.layout_family,
                         "sorting_root_mm": list(sorting.bounds_mm),
                         "raw_side": raw_side,
                         "finished_side": finished_side,
@@ -3890,6 +3964,8 @@ def _construct_face_skeletons(
                             return
                         stats.current_work_item = {
                             "topology": context.structural_topology,
+                            "envelope_family": context.structured_building_plan.envelope.family,
+                            "band_family": context.structured_building_plan.layout_family,
                             "sorting_root_mm": list(sorting.bounds_mm),
                             "raw_side": raw_side,
                             "finished_side": finished_side,
@@ -3923,6 +3999,8 @@ def _construct_face_skeletons(
                                 return
                             stats.current_work_item = {
                                 "topology": context.structural_topology,
+                                "envelope_family": context.structured_building_plan.envelope.family,
+                                "band_family": context.structured_building_plan.layout_family,
                                 "sorting_root_mm": list(sorting.bounds_mm),
                                 "raw_side": raw_side,
                                 "finished_side": finished_side,
@@ -3973,6 +4051,7 @@ def _construct_face_skeletons(
                                         topology=context.structural_topology,
                                         generation_pattern=(
                                             f"{context.structural_topology}:"
+                                            f"{context.structured_building_plan.layout_family}:"
                                             f"RAW_{raw_side}:"
                                             f"RAW_BANK_{_adjacent_side(primary, raw)}:"
                                             f"FINISHED_{finished_side}:"
@@ -3988,19 +4067,10 @@ def _construct_face_skeletons(
                                             "TOPOLOGY_RULE",
                                         ),
                                         construction_policy=(
-                                            "STRAIGHT_LINEAR_BAND_V1"
-                                            if context.structural_topology == STRAIGHT_LINEAR_BAND
-                                            else "OFFSET_LINEAR_BAND_V1"
-                                            if context.structural_topology == OFFSET_LINEAR_BAND
-                                            else "CENTRAL_PROCESS_HUB_V1"
+                                            f"{context.structural_topology}_"
+                                            f"{context.structured_building_plan.layout_family}_V1"
                                         ),
-                                        topology_divergence_stage=(
-                                            "CORE_TO_FINISHED"
-                                            if context.structural_topology == OFFSET_LINEAR_BAND
-                                            else "RAW_FINISHED_FACE_PAIR"
-                                            if context.structural_topology == CENTRAL_PROCESS_HUB
-                                            else "ROOT_OR_GROUP_BAND_FORMATION"
-                                        ),
+                                        topology_divergence_stage="ENVELOPE_GRID_BAND_FORMATION",
                                         offset_transition_stage=(
                                             "CORE_TO_FINISHED"
                                             if context.structural_topology == OFFSET_LINEAR_BAND
@@ -4479,11 +4549,91 @@ def _construct_main_process_skeletons(
     context: _PlacementSearchContext,
     stats: _PlacementSearchStats,
 ) -> Iterator[MainProcessSkeletonCandidateV1 | _SearchQuantumYield]:
+    """Try distinct band construction policies under the shared node budget."""
+    if stats.constructive_divergence_attempts is None:
+        stats.constructive_divergence_attempts = []
+    primary = context.structured_building_plan.layout_family
+    alternatives = {
+        LINEAR_3_BAND: (
+            LINEAR_3_BAND,
+            LONGITUDINAL_PROCESS_SPINE,
+            CENTRAL_PROCESS_WITH_SIDE_BANKS,
+        ),
+        LONGITUDINAL_PROCESS_SPINE: (
+            LONGITUDINAL_PROCESS_SPINE,
+            LINEAR_3_BAND,
+            CENTRAL_PROCESS_WITH_SIDE_BANKS,
+        ),
+        CENTRAL_PROCESS_WITH_SIDE_BANKS: (
+            CENTRAL_PROCESS_WITH_SIDE_BANKS,
+            LONGITUDINAL_PROCESS_SPINE,
+            LINEAR_3_BAND,
+        ),
+    }.get(primary, (primary,))
+    layout_families = list(alternatives)
+    if context.structured_building_plan.envelope.family == SIMPLE_L:
+        layout_families.insert(0, SIMPLE_L_SITE_ADAPTIVE)
+
+    searches: list[tuple[str, Iterator[MainProcessSkeletonCandidateV1 | _SearchQuantumYield]]] = []
+    for layout_family in layout_families:
+        plan = context.structured_building_plan
+        if plan.layout_family != layout_family:
+            plan = construct_structured_building_plan_v1(
+                boundary=context.boundary,
+                obstacles=context.obstacles,
+                authorities=context.authorities,
+                process_axis=plan.process_axis,
+                layout_family=layout_family,
+                envelope_family=plan.envelope.family,
+            )
+        plan_context = replace(context, structured_building_plan=plan)
+        stats.constructive_divergence_attempts.append(
+            {
+                "topology": context.structural_topology,
+                "layout_family": layout_family,
+                "attempted": True,
+                "construction_policy": f"{layout_family}_V1",
+                "divergence_stage": "ENVELOPE_GRID_BAND_FORMATION",
+            }
+        )
+        searches.append(
+            (layout_family, iter(_construct_main_process_skeletons_for_plan(plan_context, stats)))
+        )
+
+    # Completion coverage is selector-global, not a per-lane quotient.  A
+    # lane's node allowance already bounds its work; dividing that allowance
+    # by a nominal per-skeleton estimate here used to stop at two seeds in a
+    # 40-node lane and prevented the remaining band policies from running.
+    skeleton_limit = CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT
+    while searches:
+        if stats.node_budget_exhausted:
+            return
+        if len(stats.constructed_main_skeletons or {}) >= skeleton_limit:
+            stats.normal_stop_reason = "TAIL_ADMISSIBLE_SKELETON_COMPLETION_LIMIT"
+            return
+        layout_family, search = searches.pop(0)
+        try:
+            item = next(search)
+        except StopIteration:
+            continue
+        yield item
+        if stats.node_budget_exhausted:
+            return
+        if len(stats.constructed_main_skeletons or {}) >= skeleton_limit:
+            stats.normal_stop_reason = "TAIL_ADMISSIBLE_SKELETON_COMPLETION_LIMIT"
+            return
+        searches.append((layout_family, search))
+
+
+def _construct_main_process_skeletons_for_plan(
+    context: _PlacementSearchContext,
+    stats: _PlacementSearchStats,
+) -> Iterator[MainProcessSkeletonCandidateV1 | _SearchQuantumYield]:
     """Build full seven-zone candidates before any support/personnel search."""
-    skeleton_completion_limit = min(
-        CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT,
-        max(1, context.node_budget // MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE),
-    )
+    # This is a selector-wide coverage ceiling.  Per-lane/context node budgets
+    # are enforced at each exact search node below; using them again to derive
+    # a lifetime completion cap starves later envelope/grid/band policies.
+    skeleton_completion_limit = CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT
     if stats.constructed_main_skeletons is None:
         stats.constructed_main_skeletons = {}
     if stats.skeleton_generation_patterns is None:
@@ -4491,7 +4641,7 @@ def _construct_main_process_skeletons(
     if stats.skeleton_construction_attempts is None:
         stats.skeleton_construction_attempts = []
     roots = _constructive_sorting_roots(context, stats)
-    emitted = 0
+    emitted = len(stats.constructed_main_skeletons)
     previous_seed_node = 0
     if stats.constructive_divergence_attempts is None:
         stats.constructive_divergence_attempts = []
@@ -4532,6 +4682,8 @@ def _construct_main_process_skeletons(
                 return
             stats.current_work_item = {
                 "topology": context.structural_topology,
+                "envelope_family": context.structured_building_plan.envelope.family,
+                "band_family": context.structured_building_plan.layout_family,
                 "family": context.structural_composition_family.to_dict(),
                 "axis": context.structural_composition_family.dominant_axis,
                 "direction": context.structural_composition_family.dominant_direction,
@@ -4588,6 +4740,8 @@ def _construct_main_process_skeletons(
                     stats.skeleton_construction_attempts.append(
                         {
                             "topology": context.structural_topology,
+                            "envelope_family": context.structured_building_plan.envelope.family,
+                            "band_family": context.structured_building_plan.layout_family,
                             "offset_direction": offset_direction,
                             "construction_attempt_index": len(stats.skeleton_construction_attempts),
                             "raw_side": raw_side,
@@ -4608,6 +4762,8 @@ def _construct_main_process_skeletons(
             stats.skeleton_construction_attempts.append(
                 {
                     "topology": context.structural_topology,
+                    "envelope_family": context.structured_building_plan.envelope.family,
+                    "band_family": context.structured_building_plan.layout_family,
                     "offset_direction": offset_direction,
                     "construction_attempt_index": len(stats.skeleton_construction_attempts),
                     "raw_side": raw_side,
@@ -4673,6 +4829,14 @@ def _canonical_tail_search_context(
         discovery_context,
         structural_composition_family=canonical_family,
         structural_skeleton=structural_skeleton,
+        structured_building_plan=construct_structured_building_plan_v1(
+            boundary=discovery_context.boundary,
+            obstacles=discovery_context.obstacles,
+            authorities=discovery_context.authorities,
+            process_axis=structural_skeleton.ordering_axis,
+            layout_family=structured_layout_family_for_topology(canonical_topology),
+            envelope_family=RECTANGLE,
+        ),
         structural_topology=canonical_topology,
         placement_zone_order=placement_zone_order,
     )
@@ -4818,6 +4982,10 @@ def _walk_complete_candidate_payloads(
             )
             payload["_structural_skeleton"] = context.structural_skeleton.to_dict()
             payload["_search_phase"] = context.search_phase
+            if context.search_phase == STRUCTURED_PHASE:
+                payload["_structured_building_plan"] = (
+                    context.structured_building_plan.with_placements(placed).to_dict()
+                )
             if main_process_skeleton is not None:
                 payload["_main_process_skeleton"] = main_process_skeleton.to_evaluation_dict()
             yield payload
@@ -4841,6 +5009,7 @@ def _walk_complete_candidate_payloads(
                 *option_arguments,
                 search_phase=context.search_phase,
                 structural_skeleton=context.structural_skeleton,
+                structured_building_plan=context.structured_building_plan,
                 zone_authorities=context.authorities,
                 truck_entrance=truck_entrance,
             )
