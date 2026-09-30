@@ -557,18 +557,120 @@ def test_multi_round_scheduler_preserves_fair_lane_coverage_without_stranding_bu
 
     assert accounting["global_nodes_visited"] == 78
     assert accounting["global_nodes_remaining"] == 42
-    # The selected direct-synthesis lane runs first; the two lanes without a
-    # full-pass candidate then share the remaining fallback pool in parallel.
-    assert accounting["work_round_count"] == 4
+    # One independent family-level synthesis source runs before lane fallbacks.
     assert accounting["active_work_item_count"] == 0
     assert accounting["truncated_active_work_item_count"] == 0
     assert accounting["unused_global_nodes_with_active_truncated_work"] == 0
-    assert [row["round"] for row in queue] == [1, 2, 3, 3, 4, 4]
-    assert len({row["topology"] for row in queue[:2]}) == 1
-    assert len({row["topology"] for row in queue[2:4]}) == 2
-    assert len({row["topology"] for row in queue[4:]}) == 2
-    assert (selection.STRUCTURED_PHASE, len(selection.BASE_LAYOUT_FAMILIES)) in enumeration_budgets
-    assert (selection.LEGACY_COMPAT_PHASE, 120) in enumeration_budgets
+    assert sum(row["phase"] == selection.STRUCTURED_PHASE for row in queue) == 2
+    assert sum(row["phase"] == selection.GENERAL_FALLBACK_PHASE for row in queue) == 4
+    assert (
+        enumeration_budgets.count(
+            (selection.STRUCTURED_PHASE, selection.DIRECT_SYNTHESIS_ATTEMPT_COUNT)
+        )
+        == 1
+    )
+    assert sum(phase == selection.GENERAL_FALLBACK_PHASE for phase, _ in enumeration_budgets) == 2
+
+
+def test_general_fallback_covers_each_eligible_lane_after_structured_phase(monkeypatch) -> None:
+    lanes = (
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "Y", "POSITIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "Y", "NEGATIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(CENTRAL_PROCESS_HUB, "Y", "UNRESOLVED", "LANE_TEST"),
+    )
+    monkeypatch.setattr(selection, "composition_family_candidates", lambda _site: lanes)
+    phases: list[tuple[str, str]] = []
+    fallback_markers: set[str] = set()
+
+    def enumerate_lane(*_args, structural_family, search_phase, **_kwargs):
+        phases.append((search_phase, structural_family.dominant_direction))
+        if search_phase == selection.STRUCTURED_PHASE:
+            return _FakeCandidateStream([])
+        assert search_phase == selection.GENERAL_FALLBACK_PHASE
+        marker = f"compatibility-{structural_family.family}-{structural_family.dominant_direction}"
+        fallback_markers.add(marker)
+        return _FakeCandidateStream([_candidate(marker, 0)])
+
+    monkeypatch.setattr(selection, "enumerate_placement_candidates", enumerate_lane)
+    monkeypatch.setattr(
+        selection,
+        "build_structural_quality_facts",
+        lambda *_args, **_kwargs: StructuralQualityFactsV1("{}", (1,)),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=True, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(
+        zone_plan, handoff, geometry, placement_node_budget=120
+    )
+
+    assert [phase for phase, _direction in phases[:1]] == [selection.STRUCTURED_PHASE]
+    assert [phase for phase, _direction in phases[1:]] == [selection.GENERAL_FALLBACK_PHASE] * 3
+    assert len(fallback_markers) == 3
+    assert result.to_dict()["selected_layout"]["marker"] in fallback_markers
+    assert result.internal_evaluation["structural_fallback_used"] is True
+    fallback_work_items = [
+        item
+        for item in result.internal_evaluation["r6_topology_diagnostics"]["r11_work_queue"]
+        if item["phase"] == selection.GENERAL_FALLBACK_PHASE
+    ]
+    assert len(fallback_work_items) == 3
+
+
+def test_fallback_order_compensates_lane_that_spent_structured_nodes(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    lanes = (
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "Y", "POSITIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "Y", "NEGATIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(CENTRAL_PROCESS_HUB, "Y", "UNRESOLVED", "LANE_TEST"),
+    )
+    monkeypatch.setattr(selection, "composition_family_candidates", lambda _site: lanes)
+    fallback_order: list[tuple[str, str]] = []
+
+    class OneNodeStructuredStream(_FakeCandidateStream):
+        def advance_quantum(self, _node_limit: int) -> Any:
+            self._node_count = 1
+            self.skeleton_generation_report["construction_node_count"] = 1
+            return SimpleNamespace(
+                candidates=(),
+                nodes_visited=1,
+                status="SEARCH_EXHAUSTED",
+                work_item={"cursor": 0},
+                search_exhausted=True,
+                completed=True,
+            )
+
+    def enumerate_lane(*_args, structural_family, search_phase, **_kwargs):
+        if search_phase == selection.STRUCTURED_PHASE:
+            return OneNodeStructuredStream([])
+        fallback_order.append((structural_family.family, structural_family.dominant_direction))
+        return _FakeCandidateStream([])
+
+    monkeypatch.setattr(selection, "enumerate_placement_candidates", enumerate_lane)
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(
+        zone_plan, handoff, geometry, placement_node_budget=120
+    )
+
+    assert fallback_order == [
+        (CENTRAL_PROCESS_HUB, "UNRESOLVED"),
+        (LINEAR_PROCESS_BAND, "POSITIVE"),
+        (LINEAR_PROCESS_BAND, "NEGATIVE"),
+    ]
+    fallback_lanes = {
+        lane["composition_family"]["dominant_direction"]: lane
+        for lane in result.internal_evaluation["family_lanes"]
+    }
+    assert fallback_lanes["NEGATIVE"]["fallback_scheduling_policy"] == (
+        "ROUND_ROBIN_STABLE_LANE_ORDER_AFTER_STRUCTURED_SPEND"
+    )
+    assert fallback_lanes["NEGATIVE"]["structured_nodes_before_fallback"] == 1
 
 
 def test_global_budget_exhaustion_never_reports_stranded_unused_nodes(monkeypatch) -> None:

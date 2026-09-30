@@ -11,6 +11,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import ROUND_CEILING, Decimal
 from functools import lru_cache
+from itertools import product
 from math import isqrt
 from typing import Final
 
@@ -109,6 +110,38 @@ def _projected_minimum_mm(authority: Mapping[str, object], axis: str) -> int:
     return side
 
 
+def _bounds_covered_by_regions(bounds: BoundsMM, regions: Sequence[BoundsMM]) -> bool:
+    """Return whether an axis-aligned rectangle is exactly covered by a region union."""
+    left, bottom, right, top = bounds
+    if right <= left or top <= bottom or not regions:
+        return False
+    x_events = {left, right}
+    for x0, _y0, x1, _y1 in regions:
+        if left < x0 < right:
+            x_events.add(x0)
+        if left < x1 < right:
+            x_events.add(x1)
+    ordered_x = sorted(x_events)
+    for slab_left, slab_right in zip(ordered_x, ordered_x[1:], strict=False):
+        if slab_left == slab_right:
+            continue
+        covered_to = bottom
+        intervals = sorted(
+            (y0, y1)
+            for x0, y0, x1, y1 in regions
+            if x0 <= slab_left and x1 >= slab_right and y1 > bottom and y0 < top
+        )
+        for interval_low, interval_high in intervals:
+            if interval_low > covered_to:
+                break
+            covered_to = max(covered_to, interval_high)
+            if covered_to >= top:
+                break
+        if covered_to < top:
+            return False
+    return True
+
+
 @dataclass(frozen=True)
 class BuildingEnvelopeV1:
     """A program-derived planned building envelope, distinct from site bounds."""
@@ -121,34 +154,7 @@ class BuildingEnvelopeV1:
     extension_reason: str | None = None
 
     def contains(self, rectangle: PlacedRectangleV1) -> bool:
-        left, bottom, right, top = rectangle.bounds_mm
-        if not self.components_mm or right <= left or top <= bottom:
-            return False
-        x_events = {left, right}
-        for x0, _y0, x1, _y1 in self.components_mm:
-            if left < x0 < right:
-                x_events.add(x0)
-            if left < x1 < right:
-                x_events.add(x1)
-        ordered_x = sorted(x_events)
-        for slab_left, slab_right in zip(ordered_x, ordered_x[1:], strict=False):
-            if slab_left == slab_right:
-                continue
-            covered_to = bottom
-            intervals = sorted(
-                (y0, y1)
-                for x0, y0, x1, y1 in self.components_mm
-                if x0 <= slab_left and x1 >= slab_right and y1 > bottom and y0 < top
-            )
-            for interval_low, interval_high in intervals:
-                if interval_low > covered_to:
-                    break
-                covered_to = max(covered_to, interval_high)
-                if covered_to >= top:
-                    break
-            if covered_to < top:
-                return False
-        return True
+        return _bounds_covered_by_regions(rectangle.bounds_mm, self.components_mm)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -237,11 +243,12 @@ class FunctionalBandV1:
     process_axis: str
     ordering_role: str
     attachment_side: str | None = None
+    transition_zone_codes: tuple[str, ...] = ()
+    regions_mm: tuple[BoundsMM, ...] = ()
 
     def contains(self, rectangle: PlacedRectangleV1) -> bool:
-        left, bottom, right, top = rectangle.bounds_mm
-        x0, y0, x1, y1 = self.bounds_mm
-        return left >= x0 and bottom >= y0 and right <= x1 and top <= y1
+        regions = self.regions_mm or (self.bounds_mm,)
+        return _bounds_covered_by_regions(rectangle.bounds_mm, regions)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -252,6 +259,8 @@ class FunctionalBandV1:
             "process_axis": self.process_axis,
             "ordering_role": self.ordering_role,
             "attachment_side": self.attachment_side,
+            "transition_zone_codes": list(self.transition_zone_codes),
+            "regions_mm": [list(bounds) for bounds in self.regions_mm],
         }
 
 
@@ -275,12 +284,15 @@ class StructuredBuildingSkeletonV1:
     zone_placements: tuple[BandZonePlacementV1, ...] = ()
     support_side: str = "WEST"
     personnel_side: str = "EAST"
+    process_direction: str = "POSITIVE"
 
     def __post_init__(self) -> None:
         if self.layout_family not in _LAYOUT_FAMILIES:
             raise _error("STRUCTURED_LAYOUT_FAMILY_INVALID", layout_family=self.layout_family)
         if self.process_axis not in {"X", "Y"}:
             raise _error("STRUCTURED_PROCESS_AXIS_INVALID")
+        if self.process_direction not in {"POSITIVE", "NEGATIVE"}:
+            raise _error("STRUCTURED_PROCESS_DIRECTION_INVALID")
         if {row.band_code for row in self.bands} != set(_BAND_GROUPS):
             raise _error("STRUCTURED_FUNCTIONAL_BAND_SET_INVALID")
 
@@ -291,8 +303,23 @@ class StructuredBuildingSkeletonV1:
         return rows[0]
 
     def admits(self, zone_code: str, rectangle: PlacedRectangleV1) -> bool:
-        return self.envelope.contains(rectangle) and self.band_for_zone(zone_code).contains(
-            rectangle
+        if not self.envelope.contains(rectangle):
+            return False
+        if self.band_for_zone(zone_code).contains(rectangle):
+            return True
+        return any(
+            zone_code in band.transition_zone_codes and band.contains(rectangle)
+            for band in self.bands
+        )
+
+    def admits_to_band(self, zone_code: str, rectangle: PlacedRectangleV1, band_code: str) -> bool:
+        if not self.envelope.contains(rectangle):
+            return False
+        band = next((row for row in self.bands if row.band_code == band_code), None)
+        return bool(
+            band is not None
+            and band.contains(rectangle)
+            and (zone_code in band.zone_codes or zone_code in band.transition_zone_codes)
         )
 
     def with_placements(
@@ -320,6 +347,7 @@ class StructuredBuildingSkeletonV1:
             tuple(rows),
             self.support_side,
             self.personnel_side,
+            self.process_direction,
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -327,6 +355,7 @@ class StructuredBuildingSkeletonV1:
             "identity": IDENTITY,
             "layout_family": self.layout_family,
             "process_axis": self.process_axis,
+            "process_direction": self.process_direction,
             "support_attachment_side": self.support_side,
             "personnel_peripheral_side": self.personnel_side,
             "envelope": self.envelope.to_dict(),
@@ -724,25 +753,229 @@ def _maximum_group_extents(
 
 
 def _program_band_extents(
-    authorities: Mapping[str, Mapping[str, object]], axis: str, shared_cross_span: int
-) -> tuple[int, int, int]:
-    """Necessary process-axis spans for the three main functional bands."""
+    authorities: Mapping[str, Mapping[str, object]],
+    axis: str,
+    shared_cross_span: int,
+    layout_family: str,
+) -> tuple[int, int, int, int]:
+    """Exact row/column capacity bounds for each complete functional band."""
+
+    cross_axis = "Y" if axis == "X" else "X"
 
     def group_extent(codes: Sequence[str]) -> int:
-        projected = max(
-            _authority_extent(authorities[code], axis)
-            if authorities[code].get("dimension_mode") != "FLEXIBLE_RECTANGLE"
-            else _minimum_turnable_extent(authorities[code])
-            for code in codes
+        options = set(_group_band_dimension_options(authorities, codes, axis, cross_axis))
+        if tuple(codes) == (
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel",
+        ):
+            options.update(_must_chain_band_dimension_options(authorities, codes, axis))
+        feasible = tuple(
+            along_extent
+            for along_extent, cross_extent in options
+            if cross_extent <= shared_cross_span
         )
-        required_area = sum(_required_area_mm2(authorities[code]) for code in codes)
-        return max(projected, _ceil_ratio(required_area, shared_cross_span))
+        if not feasible:
+            raise _error(
+                "STRUCTURED_BAND_CAPACITY_UNAVAILABLE",
+                zones=list(codes),
+                process_axis=axis,
+                shared_cross_span_mm=shared_cross_span,
+            )
+        return min(feasible)
 
-    return (
-        group_extent(FUNCTIONAL_GROUPS[RAW_SIDE_GROUP]),
-        group_extent(FUNCTIONAL_GROUPS[PROCESSING_CORE_GROUP]),
-        group_extent(FUNCTIONAL_GROUPS[FINISHED_SIDE_GROUP]),
+    raw_extent = group_extent(FUNCTIONAL_GROUPS[RAW_SIDE_GROUP])
+    if layout_family in {LINEAR_3_BAND, SIMPLE_L_SITE_ADAPTIVE}:
+        sorting_extent = group_extent(("sorting_packaging_room",))
+        core_extent = sorting_extent
+        # The finished-side band owns the authoritative MUST chain beginning
+        # at secondary precooling. Coating is a transition member of that
+        # band, so its required projection must be included exactly once.
+        finished_extent = group_extent(
+            ("secondary_precooling_room", "coating_room", "finished_goods_room", "shipping_channel")
+        )
+    else:
+        sorting_extent = min(
+            width if axis == "X" else depth
+            for width, depth in _zone_dimension_options(authorities["sorting_packaging_room"])
+        )
+        core_extent = group_extent(FUNCTIONAL_GROUPS[PROCESSING_CORE_GROUP])
+        finished_extent = group_extent(FUNCTIONAL_GROUPS[FINISHED_SIDE_GROUP])
+    return raw_extent, sorting_extent, core_extent, finished_extent
+
+
+def _zone_dimension_options(authority: Mapping[str, object]) -> tuple[tuple[int, int], ...]:
+    """Return finite exact room dimensions permitted by fixed/flexible authority."""
+    geometry = authority.get("geometry")
+    if not isinstance(geometry, Mapping):
+        side = _minimum_turnable_extent(authority)
+        return ((side, side),)
+    width_value = geometry.get("width_m")
+    depth_value = geometry.get("depth_m")
+    if width_value is None or depth_value is None:
+        side = _minimum_turnable_extent(authority)
+        return ((side, side),)
+    width = int(Decimal(str(width_value)) * 1000)
+    depth = int(Decimal(str(depth_value)) * 1000)
+    dimensions = {(width, depth), (depth, width)}
+    if authority.get("dimension_mode") == "FLEXIBLE_RECTANGLE":
+        area = _required_area_mm2(authority)
+        near = isqrt(area)
+        if near * near < area:
+            near += 1
+        for candidate_width in {width, depth, near, max(near, min(width, depth))}:
+            if candidate_width > 0:
+                candidate_depth = _ceil_ratio(area, candidate_width)
+                dimensions.update(
+                    {(candidate_width, candidate_depth), (candidate_depth, candidate_width)}
+                )
+    return tuple(sorted(dimensions))
+
+
+def _group_band_dimension_options(
+    authorities: Mapping[str, Mapping[str, object]],
+    codes: Sequence[str],
+    process_axis: str,
+    cross_axis: str,
+) -> tuple[tuple[int, int], ...]:
+    """Finite bank/column envelopes from authoritative dimensions, not event coordinates."""
+    zone_dimensions = tuple(_zone_dimension_options(authorities[code]) for code in codes)
+    options: set[tuple[int, int]] = set()
+    for dimensions in product(*zone_dimensions):
+        along = tuple(width if process_axis == "X" else depth for width, depth in dimensions)
+        cross = tuple(width if cross_axis == "X" else depth for width, depth in dimensions)
+        # Rooms form a shared-axis bank across the band, or a deterministic
+        # process-axis column.  These are the two complete, finite packings.
+        options.add((max(along), sum(cross)))
+        options.add((sum(along), max(cross)))
+    return tuple(sorted(options))
+
+
+def _must_chain_side_sequences(transition_count: int) -> tuple[tuple[str, ...], ...]:
+    """Finite straight, one-bend, and compact S-pattern MUST-chain paths."""
+    if transition_count <= 0:
+        return ()
+    sides = ("EAST", "WEST", "NORTH", "SOUTH")
+    perpendicular = {
+        "EAST": ("NORTH", "SOUTH"),
+        "WEST": ("NORTH", "SOUTH"),
+        "NORTH": ("EAST", "WEST"),
+        "SOUTH": ("EAST", "WEST"),
+    }
+    opposite = {"EAST": "WEST", "WEST": "EAST", "NORTH": "SOUTH", "SOUTH": "NORTH"}
+    rows: list[tuple[str, ...]] = [tuple((side,) * transition_count) for side in sides]
+    for initial in sides:
+        for turn in perpendicular[initial]:
+            for pivot in range(1, transition_count):
+                rows.append((initial,) * pivot + (turn,) * (transition_count - pivot))
+            if transition_count >= 3:
+                rows.append((initial, turn) + (initial,) * (transition_count - 2))
+                rows.append((initial, turn, opposite[initial]) + (turn,) * (transition_count - 3))
+    return tuple(dict.fromkeys(rows))
+
+
+def _must_chain_alignment_sequences(transition_count: int) -> tuple[tuple[str, ...], ...]:
+    """A small deterministic alignment basis for each finite chain pattern."""
+    if transition_count <= 0:
+        return ()
+    rows = [tuple((value,) * transition_count) for value in ("LOW", "CENTER", "HIGH")]
+    for index in range(transition_count):
+        for value in ("CENTER", "HIGH"):
+            row = ["LOW"] * transition_count
+            row[index] = value
+            rows.append(tuple(row))
+    return tuple(dict.fromkeys(rows))
+
+
+def _must_chain_band_dimension_options(
+    authorities: Mapping[str, Mapping[str, object]],
+    codes: Sequence[str],
+    process_axis: str,
+) -> tuple[tuple[int, int], ...]:
+    """Return exact bounding-box options for finite orthogonal MUST chains.
+
+    These dimensions are derived from authoritative room shapes and positive
+    shared-edge transitions. They allow a band to turn around a large room
+    instead of assuming every member fits one row or column.
+    """
+    if len(codes) < 2:
+        return ()
+    shape_rows: list[tuple[tuple[int, int], ...]] = []
+    for code in codes:
+        shapes = {
+            (width if rotation == 0 else depth, depth if rotation == 0 else width)
+            for width, depth in _zone_dimension_options(authorities[code])
+            for rotation in (0, 90)
+        }
+        shape_rows.append(tuple(sorted(shapes)))
+    if any(not rows for rows in shape_rows):
+        return ()
+
+    dimensions: set[tuple[int, int]] = set()
+    side_sequences = _must_chain_side_sequences(len(codes) - 1)
+    alignment_sequences = _must_chain_alignment_sequences(len(codes) - 1)
+    for shape_combination in product(*shape_rows):
+        for side_sequence in side_sequences:
+            for alignment_sequence in alignment_sequences:
+                first_width, first_height = shape_combination[0]
+                placed = [(0, 0, first_width, first_height)]
+                for index, (side, alignment) in enumerate(
+                    zip(side_sequence, alignment_sequence, strict=True), start=1
+                ):
+                    left, bottom, right, top = placed[-1]
+                    width, height = shape_combination[index]
+                    if side in {"EAST", "WEST"}:
+                        y = (
+                            bottom
+                            if alignment == "LOW"
+                            else top - height
+                            if alignment == "HIGH"
+                            else bottom + (top - bottom - height) // 2
+                        )
+                        x = right if side == "EAST" else left - width
+                    else:
+                        x = (
+                            left
+                            if alignment == "LOW"
+                            else right - width
+                            if alignment == "HIGH"
+                            else left + (right - left - width) // 2
+                        )
+                        y = top if side == "NORTH" else bottom - height
+                    candidate = (x, y, x + width, y + height)
+                    shared = (
+                        min(right, candidate[2]) > max(left, candidate[0])
+                        if side in {"NORTH", "SOUTH"}
+                        else min(top, candidate[3]) > max(bottom, candidate[1])
+                    )
+                    if not shared or any(
+                        candidate[0] < old[2]
+                        and candidate[2] > old[0]
+                        and candidate[1] < old[3]
+                        and candidate[3] > old[1]
+                        for old in placed
+                    ):
+                        break
+                    placed.append(candidate)
+                if len(placed) != len(codes):
+                    continue
+                dimensions.add(
+                    (
+                        max(row[2] for row in placed) - min(row[0] for row in placed),
+                        max(row[3] for row in placed) - min(row[1] for row in placed),
+                    )
+                )
+    pareto = tuple(
+        sorted(
+            row
+            for row in dimensions
+            if not any(
+                other != row and other[0] <= row[0] and other[1] <= row[1] for other in dimensions
+            )
+        )
     )
+    return tuple((height, width) for width, height in pareto) if process_axis == "Y" else pareto
 
 
 def _authority_projection(authority: Mapping[str, object], axis: str) -> int:
@@ -775,27 +1008,30 @@ def _minimum_turnable_extent(authority: Mapping[str, object]) -> int:
 
 
 def _peripheral_band_dimensions(
-    authorities: Mapping[str, Mapping[str, object]], group_code: str
+    authorities: Mapping[str, Mapping[str, object]], group_code: str, side: str
 ) -> tuple[int, int]:
-    """Return exact short-side thickness and summed long-side room span."""
-    short_sides: list[int] = []
-    length = 0
-    for code in FUNCTIONAL_GROUPS[group_code]:
-        geometry = authorities[code].get("geometry")
-        if isinstance(geometry, Mapping):
-            width = geometry.get("width_m")
-            depth = geometry.get("depth_m")
-        else:
-            width = depth = None
-        if width is None or depth is None:
-            side = _minimum_turnable_extent(authorities[code])
-            width_mm = depth_mm = side
-        else:
-            width_mm = int(Decimal(str(width)) * 1000)
-            depth_mm = int(Decimal(str(depth)) * 1000)
-        short_sides.append(min(width_mm, depth_mm))
-        length += max(width_mm, depth_mm)
-    return max(short_sides), length
+    """Return a finite row/column bank bound oriented for its exterior side.
+
+    Summing each room's long side forced support/personnel into a single
+    overlong row and inflated the whole-building envelope. These bands are
+    jointly packed as one of the same exact row/column compositions used by
+    the direct synthesizer; dimensions remain authority-derived.
+    """
+    if side not in {"WEST", "EAST", "NORTH", "SOUTH"}:
+        raise _error("STRUCTURED_PERIPHERAL_BAND_SIDE_INVALID", side=side)
+    options = _group_band_dimension_options(
+        authorities,
+        FUNCTIONAL_GROUPS[group_code],
+        "X",
+        "Y",
+    )
+    if not options:
+        raise _error("STRUCTURED_PERIPHERAL_BAND_PACKING_UNAVAILABLE", group=group_code)
+    width_mm, height_mm = min(
+        options,
+        key=lambda row: (row[0] * row[1], max(row), row[0], row[1]),
+    )
+    return (width_mm, height_mm) if side in {"WEST", "EAST"} else (height_mm, width_mm)
 
 
 def _required_area_mm2(authority: Mapping[str, object]) -> int:
@@ -851,44 +1087,26 @@ def _program_envelope_dimensions(
     site bounding box.
     """
     cross_axis = "Y" if process_axis == "X" else "X"
-    core_cross = max(
-        _authority_extent(authorities[code], cross_axis)
-        if authorities[code].get("dimension_mode") != "FLEXIBLE_RECTANGLE"
-        else _minimum_turnable_extent(authorities[code])
-        for code in FUNCTIONAL_GROUPS[PROCESSING_CORE_GROUP]
-    )
-    raw_cross = max(
-        _minimum_turnable_extent(authorities[code]) for code in FUNCTIONAL_GROUPS[RAW_SIDE_GROUP]
-    )
-    finished_cross = max(
-        _minimum_turnable_extent(authorities[code])
-        for code in FUNCTIONAL_GROUPS[FINISHED_SIDE_GROUP]
-    )
-    main_cross = max(core_cross, raw_cross, finished_cross)
-    support_width, support_length = _peripheral_band_dimensions(authorities, SUPPORT_GROUP)
-    personnel_width, personnel_length = _peripheral_band_dimensions(authorities, PERSONNEL_GROUP)
-    band_extents = _program_band_extents(authorities, process_axis, main_cross)
-    if layout_family in {LINEAR_3_BAND, SIMPLE_L_SITE_ADAPTIVE}:
-        main_flow_extent = sum(band_extents)
-    elif layout_family == CENTRAL_PROCESS_WITH_SIDE_BANKS:
-        raw_extent, core_extent, finished_extent = band_extents
-        main_flow_extent = max(core_extent, 2 * max(raw_extent, finished_extent))
-    elif layout_family == LONGITUDINAL_PROCESS_SPINE:
-        main_flow_extent = max(band_extents)
-    else:
+    if layout_family not in _LAYOUT_FAMILIES:
         raise _error("STRUCTURED_LAYOUT_FAMILY_INVALID", layout_family=layout_family)
-    main_cross_extent = max(
-        _authority_extent(authorities[code], cross_axis)
-        if authorities[code].get("dimension_mode") != "FLEXIBLE_RECTANGLE"
-        else _minimum_turnable_extent(authorities[code])
-        for group in (RAW_SIDE_GROUP, PROCESSING_CORE_GROUP, FINISHED_SIDE_GROUP)
-        for code in FUNCTIONAL_GROUPS[group]
+    groups = (
+        FUNCTIONAL_GROUPS[RAW_SIDE_GROUP],
+        ("sorting_packaging_room",)
+        if layout_family in {LINEAR_3_BAND, SIMPLE_L_SITE_ADAPTIVE}
+        else FUNCTIONAL_GROUPS[PROCESSING_CORE_GROUP],
+        (
+            ("secondary_precooling_room", "coating_room", "finished_goods_room", "shipping_channel")
+            if layout_family in {LINEAR_3_BAND, SIMPLE_L_SITE_ADAPTIVE}
+            else FUNCTIONAL_GROUPS[FINISHED_SIDE_GROUP]
+        ),
     )
-    width_mm, height_mm = (
-        (main_flow_extent, main_cross_extent)
-        if process_axis == "X"
-        else (main_cross_extent, main_flow_extent)
-    )
+    group_option_rows: list[tuple[tuple[int, int], ...]] = []
+    for index, group in enumerate(groups):
+        options = set(_group_band_dimension_options(authorities, group, process_axis, cross_axis))
+        if index == 2 and layout_family in {LINEAR_3_BAND, SIMPLE_L_SITE_ADAPTIVE}:
+            options.update(_must_chain_band_dimension_options(authorities, group, process_axis))
+        group_option_rows.append(tuple(sorted(options)))
+    group_options = tuple(group_option_rows)
     selected_support_side = (
         support_side
         or {
@@ -898,23 +1116,58 @@ def _program_envelope_dimensions(
             "SOUTH": "NORTH",
         }[personnel_side]
     )
-    if include_peripheral_strips:
-        for side, strip, length in (
-            (selected_support_side, support_width, support_length),
-            (personnel_side, personnel_width, personnel_length),
-        ):
-            if side in {"WEST", "EAST"}:
-                width_mm += strip
-                height_mm = max(height_mm, length)
-            else:
-                height_mm += strip
-                width_mm = max(width_mm, length)
-    total_program_area = sum(_required_area_mm2(row) for row in authorities.values())
-    if width_mm * height_mm < total_program_area:
-        if process_axis == "X":
-            height_mm = _ceil_ratio(total_program_area, width_mm)
+    support_width, support_length = _peripheral_band_dimensions(
+        authorities, SUPPORT_GROUP, selected_support_side
+    )
+    personnel_width, personnel_length = _peripheral_band_dimensions(
+        authorities, PERSONNEL_GROUP, personnel_side
+    )
+    candidates: list[tuple[tuple[int, int, int, tuple[int, ...]], tuple[int, int]]] = []
+    for raw, core, finished in product(*group_options):
+        if layout_family in {LINEAR_3_BAND, SIMPLE_L_SITE_ADAPTIVE}:
+            # Compose three complete functional bands. Each option is an
+            # exact finite row/column packing of that band's authoritative
+            # rectangles; do not overstate the body as one serial room chain.
+            main_flow_extent = raw[0] + core[0] + finished[0]
+            main_cross_extent = max(raw[1], core[1], finished[1])
+        elif layout_family == CENTRAL_PROCESS_WITH_SIDE_BANKS:
+            main_flow_extent = max(core[0], 2 * max(raw[0], finished[0]))
+            main_cross_extent = max(raw[1], core[1], finished[1])
         else:
-            width_mm = _ceil_ratio(total_program_area, height_mm)
+            main_flow_extent = max(raw[0], core[0], finished[0])
+            main_cross_extent = max(core[1], raw[1] + finished[1])
+        width_mm, height_mm = (
+            (main_flow_extent, main_cross_extent)
+            if process_axis == "X"
+            else (main_cross_extent, main_flow_extent)
+        )
+        if include_peripheral_strips:
+            for side, strip, length in (
+                (selected_support_side, support_width, support_length),
+                (personnel_side, personnel_width, personnel_length),
+            ):
+                if side in {"WEST", "EAST"}:
+                    width_mm += strip
+                    height_mm = max(height_mm, length)
+                else:
+                    height_mm += strip
+                    width_mm = max(width_mm, length)
+        area = sum(_required_area_mm2(row) for row in authorities.values())
+        if width_mm * height_mm < area:
+            if process_axis == "X":
+                height_mm = _ceil_ratio(area, width_mm)
+            else:
+                width_mm = _ceil_ratio(area, height_mm)
+        score = (
+            width_mm * height_mm,
+            max(width_mm, height_mm),
+            min(width_mm, height_mm),
+            (raw[0], raw[1], core[0], core[1], finished[0], finished[1]),
+        )
+        candidates.append((score, (width_mm, height_mm)))
+    if not candidates:
+        raise _error("STRUCTURED_PROGRAM_BAND_PACKING_UNAVAILABLE")
+    width_mm, height_mm = min(candidates, key=lambda row: row[0])[1]
     return width_mm, height_mm
 
 
@@ -1017,7 +1270,7 @@ def _band_bounds(
     group_band: str,
     envelope: BoundsMM,
     axis: str,
-    extents: tuple[int, int, int],
+    extents: tuple[int, int, int] | tuple[int, int, int, int],
     cross_extents: tuple[int, int, int],
     *,
     main_bounds: BoundsMM,
@@ -1029,12 +1282,17 @@ def _band_bounds(
     personnel_length: int,
     main_entrance: SegmentMM | None,
     envelope_components: tuple[BoundsMM, ...],
+    process_direction: str = "POSITIVE",
 ) -> BoundsMM:
     x0, y0, x1, y1 = main_bounds
     low = x0 if axis == "X" else y0
     high = x1 if axis == "X" else y1
     span = high - low
-    raw, core, finished = extents
+    if len(extents) == 3:
+        raw, core, finished = extents
+        sorting = core
+    else:
+        raw, sorting, core, finished = extents
 
     if group_band in {SUPPORT_BAND, PERSONNEL_EDGE_BAND}:
         side = support_side if group_band == SUPPORT_BAND else personnel_side
@@ -1090,16 +1348,28 @@ def _band_bounds(
         # The linear family owns three ordered process-axis intervals inside
         # the central building body. Transition bands overlap by dimensions
         # derived from the frozen room program, not by visual thresholds.
-        if group_band == RAW_SIDE_BAND:
-            lo, hi = low, min(high, low + raw)
-        elif group_band == PROCESS_CORE_BAND:
-            lo = max(low, low + raw)
-            hi = min(high, lo + core)
-        elif group_band == FINISHED_SIDE_BAND:
-            lo = max(low, high - finished)
-            hi = high
+        if process_direction == "POSITIVE":
+            if group_band == RAW_SIDE_BAND:
+                lo, hi = low, min(high, low + raw)
+            elif group_band == PROCESS_CORE_BAND:
+                lo = max(low, low + raw)
+                hi = min(high, lo + core)
+            elif group_band == FINISHED_SIDE_BAND:
+                lo = min(high, low + raw + sorting)
+                hi = min(high, lo + finished)
+            else:
+                raise _error("STRUCTURED_BAND_FAMILY_INVALID", band_code=group_band)
         else:
-            raise _error("STRUCTURED_BAND_FAMILY_INVALID", band_code=group_band)
+            if group_band == RAW_SIDE_BAND:
+                lo, hi = max(low, high - raw), high
+            elif group_band == PROCESS_CORE_BAND:
+                hi = min(high, high - raw)
+                lo = max(low, hi - core)
+            elif group_band == FINISHED_SIDE_BAND:
+                hi = max(low, high - raw - sorting)
+                lo = max(low, hi - finished)
+            else:
+                raise _error("STRUCTURED_BAND_FAMILY_INVALID", band_code=group_band)
         if axis == "X":
             return lo, y0, hi, y1
         return x0, lo, x1, hi
@@ -1115,7 +1385,11 @@ def _band_bounds(
             cross_b = min(cross_high, cross_a + core_cross)
             return (x0, cross_a, x1, cross_b) if axis == "X" else (cross_a, y0, cross_b, y1)
         if group_band == RAW_SIDE_BAND:
-            axis_a, axis_b = low, min(high, axis_middle)
+            axis_a, axis_b = (
+                (low, min(high, axis_middle))
+                if process_direction == "POSITIVE"
+                else (max(low, axis_middle), high)
+            )
             return (
                 (axis_a, cross_low, axis_b, cross_high)
                 if axis == "X"
@@ -1127,7 +1401,11 @@ def _band_bounds(
                 )
             )
         if group_band == FINISHED_SIDE_BAND:
-            axis_a, axis_b = max(low, axis_middle), high
+            axis_a, axis_b = (
+                (max(low, axis_middle), high)
+                if process_direction == "POSITIVE"
+                else (low, min(high, axis_middle))
+            )
             return (
                 (axis_a, cross_low, axis_b, cross_high)
                 if axis == "X"
@@ -1213,6 +1491,7 @@ def construct_structured_building_plan_v1(
     obstacles: Sequence[PolygonMM],
     authorities: Mapping[str, Mapping[str, object]],
     process_axis: str,
+    process_direction: str = "POSITIVE",
     layout_family: str,
     envelope_family: str = RECTANGLE,
     main_entrance: SegmentMM | None = None,
@@ -1223,6 +1502,8 @@ def construct_structured_building_plan_v1(
     """Create the envelope, event grid, then bands before any zone is placed."""
     if process_axis not in {"X", "Y"}:
         raise _error("STRUCTURED_PROCESS_AXIS_INVALID")
+    if process_direction not in {"POSITIVE", "NEGATIVE"}:
+        raise _error("STRUCTURED_PROCESS_DIRECTION_INVALID")
     if layout_family not in _LAYOUT_FAMILIES:
         raise _error("STRUCTURED_LAYOUT_FAMILY_INVALID", layout_family=layout_family)
     site_bounds = _site_bounds(boundary)
@@ -1236,8 +1517,17 @@ def construct_structured_building_plan_v1(
     selected_support_side = support_side or default_support_side
     if selected_support_side not in {"WEST", "EAST", "NORTH", "SOUTH"}:
         raise _error("STRUCTURED_SUPPORT_SIDE_INVALID", support_side=selected_support_side)
-    support_width, support_length = _peripheral_band_dimensions(authorities, SUPPORT_GROUP)
-    personnel_width, personnel_length = _peripheral_band_dimensions(authorities, PERSONNEL_GROUP)
+    if selected_support_side == personnel_side:
+        raise _error(
+            "STRUCTURED_PERIPHERAL_BANDS_OVERLAP",
+            side=selected_support_side,
+        )
+    support_width, support_length = _peripheral_band_dimensions(
+        authorities, SUPPORT_GROUP, selected_support_side
+    )
+    personnel_width, personnel_length = _peripheral_band_dimensions(
+        authorities, PERSONNEL_GROUP, personnel_side
+    )
     if envelope_family == RECTANGLE:
         envelope_bounds = _program_envelope_bounds(
             authorities,
@@ -1327,7 +1617,7 @@ def construct_structured_building_plan_v1(
     # axis, not the shorter side of a room.  The previous min-side projection
     # made a rotated coating room fall outside the core band even when its
     # exact geometry and process adjacency were valid.
-    extents = _maximum_group_extents(authorities, process_axis)
+    initial_extents = _maximum_group_extents(authorities, process_axis)
     cross_axis = "Y" if process_axis == "X" else "X"
     cross_extents = _maximum_group_extents(authorities, cross_axis)
     support_side_bounds = _band_bounds(
@@ -1335,7 +1625,7 @@ def construct_structured_building_plan_v1(
         SUPPORT_BAND,
         envelope_bounds,
         process_axis,
-        extents,
+        initial_extents,
         cross_extents,
         main_bounds=envelope_bounds,
         support_side=selected_support_side,
@@ -1346,13 +1636,14 @@ def construct_structured_building_plan_v1(
         personnel_length=personnel_length,
         main_entrance=main_entrance,
         envelope_components=envelope.components_mm,
+        process_direction=process_direction,
     )
     personnel_side_bounds = _band_bounds(
         layout_family,
         PERSONNEL_EDGE_BAND,
         envelope_bounds,
         process_axis,
-        extents,
+        initial_extents,
         cross_extents,
         main_bounds=envelope_bounds,
         support_side=selected_support_side,
@@ -1363,12 +1654,50 @@ def construct_structured_building_plan_v1(
         personnel_length=personnel_length,
         main_entrance=main_entrance,
         envelope_components=envelope.components_mm,
+        process_direction=process_direction,
     )
-    main_bounds = envelope_bounds
+    main_bounds_values = list(envelope_bounds)
+    for side, side_bounds in (
+        (selected_support_side, support_side_bounds),
+        (personnel_side, personnel_side_bounds),
+    ):
+        band_x0, band_y0, band_x1, band_y1 = side_bounds
+        # A finite peripheral band must not reserve its entire envelope side.
+        # Only a band that spans the full opposite axis removes that whole
+        # edge from the main body; localized rows remain exact geometry
+        # obstacles during joint packing instead of shrinking every process
+        # band by an unrelated full-edge strip.
+        if (
+            side in {"WEST", "EAST"}
+            and band_y0 <= envelope_bounds[1]
+            and band_y1 >= envelope_bounds[3]
+        ):
+            if side == "WEST":
+                main_bounds_values[0] = max(main_bounds_values[0], band_x1)
+            else:
+                main_bounds_values[2] = min(main_bounds_values[2], band_x0)
+        elif (
+            side in {"SOUTH", "NORTH"}
+            and band_x0 <= envelope_bounds[0]
+            and band_x1 >= envelope_bounds[2]
+        ):
+            if side == "SOUTH":
+                main_bounds_values[1] = max(main_bounds_values[1], band_y1)
+            else:
+                main_bounds_values[3] = min(main_bounds_values[3], band_y0)
+    main_bounds = (
+        main_bounds_values[0],
+        main_bounds_values[1],
+        main_bounds_values[2],
+        main_bounds_values[3],
+    )
+    if main_bounds[0] >= main_bounds[2] or main_bounds[1] >= main_bounds[3]:
+        raise _error("STRUCTURED_MAIN_PROGRAM_BOUNDS_EMPTY")
     extents = _program_band_extents(
         authorities,
         process_axis,
         main_bounds[3] - main_bounds[1] if process_axis == "X" else main_bounds[2] - main_bounds[0],
+        layout_family,
     )
     raw_band = _band_bounds(
         layout_family,
@@ -1386,6 +1715,7 @@ def construct_structured_building_plan_v1(
         personnel_length=personnel_length,
         main_entrance=main_entrance,
         envelope_components=envelope.components_mm,
+        process_direction=process_direction,
     )
     process_band = _band_bounds(
         layout_family,
@@ -1403,6 +1733,7 @@ def construct_structured_building_plan_v1(
         personnel_length=personnel_length,
         main_entrance=main_entrance,
         envelope_components=envelope.components_mm,
+        process_direction=process_direction,
     )
     finished_band = _band_bounds(
         layout_family,
@@ -1420,6 +1751,7 @@ def construct_structured_building_plan_v1(
         personnel_length=personnel_length,
         main_entrance=main_entrance,
         envelope_components=envelope.components_mm,
+        process_direction=process_direction,
     )
     if required_terminal_rectangle is not None:
         if not envelope.contains(required_terminal_rectangle):
@@ -1434,7 +1766,7 @@ def construct_structured_building_plan_v1(
             max(right, terminal_right),
             max(top, terminal_top),
         )
-    band_bounds = {
+    band_bounds_by_code = {
         RAW_SIDE_BAND: raw_band,
         PROCESS_CORE_BAND: process_band,
         FINISHED_SIDE_BAND: finished_band,
@@ -1500,10 +1832,264 @@ def construct_structured_building_plan_v1(
             band_code,
             group_code,
             tuple(FUNCTIONAL_GROUPS[group_code]),
-            band_bounds[band_code],
+            band_bounds_by_code[band_code],
             process_axis,
             ordering_role,
             selected_support_side
+            if band_code == SUPPORT_BAND
+            else personnel_side
+            if band_code == PERSONNEL_EDGE_BAND
+            else None,
+            ("coating_room",)
+            if band_code == FINISHED_SIDE_BAND and layout_family in BASE_LAYOUT_FAMILIES
+            else (),
+            tuple(
+                sorted(
+                    (
+                        max(band_bounds_by_code[band_code][0], component[0]),
+                        max(band_bounds_by_code[band_code][1], component[1]),
+                        min(band_bounds_by_code[band_code][2], component[2]),
+                        min(band_bounds_by_code[band_code][3], component[3]),
+                    )
+                    for component in envelope.components_mm
+                    if min(band_bounds_by_code[band_code][2], component[2])
+                    > max(band_bounds_by_code[band_code][0], component[0])
+                    and min(band_bounds_by_code[band_code][3], component[3])
+                    > max(band_bounds_by_code[band_code][1], component[1])
+                )
+            ),
+        )
+        for band_code, group_code, ordering_role in (
+            (RAW_SIDE_BAND, RAW_SIDE_GROUP, "UPSTREAM"),
+            (PROCESS_CORE_BAND, PROCESSING_CORE_GROUP, "CORE"),
+            (FINISHED_SIDE_BAND, FINISHED_SIDE_GROUP, "DOWNSTREAM"),
+            (SUPPORT_BAND, SUPPORT_GROUP, "SUBORDINATE_BRANCH"),
+            (PERSONNEL_EDGE_BAND, PERSONNEL_GROUP, "PERIPHERAL"),
+        )
+    )
+    return StructuredBuildingSkeletonV1(
+        layout_family,
+        process_axis,
+        envelope,
+        grid,
+        bands,
+        support_side=selected_support_side,
+        personnel_side=personnel_side,
+        process_direction=process_direction,
+    )
+
+
+def construct_legacy_compatibility_search_plan_v1(
+    *,
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+    authorities: Mapping[str, Mapping[str, object]],
+    process_axis: str,
+    process_direction: str,
+    layout_family: str,
+    main_entrance: SegmentMM,
+) -> StructuredBuildingSkeletonV1:
+    """Recreate the pre-R2 band context for the isolated compatibility phase.
+
+    The returned envelope is explicitly a whole-site *search domain*, not a
+    building envelope. Direct R2 candidates use the program-derived planner;
+    this version preserves the old topology-lane/root search without letting
+    new envelope admission rules change legacy candidate reachability.
+    """
+    if process_axis not in {"X", "Y"}:
+        raise _error("STRUCTURED_PROCESS_AXIS_INVALID")
+    if process_direction not in {"POSITIVE", "NEGATIVE"}:
+        raise _error("STRUCTURED_PROCESS_DIRECTION_INVALID")
+    if layout_family not in _LAYOUT_FAMILIES:
+        raise _error("STRUCTURED_LAYOUT_FAMILY_INVALID", layout_family=layout_family)
+    bounds = _site_bounds(boundary)
+    x0, y0, x1, y1 = bounds
+    if main_entrance[0][0] == main_entrance[1][0]:
+        personnel_side = (
+            "WEST" if abs(main_entrance[0][0] - x0) <= abs(main_entrance[0][0] - x1) else "EAST"
+        )
+    elif main_entrance[0][1] == main_entrance[1][1]:
+        personnel_side = (
+            "SOUTH" if abs(main_entrance[0][1] - y0) <= abs(main_entrance[0][1] - y1) else "NORTH"
+        )
+    else:
+        personnel_side = "EAST"
+    support_side = {"WEST": "EAST", "EAST": "WEST", "NORTH": "SOUTH", "SOUTH": "NORTH"}[
+        personnel_side
+    ]
+    envelope = BuildingEnvelopeV1(
+        "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        bounds,
+        (bounds,),
+        tuple(obstacles),
+        bounds,
+        "SITE_SEARCH_REGION_ONLY_NOT_A_BUILDING_ENVELOPE",
+    )
+
+    x_axes = {x0, x1, *(point[0] for point in boundary)}
+    y_axes = {y0, y1, *(point[1] for point in boundary)}
+    for obstacle in obstacles:
+        x_axes.update(point[0] for point in obstacle)
+        y_axes.update(point[1] for point in obstacle)
+    extents = _maximum_group_extents(authorities, process_axis)
+    cross_axis = "Y" if process_axis == "X" else "X"
+    cross_extents = _maximum_group_extents(authorities, cross_axis)
+    x_axes.update(
+        coordinate
+        for coordinate in (
+            x0 + _authority_projection(authorities["raw_fruit_buffer"], "X"),
+            x0
+            + _authority_projection(authorities["raw_fruit_buffer"], "X")
+            + _authority_projection(authorities["primary_precooling_room"], "X"),
+            x0
+            + _authority_projection(authorities["raw_fruit_buffer"], "X")
+            + _authority_projection(authorities["sorting_packaging_room"], "X"),
+        )
+        if x0 < coordinate < x1
+    )
+    y_offset = 0
+    for extent in (
+        max(
+            _authority_projection(authorities[code], "Y")
+            for code in FUNCTIONAL_GROUPS[RAW_SIDE_GROUP]
+        ),
+        _authority_projection(authorities["sorting_packaging_room"], "Y"),
+        _authority_projection(authorities["secondary_precooling_room"], "Y"),
+        _authority_projection(authorities["finished_goods_room"], "Y"),
+    ):
+        y_offset += extent
+        if y0 < y0 + y_offset < y1:
+            y_axes.add(y0 + y_offset)
+    low, high = (x0, x1) if process_axis == "X" else (y0, y1)
+    if layout_family == LINEAR_3_BAND:
+        raw, core, finished = extents
+        for cut in (low + raw, low + raw + core, low + raw + core + finished):
+            if low < cut < high:
+                (x_axes if process_axis == "X" else y_axes).add(cut)
+    event_x, event_y = set(x_axes), set(y_axes)
+    for authority in authorities.values():
+        geometry = authority.get("geometry")
+        if not isinstance(geometry, Mapping):
+            continue
+        for key in ("width_m", "depth_m"):
+            value = geometry.get(key)
+            if value is None:
+                continue
+            extent = int(Decimal(str(value)) * 1000)
+            event_x.update(coordinate + sign * extent for coordinate in x_axes for sign in (-1, 1))
+            event_y.update(coordinate + sign * extent for coordinate in y_axes for sign in (-1, 1))
+    event_x = {value for value in event_x if x0 <= value <= x1}
+    event_y = {value for value in event_y if y0 <= value <= y1}
+    grid = PrimaryGridV1(
+        tuple(sorted(x_axes)), tuple(sorted(y_axes)), tuple(sorted(event_x)), tuple(sorted(event_y))
+    )
+
+    def legacy_band_bounds(band_code: str) -> BoundsMM:
+        axis_low, axis_high = (x0, x1) if process_axis == "X" else (y0, y1)
+        axis_span = axis_high - axis_low
+        raw, core, finished = extents
+        if layout_family == LINEAR_3_BAND:
+            if band_code == RAW_SIDE_BAND:
+                lo, hi = axis_low, min(axis_high, axis_low + raw + core // 2)
+            elif band_code == PROCESS_CORE_BAND:
+                lo, hi = (
+                    max(axis_low, axis_low + raw // 2),
+                    min(axis_high, axis_low + raw + core + finished),
+                )
+            elif band_code == FINISHED_SIDE_BAND:
+                lo, hi = max(axis_low, axis_low + raw + core // 2), axis_high
+            else:
+                lo, hi = axis_low, axis_high
+            return (lo, y0, hi, y1) if process_axis == "X" else (x0, lo, x1, hi)
+
+        cross_low, cross_high = (y0, y1) if process_axis == "X" else (x0, x1)
+        cross_span = cross_high - cross_low
+        middle = axis_low + axis_span // 2
+        if layout_family == CENTRAL_PROCESS_WITH_SIDE_BANKS:
+            if band_code == PROCESS_CORE_BAND:
+                span = min(
+                    cross_span, cross_extents[1] + min(cross_extents[0], cross_extents[2]) // 2
+                )
+                cross_a = cross_low + max(0, (cross_span - span) // 2)
+                cross_b = min(cross_high, cross_a + span)
+                return (
+                    (x0, cross_a, x1, cross_b)
+                    if process_axis == "X"
+                    else (cross_a, y0, cross_b, y1)
+                )
+            if band_code == RAW_SIDE_BAND:
+                a, b = axis_low, min(axis_high, middle + core // 2)
+            elif band_code == FINISHED_SIDE_BAND:
+                a, b = max(axis_low, middle - core // 2), axis_high
+            else:
+                return bounds
+            return (
+                (a, cross_low, b, cross_high)
+                if process_axis == "X"
+                else (cross_low, a, cross_high, b)
+            )
+
+        if layout_family == LONGITUDINAL_PROCESS_SPINE:
+            raw_cross, core_cross, finished_cross = cross_extents
+            span = min(cross_span, core_cross + min(raw_cross, finished_cross) // 2)
+            half = span // 2
+            cross_middle = cross_low + cross_span // 2
+            cross_a = max(cross_low, cross_middle - half)
+            cross_b = min(cross_high, cross_middle + half)
+            if band_code == PROCESS_CORE_BAND:
+                return (
+                    (axis_low, cross_a, axis_high, cross_b)
+                    if process_axis == "X"
+                    else (cross_a, axis_low, cross_b, axis_high)
+                )
+            if band_code == RAW_SIDE_BAND:
+                return (
+                    (axis_low, cross_low, axis_high, cross_b)
+                    if process_axis == "X"
+                    else (cross_low, axis_low, cross_b, axis_high)
+                )
+            if band_code == FINISHED_SIDE_BAND:
+                return (
+                    (axis_low, cross_a, axis_high, cross_high)
+                    if process_axis == "X"
+                    else (cross_a, axis_low, cross_high, axis_high)
+                )
+            return bounds
+
+        if band_code == PROCESS_CORE_BAND:
+            required = min(core, cross_span)
+            cross_middle = cross_low + cross_span // 2
+            cross_a = max(cross_low, cross_middle - required // 2)
+            cross_b = min(cross_high, cross_a + required)
+            return (
+                (axis_low, cross_a, axis_high, cross_b)
+                if process_axis == "X"
+                else (cross_a, axis_low, cross_b, axis_high)
+            )
+        if band_code in {RAW_SIDE_BAND, FINISHED_SIDE_BAND}:
+            half = min(core, cross_span) // 2
+            cross_middle = cross_low + cross_span // 2
+            cross_a, cross_b = (
+                (cross_low, min(cross_high, cross_middle + half))
+                if band_code == RAW_SIDE_BAND
+                else (max(cross_low, cross_middle - half), cross_high)
+            )
+            return (
+                (axis_low, cross_a, axis_high, cross_b)
+                if process_axis == "X"
+                else (cross_a, axis_low, cross_b, axis_high)
+            )
+        return bounds
+
+    bands = tuple(
+        FunctionalBandV1(
+            band_code,
+            group_code,
+            tuple(FUNCTIONAL_GROUPS[group_code]),
+            legacy_band_bounds(band_code),
+            process_axis,
+            ordering_role,
+            support_side
             if band_code == SUPPORT_BAND
             else personnel_side
             if band_code == PERSONNEL_EDGE_BAND
@@ -1523,14 +2109,31 @@ def construct_structured_building_plan_v1(
         envelope,
         grid,
         bands,
-        support_side=selected_support_side,
+        support_side=support_side,
         personnel_side=personnel_side,
+        process_direction=process_direction,
     )
 
 
 def zone_band_assignment(zone_code: str) -> str:
     group = functional_group_for_zone(zone_code)
     return next(band for band, band_group in _BAND_GROUPS.items() if band_group == group)
+
+
+def structured_layout_family_for_topology(topology: str) -> str:
+    """Resolve the historical topology lane plan used by compatibility search.
+
+    The direct structured phase enumerates layout families independently. This
+    mapping remains only for the GENERAL_FALLBACK compatibility phase, which
+    must preserve the pre-R2 lane-specific skeleton search behavior.
+    """
+    if topology == "STRAIGHT_LINEAR_BAND":
+        return LINEAR_3_BAND
+    if topology == "OFFSET_LINEAR_BAND":
+        return LONGITUDINAL_PROCESS_SPINE
+    if topology == "CENTRAL_PROCESS_HUB":
+        return CENTRAL_PROCESS_WITH_SIDE_BANKS
+    raise _error("MAIN_PROCESS_TOPOLOGY_INVALID")
 
 
 __all__ = [
@@ -1552,6 +2155,8 @@ __all__ = [
     "SIMPLE_L_SITE_ADAPTIVE",
     "SUPPORT_BAND",
     "StructuredBuildingSkeletonV1",
+    "construct_legacy_compatibility_search_plan_v1",
     "construct_structured_building_plan_v1",
+    "structured_layout_family_for_topology",
     "zone_band_assignment",
 ]

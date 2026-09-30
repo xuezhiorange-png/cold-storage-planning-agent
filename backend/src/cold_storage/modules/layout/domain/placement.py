@@ -15,10 +15,12 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from decimal import Context, Decimal, InvalidOperation, localcontext
 from fractions import Fraction
+from itertools import product
 from math import isqrt
 from typing import Any, Final, cast
 
 from cold_storage.modules.layout.domain.adjacency import AdjacencyGraphV1
+from cold_storage.modules.layout.domain.building_footprint import derive_building_footprint
 from cold_storage.modules.layout.domain.dimensioning import (
     LayoutAuthorityError,
     canonical_hash,
@@ -46,7 +48,6 @@ from cold_storage.modules.layout.domain.site_geometry import (
     PlacedRectangleV1,
     PolygonMM,
     SegmentMM,
-    derive_building_footprint,
     normalize_polygon,
     normalize_segment,
     polygon_to_dict,
@@ -86,7 +87,12 @@ from cold_storage.modules.layout.domain.structured_building import (
     SIMPLE_L,
     SUPPORT_BAND,
     StructuredBuildingSkeletonV1,
+    _must_chain_alignment_sequences,
+    _must_chain_side_sequences,
+    _zone_dimension_options,
+    construct_legacy_compatibility_search_plan_v1,
     construct_structured_building_plan_v1,
+    structured_layout_family_for_topology,
 )
 from cold_storage.modules.layout.domain.tail_slot_feasibility import (
     EXACT_ORTHOGONAL_EVENT_ENUMERATION,
@@ -104,6 +110,13 @@ STRUCTURED_MAX_OPTIONS_PER_ZONE: Final = 6
 STRUCTURED_PHASE: Final = "STRUCTURED"
 GENERAL_FALLBACK_PHASE: Final = "GENERAL_FALLBACK"
 LEGACY_COMPAT_PHASE: Final = "LEGACY_COMPAT"
+_DIRECT_STRUCTURAL_VARIANT_ROUNDS: Final = (
+    (0, RECTANGLE, "DEFAULT_SUPPORT_SIDE", 0),
+    (1, RECTANGLE, "DEFAULT_SUPPORT_SIDE", 0),
+)
+DIRECT_SYNTHESIS_ATTEMPT_COUNT: Final = len(_DIRECT_STRUCTURAL_VARIANT_ROUNDS) * len(
+    BASE_LAYOUT_FAMILIES
+)
 # Bound the tail search under one already placed main-process skeleton so the
 # deterministic node budget reaches distinct process arrangements before it
 # is consumed by office/support permutations. A small fixed sample preserves
@@ -1264,13 +1277,12 @@ def _candidate_options(
             return True
         if structural_family.family == "LINEAR_PROCESS_BAND":
             if code == "coating_room":
-                sorting = placed.get("sorting_packaging_room")
-                secondary = placed.get("secondary_precooling_room")
-                return (
-                    sorting is not None
-                    and secondary is not None
-                    and rectangles_share_positive_edge(rectangle, sorting)
-                    and rectangles_share_positive_edge(rectangle, secondary)
+                # Coating is a frozen MUST transition from secondary
+                # precooling to finished goods. Sorting-to-coating is only a
+                # SHOULD relationship and cannot be a phase-admission gate.
+                return bool(must_neighbors) and any(
+                    rectangles_share_positive_edge(rectangle, neighbor)
+                    for neighbor in must_neighbors
                 )
             if code == "finished_goods_room":
                 return _linear_group_flow_anchor_matches(
@@ -1293,8 +1305,6 @@ def _candidate_options(
             rectangle, main_entrance
         ):
             return True
-        if code == "coating_room" and "sorting_packaging_room" in placed:
-            return rectangles_share_positive_edge(rectangle, placed["sorting_packaging_room"])
         if not structural_neighbors:
             if code != "raw_fruit_buffer":
                 return False
@@ -1321,11 +1331,10 @@ def _candidate_options(
     if search_phase == STRUCTURED_PHASE:
         return tuple(structured[:STRUCTURED_MAX_OPTIONS_PER_ZONE])
     if search_phase == GENERAL_FALLBACK_PHASE:
-        # The compatibility fallback removes global skeleton predicates, but
-        # services shared-edge and entrance-anchored exact options first. It
-        # still retains every general exact option after those anchors; this
-        # is ordering only, not a new geometry admission rule.
-        return tuple((*structured, *general)[:MAX_OPTIONS_PER_ZONE])
+        # Preserve the R1 general-fallback candidate stream exactly: ordinary
+        # exact-feasible options precede structural anchors. The phase is
+        # separate for accounting, not a new candidate-ordering policy.
+        return tuple((*general, *structured)[:MAX_OPTIONS_PER_ZONE])
     if search_phase == LEGACY_COMPAT_PHASE:
         return tuple((*structured, *general)[:MAX_OPTIONS_PER_ZONE])
     raise _error("PLACEMENT_SEARCH_PHASE_INVALID", search_phase=search_phase)
@@ -2500,6 +2509,25 @@ def _validate_graph_completeness(
         )
 
 
+def _validate_main_process_skeleton_graph(
+    graph: AdjacencyGraphV1, placed: Mapping[str, PlacedRectangleV1]
+) -> None:
+    """Validate the seven-zone main-chain subset without requiring tail zones."""
+    if set(placed) != set(MAIN_PROCESS_ZONE_CODES):
+        raise _error("MAIN_PROCESS_SKELETON_ZONE_SET_INVALID")
+    main_codes = set(MAIN_PROCESS_ZONE_CODES)
+    main_must_pairs = tuple(
+        pair for pair in graph.must_adjacencies if pair[0] in main_codes and pair[1] in main_codes
+    )
+    must_satisfied, must_unsatisfied = _pair_rows(main_must_pairs, placed)
+    if must_unsatisfied:
+        raise _error(
+            "HARD_CONSTRAINT_UNSATISFIABLE",
+            unsatisfied_pairs=must_unsatisfied,
+            satisfied_count=len(must_satisfied),
+        )
+
+
 @dataclass(frozen=True)
 class _PlacementSearchContext:
     authorities: Mapping[str, Mapping[str, Any]]
@@ -2530,6 +2558,28 @@ class _PlacementSearchContext:
     direct_synthesis_enabled: bool
     global_main_process_geometry_registry: dict[str, dict[str, Any]] | None
     global_cross_topology_duplicate_trace: list[dict[str, Any]] | None
+
+
+def _legacy_compatibility_search_plan(
+    *,
+    boundary: PolygonMM,
+    obstacles: tuple[PolygonMM, ...],
+    authorities: Mapping[str, Mapping[str, Any]],
+    process_axis: str,
+    process_direction: str,
+    topology: str,
+    main_entrance: SegmentMM,
+) -> StructuredBuildingSkeletonV1:
+    """Build the isolated R1-compatible topology lane search context."""
+    return construct_legacy_compatibility_search_plan_v1(
+        boundary=boundary,
+        obstacles=obstacles,
+        authorities=authorities,
+        process_axis=process_axis,
+        process_direction=process_direction,
+        layout_family=structured_layout_family_for_topology(topology),
+        main_entrance=main_entrance,
+    )
 
 
 @dataclass
@@ -2701,33 +2751,44 @@ def _validated_search_context(
     if skeleton is None:
         raise _error("STRUCTURAL_SKELETON_UNAVAILABLE")
     structured_building_plan: StructuredBuildingSkeletonV1 | None = None
-    last_envelope_error: LayoutAuthorityError | None = None
-    # The search context needs a deterministic reference plan, but it must not
-    # make one layout family an admission gate for the independent family
-    # scheduler.  Pick the first feasible reference family/envelope pair; the
-    # constructive scheduler below still evaluates every family separately.
-    for layout_family in BASE_LAYOUT_FAMILIES:
-        for envelope_family in (RECTANGLE, SIMPLE_L):
-            try:
-                structured_building_plan = construct_structured_building_plan_v1(
-                    boundary=boundary,
-                    obstacles=obstacles,
-                    authorities=authorities,
-                    process_axis=skeleton.ordering_axis,
-                    layout_family=layout_family,
-                    envelope_family=envelope_family,
-                    main_entrance=main_entrance,
-                )
-            except LayoutAuthorityError as error:
-                last_envelope_error = error
-                continue
-            break
-        if structured_building_plan is not None:
-            break
-    if structured_building_plan is None and search_phase == STRUCTURED_PHASE:
-        if last_envelope_error is not None:
-            raise last_envelope_error
-        raise _error("PROGRAM_BUILDING_ENVELOPE_UNAVAILABLE")
+    if search_phase == STRUCTURED_PHASE:
+        # Direct synthesis is admitted only with a real program-derived plan.
+        for layout_family in BASE_LAYOUT_FAMILIES:
+            for envelope_family in (RECTANGLE, SIMPLE_L):
+                try:
+                    structured_building_plan = construct_structured_building_plan_v1(
+                        boundary=boundary,
+                        obstacles=obstacles,
+                        authorities=authorities,
+                        process_axis=skeleton.ordering_axis,
+                        layout_family=layout_family,
+                        envelope_family=envelope_family,
+                        main_entrance=main_entrance,
+                    )
+                except LayoutAuthorityError:
+                    continue
+                break
+            if structured_building_plan is not None:
+                break
+    elif search_phase == GENERAL_FALLBACK_PHASE:
+        # Compatibility search remains in the original whole-site search
+        # domain.  The R2 envelope/band plan is a separate candidate source
+        # and must not constrain the fallback that protects existing callers.
+        structured_building_plan = _legacy_compatibility_search_plan(
+            boundary=boundary,
+            obstacles=obstacles,
+            authorities=authorities,
+            process_axis=skeleton.ordering_axis,
+            process_direction=(
+                selected_family.dominant_direction
+                if selected_family.dominant_direction in {"POSITIVE", "NEGATIVE"}
+                else "POSITIVE"
+            ),
+            topology=selected_topology,
+            main_entrance=main_entrance,
+        )
+    elif search_phase != LEGACY_COMPAT_PHASE:
+        raise _error("PLACEMENT_SEARCH_PHASE_INVALID", search_phase=search_phase)
     return _PlacementSearchContext(
         authorities=authorities,
         site_body=site_body,
@@ -3221,156 +3282,6 @@ def _constructive_main_skeleton_tail_admission(
     return True
 
 
-_DIRECT_FAMILY_EDGES: Final[dict[str, tuple[tuple[str, str, str], ...]]] = {
-    # Each tuple is (zone_code, anchor_zone_code, side_of_anchor).  These are
-    # family construction policies, not room-option orderings.
-    LINEAR_3_BAND: (
-        ("finished_goods_room", "shipping_channel", "EAST"),
-        ("coating_room", "finished_goods_room", "SOUTH"),
-        ("secondary_precooling_room", "coating_room", "EAST"),
-        ("sorting_packaging_room", "secondary_precooling_room", "SOUTH"),
-        ("primary_precooling_room", "sorting_packaging_room", "SOUTH"),
-        ("raw_fruit_buffer", "primary_precooling_room", "WEST"),
-    ),
-    CENTRAL_PROCESS_WITH_SIDE_BANKS: (
-        ("finished_goods_room", "shipping_channel", "EAST"),
-        ("coating_room", "finished_goods_room", "SOUTH"),
-        ("secondary_precooling_room", "coating_room", "EAST"),
-        ("sorting_packaging_room", "secondary_precooling_room", "WEST"),
-        ("primary_precooling_room", "sorting_packaging_room", "SOUTH"),
-        ("raw_fruit_buffer", "primary_precooling_room", "WEST"),
-    ),
-    LONGITUDINAL_PROCESS_SPINE: (
-        ("finished_goods_room", "shipping_channel", "EAST"),
-        ("coating_room", "finished_goods_room", "SOUTH"),
-        ("secondary_precooling_room", "coating_room", "SOUTH"),
-        ("sorting_packaging_room", "secondary_precooling_room", "WEST"),
-        ("primary_precooling_room", "sorting_packaging_room", "WEST"),
-        ("raw_fruit_buffer", "primary_precooling_room", "SOUTH"),
-    ),
-}
-_DIRECT_ALIGNMENT_ORDERS: Final = (
-    ("LOW", "HIGH", "CENTER"),
-    ("CENTER", "LOW", "HIGH"),
-    ("HIGH", "CENTER", "LOW"),
-)
-
-
-def _direct_mirrored_side(side: str, mirror_index: int) -> str:
-    if mirror_index % 2 == 0:
-        return side
-    return {"NORTH": "SOUTH", "SOUTH": "NORTH", "EAST": "WEST", "WEST": "EAST"}[side]
-
-
-def _direct_shipping_channel_candidates(
-    context: _PlacementSearchContext,
-    plan: StructuredBuildingSkeletonV1,
-) -> tuple[PlacedRectangleV1, ...]:
-    """Place shipping only on canonical finished-band grid events.
-
-    Truck geometry is intentionally not used to bend or root the building
-    envelope. Each exact, band-contained terminal candidate is subsequently
-    checked by the existing main-skeleton truck preflight.
-    """
-    authority = context.authorities.get("shipping_channel")
-    if authority is None:
-        return ()
-    left, bottom, right, top = plan.band_for_zone("shipping_channel").bounds_mm
-    candidates: dict[tuple[int, int, int, int], PlacedRectangleV1] = {}
-    for width_mm, depth_mm, rotation in _dimension_variants(authority, {}, context.boundary):
-        actual_width, actual_depth = (
-            (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
-        )
-        if actual_width > right - left or actual_depth > top - bottom:
-            continue
-        x_origins = (left, right - actual_width)
-        y_origins = (bottom, top - actual_depth)
-        for x_mm, y_mm in (
-            (x_origins[0], y_origins[0]),
-            (x_origins[0], y_origins[1]),
-            (x_origins[1], y_origins[0]),
-            (x_origins[1], y_origins[1]),
-        ):
-            rectangle = _rectangle_from_mm(
-                "shipping_channel", x_mm, y_mm, width_mm, depth_mm, rotation
-            )
-            if not plan.admits("shipping_channel", rectangle):
-                continue
-            if _geometry_rejection_reason(rectangle, {}, context) is not None:
-                continue
-            candidates.setdefault(_bounds(rectangle), rectangle)
-    return tuple(candidates[key] for key in sorted(candidates))
-
-
-def _direct_adjacent_rectangle(
-    context: _PlacementSearchContext,
-    plan: StructuredBuildingSkeletonV1,
-    code: str,
-    anchor: PlacedRectangleV1,
-    side: str,
-    placed: Mapping[str, PlacedRectangleV1],
-    *,
-    variant_index: int,
-    zone_index: int,
-) -> PlacedRectangleV1 | None:
-    """Synthesize one exact edge placement from dimensions and shared axes.
-
-    This deliberately uses only the selected structural edge and the three
-    shared-edge alignments. It never reads local event axes and never scans
-    arbitrary site coordinates.
-    """
-    authority = context.authorities[code]
-    variants = _dimension_variants(authority, placed, context.boundary)
-    alignments = _DIRECT_ALIGNMENT_ORDERS[(variant_index + zone_index) % 3]
-    for dimension_index, (width_mm, depth_mm, rotation) in enumerate(variants):
-        actual_width, actual_depth = (
-            (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
-        )
-        left, bottom, right, top = _bounds(anchor)
-        if side in {"WEST", "EAST"}:
-            x_mm = left - actual_width if side == "WEST" else right
-            offsets = {
-                "LOW": bottom,
-                "HIGH": top - actual_depth,
-                "CENTER": bottom + (top - bottom - actual_depth) // 2,
-            }
-            origins = ((x_mm, offsets[alignment]) for alignment in alignments)
-        else:
-            y_mm = bottom - actual_depth if side == "SOUTH" else top
-            offsets = {
-                "LOW": left,
-                "HIGH": right - actual_width,
-                "CENTER": left + (right - left - actual_width) // 2,
-            }
-            origins = ((offsets[alignment], y_mm) for alignment in alignments)
-        # Rotate dimension order by the structural variant, not by coordinates.
-        if dimension_index < variant_index % max(1, len(variants)):
-            continue
-        for x_mm, y_mm in origins:
-            rectangle = _rectangle_from_mm(code, x_mm, y_mm, width_mm, depth_mm, rotation)
-            if not plan.admits(code, rectangle):
-                continue
-            if _geometry_rejection_reason(rectangle, placed, context) is not None:
-                continue
-            return rectangle
-    # Earlier dimensions may have been skipped to vary orientation. Retry the
-    # complete deterministic list once so a structural variant never fails
-    # merely because its preferred dimension index was unavailable.
-    if variant_index:
-        retry_context = replace(context)
-        return _direct_adjacent_rectangle(
-            retry_context,
-            plan,
-            code,
-            anchor,
-            side,
-            placed,
-            variant_index=0,
-            zone_index=zone_index,
-        )
-    return None
-
-
 def _direct_candidate_plan(
     plan: StructuredBuildingSkeletonV1,
     placements: Mapping[str, PlacedRectangleV1],
@@ -3379,137 +3290,69 @@ def _direct_candidate_plan(
     return plan.with_placements(placements)
 
 
-def _direct_envelope_closure_rejection(
-    plan: StructuredBuildingSkeletonV1,
-    placements: Mapping[str, PlacedRectangleV1],
-) -> str | None:
-    envelope = plan.envelope.bounds_mm
-    support = plan.band_for_zone("packaging_material_storage").bounds_mm
-    personnel = plan.band_for_zone("office").bounds_mm
-    if support == envelope:
-        return "SUPPORT_BAND_EQUALS_FULL_BUILDING_ENVELOPE"
-    if personnel == envelope:
-        return "PERSONNEL_BAND_EQUALS_FULL_BUILDING_ENVELOPE"
-    for band_code, bounds in ((SUPPORT_BAND, support), (PERSONNEL_EDGE_BAND, personnel)):
-        if not any(bounds[index] == envelope[index] for index in (0, 1, 2, 3)):
-            return f"{band_code}_NOT_PERIPHERAL_TO_ENVELOPE"
-    if not rectangles_share_positive_edge(
-        placements["sorting_packaging_room"], placements["coating_room"]
-    ):
-        return "PROCESS_CORE_NOT_CONTIGUOUS"
-    if not all(
-        rectangles_share_positive_edge(placements[first], placements[second])
-        for first, second in (
-            ("office", "changing_room"),
-            ("sorting_packaging_room", "packaging_material_storage"),
-        )
-    ):
-        return "PERIPHERAL_OR_SUPPORT_BAND_NOT_ATTACHED"
-    return None
-
-
-def _direct_family_main_process(
-    context: _PlacementSearchContext,
-    plan: StructuredBuildingSkeletonV1,
-    shipping: PlacedRectangleV1,
-    *,
-    family_edges: tuple[tuple[str, str, str], ...],
-    variant_index: int,
-    failure_reasons: list[str] | None = None,
-) -> dict[str, PlacedRectangleV1] | None:
-    if not plan.admits("shipping_channel", shipping):
-        if failure_reasons is not None:
-            failure_reasons.append("SHIPPING_ROOT_OUTSIDE_FINISHED_BAND_OR_ENVELOPE")
-        return None
-    placed: dict[str, PlacedRectangleV1] = {"shipping_channel": shipping}
-    for zone_index, (code, anchor_code, base_side) in enumerate(family_edges):
-        anchor = placed.get(anchor_code)
-        if anchor is None:
-            if failure_reasons is not None:
-                failure_reasons.append(f"ANCHOR_NOT_SYNTHESIZED:{anchor_code}")
-            return None
-        side = _direct_mirrored_side(base_side, variant_index)
-        rectangle = _direct_adjacent_rectangle(
-            context,
-            plan,
-            code,
-            anchor,
-            side,
-            placed,
-            variant_index=variant_index,
-            zone_index=zone_index,
-        )
-        if rectangle is None:
-            if failure_reasons is not None:
-                failure_reasons.append(f"EXACT_BAND_EDGE_SLOT_UNAVAILABLE:{code}")
-            return None
-        placed[code] = rectangle
-
-    return placed
-
-
 def _synthesize_linear_3_band_main_process(
     context: _PlacementSearchContext,
     plan: StructuredBuildingSkeletonV1,
-    shipping: PlacedRectangleV1,
+    shipping: PlacedRectangleV1 | None,
     *,
     variant_index: int,
     failure_reasons: list[str],
 ) -> dict[str, PlacedRectangleV1] | None:
-    return _direct_family_main_process(
-        context,
-        plan,
-        shipping,
-        family_edges=_DIRECT_FAMILY_EDGES[LINEAR_3_BAND],
-        variant_index=variant_index,
-        failure_reasons=failure_reasons,
-    )
+    del shipping
+    candidates = _linear_3_band_geometry(context, plan, variant_index, failure_reasons)
+    if not candidates:
+        if not failure_reasons:
+            failure_reasons.append("LINEAR_3_BAND_JOINT_PACKING_OR_MUST_INTERFACE_UNAVAILABLE")
+        return None
+    return candidates[0]
 
 
 def _synthesize_central_process_with_side_banks_main_process(
     context: _PlacementSearchContext,
     plan: StructuredBuildingSkeletonV1,
-    shipping: PlacedRectangleV1,
+    shipping: PlacedRectangleV1 | None,
     *,
     variant_index: int,
     failure_reasons: list[str],
 ) -> dict[str, PlacedRectangleV1] | None:
-    return _direct_family_main_process(
-        context,
-        plan,
-        shipping,
-        family_edges=_DIRECT_FAMILY_EDGES[CENTRAL_PROCESS_WITH_SIDE_BANKS],
-        variant_index=variant_index,
-        failure_reasons=failure_reasons,
-    )
+    del shipping
+    candidates = _central_side_bank_geometry(context, plan, variant_index, failure_reasons)
+    if not candidates:
+        if not failure_reasons:
+            failure_reasons.append("CENTRAL_SIDE_BANK_JOINT_PACKING_OR_MUST_INTERFACE_UNAVAILABLE")
+        return None
+    return candidates[0]
 
 
 def _synthesize_longitudinal_process_spine_main_process(
     context: _PlacementSearchContext,
     plan: StructuredBuildingSkeletonV1,
-    shipping: PlacedRectangleV1,
+    shipping: PlacedRectangleV1 | None,
     *,
     variant_index: int,
     failure_reasons: list[str],
 ) -> dict[str, PlacedRectangleV1] | None:
-    return _direct_family_main_process(
-        context,
-        plan,
-        shipping,
-        family_edges=_DIRECT_FAMILY_EDGES[LONGITUDINAL_PROCESS_SPINE],
-        variant_index=variant_index,
-        failure_reasons=failure_reasons,
-    )
+    del shipping
+    candidates = _longitudinal_spine_geometry(context, plan, variant_index, failure_reasons)
+    if not candidates:
+        if not failure_reasons:
+            failure_reasons.append("LONGITUDINAL_SPINE_JOINT_PACKING_OR_MUST_INTERFACE_UNAVAILABLE")
+        return None
+    return candidates[0]
 
 
 def _synthesize_family_main_process(
     context: _PlacementSearchContext,
     plan: StructuredBuildingSkeletonV1,
-    shipping: PlacedRectangleV1,
+    shipping: PlacedRectangleV1 | None,
     *,
     variant_index: int,
     failure_reasons: list[str],
 ) -> dict[str, PlacedRectangleV1] | None:
+    # The shipping rectangle is now packed together with the other finished
+    # band members. Keep the positional parameter for the stable internal
+    # call seam, but do not use it as a room-chain root.
+    del shipping
     constructors = {
         LINEAR_3_BAND: _synthesize_linear_3_band_main_process,
         CENTRAL_PROCESS_WITH_SIDE_BANKS: _synthesize_central_process_with_side_banks_main_process,
@@ -3522,7 +3365,487 @@ def _synthesize_family_main_process(
     return constructor(
         context,
         plan,
-        shipping,
+        None,
+        variant_index=variant_index,
+        failure_reasons=failure_reasons,
+    )
+
+
+def synthesize_band_geometry(
+    context: _PlacementSearchContext,
+    plan: StructuredBuildingSkeletonV1,
+    band_code: str,
+    zone_codes: Sequence[str],
+    *,
+    packing_axis: str,
+    reverse_order: bool,
+    cross_alignment: str,
+    fixed_placements: Mapping[str, PlacedRectangleV1] | None = None,
+    transition_zone_codes: frozenset[str] = frozenset(),
+    result_limit: int = 12,
+) -> tuple[dict[str, PlacedRectangleV1], ...]:
+    """Pack a whole functional band from its bounds and cumulative dimensions.
+
+    This is a finite row/column composition: coordinates are calculated once
+    from authoritative room dimensions and the selected band edge. It does
+    not enumerate site/event coordinates or grow a room-by-room DFS chain.
+    """
+    if packing_axis not in {"X", "Y"} or cross_alignment not in {"LOW", "CENTER", "HIGH"}:
+        return ()
+    if result_limit <= 0 or not zone_codes:
+        return ()
+    band = plan.band_for_zone(zone_codes[0])
+    if (
+        band.band_code != band_code
+        or any(
+            plan.band_for_zone(code).band_code != band_code and code not in transition_zone_codes
+            for code in zone_codes
+        )
+        or not transition_zone_codes
+        <= set(next(row.transition_zone_codes for row in plan.bands if row.band_code == band_code))
+    ):
+        return ()
+    # Pack from the declared band bounds, not one tile at a time. The band
+    # predicate validates exact coverage by the region union, while the
+    # existing site and no-build predicates remain the authoritative gates.
+    left, bottom, right, top = band.bounds_mm
+    along_low, along_high = (left, right) if packing_axis == "X" else (bottom, top)
+    cross_low, cross_high = (bottom, top) if packing_axis == "X" else (left, right)
+    along_span = along_high - along_low
+    cross_span = cross_high - cross_low
+    order = tuple(reversed(zone_codes)) if reverse_order else tuple(zone_codes)
+
+    choices_by_zone: list[tuple[tuple[int, int, int, int, int], ...]] = []
+    for code in order:
+        authority = context.authorities.get(code)
+        if authority is None:
+            return ()
+        unique: dict[tuple[int, int], tuple[int, int, int, int, int]] = {}
+        for width_mm, depth_mm in _zone_dimension_options(authority):
+            for rotation in (0, 90):
+                actual_width, actual_depth = (
+                    (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
+                )
+                if packing_axis == "X":
+                    along_extent, cross_extent = actual_width, actual_depth
+                else:
+                    along_extent, cross_extent = actual_depth, actual_width
+                if along_extent > along_span or cross_extent > cross_span:
+                    continue
+                unique.setdefault(
+                    (actual_width, actual_depth),
+                    (width_mm, depth_mm, rotation, along_extent, cross_extent),
+                )
+        variants = tuple(unique[key] for key in sorted(unique))
+        if not variants:
+            return ()
+        choices_by_zone.append(variants)
+
+    candidates: list[dict[str, PlacedRectangleV1]] = []
+    seen: set[tuple[tuple[str, tuple[int, int, int, int, int]], ...]] = set()
+    for dimension_rows in product(*choices_by_zone):
+        total_along = sum(row[3] for row in dimension_rows)
+        max_cross = max(row[4] for row in dimension_rows)
+        if total_along > along_span or max_cross > cross_span:
+            continue
+        cursor = along_high - total_along if reverse_order else along_low
+        packed: dict[str, PlacedRectangleV1] = {}
+        valid = True
+        for code, (width_mm, depth_mm, rotation, along_extent, cross_extent) in zip(
+            order, dimension_rows, strict=True
+        ):
+            if cross_alignment == "LOW":
+                cross_origin = cross_low
+            elif cross_alignment == "HIGH":
+                cross_origin = cross_high - cross_extent
+            else:
+                cross_origin = cross_low + (cross_span - cross_extent) // 2
+            if packing_axis == "X":
+                x_mm, y_mm = cursor, cross_origin
+            else:
+                x_mm, y_mm = cross_origin, cursor
+            rectangle = _rectangle_from_mm(code, x_mm, y_mm, width_mm, depth_mm, rotation)
+            if (
+                not plan.admits_to_band(code, rectangle, band_code)
+                or _geometry_rejection_reason(
+                    rectangle, {**(fixed_placements or {}), **packed}, context
+                )
+                is not None
+            ):
+                valid = False
+                break
+            packed[code] = rectangle
+            cursor += -along_extent if reverse_order else along_extent
+        if not valid:
+            continue
+        signature = tuple(
+            sorted(
+                (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+                for code, rectangle in packed.items()
+            )
+        )
+        if signature in seen:
+            continue
+        seen.add(signature)
+        candidates.append(packed)
+        if len(candidates) >= result_limit:
+            break
+    return tuple(candidates)
+
+
+def _band_chain_shape_options(
+    context: _PlacementSearchContext, zone_code: str
+) -> tuple[tuple[int, int, int, int, int], ...]:
+    """Return unique authority-derived post-rotation shapes for a band member."""
+    authority = context.authorities.get(zone_code)
+    if authority is None:
+        return ()
+    unique: dict[tuple[int, int], tuple[int, int, int, int, int]] = {}
+    for width_mm, depth_mm in _zone_dimension_options(authority):
+        for rotation in (0, 90):
+            actual_width, actual_depth = (
+                (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
+            )
+            unique.setdefault(
+                (actual_width, actual_depth),
+                (width_mm, depth_mm, rotation, actual_width, actual_depth),
+            )
+    return tuple(unique[key] for key in sorted(unique))
+
+
+def _band_edge_chain_origins(
+    context: _PlacementSearchContext,
+    plan: StructuredBuildingSkeletonV1,
+    band_code: str,
+    first_zone: str,
+    width_mm: int,
+    depth_mm: int,
+    fixed_placements: Mapping[str, PlacedRectangleV1],
+) -> tuple[tuple[int, int], ...]:
+    """Derive finite root origins from band boundaries or an exact MUST edge."""
+    mandatory_neighbors = tuple(
+        neighbor for neighbor in _must_neighbors(first_zone, fixed_placements, context.graph)
+    )
+    origins: set[tuple[int, int]] = set()
+    for neighbor in mandatory_neighbors:
+        origins.update(_edge_anchors(neighbor, width_mm, depth_mm))
+    if not origins:
+        left, bottom, right, top = plan.band_for_zone(first_zone).bounds_mm
+        x_positions = {left, right - width_mm, left + (right - left - width_mm) // 2}
+        y_positions = {bottom, top - depth_mm, bottom + (top - bottom - depth_mm) // 2}
+        origins.update((x, y) for x in x_positions for y in y_positions)
+    return tuple(sorted(origins))
+
+
+def synthesize_must_chain_band_geometry(
+    context: _PlacementSearchContext,
+    plan: StructuredBuildingSkeletonV1,
+    band_code: str,
+    zone_codes: Sequence[str],
+    *,
+    fixed_placements: Mapping[str, PlacedRectangleV1] | None = None,
+    transition_zone_codes: frozenset[str] = frozenset(),
+    result_limit: int = 12,
+) -> tuple[dict[str, PlacedRectangleV1], ...]:
+    """Jointly enumerate finite orthogonal MUST-chain patterns inside a band.
+
+    A pattern is selected as a complete discrete combination of authoritative
+    room dimensions, cardinal edge transitions, and shared-edge alignments.
+    Coordinates are derived only from the first band's exact edge anchor and
+    successive shared rectangle edges; no local-event-axis or free-coordinate
+    search is used. The full pattern is accepted only after exact band, site,
+    obstacle, overlap, and positive-edge predicates pass.
+    """
+    if len(zone_codes) < 2 or result_limit <= 0:
+        return ()
+    band = plan.band_for_zone(zone_codes[0])
+    if (
+        band.band_code != band_code
+        or any(
+            plan.band_for_zone(code).band_code != band_code and code not in transition_zone_codes
+            for code in zone_codes
+        )
+        or not transition_zone_codes
+        <= set(next(row.transition_zone_codes for row in plan.bands if row.band_code == band_code))
+    ):
+        return ()
+
+    fixed = dict(fixed_placements or {})
+    shape_options = tuple(_band_chain_shape_options(context, code) for code in zone_codes)
+    if any(not rows for rows in shape_options):
+        return ()
+    side_sequences = _must_chain_side_sequences(len(zone_codes) - 1)
+    alignment_sequences = _must_chain_alignment_sequences(len(zone_codes) - 1)
+    results: list[dict[str, PlacedRectangleV1]] = []
+    signatures: set[tuple[tuple[str, tuple[int, int, int, int, int]], ...]] = set()
+
+    for shapes in product(*shape_options):
+        first_width, first_depth = shapes[0][3], shapes[0][4]
+        origins = _band_edge_chain_origins(
+            context,
+            plan,
+            band_code,
+            zone_codes[0],
+            first_width,
+            first_depth,
+            fixed,
+        )
+        for origin_x, origin_y in origins:
+            first = _rectangle_from_mm(
+                zone_codes[0], origin_x, origin_y, shapes[0][0], shapes[0][1], shapes[0][2]
+            )
+            if not plan.admits_to_band(zone_codes[0], first, band_code) or any(
+                rectangles_overlap(first, other) for other in fixed.values()
+            ):
+                continue
+            for side_sequence in side_sequences:
+                for alignment_sequence in alignment_sequences:
+                    packed: dict[str, PlacedRectangleV1] = {zone_codes[0]: first}
+                    valid = True
+                    for index, (side, alignment) in enumerate(
+                        zip(side_sequence, alignment_sequence, strict=True), start=1
+                    ):
+                        previous = packed[zone_codes[index - 1]]
+                        width_mm, depth_mm, rotation, actual_width, actual_depth = shapes[index]
+                        left, bottom, right, top = previous.bounds_mm
+                        if side in {"EAST", "WEST"}:
+                            y_origin = (
+                                bottom
+                                if alignment == "LOW"
+                                else top - actual_depth
+                                if alignment == "HIGH"
+                                else bottom + (top - bottom - actual_depth) // 2
+                            )
+                            x_origin = right if side == "EAST" else left - actual_width
+                        else:
+                            x_origin = (
+                                left
+                                if alignment == "LOW"
+                                else right - actual_width
+                                if alignment == "HIGH"
+                                else left + (right - left - actual_width) // 2
+                            )
+                            y_origin = top if side == "NORTH" else bottom - actual_depth
+                        rectangle = _rectangle_from_mm(
+                            zone_codes[index], x_origin, y_origin, width_mm, depth_mm, rotation
+                        )
+                        if (
+                            not rectangles_share_positive_edge(previous, rectangle)
+                            or not plan.admits_to_band(zone_codes[index], rectangle, band_code)
+                            or any(
+                                rectangles_overlap(rectangle, other)
+                                for other in (*fixed.values(), *packed.values())
+                            )
+                        ):
+                            valid = False
+                            break
+                        packed[zone_codes[index]] = rectangle
+                    if not valid:
+                        continue
+                    signature = tuple(
+                        sorted(
+                            (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+                            for code, rectangle in packed.items()
+                        )
+                    )
+                    if signature in signatures:
+                        continue
+                    signatures.add(signature)
+                    results.append(packed)
+                    if len(results) >= result_limit:
+                        return tuple(results)
+    return tuple(results)
+
+
+def _family_main_band_packings(
+    context: _PlacementSearchContext,
+    plan: StructuredBuildingSkeletonV1,
+    *,
+    band_sequence: tuple[tuple[str, tuple[str, ...], str, frozenset[str]], ...],
+    variant_index: int,
+    failure_reasons: list[str] | None = None,
+) -> tuple[dict[str, PlacedRectangleV1], ...]:
+    reverse = bool(variant_index % 2)
+    alignment = ("LOW", "CENTER", "HIGH")[variant_index % 3]
+    merged_candidates: list[dict[str, PlacedRectangleV1]] = []
+
+    def pack_band(index: int, placed: dict[str, PlacedRectangleV1]) -> None:
+        if len(merged_candidates) >= 12:
+            return
+        if index == len(band_sequence):
+            try:
+                _validate_main_process_skeleton_graph(context.graph, placed)
+            except LayoutAuthorityError:
+                if failure_reasons is not None and not failure_reasons:
+                    failure_reasons.append("GRAPH_HARD_VALIDATION")
+                return
+            merged_candidates.append(dict(placed))
+            return
+
+        spec = band_sequence[index]
+        band_code, zone_codes, preferred_axis, transition_zone_codes = spec
+        if tuple(zone_codes) in {
+            ("raw_fruit_buffer", "primary_precooling_room"),
+            (
+                "secondary_precooling_room",
+                "coating_room",
+                "finished_goods_room",
+                "shipping_channel",
+            ),
+        }:
+            rows = synthesize_must_chain_band_geometry(
+                context,
+                plan,
+                band_code,
+                zone_codes,
+                fixed_placements=placed,
+                transition_zone_codes=transition_zone_codes,
+                result_limit=3,
+            )
+            if rows:
+                for row in rows:
+                    pack_band(index + 1, {**placed, **row})
+                    if len(merged_candidates) >= 12:
+                        return
+            elif failure_reasons is not None and not failure_reasons:
+                failure_reasons.append(f"BAND_PACKING_UNAVAILABLE:{band_code}")
+            return
+        alternate_axis = "Y" if preferred_axis == "X" else "X"
+        axis_order = (
+            (preferred_axis, alternate_axis) if not reverse else (alternate_axis, preferred_axis)
+        )
+        found_for_band = False
+        for packing_axis in axis_order:
+            for band_reverse in (reverse ^ bool(index % 2), not (reverse ^ bool(index % 2))):
+                for cross_alignment in (alignment, "LOW", "CENTER", "HIGH"):
+                    rows = synthesize_band_geometry(
+                        context,
+                        plan,
+                        band_code,
+                        zone_codes,
+                        packing_axis=packing_axis,
+                        reverse_order=band_reverse,
+                        cross_alignment=cross_alignment,
+                        fixed_placements=placed,
+                        transition_zone_codes=transition_zone_codes,
+                        result_limit=12,
+                    )
+                    if rows:
+                        found_for_band = True
+                    for row in rows:
+                        pack_band(index + 1, {**placed, **row})
+                        if len(merged_candidates) >= 12:
+                            return
+        if not found_for_band and failure_reasons is not None and not failure_reasons:
+            failure_reasons.append(f"BAND_PACKING_UNAVAILABLE:{band_code}")
+
+    pack_band(0, {})
+    return tuple(merged_candidates)
+
+
+def _linear_3_band_geometry(
+    context: _PlacementSearchContext,
+    plan: StructuredBuildingSkeletonV1,
+    variant_index: int,
+    failure_reasons: list[str],
+) -> tuple[dict[str, PlacedRectangleV1], ...]:
+    """Compose upstream, core, and downstream bands in one process direction."""
+    process_axis = plan.process_axis
+    return _family_main_band_packings(
+        context,
+        plan,
+        band_sequence=(
+            (
+                "RAW_SIDE_BAND",
+                ("raw_fruit_buffer", "primary_precooling_room"),
+                process_axis,
+                frozenset(),
+            ),
+            ("PROCESS_CORE_BAND", ("sorting_packaging_room",), process_axis, frozenset()),
+            (
+                "FINISHED_SIDE_BAND",
+                (
+                    "secondary_precooling_room",
+                    "coating_room",
+                    "finished_goods_room",
+                    "shipping_channel",
+                ),
+                process_axis,
+                frozenset({"coating_room"}),
+            ),
+        ),
+        variant_index=variant_index,
+        failure_reasons=failure_reasons,
+    )
+
+
+def _central_side_bank_geometry(
+    context: _PlacementSearchContext,
+    plan: StructuredBuildingSkeletonV1,
+    variant_index: int,
+    failure_reasons: list[str],
+) -> tuple[dict[str, PlacedRectangleV1], ...]:
+    """Place the process core first, then construct its two opposing banks."""
+    cross_axis = "Y" if plan.process_axis == "X" else "X"
+    return _family_main_band_packings(
+        context,
+        plan,
+        band_sequence=(
+            ("PROCESS_CORE_BAND", ("sorting_packaging_room",), cross_axis, frozenset()),
+            (
+                "RAW_SIDE_BAND",
+                ("raw_fruit_buffer", "primary_precooling_room"),
+                plan.process_axis,
+                frozenset(),
+            ),
+            (
+                "FINISHED_SIDE_BAND",
+                (
+                    "secondary_precooling_room",
+                    "coating_room",
+                    "finished_goods_room",
+                    "shipping_channel",
+                ),
+                plan.process_axis,
+                frozenset({"coating_room"}),
+            ),
+        ),
+        variant_index=variant_index,
+        failure_reasons=failure_reasons,
+    )
+
+
+def _longitudinal_spine_geometry(
+    context: _PlacementSearchContext,
+    plan: StructuredBuildingSkeletonV1,
+    variant_index: int,
+    failure_reasons: list[str],
+) -> tuple[dict[str, PlacedRectangleV1], ...]:
+    """Set the process spine first, then pack raw and finished side banks."""
+    cross_axis = "Y" if plan.process_axis == "X" else "X"
+    return _family_main_band_packings(
+        context,
+        plan,
+        band_sequence=(
+            ("PROCESS_CORE_BAND", ("sorting_packaging_room",), plan.process_axis, frozenset()),
+            (
+                "RAW_SIDE_BAND",
+                ("raw_fruit_buffer", "primary_precooling_room"),
+                cross_axis,
+                frozenset(),
+            ),
+            (
+                "FINISHED_SIDE_BAND",
+                (
+                    "secondary_precooling_room",
+                    "coating_room",
+                    "finished_goods_room",
+                    "shipping_channel",
+                ),
+                cross_axis,
+                frozenset({"coating_room"}),
+            ),
+        ),
         variant_index=variant_index,
         failure_reasons=failure_reasons,
     )
@@ -3534,99 +3857,59 @@ def _direct_family_tail_zones(
     placed: Mapping[str, PlacedRectangleV1],
     *,
     variant_index: int,
+    failure_reasons: list[str] | None = None,
 ) -> dict[str, PlacedRectangleV1] | None:
-    complete = dict(placed)
-    support_side = plan.support_side
-    support_along_side = "NORTH" if support_side in {"WEST", "EAST"} else "EAST"
-    support_chain = (
-        ("packaging_material_storage", "sorting_packaging_room", support_side),
-        ("secondary_fruit_buffer", "packaging_material_storage", support_along_side),
-        ("frozen_fruit_room", "secondary_fruit_buffer", support_along_side),
-    )
-    personnel_side = plan.personnel_side
-    personnel_orders = (
-        personnel_side,
-        _OPPOSITE_SIDE[personnel_side],
-        "NORTH" if personnel_side in {"WEST", "EAST"} else "EAST",
-        "SOUTH" if personnel_side in {"WEST", "EAST"} else "WEST",
-    )
-    office = next(
-        (
-            rectangle
-            for side_index, side in enumerate(personnel_orders)
-            if (
-                rectangle := _direct_adjacent_rectangle(
-                    context,
-                    plan,
-                    "office",
-                    complete["shipping_channel"],
-                    side,
-                    complete,
-                    variant_index=variant_index + side_index,
-                    zone_index=7,
-                )
-            )
-            is not None
-        ),
-        None,
-    )
-    if office is None:
-        return None
-    complete["office"] = office
-    changing_orders = tuple(
-        dict.fromkeys(
-            (
-                personnel_side,
-                _OPPOSITE_SIDE[personnel_side],
-                "NORTH",
-                "SOUTH",
-                "EAST",
-                "WEST",
-            )
-        )
-    )
-    changing = next(
-        (
-            rectangle
-            for side_index, side in enumerate(changing_orders)
-            if (
-                rectangle := _direct_adjacent_rectangle(
-                    context,
-                    plan,
-                    "changing_room",
-                    office,
-                    side,
-                    complete,
-                    variant_index=variant_index + side_index,
-                    zone_index=8,
-                )
-            )
-            is not None
-        ),
-        None,
-    )
-    if changing is None:
-        return None
-    complete["changing_room"] = changing
-
-    for zone_index, (code, anchor_code, side) in enumerate(support_chain, start=9):
-        anchor = complete[anchor_code]
-        rectangle = _direct_adjacent_rectangle(
+    support_axes = ("X", "Y") if variant_index % 2 == 0 else ("Y", "X")
+    personnel_axes = ("Y", "X") if variant_index % 2 == 0 else ("X", "Y")
+    alignments = ("LOW", "CENTER", "HIGH")
+    for support_axis in support_axes:
+        support_rows = synthesize_band_geometry(
             context,
             plan,
-            code,
-            anchor,
-            _direct_mirrored_side(side, variant_index),
-            complete,
-            variant_index=variant_index,
-            zone_index=zone_index,
+            SUPPORT_BAND,
+            ("packaging_material_storage", "secondary_fruit_buffer", "frozen_fruit_room"),
+            packing_axis=support_axis,
+            reverse_order=bool(variant_index % 2),
+            cross_alignment=alignments[variant_index % len(alignments)],
+            fixed_placements=placed,
+            result_limit=12,
         )
-        if rectangle is None:
-            return None
-        complete[code] = rectangle
-    if set(complete) != set(context.graph.nodes):
-        return None
-    return complete
+        if not support_rows:
+            if failure_reasons is not None:
+                failure_reasons.append("SUPPORT_BAND_PACKING_NO_GEOMETRY")
+            continue
+        for support_row in support_rows:
+            with_support = {**placed, **support_row}
+            for personnel_axis in personnel_axes:
+                personnel_rows = synthesize_band_geometry(
+                    context,
+                    plan,
+                    PERSONNEL_EDGE_BAND,
+                    ("office", "changing_room"),
+                    packing_axis=personnel_axis,
+                    reverse_order=bool((variant_index + 1) % 2),
+                    cross_alignment=alignments[(variant_index + 1) % len(alignments)],
+                    fixed_placements=with_support,
+                    result_limit=12,
+                )
+                if not personnel_rows:
+                    if failure_reasons is not None:
+                        failure_reasons.append("PERSONNEL_BAND_PACKING_NO_GEOMETRY")
+                    continue
+                for personnel_row in personnel_rows:
+                    complete = {**with_support, **personnel_row}
+                    if set(complete) != set(context.graph.nodes):
+                        continue
+                    try:
+                        _validate_graph_completeness(context.graph, complete)
+                    except LayoutAuthorityError:
+                        if failure_reasons is not None:
+                            failure_reasons.append("GRAPH_HARD_VALIDATION")
+                        continue
+                    return complete
+    if failure_reasons is not None and not failure_reasons:
+        failure_reasons.append("TAIL_BAND_PACKING_NO_VALID_COMBINATION")
+    return None
 
 
 def _direct_structured_candidates(
@@ -3660,32 +3943,31 @@ def _direct_structured_candidates(
         "EAST": "WEST",
         "WEST": "EAST",
     }[default_support_side]
-    structural_rounds = (
-        (0, RECTANGLE, default_support_side, 0),
-        (0, RECTANGLE, default_support_side, 1),
-        (0, RECTANGLE, default_support_side, 2),
-        (0, RECTANGLE, default_support_side, 3),
-        (0, SIMPLE_L, default_support_side, 0),
-        (1, RECTANGLE, default_support_side, 0),
-        (1, SIMPLE_L, default_support_side, 0),
-        (0, RECTANGLE, opposite_support_side, 0),
-        (0, SIMPLE_L, "NORTH", 0),
-        (0, SIMPLE_L, "SOUTH", 0),
-        (1, SIMPLE_L, "NORTH", 0),
-        (1, SIMPLE_L, "SOUTH", 0),
+    structural_rounds = tuple(
+        (
+            axis_index,
+            envelope_family,
+            opposite_support_side
+            if side == "OPPOSITE_SUPPORT_SIDE"
+            else default_support_side
+            if side == "DEFAULT_SUPPORT_SIDE"
+            else side,
+            terminal_variant_index,
+        )
+        for axis_index, envelope_family, side, terminal_variant_index in (
+            _DIRECT_STRUCTURAL_VARIANT_ROUNDS
+        )
     )
     attempt_specs = [
         (
             layout_family,
             process_axes[axis_index],
             envelope_family,
-            round_index % 2,
+            0,
             terminal_variant_index,
             side,
         )
-        for round_index, (axis_index, envelope_family, side, terminal_variant_index) in enumerate(
-            structural_rounds
-        )
+        for axis_index, envelope_family, side, terminal_variant_index in structural_rounds
         for layout_family in BASE_LAYOUT_FAMILIES
     ]
     # Each round is a finite structural variant. Family is innermost so all
@@ -3694,7 +3976,8 @@ def _direct_structured_candidates(
     # this direct synthesis phase.
     seen_hashes: set[str] = set()
     plan_cache: dict[
-        tuple[str, str, str, str], StructuredBuildingSkeletonV1 | LayoutAuthorityError
+        tuple[str, str, str, str, int, str],
+        StructuredBuildingSkeletonV1 | LayoutAuthorityError,
     ] = {}
     for attempt_index, (
         layout_family,
@@ -3704,7 +3987,15 @@ def _direct_structured_candidates(
         terminal_variant_index,
         support_side,
     ) in enumerate(attempt_specs):
-        plan_key = (layout_family, process_axis, envelope_family, support_side)
+        process_direction = "NEGATIVE" if variant_index % 2 else "POSITIVE"
+        plan_key = (
+            layout_family,
+            process_axis,
+            envelope_family,
+            support_side,
+            terminal_variant_index,
+            process_direction,
+        )
         cached_plan = plan_cache.get(plan_key)
         if isinstance(cached_plan, LayoutAuthorityError):
             plan_row = {
@@ -3715,6 +4006,8 @@ def _direct_structured_candidates(
                 "terminal_variant_index": terminal_variant_index,
                 "construction_nodes": 0,
                 "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+                "first_failure_stage": "PLAN",
+                "rejection_reason": cached_plan.code,
                 "reason": cached_plan.code,
                 "construction_policy": f"{layout_family}_DIRECT_SYNTHESIS_V1",
                 "plan_failure_reused": True,
@@ -3723,43 +4016,38 @@ def _direct_structured_candidates(
                 stats.skeleton_construction_attempts = []
             stats.skeleton_construction_attempts.append(plan_row)
             continue
-        if stats.visited_nodes >= context.node_budget:
-            stats.node_budget_exhausted = True
-            stats.skeleton_search_truncated = True
-            return
-        stats.visited_nodes += 1
-        stats.construction_node_count += 1
-        charge_construction_node = True
-        stats.current_work_item = {
-            "topology": context.structural_topology,
-            "layout_family": layout_family,
-            "process_axis": process_axis,
-            "envelope_family": envelope_family,
-            "support_side": support_side,
-            "mirror_variant": variant_index,
-            "terminal_variant_index": terminal_variant_index,
-            "branch": "DIRECT_FULL_BUILDING_SYNTHESIS",
-            "family_plan_subvariant": attempt_index,
-            "placement_node_charged": charge_construction_node,
-        }
-        if charge_construction_node:
-            quantum = _quantum_checkpoint(stats)
-            if quantum is not None:
-                yield quantum
         try:
             if isinstance(cached_plan, StructuredBuildingSkeletonV1):
                 plan = cached_plan
             else:
-                plan = construct_structured_building_plan_v1(
-                    boundary=context.boundary,
-                    obstacles=context.obstacles,
-                    authorities=context.authorities,
-                    process_axis=process_axis,
-                    layout_family=layout_family,
-                    envelope_family=envelope_family,
-                    main_entrance=context.main_entrance,
-                    support_side=support_side,
-                )
+                plan_error: LayoutAuthorityError | None = None
+                plan = None
+                for planned_envelope_family in tuple(
+                    dict.fromkeys((envelope_family, SIMPLE_L, RECTANGLE))
+                ):
+                    try:
+                        plan = construct_structured_building_plan_v1(
+                            boundary=context.boundary,
+                            obstacles=context.obstacles,
+                            authorities=context.authorities,
+                            process_axis=process_axis,
+                            process_direction=process_direction,
+                            layout_family=layout_family,
+                            envelope_family=planned_envelope_family,
+                            main_entrance=context.main_entrance,
+                            support_side=support_side,
+                            envelope_candidate_index=(
+                                terminal_variant_index if planned_envelope_family == SIMPLE_L else 0
+                            ),
+                        )
+                    except LayoutAuthorityError as error:
+                        plan_error = error
+                        continue
+                    break
+                if plan is None:
+                    if plan_error is not None:
+                        raise plan_error
+                    raise _error("PROGRAM_BUILDING_ENVELOPE_UNAVAILABLE")
                 plan_cache[plan_key] = plan
         except LayoutAuthorityError as error:
             plan_cache[plan_key] = error
@@ -3768,8 +4056,10 @@ def _direct_structured_candidates(
                 "process_axis": process_axis,
                 "envelope_family": envelope_family,
                 "support_side": support_side,
-                "construction_nodes": int(charge_construction_node),
+                "construction_nodes": 0,
                 "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+                "first_failure_stage": "PLAN",
+                "rejection_reason": error.code,
                 "reason": error.code,
                 "construction_policy": f"{layout_family}_DIRECT_SYNTHESIS_V1",
             }
@@ -3781,6 +4071,31 @@ def _direct_structured_candidates(
                 stats.skeleton_construction_attempts = []
             stats.skeleton_construction_attempts.append(plan_row)
             continue
+        assert plan is not None
+        # A site-incompatible plan is an exact deterministic planning result,
+        # not a placement node. Charge the shared placement budget only when
+        # a feasible family plan is ready to enter finite zone synthesis.
+        if stats.visited_nodes >= context.node_budget:
+            stats.node_budget_exhausted = True
+            stats.skeleton_search_truncated = True
+            return
+        stats.visited_nodes += 1
+        stats.construction_node_count += 1
+        stats.current_work_item = {
+            "topology": context.structural_topology,
+            "layout_family": layout_family,
+            "process_axis": process_axis,
+            "envelope_family": envelope_family,
+            "support_side": support_side,
+            "mirror_variant": variant_index,
+            "terminal_variant_index": terminal_variant_index,
+            "branch": "DIRECT_FULL_BUILDING_SYNTHESIS",
+            "family_plan_subvariant": attempt_index,
+            "placement_node_charged": True,
+        }
+        quantum = _quantum_checkpoint(stats)
+        if quantum is not None:
+            yield quantum
         if stats.constructive_divergence_attempts is None:
             stats.constructive_divergence_attempts = []
         stats.constructive_divergence_attempts.append(
@@ -3802,30 +4117,11 @@ def _direct_structured_candidates(
                 "personnel_band_bounds_mm": list(plan.band_for_zone("office").bounds_mm),
             }
         )
-        shipping_candidates = _direct_shipping_channel_candidates(context, plan)
-        if terminal_variant_index >= len(shipping_candidates):
-            attempt_row = {
-                "layout_family": layout_family,
-                "envelope_family": plan.envelope.family,
-                "process_axis": plan.process_axis,
-                "support_side": support_side,
-                "terminal_variant_index": terminal_variant_index,
-                "construction_policy": f"{plan.layout_family}_PLAN_TO_GEOMETRY_V1",
-                "construction_nodes": int(charge_construction_node),
-                "result": "GEOMETRY_SYNTHESIS_REJECTED",
-                "rejection_reason": "NO_FINISHED_BAND_TERMINAL_SLOT",
-            }
-            _record_rejection(stats, "NO_FINISHED_BAND_TERMINAL_SLOT")
-            if stats.skeleton_construction_attempts is None:
-                stats.skeleton_construction_attempts = []
-            stats.skeleton_construction_attempts.append(attempt_row)
-            continue
-        shipping = shipping_candidates[terminal_variant_index]
         construction_failure_reasons: list[str] = []
         main_placements = _synthesize_family_main_process(
             context,
             plan,
-            shipping,
+            None,
             variant_index=variant_index,
             failure_reasons=construction_failure_reasons,
         )
@@ -3833,12 +4129,13 @@ def _direct_structured_candidates(
             "layout_family": layout_family,
             "envelope_family": plan.envelope.family,
             "process_axis": plan.process_axis,
-            "dock_root_bounds_mm": list(_bounds(shipping)),
             "support_side": support_side,
             "mirror_variant": variant_index,
             "construction_policy": f"{plan.layout_family}_PLAN_TO_GEOMETRY_V1",
-            "construction_nodes": int(charge_construction_node),
+            "construction_nodes": 1,
             "result": "GEOMETRY_SYNTHESIS_REJECTED",
+            "first_failure_stage": "MAIN_BAND_PACKING",
+            "first_failure_interface": None,
             "rejection_reason": None,
         }
         if main_placements is None:
@@ -3848,6 +4145,15 @@ def _direct_structured_candidates(
                 else "DIRECT_FAMILY_PACKING_NO_COMPLETE_GEOMETRY"
             )
             attempt_row["rejection_reason"] = failure_reason
+            if failure_reason.startswith("BAND_PACKING_UNAVAILABLE:"):
+                attempt_row["first_failure_stage"] = "MAIN_BAND_PACKING"
+                attempt_row["first_failure_interface"] = failure_reason.split(":", 1)[1]
+            elif failure_reason == "GRAPH_HARD_VALIDATION":
+                attempt_row["first_failure_stage"] = "GRAPH_HARD_VALIDATION"
+            else:
+                attempt_row["first_failure_interface"] = (
+                    failure_reason.split(":", 1)[1] if ":" in failure_reason else None
+                )
             _record_rejection(stats, failure_reason)
             if stats.skeleton_construction_attempts is None:
                 stats.skeleton_construction_attempts = []
@@ -3891,6 +4197,8 @@ def _direct_structured_candidates(
                 raise _error("SKELETON_TOPOLOGY_INVALID")
         except LayoutAuthorityError as error:
             attempt_row["rejection_reason"] = error.code
+            attempt_row["first_failure_stage"] = "GRAPH_HARD_VALIDATION"
+            attempt_row["first_failure_interface"] = error.details.get("unsatisfied_pairs")
             _record_rejection(stats, error.code)
             if stats.skeleton_construction_attempts is None:
                 stats.skeleton_construction_attempts = []
@@ -3922,16 +4230,32 @@ def _direct_structured_candidates(
             stats.skeleton_construction_attempts.append(attempt_row)
             continue
 
+        tail_failure_reasons: list[str] = []
         synthesis = _direct_family_tail_zones(
             context,
             plan,
             main_placements,
             variant_index=variant_index,
+            failure_reasons=tail_failure_reasons,
         )
         if synthesis is None:
             attempt_row["result"] = "DIRECT_TAIL_BAND_SYNTHESIS_REJECTED"
-            attempt_row["rejection_reason"] = "DIRECT_TAIL_BAND_NO_COMPLETE_GEOMETRY"
-            _record_rejection(stats, "DIRECT_TAIL_BAND_NO_COMPLETE_GEOMETRY")
+            failure_reason = (
+                tail_failure_reasons[-1]
+                if tail_failure_reasons
+                else "TAIL_BAND_PACKING_NO_VALID_COMBINATION"
+            )
+            attempt_row["first_failure_stage"] = (
+                "PERSONNEL_PACKING"
+                if failure_reason.startswith("PERSONNEL")
+                else "SUPPORT_PACKING"
+                if failure_reason.startswith("SUPPORT")
+                else "GRAPH_HARD_VALIDATION"
+                if failure_reason == "GRAPH_HARD_VALIDATION"
+                else "TAIL_PACKING"
+            )
+            attempt_row["rejection_reason"] = failure_reason
+            _record_rejection(stats, failure_reason)
             if stats.skeleton_construction_attempts is None:
                 stats.skeleton_construction_attempts = []
             stats.skeleton_construction_attempts.append(attempt_row)
@@ -3942,22 +4266,16 @@ def _direct_structured_candidates(
                 plan,
                 synthesis,
             )
-            direct_closure_rejection = _direct_envelope_closure_rejection(
-                exact_plan,
-                synthesis,
-            )
-            if direct_closure_rejection is not None:
-                raise _error(direct_closure_rejection)
             _validate_graph_completeness(context.graph, synthesis)
-            envelope_rejection = _building_envelope_closure_rejection(
-                replace(context, structured_building_plan=exact_plan),
-                synthesis,
-            )
-            if envelope_rejection is not None:
-                raise _error(envelope_rejection)
         except LayoutAuthorityError as error:
-            attempt_row["result"] = "FULL_BUILDING_CLOSURE_REJECTED"
+            attempt_row["result"] = "BAND_OR_GRAPH_VALIDATION_REJECTED"
             attempt_row["rejection_reason"] = error.code
+            attempt_row["first_failure_stage"] = (
+                "GRAPH_HARD_VALIDATION"
+                if error.code == "HARD_CONSTRAINT_UNSATISFIABLE"
+                else "ENVELOPE_CLOSURE"
+            )
+            attempt_row["first_failure_interface"] = error.details.get("unsatisfied_pairs")
             _record_rejection(stats, error.code)
             if stats.skeleton_construction_attempts is None:
                 stats.skeleton_construction_attempts = []
@@ -5526,15 +5844,56 @@ def _construct_main_process_skeletons(
         stats.constructive_divergence_attempts = []
     preferred_axis = reference_plan.process_axis
     alternate_axis = "X" if preferred_axis == "Y" else "Y"
+    if context.search_phase == GENERAL_FALLBACK_PHASE:
+        primary_family = reference_plan.layout_family
+        legacy_family_order = {
+            LINEAR_3_BAND: (
+                LINEAR_3_BAND,
+                LONGITUDINAL_PROCESS_SPINE,
+                CENTRAL_PROCESS_WITH_SIDE_BANKS,
+            ),
+            LONGITUDINAL_PROCESS_SPINE: (
+                LONGITUDINAL_PROCESS_SPINE,
+                LINEAR_3_BAND,
+                CENTRAL_PROCESS_WITH_SIDE_BANKS,
+            ),
+            CENTRAL_PROCESS_WITH_SIDE_BANKS: (
+                CENTRAL_PROCESS_WITH_SIDE_BANKS,
+                LONGITUDINAL_PROCESS_SPINE,
+                LINEAR_3_BAND,
+            ),
+        }.get(primary_family, (primary_family,))
+        variant_pairs = tuple((family, preferred_axis) for family in legacy_family_order)
+    else:
+        variant_pairs = tuple(
+            (family, process_axis)
+            for family in BASE_LAYOUT_FAMILIES
+            for process_axis in (preferred_axis, alternate_axis)
+        )
     searches: list[
         tuple[tuple[str, str], Iterator[MainProcessSkeletonCandidateV1 | _SearchQuantumYield]]
     ] = []
-    for layout_family in BASE_LAYOUT_FAMILIES:
-        for process_axis in (preferred_axis, alternate_axis):
-            plan: StructuredBuildingSkeletonV1 | None = None
-            envelope_failures: list[str] = []
+    for layout_family, process_axis in variant_pairs:
+        plan: StructuredBuildingSkeletonV1 | None = None
+        envelope_failures: list[str] = []
+        if context.search_phase == GENERAL_FALLBACK_PHASE:
+            plan = construct_legacy_compatibility_search_plan_v1(
+                boundary=context.boundary,
+                obstacles=context.obstacles,
+                authorities=context.authorities,
+                process_axis=process_axis,
+                process_direction=(
+                    context.structural_composition_family.dominant_direction
+                    if context.structural_composition_family.dominant_direction
+                    in {"POSITIVE", "NEGATIVE"}
+                    else "POSITIVE"
+                ),
+                layout_family=layout_family,
+                main_entrance=context.main_entrance,
+            )
+        else:
             # Axis is an explicit candidate dimension, not an exclusive
-            # selector outcome.  Each family constructs its own envelope,
+            # selector outcome. Each family constructs its own envelope,
             # grid, and bands on both orthogonal orientations.
             for envelope_family in (RECTANGLE, SIMPLE_L):
                 try:
@@ -5551,70 +5910,64 @@ def _construct_main_process_skeletons(
                     envelope_failures.append(error.code)
                     continue
                 break
-            stats.constructive_divergence_attempts.append(
-                {
-                    "topology": context.structural_topology,
-                    "layout_family": layout_family,
-                    "process_axis": process_axis,
-                    "attempted": True,
-                    "construction_policy": f"{layout_family}_{process_axis}_V1",
-                    "divergence_stage": "ENVELOPE_GRID_BAND_FORMATION",
-                    "result": "PLAN_READY" if plan is not None else "NO_SITE_FEASIBLE_ENVELOPE",
-                    "envelope_failures": envelope_failures,
-                    "selected_envelope_family": plan.envelope.family if plan is not None else None,
-                    "envelope_bounds_mm": (
-                        list(plan.envelope.bounds_mm) if plan is not None else None
-                    ),
-                    "envelope_components_mm": (
-                        [list(row) for row in plan.envelope.components_mm]
-                        if plan is not None
-                        else []
-                    ),
-                    "primary_x_axes_mm": (
-                        list(plan.primary_grid.x_axes_mm) if plan is not None else []
-                    ),
-                    "primary_y_axes_mm": (
-                        list(plan.primary_grid.y_axes_mm) if plan is not None else []
-                    ),
-                    "local_event_x_axis_count": (
-                        len(plan.primary_grid.event_x_mm) if plan is not None else 0
-                    ),
-                    "local_event_y_axis_count": (
-                        len(plan.primary_grid.event_y_mm) if plan is not None else 0
-                    ),
-                    "functional_band_bounds_mm": (
-                        {band.band_code: list(band.bounds_mm) for band in plan.bands}
-                        if plan is not None
-                        else {}
-                    ),
-                    "support_band_is_full_envelope": (
-                        plan.band_for_zone("packaging_material_storage").bounds_mm
-                        == plan.envelope.bounds_mm
-                        if plan is not None
-                        else None
-                    ),
-                    "personnel_band_is_full_envelope": (
-                        plan.band_for_zone("office").bounds_mm == plan.envelope.bounds_mm
-                        if plan is not None
-                        else None
-                    ),
-                }
-            )
-            if plan is None:
-                continue
-            plan_context = replace(
-                context,
-                structured_building_plan=plan,
-                structural_skeleton=replace(
-                    context.structural_skeleton, ordering_axis=process_axis
+        stats.constructive_divergence_attempts.append(
+            {
+                "topology": context.structural_topology,
+                "layout_family": layout_family,
+                "process_axis": process_axis,
+                "attempted": True,
+                "construction_policy": f"{layout_family}_{process_axis}_V1",
+                "divergence_stage": "ENVELOPE_GRID_BAND_FORMATION",
+                "result": "PLAN_READY" if plan is not None else "NO_SITE_FEASIBLE_ENVELOPE",
+                "envelope_failures": envelope_failures,
+                "selected_envelope_family": plan.envelope.family if plan is not None else None,
+                "envelope_bounds_mm": (list(plan.envelope.bounds_mm) if plan is not None else None),
+                "envelope_components_mm": (
+                    [list(row) for row in plan.envelope.components_mm] if plan is not None else []
                 ),
+                "primary_x_axes_mm": (
+                    list(plan.primary_grid.x_axes_mm) if plan is not None else []
+                ),
+                "primary_y_axes_mm": (
+                    list(plan.primary_grid.y_axes_mm) if plan is not None else []
+                ),
+                "local_event_x_axis_count": (
+                    len(plan.primary_grid.event_x_mm) if plan is not None else 0
+                ),
+                "local_event_y_axis_count": (
+                    len(plan.primary_grid.event_y_mm) if plan is not None else 0
+                ),
+                "functional_band_bounds_mm": (
+                    {band.band_code: list(band.bounds_mm) for band in plan.bands}
+                    if plan is not None
+                    else {}
+                ),
+                "support_band_is_full_envelope": (
+                    plan.band_for_zone("packaging_material_storage").bounds_mm
+                    == plan.envelope.bounds_mm
+                    if plan is not None
+                    else None
+                ),
+                "personnel_band_is_full_envelope": (
+                    plan.band_for_zone("office").bounds_mm == plan.envelope.bounds_mm
+                    if plan is not None
+                    else None
+                ),
+            }
+        )
+        if plan is None:
+            continue
+        plan_context = replace(
+            context,
+            structured_building_plan=plan,
+            structural_skeleton=replace(context.structural_skeleton, ordering_axis=process_axis),
+        )
+        searches.append(
+            (
+                (layout_family, process_axis),
+                iter(_construct_main_process_skeletons_for_plan(plan_context, stats)),
             )
-            searches.append(
-                (
-                    (layout_family, process_axis),
-                    iter(_construct_main_process_skeletons_for_plan(plan_context, stats)),
-                )
-            )
+        )
 
     # Completion coverage is selector-global, not a per-lane quotient.  A
     # lane's node allowance already bounds its work; dividing that allowance
@@ -5732,8 +6085,10 @@ def _construct_main_process_skeletons_for_plan(
         if emitted >= skeleton_completion_limit:
             stats.normal_stop_reason = "TAIL_ADMISSIBLE_SKELETON_COMPLETION_LIMIT"
             return
-        face_pair_roots = _sorting_roots_for_attachment_pair(
-            context, roots, raw_side, finished_side
+        face_pair_roots = (
+            roots
+            if context.search_phase == GENERAL_FALLBACK_PHASE
+            else _sorting_roots_for_attachment_pair(context, roots, raw_side, finished_side)
         )
         for sorting in face_pair_roots:
             if stats.visited_nodes >= context.node_budget:
@@ -5885,11 +6240,18 @@ def _canonical_tail_search_context(
         if canonical_family.family == LINEAR_PROCESS_BAND
         else STRUCTURED_PLACEMENT_ZONE_ORDER
     )
-    return replace(
-        discovery_context,
-        structural_composition_family=canonical_family,
-        structural_skeleton=structural_skeleton,
-        structured_building_plan=construct_structured_building_plan_v1(
+    if discovery_context.search_phase == GENERAL_FALLBACK_PHASE:
+        compatibility_plan = discovery_context.structured_building_plan
+        if compatibility_plan is None:
+            raise _error("GENERAL_FALLBACK_SEARCH_PLAN_UNAVAILABLE")
+        canonical_plan = replace(
+            compatibility_plan,
+            layout_family=structured_layout_family_for_topology(canonical_topology),
+            process_axis=structural_skeleton.ordering_axis,
+            process_direction=canonical_family.dominant_direction,
+        )
+    else:
+        canonical_plan = construct_structured_building_plan_v1(
             boundary=discovery_context.boundary,
             obstacles=discovery_context.obstacles,
             authorities=discovery_context.authorities,
@@ -5897,7 +6259,12 @@ def _canonical_tail_search_context(
             layout_family=skeleton.building_layout_family or LINEAR_3_BAND,
             envelope_family=skeleton.building_envelope_family or RECTANGLE,
             main_entrance=discovery_context.main_entrance,
-        ),
+        )
+    return replace(
+        discovery_context,
+        structural_composition_family=canonical_family,
+        structural_skeleton=structural_skeleton,
+        structured_building_plan=canonical_plan,
         structural_topology=canonical_topology,
         placement_zone_order=placement_zone_order,
     )
@@ -5907,11 +6274,18 @@ def _walk_complete_candidate_payloads(
     context: _PlacementSearchContext, stats: _PlacementSearchStats
 ) -> Iterator[dict[str, Any] | _SearchQuantumYield]:
     """Yield every complete P2C candidate until the node budget is exhausted."""
-    if context.search_phase == STRUCTURED_PHASE:
-        if context.direct_synthesis_enabled:
-            yield from _direct_structured_candidates(context, stats)
+    if context.search_phase == STRUCTURED_PHASE and context.direct_synthesis_enabled:
+        yield from _direct_structured_candidates(context, stats)
+        return
+    if context.search_phase == STRUCTURED_PHASE and context.structured_building_plan is None:
         return
     placed: dict[str, PlacedRectangleV1] = {}
+    # Keep the separately accounted R2 fallback phase on the R1 structured
+    # candidate mechanics. The phase label remains GENERAL_FALLBACK_PHASE;
+    # only candidate anchoring/admission follows the compatibility path.
+    candidate_policy_phase = (
+        STRUCTURED_PHASE if context.search_phase == GENERAL_FALLBACK_PHASE else context.search_phase
+    )
     truck_entrance = _truck_segment(context.site_body)
     if stats.structured_main_skeleton_completions is None:
         stats.structured_main_skeleton_completions = {}
@@ -5959,7 +6333,7 @@ def _walk_complete_candidate_payloads(
     ) -> Iterator[dict[str, Any] | _SearchQuantumYield]:
         root_signature = core_root_signature()
         if (
-            context.search_phase == STRUCTURED_PHASE
+            candidate_policy_phase == STRUCTURED_PHASE
             and index >= len(MAIN_PROCESS_ZONE_CODES)
             and len(placed) >= len(MAIN_PROCESS_ZONE_CODES)
             and main_skeleton_completions.get(main_skeleton_signature(), 0)
@@ -5967,7 +6341,7 @@ def _walk_complete_candidate_payloads(
         ):
             return
         if (
-            context.search_phase == STRUCTURED_PHASE
+            candidate_policy_phase == STRUCTURED_PHASE
             and index > 0
             and root_signature is not None
             and core_root_completions.get(root_signature, 0) >= STRUCTURED_COMPLETIONS_PER_CORE_ROOT
@@ -6014,21 +6388,16 @@ def _walk_complete_candidate_payloads(
         # classification. Reapplying this lane-oriented proxy after family
         # rebinding would turn canonical identity into a second admission gate.
         if (
-            context.search_phase == STRUCTURED_PHASE
+            candidate_policy_phase == STRUCTURED_PHASE
             and main_process_skeleton is None
             and index == len(MAIN_PROCESS_ZONE_CODES)
             and not _main_group_order_monotonic(placed, context.structural_skeleton)
         ):
             return
         if index == len(context.placement_zone_order):
-            if context.search_phase == STRUCTURED_PHASE:
-                closure_rejection = _building_envelope_closure_rejection(context, placed)
-                if closure_rejection is not None:
-                    _record_rejection(stats, closure_rejection)
-                    return
             _validate_graph_completeness(context.graph, placed)
             stats.complete_candidates += 1
-            if context.search_phase == STRUCTURED_PHASE:
+            if candidate_policy_phase == STRUCTURED_PHASE:
                 signature = main_skeleton_signature()
                 main_skeleton_completions[signature] = (
                     main_skeleton_completions.get(signature, 0) + 1
@@ -6062,7 +6431,7 @@ def _walk_complete_candidate_payloads(
             )
             payload["_structural_skeleton"] = context.structural_skeleton.to_dict()
             payload["_search_phase"] = context.search_phase
-            if context.search_phase == STRUCTURED_PHASE:
+            if candidate_policy_phase == STRUCTURED_PHASE:
                 assert context.structured_building_plan is not None
                 payload["_structured_building_plan"] = (
                     context.structured_building_plan.with_placements(placed).to_dict()
@@ -6088,7 +6457,7 @@ def _walk_complete_candidate_payloads(
         else:
             options = _candidate_options(
                 *option_arguments,
-                search_phase=context.search_phase,
+                search_phase=candidate_policy_phase,
                 structural_skeleton=context.structural_skeleton,
                 structured_building_plan=context.structured_building_plan,
                 zone_authorities=context.authorities,
@@ -6113,7 +6482,7 @@ def _walk_complete_candidate_payloads(
             zone_facts["candidate_options"] += len(options)
             skeleton_region_options = sum(
                 int(
-                    context.search_phase != STRUCTURED_PHASE
+                    candidate_policy_phase != STRUCTURED_PHASE
                     or _candidate_fits_skeleton_region(
                         code, rectangle, placed, context.structural_skeleton
                     )
@@ -6125,21 +6494,21 @@ def _walk_complete_candidate_payloads(
                 zone_facts["empty_option_branches"] += 1
         stats.generated_candidates += len(options)
         for rectangle in options:
-            if context.search_phase == STRUCTURED_PHASE and not _candidate_fits_skeleton_region(
+            if candidate_policy_phase == STRUCTURED_PHASE and not _candidate_fits_skeleton_region(
                 code, rectangle, placed, context.structural_skeleton
             ):
                 continue
             structural_refs = structural_anchor_references(code, tuple(placed))
-            if context.search_phase == STRUCTURED_PHASE and code in MAIN_PROCESS_ZONE_CODES:
+            if candidate_policy_phase == STRUCTURED_PHASE and code in MAIN_PROCESS_ZONE_CODES:
                 # Main-flow candidates are structurally generated only after
                 # passing the versioned group/band predicate and existing
                 # MUST-edge checks performed by _candidate_options.
                 anchored = _candidate_fits_skeleton_region(
                     code, rectangle, placed, context.structural_skeleton
                 )
-            elif code == "sorting_packaging_room" and context.search_phase == STRUCTURED_PHASE:
+            elif code == "sorting_packaging_room" and candidate_policy_phase == STRUCTURED_PHASE:
                 anchored = True
-            elif code == "raw_fruit_buffer" and context.search_phase != STRUCTURED_PHASE:
+            elif code == "raw_fruit_buffer" and candidate_policy_phase != STRUCTURED_PHASE:
                 anchored = _rectangle_touches_boundary(rectangle, context.boundary)
             elif (
                 context.structural_composition_family.family == "LINEAR_PROCESS_BAND"
@@ -6153,14 +6522,6 @@ def _walk_complete_candidate_payloads(
                 anchored = any(
                     rectangles_share_positive_edge(rectangle, placed[reference])
                     for reference in structural_refs
-                )
-            if (
-                context.search_phase == STRUCTURED_PHASE
-                and code == "coating_room"
-                and "sorting_packaging_room" in placed
-            ):
-                anchored = anchored and rectangles_share_positive_edge(
-                    rectangle, placed["sorting_packaging_room"]
                 )
             placed[code] = rectangle
             yield from visit(
@@ -6180,12 +6541,10 @@ def _walk_complete_candidate_payloads(
         # shared budget collecting seeds while leaving no quantum for the
         # already-admissible seed's tail, regressing existing full-chain cases.
         discovery_context = context
-        constructor_emitted_seed = False
         for seed_or_quantum in _construct_main_process_skeletons(discovery_context, stats):
             if isinstance(seed_or_quantum, _SearchQuantumYield):
                 yield seed_or_quantum
                 continue
-            constructor_emitted_seed = True
             seed = seed_or_quantum
             context = _canonical_tail_search_context(discovery_context, seed)
             placed.update({row.zone_code: row for row in seed.zone_rectangles})
@@ -6194,7 +6553,7 @@ def _walk_complete_candidate_payloads(
             tail_node_limit = max(0, context.node_budget - stats.visited_nodes)
             tail_start_node = stats.visited_nodes
             complete_start_count = stats.complete_candidates
-            lifecycle_row = {
+            lifecycle_row: dict[str, Any] = {
                 "topology": seed.topology,
                 "skeleton_hash": seed.main_process_skeleton_hash,
                 "layout_family": seed.building_layout_family,
@@ -6253,12 +6612,82 @@ def _walk_complete_candidate_payloads(
             context = discovery_context
             if stats.node_budget_exhausted:
                 return
-        if not constructor_emitted_seed:
-            # No incomplete skeleton may be extended by the general zone DFS:
-            # that would reverse the skeleton-first authority boundary.
+        if stats.node_budget_exhausted:
             return
-    else:
-        yield from visit(0, True)
+    elif context.search_phase == GENERAL_FALLBACK_PHASE:
+        # Keep the pre-R2 skeleton constructor as a genuine independent
+        # compatibility source, while retaining GENERAL_FALLBACK semantics
+        # for its tail: canonical identity is rebound, but the new envelope
+        # must not become an admission boundary for legacy layouts.
+        discovery_context = context
+        for seed_or_quantum in _construct_main_process_skeletons(discovery_context, stats):
+            if isinstance(seed_or_quantum, _SearchQuantumYield):
+                yield seed_or_quantum
+                continue
+            seed = seed_or_quantum
+            context = _canonical_tail_search_context(discovery_context, seed)
+            placed.update({row.zone_code: row for row in seed.zone_rectangles})
+            if len(placed) != len(MAIN_PROCESS_ZONE_CODES):
+                raise _error("MAIN_PROCESS_SKELETON_ZONE_SET_INVALID")
+            complete_start_count = stats.complete_candidates
+            tail_start_node = stats.visited_nodes
+            lifecycle_row = {
+                "topology": seed.topology,
+                "skeleton_hash": seed.main_process_skeleton_hash,
+                "layout_family": seed.building_layout_family,
+                "envelope_family": seed.building_envelope_family,
+                "discovery_topology": seed.discovery_topology,
+                "canonical_topology_owner": seed.canonical_topology_owner,
+                "discovery_family": (seed.discovery_family or seed.family).to_dict(),
+                "canonical_family": seed.family.to_dict(),
+                "tail_search_started_by_topology": seed.discovery_topology,
+                "construction_nodes": (stats.construction_nodes_by_skeleton or {}).get(
+                    seed.main_process_skeleton_hash, 0
+                ),
+                "tail_nodes": 0,
+                "tail_node_limit": max(0, context.node_budget - stats.visited_nodes),
+                "complete_candidate_count": 0,
+                "p2d_reached": False,
+                "p2d_full_pass_count": 0,
+                "search_status": "ACTIVE",
+                "first_failure_stage": None,
+                "first_failure_reason": None,
+            }
+            if stats.skeleton_tail_lifecycle is None:
+                stats.skeleton_tail_lifecycle = []
+            stats.skeleton_tail_lifecycle.append(lifecycle_row)
+            for tail_event in visit(len(MAIN_PROCESS_ZONE_CODES), True, seed):
+                lifecycle_row["tail_nodes"] = stats.visited_nodes - tail_start_node
+                lifecycle_row["complete_candidate_count"] = (
+                    stats.complete_candidates - complete_start_count
+                )
+                lifecycle_row["p2d_reached"] = lifecycle_row["complete_candidate_count"] > 0
+                if isinstance(tail_event, _SearchQuantumYield):
+                    lifecycle_row["search_status"] = "QUANTUM_EXHAUSTED"
+                yield tail_event
+            lifecycle_row["tail_nodes"] = stats.visited_nodes - tail_start_node
+            lifecycle_row["complete_candidate_count"] = (
+                stats.complete_candidates - complete_start_count
+            )
+            lifecycle_row["p2d_reached"] = lifecycle_row["complete_candidate_count"] > 0
+            lifecycle_row["search_status"] = (
+                "ACTIVE" if stats.node_budget_exhausted else "SEARCH_EXHAUSTED"
+            )
+            if not lifecycle_row["p2d_reached"]:
+                lifecycle_row["first_failure_stage"] = "TAIL_SEARCH"
+                lifecycle_row["first_failure_reason"] = (
+                    "GLOBAL_PLACEMENT_NODE_BUDGET_EXHAUSTED"
+                    if stats.node_budget_exhausted
+                    else "TAIL_SEARCH_COMPLETED_WITHOUT_COMPLETE_P2C_CANDIDATE"
+                )
+            placed.clear()
+            context = discovery_context
+            if stats.node_budget_exhausted:
+                return
+    # GENERAL_FALLBACK_PHASE is the independent whole-layout compatibility
+    # room-level source. It uses the exact pre-R2 candidate ordering and any
+    # remaining nodes after the legacy skeleton constructor above.
+    yield from visit(0, True)
 
 
 def _materialize_candidate_result(

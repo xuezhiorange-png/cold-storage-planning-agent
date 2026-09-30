@@ -25,6 +25,9 @@ from cold_storage.modules.layout.domain.access_predicates import (
     _evaluate_bound_requirement,
     evaluate_personnel_truck_policy,
 )
+from cold_storage.modules.layout.domain.building_footprint import (
+    derive_building_footprint as derive_building_footprint,
+)
 from cold_storage.modules.layout.domain.dimensioning import (
     GRID,
     LayoutAuthorityError,
@@ -42,9 +45,6 @@ from cold_storage.modules.layout.domain.site_geometry import (
     polygon_contains_polygon,
     polygon_to_dict,
     segments_share_positive_length,
-)
-from cold_storage.modules.layout.domain.site_geometry import (
-    derive_building_footprint as derive_building_footprint,
 )
 from cold_storage.modules.layout.domain.truck_maneuver import (
     DOCK_REVERSE,

@@ -104,6 +104,7 @@ def test_p2d_domain_has_only_layout_domain_dependencies() -> None:
     allowed_domain = {
         "cold_storage.modules.layout.domain.access_authority",
         "cold_storage.modules.layout.domain.access_predicates",
+        "cold_storage.modules.layout.domain.building_footprint",
         "cold_storage.modules.layout.domain.dimensioning",
         "cold_storage.modules.layout.domain.site_geometry",
         "cold_storage.modules.layout.domain.truck_maneuver",
@@ -128,6 +129,7 @@ def test_p2d_application_does_not_bypass_authority_or_add_mcp_paths() -> None:
     }
     allowed_domain = {
         "cold_storage.modules.layout.domain.access_routing",
+        "cold_storage.modules.layout.domain.building_footprint",
         "cold_storage.modules.layout.domain.dimensioning",
         "cold_storage.modules.layout.domain.objective_profile",
         "cold_storage.modules.layout.domain.placement",

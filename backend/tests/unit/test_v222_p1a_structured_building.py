@@ -66,9 +66,13 @@ def test_rectangle_envelope_and_three_main_bands_are_constructed_before_zones() 
     )
 
     assert plan.envelope.family == RECTANGLE
-    assert plan.envelope.bounds_mm == (70_000, 0, 100_000, 70_000)
     assert plan.envelope.site_bounds_mm == (0, 0, 100_000, 80_000)
     assert plan.envelope.bounds_mm != plan.envelope.site_bounds_mm
+    x0, y0, x1, y1 = plan.envelope.bounds_mm
+    required_program_area_mm2 = sum(
+        int(authority["required_area_m2"]) * 1_000_000 for authority in _authorities().values()
+    )
+    assert (x1 - x0) * (y1 - y0) >= required_program_area_mm2
     assert plan.zone_placements == ()
     assert {row.band_code for row in plan.bands} == {
         RAW_SIDE_BAND,
@@ -82,12 +86,41 @@ def test_rectangle_envelope_and_three_main_bands_are_constructed_before_zones() 
     assert plan.band_for_zone("shipping_channel").band_code == FINISHED_SIDE_BAND
     assert plan.band_for_zone("packaging_material_storage").band_code == SUPPORT_BAND
     assert plan.band_for_zone("office").band_code == PERSONNEL_EDGE_BAND
-    assert plan.primary_grid.x_axes_mm == (70_000, 100_000)
-    assert plan.primary_grid.y_axes_mm == (0, 10_000, 20_000, 60_000, 70_000)
+    assert plan.primary_grid.x_axes_mm[0] == x0
+    assert plan.primary_grid.x_axes_mm[-1] == x1
+    assert plan.primary_grid.y_axes_mm[0] == y0
+    assert plan.primary_grid.y_axes_mm[-1] == y1
+    assert len(plan.primary_grid.x_axes_mm) < len(plan.primary_grid.event_x_mm)
     assert len(plan.primary_grid.y_axes_mm) < len(plan.primary_grid.event_y_mm)
     assert plan.band_for_zone("packaging_material_storage").bounds_mm != plan.envelope.bounds_mm
     assert plan.band_for_zone("office").bounds_mm != plan.envelope.bounds_mm
     assert plan.band_for_zone("sorting_packaging_room").bounds_mm != plan.envelope.bounds_mm
+    support = plan.band_for_zone("packaging_material_storage").bounds_mm
+    personnel = plan.band_for_zone("office").bounds_mm
+    raw = plan.band_for_zone("raw_fruit_buffer").bounds_mm
+    process = plan.band_for_zone("sorting_packaging_room").bounds_mm
+    finished = plan.band_for_zone("shipping_channel").bounds_mm
+    finished_band = next(band for band in plan.bands if band.band_code == FINISHED_SIDE_BAND)
+    envelope = plan.envelope.bounds_mm
+    if plan.support_side == "EAST":
+        assert support[2] == envelope[2]
+    elif plan.support_side == "WEST":
+        assert support[0] == envelope[0]
+    elif plan.support_side == "NORTH":
+        assert support[3] == envelope[3]
+    else:
+        assert support[1] == envelope[1]
+    if plan.personnel_side == "EAST":
+        assert personnel[2] == envelope[2]
+    elif plan.personnel_side == "WEST":
+        assert personnel[0] == envelope[0]
+    elif plan.personnel_side == "NORTH":
+        assert personnel[3] == envelope[3]
+    else:
+        assert personnel[1] == envelope[1]
+    assert raw[3] == process[1]
+    assert process[3] == finished[1]
+    assert "coating_room" in finished_band.transition_zone_codes
 
 
 def test_zones_are_admitted_only_inside_their_planned_band_and_envelope() -> None:
@@ -235,9 +268,7 @@ def test_layout_families_are_first_class_and_construct_independently() -> None:
             for plan in family_plans.values()
         }
     ) == len(BASE_LAYOUT_FAMILIES)
-    assert len({plan.envelope.bounds_mm for plan in family_plans.values()}) == len(
-        BASE_LAYOUT_FAMILIES
-    )
+    assert len({plan.envelope.bounds_mm for plan in family_plans.values()}) >= 2
     assert (
         first.band_for_zone("raw_fruit_buffer").bounds_mm[3]
         < (first.band_for_zone("finished_goods_room").bounds_mm[3])

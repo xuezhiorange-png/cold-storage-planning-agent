@@ -113,11 +113,13 @@ def test_placement_domain_has_only_domain_dependencies() -> None:
         "dataclasses",
         "decimal",
         "fractions",
+        "itertools",
         "math",
         "typing",
     }
     allowed_domain = {
         "cold_storage.modules.layout.domain.adjacency",
+        "cold_storage.modules.layout.domain.building_footprint",
         "cold_storage.modules.layout.domain.dimensioning",
         "cold_storage.modules.layout.domain.main_process_topology",
         "cold_storage.modules.layout.domain.main_process_skeleton",

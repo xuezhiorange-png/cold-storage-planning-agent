@@ -33,7 +33,8 @@ from cold_storage.modules.layout.domain.dimensioning import (
 )
 from cold_storage.modules.layout.domain.objective_profile import ObjectiveProfileV1
 from cold_storage.modules.layout.domain.placement import (
-    LEGACY_COMPAT_PHASE,
+    DIRECT_SYNTHESIS_ATTEMPT_COUNT,
+    GENERAL_FALLBACK_PHASE,
     MIN_CONSTRUCTIVE_SKELETON_NODE_ALLOWANCE,
     PLACEMENT_SEARCH_QUANTUM_NODES,
     STRUCTURED_PHASE,
@@ -56,7 +57,6 @@ from cold_storage.modules.layout.domain.structural_quality import (
     build_structural_quality_facts,
     structural_candidate_is_better,
 )
-from cold_storage.modules.layout.domain.structured_building import BASE_LAYOUT_FAMILIES
 from cold_storage.modules.layout.domain.truck_maneuver import (
     BoundTruckManeuverProjectInputV1,
 )
@@ -767,11 +767,12 @@ def select_validated_placement(
     candidate_index = 0
     lane_state: dict[int, dict[str, Any]] = {}
     phase_states: list[dict[str, Any]] = []
+    fallback_started: set[int] = set()
 
     def make_enumeration(lane_index: int, phase: str) -> Any:
         lane = topology_lanes[lane_index]
         phase_budget = (
-            min(placement_node_budget, len(BASE_LAYOUT_FAMILIES))
+            min(placement_node_budget, DIRECT_SYNTHESIS_ATTEMPT_COUNT)
             if phase == STRUCTURED_PHASE
             else placement_node_budget
         )
@@ -788,10 +789,73 @@ def select_validated_placement(
             structural_family=lane.family,
             structural_topology=lane.topology,
             search_phase=phase,
-            direct_synthesis_enabled=True,
+            direct_synthesis_enabled=phase == STRUCTURED_PHASE,
             global_main_process_geometry_registry=global_skeleton_geometry_registry,
             global_cross_topology_duplicate_trace=cross_topology_duplicate_trace,
         )
+
+    def enqueue_compatibility_fallbacks() -> None:
+        """Resume uncovered legacy lanes, compensating for structured-phase spend."""
+        stable_fallback_order = list(
+            fallback_lane
+            for fallback_lane in dict.fromkeys(
+                (
+                    *((preferred_lane_index,) if preferred_lane_index is not None else ()),
+                    *lane_order,
+                )
+            )
+        )
+        stable_position = {
+            fallback_lane: position for position, fallback_lane in enumerate(stable_fallback_order)
+        }
+        structured_nodes_by_lane: dict[int, int] = {}
+        for phase_state in phase_states:
+            if phase_state["phase"] != STRUCTURED_PHASE:
+                continue
+            lane_index = int(phase_state["lane_index"])
+            structured_nodes_by_lane[lane_index] = int(
+                phase_state["enumeration"].visited_node_count
+            )
+        eligible_fallback_lanes = sorted(
+            stable_fallback_order,
+            key=lambda fallback_lane: (
+                structured_nodes_by_lane.get(fallback_lane, 0) > 0,
+                stable_position[fallback_lane],
+            ),
+        )
+        eligible_fallback_lanes = [
+            fallback_lane
+            for fallback_lane in eligible_fallback_lanes
+            if fallback_lane not in fallback_started
+            and lane_state[fallback_lane]["full_pass_count"] == 0
+        ]
+        for fallback_lane in eligible_fallback_lanes:
+            fallback_started.add(fallback_lane)
+            fallback_report = lane_state[fallback_lane]["report"]
+            fallback_report["fallback_admission_reason"] = (
+                "STRUCTURED_PHASES_COMPLETED_WITH_REMAINING_GLOBAL_BUDGET"
+            )
+            fallback_report["fallback_node_budget"] = global_node_budget_remaining
+            fallback_report["fallback_budget_is_shared_pool"] = True
+            fallback_report["structured_nodes_before_fallback"] = structured_nodes_by_lane.get(
+                fallback_lane, 0
+            )
+            fallback_report["fallback_scheduling_policy"] = (
+                "ROUND_ROBIN_STABLE_LANE_ORDER_AFTER_STRUCTURED_SPEND"
+            )
+            fallback_state = {
+                "lane_index": fallback_lane,
+                "phase": GENERAL_FALLBACK_PHASE,
+                "phase_budget": placement_node_budget,
+                "enumeration": make_enumeration(fallback_lane, GENERAL_FALLBACK_PHASE),
+                "candidate_count": 0,
+                "rejected_count": 0,
+                "full_pass_count": 0,
+                "status": "ACTIVE",
+                "finalized": False,
+            }
+            phase_states.append(fallback_state)
+            active_states.append(fallback_state)
 
     for lane_index in lane_order:
         lane = topology_lanes[lane_index]
@@ -805,7 +869,11 @@ def select_validated_placement(
             "preferred_lane": preferred_family is not None and lane_index == preferred_lane_index,
             "lane_node_budget": placement_node_budget,
             "global_budget_before_lane": None,
-            "structured_node_budget": min(placement_node_budget, len(BASE_LAYOUT_FAMILIES)),
+            "structured_node_budget": (
+                min(placement_node_budget, DIRECT_SYNTHESIS_ATTEMPT_COUNT)
+                if lane_index == direct_synthesis_lane_index
+                else 0
+            ),
             "fallback_node_budget": 0,
             "phases": [],
             "p2d_full_pass_candidate_count": 0,
@@ -827,7 +895,7 @@ def select_validated_placement(
                 {
                     "lane_index": lane_index,
                     "phase": STRUCTURED_PHASE,
-                    "phase_budget": min(placement_node_budget, len(BASE_LAYOUT_FAMILIES)),
+                    "phase_budget": min(placement_node_budget, DIRECT_SYNTHESIS_ATTEMPT_COUNT),
                     "enumeration": make_enumeration(lane_index, STRUCTURED_PHASE),
                     "candidate_count": 0,
                     "rejected_count": 0,
@@ -836,9 +904,10 @@ def select_validated_placement(
                     "finalized": False,
                 }
             )
+            lane_report["structured_phase_status"] = "INDEPENDENT_FAMILY_SYNTHESIS_ACTIVE"
         else:
             lane_report["structured_phase_status"] = (
-                "ALL_LAYOUT_FAMILIES_COVERED_BY_DIRECT_SYNTHESIS_LANE"
+                "LAYOUT_FAMILIES_ENUMERATED_BY_INDEPENDENT_DIRECT_SYNTHESIS_SOURCE"
             )
 
     def process_candidate(state: dict[str, Any], candidate: Any) -> None:
@@ -1130,6 +1199,7 @@ def select_validated_placement(
                 "round": scheduler_round,
                 "work_item_id": work_item_id,
                 "topology": topology_lanes[lane_index].topology,
+                "phase": state["phase"],
                 "root": work_item.get("sorting_root_mm"),
                 "face_pair": [work_item.get("raw_side"), work_item.get("finished_side")],
                 "offset_direction": work_item.get("offset_direction"),
@@ -1148,32 +1218,21 @@ def select_validated_placement(
                 process_candidate(state, candidate)
             if advance.completed:
                 finalize_phase(state)
-                if state["phase"] == STRUCTURED_PHASE and global_node_budget_remaining > 0:
-                    fallback_order = lane_order
-                    for fallback_lane in fallback_order:
-                        if lane_state[fallback_lane]["full_pass_count"] > 0:
-                            continue
-                        fallback_report = lane_state[fallback_lane]["report"]
-                        fallback_report["fallback_admission_reason"] = (
-                            "STRUCTURED_PHASE_COMPLETED_WITH_REMAINING_GLOBAL_BUDGET"
-                        )
-                        fallback_report["fallback_node_budget"] = global_node_budget_remaining
-                        fallback_report["fallback_budget_is_shared_pool"] = True
-                        fallback_state = {
-                            "lane_index": fallback_lane,
-                            "phase": LEGACY_COMPAT_PHASE,
-                            "phase_budget": placement_node_budget,
-                            "enumeration": make_enumeration(fallback_lane, LEGACY_COMPAT_PHASE),
-                            "candidate_count": 0,
-                            "rejected_count": 0,
-                            "full_pass_count": 0,
-                            "status": "ACTIVE",
-                            "finalized": False,
-                        }
-                        phase_states.append(fallback_state)
-                        active_states.append(fallback_state)
             else:
                 active_states.append(state)
+
+        structured_work_remains = any(
+            state["phase"] == STRUCTURED_PHASE and not state["finalized"] for state in phase_states
+        )
+        fallback_is_active = any(
+            state["phase"] == GENERAL_FALLBACK_PHASE for state in active_states
+        )
+        if (
+            not structured_work_remains
+            and not fallback_is_active
+            and global_node_budget_remaining > 0
+        ):
+            enqueue_compatibility_fallbacks()
 
     for state in phase_states:
         finalize_phase(state)
@@ -1198,12 +1257,17 @@ def select_validated_placement(
         int(phase["main_process_skeleton_generation"].get("construction_node_count", 0))
         for lane_report in lane_reports
         for phase in lane_report["phases"]
-        if phase["search_phase"] == STRUCTURED_PHASE
     )
     tail_nodes = sum(
         int(phase["main_process_skeleton_generation"].get("tail_node_count", 0))
         for lane_report in lane_reports
         for phase in lane_report["phases"]
+    )
+    structured_phase_nodes = sum(
+        int(phase["visited_nodes"])
+        for lane_report in lane_reports
+        for phase in lane_report["phases"]
+        if phase["search_phase"] == STRUCTURED_PHASE
     )
     general_fallback_nodes = sum(
         int(phase["visited_nodes"])
@@ -1211,17 +1275,21 @@ def select_validated_placement(
         for phase in lane_report["phases"]
         if phase["search_phase"] != STRUCTURED_PHASE
     )
-    classified_node_total = construction_nodes + tail_nodes + general_fallback_nodes
+    # Phase visits form the disjoint global ledger. Construction and tail
+    # counts are overlapping diagnostics within those phase totals.
+    classified_node_total = structured_phase_nodes + general_fallback_nodes
     if classified_node_total != global_node_visits:
         raise _error(
             "PLACEMENT_NODE_ACCOUNTING_INCONSISTENT",
             global_node_visits=global_node_visits,
+            structured_phase_nodes=structured_phase_nodes,
             classified_node_total=classified_node_total,
         )
     r6_topology_diagnostics["r11_budget_accounting"] = {
         "global_budget": placement_node_budget,
         "global_nodes_visited": global_node_visits,
         "global_nodes_remaining": global_node_budget_remaining,
+        "structured_phase_nodes": structured_phase_nodes,
         "construction_nodes": construction_nodes,
         "tail_nodes": tail_nodes,
         "general_fallback_nodes": general_fallback_nodes,
