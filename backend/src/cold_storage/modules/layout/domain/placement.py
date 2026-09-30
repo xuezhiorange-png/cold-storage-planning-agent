@@ -111,8 +111,18 @@ STRUCTURED_PHASE: Final = "STRUCTURED"
 GENERAL_FALLBACK_PHASE: Final = "GENERAL_FALLBACK"
 LEGACY_COMPAT_PHASE: Final = "LEGACY_COMPAT"
 _DIRECT_STRUCTURAL_VARIANT_ROUNDS: Final = (
-    (0, RECTANGLE, "DEFAULT_SUPPORT_SIDE", 0),
-    (1, RECTANGLE, "DEFAULT_SUPPORT_SIDE", 0),
+    (0, RECTANGLE, "DEFAULT_SUPPORT_SIDE", "POSITIVE", 0, 0),
+    (0, RECTANGLE, "DEFAULT_SUPPORT_SIDE", "NEGATIVE", 1, -1),
+    (0, RECTANGLE, "PERPENDICULAR_SUPPORT_SIDE_A", "POSITIVE", 0, 0),
+    (0, RECTANGLE, "PERPENDICULAR_SUPPORT_SIDE_A", "NEGATIVE", 1, -1),
+    (0, RECTANGLE, "PERPENDICULAR_SUPPORT_SIDE_B", "POSITIVE", 0, 0),
+    (0, RECTANGLE, "PERPENDICULAR_SUPPORT_SIDE_B", "NEGATIVE", 1, -1),
+    (1, RECTANGLE, "DEFAULT_SUPPORT_SIDE", "POSITIVE", 0, -1),
+    (1, RECTANGLE, "DEFAULT_SUPPORT_SIDE", "NEGATIVE", 1, -1),
+    (1, RECTANGLE, "PERPENDICULAR_SUPPORT_SIDE_A", "POSITIVE", 0, 0),
+    (1, RECTANGLE, "PERPENDICULAR_SUPPORT_SIDE_A", "NEGATIVE", 1, -1),
+    (1, RECTANGLE, "PERPENDICULAR_SUPPORT_SIDE_B", "POSITIVE", 0, 0),
+    (1, RECTANGLE, "PERPENDICULAR_SUPPORT_SIDE_B", "NEGATIVE", 1, -1),
 )
 DIRECT_SYNTHESIS_ATTEMPT_COUNT: Final = len(_DIRECT_STRUCTURAL_VARIANT_ROUNDS) * len(
     BASE_LAYOUT_FAMILIES
@@ -3386,9 +3396,11 @@ def synthesize_band_geometry(
 ) -> tuple[dict[str, PlacedRectangleV1], ...]:
     """Pack a whole functional band from its bounds and cumulative dimensions.
 
-    This is a finite row/column composition: coordinates are calculated once
-    from authoritative room dimensions and the selected band edge. It does
-    not enumerate site/event coordinates or grow a room-by-room DFS chain.
+    This is a finite edge-derived composition: coordinates come from
+    authoritative room dimensions and a selected band edge. Passing
+    ``band_code=None`` constructs a complete frozen MUST chain across its
+    distinct planned functional bands; production selects one deterministic
+    path pattern per structural variant rather than sweeping every path.
     """
     if packing_axis not in {"X", "Y"} or cross_alignment not in {"LOW", "CENTER", "HIGH"}:
         return ()
@@ -3405,91 +3417,96 @@ def synthesize_band_geometry(
         <= set(next(row.transition_zone_codes for row in plan.bands if row.band_code == band_code))
     ):
         return ()
-    # Pack from the declared band bounds, not one tile at a time. The band
-    # predicate validates exact coverage by the region union, while the
-    # existing site and no-build predicates remain the authoritative gates.
-    left, bottom, right, top = band.bounds_mm
-    along_low, along_high = (left, right) if packing_axis == "X" else (bottom, top)
-    cross_low, cross_high = (bottom, top) if packing_axis == "X" else (left, right)
-    along_span = along_high - along_low
-    cross_span = cross_high - cross_low
+    # Treat each exact envelope component as a finite packing container first.
+    # The overall band bounds are retained as a final container so a rectangle
+    # spanning a contiguous component seam can still be admitted by the exact
+    # union-coverage predicate.
+    containers = tuple(dict.fromkeys((*band.regions_mm, band.bounds_mm)))
     order = tuple(reversed(zone_codes)) if reverse_order else tuple(zone_codes)
-
-    choices_by_zone: list[tuple[tuple[int, int, int, int, int], ...]] = []
-    for code in order:
-        authority = context.authorities.get(code)
-        if authority is None:
-            return ()
-        unique: dict[tuple[int, int], tuple[int, int, int, int, int]] = {}
-        for width_mm, depth_mm in _zone_dimension_options(authority):
-            for rotation in (0, 90):
-                actual_width, actual_depth = (
-                    (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
-                )
-                if packing_axis == "X":
-                    along_extent, cross_extent = actual_width, actual_depth
-                else:
-                    along_extent, cross_extent = actual_depth, actual_width
-                if along_extent > along_span or cross_extent > cross_span:
-                    continue
-                unique.setdefault(
-                    (actual_width, actual_depth),
-                    (width_mm, depth_mm, rotation, along_extent, cross_extent),
-                )
-        variants = tuple(unique[key] for key in sorted(unique))
-        if not variants:
-            return ()
-        choices_by_zone.append(variants)
-
     candidates: list[dict[str, PlacedRectangleV1]] = []
     seen: set[tuple[tuple[str, tuple[int, int, int, int, int]], ...]] = set()
-    for dimension_rows in product(*choices_by_zone):
-        total_along = sum(row[3] for row in dimension_rows)
-        max_cross = max(row[4] for row in dimension_rows)
-        if total_along > along_span or max_cross > cross_span:
-            continue
-        cursor = along_high - total_along if reverse_order else along_low
-        packed: dict[str, PlacedRectangleV1] = {}
-        valid = True
-        for code, (width_mm, depth_mm, rotation, along_extent, cross_extent) in zip(
-            order, dimension_rows, strict=True
-        ):
-            if cross_alignment == "LOW":
-                cross_origin = cross_low
-            elif cross_alignment == "HIGH":
-                cross_origin = cross_high - cross_extent
-            else:
-                cross_origin = cross_low + (cross_span - cross_extent) // 2
-            if packing_axis == "X":
-                x_mm, y_mm = cursor, cross_origin
-            else:
-                x_mm, y_mm = cross_origin, cursor
-            rectangle = _rectangle_from_mm(code, x_mm, y_mm, width_mm, depth_mm, rotation)
-            if (
-                not plan.admits_to_band(code, rectangle, band_code)
-                or _geometry_rejection_reason(
-                    rectangle, {**(fixed_placements or {}), **packed}, context
-                )
-                is not None
-            ):
-                valid = False
+    for container in containers:
+        left, bottom, right, top = container
+        along_low, along_high = (left, right) if packing_axis == "X" else (bottom, top)
+        cross_low, cross_high = (bottom, top) if packing_axis == "X" else (left, right)
+        along_span = along_high - along_low
+        cross_span = cross_high - cross_low
+        choices_by_zone: list[tuple[tuple[int, int, int, int, int], ...]] = []
+        for code in order:
+            authority = context.authorities.get(code)
+            if authority is None:
+                return ()
+            unique: dict[tuple[int, int], tuple[int, int, int, int, int]] = {}
+            for width_mm, depth_mm in _zone_dimension_options(authority):
+                for rotation in (0, 90):
+                    actual_width, actual_depth = (
+                        (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
+                    )
+                    if packing_axis == "X":
+                        along_extent, cross_extent = actual_width, actual_depth
+                    else:
+                        along_extent, cross_extent = actual_depth, actual_width
+                    if along_extent > along_span or cross_extent > cross_span:
+                        continue
+                    unique.setdefault(
+                        (actual_width, actual_depth),
+                        (width_mm, depth_mm, rotation, along_extent, cross_extent),
+                    )
+            variants = tuple(unique[key] for key in sorted(unique))
+            if not variants:
+                choices_by_zone = []
                 break
-            packed[code] = rectangle
-            cursor += -along_extent if reverse_order else along_extent
-        if not valid:
+            choices_by_zone.append(variants)
+        if not choices_by_zone:
             continue
-        signature = tuple(
-            sorted(
-                (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
-                for code, rectangle in packed.items()
+
+        for dimension_rows in product(*choices_by_zone):
+            total_along = sum(row[3] for row in dimension_rows)
+            max_cross = max(row[4] for row in dimension_rows)
+            if total_along > along_span or max_cross > cross_span:
+                continue
+            cursor = along_high - total_along if reverse_order else along_low
+            packed: dict[str, PlacedRectangleV1] = {}
+            valid = True
+            for code, (width_mm, depth_mm, rotation, along_extent, cross_extent) in zip(
+                order, dimension_rows, strict=True
+            ):
+                if cross_alignment == "LOW":
+                    cross_origin = cross_low
+                elif cross_alignment == "HIGH":
+                    cross_origin = cross_high - cross_extent
+                else:
+                    cross_origin = cross_low + (cross_span - cross_extent) // 2
+                if packing_axis == "X":
+                    x_mm, y_mm = cursor, cross_origin
+                else:
+                    x_mm, y_mm = cross_origin, cursor
+                rectangle = _rectangle_from_mm(code, x_mm, y_mm, width_mm, depth_mm, rotation)
+                if (
+                    not plan.admits_to_band(code, rectangle, band_code)
+                    or _geometry_rejection_reason(
+                        rectangle, {**(fixed_placements or {}), **packed}, context
+                    )
+                    is not None
+                ):
+                    valid = False
+                    break
+                packed[code] = rectangle
+                cursor += -along_extent if reverse_order else along_extent
+            if not valid:
+                continue
+            signature = tuple(
+                sorted(
+                    (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+                    for code, rectangle in packed.items()
+                )
             )
-        )
-        if signature in seen:
-            continue
-        seen.add(signature)
-        candidates.append(packed)
-        if len(candidates) >= result_limit:
-            break
+            if signature in seen:
+                continue
+            seen.add(signature)
+            candidates.append(packed)
+            if len(candidates) >= result_limit:
+                return tuple(candidates)
     return tuple(candidates)
 
 
@@ -3513,6 +3530,53 @@ def _band_chain_shape_options(
     return tuple(unique[key] for key in sorted(unique))
 
 
+def _direct_planned_band_edge_options(
+    context: _PlacementSearchContext,
+    plan: StructuredBuildingSkeletonV1,
+    zone_code: str,
+    placed: Mapping[str, PlacedRectangleV1],
+    *,
+    variant_index: int,
+) -> tuple[PlacedRectangleV1, ...]:
+    """Place one zone on exact MUST edges without legacy skeleton-root filters."""
+    neighbors = _must_neighbors(zone_code, placed, context.graph)
+    if not neighbors:
+        return ()
+    options: dict[tuple[int, int, int, int, int], PlacedRectangleV1] = {}
+    for width_mm, depth_mm, rotation, actual_width, actual_depth in _band_chain_shape_options(
+        context, zone_code
+    ):
+        anchors = {
+            anchor
+            for neighbor in neighbors
+            for anchor in _edge_anchors(neighbor, actual_width, actual_depth)
+        }
+        for x_mm, y_mm in sorted(anchors):
+            rectangle = _rectangle_from_mm(zone_code, x_mm, y_mm, width_mm, depth_mm, rotation)
+            if (
+                not _rectangle_is_usable(
+                    rectangle,
+                    placed,
+                    context.boundary,
+                    context.boundary_bounds,
+                    context.obstacles,
+                )
+                or not plan.admits(zone_code, rectangle)
+                or any(
+                    not rectangles_share_positive_edge(rectangle, neighbor)
+                    for neighbor in neighbors
+                )
+            ):
+                continue
+            bounds = rectangle.bounds_mm
+            options[(*bounds, rotation)] = rectangle
+    ordered = tuple(options[key] for key in sorted(options))
+    if not ordered:
+        return ()
+    offset = variant_index % len(ordered)
+    return ordered[offset:] + ordered[:offset]
+
+
 def _band_edge_chain_origins(
     context: _PlacementSearchContext,
     plan: StructuredBuildingSkeletonV1,
@@ -3529,8 +3593,10 @@ def _band_edge_chain_origins(
     origins: set[tuple[int, int]] = set()
     for neighbor in mandatory_neighbors:
         origins.update(_edge_anchors(neighbor, width_mm, depth_mm))
-    if not origins:
-        left, bottom, right, top = plan.band_for_zone(first_zone).bounds_mm
+    band = plan.band_for_zone(first_zone)
+    for left, bottom, right, top in dict.fromkeys((*band.regions_mm, band.bounds_mm)):
+        if right - left < width_mm or top - bottom < depth_mm:
+            continue
         x_positions = {left, right - width_mm, left + (right - left - width_mm) // 2}
         y_positions = {bottom, top - depth_mm, bottom + (top - bottom - depth_mm) // 2}
         origins.update((x, y) for x in x_positions for y in y_positions)
@@ -3540,11 +3606,13 @@ def _band_edge_chain_origins(
 def synthesize_must_chain_band_geometry(
     context: _PlacementSearchContext,
     plan: StructuredBuildingSkeletonV1,
-    band_code: str,
+    band_code: str | None,
     zone_codes: Sequence[str],
     *,
     fixed_placements: Mapping[str, PlacedRectangleV1] | None = None,
     transition_zone_codes: frozenset[str] = frozenset(),
+    construction_variant_index: int | None = None,
+    path_pattern_index: int | None = None,
     result_limit: int = 12,
 ) -> tuple[dict[str, PlacedRectangleV1], ...]:
     """Jointly enumerate finite orthogonal MUST-chain patterns inside a band.
@@ -3559,16 +3627,27 @@ def synthesize_must_chain_band_geometry(
     if len(zone_codes) < 2 or result_limit <= 0:
         return ()
     band = plan.band_for_zone(zone_codes[0])
-    if (
-        band.band_code != band_code
-        or any(
-            plan.band_for_zone(code).band_code != band_code and code not in transition_zone_codes
-            for code in zone_codes
-        )
-        or not transition_zone_codes
-        <= set(next(row.transition_zone_codes for row in plan.bands if row.band_code == band_code))
-    ):
+    if band_code is not None:
+        if (
+            band.band_code != band_code
+            or any(
+                plan.band_for_zone(code).band_code != band_code
+                and code not in transition_zone_codes
+                for code in zone_codes
+            )
+            or not transition_zone_codes
+            <= set(
+                next(row.transition_zone_codes for row in plan.bands if row.band_code == band_code)
+            )
+        ):
+            return ()
+    elif transition_zone_codes:
         return ()
+
+    def admitted(code: str, rectangle: PlacedRectangleV1) -> bool:
+        if band_code is None:
+            return plan.admits(code, rectangle)
+        return plan.admits_to_band(code, rectangle, band_code)
 
     fixed = dict(fixed_placements or {})
     shape_options = tuple(_band_chain_shape_options(context, code) for code in zone_codes)
@@ -3576,84 +3655,116 @@ def synthesize_must_chain_band_geometry(
         return ()
     side_sequences = _must_chain_side_sequences(len(zone_codes) - 1)
     alignment_sequences = _must_chain_alignment_sequences(len(zone_codes) - 1)
+    if construction_variant_index is None:
+        path_patterns = tuple(product(side_sequences, alignment_sequences))
+    else:
+        selected_path_index = (
+            construction_variant_index if path_pattern_index is None else path_pattern_index
+        )
+        # Each production construction variant owns one deterministic band
+        # path. Repeating the full side/alignment product for every envelope
+        # plan turns a finite structural search into an expensive nested sweep.
+        path_patterns = (
+            (
+                side_sequences[selected_path_index % len(side_sequences)],
+                alignment_sequences[construction_variant_index % len(alignment_sequences)],
+            ),
+        )
+    shape_rows = tuple(product(*shape_options))
+    if construction_variant_index is not None and shape_rows:
+        offset = construction_variant_index % len(shape_rows)
+        shape_rows = shape_rows[offset:] + shape_rows[:offset]
     results: list[dict[str, PlacedRectangleV1]] = []
     signatures: set[tuple[tuple[str, tuple[int, int, int, int, int]], ...]] = set()
 
-    for shapes in product(*shape_options):
+    for shapes in shape_rows:
         first_width, first_depth = shapes[0][3], shapes[0][4]
         origins = _band_edge_chain_origins(
             context,
             plan,
-            band_code,
+            band_code or band.band_code,
             zone_codes[0],
             first_width,
             first_depth,
             fixed,
         )
+        if construction_variant_index is not None and origins:
+            offset = construction_variant_index % len(origins)
+            origins = origins[offset:] + origins[:offset]
         for origin_x, origin_y in origins:
             first = _rectangle_from_mm(
                 zone_codes[0], origin_x, origin_y, shapes[0][0], shapes[0][1], shapes[0][2]
             )
-            if not plan.admits_to_band(zone_codes[0], first, band_code) or any(
-                rectangles_overlap(first, other) for other in fixed.values()
+            if (
+                not admitted(zone_codes[0], first)
+                or any(rectangles_overlap(first, other) for other in fixed.values())
+                or any(
+                    not rectangles_share_positive_edge(first, neighbor)
+                    for neighbor in _must_neighbors(zone_codes[0], fixed, context.graph)
+                )
             ):
                 continue
-            for side_sequence in side_sequences:
-                for alignment_sequence in alignment_sequences:
-                    packed: dict[str, PlacedRectangleV1] = {zone_codes[0]: first}
-                    valid = True
-                    for index, (side, alignment) in enumerate(
-                        zip(side_sequence, alignment_sequence, strict=True), start=1
-                    ):
-                        previous = packed[zone_codes[index - 1]]
-                        width_mm, depth_mm, rotation, actual_width, actual_depth = shapes[index]
-                        left, bottom, right, top = previous.bounds_mm
-                        if side in {"EAST", "WEST"}:
-                            y_origin = (
-                                bottom
-                                if alignment == "LOW"
-                                else top - actual_depth
-                                if alignment == "HIGH"
-                                else bottom + (top - bottom - actual_depth) // 2
-                            )
-                            x_origin = right if side == "EAST" else left - actual_width
-                        else:
-                            x_origin = (
-                                left
-                                if alignment == "LOW"
-                                else right - actual_width
-                                if alignment == "HIGH"
-                                else left + (right - left - actual_width) // 2
-                            )
-                            y_origin = top if side == "NORTH" else bottom - actual_depth
-                        rectangle = _rectangle_from_mm(
-                            zone_codes[index], x_origin, y_origin, width_mm, depth_mm, rotation
+            for side_sequence, alignment_sequence in path_patterns:
+                packed: dict[str, PlacedRectangleV1] = {zone_codes[0]: first}
+                valid = True
+                for index, (side, alignment) in enumerate(
+                    zip(side_sequence, alignment_sequence, strict=True), start=1
+                ):
+                    previous = packed[zone_codes[index - 1]]
+                    width_mm, depth_mm, rotation, actual_width, actual_depth = shapes[index]
+                    left, bottom, right, top = previous.bounds_mm
+                    if side in {"EAST", "WEST"}:
+                        y_origin = (
+                            bottom
+                            if alignment == "LOW"
+                            else top - actual_depth
+                            if alignment == "HIGH"
+                            else bottom + (top - bottom - actual_depth) // 2
                         )
-                        if (
-                            not rectangles_share_positive_edge(previous, rectangle)
-                            or not plan.admits_to_band(zone_codes[index], rectangle, band_code)
-                            or any(
-                                rectangles_overlap(rectangle, other)
-                                for other in (*fixed.values(), *packed.values())
-                            )
-                        ):
-                            valid = False
-                            break
-                        packed[zone_codes[index]] = rectangle
-                    if not valid:
-                        continue
-                    signature = tuple(
-                        sorted(
-                            (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
-                            for code, rectangle in packed.items()
+                        x_origin = right if side == "EAST" else left - actual_width
+                    else:
+                        x_origin = (
+                            left
+                            if alignment == "LOW"
+                            else right - actual_width
+                            if alignment == "HIGH"
+                            else left + (right - left - actual_width) // 2
                         )
+                        y_origin = top if side == "NORTH" else bottom - actual_depth
+                    rectangle = _rectangle_from_mm(
+                        zone_codes[index], x_origin, y_origin, width_mm, depth_mm, rotation
                     )
-                    if signature in signatures:
-                        continue
-                    signatures.add(signature)
-                    results.append(packed)
-                    if len(results) >= result_limit:
-                        return tuple(results)
+                    if (
+                        not rectangles_share_positive_edge(previous, rectangle)
+                        or not admitted(zone_codes[index], rectangle)
+                        or any(
+                            rectangles_overlap(rectangle, other)
+                            for other in (*fixed.values(), *packed.values())
+                        )
+                        or any(
+                            not rectangles_share_positive_edge(rectangle, neighbor)
+                            for neighbor in _must_neighbors(
+                                zone_codes[index], {**fixed, **packed}, context.graph
+                            )
+                        )
+                    ):
+                        valid = False
+                        break
+                    packed[zone_codes[index]] = rectangle
+                if not valid:
+                    continue
+                signature = tuple(
+                    sorted(
+                        (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+                        for code, rectangle in packed.items()
+                    )
+                )
+                if signature in signatures:
+                    continue
+                signatures.add(signature)
+                results.append(packed)
+                if len(results) >= result_limit:
+                    return tuple(results)
     return tuple(results)
 
 
@@ -3700,7 +3811,8 @@ def _family_main_band_packings(
                 zone_codes,
                 fixed_placements=placed,
                 transition_zone_codes=transition_zone_codes,
-                result_limit=3,
+                construction_variant_index=variant_index,
+                result_limit=1,
             )
             if rows:
                 for row in rows:
@@ -3749,34 +3861,91 @@ def _linear_3_band_geometry(
     variant_index: int,
     failure_reasons: list[str],
 ) -> tuple[dict[str, PlacedRectangleV1], ...]:
-    """Compose upstream, core, and downstream bands in one process direction."""
-    process_axis = plan.process_axis
-    return _family_main_band_packings(
-        context,
-        plan,
-        band_sequence=(
-            (
-                "RAW_SIDE_BAND",
-                ("raw_fruit_buffer", "primary_precooling_room"),
-                process_axis,
-                frozenset(),
-            ),
-            ("PROCESS_CORE_BAND", ("sorting_packaging_room",), process_axis, frozenset()),
-            (
-                "FINISHED_SIDE_BAND",
-                (
-                    "secondary_precooling_room",
-                    "coating_room",
-                    "finished_goods_room",
-                    "shipping_channel",
-                ),
-                process_axis,
-                frozenset({"coating_room"}),
-            ),
-        ),
-        variant_index=variant_index,
-        failure_reasons=failure_reasons,
+    """Place the exact process chain through its three planned functional bands."""
+    variant_round = (variant_index // 3) % 3
+    forward_side = {
+        ("X", "POSITIVE"): "EAST",
+        ("X", "NEGATIVE"): "WEST",
+        ("Y", "POSITIVE"): "NORTH",
+        ("Y", "NEGATIVE"): "SOUTH",
+    }[(plan.process_axis, plan.process_direction)]
+    cross_sides = ("NORTH", "SOUTH") if plan.process_axis == "X" else ("EAST", "WEST")
+    selected_cross_side = cross_sides[variant_round % len(cross_sides)]
+    opposite_forward_side = {
+        "EAST": "WEST",
+        "WEST": "EAST",
+        "NORTH": "SOUTH",
+        "SOUTH": "NORTH",
+    }[forward_side]
+    opposite_cross_side = {
+        "NORTH": "SOUTH",
+        "SOUTH": "NORTH",
+        "EAST": "WEST",
+        "WEST": "EAST",
+    }[selected_cross_side]
+    finished_paths = (
+        (forward_side, selected_cross_side, opposite_forward_side),
+        (forward_side, opposite_cross_side, opposite_forward_side),
+        (forward_side, forward_side, forward_side),
     )
+    raw_sides = ("NORTH", "SOUTH") if plan.process_axis == "X" else ("EAST", "WEST")
+    raw_order = raw_sides[variant_round % 2 :] + raw_sides[: variant_round % 2]
+    side_sequences = _must_chain_side_sequences(3)
+    finished_path_order = finished_paths[variant_round:] + finished_paths[:variant_round]
+    raw_found = False
+    for raw_side in raw_order:
+        raw_path_index = _must_chain_side_sequences(1).index((raw_side,))
+        raw_rows = synthesize_must_chain_band_geometry(
+            context,
+            plan,
+            "RAW_SIDE_BAND",
+            ("raw_fruit_buffer", "primary_precooling_room"),
+            construction_variant_index=variant_index,
+            path_pattern_index=raw_path_index,
+            result_limit=1,
+        )
+        raw_found = raw_found or bool(raw_rows)
+        for raw in raw_rows:
+            core_options = _direct_planned_band_edge_options(
+                context,
+                plan,
+                "sorting_packaging_room",
+                raw,
+                variant_index=variant_index,
+            )
+            for core in core_options:
+                placed = {**raw, "sorting_packaging_room": core}
+                for finished_path in finished_path_order:
+                    finished_path_index = side_sequences.index(finished_path)
+                    finished_rows = synthesize_must_chain_band_geometry(
+                        context,
+                        plan,
+                        None,
+                        (
+                            "secondary_precooling_room",
+                            "coating_room",
+                            "finished_goods_room",
+                            "shipping_channel",
+                        ),
+                        fixed_placements=placed,
+                        transition_zone_codes=frozenset(),
+                        construction_variant_index=variant_index,
+                        path_pattern_index=finished_path_index,
+                        result_limit=1,
+                    )
+                    for finished in finished_rows:
+                        candidate = {**placed, **finished}
+                        try:
+                            _validate_main_process_skeleton_graph(context.graph, candidate)
+                        except LayoutAuthorityError:
+                            continue
+                        return (candidate,)
+    if not raw_found and failure_reasons is not None and not failure_reasons:
+        failure_reasons.append("BAND_PACKING_UNAVAILABLE:RAW_SIDE_BAND")
+        return ()
+    if failure_reasons is not None and not failure_reasons:
+        failure_reasons.append("BAND_PACKING_UNAVAILABLE:INTER_BAND_INTERFACE_OR_FINISHED_SIDE")
+    return ()
 
 
 def _central_side_bank_geometry(
@@ -3821,34 +3990,18 @@ def _longitudinal_spine_geometry(
     variant_index: int,
     failure_reasons: list[str],
 ) -> tuple[dict[str, PlacedRectangleV1], ...]:
-    """Set the process spine first, then pack raw and finished side banks."""
-    cross_axis = "Y" if plan.process_axis == "X" else "X"
-    return _family_main_band_packings(
+    """Construct the longitudinal spine from one complete band-constrained chain."""
+    rows = synthesize_must_chain_band_geometry(
         context,
         plan,
-        band_sequence=(
-            ("PROCESS_CORE_BAND", ("sorting_packaging_room",), plan.process_axis, frozenset()),
-            (
-                "RAW_SIDE_BAND",
-                ("raw_fruit_buffer", "primary_precooling_room"),
-                cross_axis,
-                frozenset(),
-            ),
-            (
-                "FINISHED_SIDE_BAND",
-                (
-                    "secondary_precooling_room",
-                    "coating_room",
-                    "finished_goods_room",
-                    "shipping_channel",
-                ),
-                cross_axis,
-                frozenset({"coating_room"}),
-            ),
-        ),
-        variant_index=variant_index,
-        failure_reasons=failure_reasons,
+        None,
+        PLACEMENT_ZONE_ORDER[:7],
+        construction_variant_index=variant_index + 1,
+        result_limit=1,
     )
+    if not rows and failure_reasons is not None and not failure_reasons:
+        failure_reasons.append("BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN")
+    return rows
 
 
 def _direct_family_tail_zones(
@@ -3937,37 +4090,53 @@ def _direct_structured_candidates(
         if context.structured_building_plan is not None
         else "WEST"
     )
-    opposite_support_side = {
-        "NORTH": "SOUTH",
-        "SOUTH": "NORTH",
-        "EAST": "WEST",
-        "WEST": "EAST",
+    perpendicular_support_sides = {
+        "WEST": ("NORTH", "SOUTH"),
+        "EAST": ("NORTH", "SOUTH"),
+        "NORTH": ("EAST", "WEST"),
+        "SOUTH": ("EAST", "WEST"),
     }[default_support_side]
+    support_side_by_variant = {
+        "DEFAULT_SUPPORT_SIDE": default_support_side,
+        "PERPENDICULAR_SUPPORT_SIDE_A": perpendicular_support_sides[0],
+        "PERPENDICULAR_SUPPORT_SIDE_B": perpendicular_support_sides[1],
+    }
     structural_rounds = tuple(
         (
             axis_index,
             envelope_family,
-            opposite_support_side
-            if side == "OPPOSITE_SUPPORT_SIDE"
-            else default_support_side
-            if side == "DEFAULT_SUPPORT_SIDE"
-            else side,
+            support_side_by_variant[side],
+            process_direction,
+            variant_index,
             terminal_variant_index,
         )
-        for axis_index, envelope_family, side, terminal_variant_index in (
-            _DIRECT_STRUCTURAL_VARIANT_ROUNDS
-        )
+        for (
+            axis_index,
+            envelope_family,
+            side,
+            process_direction,
+            variant_index,
+            terminal_variant_index,
+        ) in (_DIRECT_STRUCTURAL_VARIANT_ROUNDS)
     )
     attempt_specs = [
         (
             layout_family,
             process_axes[axis_index],
             envelope_family,
-            0,
+            process_direction,
+            variant_index,
             terminal_variant_index,
             side,
         )
-        for axis_index, envelope_family, side, terminal_variant_index in structural_rounds
+        for (
+            axis_index,
+            envelope_family,
+            side,
+            process_direction,
+            variant_index,
+            terminal_variant_index,
+        ) in structural_rounds
         for layout_family in BASE_LAYOUT_FAMILIES
     ]
     # Each round is a finite structural variant. Family is innermost so all
@@ -3983,11 +4152,11 @@ def _direct_structured_candidates(
         layout_family,
         process_axis,
         envelope_family,
+        process_direction,
         variant_index,
         terminal_variant_index,
         support_side,
     ) in enumerate(attempt_specs):
-        process_direction = "NEGATIVE" if variant_index % 2 else "POSITIVE"
         plan_key = (
             layout_family,
             process_axis,
@@ -4122,7 +4291,12 @@ def _direct_structured_candidates(
             context,
             plan,
             None,
-            variant_index=variant_index,
+            # The round's mirror index only has two values (process direction).
+            # Use the unique family-plan subvariant so deterministic band path,
+            # root, and dimension ordering cover the full finite construction
+            # set instead of repeating the same two MUST-chain patterns for
+            # every support-side plan.
+            variant_index=attempt_index,
             failure_reasons=construction_failure_reasons,
         )
         attempt_row = {

@@ -120,6 +120,7 @@ def test_rectangle_envelope_and_three_main_bands_are_constructed_before_zones() 
         assert personnel[1] == envelope[1]
     assert raw[3] == process[1]
     assert process[3] == finished[1]
+    assert finished[3] == plan.envelope.bounds_mm[3]
     assert "coating_room" in finished_band.transition_zone_codes
 
 
@@ -275,6 +276,39 @@ def test_layout_families_are_first_class_and_construct_independently() -> None:
     )
 
 
+@pytest.mark.parametrize("process_axis", ("X", "Y"))
+@pytest.mark.parametrize("process_direction", ("POSITIVE", "NEGATIVE"))
+def test_central_side_banks_are_disjoint_parallel_bands(
+    process_axis: str, process_direction: str
+) -> None:
+    plan = construct_structured_building_plan_v1(
+        boundary=_rectangle_boundary(),
+        obstacles=(),
+        authorities=_authorities(),
+        process_axis=process_axis,
+        process_direction=process_direction,
+        layout_family=CENTRAL_PROCESS_WITH_SIDE_BANKS,
+        envelope_family=RECTANGLE,
+    )
+    raw = plan.band_for_zone("raw_fruit_buffer").bounds_mm
+    core = plan.band_for_zone("sorting_packaging_room").bounds_mm
+    finished = plan.band_for_zone("shipping_channel").bounds_mm
+    if process_axis == "X":
+        along = tuple((bounds[0], bounds[2]) for bounds in (raw, core, finished))
+        cross = tuple((bounds[1], bounds[3]) for bounds in (raw, core, finished))
+    else:
+        along = tuple((bounds[1], bounds[3]) for bounds in (raw, core, finished))
+        cross = tuple((bounds[0], bounds[2]) for bounds in (raw, core, finished))
+
+    assert along[0] == along[1] == along[2]
+    if process_direction == "POSITIVE":
+        assert cross[0][1] == cross[1][0]
+        assert cross[1][1] == cross[2][0]
+    else:
+        assert cross[2][1] == cross[1][0]
+        assert cross[1][1] == cross[0][0]
+
+
 def test_simple_l_envelope_is_derived_from_orthogonal_site_geometry() -> None:
     l_boundary = normalize_polygon(
         {
@@ -298,6 +332,49 @@ def test_simple_l_envelope_is_derived_from_orthogonal_site_geometry() -> None:
             layout_family=LINEAR_3_BAND,
             envelope_family=SIMPLE_L,
         )
+
+
+def test_simple_l_envelope_endpoint_variants_are_structurally_distinct() -> None:
+    l_boundary = normalize_polygon(
+        {
+            "type": "polygon",
+            "points": [
+                {"x": 0, "y": 0},
+                {"x": 100, "y": 0},
+                {"x": 100, "y": 40},
+                {"x": 40, "y": 40},
+                {"x": 40, "y": 80},
+                {"x": 0, "y": 80},
+            ],
+        }
+    )
+    common = {
+        "boundary": l_boundary,
+        "obstacles": (),
+        "authorities": _authorities(),
+        "process_axis": "Y",
+        "layout_family": LINEAR_3_BAND,
+        "envelope_family": SIMPLE_L,
+    }
+
+    minimum = construct_structured_building_plan_v1(
+        **common,
+        envelope_candidate_index=0,
+    )
+    maximum = construct_structured_building_plan_v1(
+        **common,
+        envelope_candidate_index=-1,
+    )
+
+    assert minimum.envelope.components_mm != maximum.envelope.components_mm
+    assert minimum.envelope.components_mm == (
+        (0, 0, 40_000, 80_000),
+        (40_000, 0, 100_000, 40_000),
+    )
+    assert maximum.envelope.components_mm == (
+        (0, 0, 100_000, 40_000),
+        (0, 40_000, 40_000, 80_000),
+    )
 
 
 def test_simple_l_envelope_uses_exact_buildable_cells_around_site_obstacles() -> None:

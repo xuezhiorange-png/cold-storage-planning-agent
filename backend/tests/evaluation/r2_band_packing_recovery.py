@@ -9,6 +9,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from cold_storage.modules.layout.application.svg_projection import project_validated_layout_to_svg
+from cold_storage.modules.layout.domain import placement as placement_domain
 from tests.evaluation.final_selection_authority import _capture_tool7, _comparison_svg, _rasterize
 from tests.evaluation.r13_main_skeleton_truck_preflight import EVIDENCE_DIR, FIXTURE
 
@@ -37,7 +38,46 @@ def _record_search_phase(row: Mapping[str, Any]) -> str | None:
 def capture_r2_recovery_replay() -> dict[str, Any]:
     """Run the real preview chain once and persist bounded current evidence."""
     payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
-    run = _capture_tool7(payload, allow_failed_selection=True)
+    synthesis_observations: list[dict[str, Any]] = []
+    real_synthesizer = placement_domain._synthesize_family_main_process
+
+    def observe_synthesis(
+        context: Any,
+        plan: Any,
+        shipping: Any,
+        *,
+        variant_index: int,
+        failure_reasons: list[str],
+    ) -> dict[str, Any] | None:
+        placements = real_synthesizer(
+            context,
+            plan,
+            shipping,
+            variant_index=variant_index,
+            failure_reasons=failure_reasons,
+        )
+        synthesis_observations.append(
+            {
+                "layout_family": plan.layout_family,
+                "process_axis": plan.process_axis,
+                "process_direction": plan.process_direction,
+                "envelope_family": plan.envelope.family,
+                "envelope_components_mm": [list(row) for row in plan.envelope.components_mm],
+                "support_side": plan.support_side,
+                "bands": {band.band_code: list(band.bounds_mm) for band in plan.bands},
+                "variant_index": variant_index,
+                "main_process_geometry_emitted": placements is not None,
+                "main_process_zone_codes": sorted(placements) if placements else [],
+                "failure_reasons": list(failure_reasons),
+            }
+        )
+        return placements
+
+    placement_domain._synthesize_family_main_process = observe_synthesis
+    try:
+        run = _capture_tool7(payload, allow_failed_selection=True)
+    finally:
+        placement_domain._synthesize_family_main_process = real_synthesizer
     internal = run["internal"]
     diagnostics = internal.get("r6_topology_diagnostics", {})
     diagnostics = diagnostics if isinstance(diagnostics, Mapping) else {}
@@ -148,14 +188,12 @@ def capture_r2_recovery_replay() -> dict[str, Any]:
     structured_records = [
         row
         for row in full_pass_records
-        if isinstance(row, Mapping)
-        and record_search_phase(row) == "STRUCTURED"
+        if isinstance(row, Mapping) and _record_search_phase(row) == "STRUCTURED"
     ]
     fallback_records = [
         row
         for row in full_pass_records
-        if isinstance(row, Mapping)
-        and record_search_phase(row) == "GENERAL_FALLBACK"
+        if isinstance(row, Mapping) and _record_search_phase(row) == "GENERAL_FALLBACK"
     ]
     evidence_rows: list[dict[str, Any]] = []
     gallery_sources: list[tuple[str, str]] = []
@@ -297,6 +335,7 @@ def capture_r2_recovery_replay() -> dict[str, Any]:
         "layout_family_failure_summary": failures_by_family,
         "construction_attempts": attempts,
         "constructive_plan_attempts": constructive,
+        "direct_synthesis_observations": synthesis_observations,
         "truck_preflight": {
             "skeleton_hashes": skeleton_hashes,
             "unique_skeleton_count": len(skeleton_hashes),

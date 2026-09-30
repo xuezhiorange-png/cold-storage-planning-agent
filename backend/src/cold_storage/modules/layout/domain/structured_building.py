@@ -786,7 +786,11 @@ def _program_band_extents(
         return min(feasible)
 
     raw_extent = group_extent(FUNCTIONAL_GROUPS[RAW_SIDE_GROUP])
-    if layout_family in {LINEAR_3_BAND, SIMPLE_L_SITE_ADAPTIVE}:
+    if layout_family in {
+        LINEAR_3_BAND,
+        SIMPLE_L_SITE_ADAPTIVE,
+        CENTRAL_PROCESS_WITH_SIDE_BANKS,
+    }:
         sorting_extent = group_extent(("sorting_packaging_room",))
         core_extent = sorting_extent
         # The finished-side band owns the authoritative MUST chain beginning
@@ -833,6 +837,26 @@ def _zone_dimension_options(authority: Mapping[str, object]) -> tuple[tuple[int,
     return tuple(sorted(dimensions))
 
 
+def _minimum_single_zone_envelope_extent(
+    authorities: Mapping[str, Mapping[str, object]],
+) -> int:
+    """Return an exact necessary span for any axis-aligned envelope.
+
+    Rectangular family projections are not a necessary width/height bound for
+    an L envelope: different functional bands may occupy its two orthogonal
+    arms.  Every room must still fit within both envelope axes, so the largest
+    minimum side across authoritative room shapes is a safe lower bound; the
+    exact band packers and envelope predicates decide actual feasibility.
+    """
+    minimum_room_spans = tuple(
+        min(min(width_mm, depth_mm) for width_mm, depth_mm in _zone_dimension_options(authority))
+        for authority in authorities.values()
+    )
+    if not minimum_room_spans:
+        raise _error("STRUCTURED_ZONE_DIMENSION_AUTHORITY_MISSING")
+    return max(minimum_room_spans)
+
+
 def _group_band_dimension_options(
     authorities: Mapping[str, Mapping[str, object]],
     codes: Sequence[str],
@@ -850,6 +874,35 @@ def _group_band_dimension_options(
         options.add((max(along), sum(cross)))
         options.add((sum(along), max(cross)))
     return tuple(sorted(options))
+
+
+def _minimum_group_cross_extent(
+    authorities: Mapping[str, Mapping[str, object]],
+    codes: Sequence[str],
+    process_axis: str,
+    process_span: int,
+) -> int:
+    """Return the smallest cross-axis span among finite authorized packings."""
+    cross_axis = "Y" if process_axis == "X" else "X"
+    options = set(_group_band_dimension_options(authorities, codes, process_axis, cross_axis))
+    if tuple(codes) == (
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel",
+    ):
+        options.update(_must_chain_band_dimension_options(authorities, codes, process_axis))
+    feasible = tuple(
+        cross_extent for along_extent, cross_extent in options if along_extent <= process_span
+    )
+    if not feasible:
+        raise _error(
+            "STRUCTURED_BAND_CAPACITY_UNAVAILABLE",
+            zones=list(codes),
+            process_axis=process_axis,
+            process_span_mm=process_span,
+        )
+    return min(feasible)
 
 
 def _must_chain_side_sequences(transition_count: int) -> tuple[tuple[str, ...], ...]:
@@ -1089,21 +1142,32 @@ def _program_envelope_dimensions(
     cross_axis = "Y" if process_axis == "X" else "X"
     if layout_family not in _LAYOUT_FAMILIES:
         raise _error("STRUCTURED_LAYOUT_FAMILY_INVALID", layout_family=layout_family)
-    groups = (
-        FUNCTIONAL_GROUPS[RAW_SIDE_GROUP],
-        ("sorting_packaging_room",)
-        if layout_family in {LINEAR_3_BAND, SIMPLE_L_SITE_ADAPTIVE}
-        else FUNCTIONAL_GROUPS[PROCESSING_CORE_GROUP],
-        (
-            ("secondary_precooling_room", "coating_room", "finished_goods_room", "shipping_channel")
-            if layout_family in {LINEAR_3_BAND, SIMPLE_L_SITE_ADAPTIVE}
-            else FUNCTIONAL_GROUPS[FINISHED_SIDE_GROUP]
-        ),
-    )
+    groups: tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]
+    if layout_family in {LINEAR_3_BAND, SIMPLE_L_SITE_ADAPTIVE, CENTRAL_PROCESS_WITH_SIDE_BANKS}:
+        groups = (
+            FUNCTIONAL_GROUPS[RAW_SIDE_GROUP],
+            ("sorting_packaging_room",),
+            (
+                "secondary_precooling_room",
+                "coating_room",
+                "finished_goods_room",
+                "shipping_channel",
+            ),
+        )
+    else:
+        groups = (
+            FUNCTIONAL_GROUPS[RAW_SIDE_GROUP],
+            FUNCTIONAL_GROUPS[PROCESSING_CORE_GROUP],
+            FUNCTIONAL_GROUPS[FINISHED_SIDE_GROUP],
+        )
     group_option_rows: list[tuple[tuple[int, int], ...]] = []
     for index, group in enumerate(groups):
         options = set(_group_band_dimension_options(authorities, group, process_axis, cross_axis))
-        if index == 2 and layout_family in {LINEAR_3_BAND, SIMPLE_L_SITE_ADAPTIVE}:
+        if index == 2 and layout_family in {
+            LINEAR_3_BAND,
+            SIMPLE_L_SITE_ADAPTIVE,
+            CENTRAL_PROCESS_WITH_SIDE_BANKS,
+        }:
             options.update(_must_chain_band_dimension_options(authorities, group, process_axis))
         group_option_rows.append(tuple(sorted(options)))
     group_options = tuple(group_option_rows)
@@ -1131,8 +1195,11 @@ def _program_envelope_dimensions(
             main_flow_extent = raw[0] + core[0] + finished[0]
             main_cross_extent = max(raw[1], core[1], finished[1])
         elif layout_family == CENTRAL_PROCESS_WITH_SIDE_BANKS:
-            main_flow_extent = max(core[0], 2 * max(raw[0], finished[0]))
-            main_cross_extent = max(raw[1], core[1], finished[1])
+            # The raw bank, central sorting core, and finished bank are
+            # parallel bands across the cross-axis, not sequential halves of
+            # the process-axis envelope.
+            main_flow_extent = max(raw[0], core[0], finished[0])
+            main_cross_extent = raw[1] + core[1] + finished[1]
         else:
             main_flow_extent = max(raw[0], core[0], finished[0])
             main_cross_extent = max(core[1], raw[1] + finished[1])
@@ -1287,7 +1354,6 @@ def _band_bounds(
     x0, y0, x1, y1 = main_bounds
     low = x0 if axis == "X" else y0
     high = x1 if axis == "X" else y1
-    span = high - low
     if len(extents) == 3:
         raw, core, finished = extents
         sorting = core
@@ -1344,7 +1410,10 @@ def _band_bounds(
             )
         return min(feasible_bands, key=lambda row: row[0])[1]
 
-    if layout_family in {LINEAR_3_BAND, SIMPLE_L_SITE_ADAPTIVE}:
+    if layout_family in {
+        LINEAR_3_BAND,
+        SIMPLE_L_SITE_ADAPTIVE,
+    }:
         # The linear family owns three ordered process-axis intervals inside
         # the central building body. Transition bands overlap by dimensions
         # derived from the frozen room program, not by visual thresholds.
@@ -1355,8 +1424,15 @@ def _band_bounds(
                 lo = max(low, low + raw)
                 hi = min(high, lo + core)
             elif group_band == FINISHED_SIDE_BAND:
+                # The authoritative finished-side program can be a turned
+                # chain whose minimum axis projection is smaller than the
+                # actual region needed after clipping the band by an
+                # irregular site envelope.  Reserve the complete remaining
+                # process-axis region for joint finished-band packing; the
+                # packer still places only real zones and exact predicates
+                # reject any overlap or out-of-envelope geometry.
                 lo = min(high, low + raw + sorting)
-                hi = min(high, lo + finished)
+                hi = high
             else:
                 raise _error("STRUCTURED_BAND_FAMILY_INVALID", band_code=group_band)
         else:
@@ -1367,7 +1443,7 @@ def _band_bounds(
                 lo = max(low, hi - core)
             elif group_band == FINISHED_SIDE_BAND:
                 hi = max(low, high - raw - sorting)
-                lo = max(low, hi - finished)
+                lo = low
             else:
                 raise _error("STRUCTURED_BAND_FAMILY_INVALID", band_code=group_band)
         if axis == "X":
@@ -1377,46 +1453,46 @@ def _band_bounds(
     cross_axis = "Y" if axis == "X" else "X"
     cross_low, cross_high = (y0, y1) if cross_axis == "Y" else (x0, x1)
     cross_span = cross_high - cross_low
-    axis_middle = low + span // 2
     if layout_family == CENTRAL_PROCESS_WITH_SIDE_BANKS:
-        if group_band == PROCESS_CORE_BAND:
-            core_cross = min(cross_span, cross_extents[1])
-            cross_a = cross_low + max(0, (cross_span - core_cross) // 2)
-            cross_b = min(cross_high, cross_a + core_cross)
-            return (x0, cross_a, x1, cross_b) if axis == "X" else (cross_a, y0, cross_b, y1)
-        if group_band == RAW_SIDE_BAND:
-            axis_a, axis_b = (
-                (low, min(high, axis_middle))
-                if process_direction == "POSITIVE"
-                else (max(low, axis_middle), high)
+        raw_cross, core_cross, finished_cross = cross_extents
+        required_cross_span = raw_cross + core_cross + finished_cross
+        if required_cross_span > cross_span:
+            raise _error(
+                "STRUCTURED_CENTRAL_BANKS_EXCEED_CROSS_SPAN",
+                required_cross_span_mm=required_cross_span,
+                available_cross_span_mm=cross_span,
             )
-            return (
-                (axis_a, cross_low, axis_b, cross_high)
-                if axis == "X"
-                else (
-                    cross_low,
-                    axis_a,
+        if process_direction == "POSITIVE":
+            intervals = {
+                RAW_SIDE_BAND: (cross_low, cross_low + raw_cross),
+                PROCESS_CORE_BAND: (
+                    cross_low + raw_cross,
+                    cross_low + raw_cross + core_cross,
+                ),
+                FINISHED_SIDE_BAND: (
+                    cross_low + raw_cross + core_cross,
+                    cross_low + required_cross_span,
+                ),
+            }
+        else:
+            intervals = {
+                FINISHED_SIDE_BAND: (
+                    cross_high - required_cross_span,
+                    cross_high - raw_cross - core_cross,
+                ),
+                PROCESS_CORE_BAND: (
+                    cross_high - raw_cross - core_cross,
+                    cross_high - raw_cross,
+                ),
+                RAW_SIDE_BAND: (
+                    cross_high - raw_cross,
                     cross_high,
-                    axis_b,
-                )
-            )
-        if group_band == FINISHED_SIDE_BAND:
-            axis_a, axis_b = (
-                (max(low, axis_middle), high)
-                if process_direction == "POSITIVE"
-                else (low, min(high, axis_middle))
-            )
-            return (
-                (axis_a, cross_low, axis_b, cross_high)
-                if axis == "X"
-                else (
-                    cross_low,
-                    axis_a,
-                    cross_high,
-                    axis_b,
-                )
-            )
-        raise _error("STRUCTURED_BAND_FAMILY_INVALID", band_code=group_band)
+                ),
+            }
+        if group_band not in intervals:
+            raise _error("STRUCTURED_BAND_FAMILY_INVALID", band_code=group_band)
+        cross_a, cross_b = intervals[group_band]
+        return (low, cross_a, high, cross_b) if axis == "X" else (cross_a, low, cross_b, high)
     if layout_family == LONGITUDINAL_PROCESS_SPINE:
         raw_cross, core_cross, finished_cross = cross_extents
         transition_extension = min(raw_cross, finished_cross) // 2
@@ -1546,14 +1622,21 @@ def construct_structured_building_plan_v1(
         )
     elif envelope_family == SIMPLE_L:
         minimum_program_area = sum(_required_area_mm2(row) for row in authorities.values())
-        minimum_width, minimum_height = _program_envelope_dimensions(
-            authorities,
-            process_axis,
-            layout_family,
-            personnel_side,
-            support_side=selected_support_side,
-            include_peripheral_strips=False,
-        )
+        if layout_family == CENTRAL_PROCESS_WITH_SIDE_BANKS:
+            minimum_width, minimum_height = _program_envelope_dimensions(
+                authorities,
+                process_axis,
+                layout_family,
+                personnel_side,
+                support_side=selected_support_side,
+                include_peripheral_strips=False,
+            )
+        else:
+            # A rectangular projection is not a necessary envelope bound for
+            # these families on an L-shaped site: their groups may occupy the
+            # two orthogonal arms.  The exact family packer and all final site
+            # predicates decide whether a plan is actually usable.
+            minimum_width = minimum_height = _minimum_single_zone_envelope_extent(authorities)
         if required_terminal_rectangle is not None:
             candidates = _simple_l_envelopes_for_terminal(
                 boundary,
@@ -1593,13 +1676,18 @@ def construct_structured_building_plan_v1(
             if required_terminal_rectangle is None
             or candidate.contains(required_terminal_rectangle)
         )
-        if envelope_candidate_index >= len(compatible):
+        selected_envelope_index = (
+            envelope_candidate_index
+            if envelope_candidate_index >= 0
+            else len(compatible) + envelope_candidate_index
+        )
+        if not 0 <= selected_envelope_index < len(compatible):
             raise _error(
                 "SIMPLE_L_ENVELOPE_TERMINAL_VARIANT_UNAVAILABLE",
                 candidate_index=envelope_candidate_index,
                 candidate_count=len(compatible),
             )
-        envelope = compatible[envelope_candidate_index]
+        envelope = compatible[selected_envelope_index]
         envelope_bounds = envelope.bounds_mm
     else:
         raise _error("BUILDING_ENVELOPE_FAMILY_INVALID", envelope_family=envelope_family)
@@ -1699,6 +1787,31 @@ def construct_structured_building_plan_v1(
         main_bounds[3] - main_bounds[1] if process_axis == "X" else main_bounds[2] - main_bounds[0],
         layout_family,
     )
+    if layout_family == CENTRAL_PROCESS_WITH_SIDE_BANKS:
+        process_span = (
+            main_bounds[2] - main_bounds[0]
+            if process_axis == "X"
+            else main_bounds[3] - main_bounds[1]
+        )
+        cross_extents = (
+            _minimum_group_cross_extent(
+                authorities, FUNCTIONAL_GROUPS[RAW_SIDE_GROUP], process_axis, process_span
+            ),
+            _minimum_group_cross_extent(
+                authorities, ("sorting_packaging_room",), process_axis, process_span
+            ),
+            _minimum_group_cross_extent(
+                authorities,
+                (
+                    "secondary_precooling_room",
+                    "coating_room",
+                    "finished_goods_room",
+                    "shipping_channel",
+                ),
+                process_axis,
+                process_span,
+            ),
+        )
     raw_band = _band_bounds(
         layout_family,
         RAW_SIDE_BAND,
