@@ -1,0 +1,116 @@
+{
+  "family_lane_count": 3,
+  "general_fallback_p2d_full_pass_candidate_count": 2,
+  "individual_zone_movement_after_local_composition": false,
+  "input_fixture": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/backend/tests/fixtures/v22/xinzhao_20t_site_layout_input_v3.json",
+  "local_composition_first": true,
+  "local_full_building_attempts": [],
+  "local_full_building_composition_exists_by_family": {
+    "CENTRAL_PROCESS_WITH_SIDE_BANKS": false,
+    "LINEAR_3_BAND": false,
+    "LONGITUDINAL_PROCESS_SPINE": false
+  },
+  "local_full_building_images": {},
+  "local_main_composition_attempts": [
+    {
+      "compositions": [],
+      "layout_family": "LINEAR_3_BAND",
+      "local_main_composition_count": 0,
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "compositions": [],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "local_main_composition_count": 0,
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "compositions": [],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "local_main_composition_count": 0,
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "compositions": [],
+      "layout_family": "LINEAR_3_BAND",
+      "local_main_composition_count": 0,
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "compositions": [],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "local_main_composition_count": 0,
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "compositions": [],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "local_main_composition_count": 0,
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "compositions": [],
+      "layout_family": "LINEAR_3_BAND",
+      "local_main_composition_count": 0,
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "compositions": [],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "local_main_composition_count": 0,
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "compositions": [],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "local_main_composition_count": 0,
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "compositions": [],
+      "layout_family": "LINEAR_3_BAND",
+      "local_main_composition_count": 0,
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "compositions": [],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "local_main_composition_count": 0,
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "compositions": [],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "local_main_composition_count": 0,
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    }
+  ],
+  "mode": "R2_LOCAL_COMPOSITION_FIRST_RECOVERY",
+  "precomputed_site_envelope_used_as_synthesis_gate": false,
+  "selected_canonical_result_hash": "sha256:9be8014423738b89d3a5c47a4b076ef2b35d51363dec62b90a7437a79ad11c72",
+  "selected_layout_building_footprint_present": true,
+  "selected_layout_svg_sha256": "sha256:007f8066b55a3bdcf2583e0e4d9c2f325e1c2c6cee4bc9aa8fb9fd4a57c109d2",
+  "selected_layout_validation": {
+    "access_pass_count": 12,
+    "access_requirement_count": 12,
+    "p2_complete": true,
+    "project_layout_validated": true,
+    "truck_route_validated": true,
+    "zone_count": 12
+  },
+  "structured_p2d_full_pass_candidate_count": 0,
+  "task_id": "V2_2_2_P1A_ENVELOPE_GRID_BAND_ZONE_GENERATOR_R2",
+  "tool7_unmocked": true
+}

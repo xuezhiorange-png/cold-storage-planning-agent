@@ -273,6 +273,62 @@ class BandZonePlacementV1:
 
 
 @dataclass(frozen=True)
+class LocalZonePlacementV1:
+    """One authority-sized zone in a site-independent local composition."""
+
+    zone_code: str
+    band_code: str
+    rectangle: PlacedRectangleV1
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "zone_code": self.zone_code,
+            "band_code": self.band_code,
+            "rectangle_bounds_mm": list(self.rectangle.bounds_mm),
+            "rotation_deg": self.rectangle.rotation_deg,
+        }
+
+
+@dataclass(frozen=True)
+class LocalBuildingCompositionV1:
+    """Completed local geometry from which a site-specific plan is derived.
+
+    Unlike ``StructuredBuildingSkeletonV1``, this value has no site envelope or
+    event axes. Its placements are synthesized from family rules and bound
+    zone dimensions around the local origin; site placement happens afterward.
+    """
+
+    layout_family: str
+    process_axis: str
+    process_direction: str
+    zone_placements: tuple[LocalZonePlacementV1, ...]
+    must_interfaces: tuple[tuple[str, str], ...]
+    spine_axis: str | None = None
+    spine_zone_codes: tuple[str, ...] = ()
+    side_bank_zone_codes: tuple[str, ...] = ()
+    outline_class: str = "UNCLASSIFIED"
+    bounds_mm: BoundsMM = (0, 0, 0, 0)
+
+    def placements(self) -> dict[str, PlacedRectangleV1]:
+        return {row.zone_code: row.rectangle for row in self.zone_placements}
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "identity": "local-building-composition@1.0.0",
+            "layout_family": self.layout_family,
+            "process_axis": self.process_axis,
+            "process_direction": self.process_direction,
+            "outline_class": self.outline_class,
+            "bounds_mm": list(self.bounds_mm),
+            "must_interfaces": [list(pair) for pair in self.must_interfaces],
+            "spine_axis": self.spine_axis,
+            "spine_zone_codes": list(self.spine_zone_codes),
+            "side_bank_zone_codes": list(self.side_bank_zone_codes),
+            "zone_placements": [row.to_dict() for row in self.zone_placements],
+        }
+
+
+@dataclass(frozen=True)
 class StructuredBuildingSkeletonV1:
     """Envelope → grid → bands plan plus zones assigned inside those bands."""
 
@@ -2257,6 +2313,8 @@ __all__ = [
     "FINISHED_SIDE_BAND",
     "FunctionalBandV1",
     "IDENTITY",
+    "LocalBuildingCompositionV1",
+    "LocalZonePlacementV1",
     "LINEAR_3_BAND",
     "LONGITUDINAL_PROCESS_SPINE",
     "PERSONNEL_EDGE_BAND",
