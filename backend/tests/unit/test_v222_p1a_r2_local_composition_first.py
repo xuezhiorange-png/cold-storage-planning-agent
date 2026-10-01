@@ -91,6 +91,43 @@ def test_support_and_personnel_are_jointly_composed_before_envelope_derivation()
     assert len(plan.zone_placements) == len(context.graph.nodes)
 
 
+def test_support_bank_includes_deterministic_two_row_packing() -> None:
+    context = _local_context()
+
+    banks = placement._local_bank_compositions(
+        context,
+        ("packaging_material_storage", "secondary_fruit_buffer", "frozen_fruit_room"),
+        result_limit=48,
+    )
+
+    assert any(shape == "TWO_ROW" for _bank, _axis, shape in banks)
+    for bank, _axis, _shape in banks:
+        assert set(bank) == {
+            "packaging_material_storage",
+            "secondary_fruit_buffer",
+            "frozen_fruit_room",
+        }
+        for code, rectangle in bank.items():
+            assert placement._local_rectangles_clear(
+                rectangle, {other: row for other, row in bank.items() if other != code}
+            )
+
+
+def test_changing_room_is_not_hard_bound_to_office_shared_edge() -> None:
+    context = _local_context()
+    main = placement._synthesize_linear_3_band_local(context, "X", "POSITIVE")[0]
+    compositions = placement._local_full_building_compositions(context, main, result_limit=48)
+
+    assert compositions
+    assert any(
+        placement._adjacent_side(
+            composition.placements()["office"], composition.placements()["changing_room"]
+        )
+        is None
+        for composition in compositions
+    )
+
+
 def test_stair_step_zone_union_is_diagnostic_and_not_a_planned_envelope_gate() -> None:
     context = _local_context()
     positions_mm = {
@@ -150,6 +187,145 @@ def test_local_shape_combinations_are_finite_and_deterministic() -> None:
     assert first == second
     assert len(first) == placement.LOCAL_COMPOSITION_SHAPE_VARIANT_LIMIT
     assert len(first) < 3 ** len(shape_options)
+
+
+def test_partial_and_complete_local_compositions_use_only_site_extent_pruning() -> None:
+    context = _local_context()
+    context.boundary_bounds = (0, 0, 30_000, 30_000)
+    candidates = placement._synthesize_linear_3_band_local(context, "X", "POSITIVE")
+
+    assert candidates
+    assert all(
+        placement._local_bbox_fits_site_extents(context, row.placements()) for row in candidates
+    )
+    assert all(
+        max(row.bounds_mm[2] for row in composition.placements().values()) <= 30_000
+        and max(row.bounds_mm[3] for row in composition.placements().values()) <= 30_000
+        for composition in candidates
+    )
+
+
+def test_bbox_necessary_condition_accepts_only_normal_or_whole_building_rotated_fit() -> None:
+    context = _local_context()
+    rectangle = placement._rectangle_from_mm("probe", 0, 0, 40_000, 20_000, 0)
+    context.boundary_bounds = (0, 0, 20_000, 40_000)
+    assert placement._local_bbox_fits_site_extents(context, {"probe": rectangle})
+
+    context.boundary_bounds = (0, 0, 19_999, 40_000)
+    assert not placement._local_bbox_fits_site_extents(context, {"probe": rectangle})
+
+
+def test_compact_state_retention_preserves_distinct_corner_occupancy() -> None:
+    context = SimpleNamespace(boundary_bounds=(0, 0, 30_000, 30_000))
+    without_northeast = {
+        "sw": placement._rectangle_from_mm("sw", 0, 0, 8_000, 8_000, 0),
+        "nw": placement._rectangle_from_mm("nw", 0, 12_000, 8_000, 8_000, 0),
+        "se": placement._rectangle_from_mm("se", 12_000, 0, 8_000, 8_000, 0),
+    }
+    with_all_corners = {
+        **without_northeast,
+        "ne": placement._rectangle_from_mm("ne", 12_000, 12_000, 8_000, 8_000, 0),
+    }
+
+    retained = placement._retain_compact_local_states(
+        (without_northeast, with_all_corners), context, "X", 2
+    )
+
+    assert len(retained) == 2
+    assert {placement._local_quadrant_occupancy_signature(state) for state in retained} == {
+        (True, True, True, False),
+        (True, True, True, True),
+    }
+    assert len({placement._local_grid_occupancy_signature(state) for state in retained}) == 2
+    first_corner_representative = placement._retain_compact_local_states(
+        (without_northeast, with_all_corners), context, "X", 1
+    )
+    assert placement._local_quadrant_occupancy_signature(first_corner_representative[0]) == (
+        True,
+        True,
+        True,
+        False,
+    )
+
+
+def test_compact_embedding_keeps_all_main_must_interfaces_and_is_deterministic() -> None:
+    context = _local_context()
+    context.boundary_bounds = (0, 0, 30_000, 30_000)
+    first = placement._synthesize_central_side_banks_local(context, "X", "POSITIVE")
+    second = placement._synthesize_central_side_banks_local(context, "X", "POSITIVE")
+
+    assert first
+    assert first == second
+    for composition in first:
+        rectangles = composition.placements()
+        placement._validate_main_process_skeleton_graph(context.graph, rectangles)
+        assert placement._local_bbox_fits_site_extents(context, rectangles)
+        assert placement._adjacent_side(
+            rectangles["sorting_packaging_room"], rectangles["primary_precooling_room"]
+        ) != placement._adjacent_side(
+            rectangles["sorting_packaging_room"], rectangles["secondary_precooling_room"]
+        )
+
+
+def test_rigid_site_placement_rect_fast_path_matches_exact_rectangle_predicates() -> None:
+    boundary = ((0, 0), (20_000, 0), (20_000, 20_000), (0, 20_000))
+    obstacle = ((8_000, 8_000), (12_000, 8_000), (12_000, 12_000), (8_000, 12_000))
+    context = SimpleNamespace(
+        boundary=boundary,
+        boundary_bounds=(0, 0, 20_000, 20_000),
+        obstacles=(obstacle,),
+        main_entrance=((20_000, 9_000), (20_000, 11_000)),
+        site_body={
+            "entrances": {
+                "truck_entrance": {
+                    "start": {"x": 0, "y": 9},
+                    "end": {"x": 0, "y": 11},
+                }
+            }
+        },
+    )
+    local = {"probe": placement._rectangle_from_mm("probe", 0, 0, 6_000, 6_000, 0)}
+
+    candidates = placement._whole_building_site_placements(context, local, result_limit=24)
+
+    assert candidates
+    assert all(
+        placement._rectangle_is_usable(
+            candidate["probe"], {}, context.boundary, context.boundary_bounds, context.obstacles
+        )
+        for candidate in candidates
+    )
+
+
+def test_rigid_site_placement_includes_first_clear_integer_mm_after_closed_obstacle() -> None:
+    boundary = ((0, 0), (20_000, 0), (20_000, 20_000), (0, 20_000))
+    obstacle = ((0, 0), (12_000, 0), (12_000, 20_000), (0, 20_000))
+    context = SimpleNamespace(
+        boundary=boundary,
+        boundary_bounds=(0, 0, 20_000, 20_000),
+        obstacles=(obstacle,),
+        main_entrance=((20_000, 9_000), (20_000, 11_000)),
+        site_body={
+            "entrances": {
+                "truck_entrance": {
+                    "start": {"x": 0, "y": 9},
+                    "end": {"x": 0, "y": 11},
+                }
+            }
+        },
+    )
+    local = {"probe": placement._rectangle_from_mm("probe", 0, 0, 7_999, 6_000, 0)}
+
+    candidates = placement._whole_building_site_placements(context, local, result_limit=24)
+
+    assert candidates
+    assert any(candidate["probe"].bounds_mm[0] == 12_001 for candidate in candidates)
+    assert all(
+        placement._rectangle_is_usable(
+            candidate["probe"], {}, context.boundary, context.boundary_bounds, context.obstacles
+        )
+        for candidate in candidates
+    )
 
 
 def test_visual_regularity_uses_authoritative_p2d_footprint_not_zone_union() -> None:

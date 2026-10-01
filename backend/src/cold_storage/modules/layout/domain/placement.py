@@ -11,10 +11,11 @@ search is repeatable and has no floating-point tolerance.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from decimal import Context, Decimal, InvalidOperation, localcontext
 from fractions import Fraction
+from heapq import heappop, heappush
 from itertools import islice, product
 from math import isqrt
 from typing import Any, Final, cast
@@ -111,6 +112,8 @@ SCHEMA_VERSION: Final = "1.0.0"
 SEARCH_PROFILE_IDENTITY: Final = "deterministic-placement-search@1.0.0"
 GRID_MM: Final = 1
 LOCAL_COMPOSITION_SHAPE_VARIANT_LIMIT: Final = 128
+LOCAL_COMPACT_FRONTIER_LIMIT: Final = 48
+LOCAL_COMPACT_RESULT_LIMIT: Final = 32
 DEFAULT_NODE_BUDGET: Final = 50_000
 MAX_OPTIONS_PER_ZONE: Final = 48
 STRUCTURED_MAX_OPTIONS_PER_ZONE: Final = 6
@@ -708,11 +711,45 @@ def _rectangle_is_usable(
     min_x, min_y, max_x, max_y = boundary_bounds
     if left < min_x or bottom < min_y or right > max_x or top > max_y:
         return False
-    if not rectangle_inside_polygon(rectangle, boundary):
+    boundary_rectangle = _axis_aligned_rectangle_polygon_bounds(boundary)
+    if boundary_rectangle is None and not rectangle_inside_polygon(rectangle, boundary):
         return False
-    if any(rectangle_intersects_closed_obstacle(rectangle, obstacle) for obstacle in obstacles):
-        return False
+    for obstacle in obstacles:
+        obstacle_rectangle = _axis_aligned_rectangle_polygon_bounds(obstacle)
+        if obstacle_rectangle is None:
+            if rectangle_intersects_closed_obstacle(rectangle, obstacle):
+                return False
+            continue
+        obstacle_left, obstacle_bottom, obstacle_right, obstacle_top = obstacle_rectangle
+        if not (
+            right < obstacle_left
+            or left > obstacle_right
+            or top < obstacle_bottom
+            or bottom > obstacle_top
+        ):
+            return False
     return not any(rectangles_overlap(rectangle, other) for other in placed.values())
+
+
+def _axis_aligned_rectangle_polygon_bounds(
+    polygon: PolygonMM,
+) -> tuple[int, int, int, int] | None:
+    """Return exact bounds only when the polygon is precisely an axis rectangle."""
+    if len(polygon) != 4:
+        return None
+    left = min(point[0] for point in polygon)
+    bottom = min(point[1] for point in polygon)
+    right = max(point[0] for point in polygon)
+    top = max(point[1] for point in polygon)
+    if right <= left or top <= bottom:
+        return None
+    expected = {
+        (left, bottom),
+        (left, top),
+        (right, bottom),
+        (right, top),
+    }
+    return (left, bottom, right, top) if set(polygon) == expected else None
 
 
 def _rectangle_shares_entrance_boundary(rectangle: PlacedRectangleV1, entrance: SegmentMM) -> bool:
@@ -3298,6 +3335,32 @@ def _local_dimension_shapes(
                 (x_span, y_span),
                 (width_mm, depth_mm, rotation, x_span, y_span),
             )
+    if zone_code == "coating_room" and authority.get("dimension_mode") == "FLEXIBLE_RECTANGLE":
+        raw_area = authority.get("required_area_m2")
+        geometry = authority.get("geometry")
+        if raw_area is None and isinstance(geometry, Mapping):
+            raw_area = geometry.get("required_area_m2")
+        if raw_area is not None:
+            required_area_mm2 = Fraction(str(raw_area)) * 1_000_000
+            # Coating is the secondary-to-finished transition. Derive a small
+            # finite set of flexible widths from its actual MUST-neighbour
+            # edge events, rather than hoping the first Cartesian shape rows
+            # happen to align with those interfaces.
+            for neighbor_code in ("secondary_precooling_room", "finished_goods_room"):
+                for neighbor_shape in _local_dimension_shapes(context, neighbor_code):
+                    for width_mm in sorted({neighbor_shape[3], neighbor_shape[4]}):
+                        if width_mm <= 0:
+                            continue
+                        divisor = width_mm * required_area_mm2.denominator
+                        depth_mm = (required_area_mm2.numerator + divisor - 1) // divisor
+                        for rotation in (0, 90):
+                            x_span, y_span = (
+                                (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
+                            )
+                            unique.setdefault(
+                                (x_span, y_span),
+                                (width_mm, depth_mm, rotation, x_span, y_span),
+                            )
     return tuple(unique[key] for key in sorted(unique))
 
 
@@ -3345,6 +3408,321 @@ def _local_rectangles_clear(
     candidate: PlacedRectangleV1, placed: Mapping[str, PlacedRectangleV1]
 ) -> bool:
     return not any(rectangles_overlap(candidate, existing) for existing in placed.values())
+
+
+def _local_bbox_bounds(
+    placements: Mapping[str, PlacedRectangleV1],
+) -> tuple[int, int, int, int]:
+    rows = tuple(rectangle.bounds_mm for rectangle in placements.values())
+    if not rows:
+        return (0, 0, 0, 0)
+    return (
+        min(row[0] for row in rows),
+        min(row[1] for row in rows),
+        max(row[2] for row in rows),
+        max(row[3] for row in rows),
+    )
+
+
+def _local_bbox_fits_site_extents(
+    context: _PlacementSearchContext,
+    placements: Mapping[str, PlacedRectangleV1],
+) -> bool:
+    """Apply only the necessary site outer-extent test in local coordinates."""
+    if not placements:
+        return True
+    bounds = _local_bbox_bounds(placements)
+    width_mm, height_mm = bounds[2] - bounds[0], bounds[3] - bounds[1]
+    site_bounds = cast(tuple[int, int, int, int] | None, getattr(context, "boundary_bounds", None))
+    if not isinstance(site_bounds, tuple) or len(site_bounds) != 4:
+        return True
+    site_width_mm = site_bounds[2] - site_bounds[0]
+    site_height_mm = site_bounds[3] - site_bounds[1]
+    return (width_mm <= site_width_mm and height_mm <= site_height_mm) or (
+        width_mm <= site_height_mm and height_mm <= site_width_mm
+    )
+
+
+def _local_compactness_key(
+    placements: Mapping[str, PlacedRectangleV1],
+    context: _PlacementSearchContext,
+    process_axis: str,
+) -> tuple[object, ...]:
+    """Stable local-construction ordering; not a final candidate quality score."""
+    left, bottom, right, top = _local_bbox_bounds(placements)
+    width_mm, height_mm = right - left, top - bottom
+    feasible = _local_bbox_fits_site_extents(context, placements)
+    x_usage: dict[int, int] = {}
+    y_usage: dict[int, int] = {}
+    for rectangle in placements.values():
+        x0, y0, x1, y1 = rectangle.bounds_mm
+        x_usage[x0] = x_usage.get(x0, 0) + 1
+        x_usage[x1] = x_usage.get(x1, 0) + 1
+        y_usage[y0] = y_usage.get(y0, 0) + 1
+        y_usage[y1] = y_usage.get(y1, 0) + 1
+    reused_axes = sum(count > 1 for count in x_usage.values()) + sum(
+        count > 1 for count in y_usage.values()
+    )
+    structural_axis_count = len(x_usage) + len(y_usage)
+    chain = MAIN_PROCESS_ZONE_CODES
+    directions: list[str] = []
+    for first_code, second_code in zip(chain, chain[1:], strict=False):
+        first = placements.get(first_code)
+        second = placements.get(second_code)
+        if first is None or second is None:
+            continue
+        side = _adjacent_side(first, second)
+        if side is not None:
+            directions.append("X" if side in {"EAST", "WEST"} else "Y")
+    direction_changes = sum(
+        first != second for first, second in zip(directions, directions[1:], strict=False)
+    )
+    geometry_key = tuple(
+        (code, rectangle.bounds_mm, rectangle.rotation_deg)
+        for code, rectangle in sorted(placements.items())
+    )
+    return (
+        not feasible,
+        max(width_mm, height_mm),
+        width_mm * height_mm,
+        structural_axis_count,
+        -reused_axes,
+        direction_changes,
+        0 if process_axis == "X" else 1,
+        geometry_key,
+    )
+
+
+def _local_quadrant_occupancy_signature(
+    placements: Mapping[str, PlacedRectangleV1],
+) -> tuple[bool, bool, bool, bool]:
+    """Describe occupied SW/SE/NW/NE regions for local-embedding coverage."""
+    if not placements:
+        return (False, False, False, False)
+    left, bottom, right, top = _local_bbox_bounds(placements)
+    middle_x, middle_y = (left + right) // 2, (bottom + top) // 2
+    occupied = [False, False, False, False]
+    for rectangle in placements.values():
+        x0, y0, x1, y1 = rectangle.bounds_mm
+        west, east = x0 < middle_x, x1 > middle_x
+        south, north = y0 < middle_y, y1 > middle_y
+        if west and south:
+            occupied[0] = True
+        if east and south:
+            occupied[1] = True
+        if west and north:
+            occupied[2] = True
+        if east and north:
+            occupied[3] = True
+    return tuple(occupied)  # type: ignore[return-value]
+
+
+def _local_grid_occupancy_signature(
+    placements: Mapping[str, PlacedRectangleV1],
+) -> tuple[bool, ...]:
+    """Describe room occupancy in a local 3-by-3 grid without site coordinates."""
+    if not placements:
+        return (False,) * 9
+    left, bottom, right, top = _local_bbox_bounds(placements)
+    x_edges = tuple(left + (right - left) * index // 3 for index in range(4))
+    y_edges = tuple(bottom + (top - bottom) * index // 3 for index in range(4))
+    occupied = [False] * 9
+    for rectangle in placements.values():
+        x0, y0, x1, y1 = rectangle.bounds_mm
+        for row in range(3):
+            for column in range(3):
+                if (
+                    x1 > x_edges[column]
+                    and x0 < x_edges[column + 1]
+                    and y1 > y_edges[row]
+                    and y0 < y_edges[row + 1]
+                ):
+                    occupied[row * 3 + column] = True
+    return tuple(occupied)
+
+
+def _local_group_relative_side(
+    placements: Mapping[str, PlacedRectangleV1],
+    group_codes: Sequence[str],
+    reference_codes: Sequence[str],
+) -> str | None:
+    group = {code: placements[code] for code in group_codes if code in placements}
+    reference = {code: placements[code] for code in reference_codes if code in placements}
+    if not group or not reference:
+        return None
+    group_bounds = _local_bbox_bounds(group)
+    reference_bounds = _local_bbox_bounds(reference)
+    dx = group_bounds[0] + group_bounds[2] - reference_bounds[0] - reference_bounds[2]
+    dy = group_bounds[1] + group_bounds[3] - reference_bounds[1] - reference_bounds[3]
+    if abs(dx) >= abs(dy) and dx != 0:
+        return "EAST" if dx > 0 else "WEST"
+    if dy != 0:
+        return "NORTH" if dy > 0 else "SOUTH"
+    return "OVERLAP"
+
+
+def _local_embedding_diversity_key(
+    placements: Mapping[str, PlacedRectangleV1],
+) -> tuple[object, ...]:
+    chain_sides = tuple(
+        _adjacent_side(placements[first], placements[second])
+        if first in placements and second in placements
+        else None
+        for first, second in zip(MAIN_PROCESS_ZONE_CODES, MAIN_PROCESS_ZONE_CODES[1:], strict=False)
+    )
+    root = placements.get("sorting_packaging_room")
+    root_shape = (
+        (
+            root.bounds_mm[2] - root.bounds_mm[0],
+            root.bounds_mm[3] - root.bounds_mm[1],
+            root.rotation_deg,
+        )
+        if root is not None
+        else None
+    )
+    support_side = _local_group_relative_side(
+        placements,
+        ("packaging_material_storage", "secondary_fruit_buffer", "frozen_fruit_room"),
+        MAIN_PROCESS_ZONE_CODES,
+    )
+    personnel_side = _local_group_relative_side(
+        placements,
+        ("office", "changing_room"),
+        MAIN_PROCESS_ZONE_CODES,
+    )
+    return (
+        chain_sides,
+        _local_quadrant_occupancy_signature(placements),
+        _local_grid_occupancy_signature(placements),
+        support_side,
+        personnel_side,
+        root_shape,
+    )
+
+
+def _retain_compact_local_states(
+    states: Iterable[Mapping[str, PlacedRectangleV1]],
+    context: _PlacementSearchContext,
+    process_axis: str,
+    limit: int,
+) -> tuple[Mapping[str, PlacedRectangleV1], ...]:
+    """Keep compact representatives across distinct local structure buckets."""
+    if limit <= 0:
+        return ()
+    ordered = sorted(
+        states,
+        key=lambda row: _local_compactness_key(row, context, process_axis),
+    )
+    selected: list[Mapping[str, PlacedRectangleV1]] = []
+    selected_geometries: set[tuple[tuple[str, tuple[int, ...]], ...]] = set()
+    selected_buckets: set[tuple[object, ...]] = set()
+    spatial_representatives: dict[
+        tuple[tuple[bool, ...], tuple[bool, ...]], Mapping[str, PlacedRectangleV1]
+    ] = {}
+    for state in ordered:
+        spatial_representatives.setdefault(
+            (
+                _local_quadrant_occupancy_signature(state),
+                _local_grid_occupancy_signature(state),
+            ),
+            state,
+        )
+    for occupancy in sorted(
+        spatial_representatives,
+        key=lambda row: row,
+    ):
+        state = spatial_representatives[occupancy]
+        bucket = _local_embedding_diversity_key(state)
+        geometry = tuple(
+            (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+            for code, rectangle in sorted(state.items())
+        )
+        selected.append(state)
+        selected_buckets.add(bucket)
+        selected_geometries.add(geometry)
+        if len(selected) >= limit:
+            selected.sort(key=lambda row: _local_compactness_key(row, context, process_axis))
+            return tuple(selected)
+    for state in ordered:
+        bucket = _local_embedding_diversity_key(state)
+        if bucket in selected_buckets:
+            continue
+        geometry = tuple(
+            (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+            for code, rectangle in sorted(state.items())
+        )
+        if geometry in selected_geometries:
+            continue
+        selected.append(state)
+        selected_buckets.add(bucket)
+        selected_geometries.add(geometry)
+        if len(selected) >= limit:
+            selected.sort(key=lambda row: _local_compactness_key(row, context, process_axis))
+            return tuple(selected)
+    if len(selected) < limit:
+        for state in ordered:
+            geometry = tuple(
+                (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+                for code, rectangle in sorted(state.items())
+            )
+            if geometry in selected_geometries:
+                continue
+            selected.append(state)
+            selected_geometries.add(geometry)
+            if len(selected) >= limit:
+                break
+    selected.sort(key=lambda row: _local_compactness_key(row, context, process_axis))
+    return tuple(selected)
+
+
+def _retain_compact_local_compositions(
+    compositions: Iterable[LocalBuildingCompositionV1],
+    context: _PlacementSearchContext,
+    process_axis: str,
+    limit: int,
+) -> tuple[LocalBuildingCompositionV1, ...]:
+    rows = tuple(compositions)
+    state_rows = _retain_compact_local_states(
+        (composition.placements() for composition in rows), context, process_axis, limit
+    )
+    by_signature = {
+        tuple(
+            (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+            for code, rectangle in sorted(composition.placements().items())
+        ): composition
+        for composition in rows
+    }
+    return tuple(
+        by_signature[
+            tuple(
+                (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+                for code, rectangle in sorted(state.items())
+            )
+        ]
+        for state in state_rows
+    )
+
+
+def _local_family_partial_valid(
+    layout_family: str,
+    placed: Mapping[str, PlacedRectangleV1],
+) -> bool:
+    sorting = placed.get("sorting_packaging_room")
+    primary = placed.get("primary_precooling_room")
+    secondary = placed.get("secondary_precooling_room")
+    if sorting is None or primary is None or secondary is None:
+        return True
+    raw_face = _adjacent_side(sorting, primary)
+    finished_face = _adjacent_side(sorting, secondary)
+    if raw_face is None or finished_face is None:
+        return False
+    if layout_family == CENTRAL_PROCESS_WITH_SIDE_BANKS:
+        return raw_face != finished_face
+    if layout_family == LONGITUDINAL_PROCESS_SPINE:
+        raw_axis = "X" if raw_face in {"EAST", "WEST"} else "Y"
+        finished_axis = "X" if finished_face in {"EAST", "WEST"} else "Y"
+        return raw_axis != finished_axis
+    return True
 
 
 def _local_outline_class(
@@ -3506,18 +3884,27 @@ def _local_main_process_compositions(
     *,
     result_limit: int = 24,
 ) -> tuple[LocalBuildingCompositionV1, ...]:
-    """Compose the seven-zone core from two exact interfaces in local space.
+    """Embed the frozen seven-zone MUST path in compact local 2D space.
 
-    The sorting zone is the local core datum.  The raw bank is composed back
-    from the primary/sorting interface, while the finished transition chain is
-    composed outward from the sorting/secondary interface.  No site bounds,
-    obstacle events, precomputed envelope, or event-axis roots participate.
+    ``boundary_bounds`` contributes only its two extents: no boundary vertex,
+    obstacle, entrance, or site event coordinate is read by this constructor.
+    Each next room is attached to its already-placed MUST predecessor using an
+    exact face and LOW/CENTER/HIGH edge alignment. A finite compact frontier
+    prevents the old one-dimensional path from consuming the local search.
     """
-    main_codes = (
-        "raw_fruit_buffer",
+    main_codes = MAIN_PROCESS_ZONE_CODES
+    parent_by_zone = {
+        "primary_precooling_room": "sorting_packaging_room",
+        "raw_fruit_buffer": "primary_precooling_room",
+        "secondary_precooling_room": "sorting_packaging_room",
+        "coating_room": "secondary_precooling_room",
+        "finished_goods_room": "coating_room",
+        "shipping_channel": "finished_goods_room",
+    }
+    expansion_order = (
         "primary_precooling_room",
-        "sorting_packaging_room",
         "secondary_precooling_room",
+        "raw_fruit_buffer",
         "coating_room",
         "finished_goods_room",
         "shipping_channel",
@@ -3526,144 +3913,118 @@ def _local_main_process_compositions(
     if any(not shapes[code] for code in main_codes):
         return ()
     alignments = ("LOW", "CENTER", "HIGH")
-    patterns = _local_family_interface_patterns(layout_family, process_axis, process_direction)
-    results: dict[tuple[tuple[str, tuple[int, ...]], ...], LocalBuildingCompositionV1] = {}
-    shape_rows = _bounded_local_shape_rows(tuple(shapes[code] for code in main_codes))
-    # Local compositions enumerate only this deterministic, bounded set of
-    # dimension/orientation structures before returning control to the
-    # placement scheduler. Coordinates still come only from local interfaces.
-    for pattern_index, (raw_side, secondary_side, downstream_sides) in enumerate(patterns):
-        for shape_row in shape_rows:
-            shape_by_zone = dict(zip(main_codes, shape_row, strict=True))
-            sort_shape = shape_by_zone["sorting_packaging_room"]
-            sorting = _local_rectangle_at("sorting_packaging_room", sort_shape, 0, 0)
-            for primary_alignment in alignments:
-                primary_shape = shape_by_zone["primary_precooling_room"]
-                primary_x, primary_y = _local_adjacent_origin(
-                    sorting,
-                    primary_shape[3],
-                    primary_shape[4],
-                    raw_side,
-                    primary_alignment,
-                )
-                primary = _local_rectangle_at(
-                    "primary_precooling_room", primary_shape, primary_x, primary_y
-                )
-                if not rectangles_share_positive_edge(primary, sorting):
-                    continue
-                raw_shape = shape_by_zone["raw_fruit_buffer"]
-                for raw_alignment in alignments:
-                    raw_x, raw_y = _local_adjacent_origin(
-                        primary,
-                        raw_shape[3],
-                        raw_shape[4],
-                        raw_side,
-                        raw_alignment,
-                    )
-                    raw = _local_rectangle_at("raw_fruit_buffer", raw_shape, raw_x, raw_y)
-                    if not rectangles_share_positive_edge(
-                        raw, primary
-                    ) or not _local_rectangles_clear(raw, {"sorting": sorting, "primary": primary}):
-                        continue
-                    upstream = {
-                        "raw_fruit_buffer": raw,
-                        "primary_precooling_room": primary,
-                        "sorting_packaging_room": sorting,
-                    }
-                    secondary_shape = shape_by_zone["secondary_precooling_room"]
-                    for secondary_alignment in alignments:
-                        secondary_x, secondary_y = _local_adjacent_origin(
-                            sorting,
-                            secondary_shape[3],
-                            secondary_shape[4],
-                            secondary_side,
-                            secondary_alignment,
+    frontier: list[Mapping[str, PlacedRectangleV1]] = []
+    for shape in shapes["sorting_packaging_room"]:
+        root = _local_rectangle_at("sorting_packaging_room", shape, 0, 0)
+        candidate = {"sorting_packaging_room": root}
+        if _local_bbox_fits_site_extents(context, candidate):
+            frontier.append(candidate)
+    frontier = list(
+        _retain_compact_local_states(frontier, context, process_axis, LOCAL_COMPACT_FRONTIER_LIMIT)
+    )
+
+    for zone_code in expansion_order:
+        parent_code = parent_by_zone[zone_code]
+        expanded: dict[tuple[tuple[str, tuple[int, ...]], ...], dict[str, PlacedRectangleV1]] = {}
+        for state in frontier:
+            parent = state.get(parent_code)
+            if parent is None:
+                continue
+            for shape in shapes[zone_code]:
+                for side in ("WEST", "EAST", "SOUTH", "NORTH"):
+                    for alignment in alignments:
+                        x_mm, y_mm = _local_adjacent_origin(
+                            parent, shape[3], shape[4], side, alignment
                         )
-                        secondary = _local_rectangle_at(
-                            "secondary_precooling_room",
-                            secondary_shape,
-                            secondary_x,
-                            secondary_y,
-                        )
-                        if not rectangles_share_positive_edge(
-                            sorting, secondary
-                        ) or not _local_rectangles_clear(secondary, upstream):
+                        rectangle = _local_rectangle_at(zone_code, shape, x_mm, y_mm)
+                        if not rectangles_share_positive_edge(parent, rectangle):
                             continue
-                        placed = {**upstream, "secondary_precooling_room": secondary}
-                        previous = secondary
-                        valid = True
-                        for zone_code, side in zip(
-                            ("coating_room", "finished_goods_room", "shipping_channel"),
-                            downstream_sides,
-                            strict=True,
-                        ):
-                            shape = shape_by_zone[zone_code]
-                            alignment = alignments[(pattern_index + len(placed)) % len(alignments)]
-                            x_mm, y_mm = _local_adjacent_origin(
-                                previous, shape[3], shape[4], side, alignment
+                        if not _local_rectangles_clear(rectangle, state):
+                            continue
+                        next_state = {**state, zone_code: rectangle}
+                        if not _local_bbox_fits_site_extents(context, next_state):
+                            continue
+                        if not _local_family_partial_valid(layout_family, next_state):
+                            continue
+                        if any(
+                            zone_code in pair
+                            and pair[0] in next_state
+                            and pair[1] in next_state
+                            and not rectangles_share_positive_edge(
+                                next_state[pair[0]], next_state[pair[1]]
                             )
-                            current = _local_rectangle_at(zone_code, shape, x_mm, y_mm)
-                            if not rectangles_share_positive_edge(
-                                previous, current
-                            ) or not _local_rectangles_clear(current, placed):
-                                valid = False
-                                break
-                            placed[zone_code] = current
-                            previous = current
-                        if not valid or set(placed) != set(main_codes):
+                            for pair in context.graph.must_adjacencies
+                        ):
                             continue
-                        try:
-                            _validate_main_process_skeleton_graph(context.graph, placed)
-                        except LayoutAuthorityError:
-                            continue
-                        normalized = _normalize_local_placements(placed)
-                        outline, bounds = _local_outline_class(normalized)
                         signature = tuple(
-                            (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
-                            for code, rectangle in sorted(normalized.items())
+                            (code, placed.bounds_mm + (placed.rotation_deg,))
+                            for code, placed in sorted(next_state.items())
                         )
-                        results.setdefault(
-                            signature,
-                            LocalBuildingCompositionV1(
-                                layout_family=layout_family,
-                                process_axis=process_axis,
-                                process_direction=process_direction,
-                                zone_placements=tuple(
-                                    LocalZonePlacementV1(
-                                        code,
-                                        zone_band_assignment(code),
-                                        rectangle,
-                                    )
-                                    for code, rectangle in sorted(normalized.items())
-                                ),
-                                must_interfaces=tuple(
-                                    pair
-                                    for pair in context.graph.must_adjacencies
-                                    if pair[0] in normalized and pair[1] in normalized
-                                ),
-                                spine_axis=process_axis
-                                if layout_family == LONGITUDINAL_PROCESS_SPINE
-                                else None,
-                                spine_zone_codes=(
-                                    "sorting_packaging_room",
-                                    "secondary_precooling_room",
-                                    "coating_room",
-                                    "finished_goods_room",
-                                    "shipping_channel",
-                                )
-                                if layout_family == LONGITUDINAL_PROCESS_SPINE
-                                else (),
-                                side_bank_zone_codes=(
-                                    "raw_fruit_buffer",
-                                    "primary_precooling_room",
-                                ),
-                                outline_class=outline,
-                                bounds_mm=bounds,
-                            ),
-                        )
-                        if len(results) >= result_limit:
-                            return tuple(results[key] for key in sorted(results))
-    return tuple(results[key] for key in sorted(results))
+                        expanded.setdefault(signature, next_state)
+        if not expanded:
+            return ()
+        frontier = list(
+            _retain_compact_local_states(
+                expanded.values(), context, process_axis, LOCAL_COMPACT_FRONTIER_LIMIT
+            )
+        )
+
+    results: dict[tuple[tuple[str, tuple[int, ...]], ...], LocalBuildingCompositionV1] = {}
+    for state in frontier:
+        if set(state) != set(main_codes):
+            continue
+        try:
+            _validate_main_process_skeleton_graph(context.graph, state)
+        except LayoutAuthorityError:
+            continue
+        classification = classify_main_process_topology_v1(state)
+        if layout_family == LINEAR_3_BAND and (
+            classification.canonical_owner not in {STRAIGHT_LINEAR_BAND, OFFSET_LINEAR_BAND}
+            or classification.process_axis != process_axis
+            or classification.process_direction != process_direction
+        ):
+            continue
+        normalized = _normalize_local_placements(state)
+        outline, bounds = _local_outline_class(normalized)
+        signature = tuple(
+            (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+            for code, rectangle in sorted(normalized.items())
+        )
+        results.setdefault(
+            signature,
+            LocalBuildingCompositionV1(
+                layout_family=layout_family,
+                process_axis=process_axis,
+                process_direction=process_direction,
+                zone_placements=tuple(
+                    LocalZonePlacementV1(code, zone_band_assignment(code), rectangle)
+                    for code, rectangle in sorted(normalized.items())
+                ),
+                must_interfaces=tuple(
+                    pair
+                    for pair in context.graph.must_adjacencies
+                    if pair[0] in normalized and pair[1] in normalized
+                ),
+                spine_axis=process_axis if layout_family == LONGITUDINAL_PROCESS_SPINE else None,
+                spine_zone_codes=(
+                    (
+                        "sorting_packaging_room",
+                        "secondary_precooling_room",
+                        "coating_room",
+                        "finished_goods_room",
+                        "shipping_channel",
+                    )
+                    if layout_family == LONGITUDINAL_PROCESS_SPINE
+                    else ()
+                ),
+                side_bank_zone_codes=("raw_fruit_buffer", "primary_precooling_room"),
+                outline_class=outline,
+                bounds_mm=bounds,
+            ),
+        )
+    return _retain_compact_local_compositions(
+        results.values(), context, process_axis, min(result_limit, LOCAL_COMPACT_RESULT_LIMIT)
+    )
 
 
 def _synthesize_linear_3_band_local(
@@ -3675,7 +4036,7 @@ def _synthesize_linear_3_band_local(
         LINEAR_3_BAND,
         process_axis,
         process_direction,
-        result_limit=8,
+        result_limit=16,
     )
 
 
@@ -3688,7 +4049,7 @@ def _synthesize_central_side_banks_local(
         CENTRAL_PROCESS_WITH_SIDE_BANKS,
         process_axis,
         process_direction,
-        result_limit=8,
+        result_limit=16,
     )
 
 
@@ -3701,7 +4062,7 @@ def _synthesize_longitudinal_spine_local(
         LONGITUDINAL_PROCESS_SPINE,
         process_axis,
         process_direction,
-        result_limit=8,
+        result_limit=16,
     )
 
 
@@ -3746,9 +4107,64 @@ def _local_bank_compositions(
                     for code, rectangle in sorted(packed.items())
                 )
                 results.setdefault(signature, (packed, axis, "ROW" if axis == "X" else "COLUMN"))
-                if len(results) >= result_limit:
-                    return tuple(results[key] for key in sorted(results))
-    return tuple(results[key] for key in sorted(results))
+
+    if len(zone_codes) == 3:
+        shape_rows = tuple(product(*(shape_options[code] for code in zone_codes)))
+        for shape_row in shape_rows:
+            shape_by_code = dict(zip(zone_codes, shape_row, strict=True))
+            for singleton in zone_codes:
+                pair = tuple(code for code in zone_codes if code != singleton)
+                for pair_order in (pair, tuple(reversed(pair))):
+                    for pair_on_low_side in (True, False):
+                        pair_shapes = tuple(shape_by_code[code] for code in pair_order)
+                        singleton_shape = shape_by_code[singleton]
+                        pair_width = sum(shape[3] for shape in pair_shapes)
+                        pair_depth = max(shape[4] for shape in pair_shapes)
+                        bank_width = max(pair_width, singleton_shape[3])
+                        for pair_alignment in ("LOW", "CENTER", "HIGH"):
+                            for singleton_alignment in ("LOW", "CENTER", "HIGH"):
+                                if pair_alignment == "LOW":
+                                    pair_x = 0
+                                elif pair_alignment == "HIGH":
+                                    pair_x = bank_width - pair_width
+                                else:
+                                    pair_x = (bank_width - pair_width) // 2
+                                if singleton_alignment == "LOW":
+                                    singleton_x = 0
+                                elif singleton_alignment == "HIGH":
+                                    singleton_x = bank_width - singleton_shape[3]
+                                else:
+                                    singleton_x = (bank_width - singleton_shape[3]) // 2
+                                pair_y = singleton_shape[4] if not pair_on_low_side else 0
+                                singleton_y = 0 if not pair_on_low_side else pair_depth
+                                two_row_packed: dict[str, PlacedRectangleV1] = {}
+                                cursor = pair_x
+                                for code, shape in zip(pair_order, pair_shapes, strict=True):
+                                    two_row_packed[code] = _local_rectangle_at(
+                                        code, shape, cursor, pair_y
+                                    )
+                                    cursor += shape[3]
+                                two_row_packed[singleton] = _local_rectangle_at(
+                                    singleton, singleton_shape, singleton_x, singleton_y
+                                )
+                                signature = tuple(
+                                    (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+                                    for code, rectangle in sorted(two_row_packed.items())
+                                )
+                                results.setdefault(signature, (two_row_packed, "Y", "TWO_ROW"))
+
+    def bank_key(row: tuple[dict[str, PlacedRectangleV1], str, str]) -> tuple[object, ...]:
+        placements = row[0]
+        left, bottom, right, top = _local_bbox_bounds(placements)
+        width_mm, height_mm = right - left, top - bottom
+        signature = tuple(
+            (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+            for code, rectangle in sorted(placements.items())
+        )
+        return max(width_mm, height_mm), width_mm * height_mm, width_mm, height_mm, signature
+
+    ordered = sorted(results.values(), key=bank_key)
+    return tuple(ordered[:result_limit])
 
 
 def _place_local_bank_against_zone(
@@ -3785,15 +4201,17 @@ def _local_full_building_compositions(
     *,
     result_limit: int = 12,
 ) -> tuple[LocalBuildingCompositionV1, ...]:
-    """Add support and personnel banks after the exact seven-zone composition."""
+    """Pack support/personnel as compact whole banks around the main composition."""
     main = main_composition.placements()
     main_codes = set(main)
-    if main_codes != set(MAIN_PROCESS_ZONE_CODES):
+    if main_codes != set(MAIN_PROCESS_ZONE_CODES) or not _local_bbox_fits_site_extents(
+        context, main
+    ):
         return ()
     support_banks = _local_bank_compositions(
         context,
         ("packaging_material_storage", "secondary_fruit_buffer", "frozen_fruit_room"),
-        result_limit=36,
+        result_limit=12,
     )
     office_shapes = _local_dimension_shapes(context, "office")
     changing_shapes = _local_dimension_shapes(context, "changing_room")
@@ -3802,83 +4220,130 @@ def _local_full_building_compositions(
     results: dict[tuple[tuple[str, tuple[int, ...]], ...], LocalBuildingCompositionV1] = {}
     alignments = ("LOW", "CENTER", "HIGH")
     shipping = main["shipping_channel"]
-    sorting = main["sorting_packaging_room"]
+    support_states: dict[tuple[tuple[str, tuple[int, ...]], ...], dict[str, PlacedRectangleV1]] = {}
     for bank, _bank_axis, _bank_shape in support_banks:
-        for support_side in ("WEST", "EAST", "NORTH", "SOUTH"):
-            for support_alignment in alignments:
-                support = _place_local_bank_against_zone(
-                    bank, sorting, support_side, support_alignment
-                )
-                if any(
-                    not _local_rectangles_clear(rectangle, main) for rectangle in support.values()
-                ):
-                    continue
-                with_support = {**main, **support}
-                for office_shape in office_shapes:
-                    for office_side in ("WEST", "EAST", "NORTH", "SOUTH"):
-                        office_x, office_y = _local_adjacent_origin(
-                            shipping, office_shape[3], office_shape[4], office_side, "CENTER"
-                        )
-                        office = _local_rectangle_at("office", office_shape, office_x, office_y)
-                        if not rectangles_share_positive_edge(
-                            office, shipping
-                        ) or not _local_rectangles_clear(office, with_support):
-                            continue
-                        with_office = {**with_support, "office": office}
-                        for changing_shape in changing_shapes:
-                            for changing_side in ("WEST", "EAST", "NORTH", "SOUTH"):
-                                changing_x, changing_y = _local_adjacent_origin(
-                                    office,
-                                    changing_shape[3],
-                                    changing_shape[4],
-                                    changing_side,
-                                    "CENTER",
-                                )
-                                changing = _local_rectangle_at(
-                                    "changing_room", changing_shape, changing_x, changing_y
-                                )
-                                complete = {**with_office, "changing_room": changing}
-                                if not _local_rectangles_clear(changing, with_office) or set(
-                                    complete
-                                ) != set(context.graph.nodes):
-                                    continue
-                                try:
-                                    _validate_graph_completeness(context.graph, complete)
-                                except LayoutAuthorityError:
-                                    continue
-                                normalized = _normalize_local_placements(complete)
-                                outline, bounds = _local_outline_class(normalized)
-                                signature = tuple(
-                                    (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
-                                    for code, rectangle in sorted(normalized.items())
-                                )
-                                results.setdefault(
-                                    signature,
-                                    LocalBuildingCompositionV1(
-                                        layout_family=main_composition.layout_family,
-                                        process_axis=main_composition.process_axis,
-                                        process_direction=main_composition.process_direction,
-                                        zone_placements=tuple(
-                                            LocalZonePlacementV1(
-                                                code,
-                                                zone_band_assignment(code),
-                                                rectangle,
-                                            )
-                                            for code, rectangle in sorted(normalized.items())
+        for anchor_code in (
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "finished_goods_room",
+            "shipping_channel",
+        ):
+            anchor = main[anchor_code]
+            for support_side in ("WEST", "EAST", "SOUTH", "NORTH"):
+                for support_alignment in alignments:
+                    support = _place_local_bank_against_zone(
+                        bank, anchor, support_side, support_alignment
+                    )
+                    if any(
+                        not _local_rectangles_clear(rectangle, main)
+                        for rectangle in support.values()
+                    ):
+                        continue
+                    with_support = {**main, **support}
+                    if not _local_bbox_fits_site_extents(context, with_support):
+                        continue
+                    signature = tuple(
+                        (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+                        for code, rectangle in sorted(with_support.items())
+                    )
+                    support_states.setdefault(signature, with_support)
+
+    ordered_support_states = _retain_compact_local_states(
+        support_states.values(),
+        context,
+        main_composition.process_axis,
+        max(4, min(8, result_limit * 2)),
+    )
+    for support_state in ordered_support_states:
+        for office_shape in office_shapes:
+            for office_side in ("WEST", "EAST", "SOUTH", "NORTH"):
+                for office_alignment in alignments:
+                    office_x, office_y = _local_adjacent_origin(
+                        shipping,
+                        office_shape[3],
+                        office_shape[4],
+                        office_side,
+                        office_alignment,
+                    )
+                    office = _local_rectangle_at("office", office_shape, office_x, office_y)
+                    if not rectangles_share_positive_edge(office, shipping):
+                        continue
+                    if not _local_rectangles_clear(office, support_state):
+                        continue
+                    with_office = {**support_state, "office": office}
+                    if not _local_bbox_fits_site_extents(context, with_office):
+                        continue
+                    for changing_shape in changing_shapes:
+                        for changing_anchor_code in (
+                            "office",
+                            "shipping_channel",
+                            "finished_goods_room",
+                            "secondary_precooling_room",
+                        ):
+                            changing_anchor = with_office[changing_anchor_code]
+                            for changing_side in ("WEST", "EAST", "SOUTH", "NORTH"):
+                                for changing_alignment in alignments:
+                                    changing_x, changing_y = _local_adjacent_origin(
+                                        changing_anchor,
+                                        changing_shape[3],
+                                        changing_shape[4],
+                                        changing_side,
+                                        changing_alignment,
+                                    )
+                                    changing = _local_rectangle_at(
+                                        "changing_room", changing_shape, changing_x, changing_y
+                                    )
+                                    complete = {**with_office, "changing_room": changing}
+                                    if not _local_rectangles_clear(changing, with_office):
+                                        continue
+                                    if set(complete) != set(context.graph.nodes):
+                                        continue
+                                    if not _local_bbox_fits_site_extents(context, complete):
+                                        continue
+                                    try:
+                                        _validate_graph_completeness(context.graph, complete)
+                                    except LayoutAuthorityError:
+                                        continue
+                                    normalized = _normalize_local_placements(complete)
+                                    outline, bounds = _local_outline_class(normalized)
+                                    signature = tuple(
+                                        (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+                                        for code, rectangle in sorted(normalized.items())
+                                    )
+                                    results.setdefault(
+                                        signature,
+                                        LocalBuildingCompositionV1(
+                                            layout_family=main_composition.layout_family,
+                                            process_axis=main_composition.process_axis,
+                                            process_direction=main_composition.process_direction,
+                                            zone_placements=tuple(
+                                                LocalZonePlacementV1(
+                                                    code,
+                                                    zone_band_assignment(code),
+                                                    rectangle,
+                                                )
+                                                for code, rectangle in sorted(normalized.items())
+                                            ),
+                                            must_interfaces=tuple(
+                                                pair for pair in context.graph.must_adjacencies
+                                            ),
+                                            spine_axis=main_composition.spine_axis,
+                                            spine_zone_codes=main_composition.spine_zone_codes,
+                                            side_bank_zone_codes=main_composition.side_bank_zone_codes,
+                                            outline_class=outline,
+                                            bounds_mm=bounds,
                                         ),
-                                        must_interfaces=tuple(
-                                            pair for pair in context.graph.must_adjacencies
-                                        ),
-                                        spine_axis=main_composition.spine_axis,
-                                        spine_zone_codes=main_composition.spine_zone_codes,
-                                        side_bank_zone_codes=main_composition.side_bank_zone_codes,
-                                        outline_class=outline,
-                                        bounds_mm=bounds,
-                                    ),
-                                )
-                                if len(results) >= result_limit:
-                                    return tuple(results[key] for key in sorted(results))
-    return tuple(results[key] for key in sorted(results))
+                                    )
+                                    if len(results) >= max(result_limit * 8, result_limit):
+                                        return _retain_compact_local_compositions(
+                                            results.values(),
+                                            context,
+                                            main_composition.process_axis,
+                                            result_limit,
+                                        )
+    return _retain_compact_local_compositions(
+        results.values(), context, main_composition.process_axis, result_limit
+    )
 
 
 def _structured_plan_from_composition(
@@ -4758,17 +5223,17 @@ def _whole_building_site_placements(
     *,
     result_limit: int = 24,
 ) -> tuple[dict[str, PlacedRectangleV1], ...]:
-    """Rigidly translate a complete local composition onto exact site events."""
+    """Rigidly orient/mirror/translate a complete local composition onto site events."""
     if not local_placements or result_limit <= 0:
         return ()
-    local_bounds = tuple(rectangle.bounds_mm for rectangle in local_placements.values())
-    local_left = min(row[0] for row in local_bounds)
-    local_bottom = min(row[1] for row in local_bounds)
-    local_right = max(row[2] for row in local_bounds)
-    local_top = max(row[3] for row in local_bounds)
-    min_x, min_y, max_x, max_y = context.boundary_bounds
-    if local_right - local_left > max_x - min_x or local_top - local_bottom > max_y - min_y:
+    source_rows = tuple(local_placements.values())
+    if any(
+        rectangles_overlap(first, second)
+        for index, first in enumerate(source_rows)
+        for second in source_rows[index + 1 :]
+    ):
         return ()
+    min_x, min_y, max_x, max_y = context.boundary_bounds
 
     x_events = {point[0] for point in context.boundary}
     y_events = {point[1] for point in context.boundary}
@@ -4779,63 +5244,248 @@ def _whole_building_site_placements(
         x_events.update((segment[0][0], segment[1][0]))
         y_events.update((segment[0][1], segment[1][1]))
 
-    dx_values = {
-        event - edge for event in x_events for row in local_bounds for edge in (row[0], row[2])
-    }
-    dy_values = {
-        event - edge for event in y_events for row in local_bounds for edge in (row[1], row[3])
-    }
-    dx_values.update((min_x - local_left, max_x - local_right))
-    dy_values.update((min_y - local_bottom, max_y - local_top))
-    dx_values = {
-        value for value in dx_values if min_x <= local_left + value and local_right + value <= max_x
-    }
-    dy_values = {
-        value for value in dy_values if min_y <= local_bottom + value and local_top + value <= max_y
-    }
-    ordered_translations = sorted(
-        product(dx_values, dy_values),
-        key=lambda row: (abs(row[0]) + abs(row[1]), row[1], row[0]),
-    )
     candidates: list[dict[str, PlacedRectangleV1]] = []
     seen: set[tuple[tuple[str, tuple[int, int, int, int, int]], ...]] = set()
-    for dx_mm, dy_mm in ordered_translations:
-        translated = {
-            code: _rectangle_from_mm(
+    source_bounds = _local_bbox_bounds(local_placements)
+    source_left, source_bottom, source_right, source_top = source_bounds
+    source_width, source_height = source_right - source_left, source_top - source_bottom
+    rigid_variants: list[dict[str, PlacedRectangleV1]] = []
+    for mirror_x, mirror_y, rotate_90 in product((False, True), repeat=3):
+        transformed: dict[str, PlacedRectangleV1] = {}
+        for code, rectangle in sorted(local_placements.items()):
+            left, bottom, right, top = rectangle.bounds_mm
+            x0, y0 = left - source_left, bottom - source_bottom
+            width_mm, depth_mm = right - left, top - bottom
+            if mirror_x:
+                x0 = source_width - x0 - width_mm
+            if mirror_y:
+                y0 = source_height - y0 - depth_mm
+            if rotate_90:
+                x0, y0 = source_height - y0 - depth_mm, x0
+                width_mm, depth_mm = depth_mm, width_mm
+            transformed[code] = _rectangle_from_mm(
                 code,
-                rectangle.bounds_mm[0] + dx_mm,
-                rectangle.bounds_mm[1] + dy_mm,
+                x0,
+                y0,
                 _mm(rectangle.width_m, field="local.width_m"),
                 _mm(rectangle.depth_m, field="local.depth_m"),
-                rectangle.rotation_deg,
+                (90 - rectangle.rotation_deg) % 180 if rotate_90 else rectangle.rotation_deg,
             )
-            for code, rectangle in sorted(local_placements.items())
+        rigid_variants.append(transformed)
+
+    variant_signatures: set[tuple[tuple[str, tuple[int, ...]], ...]] = set()
+    boundary_rectangle = _axis_aligned_rectangle_polygon_bounds(context.boundary)
+    obstacle_rectangles = tuple(
+        _axis_aligned_rectangle_polygon_bounds(obstacle) for obstacle in context.obstacles
+    )
+    exact_rectangle_site = boundary_rectangle is not None and all(
+        obstacle is not None for obstacle in obstacle_rectangles
+    )
+
+    def ordered_pairs(x_values: set[int], y_values: set[int]) -> Iterator[tuple[int, int]]:
+        """Yield the original Manhattan-ordered event pairs without materializing a product."""
+        x_order = sorted(x_values, key=lambda value: (abs(value), value))
+        y_order = sorted(y_values, key=lambda value: (abs(value), value))
+        heap: list[tuple[int, int, int, int, int]] = []
+        for x_index, dx in enumerate(x_order):
+            if y_order:
+                dy = y_order[0]
+                heappush(heap, (abs(dx) + abs(dy), dy, dx, x_index, 0))
+        while heap:
+            _distance, dy, dx, x_index, y_index = heappop(heap)
+            yield dx, dy
+            next_y_index = y_index + 1
+            if next_y_index < len(y_order):
+                next_dy = y_order[next_y_index]
+                next_dx = x_order[x_index]
+                heappush(
+                    heap,
+                    (
+                        abs(next_dx) + abs(next_dy),
+                        next_dy,
+                        next_dx,
+                        x_index,
+                        next_y_index,
+                    ),
+                )
+
+    def rectangle_site_pairs(
+        local_bounds: tuple[tuple[int, int, int, int], ...],
+        x_values: set[int],
+        y_values: set[int],
+        *,
+        limit_per_x: int,
+    ) -> list[tuple[int, int]]:
+        """Return a bounded exact prefix after subtracting obstacle dy intervals per dx."""
+        ordered_x = sorted(x_values, key=lambda value: (abs(value), value))
+        ordered_y = sorted(y_values, key=lambda value: (abs(value), value))
+        rows: list[tuple[int, int]] = []
+        exact_obstacles = tuple(row for row in obstacle_rectangles if row is not None)
+        for dx in ordered_x:
+            blocked_dy: list[tuple[int, int]] = []
+            for left, bottom, right, top in local_bounds:
+                moved_left, moved_right = left + dx, right + dx
+                for obstacle_left, obstacle_bottom, obstacle_right, obstacle_top in exact_obstacles:
+                    if not (moved_right < obstacle_left or moved_left > obstacle_right):
+                        blocked_dy.append((obstacle_bottom - top, obstacle_top - bottom))
+            blocked_dy.sort()
+            merged: list[tuple[int, int]] = []
+            for start, end in blocked_dy:
+                if merged and start <= merged[-1][1] + 1:
+                    merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+                else:
+                    merged.append((start, end))
+            valid_for_x = 0
+            interval_index = 0
+            for dy in ordered_y:
+                while interval_index < len(merged) and merged[interval_index][1] < dy:
+                    interval_index += 1
+                if interval_index < len(merged) and merged[interval_index][0] <= dy:
+                    continue
+                rows.append((dx, dy))
+                valid_for_x += 1
+                if valid_for_x >= limit_per_x:
+                    break
+        rows.sort(key=lambda row: (abs(row[0]) + abs(row[1]), row[1], row[0]))
+        return rows
+
+    for transformed in rigid_variants:
+        local_bounds = tuple(rectangle.bounds_mm for rectangle in transformed.values())
+        local_left = min(row[0] for row in local_bounds)
+        local_bottom = min(row[1] for row in local_bounds)
+        local_right = max(row[2] for row in local_bounds)
+        local_top = max(row[3] for row in local_bounds)
+        if local_right - local_left > max_x - min_x or local_top - local_bottom > max_y - min_y:
+            continue
+        dx_values = {
+            event - edge for event in x_events for row in local_bounds for edge in (row[0], row[2])
         }
-        placed: dict[str, PlacedRectangleV1] = {}
-        valid = True
-        for code, rectangle in translated.items():
-            if not _rectangle_is_usable(
-                rectangle,
-                placed,
-                context.boundary,
-                context.boundary_bounds,
-                context.obstacles,
-            ):
-                valid = False
-                break
-            placed[code] = rectangle
-        if not valid:
-            continue
-        signature = tuple(
-            (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
-            for code, rectangle in sorted(translated.items())
+        dy_values = {
+            event - edge for event in y_events for row in local_bounds for edge in (row[1], row[3])
+        }
+        # Closed no-build polygons reject even boundary contact. Coordinates
+        # that merely coincide with an obstacle event therefore describe the
+        # rejected boundary, not the first legal integer-mm placement beside
+        # it. Include the immediately adjacent grid coordinate on both sides
+        # of each obstacle event; this is exact 1 mm lattice enumeration, not
+        # a geometric tolerance or clearance rule.
+        obstacle_x_events = {point[0] for obstacle in context.obstacles for point in obstacle}
+        obstacle_y_events = {point[1] for obstacle in context.obstacles for point in obstacle}
+        dx_values.update(
+            event - edge + step
+            for event in obstacle_x_events
+            for row in local_bounds
+            for edge in (row[0], row[2])
+            for step in (-GRID_MM, GRID_MM)
         )
-        if signature in seen:
+        dy_values.update(
+            event - edge + step
+            for event in obstacle_y_events
+            for row in local_bounds
+            for edge in (row[1], row[3])
+            for step in (-GRID_MM, GRID_MM)
+        )
+        dx_values.update((min_x - local_left, max_x - local_right))
+        dy_values.update((min_y - local_bottom, max_y - local_top))
+        dx_values = {
+            value
+            for value in dx_values
+            if min_x <= local_left + value and local_right + value <= max_x
+        }
+        dy_values = {
+            value
+            for value in dy_values
+            if min_y <= local_bottom + value and local_top + value <= max_y
+        }
+        variant_signature = tuple(
+            (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+            for code, rectangle in sorted(transformed.items())
+        )
+        if variant_signature in variant_signatures:
             continue
-        seen.add(signature)
-        candidates.append(translated)
-        if len(candidates) >= result_limit:
-            break
+        variant_signatures.add(variant_signature)
+        translations: Iterable[tuple[int, int]]
+        if exact_rectangle_site:
+            translations = rectangle_site_pairs(
+                local_bounds,
+                dx_values,
+                dy_values,
+                limit_per_x=result_limit,
+            )
+        else:
+            translations = ordered_pairs(dx_values, dy_values)
+        for dx_mm, dy_mm in translations:
+            if exact_rectangle_site:
+                if any(
+                    not (
+                        row[2] + dx_mm < obstacle[0]
+                        or row[0] + dx_mm > obstacle[2]
+                        or row[3] + dy_mm < obstacle[1]
+                        or row[1] + dy_mm > obstacle[3]
+                    )
+                    for row in local_bounds
+                    for obstacle in obstacle_rectangles
+                    if obstacle is not None
+                ):
+                    continue
+                translated = {
+                    code: _rectangle_from_mm(
+                        code,
+                        rectangle.bounds_mm[0] + dx_mm,
+                        rectangle.bounds_mm[1] + dy_mm,
+                        _mm(rectangle.width_m, field="local.width_m"),
+                        _mm(rectangle.depth_m, field="local.depth_m"),
+                        rectangle.rotation_deg,
+                    )
+                    for code, rectangle in sorted(transformed.items())
+                }
+                signature = tuple(
+                    (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+                    for code, rectangle in sorted(translated.items())
+                )
+                if signature in seen:
+                    continue
+                seen.add(signature)
+                candidates.append(translated)
+                if len(candidates) >= result_limit:
+                    return tuple(candidates)
+                continue
+            translated = {
+                code: _rectangle_from_mm(
+                    code,
+                    rectangle.bounds_mm[0] + dx_mm,
+                    rectangle.bounds_mm[1] + dy_mm,
+                    _mm(rectangle.width_m, field="local.width_m"),
+                    _mm(rectangle.depth_m, field="local.depth_m"),
+                    rectangle.rotation_deg,
+                )
+                for code, rectangle in sorted(transformed.items())
+            }
+            placed: dict[str, PlacedRectangleV1] = {}
+            valid = True
+            for code, rectangle in translated.items():
+                if not _rectangle_is_usable(
+                    rectangle,
+                    placed,
+                    context.boundary,
+                    context.boundary_bounds,
+                    context.obstacles,
+                ):
+                    valid = False
+                    break
+                placed[code] = rectangle
+            if not valid:
+                continue
+            signature = tuple(
+                (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+                for code, rectangle in sorted(translated.items())
+            )
+            if signature in seen:
+                continue
+            seen.add(signature)
+            candidates.append(translated)
+            if len(candidates) >= result_limit:
+                return tuple(candidates)
     return tuple(candidates)
 
 
@@ -4950,7 +5600,7 @@ def _direct_structured_candidates(
             full_compositions = _local_full_building_compositions(
                 context,
                 main_composition,
-                result_limit=3,
+                result_limit=8,
             )
             attempt_row["full_building_composition_count"] = int(
                 attempt_row["full_building_composition_count"]

@@ -1,0 +1,3819 @@
+{
+  "compact_full_12_zone_by_family": {
+    "CENTRAL_PROCESS_WITH_SIDE_BANKS": {
+      "best_bbox": {
+        "bbox_height_m": 55.6,
+        "bbox_height_mm": 55600,
+        "bbox_site_extent_feasible": true,
+        "bbox_width_m": 52.971,
+        "bbox_width_mm": 52971,
+        "main_axis_count": 24,
+        "main_direction_change_count": 1
+      },
+      "distinct_complete_12_zone_count": 120,
+      "site_extent_feasible_count": 120
+    },
+    "LINEAR_3_BAND": {
+      "best_bbox": {
+        "bbox_height_m": 55.6,
+        "bbox_height_mm": 55600,
+        "bbox_site_extent_feasible": true,
+        "bbox_width_m": 52.971,
+        "bbox_width_mm": 52971,
+        "main_axis_count": 24,
+        "main_direction_change_count": 1
+      },
+      "distinct_complete_12_zone_count": 233,
+      "site_extent_feasible_count": 233
+    },
+    "LONGITUDINAL_PROCESS_SPINE": {
+      "best_bbox": {
+        "bbox_height_m": 50.614,
+        "bbox_height_mm": 50614,
+        "bbox_site_extent_feasible": true,
+        "bbox_width_m": 55.56,
+        "bbox_width_mm": 55560,
+        "main_axis_count": 25,
+        "main_direction_change_count": 3
+      },
+      "distinct_complete_12_zone_count": 128,
+      "site_extent_feasible_count": 128
+    }
+  },
+  "compact_main_by_family": {
+    "CENTRAL_PROCESS_WITH_SIDE_BANKS": {
+      "best_bbox": {
+        "bbox_height_m": 55.6,
+        "bbox_height_mm": 55600,
+        "bbox_site_extent_feasible": true,
+        "bbox_width_m": 50.614,
+        "bbox_width_mm": 50614,
+        "main_axis_count": 14,
+        "main_direction_change_count": 1
+      },
+      "distinct_composition_count": 16,
+      "site_extent_feasible_count": 16
+    },
+    "LINEAR_3_BAND": {
+      "best_bbox": {
+        "bbox_height_m": 42.25,
+        "bbox_height_mm": 42250,
+        "bbox_site_extent_feasible": true,
+        "bbox_width_m": 48.179,
+        "bbox_width_mm": 48179,
+        "main_axis_count": 15,
+        "main_direction_change_count": 2
+      },
+      "distinct_composition_count": 36,
+      "site_extent_feasible_count": 36
+    },
+    "LONGITUDINAL_PROCESS_SPINE": {
+      "best_bbox": {
+        "bbox_height_m": 50.614,
+        "bbox_height_mm": 50614,
+        "bbox_site_extent_feasible": true,
+        "bbox_width_m": 55.56,
+        "bbox_width_mm": 55560,
+        "main_axis_count": 15,
+        "main_direction_change_count": 3
+      },
+      "distinct_composition_count": 16,
+      "site_extent_feasible_count": 16
+    }
+  },
+  "distinct_structured_full_pass_skeleton_count": 0,
+  "identity": "v222-p1a-r2-site-bounded-compact-floorplan@1.0.0",
+  "input_fixture": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/backend/tests/fixtures/v22/xinzhao_20t_site_layout_input_v3.json",
+  "local_compact_adjacency_embedding": true,
+  "local_images": {
+    "CENTRAL_PROCESS_WITH_SIDE_BANKS": {
+      "png": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_compact_central_local.png",
+      "png_sha256": "sha256:4ec46330ad73b2296ca492f56d02e6b16ad61d13274add633c836f690770b45d",
+      "svg": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_compact_central_local.svg",
+      "svg_sha256": "sha256:4574d39d50791e899a65ac5fb36373e4798c847bcd02090a3b3472fbc670fea7"
+    },
+    "LINEAR_3_BAND": {
+      "png": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_compact_linear_local.png",
+      "png_sha256": "sha256:a4bf9dbdf2bbd690f9c8eb2e23f0316efd77194160ad97e5927673c43e132f13",
+      "svg": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_compact_linear_local.svg",
+      "svg_sha256": "sha256:0881caec721b16c0e148c6e990345f6c4fce876cecbb3861e91f4fabcfe617e3"
+    },
+    "LONGITUDINAL_PROCESS_SPINE": {
+      "png": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_compact_spine_local.png",
+      "png_sha256": "sha256:beccd9ff9286df8684d96f398f393a1017fb0e06fc5fbbe6dea46a27d37234a7",
+      "svg": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_compact_spine_local.svg",
+      "svg_sha256": "sha256:17c9e0b7313f9b574128b31f2f1d2349c089c2253ba0c3f51437cc1fc8fa1dc3"
+    }
+  },
+  "local_synthesis_uses_site_event_coordinates": false,
+  "local_synthesis_uses_site_extent": true,
+  "mode": "R2_SITE_BOUNDED_COMPACT_FLOORPLAN_RECOVERY",
+  "necessary_bbox_test_allows_whole_building_rotation": true,
+  "old_local_bboxes_m": {
+    "CENTRAL_PROCESS_WITH_SIDE_BANKS": [
+      90.266,
+      87.335
+    ],
+    "LINEAR_3_BAND": [
+      33.099,
+      134.774
+    ],
+    "LONGITUDINAL_PROCESS_SPINE": [
+      72.416,
+      85.71
+    ]
+  },
+  "p2d_footprint_facts": [
+    {
+      "local_zone_union_outline_class": "STAIR_STEP",
+      "local_zone_union_outline_error": null,
+      "p2d_building_footprint_outline_class": "STAIR_STEP",
+      "p2d_building_footprint_source": "EXACT_ZONE_RECTANGLES_PLUS_ACCESS_CORRIDOR_ENVELOPES",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "visual_regularity_pass": false
+    },
+    {
+      "local_zone_union_outline_class": "STAIR_STEP",
+      "local_zone_union_outline_error": null,
+      "p2d_building_footprint_outline_class": "STAIR_STEP",
+      "p2d_building_footprint_source": "EXACT_ZONE_RECTANGLES_PLUS_ACCESS_CORRIDOR_ENVELOPES",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "visual_regularity_pass": false
+    }
+  ],
+  "replay_determinism": {
+    "first_local_constructor_call_count": 12,
+    "same_canonical_result_hash": true,
+    "same_selected_layout": true,
+    "same_svg_bytes": true,
+    "same_work_queue_trace": true,
+    "second_local_constructor_call_count": 12
+  },
+  "search_diagnostics": {
+    "construction_attempts": [
+      {
+        "construction_nodes": 1,
+        "construction_policy": "LINEAR_3_BAND_LOCAL_COMPOSITION_V1",
+        "first_failure_interface": null,
+        "first_failure_stage": "SITE_PLACEMENT",
+        "full_building_composition_count": 61,
+        "layout_family": "LINEAR_3_BAND",
+        "local_composition_count": 11,
+        "process_axis": "Y",
+        "process_direction": "POSITIVE",
+        "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+        "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+        "site_rigid_placement_count": 0,
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "construction_nodes": 1,
+        "construction_policy": "CENTRAL_PROCESS_WITH_SIDE_BANKS_LOCAL_COMPOSITION_V1",
+        "first_failure_interface": null,
+        "first_failure_stage": "SITE_PLACEMENT",
+        "full_building_composition_count": 120,
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "local_composition_count": 16,
+        "process_axis": "Y",
+        "process_direction": "POSITIVE",
+        "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+        "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+        "site_rigid_placement_count": 0,
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "construction_nodes": 1,
+        "construction_policy": "LONGITUDINAL_PROCESS_SPINE_LOCAL_COMPOSITION_V1",
+        "first_failure_interface": null,
+        "first_failure_stage": "SITE_PLACEMENT",
+        "full_building_composition_count": 128,
+        "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+        "local_composition_count": 16,
+        "process_axis": "Y",
+        "process_direction": "POSITIVE",
+        "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+        "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+        "site_rigid_placement_count": 0,
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "construction_nodes": 1,
+        "construction_policy": "LINEAR_3_BAND_LOCAL_COMPOSITION_V1",
+        "first_failure_interface": null,
+        "first_failure_stage": "SITE_PLACEMENT",
+        "full_building_composition_count": 32,
+        "layout_family": "LINEAR_3_BAND",
+        "local_composition_count": 6,
+        "process_axis": "Y",
+        "process_direction": "NEGATIVE",
+        "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+        "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+        "site_rigid_placement_count": 0,
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "construction_nodes": 1,
+        "construction_policy": "CENTRAL_PROCESS_WITH_SIDE_BANKS_LOCAL_COMPOSITION_V1",
+        "first_failure_interface": null,
+        "first_failure_stage": "SITE_PLACEMENT",
+        "full_building_composition_count": 120,
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "local_composition_count": 16,
+        "process_axis": "Y",
+        "process_direction": "NEGATIVE",
+        "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+        "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+        "site_rigid_placement_count": 0,
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "construction_nodes": 1,
+        "construction_policy": "LONGITUDINAL_PROCESS_SPINE_LOCAL_COMPOSITION_V1",
+        "first_failure_interface": null,
+        "first_failure_stage": "SITE_PLACEMENT",
+        "full_building_composition_count": 128,
+        "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+        "local_composition_count": 16,
+        "process_axis": "Y",
+        "process_direction": "NEGATIVE",
+        "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+        "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+        "site_rigid_placement_count": 0,
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "construction_nodes": 1,
+        "construction_policy": "LINEAR_3_BAND_LOCAL_COMPOSITION_V1",
+        "first_failure_interface": null,
+        "first_failure_stage": "SITE_PLACEMENT",
+        "full_building_composition_count": 116,
+        "layout_family": "LINEAR_3_BAND",
+        "local_composition_count": 16,
+        "process_axis": "X",
+        "process_direction": "POSITIVE",
+        "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+        "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+        "site_rigid_placement_count": 0,
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "construction_nodes": 1,
+        "construction_policy": "CENTRAL_PROCESS_WITH_SIDE_BANKS_LOCAL_COMPOSITION_V1",
+        "first_failure_interface": null,
+        "first_failure_stage": "SITE_PLACEMENT",
+        "full_building_composition_count": 120,
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "local_composition_count": 16,
+        "process_axis": "X",
+        "process_direction": "POSITIVE",
+        "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+        "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+        "site_rigid_placement_count": 0,
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "construction_nodes": 1,
+        "construction_policy": "LONGITUDINAL_PROCESS_SPINE_LOCAL_COMPOSITION_V1",
+        "first_failure_interface": null,
+        "first_failure_stage": "SITE_PLACEMENT",
+        "full_building_composition_count": 128,
+        "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+        "local_composition_count": 16,
+        "process_axis": "X",
+        "process_direction": "POSITIVE",
+        "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+        "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+        "site_rigid_placement_count": 0,
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "construction_nodes": 1,
+        "construction_policy": "LINEAR_3_BAND_LOCAL_COMPOSITION_V1",
+        "first_failure_interface": null,
+        "first_failure_stage": "SITE_PLACEMENT",
+        "full_building_composition_count": 24,
+        "layout_family": "LINEAR_3_BAND",
+        "local_composition_count": 3,
+        "process_axis": "X",
+        "process_direction": "NEGATIVE",
+        "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+        "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+        "site_rigid_placement_count": 0,
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "construction_nodes": 1,
+        "construction_policy": "CENTRAL_PROCESS_WITH_SIDE_BANKS_LOCAL_COMPOSITION_V1",
+        "first_failure_interface": null,
+        "first_failure_stage": "SITE_PLACEMENT",
+        "full_building_composition_count": 120,
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "local_composition_count": 16,
+        "process_axis": "X",
+        "process_direction": "NEGATIVE",
+        "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+        "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+        "site_rigid_placement_count": 0,
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "construction_nodes": 1,
+        "construction_policy": "LONGITUDINAL_PROCESS_SPINE_LOCAL_COMPOSITION_V1",
+        "first_failure_interface": null,
+        "first_failure_stage": "SITE_PLACEMENT",
+        "full_building_composition_count": 128,
+        "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+        "local_composition_count": 16,
+        "process_axis": "X",
+        "process_direction": "NEGATIVE",
+        "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+        "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+        "site_rigid_placement_count": 0,
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "band_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "construction_attempt_index": 0,
+        "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "face_pair_node_quantum": 20,
+        "finished_side": "WEST",
+        "offset_direction": null,
+        "raw_side": "EAST",
+        "rejection_reason_counts": {
+          "NO_BUILD_COLLISION": 51,
+          "SITE_OUTSIDE": 36,
+          "SKELETON_TOPOLOGY_INVALID": 6
+        },
+        "result": "REJECTED",
+        "search_truncated": false,
+        "skeleton_hashes": [],
+        "sorting_root_mm": [
+          15200,
+          10050,
+          60960,
+          23650
+        ],
+        "sorting_root_node_quantum": 16,
+        "topology": "CENTRAL_PROCESS_HUB",
+        "visited_node_delta": 9
+      },
+      {
+        "band_family": "LONGITUDINAL_PROCESS_SPINE",
+        "construction_attempt_index": 1,
+        "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "face_pair_node_quantum": 20,
+        "finished_side": "WEST",
+        "offset_direction": null,
+        "raw_side": "EAST",
+        "rejection_reason_counts": {
+          "ENVELOPE_OR_BAND_REJECT": 3,
+          "SITE_OUTSIDE": 3,
+          "SKELETON_TOPOLOGY_INVALID": 1
+        },
+        "result": "REJECTED",
+        "search_truncated": false,
+        "skeleton_hashes": [],
+        "sorting_root_mm": [
+          15200,
+          10050,
+          60960,
+          23650
+        ],
+        "sorting_root_node_quantum": 16,
+        "topology": "CENTRAL_PROCESS_HUB",
+        "visited_node_delta": 0
+      }
+    ],
+    "constructive_divergence_trace": [
+      {
+        "attempted": true,
+        "construction_policy": "CENTRAL_PROCESS_HUB_V1",
+        "divergence_stage": "RAW_FINISHED_FACE_PAIR",
+        "offset_directions": [],
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "attempted": true,
+        "construction_policy": "CENTRAL_PROCESS_HUB_V1",
+        "divergence_stage": "RAW_FINISHED_FACE_PAIR",
+        "offset_directions": [],
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "attempted": true,
+        "construction_policy": "CENTRAL_PROCESS_WITH_SIDE_BANKS_Y_V1",
+        "divergence_stage": "ENVELOPE_GRID_BAND_FORMATION",
+        "envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "envelope_components_mm": [
+          [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        ],
+        "envelope_failures": [],
+        "functional_band_bounds_mm": {
+          "FINISHED_SIDE_BAND": [
+            0,
+            20700,
+            75460,
+            55000
+          ],
+          "PERSONNEL_EDGE_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "PROCESS_CORE_BAND": [
+            11050,
+            0,
+            64410,
+            55000
+          ],
+          "RAW_SIDE_BAND": [
+            0,
+            0,
+            75460,
+            34300
+          ],
+          "SUPPORT_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        },
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "local_event_x_axis_count": 193,
+        "local_event_y_axis_count": 279,
+        "personnel_band_is_full_envelope": true,
+        "primary_x_axes_mm": [
+          0,
+          14699,
+          15200,
+          29900,
+          41718,
+          60960,
+          74999,
+          75460
+        ],
+        "primary_y_axes_mm": [
+          0,
+          8701,
+          10050,
+          18750,
+          23650,
+          27000,
+          33700,
+          39385,
+          39386,
+          52300,
+          53886,
+          55000
+        ],
+        "process_axis": "Y",
+        "result": "PLAN_READY",
+        "selected_envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "support_band_is_full_envelope": true,
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "attempted": true,
+        "construction_policy": "LINEAR_3_BAND_Y_V1",
+        "divergence_stage": "ENVELOPE_GRID_BAND_FORMATION",
+        "envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "envelope_components_mm": [
+          [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        ],
+        "envelope_failures": [],
+        "functional_band_bounds_mm": {
+          "FINISHED_SIDE_BAND": [
+            0,
+            16850,
+            75460,
+            55000
+          ],
+          "PERSONNEL_EDGE_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "PROCESS_CORE_BAND": [
+            0,
+            5025,
+            75460,
+            52300
+          ],
+          "RAW_SIDE_BAND": [
+            0,
+            0,
+            75460,
+            16850
+          ],
+          "SUPPORT_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        },
+        "layout_family": "LINEAR_3_BAND",
+        "local_event_x_axis_count": 193,
+        "local_event_y_axis_count": 279,
+        "personnel_band_is_full_envelope": true,
+        "primary_x_axes_mm": [
+          0,
+          14699,
+          15200,
+          29900,
+          41718,
+          60960,
+          74999,
+          75460
+        ],
+        "primary_y_axes_mm": [
+          0,
+          8701,
+          10050,
+          18750,
+          23650,
+          27000,
+          33700,
+          39385,
+          39386,
+          52300,
+          53886,
+          55000
+        ],
+        "process_axis": "Y",
+        "result": "PLAN_READY",
+        "selected_envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "support_band_is_full_envelope": true,
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "attempted": true,
+        "construction_policy": "LONGITUDINAL_PROCESS_SPINE_Y_V1",
+        "divergence_stage": "ENVELOPE_GRID_BAND_FORMATION",
+        "envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "envelope_components_mm": [
+          [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        ],
+        "envelope_failures": [],
+        "functional_band_bounds_mm": {
+          "FINISHED_SIDE_BAND": [
+            11050,
+            0,
+            75460,
+            55000
+          ],
+          "PERSONNEL_EDGE_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "PROCESS_CORE_BAND": [
+            11050,
+            0,
+            64410,
+            55000
+          ],
+          "RAW_SIDE_BAND": [
+            0,
+            0,
+            64410,
+            55000
+          ],
+          "SUPPORT_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        },
+        "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+        "local_event_x_axis_count": 193,
+        "local_event_y_axis_count": 279,
+        "personnel_band_is_full_envelope": true,
+        "primary_x_axes_mm": [
+          0,
+          14699,
+          15200,
+          29900,
+          41718,
+          60960,
+          74999,
+          75460
+        ],
+        "primary_y_axes_mm": [
+          0,
+          8701,
+          10050,
+          18750,
+          23650,
+          27000,
+          33700,
+          39385,
+          39386,
+          52300,
+          53886,
+          55000
+        ],
+        "process_axis": "Y",
+        "result": "PLAN_READY",
+        "selected_envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "support_band_is_full_envelope": true,
+        "topology": "CENTRAL_PROCESS_HUB"
+      },
+      {
+        "construction_policy": "CENTRAL_PROCESS_WITH_SIDE_BANKS_LOCAL_COMPOSITION_V1",
+        "event_axis_search_used": false,
+        "greedy_room_chain_used": false,
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "process_axis": "Y",
+        "process_direction": "POSITIVE",
+        "result": "LOCAL_COMPOSITION_STARTED",
+        "site_coordinates_used_during_local_synthesis": false
+      },
+      {
+        "construction_policy": "CENTRAL_PROCESS_WITH_SIDE_BANKS_LOCAL_COMPOSITION_V1",
+        "event_axis_search_used": false,
+        "greedy_room_chain_used": false,
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "process_axis": "Y",
+        "process_direction": "NEGATIVE",
+        "result": "LOCAL_COMPOSITION_STARTED",
+        "site_coordinates_used_during_local_synthesis": false
+      },
+      {
+        "construction_policy": "CENTRAL_PROCESS_WITH_SIDE_BANKS_LOCAL_COMPOSITION_V1",
+        "event_axis_search_used": false,
+        "greedy_room_chain_used": false,
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "process_axis": "X",
+        "process_direction": "POSITIVE",
+        "result": "LOCAL_COMPOSITION_STARTED",
+        "site_coordinates_used_during_local_synthesis": false
+      },
+      {
+        "construction_policy": "CENTRAL_PROCESS_WITH_SIDE_BANKS_LOCAL_COMPOSITION_V1",
+        "event_axis_search_used": false,
+        "greedy_room_chain_used": false,
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "process_axis": "X",
+        "process_direction": "NEGATIVE",
+        "result": "LOCAL_COMPOSITION_STARTED",
+        "site_coordinates_used_during_local_synthesis": false
+      },
+      {
+        "construction_policy": "LINEAR_3_BAND_LOCAL_COMPOSITION_V1",
+        "event_axis_search_used": false,
+        "greedy_room_chain_used": false,
+        "layout_family": "LINEAR_3_BAND",
+        "process_axis": "Y",
+        "process_direction": "POSITIVE",
+        "result": "LOCAL_COMPOSITION_STARTED",
+        "site_coordinates_used_during_local_synthesis": false
+      },
+      {
+        "construction_policy": "LINEAR_3_BAND_LOCAL_COMPOSITION_V1",
+        "event_axis_search_used": false,
+        "greedy_room_chain_used": false,
+        "layout_family": "LINEAR_3_BAND",
+        "process_axis": "Y",
+        "process_direction": "NEGATIVE",
+        "result": "LOCAL_COMPOSITION_STARTED",
+        "site_coordinates_used_during_local_synthesis": false
+      },
+      {
+        "construction_policy": "LINEAR_3_BAND_LOCAL_COMPOSITION_V1",
+        "event_axis_search_used": false,
+        "greedy_room_chain_used": false,
+        "layout_family": "LINEAR_3_BAND",
+        "process_axis": "X",
+        "process_direction": "POSITIVE",
+        "result": "LOCAL_COMPOSITION_STARTED",
+        "site_coordinates_used_during_local_synthesis": false
+      },
+      {
+        "construction_policy": "LINEAR_3_BAND_LOCAL_COMPOSITION_V1",
+        "event_axis_search_used": false,
+        "greedy_room_chain_used": false,
+        "layout_family": "LINEAR_3_BAND",
+        "process_axis": "X",
+        "process_direction": "NEGATIVE",
+        "result": "LOCAL_COMPOSITION_STARTED",
+        "site_coordinates_used_during_local_synthesis": false
+      },
+      {
+        "construction_policy": "LONGITUDINAL_PROCESS_SPINE_LOCAL_COMPOSITION_V1",
+        "event_axis_search_used": false,
+        "greedy_room_chain_used": false,
+        "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+        "process_axis": "Y",
+        "process_direction": "POSITIVE",
+        "result": "LOCAL_COMPOSITION_STARTED",
+        "site_coordinates_used_during_local_synthesis": false
+      },
+      {
+        "construction_policy": "LONGITUDINAL_PROCESS_SPINE_LOCAL_COMPOSITION_V1",
+        "event_axis_search_used": false,
+        "greedy_room_chain_used": false,
+        "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+        "process_axis": "Y",
+        "process_direction": "NEGATIVE",
+        "result": "LOCAL_COMPOSITION_STARTED",
+        "site_coordinates_used_during_local_synthesis": false
+      },
+      {
+        "construction_policy": "LONGITUDINAL_PROCESS_SPINE_LOCAL_COMPOSITION_V1",
+        "event_axis_search_used": false,
+        "greedy_room_chain_used": false,
+        "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+        "process_axis": "X",
+        "process_direction": "POSITIVE",
+        "result": "LOCAL_COMPOSITION_STARTED",
+        "site_coordinates_used_during_local_synthesis": false
+      },
+      {
+        "construction_policy": "LONGITUDINAL_PROCESS_SPINE_LOCAL_COMPOSITION_V1",
+        "event_axis_search_used": false,
+        "greedy_room_chain_used": false,
+        "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+        "process_axis": "X",
+        "process_direction": "NEGATIVE",
+        "result": "LOCAL_COMPOSITION_STARTED",
+        "site_coordinates_used_during_local_synthesis": false
+      },
+      {
+        "attempted": true,
+        "construction_policy": "CENTRAL_PROCESS_WITH_SIDE_BANKS_Y_V1",
+        "divergence_stage": "ENVELOPE_GRID_BAND_FORMATION",
+        "envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "envelope_components_mm": [
+          [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        ],
+        "envelope_failures": [],
+        "functional_band_bounds_mm": {
+          "FINISHED_SIDE_BAND": [
+            0,
+            20700,
+            75460,
+            55000
+          ],
+          "PERSONNEL_EDGE_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "PROCESS_CORE_BAND": [
+            11050,
+            0,
+            64410,
+            55000
+          ],
+          "RAW_SIDE_BAND": [
+            0,
+            0,
+            75460,
+            34300
+          ],
+          "SUPPORT_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        },
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "local_event_x_axis_count": 193,
+        "local_event_y_axis_count": 279,
+        "personnel_band_is_full_envelope": true,
+        "primary_x_axes_mm": [
+          0,
+          14699,
+          15200,
+          29900,
+          41718,
+          60960,
+          74999,
+          75460
+        ],
+        "primary_y_axes_mm": [
+          0,
+          8701,
+          10050,
+          18750,
+          23650,
+          27000,
+          33700,
+          39385,
+          39386,
+          52300,
+          53886,
+          55000
+        ],
+        "process_axis": "Y",
+        "result": "PLAN_READY",
+        "selected_envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "support_band_is_full_envelope": true,
+        "topology": "OFFSET_LINEAR_BAND"
+      },
+      {
+        "attempted": true,
+        "construction_policy": "LINEAR_3_BAND_Y_V1",
+        "divergence_stage": "ENVELOPE_GRID_BAND_FORMATION",
+        "envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "envelope_components_mm": [
+          [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        ],
+        "envelope_failures": [],
+        "functional_band_bounds_mm": {
+          "FINISHED_SIDE_BAND": [
+            0,
+            16850,
+            75460,
+            55000
+          ],
+          "PERSONNEL_EDGE_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "PROCESS_CORE_BAND": [
+            0,
+            5025,
+            75460,
+            52300
+          ],
+          "RAW_SIDE_BAND": [
+            0,
+            0,
+            75460,
+            16850
+          ],
+          "SUPPORT_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        },
+        "layout_family": "LINEAR_3_BAND",
+        "local_event_x_axis_count": 193,
+        "local_event_y_axis_count": 279,
+        "personnel_band_is_full_envelope": true,
+        "primary_x_axes_mm": [
+          0,
+          14699,
+          15200,
+          29900,
+          41718,
+          60960,
+          74999,
+          75460
+        ],
+        "primary_y_axes_mm": [
+          0,
+          8701,
+          10050,
+          18750,
+          23650,
+          27000,
+          33700,
+          39385,
+          39386,
+          52300,
+          53886,
+          55000
+        ],
+        "process_axis": "Y",
+        "result": "PLAN_READY",
+        "selected_envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "support_band_is_full_envelope": true,
+        "topology": "OFFSET_LINEAR_BAND"
+      },
+      {
+        "attempted": true,
+        "construction_policy": "LONGITUDINAL_PROCESS_SPINE_Y_V1",
+        "divergence_stage": "ENVELOPE_GRID_BAND_FORMATION",
+        "envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "envelope_components_mm": [
+          [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        ],
+        "envelope_failures": [],
+        "functional_band_bounds_mm": {
+          "FINISHED_SIDE_BAND": [
+            11050,
+            0,
+            75460,
+            55000
+          ],
+          "PERSONNEL_EDGE_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "PROCESS_CORE_BAND": [
+            11050,
+            0,
+            64410,
+            55000
+          ],
+          "RAW_SIDE_BAND": [
+            0,
+            0,
+            64410,
+            55000
+          ],
+          "SUPPORT_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        },
+        "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+        "local_event_x_axis_count": 193,
+        "local_event_y_axis_count": 279,
+        "personnel_band_is_full_envelope": true,
+        "primary_x_axes_mm": [
+          0,
+          14699,
+          15200,
+          29900,
+          41718,
+          60960,
+          74999,
+          75460
+        ],
+        "primary_y_axes_mm": [
+          0,
+          8701,
+          10050,
+          18750,
+          23650,
+          27000,
+          33700,
+          39385,
+          39386,
+          52300,
+          53886,
+          55000
+        ],
+        "process_axis": "Y",
+        "result": "PLAN_READY",
+        "selected_envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "support_band_is_full_envelope": true,
+        "topology": "OFFSET_LINEAR_BAND"
+      },
+      {
+        "attempted": true,
+        "construction_policy": "OFFSET_LINEAR_BAND_V1",
+        "divergence_stage": "CORE_TO_FINISHED",
+        "offset_directions": [
+          "POSITIVE",
+          "NEGATIVE"
+        ],
+        "topology": "OFFSET_LINEAR_BAND"
+      },
+      {
+        "attempted": true,
+        "construction_policy": "OFFSET_LINEAR_BAND_V1",
+        "divergence_stage": "CORE_TO_FINISHED",
+        "offset_directions": [
+          "POSITIVE",
+          "NEGATIVE"
+        ],
+        "topology": "OFFSET_LINEAR_BAND"
+      },
+      {
+        "attempted": true,
+        "construction_policy": "CENTRAL_PROCESS_WITH_SIDE_BANKS_Y_V1",
+        "divergence_stage": "ENVELOPE_GRID_BAND_FORMATION",
+        "envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "envelope_components_mm": [
+          [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        ],
+        "envelope_failures": [],
+        "functional_band_bounds_mm": {
+          "FINISHED_SIDE_BAND": [
+            0,
+            20700,
+            75460,
+            55000
+          ],
+          "PERSONNEL_EDGE_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "PROCESS_CORE_BAND": [
+            11050,
+            0,
+            64410,
+            55000
+          ],
+          "RAW_SIDE_BAND": [
+            0,
+            0,
+            75460,
+            34300
+          ],
+          "SUPPORT_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        },
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "local_event_x_axis_count": 193,
+        "local_event_y_axis_count": 279,
+        "personnel_band_is_full_envelope": true,
+        "primary_x_axes_mm": [
+          0,
+          14699,
+          15200,
+          29900,
+          41718,
+          60960,
+          74999,
+          75460
+        ],
+        "primary_y_axes_mm": [
+          0,
+          8701,
+          10050,
+          18750,
+          23650,
+          27000,
+          33700,
+          39385,
+          39386,
+          52300,
+          53886,
+          55000
+        ],
+        "process_axis": "Y",
+        "result": "PLAN_READY",
+        "selected_envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "support_band_is_full_envelope": true,
+        "topology": "STRAIGHT_LINEAR_BAND"
+      },
+      {
+        "attempted": true,
+        "construction_policy": "LINEAR_3_BAND_Y_V1",
+        "divergence_stage": "ENVELOPE_GRID_BAND_FORMATION",
+        "envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "envelope_components_mm": [
+          [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        ],
+        "envelope_failures": [],
+        "functional_band_bounds_mm": {
+          "FINISHED_SIDE_BAND": [
+            0,
+            16850,
+            75460,
+            55000
+          ],
+          "PERSONNEL_EDGE_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "PROCESS_CORE_BAND": [
+            0,
+            5025,
+            75460,
+            52300
+          ],
+          "RAW_SIDE_BAND": [
+            0,
+            0,
+            75460,
+            16850
+          ],
+          "SUPPORT_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        },
+        "layout_family": "LINEAR_3_BAND",
+        "local_event_x_axis_count": 193,
+        "local_event_y_axis_count": 279,
+        "personnel_band_is_full_envelope": true,
+        "primary_x_axes_mm": [
+          0,
+          14699,
+          15200,
+          29900,
+          41718,
+          60960,
+          74999,
+          75460
+        ],
+        "primary_y_axes_mm": [
+          0,
+          8701,
+          10050,
+          18750,
+          23650,
+          27000,
+          33700,
+          39385,
+          39386,
+          52300,
+          53886,
+          55000
+        ],
+        "process_axis": "Y",
+        "result": "PLAN_READY",
+        "selected_envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "support_band_is_full_envelope": true,
+        "topology": "STRAIGHT_LINEAR_BAND"
+      },
+      {
+        "attempted": true,
+        "construction_policy": "LONGITUDINAL_PROCESS_SPINE_Y_V1",
+        "divergence_stage": "ENVELOPE_GRID_BAND_FORMATION",
+        "envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "envelope_components_mm": [
+          [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        ],
+        "envelope_failures": [],
+        "functional_band_bounds_mm": {
+          "FINISHED_SIDE_BAND": [
+            11050,
+            0,
+            75460,
+            55000
+          ],
+          "PERSONNEL_EDGE_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "PROCESS_CORE_BAND": [
+            11050,
+            0,
+            64410,
+            55000
+          ],
+          "RAW_SIDE_BAND": [
+            0,
+            0,
+            64410,
+            55000
+          ],
+          "SUPPORT_BAND": [
+            0,
+            0,
+            75460,
+            55000
+          ]
+        },
+        "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+        "local_event_x_axis_count": 193,
+        "local_event_y_axis_count": 279,
+        "personnel_band_is_full_envelope": true,
+        "primary_x_axes_mm": [
+          0,
+          14699,
+          15200,
+          29900,
+          41718,
+          60960,
+          74999,
+          75460
+        ],
+        "primary_y_axes_mm": [
+          0,
+          8701,
+          10050,
+          18750,
+          23650,
+          27000,
+          33700,
+          39385,
+          39386,
+          52300,
+          53886,
+          55000
+        ],
+        "process_axis": "Y",
+        "result": "PLAN_READY",
+        "selected_envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "support_band_is_full_envelope": true,
+        "topology": "STRAIGHT_LINEAR_BAND"
+      },
+      {
+        "attempted": true,
+        "construction_policy": "STRAIGHT_LINEAR_BAND_V1",
+        "divergence_stage": "ROOT_OR_GROUP_BAND_FORMATION",
+        "offset_directions": [],
+        "topology": "STRAIGHT_LINEAR_BAND"
+      },
+      {
+        "attempted": true,
+        "construction_policy": "STRAIGHT_LINEAR_BAND_V1",
+        "divergence_stage": "ROOT_OR_GROUP_BAND_FORMATION",
+        "offset_directions": [],
+        "topology": "STRAIGHT_LINEAR_BAND"
+      },
+      {
+        "attempted": true,
+        "construction_policy": "STRAIGHT_LINEAR_BAND_V1",
+        "divergence_stage": "ROOT_OR_GROUP_BAND_FORMATION",
+        "offset_directions": [],
+        "topology": "STRAIGHT_LINEAR_BAND"
+      }
+    ],
+    "cross_topology_duplicate_geometry_count": 0,
+    "cross_topology_duplicate_geometry_trace": [],
+    "geometry_evaluation_admissions": [
+      {
+        "action": "START_TAIL_FOR_PREVIOUSLY_SEEN_UNEVALUATED_GEOMETRY",
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "discovery_lane_matches_canonical_owner": true,
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "evaluation_admission": "TAIL_SEARCH_STARTED",
+        "event": "NEW_GEOMETRY_DISCOVERY",
+        "geometry_previously_seen": true,
+        "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+      }
+    ],
+    "geometry_evaluation_registry": [
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "first_discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "main_skeleton_truck_preflight": {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+          "main_skeleton_hash": "sha256:0416b77987e6d15c2b38cd88bf9fb5f063cfb17861adc6c1b4a14c08f6f6a89f",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "planned_envelope_bounds_mm": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "40.654",
+              "y": "39.75"
+            },
+            "start": {
+              "x": "32.961",
+              "y": "39.75"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        "p2d_candidate_count": 0,
+        "p2d_full_pass_count": 0,
+        "p2d_reached": false,
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "skeleton_hash": "sha256:0416b77987e6d15c2b38cd88bf9fb5f063cfb17861adc6c1b4a14c08f6f6a89f",
+        "tail_admissible": true,
+        "tail_search_started": false
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "first_discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "main_skeleton_truck_preflight": {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+          "main_skeleton_hash": "sha256:1af97dd478d02fcb41639e6c58e08cc6161fbd02f04073363bb42ee9b23b88be",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "planned_envelope_bounds_mm": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "32.961",
+              "y": "52.3"
+            },
+            "start": {
+              "x": "32.961",
+              "y": "44.607"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        "p2d_candidate_count": 0,
+        "p2d_full_pass_count": 0,
+        "p2d_reached": false,
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "skeleton_hash": "sha256:1af97dd478d02fcb41639e6c58e08cc6161fbd02f04073363bb42ee9b23b88be",
+        "tail_admissible": true,
+        "tail_search_started": false
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "first_discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "main_skeleton_truck_preflight": {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+          "main_skeleton_hash": "sha256:3ead1d87a48b20ebec8b7e15044e123a9623dff8624b89c12d268439dc1a21b5",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "planned_envelope_bounds_mm": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "32.961",
+              "y": "41.393"
+            },
+            "start": {
+              "x": "32.961",
+              "y": "33.7"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        "p2d_candidate_count": 0,
+        "p2d_full_pass_count": 0,
+        "p2d_reached": false,
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "skeleton_hash": "sha256:3ead1d87a48b20ebec8b7e15044e123a9623dff8624b89c12d268439dc1a21b5",
+        "tail_admissible": true,
+        "tail_search_started": false
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "first_discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "main_skeleton_truck_preflight": {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+          "main_skeleton_hash": "sha256:4264a43e822dce7e3e8ca22a93dd40f55ddc8336bd1763f6bb80d1d2ba135cae",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "planned_envelope_bounds_mm": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "40.654",
+              "y": "33.7"
+            },
+            "start": {
+              "x": "32.961",
+              "y": "33.7"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        "p2d_candidate_count": 0,
+        "p2d_full_pass_count": 0,
+        "p2d_reached": false,
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "skeleton_hash": "sha256:4264a43e822dce7e3e8ca22a93dd40f55ddc8336bd1763f6bb80d1d2ba135cae",
+        "tail_admissible": true,
+        "tail_search_started": false
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "first_discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "main_skeleton_truck_preflight": {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "event": "CACHED_MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "failure_codes": [],
+          "failure_reason": null,
+          "layout_family": "LINEAR_3_BAND",
+          "main_skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "planned_envelope_bounds_mm": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "preflight_action": "ALLOW_TAIL_SEARCH",
+          "preflight_compute_nodes": 3,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": false,
+          "preflight_status": "PASS",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "9.317",
+              "y": "33.7"
+            },
+            "start": {
+              "x": "1.624",
+              "y": "33.7"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": true,
+          "truck_route_validated": true,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 3,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        "p2d_candidate_count": 2,
+        "p2d_full_pass_count": 2,
+        "p2d_reached": true,
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+        "tail_admissible": true,
+        "tail_search_discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "tail_search_started": true
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "first_discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "main_skeleton_truck_preflight": {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+          "main_skeleton_hash": "sha256:bdf2286fd10c24724b7e9ad45ebd5de5cb92a9bda478e96ffed0e23a1ceaaaac",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "planned_envelope_bounds_mm": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "40.654",
+              "y": "45.8"
+            },
+            "start": {
+              "x": "32.961",
+              "y": "45.8"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        "p2d_candidate_count": 0,
+        "p2d_full_pass_count": 0,
+        "p2d_reached": false,
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "skeleton_hash": "sha256:bdf2286fd10c24724b7e9ad45ebd5de5cb92a9bda478e96ffed0e23a1ceaaaac",
+        "tail_admissible": true,
+        "tail_search_started": false
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "first_discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "main_skeleton_truck_preflight": {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+          "main_skeleton_hash": "sha256:c31eb7de6ddb92ee9e3e8dc4a8694db5d3d72a2cc215f0bccc675aec63b43a8c",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "planned_envelope_bounds_mm": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "0.561",
+              "y": "33.7"
+            },
+            "start": {
+              "x": "0.561",
+              "y": "26.007"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        "p2d_candidate_count": 0,
+        "p2d_full_pass_count": 0,
+        "p2d_reached": false,
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "skeleton_hash": "sha256:c31eb7de6ddb92ee9e3e8dc4a8694db5d3d72a2cc215f0bccc675aec63b43a8c",
+        "tail_admissible": true,
+        "tail_search_started": false
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "first_discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "main_skeleton_truck_preflight": {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+          "main_skeleton_hash": "sha256:d08ed2cd0074ebab4b07feb58516c6ccdc76df652896f3fbc9f5da8637405b18",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "planned_envelope_bounds_mm": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "8.254",
+              "y": "27.2"
+            },
+            "start": {
+              "x": "0.561",
+              "y": "27.2"
+            }
+          },
+          "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        "p2d_candidate_count": 0,
+        "p2d_full_pass_count": 0,
+        "p2d_reached": false,
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "skeleton_hash": "sha256:d08ed2cd0074ebab4b07feb58516c6ccdc76df652896f3fbc9f5da8637405b18",
+        "tail_admissible": true,
+        "tail_search_started": false
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "first_discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "main_skeleton_truck_preflight": {
+          "canonical_family": {
+            "dominant_axis": "Y",
+            "dominant_direction": "POSITIVE",
+            "family": "LINEAR_PROCESS_BAND",
+            "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+            "identity": "structural-composition-family@1.0.0"
+          },
+          "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+          "discovery_topology": "STRAIGHT_LINEAR_BAND",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+          "failure_codes": [
+            "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+          ],
+          "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+          "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+          "main_skeleton_hash": "sha256:e36137bb539d36c87ca2bc7381a50a8807ff1ab2eb7ae2a85060bd24ed588a29",
+          "node_budget": 5000,
+          "node_budget_exhausted": false,
+          "planned_envelope_bounds_mm": [
+            0,
+            0,
+            75460,
+            55000
+          ],
+          "preflight_action": "REJECT_SKELETON",
+          "preflight_compute_nodes": 39,
+          "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+          "preflight_reexecuted": true,
+          "preflight_status": "REJECT",
+          "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+          "search_tree_exhausted": true,
+          "shipping_loading_face_segment": {
+            "end": {
+              "x": "32.961",
+              "y": "46.846"
+            },
+            "start": {
+              "x": "32.961",
+              "y": "39.153"
+            }
+          },
+          "shipping_loading_face_side": "LEFT_LONG_EDGE",
+          "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+          "tail_search_started": false,
+          "truck_route_validated": false,
+          "truck_validation_result_hash": null,
+          "visited_nodes": 39,
+          "zones_checked": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        "p2d_candidate_count": 0,
+        "p2d_full_pass_count": 0,
+        "p2d_reached": false,
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "skeleton_hash": "sha256:e36137bb539d36c87ca2bc7381a50a8807ff1ab2eb7ae2a85060bd24ed588a29",
+        "tail_admissible": true,
+        "tail_search_started": false
+      }
+    ],
+    "global_unique_skeleton_geometry_count": 9,
+    "hub_search_continued_after_geometry_duplicate": false,
+    "identity": "p1a-r7-geometry-evaluation-evidence@1.0.0",
+    "main_skeleton_truck_preflight_trace": [
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+        "failure_codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "main_skeleton_hash": "sha256:0416b77987e6d15c2b38cd88bf9fb5f063cfb17861adc6c1b4a14c08f6f6a89f",
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "planned_envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "preflight_action": "REJECT_SKELETON",
+        "preflight_compute_nodes": 39,
+        "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+        "preflight_reexecuted": true,
+        "preflight_status": "REJECT",
+        "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+        "search_tree_exhausted": true,
+        "shipping_loading_face_segment": {
+          "end": {
+            "x": "40.654",
+            "y": "39.75"
+          },
+          "start": {
+            "x": "32.961",
+            "y": "39.75"
+          }
+        },
+        "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+        "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+        "tail_search_started": false,
+        "truck_route_validated": false,
+        "truck_validation_result_hash": null,
+        "visited_nodes": 39,
+        "zones_checked": [
+          "raw_fruit_buffer",
+          "primary_precooling_room",
+          "sorting_packaging_room",
+          "secondary_precooling_room",
+          "coating_room",
+          "finished_goods_room",
+          "shipping_channel"
+        ]
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+        "failure_codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "main_skeleton_hash": "sha256:1af97dd478d02fcb41639e6c58e08cc6161fbd02f04073363bb42ee9b23b88be",
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "planned_envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "preflight_action": "REJECT_SKELETON",
+        "preflight_compute_nodes": 39,
+        "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+        "preflight_reexecuted": true,
+        "preflight_status": "REJECT",
+        "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+        "search_tree_exhausted": true,
+        "shipping_loading_face_segment": {
+          "end": {
+            "x": "32.961",
+            "y": "52.3"
+          },
+          "start": {
+            "x": "32.961",
+            "y": "44.607"
+          }
+        },
+        "shipping_loading_face_side": "LEFT_LONG_EDGE",
+        "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+        "tail_search_started": false,
+        "truck_route_validated": false,
+        "truck_validation_result_hash": null,
+        "visited_nodes": 39,
+        "zones_checked": [
+          "raw_fruit_buffer",
+          "primary_precooling_room",
+          "sorting_packaging_room",
+          "secondary_precooling_room",
+          "coating_room",
+          "finished_goods_room",
+          "shipping_channel"
+        ]
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+        "failure_codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "main_skeleton_hash": "sha256:3ead1d87a48b20ebec8b7e15044e123a9623dff8624b89c12d268439dc1a21b5",
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "planned_envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "preflight_action": "REJECT_SKELETON",
+        "preflight_compute_nodes": 39,
+        "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+        "preflight_reexecuted": true,
+        "preflight_status": "REJECT",
+        "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+        "search_tree_exhausted": true,
+        "shipping_loading_face_segment": {
+          "end": {
+            "x": "32.961",
+            "y": "41.393"
+          },
+          "start": {
+            "x": "32.961",
+            "y": "33.7"
+          }
+        },
+        "shipping_loading_face_side": "LEFT_LONG_EDGE",
+        "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+        "tail_search_started": false,
+        "truck_route_validated": false,
+        "truck_validation_result_hash": null,
+        "visited_nodes": 39,
+        "zones_checked": [
+          "raw_fruit_buffer",
+          "primary_precooling_room",
+          "sorting_packaging_room",
+          "secondary_precooling_room",
+          "coating_room",
+          "finished_goods_room",
+          "shipping_channel"
+        ]
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+        "failure_codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "main_skeleton_hash": "sha256:4264a43e822dce7e3e8ca22a93dd40f55ddc8336bd1763f6bb80d1d2ba135cae",
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "planned_envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "preflight_action": "REJECT_SKELETON",
+        "preflight_compute_nodes": 39,
+        "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+        "preflight_reexecuted": true,
+        "preflight_status": "REJECT",
+        "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+        "search_tree_exhausted": true,
+        "shipping_loading_face_segment": {
+          "end": {
+            "x": "40.654",
+            "y": "33.7"
+          },
+          "start": {
+            "x": "32.961",
+            "y": "33.7"
+          }
+        },
+        "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+        "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+        "tail_search_started": false,
+        "truck_route_validated": false,
+        "truck_validation_result_hash": null,
+        "visited_nodes": 39,
+        "zones_checked": [
+          "raw_fruit_buffer",
+          "primary_precooling_room",
+          "sorting_packaging_room",
+          "secondary_precooling_room",
+          "coating_room",
+          "finished_goods_room",
+          "shipping_channel"
+        ]
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "event": "CACHED_MAIN_SKELETON_TRUCK_PREFLIGHT",
+        "failure_codes": [],
+        "failure_reason": null,
+        "layout_family": "LINEAR_3_BAND",
+        "main_skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "planned_envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "preflight_action": "ALLOW_TAIL_SEARCH",
+        "preflight_compute_nodes": 3,
+        "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+        "preflight_reexecuted": false,
+        "preflight_status": "PASS",
+        "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+        "search_tree_exhausted": true,
+        "shipping_loading_face_segment": {
+          "end": {
+            "x": "9.317",
+            "y": "33.7"
+          },
+          "start": {
+            "x": "1.624",
+            "y": "33.7"
+          }
+        },
+        "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+        "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+        "tail_search_started": true,
+        "truck_route_validated": true,
+        "truck_validation_result_hash": null,
+        "visited_nodes": 3,
+        "zones_checked": [
+          "raw_fruit_buffer",
+          "primary_precooling_room",
+          "sorting_packaging_room",
+          "secondary_precooling_room",
+          "coating_room",
+          "finished_goods_room",
+          "shipping_channel"
+        ]
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+        "failure_codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "main_skeleton_hash": "sha256:bdf2286fd10c24724b7e9ad45ebd5de5cb92a9bda478e96ffed0e23a1ceaaaac",
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "planned_envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "preflight_action": "REJECT_SKELETON",
+        "preflight_compute_nodes": 39,
+        "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+        "preflight_reexecuted": true,
+        "preflight_status": "REJECT",
+        "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+        "search_tree_exhausted": true,
+        "shipping_loading_face_segment": {
+          "end": {
+            "x": "40.654",
+            "y": "45.8"
+          },
+          "start": {
+            "x": "32.961",
+            "y": "45.8"
+          }
+        },
+        "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+        "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+        "tail_search_started": false,
+        "truck_route_validated": false,
+        "truck_validation_result_hash": null,
+        "visited_nodes": 39,
+        "zones_checked": [
+          "raw_fruit_buffer",
+          "primary_precooling_room",
+          "sorting_packaging_room",
+          "secondary_precooling_room",
+          "coating_room",
+          "finished_goods_room",
+          "shipping_channel"
+        ]
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+        "failure_codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "main_skeleton_hash": "sha256:c31eb7de6ddb92ee9e3e8dc4a8694db5d3d72a2cc215f0bccc675aec63b43a8c",
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "planned_envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "preflight_action": "REJECT_SKELETON",
+        "preflight_compute_nodes": 39,
+        "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+        "preflight_reexecuted": true,
+        "preflight_status": "REJECT",
+        "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+        "search_tree_exhausted": true,
+        "shipping_loading_face_segment": {
+          "end": {
+            "x": "0.561",
+            "y": "33.7"
+          },
+          "start": {
+            "x": "0.561",
+            "y": "26.007"
+          }
+        },
+        "shipping_loading_face_side": "LEFT_LONG_EDGE",
+        "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+        "tail_search_started": false,
+        "truck_route_validated": false,
+        "truck_validation_result_hash": null,
+        "visited_nodes": 39,
+        "zones_checked": [
+          "raw_fruit_buffer",
+          "primary_precooling_room",
+          "sorting_packaging_room",
+          "secondary_precooling_room",
+          "coating_room",
+          "finished_goods_room",
+          "shipping_channel"
+        ]
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+        "failure_codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "main_skeleton_hash": "sha256:d08ed2cd0074ebab4b07feb58516c6ccdc76df652896f3fbc9f5da8637405b18",
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "planned_envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "preflight_action": "REJECT_SKELETON",
+        "preflight_compute_nodes": 39,
+        "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+        "preflight_reexecuted": true,
+        "preflight_status": "REJECT",
+        "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+        "search_tree_exhausted": true,
+        "shipping_loading_face_segment": {
+          "end": {
+            "x": "8.254",
+            "y": "27.2"
+          },
+          "start": {
+            "x": "0.561",
+            "y": "27.2"
+          }
+        },
+        "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+        "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+        "tail_search_started": false,
+        "truck_route_validated": false,
+        "truck_validation_result_hash": null,
+        "visited_nodes": 39,
+        "zones_checked": [
+          "raw_fruit_buffer",
+          "primary_precooling_room",
+          "sorting_packaging_room",
+          "secondary_precooling_room",
+          "coating_room",
+          "finished_goods_room",
+          "shipping_channel"
+        ]
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+        "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+        "failure_codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "main_skeleton_hash": "sha256:e36137bb539d36c87ca2bc7381a50a8807ff1ab2eb7ae2a85060bd24ed588a29",
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "planned_envelope_bounds_mm": [
+          0,
+          0,
+          75460,
+          55000
+        ],
+        "preflight_action": "REJECT_SKELETON",
+        "preflight_compute_nodes": 39,
+        "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+        "preflight_reexecuted": true,
+        "preflight_status": "REJECT",
+        "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+        "search_tree_exhausted": true,
+        "shipping_loading_face_segment": {
+          "end": {
+            "x": "32.961",
+            "y": "46.846"
+          },
+          "start": {
+            "x": "32.961",
+            "y": "39.153"
+          }
+        },
+        "shipping_loading_face_side": "LEFT_LONG_EDGE",
+        "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+        "tail_search_started": false,
+        "truck_route_validated": false,
+        "truck_validation_result_hash": null,
+        "visited_nodes": 39,
+        "zones_checked": [
+          "raw_fruit_buffer",
+          "primary_precooling_room",
+          "sorting_packaging_room",
+          "secondary_precooling_room",
+          "coating_room",
+          "finished_goods_room",
+          "shipping_channel"
+        ]
+      }
+    ],
+    "offset_transition_trace": [
+      {
+        "candidate_option_count": 2,
+        "cross_axis": "X",
+        "cross_axis_shifts_mm": [
+          14700,
+          14700
+        ],
+        "direction": "POSITIVE",
+        "finished_side": "NORTH",
+        "raw_core_common_interval_mm": [
+          15200,
+          29900
+        ],
+        "raw_side": "SOUTH",
+        "sorting_root_mm": [
+          15200,
+          10050,
+          60960,
+          23650
+        ],
+        "topology": "OFFSET_LINEAR_BAND",
+        "transition_option_bounds_mm": [
+          [
+            29900,
+            23650,
+            39700,
+            33700
+          ],
+          [
+            29900,
+            23650,
+            39950,
+            33450
+          ]
+        ],
+        "transition_option_count": 2,
+        "transition_stage": "CORE_TO_FINISHED"
+      },
+      {
+        "candidate_option_count": 2,
+        "cross_axis": "X",
+        "cross_axis_shifts_mm": [
+          14700,
+          14700
+        ],
+        "direction": "POSITIVE",
+        "finished_side": "NORTH",
+        "raw_core_common_interval_mm": [
+          15200,
+          29900
+        ],
+        "raw_side": "SOUTH",
+        "sorting_root_mm": [
+          15200,
+          10050,
+          60960,
+          23650
+        ],
+        "topology": "OFFSET_LINEAR_BAND",
+        "transition_option_bounds_mm": [
+          [
+            29900,
+            23650,
+            39700,
+            33700
+          ],
+          [
+            29900,
+            23650,
+            39950,
+            33450
+          ]
+        ],
+        "transition_option_count": 2,
+        "transition_stage": "CORE_TO_FINISHED"
+      }
+    ],
+    "ownership_duplicates": [],
+    "ownership_matrix": [
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_owner": "STRAIGHT_LINEAR_BAND",
+        "constructed_topology": "STRAIGHT_LINEAR_BAND",
+        "construction_policy": "STRAIGHT_LINEAR_BAND_LINEAR_3_BAND_V1",
+        "discovery_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "offset_cross_axis_shift_mm": null,
+        "offset_direction": null,
+        "offset_transition_stage": null,
+        "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+        "topology_divergence_stage": "ENVELOPE_GRID_BAND_FORMATION"
+      }
+    ],
+    "r11_budget_accounting": {
+      "active_work_item_count": 3,
+      "classified_node_total": 120,
+      "construction_nodes": 113,
+      "early_stop_reason": "GLOBAL_PLACEMENT_NODE_BUDGET_EXHAUSTED",
+      "exhausted_work_item_count": 1,
+      "general_fallback_nodes": 108,
+      "global_budget": 120,
+      "global_budget_exhausted": true,
+      "global_node_visits_match_classified_total": true,
+      "global_nodes_remaining": 0,
+      "global_nodes_visited": 120,
+      "nodes_by_round": {
+        "1": 12,
+        "2": 62,
+        "3": 46
+      },
+      "nodes_by_topology": {
+        "CENTRAL_PROCESS_HUB": 43,
+        "OFFSET_LINEAR_BAND": 32,
+        "STRAIGHT_LINEAR_BAND": 45
+      },
+      "nodes_by_work_item": {
+        "sha256:16f2af3aaeeca87faa050294287ed47014d0f10937e5b9e4dcd7726969742902": 16,
+        "sha256:5ac0b916050b622cf55892e45a051fb9609ff43fa74458640d95e98e04bcb38d": 16,
+        "sha256:5c29760132c1e6af413554b93b092de6ad07dabaebbcd8c0159d0f4d9256d6ea": 12,
+        "sha256:699ded328eeedb35bff4e376e2f98a8cc2b98945fdd43bf15652154fbbc25afd": 15,
+        "sha256:71f60dee852e2965ba3a6e9b95159390fff783852f35b9a2f4d6fc7e9dc7bdb1": 30,
+        "sha256:751e463e125656d970b2e7033fade0ae8c0d3372c68bda1f069d4a1ca896ecc7": 16,
+        "sha256:a0680b77665193241792436b168ee2567b000cfca5e372e1a75abb57c57c5aa2": 15
+      },
+      "preflight_compute_nodes": 0,
+      "replayed_prefix_node_count": 0,
+      "stranded_budget_allowed": false,
+      "structured_phase_nodes": 12,
+      "tail_nodes": 7,
+      "truncated_active_work_item_count": 3,
+      "unused_global_nodes_with_active_truncated_work": 0,
+      "work_round_count": 3
+    },
+    "r11_scheduler_trace": [
+      {
+        "continuation_created": false,
+        "face_pair": [
+          null,
+          null
+        ],
+        "nodes_after": 12,
+        "nodes_before": 0,
+        "nodes_visited": 12,
+        "offset_direction": null,
+        "phase": "STRUCTURED",
+        "quantum_node_limit": 16,
+        "root": null,
+        "round": 1,
+        "status_after": "SEARCH_EXHAUSTED",
+        "status_before": "ACTIVE",
+        "topology": "CENTRAL_PROCESS_HUB",
+        "work_item": {
+          "band_family": "LONGITUDINAL_PROCESS_SPINE",
+          "branch": "LOCAL_COMPOSITION_THEN_RIGID_SITE_PLACEMENT",
+          "family_plan_subvariant": 11,
+          "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+          "placement_node_charged": true,
+          "process_axis": "X",
+          "process_direction": "NEGATIVE",
+          "topology": "CENTRAL_PROCESS_HUB"
+        },
+        "work_item_id": "sha256:5c29760132c1e6af413554b93b092de6ad07dabaebbcd8c0159d0f4d9256d6ea"
+      },
+      {
+        "continuation_created": true,
+        "face_pair": [
+          "SOUTH",
+          "NORTH"
+        ],
+        "nodes_after": 28,
+        "nodes_before": 12,
+        "nodes_visited": 16,
+        "offset_direction": "POSITIVE",
+        "phase": "GENERAL_FALLBACK",
+        "quantum_node_limit": 16,
+        "root": [
+          15200,
+          10050,
+          60960,
+          23650
+        ],
+        "round": 2,
+        "status_after": "QUANTUM_EXHAUSTED",
+        "status_before": "ACTIVE",
+        "topology": "OFFSET_LINEAR_BAND",
+        "work_item": {
+          "band_family": "LONGITUDINAL_PROCESS_SPINE",
+          "branch": "COATING",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "finished_side": "NORTH",
+          "offset_direction": "POSITIVE",
+          "raw_side": "SOUTH",
+          "sorting_root_mm": [
+            15200,
+            10050,
+            60960,
+            23650
+          ],
+          "topology": "OFFSET_LINEAR_BAND"
+        },
+        "work_item_id": "sha256:16f2af3aaeeca87faa050294287ed47014d0f10937e5b9e4dcd7726969742902"
+      },
+      {
+        "continuation_created": true,
+        "face_pair": [
+          "SOUTH",
+          "NORTH"
+        ],
+        "nodes_after": 58,
+        "nodes_before": 28,
+        "nodes_visited": 30,
+        "offset_direction": null,
+        "phase": "GENERAL_FALLBACK",
+        "quantum_node_limit": 16,
+        "root": [
+          15200,
+          10050,
+          60960,
+          23650
+        ],
+        "round": 2,
+        "status_after": "QUANTUM_EXHAUSTED",
+        "status_before": "ACTIVE",
+        "topology": "STRAIGHT_LINEAR_BAND",
+        "work_item": {
+          "band_family": "LONGITUDINAL_PROCESS_SPINE",
+          "branch": "COATING",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "finished_side": "NORTH",
+          "offset_direction": null,
+          "raw_side": "SOUTH",
+          "sorting_root_mm": [
+            15200,
+            10050,
+            60960,
+            23650
+          ],
+          "topology": "STRAIGHT_LINEAR_BAND"
+        },
+        "work_item_id": "sha256:71f60dee852e2965ba3a6e9b95159390fff783852f35b9a2f4d6fc7e9dc7bdb1"
+      },
+      {
+        "continuation_created": true,
+        "face_pair": [
+          "EAST",
+          "WEST"
+        ],
+        "nodes_after": 74,
+        "nodes_before": 58,
+        "nodes_visited": 16,
+        "offset_direction": null,
+        "phase": "GENERAL_FALLBACK",
+        "quantum_node_limit": 16,
+        "root": [
+          27218,
+          0,
+          40818,
+          45760
+        ],
+        "round": 2,
+        "status_after": "QUANTUM_EXHAUSTED",
+        "status_before": "ACTIVE",
+        "topology": "CENTRAL_PROCESS_HUB",
+        "work_item": {
+          "band_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+          "branch": "COATING",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "finished_side": "WEST",
+          "offset_direction": null,
+          "raw_side": "EAST",
+          "sorting_root_mm": [
+            27218,
+            0,
+            40818,
+            45760
+          ],
+          "topology": "CENTRAL_PROCESS_HUB"
+        },
+        "work_item_id": "sha256:751e463e125656d970b2e7033fade0ae8c0d3372c68bda1f069d4a1ca896ecc7"
+      },
+      {
+        "continuation_created": true,
+        "face_pair": [
+          "SOUTH",
+          "NORTH"
+        ],
+        "nodes_after": 90,
+        "nodes_before": 74,
+        "nodes_visited": 16,
+        "offset_direction": "POSITIVE",
+        "phase": "GENERAL_FALLBACK",
+        "quantum_node_limit": 16,
+        "root": [
+          15200,
+          10050,
+          60960,
+          23650
+        ],
+        "round": 3,
+        "status_after": "QUANTUM_EXHAUSTED",
+        "status_before": "QUANTUM_EXHAUSTED",
+        "topology": "OFFSET_LINEAR_BAND",
+        "work_item": {
+          "band_family": "LINEAR_3_BAND",
+          "branch": "COATING",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "finished_side": "NORTH",
+          "offset_direction": "POSITIVE",
+          "raw_side": "SOUTH",
+          "sorting_root_mm": [
+            15200,
+            10050,
+            60960,
+            23650
+          ],
+          "topology": "OFFSET_LINEAR_BAND"
+        },
+        "work_item_id": "sha256:5ac0b916050b622cf55892e45a051fb9609ff43fa74458640d95e98e04bcb38d"
+      },
+      {
+        "continuation_created": true,
+        "face_pair": [
+          "SOUTH",
+          "NORTH"
+        ],
+        "nodes_after": 105,
+        "nodes_before": 90,
+        "nodes_visited": 15,
+        "offset_direction": null,
+        "phase": "GENERAL_FALLBACK",
+        "quantum_node_limit": 15,
+        "root": [
+          15200,
+          10050,
+          60960,
+          23650
+        ],
+        "round": 3,
+        "status_after": "QUANTUM_EXHAUSTED",
+        "status_before": "QUANTUM_EXHAUSTED",
+        "topology": "STRAIGHT_LINEAR_BAND",
+        "work_item": {
+          "band_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+          "branch": "SHIPPING",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "finished_side": "NORTH",
+          "offset_direction": null,
+          "raw_side": "SOUTH",
+          "sorting_root_mm": [
+            15200,
+            10050,
+            60960,
+            23650
+          ],
+          "topology": "STRAIGHT_LINEAR_BAND"
+        },
+        "work_item_id": "sha256:699ded328eeedb35bff4e376e2f98a8cc2b98945fdd43bf15652154fbbc25afd"
+      },
+      {
+        "continuation_created": true,
+        "face_pair": [
+          "EAST",
+          "WEST"
+        ],
+        "nodes_after": 120,
+        "nodes_before": 105,
+        "nodes_visited": 15,
+        "offset_direction": null,
+        "phase": "GENERAL_FALLBACK",
+        "quantum_node_limit": 15,
+        "root": [
+          27218,
+          0,
+          40818,
+          45760
+        ],
+        "round": 3,
+        "status_after": "QUANTUM_EXHAUSTED",
+        "status_before": "QUANTUM_EXHAUSTED",
+        "topology": "CENTRAL_PROCESS_HUB",
+        "work_item": {
+          "band_family": "LONGITUDINAL_PROCESS_SPINE",
+          "branch": "COATING",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "finished_side": "WEST",
+          "offset_direction": null,
+          "raw_side": "EAST",
+          "sorting_root_mm": [
+            27218,
+            0,
+            40818,
+            45760
+          ],
+          "topology": "CENTRAL_PROCESS_HUB"
+        },
+        "work_item_id": "sha256:a0680b77665193241792436b168ee2567b000cfca5e372e1a75abb57c57c5aa2"
+      }
+    ],
+    "r11_work_queue": [
+      {
+        "continuation_created": false,
+        "face_pair": [
+          null,
+          null
+        ],
+        "nodes_after": 12,
+        "nodes_before": 0,
+        "nodes_visited": 12,
+        "offset_direction": null,
+        "phase": "STRUCTURED",
+        "quantum_node_limit": 16,
+        "root": null,
+        "round": 1,
+        "status_after": "SEARCH_EXHAUSTED",
+        "status_before": "ACTIVE",
+        "topology": "CENTRAL_PROCESS_HUB",
+        "work_item": {
+          "band_family": "LONGITUDINAL_PROCESS_SPINE",
+          "branch": "LOCAL_COMPOSITION_THEN_RIGID_SITE_PLACEMENT",
+          "family_plan_subvariant": 11,
+          "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+          "placement_node_charged": true,
+          "process_axis": "X",
+          "process_direction": "NEGATIVE",
+          "topology": "CENTRAL_PROCESS_HUB"
+        },
+        "work_item_id": "sha256:5c29760132c1e6af413554b93b092de6ad07dabaebbcd8c0159d0f4d9256d6ea"
+      },
+      {
+        "continuation_created": true,
+        "face_pair": [
+          "SOUTH",
+          "NORTH"
+        ],
+        "nodes_after": 28,
+        "nodes_before": 12,
+        "nodes_visited": 16,
+        "offset_direction": "POSITIVE",
+        "phase": "GENERAL_FALLBACK",
+        "quantum_node_limit": 16,
+        "root": [
+          15200,
+          10050,
+          60960,
+          23650
+        ],
+        "round": 2,
+        "status_after": "QUANTUM_EXHAUSTED",
+        "status_before": "ACTIVE",
+        "topology": "OFFSET_LINEAR_BAND",
+        "work_item": {
+          "band_family": "LONGITUDINAL_PROCESS_SPINE",
+          "branch": "COATING",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "finished_side": "NORTH",
+          "offset_direction": "POSITIVE",
+          "raw_side": "SOUTH",
+          "sorting_root_mm": [
+            15200,
+            10050,
+            60960,
+            23650
+          ],
+          "topology": "OFFSET_LINEAR_BAND"
+        },
+        "work_item_id": "sha256:16f2af3aaeeca87faa050294287ed47014d0f10937e5b9e4dcd7726969742902"
+      },
+      {
+        "continuation_created": true,
+        "face_pair": [
+          "SOUTH",
+          "NORTH"
+        ],
+        "nodes_after": 58,
+        "nodes_before": 28,
+        "nodes_visited": 30,
+        "offset_direction": null,
+        "phase": "GENERAL_FALLBACK",
+        "quantum_node_limit": 16,
+        "root": [
+          15200,
+          10050,
+          60960,
+          23650
+        ],
+        "round": 2,
+        "status_after": "QUANTUM_EXHAUSTED",
+        "status_before": "ACTIVE",
+        "topology": "STRAIGHT_LINEAR_BAND",
+        "work_item": {
+          "band_family": "LONGITUDINAL_PROCESS_SPINE",
+          "branch": "COATING",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "finished_side": "NORTH",
+          "offset_direction": null,
+          "raw_side": "SOUTH",
+          "sorting_root_mm": [
+            15200,
+            10050,
+            60960,
+            23650
+          ],
+          "topology": "STRAIGHT_LINEAR_BAND"
+        },
+        "work_item_id": "sha256:71f60dee852e2965ba3a6e9b95159390fff783852f35b9a2f4d6fc7e9dc7bdb1"
+      },
+      {
+        "continuation_created": true,
+        "face_pair": [
+          "EAST",
+          "WEST"
+        ],
+        "nodes_after": 74,
+        "nodes_before": 58,
+        "nodes_visited": 16,
+        "offset_direction": null,
+        "phase": "GENERAL_FALLBACK",
+        "quantum_node_limit": 16,
+        "root": [
+          27218,
+          0,
+          40818,
+          45760
+        ],
+        "round": 2,
+        "status_after": "QUANTUM_EXHAUSTED",
+        "status_before": "ACTIVE",
+        "topology": "CENTRAL_PROCESS_HUB",
+        "work_item": {
+          "band_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+          "branch": "COATING",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "finished_side": "WEST",
+          "offset_direction": null,
+          "raw_side": "EAST",
+          "sorting_root_mm": [
+            27218,
+            0,
+            40818,
+            45760
+          ],
+          "topology": "CENTRAL_PROCESS_HUB"
+        },
+        "work_item_id": "sha256:751e463e125656d970b2e7033fade0ae8c0d3372c68bda1f069d4a1ca896ecc7"
+      },
+      {
+        "continuation_created": true,
+        "face_pair": [
+          "SOUTH",
+          "NORTH"
+        ],
+        "nodes_after": 90,
+        "nodes_before": 74,
+        "nodes_visited": 16,
+        "offset_direction": "POSITIVE",
+        "phase": "GENERAL_FALLBACK",
+        "quantum_node_limit": 16,
+        "root": [
+          15200,
+          10050,
+          60960,
+          23650
+        ],
+        "round": 3,
+        "status_after": "QUANTUM_EXHAUSTED",
+        "status_before": "QUANTUM_EXHAUSTED",
+        "topology": "OFFSET_LINEAR_BAND",
+        "work_item": {
+          "band_family": "LINEAR_3_BAND",
+          "branch": "COATING",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "finished_side": "NORTH",
+          "offset_direction": "POSITIVE",
+          "raw_side": "SOUTH",
+          "sorting_root_mm": [
+            15200,
+            10050,
+            60960,
+            23650
+          ],
+          "topology": "OFFSET_LINEAR_BAND"
+        },
+        "work_item_id": "sha256:5ac0b916050b622cf55892e45a051fb9609ff43fa74458640d95e98e04bcb38d"
+      },
+      {
+        "continuation_created": true,
+        "face_pair": [
+          "SOUTH",
+          "NORTH"
+        ],
+        "nodes_after": 105,
+        "nodes_before": 90,
+        "nodes_visited": 15,
+        "offset_direction": null,
+        "phase": "GENERAL_FALLBACK",
+        "quantum_node_limit": 15,
+        "root": [
+          15200,
+          10050,
+          60960,
+          23650
+        ],
+        "round": 3,
+        "status_after": "QUANTUM_EXHAUSTED",
+        "status_before": "QUANTUM_EXHAUSTED",
+        "topology": "STRAIGHT_LINEAR_BAND",
+        "work_item": {
+          "band_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+          "branch": "SHIPPING",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "finished_side": "NORTH",
+          "offset_direction": null,
+          "raw_side": "SOUTH",
+          "sorting_root_mm": [
+            15200,
+            10050,
+            60960,
+            23650
+          ],
+          "topology": "STRAIGHT_LINEAR_BAND"
+        },
+        "work_item_id": "sha256:699ded328eeedb35bff4e376e2f98a8cc2b98945fdd43bf15652154fbbc25afd"
+      },
+      {
+        "continuation_created": true,
+        "face_pair": [
+          "EAST",
+          "WEST"
+        ],
+        "nodes_after": 120,
+        "nodes_before": 105,
+        "nodes_visited": 15,
+        "offset_direction": null,
+        "phase": "GENERAL_FALLBACK",
+        "quantum_node_limit": 15,
+        "root": [
+          27218,
+          0,
+          40818,
+          45760
+        ],
+        "round": 3,
+        "status_after": "QUANTUM_EXHAUSTED",
+        "status_before": "QUANTUM_EXHAUSTED",
+        "topology": "CENTRAL_PROCESS_HUB",
+        "work_item": {
+          "band_family": "LONGITUDINAL_PROCESS_SPINE",
+          "branch": "COATING",
+          "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+          "finished_side": "WEST",
+          "offset_direction": null,
+          "raw_side": "EAST",
+          "sorting_root_mm": [
+            27218,
+            0,
+            40818,
+            45760
+          ],
+          "topology": "CENTRAL_PROCESS_HUB"
+        },
+        "work_item_id": "sha256:a0680b77665193241792436b168ee2567b000cfca5e372e1a75abb57c57c5aa2"
+      }
+    ],
+    "tail_slot_preflight_trace": [
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "event": "TAIL_SLOT_PREFLIGHT_CONSTRUCTION_GATE",
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "preflight": {
+          "evaluated_placement_count": 5450,
+          "event_origin_count": 4954,
+          "first_witness_rectangle": {
+            "actual_area_m2": "250.85",
+            "depth_m": "14.5",
+            "rotation_deg": 90,
+            "width_m": "17.3",
+            "x": "60.96",
+            "y": "0",
+            "zone_code": "packaging_material_storage"
+          },
+          "identity": "tail-zone-slot-feasibility@1.0.0",
+          "legal_slot_exists": true,
+          "main_skeleton_overlap_rejection_count": 3048,
+          "no_build_rejection_count": 2401,
+          "orientation_count": 2,
+          "proof_mode": "EXACT_ORTHOGONAL_EVENT_ENUMERATION",
+          "site_rejection_count": 0,
+          "zone_code": "packaging_material_storage"
+        },
+        "preflight_reexecuted": true,
+        "skeleton_hash": "sha256:0416b77987e6d15c2b38cd88bf9fb5f063cfb17861adc6c1b4a14c08f6f6a89f",
+        "stage": "TAIL_SLOT_PREFLIGHT",
+        "tail_admissible": true,
+        "tail_search_started": false
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "event": "TAIL_SLOT_PREFLIGHT_CONSTRUCTION_GATE",
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "preflight": {
+          "evaluated_placement_count": 4994,
+          "event_origin_count": 4495,
+          "first_witness_rectangle": {
+            "actual_area_m2": "250.85",
+            "depth_m": "14.5",
+            "rotation_deg": 90,
+            "width_m": "17.3",
+            "x": "60.96",
+            "y": "0",
+            "zone_code": "packaging_material_storage"
+          },
+          "identity": "tail-zone-slot-feasibility@1.0.0",
+          "legal_slot_exists": true,
+          "main_skeleton_overlap_rejection_count": 2805,
+          "no_build_rejection_count": 2188,
+          "orientation_count": 2,
+          "proof_mode": "EXACT_ORTHOGONAL_EVENT_ENUMERATION",
+          "site_rejection_count": 0,
+          "zone_code": "packaging_material_storage"
+        },
+        "preflight_reexecuted": true,
+        "skeleton_hash": "sha256:1af97dd478d02fcb41639e6c58e08cc6161fbd02f04073363bb42ee9b23b88be",
+        "stage": "TAIL_SLOT_PREFLIGHT",
+        "tail_admissible": true,
+        "tail_search_started": false
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "event": "TAIL_SLOT_PREFLIGHT_CONSTRUCTION_GATE",
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "preflight": {
+          "evaluated_placement_count": 4994,
+          "event_origin_count": 4495,
+          "first_witness_rectangle": {
+            "actual_area_m2": "250.85",
+            "depth_m": "14.5",
+            "rotation_deg": 90,
+            "width_m": "17.3",
+            "x": "60.96",
+            "y": "0",
+            "zone_code": "packaging_material_storage"
+          },
+          "identity": "tail-zone-slot-feasibility@1.0.0",
+          "legal_slot_exists": true,
+          "main_skeleton_overlap_rejection_count": 2805,
+          "no_build_rejection_count": 2188,
+          "orientation_count": 2,
+          "proof_mode": "EXACT_ORTHOGONAL_EVENT_ENUMERATION",
+          "site_rejection_count": 0,
+          "zone_code": "packaging_material_storage"
+        },
+        "preflight_reexecuted": true,
+        "skeleton_hash": "sha256:3ead1d87a48b20ebec8b7e15044e123a9623dff8624b89c12d268439dc1a21b5",
+        "stage": "TAIL_SLOT_PREFLIGHT",
+        "tail_admissible": true,
+        "tail_search_started": false
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "event": "TAIL_SLOT_PREFLIGHT_CONSTRUCTION_GATE",
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "preflight": {
+          "evaluated_placement_count": 5141,
+          "event_origin_count": 4642,
+          "first_witness_rectangle": {
+            "actual_area_m2": "250.85",
+            "depth_m": "14.5",
+            "rotation_deg": 90,
+            "width_m": "17.3",
+            "x": "60.96",
+            "y": "0",
+            "zone_code": "packaging_material_storage"
+          },
+          "identity": "tail-zone-slot-feasibility@1.0.0",
+          "legal_slot_exists": true,
+          "main_skeleton_overlap_rejection_count": 2877,
+          "no_build_rejection_count": 2263,
+          "orientation_count": 2,
+          "proof_mode": "EXACT_ORTHOGONAL_EVENT_ENUMERATION",
+          "site_rejection_count": 0,
+          "zone_code": "packaging_material_storage"
+        },
+        "preflight_reexecuted": true,
+        "skeleton_hash": "sha256:4264a43e822dce7e3e8ca22a93dd40f55ddc8336bd1763f6bb80d1d2ba135cae",
+        "stage": "TAIL_SLOT_PREFLIGHT",
+        "tail_admissible": true,
+        "tail_search_started": false
+      },
+      {
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "event": "CACHED_TAIL_SLOT_PREFLIGHT",
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "preflight_reexecuted": false,
+        "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+        "stage": "TAIL_SLOT_PREFLIGHT",
+        "tail_admissible": true,
+        "tail_search_started": false
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "event": "TAIL_SLOT_PREFLIGHT_CONSTRUCTION_GATE",
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "preflight": {
+          "evaluated_placement_count": 4975,
+          "event_origin_count": 4452,
+          "first_witness_rectangle": {
+            "actual_area_m2": "250.85",
+            "depth_m": "14.5",
+            "rotation_deg": 90,
+            "width_m": "17.3",
+            "x": "60.96",
+            "y": "0",
+            "zone_code": "packaging_material_storage"
+          },
+          "identity": "tail-zone-slot-feasibility@1.0.0",
+          "legal_slot_exists": true,
+          "main_skeleton_overlap_rejection_count": 2724,
+          "no_build_rejection_count": 2250,
+          "orientation_count": 2,
+          "proof_mode": "EXACT_ORTHOGONAL_EVENT_ENUMERATION",
+          "site_rejection_count": 0,
+          "zone_code": "packaging_material_storage"
+        },
+        "preflight_reexecuted": true,
+        "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+        "stage": "TAIL_SLOT_PREFLIGHT",
+        "tail_admissible": true,
+        "tail_search_started": false
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "event": "TAIL_SLOT_PREFLIGHT_CONSTRUCTION_GATE",
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "preflight": {
+          "evaluated_placement_count": 4994,
+          "event_origin_count": 4495,
+          "first_witness_rectangle": {
+            "actual_area_m2": "250.85",
+            "depth_m": "14.5",
+            "rotation_deg": 90,
+            "width_m": "17.3",
+            "x": "60.96",
+            "y": "0",
+            "zone_code": "packaging_material_storage"
+          },
+          "identity": "tail-zone-slot-feasibility@1.0.0",
+          "legal_slot_exists": true,
+          "main_skeleton_overlap_rejection_count": 2805,
+          "no_build_rejection_count": 2188,
+          "orientation_count": 2,
+          "proof_mode": "EXACT_ORTHOGONAL_EVENT_ENUMERATION",
+          "site_rejection_count": 0,
+          "zone_code": "packaging_material_storage"
+        },
+        "preflight_reexecuted": true,
+        "skeleton_hash": "sha256:bdf2286fd10c24724b7e9ad45ebd5de5cb92a9bda478e96ffed0e23a1ceaaaac",
+        "stage": "TAIL_SLOT_PREFLIGHT",
+        "tail_admissible": true,
+        "tail_search_started": false
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "event": "TAIL_SLOT_PREFLIGHT_CONSTRUCTION_GATE",
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "preflight": {
+          "evaluated_placement_count": 4994,
+          "event_origin_count": 4420,
+          "first_witness_rectangle": {
+            "actual_area_m2": "250.85",
+            "depth_m": "14.5",
+            "rotation_deg": 90,
+            "width_m": "17.3",
+            "x": "60.96",
+            "y": "0",
+            "zone_code": "packaging_material_storage"
+          },
+          "identity": "tail-zone-slot-feasibility@1.0.0",
+          "legal_slot_exists": true,
+          "main_skeleton_overlap_rejection_count": 2775,
+          "no_build_rejection_count": 2218,
+          "orientation_count": 2,
+          "proof_mode": "EXACT_ORTHOGONAL_EVENT_ENUMERATION",
+          "site_rejection_count": 0,
+          "zone_code": "packaging_material_storage"
+        },
+        "preflight_reexecuted": true,
+        "skeleton_hash": "sha256:c31eb7de6ddb92ee9e3e8dc4a8694db5d3d72a2cc215f0bccc675aec63b43a8c",
+        "stage": "TAIL_SLOT_PREFLIGHT",
+        "tail_admissible": true,
+        "tail_search_started": false
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "event": "TAIL_SLOT_PREFLIGHT_CONSTRUCTION_GATE",
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "preflight": {
+          "evaluated_placement_count": 4994,
+          "event_origin_count": 4420,
+          "first_witness_rectangle": {
+            "actual_area_m2": "250.85",
+            "depth_m": "14.5",
+            "rotation_deg": 90,
+            "width_m": "17.3",
+            "x": "60.96",
+            "y": "0",
+            "zone_code": "packaging_material_storage"
+          },
+          "identity": "tail-zone-slot-feasibility@1.0.0",
+          "legal_slot_exists": true,
+          "main_skeleton_overlap_rejection_count": 2655,
+          "no_build_rejection_count": 2338,
+          "orientation_count": 2,
+          "proof_mode": "EXACT_ORTHOGONAL_EVENT_ENUMERATION",
+          "site_rejection_count": 0,
+          "zone_code": "packaging_material_storage"
+        },
+        "preflight_reexecuted": true,
+        "skeleton_hash": "sha256:d08ed2cd0074ebab4b07feb58516c6ccdc76df652896f3fbc9f5da8637405b18",
+        "stage": "TAIL_SLOT_PREFLIGHT",
+        "tail_admissible": true,
+        "tail_search_started": false
+      },
+      {
+        "canonical_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+        "discovery_topology": "STRAIGHT_LINEAR_BAND",
+        "event": "TAIL_SLOT_PREFLIGHT_CONSTRUCTION_GATE",
+        "packaging_preflight_status": "LEGAL_SLOT_EXISTS",
+        "packaging_slot_exists": true,
+        "preflight": {
+          "evaluated_placement_count": 5450,
+          "event_origin_count": 4954,
+          "first_witness_rectangle": {
+            "actual_area_m2": "250.85",
+            "depth_m": "14.5",
+            "rotation_deg": 90,
+            "width_m": "17.3",
+            "x": "60.96",
+            "y": "0",
+            "zone_code": "packaging_material_storage"
+          },
+          "identity": "tail-zone-slot-feasibility@1.0.0",
+          "legal_slot_exists": true,
+          "main_skeleton_overlap_rejection_count": 3048,
+          "no_build_rejection_count": 2401,
+          "orientation_count": 2,
+          "proof_mode": "EXACT_ORTHOGONAL_EVENT_ENUMERATION",
+          "site_rejection_count": 0,
+          "zone_code": "packaging_material_storage"
+        },
+        "preflight_reexecuted": true,
+        "skeleton_hash": "sha256:e36137bb539d36c87ca2bc7381a50a8807ff1ab2eb7ae2a85060bd24ed588a29",
+        "stage": "TAIL_SLOT_PREFLIGHT",
+        "tail_admissible": true,
+        "tail_search_started": false
+      }
+    ],
+    "topology_classification_failures": []
+  },
+  "selected_layout_validation": {
+    "access_pass_count": 12,
+    "access_requirement_count": 12,
+    "p2_complete": true,
+    "project_layout_validated": true,
+    "truck_route_validated": true,
+    "zone_count": 12
+  },
+  "selected_p2d_footprint": {
+    "footprint": {
+      "points": [
+        {
+          "x": "0",
+          "y": "0"
+        },
+        {
+          "x": "29.9",
+          "y": "0"
+        },
+        {
+          "x": "29.9",
+          "y": "10.05"
+        },
+        {
+          "x": "41.76",
+          "y": "10.05"
+        },
+        {
+          "x": "41.76",
+          "y": "3.15"
+        },
+        {
+          "x": "50.16",
+          "y": "3.15"
+        },
+        {
+          "x": "50.16",
+          "y": "1.85"
+        },
+        {
+          "x": "60.96",
+          "y": "1.85"
+        },
+        {
+          "x": "60.96",
+          "y": "0"
+        },
+        {
+          "x": "75.46",
+          "y": "0"
+        },
+        {
+          "x": "75.46",
+          "y": "17.3"
+        },
+        {
+          "x": "60.96",
+          "y": "17.3"
+        },
+        {
+          "x": "60.96",
+          "y": "23.65"
+        },
+        {
+          "x": "75.46",
+          "y": "23.65"
+        },
+        {
+          "x": "75.46",
+          "y": "26.885"
+        },
+        {
+          "x": "42.81",
+          "y": "26.885"
+        },
+        {
+          "x": "42.81",
+          "y": "24.885"
+        },
+        {
+          "x": "43.06",
+          "y": "24.885"
+        },
+        {
+          "x": "43.06",
+          "y": "23.65"
+        },
+        {
+          "x": "25",
+          "y": "23.65"
+        },
+        {
+          "x": "25",
+          "y": "33.7"
+        },
+        {
+          "x": "41.717",
+          "y": "33.7"
+        },
+        {
+          "x": "41.717",
+          "y": "52.3"
+        },
+        {
+          "x": "9.317",
+          "y": "52.3"
+        },
+        {
+          "x": "9.317",
+          "y": "40.2"
+        },
+        {
+          "x": "1.624",
+          "y": "40.2"
+        },
+        {
+          "x": "1.624",
+          "y": "33.7"
+        },
+        {
+          "x": "1.571",
+          "y": "33.7"
+        },
+        {
+          "x": "1.571",
+          "y": "25.954"
+        },
+        {
+          "x": "9.317",
+          "y": "25.954"
+        },
+        {
+          "x": "9.317",
+          "y": "20.1"
+        },
+        {
+          "x": "15.2",
+          "y": "20.1"
+        },
+        {
+          "x": "15.2",
+          "y": "8.7"
+        },
+        {
+          "x": "0",
+          "y": "8.7"
+        }
+      ],
+      "type": "polygon"
+    },
+    "gross_area_m2": "2296.138816",
+    "optimized": false,
+    "source": "EXACT_ZONE_RECTANGLES_PLUS_ACCESS_CORRIDOR_ENVELOPES"
+  },
+  "selected_result_hash": "sha256:c8f4011cd0d565e6ecd0ce636ee50586d0d1d075e51eff0d845c156f31ca9d19",
+  "selected_svg_sha256": "sha256:007f8066b55a3bdcf2583e0e4d9c2f325e1c2c6cee4bc9aa8fb9fd4a57c109d2",
+  "selector_candidate_counts": {
+    "p2c_candidate_count": 2,
+    "p2d_full_pass_candidate_count": 2,
+    "p2d_validated_candidate_count": 2,
+    "status": "VALIDATED_LAYOUT_SELECTED"
+  },
+  "site_candidate_gallery_png": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_r2_compact_site_candidate_gallery.png",
+  "site_candidate_gallery_svg": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_r2_compact_site_candidate_gallery.svg",
+  "site_extent_feasible_local_12_zone_count": 481,
+  "site_extent_feasible_local_main_count": 68,
+  "site_max_height_mm": 55000,
+  "site_max_width_mm": 75460,
+  "structured_full_pass_skeleton_hashes": [],
+  "structured_p2d_full_pass_count": 0,
+  "structured_site_placed_count": 0,
+  "task_id": "V2_2_2_P1A_ENVELOPE_GRID_BAND_ZONE_GENERATOR_R2",
+  "tool7_unmocked_replay_count": 2
+}
