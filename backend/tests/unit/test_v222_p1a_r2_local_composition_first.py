@@ -113,6 +113,40 @@ def test_support_bank_includes_deterministic_two_row_packing() -> None:
             )
 
 
+def test_finished_module_uses_finite_compact_2d_must_chain_packing() -> None:
+    context = _local_context()
+    chain = (
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel",
+    )
+
+    modules = placement._local_must_chain_module_compositions(context, chain, result_limit=24)
+
+    assert modules
+    assert all(set(module) == set(chain) for module in modules)
+    for module in modules:
+        for first, second in zip(chain, chain[1:], strict=False):
+            assert placement.rectangles_share_positive_edge(module[first], module[second])
+        for code, rectangle in module.items():
+            assert placement._local_rectangles_clear(
+                rectangle, {other: row for other, row in module.items() if other != code}
+            )
+    assert any(
+        len(
+            {
+                "X"
+                if placement._adjacent_side(module[first], module[second]) in {"EAST", "WEST"}
+                else "Y"
+                for first, second in zip(chain, chain[1:], strict=False)
+            }
+        )
+        > 1
+        for module in modules
+    )
+
+
 def test_changing_room_is_not_hard_bound_to_office_shared_edge() -> None:
     context = _local_context()
     main = placement._synthesize_linear_3_band_local(context, "X", "POSITIVE")[0]
@@ -402,3 +436,271 @@ def test_structured_candidate_stream_does_not_call_site_first_or_room_chain_gene
     assert "_direct_family_tail_zones" not in called
     assert "_whole_building_site_placements" in called
     assert "_structured_plan_from_composition" in called
+
+
+def test_orthogonal_buildable_bays_are_exact_deterministic_and_obstacle_derived() -> None:
+    boundary = ((0, 0), (20_000, 0), (20_000, 20_000), (0, 20_000))
+    obstacle = ((8_000, 5_000), (12_000, 5_000), (12_000, 15_000), (8_000, 15_000))
+    site_body = {
+        "entrances": {
+            "truck_entrance": {
+                "start": {"x": 0, "y": 9},
+                "end": {"x": 0, "y": 11},
+            }
+        }
+    }
+    context = SimpleNamespace(
+        boundary=boundary,
+        boundary_bounds=(0, 0, 20_000, 20_000),
+        obstacles=(obstacle,),
+        main_entrance=((20_000, 9_000), (20_000, 11_000)),
+        site_body=site_body,
+    )
+
+    first = placement._orthogonal_site_buildable_bays(context)
+    second = placement._orthogonal_site_buildable_bays(context)
+
+    assert first
+    assert first == second
+    assert all(row.area_mm2 < 20_000 * 20_000 for row in first)
+    for bay in first:
+        left, bottom, right, top = bay.bounds_mm
+        rectangle = placement._rectangle_from_mm(
+            "bay-test", left, bottom, right - left, top - bottom, 0
+        )
+        assert placement.rectangle_inside_polygon(rectangle, boundary)
+        assert not placement.rectangle_intersects_closed_obstacle(rectangle, obstacle)
+
+
+def test_orthogonal_bays_include_maximal_regions_across_partition_strips() -> None:
+    boundary = ((0, 0), (20_000, 0), (20_000, 20_000), (0, 20_000))
+    obstacle = ((8_000, 5_000), (12_000, 5_000), (12_000, 15_000), (8_000, 15_000))
+    context = SimpleNamespace(
+        boundary=boundary,
+        boundary_bounds=(0, 0, 20_000, 20_000),
+        obstacles=(obstacle,),
+        main_entrance=((20_000, 9_000), (20_000, 11_000)),
+        site_body={
+            "entrances": {
+                "truck_entrance": {
+                    "start": {"x": 0, "y": 9},
+                    "end": {"x": 0, "y": 11},
+                }
+            }
+        },
+    )
+
+    bays = placement._orthogonal_site_buildable_bays(context)
+    bounds = {bay.bounds_mm for bay in bays}
+
+    assert (0, 0, 7_999, 20_000) in bounds
+    assert (12_001, 0, 20_000, 20_000) in bounds
+    assert (0, 0, 20_000, 4_999) in bounds
+    assert (0, 15_001, 20_000, 20_000) in bounds
+    assert len({bay.bay_id for bay in bays}) == len(bays)
+    assert any(bay.bay_role == "CONNECTIVITY_PARTITION_REGION" for bay in bays)
+
+
+def test_maximal_bays_preserve_real_shared_interface_adjacency() -> None:
+    boundary = (
+        (0, 0),
+        (20_000, 0),
+        (20_000, 10_000),
+        (10_000, 10_000),
+        (10_000, 20_000),
+        (0, 20_000),
+    )
+    context = SimpleNamespace(
+        boundary=boundary,
+        boundary_bounds=(0, 0, 20_000, 20_000),
+        obstacles=(),
+        main_entrance=((20_000, 4_000), (20_000, 6_000)),
+        site_body={
+            "entrances": {
+                "truck_entrance": {
+                    "start": {"x": 0, "y": 4},
+                    "end": {"x": 0, "y": 6},
+                }
+            }
+        },
+    )
+
+    bays = placement._orthogonal_site_buildable_bays(context)
+
+    assert len([bay for bay in bays if bay.bay_role == "MAXIMAL_PLACEMENT_REGION"]) == 2
+    assert any(bay.adjacent_bay_ids for bay in bays)
+    assert any(bay.shared_interface_segments for bay in bays)
+
+
+def test_module_rigid_transforms_preserve_internal_must_interface() -> None:
+    module = {
+        "raw_fruit_buffer": placement._rectangle_from_mm(
+            "raw_fruit_buffer", 0, 0, 10_000, 8_000, 0
+        ),
+        "primary_precooling_room": placement._rectangle_from_mm(
+            "primary_precooling_room", 10_000, 0, 8_000, 8_000, 0
+        ),
+    }
+
+    variants = placement._rigid_module_variants(module)
+
+    assert variants
+    assert all(
+        placement.rectangles_share_positive_edge(
+            row["raw_fruit_buffer"], row["primary_precooling_room"]
+        )
+        for row in variants
+    )
+    assert all(set(row) == set(module) for row in variants)
+    site_variants = placement._site_assembly_module_variants(module)
+    assert any(
+        row["raw_fruit_buffer"].rotation_deg == 90
+        or row["primary_precooling_room"].rotation_deg == 90
+        for row in site_variants
+    )
+    assert len(site_variants) == len(variants)
+
+
+def test_site_translation_events_align_interface_zones_to_bays() -> None:
+    placements = {
+        "sorting_packaging_room": placement._rectangle_from_mm(
+            "sorting_packaging_room", 0, 0, 10_000, 20_000, 0
+        ),
+        "primary_precooling_room": placement._rectangle_from_mm(
+            "primary_precooling_room", -8_000, 5_000, 8_000, 10_000, 0
+        ),
+        "secondary_precooling_room": placement._rectangle_from_mm(
+            "secondary_precooling_room", 10_000, 5_000, 8_000, 10_000, 0
+        ),
+    }
+    bay = placement.BuildableBayV1("BAY-0001", (30_000, 40_000, 70_000, 80_000), 1_600_000_000)
+
+    translations = placement._site_translations_from_bay_edges(placements, (bay,))
+
+    assert (30_000, 40_000) in translations
+    assert (38_000, 35_000) in translations
+
+
+def test_site_translation_events_include_existing_truck_dock_template_points() -> None:
+    shipping = placement._rectangle_from_mm("shipping_channel", 10_000, 20_000, 7_693, 6_050, 0)
+    placements = {"shipping_channel": shipping}
+    bay = placement.BuildableBayV1("BAY-0001", (0, 0, 75_460, 55_000), 4_150_300_000)
+    site_body = {
+        "site": {"preferred_loading_side": "UNSPECIFIED"},
+        "entrances": {
+            "truck_entrance": {
+                "start": {"x": 0, "y": 33.7},
+                "end": {"x": 0, "y": 33.701},
+            }
+        },
+    }
+    dock_point = (1_624, 33_700)
+    face = placement._loading_face(shipping, site_body)[1]
+    face_points = (
+        face[0],
+        face[1],
+        ((face[0][0] + face[1][0]) // 2, (face[0][1] + face[1][1]) // 2),
+    )
+    expected_dock_translations = {
+        (dock_point[0] - point[0], dock_point[1] - point[1]) for point in face_points
+    }
+
+    translations = placement._site_translations_from_bay_edges(
+        placements,
+        (bay,),
+        site_body=site_body,
+        truck_dock_points=(dock_point,),
+    )
+
+    assert expected_dock_translations <= set(translations)
+    assert any(
+        placement._on_segment(
+            dock_point,
+            placement._loading_face(
+                placement._translate_module(placements, dx, dy)["shipping_channel"],
+                site_body,
+            )[1][0],
+            placement._loading_face(
+                placement._translate_module(placements, dx, dy)["shipping_channel"],
+                site_body,
+            )[1][1],
+        )
+        for dx, dy in translations
+    )
+
+    authoritative_event_placement = placement._rectangle_from_mm(
+        "shipping_channel", 1_624, 33_700, 7_693, 6_050, 0
+    )
+    event_translations = placement._site_translations_from_bay_edges(
+        placements,
+        (bay,),
+        site_body=site_body,
+        shipping_dock_placements=(authoritative_event_placement,),
+    )
+    assert event_translations[0] == (-8_376, 13_700)
+
+
+def test_site_event_rectangle_sampling_is_finite_canonical_and_spread() -> None:
+    events = tuple(
+        placement._rectangle_from_mm("shipping_channel", index, index * 2, 3_000, 4_000, 0)
+        for index in range(40)
+    )
+
+    sampled = placement._bounded_site_event_rectangles(events, limit=5)
+
+    assert len(sampled) == 5
+    assert sampled == placement._bounded_site_event_rectangles(tuple(reversed(events)), limit=5)
+    assert sampled[0].bounds_mm == min(row.bounds_mm for row in events)
+    assert sampled[-1].bounds_mm == max(row.bounds_mm for row in events)
+
+
+def test_site_module_assembly_keeps_modules_rigid_and_avoids_whole_body_translation(
+    monkeypatch: Any,
+) -> None:
+    context = _local_context()
+    context.boundary = ((0, 0), (100_000, 0), (100_000, 100_000), (0, 100_000))
+    context.boundary_bounds = (0, 0, 100_000, 100_000)
+    context.obstacles = ()
+    context.main_entrance = ((100_000, 45_000), (100_000, 55_000))
+    context.site_body = {
+        "entrances": {
+            "truck_entrance": {
+                "start": {"x": 0, "y": 45},
+                "end": {"x": 0, "y": 55},
+            }
+        }
+    }
+    main = placement._synthesize_linear_3_band_local(context, "X", "POSITIVE")
+    bays = (placement.BuildableBayV1("BAY-0001", (0, 0, 100_000, 100_000), 10_000_000_000),)
+
+    def reject_whole_body_translation(*_args: Any, **_kwargs: Any) -> Any:
+        raise AssertionError("module site assembly must not translate the whole 7-zone body")
+
+    monkeypatch.setattr(placement, "_whole_building_site_placements", reject_whole_body_translation)
+
+    candidates = tuple(
+        row
+        for row in placement._module_main_site_assemblies(
+            context, main, LINEAR_3_BAND, "X", "POSITIVE", bays, limit=64
+        )
+        if row is not None
+    )
+
+    assert candidates
+    assert len(candidates) > 2
+    assert all(set(row) == set(placement.MAIN_PROCESS_ZONE_CODES) for row in candidates)
+    signatures = {placement._module_signature(row) for row in candidates}
+    assert len(signatures) == len(candidates)
+    for candidate in candidates:
+        placement._validate_main_process_skeleton_graph(context.graph, candidate)
+
+
+def test_family_core_faces_cover_opposite_banks_and_linear_one_bend() -> None:
+    linear = placement._family_core_face_pairs(LINEAR_3_BAND, "Y", "POSITIVE")
+    central = placement._family_core_face_pairs(CENTRAL_PROCESS_WITH_SIDE_BANKS, "Y", "POSITIVE")
+
+    assert linear[0] == ("SOUTH", "NORTH")
+    assert ("WEST", "EAST") in linear
+    assert ("WEST", "NORTH") in linear
+    assert all(first != second for first, second in (*linear, *central))
+    assert {"WEST", "EAST"} <= {side for pair in central for side in pair}

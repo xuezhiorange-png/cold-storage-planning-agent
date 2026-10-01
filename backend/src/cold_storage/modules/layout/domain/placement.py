@@ -15,7 +15,6 @@ from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from decimal import Context, Decimal, InvalidOperation, localcontext
 from fractions import Fraction
-from heapq import heappop, heappush
 from itertools import islice, product
 from math import isqrt
 from typing import Any, Final, cast
@@ -750,6 +749,963 @@ def _axis_aligned_rectangle_polygon_bounds(
         (right, top),
     }
     return (left, bottom, right, top) if set(polygon) == expected else None
+
+
+def _polygon_is_orthogonal(polygon: PolygonMM) -> bool:
+    return all(
+        first[0] == second[0] or first[1] == second[1]
+        for first, second in zip(polygon, (*polygon[1:], polygon[0]), strict=True)
+    )
+
+
+def _segment_for_vertical_edge(x: int, low: int, high: int) -> SegmentMM:
+    return ((x, low), (x, high))
+
+
+def _segment_for_horizontal_edge(y: int, low: int, high: int) -> SegmentMM:
+    return ((low, y), (high, y))
+
+
+def _shared_rectangle_interface(
+    first: tuple[int, int, int, int], second: tuple[int, int, int, int]
+) -> SegmentMM | None:
+    if first[2] == second[0] or second[2] == first[0]:
+        x = first[2] if first[2] == second[0] else first[0]
+        low, high = max(first[1], second[1]), min(first[3], second[3])
+        return _segment_for_vertical_edge(x, low, high) if low < high else None
+    if first[3] == second[1] or second[3] == first[1]:
+        y = first[3] if first[3] == second[1] else first[1]
+        low, high = max(first[0], second[0]), min(first[2], second[2])
+        return _segment_for_horizontal_edge(y, low, high) if low < high else None
+    return None
+
+
+def _orthogonal_site_buildable_bays(
+    context: _PlacementSearchContext,
+) -> tuple[BuildableBayV1, ...]:
+    """Enumerate exact disjoint orthogonal free-space bays for a site.
+
+    Obstacle-adjacent legal origins include the immediately adjacent 1 mm grid
+    coordinate because the authoritative obstacle predicate rejects contact.
+    Non-orthogonal authority is reported as unavailable; it is never replaced
+    by a bounding-box approximation.
+    """
+    polygons = (context.boundary, *context.obstacles)
+    if any(not _polygon_is_orthogonal(polygon) for polygon in polygons):
+        return ()
+    min_x, min_y, max_x, max_y = context.boundary_bounds
+    x_events = {coordinate for x, _y in context.boundary for coordinate in (x,)}
+    y_events = {coordinate for _x, y in context.boundary for coordinate in (y,)}
+    for obstacle in context.obstacles:
+        for x, y in obstacle:
+            x_events.update((x - GRID_MM, x, x + GRID_MM))
+            y_events.update((y - GRID_MM, y, y + GRID_MM))
+    xs = tuple(sorted(value for value in x_events if min_x <= value <= max_x))
+    ys = tuple(sorted(value for value in y_events if min_y <= value <= max_y))
+    if len(xs) < 2 or len(ys) < 2:
+        return ()
+
+    usable: list[list[bool]] = []
+    for y0, y1 in zip(ys, ys[1:], strict=False):
+        row: list[bool] = []
+        for x0, x1 in zip(xs, xs[1:], strict=False):
+            cell = _rectangle_from_mm("__buildable_bay_cell__", x0, y0, x1 - x0, y1 - y0, 0)
+            row.append(
+                _rectangle_is_usable(
+                    cell,
+                    {},
+                    context.boundary,
+                    context.boundary_bounds,
+                    context.obstacles,
+                )
+            )
+        usable.append(row)
+
+    # Enumerate inclusion-maximal rectangles over the exact free-cell grid.
+    # A disjoint strip partition hides useful module anchor faces whenever a
+    # usable bay spans more than one strip.  Maximal rectangles may overlap;
+    # that is intentional because bays are placement regions, not an
+    # ownership partition.  Each candidate is still checked against the exact
+    # boundary/obstacle predicates above, and IDs/order remain deterministic.
+    bounds_set: set[tuple[int, int, int, int]] = set()
+    row_count = len(usable)
+    column_count = len(xs) - 1
+    for row_start in range(row_count):
+        common_free = [True] * column_count
+        for row_end in range(row_start + 1, row_count + 1):
+            current_row = usable[row_end - 1]
+            common_free = [
+                is_free and current_row[column] for column, is_free in enumerate(common_free)
+            ]
+            column = 0
+            while column < column_count:
+                if not common_free[column]:
+                    column += 1
+                    continue
+                start_column = column
+                while column < column_count and common_free[column]:
+                    column += 1
+                end_column = column
+                can_extend_south = row_start > 0 and all(
+                    usable[row_start - 1][index] for index in range(start_column, end_column)
+                )
+                can_extend_north = row_end < row_count and all(
+                    usable[row_end][index] for index in range(start_column, end_column)
+                )
+                if can_extend_south or can_extend_north:
+                    continue
+                bounds_set.add((xs[start_column], ys[row_start], xs[end_column], ys[row_end]))
+
+    maximal_bounds = tuple(
+        sorted(
+            bounds_set,
+            key=lambda bounds: (
+                -((bounds[2] - bounds[0]) * (bounds[3] - bounds[1])),
+                bounds,
+            ),
+        )
+    )
+    # Preserve a deterministic non-overlapping connectivity partition as
+    # interface evidence alongside the overlapping maximal placement regions.
+    # The former describes shared bay interfaces; the latter supplies the
+    # largest useful module-anchor rectangles.
+    partition_bounds: set[tuple[int, int, int, int]] = set()
+    active_runs: dict[tuple[int, int], int] = {}
+    for row_index, row in enumerate(usable):
+        current_runs: set[tuple[int, int]] = set()
+        column = 0
+        while column < len(row):
+            if not row[column]:
+                column += 1
+                continue
+            start_column = column
+            while column < len(row) and row[column]:
+                column += 1
+            current_runs.add((start_column, column))
+        for run, start_row in tuple(active_runs.items()):
+            if run not in current_runs:
+                partition_bounds.add((xs[run[0]], ys[start_row], xs[run[1]], ys[row_index]))
+                del active_runs[run]
+        for run in current_runs:
+            active_runs.setdefault(run, row_index)
+    for run, start_row in active_runs.items():
+        partition_bounds.add((xs[run[0]], ys[start_row], xs[run[1]], ys[row_count]))
+    ordered_regions = tuple(
+        ("MAXIMAL_PLACEMENT_REGION", bounds) for bounds in maximal_bounds
+    ) + tuple(("CONNECTIVITY_PARTITION_REGION", bounds) for bounds in sorted(partition_bounds))
+    boundary_edges: list[tuple[str, SegmentMM]] = []
+    for first, second in zip(
+        context.boundary, (*context.boundary[1:], context.boundary[0]), strict=True
+    ):
+        if first[0] == second[0]:
+            side = "WEST" if first[0] == min_x else "EAST" if first[0] == max_x else ""
+            if side:
+                boundary_edges.append(
+                    (
+                        side,
+                        _segment_for_vertical_edge(
+                            first[0], min(first[1], second[1]), max(first[1], second[1])
+                        ),
+                    )
+                )
+        elif first[1] == second[1]:
+            side = "SOUTH" if first[1] == min_y else "NORTH" if first[1] == max_y else ""
+            if side:
+                boundary_edges.append(
+                    (
+                        side,
+                        _segment_for_horizontal_edge(
+                            first[1], min(first[0], second[0]), max(first[0], second[0])
+                        ),
+                    )
+                )
+
+    entrance = context.main_entrance
+    truck_entrance = _truck_segment(context.site_body)
+    initial: list[BuildableBayV1] = []
+    for index, (region_role, bounds) in enumerate(ordered_regions, start=1):
+        left, bottom, right, top = bounds
+        edges = (
+            _segment_for_vertical_edge(left, bottom, top),
+            _segment_for_vertical_edge(right, bottom, top),
+            _segment_for_horizontal_edge(bottom, left, right),
+            _segment_for_horizontal_edge(top, left, right),
+        )
+        contacts = tuple(
+            side
+            for side, boundary_edge in boundary_edges
+            if any(segments_share_positive_length(*edge, *boundary_edge) for edge in edges)
+        )
+        initial.append(
+            BuildableBayV1(
+                bay_id=f"BAY-{index:04d}",
+                bounds_mm=bounds,
+                area_mm2=(right - left) * (top - bottom),
+                boundary_contact_sides=tuple(sorted(set(contacts))),
+                entrance_contact=any(
+                    segments_share_positive_length(*edge, *entrance) for edge in edges
+                ),
+                truck_entrance_contact=any(
+                    segments_share_positive_length(*edge, *truck_entrance) for edge in edges
+                ),
+                bay_role=region_role,
+            )
+        )
+
+    adjacent: dict[str, list[str]] = {bay.bay_id: [] for bay in initial}
+    interfaces: dict[str, list[SegmentMM]] = {bay.bay_id: [] for bay in initial}
+    for index, first_bay in enumerate(initial):
+        for second_bay in initial[index + 1 :]:
+            shared = _shared_rectangle_interface(first_bay.bounds_mm, second_bay.bounds_mm)
+            if shared is None:
+                continue
+            adjacent[first_bay.bay_id].append(second_bay.bay_id)
+            adjacent[second_bay.bay_id].append(first_bay.bay_id)
+            interfaces[first_bay.bay_id].append(shared)
+            interfaces[second_bay.bay_id].append(shared)
+    return tuple(
+        replace(
+            bay,
+            adjacent_bay_ids=tuple(sorted(adjacent[bay.bay_id])),
+            shared_interface_segments=tuple(sorted(set(interfaces[bay.bay_id]))),
+        )
+        for bay in initial
+    )
+
+
+def _module_signature(
+    placements: Mapping[str, PlacedRectangleV1],
+) -> tuple[tuple[str, tuple[int, ...]], ...]:
+    return tuple(
+        (code, rectangle.bounds_mm + (rectangle.rotation_deg,))
+        for code, rectangle in sorted(placements.items())
+    )
+
+
+def _rigid_module_variants(
+    placements: Mapping[str, PlacedRectangleV1],
+) -> tuple[dict[str, PlacedRectangleV1], ...]:
+    """Return deterministic rigid transforms while freezing module internals."""
+    if not placements:
+        return ()
+    left, bottom, right, top = _local_bbox_bounds(placements)
+    width, depth = right - left, top - bottom
+    variants: dict[tuple[tuple[str, tuple[int, ...]], ...], dict[str, PlacedRectangleV1]] = {}
+    transform_order = (
+        (False, False, False),
+        (True, False, False),
+        (False, True, False),
+        (True, True, False),
+        (False, False, True),
+        (True, False, True),
+        (False, True, True),
+        (True, True, True),
+    )
+    for mirror_x, mirror_y, rotate_90 in transform_order:
+        transformed: dict[str, PlacedRectangleV1] = {}
+        for code, rectangle in sorted(placements.items()):
+            zone_left, zone_bottom, zone_right, zone_top = rectangle.bounds_mm
+            x0, y0 = zone_left - left, zone_bottom - bottom
+            x_span, y_span = zone_right - zone_left, zone_top - zone_bottom
+            if mirror_x:
+                x0 = width - x0 - x_span
+            if mirror_y:
+                y0 = depth - y0 - y_span
+            if rotate_90:
+                x0, y0 = depth - y0 - y_span, x0
+            transformed[code] = _rectangle_from_mm(
+                code,
+                x0,
+                y0,
+                _mm(rectangle.width_m, field="module.width_m"),
+                _mm(rectangle.depth_m, field="module.depth_m"),
+                (90 - rectangle.rotation_deg) % 180 if rotate_90 else rectangle.rotation_deg,
+            )
+        variants.setdefault(_module_signature(transformed), transformed)
+    return tuple(variants.values())
+
+
+def _site_assembly_module_variants(
+    placements: Mapping[str, PlacedRectangleV1],
+) -> tuple[dict[str, PlacedRectangleV1], ...]:
+    """Return every deterministic rigid orientation permitted for a module."""
+    return _rigid_module_variants(placements)
+
+
+def _translate_module(
+    module: Mapping[str, PlacedRectangleV1], dx_mm: int, dy_mm: int
+) -> dict[str, PlacedRectangleV1]:
+    return {
+        code: _rectangle_from_mm(
+            code,
+            rectangle.bounds_mm[0] + dx_mm,
+            rectangle.bounds_mm[1] + dy_mm,
+            _mm(rectangle.width_m, field="module.width_m"),
+            _mm(rectangle.depth_m, field="module.depth_m"),
+            rectangle.rotation_deg,
+        )
+        for code, rectangle in sorted(module.items())
+    }
+
+
+def _module_attached_to_zone(
+    module: Mapping[str, PlacedRectangleV1],
+    interface_zone_code: str,
+    target: PlacedRectangleV1,
+    side: str,
+    alignment: str,
+) -> dict[str, PlacedRectangleV1] | None:
+    interface = module.get(interface_zone_code)
+    if interface is None:
+        return None
+    interface_left, interface_bottom, interface_right, interface_top = interface.bounds_mm
+    x_span, y_span = interface_right - interface_left, interface_top - interface_bottom
+    target_x, target_y = _local_adjacent_origin(target, x_span, y_span, side, alignment)
+    translated = _translate_module(module, target_x - interface_left, target_y - interface_bottom)
+    return (
+        translated
+        if rectangles_share_positive_edge(target, translated[interface_zone_code])
+        else None
+    )
+
+
+def _module_origins_from_bay_edges(
+    module: Mapping[str, PlacedRectangleV1], bays: Sequence[BuildableBayV1]
+) -> tuple[tuple[int, int], ...]:
+    """Generate finite module origins by aligning its frame to exact bay edges."""
+    if not module:
+        return ()
+    frame = _local_bbox_bounds(module)
+    origins: set[tuple[int, int]] = set()
+    for bay in bays:
+        left, bottom, right, top = bay.bounds_mm
+        bay_x_edges = (left, right)
+        bay_y_edges = (bottom, top)
+        frame_x_edges = (frame[0], frame[2])
+        frame_y_edges = (frame[1], frame[3])
+        for target_x in bay_x_edges:
+            for source_x in frame_x_edges:
+                for target_y in bay_y_edges:
+                    for source_y in frame_y_edges:
+                        origins.add((target_x - source_x, target_y - source_y))
+    return tuple(
+        sorted(origins, key=lambda point: (abs(point[1]) + abs(point[0]), point[1], point[0]))
+    )
+
+
+def _site_translations_from_bay_edges(
+    placements: Mapping[str, PlacedRectangleV1],
+    bays: Sequence[BuildableBayV1],
+    *,
+    site_body: Mapping[str, Any] | None = None,
+    truck_dock_points: Sequence[tuple[int, int]] = (),
+    shipping_dock_placements: Sequence[PlacedRectangleV1] = (),
+) -> tuple[tuple[int, int], ...]:
+    """Align frozen module interfaces, not the whole composition, to bay events.
+
+    Functional modules may span multiple disjoint bays. Aligning only the
+    complete composition's bounding box to one bay wrongly assumes that the
+    whole program fits inside a single lobe. Interface-zone origins are finite
+    site-derived anchors. Existing truck-template dock events are also usable
+    as translation anchors for the shipping face, but remain ordering/placement
+    events only; every final rectangle and truck maneuver is still checked by
+    its existing authoritative predicate.
+    """
+    if not placements:
+        return ()
+    translations: set[tuple[int, int]] = set()
+    truck_aligned: set[tuple[int, int]] = set()
+    template_aligned: list[tuple[int, int]] = []
+    template_aligned_seen: set[tuple[int, int]] = set()
+    shipping = placements.get("shipping_channel")
+    if shipping is not None and site_body is not None:
+        source_bounds = _bounds(shipping)
+        source_shape = (
+            source_bounds[2] - source_bounds[0],
+            source_bounds[3] - source_bounds[1],
+            shipping.rotation_deg,
+        )
+        for dock_placement in shipping_dock_placements:
+            target_bounds = _bounds(dock_placement)
+            target_shape = (
+                target_bounds[2] - target_bounds[0],
+                target_bounds[3] - target_bounds[1],
+                dock_placement.rotation_deg,
+            )
+            if source_shape != target_shape:
+                continue
+            offset = (
+                target_bounds[0] - source_bounds[0],
+                target_bounds[1] - source_bounds[1],
+            )
+            if offset not in template_aligned_seen:
+                template_aligned_seen.add(offset)
+                template_aligned.append(offset)
+        translations.update(template_aligned)
+        entrance = _truck_segment(site_body)
+        loading_face = _loading_face(shipping, site_body)[1]
+        face_points = (
+            loading_face[0],
+            loading_face[1],
+            (
+                (loading_face[0][0] + loading_face[1][0]) // 2,
+                (loading_face[0][1] + loading_face[1][1]) // 2,
+            ),
+        )
+        entrance_points = (
+            entrance[0],
+            entrance[1],
+            ((entrance[0][0] + entrance[1][0]) // 2, (entrance[0][1] + entrance[1][1]) // 2),
+        )
+        center_alignment = (
+            entrance_points[2][0] - face_points[2][0],
+            entrance_points[2][1] - face_points[2][1],
+        )
+        truck_aligned.add(center_alignment)
+        truck_aligned.update(
+            (target[0] - source[0], target[1] - source[1])
+            for source in face_points[:2]
+            for target in entrance_points[:2]
+        )
+        truck_aligned.update(
+            (dock_x - source[0], dock_y - source[1])
+            for source in face_points
+            for dock_x, dock_y in truck_dock_points
+        )
+        translations.update(truck_aligned)
+    for code in (
+        "sorting_packaging_room",
+        "primary_precooling_room",
+        "secondary_precooling_room",
+        "shipping_channel",
+    ):
+        anchor = placements.get(code)
+        if anchor is None:
+            continue
+        anchor_left, anchor_bottom, anchor_right, anchor_top = anchor.bounds_mm
+        width, depth = anchor_right - anchor_left, anchor_top - anchor_bottom
+        for bay in bays:
+            left, bottom, right, top = bay.bounds_mm
+            target_xs = (left, right - width, (left + right - width) // 2)
+            target_ys = (bottom, top - depth, (bottom + top - depth) // 2)
+            translations.update(
+                (target_x - anchor_left, target_y - anchor_bottom)
+                for target_x in target_xs
+                for target_y in target_ys
+            )
+
+    def order_key(point: tuple[int, int]) -> tuple[int, int, int]:
+        return (abs(point[0]) + abs(point[1]), point[1], point[0])
+
+    preferred = sorted(truck_aligned, key=order_key)
+    remainder = sorted(translations - truck_aligned, key=order_key)
+    return tuple(dict.fromkeys((*template_aligned, *preferred, *remainder)))
+
+
+def _site_module_is_usable(
+    context: _PlacementSearchContext,
+    module: Mapping[str, PlacedRectangleV1],
+    fixed: Mapping[str, PlacedRectangleV1],
+) -> bool:
+    placed = dict(fixed)
+    for code, rectangle in sorted(module.items()):
+        if code in placed or not _rectangle_is_usable(
+            rectangle,
+            placed,
+            context.boundary,
+            context.boundary_bounds,
+            context.obstacles,
+        ):
+            return False
+        placed[code] = rectangle
+    return True
+
+
+def _sorting_roots_in_bays(
+    context: _PlacementSearchContext, bays: Sequence[BuildableBayV1]
+) -> tuple[PlacedRectangleV1, ...]:
+    roots: dict[tuple[int, ...], PlacedRectangleV1] = {}
+    shapes = _local_dimension_shapes(context, "sorting_packaging_room")
+    ordered_bays = sorted(bays, key=lambda bay: (-bay.area_mm2, bay.bounds_mm, bay.bay_id))
+    for bay in ordered_bays:
+        left, bottom, right, top = bay.bounds_mm
+        for shape in shapes:
+            x_span, y_span = shape[3], shape[4]
+            x_origins = tuple(sorted({left, right - x_span, (left + right - x_span) // 2}))
+            y_origins = tuple(sorted({bottom, top - y_span, (bottom + top - y_span) // 2}))
+            origins = tuple(product(x_origins, y_origins))
+            for x, y in origins:
+                root = _local_rectangle_at("sorting_packaging_room", shape, x, y)
+                if _rectangle_is_usable(
+                    root, {}, context.boundary, context.boundary_bounds, context.obstacles
+                ):
+                    roots.setdefault(root.bounds_mm + (root.rotation_deg,), root)
+    return tuple(roots[key] for key in sorted(roots))
+
+
+def _family_core_face_pairs(
+    layout_family: str, process_axis: str, process_direction: str
+) -> tuple[tuple[str, str], ...]:
+    if layout_family == LINEAR_3_BAND:
+        preferred = {
+            ("X", "POSITIVE"): ("WEST", "EAST"),
+            ("X", "NEGATIVE"): ("EAST", "WEST"),
+            ("Y", "POSITIVE"): ("SOUTH", "NORTH"),
+            ("Y", "NEGATIVE"): ("NORTH", "SOUTH"),
+        }[(process_axis, process_direction)]
+        opposite_pairs = (
+            ("WEST", "EAST"),
+            ("EAST", "WEST"),
+            ("SOUTH", "NORTH"),
+            ("NORTH", "SOUTH"),
+        )
+        one_bend_pairs = tuple(
+            (raw_side, finished_side)
+            for raw_side in ("WEST", "EAST", "SOUTH", "NORTH")
+            for finished_side in ("WEST", "EAST", "SOUTH", "NORTH")
+            if raw_side != finished_side
+            and {raw_side, finished_side} not in ({"WEST", "EAST"}, {"SOUTH", "NORTH"})
+        )
+        return tuple(dict.fromkeys((preferred, *opposite_pairs, *one_bend_pairs)))
+    if layout_family == CENTRAL_PROCESS_WITH_SIDE_BANKS:
+        side_order = ("WEST", "EAST", "SOUTH", "NORTH")
+        orthogonal = tuple(
+            (raw_side, finished_side)
+            for raw_side in side_order
+            for finished_side in side_order
+            if raw_side != finished_side
+            and {raw_side, finished_side} not in ({"WEST", "EAST"}, {"SOUTH", "NORTH"})
+        )
+        return orthogonal
+    if layout_family == LONGITUDINAL_PROCESS_SPINE:
+        return (
+            (("SOUTH", "NORTH"), ("NORTH", "SOUTH"))
+            if process_axis == "X"
+            else (
+                ("WEST", "EAST"),
+                ("EAST", "WEST"),
+            )
+        )
+    return ()
+
+
+def _main_module_source_pairs(
+    context: _PlacementSearchContext,
+    main_compositions: Sequence[LocalBuildingCompositionV1],
+) -> tuple[tuple[dict[str, PlacedRectangleV1], dict[str, PlacedRectangleV1]], ...]:
+    """Return a bounded, cached-by-caller set of independent rigid module pairs."""
+    source_pairs: dict[
+        tuple[
+            tuple[tuple[str, tuple[int, ...]], ...],
+            tuple[tuple[str, tuple[int, ...]], ...],
+        ],
+        tuple[dict[str, PlacedRectangleV1], dict[str, PlacedRectangleV1]],
+    ] = {}
+
+    def add_source_pair(
+        raw_source: Mapping[str, PlacedRectangleV1],
+        finished_source: Mapping[str, PlacedRectangleV1],
+    ) -> None:
+        raw_normalized = _normalize_local_placements(raw_source)
+        finished_normalized = _normalize_local_placements(finished_source)
+        signature = (_module_signature(raw_normalized), _module_signature(finished_normalized))
+        source_pairs.setdefault(signature, (raw_normalized, finished_normalized))
+
+    raw_modules = tuple(
+        row[0]
+        for row in _local_bank_compositions(
+            context,
+            ("raw_fruit_buffer", "primary_precooling_room"),
+            result_limit=12,
+        )
+    )
+    finished_modules = _local_must_chain_module_compositions(
+        context,
+        (
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel",
+        ),
+        result_limit=12,
+    )
+    for raw_module, finished_module in zip(raw_modules[:2], finished_modules[:2], strict=False):
+        add_source_pair(raw_module, finished_module)
+
+    # Local family compositions are a small compatibility source, not the
+    # primary way module geometry is produced.
+    for composition in main_compositions:
+        source = composition.placements()
+        add_source_pair(
+            {code: source[code] for code in ("raw_fruit_buffer", "primary_precooling_room")},
+            {
+                code: source[code]
+                for code in (
+                    "secondary_precooling_room",
+                    "coating_room",
+                    "finished_goods_room",
+                    "shipping_channel",
+                )
+            },
+        )
+        if len(source_pairs) >= 4:
+            break
+    return tuple(source_pairs.values())
+
+
+def _module_main_site_assemblies(
+    context: _PlacementSearchContext,
+    main_compositions: Sequence[LocalBuildingCompositionV1],
+    layout_family: str,
+    process_axis: str,
+    process_direction: str,
+    bays: Sequence[BuildableBayV1],
+    *,
+    limit: int,
+    source_pairs: Sequence[tuple[dict[str, PlacedRectangleV1], dict[str, PlacedRectangleV1]]]
+    | None = None,
+) -> Iterator[dict[str, Any] | None]:
+    """Assemble frozen raw/process/finished modules at exact site-bay events.
+
+    The process core is placed at exact site/bay events first. Raw and finished
+    modules then attach to its authorized MUST faces as frozen units; neither
+    the complete seven-zone composition nor any individual room is translated
+    after module assembly. A module may span adjacent buildable bays.
+    """
+    if limit <= 0:
+        return
+    if not bays:
+        return
+    selected_source_pairs = tuple(
+        source_pairs or _main_module_source_pairs(context, main_compositions)
+    )
+    if not selected_source_pairs:
+        yield None
+        return
+    face_pairs = _family_core_face_pairs(layout_family, process_axis, process_direction)
+    yielded = 0
+    seen_site_geometries: set[tuple[tuple[str, tuple[int, ...]], ...]] = set()
+    root_shapes = _local_dimension_shapes(context, "sorting_packaging_room")
+    roots = _bounded_site_event_rectangles(_sorting_roots_in_bays(context, bays), limit=24)
+    dock_rectangles = _bounded_site_event_rectangles(
+        _shipping_rectangles_for_dock_events(context), limit=12
+    )
+    alignments = ("CENTER", "LOW", "HIGH")
+
+    def dock_anchored_root_options(
+        finished_source: Mapping[str, PlacedRectangleV1],
+    ) -> tuple[tuple[PlacedRectangleV1, dict[str, PlacedRectangleV1], str], ...]:
+        """Derive core origins from real dock events while keeping both modules rigid."""
+        options: dict[
+            tuple[tuple[int, ...], tuple[tuple[str, tuple[int, ...]], ...], str],
+            tuple[PlacedRectangleV1, dict[str, PlacedRectangleV1], str],
+        ] = {}
+        if not dock_rectangles:
+            return ()
+        for finished_module in _site_assembly_module_variants(finished_source)[:8]:
+            source_shipping = finished_module["shipping_channel"]
+            source_bounds = _bounds(source_shipping)
+            source_shape = (
+                source_bounds[2] - source_bounds[0],
+                source_bounds[3] - source_bounds[1],
+                source_shipping.rotation_deg,
+            )
+            for dock_rectangle in dock_rectangles:
+                dock_bounds = _bounds(dock_rectangle)
+                if source_shape != (
+                    dock_bounds[2] - dock_bounds[0],
+                    dock_bounds[3] - dock_bounds[1],
+                    dock_rectangle.rotation_deg,
+                ):
+                    continue
+                translated_finished = _translate_module(
+                    finished_module,
+                    dock_bounds[0] - source_bounds[0],
+                    dock_bounds[1] - source_bounds[1],
+                )
+                secondary = translated_finished["secondary_precooling_room"]
+                for _raw_side, finished_side in face_pairs[:6]:
+                    core_side = _OPPOSITE_SIDE[finished_side]
+                    for shape in root_shapes:
+                        core_width, core_depth = shape[3], shape[4]
+                        for alignment in alignments:
+                            core_x, core_y = _local_adjacent_origin(
+                                secondary, core_width, core_depth, core_side, alignment
+                            )
+                            root = _local_rectangle_at(
+                                "sorting_packaging_room", shape, core_x, core_y
+                            )
+                            combined = {
+                                "sorting_packaging_room": root,
+                                **translated_finished,
+                            }
+                            if _adjacent_side(root, secondary) != finished_side:
+                                continue
+                            if not _site_module_is_usable(context, combined, {}):
+                                continue
+                            signature = (
+                                root.bounds_mm + (root.rotation_deg,),
+                                _module_signature(translated_finished),
+                                finished_side,
+                            )
+                            options.setdefault(
+                                signature, (root, translated_finished, finished_side)
+                            )
+                            if len(options) >= 24:
+                                return tuple(options.values())
+        return tuple(options.values())
+
+    for raw_source, finished_source in selected_source_pairs:
+        yielded_for_source_pair = 0
+        raw_variants = _site_assembly_module_variants(raw_source)
+        finished_variants = _site_assembly_module_variants(finished_source)
+        # Dock-derived placements are attempted first. Each is a finite event
+        # alignment from the authoritative maneuver templates, not a free
+        # coordinate search; the truck validator still decides feasibility.
+        anchored = dock_anchored_root_options(finished_source)
+        root_options: list[
+            tuple[
+                PlacedRectangleV1,
+                dict[str, PlacedRectangleV1] | None,
+                str | None,
+            ]
+        ] = [(*row[:2], row[2]) for row in anchored]
+        root_options.extend((root, None, None) for root in roots)
+        for root, fixed_finished, fixed_finished_side in root_options:
+            for raw_side, finished_side in face_pairs:
+                if fixed_finished is not None and finished_side != fixed_finished_side:
+                    continue
+                for raw_alignment in alignments:
+                    for raw_module in raw_variants:
+                        raw_attached = _module_attached_to_zone(
+                            raw_module,
+                            "primary_precooling_room",
+                            root,
+                            raw_side,
+                            raw_alignment,
+                        )
+                        if raw_attached is None:
+                            continue
+                        core_and_raw = {"sorting_packaging_room": root, **raw_attached}
+                        if not _site_module_is_usable(context, core_and_raw, {}):
+                            continue
+                        finished_choices: tuple[dict[str, PlacedRectangleV1], ...]
+                        if fixed_finished is not None:
+                            finished_choices = (fixed_finished,)
+                        else:
+                            finished_choices = tuple(
+                                attached
+                                for finished_module in finished_variants
+                                if (
+                                    attached := _module_attached_to_zone(
+                                        finished_module,
+                                        "secondary_precooling_room",
+                                        root,
+                                        finished_side,
+                                        alignments[0],
+                                    )
+                                )
+                                is not None
+                            )
+                        for finished_attached in finished_choices:
+                            candidate = {**core_and_raw, **finished_attached}
+                            if (
+                                _adjacent_side(root, candidate["secondary_precooling_room"])
+                                != finished_side
+                            ):
+                                continue
+                            if not _site_module_is_usable(context, candidate, {}):
+                                continue
+                            try:
+                                _validate_main_process_skeleton_graph(context.graph, candidate)
+                            except LayoutAuthorityError:
+                                continue
+                            site_signature = _module_signature(candidate)
+                            if site_signature in seen_site_geometries:
+                                continue
+                            seen_site_geometries.add(site_signature)
+                            yield candidate
+                            yielded += 1
+                            yielded_for_source_pair += 1
+                            break
+                        if yielded_for_source_pair:
+                            break
+                    if yielded_for_source_pair:
+                        break
+                if yielded_for_source_pair:
+                    break
+            if yielded >= limit:
+                return
+            if yielded_for_source_pair:
+                break
+    if yielded == 0:
+        yield None
+
+
+def _personnel_module_variants(
+    context: _PlacementSearchContext,
+) -> tuple[dict[str, PlacedRectangleV1], ...]:
+    return tuple(
+        row[0]
+        for row in _local_bank_compositions(context, ("office", "changing_room"), result_limit=16)
+    )
+
+
+def _support_module_variants(
+    context: _PlacementSearchContext,
+) -> tuple[dict[str, PlacedRectangleV1], ...]:
+    return tuple(
+        row[0]
+        for row in _local_bank_compositions(
+            context,
+            ("packaging_material_storage", "secondary_fruit_buffer", "frozen_fruit_room"),
+            result_limit=24,
+        )
+    )
+
+
+def _module_full_site_assemblies(
+    context: _PlacementSearchContext,
+    main: Mapping[str, PlacedRectangleV1],
+    bays: Sequence[BuildableBayV1],
+    *,
+    limit: int,
+) -> Iterator[dict[str, PlacedRectangleV1] | None]:
+    """Place frozen personnel/support banks around a site-valid main assembly.
+
+    This is one bounded full-building construction attempt. Its finite internal
+    orientation/edge alternatives are checked deterministically until one exact
+    hard-valid assembly is found; failure is emitted once for the scheduler.
+    """
+    shipping = main["shipping_channel"]
+    personnel_modules = tuple(
+        variant
+        for module in _personnel_module_variants(context)
+        for variant in _rigid_module_variants(module)
+    )
+    support_modules = tuple(
+        variant
+        for module in _support_module_variants(context)
+        for variant in _rigid_module_variants(module)
+    )
+    yielded = 0
+    checked_support_origins = 0
+    support_origin_limit = 2048
+    personnel_states: dict[
+        tuple[tuple[str, tuple[int, ...]], ...], dict[str, PlacedRectangleV1]
+    ] = {}
+    for module in personnel_modules:
+        for side in ("WEST", "EAST", "SOUTH", "NORTH"):
+            for alignment in ("CENTER", "LOW", "HIGH"):
+                personnel = _module_attached_to_zone(module, "office", shipping, side, alignment)
+                if personnel is None or not _site_module_is_usable(context, personnel, main):
+                    continue
+                personnel_states.setdefault(_module_signature(personnel), personnel)
+
+    for personnel_signature in sorted(personnel_states):
+        with_personnel = {**main, **personnel_states[personnel_signature]}
+        for module in support_modules:
+            for dx, dy in _module_origins_from_bay_edges(module, bays):
+                checked_support_origins += 1
+                if checked_support_origins > support_origin_limit:
+                    break
+                support = _translate_module(module, dx, dy)
+                if _site_module_is_usable(context, support, with_personnel):
+                    complete = {**with_personnel, **support}
+                    try:
+                        _validate_graph_completeness(context.graph, complete)
+                    except LayoutAuthorityError:
+                        continue
+                    yield complete
+                    yielded += 1
+                    if yielded >= limit:
+                        return
+            if checked_support_origins > support_origin_limit:
+                break
+        if checked_support_origins > support_origin_limit:
+            break
+    if yielded == 0:
+        yield None
+
+
+def _site_local_composition(
+    context: _PlacementSearchContext,
+    layout_family: str,
+    process_axis: str,
+    process_direction: str,
+    placements: Mapping[str, PlacedRectangleV1],
+) -> LocalBuildingCompositionV1:
+    outline, bounds = _local_outline_class(placements)
+    spine_zones = (
+        (
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel",
+        )
+        if layout_family == LONGITUDINAL_PROCESS_SPINE
+        else ()
+    )
+    return LocalBuildingCompositionV1(
+        layout_family=layout_family,
+        process_axis=process_axis,
+        process_direction=process_direction,
+        zone_placements=tuple(
+            LocalZonePlacementV1(code, zone_band_assignment(code), rectangle)
+            for code, rectangle in sorted(placements.items())
+        ),
+        must_interfaces=tuple(pair for pair in context.graph.must_adjacencies),
+        spine_axis=process_axis if spine_zones else None,
+        spine_zone_codes=spine_zones,
+        side_bank_zone_codes=("raw_fruit_buffer", "primary_precooling_room"),
+        outline_class=outline,
+        bounds_mm=bounds,
+    )
+
+
+def _canonical_site_main_skeleton(
+    context: _PlacementSearchContext,
+    placements: Mapping[str, PlacedRectangleV1],
+    *,
+    layout_family: str,
+    process_axis: str,
+    process_direction: str,
+    generation_pattern: str,
+) -> MainProcessSkeletonCandidateV1:
+    _validate_main_process_skeleton_graph(context.graph, placements)
+    classification = classify_main_process_topology_v1(placements)
+    if classification.canonical_owner is None or classification.process_axis is None:
+        raise _error("SKELETON_TOPOLOGY_INVALID")
+    if not _topology_geometry_valid(
+        placements, classification.canonical_owner, classification.process_axis
+    ):
+        raise _error("SKELETON_TOPOLOGY_INVALID")
+    outline, bounds = _local_outline_class(placements)
+    seed = MainProcessSkeletonCandidateV1.create(
+        family=context.structural_composition_family,
+        rectangles=placements,
+        topology=classification.canonical_owner,
+        generation_pattern=generation_pattern,
+        hard_geometry_predicates_passed=(
+            "SITE_CONTAINMENT",
+            "NO_BUILD_CLEAR",
+            "NON_OVERLAP",
+            "MUST_ADJACENCY",
+            "MODULE_INTERNAL_GEOMETRY_FROZEN",
+            "SITE_AWARE_MODULE_ASSEMBLY",
+        ),
+        construction_policy=f"{layout_family}_SITE_PARTITIONED_MODULE_ASSEMBLY_V1",
+        topology_divergence_stage="SITE_MODULE_ASSEMBLY",
+        discovery_topology=context.structural_topology,
+        discovery_family=context.structural_composition_family,
+        building_layout_family=layout_family,
+        building_envelope_family=RECTANGLE if outline == "RECTANGLE" else SIMPLE_L,
+        planned_envelope_bounds_mm=bounds,
+    )
+    return canonicalize_main_process_skeleton_for_evaluation(
+        seed, classification, site_geometry=context.site_body
+    )
 
 
 def _rectangle_shares_entrance_boundary(rectangle: PlacedRectangleV1, entrance: SegmentMM) -> bool:
@@ -1549,6 +2505,29 @@ def _shipping_rectangles_for_dock_events(
                     continue
                 candidates[_bounds(rectangle)] = rectangle
     return tuple(candidates[key] for key in sorted(candidates))
+
+
+def _bounded_site_event_rectangles(
+    rectangles: Sequence[PlacedRectangleV1], *, limit: int = 12
+) -> tuple[PlacedRectangleV1, ...]:
+    """Select a deterministic, spread sample of exact site-event rectangles.
+
+    Site assembly must not expand the Cartesian product of every shipping
+    event, module transform, interface face, and room alignment inside one
+    placement quantum. The selected entries remain exact members of the
+    authoritative event set; this is a bounded construction ordering, not a
+    new truck-feasibility predicate.
+    """
+    if limit <= 0 or not rectangles:
+        return ()
+    ordered = tuple(sorted(rectangles, key=lambda row: (row.bounds_mm, row.rotation_deg)))
+    if len(ordered) <= limit:
+        return ordered
+    if limit == 1:
+        return (ordered[0],)
+    last_index = len(ordered) - 1
+    indices = tuple((index * last_index) // (limit - 1) for index in range(limit))
+    return tuple(ordered[index] for index in indices)
 
 
 def _finished_band_axis_reuse(
@@ -2633,6 +3612,10 @@ class _PlacementSearchStats:
     topology_ownership_duplicates: list[dict[str, Any]] | None = None
     offset_transition_trace: list[dict[str, Any]] | None = None
     constructive_divergence_attempts: list[dict[str, Any]] | None = None
+    site_module_assembly_trace: list[dict[str, Any]] | None = None
+    site_bay_rows: tuple[BuildableBayV1, ...] | None = None
+    site_module_variant_counts: dict[str, int] | None = None
+    family_geometry_collapse_count: int = 0
     topology_classification_failures: list[dict[str, Any]] | None = None
     geometry_evaluation_admissions: list[dict[str, Any]] | None = None
     tail_slot_preflight_rows: list[dict[str, Any]] | None = None
@@ -2663,6 +3646,36 @@ class PlacementCandidateQuantumAdvanceV1:
     work_item: Mapping[str, Any] | None
     search_exhausted: bool
     completed: bool
+
+
+@dataclass(frozen=True)
+class BuildableBayV1:
+    """Exact maximal placement region or connectivity partition from site geometry."""
+
+    bay_id: str
+    bounds_mm: tuple[int, int, int, int]
+    area_mm2: int
+    adjacent_bay_ids: tuple[str, ...] = ()
+    shared_interface_segments: tuple[SegmentMM, ...] = ()
+    boundary_contact_sides: tuple[str, ...] = ()
+    entrance_contact: bool = False
+    truck_entrance_contact: bool = False
+    bay_role: str = "MAXIMAL_PLACEMENT_REGION"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "bay_id": self.bay_id,
+            "bay_role": self.bay_role,
+            "bounds_mm": list(self.bounds_mm),
+            "area_mm2": self.area_mm2,
+            "adjacent_bay_ids": list(self.adjacent_bay_ids),
+            "shared_interface_segments": [
+                [list(segment[0]), list(segment[1])] for segment in self.shared_interface_segments
+            ],
+            "boundary_contact_sides": list(self.boundary_contact_sides),
+            "entrance_contact": self.entrance_contact,
+            "truck_entrance_contact": self.truck_entrance_contact,
+        }
 
 
 def _quantum_checkpoint(stats: _PlacementSearchStats) -> _SearchQuantumYield | None:
@@ -3110,13 +4123,15 @@ def _constructive_main_skeleton_tail_admission(
     context: _PlacementSearchContext,
     stats: _PlacementSearchStats,
     skeleton: MainProcessSkeletonCandidateV1,
+    *,
+    run_truck_preflight: bool = True,
 ) -> bool:
     """Admit only tail-capable, truck-feasible skeletons to completion quota.
 
-    Both checks reuse their existing exact authorities.  A failed candidate is
-    recorded in the geometry registry and the constructive generator may
-    continue to its next shipping/interface branch without spending a tail
-    search or skeleton-completion slot.
+    Both checks reuse their existing exact authorities. Structured module
+    assembly may request the packaging-only stage before placing support and
+    personnel modules, then invoke the full admission after all 12 zones are
+    site-valid. Legacy search keeps the default early truck preflight.
     """
     geometry_hash = skeleton.main_process_skeleton_hash
     registry = context.global_main_process_geometry_registry
@@ -3231,6 +4246,9 @@ def _constructive_main_skeleton_tail_admission(
             }
         )
         return False
+
+    if not run_truck_preflight:
+        return True
 
     cached_truck_preflight = registry_row.get("main_skeleton_truck_preflight")
     if isinstance(cached_truck_preflight, Mapping):
@@ -4164,6 +5182,81 @@ def _local_bank_compositions(
         return max(width_mm, height_mm), width_mm * height_mm, width_mm, height_mm, signature
 
     ordered = sorted(results.values(), key=bank_key)
+    return tuple(ordered[:result_limit])
+
+
+def _local_must_chain_module_compositions(
+    context: _PlacementSearchContext,
+    zone_codes: tuple[str, ...],
+    *,
+    result_limit: int,
+) -> tuple[dict[str, PlacedRectangleV1], ...]:
+    """Synthesize a compact 2D rigid module from an exact directed MUST chain.
+
+    Coordinates are cumulative room extents and positive shared-edge
+    alignments in a local frame.  This is a finite module-layout enumeration,
+    not a site-coordinate search; the completed module is immutable once it is
+    handed to the site assembler.
+    """
+    if not zone_codes or result_limit <= 0:
+        return ()
+    shapes = {code: _local_dimension_shapes(context, code) for code in zone_codes}
+    if any(not shapes[code] for code in zone_codes):
+        return ()
+    frontier: tuple[Mapping[str, PlacedRectangleV1], ...] = tuple(
+        {zone_codes[0]: _local_rectangle_at(zone_codes[0], shape, 0, 0)}
+        for shape in shapes[zone_codes[0]]
+    )
+    frontier = _retain_compact_local_states(
+        frontier,
+        context,
+        "X",
+        min(LOCAL_COMPACT_FRONTIER_LIMIT, max(result_limit * 4, result_limit)),
+    )
+    for index, zone_code in enumerate(zone_codes[1:], start=1):
+        parent_code = zone_codes[index - 1]
+        expanded: dict[tuple[tuple[str, tuple[int, ...]], ...], dict[str, PlacedRectangleV1]] = {}
+        for state in frontier:
+            parent = state[parent_code]
+            for shape in shapes[zone_code]:
+                for side in ("WEST", "EAST", "SOUTH", "NORTH"):
+                    for alignment in ("LOW", "CENTER", "HIGH"):
+                        x_mm, y_mm = _local_adjacent_origin(
+                            parent, shape[3], shape[4], side, alignment
+                        )
+                        rectangle = _local_rectangle_at(zone_code, shape, x_mm, y_mm)
+                        if not rectangles_share_positive_edge(parent, rectangle):
+                            continue
+                        if not _local_rectangles_clear(rectangle, state):
+                            continue
+                        next_state = {**state, zone_code: rectangle}
+                        if not _local_bbox_fits_site_extents(context, next_state):
+                            continue
+                        signature = tuple(
+                            (code, placed.bounds_mm + (placed.rotation_deg,))
+                            for code, placed in sorted(next_state.items())
+                        )
+                        expanded.setdefault(signature, next_state)
+        if not expanded:
+            return ()
+        frontier = _retain_compact_local_states(
+            expanded.values(),
+            context,
+            "X",
+            min(LOCAL_COMPACT_FRONTIER_LIMIT, max(result_limit * 4, result_limit)),
+        )
+    result_rows: dict[tuple[tuple[str, tuple[int, ...]], ...], dict[str, PlacedRectangleV1]] = {}
+    for state in frontier:
+        if all(
+            rectangles_share_positive_edge(state[first], state[second])
+            for first, second in zip(zone_codes, zone_codes[1:], strict=False)
+        ):
+            normalized = _normalize_local_placements(state)
+            result_rows.setdefault(_module_signature(normalized), normalized)
+    ordered = sorted(
+        result_rows.values(),
+        key=lambda row: _local_compactness_key(row, context, "X"),
+    )
     return tuple(ordered[:result_limit])
 
 
@@ -5283,31 +6376,11 @@ def _whole_building_site_placements(
     )
 
     def ordered_pairs(x_values: set[int], y_values: set[int]) -> Iterator[tuple[int, int]]:
-        """Yield the original Manhattan-ordered event pairs without materializing a product."""
-        x_order = sorted(x_values, key=lambda value: (abs(value), value))
-        y_order = sorted(y_values, key=lambda value: (abs(value), value))
-        heap: list[tuple[int, int, int, int, int]] = []
-        for x_index, dx in enumerate(x_order):
-            if y_order:
-                dy = y_order[0]
-                heappush(heap, (abs(dx) + abs(dy), dy, dx, x_index, 0))
-        while heap:
-            _distance, dy, dx, x_index, y_index = heappop(heap)
-            yield dx, dy
-            next_y_index = y_index + 1
-            if next_y_index < len(y_order):
-                next_dy = y_order[next_y_index]
-                next_dx = x_order[x_index]
-                heappush(
-                    heap,
-                    (
-                        abs(next_dx) + abs(next_dy),
-                        next_dy,
-                        next_dx,
-                        x_index,
-                        next_y_index,
-                    ),
-                )
+        """Yield finite event pairs in the former exact Manhattan order."""
+        yield from sorted(
+            product(x_values, y_values),
+            key=lambda point: (abs(point[0]) + abs(point[1]), point[1], point[0]),
+        )
 
     def rectangle_site_pairs(
         local_bounds: tuple[tuple[int, int, int, int], ...],
@@ -5493,15 +6566,21 @@ def _direct_structured_candidates(
     context: _PlacementSearchContext,
     stats: _PlacementSearchStats,
 ) -> Iterator[dict[str, Any] | _SearchQuantumYield]:
-    """Synthesize complete local family compositions, then place rigidly.
-
-    One charged node is one finite family/axis/direction composition attempt.
-    Zone coordinates are generated only from local positive-edge interfaces
-    and band packing; site geometry is consulted only after all twelve zones
-    exist, when the completed building is translated as one rigid body.
-    """
+    """Synthesize immutable functional modules, then assemble them at site bays."""
     reference_axis = context.structural_skeleton.ordering_axis
     alternate_axis = "Y" if reference_axis == "X" else "X"
+    axis_priority = {reference_axis: 0, alternate_axis: 1}
+    boundary_width = context.boundary_bounds[2] - context.boundary_bounds[0]
+    boundary_depth = context.boundary_bounds[3] - context.boundary_bounds[1]
+    axis_order = tuple(
+        sorted(
+            (reference_axis, alternate_axis),
+            key=lambda axis: (
+                -(boundary_width if axis == "X" else boundary_depth),
+                axis_priority[axis],
+            ),
+        )
+    )
     preferred_direction = context.structural_composition_family.dominant_direction
     if preferred_direction not in {"POSITIVE", "NEGATIVE"}:
         # An unresolved site-derived ordering prior is not a local geometry
@@ -5514,12 +6593,159 @@ def _direct_structured_candidates(
     )
     attempt_specs = tuple(
         (layout_family, axis, direction)
-        for axis in (reference_axis, alternate_axis)
+        for axis in axis_order
         for direction in directions
         for layout_family in BASE_LAYOUT_FAMILIES
     )
+    local_synthesizers = {
+        LINEAR_3_BAND: _synthesize_linear_3_band_local,
+        CENTRAL_PROCESS_WITH_SIDE_BANKS: _synthesize_central_side_banks_local,
+        LONGITUDINAL_PROCESS_SPINE: _synthesize_longitudinal_spine_local,
+    }
+    local_compositions_by_family: dict[str, tuple[LocalBuildingCompositionV1, ...]] = {}
+    module_source_pairs_by_family: dict[
+        str,
+        tuple[tuple[dict[str, PlacedRectangleV1], dict[str, PlacedRectangleV1]], ...],
+    ] = {}
     seen_hashes: set[str] = set()
+    seen_full_geometry: set[tuple[tuple[str, tuple[int, ...]], ...]] = set()
+    family_by_geometry: dict[str, str] = {}
     site_bounds = context.boundary_bounds
+    bays = _orthogonal_site_buildable_bays(context)
+    stats.site_bay_rows = bays
+    if stats.site_module_variant_counts is None:
+        stats.site_module_variant_counts = {}
+    stats.site_module_variant_counts["buildable_bays"] = len(bays)
+    stats.site_module_variant_counts["raw_module_variants"] = len(
+        _local_bank_compositions(
+            context, ("raw_fruit_buffer", "primary_precooling_room"), result_limit=24
+        )
+    )
+    stats.site_module_variant_counts["process_core_module_variants"] = len(
+        _local_dimension_shapes(context, "sorting_packaging_room")
+    )
+    stats.site_module_variant_counts["finished_module_variants"] = len(
+        _local_must_chain_module_compositions(
+            context,
+            (
+                "secondary_precooling_room",
+                "coating_room",
+                "finished_goods_room",
+                "shipping_channel",
+            ),
+            result_limit=24,
+        )
+    )
+    stats.site_module_variant_counts["support_module_variants"] = len(
+        _support_module_variants(context)
+    )
+    stats.site_module_variant_counts["personnel_module_variants"] = len(
+        _personnel_module_variants(context)
+    )
+
+    def note_module_attempt(row: dict[str, Any]) -> None:
+        if stats.site_module_assembly_trace is None:
+            stats.site_module_assembly_trace = []
+        stats.site_module_assembly_trace.append(row)
+
+    def make_full_candidate_payload(
+        synthesis: Mapping[str, PlacedRectangleV1],
+        seed: MainProcessSkeletonCandidateV1,
+        *,
+        layout_family: str,
+        process_axis: str,
+        process_direction: str,
+    ) -> dict[str, Any] | None:
+        try:
+            _validate_graph_completeness(context.graph, synthesis)
+            main_placements = {code: synthesis[code] for code in MAIN_PROCESS_ZONE_CODES}
+            _validate_main_process_skeleton_graph(context.graph, main_placements)
+            composition = _site_local_composition(
+                context, layout_family, process_axis, process_direction, synthesis
+            )
+            exact_plan = _structured_plan_from_composition(
+                composition,
+                synthesis,
+                obstacles=context.obstacles,
+                site_bounds=site_bounds,
+            )
+            canonical_skeletons = structural_skeleton_candidates(
+                context.site_body,
+                tuple(context.authorities),
+                zone_authorities=context.authorities,
+                family_candidates=(seed.family,),
+            )
+            canonical_structural_skeleton = next(
+                (
+                    row
+                    for row in canonical_skeletons
+                    if row.family.to_dict() == seed.family.to_dict()
+                ),
+                None,
+            )
+            if canonical_structural_skeleton is None:
+                raise _error("CANONICAL_STRUCTURAL_SKELETON_UNAVAILABLE")
+        except LayoutAuthorityError as error:
+            _record_rejection(stats, error.code)
+            return None
+
+        candidate_context = replace(
+            context,
+            structural_composition_family=seed.family,
+            structural_skeleton=canonical_structural_skeleton,
+            structured_building_plan=exact_plan,
+            structural_topology=seed.canonical_topology_owner,
+        )
+        stats.complete_candidates += 1
+        stats.generated_candidates += len(synthesis)
+        payload = _candidate_payload(
+            synthesis,
+            context.authorities,
+            context.graph,
+            context.site_body,
+            context.source_zone_plan_hash,
+            context.source_p1_handoff_hash,
+            context.source_site_geometry_hash,
+            context.objective_profile_hash,
+            context.access_requirements,
+            context.spatial_relationships,
+            _search_provenance(
+                candidate_context,
+                stats,
+                search_tree_exhausted=False,
+                objective_optimal_within_search_family=False,
+            ),
+        )
+        payload["_structural_generation_flag"] = True
+        payload["_structural_composition_family"] = seed.family.to_dict()
+        payload["_structural_skeleton"] = canonical_structural_skeleton.to_dict()
+        payload["_search_phase"] = STRUCTURED_PHASE
+        payload["_structured_building_plan"] = exact_plan.to_dict()
+        payload["_main_process_skeleton"] = seed.to_evaluation_dict()
+        payload["_r5_skeleton_hash"] = seed.main_process_skeleton_hash
+        payload["_r5_topology"] = seed.canonical_topology_owner
+        payload["_r7_discovery_topology"] = context.structural_topology
+        if stats.skeleton_tail_lifecycle is None:
+            stats.skeleton_tail_lifecycle = []
+        stats.skeleton_tail_lifecycle.append(
+            {
+                "topology": seed.canonical_topology_owner,
+                "skeleton_hash": seed.main_process_skeleton_hash,
+                "layout_family": layout_family,
+                "envelope_family": exact_plan.envelope.family,
+                "local_zone_union_outline_class": composition.outline_class,
+                "construction_mode": "SITE_PARTITIONED_MODULE_ASSEMBLY",
+                "tail_search_started": True,
+                "tail_nodes": 0,
+                "complete_candidate_count": 1,
+                "p2d_reached": False,
+                "p2d_pending": True,
+                "first_failure_stage": None,
+                "first_failure_reason": None,
+            }
+        )
+        return payload
+
     for attempt_index, (layout_family, process_axis, process_direction) in enumerate(attempt_specs):
         if stats.visited_nodes >= context.node_budget:
             stats.node_budget_exhausted = True
@@ -5532,7 +6758,7 @@ def _direct_structured_candidates(
             "layout_family": layout_family,
             "process_axis": process_axis,
             "process_direction": process_direction,
-            "branch": "LOCAL_COMPOSITION_THEN_RIGID_SITE_PLACEMENT",
+            "branch": "LOCAL_MODULES_THEN_SITE_BAY_ASSEMBLY",
             "family_plan_subvariant": attempt_index,
             "band_family": layout_family,
             "placement_node_charged": True,
@@ -5554,6 +6780,10 @@ def _direct_structured_candidates(
             "local_composition_count": 0,
             "full_building_composition_count": 0,
             "site_rigid_placement_count": 0,
+            "site_module_main_attempt_count": 0,
+            "site_module_main_valid_count": 0,
+            "site_module_full_attempt_count": 0,
+            "site_module_full_valid_count": 0,
         }
         if stats.constructive_divergence_attempts is None:
             stats.constructive_divergence_attempts = []
@@ -5567,17 +6797,22 @@ def _direct_structured_candidates(
                 "site_coordinates_used_during_local_synthesis": False,
                 "event_axis_search_used": False,
                 "greedy_room_chain_used": False,
+                "module_site_assembly_used": True,
+                "whole_building_rigid_body_required": False,
+                "site_bay_count": len(bays),
             }
         )
 
-        local_synthesizers = {
-            LINEAR_3_BAND: _synthesize_linear_3_band_local,
-            CENTRAL_PROCESS_WITH_SIDE_BANKS: _synthesize_central_side_banks_local,
-            LONGITUDINAL_PROCESS_SPINE: _synthesize_longitudinal_spine_local,
-        }
-        main_compositions = local_synthesizers[layout_family](
-            context, process_axis, process_direction
-        )
+        main_compositions = local_compositions_by_family.get(layout_family)
+        if main_compositions is None:
+            # Each family derives its immutable room modules once from the
+            # canonical local axis/direction. Site-facing axis and direction
+            # variants are realized later by rigid module transforms and
+            # exact bay-edge alignment, not by repeating room-level synthesis.
+            main_compositions = local_synthesizers[layout_family](
+                context, reference_axis, preferred_direction
+            )
+            local_compositions_by_family[layout_family] = main_compositions
         attempt_row["local_composition_count"] = len(main_compositions)
         if not main_compositions:
             attempt_row.update(
@@ -5592,202 +6827,290 @@ def _direct_structured_candidates(
                 stats.skeleton_construction_attempts = []
             stats.skeleton_construction_attempts.append(attempt_row)
             continue
+        if layout_family not in module_source_pairs_by_family:
+            module_source_pairs_by_family[layout_family] = _main_module_source_pairs(
+                context, main_compositions
+            )
 
         candidate_emitted = False
-        failure_stage = "LOCAL_SUPPORT_PERSONNEL_COMPOSITION"
-        failure_reason = "NO_COMPLETE_MUST_VALID_TWELVE_ZONE_COMPOSITION"
-        for main_index, main_composition in enumerate(main_compositions):
-            full_compositions = _local_full_building_compositions(
-                context,
-                main_composition,
-                result_limit=8,
-            )
-            attempt_row["full_building_composition_count"] = int(
-                attempt_row["full_building_composition_count"]
-            ) + len(full_compositions)
-            if not full_compositions:
-                continue
-            for composition_index, composition in enumerate(full_compositions):
-                local_placements = composition.placements()
-                if set(local_placements) != set(context.graph.nodes):
-                    failure_stage = "LOCAL_FULL_BUILDING_COMPOSITION"
-                    failure_reason = "LOCAL_COMPOSITION_ZONE_SET_INCOMPLETE"
-                    continue
-                site_candidates = _whole_building_site_placements(
-                    context,
-                    local_placements,
-                    result_limit=4,
-                )
-                attempt_row["site_rigid_placement_count"] = int(
-                    attempt_row["site_rigid_placement_count"]
-                ) + len(site_candidates)
-                if not site_candidates:
-                    failure_stage = "SITE_PLACEMENT"
-                    failure_reason = "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES"
-                    continue
+        failure_stage = "SITE_MAIN_MODULE_ASSEMBLY"
+        failure_reason = "NO_SITE_VALID_MAIN_PROCESS_MODULE_ASSEMBLY"
 
-                for translation_index, synthesis in enumerate(site_candidates):
-                    try:
-                        _validate_graph_completeness(context.graph, synthesis)
+        # Keep an exact rigid-body fast path for unobstructed/simple sites only.
+        if not context.obstacles:
+            for main_index, main_composition in enumerate(main_compositions[:2]):
+                for composition in _local_full_building_compositions(
+                    context, main_composition, result_limit=2
+                ):
+                    local = composition.placements()
+                    for translation_index, synthesis in enumerate(
+                        _whole_building_site_placements(context, local, result_limit=1)
+                    ):
                         main_placements = {
                             code: synthesis[code] for code in MAIN_PROCESS_ZONE_CODES
                         }
-                        _validate_main_process_skeleton_graph(context.graph, main_placements)
-                        classification = classify_main_process_topology_v1(main_placements)
-                        if classification.canonical_owner is None:
-                            raise _error("SKELETON_TOPOLOGY_INVALID")
-                        local_zone_union_outline, composition_bounds = _local_outline_class(
-                            synthesis
+                        try:
+                            seed = _canonical_site_main_skeleton(
+                                context,
+                                main_placements,
+                                layout_family=layout_family,
+                                process_axis=process_axis,
+                                process_direction=process_direction,
+                                generation_pattern=(
+                                    f"{layout_family}:RIGID_FAST_PATH:{process_axis}:"
+                                    f"{process_direction}:{main_index}:{translation_index}"
+                                ),
+                            )
+                        except LayoutAuthorityError as error:
+                            failure_stage, failure_reason = "GRAPH_HARD_VALIDATION", error.code
+                            _record_rejection(stats, error.code)
+                            continue
+                        skeleton_hash = seed.main_process_skeleton_hash
+                        if skeleton_hash in seen_hashes:
+                            continue
+                        seen_hashes.add(skeleton_hash)
+                        if not _constructive_main_skeleton_tail_admission(context, stats, seed):
+                            failure_stage, failure_reason = (
+                                "MAIN_SKELETON_PREFLIGHT",
+                                "PREFLIGHT_REJECTED",
+                            )
+                            continue
+                        full_signature = _module_signature(synthesis)
+                        if full_signature in seen_full_geometry:
+                            continue
+                        seen_full_geometry.add(full_signature)
+                        payload = make_full_candidate_payload(
+                            synthesis,
+                            seed,
+                            layout_family=layout_family,
+                            process_axis=process_axis,
+                            process_direction=process_direction,
                         )
-                        discovery_seed = MainProcessSkeletonCandidateV1.create(
-                            family=context.structural_composition_family,
-                            rectangles=main_placements,
-                            topology=classification.canonical_owner,
-                            generation_pattern=(
-                                f"{layout_family}:LOCAL_COMPOSITION:{process_axis}:"
-                                f"{process_direction}:{main_index}:{composition_index}:"
-                                f"TRANSLATION:{translation_index}"
-                            ),
-                            hard_geometry_predicates_passed=(
-                                "SITE_CONTAINMENT",
-                                "NO_BUILD_CLEAR",
-                                "NON_OVERLAP",
-                                "MUST_ADJACENCY",
-                                "LOCAL_FAMILY_COMPOSITION",
-                                "COMPLETE_ZONE_COMPOSITION",
-                            ),
-                            construction_policy=f"{layout_family}_LOCAL_COMPOSITION_V1",
-                            topology_divergence_stage="LOCAL_BAND_COMPOSITION",
-                            discovery_topology=context.structural_topology,
-                            discovery_family=context.structural_composition_family,
-                            building_layout_family=layout_family,
-                            building_envelope_family=RECTANGLE,
-                            planned_envelope_bounds_mm=composition_bounds,
-                        )
-                        seed = canonicalize_main_process_skeleton_for_evaluation(
-                            discovery_seed,
-                            classification,
-                            site_geometry=context.site_body,
-                        )
-                        if not _topology_geometry_valid(
-                            main_placements,
-                            seed.canonical_topology_owner,
-                            seed.dominant_axis,
-                        ):
-                            raise _error("SKELETON_TOPOLOGY_INVALID")
-                    except LayoutAuthorityError as error:
-                        failure_stage = "GRAPH_HARD_VALIDATION"
-                        failure_reason = error.code
-                        _record_rejection(stats, error.code)
-                        continue
+                        if payload is not None:
+                            attempt_row["site_rigid_placement_count"] = (
+                                int(attempt_row["site_rigid_placement_count"]) + 1
+                            )
+                            attempt_row["result"] = "RIGID_FAST_PATH_CANDIDATE_EMITTED"
+                            candidate_emitted = True
+                            yield payload
 
-                    skeleton_hash = seed.main_process_skeleton_hash
-                    attempt_row["skeleton_hash"] = skeleton_hash
-                    attempt_row["result"] = "FULL_12_ZONE_GEOMETRY_SYNTHESIZED"
-                    if skeleton_hash in seen_hashes:
-                        attempt_row["result"] = "DUPLICATE_MAIN_SKELETON"
-                        continue
-                    seen_hashes.add(skeleton_hash)
-                    if stats.constructed_main_skeletons is None:
-                        stats.constructed_main_skeletons = {}
-                    stats.constructed_main_skeletons.setdefault(skeleton_hash, seed)
-                    if stats.skeleton_generation_patterns is None:
-                        stats.skeleton_generation_patterns = {}
-                    stats.skeleton_generation_patterns[seed.generation_pattern] = (
-                        stats.skeleton_generation_patterns.get(seed.generation_pattern, 0) + 1
-                    )
-                    if not _constructive_main_skeleton_tail_admission(context, stats, seed):
-                        attempt_row["result"] = "MAIN_SKELETON_PREFLIGHT_REJECTED"
-                        failure_stage = "TRUCK_PREFLIGHT"
-                        failure_reason = "TAIL_SLOT_OR_TRUCK_PREFLIGHT_REJECTED"
-                        continue
+        module_attempts = 0
+        main_rows = _module_main_site_assemblies(
+            context,
+            main_compositions,
+            layout_family,
+            process_axis,
+            process_direction,
+            bays,
+            limit=4,
+            source_pairs=module_source_pairs_by_family[layout_family],
+        )
+        for main_candidate in main_rows:
+            if stats.visited_nodes >= context.node_budget:
+                stats.node_budget_exhausted = True
+                stats.skeleton_search_truncated = True
+                return
+            stats.visited_nodes += 1
+            stats.construction_node_count += 1
+            module_attempts += 1
+            attempt_row["site_module_main_attempt_count"] = module_attempts
+            stats.current_work_item = {
+                "topology": context.structural_topology,
+                "layout_family": layout_family,
+                "band_family": layout_family,
+                "process_axis": process_axis,
+                "process_direction": process_direction,
+                "branch": "SITE_MODULE_MAIN_ASSEMBLY",
+                "module_attempt": module_attempts,
+                "placement_node_charged": True,
+            }
+            quantum = _quantum_checkpoint(stats)
+            if quantum is not None:
+                yield quantum
+            if main_candidate is None:
+                failure_reason = "MODULE_INTERFACE_OR_EXACT_SITE_PREDICATE_REJECTED"
+                note_module_attempt(
+                    {
+                        "layout_family": layout_family,
+                        "stage": "S1_MAIN_PROCESS",
+                        "result": "REJECTED",
+                        "reason": failure_reason,
+                    }
+                )
+                continue
+            attempt_row["site_module_main_valid_count"] = (
+                int(attempt_row["site_module_main_valid_count"]) + 1
+            )
+            try:
+                seed = _canonical_site_main_skeleton(
+                    context,
+                    main_candidate,
+                    layout_family=layout_family,
+                    process_axis=process_axis,
+                    process_direction=process_direction,
+                    generation_pattern=(
+                        f"{layout_family}:SITE_MODULE_ASSEMBLY:{process_axis}:"
+                        f"{process_direction}:{module_attempts}"
+                    ),
+                )
+            except LayoutAuthorityError as error:
+                failure_stage, failure_reason = "GRAPH_HARD_VALIDATION", error.code
+                _record_rejection(stats, error.code)
+                continue
+            skeleton_hash = seed.main_process_skeleton_hash
+            prior_family = family_by_geometry.get(skeleton_hash)
+            if prior_family is not None and prior_family != layout_family:
+                stats.family_geometry_collapse_count += 1
+                note_module_attempt(
+                    {
+                        "layout_family": layout_family,
+                        "stage": "S1_MAIN_PROCESS",
+                        "result": "FAMILY_GEOMETRY_COLLAPSE",
+                        "main_process_skeleton_hash": skeleton_hash,
+                        "prior_layout_family": prior_family,
+                    }
+                )
+            else:
+                family_by_geometry.setdefault(skeleton_hash, layout_family)
+            if skeleton_hash in seen_hashes:
+                note_module_attempt(
+                    {
+                        "layout_family": layout_family,
+                        "stage": "S1_MAIN_PROCESS",
+                        "result": "DUPLICATE_MAIN_GEOMETRY",
+                        "main_process_skeleton_hash": skeleton_hash,
+                    }
+                )
+                continue
+            seen_hashes.add(skeleton_hash)
+            if stats.constructed_main_skeletons is None:
+                stats.constructed_main_skeletons = {}
+            stats.constructed_main_skeletons.setdefault(skeleton_hash, seed)
+            if stats.skeleton_generation_patterns is None:
+                stats.skeleton_generation_patterns = {}
+            stats.skeleton_generation_patterns[seed.generation_pattern] = (
+                stats.skeleton_generation_patterns.get(seed.generation_pattern, 0) + 1
+            )
+            if not _constructive_main_skeleton_tail_admission(
+                context, stats, seed, run_truck_preflight=False
+            ):
+                failure_stage, failure_reason = "MAIN_SKELETON_PREFLIGHT", "PREFLIGHT_REJECTED"
+                note_module_attempt(
+                    {
+                        "layout_family": layout_family,
+                        "stage": "S1_MAIN_PROCESS",
+                        "result": "PACKAGING_SLOT_PREFLIGHT_REJECTED",
+                        "main_process_skeleton_hash": skeleton_hash,
+                    }
+                )
+                continue
+            note_module_attempt(
+                {
+                    "layout_family": layout_family,
+                    "stage": "S1_MAIN_PROCESS",
+                    "result": "PACKAGING_PREFLIGHT_ADMITTED",
+                    "main_process_skeleton_hash": skeleton_hash,
+                    "raw_interface_side": _adjacent_side(
+                        main_candidate["sorting_packaging_room"],
+                        main_candidate["primary_precooling_room"],
+                    ),
+                    "finished_interface_side": _adjacent_side(
+                        main_candidate["sorting_packaging_room"],
+                        main_candidate["secondary_precooling_room"],
+                    ),
+                    "module_internal_geometry_frozen": True,
+                }
+            )
 
-                    exact_plan = _structured_plan_from_composition(
-                        composition,
-                        synthesis,
-                        obstacles=context.obstacles,
-                        site_bounds=site_bounds,
-                    )
-                    canonical_skeletons = structural_skeleton_candidates(
-                        context.site_body,
-                        tuple(context.authorities),
-                        zone_authorities=context.authorities,
-                        family_candidates=(seed.family,),
-                    )
-                    canonical_structural_skeleton = next(
-                        (
-                            row
-                            for row in canonical_skeletons
-                            if row.family.to_dict() == seed.family.to_dict()
-                        ),
-                        None,
-                    )
-                    if canonical_structural_skeleton is None:
-                        failure_stage = "GRAPH_HARD_VALIDATION"
-                        failure_reason = "CANONICAL_STRUCTURAL_SKELETON_UNAVAILABLE"
-                        attempt_row["result"] = failure_reason
-                        continue
-
-                    candidate_context = replace(
-                        context,
-                        structural_composition_family=seed.family,
-                        structural_skeleton=canonical_structural_skeleton,
-                        structured_building_plan=exact_plan,
-                        structural_topology=seed.canonical_topology_owner,
-                    )
-                    stats.complete_candidates += 1
-                    stats.generated_candidates += len(synthesis)
-                    payload = _candidate_payload(
-                        synthesis,
-                        context.authorities,
-                        context.graph,
-                        context.site_body,
-                        context.source_zone_plan_hash,
-                        context.source_p1_handoff_hash,
-                        context.source_site_geometry_hash,
-                        context.objective_profile_hash,
-                        context.access_requirements,
-                        context.spatial_relationships,
-                        _search_provenance(
-                            candidate_context,
-                            stats,
-                            search_tree_exhausted=False,
-                            objective_optimal_within_search_family=False,
-                        ),
-                    )
-                    payload["_structural_generation_flag"] = True
-                    payload["_structural_composition_family"] = seed.family.to_dict()
-                    payload["_structural_skeleton"] = canonical_structural_skeleton.to_dict()
-                    payload["_search_phase"] = STRUCTURED_PHASE
-                    payload["_structured_building_plan"] = exact_plan.to_dict()
-                    payload["_main_process_skeleton"] = seed.to_evaluation_dict()
-                    payload["_r5_skeleton_hash"] = skeleton_hash
-                    payload["_r5_topology"] = seed.canonical_topology_owner
-                    payload["_r7_discovery_topology"] = context.structural_topology
-                    if stats.skeleton_tail_lifecycle is None:
-                        stats.skeleton_tail_lifecycle = []
-                    stats.skeleton_tail_lifecycle.append(
+            full_attempts = 0
+            for complete in _module_full_site_assemblies(context, main_candidate, bays, limit=1):
+                if stats.visited_nodes >= context.node_budget:
+                    stats.node_budget_exhausted = True
+                    stats.skeleton_search_truncated = True
+                    return
+                stats.visited_nodes += 1
+                stats.construction_node_count += 1
+                full_attempts += 1
+                attempt_row["site_module_full_attempt_count"] = (
+                    int(attempt_row["site_module_full_attempt_count"]) + 1
+                )
+                stats.current_work_item = {
+                    "topology": context.structural_topology,
+                    "layout_family": layout_family,
+                    "band_family": layout_family,
+                    "skeleton_hash": skeleton_hash,
+                    "branch": "SITE_MODULE_TAIL_ASSEMBLY",
+                    "module_attempt": full_attempts,
+                    "placement_node_charged": True,
+                }
+                quantum = _quantum_checkpoint(stats)
+                if quantum is not None:
+                    yield quantum
+                if complete is None:
+                    note_module_attempt(
                         {
-                            "topology": seed.canonical_topology_owner,
-                            "skeleton_hash": skeleton_hash,
                             "layout_family": layout_family,
-                            "envelope_family": RECTANGLE,
-                            "local_zone_union_outline_class": local_zone_union_outline,
-                            "construction_mode": "LOCAL_COMPOSITION_FULL_12_ZONE",
-                            "tail_search_started": True,
-                            "tail_nodes": 0,
-                            "complete_candidate_count": 1,
-                            "p2d_reached": False,
-                            "p2d_pending": True,
-                            "first_failure_stage": None,
-                            "first_failure_reason": None,
+                            "stage": "S2_SUPPORT_PERSONNEL",
+                            "result": "REJECTED",
+                            "main_process_skeleton_hash": skeleton_hash,
+                            "reason": "MODULE_SITE_PREDICATE_OR_EXISTING_MUST_REJECTED",
                         }
                     )
-                    attempt_row["result"] = "FULL_12_ZONE_CANDIDATE_EMITTED"
-                    candidate_emitted = True
-                    yield payload
-        if not candidate_emitted and attempt_row["result"] != "MAIN_SKELETON_PREFLIGHT_REJECTED":
-            attempt_row["result"] = "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE"
+                    failure_stage = "SITE_TAIL_MODULE_ASSEMBLY"
+                    failure_reason = "NO_SITE_VALID_SUPPORT_PERSONNEL_MODULE_COMBINATION"
+                    continue
+                signature = _module_signature(complete)
+                if signature in seen_full_geometry:
+                    continue
+                seen_full_geometry.add(signature)
+                attempt_row["site_module_full_valid_count"] = (
+                    int(attempt_row["site_module_full_valid_count"]) + 1
+                )
+                note_module_attempt(
+                    {
+                        "layout_family": layout_family,
+                        "stage": "S2_SUPPORT_PERSONNEL",
+                        "result": "TWELVE_ZONE_SITE_ASSEMBLY_COMPLETE",
+                        "main_process_skeleton_hash": skeleton_hash,
+                        "full_geometry_signature": repr(signature),
+                        "module_internal_geometry_frozen": True,
+                    }
+                )
+                if not _constructive_main_skeleton_tail_admission(context, stats, seed):
+                    failure_stage, failure_reason = (
+                        "MAIN_SKELETON_TRUCK_PREFLIGHT",
+                        "TRUCK_PREFLIGHT_REJECTED_AFTER_12_ZONE_ASSEMBLY",
+                    )
+                    note_module_attempt(
+                        {
+                            "layout_family": layout_family,
+                            "stage": "TRUCK_PREFLIGHT",
+                            "result": "REJECTED",
+                            "main_process_skeleton_hash": skeleton_hash,
+                            "full_geometry_signature": repr(signature),
+                            "failure_reason": failure_reason,
+                        }
+                    )
+                    continue
+                payload = make_full_candidate_payload(
+                    complete,
+                    seed,
+                    layout_family=layout_family,
+                    process_axis=process_axis,
+                    process_direction=process_direction,
+                )
+                if payload is None:
+                    failure_stage, failure_reason = (
+                        "GRAPH_HARD_VALIDATION",
+                        "FULL_CANDIDATE_PLAN_REJECTED",
+                    )
+                    continue
+                attempt_row["result"] = "FULL_12_ZONE_SITE_MODULE_CANDIDATE_EMITTED"
+                candidate_emitted = True
+                yield payload
+
+        if not candidate_emitted:
+            attempt_row["result"] = "SITE_MODULE_SYNTHESIS_DID_NOT_EMIT_COMPLETE_CANDIDATE"
             attempt_row["first_failure_stage"] = failure_stage
             attempt_row["rejection_reason"] = failure_reason
             _record_rejection(stats, failure_reason)
@@ -8350,6 +9673,31 @@ class PlacementCandidateEnumerationV1:
             "construction_node_count": self._stats.construction_node_count,
             "tail_node_count": sum((self._stats.tail_nodes_by_skeleton or {}).values()),
             "continuation_work_item": dict(self._stats.current_work_item or {}),
+            "site_bay_decomposition": {
+                "identity": "orthogonal-site-buildable-bays@1.0.0",
+                "status": "EXACT_ORTHOGONAL"
+                if self._stats.site_bay_rows
+                else "UNAVAILABLE_OR_EMPTY",
+                "bay_count": len(self._stats.site_bay_rows or ()),
+                "adjacency_count": sum(
+                    len(bay.adjacent_bay_ids) for bay in self._stats.site_bay_rows or ()
+                )
+                // 2,
+                "bays": [bay.to_dict() for bay in self._stats.site_bay_rows or ()],
+            },
+            "site_module_assembly": {
+                "identity": "site-partitioned-module-placement@1.0.0",
+                "module_internal_geometry_rigid": True,
+                "module_level_site_adaptation": True,
+                "individual_room_site_movement": False,
+                "local_module_synthesis_uses_site_events": False,
+                "module_site_assembly_uses_site_events": True,
+                "variant_counts": dict(
+                    sorted((self._stats.site_module_variant_counts or {}).items())
+                ),
+                "family_geometry_collapse_count": self._stats.family_geometry_collapse_count,
+                "attempts": list(self._stats.site_module_assembly_trace or []),
+            },
             "_r6_topology_ownership_duplicates": list(
                 self._stats.topology_ownership_duplicates or []
             ),
