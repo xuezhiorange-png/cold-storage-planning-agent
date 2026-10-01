@@ -21,7 +21,7 @@ Evidence was generated from two unmocked Tool 7 executions using `backend/tests/
 
 | Measure | Result |
 |---|---:|
-| Exact orthogonal bay records | 13 (6 maximal-placement regions and 7 connectivity partition regions) |
+| Exact orthogonal bay records | 13 (7 maximal-placement regions and 6 connectivity partition regions) |
 | Bay adjacency relationships | 15 |
 | RAW module variants | 16 |
 | PROCESS_CORE module variants | 2 |
