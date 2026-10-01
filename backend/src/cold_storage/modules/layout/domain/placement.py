@@ -15,7 +15,7 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from decimal import Context, Decimal, InvalidOperation, localcontext
 from fractions import Fraction
-from itertools import product
+from itertools import islice, product
 from math import isqrt
 from typing import Any, Final, cast
 
@@ -113,6 +113,7 @@ PLACEMENT_RESULT_IDENTITY: Final = "site_constrained_factory_layout@1.0.0"
 SCHEMA_VERSION: Final = "1.0.0"
 SEARCH_PROFILE_IDENTITY: Final = "deterministic-placement-search@1.0.0"
 GRID_MM: Final = 1
+LOCAL_COMPOSITION_SHAPE_VARIANT_LIMIT: Final = 128
 DEFAULT_NODE_BUDGET: Final = 50_000
 MAX_OPTIONS_PER_ZONE: Final = 48
 STRUCTURED_MAX_OPTIONS_PER_ZONE: Final = 6
@@ -3510,6 +3511,20 @@ def _local_family_interface_patterns(
     )
 
 
+def _bounded_local_shape_rows(
+    shape_options: Sequence[Sequence[tuple[int, int, int, int, int]]],
+) -> tuple[tuple[tuple[int, int, int, int, int], ...], ...]:
+    """Return a deterministic finite sample of authoritative shape combinations.
+
+    The 128-row cap covers the binary 0/90 orientation combinations of the
+    seven main-process zones when each has one authoritative dimension shape.
+    Flexible-dimension alternatives are an additional search slice, not a new
+    engineering rule. The cap prevents one family attempt from expanding the
+    full Cartesian product before yielding to the global placement scheduler.
+    """
+    return tuple(islice(product(*shape_options), LOCAL_COMPOSITION_SHAPE_VARIANT_LIMIT))
+
+
 def _local_main_process_compositions(
     context: _PlacementSearchContext,
     layout_family: str,
@@ -3540,10 +3555,12 @@ def _local_main_process_compositions(
     alignments = ("LOW", "CENTER", "HIGH")
     patterns = _local_family_interface_patterns(layout_family, process_axis, process_direction)
     results: dict[tuple[tuple[str, tuple[int, ...]], ...], LocalBuildingCompositionV1] = {}
-    # Finite shape and interface combinations are sorted before construction;
-    # the attempt cap counts complete local structures, not coordinate probes.
+    shape_rows = _bounded_local_shape_rows(tuple(shapes[code] for code in main_codes))
+    # Local compositions enumerate only this deterministic, bounded set of
+    # dimension/orientation structures before returning control to the
+    # placement scheduler. Coordinates still come only from local interfaces.
     for pattern_index, (raw_side, secondary_side, downstream_sides) in enumerate(patterns):
-        for shape_row in product(*(shapes[code] for code in main_codes)):
+        for shape_row in shape_rows:
             shape_by_zone = dict(zip(main_codes, shape_row, strict=True))
             sort_shape = shape_by_zone["sorting_packaging_room"]
             sorting = _local_rectangle_at("sorting_packaging_room", sort_shape, 0, 0)

@@ -78,6 +78,18 @@ def test_support_and_personnel_are_jointly_composed_before_envelope_derivation()
     assert len(plan.zone_placements) == len(context.graph.nodes)
 
 
+def test_local_shape_combinations_are_finite_and_deterministic() -> None:
+    options = tuple((width, width + 1, 0, width, width + 1) for width in (10, 20, 30))
+    shape_options = tuple(options for _ in placement.MAIN_PROCESS_ZONE_CODES)
+
+    first = placement._bounded_local_shape_rows(shape_options)
+    second = placement._bounded_local_shape_rows(shape_options)
+
+    assert first == second
+    assert len(first) == placement.LOCAL_COMPOSITION_SHAPE_VARIANT_LIMIT
+    assert len(first) < 3 ** len(shape_options)
+
+
 def test_structured_candidate_stream_does_not_call_site_first_or_room_chain_generators() -> None:
     source = Path(placement.__file__).read_text(encoding="utf-8")
     tree = ast.parse(source)
