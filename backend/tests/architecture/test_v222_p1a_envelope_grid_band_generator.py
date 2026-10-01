@@ -28,9 +28,6 @@ def test_structured_runtime_directly_synthesizes_family_geometry_without_event_a
     context = _function(tree, "_validated_search_context")
     walk = _function(tree, "_walk_complete_candidate_payloads")
     synthesizer = _function(tree, "_direct_structured_candidates")
-    band_packer = _function(tree, "synthesize_band_geometry")
-    family_packer = _function(tree, "_family_main_band_packings")
-    tail_packer = _function(tree, "_direct_family_tail_zones")
 
     assert "construct_structured_building_plan_v1" in _called_names(context)
     assert "structured_building_plan" in ast.unparse(context)
@@ -38,33 +35,26 @@ def test_structured_runtime_directly_synthesizes_family_geometry_without_event_a
     assert "_direct_structured_candidates" in _called_names(walk)
     assert walk_source.index("_direct_structured_candidates") < walk_source.index("def visit")
     assert {
-        "construct_structured_building_plan_v1",
-        "_synthesize_family_main_process",
-        "_direct_family_tail_zones",
+        "_local_full_building_compositions",
+        "_whole_building_site_placements",
         "_constructive_main_skeleton_tail_admission",
+        "_structured_plan_from_composition",
         "_candidate_payload",
     } <= _called_names(synthesizer)
-    packer_source = ast.unparse(band_packer)
-    assert "product" in _called_names(band_packer)
-    assert "cumulative" in ast.get_docstring(band_packer).lower()
-    assert "plan.admits" in packer_source
-    assert "_geometry_rejection_reason" in packer_source
-    assert "_candidate_options" not in packer_source
-    assert "event_x" not in packer_source
-    assert "event_y" not in packer_source
+    synthesizer_source = ast.unparse(synthesizer)
+    assert all(
+        fragment in synthesizer_source
+        for fragment in (
+            "LINEAR_3_BAND: _synthesize_linear_3_band_local",
+            "CENTRAL_PROCESS_WITH_SIDE_BANKS: _synthesize_central_side_banks_local",
+            "LONGITUDINAL_PROCESS_SPINE: _synthesize_longitudinal_spine_local",
+        )
+    )
+    assert "event_x" not in synthesizer_source
+    assert "event_y" not in synthesizer_source
+    assert "_candidate_options" not in _called_names(synthesizer)
     assert "_direct_adjacent_rectangle" not in _called_names(synthesizer)
-    assert "_direct_family_main_process" not in _called_names(synthesizer)
-    assert {
-        "synthesize_band_geometry",
-        "_validate_main_process_skeleton_graph",
-    } <= _called_names(family_packer)
-    assert "_validate_graph_completeness" in _called_names(tail_packer)
-    assert "synthesize_band_geometry" in _called_names(tail_packer)
-    assert {
-        "_synthesize_linear_3_band_main_process",
-        "_synthesize_central_process_with_side_banks_main_process",
-        "_synthesize_longitudinal_process_spine_main_process",
-    } <= {node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
+    assert "_walk_complete_candidate_payloads" not in _called_names(synthesizer)
     assert "STRUCTURED_PHASE" in walk_source
     assert "GENERAL_FALLBACK_PHASE" in source
 
@@ -91,6 +81,9 @@ def test_structured_geometry_gates_do_not_add_non_authoritative_closure_rules() 
     source = PLACEMENT.read_text(encoding="utf-8")
     tree = ast.parse(source)
     synthesizer = _function(tree, "_direct_structured_candidates")
+    main_compositions = _function(tree, "_local_main_process_compositions")
+    full_compositions = _function(tree, "_local_full_building_compositions")
+    planned_frame = _function(tree, "_structured_plan_from_composition")
     family_packer = _function(tree, "_family_main_band_packings")
     visit_functions = [
         node
@@ -108,6 +101,13 @@ def test_structured_geometry_gates_do_not_add_non_authoritative_closure_rules() 
     assert "_direct_envelope_closure_rejection" not in source
     assert "rectangles_share_positive_edge" not in ast.unparse(family_packer)
     assert "rectangles_share_positive_edge" not in ast.unparse(synthesizer)
+    for composition in (main_compositions, full_compositions):
+        composition_source = ast.unparse(composition)
+        assert "_local_outline_class" in composition_source
+        assert 'outline not in {"RECTANGLE", "SIMPLE_L"}' not in composition_source
+    planned_frame_source = ast.unparse(planned_frame)
+    assert "PLANNED_COMPOSITION_FRAME_NOT_FOOTPRINT_AUTHORITY" in planned_frame_source
+    assert 'outline not in {"RECTANGLE", "SIMPLE_L"}' not in planned_frame_source
 
 
 def test_domain_model_explicitly_encodes_envelope_grid_bands_and_zone_assignment() -> None:

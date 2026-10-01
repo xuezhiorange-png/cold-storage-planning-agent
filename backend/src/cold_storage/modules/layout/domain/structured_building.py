@@ -144,7 +144,7 @@ def _bounds_covered_by_regions(bounds: BoundsMM, regions: Sequence[BoundsMM]) ->
 
 @dataclass(frozen=True)
 class BuildingEnvelopeV1:
-    """A program-derived planned building envelope, distinct from site bounds."""
+    """A planned composition frame; never the authoritative P2D footprint."""
 
     family: str
     bounds_mm: BoundsMM
@@ -152,6 +152,7 @@ class BuildingEnvelopeV1:
     hard_obstacles_mm: tuple[PolygonMM, ...]
     site_bounds_mm: BoundsMM
     extension_reason: str | None = None
+    source_zone_union_outline_class: str = "UNAVAILABLE"
 
     def contains(self, rectangle: PlacedRectangleV1) -> bool:
         return _bounds_covered_by_regions(rectangle.bounds_mm, self.components_mm)
@@ -159,9 +160,13 @@ class BuildingEnvelopeV1:
     def to_dict(self) -> dict[str, object]:
         return {
             "identity": "building-envelope@1.0.0",
+            "role": "PLANNED_COMPOSITION_ENVELOPE",
+            "purpose": "GENERATION_AID",
+            "engineering_building_footprint_authority": False,
             "family": self.family,
             "bounds_mm": list(self.bounds_mm),
             "components_mm": [list(row) for row in self.components_mm],
+            "local_zone_union_outline_class": self.source_zone_union_outline_class,
             "hard_obstacle_count": len(self.hard_obstacles_mm),
             "site_bounds_mm": list(self.site_bounds_mm),
             "extension_reason": self.extension_reason,
@@ -319,6 +324,12 @@ class LocalBuildingCompositionV1:
             "process_axis": self.process_axis,
             "process_direction": self.process_direction,
             "outline_class": self.outline_class,
+            "local_zone_union_outline_class": self.outline_class,
+            "planned_composition_envelope": {
+                "role": "PLANNED_COMPOSITION_ENVELOPE",
+                "bounds_mm": list(self.bounds_mm),
+                "engineering_building_footprint_authority": False,
+            },
             "bounds_mm": list(self.bounds_mm),
             "must_interfaces": [list(pair) for pair in self.must_interfaces],
             "spine_axis": self.spine_axis,

@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 from cold_storage.modules.layout.domain import placement
 from cold_storage.modules.layout.domain.adjacency import process_graph
@@ -14,6 +15,7 @@ from cold_storage.modules.layout.domain.structured_building import (
     RECTANGLE,
     SIMPLE_L,
 )
+from tests.evaluation.r2_local_composition_first import _p2d_footprint_regularity_facts
 
 
 def _square_authorities() -> dict[str, dict[str, object]]:
@@ -28,7 +30,7 @@ def _square_authorities() -> dict[str, dict[str, object]]:
     }
 
 
-def _local_context() -> SimpleNamespace:
+def _local_context() -> Any:
     return SimpleNamespace(authorities=_square_authorities(), graph=process_graph())
 
 
@@ -48,10 +50,17 @@ def test_each_family_uses_a_finite_local_composition_and_exact_main_must_chain()
             rectangles = composition.placements()
             assert set(rectangles) == set(placement.MAIN_PROCESS_ZONE_CODES)
             assert composition.layout_family == family
-            assert composition.outline_class in {RECTANGLE, SIMPLE_L}
+            assert composition.outline_class in {RECTANGLE, SIMPLE_L, "STAIR_STEP"}
             assert min(rectangle.bounds_mm[0] for rectangle in rectangles.values()) == 0
             assert min(rectangle.bounds_mm[1] for rectangle in rectangles.values()) == 0
             placement._validate_main_process_skeleton_graph(context.graph, rectangles)
+            for code, rectangle in rectangles.items():
+                others = {
+                    other_code: other
+                    for other_code, other in rectangles.items()
+                    if other_code != code
+                }
+                assert placement._local_rectangles_clear(rectangle, others)
 
 
 def test_support_and_personnel_are_jointly_composed_before_envelope_derivation() -> None:
@@ -63,7 +72,7 @@ def test_support_and_personnel_are_jointly_composed_before_envelope_derivation()
     composition = complete[0]
     rectangles = composition.placements()
     assert set(rectangles) == set(context.graph.nodes)
-    assert composition.outline_class in {RECTANGLE, SIMPLE_L}
+    assert composition.outline_class in {RECTANGLE, SIMPLE_L, "STAIR_STEP"}
     placement._validate_graph_completeness(context.graph, rectangles)
 
     plan = placement._structured_plan_from_composition(
@@ -72,9 +81,62 @@ def test_support_and_personnel_are_jointly_composed_before_envelope_derivation()
         obstacles=(),
         site_bounds=(-100_000, -100_000, 100_000, 100_000),
     )
-    assert plan.envelope.family == composition.outline_class
+    assert plan.envelope.family == RECTANGLE
     assert plan.envelope.bounds_mm == composition.bounds_mm
     assert plan.envelope.bounds_mm != plan.envelope.site_bounds_mm
+    assert plan.envelope.source_zone_union_outline_class == composition.outline_class
+    assert plan.envelope.to_dict()["role"] == "PLANNED_COMPOSITION_ENVELOPE"
+    assert plan.envelope.to_dict()["engineering_building_footprint_authority"] is False
+    assert plan.envelope.components_mm == (composition.bounds_mm,)
+    assert len(plan.zone_placements) == len(context.graph.nodes)
+
+
+def test_stair_step_zone_union_is_diagnostic_and_not_a_planned_envelope_gate() -> None:
+    context = _local_context()
+    positions_mm = {
+        "raw_fruit_buffer": (0, 0),
+        "primary_precooling_room": (10000, 0),
+        "sorting_packaging_room": (20000, 0),
+        "secondary_precooling_room": (20000, 10000),
+        "coating_room": (30000, 10000),
+        "finished_goods_room": (40000, 10000),
+        "shipping_channel": (50000, 10000),
+        "packaging_material_storage": (0, 20000),
+        "secondary_fruit_buffer": (10000, 20000),
+        "frozen_fruit_room": (20000, 20000),
+        "office": (60000, 10000),
+        "changing_room": (70000, 10000),
+    }
+    placements = {
+        code: placement._rectangle_from_mm(code, *positions_mm[code], 10000, 10000, 0)
+        for code in context.graph.nodes
+    }
+    placement._validate_graph_completeness(context.graph, placements)
+    assert placement._local_outline_class(placements)[0] == "STAIR_STEP"
+
+    composition = placement.LocalBuildingCompositionV1(
+        LINEAR_3_BAND,
+        "X",
+        "POSITIVE",
+        tuple(
+            placement.LocalZonePlacementV1(code, placement.zone_band_assignment(code), rectangle)
+            for code, rectangle in sorted(placements.items())
+        ),
+        tuple(context.graph.must_adjacencies),
+        outline_class="STAIR_STEP",
+        bounds_mm=(0, 0, 80000, 30000),
+    )
+    plan = placement._structured_plan_from_composition(
+        composition,
+        placements,
+        obstacles=(),
+        site_bounds=(-10000, -10000, 10000, 10000),
+    )
+
+    assert plan.envelope.bounds_mm == (0, 0, 80000, 30000)
+    void_probe = placement._rectangle_from_mm("void_probe", 40000, 20000, 10000, 10000, 0)
+    assert plan.envelope.contains(void_probe)
+    assert plan.envelope.source_zone_union_outline_class == "STAIR_STEP"
     assert len(plan.zone_placements) == len(context.graph.nodes)
 
 
@@ -88,6 +150,60 @@ def test_local_shape_combinations_are_finite_and_deterministic() -> None:
     assert first == second
     assert len(first) == placement.LOCAL_COMPOSITION_SHAPE_VARIANT_LIMIT
     assert len(first) < 3 ** len(shape_options)
+
+
+def test_visual_regularity_uses_authoritative_p2d_footprint_not_zone_union() -> None:
+    candidate = {
+        "zones": [
+            {
+                "zone_code": "a",
+                "x": "0",
+                "y": "0",
+                "width_m": "1",
+                "depth_m": "1",
+                "rotation_deg": 0,
+            },
+            {
+                "zone_code": "b",
+                "x": "1",
+                "y": "0",
+                "width_m": "1",
+                "depth_m": "1",
+                "rotation_deg": 0,
+            },
+            {
+                "zone_code": "c",
+                "x": "1",
+                "y": "1",
+                "width_m": "1",
+                "depth_m": "1",
+                "rotation_deg": 0,
+            },
+        ]
+    }
+    p2d_result = {
+        "building_footprint": {
+            "source": "EXACT_ZONE_RECTANGLES_PLUS_ACCESS_CORRIDOR_ENVELOPES",
+            "footprint": {
+                "points": [
+                    {"x": 0, "y": 0},
+                    {"x": 2, "y": 0},
+                    {"x": 2, "y": 2},
+                    {"x": 0, "y": 2},
+                    {"x": 0, "y": 0},
+                ]
+            },
+        }
+    }
+
+    facts = _p2d_footprint_regularity_facts(candidate, p2d_result)
+
+    assert facts["local_zone_union_outline_class"] == SIMPLE_L
+    assert facts["p2d_building_footprint_outline_class"] == RECTANGLE
+    assert facts["visual_regularity_pass"] is True
+    assert facts["p2d_building_footprint_source"] == (
+        "EXACT_ZONE_RECTANGLES_PLUS_ACCESS_CORRIDOR_ENVELOPES"
+    )
 
 
 def test_structured_candidate_stream_does_not_call_site_first_or_room_chain_generators() -> None:

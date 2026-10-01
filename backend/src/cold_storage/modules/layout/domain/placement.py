@@ -20,7 +20,6 @@ from math import isqrt
 from typing import Any, Final, cast
 
 from cold_storage.modules.layout.domain.adjacency import AdjacencyGraphV1
-from cold_storage.modules.layout.domain.building_footprint import derive_building_footprint
 from cold_storage.modules.layout.domain.dimensioning import (
     LayoutAuthorityError,
     canonical_hash,
@@ -50,7 +49,6 @@ from cold_storage.modules.layout.domain.site_geometry import (
     SegmentMM,
     normalize_polygon,
     normalize_segment,
-    polygon_to_dict,
     rectangle_inside_polygon,
     rectangle_intersects_closed_obstacle,
     rectangles_overlap,
@@ -76,7 +74,6 @@ from cold_storage.modules.layout.domain.structural_composition import (
     structural_anchor_references,
     structural_skeleton_candidates,
 )
-from cold_storage.modules.layout.domain.structural_quality import _outline_class
 from cold_storage.modules.layout.domain.structured_building import (
     BASE_LAYOUT_FAMILIES,
     CENTRAL_PROCESS_WITH_SIDE_BANKS,
@@ -2434,30 +2431,6 @@ def _candidate_payload(
     return candidate
 
 
-def _building_envelope_closure_rejection(
-    context: _PlacementSearchContext,
-    placed: Mapping[str, PlacedRectangleV1],
-) -> str | None:
-    """Require every structured zone and its exact room union to close cleanly."""
-    plan = context.structured_building_plan
-    if plan is None:
-        return "BUILDING_ENVELOPE_CLOSURE_PLAN_UNAVAILABLE"
-    try:
-        plan.with_placements(placed)
-    except LayoutAuthorityError:
-        return "BUILDING_ENVELOPE_CLOSURE_BAND_OR_CONTAINMENT_FAIL"
-    try:
-        footprint = derive_building_footprint(placed, ())
-    except LayoutAuthorityError:
-        return "BUILDING_ENVELOPE_CLOSURE_DISCONNECTED_OR_AMBIGUOUS"
-    outline, _rank = _outline_class(
-        {"building_footprint": {"footprint": polygon_to_dict(footprint)}}
-    )
-    if outline not in {"RECTANGLE", "SIMPLE_L"}:
-        return f"BUILDING_ENVELOPE_CLOSURE_OUTLINE_{outline}"
-    return None
-
-
 def _is_better(
     candidate: Mapping[str, Any], best: Mapping[str, Any] | None, preferred_loading_side: str
 ) -> bool:
@@ -3643,9 +3616,6 @@ def _local_main_process_compositions(
                             _validate_main_process_skeleton_graph(context.graph, placed)
                         except LayoutAuthorityError:
                             continue
-                        outline, bounds = _local_outline_class(placed)
-                        if outline not in {"RECTANGLE", "SIMPLE_L"}:
-                            continue
                         normalized = _normalize_local_placements(placed)
                         outline, bounds = _local_outline_class(normalized)
                         signature = tuple(
@@ -3874,10 +3844,7 @@ def _local_full_building_compositions(
                                     continue
                                 try:
                                     _validate_graph_completeness(context.graph, complete)
-                                    outline, bounds = _local_outline_class(complete)
                                 except LayoutAuthorityError:
-                                    continue
-                                if outline not in {"RECTANGLE", "SIMPLE_L"}:
                                     continue
                                 normalized = _normalize_local_placements(complete)
                                 outline, bounds = _local_outline_class(normalized)
@@ -3921,18 +3888,16 @@ def _structured_plan_from_composition(
     obstacles: tuple[PolygonMM, ...],
     site_bounds: tuple[int, int, int, int],
 ) -> StructuredBuildingSkeletonV1:
-    """Derive envelope and bands only after every zone rectangle is fixed."""
+    """Derive a non-authoritative planned frame and bands from fixed geometry."""
     outline, bounds = _local_outline_class(placements)
-    if outline not in {"RECTANGLE", "SIMPLE_L"}:
-        raise _error("STRUCTURED_LOCAL_OUTLINE_UNSUPPORTED", outline_class=outline)
-    exact_regions = tuple(sorted(rectangle.bounds_mm for rectangle in placements.values()))
     envelope = BuildingEnvelopeV1(
-        outline,
+        RECTANGLE,
         bounds,
-        exact_regions,
+        (bounds,),
         obstacles,
         site_bounds,
-        "DERIVED_FROM_COMPLETE_LOCAL_ZONE_COMPOSITION",
+        "PLANNED_COMPOSITION_FRAME_NOT_FOOTPRINT_AUTHORITY",
+        outline,
     )
     usage: dict[tuple[str, int], set[str]] = {}
     for code, rectangle in sorted(placements.items()):
@@ -4969,7 +4934,7 @@ def _direct_structured_candidates(
                 {
                     "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
                     "first_failure_stage": "LOCAL_MAIN_PROCESS_COMPOSITION",
-                    "rejection_reason": "NO_RECTANGLE_OR_SIMPLE_L_SEVEN_ZONE_COMPOSITION",
+                    "rejection_reason": "NO_DIMENSION_OVERLAP_MUST_VALID_SEVEN_ZONE_COMPOSITION",
                 }
             )
             _record_rejection(stats, str(attempt_row["rejection_reason"]))
@@ -4980,7 +4945,7 @@ def _direct_structured_candidates(
 
         candidate_emitted = False
         failure_stage = "LOCAL_SUPPORT_PERSONNEL_COMPOSITION"
-        failure_reason = "NO_COMPLETE_RECTANGLE_OR_SIMPLE_L_TWELVE_ZONE_COMPOSITION"
+        failure_reason = "NO_COMPLETE_MUST_VALID_TWELVE_ZONE_COMPOSITION"
         for main_index, main_composition in enumerate(main_compositions):
             full_compositions = _local_full_building_compositions(
                 context,
@@ -5021,12 +4986,9 @@ def _direct_structured_candidates(
                         classification = classify_main_process_topology_v1(main_placements)
                         if classification.canonical_owner is None:
                             raise _error("SKELETON_TOPOLOGY_INVALID")
-                        outline, _bounds = _local_outline_class(synthesis)
-                        if outline not in {"RECTANGLE", "SIMPLE_L"}:
-                            raise _error(
-                                "STRUCTURED_BUILDING_ENVELOPE_CLOSURE_FAILED",
-                                outline_class=outline,
-                            )
+                        local_zone_union_outline, composition_bounds = _local_outline_class(
+                            synthesis
+                        )
                         discovery_seed = MainProcessSkeletonCandidateV1.create(
                             family=context.structural_composition_family,
                             rectangles=main_placements,
@@ -5042,15 +5004,15 @@ def _direct_structured_candidates(
                                 "NON_OVERLAP",
                                 "MUST_ADJACENCY",
                                 "LOCAL_FAMILY_COMPOSITION",
-                                "BUILDING_ENVELOPE_CLOSURE",
+                                "COMPLETE_ZONE_COMPOSITION",
                             ),
                             construction_policy=f"{layout_family}_LOCAL_COMPOSITION_V1",
                             topology_divergence_stage="LOCAL_BAND_COMPOSITION",
                             discovery_topology=context.structural_topology,
                             discovery_family=context.structural_composition_family,
                             building_layout_family=layout_family,
-                            building_envelope_family=outline,
-                            planned_envelope_bounds_mm=_bounds,
+                            building_envelope_family=RECTANGLE,
+                            planned_envelope_bounds_mm=composition_bounds,
                         )
                         seed = canonicalize_main_process_skeleton_for_evaluation(
                             discovery_seed,
@@ -5064,11 +5026,7 @@ def _direct_structured_candidates(
                         ):
                             raise _error("SKELETON_TOPOLOGY_INVALID")
                     except LayoutAuthorityError as error:
-                        failure_stage = (
-                            "BUILDING_ENVELOPE_CLOSURE"
-                            if error.code == "STRUCTURED_BUILDING_ENVELOPE_CLOSURE_FAILED"
-                            else "GRAPH_HARD_VALIDATION"
-                        )
+                        failure_stage = "GRAPH_HARD_VALIDATION"
                         failure_reason = error.code
                         _record_rejection(stats, error.code)
                         continue
@@ -5163,7 +5121,8 @@ def _direct_structured_candidates(
                             "topology": seed.canonical_topology_owner,
                             "skeleton_hash": skeleton_hash,
                             "layout_family": layout_family,
-                            "envelope_family": outline,
+                            "envelope_family": RECTANGLE,
+                            "local_zone_union_outline_class": local_zone_union_outline,
                             "construction_mode": "LOCAL_COMPOSITION_FULL_12_ZONE",
                             "tail_search_started": True,
                             "tail_nodes": 0,
