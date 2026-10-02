@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1040" viewBox="0 0 1800 1040">
+<rect width="1800" height="1040" fill="#f5f7f9"/>
+<text x="26" y="38" font-family="Arial,sans-serif" font-size="24" fill="#17212b">Exact authoritative packaging site anchors (17.3 × 14.5 m, allowed orientations)</text>
+<text x="26" y="94" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 1 · PACKAGING ANCHOR · BAY-0002 · 00-33251 · PACKAGING SLOT PASS</text>
+<polygon points="50.00,503.05 566.00,503.05 566.00,126.95 50.00,126.95" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<polygon points="50.00,443.55 150.51,443.55 150.51,374.83 50.00,374.83" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="335.27,318.42 562.85,318.42 562.85,233.73 335.27,233.73" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="335.27,233.72 562.85,233.72 562.85,134.57 335.27,134.57" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<rect x="50.00" y="275.67" width="118.30" height="99.15" fill="#c9b8df" stroke="#263244" stroke-width="1.4"/>
+<text x="109.15" y="325.25" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">PACKAGING</text>
+<rect x="50.00" y="275.67" width="118.30" height="99.15" fill="none" stroke="#27384a" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text x="53.00" y="287.67" font-family="Arial,sans-serif" font-size="9" fill="#22313f">PACKAGING_MODULE</text>
+<text x="606" y="94" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 2 · PACKAGING ANCHOR · BAY-0002 · 00-39384 · PACKAGING SLOT PASS</text>
+<polygon points="630.00,503.05 1146.00,503.05 1146.00,126.95 630.00,126.95" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<polygon points="630.00,443.55 730.51,443.55 730.51,374.83 630.00,374.83" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="915.27,318.42 1142.85,318.42 1142.85,233.73 915.27,233.73" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="915.27,233.72 1142.85,233.72 1142.85,134.57 915.27,134.57" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<rect x="630.00" y="233.74" width="118.30" height="99.15" fill="#c9b8df" stroke="#263244" stroke-width="1.4"/>
+<text x="689.15" y="283.31" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">PACKAGING</text>
+<rect x="630.00" y="233.74" width="118.30" height="99.15" fill="none" stroke="#27384a" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text x="633.00" y="245.74" font-family="Arial,sans-serif" font-size="9" fill="#22313f">PACKAGING_MODULE</text>
+<text x="1186" y="94" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 3 · PACKAGING ANCHOR · BAY-0002 · 00-39385 · PACKAGING SLOT PASS</text>
+<polygon points="1210.00,503.05 1726.00,503.05 1726.00,126.95 1210.00,126.95" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<polygon points="1210.00,443.55 1310.51,443.55 1310.51,374.83 1210.00,374.83" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="1495.27,318.42 1722.85,318.42 1722.85,233.73 1495.27,233.73" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="1495.27,233.72 1722.85,233.72 1722.85,134.57 1495.27,134.57" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<rect x="1210.00" y="233.73" width="118.30" height="99.15" fill="#c9b8df" stroke="#263244" stroke-width="1.4"/>
+<text x="1269.15" y="283.31" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">PACKAGING</text>
+<rect x="1210.00" y="233.73" width="118.30" height="99.15" fill="none" stroke="#27384a" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text x="1213.00" y="245.73" font-family="Arial,sans-serif" font-size="9" fill="#22313f">PACKAGING_MODULE</text>
+<text x="26" y="584" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 4 · PACKAGING ANCHOR · BAY-0002 · 00-39386 · PACKAGING SLOT PASS</text>
+<polygon points="50.00,993.05 566.00,993.05 566.00,616.95 50.00,616.95" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<polygon points="50.00,933.55 150.51,933.55 150.51,864.83 50.00,864.83" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="335.27,808.42 562.85,808.42 562.85,723.73 335.27,723.73" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="335.27,723.72 562.85,723.72 562.85,624.57 335.27,624.57" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<rect x="50.00" y="723.72" width="118.30" height="99.15" fill="#c9b8df" stroke="#263244" stroke-width="1.4"/>
+<text x="109.15" y="773.30" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">PACKAGING</text>
+<rect x="50.00" y="723.72" width="118.30" height="99.15" fill="none" stroke="#27384a" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text x="53.00" y="735.72" font-family="Arial,sans-serif" font-size="9" fill="#22313f">PACKAGING_MODULE</text>
+<text x="606" y="584" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 5 · PACKAGING ANCHOR · BAY-0002 · 00-39387 · PACKAGING SLOT PASS</text>
+<polygon points="630.00,993.05 1146.00,993.05 1146.00,616.95 630.00,616.95" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<polygon points="630.00,933.55 730.51,933.55 730.51,864.83 630.00,864.83" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="915.27,808.42 1142.85,808.42 1142.85,723.73 915.27,723.73" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="915.27,723.72 1142.85,723.72 1142.85,624.57 915.27,624.57" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<rect x="630.00" y="723.72" width="118.30" height="99.15" fill="#c9b8df" stroke="#263244" stroke-width="1.4"/>
+<text x="689.15" y="773.29" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">PACKAGING</text>
+<rect x="630.00" y="723.72" width="118.30" height="99.15" fill="none" stroke="#27384a" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text x="633.00" y="735.72" font-family="Arial,sans-serif" font-size="9" fill="#22313f">PACKAGING_MODULE</text>
+<text x="1186" y="584" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 6 · PACKAGING ANCHOR · BAY-0002 · 00-41499 · PACKAGING SLOT PASS</text>
+<polygon points="1210.00,993.05 1726.00,993.05 1726.00,616.95 1210.00,616.95" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<polygon points="1210.00,933.55 1310.51,933.55 1310.51,864.83 1210.00,864.83" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="1495.27,808.42 1722.85,808.42 1722.85,723.73 1495.27,723.73" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="1495.27,723.72 1722.85,723.72 1722.85,624.57 1495.27,624.57" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<rect x="1210.00" y="709.27" width="118.30" height="99.15" fill="#c9b8df" stroke="#263244" stroke-width="1.4"/>
+<text x="1269.15" y="758.85" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">PACKAGING</text>
+<rect x="1210.00" y="709.27" width="118.30" height="99.15" fill="none" stroke="#27384a" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text x="1213.00" y="721.27" font-family="Arial,sans-serif" font-size="9" fill="#22313f">PACKAGING_MODULE</text>
+<text x="28" y="1010" font-family="Arial,sans-serif" font-size="14" fill="#354454">Site boundary and hard no-build polygons shown. Dashed outlines group fixed module geometry; no hidden bays or filler space are drawn.</text>
+</svg>

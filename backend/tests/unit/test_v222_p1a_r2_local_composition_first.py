@@ -91,26 +91,23 @@ def test_support_and_personnel_are_jointly_composed_before_envelope_derivation()
     assert len(plan.zone_placements) == len(context.graph.nodes)
 
 
-def test_support_bank_includes_deterministic_two_row_packing() -> None:
+def test_branch_support_zones_are_independent_site_modules() -> None:
     context = _local_context()
+    context.boundary = ((0, 0), (100_000, 0), (100_000, 100_000), (0, 100_000))
+    context.boundary_bounds = (0, 0, 100_000, 100_000)
+    context.obstacles = ()
+    bays = (placement.BuildableBayV1("BAY-0001", (0, 0, 100_000, 100_000), 10_000_000_000),)
 
-    banks = placement._local_bank_compositions(
-        context,
-        ("packaging_material_storage", "secondary_fruit_buffer", "frozen_fruit_room"),
-        result_limit=48,
-    )
-
-    assert any(shape == "TWO_ROW" for _bank, _axis, shape in banks)
-    for bank, _axis, _shape in banks:
-        assert set(bank) == {
-            "packaging_material_storage",
-            "secondary_fruit_buffer",
-            "frozen_fruit_room",
-        }
-        for code, rectangle in bank.items():
-            assert placement._local_rectangles_clear(
-                rectangle, {other: row for other, row in bank.items() if other != code}
-            )
+    for zone_code in ("secondary_fruit_buffer", "frozen_fruit_room"):
+        options = placement._single_zone_site_module_candidates(context, zone_code, {}, bays)
+        assert options
+        assert all(set(option) == {zone_code} for option in options)
+    assert "packaging_material_storage" not in {
+        code
+        for zone_code in ("secondary_fruit_buffer", "frozen_fruit_room")
+        for option in placement._single_zone_site_module_candidates(context, zone_code, {}, bays)
+        for code in option
+    }
 
 
 def test_finished_module_uses_finite_compact_2d_must_chain_packing() -> None:
@@ -661,6 +658,12 @@ def test_site_module_assembly_keeps_modules_rigid_and_avoids_whole_body_translat
     context.boundary = ((0, 0), (100_000, 0), (100_000, 100_000), (0, 100_000))
     context.boundary_bounds = (0, 0, 100_000, 100_000)
     context.obstacles = ()
+    context.authorities["sorting_packaging_room"]["geometry"] = {
+        "width_m": 13.6,
+        "depth_m": 45.76,
+        "required_area_m2": 622.336,
+    }
+    context.authorities["sorting_packaging_room"]["required_area_m2"] = 622.336
     context.main_entrance = ((100_000, 45_000), (100_000, 55_000))
     context.site_body = {
         "entrances": {
@@ -672,6 +675,7 @@ def test_site_module_assembly_keeps_modules_rigid_and_avoids_whole_body_translat
     }
     main = placement._synthesize_linear_3_band_local(context, "X", "POSITIVE")
     bays = (placement.BuildableBayV1("BAY-0001", (0, 0, 100_000, 100_000), 10_000_000_000),)
+    stats = placement._PlacementSearchStats()
 
     def reject_whole_body_translation(*_args: Any, **_kwargs: Any) -> Any:
         raise AssertionError("module site assembly must not translate the whole 7-zone body")
@@ -681,18 +685,101 @@ def test_site_module_assembly_keeps_modules_rigid_and_avoids_whole_body_translat
     candidates = tuple(
         row
         for row in placement._module_main_site_assemblies(
-            context, main, LINEAR_3_BAND, "X", "POSITIVE", bays, limit=64
+            context,
+            main,
+            LINEAR_3_BAND,
+            "X",
+            "POSITIVE",
+            bays,
+            limit=4,
+            stats=stats,
         )
         if row is not None
     )
 
     assert candidates
     assert len(candidates) > 2
-    assert all(set(row) == set(placement.MAIN_PROCESS_ZONE_CODES) for row in candidates)
+    assert all(
+        set(row) == {*placement.MAIN_PROCESS_ZONE_CODES, "packaging_material_storage"}
+        for row in candidates
+    )
     signatures = {placement._module_signature(row) for row in candidates}
     assert len(signatures) == len(candidates)
     for candidate in candidates:
-        placement._validate_main_process_skeleton_graph(context.graph, candidate)
+        placement._validate_main_process_skeleton_graph(
+            context.graph,
+            {code: candidate[code] for code in placement.MAIN_PROCESS_SKELETON_ZONE_CODES},
+        )
+        package = candidate["packaging_material_storage"]
+        assert placement.rectangle_inside_polygon(package, context.boundary)
+        assert all(
+            not placement.rectangles_overlap(package, candidate[code])
+            for code in placement.MAIN_PROCESS_SKELETON_ZONE_CODES
+        )
+    assert stats.sorting_rotation_site_attempt_counts["0"] > 0
+    assert stats.sorting_rotation_site_attempt_counts["90"] > 0
+
+
+def test_critical_eight_zone_assembly_completes_independent_tail_modules_fail_first() -> None:
+    context = _local_context()
+    context.boundary = ((0, 0), (100_000, 0), (100_000, 100_000), (0, 100_000))
+    context.boundary_bounds = (0, 0, 100_000, 100_000)
+    context.obstacles = ()
+    context.main_entrance = ((100_000, 45_000), (100_000, 55_000))
+    context.site_body = {
+        "entrances": {
+            "truck_entrance": {
+                "start": {"x": 0, "y": 45},
+                "end": {"x": 0, "y": 55},
+            }
+        }
+    }
+    main_compositions = placement._synthesize_linear_3_band_local(context, "X", "POSITIVE")
+    bays = (placement.BuildableBayV1("BAY-0001", (0, 0, 100_000, 100_000), 10_000_000_000),)
+    stats = placement._PlacementSearchStats(site_module_assembly_trace=[])
+    critical_candidates = tuple(
+        row
+        for row in placement._module_main_site_assemblies(
+            context,
+            main_compositions,
+            LINEAR_3_BAND,
+            "X",
+            "POSITIVE",
+            bays,
+            limit=1,
+            stats=stats,
+        )
+        if row is not None
+    )
+    assert len(critical_candidates) > 1
+    completed = tuple(
+        complete
+        for critical in critical_candidates
+        for complete in placement._module_full_site_assemblies(
+            context, critical, bays, limit=1, stats=stats
+        )
+        if complete is not None
+    )
+    assert completed
+    result = completed[0]
+    assert set(result) == set(context.graph.nodes)
+    assert "packaging_material_storage" in critical_candidates[0]
+    assert "packaging_material_storage" not in {
+        "secondary_fruit_buffer",
+        "frozen_fruit_room",
+    }
+    placement._validate_graph_completeness(context.graph, result)
+    for code, rectangle in result.items():
+        assert placement._local_rectangles_clear(
+            rectangle, {other: row for other, row in result.items() if other != code}
+        )
+    mrv_rows = [
+        row
+        for row in stats.site_module_assembly_trace or ()
+        if row.get("stage") == "S2_FAIL_FIRST_TAIL_MODULE_PLACEMENT"
+    ]
+    assert mrv_rows
+    assert mrv_rows[0]["result"] == "SLOT_COUNTS_COMPUTED"
 
 
 def test_s1_continues_same_source_pair_after_packaging_slot_rejection(
@@ -753,11 +840,18 @@ def test_s1_continues_same_source_pair_after_packaging_slot_rejection(
 
     counts = stats.site_main_assembly_counts_by_family[LINEAR_3_BAND]
     assert preflight_calls >= 2
-    assert len(candidates) == 1
+    assert 1 <= len(candidates) <= 4
+    main_signatures = {
+        placement._module_signature(
+            {code: candidate[code] for code in placement.MAIN_PROCESS_SKELETON_ZONE_CODES}
+        )
+        for candidate in candidates
+    }
+    assert len(main_signatures) == 1
     assert counts["raw_site_valid_main_count"] >= 2
     assert counts["packaging_slot_rejected_main_count"] == 1
     assert counts["tail_capable_main_count"] == 1
-    assert stats.site_main_source_pair_rows[-1]["result"] == "TAIL_CAPABLE_LIMIT_REACHED"
+    assert stats.site_main_source_pair_rows[-1]["result"] == "PACKAGING_RESERVED_MAIN_LIMIT_REACHED"
     assert stats.site_main_source_pair_rows[-1]["source_pair_exhausted"] is False
 
 
@@ -839,20 +933,17 @@ def test_exact_packaging_preflight_is_cached_by_distinct_main_geometry(
     source_pair = placement._main_module_source_pairs(context, main)[:1]
     bays = (placement.BuildableBayV1("BAY-0001", (0, 0, 100_000, 100_000), 10_000_000_000),)
     preflight_calls = 0
+    real_preflight = placement._packaging_tail_slot_preflight_for_rectangles
 
-    def exact_slot_exists(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+    def count_exact_slot_checks(*args: Any, **kwargs: Any) -> dict[str, Any]:
         nonlocal preflight_calls
         preflight_calls += 1
-        return {
-            "legal_slot_exists": True,
-            "proof_mode": placement.EXACT_ORTHOGONAL_EVENT_ENUMERATION,
-            "first_witness_rectangle": {"x": 0, "y": 0, "width_m": 10, "depth_m": 10},
-        }
+        return real_preflight(*args, **kwargs)
 
     monkeypatch.setattr(
         placement,
         "_packaging_tail_slot_preflight_for_rectangles",
-        exact_slot_exists,
+        count_exact_slot_checks,
     )
     stats = placement._PlacementSearchStats()
     run_args = (
@@ -894,7 +985,7 @@ def test_exact_packaging_preflight_is_cached_by_distinct_main_geometry(
         sum(
             row.get("preflight_reused") is True
             for row in stats.site_module_assembly_trace or ()
-            if row.get("stage") == "S1_TAIL_CAPACITY_PREFLIGHT"
+            if row.get("stage") == "S1_PACKAGING_RESERVED_MAIN_PREFLIGHT"
         )
         == 1
     )

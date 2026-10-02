@@ -34,6 +34,7 @@ from cold_storage.modules.layout.domain.site_geometry import (
 IDENTITY: Final = "tail-zone-slot-feasibility@1.0.0"
 EXACT_ORTHOGONAL_EVENT_ENUMERATION: Final = "EXACT_ORTHOGONAL_EVENT_ENUMERATION"
 EVENT_COMPLETENESS_UNAVAILABLE: Final = "EXACT_EVENT_COMPLETENESS_UNAVAILABLE"
+SITE_ANCHOR_IDENTITY: Final = "tail-zone-site-anchor-enumeration@1.0.0"
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,36 @@ class TailZoneSlotFeasibilityV1:
             "evaluated_placement_count": self.evaluated_placement_count,
             "legal_slot_exists": self.legal_slot_exists,
             "first_witness_rectangle": witness.to_dict() if witness is not None else None,
+            "site_rejection_count": self.site_rejection_count,
+            "no_build_rejection_count": self.no_build_rejection_count,
+            "main_skeleton_overlap_rejection_count": self.main_skeleton_overlap_rejection_count,
+            "proof_mode": self.proof_mode,
+        }
+
+
+@dataclass(frozen=True)
+class TailZoneSiteAnchorEnumerationV1:
+    """All exact legal site-only anchors for one authoritative zone."""
+
+    zone_code: str
+    orientation_count: int
+    event_origin_count: int
+    evaluated_placement_count: int
+    legal_anchors: tuple[PlacedRectangleV1, ...]
+    site_rejection_count: int
+    no_build_rejection_count: int
+    proof_mode: str
+    main_skeleton_overlap_rejection_count: int = 0
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "identity": SITE_ANCHOR_IDENTITY,
+            "zone_code": self.zone_code,
+            "orientation_count": self.orientation_count,
+            "event_origin_count": self.event_origin_count,
+            "evaluated_placement_count": self.evaluated_placement_count,
+            "legal_anchor_count": len(self.legal_anchors),
+            "legal_anchors": [row.to_dict() for row in self.legal_anchors],
             "site_rejection_count": self.site_rejection_count,
             "no_build_rejection_count": self.no_build_rejection_count,
             "main_skeleton_overlap_rejection_count": self.main_skeleton_overlap_rejection_count,
@@ -227,4 +258,128 @@ def evaluate_tail_zone_slot_feasibility_v1(
         no_build_rejection_count=no_build_rejections,
         main_skeleton_overlap_rejection_count=overlap_rejections,
         proof_mode=EXACT_ORTHOGONAL_EVENT_ENUMERATION,
+    )
+
+
+def enumerate_tail_zone_site_anchors_v1(
+    *,
+    zone_code: str,
+    dimension_variants: Sequence[tuple[int, int, int]],
+    dimension_authority_complete: bool,
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+    fixed_main_process_rectangles: Sequence[PlacedRectangleV1] = (),
+) -> TailZoneSiteAnchorEnumerationV1:
+    """Enumerate every legal exact event anchor, optionally clear of fixed zones.
+
+    This is a construction primitive, not a replacement for the fixed-skeleton
+    feasibility proof above. It deliberately shares the same orthogonality,
+    integer-mm event generation, site containment, and closed-obstacle
+    predicates so a returned anchor is an actual legal rectangle.
+    """
+    polygons = (
+        boundary,
+        *obstacles,
+        *(row.polygon_mm for row in fixed_main_process_rectangles),
+    )
+    if (
+        not dimension_authority_complete
+        or not dimension_variants
+        or any(
+            width <= 0 or depth <= 0 or rotation not in (0, 90)
+            for width, depth, rotation in dimension_variants
+        )
+        or any(not _is_orthogonal(polygon) for polygon in polygons)
+    ):
+        return TailZoneSiteAnchorEnumerationV1(
+            zone_code=zone_code,
+            orientation_count=0,
+            event_origin_count=0,
+            evaluated_placement_count=0,
+            legal_anchors=(),
+            site_rejection_count=0,
+            no_build_rejection_count=0,
+            proof_mode=EVENT_COMPLETENESS_UNAVAILABLE,
+            main_skeleton_overlap_rejection_count=0,
+        )
+
+    min_x = min(point[0] for point in boundary)
+    min_y = min(point[1] for point in boundary)
+    max_x = max(point[0] for point in boundary)
+    max_y = max(point[1] for point in boundary)
+    variants = tuple(
+        sorted(
+            {(width, depth, rotation) for width, depth, rotation in dimension_variants},
+            key=lambda row: (row[2], row[0], row[1]),
+        )
+    )
+    origins_by_variant: list[tuple[tuple[int, int, int], tuple[int, ...], tuple[int, ...]]] = []
+    all_origins: set[tuple[int, int]] = set()
+    for width_mm, depth_mm, rotation in variants:
+        bounds_width, bounds_depth = (
+            (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
+        )
+        xs = _axis_events(
+            polygons,
+            axis_index=0,
+            extent_mm=bounds_width,
+            minimum_mm=min_x,
+            maximum_origin_mm=max_x - bounds_width,
+        )
+        ys = _axis_events(
+            polygons,
+            axis_index=1,
+            extent_mm=bounds_depth,
+            minimum_mm=min_y,
+            maximum_origin_mm=max_y - bounds_depth,
+        )
+        origins_by_variant.append(((width_mm, depth_mm, rotation), xs, ys))
+        all_origins.update((x, y) for x in xs for y in ys)
+
+    site_rejections = 0
+    no_build_rejections = 0
+    overlap_rejections = 0
+    evaluated = 0
+    anchors: dict[tuple[tuple[int, int, int, int], int], PlacedRectangleV1] = {}
+    for (width_mm, depth_mm, rotation), xs, ys in origins_by_variant:
+        for x_mm in xs:
+            for y_mm in ys:
+                evaluated += 1
+                rectangle = PlacedRectangleV1(
+                    zone_code,
+                    Decimal(x_mm) / MILLIMETRES_PER_METRE,
+                    Decimal(y_mm) / MILLIMETRES_PER_METRE,
+                    Decimal(width_mm) / MILLIMETRES_PER_METRE,
+                    Decimal(depth_mm) / MILLIMETRES_PER_METRE,
+                    rotation,
+                )
+                if not rectangle_inside_polygon(rectangle, boundary):
+                    site_rejections += 1
+                    continue
+                if any(
+                    rectangle_intersects_closed_obstacle(rectangle, obstacle)
+                    for obstacle in obstacles
+                ):
+                    no_build_rejections += 1
+                    continue
+                if any(
+                    rectangles_overlap(rectangle, fixed) for fixed in fixed_main_process_rectangles
+                ):
+                    overlap_rejections += 1
+                    continue
+                anchors[(rectangle.bounds_mm, rotation)] = rectangle
+
+    ordered_anchors = tuple(
+        anchors[key] for key in sorted(anchors, key=lambda row: (row[1], row[0]))
+    )
+    return TailZoneSiteAnchorEnumerationV1(
+        zone_code=zone_code,
+        orientation_count=len(variants),
+        event_origin_count=len(all_origins),
+        evaluated_placement_count=evaluated,
+        legal_anchors=ordered_anchors,
+        site_rejection_count=site_rejections,
+        no_build_rejection_count=no_build_rejections,
+        proof_mode=EXACT_ORTHOGONAL_EVENT_ENUMERATION,
+        main_skeleton_overlap_rejection_count=overlap_rejections,
     )

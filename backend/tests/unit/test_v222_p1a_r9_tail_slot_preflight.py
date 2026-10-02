@@ -18,6 +18,7 @@ from cold_storage.modules.layout.domain.site_geometry import (
 from cold_storage.modules.layout.domain.tail_slot_feasibility import (
     EVENT_COMPLETENESS_UNAVAILABLE,
     EXACT_ORTHOGONAL_EVENT_ENUMERATION,
+    enumerate_tail_zone_site_anchors_v1,
     evaluate_tail_zone_slot_feasibility_v1,
 )
 
@@ -223,3 +224,74 @@ def test_tail_slot_result_is_internal_and_has_versioned_machine_fields() -> None
     assert body["zone_code"] == "packaging_material_storage"
     assert body["legal_slot_exists"] is True
     assert body["proof_mode"] == EXACT_ORTHOGONAL_EVENT_ENUMERATION
+
+
+def test_packaging_anchor_enumeration_returns_multiple_exact_orientations() -> None:
+    boundary = _polygon(((0, 0), (24, 0), (24, 20), (0, 20)))
+    obstacle = _polygon(((8, 0), (12, 0), (12, 20), (8, 20)))
+    first = enumerate_tail_zone_site_anchors_v1(
+        zone_code="packaging_material_storage",
+        dimension_variants=((7, 5, 0), (7, 5, 90)),
+        dimension_authority_complete=True,
+        boundary=boundary,
+        obstacles=(obstacle,),
+    )
+    second = enumerate_tail_zone_site_anchors_v1(
+        zone_code="packaging_material_storage",
+        dimension_variants=((7, 5, 0), (7, 5, 90)),
+        dimension_authority_complete=True,
+        boundary=boundary,
+        obstacles=(obstacle,),
+    )
+
+    assert first.proof_mode == EXACT_ORTHOGONAL_EVENT_ENUMERATION
+    assert len(first.legal_anchors) > 1
+    assert {row.rotation_deg for row in first.legal_anchors} == {0, 90}
+    assert first.legal_anchors == second.legal_anchors
+    assert all(rectangle_inside_polygon(row, boundary) for row in first.legal_anchors)
+    assert all(
+        not rectangle_intersects_closed_obstacle(row, obstacle) for row in first.legal_anchors
+    )
+
+
+def test_joint_packaging_anchor_set_contains_formal_main_skeleton_witness() -> None:
+    boundary = _polygon(((0, 0), (30, 0), (30, 24), (0, 24)))
+    obstacle = _polygon(((12, 0), (16, 0), (16, 24), (12, 24)))
+    fixed = (_rect_mm("sorting_packaging_room", 2, 3, 8, 18),)
+    dimensions = ((9, 7, 0), (9, 7, 90))
+
+    proof = evaluate_tail_zone_slot_feasibility_v1(
+        zone_code="packaging_material_storage",
+        dimension_variants=dimensions,
+        dimension_authority_complete=True,
+        boundary=boundary,
+        obstacles=(obstacle,),
+        fixed_main_process_rectangles=fixed,
+    )
+    anchors = enumerate_tail_zone_site_anchors_v1(
+        zone_code="packaging_material_storage",
+        dimension_variants=dimensions,
+        dimension_authority_complete=True,
+        boundary=boundary,
+        obstacles=(obstacle,),
+        fixed_main_process_rectangles=fixed,
+    )
+
+    assert proof.proof_mode == anchors.proof_mode == EXACT_ORTHOGONAL_EVENT_ENUMERATION
+    assert proof.legal_slot_exists is True
+    assert proof.first_witness_rectangle in anchors.legal_anchors
+    assert {row.rotation_deg for row in anchors.legal_anchors} == {0, 90}
+    assert all(not rectangles_overlap(anchor, fixed[0]) for anchor in anchors.legal_anchors)
+
+
+def test_packaging_anchor_enumeration_declines_nonorthogonal_authority() -> None:
+    result = enumerate_tail_zone_site_anchors_v1(
+        zone_code="packaging_material_storage",
+        dimension_variants=((2, 3, 0), (2, 3, 90)),
+        dimension_authority_complete=True,
+        boundary=_polygon(((0, 0), (10, 0), (8, 10), (0, 10))),
+        obstacles=(),
+    )
+
+    assert result.proof_mode == EVENT_COMPLETENESS_UNAVAILABLE
+    assert result.legal_anchors == ()
