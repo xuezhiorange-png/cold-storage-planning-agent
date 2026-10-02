@@ -695,6 +695,211 @@ def test_site_module_assembly_keeps_modules_rigid_and_avoids_whole_body_translat
         placement._validate_main_process_skeleton_graph(context.graph, candidate)
 
 
+def test_s1_continues_same_source_pair_after_packaging_slot_rejection(
+    monkeypatch: Any,
+) -> None:
+    context = _local_context()
+    context.boundary = ((0, 0), (100_000, 0), (100_000, 100_000), (0, 100_000))
+    context.boundary_bounds = (0, 0, 100_000, 100_000)
+    context.obstacles = ()
+    context.main_entrance = ((100_000, 45_000), (100_000, 55_000))
+    context.site_body = {
+        "entrances": {
+            "truck_entrance": {
+                "start": {"x": 0, "y": 45},
+                "end": {"x": 0, "y": 55},
+            }
+        }
+    }
+    main = placement._synthesize_linear_3_band_local(context, "X", "POSITIVE")
+    source_pair = placement._main_module_source_pairs(context, main)[:1]
+    bays = (placement.BuildableBayV1("BAY-0001", (0, 0, 100_000, 100_000), 10_000_000_000),)
+    real_preflight = placement._packaging_tail_slot_preflight_for_rectangles
+    preflight_calls = 0
+
+    def reject_first_geometry(
+        preflight_context: Any,
+        fixed_rectangles: Any,
+    ) -> dict[str, Any]:
+        nonlocal preflight_calls
+        preflight_calls += 1
+        result = real_preflight(preflight_context, fixed_rectangles)
+        if preflight_calls == 1:
+            return {**result, "legal_slot_exists": False}
+        return result
+
+    monkeypatch.setattr(
+        placement,
+        "_packaging_tail_slot_preflight_for_rectangles",
+        reject_first_geometry,
+    )
+    stats = placement._PlacementSearchStats()
+
+    candidates = tuple(
+        row
+        for row in placement._module_main_site_assemblies(
+            context,
+            main,
+            LINEAR_3_BAND,
+            "X",
+            "POSITIVE",
+            bays,
+            limit=1,
+            source_pairs=source_pair,
+            stats=stats,
+        )
+        if row is not None
+    )
+
+    counts = stats.site_main_assembly_counts_by_family[LINEAR_3_BAND]
+    assert preflight_calls >= 2
+    assert len(candidates) == 1
+    assert counts["raw_site_valid_main_count"] >= 2
+    assert counts["packaging_slot_rejected_main_count"] == 1
+    assert counts["tail_capable_main_count"] == 1
+    assert stats.site_main_source_pair_rows[-1]["result"] == "TAIL_CAPABLE_LIMIT_REACHED"
+    assert stats.site_main_source_pair_rows[-1]["source_pair_exhausted"] is False
+
+
+def test_source_pair_is_marked_tail_capacity_exhausted_after_exact_slot_negatives(
+    monkeypatch: Any,
+) -> None:
+    context = _local_context()
+    context.boundary = ((0, 0), (100_000, 0), (100_000, 100_000), (0, 100_000))
+    context.boundary_bounds = (0, 0, 100_000, 100_000)
+    context.obstacles = ()
+    context.main_entrance = ((100_000, 45_000), (100_000, 55_000))
+    context.site_body = {
+        "entrances": {
+            "truck_entrance": {
+                "start": {"x": 0, "y": 45},
+                "end": {"x": 0, "y": 55},
+            }
+        }
+    }
+    main = placement._synthesize_linear_3_band_local(context, "X", "POSITIVE")
+    source_pair = placement._main_module_source_pairs(context, main)[:1]
+    bays = (placement.BuildableBayV1("BAY-0001", (0, 0, 100_000, 100_000), 10_000_000_000),)
+
+    def no_packaging_slot(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        return {
+            "legal_slot_exists": False,
+            "proof_mode": placement.EXACT_ORTHOGONAL_EVENT_ENUMERATION,
+            "first_witness_rectangle": None,
+        }
+
+    monkeypatch.setattr(
+        placement,
+        "_packaging_tail_slot_preflight_for_rectangles",
+        no_packaging_slot,
+    )
+    stats = placement._PlacementSearchStats()
+    candidates = tuple(
+        row
+        for row in placement._module_main_site_assemblies(
+            context,
+            main,
+            LINEAR_3_BAND,
+            "X",
+            "POSITIVE",
+            bays,
+            limit=1,
+            source_pairs=source_pair,
+            stats=stats,
+        )
+        if row is not None
+    )
+
+    counts = stats.site_main_assembly_counts_by_family[LINEAR_3_BAND]
+    assert candidates == ()
+    assert counts["raw_site_valid_main_count"] > 0
+    assert counts["packaging_slot_rejected_main_count"] == counts["raw_site_valid_main_count"]
+    assert counts["tail_capable_main_count"] == 0
+    assert stats.site_main_source_pair_rows[-1]["result"] == ("SOURCE_PAIR_TAIL_CAPACITY_EXHAUSTED")
+    assert stats.site_main_source_pair_rows[-1]["tail_capacity_exhausted"] is True
+
+
+def test_exact_packaging_preflight_is_cached_by_distinct_main_geometry(
+    monkeypatch: Any,
+) -> None:
+    context = _local_context()
+    context.boundary = ((0, 0), (100_000, 0), (100_000, 100_000), (0, 100_000))
+    context.boundary_bounds = (0, 0, 100_000, 100_000)
+    context.obstacles = ()
+    context.main_entrance = ((100_000, 45_000), (100_000, 55_000))
+    context.site_body = {
+        "entrances": {
+            "truck_entrance": {
+                "start": {"x": 0, "y": 45},
+                "end": {"x": 0, "y": 55},
+            }
+        }
+    }
+    main = placement._synthesize_linear_3_band_local(context, "X", "POSITIVE")
+    source_pair = placement._main_module_source_pairs(context, main)[:1]
+    bays = (placement.BuildableBayV1("BAY-0001", (0, 0, 100_000, 100_000), 10_000_000_000),)
+    preflight_calls = 0
+
+    def exact_slot_exists(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        nonlocal preflight_calls
+        preflight_calls += 1
+        return {
+            "legal_slot_exists": True,
+            "proof_mode": placement.EXACT_ORTHOGONAL_EVENT_ENUMERATION,
+            "first_witness_rectangle": {"x": 0, "y": 0, "width_m": 10, "depth_m": 10},
+        }
+
+    monkeypatch.setattr(
+        placement,
+        "_packaging_tail_slot_preflight_for_rectangles",
+        exact_slot_exists,
+    )
+    stats = placement._PlacementSearchStats()
+    run_args = (
+        context,
+        main,
+        LINEAR_3_BAND,
+        "X",
+        "POSITIVE",
+        bays,
+    )
+    first = tuple(
+        row
+        for row in placement._module_main_site_assemblies(
+            *run_args,
+            limit=1,
+            source_pairs=source_pair,
+            stats=stats,
+        )
+        if row is not None
+    )
+    second = tuple(
+        row
+        for row in placement._module_main_site_assemblies(
+            *run_args,
+            limit=1,
+            source_pairs=source_pair,
+            stats=stats,
+        )
+        if row is not None
+    )
+
+    counts = stats.site_main_assembly_counts_by_family[LINEAR_3_BAND]
+    assert first and second
+    assert placement._module_signature(first[0]) != placement._module_signature(second[0])
+    assert preflight_calls == 2
+    assert counts["raw_site_valid_main_count"] == 2
+    assert counts["tail_capable_main_count"] == 2
+    assert (
+        sum(
+            row.get("preflight_reused") is True
+            for row in stats.site_module_assembly_trace or ()
+            if row.get("stage") == "S1_TAIL_CAPACITY_PREFLIGHT"
+        )
+        == 1
+    )
+
+
 def test_family_core_faces_cover_opposite_banks_and_linear_one_bend() -> None:
     linear = placement._family_core_face_pairs(LINEAR_3_BAND, "Y", "POSITIVE")
     central = placement._family_core_face_pairs(CENTRAL_PROCESS_WITH_SIDE_BANKS, "Y", "POSITIVE")

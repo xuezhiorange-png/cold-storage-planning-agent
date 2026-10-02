@@ -17,10 +17,11 @@ from tests.evaluation.r2_local_composition_first import _p2d_footprint_regularit
 from tests.evaluation.r12_access_failure_audit import _zone_skeleton_hash
 from tests.evaluation.r13_main_skeleton_truck_preflight import EVIDENCE_DIR, FIXTURE
 
-EVIDENCE_PATH = EVIDENCE_DIR / "xinzhao_p1a_r2_site_partitioned_module_placement.json"
-MAIN_IMAGE = EVIDENCE_DIR / "xinzhao_module_site_main_candidates.png"
-FULL_IMAGE = EVIDENCE_DIR / "xinzhao_module_site_12zone_candidates.png"
-P2D_IMAGE = EVIDENCE_DIR / "xinzhao_module_p2d_fullpass_gallery.png"
+EVIDENCE_PATH = EVIDENCE_DIR / "xinzhao_p1a_r2_tail_capacity_aware_site_module_assembly.json"
+MAIN_IMAGE = EVIDENCE_DIR / "xinzhao_r2_tail_capacity_raw_site_valid_main_candidates.png"
+TAIL_CAPABLE_IMAGE = EVIDENCE_DIR / "xinzhao_tail_capable_main_candidates.png"
+FULL_IMAGE = EVIDENCE_DIR / "xinzhao_r2_tail_capacity_12zone_candidates.png"
+P2D_IMAGE = EVIDENCE_DIR / "xinzhao_r2_tail_capacity_p2d_gallery.png"
 
 MODULE_ZONES = {
     "RAW_MODULE": ("raw_fruit_buffer", "primary_precooling_room"),
@@ -109,6 +110,11 @@ def _candidate_svg(
         y0 = 70 + (index // columns) * panel_height
         site_x = x0 + (panel_width - span_x * scale) / 2
         site_y = y0 + 50 + (panel_height - 100 - span_y * scale) / 2
+        packaging_status = (
+            "PACKAGING SLOT PASS"
+            if candidate.get("packaging_slot_exists") is True
+            else "PACKAGING SLOT REJECT"
+        )
 
         def transform(x: int, y: int) -> tuple[float, float]:
             return site_x + (x - min_x) * scale, site_y + (max_y - y) * scale
@@ -117,7 +123,8 @@ def _candidate_svg(
             f'<text x="{x0 + 8}" y="{y0 + 24}" font-family="Arial,sans-serif" '
             f'font-size="15" fill="#17212b">Candidate {index + 1} · '
             f"{html.escape(str(candidate.get('layout_family', 'family unavailable')))} · "
-            f"{html.escape(str(candidate.get('skeleton_hash', 'hash unavailable'))[-8:])}</text>",
+            f"{html.escape(str(candidate.get('skeleton_hash', 'hash unavailable'))[-8:])} · "
+            f"{packaging_status}</text>",
             f'<polygon points="{_polygon_points(boundary, transform)}" fill="#fff" '
             'stroke="#263244" stroke-width="2.2"/>',
         ]
@@ -151,6 +158,21 @@ def _candidate_svg(
                     'font-family="Arial,sans-serif" font-size="9" fill="#17212b">'
                     f"{html.escape(label)}</text>"
                 )
+        witness = candidate.get("packaging_slot_witness_mm")
+        if isinstance(witness, list) and len(witness) == 4:
+            left, bottom, right, top = (int(value) for value in witness)
+            x, y = transform(left, top)
+            rect_width, rect_height = (right - left) * scale, (top - bottom) * scale
+            parts.append(
+                f'<rect x="{x:.2f}" y="{y:.2f}" width="{rect_width:.2f}" '
+                f'height="{rect_height:.2f}" fill="#6aaed633" stroke="#176b87" '
+                'stroke-width="2.2" stroke-dasharray="8 5"/>'
+            )
+            parts.append(
+                f'<text x="{x + 4:.2f}" y="{y + 14:.2f}" font-family="Arial,sans-serif" '
+                'font-size="10" fill="#13556b">PACKAGING SLOT WITNESS · '
+                "NOT FINAL SUPPORT PLACEMENT</text>"
+            )
         for module, rectangles in sorted(module_bounds.items()):
             left = min(row[0] for row in rectangles)
             bottom = min(row[1] for row in rectangles)
@@ -257,6 +279,28 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
                 except LayoutAuthorityError:
                     skeleton_hash = "UNAVAILABLE"
                 geometry_signature = repr(placement_domain._module_signature(candidate))
+                search_stats = kwargs.get("stats")
+                early_proof = (
+                    (search_stats.early_packaging_preflight_by_geometry or {}).get(
+                        geometry_signature
+                    )
+                    if search_stats is not None
+                    else None
+                )
+                witness_body = (
+                    early_proof.get("first_witness_rectangle")
+                    if isinstance(early_proof, Mapping)
+                    else None
+                )
+                witness_mm = None
+                if isinstance(witness_body, Mapping):
+                    wx = round(float(witness_body.get("x", 0)) * 1000)
+                    wy = round(float(witness_body.get("y", 0)) * 1000)
+                    ww = round(float(witness_body.get("width_m", 0)) * 1000)
+                    wd = round(float(witness_body.get("depth_m", 0)) * 1000)
+                    if int(witness_body.get("rotation_deg", 0)) == 90:
+                        ww, wd = wd, ww
+                    witness_mm = [wx, wy, wx + ww, wy + wd]
                 captured_main.append(
                     {
                         "layout_family": layout_family,
@@ -264,6 +308,12 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
                         "process_direction": process_direction,
                         "skeleton_hash": skeleton_hash,
                         "geometry_signature": geometry_signature,
+                        "packaging_slot_exists": (
+                            early_proof.get("legal_slot_exists")
+                            if isinstance(early_proof, Mapping)
+                            else None
+                        ),
+                        "packaging_slot_witness_mm": witness_mm,
                         "zones": [
                             _zone_row(rectangle) for _code, rectangle in sorted(candidate.items())
                         ],
@@ -312,6 +362,16 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
                     "topology": context.structural_topology,
                     "site_bays": [bay.to_dict() for bay in stats.site_bay_rows or ()],
                     "module_variant_counts": dict(stats.site_module_variant_counts or {}),
+                    "site_main_assembly_counts_by_family": {
+                        family: dict(counts)
+                        for family, counts in (
+                            stats.site_main_assembly_counts_by_family or {}
+                        ).items()
+                    },
+                    "site_main_source_pair_rows": list(stats.site_main_source_pair_rows or ()),
+                    "early_formal_packaging_preflight_mismatch_count": (
+                        stats.early_formal_packaging_preflight_mismatch_count
+                    ),
                     "family_geometry_collapse_count": stats.family_geometry_collapse_count,
                     "site_module_assembly_trace": list(stats.site_module_assembly_trace or ()),
                     "construction_attempts": list(stats.skeleton_construction_attempts or ()),
@@ -452,16 +512,106 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
         [],
     )
     variant_counts: dict[str, int] = {}
+    runtime_s1_counts_by_family: dict[str, dict[str, int]] = {}
+    source_pair_rows: list[dict[str, Any]] = []
+    s1_geometry_attempts: list[dict[str, Any]] = []
+    early_formal_mismatch_count = 0
     for snapshot in first["snapshots"]:
         for name, value in snapshot["module_variant_counts"].items():
             variant_counts[name] = max(variant_counts.get(name, 0), int(value))
+        for family, counts in snapshot["site_main_assembly_counts_by_family"].items():
+            aggregate = runtime_s1_counts_by_family.setdefault(family, {})
+            for name, value in counts.items():
+                aggregate[name] = aggregate.get(name, 0) + int(value)
+        source_pair_rows.extend(snapshot["site_main_source_pair_rows"])
+        for trace_row in snapshot["site_module_assembly_trace"]:
+            if trace_row.get("stage") != "S1_TAIL_CAPACITY_PREFLIGHT" or not isinstance(
+                trace_row.get("zones"), list
+            ):
+                continue
+            attempt = dict(trace_row)
+            attempt["main_process_skeleton_hash"] = _zone_skeleton_hash(trace_row["zones"])
+            s1_geometry_attempts.append(attempt)
+        early_formal_mismatch_count += int(
+            snapshot["early_formal_packaging_preflight_mismatch_count"]
+        )
+    unique_s1_geometries: dict[tuple[str, str], dict[str, Any]] = {}
+    for row in s1_geometry_attempts:
+        key = (str(row.get("layout_family")), str(row.get("main_process_skeleton_hash")))
+        unique_s1_geometries.setdefault(key, row)
+    s1_counts_by_family: dict[str, dict[str, int]] = {}
+    for row in unique_s1_geometries.values():
+        family = str(row.get("layout_family"))
+        counts = s1_counts_by_family.setdefault(
+            family,
+            {
+                "raw_site_valid_main_count": 0,
+                "packaging_slot_rejected_main_count": 0,
+                "packaging_slot_unavailable_main_count": 0,
+                "tail_capable_main_count": 0,
+            },
+        )
+        counts["raw_site_valid_main_count"] += 1
+        if row.get("result") == "PACKAGING_SLOT_REJECTED":
+            counts["packaging_slot_rejected_main_count"] += 1
+        elif row.get("result") == "TAIL_CAPABLE_MAIN_ADMITTED":
+            counts["tail_capable_main_count"] += 1
+        else:
+            counts["packaging_slot_unavailable_main_count"] += 1
+    raw_site_main_candidates: list[dict[str, Any]] = []
+    for (family, skeleton_hash), row in sorted(unique_s1_geometries.items()):
+        raw_zones: list[dict[str, Any]] = []
+        for zone in row.get("zones", []):
+            if not isinstance(zone, Mapping):
+                continue
+            x = round(float(zone.get("x", 0)) * 1000)
+            y = round(float(zone.get("y", 0)) * 1000)
+            width = round(float(zone.get("width_m", 0)) * 1000)
+            depth = round(float(zone.get("depth_m", 0)) * 1000)
+            rotation = int(zone.get("rotation_deg", 0))
+            if rotation == 90:
+                width, depth = depth, width
+            raw_zones.append(
+                {
+                    "zone_code": zone.get("zone_code"),
+                    "bounds_mm": [x, y, x + width, y + depth],
+                    "rotation_deg": rotation,
+                }
+            )
+        witness = row.get("packaging_preflight", {}).get("first_witness_rectangle")
+        witness_mm = None
+        if isinstance(witness, Mapping):
+            wx = round(float(witness.get("x", 0)) * 1000)
+            wy = round(float(witness.get("y", 0)) * 1000)
+            ww = round(float(witness.get("width_m", 0)) * 1000)
+            wd = round(float(witness.get("depth_m", 0)) * 1000)
+            if int(witness.get("rotation_deg", 0)) == 90:
+                ww, wd = wd, ww
+            witness_mm = [wx, wy, wx + ww, wy + wd]
+        raw_site_main_candidates.append(
+            {
+                "layout_family": family,
+                "skeleton_hash": skeleton_hash,
+                "packaging_slot_exists": row.get("packaging_slot_exists"),
+                "packaging_slot_witness_mm": witness_mm,
+                "zones": raw_zones,
+            }
+        )
     main_image = _write_image(
         MAIN_IMAGE,
-        "R2 site-aware main-process module assemblies (S1)",
-        main_candidates,
+        "R2 raw site-valid seven-zone main-process assemblies (S1)",
+        raw_site_main_candidates,
         boundary,
         obstacles,
         "No site-valid seven-zone module assembly was observed.",
+    )
+    tail_capable_image = _write_image(
+        TAIL_CAPABLE_IMAGE,
+        "R2 tail-capable main-process assemblies · exact packaging slot witnesses",
+        [row for row in main_candidates if row.get("packaging_slot_exists") is True],
+        boundary,
+        obstacles,
+        "No seven-zone main assembly passed the exact packaging-slot preflight.",
     )
     full_image = _write_image(
         FULL_IMAGE,
@@ -494,10 +644,10 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
     budget = first_diag.get("r11_budget_accounting", {})
     selected = first["selected"]
     evidence = {
-        "identity": "v222-p1a-r2-site-partitioned-module-placement@1.0.0",
+        "identity": "v222-p1a-r2-tail-capacity-aware-site-module-assembly@1.0.0",
         "task_id": "V2_2_2_P1A_ENVELOPE_GRID_BAND_ZONE_GENERATOR_R2",
-        "mode": "R2_SITE_PARTITIONED_MODULE_PLACEMENT_RECOVERY",
-        "baseline_head": "041492357a8a2946b3452b4dd2e24cf6bf175734",
+        "mode": "R2_TAIL_CAPACITY_AWARE_SITE_MODULE_ASSEMBLY_RECOVERY",
+        "baseline_head": "55710bcd45d92eca74fd2681122da94849218f6f",
         "input_fixture": str(FIXTURE),
         "tool7_unmocked_replay_count": 2,
         "site_geometry": first["context_geometry"],
@@ -516,8 +666,24 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
             "module_variant_counts": variant_counts,
         },
         "stage_counts": {
-            "site_valid_main_process_count": len(main_candidates),
-            "site_valid_main_process_count_by_family": {
+            "raw_site_valid_main_count": sum(
+                counts.get("raw_site_valid_main_count", 0)
+                for counts in s1_counts_by_family.values()
+            ),
+            "raw_site_valid_main_count_by_family": {
+                family: counts.get("raw_site_valid_main_count", 0)
+                for family, counts in sorted(s1_counts_by_family.items())
+            },
+            "packaging_slot_rejected_main_count": sum(
+                counts.get("packaging_slot_rejected_main_count", 0)
+                for counts in s1_counts_by_family.values()
+            ),
+            "packaging_slot_rejected_main_count_by_family": {
+                family: counts.get("packaging_slot_rejected_main_count", 0)
+                for family, counts in sorted(s1_counts_by_family.items())
+            },
+            "tail_capable_site_valid_main_process_count": len(main_candidates),
+            "tail_capable_main_count_by_family": {
                 family: sum(row.get("layout_family") == family for row in main_candidates)
                 for family in (
                     "LINEAR_3_BAND",
@@ -525,6 +691,26 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
                     "LONGITUDINAL_PROCESS_SPINE",
                 )
             },
+            "source_pair_count_by_family": {
+                family: counts.get("source_pair_count", 0)
+                for family, counts in sorted(runtime_s1_counts_by_family.items())
+            },
+            "source_pairs_exhausted_by_family": {
+                family: counts.get("source_pairs_exhausted", 0)
+                for family, counts in sorted(runtime_s1_counts_by_family.items())
+            },
+            "source_pair_tail_capacity_exhausted_by_family": {
+                family: counts.get("source_pair_tail_capacity_exhausted", 0)
+                for family, counts in sorted(runtime_s1_counts_by_family.items())
+            },
+            "early_formal_packaging_preflight_mismatch_count": early_formal_mismatch_count,
+            "early_packaging_preflight_geometry_evaluation_count": sum(
+                row.get("preflight_reused") is False for row in s1_geometry_attempts
+            ),
+            "early_packaging_preflight_geometry_cache_reuse_count": sum(
+                row.get("preflight_reused") is True for row in s1_geometry_attempts
+            ),
+            "raw_site_valid_main_attempt_count": len(s1_geometry_attempts),
             "packaging_slot_preflight_pass_count": sum(
                 row.get("result") == "PACKAGING_PREFLIGHT_ADMITTED"
                 for snapshot in first["snapshots"]
@@ -545,7 +731,19 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
                 for row in structured_full_pass_candidates
             ),
         },
+        "raw_site_valid_main_candidates": raw_site_main_candidates,
         "site_main_candidates": main_candidates,
+        "s1_geometry_attempts": s1_geometry_attempts,
+        "packaging_slot_rejected_skeleton_hashes": sorted(
+            {
+                str(row["main_process_skeleton_hash"])
+                for row in s1_geometry_attempts
+                if row.get("result") == "PACKAGING_SLOT_REJECTED"
+            }
+        ),
+        "s1_counts_by_family": s1_counts_by_family,
+        "runtime_s1_stats_by_family": runtime_s1_counts_by_family,
+        "source_pair_rows": source_pair_rows,
         "site_full_candidates": full_candidates,
         "site_module_attempt_traces": [
             row for snapshot in first["snapshots"] for row in snapshot["site_module_assembly_trace"]
@@ -569,6 +767,7 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
         "structured_full_pass_candidates": structured_full_pass_candidates,
         "images": {
             "main_process": main_image,
+            "tail_capable_main_process": tail_capable_image,
             "full_12_zone": full_image,
             "p2d_full_pass_gallery": p2d_image,
         },
@@ -619,6 +818,9 @@ if __name__ == "__main__":
                 "placement_budget": report["placement_budget"],
                 "determinism": report["determinism"],
                 "images": report["images"],
+                "s1_counts_by_family": report["s1_counts_by_family"],
+                "runtime_s1_stats_by_family": report["runtime_s1_stats_by_family"],
+                "source_pair_rows": report["source_pair_rows"],
             },
             ensure_ascii=False,
             indent=2,

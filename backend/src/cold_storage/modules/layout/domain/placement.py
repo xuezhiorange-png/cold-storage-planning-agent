@@ -1364,6 +1364,7 @@ def _module_main_site_assemblies(
     limit: int,
     source_pairs: Sequence[tuple[dict[str, PlacedRectangleV1], dict[str, PlacedRectangleV1]]]
     | None = None,
+    stats: _PlacementSearchStats | None = None,
 ) -> Iterator[dict[str, Any] | None]:
     """Assemble frozen raw/process/finished modules at exact site-bay events.
 
@@ -1384,7 +1385,55 @@ def _module_main_site_assemblies(
         return
     face_pairs = _family_core_face_pairs(layout_family, process_axis, process_direction)
     yielded = 0
+    invocation_raw_count = 0
     seen_site_geometries: set[tuple[tuple[str, tuple[int, ...]], ...]] = set()
+    local_packaging_preflight_cache: dict[str, dict[str, Any]] = {}
+    family_counts: dict[str, int] | None = None
+    family_geometry_keys: set[str] | None = None
+    family_tail_capable_geometry_keys: set[str] | None = None
+    if stats is not None:
+        if stats.site_main_assembly_counts_by_family is None:
+            stats.site_main_assembly_counts_by_family = {}
+        if stats.site_main_assembly_geometry_keys_by_family is None:
+            stats.site_main_assembly_geometry_keys_by_family = {}
+        family_geometry_keys = stats.site_main_assembly_geometry_keys_by_family.setdefault(
+            layout_family, set()
+        )
+        if stats.site_main_assembly_tail_capable_geometry_keys_by_family is None:
+            stats.site_main_assembly_tail_capable_geometry_keys_by_family = {}
+        family_tail_capable_geometry_keys = (
+            stats.site_main_assembly_tail_capable_geometry_keys_by_family.setdefault(
+                layout_family, set()
+            )
+        )
+        family_counts = stats.site_main_assembly_counts_by_family.setdefault(
+            layout_family,
+            {
+                "source_pair_count": 0,
+                "source_pairs_exhausted": 0,
+                "source_pair_tail_capacity_exhausted": 0,
+                "raw_site_valid_main_count": 0,
+                "packaging_slot_rejected_main_count": 0,
+                "packaging_slot_unavailable_main_count": 0,
+                "tail_capable_main_count": 0,
+            },
+        )
+        family_counts["source_pair_count"] += len(selected_source_pairs)
+        if stats.early_packaging_preflight_by_geometry is None:
+            stats.early_packaging_preflight_by_geometry = {}
+
+    def record_source_pair(row: dict[str, Any]) -> None:
+        if stats is not None:
+            if stats.site_main_source_pair_rows is None:
+                stats.site_main_source_pair_rows = []
+            stats.site_main_source_pair_rows.append(row)
+
+    def record_geometry_attempt(row: dict[str, Any]) -> None:
+        if stats is not None:
+            if stats.site_module_assembly_trace is None:
+                stats.site_module_assembly_trace = []
+            stats.site_module_assembly_trace.append(row)
+
     root_shapes = _local_dimension_shapes(context, "sorting_packaging_room")
     roots = _bounded_site_event_rectangles(_sorting_roots_in_bays(context, bays), limit=24)
     dock_rectangles = _bounded_site_event_rectangles(
@@ -1455,8 +1504,12 @@ def _module_main_site_assemblies(
                                 return tuple(options.values())
         return tuple(options.values())
 
-    for raw_source, finished_source in selected_source_pairs:
-        yielded_for_source_pair = 0
+    for source_pair_index, (raw_source, finished_source) in enumerate(selected_source_pairs):
+        pair_raw_count = 0
+        pair_packaging_reject_count = 0
+        pair_unavailable_count = 0
+        pair_tail_capable_count = 0
+        pair_seen_geometry_keys: set[str] = set()
         raw_variants = _site_assembly_module_variants(raw_source)
         finished_variants = _site_assembly_module_variants(finished_source)
         # Dock-derived placements are attempted first. Each is a finite event
@@ -1521,24 +1574,188 @@ def _module_main_site_assemblies(
                             except LayoutAuthorityError:
                                 continue
                             site_signature = _module_signature(candidate)
+                            geometry_key = repr(site_signature)
+                            if geometry_key in pair_seen_geometry_keys:
+                                continue
+                            pair_seen_geometry_keys.add(geometry_key)
+                            pair_raw_count += 1
+                            proof_cache = (
+                                stats.early_packaging_preflight_by_geometry
+                                if stats is not None
+                                and stats.early_packaging_preflight_by_geometry is not None
+                                else local_packaging_preflight_cache
+                            )
                             if site_signature in seen_site_geometries:
+                                proof = proof_cache.get(geometry_key)
+                                slot_exists = (
+                                    proof.get("legal_slot_exists")
+                                    if isinstance(proof, Mapping)
+                                    else None
+                                )
+                                exact = (
+                                    isinstance(proof, Mapping)
+                                    and proof.get("proof_mode")
+                                    == EXACT_ORTHOGONAL_EVENT_ENUMERATION
+                                )
+                                if slot_exists is False and exact:
+                                    pair_packaging_reject_count += 1
+                                    outcome = "DUPLICATE_GEOMETRY_PACKAGING_SLOT_REJECTED"
+                                elif slot_exists is True and exact:
+                                    pair_tail_capable_count += 1
+                                    outcome = "DUPLICATE_GEOMETRY_TAIL_CAPABLE"
+                                else:
+                                    pair_unavailable_count += 1
+                                    outcome = "DUPLICATE_GEOMETRY_PREFLIGHT_UNAVAILABLE"
+                                record_geometry_attempt(
+                                    {
+                                        "layout_family": layout_family,
+                                        "process_axis": process_axis,
+                                        "process_direction": process_direction,
+                                        "stage": "S1_TAIL_CAPACITY_PREFLIGHT",
+                                        "source_pair_index": source_pair_index,
+                                        "result": outcome,
+                                        "geometry_signature": geometry_key,
+                                        "duplicate_geometry": True,
+                                        "zones": [
+                                            candidate[code].to_dict()
+                                            for code in MAIN_PROCESS_SKELETON_ZONE_CODES
+                                        ],
+                                        "packaging_slot_exists": slot_exists,
+                                        "packaging_proof_mode": (
+                                            proof.get("proof_mode")
+                                            if isinstance(proof, Mapping)
+                                            else None
+                                        ),
+                                        "packaging_preflight": proof,
+                                        "preflight_reused": proof is not None,
+                                        "counts_as_placement_node": False,
+                                        "tail_capable_limit": limit,
+                                    }
+                                )
                                 continue
                             seen_site_geometries.add(site_signature)
+                            invocation_raw_count += 1
+                            is_new_family_geometry = (
+                                family_geometry_keys is None
+                                or geometry_key not in family_geometry_keys
+                            )
+                            if family_geometry_keys is not None:
+                                family_geometry_keys.add(geometry_key)
+                            if family_counts is not None and is_new_family_geometry:
+                                family_counts["raw_site_valid_main_count"] += 1
+                            proof = proof_cache.get(geometry_key)
+                            preflight_reused = proof is not None
+                            if proof is None:
+                                proof = _packaging_tail_slot_preflight_for_rectangles(
+                                    context,
+                                    tuple(
+                                        candidate[code] for code in MAIN_PROCESS_SKELETON_ZONE_CODES
+                                    ),
+                                )
+                                proof_cache[geometry_key] = proof
+                            slot_exists = proof.get("legal_slot_exists")
+                            exact = proof.get("proof_mode") == EXACT_ORTHOGONAL_EVENT_ENUMERATION
+                            if slot_exists is False and exact:
+                                pair_packaging_reject_count += 1
+                                if family_counts is not None and is_new_family_geometry:
+                                    family_counts["packaging_slot_rejected_main_count"] += 1
+                                outcome = "PACKAGING_SLOT_REJECTED"
+                            elif slot_exists is True and exact:
+                                pair_tail_capable_count += 1
+                                is_new_tail_capable_geometry = (
+                                    family_tail_capable_geometry_keys is None
+                                    or geometry_key not in family_tail_capable_geometry_keys
+                                )
+                                if family_tail_capable_geometry_keys is not None:
+                                    family_tail_capable_geometry_keys.add(geometry_key)
+                                if is_new_tail_capable_geometry:
+                                    yielded += 1
+                                    if family_counts is not None and is_new_family_geometry:
+                                        family_counts["tail_capable_main_count"] += 1
+                                    outcome = "TAIL_CAPABLE_MAIN_ADMITTED"
+                                else:
+                                    outcome = "DUPLICATE_TAIL_CAPABLE_GEOMETRY"
+                            else:
+                                pair_unavailable_count += 1
+                                if family_counts is not None and is_new_family_geometry:
+                                    family_counts["packaging_slot_unavailable_main_count"] += 1
+                                outcome = "PACKAGING_PREFLIGHT_UNAVAILABLE"
+                            record_geometry_attempt(
+                                {
+                                    "layout_family": layout_family,
+                                    "process_axis": process_axis,
+                                    "process_direction": process_direction,
+                                    "stage": "S1_TAIL_CAPACITY_PREFLIGHT",
+                                    "source_pair_index": source_pair_index,
+                                    "result": outcome,
+                                    "geometry_signature": geometry_key,
+                                    "preflight_reused": preflight_reused,
+                                    "zones": [
+                                        candidate[code].to_dict()
+                                        for code in MAIN_PROCESS_SKELETON_ZONE_CODES
+                                    ],
+                                    "packaging_slot_exists": slot_exists,
+                                    "packaging_proof_mode": proof.get("proof_mode"),
+                                    "packaging_preflight": proof,
+                                    "counts_as_placement_node": False,
+                                    "tail_capable_limit": limit,
+                                }
+                            )
+                            if outcome != "TAIL_CAPABLE_MAIN_ADMITTED":
+                                continue
+                            reached_limit = yielded >= limit
+                            if reached_limit:
+                                record_source_pair(
+                                    {
+                                        "layout_family": layout_family,
+                                        "process_axis": process_axis,
+                                        "process_direction": process_direction,
+                                        "source_pair_index": source_pair_index,
+                                        "result": "TAIL_CAPABLE_LIMIT_REACHED",
+                                        "source_pair_exhausted": False,
+                                        "raw_site_valid_main_count": pair_raw_count,
+                                        "packaging_slot_rejected_main_count": (
+                                            pair_packaging_reject_count
+                                        ),
+                                        "packaging_slot_unavailable_main_count": (
+                                            pair_unavailable_count
+                                        ),
+                                        "tail_capable_main_count": pair_tail_capable_count,
+                                    }
+                                )
                             yield candidate
-                            yielded += 1
-                            yielded_for_source_pair += 1
-                            break
-                        if yielded_for_source_pair:
-                            break
-                    if yielded_for_source_pair:
-                        break
-                if yielded_for_source_pair:
-                    break
-            if yielded >= limit:
-                return
-            if yielded_for_source_pair:
-                break
-    if yielded == 0:
+                            if reached_limit:
+                                return
+        source_pair_tail_capacity_exhausted = (
+            pair_raw_count > 0
+            and pair_tail_capable_count == 0
+            and pair_packaging_reject_count == pair_raw_count
+            and pair_unavailable_count == 0
+        )
+        if family_counts is not None:
+            family_counts["source_pairs_exhausted"] += 1
+            if source_pair_tail_capacity_exhausted:
+                family_counts["source_pair_tail_capacity_exhausted"] += 1
+        record_source_pair(
+            {
+                "layout_family": layout_family,
+                "process_axis": process_axis,
+                "process_direction": process_direction,
+                "source_pair_index": source_pair_index,
+                "result": (
+                    "SOURCE_PAIR_TAIL_CAPACITY_EXHAUSTED"
+                    if source_pair_tail_capacity_exhausted
+                    else "SOURCE_PAIR_VARIANTS_EXHAUSTED"
+                ),
+                "source_pair_exhausted": True,
+                "tail_capacity_exhausted": source_pair_tail_capacity_exhausted,
+                "raw_site_valid_main_count": pair_raw_count,
+                "packaging_slot_rejected_main_count": pair_packaging_reject_count,
+                "packaging_slot_unavailable_main_count": pair_unavailable_count,
+                "tail_capable_main_count": pair_tail_capable_count,
+            }
+        )
+    if yielded == 0 and invocation_raw_count == 0:
         yield None
 
 
@@ -3615,6 +3832,12 @@ class _PlacementSearchStats:
     site_module_assembly_trace: list[dict[str, Any]] | None = None
     site_bay_rows: tuple[BuildableBayV1, ...] | None = None
     site_module_variant_counts: dict[str, int] | None = None
+    site_main_assembly_counts_by_family: dict[str, dict[str, int]] | None = None
+    site_main_assembly_geometry_keys_by_family: dict[str, set[str]] | None = None
+    site_main_assembly_tail_capable_geometry_keys_by_family: dict[str, set[str]] | None = None
+    site_main_source_pair_rows: list[dict[str, Any]] | None = None
+    early_packaging_preflight_by_geometry: dict[str, dict[str, Any]] | None = None
+    early_formal_packaging_preflight_mismatch_count: int = 0
     family_geometry_collapse_count: int = 0
     topology_classification_failures: list[dict[str, Any]] | None = None
     geometry_evaluation_admissions: list[dict[str, Any]] | None = None
@@ -3947,9 +4170,9 @@ def _topology_geometry_valid(
     return topology == CENTRAL_PROCESS_HUB
 
 
-def _packaging_tail_slot_preflight(
+def _packaging_tail_slot_preflight_for_rectangles(
     context: _PlacementSearchContext,
-    skeleton: MainProcessSkeletonCandidateV1,
+    fixed_main_process_rectangles: Sequence[PlacedRectangleV1],
 ) -> dict[str, Any]:
     authority = context.authorities["packaging_material_storage"]
     dimension_variants = _dimension_variants(authority, {}, context.boundary)
@@ -3960,9 +4183,19 @@ def _packaging_tail_slot_preflight(
         in {"FIXED_RECTANGLE", "DETERMINISTIC_GRID_RECTANGLE"},
         boundary=context.boundary,
         obstacles=context.obstacles,
-        fixed_main_process_rectangles=skeleton.zone_rectangles,
+        fixed_main_process_rectangles=tuple(fixed_main_process_rectangles),
     )
     return proof.to_dict()
+
+
+def _packaging_tail_slot_preflight(
+    context: _PlacementSearchContext,
+    skeleton: MainProcessSkeletonCandidateV1,
+) -> dict[str, Any]:
+    return _packaging_tail_slot_preflight_for_rectangles(
+        context,
+        skeleton.zone_rectangles,
+    )
 
 
 def _truck_maneuver_preflight_decision(result: Mapping[str, Any]) -> tuple[str, str | None]:
@@ -6904,6 +7137,7 @@ def _direct_structured_candidates(
             bays,
             limit=4,
             source_pairs=module_source_pairs_by_family[layout_family],
+            stats=stats,
         )
         for main_candidate in main_rows:
             if stats.visited_nodes >= context.node_budget:
@@ -6991,9 +7225,34 @@ def _direct_structured_candidates(
             stats.skeleton_generation_patterns[seed.generation_pattern] = (
                 stats.skeleton_generation_patterns.get(seed.generation_pattern, 0) + 1
             )
-            if not _constructive_main_skeleton_tail_admission(
+            admitted = _constructive_main_skeleton_tail_admission(
                 context, stats, seed, run_truck_preflight=False
+            )
+            early_proof = (stats.early_packaging_preflight_by_geometry or {}).get(
+                repr(_module_signature(main_candidate))
+            )
+            registry_row = (context.global_main_process_geometry_registry or {}).get(skeleton_hash)
+            formal_slot_exists = (
+                registry_row.get("packaging_slot_exists")
+                if isinstance(registry_row, Mapping)
+                else None
+            )
+            if (
+                isinstance(early_proof, Mapping)
+                and early_proof.get("legal_slot_exists") is not formal_slot_exists
             ):
+                stats.early_formal_packaging_preflight_mismatch_count += 1
+                note_module_attempt(
+                    {
+                        "layout_family": layout_family,
+                        "stage": "S1_TAIL_CAPACITY_PREFLIGHT",
+                        "result": "EARLY_FORMAL_PREFLIGHT_MISMATCH",
+                        "main_process_skeleton_hash": skeleton_hash,
+                        "early_slot_exists": early_proof.get("legal_slot_exists"),
+                        "formal_slot_exists": formal_slot_exists,
+                    }
+                )
+            if not admitted:
                 failure_stage, failure_reason = "MAIN_SKELETON_PREFLIGHT", "PREFLIGHT_REJECTED"
                 note_module_attempt(
                     {
@@ -7109,6 +7368,17 @@ def _direct_structured_candidates(
                 candidate_emitted = True
                 yield payload
 
+        if not candidate_emitted and module_attempts == 0:
+            exhausted_pairs = [
+                row
+                for row in stats.site_main_source_pair_rows or []
+                if row.get("layout_family") == layout_family
+                and row.get("process_axis") == process_axis
+                and row.get("process_direction") == process_direction
+            ]
+            if any(row.get("tail_capacity_exhausted") is True for row in exhausted_pairs):
+                failure_stage = "TAIL_SLOT_PREFLIGHT"
+                failure_reason = "SOURCE_PAIR_TAIL_CAPACITY_EXHAUSTED"
         if not candidate_emitted:
             attempt_row["result"] = "SITE_MODULE_SYNTHESIS_DID_NOT_EMIT_COMPLETE_CANDIDATE"
             attempt_row["first_failure_stage"] = failure_stage
