@@ -9,6 +9,9 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from cold_storage.modules.layout.application import (
+    validated_candidate_selection as selection_domain,
+)
 from cold_storage.modules.layout.domain import placement as placement_domain
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
@@ -17,12 +20,18 @@ from tests.evaluation.r2_local_composition_first import _p2d_footprint_regularit
 from tests.evaluation.r12_access_failure_audit import _zone_skeleton_hash
 from tests.evaluation.r13_main_skeleton_truck_preflight import EVIDENCE_DIR, FIXTURE
 
-EVIDENCE_PATH = EVIDENCE_DIR / "xinzhao_p1a_r2_packaging_anchor_driven_critical_skeleton.json"
-ANCHOR_IMAGE = EVIDENCE_DIR / "xinzhao_packaging_anchor_candidates.png"
-CORE_IMAGE = EVIDENCE_DIR / "xinzhao_packaging_sorting_core_pairs.png"
-MAIN_IMAGE = EVIDENCE_DIR / "xinzhao_critical_8zone_candidates.png"
-FULL_IMAGE = EVIDENCE_DIR / "xinzhao_structured_12zone_candidates.png"
+EVIDENCE_PATH = EVIDENCE_DIR / "xinzhao_p1a_r2_dual_external_interface_truck_dock.json"
+ANCHOR_IMAGE = EVIDENCE_DIR / "xinzhao_r2_dual_interface_packaging_anchor_candidates.png"
+CORE_IMAGE = EVIDENCE_DIR / "xinzhao_r2_dual_interface_packaging_sorting_core_pairs.png"
+MAIN_IMAGE = EVIDENCE_DIR / "xinzhao_r2_dual_interface_critical_8zone_candidates.png"
+FULL_IMAGE = EVIDENCE_DIR / "xinzhao_r2_dual_interface_12zone_candidates.png"
 P2D_IMAGE = EVIDENCE_DIR / "xinzhao_structured_p2d_fullpass_gallery.png"
+DOCK_ANCHOR_IMAGE = EVIDENCE_DIR / "xinzhao_shipping_dock_anchor_candidates.png"
+DUAL_INTERFACE_IMAGE = EVIDENCE_DIR / "xinzhao_dual_interface_critical_main_candidates.png"
+TRUCK_PASS_IMAGE = EVIDENCE_DIR / "xinzhao_truck_pass_main_candidates.png"
+DUAL_INTERFACE_EVIDENCE_PATH = (
+    EVIDENCE_DIR / "xinzhao_p1a_r2_dual_external_interface_truck_dock.json"
+)
 
 MODULE_ZONES = {
     "RAW_MODULE": ("raw_fruit_buffer", "primary_precooling_room"),
@@ -149,6 +158,15 @@ def _candidate_svg(
                 f'<polygon points="{_polygon_points(obstacle, transform)}" '
                 'fill="#59636e" stroke="#25303a" stroke-width="1.2"/>'
             )
+        entrance = candidate.get("truck_entrance_segment_mm")
+        if isinstance(entrance, list) and len(entrance) == 2:
+            start = transform(int(entrance[0][0]), int(entrance[0][1]))
+            end = transform(int(entrance[1][0]), int(entrance[1][1]))
+            parts.append(
+                f'<line x1="{start[0]:.2f}" y1="{start[1]:.2f}" '
+                f'x2="{end[0]:.2f}" y2="{end[1]:.2f}" stroke="#e4572e" '
+                'stroke-width="5" stroke-linecap="round"/>'
+            )
         module_bounds: dict[str, list[tuple[int, int, int, int]]] = {}
         zone_bounds: dict[str, tuple[int, int, int, int]] = {}
         for zone in candidate.get("zones", []):
@@ -180,6 +198,29 @@ def _candidate_svg(
                     'text-anchor="middle" dominant-baseline="middle" '
                     'font-family="Arial,sans-serif" font-size="9" fill="#17212b">'
                     f"{html.escape(label)}</text>"
+                )
+        dock_anchor = candidate.get("shipping_dock_anchor")
+        if isinstance(dock_anchor, Mapping):
+            dock_point = dock_anchor.get("dock_point_mm")
+            loading_face = dock_anchor.get("loading_face_segment_mm")
+            if isinstance(loading_face, list) and len(loading_face) == 2:
+                start = transform(int(loading_face[0][0]), int(loading_face[0][1]))
+                end = transform(int(loading_face[1][0]), int(loading_face[1][1]))
+                parts.append(
+                    f'<line x1="{start[0]:.2f}" y1="{start[1]:.2f}" '
+                    f'x2="{end[0]:.2f}" y2="{end[1]:.2f}" stroke="#125f91" '
+                    'stroke-width="4"/>'
+                )
+            if isinstance(dock_point, list) and len(dock_point) == 2:
+                point = transform(int(dock_point[0]), int(dock_point[1]))
+                parts.append(
+                    f'<circle cx="{point[0]:.2f}" cy="{point[1]:.2f}" r="5" '
+                    'fill="#d62828" stroke="#fff" stroke-width="1.5"/>'
+                )
+                parts.append(
+                    f'<text x="{point[0] + 7:.2f}" y="{point[1] - 7:.2f}" '
+                    'font-family="Arial,sans-serif" font-size="9" fill="#8e1717">'
+                    "AUTHORITATIVE DOCK POINT</text>"
                 )
         interface_witness = candidate.get("packaging_interface_witness")
         if isinstance(interface_witness, Mapping):
@@ -308,10 +349,72 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
     captured_main: list[dict[str, Any]] = []
     captured_full: list[dict[str, Any]] = []
     snapshots: list[dict[str, Any]] = []
+    p2d_route_rows: list[dict[str, Any]] = []
     context_geometry: dict[str, Any] = {}
     real_direct = placement_domain._direct_structured_candidates
     real_main = placement_domain._module_main_site_assemblies
     real_full = placement_domain._module_full_site_assemblies
+    real_route = selection_domain.route_site_placement
+
+    def observe_p2d_route(*args: Any, **kwargs: Any) -> Any:
+        candidate = args[3] if len(args) > 3 else kwargs.get("placement")
+        routed = real_route(*args, **kwargs)
+        candidate_body = (
+            candidate.to_dict() if callable(getattr(candidate, "to_dict", None)) else {}
+        )
+        routed_body = routed.to_dict()
+        zone_rows = candidate_body.get("zones", [])
+        p2d_route_rows.append(
+            {
+                "candidate_index": len(p2d_route_rows) + 1,
+                "canonical_candidate_hash": candidate_body.get("canonical_candidate_hash"),
+                "main_skeleton_hash": (
+                    _zone_skeleton_hash(zone_rows)
+                    if isinstance(zone_rows, list)
+                    and set(placement_domain.MAIN_PROCESS_SKELETON_ZONE_CODES).issubset(
+                        {str(row.get("zone_code")) for row in zone_rows if isinstance(row, Mapping)}
+                    )
+                    else "UNAVAILABLE_FROM_P2C_BODY"
+                ),
+                "search_phase": (
+                    candidate_body.get("search_provenance", {}).get("search_phase")
+                    if isinstance(candidate_body.get("search_provenance"), Mapping)
+                    else None
+                ),
+                "zones": [_trace_zone_row(row) for row in zone_rows if isinstance(row, Mapping)]
+                if isinstance(zone_rows, list)
+                else [],
+                "project_layout_validated": routed_body.get("project_layout_validated"),
+                "p2_complete": routed_body.get("p2_complete"),
+                "access_pass_count": routed_body.get("access_pass_count"),
+                "access_requirement_count": routed_body.get("access_requirement_count"),
+                "truck_route_validated": routed_body.get("truck_route_validated"),
+                "truck_route_codes": list(routed_body.get("truck_route_codes", [])),
+                "warnings": list(routed_body.get("warnings", [])),
+                "access_results": [
+                    {
+                        "requirement_identity": row.get("requirement_identity"),
+                        "from_ref": row.get("from_ref"),
+                        "to_ref": row.get("to_ref"),
+                        "flow_kind": row.get("flow_kind"),
+                        "status": row.get("status"),
+                        "codes": list(row.get("codes", [])),
+                        "route_shape": row.get("route_shape"),
+                        "turn_count": row.get("turn_count"),
+                        "route_length_m": row.get("route_length_m"),
+                    }
+                    for row in routed_body.get("access_results", [])
+                    if isinstance(row, Mapping)
+                ],
+                "personnel_truck_evaluation": routed_body.get("personnel_truck_evaluation"),
+                "building_footprint_source": (
+                    routed_body.get("building_footprint", {}).get("source")
+                    if isinstance(routed_body.get("building_footprint"), Mapping)
+                    else None
+                ),
+            }
+        )
+        return routed
 
     def main_process_only(
         candidate: Mapping[str, PlacedRectangleV1],
@@ -369,7 +472,11 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
                     (
                         row
                         for row in reversed(trace_rows)
-                        if row.get("stage") == "S1_PACKAGING_RESERVED_MAIN_ASSEMBLY"
+                        if row.get("stage")
+                        in {
+                            "S1_DOCK_CAPABLE_MAIN_PROCESS",
+                            "S1_PACKAGING_RESERVED_MAIN_ASSEMBLY",
+                        }
                         and row.get("sorting_root_bounds_mm") == sorting_bounds
                         and isinstance(row.get("packaging_anchor"), Mapping)
                         and isinstance(row["packaging_anchor"].get("rectangle"), Mapping)
@@ -407,6 +514,16 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
                             "packaging_sorting_alignment_witness"
                         ),
                         "reserved_construction_corridor_bounds_mm": reserved_corridor_bounds,
+                        "shipping_dock_anchor": assembly_trace.get("shipping_dock_anchor"),
+                        "shipping_exact_dock_anchor_match": assembly_trace.get(
+                            "shipping_exact_dock_anchor_match"
+                        ),
+                        "finished_site_construction": assembly_trace.get(
+                            "finished_site_construction"
+                        ),
+                        "shipping_dock_anchor_exact_match": assembly_trace.get(
+                            "shipping_exact_dock_anchor_match"
+                        ),
                         "zones": [
                             _zone_row(rectangle) for _code, rectangle in sorted(candidate.items())
                         ],
@@ -453,6 +570,9 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
             snapshots.append(
                 {
                     "topology": context.structural_topology,
+                    "truck_entrance_segment_mm": [
+                        list(point) for point in placement_domain._truck_segment(context.site_body)
+                    ],
                     "layout_family": getattr(
                         context.structured_building_plan, "layout_family", "UNKNOWN"
                     ),
@@ -485,6 +605,27 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
                             stats.site_main_assembly_counts_by_family or {}
                         ).items()
                     },
+                    "shipping_dock_anchors": [
+                        row.to_dict() for row in stats.site_shipping_dock_anchors or ()
+                    ],
+                    "shipping_dock_construction_anchors": [
+                        row.to_dict() for row in stats.site_shipping_dock_construction_anchors or ()
+                    ],
+                    "finished_forward_site_attempt_count": (
+                        stats.finished_forward_site_attempt_count
+                    ),
+                    "finished_dock_backsolve_attempt_count": (
+                        stats.finished_dock_backsolve_attempt_count
+                    ),
+                    "main_skeleton_truck_preflight_rows": [
+                        dict(row.get("main_skeleton_truck_preflight"))
+                        for row in (context.global_main_process_geometry_registry or {}).values()
+                        if isinstance(row, Mapping)
+                        and isinstance(row.get("main_skeleton_truck_preflight"), Mapping)
+                    ],
+                    "truck_maneuver_construction_witness_by_skeleton_hash": dict(
+                        stats.truck_maneuver_construction_witness_by_skeleton_hash or {}
+                    ),
                     "site_main_source_pair_rows": list(stats.site_main_source_pair_rows or ()),
                     "early_formal_packaging_preflight_mismatch_count": (
                         stats.early_formal_packaging_preflight_mismatch_count
@@ -498,12 +639,14 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
     placement_domain._direct_structured_candidates = observe_direct
     placement_domain._module_main_site_assemblies = observe_main
     placement_domain._module_full_site_assemblies = observe_full
+    selection_domain.route_site_placement = observe_p2d_route
     try:
         tool7 = _capture_tool7(payload, allow_failed_selection=True)
     finally:
         placement_domain._direct_structured_candidates = real_direct
         placement_domain._module_main_site_assemblies = real_main
         placement_domain._module_full_site_assemblies = real_full
+        selection_domain.route_site_placement = real_route
 
     result = tool7.get("result")
     result = result if isinstance(result, Mapping) else {}
@@ -579,6 +722,7 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
         },
         "structured_full_passes": len(structured_full_passes),
         "structured_full_pass_candidates": structured_full_pass_candidates,
+        "p2d_route_rows": p2d_route_rows,
     }
 
 
@@ -634,6 +778,14 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
     s1_geometry_attempts: list[dict[str, Any]] = []
     all_packaging_anchors: dict[str, dict[str, Any]] = {}
     construction_anchors: dict[str, dict[str, Any]] = {}
+    all_shipping_dock_anchors: dict[str, dict[str, Any]] = {}
+    construction_dock_anchors: dict[str, dict[str, Any]] = {}
+    captured_truck_preflight_rows: dict[str, dict[str, Any]] = {}
+    captured_truck_witnesses: dict[str, dict[str, Any]] = {}
+    dual_pair_keys: set[tuple[str, str]] = set()
+    dual_pair_necessary_keys: set[tuple[str, str]] = set()
+    sorting_roots_by_external_pair: dict[str, dict[str, str]] = {}
+    truck_entrance_segment: list[list[int]] = []
     anchor_rotation_attempts: dict[str, set[str]] = {}
     anchor_rotation_proofs: dict[str, dict[str, str]] = {}
     core_pair_rows_by_geometry: dict[str, dict[str, Any]] = {}
@@ -651,6 +803,23 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
             all_packaging_anchors.setdefault(str(anchor["anchor_id"]), dict(anchor))
         for anchor in snapshot["packaging_construction_anchors"]:
             construction_anchors.setdefault(str(anchor["anchor_id"]), dict(anchor))
+        for anchor in snapshot.get("shipping_dock_anchors", []):
+            key = json.dumps(anchor, sort_keys=True, separators=(",", ":"), default=str)
+            all_shipping_dock_anchors.setdefault(key, dict(anchor))
+        for anchor in snapshot.get("shipping_dock_construction_anchors", []):
+            key = json.dumps(anchor, sort_keys=True, separators=(",", ":"), default=str)
+            construction_dock_anchors.setdefault(key, dict(anchor))
+        for preflight in snapshot.get("main_skeleton_truck_preflight_rows", []):
+            if isinstance(preflight, Mapping):
+                skeleton_hash = str(preflight.get("main_skeleton_hash", "UNAVAILABLE"))
+                captured_truck_preflight_rows.setdefault(skeleton_hash, dict(preflight))
+        for skeleton_hash, witness in snapshot.get(
+            "truck_maneuver_construction_witness_by_skeleton_hash", {}
+        ).items():
+            if isinstance(witness, Mapping):
+                captured_truck_witnesses.setdefault(str(skeleton_hash), dict(witness))
+        if not truck_entrance_segment and snapshot.get("truck_entrance_segment_mm"):
+            truck_entrance_segment = snapshot["truck_entrance_segment_mm"]
         for anchor_id, rotations in snapshot[
             "packaging_anchor_sorting_rotation_attempts_by_group"
         ].items():
@@ -675,6 +844,45 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
                 aggregate[name] = max(aggregate.get(name, 0), int(value))
         source_pair_rows.extend(snapshot["site_main_source_pair_rows"])
         for trace_row in snapshot["site_module_assembly_trace"]:
+            if trace_row.get("stage") == "S0_DUAL_EXTERNAL_INTERFACE_SORTING_ROOTS":
+                package_anchor = trace_row.get("packaging_anchor")
+                dock_anchor = trace_row.get("shipping_dock_anchor")
+                if isinstance(package_anchor, Mapping) and isinstance(dock_anchor, Mapping):
+                    dock_key = json.dumps(
+                        {
+                            "dock_point_mm": dock_anchor.get("dock_point_mm"),
+                            "shipping_rectangle": dock_anchor.get("shipping_rectangle"),
+                            "shipping_rotation_deg": dock_anchor.get("shipping_rotation_deg"),
+                            "loading_face_side": dock_anchor.get("loading_face_side"),
+                            "source_template_identity": dock_anchor.get("source_template_identity"),
+                            "source_template_rotation_deg": dock_anchor.get(
+                                "source_template_rotation_deg"
+                            ),
+                        },
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        default=str,
+                    )
+                    pair_key = (str(package_anchor.get("anchor_id")), dock_key)
+                    if trace_row.get("sorting_roots"):
+                        dual_pair_necessary_keys.add(pair_key)
+                    dual_pair_keys.add(pair_key)
+                    root_signature = json.dumps(
+                        [
+                            {
+                                "bounds_mm": row.get("bounds_mm"),
+                                "rotation_deg": row.get("rotation_deg"),
+                            }
+                            for row in trace_row.get("sorting_roots", [])
+                            if isinstance(row, Mapping)
+                        ],
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    )
+                    package_scope = f"{trace_row.get('layout_family')}:{pair_key[0]}"
+                    sorting_roots_by_external_pair.setdefault(package_scope, {})[dock_key] = (
+                        root_signature
+                    )
             if trace_row.get("stage") == "S0_PACKAGING_ANCHOR_DRIVEN_SORTING_ROOTS":
                 anchor = trace_row.get("packaging_anchor")
                 anchor_rect = anchor.get("rectangle") if isinstance(anchor, Mapping) else None
@@ -861,6 +1069,49 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
         for row in structured_full_pass_candidates
         if row.get("skeleton_hash") not in {None, "UNAVAILABLE"}
     }
+    first_diag = first["diagnostics"]
+    second_diag = second["diagnostics"]
+    preflight_by_hash = dict(captured_truck_preflight_rows)
+    for row in first_diag.get("main_skeleton_truck_preflight_trace", []):
+        if isinstance(row, Mapping):
+            preflight_by_hash.setdefault(
+                str(row.get("main_skeleton_hash", "UNAVAILABLE")), dict(row)
+            )
+    preflight_rows = [preflight_by_hash[key] for key in sorted(preflight_by_hash)]
+    dock_capable_main_candidates = [
+        row
+        for row in main_candidates
+        if row.get("shipping_dock_anchor")
+        and row.get("shipping_exact_dock_anchor_match") is True
+        and row.get("skeleton_hash") not in {None, "UNAVAILABLE"}
+    ]
+    dock_capable_hashes = {str(row["skeleton_hash"]) for row in dock_capable_main_candidates}
+    structured_truck_pass_hashes = sorted(
+        skeleton_hash
+        for skeleton_hash in dock_capable_hashes
+        if preflight_by_hash.get(skeleton_hash, {}).get("preflight_status") == "PASS"
+    )
+    dock_anchor_rows = []
+    for anchor in sorted(
+        construction_dock_anchors.values(),
+        key=lambda row: json.dumps(row, sort_keys=True, separators=(",", ":"), default=str),
+    ):
+        rectangle = anchor.get("shipping_rectangle")
+        if not isinstance(rectangle, Mapping):
+            continue
+        dock_anchor_rows.append(
+            {
+                "layout_family": (
+                    f"DOCK · {anchor.get('loading_face_side')} · "
+                    f"{anchor.get('source_template_identity')}"
+                ),
+                "skeleton_hash": str(anchor.get("dock_point_mm")),
+                "packaging_slot_exists": True,
+                "shipping_dock_anchor": anchor,
+                "truck_entrance_segment_mm": truck_entrance_segment,
+                "zones": [_trace_zone_row({"zone_code": "shipping_channel", **rectangle})],
+            }
+        )
     package_anchor_rows = []
     for anchor in sorted(all_packaging_anchors.values(), key=lambda row: row["anchor_id"]):
         rectangle = anchor.get("rectangle", {})
@@ -906,6 +1157,39 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
         obstacles,
         "No exact site-valid packaging anchor was enumerated.",
     )
+    dock_anchor_image = _write_image(
+        DOCK_ANCHOR_IMAGE,
+        "Authoritative truck dock events and legal shipping rectangles",
+        dock_anchor_rows,
+        boundary,
+        obstacles,
+        "No legal shipping rectangle was bound to an authoritative dock point.",
+    )
+    dual_interface_image = _write_image(
+        DUAL_INTERFACE_IMAGE,
+        "Packaging + sorting + exact shipping dock critical assemblies",
+        dock_capable_main_candidates,
+        boundary,
+        obstacles,
+        "No dock-capable seven-zone main skeleton passed construction admission.",
+    )
+    truck_pass_candidates = [
+        row
+        for row in dock_capable_main_candidates
+        if row["skeleton_hash"] in structured_truck_pass_hashes
+    ]
+    truck_pass_hash_set = set(structured_truck_pass_hashes)
+    truck_qualified_site_full_candidates = [
+        row for row in full_candidates if str(row.get("skeleton_hash")) in truck_pass_hash_set
+    ]
+    truck_pass_image = _write_image(
+        TRUCK_PASS_IMAGE,
+        "Structured main skeletons admitted by authoritative truck preflight",
+        truck_pass_candidates,
+        boundary,
+        obstacles,
+        "No structured main skeleton passed authoritative truck preflight.",
+    )
     main_image = _write_image(
         MAIN_IMAGE,
         "Eight-zone packaging-reserved critical main assemblies (S1)",
@@ -931,17 +1215,6 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
         "No structured P2D full-pass candidate was observed; fallback is not shown as structured.",
     )
 
-    first_diag = first["diagnostics"]
-    second_diag = second["diagnostics"]
-    preflight_rows = first_diag.get("main_skeleton_truck_preflight_trace", [])
-    main_candidate_hashes = {str(row.get("skeleton_hash")) for row in main_candidates}
-    structured_truck_pass_hashes = sorted(
-        str(row.get("main_skeleton_hash"))
-        for row in preflight_rows
-        if isinstance(row, Mapping)
-        and row.get("preflight_status") == "PASS"
-        and row.get("main_skeleton_hash") in main_candidate_hashes
-    )
     budget = first_diag.get("r11_budget_accounting", {})
     selected = first["selected"]
     critical_assembly_failure_by_family: dict[str, dict[str, Any]] = {}
@@ -973,10 +1246,10 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
             "critical_8_zone_count": counts.get("critical_8_zone_count", 0),
         }
     evidence = {
-        "identity": "v222-p1a-r2-packaging-anchor-driven-critical-skeleton@1.0.0",
+        "identity": "v222-p1a-r2-dual-external-interface-truck-dock-recovery@1.0.0",
         "task_id": "V2_2_2_P1A_ENVELOPE_GRID_BAND_ZONE_GENERATOR_R2",
-        "mode": "R2_PACKAGING_ANCHOR_DRIVEN_CRITICAL_SKELETON_RECOVERY",
-        "baseline_head": "2c2463a2819f338698ce14bad3f73865da1d945f",
+        "mode": "R2_DUAL_EXTERNAL_INTERFACE_PACKAGING_TRUCK_DOCK_RECOVERY",
+        "baseline_head": "73d7c6c151c6b1f1351a02fd8b615343bc5c107c",
         "input_fixture": str(FIXTURE),
         "tool7_unmocked_replay_count": 2,
         "site_geometry": first["context_geometry"],
@@ -1003,6 +1276,140 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
             "formal_packaging_preflight_retained": True,
             "sorting_rotation_site_attempt_count_by_family": sorting_attempts_by_family,
             "module_variant_counts": variant_counts,
+        },
+        "dual_external_interface": {
+            "true_packaging_first_construction": True,
+            "shipping_dock_anchor_first_class": bool(all_shipping_dock_anchors),
+            "two_external_interface_aware": True,
+            "truck_entrance_segment_mm": truck_entrance_segment,
+            "truck_dock_point_count": len(
+                {
+                    tuple(row.get("dock_point_mm", []))
+                    for row in all_shipping_dock_anchors.values()
+                    if isinstance(row.get("dock_point_mm"), list)
+                }
+            ),
+            "shipping_dock_rectangle_count": len(
+                {
+                    tuple(
+                        _trace_zone_row(
+                            {"zone_code": "shipping_channel", **row["shipping_rectangle"]}
+                        )["bounds_mm"]
+                    )
+                    for row in all_shipping_dock_anchors.values()
+                    if isinstance(row.get("shipping_rectangle"), Mapping)
+                }
+            ),
+            "shipping_dock_rectangle_count_by_rotation": {
+                str(rotation): len(
+                    {
+                        tuple(
+                            _trace_zone_row(
+                                {"zone_code": "shipping_channel", **row["shipping_rectangle"]}
+                            )["bounds_mm"]
+                        )
+                        for row in all_shipping_dock_anchors.values()
+                        if isinstance(row.get("shipping_rectangle"), Mapping)
+                        and int(row.get("shipping_rotation_deg", -1)) == rotation
+                    }
+                )
+                for rotation in (0, 90)
+            },
+            "shipping_dock_rectangle_count_by_loading_face_side": {
+                side: len(
+                    {
+                        tuple(
+                            _trace_zone_row(
+                                {"zone_code": "shipping_channel", **row["shipping_rectangle"]}
+                            )["bounds_mm"]
+                        )
+                        for row in all_shipping_dock_anchors.values()
+                        if isinstance(row.get("shipping_rectangle"), Mapping)
+                        and row.get("loading_face_side") == side
+                    }
+                )
+                for side in sorted(
+                    {
+                        str(row.get("loading_face_side"))
+                        for row in all_shipping_dock_anchors.values()
+                    }
+                )
+            },
+            "shipping_dock_construction_representative_count": len(construction_dock_anchors),
+            "packaging_shipping_anchor_pair_count": int(
+                max(
+                    int(variant_counts.get("packaging_shipping_anchor_pair_count", 0)),
+                    len(dual_pair_keys),
+                )
+            ),
+            "packaging_shipping_pair_necessary_pass_count": int(
+                max(
+                    int(variant_counts.get("packaging_shipping_pair_necessary_pass_count", 0)),
+                    len(dual_pair_necessary_keys),
+                )
+            ),
+            "packaging_anchor_influences_sorting_root_enumeration": (
+                packaging_anchor_influences_sorting_roots
+            ),
+            "shipping_dock_anchor_influences_sorting_root_enumeration": bool(
+                any(
+                    len(set(dock_rows.values())) > 1
+                    for dock_rows in sorting_roots_by_external_pair.values()
+                )
+            ),
+            "finished_forward_site_attempt_count": max(
+                (
+                    int(snapshot.get("finished_forward_site_attempt_count", 0))
+                    for snapshot in first["snapshots"]
+                ),
+                default=0,
+            ),
+            "finished_dock_backsolve_attempt_count": max(
+                (
+                    int(snapshot.get("finished_dock_backsolve_attempt_count", 0))
+                    for snapshot in first["snapshots"]
+                ),
+                default=0,
+            ),
+            "dock_capable_main_process_count": len(dock_capable_hashes),
+            "structured_main_truck_preflight_pass_count": len(structured_truck_pass_hashes),
+            "structured_main_truck_preflight_reject_count": sum(
+                preflight_by_hash.get(hash_value, {}).get("preflight_status") == "REJECT"
+                for hash_value in dock_capable_hashes
+            ),
+            "truck_pass_main_skeleton_hashes": structured_truck_pass_hashes,
+            "truck_maneuver_construction_witness_count": sum(
+                hash_value in captured_truck_witnesses
+                for hash_value in structured_truck_pass_hashes
+            ),
+            "truck_construction_witness_final_validation_mismatch_count": len(
+                {
+                    str(row.get("main_skeleton_hash"))
+                    for row in first["p2d_route_rows"]
+                    if row.get("search_phase") == "STRUCTURED"
+                    and (
+                        str(row.get("main_skeleton_hash")) not in captured_truck_witnesses
+                        or row.get("truck_route_validated") is not True
+                    )
+                }
+            ),
+            "all_shipping_dock_anchors": list(all_shipping_dock_anchors.values()),
+            "construction_shipping_dock_anchors": list(construction_dock_anchors.values()),
+            "dock_capable_main_candidates": dock_capable_main_candidates,
+            "main_truck_preflight_rows": preflight_rows,
+            "truck_maneuver_construction_witnesses": captured_truck_witnesses,
+        },
+        "stage_gates": {
+            "T0_shipping_dock_rectangle_exists": bool(all_shipping_dock_anchors),
+            "T1_dock_capable_main_process_exists": bool(dock_capable_hashes),
+            "T2_structured_main_truck_preflight_pass_exists": bool(structured_truck_pass_hashes),
+            "T3_truck_pass_main_has_site_valid_12_zone_candidate": bool(
+                truck_qualified_site_full_candidates
+            ),
+            "T4_structured_p2d_full_pass_exists": bool(structured_full_pass_candidates),
+            "site_valid_12_zone_from_truck_pass_main_count": len(
+                truck_qualified_site_full_candidates
+            ),
         },
         "packaging_anchor_coverage": {
             "legal_site_anchor_count": len(all_packaging_anchors),
@@ -1157,6 +1564,27 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
         "site_module_attempt_traces": [
             row for snapshot in first["snapshots"] for row in snapshot["site_module_assembly_trace"]
         ],
+        "p2d_candidate_validation_trace": first["p2d_route_rows"],
+        "structured_p2d_access_failure_summary": [
+            {
+                "main_skeleton_hash": row.get("main_skeleton_hash"),
+                "canonical_candidate_hash": row.get("canonical_candidate_hash"),
+                "access_pass_count": row.get("access_pass_count"),
+                "access_requirement_count": row.get("access_requirement_count"),
+                "truck_route_validated": row.get("truck_route_validated"),
+                "failed_requirements": [
+                    {
+                        "requirement_identity": access_row.get("requirement_identity"),
+                        "status": access_row.get("status"),
+                        "codes": access_row.get("codes", []),
+                    }
+                    for access_row in row.get("access_results", [])
+                    if access_row.get("status") != "PASS"
+                ],
+            }
+            for row in first["p2d_route_rows"]
+            if row.get("search_phase") == "STRUCTURED"
+        ],
         "truck_preflight_trace": preflight_rows,
         "placement_budget": budget,
         "selected_tool7_layout": {
@@ -1180,6 +1608,9 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
             "main_process": main_image,
             "full_12_zone": full_image,
             "p2d_full_pass_gallery": p2d_image,
+            "shipping_dock_anchors": dock_anchor_image,
+            "dual_interface_critical_main": dual_interface_image,
+            "truck_pass_main": truck_pass_image,
         },
         "determinism": {
             "same_selected_layout": first["selected"]["skeleton_hash"]
@@ -1191,7 +1622,8 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
             "same_work_queue_and_module_trace": first_diag == second_diag
             and first["snapshots"] == second["snapshots"]
             and first["main_candidates"] == second["main_candidates"]
-            and first["full_attempts"] == second["full_attempts"],
+            and first["full_attempts"] == second["full_attempts"]
+            and first["p2d_route_rows"] == second["p2d_route_rows"],
         },
         "family_geometry_collapse_count": max(
             (int(snapshot["family_geometry_collapse_count"]) for snapshot in first["snapshots"]),
@@ -1221,7 +1653,29 @@ if __name__ == "__main__":
         json.dumps(
             {
                 "result": report["result"],
+                "mode": report["mode"],
                 "packaging_anchor_coverage": report["packaging_anchor_coverage"],
+                "dual_external_interface": {
+                    key: report["dual_external_interface"].get(key)
+                    for key in (
+                        "truck_dock_point_count",
+                        "shipping_dock_rectangle_count",
+                        "shipping_dock_rectangle_count_by_rotation",
+                        "shipping_dock_rectangle_count_by_loading_face_side",
+                        "shipping_dock_construction_representative_count",
+                        "packaging_shipping_anchor_pair_count",
+                        "packaging_shipping_pair_necessary_pass_count",
+                        "shipping_dock_anchor_influences_sorting_root_enumeration",
+                        "finished_forward_site_attempt_count",
+                        "finished_dock_backsolve_attempt_count",
+                        "dock_capable_main_process_count",
+                        "structured_main_truck_preflight_pass_count",
+                        "structured_main_truck_preflight_reject_count",
+                        "truck_pass_main_skeleton_hashes",
+                        "truck_maneuver_construction_witness_count",
+                        "truck_construction_witness_final_validation_mismatch_count",
+                    )
+                },
                 "packaging_sorting_core_pairs": report["packaging_sorting_core_pairs"][
                     "distinct_geometry_count"
                 ],
@@ -1229,13 +1683,16 @@ if __name__ == "__main__":
                 "site_bay_count": report["orthogonal_site_bay_decomposition"]["bay_count"],
                 "module_variant_counts": report["module_contract"]["module_variant_counts"],
                 "stage_counts": report["stage_counts"],
+                "stage_gates": report["stage_gates"],
+                "structured_p2d_access_failure_summary": report[
+                    "structured_p2d_access_failure_summary"
+                ],
                 "selected_tool7_layout": report["selected_tool7_layout"],
                 "placement_budget": report["placement_budget"],
                 "determinism": report["determinism"],
                 "images": report["images"],
                 "s1_counts_by_family": report["s1_counts_by_family"],
                 "runtime_s1_stats_by_family": report["runtime_s1_stats_by_family"],
-                "source_pair_rows": report["source_pair_rows"],
             },
             ensure_ascii=False,
             indent=2,

@@ -1135,6 +1135,162 @@ def _translate_module(
     }
 
 
+def _dock_backsolved_finished_module(
+    module: Mapping[str, PlacedRectangleV1], anchor: ShippingDockAnchorV1
+) -> dict[str, PlacedRectangleV1] | None:
+    """Rigidly translate a frozen finished module onto an exact dock anchor."""
+    shipping = module.get("shipping_channel")
+    if shipping is None:
+        return None
+    source_bounds = shipping.bounds_mm
+    target_bounds = anchor.shipping_rectangle.bounds_mm
+    source_span = (source_bounds[2] - source_bounds[0], source_bounds[3] - source_bounds[1])
+    target_span = (target_bounds[2] - target_bounds[0], target_bounds[3] - target_bounds[1])
+    if shipping.rotation_deg != anchor.shipping_rotation_deg or source_span != target_span:
+        return None
+    translated = _translate_module(
+        module,
+        target_bounds[0] - source_bounds[0],
+        target_bounds[1] - source_bounds[1],
+    )
+    placed_shipping = translated["shipping_channel"]
+    if (
+        placed_shipping.bounds_mm != target_bounds
+        or placed_shipping.rotation_deg != anchor.shipping_rotation_deg
+    ):
+        return None
+    return translated
+
+
+def _dock_backsolved_finished_chains(
+    context: _PlacementSearchContext,
+    anchor: ShippingDockAnchorV1,
+    sorting_root: PlacedRectangleV1,
+    fixed_zones: Mapping[str, PlacedRectangleV1],
+    layout_family: str,
+    process_axis: str,
+    process_direction: str,
+    *,
+    reserved_corridor: PlacedRectangleV1 | None = None,
+) -> tuple[dict[str, PlacedRectangleV1], ...]:
+    """Construct the frozen MUST chain backward from an exact shipping anchor.
+
+    Shipping, sorting, and any already-reserved external-interface geometry
+    are fixed inputs.  The finite construction places finished goods against
+    shipping, coating against finished goods, and secondary precooling against
+    coating; only chains whose secondary room shares an authorized positive
+    edge with sorting are returned.  Coordinates come solely from
+    authoritative dimension variants and exact edge/alignment events.
+    """
+    shipping = anchor.shipping_rectangle
+    fixed = {
+        **fixed_zones,
+        "sorting_packaging_room": sorting_root,
+        "shipping_channel": shipping,
+    }
+    permitted_secondary_sides = {
+        finished_side
+        for _raw_side, finished_side in _family_core_face_pairs(
+            layout_family, process_axis, process_direction
+        )
+    }
+    sides = ("WEST", "EAST", "SOUTH", "NORTH")
+    alignments = ("LOW", "CENTER", "HIGH")
+    finished_shapes = _local_dimension_shapes(context, "finished_goods_room")
+    coating_shapes = _local_dimension_shapes(context, "coating_room")
+    secondary_shapes = _local_dimension_shapes(context, "secondary_precooling_room")
+    if not finished_shapes or not coating_shapes or not secondary_shapes:
+        return ()
+
+    chains: dict[tuple[tuple[str, tuple[int, ...]], ...], dict[str, PlacedRectangleV1]] = {}
+    for finished_shape in finished_shapes:
+        for finished_side in sides:
+            for finished_alignment in alignments:
+                finished_x, finished_y = _local_adjacent_origin(
+                    shipping,
+                    finished_shape[3],
+                    finished_shape[4],
+                    finished_side,
+                    finished_alignment,
+                )
+                finished = _local_rectangle_at(
+                    "finished_goods_room", finished_shape, finished_x, finished_y
+                )
+                if not rectangles_share_positive_edge(finished, shipping):
+                    continue
+                if not _site_module_is_usable(context, {"finished_goods_room": finished}, fixed):
+                    continue
+                finished_fixed = {**fixed, "finished_goods_room": finished}
+
+                for coating_shape in coating_shapes:
+                    for coating_side in sides:
+                        for coating_alignment in alignments:
+                            coating_x, coating_y = _local_adjacent_origin(
+                                finished,
+                                coating_shape[3],
+                                coating_shape[4],
+                                coating_side,
+                                coating_alignment,
+                            )
+                            coating = _local_rectangle_at(
+                                "coating_room", coating_shape, coating_x, coating_y
+                            )
+                            if not rectangles_share_positive_edge(coating, finished):
+                                continue
+                            if not _site_module_is_usable(
+                                context, {"coating_room": coating}, finished_fixed
+                            ):
+                                continue
+
+                            for secondary_shape in secondary_shapes:
+                                for secondary_side in sides:
+                                    for secondary_alignment in alignments:
+                                        secondary_x, secondary_y = _local_adjacent_origin(
+                                            coating,
+                                            secondary_shape[3],
+                                            secondary_shape[4],
+                                            secondary_side,
+                                            secondary_alignment,
+                                        )
+                                        secondary = _local_rectangle_at(
+                                            "secondary_precooling_room",
+                                            secondary_shape,
+                                            secondary_x,
+                                            secondary_y,
+                                        )
+                                        if not rectangles_share_positive_edge(secondary, coating):
+                                            continue
+                                        if (
+                                            _adjacent_side(sorting_root, secondary)
+                                            not in permitted_secondary_sides
+                                        ):
+                                            continue
+                                        chain = {
+                                            "secondary_precooling_room": secondary,
+                                            "coating_room": coating,
+                                            "finished_goods_room": finished,
+                                        }
+                                        if not _site_module_is_usable(context, chain, fixed):
+                                            continue
+                                        if reserved_corridor is not None and any(
+                                            rectangles_overlap(reserved_corridor, rectangle)
+                                            for rectangle in chain.values()
+                                        ):
+                                            continue
+                                        signature = _module_signature(chain)
+                                        chains.setdefault(signature, chain)
+    return tuple(
+        chains[key]
+        for key in sorted(
+            chains,
+            key=lambda signature: (
+                _local_compactness_key(chains[signature], context, process_axis),
+                signature,
+            ),
+        )
+    )
+
+
 def _module_attached_to_zone(
     module: Mapping[str, PlacedRectangleV1],
     interface_zone_code: str,
@@ -1606,6 +1762,39 @@ class PackagingAnchorV1:
             "anchor_id": self.anchor_id,
             "bay_id": self.bay_id,
             "rectangle": self.rectangle.to_dict(),
+        }
+
+
+@dataclass(frozen=True)
+class ShippingDockAnchorV1:
+    """A site-frame shipping rectangle bound to an existing truck dock event.
+
+    This is a construction witness only. The maneuver-chain validator remains
+    the authority for whether the complete truck route is feasible.
+    """
+
+    dock_point_mm: tuple[int, int]
+    shipping_rectangle: PlacedRectangleV1
+    loading_face_side: str
+    loading_face_segment_mm: SegmentMM
+    shipping_rotation_deg: int
+    source_entry_point_mm: tuple[int, int]
+    source_template_identity: str
+    source_template_rotation_deg: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "dock_point_mm": list(self.dock_point_mm),
+            "shipping_rectangle": self.shipping_rectangle.to_dict(),
+            "loading_face_side": self.loading_face_side,
+            "loading_face_segment_mm": [
+                list(self.loading_face_segment_mm[0]),
+                list(self.loading_face_segment_mm[1]),
+            ],
+            "shipping_rotation_deg": self.shipping_rotation_deg,
+            "source_entry_point_mm": list(self.source_entry_point_mm),
+            "source_template_identity": self.source_template_identity,
+            "source_template_rotation_deg": self.source_template_rotation_deg,
         }
 
 
@@ -2279,7 +2468,7 @@ def _packaging_driven_sorting_roots(
     return tuple(ordered_rows)
 
 
-def _module_main_site_assemblies(
+def _module_main_site_assemblies_forward(
     context: _PlacementSearchContext,
     main_compositions: Sequence[LocalBuildingCompositionV1],
     layout_family: str,
@@ -2668,6 +2857,8 @@ def _module_main_site_assemblies(
                                 if finished_attached is None:
                                     continue
                                 pair_finished_attachment_candidates += 1
+                                if stats is not None:
+                                    stats.finished_forward_site_attempt_count += 1
                                 if finished_key not in finished_attachment_core_site_valid:
                                     finished_attachment_core_site_valid[finished_key] = (
                                         _site_module_is_usable(
@@ -2873,7 +3064,6 @@ def _module_main_site_assemblies(
                                     }
                                 )
                                 anchor_admitted = True
-                                yield critical
                                 yielded_critical_geometries.add(critical_signature)
                                 if len(yielded_critical_geometries) >= limit:
                                     if family_counts is not None:
@@ -2940,7 +3130,9 @@ def _module_main_site_assemblies(
                                             ),
                                         }
                                     )
+                                    yield critical
                                     return
+                                yield critical
                                 if anchor_admitted:
                                     break
                             if anchor_admitted:
@@ -3128,6 +3320,11 @@ def _module_full_site_assemblies(
         if stats is not None
         else ()
     )
+    reserved_truck_envelopes = (
+        (stats.reserved_truck_envelopes_by_critical_signature or {}).get(critical_signature, ())
+        if stats is not None
+        else ()
+    )
     yielded = 0
     tail_codes = {"secondary_fruit_buffer", "frozen_fruit_room", "office", "changing_room"}
     module_codes = {
@@ -3161,6 +3358,19 @@ def _module_full_site_assemblies(
                 )
                 for name, candidates in options.items()
             }
+        if reserved_truck_envelopes:
+            options = {
+                name: tuple(
+                    candidate
+                    for candidate in candidates
+                    if not any(
+                        rectangle_intersects_closed_obstacle(rectangle, envelope)
+                        for envelope in reserved_truck_envelopes
+                        for rectangle in candidate.values()
+                    )
+                )
+                for name, candidates in options.items()
+            }
         if stats is not None and stats.site_module_assembly_trace is not None:
             stats.site_module_assembly_trace.append(
                 {
@@ -3171,6 +3381,7 @@ def _module_full_site_assemblies(
                         name: len(rows) for name, rows in sorted(options.items())
                     },
                     "reserved_construction_space_count": len(reserved_spaces),
+                    "reserved_truck_envelope_count": len(reserved_truck_envelopes),
                 }
             )
         return options
@@ -3958,12 +4169,12 @@ def _entrance_anchors(
     return tuple(sorted(anchors))
 
 
-def _truck_dock_points_at_entrance(context: _PlacementSearchContext) -> tuple[tuple[int, int], ...]:
-    """Project authoritative dock-template endpoints from truck entrance events.
+def _truck_dock_events_at_entrance(context: _PlacementSearchContext) -> tuple[dict[str, Any], ...]:
+    """Project final dock poses from the bound DOCK_REVERSE templates.
 
-    These points only seed and order shipping-interface geometry. They do not
-    assert maneuver feasibility; the existing truck-chain validator remains
-    the sole admission predicate for every completed seven-zone skeleton.
+    Each record retains the authoritative template and entrance event that
+    produced it. It is only a necessary shipping-interface construction fact;
+    full truck feasibility is still decided by the injected validator.
     """
     binding = getattr(context, "truck_maneuver_binding", None)
     if binding is None:
@@ -3991,15 +4202,19 @@ def _truck_dock_points_at_entrance(context: _PlacementSearchContext) -> tuple[tu
         low, high = sorted((start[0], end[0]))
         entry_points = ((low, start[1]), ((low + high) // 2, start[1]), (high, start[1]))
 
-    points: set[tuple[int, int]] = set()
-    for template in templates:
+    events: dict[tuple[Any, ...], dict[str, Any]] = {}
+    for template_index, template in enumerate(templates):
         maneuver_class = getattr(template, "maneuver_class", None)
         reference_frame = getattr(template, "reference_frame", None)
         dock_pose = getattr(template, "final_dock_pose", None)
+        template_identity = getattr(template, "identity", None)
+        template_id = getattr(template, "template_id", None)
         if isinstance(template, Mapping):
             maneuver_class = template.get("maneuver_class", maneuver_class)
             reference_frame = template.get("reference_frame", reference_frame)
             dock_pose = template.get("final_dock_pose", dock_pose)
+            template_identity = template.get("identity", template_identity)
+            template_id = template.get("template_id", template_id)
         if maneuver_class != "DOCK_REVERSE" or not isinstance(reference_frame, Mapping):
             continue
         entry_pose = reference_frame.get("entry_pose")
@@ -4021,8 +4236,35 @@ def _truck_dock_points_at_entrance(context: _PlacementSearchContext) -> tuple[tu
                     entry_point[0] - rotated_entry[0],
                     entry_point[1] - rotated_entry[1],
                 )
-                points.add((translation[0] + rotated_dock[0], translation[1] + rotated_dock[1]))
-    return tuple(sorted(points))
+                dock_point = (
+                    translation[0] + rotated_dock[0],
+                    translation[1] + rotated_dock[1],
+                )
+                identity = str(
+                    template_identity or template_id or f"DOCK_REVERSE_TEMPLATE_{template_index}"
+                )
+                event = {
+                    "dock_point_mm": dock_point,
+                    "source_entry_point_mm": entry_point,
+                    "source_template_identity": identity,
+                    "source_template_rotation_deg": rotation,
+                }
+                events[
+                    (
+                        dock_point,
+                        entry_point,
+                        identity,
+                        rotation,
+                    )
+                ] = event
+    return tuple(events[key] for key in sorted(events))
+
+
+def _truck_dock_points_at_entrance(context: _PlacementSearchContext) -> tuple[tuple[int, int], ...]:
+    """Return the canonical unique points from the authoritative dock events."""
+    return tuple(
+        sorted({tuple(event["dock_point_mm"]) for event in _truck_dock_events_at_entrance(context)})
+    )
 
 
 def _rotate_orthogonal_mm(point: tuple[int, int], rotation_deg: int) -> tuple[int, int]:
@@ -4086,6 +4328,191 @@ def _shipping_rectangles_for_dock_events(
                     continue
                 candidates[_bounds(rectangle)] = rectangle
     return tuple(candidates[key] for key in sorted(candidates))
+
+
+def _shipping_dock_anchors_at_entrance(
+    context: _PlacementSearchContext,
+) -> tuple[ShippingDockAnchorV1, ...]:
+    """Bind exact legal shipping rectangles to the dock points on their face."""
+    events = _truck_dock_events_at_entrance(context)
+    rectangles = _shipping_rectangles_for_dock_events(context)
+    anchors: dict[tuple[Any, ...], ShippingDockAnchorV1] = {}
+    for rectangle in rectangles:
+        face_side, face, _score, _comparison = _loading_face(rectangle, context.site_body)
+        for event in events:
+            dock_point = tuple(event["dock_point_mm"])
+            if not _on_segment(dock_point, face[0], face[1]):
+                continue
+            anchor = ShippingDockAnchorV1(
+                dock_point_mm=dock_point,
+                shipping_rectangle=rectangle,
+                loading_face_side=face_side,
+                loading_face_segment_mm=face,
+                shipping_rotation_deg=rectangle.rotation_deg,
+                source_entry_point_mm=tuple(event["source_entry_point_mm"]),
+                source_template_identity=str(event["source_template_identity"]),
+                source_template_rotation_deg=int(event["source_template_rotation_deg"]),
+            )
+            key = (
+                rectangle.bounds_mm,
+                rectangle.rotation_deg,
+                dock_point,
+                anchor.source_template_identity,
+                anchor.source_template_rotation_deg,
+                anchor.source_entry_point_mm,
+            )
+            anchors[key] = anchor
+    return tuple(anchors[key] for key in sorted(anchors))
+
+
+def _shipping_dock_anchor_construction_representatives(
+    anchors: Sequence[ShippingDockAnchorV1],
+    *,
+    limit: int = 12,
+    truck_entrance_segment: SegmentMM | None = None,
+) -> tuple[ShippingDockAnchorV1, ...]:
+    """Select a deterministic cover of exact shipping geometries and dock events.
+
+    Every distinct legal shipping rectangle is a construction representative
+    before event-only extras are considered. Grouping only by dock point can
+    discard a second rectangle on that same point, even though its loading-face
+    location can leave a materially different site assembly. Prefer dock
+    events whose approach crosses the entrance normally, then endpoint
+    witnesses. Loading-face/approach parallelism is not an authority and does
+    not outrank geometry coverage; the truck validator remains authoritative.
+    """
+    if limit <= 0 or not anchors:
+        return ()
+
+    def identity(anchor: ShippingDockAnchorV1) -> tuple[Any, ...]:
+        return (
+            anchor.shipping_rectangle.bounds_mm,
+            anchor.shipping_rotation_deg,
+            anchor.loading_face_side,
+            anchor.dock_point_mm,
+            anchor.source_template_identity,
+            anchor.source_template_rotation_deg,
+            anchor.source_entry_point_mm,
+        )
+
+    def geometry_identity(anchor: ShippingDockAnchorV1) -> tuple[Any, ...]:
+        return (
+            anchor.shipping_rectangle.bounds_mm,
+            anchor.shipping_rotation_deg,
+            anchor.loading_face_side,
+        )
+
+    def dock_event_identity(anchor: ShippingDockAnchorV1) -> tuple[Any, ...]:
+        return (
+            anchor.shipping_rotation_deg,
+            anchor.loading_face_side,
+            anchor.dock_point_mm,
+            anchor.source_template_identity,
+            anchor.source_template_rotation_deg,
+            anchor.source_entry_point_mm,
+        )
+
+    entrance_is_vertical = (
+        truck_entrance_segment is not None
+        and truck_entrance_segment[0][0] == truck_entrance_segment[1][0]
+    )
+    entrance_is_horizontal = (
+        truck_entrance_segment is not None
+        and truck_entrance_segment[0][1] == truck_entrance_segment[1][1]
+    )
+
+    def geometry_order(anchor: ShippingDockAnchorV1) -> tuple[Any, ...]:
+        entry_x, entry_y = anchor.source_entry_point_mm
+        dock_x, dock_y = anchor.dock_point_mm
+        approach_dx, approach_dy = dock_x - entry_x, dock_y - entry_y
+        approach_crosses_entrance_normally = (
+            entrance_is_vertical and approach_dy == 0 and approach_dx != 0
+        ) or (entrance_is_horizontal and approach_dx == 0 and approach_dy != 0)
+        dock_at_face_endpoint = anchor.dock_point_mm in {
+            anchor.loading_face_segment_mm[0],
+            anchor.loading_face_segment_mm[1],
+        }
+        return (
+            0 if truck_entrance_segment is None or approach_crosses_entrance_normally else 1,
+            0 if dock_at_face_endpoint else 1,
+            anchor.shipping_rotation_deg,
+            anchor.shipping_rectangle.bounds_mm,
+            anchor.loading_face_side,
+            anchor.dock_point_mm,
+            anchor.source_template_identity,
+            anchor.source_template_rotation_deg,
+            anchor.source_entry_point_mm,
+        )
+
+    geometry_groups: dict[tuple[Any, ...], list[ShippingDockAnchorV1]] = {}
+    dock_event_groups: dict[tuple[Any, ...], list[ShippingDockAnchorV1]] = {}
+    for anchor in anchors:
+        geometry_groups.setdefault(geometry_identity(anchor), []).append(anchor)
+        dock_event_groups.setdefault(dock_event_identity(anchor), []).append(anchor)
+
+    selected: list[ShippingDockAnchorV1] = []
+    selected_keys: set[tuple[Any, ...]] = set()
+    represented_events: set[tuple[Any, ...]] = set()
+    for geometry_key in sorted(
+        geometry_groups,
+        key=lambda key: geometry_order(min(geometry_groups[key], key=geometry_order)),
+    ):
+        row = min(geometry_groups[geometry_key], key=geometry_order)
+        selected.append(row)
+        selected_keys.add(identity(row))
+        represented_events.add(dock_event_identity(row))
+        if len(selected) >= limit:
+            return tuple(selected)
+
+    # Preserve additional template/entrance events only after every distinct
+    # legal shipping rectangle has a representative.
+    for event_key in sorted(dock_event_groups):
+        if event_key in represented_events:
+            continue
+        row = min(dock_event_groups[event_key], key=geometry_order)
+        row_key = identity(row)
+        if row_key in selected_keys:
+            continue
+        selected.append(row)
+        selected_keys.add(row_key)
+        represented_events.add(event_key)
+        if len(selected) >= limit:
+            return tuple(selected)
+
+    for row in sorted(anchors, key=geometry_order):
+        row_key = identity(row)
+        if row_key in selected_keys:
+            continue
+        selected.append(row)
+        selected_keys.add(row_key)
+        if len(selected) >= limit:
+            break
+    return tuple(selected)
+
+
+def _truck_entrance_for_dock_anchor_order(
+    context: _PlacementSearchContext,
+) -> SegmentMM | None:
+    """Expose the entrance for ordering when a production context has it."""
+    site_body = getattr(context, "site_body", None)
+    return _truck_segment(site_body) if isinstance(site_body, Mapping) else None
+
+
+def _shipping_dock_anchor_construction_limit(
+    anchors: Sequence[ShippingDockAnchorV1],
+) -> int:
+    """Cover each exact legal shipping rectangle once in construction order."""
+    rectangle_count = len(
+        {
+            (
+                anchor.shipping_rectangle.bounds_mm,
+                anchor.shipping_rotation_deg,
+                anchor.loading_face_side,
+            )
+            for anchor in anchors
+        }
+    )
+    return min(len(anchors), max(12, rectangle_count))
 
 
 def _bounded_site_event_rectangles(
@@ -5224,6 +5651,12 @@ class _PlacementSearchStats:
     site_module_variant_counts: dict[str, Any] | None = None
     site_packaging_anchors: tuple[PackagingAnchorV1, ...] | None = None
     site_packaging_construction_anchors: tuple[PackagingAnchorV1, ...] | None = None
+    site_shipping_dock_anchors: tuple[ShippingDockAnchorV1, ...] | None = None
+    site_shipping_dock_construction_anchors: tuple[ShippingDockAnchorV1, ...] | None = None
+    finished_forward_site_attempt_count: int = 0
+    finished_dock_backsolve_attempt_count: int = 0
+    packaging_shipping_anchor_pair_count: int = 0
+    packaging_shipping_pair_necessary_pass_count: int = 0
     site_packaging_sorting_roots_by_anchor: (
         dict[
             str,
@@ -5247,6 +5680,8 @@ class _PlacementSearchStats:
     reserved_construction_space_by_critical_signature: (
         dict[str, tuple[PlacedRectangleV1, ...]] | None
     ) = None
+    reserved_truck_envelopes_by_critical_signature: dict[str, tuple[PolygonMM, ...]] | None = None
+    truck_maneuver_construction_witness_by_skeleton_hash: dict[str, dict[str, Any]] | None = None
     early_formal_packaging_preflight_mismatch_count: int = 0
     family_geometry_collapse_count: int = 0
     topology_classification_failures: list[dict[str, Any]] | None = None
@@ -5270,6 +5705,13 @@ class _PlacementSearchStats:
         if self.reserved_construction_space_by_critical_signature is None:
             self.reserved_construction_space_by_critical_signature = {}
         self.reserved_construction_space_by_critical_signature[critical_signature] = (corridor,)
+
+    def reserve_truck_envelopes(
+        self, critical_signature: str, envelopes: Sequence[PolygonMM]
+    ) -> None:
+        if self.reserved_truck_envelopes_by_critical_signature is None:
+            self.reserved_truck_envelopes_by_critical_signature = {}
+        self.reserved_truck_envelopes_by_critical_signature[critical_signature] = tuple(envelopes)
 
 
 @dataclass(frozen=True)
@@ -5708,6 +6150,14 @@ def _main_skeleton_truck_maneuver_preflight(
         "shipping_loading_face_segment": face_segment,
         "zones_checked": list(MAIN_PROCESS_SKELETON_ZONE_CODES),
         "truck_validation_result_hash": result.get("canonical_result_hash"),
+        "construction_witness": (
+            {
+                "maneuver_chain": list(result.get("maneuver_chain", [])),
+                "truck_envelopes": list(result.get("truck_envelopes", [])),
+            }
+            if result.get("truck_route_validated") is True
+            else None
+        ),
     }
 
 
@@ -5941,6 +6391,16 @@ def _constructive_main_skeleton_tail_admission(
         if registry is not None:
             registry[geometry_hash] = registry_row
 
+    if truck_row["preflight_status"] == "PASS":
+        witness = truck_row.get("construction_witness")
+        if isinstance(witness, Mapping):
+            if stats.truck_maneuver_construction_witness_by_skeleton_hash is None:
+                stats.truck_maneuver_construction_witness_by_skeleton_hash = {}
+            stats.truck_maneuver_construction_witness_by_skeleton_hash[geometry_hash] = {
+                "main_skeleton_hash": geometry_hash,
+                "maneuver_chain": list(witness.get("maneuver_chain", [])),
+                "truck_envelopes": list(witness.get("truck_envelopes", [])),
+            }
     if truck_row["preflight_status"] == "REJECT":
         if stats.main_skeleton_truck_preflight_rows is None:
             stats.main_skeleton_truck_preflight_rows = []
@@ -5999,7 +6459,18 @@ def _local_dimension_shapes(
     if authority is None:
         return ()
     unique: dict[tuple[int, int], tuple[int, int, int, int, int]] = {}
-    for width_mm, depth_mm in _zone_dimension_options(authority):
+    dimension_options: tuple[tuple[int, int], ...]
+    if _authority_mode(authority) != "FLEXIBLE_RECTANGLE":
+        # A fixed rectangle has one authoritative width/depth pair. Rotation
+        # changes its axis-aligned footprint, not the dimensions written into
+        # the candidate record. _zone_dimension_options also returns the pair
+        # swapped for projection convenience, so consuming both values here
+        # would incorrectly serialize a rotated fixed room as resized.
+        width_mm, depth_mm, _area = _authority_dimensions(authority)
+        dimension_options = ((width_mm, depth_mm),)
+    else:
+        dimension_options = _zone_dimension_options(authority)
+    for width_mm, depth_mm in dimension_options:
         for rotation in (0, 90):
             x_span, y_span = (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
             unique.setdefault(
@@ -8408,9 +8879,20 @@ def _direct_structured_candidates(
     site_bounds = context.boundary_bounds
     bays = _orthogonal_site_buildable_bays(context)
     stats.site_bay_rows = bays
+    shipping_dock_anchors = stats.site_shipping_dock_anchors
+    if shipping_dock_anchors is None:
+        shipping_dock_anchors = _shipping_dock_anchors_at_entrance(context)
+        stats.site_shipping_dock_anchors = shipping_dock_anchors
+    # Candidate generation is bounded by the unchanged global placement node
+    # authority.  A dock-rectangle count is not a suitable cap here because a
+    # rejected sorting root must be allowed to continue within its exact
+    # packaging/dock pair until the authoritative truck preflight admits a
+    # root or the shared placement budget stops the work item.
+    main_site_candidate_limit = context.node_budget
     if stats.site_module_variant_counts is None:
         stats.site_module_variant_counts = {}
     stats.site_module_variant_counts["buildable_bays"] = len(bays)
+    stats.site_module_variant_counts["main_site_candidate_limit"] = main_site_candidate_limit
     raw_bank_module_variants = tuple(
         row[0]
         for row in _local_bank_compositions(
@@ -8711,7 +9193,7 @@ def _direct_structured_candidates(
             process_axis,
             process_direction,
             bays,
-            limit=4,
+            limit=main_site_candidate_limit,
             source_pairs=module_source_pairs_by_family[layout_family],
             stats=stats,
         )
@@ -8810,7 +9292,7 @@ def _direct_structured_candidates(
                     stats.skeleton_generation_patterns.get(seed.generation_pattern, 0) + 1
                 )
                 admitted = _constructive_main_skeleton_tail_admission(
-                    context, stats, seed, run_truck_preflight=False
+                    context, stats, seed, run_truck_preflight=True
                 )
                 main_skeleton_admission[skeleton_hash] = admitted
                 early_proof = (stats.early_packaging_preflight_by_geometry or {}).get(
@@ -8857,6 +9339,23 @@ def _direct_structured_candidates(
                 if not main_skeleton_admission.get(skeleton_hash, False):
                     continue
                 seed = (stats.constructed_main_skeletons or {}).get(skeleton_hash, seed)
+            truck_registry_row = (context.global_main_process_geometry_registry or {}).get(
+                skeleton_hash, {}
+            )
+            truck_preflight_row = truck_registry_row.get("main_skeleton_truck_preflight")
+            if (
+                isinstance(truck_preflight_row, Mapping)
+                and truck_preflight_row.get("preflight_status") == "PASS"
+            ):
+                witness = truck_preflight_row.get("construction_witness")
+                if isinstance(witness, Mapping):
+                    raw_envelopes = witness.get("truck_envelopes", ())
+                    polygons = tuple(
+                        normalize_polygon(envelope, error_code="INVALID_TRUCK_ENVELOPE")
+                        for envelope in raw_envelopes
+                        if isinstance(envelope, Mapping)
+                    )
+                    stats.reserve_truck_envelopes(repr(_module_signature(main_candidate)), polygons)
             note_module_attempt(
                 {
                     "layout_family": layout_family,
@@ -8989,6 +9488,1220 @@ def _direct_structured_candidates(
         if stats.skeleton_construction_attempts is None:
             stats.skeleton_construction_attempts = []
         stats.skeleton_construction_attempts.append(attempt_row)
+
+
+def _dual_interface_sorting_roots(
+    context: _PlacementSearchContext,
+    packaging_anchor: PackagingAnchorV1,
+    dock_anchor: ShippingDockAnchorV1,
+    bays: Sequence[BuildableBayV1],
+    *,
+    packaging_roots: Sequence[
+        tuple[PlacedRectangleV1, str, PlacedRectangleV1 | None, dict[str, Any]]
+    ]
+    | None = None,
+    dock_finished_module: Mapping[str, PlacedRectangleV1] | None = None,
+    layout_family: str | None = None,
+    process_axis: str = "Y",
+    process_direction: str = "POSITIVE",
+    stats: _PlacementSearchStats | None = None,
+) -> tuple[tuple[PlacedRectangleV1, str, PlacedRectangleV1 | None, dict[str, Any]], ...]:
+    """Derive sorting roots constrained by both package and dock interfaces.
+
+    In the dock-backsolved path, a root must be generated at the exact frozen
+    secondary-room interface of a finished module already translated onto the
+    shipping dock anchor, and that same root must carry a packaging-derived
+    straight-interface construction witness. This is a joint construction
+    intersection, not a post-hoc collision filter.
+    """
+    package_roots = (
+        tuple(packaging_roots)
+        if packaging_roots is not None
+        else (_packaging_driven_sorting_roots(context, packaging_anchor, bays=bays, stats=stats))
+    )
+    fixed_external = {
+        "packaging_material_storage": packaging_anchor.rectangle,
+        "shipping_channel": dock_anchor.shipping_rectangle,
+    }
+    if dock_finished_module is not None:
+        shipping = dock_finished_module.get("shipping_channel")
+        secondary = dock_finished_module.get("secondary_precooling_room")
+        if (
+            shipping is None
+            or secondary is None
+            or shipping.bounds_mm != dock_anchor.shipping_rectangle.bounds_mm
+            or shipping.rotation_deg != dock_anchor.shipping_rotation_deg
+        ):
+            return ()
+        finished_zones = {
+            code: rectangle
+            for code, rectangle in dock_finished_module.items()
+            if code != "shipping_channel"
+        }
+        if not _site_module_is_usable(context, finished_zones, fixed_external):
+            return ()
+
+        package_roots_by_geometry: dict[
+            tuple[tuple[int, ...], int],
+            list[tuple[PlacedRectangleV1, str, PlacedRectangleV1 | None, dict[str, Any]]],
+        ] = {}
+        for row in package_roots:
+            package_roots_by_geometry.setdefault(
+                (row[0].bounds_mm, row[0].rotation_deg), []
+            ).append(row)
+
+        allowed_finished_sides = tuple(
+            sorted(
+                {
+                    finished_side
+                    for _raw_side, finished_side in _family_core_face_pairs(
+                        layout_family or LINEAR_3_BAND,
+                        process_axis,
+                        process_direction,
+                    )
+                }
+            )
+        )
+        opposite_side = {
+            "NORTH": "SOUTH",
+            "SOUTH": "NORTH",
+            "EAST": "WEST",
+            "WEST": "EAST",
+        }
+        joint_roots: dict[
+            tuple[tuple[int, ...], int, str, tuple[int, ...] | None],
+            tuple[PlacedRectangleV1, str, PlacedRectangleV1 | None, dict[str, Any]],
+        ] = {}
+        for shape in _local_dimension_shapes(context, "sorting_packaging_room"):
+            for finished_side in allowed_finished_sides:
+                root_side = opposite_side[finished_side]
+                for alignment in ("LOW", "CENTER", "HIGH"):
+                    x_mm, y_mm = _local_adjacent_origin(
+                        secondary, shape[3], shape[4], root_side, alignment
+                    )
+                    root = _local_rectangle_at("sorting_packaging_room", shape, x_mm, y_mm)
+                    if _adjacent_side(root, secondary) != finished_side:
+                        continue
+                    package_rows = package_roots_by_geometry.get(
+                        (root.bounds_mm, root.rotation_deg), ()
+                    )
+                    if not package_rows:
+                        continue
+                    fixed_with_finished = {**fixed_external, **finished_zones}
+                    if not _site_module_is_usable(
+                        context, {"sorting_packaging_room": root}, fixed_with_finished
+                    ):
+                        continue
+                    for package_row in package_rows:
+                        package_root, package_side, corridor, package_witness = package_row
+                        if corridor is not None and any(
+                            rectangles_overlap(corridor, rectangle)
+                            for rectangle in (
+                                *fixed_with_finished.values(),
+                                root,
+                            )
+                        ):
+                            continue
+                        witness = {
+                            **package_witness,
+                            "dock_anchor_identity": {
+                                "dock_point_mm": list(dock_anchor.dock_point_mm),
+                                "shipping_bounds_mm": list(
+                                    dock_anchor.shipping_rectangle.bounds_mm
+                                ),
+                                "template_identity": dock_anchor.source_template_identity,
+                            },
+                            "dock_backsolved_secondary_bounds_mm": list(secondary.bounds_mm),
+                            "sorting_secondary_interface_side": finished_side,
+                            "sorting_secondary_alignment": alignment,
+                            "joint_external_interface_match": True,
+                        }
+                        signature = (
+                            root.bounds_mm,
+                            root.rotation_deg,
+                            package_side,
+                            corridor.bounds_mm if corridor is not None else None,
+                        )
+                        joint_roots.setdefault(
+                            signature,
+                            (root, package_side, corridor, witness),
+                        )
+        return tuple(joint_roots[key] for key in sorted(joint_roots, key=lambda row: repr(row)))
+
+    accepted = []
+    for root, package_side, corridor, witness in package_roots:
+        if not _site_module_is_usable(context, {"sorting_packaging_room": root}, fixed_external):
+            continue
+        if corridor is not None and any(
+            rectangles_overlap(corridor, rectangle)
+            for rectangle in (*fixed_external.values(), root)
+        ):
+            continue
+        accepted.append((root, package_side, corridor, witness))
+    return tuple(accepted)
+
+
+def _module_main_site_assemblies_dock_backsolved_preselected_variants(
+    context: _PlacementSearchContext,
+    main_compositions: Sequence[LocalBuildingCompositionV1],
+    layout_family: str,
+    process_axis: str,
+    process_direction: str,
+    bays: Sequence[BuildableBayV1],
+    *,
+    limit: int,
+    source_pairs: Sequence[tuple[dict[str, PlacedRectangleV1], dict[str, PlacedRectangleV1]]]
+    | None = None,
+    stats: _PlacementSearchStats | None = None,
+) -> Iterator[dict[str, PlacedRectangleV1]]:
+    """Build critical assemblies with packaging and dock fixed before sorting.
+
+    Finished-chain modules are rigidly translated onto exact shipping dock
+    anchors; sorting roots are then the intersection of package-derived roots
+    and those sharing the authorized MUST edge with the backsolved secondary
+    room. No room coordinate is searched independently.
+    """
+    if limit <= 0 or not bays:
+        return
+    stats_variant_counts: dict[str, Any] | None = None
+    selected_source_pairs = tuple(
+        source_pairs or _main_module_source_pairs(context, main_compositions)
+    )
+    if not selected_source_pairs:
+        return
+    if stats is not None:
+        if stats.site_module_variant_counts is None:
+            stats.site_module_variant_counts = {}
+        stats_variant_counts = stats.site_module_variant_counts
+        if stats.site_packaging_anchors is None:
+            stats.site_packaging_anchors = _enumerate_packaging_site_anchors(context, bays)
+        package_root_options = stats.site_packaging_sorting_roots_by_anchor
+        if package_root_options is None:
+            package_root_options = {}
+            stats.site_packaging_sorting_roots_by_anchor = package_root_options
+        if stats.site_packaging_construction_anchors is None:
+            stats.site_packaging_construction_anchors = (
+                _packaging_anchor_construction_representatives(
+                    context,
+                    stats.site_packaging_anchors,
+                    bays,
+                    root_options_by_anchor=package_root_options,
+                    stats=stats,
+                )
+            )
+        package_anchors = stats.site_packaging_construction_anchors
+    else:
+        all_packages = _enumerate_packaging_site_anchors(context, bays)
+        package_root_options = {}
+        package_anchors = _packaging_anchor_construction_representatives(
+            context, all_packages, bays, root_options_by_anchor=package_root_options
+        )
+    if not package_anchors:
+        return
+    if stats is not None:
+        if stats.site_shipping_dock_anchors is None:
+            stats.site_shipping_dock_anchors = _shipping_dock_anchors_at_entrance(context)
+        if stats.site_shipping_dock_construction_anchors is None:
+            stats.site_shipping_dock_construction_anchors = (
+                _shipping_dock_anchor_construction_representatives(
+                    stats.site_shipping_dock_anchors,
+                    limit=_shipping_dock_anchor_construction_limit(
+                        stats.site_shipping_dock_anchors
+                    ),
+                    truck_entrance_segment=_truck_entrance_for_dock_anchor_order(context),
+                )
+            )
+        dock_anchors = stats.site_shipping_dock_construction_anchors
+        dock_points = _truck_dock_events_at_entrance(context)
+        assert stats_variant_counts is not None
+        stats_variant_counts.update(
+            {
+                "truck_dock_point_count": len({tuple(row["dock_point_mm"]) for row in dock_points}),
+                "shipping_dock_rectangle_count": len(
+                    {row.shipping_rectangle.bounds_mm for row in stats.site_shipping_dock_anchors}
+                ),
+                "shipping_dock_rectangle_count_by_rotation": {
+                    str(rotation): len(
+                        {
+                            row.shipping_rectangle.bounds_mm
+                            for row in stats.site_shipping_dock_anchors
+                            if row.shipping_rotation_deg == rotation
+                        }
+                    )
+                    for rotation in (0, 90)
+                },
+                "shipping_dock_rectangle_count_by_loading_face_side": {
+                    side: len(
+                        {
+                            row.shipping_rectangle.bounds_mm
+                            for row in stats.site_shipping_dock_anchors
+                            if row.loading_face_side == side
+                        }
+                    )
+                    for side in sorted(
+                        {row.loading_face_side for row in stats.site_shipping_dock_anchors}
+                    )
+                },
+                "shipping_dock_construction_representative_count": len(dock_anchors),
+            }
+        )
+    else:
+        dock_anchors = _shipping_dock_anchor_construction_representatives(
+            _shipping_dock_anchors_at_entrance(context),
+            limit=_shipping_dock_anchor_construction_limit(
+                _shipping_dock_anchors_at_entrance(context)
+            ),
+            truck_entrance_segment=_truck_entrance_for_dock_anchor_order(context),
+        )
+    if not dock_anchors:
+        return
+
+    pair_variants: list[tuple[int, dict[str, PlacedRectangleV1], dict[str, PlacedRectangleV1]]] = []
+    seen_module_pairs: set[tuple[object, ...]] = set()
+    for source_pair_index, (raw_source, finished_source) in enumerate(selected_source_pairs):
+        for raw_module, finished_module in _balanced_site_module_pair_variants(
+            raw_source, finished_source
+        ):
+            identity = (_module_signature(raw_module), _module_signature(finished_module))
+            if identity in seen_module_pairs:
+                continue
+            seen_module_pairs.add(identity)
+            pair_variants.append((source_pair_index, raw_module, finished_module))
+
+    finished_variants_by_dock_anchor: dict[
+        tuple[Any, ...],
+        tuple[tuple[int, dict[str, PlacedRectangleV1], dict[str, PlacedRectangleV1]], ...],
+    ] = {}
+    for dock_anchor in dock_anchors:
+        dock_key = (
+            dock_anchor.shipping_rectangle.bounds_mm,
+            dock_anchor.shipping_rotation_deg,
+            dock_anchor.dock_point_mm,
+            dock_anchor.source_template_identity,
+            dock_anchor.source_template_rotation_deg,
+        )
+        translated_variants = []
+        for source_pair_index, raw_module, finished_module in pair_variants:
+            if stats is not None:
+                stats.finished_dock_backsolve_attempt_count += 1
+            backsolved = _dock_backsolved_finished_module(finished_module, dock_anchor)
+            if backsolved is not None:
+                translated_variants.append((source_pair_index, raw_module, backsolved))
+        finished_variants_by_dock_anchor[dock_key] = tuple(translated_variants)
+
+    face_pairs = set(_family_core_face_pairs(layout_family, process_axis, process_direction))
+    alignments = ("CENTER", "LOW", "HIGH")
+    emitted_signatures: set[str] = set()
+    dock_capable_hashes: set[str] = set()
+    pair_count = 0
+    necessary_pass_count = 0
+    yielded = 0
+    dock_stage_counts = {
+        "dock_backsolved_finished_site_valid_count": 0,
+        "packaging_dock_joint_sorting_root_count": 0,
+        "raw_attachment_candidate_count": 0,
+        "raw_attachment_site_valid_count": 0,
+        "main_must_graph_valid_count": 0,
+        "dock_capable_main_process_count": 0,
+    }
+    for package_anchor in package_anchors:
+        package_options = package_root_options.get(package_anchor.anchor_id)
+        if package_options is None:
+            package_options = _packaging_driven_sorting_roots(
+                context, package_anchor, bays=bays, stats=stats
+            )
+            package_root_options[package_anchor.anchor_id] = package_options
+        for dock_anchor in dock_anchors:
+            pair_count += 1
+            fixed_interfaces = {
+                "packaging_material_storage": package_anchor.rectangle,
+                "shipping_channel": dock_anchor.shipping_rectangle,
+            }
+            if not _site_module_is_usable(context, fixed_interfaces, {}):
+                continue
+            dock_key = (
+                dock_anchor.shipping_rectangle.bounds_mm,
+                dock_anchor.shipping_rotation_deg,
+                dock_anchor.dock_point_mm,
+                dock_anchor.source_template_identity,
+                dock_anchor.source_template_rotation_deg,
+            )
+            joint_rows_by_root: dict[
+                tuple[tuple[int, ...], int, str, tuple[int, ...] | None],
+                tuple[
+                    PlacedRectangleV1,
+                    str,
+                    PlacedRectangleV1 | None,
+                    dict[str, Any],
+                    list[tuple[int, dict[str, PlacedRectangleV1], dict[str, PlacedRectangleV1]]],
+                    str,
+                ],
+            ] = {}
+            for (
+                source_pair_index,
+                raw_module,
+                dock_finished,
+            ) in finished_variants_by_dock_anchor.get(dock_key, ()):
+                finished_zones = {
+                    code: rectangle
+                    for code, rectangle in dock_finished.items()
+                    if code != "shipping_channel"
+                }
+                if not _site_module_is_usable(context, finished_zones, fixed_interfaces):
+                    continue
+                dock_stage_counts["dock_backsolved_finished_site_valid_count"] += 1
+                dock_roots = _dual_interface_sorting_roots(
+                    context,
+                    package_anchor,
+                    dock_anchor,
+                    bays,
+                    packaging_roots=package_options,
+                    dock_finished_module=dock_finished,
+                    layout_family=layout_family,
+                    process_axis=process_axis,
+                    process_direction=process_direction,
+                    stats=stats,
+                )
+                for root, package_side, corridor, witness in dock_roots:
+                    finished_side = _adjacent_side(root, dock_finished["secondary_precooling_room"])
+                    if finished_side is None or not any(
+                        side == finished_side for _raw, side in face_pairs
+                    ):
+                        continue
+                    root_key = (
+                        root.bounds_mm,
+                        root.rotation_deg,
+                        package_side,
+                        corridor.bounds_mm if corridor is not None else None,
+                    )
+                    existing = joint_rows_by_root.get(root_key)
+                    if existing is None:
+                        joint_rows_by_root[root_key] = (
+                            root,
+                            package_side,
+                            corridor,
+                            witness,
+                            [(source_pair_index, raw_module, dock_finished)],
+                            finished_side,
+                        )
+                    else:
+                        existing[4].append((source_pair_index, raw_module, dock_finished))
+            sorting_roots = tuple(
+                (
+                    row[0],
+                    row[1],
+                    row[2],
+                    {
+                        **row[3],
+                        "joint_external_interface_match": True,
+                        "dock_backsolved_secondary_bounds_mm": list(
+                            row[4][0][2]["secondary_precooling_room"].bounds_mm
+                        ),
+                    },
+                )
+                for _key, row in sorted(joint_rows_by_root.items(), key=lambda item: repr(item[0]))
+            )
+            if sorting_roots:
+                necessary_pass_count += 1
+                dock_stage_counts["packaging_dock_joint_sorting_root_count"] += len(sorting_roots)
+            if stats is not None:
+                if stats.site_module_assembly_trace is None:
+                    stats.site_module_assembly_trace = []
+                stats.site_module_assembly_trace.append(
+                    {
+                        "stage": "S0_DUAL_EXTERNAL_INTERFACE_SORTING_ROOTS",
+                        "layout_family": layout_family,
+                        "packaging_anchor": package_anchor.to_dict(),
+                        "shipping_dock_anchor": dock_anchor.to_dict(),
+                        "sorting_roots": [
+                            {
+                                "bounds_mm": list(root.bounds_mm),
+                                "rotation_deg": root.rotation_deg,
+                                "package_side_of_sorting": package_side,
+                                "alignment_witness": witness,
+                                "reserved_corridor_bounds_mm": (
+                                    list(corridor.bounds_mm) if corridor is not None else None
+                                ),
+                            }
+                            for root, package_side, corridor, witness in sorting_roots
+                        ],
+                        "root_generation_uses_dock_backsolved_secondary": True,
+                        "joint_interface_root_set_empty": not bool(sorting_roots),
+                        "counts_as_placement_node": False,
+                    }
+                )
+            if not sorting_roots:
+                continue
+            for root, _package_side, reserved_corridor, _alignment_witness in sorting_roots:
+                core = {
+                    "packaging_material_storage": package_anchor.rectangle,
+                    "sorting_packaging_room": root,
+                    "shipping_channel": dock_anchor.shipping_rectangle,
+                }
+                if not _site_module_is_usable(
+                    context, {"sorting_packaging_room": root}, fixed_interfaces
+                ):
+                    continue
+                for (
+                    source_pair_index,
+                    raw_module,
+                    dock_finished,
+                ) in joint_rows_by_root[
+                    (
+                        root.bounds_mm,
+                        root.rotation_deg,
+                        _package_side,
+                        reserved_corridor.bounds_mm if reserved_corridor is not None else None,
+                    )
+                ][4]:
+                    finished_side = _adjacent_side(root, dock_finished["secondary_precooling_room"])
+                    if finished_side is None or not any(
+                        side == finished_side for _raw, side in face_pairs
+                    ):
+                        continue
+                    if not _site_module_is_usable(
+                        context,
+                        {
+                            code: rectangle
+                            for code, rectangle in dock_finished.items()
+                            if code != "shipping_channel"
+                        },
+                        {
+                            "packaging_material_storage": package_anchor.rectangle,
+                            "sorting_packaging_room": root,
+                        },
+                    ):
+                        continue
+                    if reserved_corridor is not None and any(
+                        rectangles_overlap(reserved_corridor, rectangle)
+                        for rectangle in (*core.values(), *dock_finished.values())
+                    ):
+                        continue
+                    # Finished and raw modules may use distinct core faces;
+                    # preserve every authorized face pair for this family.
+                    raw_sides = tuple(
+                        dict.fromkeys(
+                            raw_side
+                            for raw_side, candidate_finished_side in _family_core_face_pairs(
+                                layout_family, process_axis, process_direction
+                            )
+                            if candidate_finished_side == finished_side
+                        )
+                    )
+                    for raw_side in raw_sides:
+                        for raw_alignment in alignments:
+                            raw_attached = _module_attached_to_zone(
+                                raw_module,
+                                "primary_precooling_room",
+                                root,
+                                raw_side,
+                                raw_alignment,
+                            )
+                            if raw_attached is None:
+                                continue
+                            dock_stage_counts["raw_attachment_candidate_count"] += 1
+                            fixed_main = {
+                                **core,
+                                **{
+                                    code: rectangle
+                                    for code, rectangle in dock_finished.items()
+                                    if code != "shipping_channel"
+                                },
+                            }
+                            if not _site_module_is_usable(context, raw_attached, fixed_main):
+                                continue
+                            if reserved_corridor is not None and any(
+                                rectangles_overlap(reserved_corridor, rectangle)
+                                for rectangle in raw_attached.values()
+                            ):
+                                continue
+                            dock_stage_counts["raw_attachment_site_valid_count"] += 1
+                            candidate = {**fixed_main, **raw_attached}
+                            main = {
+                                code: candidate[code] for code in MAIN_PROCESS_SKELETON_ZONE_CODES
+                            }
+                            try:
+                                _validate_main_process_skeleton_graph(context.graph, main)
+                            except LayoutAuthorityError:
+                                continue
+                            dock_stage_counts["main_must_graph_valid_count"] += 1
+                            if not _site_module_is_usable(context, main, {}):
+                                continue
+                            try:
+                                seed = _canonical_site_main_skeleton(
+                                    context,
+                                    main,
+                                    layout_family=layout_family,
+                                    process_axis=process_axis,
+                                    process_direction=process_direction,
+                                    generation_pattern=(
+                                        f"{layout_family}:DUAL_INTERFACE_DOCK_BACKSOLVE:"
+                                        f"{dock_anchor.source_template_identity}:"
+                                        f"{source_pair_index}"
+                                    ),
+                                )
+                            except LayoutAuthorityError:
+                                continue
+                            dock_capable_hashes.add(seed.main_process_skeleton_hash)
+                            dock_stage_counts["dock_capable_main_process_count"] = len(
+                                dock_capable_hashes
+                            )
+                            critical_signature = repr(_module_signature(candidate))
+                            if critical_signature in emitted_signatures:
+                                continue
+                            emitted_signatures.add(critical_signature)
+                            if stats is not None:
+                                assert stats_variant_counts is not None
+                                if stats.site_module_assembly_trace is None:
+                                    stats.site_module_assembly_trace = []
+                                stats.site_module_assembly_trace.append(
+                                    {
+                                        "stage": "S1_DOCK_CAPABLE_MAIN_PROCESS",
+                                        "result": "DOCK_CAPABLE_MAIN_PROCESS",
+                                        "layout_family": layout_family,
+                                        "main_process_skeleton_hash": (
+                                            seed.main_process_skeleton_hash
+                                        ),
+                                        "packaging_anchor": package_anchor.to_dict(),
+                                        "shipping_dock_anchor": dock_anchor.to_dict(),
+                                        "shipping_exact_dock_anchor_match": True,
+                                        "sorting_rotation_deg": root.rotation_deg,
+                                        "sorting_root_bounds_mm": list(root.bounds_mm),
+                                        "finished_site_construction": "BACKWARD_FROM_DOCK",
+                                        "source_pair_index": source_pair_index,
+                                        "packaging_slot_exists": True,
+                                        "formal_packaging_preflight": "PENDING_OUTER_GATE",
+                                        "zones": [
+                                            candidate[code].to_dict() for code in sorted(candidate)
+                                        ],
+                                        "counts_as_placement_node": False,
+                                    }
+                                )
+                                stats_variant_counts["dock_capable_main_process_count"] = len(
+                                    dock_capable_hashes
+                                )
+                                stats_variant_counts["packaging_shipping_anchor_pair_count"] = (
+                                    pair_count
+                                )
+                                stats_variant_counts[
+                                    "packaging_shipping_pair_necessary_pass_count"
+                                ] = necessary_pass_count
+                            yielded += 1
+                            yield candidate
+                            if yielded >= limit:
+                                return
+    if stats is not None:
+        assert stats_variant_counts is not None
+        stats_variant_counts["packaging_shipping_anchor_pair_count"] = pair_count
+        stats_variant_counts["packaging_shipping_pair_necessary_pass_count"] = necessary_pass_count
+        stats_variant_counts["dock_capable_main_process_count"] = len(dock_capable_hashes)
+        stats_variant_counts["dual_interface_stage_counts"] = dock_stage_counts
+
+
+def _module_main_site_assemblies_dock_backsolved(
+    context: _PlacementSearchContext,
+    main_compositions: Sequence[LocalBuildingCompositionV1],
+    layout_family: str,
+    process_axis: str,
+    process_direction: str,
+    bays: Sequence[BuildableBayV1],
+    *,
+    limit: int,
+    source_pairs: Sequence[tuple[dict[str, PlacedRectangleV1], dict[str, PlacedRectangleV1]]]
+    | None = None,
+    stats: _PlacementSearchStats | None = None,
+) -> Iterator[dict[str, PlacedRectangleV1] | None]:
+    """Jointly assemble packaging, sorting, and dock-backed process geometry.
+
+    The previous finite local finished-module catalog could be too narrow for
+    a site dock event: translating a compact preselected chain onto shipping
+    did not guarantee that its secondary room met any package-derived sorting
+    root.  This path instead enumerates the authoritative MUST chain from the
+    fixed site-frame shipping rectangle inward for each package-derived root.
+    Room dimensions and each positive shared edge remain unchanged authority.
+    """
+    if limit <= 0 or not bays:
+        return
+    selected_source_pairs = tuple(
+        source_pairs or _main_module_source_pairs(context, main_compositions)
+    )
+    if not selected_source_pairs:
+        return
+
+    if stats is not None:
+        if stats.site_module_variant_counts is None:
+            stats.site_module_variant_counts = {}
+        counts = stats.site_module_variant_counts
+        if stats.site_packaging_anchors is None:
+            stats.site_packaging_anchors = _enumerate_packaging_site_anchors(context, bays)
+        package_root_options = stats.site_packaging_sorting_roots_by_anchor
+        if package_root_options is None:
+            package_root_options = {}
+            stats.site_packaging_sorting_roots_by_anchor = package_root_options
+        if stats.site_packaging_construction_anchors is None:
+            stats.site_packaging_construction_anchors = (
+                _packaging_anchor_construction_representatives(
+                    context,
+                    stats.site_packaging_anchors,
+                    bays,
+                    root_options_by_anchor=package_root_options,
+                    stats=stats,
+                )
+            )
+        package_anchors = stats.site_packaging_construction_anchors
+        if stats.site_shipping_dock_anchors is None:
+            stats.site_shipping_dock_anchors = _shipping_dock_anchors_at_entrance(context)
+        if stats.site_shipping_dock_construction_anchors is None:
+            stats.site_shipping_dock_construction_anchors = (
+                _shipping_dock_anchor_construction_representatives(
+                    stats.site_shipping_dock_anchors,
+                    limit=_shipping_dock_anchor_construction_limit(
+                        stats.site_shipping_dock_anchors
+                    ),
+                    truck_entrance_segment=_truck_entrance_for_dock_anchor_order(context),
+                )
+            )
+        dock_anchors = stats.site_shipping_dock_construction_anchors
+        dock_points = _truck_dock_events_at_entrance(context)
+        counts.update(
+            {
+                "truck_dock_point_count": len({tuple(row["dock_point_mm"]) for row in dock_points}),
+                "shipping_dock_rectangle_count": len(
+                    {row.shipping_rectangle.bounds_mm for row in stats.site_shipping_dock_anchors}
+                ),
+                "shipping_dock_rectangle_count_by_rotation": {
+                    str(rotation): len(
+                        {
+                            row.shipping_rectangle.bounds_mm
+                            for row in stats.site_shipping_dock_anchors
+                            if row.shipping_rotation_deg == rotation
+                        }
+                    )
+                    for rotation in (0, 90)
+                },
+                "shipping_dock_rectangle_count_by_loading_face_side": {
+                    side: len(
+                        {
+                            row.shipping_rectangle.bounds_mm
+                            for row in stats.site_shipping_dock_anchors
+                            if row.loading_face_side == side
+                        }
+                    )
+                    for side in sorted(
+                        {row.loading_face_side for row in stats.site_shipping_dock_anchors}
+                    )
+                },
+                "shipping_dock_construction_representative_count": len(dock_anchors),
+            }
+        )
+    else:
+        all_packages = _enumerate_packaging_site_anchors(context, bays)
+        package_root_options = {}
+        package_anchors = _packaging_anchor_construction_representatives(
+            context, all_packages, bays, root_options_by_anchor=package_root_options
+        )
+        dock_anchors = _shipping_dock_anchor_construction_representatives(
+            _shipping_dock_anchors_at_entrance(context),
+            limit=_shipping_dock_anchor_construction_limit(
+                _shipping_dock_anchors_at_entrance(context)
+            ),
+            truck_entrance_segment=_truck_entrance_for_dock_anchor_order(context),
+        )
+        counts = None
+    if not package_anchors or not dock_anchors:
+        return
+
+    raw_modules: list[tuple[int, dict[str, PlacedRectangleV1]]] = []
+    seen_raw: set[tuple[tuple[str, tuple[int, ...]], ...]] = set()
+    for source_pair_index, (raw_source, _finished_source) in enumerate(selected_source_pairs):
+        for raw_module in _site_assembly_module_variants(raw_source):
+            signature = _module_signature(raw_module)
+            if signature in seen_raw:
+                continue
+            seen_raw.add(signature)
+            raw_modules.append((source_pair_index, raw_module))
+    if not raw_modules:
+        return
+
+    chain_cache: dict[tuple[Any, ...], tuple[dict[str, PlacedRectangleV1], ...]] = {}
+    emitted_signatures: set[tuple[tuple[str, tuple[int, ...]], ...]] = set()
+    emitted_external_interface_pairs: set[tuple[Any, ...]] = set()
+    dock_capable_hashes: set[str] = set()
+    stage_counts = {
+        "dock_backsolved_finished_site_valid_count": 0,
+        "packaging_dock_joint_sorting_root_count": 0,
+        "raw_attachment_candidate_count": 0,
+        "raw_attachment_site_valid_count": 0,
+        "main_must_graph_valid_count": 0,
+        "dock_capable_main_process_count": 0,
+    }
+    pair_count = 0
+    necessary_pair_count = 0
+    yielded = 0
+    truck_preflight_attempt_count = 0
+    face_pairs = _family_core_face_pairs(layout_family, process_axis, process_direction)
+
+    for package_anchor in package_anchors:
+        package_roots = package_root_options.get(package_anchor.anchor_id)
+        if package_roots is None:
+            package_roots = _packaging_driven_sorting_roots(
+                context, package_anchor, bays=bays, stats=stats
+            )
+            package_root_options[package_anchor.anchor_id] = package_roots
+        for dock_anchor in dock_anchors:
+            pair_count += 1
+            external_pair_identity = (
+                package_anchor.rectangle.bounds_mm,
+                dock_anchor.shipping_rectangle.bounds_mm,
+                dock_anchor.shipping_rotation_deg,
+                dock_anchor.dock_point_mm,
+                dock_anchor.source_template_identity,
+                dock_anchor.source_template_rotation_deg,
+                dock_anchor.source_entry_point_mm,
+            )
+            fixed_interfaces = {
+                "packaging_material_storage": package_anchor.rectangle,
+                "shipping_channel": dock_anchor.shipping_rectangle,
+            }
+            if not _site_module_is_usable(context, fixed_interfaces, {}):
+                continue
+
+            viable_roots: list[
+                tuple[
+                    PlacedRectangleV1,
+                    str,
+                    PlacedRectangleV1 | None,
+                    dict[str, Any],
+                    tuple[dict[str, PlacedRectangleV1], ...],
+                ]
+            ] = []
+            for root, package_side, corridor, package_witness in _dual_interface_sorting_roots(
+                context,
+                package_anchor,
+                dock_anchor,
+                bays,
+                packaging_roots=package_roots,
+                layout_family=layout_family,
+                process_axis=process_axis,
+                process_direction=process_direction,
+                stats=stats,
+            ):
+                if corridor is not None and any(
+                    rectangles_overlap(corridor, rectangle)
+                    for rectangle in (*fixed_interfaces.values(), root)
+                ):
+                    continue
+                cache_key = (
+                    dock_anchor.shipping_rectangle.bounds_mm,
+                    dock_anchor.shipping_rotation_deg,
+                    dock_anchor.dock_point_mm,
+                    dock_anchor.source_template_identity,
+                    dock_anchor.source_template_rotation_deg,
+                    root.bounds_mm,
+                    root.rotation_deg,
+                    layout_family,
+                    process_axis,
+                    process_direction,
+                )
+                chains = chain_cache.get(cache_key)
+                if chains is None:
+                    if stats is not None:
+                        stats.finished_dock_backsolve_attempt_count += 1
+                    chains = _dock_backsolved_finished_chains(
+                        context,
+                        dock_anchor,
+                        root,
+                        {},
+                        layout_family,
+                        process_axis,
+                        process_direction,
+                    )
+                    chain_cache[cache_key] = chains
+                package_root_fixed = {
+                    "packaging_material_storage": package_anchor.rectangle,
+                    "sorting_packaging_room": root,
+                    "shipping_channel": dock_anchor.shipping_rectangle,
+                }
+                accepted_chains = tuple(
+                    chain
+                    for chain in chains
+                    if _site_module_is_usable(context, chain, package_root_fixed)
+                    and (
+                        corridor is None
+                        or not any(
+                            rectangles_overlap(corridor, rectangle) for rectangle in chain.values()
+                        )
+                    )
+                )
+                if not accepted_chains:
+                    continue
+                stage_counts["packaging_dock_joint_sorting_root_count"] += 1
+                stage_counts["dock_backsolved_finished_site_valid_count"] += len(accepted_chains)
+                viable_roots.append(
+                    (root, package_side, corridor, package_witness, accepted_chains)
+                )
+            if viable_roots:
+                necessary_pair_count += 1
+            if stats is not None:
+                if stats.site_module_assembly_trace is None:
+                    stats.site_module_assembly_trace = []
+                stats.site_module_assembly_trace.append(
+                    {
+                        "stage": "S0_DUAL_EXTERNAL_INTERFACE_SORTING_ROOTS",
+                        "layout_family": layout_family,
+                        "packaging_anchor": package_anchor.to_dict(),
+                        "shipping_dock_anchor": dock_anchor.to_dict(),
+                        "sorting_roots": [
+                            {
+                                "bounds_mm": list(root.bounds_mm),
+                                "rotation_deg": root.rotation_deg,
+                                "package_side_of_sorting": package_side,
+                                "alignment_witness": {
+                                    **package_witness,
+                                    "dock_backsolved_chain_count": len(accepted_chains),
+                                    "site_valid_joint_chain_count": len(accepted_chains),
+                                    "joint_external_interface_match": True,
+                                },
+                                "reserved_corridor_bounds_mm": (
+                                    list(corridor.bounds_mm) if corridor is not None else None
+                                ),
+                            }
+                            for (
+                                root,
+                                package_side,
+                                corridor,
+                                package_witness,
+                                accepted_chains,
+                            ) in viable_roots
+                        ],
+                        "root_generation_uses_dock_backsolved_secondary": True,
+                        "joint_interface_root_set_empty": not bool(viable_roots),
+                        "counts_as_placement_node": False,
+                    }
+                )
+
+            pair_emitted = False
+            for root, _package_side, corridor, package_witness, chains in viable_roots:
+                if pair_emitted:
+                    break
+                root_emitted = False
+                fixed_main = {
+                    "packaging_material_storage": package_anchor.rectangle,
+                    "sorting_packaging_room": root,
+                    "shipping_channel": dock_anchor.shipping_rectangle,
+                }
+                for dock_finished_zones in chains:
+                    if root_emitted:
+                        break
+                    secondary = dock_finished_zones["secondary_precooling_room"]
+                    finished_side = _adjacent_side(root, secondary)
+                    raw_sides = tuple(
+                        dict.fromkeys(
+                            raw_side
+                            for raw_side, candidate_finished_side in face_pairs
+                            if candidate_finished_side == finished_side
+                        )
+                    )
+                    if not raw_sides:
+                        continue
+                    fixed_main.update(dock_finished_zones)
+                    for source_pair_index, raw_module in raw_modules:
+                        if root_emitted:
+                            break
+                        for raw_side in raw_sides:
+                            if root_emitted:
+                                break
+                            for raw_alignment in ("CENTER", "LOW", "HIGH"):
+                                if root_emitted:
+                                    break
+                                raw_attached = _module_attached_to_zone(
+                                    raw_module,
+                                    "primary_precooling_room",
+                                    root,
+                                    raw_side,
+                                    raw_alignment,
+                                )
+                                if raw_attached is None:
+                                    continue
+                                stage_counts["raw_attachment_candidate_count"] += 1
+                                if not _site_module_is_usable(context, raw_attached, fixed_main):
+                                    continue
+                                if corridor is not None and any(
+                                    rectangles_overlap(corridor, rectangle)
+                                    for rectangle in raw_attached.values()
+                                ):
+                                    continue
+                                stage_counts["raw_attachment_site_valid_count"] += 1
+                                candidate = {**fixed_main, **raw_attached}
+                                main = {
+                                    code: candidate[code]
+                                    for code in MAIN_PROCESS_SKELETON_ZONE_CODES
+                                }
+                                try:
+                                    _validate_main_process_skeleton_graph(context.graph, main)
+                                except LayoutAuthorityError:
+                                    continue
+                                stage_counts["main_must_graph_valid_count"] += 1
+                                if not _site_module_is_usable(context, main, {}):
+                                    continue
+                                try:
+                                    seed = _canonical_site_main_skeleton(
+                                        context,
+                                        main,
+                                        layout_family=layout_family,
+                                        process_axis=process_axis,
+                                        process_direction=process_direction,
+                                        generation_pattern=(
+                                            f"{layout_family}:DUAL_INTERFACE_DOCK_BACKSOLVE:"
+                                            f"{dock_anchor.source_template_identity}:"
+                                            f"{source_pair_index}"
+                                        ),
+                                    )
+                                except LayoutAuthorityError:
+                                    continue
+                                dock_capable_hashes.add(seed.main_process_skeleton_hash)
+                                stage_counts["dock_capable_main_process_count"] = len(
+                                    dock_capable_hashes
+                                )
+                                signature = _module_signature(candidate)
+                                if signature in emitted_signatures:
+                                    continue
+                                emitted_signatures.add(signature)
+                                if stats is not None:
+                                    assert counts is not None
+                                    # The caller charges each yielded attempt (including a
+                                    # rejected ``None`` marker) to the single placement-node
+                                    # budget. Stop before doing another preflight once that
+                                    # shared budget has been reached.
+                                    if stats.visited_nodes >= context.node_budget:
+                                        counts["dock_main_preflight_attempt_limit_reached"] = True
+                                        return
+                                    truck_preflight_attempt_count += 1
+                                    counts["dock_main_truck_preflight_attempt_count"] = (
+                                        truck_preflight_attempt_count
+                                    )
+                                    if not _constructive_main_skeleton_tail_admission(
+                                        context, stats, seed, run_truck_preflight=True
+                                    ):
+                                        registry = context.global_main_process_geometry_registry
+                                        registry_row = (
+                                            registry.get(seed.main_process_skeleton_hash, {})
+                                            if registry is not None
+                                            else {}
+                                        )
+                                        truck_row = registry_row.get(
+                                            "main_skeleton_truck_preflight"
+                                        )
+                                        if (
+                                            isinstance(truck_row, Mapping)
+                                            and truck_row.get("preflight_status") == "REJECT"
+                                        ):
+                                            stage_counts["truck_preflight_reject_count"] = (
+                                                stage_counts.get("truck_preflight_reject_count", 0)
+                                                + 1
+                                            )
+                                        else:
+                                            stage_counts["formal_admission_reject_count"] = (
+                                                stage_counts.get("formal_admission_reject_count", 0)
+                                                + 1
+                                            )
+                                        if stats.site_module_assembly_trace is None:
+                                            stats.site_module_assembly_trace = []
+                                        stats.site_module_assembly_trace.append(
+                                            {
+                                                "stage": "S1_MAIN_TRUCK_PREFLIGHT",
+                                                "result": "REJECTED",
+                                                "layout_family": layout_family,
+                                                "main_process_skeleton_hash": (
+                                                    seed.main_process_skeleton_hash
+                                                ),
+                                                "truck_preflight": (
+                                                    dict(truck_row)
+                                                    if isinstance(truck_row, Mapping)
+                                                    else None
+                                                ),
+                                                "tail_search_started": False,
+                                            }
+                                        )
+                                        # Surface the rejected construction attempt so the
+                                        # scheduler charges exactly one placement node, then
+                                        # resume this external-anchor pair at its next finite
+                                        # sorting root. A rejected root is not an S1 candidate.
+                                        yield None
+                                        continue
+                                    registry = context.global_main_process_geometry_registry
+                                    registry_row = (
+                                        registry.get(seed.main_process_skeleton_hash, {})
+                                        if registry is not None
+                                        else {}
+                                    )
+                                    truck_row = registry_row.get("main_skeleton_truck_preflight")
+                                    if isinstance(truck_row, Mapping):
+                                        status = truck_row.get("preflight_status")
+                                        if status == "PASS":
+                                            stage_counts["truck_preflight_pass_count"] = (
+                                                stage_counts.get("truck_preflight_pass_count", 0)
+                                                + 1
+                                            )
+                                        elif status == "UNRESOLVED":
+                                            stage_counts["truck_preflight_unresolved_count"] = (
+                                                stage_counts.get(
+                                                    "truck_preflight_unresolved_count", 0
+                                                )
+                                                + 1
+                                            )
+                                if stats is not None:
+                                    if stats.site_module_assembly_trace is None:
+                                        stats.site_module_assembly_trace = []
+                                    if stats.site_main_source_pair_rows is None:
+                                        stats.site_main_source_pair_rows = []
+                                    stats.site_main_source_pair_rows.append(
+                                        {
+                                            "layout_family": layout_family,
+                                            "source_pair_index": source_pair_index,
+                                            "input_geometry_signature": repr(
+                                                _module_signature(raw_module)
+                                            ),
+                                            "result": (
+                                                "PACKAGING_RESERVED_MAIN_LIMIT_REACHED"
+                                                if yielded + 1 >= limit
+                                                else "PACKAGING_RESERVED_MAIN_EMITTED"
+                                            ),
+                                            "tail_capacity_exhausted": False,
+                                            "dock_backsolved": True,
+                                            "shipping_dock_point_mm": list(
+                                                dock_anchor.dock_point_mm
+                                            ),
+                                            "sorting_root_bounds_mm": list(root.bounds_mm),
+                                        }
+                                    )
+                                    stats.site_module_assembly_trace.append(
+                                        {
+                                            "stage": "S1_DOCK_CAPABLE_MAIN_PROCESS",
+                                            "result": "DOCK_CAPABLE_MAIN_PROCESS",
+                                            "layout_family": layout_family,
+                                            "main_process_skeleton_hash": (
+                                                seed.main_process_skeleton_hash
+                                            ),
+                                            "packaging_anchor": package_anchor.to_dict(),
+                                            "shipping_dock_anchor": dock_anchor.to_dict(),
+                                            "shipping_exact_dock_anchor_match": True,
+                                            "sorting_rotation_deg": root.rotation_deg,
+                                            "sorting_root_bounds_mm": list(root.bounds_mm),
+                                            "finished_site_construction": "BACKWARD_FROM_DOCK",
+                                            "dock_backsolved_secondary_bounds_mm": list(
+                                                secondary.bounds_mm
+                                            ),
+                                            "packaging_interface_witness": package_witness,
+                                            "source_pair_index": source_pair_index,
+                                            "packaging_slot_exists": True,
+                                            "formal_packaging_preflight": "PENDING_OUTER_GATE",
+                                            "zones": [
+                                                candidate[code].to_dict()
+                                                for code in sorted(candidate)
+                                            ],
+                                            "counts_as_placement_node": False,
+                                        }
+                                    )
+                                yielded += 1
+                                if stats is not None:
+                                    assert counts is not None
+                                    counts["dock_capable_main_process_count"] = len(
+                                        dock_capable_hashes
+                                    )
+                                    counts["packaging_shipping_anchor_pair_count"] = pair_count
+                                    counts["packaging_shipping_pair_necessary_pass_count"] = (
+                                        necessary_pair_count
+                                    )
+                                    counts["dual_interface_stage_counts"] = dict(stage_counts)
+                                root_emitted = True
+                                pair_emitted = True
+                                emitted_external_interface_pairs.add(external_pair_identity)
+                                yield candidate
+                                if yielded >= limit:
+                                    break
+                            if yielded >= limit:
+                                break
+                        if yielded >= limit:
+                            break
+                    fixed_main = {
+                        "packaging_material_storage": package_anchor.rectangle,
+                        "sorting_packaging_room": root,
+                        "shipping_channel": dock_anchor.shipping_rectangle,
+                    }
+                    if yielded >= limit:
+                        break
+                if yielded >= limit:
+                    break
+            if yielded >= limit:
+                break
+        if yielded >= limit:
+            break
+
+    if stats is not None:
+        assert counts is not None
+        counts["dock_capable_main_process_count"] = len(dock_capable_hashes)
+        counts["packaging_shipping_anchor_pair_count"] = pair_count
+        counts["packaging_shipping_pair_necessary_pass_count"] = necessary_pair_count
+        counts["candidate_emitted_external_interface_pair_count"] = len(
+            emitted_external_interface_pairs
+        )
+        counts["dual_interface_stage_counts"] = stage_counts
+
+
+def _module_main_site_assemblies(
+    context: _PlacementSearchContext,
+    main_compositions: Sequence[LocalBuildingCompositionV1],
+    layout_family: str,
+    process_axis: str,
+    process_direction: str,
+    bays: Sequence[BuildableBayV1],
+    *,
+    limit: int,
+    source_pairs: Sequence[tuple[dict[str, PlacedRectangleV1], dict[str, PlacedRectangleV1]]]
+    | None = None,
+    stats: _PlacementSearchStats | None = None,
+) -> Iterator[dict[str, Any] | None]:
+    """Prioritize exact dock-backsolved assemblies, then use forward fallback."""
+    if limit <= 0:
+        return
+    dock_rows = iter(
+        _module_main_site_assemblies_dock_backsolved(
+            context,
+            main_compositions,
+            layout_family,
+            process_axis,
+            process_direction,
+            bays,
+            limit=limit,
+            source_pairs=source_pairs,
+            stats=stats,
+        )
+    )
+    forward_rows = iter(
+        _module_main_site_assemblies_forward(
+            context,
+            main_compositions,
+            layout_family,
+            process_axis,
+            process_direction,
+            bays,
+            limit=limit,
+            source_pairs=source_pairs,
+            stats=stats,
+        )
+    )
+    emitted = 0
+    for candidate in dock_rows:
+        yield candidate
+        emitted += 1
+        if emitted >= limit:
+            return
+    for forward_candidate in forward_rows:
+        yield forward_candidate
+        emitted += 1
+        if emitted >= limit:
+            return
 
 
 def _search_provenance(

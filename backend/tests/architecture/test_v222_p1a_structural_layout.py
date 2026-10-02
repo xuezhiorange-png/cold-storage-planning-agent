@@ -55,9 +55,9 @@ def test_structural_search_has_group_band_zone_and_three_required_family_lanes()
     composition_source = _source("domain/structural_composition.py")
     assert "PLACEMENT_ZONE_ORDER" in placement_source
     package_assembly = placement_source[
-        placement_source.index("def _module_main_site_assemblies(") : placement_source.index(
-            "def _personnel_module_variants("
-        )
+        placement_source.index(
+            "def _module_main_site_assemblies_forward("
+        ) : placement_source.index("def _personnel_module_variants(")
     ]
     assert "for anchor in anchors:" in package_assembly
     assert "_packaging_driven_sorting_roots(context, anchor, bays=bays, stats=stats)" in (
@@ -100,9 +100,9 @@ def test_packaging_anchor_drives_sorting_root_enumeration_without_new_must_edge(
         )
     ]
     assembly = placement_source[
-        placement_source.index("def _module_main_site_assemblies(") : placement_source.index(
-            "def _personnel_module_variants("
-        )
+        placement_source.index(
+            "def _module_main_site_assemblies_forward("
+        ) : placement_source.index("def _personnel_module_variants(")
     ]
 
     assert 'edge_class == "LONG_EDGE"' in roots
@@ -128,6 +128,48 @@ def test_packaging_anchor_drives_sorting_root_enumeration_without_new_must_edge(
     assert "joint_anchors = _enumerate_packaging_site_anchors" not in assembly
     assert "_site_module_is_usable(context, core_pair, {})" in assembly
     assert "packaging_material_storage" in assembly
+
+
+def test_dock_backsolved_assembly_covers_distinct_external_interface_pairs() -> None:
+    placement_source = _source("domain/placement.py")
+    direct_structured = placement_source[
+        placement_source.index("def _direct_structured_candidates(") : placement_source.index(
+            "def _dual_interface_sorting_roots("
+        )
+    ]
+    dock_assembly = placement_source[
+        placement_source.index(
+            "def _module_main_site_assemblies_dock_backsolved("
+        ) : placement_source.index("def _module_main_site_assemblies(")
+    ]
+    dispatch = placement_source[
+        placement_source.index("def _module_main_site_assemblies(") : placement_source.index(
+            "def _search_provenance("
+        )
+    ]
+
+    assert "_shipping_dock_anchor_construction_representatives(" in dock_assembly
+    assert "_dual_interface_sorting_roots(" in dock_assembly
+    assert "_dock_backsolved_finished_chains(" in dock_assembly
+    assert "external_pair_identity" in dock_assembly
+    assert "for root, _package_side, corridor, package_witness, chains in viable_roots:" in (
+        dock_assembly
+    )
+    assert "root_emitted = False" in dock_assembly
+    assert "root_emitted = True" in dock_assembly
+    assert "pair_emitted = False" in dock_assembly
+    assert "pair_emitted = True" in dock_assembly
+    assert "if yielded >= limit:" in dock_assembly
+    assert "if pair_emitted:" in dock_assembly
+    assert "_shipping_dock_anchor_construction_limit(" in dock_assembly
+    assert "main_site_candidate_limit = context.node_budget" in direct_structured
+    assert "limit=main_site_candidate_limit" in direct_structured
+    assert "_constructive_main_skeleton_tail_admission(" in dock_assembly
+    assert "run_truck_preflight=True" in dock_assembly
+    assert '"stage": "S1_MAIN_TRUCK_PREFLIGHT"' in dock_assembly
+    assert "yield None" in dock_assembly
+    assert "_module_main_site_assemblies_dock_backsolved(" in dispatch
+    assert "_module_main_site_assemblies_forward(" in dispatch
 
 
 def test_r11_scheduler_is_resumable_and_does_not_publish_internal_queue() -> None:
