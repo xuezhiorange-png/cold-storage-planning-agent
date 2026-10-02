@@ -32,9 +32,19 @@ def test_event_slot_search_is_finite_orthogonal_exact_and_has_no_mm_sweep() -> N
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
     }
 
-    assert "rectangle_inside_polygon" in called_names
-    assert "rectangle_intersects_closed_obstacle" in called_names
+    assert "_cached_rectangle_inside_polygon" in called_names
+    assert "_cached_rectangle_intersects_obstacle" in called_names
     assert "rectangles_overlap" in called_names
+    assert "rectangle_inside_polygon" in {
+        node.func.id
+        for node in ast.walk(_function_node(source, "_cached_rectangle_inside_polygon"))
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+    assert "rectangle_intersects_closed_obstacle" in {
+        node.func.id
+        for node in ast.walk(_function_node(source, "_cached_rectangle_intersects_obstacle"))
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
     assert "range" not in called_names
     assert "EXACT_ORTHOGONAL_EVENT_ENUMERATION" in source
     assert "EXACT_EVENT_COMPLETENESS_UNAVAILABLE" in source

@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1040" viewBox="0 0 1800 1040">
+<defs><marker id="packagingArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#a13e32"/></marker></defs>
 <rect width="1800" height="1040" fill="#f5f7f9"/>
 <text x="26" y="38" font-family="Arial,sans-serif" font-size="24" fill="#17212b">Exact authoritative packaging site anchors (17.3 × 14.5 m, allowed orientations)</text>
 <text x="26" y="94" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 1 · PACKAGING ANCHOR · BAY-0002 · 00-33251 · PACKAGING SLOT PASS</text>

@@ -14,6 +14,7 @@ from typing import Any
 
 from cold_storage.modules.layout.application.dimension_zones import ZoneDimensioningResultV1
 from cold_storage.modules.layout.application.site_geometry import ValidatedSiteGeometryV1
+from cold_storage.modules.layout.domain.access_authority import PACKAGING, resolve_access_profile
 from cold_storage.modules.layout.domain.access_routing import DEFAULT_TRUCK_NODE_BUDGET
 from cold_storage.modules.layout.domain.adjacency import ZONE_CODES, process_graph
 from cold_storage.modules.layout.domain.dimensioning import (
@@ -28,6 +29,7 @@ from cold_storage.modules.layout.domain.objective_profile import (
 )
 from cold_storage.modules.layout.domain.placement import (
     LEGACY_COMPAT_PHASE,
+    STRUCTURED_PHASE,
     PlacementCandidateEnumerationV1,
     SitePlacementResultV1,
     search_placement,
@@ -226,6 +228,35 @@ def _validated_objective_profile(
     return profile, profile.canonical_result_hash
 
 
+def _structured_construction_access_requirements(
+    access_requirements: tuple[Mapping[str, Any], ...],
+) -> tuple[Mapping[str, Any], ...]:
+    """Pass frozen profile widths only to the structured construction ordering.
+
+    The generic access-requirement objects remain byte-for-byte compatible for
+    the legacy and GENERAL_FALLBACK phases. These derived fields are private
+    search hints; P2D continues to resolve and validate the original profile.
+    """
+    profile = resolve_access_profile(PACKAGING)
+    rows: list[Mapping[str, Any]] = []
+    for requirement in access_requirements:
+        if (
+            requirement.get("from_ref") == "packaging_material_storage"
+            and requirement.get("to_ref") == "sorting_packaging_room"
+            and requirement.get("profile_identity") == PACKAGING
+        ):
+            rows.append(
+                {
+                    **requirement,
+                    "construction_portal_clear_width_m": str(profile.portal_clear_width_m),
+                    "construction_corridor_clear_width_m": str(profile.corridor_clear_width_m),
+                }
+            )
+        else:
+            rows.append(requirement)
+    return tuple(rows)
+
+
 def place_zones(
     canonical_zone_plan: Mapping[str, Any],
     p1_handoff: ZoneDimensioningResultV1 | Mapping[str, Any],
@@ -308,6 +339,11 @@ def enumerate_placement_candidates(
         _validate_p1_authority(canonical_zone_plan, p1_handoff, site_geometry)
     )
     _, profile_hash = _validated_objective_profile(objective_profile)
+    construction_access_requirements = (
+        _structured_construction_access_requirements(access_requirements)
+        if search_phase == STRUCTURED_PHASE
+        else access_requirements
+    )
     return enumerate_domain_placement_candidates(
         authorities,
         site_geometry.to_dict(),
@@ -316,7 +352,7 @@ def enumerate_placement_candidates(
         source_p1_handoff_hash=handoff_hash,
         source_site_geometry_hash=site_geometry.canonical_result_hash,
         objective_profile_hash=profile_hash,
-        access_requirements=access_requirements,
+        access_requirements=construction_access_requirements,
         spatial_relationships=spatial_relationships,
         node_budget=node_budget,
         truck_maneuver_binding=truck_maneuver_binding,

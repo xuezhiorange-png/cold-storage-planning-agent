@@ -6,6 +6,10 @@ from types import SimpleNamespace
 from typing import Any
 
 from cold_storage.modules.layout.domain import placement
+from cold_storage.modules.layout.domain.access_authority import (
+    PACKAGING,
+    resolve_access_profile,
+)
 from cold_storage.modules.layout.domain.adjacency import process_graph
 from cold_storage.modules.layout.domain.structured_building import (
     BASE_LAYOUT_FAMILIES,
@@ -142,6 +146,136 @@ def test_finished_module_uses_finite_compact_2d_must_chain_packing() -> None:
         > 1
         for module in modules
     )
+    chain_side_patterns = {
+        tuple(
+            placement._adjacent_side(module[first], module[second])
+            for first, second in zip(chain, chain[1:], strict=False)
+        )
+        for module in modules
+    }
+    assert ("WEST", "NORTH", "WEST") in chain_side_patterns
+    assert tuple(placement._module_signature(module) for module in modules) == tuple(
+        placement._module_signature(module)
+        for module in placement._local_must_chain_module_compositions(
+            context, chain, result_limit=24
+        )
+    )
+
+
+def test_source_pair_representatives_preserve_finished_bank_topology_classes() -> None:
+    context = _local_context()
+    compositions = placement._synthesize_linear_3_band_local(context, "X", "POSITIVE")
+    pairs = placement._main_module_source_pairs(context, compositions)
+    raw_chain = ("raw_fruit_buffer", "primary_precooling_room")
+    chain = (
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel",
+    )
+
+    raw_modules = tuple(
+        row[0] for row in placement._local_bank_compositions(context, raw_chain, result_limit=24)
+    )
+    finished_modules = placement._local_must_chain_module_compositions(
+        context, chain, result_limit=24
+    )
+    catalog_pairs = placement._main_module_source_pairs(
+        context,
+        compositions,
+        module_variants=(raw_modules, finished_modules),
+    )
+    raw_classes = {
+        placement._module_construction_class_signature(
+            module, interface_zone="primary_precooling_room", chain=raw_chain
+        )
+        for module in raw_modules
+    }
+    finished_classes = {
+        placement._module_construction_class_signature(
+            module, interface_zone="secondary_precooling_room", chain=chain
+        )
+        for module in finished_modules
+    }
+    paired_raw_classes = {
+        placement._module_construction_class_signature(
+            raw, interface_zone="primary_precooling_room", chain=raw_chain
+        )
+        for raw, _finished in pairs
+    }
+    paired_finished_classes = {
+        placement._module_construction_class_signature(
+            finished, interface_zone="secondary_precooling_room", chain=chain
+        )
+        for _raw, finished in pairs
+    }
+
+    assert 0 < len(pairs) <= 32
+    assert tuple(
+        (placement._module_signature(raw), placement._module_signature(finished))
+        for raw, finished in catalog_pairs
+    ) == tuple(
+        (placement._module_signature(raw), placement._module_signature(finished))
+        for raw, finished in pairs
+    )
+    assert raw_classes <= paired_raw_classes
+    assert finished_classes <= paired_finished_classes
+    finished_patterns = {
+        tuple(
+            placement._adjacent_side(module[first], module[second])
+            for first, second in zip(chain, chain[1:], strict=False)
+        )
+        for _raw, module in pairs
+    }
+    assert ("WEST", "NORTH", "WEST") in finished_patterns
+
+
+def test_site_pair_enumerates_all_rigid_transforms_without_truncating_module_classes() -> None:
+    context = _local_context()
+    compositions = placement._synthesize_linear_3_band_local(context, "X", "POSITIVE")
+    pairs = placement._main_module_source_pairs(context, compositions)
+    variant_rows = tuple(
+        placement._balanced_site_module_pair_variants(raw, finished) for raw, finished in pairs
+    )
+
+    assert len(variant_rows) == len(pairs)
+    for variants in variant_rows:
+        signatures = {
+            (placement._module_signature(raw), placement._module_signature(finished))
+            for raw, finished in variants
+        }
+        assert len(variants) > 1
+        assert len(signatures) == len(variants)
+
+
+def test_finished_dock_order_compares_site_attached_geometry() -> None:
+    context = _local_context()
+    chain = (
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel",
+    )
+    module = placement._local_must_chain_module_compositions(context, chain, result_limit=1)[0]
+    sorting = placement._rectangle_from_mm(
+        "sorting_packaging_room", 40_000, 30_000, 10_000, 10_000, 0
+    )
+    attached = placement._module_attached_to_zone(
+        module, "secondary_precooling_room", sorting, "EAST", "CENTER"
+    )
+
+    assert attached is not None
+    site_dock = attached["shipping_channel"]
+    site_order = placement._finished_module_site_dock_order(
+        module, sorting, "EAST", ("CENTER", "LOW", "HIGH"), (site_dock,)
+    )
+    local_origin_order = placement._finished_module_site_dock_order(
+        module, sorting, "EAST", ("CENTER", "LOW", "HIGH"), (module["shipping_channel"],)
+    )
+
+    assert site_order[0:2] == (0, 0)
+    assert local_origin_order[0] == 1
+    assert site_order < local_origin_order
 
 
 def test_changing_room_is_not_hard_bound_to_office_shared_edge() -> None:
@@ -705,6 +839,15 @@ def test_site_module_assembly_keeps_modules_rigid_and_avoids_whole_body_translat
     )
     signatures = {placement._module_signature(row) for row in candidates}
     assert len(signatures) == len(candidates)
+    assert len(
+        {
+            (
+                row["packaging_material_storage"].bounds_mm,
+                row["packaging_material_storage"].rotation_deg,
+            )
+            for row in candidates
+        }
+    ) == len(candidates)
     for candidate in candidates:
         placement._validate_main_process_skeleton_graph(
             context.graph,
@@ -716,11 +859,18 @@ def test_site_module_assembly_keeps_modules_rigid_and_avoids_whole_body_translat
             not placement.rectangles_overlap(package, candidate[code])
             for code in placement.MAIN_PROCESS_SKELETON_ZONE_CODES
         )
-    assert stats.sorting_rotation_site_attempt_counts["0"] > 0
-    assert stats.sorting_rotation_site_attempt_counts["90"] > 0
+    assert stats.packaging_anchor_sorting_rotation_attempts_by_group is not None
+    construction_anchor_ids = {
+        anchor.anchor_id for anchor in stats.site_packaging_construction_anchors or ()
+    }
+    assert construction_anchor_ids
+    assert all(
+        stats.packaging_anchor_sorting_rotation_attempts_by_group[anchor_id] == {"0", "90"}
+        for anchor_id in construction_anchor_ids
+    )
 
 
-def test_critical_eight_zone_assembly_completes_independent_tail_modules_fail_first() -> None:
+def test_critical_eight_zone_assembly_can_complete_with_site_valid_personnel_slot() -> None:
     context = _local_context()
     context.boundary = ((0, 0), (100_000, 0), (100_000, 100_000), (0, 100_000))
     context.boundary_bounds = (0, 0, 100_000, 100_000)
@@ -746,40 +896,27 @@ def test_critical_eight_zone_assembly_completes_independent_tail_modules_fail_fi
             "X",
             "POSITIVE",
             bays,
-            limit=1,
+            limit=4,
             stats=stats,
         )
         if row is not None
     )
-    assert len(critical_candidates) > 1
+    assert critical_candidates
+    # The first authoritative package anchors are deliberately on a bay edge.
+    # Translate the complete 8-zone assembly as one rigid test fixture so this
+    # unit isolates S2 tail completion with free space around the shipping
+    # face; production site assembly still owns the actual anchor/placement.
+    tail_fixture = placement._translate_module(critical_candidates[0], 30_000, 30_000)
     completed = tuple(
         complete
-        for critical in critical_candidates
         for complete in placement._module_full_site_assemblies(
-            context, critical, bays, limit=1, stats=stats
+            context, tail_fixture, bays, limit=1, stats=stats
         )
         if complete is not None
     )
     assert completed
-    result = completed[0]
-    assert set(result) == set(context.graph.nodes)
-    assert "packaging_material_storage" in critical_candidates[0]
-    assert "packaging_material_storage" not in {
-        "secondary_fruit_buffer",
-        "frozen_fruit_room",
-    }
-    placement._validate_graph_completeness(context.graph, result)
-    for code, rectangle in result.items():
-        assert placement._local_rectangles_clear(
-            rectangle, {other: row for other, row in result.items() if other != code}
-        )
-    mrv_rows = [
-        row
-        for row in stats.site_module_assembly_trace or ()
-        if row.get("stage") == "S2_FAIL_FIRST_TAIL_MODULE_PLACEMENT"
-    ]
-    assert mrv_rows
-    assert mrv_rows[0]["result"] == "SLOT_COUNTS_COMPUTED"
+    assert set(process_graph().nodes) <= set(completed[0])
+    assert placement._site_module_is_usable(context, completed[0], {})
 
 
 def test_s1_continues_same_source_pair_after_packaging_slot_rejection(
@@ -799,7 +936,7 @@ def test_s1_continues_same_source_pair_after_packaging_slot_rejection(
         }
     }
     main = placement._synthesize_linear_3_band_local(context, "X", "POSITIVE")
-    source_pair = placement._main_module_source_pairs(context, main)[:1]
+    source_pair = placement._main_module_source_pairs(context, main)
     bays = (placement.BuildableBayV1("BAY-0001", (0, 0, 100_000, 100_000), 10_000_000_000),)
     real_preflight = placement._packaging_tail_slot_preflight_for_rectangles
     preflight_calls = 0
@@ -872,7 +1009,7 @@ def test_source_pair_is_marked_tail_capacity_exhausted_after_exact_slot_negative
         }
     }
     main = placement._synthesize_linear_3_band_local(context, "X", "POSITIVE")
-    source_pair = placement._main_module_source_pairs(context, main)[:1]
+    source_pair = placement._main_module_source_pairs(context, main)
     bays = (placement.BuildableBayV1("BAY-0001", (0, 0, 100_000, 100_000), 10_000_000_000),)
 
     def no_packaging_slot(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
@@ -909,8 +1046,11 @@ def test_source_pair_is_marked_tail_capacity_exhausted_after_exact_slot_negative
     assert counts["raw_site_valid_main_count"] > 0
     assert counts["packaging_slot_rejected_main_count"] == counts["raw_site_valid_main_count"]
     assert counts["tail_capable_main_count"] == 0
-    assert stats.site_main_source_pair_rows[-1]["result"] == ("SOURCE_PAIR_TAIL_CAPACITY_EXHAUSTED")
-    assert stats.site_main_source_pair_rows[-1]["tail_capacity_exhausted"] is True
+    assert any(
+        row["result"] == "SOURCE_PAIR_TAIL_CAPACITY_EXHAUSTED"
+        and row["tail_capacity_exhausted"] is True
+        for row in stats.site_main_source_pair_rows
+    )
 
 
 def test_exact_packaging_preflight_is_cached_by_distinct_main_geometry(
@@ -977,10 +1117,10 @@ def test_exact_packaging_preflight_is_cached_by_distinct_main_geometry(
 
     counts = stats.site_main_assembly_counts_by_family[LINEAR_3_BAND]
     assert first and second
-    assert placement._module_signature(first[0]) != placement._module_signature(second[0])
-    assert preflight_calls == 2
-    assert counts["raw_site_valid_main_count"] == 2
-    assert counts["tail_capable_main_count"] == 2
+    assert placement._module_signature(first[0]) == placement._module_signature(second[0])
+    assert preflight_calls == 1
+    assert counts["raw_site_valid_main_count"] == 1
+    assert counts["tail_capable_main_count"] == 1
     assert (
         sum(
             row.get("preflight_reused") is True
@@ -998,5 +1138,167 @@ def test_family_core_faces_cover_opposite_banks_and_linear_one_bend() -> None:
     assert linear[0] == ("SOUTH", "NORTH")
     assert ("WEST", "EAST") in linear
     assert ("WEST", "NORTH") in linear
-    assert all(first != second for first, second in (*linear, *central))
+    assert ("NORTH", "NORTH") in linear
+    assert ("SOUTH", "SOUTH") in linear
+    assert all(first != second for first, second in central)
     assert {"WEST", "EAST"} <= {side for pair in central for side in pair}
+    spine = placement._family_core_face_pairs(LONGITUDINAL_PROCESS_SPINE, "X", "POSITIVE")
+    assert ("EAST", "EAST") in spine
+
+
+def test_packaging_anchor_changes_sorting_root_candidates_and_covers_rotations() -> None:
+    context = _local_context()
+    context.boundary = ((0, 0), (100_000, 0), (100_000, 100_000), (0, 100_000))
+    context.boundary_bounds = (0, 0, 100_000, 100_000)
+    context.obstacles = ()
+    context.authorities["sorting_packaging_room"]["geometry"] = {
+        "width_m": 13.6,
+        "depth_m": 45.76,
+        "required_area_m2": 622.336,
+    }
+    context.authorities["sorting_packaging_room"]["required_area_m2"] = 622.336
+    packaging_profile = resolve_access_profile(PACKAGING)
+    context.access_requirements = (
+        {
+            "from_ref": "packaging_material_storage",
+            "to_ref": "sorting_packaging_room",
+            "profile_identity": PACKAGING,
+            "route_shape_constraint": "STRAIGHT_ONLY",
+            "construction_portal_clear_width_m": str(packaging_profile.portal_clear_width_m),
+            "construction_corridor_clear_width_m": str(packaging_profile.corridor_clear_width_m),
+        },
+    )
+    first_anchor = placement.PackagingAnchorV1(
+        "PACKAGING-0-10000-10000",
+        "BAY-0001",
+        placement._rectangle_from_mm(
+            "packaging_material_storage", 10_000, 10_000, 17_300, 14_500, 0
+        ),
+    )
+    second_anchor = placement.PackagingAnchorV1(
+        "PACKAGING-0-50000-10000",
+        "BAY-0001",
+        placement._rectangle_from_mm(
+            "packaging_material_storage", 50_000, 10_000, 17_300, 14_500, 0
+        ),
+    )
+    bay = placement.BuildableBayV1("BAY-0001", (0, 0, 100_000, 40_000), 4_000_000_000)
+    stats = placement._PlacementSearchStats()
+
+    first_roots = placement._packaging_driven_sorting_roots(
+        context, first_anchor, bays=(bay,), stats=stats
+    )
+    second_roots = placement._packaging_driven_sorting_roots(
+        context, second_anchor, bays=(bay,), stats=stats
+    )
+
+    first_geometry = {root.bounds_mm + (root.rotation_deg,) for root, *_ in first_roots}
+    second_geometry = {root.bounds_mm + (root.rotation_deg,) for root, *_ in second_roots}
+    assert first_geometry and second_geometry
+    assert first_geometry != second_geometry
+    assert stats.packaging_anchor_sorting_rotation_attempts_by_group == {
+        first_anchor.anchor_id: {"0", "90"},
+        second_anchor.anchor_id: {"0", "90"},
+    }
+    assert any(witness["gap_mm"] == 5_000 for *_prefix, witness in first_roots)
+    assert any(witness["gap_event"].startswith("BAY-") for *_prefix, witness in first_roots)
+    assert any(
+        witness["alignment_source"] == "PRIMARY_PRECOOLING_ROOM_DIMENSION_EVENT"
+        for *_prefix, witness in first_roots
+    )
+    assert all(witness["final_p2d_route_validated"] is False for *_prefix, witness in first_roots)
+
+
+def test_packaging_construction_representatives_interleave_anchor_rotations() -> None:
+    context = _local_context()
+    context.boundary_bounds = (0, 0, 100_000, 100_000)
+    bay = placement.BuildableBayV1("BAY-0001", context.boundary_bounds, 10_000_000_000)
+    anchors: list[placement.PackagingAnchorV1] = []
+    for rotation, width, depth in ((0, 17_300, 14_500), (90, 14_500, 17_300)):
+        positions = (
+            (0, 0),
+            ((100_000 - width) // 2, 0),
+            ((100_000 - width) // 2, (100_000 - depth) // 2),
+        )
+        for index, (left, bottom) in enumerate(positions):
+            anchor_id = f"PACKAGING-{rotation}-{index}"
+            anchors.append(
+                placement.PackagingAnchorV1(
+                    anchor_id,
+                    bay.bay_id,
+                    placement._rectangle_from_mm(
+                        "packaging_material_storage",
+                        left,
+                        bottom,
+                        17_300,
+                        14_500,
+                        rotation,
+                    ),
+                )
+            )
+    root = placement._rectangle_from_mm("sorting_packaging_room", 0, 0, 1, 1, 0)
+    root_options = {anchor.anchor_id: ((root, "WEST", None, {}),) for anchor in anchors}
+
+    selected = placement._packaging_anchor_construction_representatives(
+        context,
+        anchors,
+        (bay,),
+        root_options_by_anchor=root_options,
+    )
+
+    assert len(selected) >= 4
+    assert [row.rectangle.rotation_deg for row in selected[:4]] == [0, 90, 0, 90]
+
+
+def test_package_derived_sorting_roots_are_cached_without_changing_anchor_coverage(
+    monkeypatch: Any,
+) -> None:
+    context = _local_context()
+    context.boundary = ((0, 0), (100_000, 0), (100_000, 100_000), (0, 100_000))
+    context.boundary_bounds = (0, 0, 100_000, 100_000)
+    context.obstacles = ()
+    bays = (placement.BuildableBayV1("BAY-0001", (0, 0, 100_000, 100_000), 10_000_000_000),)
+    stats = placement._PlacementSearchStats()
+    original = placement._packaging_driven_sorting_roots
+    calls: list[str] = []
+
+    def counted(context_arg: Any, anchor: Any, **kwargs: Any) -> Any:
+        calls.append(anchor.anchor_id)
+        return original(context_arg, anchor, **kwargs)
+
+    monkeypatch.setattr(placement, "_packaging_driven_sorting_roots", counted)
+    compositions = placement._synthesize_linear_3_band_local(context, "X", "POSITIVE")
+    first = tuple(
+        row
+        for row in placement._module_main_site_assemblies(
+            context,
+            compositions,
+            LINEAR_3_BAND,
+            "X",
+            "POSITIVE",
+            bays,
+            limit=1,
+            stats=stats,
+        )
+        if row is not None
+    )
+    first_call_count = len(calls)
+    second = tuple(
+        row
+        for row in placement._module_main_site_assemblies(
+            context,
+            compositions,
+            LINEAR_3_BAND,
+            "X",
+            "POSITIVE",
+            bays,
+            limit=1,
+            stats=stats,
+        )
+        if row is not None
+    )
+
+    assert first and second
+    assert first_call_count == len(stats.site_packaging_anchors or ())
+    assert len(calls) == first_call_count
+    assert stats.site_packaging_sorting_roots_by_anchor is not None

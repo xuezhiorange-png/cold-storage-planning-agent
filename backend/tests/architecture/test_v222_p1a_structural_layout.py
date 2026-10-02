@@ -54,9 +54,26 @@ def test_structural_search_has_group_band_zone_and_three_required_family_lanes()
     placement_source = _source("domain/placement.py")
     composition_source = _source("domain/structural_composition.py")
     assert "PLACEMENT_ZONE_ORDER" in placement_source
-    assert placement_source.index('"sorting_packaging_room"') < placement_source.index(
-        '"packaging_material_storage"'
+    package_assembly = placement_source[
+        placement_source.index("def _module_main_site_assemblies(") : placement_source.index(
+            "def _personnel_module_variants("
+        )
+    ]
+    assert "for anchor in anchors:" in package_assembly
+    assert "_packaging_driven_sorting_roots(context, anchor, bays=bays, stats=stats)" in (
+        package_assembly
     )
+    assert package_assembly.index("for anchor in anchors:") < (
+        package_assembly.index(
+            "for root, package_side, reserved_corridor, alignment_witness in root_options:"
+        )
+    )
+    assert "enumerate(selected_source_pairs_with_variants)" in package_assembly
+    assert "sorted(module_pair_variants, key=dock_order)" in package_assembly
+    assert "ordered_module_variants_cache.get(order_key)" in package_assembly
+    assert '"construction_order": [' in package_assembly
+    assert '"PACKAGING_ANCHOR"' in package_assembly
+    assert '"SORTING_CORE"' in package_assembly
     assert "MAIN_PROCESS_PREDECESSOR" in composition_source
     assert "composition_family_candidates" in composition_source
     assert "structural_anchor_references" in placement_source
@@ -73,6 +90,44 @@ def test_structural_search_has_group_band_zone_and_three_required_family_lanes()
     assert "for lane_position, lane_index in enumerate(lane_order)" not in selector
     assert "divmod(global_node_budget_remaining, lanes_left)" not in selector
     assert "GENERAL_FALLBACK_PHASE" in selector
+
+
+def test_packaging_anchor_drives_sorting_root_enumeration_without_new_must_edge() -> None:
+    placement_source = _source("domain/placement.py")
+    roots = placement_source[
+        placement_source.index("def _packaging_driven_sorting_roots(") : placement_source.index(
+            "def _module_main_site_assemblies("
+        )
+    ]
+    assembly = placement_source[
+        placement_source.index("def _module_main_site_assemblies(") : placement_source.index(
+            "def _personnel_module_variants("
+        )
+    ]
+
+    assert 'edge_class == "LONG_EDGE"' in roots
+    assert 'edge_class != "SHORT_EDGE"' in roots
+    assert "for rotation in (0, 90):" in roots
+    assert '"classification": "CONSTRUCTION_ORDERING_ONLY_NOT_ACCESS_VALIDATION"' in roots
+    assert '"final_p2d_route_validated": False' in roots
+    assert "_packaging_driven_sorting_roots(context, anchor, bays=bays, stats=stats)" in assembly
+    assert "gap_events(package_edge_name, package_edge)" in roots
+    assert "for bay in bays:" in roots
+    assert (
+        '("SITE", context.boundary_bounds)'
+        in placement_source[
+            placement_source.index(
+                "def _packaging_anchor_construction_representatives("
+            ) : placement_source.index("def _orientation_balanced_sorting_roots(")
+        ]
+    )
+    assert "for obstacle_index, obstacle in enumerate(context.obstacles):" in roots
+    assert "_validate_main_process_skeleton_graph" in assembly
+    assert "_packaging_tail_slot_preflight_for_rectangles" in assembly
+    assert "local_joint_anchor_cache" not in assembly
+    assert "joint_anchors = _enumerate_packaging_site_anchors" not in assembly
+    assert "_site_module_is_usable(context, core_pair, {})" in assembly
+    assert "packaging_material_storage" in assembly
 
 
 def test_r11_scheduler_is_resumable_and_does_not_publish_internal_queue() -> None:

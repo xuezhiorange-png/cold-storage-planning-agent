@@ -17,9 +17,10 @@ from tests.evaluation.r2_local_composition_first import _p2d_footprint_regularit
 from tests.evaluation.r12_access_failure_audit import _zone_skeleton_hash
 from tests.evaluation.r13_main_skeleton_truck_preflight import EVIDENCE_DIR, FIXTURE
 
-EVIDENCE_PATH = EVIDENCE_DIR / "xinzhao_p1a_r2_critical_packaging_anchor_joint_site_assembly.json"
+EVIDENCE_PATH = EVIDENCE_DIR / "xinzhao_p1a_r2_packaging_anchor_driven_critical_skeleton.json"
 ANCHOR_IMAGE = EVIDENCE_DIR / "xinzhao_packaging_anchor_candidates.png"
-MAIN_IMAGE = EVIDENCE_DIR / "xinzhao_packaging_reserved_main_candidates.png"
+CORE_IMAGE = EVIDENCE_DIR / "xinzhao_packaging_sorting_core_pairs.png"
+MAIN_IMAGE = EVIDENCE_DIR / "xinzhao_critical_8zone_candidates.png"
 FULL_IMAGE = EVIDENCE_DIR / "xinzhao_structured_12zone_candidates.png"
 P2D_IMAGE = EVIDENCE_DIR / "xinzhao_structured_p2d_fullpass_gallery.png"
 
@@ -149,6 +150,7 @@ def _candidate_svg(
                 'fill="#59636e" stroke="#25303a" stroke-width="1.2"/>'
             )
         module_bounds: dict[str, list[tuple[int, int, int, int]]] = {}
+        zone_bounds: dict[str, tuple[int, int, int, int]] = {}
         for zone in candidate.get("zones", []):
             if not isinstance(zone, Mapping):
                 continue
@@ -156,6 +158,12 @@ def _candidate_svg(
             if not isinstance(bounds, list) or len(bounds) != 4:
                 continue
             left, bottom, right, top = (int(value) for value in bounds)
+            zone_bounds[str(zone.get("zone_code", ""))] = (
+                left,
+                bottom,
+                right,
+                top,
+            )
             module = _module_for_zone(str(zone.get("zone_code", "")))
             module_bounds.setdefault(module, []).append((left, bottom, right, top))
             x, y = transform(left, top)
@@ -173,6 +181,46 @@ def _candidate_svg(
                     'font-family="Arial,sans-serif" font-size="9" fill="#17212b">'
                     f"{html.escape(label)}</text>"
                 )
+        interface_witness = candidate.get("packaging_interface_witness")
+        if isinstance(interface_witness, Mapping):
+            package_bounds = zone_bounds.get("packaging_material_storage")
+            sorting_bounds = zone_bounds.get("sorting_packaging_room")
+            if package_bounds is not None and sorting_bounds is not None:
+                package_center = (
+                    (package_bounds[0] + package_bounds[2]) / 2,
+                    (package_bounds[1] + package_bounds[3]) / 2,
+                )
+                sorting_center = (
+                    (sorting_bounds[0] + sorting_bounds[2]) / 2,
+                    (sorting_bounds[1] + sorting_bounds[3]) / 2,
+                )
+                start = transform(*package_center)
+                end = transform(*sorting_center)
+                parts.append(
+                    f'<line x1="{start[0]:.2f}" y1="{start[1]:.2f}" '
+                    f'x2="{end[0]:.2f}" y2="{end[1]:.2f}" stroke="#a13e32" '
+                    'stroke-width="3" marker-end="url(#packagingArrow)"/>'
+                )
+                mid_x, mid_y = (start[0] + end[0]) / 2, (start[1] + end[1]) / 2
+                parts.append(
+                    f'<text x="{mid_x:.2f}" y="{mid_y - 5:.2f}" '
+                    'font-family="Arial,sans-serif" font-size="10" '
+                    'text-anchor="middle" fill="#8a3028">PACKAGING → SORTING</text>'
+                )
+        corridor_bounds = candidate.get("reserved_construction_corridor_bounds_mm")
+        if isinstance(corridor_bounds, list) and len(corridor_bounds) == 4:
+            left, bottom, right, top = (int(value) for value in corridor_bounds)
+            x, y = transform(left, top)
+            parts.append(
+                f'<rect x="{x:.2f}" y="{y:.2f}" width="{(right - left) * scale:.2f}" '
+                f'height="{(top - bottom) * scale:.2f}" fill="#e6a04a22" '
+                'stroke="#c36e19" stroke-width="2" stroke-dasharray="5 4"/>'
+            )
+            parts.append(
+                f'<text x="{x + 3:.2f}" y="{y + 12:.2f}" '
+                'font-family="Arial,sans-serif" font-size="9" fill="#8d4a0c">'
+                "RESERVED CONSTRUCTION SPACE · NOT FINAL P2D ROUTE</text>"
+            )
         witness = candidate.get("packaging_slot_witness_mm")
         if isinstance(witness, list) and len(witness) == 4:
             left, bottom, right, top = (int(value) for value in witness)
@@ -208,6 +256,9 @@ def _candidate_svg(
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
         f'viewBox="0 0 {width} {height}">',
+        '<defs><marker id="packagingArrow" markerWidth="8" markerHeight="8" '
+        'refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" '
+        'fill="#a13e32"/></marker></defs>',
         f'<rect width="{width}" height="{height}" fill="#f5f7f9"/>',
         f'<text x="26" y="38" font-family="Arial,sans-serif" font-size="24" '
         f'fill="#17212b">{html.escape(title)}</text>',
@@ -306,6 +357,43 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
                 geometry_signature = repr(placement_domain._module_signature(main_geometry))
                 package = candidate.get("packaging_material_storage")
                 package_bounds = list(package.bounds_mm) if package is not None else None
+                sorting = candidate.get("sorting_packaging_room")
+                sorting_bounds = list(sorting.bounds_mm) if sorting is not None else None
+                stats = kwargs.get("stats")
+                trace_rows = (
+                    getattr(stats, "site_module_assembly_trace", None) or ()
+                    if stats is not None
+                    else ()
+                )
+                assembly_trace = next(
+                    (
+                        row
+                        for row in reversed(trace_rows)
+                        if row.get("stage") == "S1_PACKAGING_RESERVED_MAIN_ASSEMBLY"
+                        and row.get("sorting_root_bounds_mm") == sorting_bounds
+                        and isinstance(row.get("packaging_anchor"), Mapping)
+                        and isinstance(row["packaging_anchor"].get("rectangle"), Mapping)
+                        and _trace_zone_row(
+                            {
+                                "zone_code": "packaging_material_storage",
+                                **row["packaging_anchor"]["rectangle"],
+                            }
+                        )["bounds_mm"]
+                        == package_bounds
+                    ),
+                    {},
+                )
+                reserved_corridor = assembly_trace.get("reserved_construction_space")
+                reserved_corridor_bounds = (
+                    _trace_zone_row(
+                        {
+                            "zone_code": "__reserved_packaging_corridor__",
+                            **reserved_corridor,
+                        }
+                    )["bounds_mm"]
+                    if isinstance(reserved_corridor, Mapping)
+                    else None
+                )
                 captured_main.append(
                     {
                         "layout_family": layout_family,
@@ -315,6 +403,10 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
                         "geometry_signature": geometry_signature,
                         "packaging_slot_exists": package is not None,
                         "packaging_anchor_bounds_mm": package_bounds,
+                        "packaging_interface_witness": assembly_trace.get(
+                            "packaging_sorting_alignment_witness"
+                        ),
+                        "reserved_construction_corridor_bounds_mm": reserved_corridor_bounds,
                         "zones": [
                             _zone_row(rectangle) for _code, rectangle in sorted(candidate.items())
                         ],
@@ -369,6 +461,21 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
                     "packaging_anchors": [
                         row.to_dict() for row in stats.site_packaging_anchors or ()
                     ],
+                    "packaging_construction_anchors": [
+                        row.to_dict() for row in stats.site_packaging_construction_anchors or ()
+                    ],
+                    "packaging_anchor_sorting_rotation_attempts_by_group": {
+                        key: sorted(values)
+                        for key, values in (
+                            stats.packaging_anchor_sorting_rotation_attempts_by_group or {}
+                        ).items()
+                    },
+                    "packaging_anchor_sorting_alignment_proofs_by_group": {
+                        key: dict(values)
+                        for key, values in (
+                            stats.packaging_anchor_sorting_alignment_proofs_by_group or {}
+                        ).items()
+                    },
                     "sorting_rotation_site_attempt_counts": dict(
                         stats.sorting_rotation_site_attempt_counts or {}
                     ),
@@ -526,6 +633,10 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
     source_pair_rows: list[dict[str, Any]] = []
     s1_geometry_attempts: list[dict[str, Any]] = []
     all_packaging_anchors: dict[str, dict[str, Any]] = {}
+    construction_anchors: dict[str, dict[str, Any]] = {}
+    anchor_rotation_attempts: dict[str, set[str]] = {}
+    anchor_rotation_proofs: dict[str, dict[str, str]] = {}
+    core_pair_rows_by_geometry: dict[str, dict[str, Any]] = {}
     sorting_attempts_by_family: dict[str, dict[str, int]] = {}
     early_formal_mismatch_count = 0
     for snapshot in first["snapshots"]:
@@ -538,18 +649,65 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
                 variant_counts[name] = value
         for anchor in snapshot["packaging_anchors"]:
             all_packaging_anchors.setdefault(str(anchor["anchor_id"]), dict(anchor))
+        for anchor in snapshot["packaging_construction_anchors"]:
+            construction_anchors.setdefault(str(anchor["anchor_id"]), dict(anchor))
+        for anchor_id, rotations in snapshot[
+            "packaging_anchor_sorting_rotation_attempts_by_group"
+        ].items():
+            anchor_rotation_attempts.setdefault(anchor_id, set()).update(
+                str(rotation) for rotation in rotations
+            )
+        for anchor_id, proofs in snapshot[
+            "packaging_anchor_sorting_alignment_proofs_by_group"
+        ].items():
+            anchor_rotation_proofs.setdefault(anchor_id, {}).update(
+                {str(rotation): str(reason) for rotation, reason in proofs.items()}
+            )
         family = str(snapshot["layout_family"])
         counts = snapshot["sorting_rotation_site_attempt_counts"]
         if isinstance(counts, Mapping):
             aggregate = sorting_attempts_by_family.setdefault(family, {"0": 0, "90": 0})
             for rotation, count in counts.items():
-                aggregate[str(rotation)] = aggregate.get(str(rotation), 0) + int(count)
+                aggregate[str(rotation)] = max(aggregate.get(str(rotation), 0), int(count))
         for family, counts in snapshot["site_main_assembly_counts_by_family"].items():
             aggregate = runtime_s1_counts_by_family.setdefault(family, {})
             for name, value in counts.items():
-                aggregate[name] = aggregate.get(name, 0) + int(value)
+                aggregate[name] = max(aggregate.get(name, 0), int(value))
         source_pair_rows.extend(snapshot["site_main_source_pair_rows"])
         for trace_row in snapshot["site_module_assembly_trace"]:
+            if trace_row.get("stage") == "S0_PACKAGING_ANCHOR_DRIVEN_SORTING_ROOTS":
+                anchor = trace_row.get("packaging_anchor")
+                anchor_rect = anchor.get("rectangle") if isinstance(anchor, Mapping) else None
+                if isinstance(anchor, Mapping) and isinstance(anchor_rect, Mapping):
+                    package_zone = _trace_zone_row(
+                        {
+                            "zone_code": "packaging_material_storage",
+                            **anchor_rect,
+                        }
+                    )
+                    for root in trace_row.get("sorting_roots", []):
+                        if not isinstance(root, Mapping):
+                            continue
+                        sorting_zone = {
+                            "zone_code": "sorting_packaging_room",
+                            "bounds_mm": root.get("bounds_mm"),
+                            "rotation_deg": root.get("rotation_deg", 0),
+                        }
+                        zones = [package_zone, sorting_zone]
+                        geometry_key = json.dumps(zones, sort_keys=True, separators=(",", ":"))
+                        core_pair_rows_by_geometry.setdefault(
+                            geometry_key,
+                            {
+                                "layout_family": trace_row.get("layout_family"),
+                                "skeleton_hash": str(anchor.get("anchor_id", "")),
+                                "packaging_slot_exists": True,
+                                "packaging_interface_witness": root.get("alignment_witness"),
+                                "reserved_construction_corridor_bounds_mm": root.get(
+                                    "reserved_corridor_bounds_mm"
+                                ),
+                                "zones": zones,
+                            },
+                        )
             if trace_row.get("stage") != "S1_PACKAGING_RESERVED_MAIN_PREFLIGHT" or not isinstance(
                 trace_row.get("zones"), list
             ):
@@ -570,6 +728,24 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
         early_formal_mismatch_count += int(
             snapshot["early_formal_packaging_preflight_mismatch_count"]
         )
+    unique_source_rows: dict[str, dict[str, Any]] = {}
+    for row in source_pair_rows:
+        key = json.dumps(
+            {
+                field: row.get(field)
+                for field in (
+                    "layout_family",
+                    "process_axis",
+                    "process_direction",
+                    "source_pair_index",
+                    "packaging_anchor_id",
+                )
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        unique_source_rows.setdefault(key, row)
+    source_pair_rows = list(unique_source_rows.values())
     unique_s1_geometries: dict[tuple[str, str], dict[str, Any]] = {}
     for row in s1_geometry_attempts:
         key = (str(row.get("layout_family")), str(row.get("main_process_skeleton_hash")))
@@ -605,6 +781,86 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
         }
         for (family, skeleton_hash), row in sorted(unique_s1_geometries.items())
     ]
+    core_pair_candidates = list(core_pair_rows_by_geometry.values())
+    anchor_group_coverage = {
+        anchor_id: {
+            "sorting_rotations_attempted": sorted(anchor_rotation_attempts.get(anchor_id, set())),
+            "sorting_rotation_impossibility_proofs": dict(
+                sorted(anchor_rotation_proofs.get(anchor_id, {}).items())
+            ),
+        }
+        for anchor_id in sorted(construction_anchors)
+    }
+    anchor_groups_with_rot0 = sum(
+        "0" in row["sorting_rotations_attempted"]
+        or "0" in row["sorting_rotation_impossibility_proofs"]
+        for row in anchor_group_coverage.values()
+    )
+    anchor_groups_with_rot90 = sum(
+        "90" in row["sorting_rotations_attempted"]
+        or "90" in row["sorting_rotation_impossibility_proofs"]
+        for row in anchor_group_coverage.values()
+    )
+    sorting_geometries_by_anchor = {
+        anchor_id: {
+            json.dumps(root.get("bounds_mm"), separators=(",", ":"))
+            + f"@{root.get('rotation_deg', 0)}"
+            for snapshot in first["snapshots"]
+            for trace in snapshot["site_module_assembly_trace"]
+            if trace.get("stage") == "S0_PACKAGING_ANCHOR_DRIVEN_SORTING_ROOTS"
+            and isinstance(trace.get("packaging_anchor"), Mapping)
+            and trace["packaging_anchor"].get("anchor_id") == anchor_id
+            for root in trace.get("sorting_roots", [])
+            if isinstance(root, Mapping)
+        }
+        for anchor_id in construction_anchors
+    }
+    packaging_anchor_influences_sorting_roots = (
+        len({tuple(sorted(roots)) for roots in sorting_geometries_by_anchor.values()}) > 1
+    )
+    source_pair_attempt_rows_by_family: dict[str, int] = {}
+    source_pair_distinct_inputs_by_family: dict[str, set[str]] = {}
+    source_pair_site_valid_by_family: dict[str, set[str]] = {}
+    for row in source_pair_rows:
+        family = str(row.get("layout_family", "UNKNOWN"))
+        source_pair_attempt_rows_by_family[family] = (
+            source_pair_attempt_rows_by_family.get(family, 0) + 1
+        )
+        source_pair_identity = str(
+            row.get(
+                "source_pair_geometry_signature",
+                f"{row.get('process_axis')}:{row.get('process_direction')}:{row.get('source_pair_index')}",
+            )
+        )
+        source_pair_distinct_inputs_by_family.setdefault(family, set()).add(source_pair_identity)
+        if int(row.get("site_valid_critical_geometry_count", 0)) > 0:
+            source_pair_site_valid_by_family.setdefault(family, set()).add(source_pair_identity)
+    source_pair_attempt_rows_by_family = dict(sorted(source_pair_attempt_rows_by_family.items()))
+    source_pair_distinct_inputs_count_by_family = {
+        family: len(rows) for family, rows in sorted(source_pair_distinct_inputs_by_family.items())
+    }
+    source_pair_site_valid_count_by_family = {
+        family: len(rows) for family, rows in sorted(source_pair_site_valid_by_family.items())
+    }
+    main_geometry_keys_by_family: dict[str, set[str]] = {}
+    for row in first["main_candidates"]:
+        family = str(row.get("layout_family", "UNKNOWN"))
+        geometry_key = json.dumps(row.get("zones", []), sort_keys=True, separators=(",", ":"))
+        main_geometry_keys_by_family.setdefault(family, set()).add(geometry_key)
+    packaging_reserved_by_family = {
+        family: len(main_geometry_keys_by_family.get(family, set()))
+        for family in (
+            "LINEAR_3_BAND",
+            "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+            "LONGITUDINAL_PROCESS_SPINE",
+        )
+    }
+    critical_8_zone_geometry_count = len(main_candidates)
+    distinct_structured_full_pass_hashes = {
+        str(row.get("skeleton_hash"))
+        for row in structured_full_pass_candidates
+        if row.get("skeleton_hash") not in {None, "UNAVAILABLE"}
+    }
     package_anchor_rows = []
     for anchor in sorted(all_packaging_anchors.values(), key=lambda row: row["anchor_id"]):
         rectangle = anchor.get("rectangle", {})
@@ -634,6 +890,14 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
                 ],
             }
         )
+    core_image = _write_image(
+        CORE_IMAGE,
+        "Packaging + sorting construction core pairs (S0)",
+        core_pair_candidates,
+        boundary,
+        obstacles,
+        "No package-driven sorting core pair was enumerated.",
+    )
     anchor_image = _write_image(
         ANCHOR_IMAGE,
         "Exact authoritative packaging site anchors (17.3 × 14.5 m, allowed orientations)",
@@ -680,11 +944,39 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
     )
     budget = first_diag.get("r11_budget_accounting", {})
     selected = first["selected"]
+    critical_assembly_failure_by_family: dict[str, dict[str, Any]] = {}
+    for family, counts in sorted(runtime_s1_counts_by_family.items()):
+        if counts.get("packaging_sorting_core_pair_count", 0) == 0:
+            first_failure_stage = "PACKAGING_SORTING_CORE_PAIR"
+        elif counts.get("raw_attachment_site_valid_count", 0) == 0:
+            first_failure_stage = "RAW_ATTACHMENT"
+        elif counts.get("finished_attachment_site_valid_count", 0) == 0:
+            first_failure_stage = "FINISHED_ATTACHMENT"
+        elif counts.get("main_must_graph_valid_count", 0) == 0:
+            first_failure_stage = "MUST_INTERFACE"
+        elif counts.get("critical_8_zone_count", 0) == 0:
+            first_failure_stage = "FORMAL_PACKAGING_PREFLIGHT_OR_JOINT_ANCHOR_MISMATCH"
+        else:
+            first_failure_stage = "NONE"
+        critical_assembly_failure_by_family[family] = {
+            "first_failure_stage": first_failure_stage,
+            "packaging_sorting_core_pair_count": counts.get("packaging_sorting_core_pair_count", 0),
+            "raw_attachment_candidate_count": counts.get("raw_attachment_candidate_count", 0),
+            "raw_attachment_site_valid_count": counts.get("raw_attachment_site_valid_count", 0),
+            "finished_attachment_candidate_count": counts.get(
+                "finished_attachment_candidate_count", 0
+            ),
+            "finished_attachment_site_valid_count": counts.get(
+                "finished_attachment_site_valid_count", 0
+            ),
+            "main_must_graph_valid_count": counts.get("main_must_graph_valid_count", 0),
+            "critical_8_zone_count": counts.get("critical_8_zone_count", 0),
+        }
     evidence = {
-        "identity": "v222-p1a-r2-critical-packaging-anchor-joint-site-assembly@1.0.0",
+        "identity": "v222-p1a-r2-packaging-anchor-driven-critical-skeleton@1.0.0",
         "task_id": "V2_2_2_P1A_ENVELOPE_GRID_BAND_ZONE_GENERATOR_R2",
-        "mode": "R2_CRITICAL_PACKAGING_ANCHOR_JOINT_SITE_ASSEMBLY_RECOVERY",
-        "baseline_head": "49f634cdb76509cd2cd1d488b0da1f646f2b8071",
+        "mode": "R2_PACKAGING_ANCHOR_DRIVEN_CRITICAL_SKELETON_RECOVERY",
+        "baseline_head": "2c2463a2819f338698ce14bad3f73865da1d945f",
         "input_fixture": str(FIXTURE),
         "tool7_unmocked_replay_count": 2,
         "site_geometry": first["context_geometry"],
@@ -703,8 +995,53 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
             "packaging_joint_site_assembly": True,
             "packaging_module_independent": True,
             "critical_assembly_zone_count": 8,
+            "true_packaging_first_construction": True,
+            "packaging_anchor_influences_sorting_root_enumeration": (
+                packaging_anchor_influences_sorting_roots
+            ),
+            "packaging_sorting_must_shared_edge": False,
+            "formal_packaging_preflight_retained": True,
             "sorting_rotation_site_attempt_count_by_family": sorting_attempts_by_family,
             "module_variant_counts": variant_counts,
+        },
+        "packaging_anchor_coverage": {
+            "legal_site_anchor_count": len(all_packaging_anchors),
+            "construction_representative_count": len(construction_anchors),
+            "legal_anchor_count_by_bay": dict(
+                sorted(variant_counts.get("packaging_anchor_count_by_bay", {}).items())
+            ),
+            "construction_anchor_group_count": len(anchor_group_coverage),
+            "groups_with_sorting_rotation_0_attempt_or_exact_impossibility": (
+                anchor_groups_with_rot0
+            ),
+            "groups_with_sorting_rotation_90_attempt_or_exact_impossibility": (
+                anchor_groups_with_rot90
+            ),
+            "groups": anchor_group_coverage,
+        },
+        "packaging_sorting_core_pairs": {
+            "distinct_geometry_count": len(core_pair_rows_by_geometry),
+            "candidates": core_pair_candidates,
+        },
+        "critical_assembly_failure_by_family": critical_assembly_failure_by_family,
+        "source_pair_coverage": {
+            "raw_module_distinct_signature_count": variant_counts.get(
+                "raw_module_distinct_signature_count", 0
+            ),
+            "finished_module_distinct_signature_count": variant_counts.get(
+                "finished_module_distinct_signature_count", 0
+            ),
+            "raw_module_construction_rep_count": variant_counts.get(
+                "raw_module_construction_rep_count", 0
+            ),
+            "finished_module_construction_rep_count": variant_counts.get(
+                "finished_module_construction_rep_count", 0
+            ),
+            "attempt_row_count_by_family": source_pair_attempt_rows_by_family,
+            "distinct_input_geometry_count_by_family": source_pair_distinct_inputs_count_by_family,
+            "with_site_valid_critical_geometry_count_by_family": (
+                source_pair_site_valid_count_by_family
+            ),
         },
         "stage_counts": {
             "raw_site_valid_main_count": sum(
@@ -727,19 +1064,13 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
                 {row.get("skeleton_hash") for row in main_candidates}
             ),
             "tail_capable_main_count_by_family": {
-                family: len(
-                    {
-                        row.get("skeleton_hash")
-                        for row in main_candidates
-                        if row.get("layout_family") == family
-                    }
-                )
-                for family in (
-                    "LINEAR_3_BAND",
-                    "CENTRAL_PROCESS_WITH_SIDE_BANKS",
-                    "LONGITUDINAL_PROCESS_SPINE",
-                )
+                family: count for family, count in packaging_reserved_by_family.items()
             },
+            "packaging_reserved_main_count": len(main_candidates),
+            "packaging_reserved_main_count_by_family": packaging_reserved_by_family,
+            "critical_8_zone_count": critical_8_zone_geometry_count,
+            "packaging_sorting_core_pair_count": len(core_pair_rows_by_geometry),
+            "critical_assembly_failure_by_family": critical_assembly_failure_by_family,
             "source_pair_count_by_family": {
                 family: counts.get("source_pair_count", 0)
                 for family, counts in sorted(runtime_s1_counts_by_family.items())
@@ -754,6 +1085,7 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
             },
             "early_formal_packaging_preflight_mismatch_count": early_formal_mismatch_count,
             "packaging_site_anchor_count": len(all_packaging_anchors),
+            "packaging_construction_rep_count": len(construction_anchors),
             "packaging_anchor_count_by_bay": dict(
                 sorted(variant_counts.get("packaging_anchor_count_by_bay", {}).items())
             ),
@@ -774,6 +1106,29 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
             "structured_truck_pass_count": len(structured_truck_pass_hashes),
             "structured_truck_pass_hashes": structured_truck_pass_hashes,
             "structured_p2d_full_pass_count": structured_full_pass_count,
+            "distinct_structured_full_pass_skeleton_count": len(
+                distinct_structured_full_pass_hashes
+            ),
+            "stage_a_complete_12_zone_exists": bool(full_candidates),
+            "stage_b_three_families_complete": all(
+                any(row.get("layout_family") == family for row in full_candidates)
+                for family in (
+                    "LINEAR_3_BAND",
+                    "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+                    "LONGITUDINAL_PROCESS_SPINE",
+                )
+            ),
+            "stage_c_structured_p2d_full_pass_exists": bool(structured_full_pass_candidates),
+            "stage_d_final_visual_acceptance": (
+                len({row.get("skeleton_hash") for row in regular_full_passes}) >= 5
+                and len({row.get("layout_family") for row in regular_full_passes}) >= 3
+            ),
+            "p2d_building_footprint_outline_classes": sorted(
+                {
+                    str(row.get("p2d_building_footprint_outline_class"))
+                    for row in structured_full_pass_candidates
+                }
+            ),
             "visually_distinct_p2d_full_pass_candidate_count": len(
                 {row.get("skeleton_hash") for row in regular_full_passes}
             ),
@@ -821,6 +1176,7 @@ def capture_site_partitioned_replay() -> dict[str, Any]:
         "structured_full_pass_candidates": structured_full_pass_candidates,
         "images": {
             "packaging_anchors": anchor_image,
+            "packaging_sorting_core_pairs": core_image,
             "main_process": main_image,
             "full_12_zone": full_image,
             "p2d_full_pass_gallery": p2d_image,
@@ -865,6 +1221,11 @@ if __name__ == "__main__":
         json.dumps(
             {
                 "result": report["result"],
+                "packaging_anchor_coverage": report["packaging_anchor_coverage"],
+                "packaging_sorting_core_pairs": report["packaging_sorting_core_pairs"][
+                    "distinct_geometry_count"
+                ],
+                "source_pair_coverage": report["source_pair_coverage"],
                 "site_bay_count": report["orthogonal_site_bay_decomposition"]["bay_count"],
                 "module_variant_counts": report["module_contract"]["module_variant_counts"],
                 "stage_counts": report["stage_counts"],

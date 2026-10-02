@@ -20,6 +20,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
+from functools import lru_cache
 from typing import Final
 
 from cold_storage.modules.layout.domain.site_geometry import (
@@ -35,6 +36,44 @@ IDENTITY: Final = "tail-zone-slot-feasibility@1.0.0"
 EXACT_ORTHOGONAL_EVENT_ENUMERATION: Final = "EXACT_ORTHOGONAL_EVENT_ENUMERATION"
 EVENT_COMPLETENESS_UNAVAILABLE: Final = "EXACT_EVENT_COMPLETENESS_UNAVAILABLE"
 SITE_ANCHOR_IDENTITY: Final = "tail-zone-site-anchor-enumeration@1.0.0"
+
+
+@lru_cache(maxsize=131_072)
+def _cached_rectangle_inside_polygon(
+    bounds_mm: tuple[int, int, int, int], polygon: PolygonMM
+) -> bool:
+    """Memoize the existing exact predicate for repeated event rectangles.
+
+    Slot proofs for different skeletons often revisit the same site/obstacle
+    event origin.  The cache key is the complete axis-aligned rectangle and
+    normalized polygon; the authoritative predicate still decides every
+    cache miss.  This changes neither the event set nor proof accounting.
+    """
+    left, bottom, right, top = bounds_mm
+    rectangle = PlacedRectangleV1(
+        "tail-slot-cache",
+        Decimal(left) / MILLIMETRES_PER_METRE,
+        Decimal(bottom) / MILLIMETRES_PER_METRE,
+        Decimal(right - left) / MILLIMETRES_PER_METRE,
+        Decimal(top - bottom) / MILLIMETRES_PER_METRE,
+    )
+    return rectangle_inside_polygon(rectangle, polygon)
+
+
+@lru_cache(maxsize=131_072)
+def _cached_rectangle_intersects_obstacle(
+    bounds_mm: tuple[int, int, int, int], obstacle: PolygonMM
+) -> bool:
+    """Memoize the existing exact closed-obstacle predicate by geometry."""
+    left, bottom, right, top = bounds_mm
+    rectangle = PlacedRectangleV1(
+        "tail-slot-cache",
+        Decimal(left) / MILLIMETRES_PER_METRE,
+        Decimal(bottom) / MILLIMETRES_PER_METRE,
+        Decimal(right - left) / MILLIMETRES_PER_METRE,
+        Decimal(top - bottom) / MILLIMETRES_PER_METRE,
+    )
+    return rectangle_intersects_closed_obstacle(rectangle, obstacle)
 
 
 @dataclass(frozen=True)
@@ -103,6 +142,24 @@ def _is_orthogonal(polygon: PolygonMM) -> bool:
     return all(
         first[0] == second[0] or first[1] == second[1]
         for first, second in zip(polygon, polygon[1:] + polygon[:1], strict=True)
+    )
+
+
+def _polygon_bounds(polygon: PolygonMM) -> tuple[int, int, int, int]:
+    return (
+        min(point[0] for point in polygon),
+        min(point[1] for point in polygon),
+        max(point[0] for point in polygon),
+        max(point[1] for point in polygon),
+    )
+
+
+def _closed_bounds_may_intersect(
+    first: tuple[int, int, int, int], second: tuple[int, int, int, int]
+) -> bool:
+    """Return false only when two closed bounds are provably disjoint."""
+    return not (
+        first[2] < second[0] or second[2] < first[0] or first[3] < second[1] or second[3] < first[1]
     )
 
 
@@ -175,6 +232,8 @@ def evaluate_tail_zone_slot_feasibility_v1(
     min_y = min(point[1] for point in boundary)
     max_x = max(point[0] for point in boundary)
     max_y = max(point[1] for point in boundary)
+    boundary_bounds = (min_x, min_y, max_x, max_y)
+    obstacle_bounds = tuple(_polygon_bounds(obstacle) for obstacle in obstacles)
     variants = tuple(
         sorted(
             {(width, depth, rotation) for width, depth, rotation in dimension_variants},
@@ -220,12 +279,23 @@ def evaluate_tail_zone_slot_feasibility_v1(
                     Decimal(depth_mm) / MILLIMETRES_PER_METRE,
                     rotation,
                 )
-                if not rectangle_inside_polygon(rectangle, boundary):
+                bounds_mm = rectangle.bounds_mm
+                # This coarse check only rejects rectangles provably outside
+                # the boundary bounding box.  Every remaining placement is
+                # still decided by the authoritative exact polygon predicate.
+                if (
+                    bounds_mm[0] < boundary_bounds[0]
+                    or bounds_mm[1] < boundary_bounds[1]
+                    or bounds_mm[2] > boundary_bounds[2]
+                    or bounds_mm[3] > boundary_bounds[3]
+                    or not _cached_rectangle_inside_polygon(bounds_mm, boundary)
+                ):
                     site_rejections += 1
                     continue
                 if any(
-                    rectangle_intersects_closed_obstacle(rectangle, obstacle)
-                    for obstacle in obstacles
+                    _closed_bounds_may_intersect(bounds_mm, obstacle_bounds[index])
+                    and _cached_rectangle_intersects_obstacle(bounds_mm, obstacle)
+                    for index, obstacle in enumerate(obstacles)
                 ):
                     no_build_rejections += 1
                     continue

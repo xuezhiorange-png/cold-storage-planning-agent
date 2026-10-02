@@ -990,6 +990,67 @@ def _module_signature(
     )
 
 
+def _module_construction_class_signature(
+    module: Mapping[str, PlacedRectangleV1],
+    *,
+    interface_zone: str,
+    chain: Sequence[str] = (),
+) -> tuple[object, ...]:
+    """Classify a rigid module by geometry facts used for finite source pairing.
+
+    The class deliberately omits the module's absolute local origin.  It keeps
+    orientation, packing direction, frame proportions, exposed interface side,
+    and (for the finished bank) the actual MUST-chain side sequence.  This
+    groups equivalent construction classes before forming source pairs, rather
+    than taking the first two geometry rows or expanding every raw × finished
+    rectangle combination.
+    """
+    left, bottom, right, top = _local_bbox_bounds(module)
+    span_x, span_y = right - left, top - bottom
+    if span_x > span_y:
+        frame_class = "WIDE" if span_x >= 2 * span_y else "LANDSCAPE"
+        packing_axis = "ROW"
+    elif span_y > span_x:
+        frame_class = "TALL" if span_y >= 2 * span_x else "PORTRAIT"
+        packing_axis = "COLUMN"
+    else:
+        frame_class = "SQUARE"
+        packing_axis = "BALANCED"
+    interface = module[interface_zone]
+    interface_bounds = _bounds(interface)
+    exposed_sides = tuple(
+        side
+        for side, touches in (
+            ("WEST", interface_bounds[0] == left),
+            ("EAST", interface_bounds[2] == right),
+            ("SOUTH", interface_bounds[1] == bottom),
+            ("NORTH", interface_bounds[3] == top),
+        )
+        if touches
+    )
+    chain_sides = tuple(
+        _adjacent_side(module[first], module[second]) or "NOT_SHARED"
+        for first, second in zip(chain, chain[1:], strict=False)
+    )
+    shipping = module.get("shipping_channel")
+    shipping_long_axis = None
+    if shipping is not None:
+        shipping_bounds = _bounds(shipping)
+        shipping_long_axis = (
+            "X"
+            if shipping_bounds[2] - shipping_bounds[0] >= shipping_bounds[3] - shipping_bounds[1]
+            else "Y"
+        )
+    return (
+        tuple(sorted({rectangle.rotation_deg for rectangle in module.values()})),
+        packing_axis,
+        frame_class,
+        exposed_sides,
+        chain_sides,
+        shipping_long_axis,
+    )
+
+
 def _rigid_module_variants(
     placements: Mapping[str, PlacedRectangleV1],
 ) -> tuple[dict[str, PlacedRectangleV1], ...]:
@@ -1040,6 +1101,24 @@ def _site_assembly_module_variants(
     return _rigid_module_variants(placements)
 
 
+def _balanced_site_module_pair_variants(
+    raw_module: Mapping[str, PlacedRectangleV1],
+    finished_module: Mapping[str, PlacedRectangleV1],
+) -> tuple[tuple[dict[str, PlacedRectangleV1], dict[str, PlacedRectangleV1]], ...]:
+    """Cover each module's rigid variants without a raw×finished Cartesian product."""
+    raw_variants = _site_assembly_module_variants(raw_module)
+    finished_variants = _site_assembly_module_variants(finished_module)
+    if not raw_variants or not finished_variants:
+        return ()
+    return tuple(
+        (
+            raw_variants[index % len(raw_variants)],
+            finished_variants[index % len(finished_variants)],
+        )
+        for index in range(max(len(raw_variants), len(finished_variants)))
+    )
+
+
 def _translate_module(
     module: Mapping[str, PlacedRectangleV1], dx_mm: int, dy_mm: int
 ) -> dict[str, PlacedRectangleV1]:
@@ -1075,6 +1154,55 @@ def _module_attached_to_zone(
         if rectangles_share_positive_edge(target, translated[interface_zone_code])
         else None
     )
+
+
+def _finished_module_site_dock_order(
+    module: Mapping[str, PlacedRectangleV1],
+    sorting_root: PlacedRectangleV1,
+    finished_side: str,
+    alignments: Sequence[str],
+    dock_rectangles: Sequence[PlacedRectangleV1],
+) -> tuple[int, int, int, int, tuple[int, int, int, int]]:
+    """Order finished modules by their site-frame shipping/dock fit.
+
+    Module coordinates are local until attached to the sorting root. Compare
+    dock events only after that rigid attachment; comparing local module
+    origins directly with site coordinates creates a meaningless distance.
+    This is construction ordering only. Truck and P2D remain authoritative.
+    """
+    shipping = module["shipping_channel"]
+    fallback = (1, 2**31, shipping.rotation_deg, len(alignments), shipping.bounds_mm)
+    scores: list[tuple[int, int, int, int, tuple[int, int, int, int]]] = []
+    for alignment_index, alignment in enumerate(alignments):
+        attached = _module_attached_to_zone(
+            module,
+            "secondary_precooling_room",
+            sorting_root,
+            finished_side,
+            alignment,
+        )
+        if attached is None:
+            continue
+        site_shipping = attached["shipping_channel"]
+        site_bounds = _bounds(site_shipping)
+        for dock in dock_rectangles:
+            dock_bounds = _bounds(dock)
+            if dock.rotation_deg != site_shipping.rotation_deg or (
+                dock_bounds[2] - dock_bounds[0],
+                dock_bounds[3] - dock_bounds[1],
+            ) != (site_bounds[2] - site_bounds[0], site_bounds[3] - site_bounds[1]):
+                continue
+            distance = abs(site_bounds[0] - dock_bounds[0]) + abs(site_bounds[1] - dock_bounds[1])
+            scores.append(
+                (
+                    int(site_bounds != dock_bounds),
+                    distance,
+                    site_shipping.rotation_deg,
+                    alignment_index,
+                    site_shipping.bounds_mm,
+                )
+            )
+    return min(scores) if scores else fallback
 
 
 def _module_origins_from_bay_edges(
@@ -1285,7 +1413,10 @@ def _family_core_face_pairs(
             if raw_side != finished_side
             and {raw_side, finished_side} not in ({"WEST", "EAST"}, {"SOUTH", "NORTH"})
         )
-        return tuple(dict.fromkeys((preferred, *opposite_pairs, *one_bend_pairs)))
+        cofacial_bank_pairs = tuple((side, side) for side in ("NORTH", "SOUTH", "EAST", "WEST"))
+        return tuple(
+            dict.fromkeys((preferred, *opposite_pairs, *one_bend_pairs, *cofacial_bank_pairs))
+        )
     if layout_family == CENTRAL_PROCESS_WITH_SIDE_BANKS:
         side_order = ("WEST", "EAST", "SOUTH", "NORTH")
         orthogonal = tuple(
@@ -1297,7 +1428,7 @@ def _family_core_face_pairs(
         )
         return orthogonal
     if layout_family == LONGITUDINAL_PROCESS_SPINE:
-        return (
+        terminal_pairs = (
             (("SOUTH", "NORTH"), ("NORTH", "SOUTH"))
             if process_axis == "X"
             else (
@@ -1305,14 +1436,23 @@ def _family_core_face_pairs(
                 ("EAST", "WEST"),
             )
         )
+        spine_side_pairs = tuple((side, side) for side in ("NORTH", "SOUTH", "EAST", "WEST"))
+        return (*terminal_pairs, *spine_side_pairs)
     return ()
 
 
 def _main_module_source_pairs(
     context: _PlacementSearchContext,
     main_compositions: Sequence[LocalBuildingCompositionV1],
+    *,
+    module_variants: tuple[
+        Sequence[dict[str, PlacedRectangleV1]],
+        Sequence[dict[str, PlacedRectangleV1]],
+    ]
+    | None = None,
+    stats: _PlacementSearchStats | None = None,
 ) -> tuple[tuple[dict[str, PlacedRectangleV1], dict[str, PlacedRectangleV1]], ...]:
-    """Return a bounded, cached-by-caller set of independent rigid module pairs."""
+    """Pair geometry-class representatives without positional ZIP truncation."""
     source_pairs: dict[
         tuple[
             tuple[tuple[str, tuple[int, ...]], ...],
@@ -1330,26 +1470,83 @@ def _main_module_source_pairs(
         signature = (_module_signature(raw_normalized), _module_signature(finished_normalized))
         source_pairs.setdefault(signature, (raw_normalized, finished_normalized))
 
-    raw_modules = tuple(
-        row[0]
-        for row in _local_bank_compositions(
-            context,
-            ("raw_fruit_buffer", "primary_precooling_room"),
-            result_limit=12,
+    if module_variants is None:
+        raw_modules = tuple(
+            row[0]
+            for row in _local_bank_compositions(
+                context,
+                ("raw_fruit_buffer", "primary_precooling_room"),
+                result_limit=24,
+            )
         )
+        finished_modules = _local_must_chain_module_compositions(
+            context,
+            (
+                "secondary_precooling_room",
+                "coating_room",
+                "finished_goods_room",
+                "shipping_channel",
+            ),
+            result_limit=24,
+        )
+    else:
+        raw_modules, finished_modules = map(tuple, module_variants)
+
+    raw_representatives: dict[tuple[object, ...], dict[str, PlacedRectangleV1]] = {}
+    for module in raw_modules:
+        signature = _module_construction_class_signature(
+            module,
+            interface_zone="primary_precooling_room",
+            chain=("raw_fruit_buffer", "primary_precooling_room"),
+        )
+        raw_representatives.setdefault(signature, module)
+    finished_chain = (
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel",
     )
-    finished_modules = _local_must_chain_module_compositions(
-        context,
-        (
-            "secondary_precooling_room",
-            "coating_room",
-            "finished_goods_room",
-            "shipping_channel",
-        ),
-        result_limit=12,
-    )
-    for raw_module, finished_module in zip(raw_modules[:2], finished_modules[:2], strict=False):
-        add_source_pair(raw_module, finished_module)
+    finished_representatives: dict[tuple[object, ...], dict[str, PlacedRectangleV1]] = {}
+    for module in finished_modules:
+        signature = _module_construction_class_signature(
+            module,
+            interface_zone="secondary_precooling_room",
+            chain=finished_chain,
+        )
+        finished_representatives.setdefault(signature, module)
+
+    raw_classes = tuple(sorted(raw_representatives))
+    finished_classes = tuple(sorted(finished_representatives))
+    class_pair_limit = 32
+    class_pair_rows: list[tuple[tuple[object, ...], tuple[object, ...]]] = []
+    if raw_classes and finished_classes:
+        # The cyclic diagonal visits every distinct RAW and FINISHED class in
+        # max(n, m) pairs, rather than materializing their Cartesian product.
+        coverage_width = max(len(raw_classes), len(finished_classes))
+        for index in range(coverage_width):
+            class_pair_rows.append(
+                (
+                    raw_classes[index % len(raw_classes)],
+                    finished_classes[index % len(finished_classes)],
+                )
+            )
+        # Add a bounded offset cover so the construction is not a label-only
+        # one-to-one pairing while staying well below n_raw * n_finished.
+        for offset in range(1, min(len(finished_classes), class_pair_limit)):
+            for index in range(coverage_width):
+                pair = (
+                    raw_classes[index % len(raw_classes)],
+                    finished_classes[(index + offset) % len(finished_classes)],
+                )
+                if pair not in class_pair_rows:
+                    class_pair_rows.append(pair)
+                if len(class_pair_rows) >= class_pair_limit:
+                    break
+            if len(class_pair_rows) >= class_pair_limit:
+                break
+    class_pairs = tuple(class_pair_rows[:class_pair_limit])
+    for raw_class, finished_class in class_pairs:
+        add_source_pair(raw_representatives[raw_class], finished_representatives[finished_class])
 
     # Local family compositions are a small compatibility source, not the
     # primary way module geometry is produced.
@@ -1367,8 +1564,32 @@ def _main_module_source_pairs(
                 )
             },
         )
-        if len(source_pairs) >= 4:
+        if len(source_pairs) >= class_pair_limit:
             break
+    if stats is not None:
+        if stats.site_module_variant_counts is None:
+            stats.site_module_variant_counts = {}
+        stats.site_module_variant_counts["raw_module_distinct_signature_count"] = len(
+            raw_representatives
+        )
+        stats.site_module_variant_counts["finished_module_distinct_signature_count"] = len(
+            finished_representatives
+        )
+        stats.site_module_variant_counts["raw_module_construction_rep_count"] = len(
+            raw_representatives
+        )
+        stats.site_module_variant_counts["finished_module_construction_rep_count"] = len(
+            finished_representatives
+        )
+        stats.site_module_variant_counts["source_pair_distinct_input_geometry_count"] = len(
+            source_pairs
+        )
+        stats.site_module_variant_counts["source_pair_class_product_count"] = len(
+            raw_representatives
+        ) * len(finished_representatives)
+        stats.site_module_variant_counts["source_pair_class_product_capped"] = (
+            len(raw_representatives) * len(finished_representatives) > class_pair_limit
+        )
     return tuple(source_pairs.values())
 
 
@@ -1445,6 +1666,13 @@ def _packaging_anchor_construction_representatives(
     context: _PlacementSearchContext,
     anchors: Sequence[PackagingAnchorV1],
     bays: Sequence[BuildableBayV1],
+    *,
+    root_options_by_anchor: dict[
+        str,
+        tuple[tuple[PlacedRectangleV1, str, PlacedRectangleV1 | None, dict[str, Any]], ...],
+    ]
+    | None = None,
+    stats: _PlacementSearchStats | None = None,
 ) -> tuple[PackagingAnchorV1, ...]:
     """Keep deterministic bay-edge/corner representatives for joint assembly.
 
@@ -1457,40 +1685,138 @@ def _packaging_anchor_construction_representatives(
     groups: dict[tuple[str, int], list[PackagingAnchorV1]] = {}
     for anchor in anchors:
         groups.setdefault((anchor.bay_id, anchor.rectangle.rotation_deg), []).append(anchor)
-    selected: dict[str, PackagingAnchorV1] = {}
-    for (bay_id, _rotation), rows in sorted(groups.items()):
-        bay = bay_by_id.get(bay_id)
-        left, bottom, right, top = bay.bounds_mm if bay is not None else context.boundary_bounds
-        width = rows[0].rectangle.bounds_mm[2] - rows[0].rectangle.bounds_mm[0]
-        depth = rows[0].rectangle.bounds_mm[3] - rows[0].rectangle.bounds_mm[1]
-        target_origins = (
-            (left, bottom),
-            (right - width, bottom),
-            (left, top - depth),
-            (right - width, top - depth),
-            ((left + right - width) // 2, (bottom + top - depth) // 2),
+
+    def spatial_role(
+        anchor: PackagingAnchorV1, frame_bounds: tuple[int, int, int, int]
+    ) -> tuple[str, int]:
+        left, bottom, right, top = frame_bounds
+        x0, y0, x1, y1 = anchor.rectangle.bounds_mm
+        width, depth = x1 - x0, y1 - y0
+        targets = (
+            ("CORNER", left, bottom),
+            ("CORNER", right - width, bottom),
+            ("CORNER", left, top - depth),
+            ("CORNER", right - width, top - depth),
+            ("EDGE", (left + right - width) // 2, bottom),
+            ("EDGE", (left + right - width) // 2, top - depth),
+            ("EDGE", left, (bottom + top - depth) // 2),
+            ("EDGE", right - width, (bottom + top - depth) // 2),
+            ("CENTER", (left + right - width) // 2, (bottom + top - depth) // 2),
         )
-        for target_x, target_y in target_origins:
-            anchor = min(
-                rows,
-                key=lambda row: (
-                    abs(row.rectangle.bounds_mm[0] - target_x)
-                    + abs(row.rectangle.bounds_mm[1] - target_y),
-                    row.rectangle.bounds_mm[1],
-                    row.rectangle.bounds_mm[0],
-                ),
-            )
-            selected.setdefault(anchor.anchor_id, anchor)
-    return tuple(
-        sorted(
-            selected.values(),
+        role, target_x, target_y = min(
+            targets,
             key=lambda row: (
-                row.bay_id,
-                row.rectangle.rotation_deg,
-                row.rectangle.bounds_mm,
+                abs(x0 - row[1]) + abs(y0 - row[2]),
+                ("CORNER", "EDGE", "CENTER").index(row[0]),
+                row[1],
+                row[2],
             ),
         )
-    )
+        return role, abs(x0 - target_x) + abs(y0 - target_y)
+
+    selected: dict[str, PackagingAnchorV1] = {}
+    cached_root_options = root_options_by_anchor if root_options_by_anchor is not None else {}
+    # Score every exact site-valid packaging witness against the finite
+    # package-to-sorting edge events. This is only anchor representative
+    # selection; it does not run the 7-zone assembly or alter authority.
+    for anchor in anchors:
+        options = cached_root_options.get(anchor.anchor_id)
+        if options is None:
+            options = _packaging_driven_sorting_roots(context, anchor, bays=bays, stats=stats)
+            cached_root_options[anchor.anchor_id] = options
+
+    for group_key, rows in sorted(groups.items()):
+        bay = bay_by_id.get(group_key[0])
+        # Preserve both bay-relative and whole-site boundary-relative events.
+        # A bay edge can be an obstacle-derived internal boundary; choosing
+        # only that representative can miss an equally authoritative placement
+        # flush to the effective site boundary (and vice versa).
+        frames = (
+            ("BAY", bay.bounds_mm if bay is not None else context.boundary_bounds),
+            ("SITE", context.boundary_bounds),
+        )
+        for _frame_name, frame_bounds in frames:
+            role_rows: dict[str, list[tuple[PackagingAnchorV1, int]]] = {
+                "CORNER": [],
+                "EDGE": [],
+                "CENTER": [],
+            }
+            for anchor in rows:
+                role, distance = spatial_role(anchor, frame_bounds)
+                role_rows[role].append((anchor, distance))
+            # Prefer exact package-to-sorting witnesses when a frame-role has
+            # them; keep a deterministic no-root witness only if none exists.
+            for role in ("CORNER", "EDGE", "CENTER"):
+                candidates = role_rows[role]
+                if not candidates:
+                    continue
+                rootable = [row for row in candidates if cached_root_options[row[0].anchor_id]]
+                selected_pool = rootable or candidates
+                anchor, _distance = min(
+                    selected_pool,
+                    key=lambda row: (
+                        row[1],
+                        -len(cached_root_options[row[0].anchor_id]),
+                        row[0].rectangle.bounds_mm,
+                        row[0].anchor_id,
+                    ),
+                )
+                selected.setdefault(anchor.anchor_id, anchor)
+
+        # Each distinct feasible sorting orientation and package-facing side
+        # receives a representative. This prevents spatial-role sampling from
+        # erasing the interface direction needed by the process core.
+        interface_rows: dict[tuple[int, str], list[PackagingAnchorV1]] = {}
+        for anchor in rows:
+            for root, package_side, _corridor, _witness in cached_root_options[anchor.anchor_id]:
+                interface_rows.setdefault((root.rotation_deg, package_side), []).append(anchor)
+        for _interface_class, candidate_anchors in sorted(interface_rows.items()):
+            unique_candidates = {anchor.anchor_id: anchor for anchor in candidate_anchors}
+            representative = min(
+                unique_candidates.values(),
+                key=lambda anchor: (
+                    -len(cached_root_options[anchor.anchor_id]),
+                    anchor.rectangle.bounds_mm,
+                    anchor.anchor_id,
+                ),
+            )
+            selected.setdefault(representative.anchor_id, representative)
+
+    by_group: dict[tuple[str, int], dict[str, PackagingAnchorV1]] = {}
+    for anchor in selected.values():
+        bay = bay_by_id.get(anchor.bay_id)
+        role, _distance = spatial_role(
+            anchor,
+            bay.bounds_mm if bay is not None else context.boundary_bounds,
+        )
+        by_group.setdefault((anchor.bay_id, anchor.rectangle.rotation_deg), {})[
+            f"{role}:{anchor.anchor_id}"
+        ] = anchor
+    # Interleave bay/orientation groups and geometric/interface roles so a
+    # small downstream construction quota cannot consume one lobe or side.
+    balanced: list[PackagingAnchorV1] = []
+    groups_sorted = sorted(by_group)
+    group_rows = {
+        group: sorted(
+            by_group[group].values(),
+            key=lambda anchor: (
+                -len(cached_root_options[anchor.anchor_id]),
+                anchor.rectangle.bounds_mm,
+                anchor.anchor_id,
+            ),
+        )
+        for group in groups_sorted
+    }
+    # Construction has a bounded downstream node allowance. Interleave bay ×
+    # packaging-orientation groups so a small prefix still covers both anchor
+    # rotations and each usable lobe before spending a second attempt in one
+    # group. The exact complete anchor set remains unchanged.
+    for round_index in range(max((len(rows) for rows in group_rows.values()), default=0)):
+        for group in groups_sorted:
+            rows = group_rows[group]
+            if round_index < len(rows):
+                balanced.append(rows[round_index])
+    return tuple(balanced)
 
 
 def _orientation_balanced_sorting_roots(
@@ -1515,6 +1841,444 @@ def _orientation_balanced_sorting_roots(
     return tuple(ordered)
 
 
+def _packaging_access_widths_mm(
+    context: _PlacementSearchContext,
+) -> tuple[int, int] | None:
+    """Return frozen portal/corridor widths for packaging-to-sorting ordering."""
+    requirement = next(
+        (
+            row
+            for row in getattr(context, "access_requirements", ())
+            if row.get("from_ref") == "packaging_material_storage"
+            and row.get("to_ref") == "sorting_packaging_room"
+        ),
+        None,
+    )
+    if requirement is None:
+        return None
+    profile_identity = requirement.get("profile_identity")
+    if not isinstance(profile_identity, str):
+        return None
+    if (
+        profile_identity != "packaging-sorting-straight-access@1.0.0"
+        or requirement.get("route_shape_constraint") != "STRAIGHT_ONLY"
+    ):
+        return None
+    portal_width = requirement.get("construction_portal_clear_width_m")
+    corridor_width = requirement.get("construction_corridor_clear_width_m")
+    if portal_width is None or corridor_width is None:
+        return None
+    return (
+        _mm(
+            portal_width,
+            field="packaging.portal_clear_width_m",
+            positive=True,
+        ),
+        _mm(
+            requirement.get("construction_corridor_clear_width_m"),
+            field="packaging.corridor_clear_width_m",
+            positive=True,
+        ),
+    )
+
+
+def _segment_is_horizontal(segment: SegmentMM) -> bool:
+    return segment[0][1] == segment[1][1]
+
+
+def _packaging_driven_sorting_roots(
+    context: _PlacementSearchContext,
+    packaging_anchor: PackagingAnchorV1,
+    *,
+    bays: Sequence[BuildableBayV1] = (),
+    stats: _PlacementSearchStats | None = None,
+) -> tuple[tuple[PlacedRectangleV1, str, PlacedRectangleV1 | None, dict[str, Any]], ...]:
+    """Derive sorting roots from package and exact site-event geometry.
+
+    The returned construction witness records edge alignment and a corridor
+    envelope only; final access remains the responsibility of P2D.  A
+    positive-gap envelope is retained as construction clearance so later
+    modules cannot consume the straight approach corridor being ordered.
+    Site, bay, and obstacle events also permit finite corridor-separated roots;
+    no arbitrary coordinate sweep is performed.
+    """
+    package = packaging_anchor.rectangle
+    package_edges = tuple(
+        (name, segment)
+        for name, edge_class, segment in _named_rectangle_edge_classes(package)
+        if edge_class == "LONG_EDGE"
+    )
+    access_widths = _packaging_access_widths_mm(context)
+    portal_width_mm, corridor_width_mm = access_widths or (0, 0)
+    minimum_direct_overlap = max(portal_width_mm, 1)
+    roots: dict[
+        tuple[tuple[int, ...], str, int, str],
+        tuple[PlacedRectangleV1, str, PlacedRectangleV1 | None, dict[str, Any]],
+    ] = {}
+    if stats is not None:
+        if stats.packaging_anchor_sorting_rotation_attempts_by_group is None:
+            stats.packaging_anchor_sorting_rotation_attempts_by_group = {}
+        if stats.packaging_anchor_sorting_alignment_proofs_by_group is None:
+            stats.packaging_anchor_sorting_alignment_proofs_by_group = {}
+        attempts = stats.packaging_anchor_sorting_rotation_attempts_by_group.setdefault(
+            packaging_anchor.anchor_id, set()
+        )
+        proofs = stats.packaging_anchor_sorting_alignment_proofs_by_group.setdefault(
+            packaging_anchor.anchor_id, {}
+        )
+    else:
+        attempts = set()
+        proofs = {}
+
+    def gap_events(edge_name: str, edge: SegmentMM) -> tuple[tuple[int, str, int], ...]:
+        horizontal = _segment_is_horizontal(edge)
+        axis = 1 if horizontal else 0
+        edge_coordinate = edge[0][axis]
+        positive = edge_name in {"TOP", "RIGHT"}
+        source_by_gap: dict[int, set[str]] = {0: {"DIRECT"}}
+        if corridor_width_mm > 0:
+            source_by_gap.setdefault(corridor_width_mm, set()).add("PROFILE_CLEAR_WIDTH")
+        bounds = context.boundary_bounds
+        for coordinate in (bounds[axis], bounds[axis + 2]):
+            gap = coordinate - edge_coordinate if positive else edge_coordinate - coordinate
+            if gap >= 0:
+                source_by_gap.setdefault(gap, set()).add("SITE_BOUNDARY_EVENT")
+        for bay in bays:
+            for coordinate in (bay.bounds_mm[axis], bay.bounds_mm[axis + 2]):
+                gap = coordinate - edge_coordinate if positive else edge_coordinate - coordinate
+                if gap >= 0:
+                    source_by_gap.setdefault(gap, set()).add(f"{bay.bay_id}_EDGE_EVENT")
+        for obstacle_index, obstacle in enumerate(context.obstacles):
+            for coordinate in sorted({point[axis] for point in obstacle}):
+                gap = coordinate - edge_coordinate if positive else edge_coordinate - coordinate
+                if gap >= 0:
+                    source_by_gap.setdefault(gap, set()).add(
+                        f"OBSTACLE_{obstacle_index + 1}_EDGE_EVENT"
+                    )
+        priority = ("DIRECT", "PROFILE_CLEAR_WIDTH")
+        return tuple(
+            (
+                gap,
+                next(
+                    (candidate for candidate in priority if candidate in sources),
+                    min(sources),
+                ),
+                edge_coordinate + gap if positive else edge_coordinate - gap,
+            )
+            for gap, sources in sorted(source_by_gap.items())
+        )
+
+    for rotation in (0, 90):
+        attempts.add(str(rotation))
+        shapes = tuple(
+            shape
+            for shape in _local_dimension_shapes(context, "sorting_packaging_room")
+            if shape[2] == rotation
+        )
+        compatible_edge_pairs: list[tuple[str, SegmentMM, str, SegmentMM]] = []
+        for package_edge_name, package_edge in package_edges:
+            package_horizontal = _segment_is_horizontal(package_edge)
+            for shape in shapes:
+                probe = _local_rectangle_at("sorting_packaging_room", shape, 0, 0)
+                for sorting_edge_name, edge_class, sorting_edge in _named_rectangle_edge_classes(
+                    probe
+                ):
+                    if edge_class != "SHORT_EDGE":
+                        continue
+                    if _segment_is_horizontal(sorting_edge) != package_horizontal:
+                        continue
+                    facing_sides = {
+                        ("TOP", "BOTTOM"): "SOUTH",
+                        ("BOTTOM", "TOP"): "NORTH",
+                        ("RIGHT", "LEFT"): "WEST",
+                        ("LEFT", "RIGHT"): "EAST",
+                    }
+                    package_side = facing_sides.get((package_edge_name, sorting_edge_name))
+                    if package_side is None:
+                        continue
+                    compatible_edge_pairs.append(
+                        (package_edge_name, package_edge, sorting_edge_name, sorting_edge)
+                    )
+        if not compatible_edge_pairs:
+            proofs[str(rotation)] = "EDGE_AXES_OR_FACING_SIDES_PROVE_STRAIGHT_ALIGNMENT_IMPOSSIBLE"
+            continue
+        proofs[str(rotation)] = "PARALLEL_LONG_TO_SHORT_EDGE_ALIGNMENT_ENUMERATED"
+
+        for shape in shapes:
+            probe = _local_rectangle_at("sorting_packaging_room", shape, 0, 0)
+            for package_edge_name, package_edge, sorting_edge_name, sorting_edge in (
+                pair
+                for pair in compatible_edge_pairs
+                if pair[3]
+                in tuple(
+                    edge
+                    for name, edge_class, edge in _named_rectangle_edge_classes(probe)
+                    if edge_class == "SHORT_EDGE" and name == pair[2]
+                )
+            ):
+                package_side = {
+                    ("TOP", "BOTTOM"): "SOUTH",
+                    ("BOTTOM", "TOP"): "NORTH",
+                    ("RIGHT", "LEFT"): "WEST",
+                    ("LEFT", "RIGHT"): "EAST",
+                }[(package_edge_name, sorting_edge_name)]
+                package_low, package_high = sorted(
+                    (package_edge[0][0], package_edge[1][0])
+                    if _segment_is_horizontal(package_edge)
+                    else (package_edge[0][1], package_edge[1][1])
+                )
+                package_axis = 0 if _segment_is_horizontal(package_edge) else 1
+                sorting_low, sorting_high = sorted(
+                    (sorting_edge[0][0], sorting_edge[1][0])
+                    if _segment_is_horizontal(sorting_edge)
+                    else (sorting_edge[0][1], sorting_edge[1][1])
+                )
+                alignment_rows: dict[int, tuple[str, str, int, str]] = {
+                    package_low - sorting_low: (
+                        "LOW",
+                        "EDGE_START",
+                        package_low - sorting_low,
+                        "PACKAGE_EDGE_EVENT",
+                    ),
+                    (package_low + package_high - sorting_low - sorting_high) // 2: (
+                        "CENTER",
+                        "CENTER",
+                        (package_low + package_high - sorting_low - sorting_high) // 2,
+                        "PACKAGE_EDGE_EVENT",
+                    ),
+                    package_high - sorting_high: (
+                        "HIGH",
+                        "EDGE_END",
+                        package_high - sorting_high,
+                        "PACKAGE_EDGE_EVENT",
+                    ),
+                }
+                package_edge_length = package_high - package_low
+                for interface_zone in (
+                    "primary_precooling_room",
+                    "secondary_precooling_room",
+                ):
+                    for interface_shape in _local_dimension_shapes(context, interface_zone):
+                        interface_span = (
+                            interface_shape[3] if package_axis == 0 else interface_shape[4]
+                        )
+                        if not 0 < interface_span < package_edge_length:
+                            continue
+                        for role, aligned_start in (
+                            ("LOW", package_low + interface_span),
+                            ("HIGH", package_high - interface_span),
+                        ):
+                            offset = aligned_start - sorting_low
+                            alignment_rows.setdefault(
+                                offset,
+                                (
+                                    f"{interface_zone.upper()}_{role}",
+                                    "MODULE_INTERFACE_EVENT",
+                                    offset,
+                                    f"{interface_zone.upper()}_DIMENSION_EVENT",
+                                ),
+                            )
+                alignments = tuple(
+                    sorted(
+                        alignment_rows.values(),
+                        key=lambda row: (
+                            0 if row[3] == "PACKAGE_EDGE_EVENT" else 1,
+                            row[0],
+                            row[2],
+                        ),
+                    )
+                )
+                root_gap_events = gap_events(package_edge_name, package_edge)
+                for alignment_name, edge_alignment, cross_offset, alignment_source in alignments:
+                    for gap_mm, gap_event, target_event_coordinate in root_gap_events:
+                        if gap_mm and corridor_width_mm <= 0:
+                            continue
+                        if _segment_is_horizontal(package_edge):
+                            package_y = package_edge[0][1]
+                            if package_edge_name == "TOP":
+                                sorting_y = package_y + gap_mm - sorting_edge[0][1]
+                            else:
+                                sorting_y = package_y - gap_mm - sorting_edge[0][1]
+                            sorting_x = cross_offset
+                        else:
+                            package_x = package_edge[0][0]
+                            if package_edge_name == "RIGHT":
+                                sorting_x = package_x + gap_mm - sorting_edge[0][0]
+                            else:
+                                sorting_x = package_x - gap_mm - sorting_edge[0][0]
+                            sorting_y = cross_offset
+                        root = _local_rectangle_at(
+                            "sorting_packaging_room", shape, sorting_x, sorting_y
+                        )
+                        translated_edge = next(
+                            edge
+                            for edge_name, edge_class, edge in _named_rectangle_edge_classes(root)
+                            if edge_name == sorting_edge_name and edge_class == "SHORT_EDGE"
+                        )
+                        overlap_low = max(
+                            min(package_edge[0][package_axis], package_edge[1][package_axis]),
+                            min(translated_edge[0][package_axis], translated_edge[1][package_axis]),
+                        )
+                        overlap_high = min(
+                            max(package_edge[0][package_axis], package_edge[1][package_axis]),
+                            max(translated_edge[0][package_axis], translated_edge[1][package_axis]),
+                        )
+                        required_overlap = corridor_width_mm if gap_mm else minimum_direct_overlap
+                        if overlap_high - overlap_low < required_overlap:
+                            continue
+                        fixed = {"packaging_material_storage": package}
+                        if not _site_module_is_usable(
+                            context, {"sorting_packaging_room": root}, fixed
+                        ):
+                            continue
+                        corridor: PlacedRectangleV1 | None = None
+                        corridor_center = (overlap_low + overlap_high) // 2
+                        if gap_mm:
+                            if _segment_is_horizontal(package_edge):
+                                corridor = _rectangle_from_mm(
+                                    "__reserved_packaging_corridor__",
+                                    corridor_center - corridor_width_mm // 2,
+                                    min(package_edge[0][1], translated_edge[0][1]),
+                                    corridor_width_mm,
+                                    gap_mm,
+                                    0,
+                                )
+                            else:
+                                corridor = _rectangle_from_mm(
+                                    "__reserved_packaging_corridor__",
+                                    min(package_edge[0][0], translated_edge[0][0]),
+                                    corridor_center - corridor_width_mm // 2,
+                                    gap_mm,
+                                    corridor_width_mm,
+                                    0,
+                                )
+                            if (
+                                not rectangle_inside_polygon(corridor, context.boundary)
+                                or any(
+                                    rectangle_intersects_closed_obstacle(corridor, obstacle)
+                                    for obstacle in context.obstacles
+                                )
+                                or rectangles_overlap(corridor, package)
+                                or rectangles_overlap(corridor, root)
+                            ):
+                                continue
+                        witness = {
+                            "identity": "packaging-sorting-interface-alignment-witness@1.0.0",
+                            "classification": "CONSTRUCTION_ORDERING_ONLY_NOT_ACCESS_VALIDATION",
+                            "packaging_anchor_id": packaging_anchor.anchor_id,
+                            "sorting_rotation_deg": rotation,
+                            "package_long_edge": package_edge_name,
+                            "sorting_short_edge": sorting_edge_name,
+                            "package_side_of_sorting": package_side,
+                            "alignment": alignment_name,
+                            "edge_alignment": edge_alignment,
+                            "alignment_source": alignment_source,
+                            "gap_mm": gap_mm,
+                            "gap_event": gap_event,
+                            "target_event_coordinate_mm": target_event_coordinate,
+                            "overlap_interval_mm": [overlap_low, overlap_high],
+                            "reserved_corridor_bounds_mm": (
+                                list(corridor.bounds_mm) if corridor is not None else None
+                            ),
+                            "final_p2d_route_validated": False,
+                        }
+                        signature = (
+                            root.bounds_mm + (root.rotation_deg,),
+                            package_side,
+                            gap_mm,
+                            f"{gap_event}:{alignment_name}:{edge_alignment}",
+                        )
+                        roots.setdefault(signature, (root, package_side, corridor, witness))
+
+    def root_order(
+        row: tuple[PlacedRectangleV1, str, PlacedRectangleV1 | None, dict[str, Any]],
+    ) -> tuple[Any, ...]:
+        root, package_side, _corridor, witness = row
+        gap_event = str(witness.get("gap_event", ""))
+        event_rank = (
+            0
+            if gap_event == "DIRECT"
+            else 1
+            if gap_event == "PROFILE_CLEAR_WIDTH"
+            else 2
+            if "BAY-" in gap_event
+            else 3
+            if "OBSTACLE_" in gap_event
+            else 4
+        )
+        return (
+            root.rotation_deg,
+            package_side,
+            event_rank,
+            int(witness.get("gap_mm", 0)),
+            str(witness.get("alignment_source", "")),
+            str(witness.get("alignment", "")),
+            root.bounds_mm,
+        )
+
+    ordered_rows = sorted(roots.values(), key=root_order)
+    root_limit = 24
+    if len(ordered_rows) > root_limit:
+        by_interface_event: dict[tuple[int, str, str, str], list[Any]] = {}
+        for row in ordered_rows:
+            by_interface_event.setdefault(
+                (
+                    row[0].rotation_deg,
+                    row[1],
+                    str(row[3].get("gap_event", "")),
+                    str(row[3].get("alignment_source", "")),
+                ),
+                [],
+            ).append(row)
+        selected_rows: list[Any] = []
+        interface_events = sorted(
+            by_interface_event,
+            key=lambda key: (
+                key[0],
+                key[1],
+                0 if key[2] == "DIRECT" else 1 if key[2] == "PROFILE_CLEAR_WIDTH" else 2,
+                key[2],
+                key[3],
+            ),
+        )
+        for group_key in interface_events:
+            selected_rows.append(by_interface_event[group_key][0])
+            if len(selected_rows) >= root_limit:
+                break
+        if len(selected_rows) < root_limit:
+            selected_signatures: set[tuple[tuple[int, int, int, int], int, str, str, str]] = {
+                (
+                    row[0].bounds_mm,
+                    row[0].rotation_deg,
+                    row[1],
+                    str(row[3].get("gap_event", "")),
+                    str(row[3].get("alignment", "")),
+                )
+                for row in selected_rows
+            }
+            for row in ordered_rows:
+                root_signature = (
+                    row[0].bounds_mm,
+                    row[0].rotation_deg,
+                    row[1],
+                    str(row[3].get("gap_event", "")),
+                    str(row[3].get("alignment", "")),
+                )
+                if root_signature in selected_signatures:
+                    continue
+                selected_rows.append(row)
+                selected_signatures.add(root_signature)
+                if len(selected_rows) >= root_limit:
+                    break
+        ordered_rows = selected_rows
+
+    if stats is not None and stats.sorting_rotation_site_attempt_counts is not None:
+        for root, _side, _corridor, _witness in ordered_rows:
+            key = str(root.rotation_deg)
+            stats.sorting_rotation_site_attempt_counts[key] += 1
+    return tuple(ordered_rows)
+
+
 def _module_main_site_assemblies(
     context: _PlacementSearchContext,
     main_compositions: Sequence[LocalBuildingCompositionV1],
@@ -1528,13 +2292,13 @@ def _module_main_site_assemblies(
     | None = None,
     stats: _PlacementSearchStats | None = None,
 ) -> Iterator[dict[str, Any] | None]:
-    """Jointly admit a main geometry only when an exact packaging anchor fits.
+    """Build an eight-zone critical assembly from package anchors outward.
 
-    Core roots and their frozen RAW/FINISHED attachments are composed once per
-    source pair. The complete packaging event set is then evaluated against
-    that seven-zone geometry, avoiding the former packaging-anchor × sorting-
-    root Cartesian replay. A bounded deterministic set of exact compatible
-    anchors is yielded as the eight-zone critical assembly.
+    A packaging rectangle is selected first. Its authoritative LONG_EDGE
+    events generate the only sorting roots considered for that construction
+    attempt; RAW and FINISHED rigid modules are then attached to the sorting
+    core. The seven-zone mapping exists only as an internal partial geometry
+    for exact graph/preflight checks and is never yielded as an accepted S1.
     """
     if limit <= 0:
         return
@@ -1546,13 +2310,53 @@ def _module_main_site_assemblies(
     if not selected_source_pairs:
         yield None
         return
+    selected_source_pairs_with_variants = tuple(
+        (
+            raw_source,
+            finished_source,
+            _balanced_site_module_pair_variants(raw_source, finished_source),
+            _module_signature(raw_source),
+            _module_signature(finished_source),
+        )
+        for raw_source, finished_source in selected_source_pairs
+    )
+    raw_module_signature_by_identity = {
+        id(raw_module): _module_signature(raw_module)
+        for (
+            _raw_source,
+            _finished_source,
+            variants,
+            _raw_sig,
+            _finished_sig,
+        ) in selected_source_pairs_with_variants
+        for raw_module, _finished_module in variants
+    }
+    finished_module_signature_by_identity = {
+        id(finished_module): _module_signature(finished_module)
+        for (
+            _raw_source,
+            _finished_source,
+            variants,
+            _raw_sig,
+            _finished_sig,
+        ) in selected_source_pairs_with_variants
+        for _raw_module, finished_module in variants
+    }
+    finished_dock_order_cache: dict[
+        tuple[tuple[int, ...], str, tuple[tuple[str, tuple[int, ...]], ...]],
+        tuple[int, int, int, int, tuple[int, int, int, int]],
+    ] = {}
     face_pairs = _family_core_face_pairs(layout_family, process_axis, process_direction)
-    yielded_main_geometries = 0
-    invocation_raw_count = 0
+    yielded_critical_geometries: set[str] = set()
+    invocation_core_pair_count = 0
     local_packaging_preflight_cache: dict[str, dict[str, Any]] = {}
     family_counts: dict[str, int] | None = None
     family_geometry_keys: set[str] | None = None
     family_tail_capable_geometry_keys: set[str] | None = None
+    family_packaging_rejected_keys: set[str] | None = None
+    family_packaging_unavailable_keys: set[str] | None = None
+    family_core_pair_keys: set[str] | None = None
+    raw_site_main_geometry_keys: set[str] = set()
     if stats is not None:
         if stats.site_main_assembly_counts_by_family is None:
             stats.site_main_assembly_counts_by_family = {}
@@ -1568,16 +2372,47 @@ def _module_main_site_assemblies(
                 layout_family, set()
             )
         )
+        if stats.site_main_assembly_packaging_rejected_geometry_keys_by_family is None:
+            stats.site_main_assembly_packaging_rejected_geometry_keys_by_family = {}
+        family_packaging_rejected_keys = (
+            stats.site_main_assembly_packaging_rejected_geometry_keys_by_family.setdefault(
+                layout_family, set()
+            )
+        )
+        if stats.site_main_assembly_packaging_unavailable_geometry_keys_by_family is None:
+            stats.site_main_assembly_packaging_unavailable_geometry_keys_by_family = {}
+        family_packaging_unavailable_keys = (
+            stats.site_main_assembly_packaging_unavailable_geometry_keys_by_family.setdefault(
+                layout_family, set()
+            )
+        )
+        if stats.packaging_sorting_core_pair_geometry_keys_by_family is None:
+            stats.packaging_sorting_core_pair_geometry_keys_by_family = {}
+        family_core_pair_keys = (
+            stats.packaging_sorting_core_pair_geometry_keys_by_family.setdefault(
+                layout_family, set()
+            )
+        )
         family_counts = stats.site_main_assembly_counts_by_family.setdefault(
             layout_family,
             {
                 "source_pair_count": 0,
+                "source_pair_attempt_row_count": 0,
+                "source_pair_distinct_input_geometry_count": 0,
+                "source_pair_with_site_valid_critical_geometry_count": 0,
                 "source_pairs_exhausted": 0,
                 "source_pair_tail_capacity_exhausted": 0,
                 "raw_site_valid_main_count": 0,
                 "packaging_slot_rejected_main_count": 0,
                 "packaging_slot_unavailable_main_count": 0,
                 "tail_capable_main_count": 0,
+                "packaging_sorting_core_pair_count": 0,
+                "critical_8_zone_count": 0,
+                "raw_attachment_candidate_count": 0,
+                "raw_attachment_site_valid_count": 0,
+                "finished_attachment_candidate_count": 0,
+                "finished_attachment_site_valid_count": 0,
+                "main_must_graph_valid_count": 0,
             },
         )
         family_counts["source_pair_count"] += len(selected_source_pairs)
@@ -1596,18 +2431,32 @@ def _module_main_site_assemblies(
                 stats.site_module_assembly_trace = []
             stats.site_module_assembly_trace.append(row)
 
-    module_signature_cache: dict[int, tuple[tuple[str, tuple[int, ...]], ...]] = {}
-
-    def cached_module_signature(
-        module: Mapping[str, PlacedRectangleV1],
-    ) -> tuple[tuple[str, tuple[int, ...]], ...]:
-        identity = id(module)
-        if identity not in module_signature_cache:
-            module_signature_cache[identity] = _module_signature(module)
-        return module_signature_cache[identity]
-
-    all_anchors = _enumerate_packaging_site_anchors(context, bays)
-    anchors = _packaging_anchor_construction_representatives(context, all_anchors, bays)
+    all_anchors = (
+        stats.site_packaging_anchors
+        if stats is not None and stats.site_packaging_anchors is not None
+        else _enumerate_packaging_site_anchors(context, bays)
+    )
+    package_root_options: dict[
+        str,
+        tuple[tuple[PlacedRectangleV1, str, PlacedRectangleV1 | None, dict[str, Any]], ...],
+    ] = (
+        stats.site_packaging_sorting_roots_by_anchor
+        if stats is not None and stats.site_packaging_sorting_roots_by_anchor is not None
+        else {}
+    )
+    if stats is not None and stats.site_packaging_sorting_roots_by_anchor is None:
+        stats.site_packaging_sorting_roots_by_anchor = package_root_options
+    anchors = (
+        stats.site_packaging_construction_anchors
+        if stats is not None and stats.site_packaging_construction_anchors is not None
+        else _packaging_anchor_construction_representatives(
+            context,
+            all_anchors,
+            bays,
+            root_options_by_anchor=package_root_options,
+            stats=stats,
+        )
+    )
     if stats is not None:
         if stats.site_module_variant_counts is None:
             stats.site_module_variant_counts = {}
@@ -1623,407 +2472,374 @@ def _module_main_site_assemblies(
             EXACT_ORTHOGONAL_EVENT_ENUMERATION if anchors else EVENT_COMPLETENESS_UNAVAILABLE
         )
         stats.site_packaging_anchors = all_anchors
+        stats.site_packaging_construction_anchors = anchors
     if not anchors:
         yield None
         return
-
-    roots = _orientation_balanced_sorting_roots(context, bays)
     if stats is not None and stats.sorting_rotation_site_attempt_counts is None:
         stats.sorting_rotation_site_attempt_counts = {"0": 0, "90": 0}
-    root_shapes = _local_dimension_shapes(context, "sorting_packaging_room")
-    dock_rectangles = _bounded_site_event_rectangles(
-        _shipping_rectangles_for_dock_events(context), limit=12
-    )
+    critical_signatures_seen: set[str] = set()
+    dock_rectangles = _shipping_rectangles_for_dock_events(context)
+    for anchor in anchors:
+        options = package_root_options.get(anchor.anchor_id)
+        if options is None:
+            options = _packaging_driven_sorting_roots(context, anchor, bays=bays, stats=stats)
+            package_root_options[anchor.anchor_id] = options
+        record_geometry_attempt(
+            {
+                "layout_family": layout_family,
+                "stage": "S0_PACKAGING_ANCHOR_DRIVEN_SORTING_ROOTS",
+                "result": "ROOTS_DERIVED_FROM_PACKAGING_LONG_EDGE",
+                "packaging_anchor": anchor.to_dict(),
+                "sorting_root_count": len(options),
+                "sorting_rotation_attempts": [0, 90],
+                "sorting_roots": [
+                    {
+                        "bounds_mm": list(root.bounds_mm),
+                        "rotation_deg": root.rotation_deg,
+                        "package_side_of_sorting": package_side,
+                        "alignment_witness": witness,
+                        "reserved_corridor_bounds_mm": (
+                            list(corridor.bounds_mm) if corridor is not None else None
+                        ),
+                    }
+                    for root, package_side, corridor, witness in options
+                ],
+                "sorting_alignment_proofs": dict(
+                    (stats.packaging_anchor_sorting_alignment_proofs_by_group or {}).get(
+                        anchor.anchor_id, {}
+                    )
+                )
+                if stats is not None
+                else {},
+                "counts_as_placement_node": False,
+            }
+        )
+
     alignments = ("CENTER", "LOW", "HIGH")
-
-    def dock_anchored_root_options(
-        finished_source: Mapping[str, PlacedRectangleV1],
-    ) -> tuple[tuple[PlacedRectangleV1, dict[str, PlacedRectangleV1], str], ...]:
-        """Derive core origins from real dock events while keeping both modules rigid."""
-        options: dict[
-            tuple[tuple[int, ...], tuple[tuple[str, tuple[int, ...]], ...], str],
-            tuple[PlacedRectangleV1, dict[str, PlacedRectangleV1], str],
-        ] = {}
-        if not dock_rectangles:
-            return ()
-        for finished_module in _site_assembly_module_variants(finished_source)[:8]:
-            source_shipping = finished_module["shipping_channel"]
-            source_bounds = _bounds(source_shipping)
-            source_shape = (
-                source_bounds[2] - source_bounds[0],
-                source_bounds[3] - source_bounds[1],
-                source_shipping.rotation_deg,
-            )
-            for dock_rectangle in dock_rectangles:
-                dock_bounds = _bounds(dock_rectangle)
-                if source_shape != (
-                    dock_bounds[2] - dock_bounds[0],
-                    dock_bounds[3] - dock_bounds[1],
-                    dock_rectangle.rotation_deg,
-                ):
-                    continue
-                translated_finished = _translate_module(
-                    finished_module,
-                    dock_bounds[0] - source_bounds[0],
-                    dock_bounds[1] - source_bounds[1],
-                )
-                secondary = translated_finished["secondary_precooling_room"]
-                for _raw_side, finished_side in face_pairs[:6]:
-                    core_side = _OPPOSITE_SIDE[finished_side]
-                    for shape in root_shapes:
-                        core_width, core_depth = shape[3], shape[4]
-                        for alignment in alignments:
-                            core_x, core_y = _local_adjacent_origin(
-                                secondary, core_width, core_depth, core_side, alignment
-                            )
-                            root = _local_rectangle_at(
-                                "sorting_packaging_room", shape, core_x, core_y
-                            )
-                            combined = {
-                                "sorting_packaging_room": root,
-                                **translated_finished,
-                            }
-                            if _adjacent_side(root, secondary) != finished_side:
-                                continue
-                            if not _site_module_is_usable(context, combined, {}):
-                                continue
-                            signature = (
-                                root.bounds_mm + (root.rotation_deg,),
-                                _module_signature(translated_finished),
-                                finished_side,
-                            )
-                            options.setdefault(
-                                signature, (root, translated_finished, finished_side)
-                            )
-                            if len(options) >= 24:
-                                return tuple(options.values())
-        return tuple(options.values())
-
-    for source_pair_index, (raw_source, finished_source) in enumerate(selected_source_pairs):
-        pair_raw_count = 0
-        pair_packaging_reject_count = 0
-        pair_unavailable_count = 0
-        pair_tail_capable_count = 0
-        pair_root_attempts = {"0": 0, "90": 0}
-        pair_seen_geometry_keys: set[str] = set()
-        pair_seen_critical_assembly_keys: set[str] = set()
-        pair_root_signatures: set[tuple[int, ...]] = set()
-        finished_choice_cache: dict[
-            tuple[tuple[int, ...], str, tuple[tuple[str, tuple[int, ...]], ...]],
-            tuple[dict[str, PlacedRectangleV1], ...],
-        ] = {}
-        raw_attachment_cache: dict[
-            tuple[tuple[tuple[str, tuple[int, ...]], ...], tuple[int, ...], str, str],
-            dict[str, PlacedRectangleV1] | None,
-        ] = {}
-        raw_site_valid_cache: dict[
-            tuple[tuple[tuple[str, tuple[int, ...]], ...], tuple[int, ...], str, str], bool
-        ] = {}
-        finished_site_valid_cache: dict[
-            tuple[tuple[tuple[str, tuple[int, ...]], ...], tuple[int, ...], str], bool
-        ] = {}
-        raw_variants = _site_assembly_module_variants(raw_source)
-        finished_variants = _site_assembly_module_variants(finished_source)
-        # Dock-derived placements are attempted first. Each is a finite event
-        # alignment from the authoritative maneuver templates, not a free
-        # coordinate search; the truck validator still decides feasibility.
-        anchored = dock_anchored_root_options(finished_source)
-        root_options: list[
-            tuple[
-                PlacedRectangleV1,
+    for anchor in anchors:
+        package = anchor.rectangle
+        root_options = package_root_options[anchor.anchor_id]
+        if not root_options:
+            continue
+        base_core: dict[str, PlacedRectangleV1] = {"packaging_material_storage": package}
+        anchor_admitted = False
+        for root, package_side, reserved_corridor, alignment_witness in root_options:
+            core_pair = {**base_core, "sorting_packaging_room": root}
+            if not _site_module_is_usable(context, core_pair, {}):
+                continue
+            if reserved_corridor is not None and any(
+                rectangles_overlap(reserved_corridor, rectangle) for rectangle in core_pair.values()
+            ):
+                continue
+            core_pair_signature = repr(_module_signature(core_pair))
+            ordered_module_variants_cache: dict[
+                tuple[int, tuple[int, ...], str],
+                tuple[tuple[dict[str, PlacedRectangleV1], dict[str, PlacedRectangleV1]], ...],
+            ] = {}
+            raw_attachment_cache: dict[
+                tuple[tuple[tuple[str, tuple[int, ...]], ...], str, str],
                 dict[str, PlacedRectangleV1] | None,
-                str | None,
-            ]
-        ] = [(*row[:2], row[2]) for row in anchored]
-        root_options.extend((root, None, None) for root in roots)
-        roots_by_rotation = {
-            rotation: tuple(row for row in root_options if row[0].rotation_deg == rotation)
-            for rotation in (0, 90)
-        }
-        ordered_roots: list[
-            tuple[PlacedRectangleV1, dict[str, PlacedRectangleV1] | None, str | None]
-        ] = []
-        for index in range(max((len(rows) for rows in roots_by_rotation.values()), default=0)):
-            for rotation in (0, 90):
-                if index < len(roots_by_rotation[rotation]):
-                    ordered_roots.append(roots_by_rotation[rotation][index])
+            ] = {}
+            finished_attachment_cache: dict[
+                tuple[tuple[tuple[str, tuple[int, ...]], ...], str, str],
+                dict[str, PlacedRectangleV1] | None,
+            ] = {}
+            raw_attachment_core_site_valid: dict[
+                tuple[tuple[tuple[str, tuple[int, ...]], ...], str, str], bool
+            ] = {}
+            finished_attachment_core_site_valid: dict[
+                tuple[tuple[tuple[str, tuple[int, ...]], ...], str, str], bool
+            ] = {}
+            invocation_core_pair_count += 1
+            if family_core_pair_keys is None or core_pair_signature not in family_core_pair_keys:
+                if family_core_pair_keys is not None:
+                    family_core_pair_keys.add(core_pair_signature)
+                if family_counts is not None:
+                    family_counts["packaging_sorting_core_pair_count"] += 1
 
-        emitted_pair_limit = False
-        for root, fixed_finished, fixed_finished_side in ordered_roots:
-            emitted_geometry_for_root = False
-            root_rotation = str(root.rotation_deg)
-            root_signature = root.bounds_mm + (root.rotation_deg,)
-            if root_signature not in pair_root_signatures:
-                pair_root_signatures.add(root_signature)
-                pair_root_attempts[root_rotation] += 1
-                if stats is not None and stats.sorting_rotation_site_attempt_counts is not None:
-                    stats.sorting_rotation_site_attempt_counts[root_rotation] += 1
-            for raw_side, finished_side in face_pairs:
-                if fixed_finished is not None and finished_side != fixed_finished_side:
-                    continue
-                fixed_finished_signature = (
-                    cached_module_signature(fixed_finished) if fixed_finished is not None else ()
+            for source_pair_index, (
+                _raw_source,
+                _finished_source,
+                module_pair_variants,
+                raw_source_signature,
+                finished_source_signature,
+            ) in enumerate(selected_source_pairs_with_variants):
+                source_pair_geometry_signature = repr(
+                    (raw_source_signature, finished_source_signature)
                 )
-                finished_choice_key = (
-                    root_signature,
-                    finished_side,
-                    fixed_finished_signature,
-                )
-                finished_choices = finished_choice_cache.get(finished_choice_key)
-                if finished_choices is None:
-                    if fixed_finished is not None:
-                        finished_choices = (fixed_finished,)
-                    else:
-                        finished_choices = tuple(
-                            attached
-                            for finished_module in finished_variants
-                            if (
-                                attached := _module_attached_to_zone(
-                                    finished_module,
-                                    "secondary_precooling_room",
-                                    root,
-                                    finished_side,
-                                    alignments[0],
-                                )
-                            )
-                            is not None
+                pair_admitted_count = 0
+                pair_main_geometry_keys: set[str] = set()
+                pair_critical_keys: set[str] = set()
+                pair_sorting_roots: set[tuple[int, ...]] = set()
+                pair_raw_attachment_candidates = 0
+                pair_raw_attachment_site_valid = 0
+                pair_finished_attachment_candidates = 0
+                pair_finished_attachment_site_valid = 0
+                pair_main_must_graph_valid = 0
+
+                pair_sorting_roots.add(root.bounds_mm + (root.rotation_deg,))
+                for raw_side, finished_side in face_pairs:
+                    # Packaging may occupy one core face. The actual site
+                    # predicate, rather than a new adjacency requirement,
+                    # decides whether the remaining module attachment fits.
+                    # Dock ordering is evaluated after attaching each finished
+                    # module variant to this site-frame core face.
+                    def dock_order(
+                        pair: tuple[dict[str, PlacedRectangleV1], dict[str, PlacedRectangleV1]],
+                        sorting_root: PlacedRectangleV1 = root,
+                        selected_finished_side: str = finished_side,
+                    ) -> tuple[int, int, int, int, tuple[int, int, int, int]]:
+                        root_key = sorting_root.bounds_mm + (sorting_root.rotation_deg,)
+                        finished_signature = finished_module_signature_by_identity[id(pair[1])]
+                        cache_key = (root_key, selected_finished_side, finished_signature)
+                        cached_order = finished_dock_order_cache.get(cache_key)
+                        if cached_order is not None:
+                            return cached_order
+                        order = _finished_module_site_dock_order(
+                            pair[1],
+                            sorting_root,
+                            selected_finished_side,
+                            alignments,
+                            dock_rectangles,
                         )
-                    finished_choice_cache[finished_choice_key] = finished_choices
-                if not finished_choices:
-                    continue
-                for raw_alignment in alignments:
-                    for raw_module in raw_variants:
-                        raw_cache_key = (
-                            cached_module_signature(raw_module),
-                            root_signature,
-                            raw_side,
-                            raw_alignment,
+                        finished_dock_order_cache[cache_key] = order
+                        return order
+
+                    order_key = (
+                        source_pair_index,
+                        root.bounds_mm + (root.rotation_deg,),
+                        finished_side,
+                    )
+                    ordered_module_variants = ordered_module_variants_cache.get(order_key)
+                    if ordered_module_variants is None:
+                        ordered_module_variants = tuple(
+                            sorted(module_pair_variants, key=dock_order)
                         )
-                        if raw_cache_key not in raw_attachment_cache:
-                            raw_attachment_cache[raw_cache_key] = _module_attached_to_zone(
-                                raw_module,
-                                "primary_precooling_room",
-                                root,
+                        ordered_module_variants_cache[order_key] = ordered_module_variants
+                    for raw_module, finished_module in ordered_module_variants:
+                        for raw_alignment in alignments:
+                            pair_raw_attachment_candidates += 1
+                            raw_key = (
+                                raw_module_signature_by_identity[id(raw_module)],
                                 raw_side,
                                 raw_alignment,
                             )
-                        raw_attached = raw_attachment_cache[raw_cache_key]
-                        if raw_attached is None:
-                            continue
-                        if raw_cache_key not in raw_site_valid_cache:
-                            raw_site_valid_cache[raw_cache_key] = _site_module_is_usable(
-                                context,
-                                raw_attached,
-                                {"sorting_packaging_room": root},
-                            )
-                        if not raw_site_valid_cache[raw_cache_key]:
-                            continue
-                        for finished_attached in finished_choices:
-                            finished_signature = cached_module_signature(finished_attached)
-                            finished_validity_key = (
-                                finished_signature,
-                                root_signature,
-                                finished_side,
-                            )
-                            if finished_validity_key not in finished_site_valid_cache:
-                                finished_site_valid_cache[finished_validity_key] = (
-                                    _site_module_is_usable(
-                                        context,
-                                        finished_attached,
-                                        {"sorting_packaging_room": root},
+                            if raw_key not in raw_attachment_cache:
+                                raw_attachment_cache[raw_key] = _module_attached_to_zone(
+                                    raw_module,
+                                    "primary_precooling_room",
+                                    root,
+                                    raw_side,
+                                    raw_alignment,
+                                )
+                            raw_attached = raw_attachment_cache[raw_key]
+                            if raw_attached is None:
+                                continue
+                            if raw_key not in raw_attachment_core_site_valid:
+                                raw_attachment_core_site_valid[raw_key] = _site_module_is_usable(
+                                    context, raw_attached, core_pair
+                                )
+                            if not raw_attachment_core_site_valid[raw_key]:
+                                continue
+                            pair_raw_attachment_site_valid += 1
+                            if reserved_corridor is not None and any(
+                                rectangles_overlap(reserved_corridor, rectangle)
+                                for rectangle in raw_attached.values()
+                            ):
+                                continue
+                            for finished_alignment in alignments:
+                                finished_key = (
+                                    finished_module_signature_by_identity[id(finished_module)],
+                                    finished_side,
+                                    finished_alignment,
+                                )
+                                if finished_key not in finished_attachment_cache:
+                                    finished_attachment_cache[finished_key] = (
+                                        _module_attached_to_zone(
+                                            finished_module,
+                                            "secondary_precooling_room",
+                                            root,
+                                            finished_side,
+                                            finished_alignment,
+                                        )
                                     )
-                                )
-                            if not finished_site_valid_cache[finished_validity_key]:
-                                continue
-                            if any(
-                                rectangles_overlap(raw_rectangle, finished_rectangle)
-                                for raw_rectangle in raw_attached.values()
-                                for finished_rectangle in finished_attached.values()
-                            ):
-                                continue
-                            if (
-                                _adjacent_side(root, finished_attached["secondary_precooling_room"])
-                                != finished_side
-                            ):
-                                continue
-                            main_candidate = {
-                                "sorting_packaging_room": root,
-                                **raw_attached,
-                                **finished_attached,
-                            }
-                            try:
-                                _validate_main_process_skeleton_graph(context.graph, main_candidate)
-                            except LayoutAuthorityError:
-                                continue
-                            main_signature_tuple = _module_signature(main_candidate)
-                            geometry_key = repr(main_signature_tuple)
-                            if geometry_key in pair_seen_geometry_keys:
-                                continue
-                            pair_seen_geometry_keys.add(geometry_key)
-                            pair_raw_count += 1
-                            invocation_raw_count += 1
-                            is_new_family_geometry = (
-                                family_geometry_keys is None
-                                or geometry_key not in family_geometry_keys
-                            )
-                            if family_geometry_keys is not None:
-                                family_geometry_keys.add(geometry_key)
-                            if family_counts is not None and is_new_family_geometry:
-                                family_counts["raw_site_valid_main_count"] += 1
-
-                            proof_cache = (
-                                stats.early_packaging_preflight_by_geometry
-                                if stats is not None
-                                and stats.early_packaging_preflight_by_geometry is not None
-                                else local_packaging_preflight_cache
-                            )
-                            proof = proof_cache.get(geometry_key)
-                            formal_preflight_reused = proof is not None
-                            if proof is None:
-                                proof = _packaging_tail_slot_preflight_for_rectangles(
-                                    context,
-                                    tuple(
-                                        main_candidate[code]
-                                        for code in MAIN_PROCESS_SKELETON_ZONE_CODES
-                                    ),
-                                )
-                                proof_cache[geometry_key] = proof
-                            record_geometry_attempt(
-                                {
-                                    "layout_family": layout_family,
-                                    "stage": "S1_PACKAGING_RESERVED_MAIN_PREFLIGHT",
-                                    "source_pair_index": source_pair_index,
-                                    "result": (
-                                        "FORMAL_PREFLIGHT_PASS"
-                                        if proof.get("legal_slot_exists") is True
-                                        and proof.get("proof_mode")
-                                        == EXACT_ORTHOGONAL_EVENT_ENUMERATION
-                                        else "FORMAL_PREFLIGHT_REJECT"
-                                        if proof.get("legal_slot_exists") is False
-                                        else "FORMAL_PREFLIGHT_UNAVAILABLE"
-                                    ),
-                                    "geometry_signature": geometry_key,
-                                    "preflight_reused": formal_preflight_reused,
-                                    "zones": [
-                                        main_candidate[code].to_dict()
-                                        for code in MAIN_PROCESS_SKELETON_ZONE_CODES
-                                    ],
-                                    "formal_preflight": proof,
-                                    "counts_as_placement_node": False,
-                                }
-                            )
-                            if (
-                                proof.get("legal_slot_exists") is not True
-                                or proof.get("proof_mode") != EXACT_ORTHOGONAL_EVENT_ENUMERATION
-                            ):
-                                if proof.get("legal_slot_exists") is False:
-                                    pair_packaging_reject_count += 1
-                                    if family_counts is not None and is_new_family_geometry:
-                                        family_counts["packaging_slot_rejected_main_count"] += 1
-                                else:
-                                    pair_unavailable_count += 1
-                                continue
-
-                            joint_anchors = _enumerate_packaging_site_anchors(
-                                context,
-                                bays,
-                                tuple(
-                                    main_candidate[code]
-                                    for code in MAIN_PROCESS_SKELETON_ZONE_CODES
-                                ),
-                            )
-                            if not joint_anchors:
-                                if stats is not None:
-                                    stats.early_formal_packaging_preflight_mismatch_count += 1
-                                record_geometry_attempt(
-                                    {
-                                        "layout_family": layout_family,
-                                        "stage": "S1_JOINT_PACKAGING_MAIN_ASSEMBLY",
-                                        "result": "FORMAL_PROOF_WITHOUT_ENUMERATED_JOINT_ANCHOR",
-                                        "source_pair_index": source_pair_index,
-                                        "geometry_signature": geometry_key,
-                                        "formal_slot_proof": proof,
-                                        "counts_as_placement_node": False,
-                                    }
-                                )
-                                pair_unavailable_count += 1
-                                continue
-                            witness = proof.get("first_witness_rectangle")
-                            witness_anchor = next(
-                                (
-                                    anchor
-                                    for anchor in joint_anchors
-                                    if anchor.rectangle.to_dict() == witness
-                                ),
-                                None,
-                            )
-                            if witness_anchor is None:
-                                if stats is not None:
-                                    stats.early_formal_packaging_preflight_mismatch_count += 1
-                                record_geometry_attempt(
-                                    {
-                                        "layout_family": layout_family,
-                                        "stage": "S1_JOINT_PACKAGING_MAIN_ASSEMBLY",
-                                        "result": "FORMAL_WITNESS_NOT_IN_JOINT_ANCHOR_SET",
-                                        "source_pair_index": source_pair_index,
-                                        "geometry_signature": geometry_key,
-                                        "formal_slot_proof": proof,
-                                        "joint_anchor_count": len(joint_anchors),
-                                        "counts_as_placement_node": False,
-                                    }
-                                )
-                                pair_unavailable_count += 1
-                                continue
-
-                            is_new_admitted_geometry = (
-                                family_tail_capable_geometry_keys is None
-                                or geometry_key not in family_tail_capable_geometry_keys
-                            )
-                            if family_tail_capable_geometry_keys is not None:
-                                family_tail_capable_geometry_keys.add(geometry_key)
-                            if not is_new_admitted_geometry:
-                                continue
-                            pair_tail_capable_count += 1
-                            if family_counts is not None:
-                                family_counts["tail_capable_main_count"] += 1
-
-                            representatives = _packaging_anchor_construction_representatives(
-                                context, joint_anchors, bays
-                            )
-                            representative_by_id = {row.anchor_id: row for row in representatives}
-                            ordered_compatible_anchors = tuple(
-                                {
-                                    row.anchor_id: row
-                                    for row in (
-                                        witness_anchor,
-                                        *representatives,
-                                    )
-                                }.values()
-                            )
-                            # Keep a finite spatially representative set for each
-                            # main geometry; downstream tail completion can then
-                            # try another exact package site without re-searching
-                            # the seven-zone skeleton.
-                            selected_anchors = tuple(
-                                row
-                                for row in ordered_compatible_anchors
-                                if row.anchor_id in representative_by_id
-                                or row.anchor_id == witness_anchor.anchor_id
-                            )[:4]
-                            pair_emitted_anchor_count = 0
-                            for packaging_anchor in selected_anchors:
-                                critical = {
-                                    **main_candidate,
-                                    "packaging_material_storage": packaging_anchor.rectangle,
-                                }
-                                critical_key = repr(_module_signature(critical))
-                                if critical_key in pair_seen_critical_assembly_keys:
+                                finished_attached = finished_attachment_cache[finished_key]
+                                if finished_attached is None:
                                     continue
-                                pair_seen_critical_assembly_keys.add(critical_key)
-                                pair_emitted_anchor_count += 1
+                                pair_finished_attachment_candidates += 1
+                                if finished_key not in finished_attachment_core_site_valid:
+                                    finished_attachment_core_site_valid[finished_key] = (
+                                        _site_module_is_usable(
+                                            context, finished_attached, core_pair
+                                        )
+                                    )
+                                if not finished_attachment_core_site_valid[finished_key]:
+                                    continue
+                                if any(
+                                    rectangles_overlap(finished_rectangle, raw_rectangle)
+                                    for finished_rectangle in finished_attached.values()
+                                    for raw_rectangle in raw_attached.values()
+                                ):
+                                    continue
+                                pair_finished_attachment_site_valid += 1
+                                if reserved_corridor is not None and any(
+                                    rectangles_overlap(reserved_corridor, rectangle)
+                                    for rectangle in finished_attached.values()
+                                ):
+                                    continue
+                                main_candidate = {
+                                    **core_pair,
+                                    **raw_attached,
+                                    **finished_attached,
+                                }
+                                try:
+                                    _validate_main_process_skeleton_graph(
+                                        context.graph,
+                                        {
+                                            code: main_candidate[code]
+                                            for code in MAIN_PROCESS_SKELETON_ZONE_CODES
+                                        },
+                                    )
+                                except LayoutAuthorityError:
+                                    continue
+                                pair_main_must_graph_valid += 1
+                                main_signature = _module_signature(
+                                    {
+                                        code: main_candidate[code]
+                                        for code in MAIN_PROCESS_SKELETON_ZONE_CODES
+                                    }
+                                )
+                                geometry_key = repr(main_signature)
+                                pair_main_geometry_keys.add(geometry_key)
+                                if geometry_key not in raw_site_main_geometry_keys:
+                                    raw_site_main_geometry_keys.add(geometry_key)
+                                    is_new_family_geometry = (
+                                        family_geometry_keys is None
+                                        or geometry_key not in family_geometry_keys
+                                    )
+                                    if family_geometry_keys is not None:
+                                        family_geometry_keys.add(geometry_key)
+                                    if family_counts is not None and is_new_family_geometry:
+                                        family_counts["raw_site_valid_main_count"] += 1
+
+                                proof_cache = (
+                                    stats.early_packaging_preflight_by_geometry
+                                    if stats is not None
+                                    and stats.early_packaging_preflight_by_geometry is not None
+                                    else local_packaging_preflight_cache
+                                )
+                                proof = proof_cache.get(geometry_key)
+                                formal_preflight_reused = proof is not None
+                                if proof is None:
+                                    proof = _packaging_tail_slot_preflight_for_rectangles(
+                                        context,
+                                        tuple(
+                                            main_candidate[code]
+                                            for code in MAIN_PROCESS_SKELETON_ZONE_CODES
+                                        ),
+                                    )
+                                    proof_cache[geometry_key] = proof
+                                formal_pass = (
+                                    proof.get("legal_slot_exists") is True
+                                    and proof.get("proof_mode")
+                                    == EXACT_ORTHOGONAL_EVENT_ENUMERATION
+                                )
+                                witness = alignment_witness
+                                record_geometry_attempt(
+                                    {
+                                        "layout_family": layout_family,
+                                        "stage": "S1_PACKAGING_RESERVED_MAIN_PREFLIGHT",
+                                        "result": (
+                                            "FORMAL_PREFLIGHT_PASS"
+                                            if formal_pass
+                                            else "FORMAL_PREFLIGHT_REJECT"
+                                            if proof.get("legal_slot_exists") is False
+                                            else "FORMAL_PREFLIGHT_UNAVAILABLE"
+                                        ),
+                                        "construction_order": [
+                                            "PACKAGING_ANCHOR",
+                                            "SORTING_CORE",
+                                            "RAW_MODULE",
+                                            "FINISHED_MODULE",
+                                        ],
+                                        "source_pair_index": source_pair_index,
+                                        "packaging_anchor": anchor.to_dict(),
+                                        "sorting_rotation_deg": root.rotation_deg,
+                                        "sorting_root_bounds_mm": list(root.bounds_mm),
+                                        "package_side_of_sorting": package_side,
+                                        "packaging_sorting_alignment_witness": witness,
+                                        "geometry_signature": geometry_key,
+                                        "preflight_reused": formal_preflight_reused,
+                                        "zones": [
+                                            main_candidate[code].to_dict()
+                                            for code in MAIN_PROCESS_SKELETON_ZONE_CODES
+                                        ],
+                                        "formal_preflight": proof,
+                                        "counts_as_placement_node": False,
+                                    }
+                                )
+                                if not formal_pass:
+                                    if proof.get("legal_slot_exists") is False:
+                                        is_new_rejection = (
+                                            family_packaging_rejected_keys is None
+                                            or geometry_key not in family_packaging_rejected_keys
+                                        )
+                                        if (
+                                            is_new_rejection
+                                            and family_packaging_rejected_keys is not None
+                                        ):
+                                            family_packaging_rejected_keys.add(geometry_key)
+                                        if family_counts is not None and is_new_rejection:
+                                            family_counts["packaging_slot_rejected_main_count"] += 1
+                                    else:
+                                        is_new_unavailable = (
+                                            family_packaging_unavailable_keys is None
+                                            or geometry_key not in family_packaging_unavailable_keys
+                                        )
+                                        if (
+                                            is_new_unavailable
+                                            and family_packaging_unavailable_keys is not None
+                                        ):
+                                            family_packaging_unavailable_keys.add(geometry_key)
+                                        if family_counts is not None and is_new_unavailable:
+                                            family_counts[
+                                                "packaging_slot_unavailable_main_count"
+                                            ] += 1
+                                    continue
+
+                                # ``anchor`` was enumerated once against the
+                                # authoritative site/no-build geometry, and
+                                # every core/module attachment above was
+                                # checked against it with exact zone overlap
+                                # predicates.  Re-enumerating the entire site
+                                # anchor event set for this completed skeleton
+                                # is redundant; the formal fixed-skeleton R9
+                                # preflight above remains the admission gate.
+                                critical = dict(main_candidate)
+                                critical_signature = repr(_module_signature(critical))
+                                if critical_signature in critical_signatures_seen:
+                                    continue
+                                critical_signatures_seen.add(critical_signature)
+                                pair_critical_keys.add(critical_signature)
+                                pair_admitted_count += 1
                                 if family_counts is not None:
+                                    family_counts["critical_8_zone_count"] += 1
                                     family_counts["packaging_reserved_main_count"] = (
                                         family_counts.get("packaging_reserved_main_count", 0) + 1
+                                    )
+                                is_new_tail_capable = (
+                                    family_tail_capable_geometry_keys is None
+                                    or geometry_key not in family_tail_capable_geometry_keys
+                                )
+                                if is_new_tail_capable:
+                                    if family_tail_capable_geometry_keys is not None:
+                                        family_tail_capable_geometry_keys.add(geometry_key)
+                                    if family_counts is not None:
+                                        family_counts["tail_capable_main_count"] += 1
+                                if reserved_corridor is not None and stats is not None:
+                                    stats.reserve_construction_space(
+                                        critical_signature, reserved_corridor
                                     )
                                 record_geometry_attempt(
                                     {
@@ -2033,10 +2849,15 @@ def _module_main_site_assemblies(
                                         "stage": "S1_PACKAGING_RESERVED_MAIN_ASSEMBLY",
                                         "result": "PACKAGING_RESERVED_MAIN_ADMITTED",
                                         "source_pair_index": source_pair_index,
+                                        "packaging_anchor": anchor.to_dict(),
                                         "sorting_rotation_deg": root.rotation_deg,
                                         "sorting_root_bounds_mm": list(root.bounds_mm),
-                                        "packaging_anchor": packaging_anchor.to_dict(),
-                                        "joint_anchor_count": len(joint_anchors),
+                                        "packaging_sorting_alignment_witness": witness,
+                                        "reserved_construction_space": (
+                                            reserved_corridor.to_dict()
+                                            if reserved_corridor is not None
+                                            else None
+                                        ),
                                         "zones": [
                                             critical[code].to_dict()
                                             for code in (
@@ -2051,82 +2872,150 @@ def _module_main_site_assemblies(
                                         "packaging_reserved_main_limit": limit,
                                     }
                                 )
+                                anchor_admitted = True
                                 yield critical
-                            if pair_emitted_anchor_count:
-                                yielded_main_geometries += 1
-                                emitted_geometry_for_root = True
-                                emitted_pair_limit = yielded_main_geometries >= limit
-                            if emitted_pair_limit:
+                                yielded_critical_geometries.add(critical_signature)
+                                if len(yielded_critical_geometries) >= limit:
+                                    if family_counts is not None:
+                                        family_counts["source_pair_attempt_row_count"] += 1
+                                        family_counts[
+                                            "source_pair_distinct_input_geometry_count"
+                                        ] += len(pair_main_geometry_keys)
+                                        family_counts[
+                                            "source_pair_with_site_valid_critical_geometry_count"
+                                        ] += int(bool(pair_critical_keys))
+                                        family_counts["raw_attachment_candidate_count"] += (
+                                            pair_raw_attachment_candidates
+                                        )
+                                        family_counts["raw_attachment_site_valid_count"] += (
+                                            pair_raw_attachment_site_valid
+                                        )
+                                        family_counts["finished_attachment_candidate_count"] += (
+                                            pair_finished_attachment_candidates
+                                        )
+                                        family_counts["finished_attachment_site_valid_count"] += (
+                                            pair_finished_attachment_site_valid
+                                        )
+                                        family_counts["main_must_graph_valid_count"] += (
+                                            pair_main_must_graph_valid
+                                        )
+                                    record_source_pair(
+                                        {
+                                            "layout_family": layout_family,
+                                            "process_axis": process_axis,
+                                            "process_direction": process_direction,
+                                            "source_pair_index": source_pair_index,
+                                            "source_pair_geometry_signature": (
+                                                source_pair_geometry_signature
+                                            ),
+                                            "packaging_anchor_id": anchor.anchor_id,
+                                            "result": "PACKAGING_RESERVED_MAIN_LIMIT_REACHED",
+                                            "source_pair_exhausted": False,
+                                            "tail_capable_limit_reached": True,
+                                            "packaging_sorting_core_pair_count": len(
+                                                family_core_pair_keys or ()
+                                            ),
+                                            "distinct_input_geometry_count": len(
+                                                pair_main_geometry_keys
+                                            ),
+                                            "site_valid_critical_geometry_count": int(
+                                                bool(pair_critical_keys)
+                                            ),
+                                            "critical_8_zone_count": len(pair_critical_keys),
+                                            "sorting_root_count": len(pair_sorting_roots),
+                                            "raw_attachment_candidate_count": (
+                                                pair_raw_attachment_candidates
+                                            ),
+                                            "raw_attachment_site_valid_count": (
+                                                pair_raw_attachment_site_valid
+                                            ),
+                                            "finished_attachment_candidate_count": (
+                                                pair_finished_attachment_candidates
+                                            ),
+                                            "finished_attachment_site_valid_count": (
+                                                pair_finished_attachment_site_valid
+                                            ),
+                                            "main_must_graph_valid_count": (
+                                                pair_main_must_graph_valid
+                                            ),
+                                        }
+                                    )
+                                    return
+                                if anchor_admitted:
+                                    break
+                            if anchor_admitted:
                                 break
-                            if emitted_geometry_for_root:
-                                break
-                        if emitted_pair_limit:
+                        if anchor_admitted:
                             break
-                        if emitted_geometry_for_root:
-                            break
-                    if emitted_pair_limit:
+                    if anchor_admitted:
                         break
-                    if emitted_geometry_for_root:
-                        break
-                if emitted_pair_limit:
+                if family_counts is not None:
+                    family_counts["source_pair_attempt_row_count"] += 1
+                    family_counts["source_pair_distinct_input_geometry_count"] += len(
+                        pair_main_geometry_keys
+                    )
+                    family_counts["source_pair_with_site_valid_critical_geometry_count"] += int(
+                        bool(pair_critical_keys)
+                    )
+                    family_counts["raw_attachment_candidate_count"] += (
+                        pair_raw_attachment_candidates
+                    )
+                    family_counts["raw_attachment_site_valid_count"] += (
+                        pair_raw_attachment_site_valid
+                    )
+                    family_counts["finished_attachment_candidate_count"] += (
+                        pair_finished_attachment_candidates
+                    )
+                    family_counts["finished_attachment_site_valid_count"] += (
+                        pair_finished_attachment_site_valid
+                    )
+                    family_counts["main_must_graph_valid_count"] += pair_main_must_graph_valid
+                tail_capacity_exhausted = (
+                    bool(pair_main_geometry_keys)
+                    and not pair_critical_keys
+                    and (
+                        family_packaging_rejected_keys is not None
+                        and pair_main_geometry_keys.issubset(family_packaging_rejected_keys)
+                    )
+                )
+                if tail_capacity_exhausted and family_counts is not None:
+                    family_counts["source_pair_tail_capacity_exhausted"] += 1
+                record_source_pair(
+                    {
+                        "layout_family": layout_family,
+                        "process_axis": process_axis,
+                        "process_direction": process_direction,
+                        "source_pair_index": source_pair_index,
+                        "source_pair_geometry_signature": source_pair_geometry_signature,
+                        "packaging_anchor_id": anchor.anchor_id,
+                        "result": (
+                            "PACKAGING_RESERVED_MAIN_ADMITTED"
+                            if pair_admitted_count
+                            else "SOURCE_PAIR_TAIL_CAPACITY_EXHAUSTED"
+                            if tail_capacity_exhausted
+                            else "SOURCE_PAIR_VARIANTS_EXHAUSTED"
+                        ),
+                        "source_pair_exhausted": True,
+                        "tail_capacity_exhausted": tail_capacity_exhausted,
+                        "packaging_sorting_core_pair_count": invocation_core_pair_count,
+                        "distinct_input_geometry_count": len(pair_main_geometry_keys),
+                        "site_valid_critical_geometry_count": int(bool(pair_critical_keys)),
+                        "critical_8_zone_count": len(pair_critical_keys),
+                        "sorting_root_count": len(pair_sorting_roots),
+                        "raw_attachment_candidate_count": pair_raw_attachment_candidates,
+                        "raw_attachment_site_valid_count": pair_raw_attachment_site_valid,
+                        "finished_attachment_candidate_count": pair_finished_attachment_candidates,
+                        "finished_attachment_site_valid_count": (
+                            pair_finished_attachment_site_valid
+                        ),
+                        "main_must_graph_valid_count": pair_main_must_graph_valid,
+                    }
+                )
+                if anchor_admitted:
                     break
-                if emitted_geometry_for_root:
-                    break
-            if emitted_pair_limit:
+            if anchor_admitted:
                 break
-        if emitted_pair_limit:
-            record_source_pair(
-                {
-                    "layout_family": layout_family,
-                    "process_axis": process_axis,
-                    "process_direction": process_direction,
-                    "source_pair_index": source_pair_index,
-                    "result": "PACKAGING_RESERVED_MAIN_LIMIT_REACHED",
-                    "source_pair_exhausted": False,
-                    "tail_capable_limit_reached": True,
-                    "raw_site_valid_main_count": pair_raw_count,
-                    "packaging_slot_rejected_main_count": pair_packaging_reject_count,
-                    "packaging_slot_unavailable_main_count": pair_unavailable_count,
-                    "tail_capable_main_count": pair_tail_capable_count,
-                    "sorting_root_count": len(pair_root_signatures),
-                    "distinct_geometry_count": len(pair_seen_geometry_keys),
-                    "sorting_rotation_site_attempt_count": dict(pair_root_attempts),
-                }
-            )
-            return
-        source_pair_tail_capacity_exhausted = (
-            pair_raw_count > 0
-            and pair_tail_capable_count == 0
-            and pair_packaging_reject_count == pair_raw_count
-            and pair_unavailable_count == 0
-        )
-        if family_counts is not None:
-            family_counts["source_pairs_exhausted"] += 1
-            if source_pair_tail_capacity_exhausted:
-                family_counts["source_pair_tail_capacity_exhausted"] += 1
-        record_source_pair(
-            {
-                "layout_family": layout_family,
-                "process_axis": process_axis,
-                "process_direction": process_direction,
-                "source_pair_index": source_pair_index,
-                "result": (
-                    "SOURCE_PAIR_TAIL_CAPACITY_EXHAUSTED"
-                    if source_pair_tail_capacity_exhausted
-                    else "SOURCE_PAIR_VARIANTS_EXHAUSTED"
-                ),
-                "source_pair_exhausted": True,
-                "tail_capacity_exhausted": source_pair_tail_capacity_exhausted,
-                "raw_site_valid_main_count": pair_raw_count,
-                "packaging_slot_rejected_main_count": pair_packaging_reject_count,
-                "packaging_slot_unavailable_main_count": pair_unavailable_count,
-                "tail_capable_main_count": pair_tail_capable_count,
-                "sorting_root_count": len(pair_root_signatures),
-                "distinct_geometry_count": len(pair_seen_geometry_keys),
-                "sorting_rotation_site_attempt_count": dict(pair_root_attempts),
-            }
-        )
-    if yielded_main_geometries == 0 and invocation_raw_count == 0:
+    if not yielded_critical_geometries and invocation_core_pair_count == 0:
         yield None
 
 
@@ -2233,6 +3122,12 @@ def _module_full_site_assemblies(
         yield None
         return
 
+    critical_signature = repr(_module_signature(main))
+    reserved_spaces = (
+        (stats.reserved_construction_space_by_critical_signature or {}).get(critical_signature, ())
+        if stats is not None
+        else ()
+    )
     yielded = 0
     tail_codes = {"secondary_fruit_buffer", "frozen_fruit_room", "office", "changing_room"}
     module_codes = {
@@ -2253,6 +3148,19 @@ def _module_full_site_assemblies(
                 context, "frozen_fruit_room", fixed, bays
             ),
         }
+        if reserved_spaces:
+            options = {
+                name: tuple(
+                    candidate
+                    for candidate in candidates
+                    if not any(
+                        rectangles_overlap(reserved, rectangle)
+                        for reserved in reserved_spaces
+                        for rectangle in candidate.values()
+                    )
+                )
+                for name, candidates in options.items()
+            }
         if stats is not None and stats.site_module_assembly_trace is not None:
             stats.site_module_assembly_trace.append(
                 {
@@ -2262,6 +3170,7 @@ def _module_full_site_assemblies(
                     "legal_slot_count_by_module": {
                         name: len(rows) for name, rows in sorted(options.items())
                     },
+                    "reserved_construction_space_count": len(reserved_spaces),
                 }
             )
         return options
@@ -3881,6 +4790,29 @@ def _rectangle_edge_segments(
     return {"LONG_EDGE": vertical, "SHORT_EDGE": horizontal}
 
 
+def _named_rectangle_edge_classes(
+    rectangle: PlacedRectangleV1,
+) -> tuple[tuple[str, str, SegmentMM], ...]:
+    """Return cardinal rectangle edges paired with existing long/short classes."""
+    left, bottom, right, top = _bounds(rectangle)
+    named_edges = (
+        ("LEFT", ((left, bottom), (left, top))),
+        ("RIGHT", ((right, bottom), (right, top))),
+        ("BOTTOM", ((left, bottom), (right, bottom))),
+        ("TOP", ((left, top), (right, top))),
+    )
+    class_segments = _rectangle_edge_segments(rectangle)
+    long_keys = {tuple(sorted(segment)) for segment in class_segments["LONG_EDGE"]}
+    return tuple(
+        (
+            side,
+            "LONG_EDGE" if tuple(sorted(segment)) in long_keys else "SHORT_EDGE",
+            segment,
+        )
+        for side, segment in named_edges
+    )
+
+
 def _segment_overlap_length_mm(first: SegmentMM, second: SegmentMM) -> int:
     if first[0][1] == first[1][1] == second[0][1] == second[1][1]:
         return max(0, min(first[1][0], second[1][0]) - max(first[0][0], second[0][0]))
@@ -4291,12 +5223,30 @@ class _PlacementSearchStats:
     site_bay_rows: tuple[BuildableBayV1, ...] | None = None
     site_module_variant_counts: dict[str, Any] | None = None
     site_packaging_anchors: tuple[PackagingAnchorV1, ...] | None = None
+    site_packaging_construction_anchors: tuple[PackagingAnchorV1, ...] | None = None
+    site_packaging_sorting_roots_by_anchor: (
+        dict[
+            str,
+            tuple[tuple[PlacedRectangleV1, str, PlacedRectangleV1 | None, dict[str, Any]], ...],
+        ]
+        | None
+    ) = None
     sorting_rotation_site_attempt_counts: dict[str, int] | None = None
+    packaging_anchor_sorting_rotation_attempts_by_group: dict[str, set[str]] | None = None
+    packaging_anchor_sorting_alignment_proofs_by_group: dict[str, dict[str, str]] | None = None
     site_main_assembly_counts_by_family: dict[str, dict[str, int]] | None = None
     site_main_assembly_geometry_keys_by_family: dict[str, set[str]] | None = None
     site_main_assembly_tail_capable_geometry_keys_by_family: dict[str, set[str]] | None = None
+    site_main_assembly_packaging_rejected_geometry_keys_by_family: dict[str, set[str]] | None = None
+    site_main_assembly_packaging_unavailable_geometry_keys_by_family: dict[str, set[str]] | None = (
+        None
+    )
+    packaging_sorting_core_pair_geometry_keys_by_family: dict[str, set[str]] | None = None
     site_main_source_pair_rows: list[dict[str, Any]] | None = None
     early_packaging_preflight_by_geometry: dict[str, dict[str, Any]] | None = None
+    reserved_construction_space_by_critical_signature: (
+        dict[str, tuple[PlacedRectangleV1, ...]] | None
+    ) = None
     early_formal_packaging_preflight_mismatch_count: int = 0
     family_geometry_collapse_count: int = 0
     topology_classification_failures: list[dict[str, Any]] | None = None
@@ -4310,6 +5260,16 @@ class _PlacementSearchStats:
     current_work_item: dict[str, Any] | None = None
     normal_stop_reason: str | None = None
     construction_node_count: int = 0
+
+    def record_early_packaging_preflight_mismatch(self) -> None:
+        self.early_formal_packaging_preflight_mismatch_count += 1
+
+    def reserve_construction_space(
+        self, critical_signature: str, corridor: PlacedRectangleV1
+    ) -> None:
+        if self.reserved_construction_space_by_critical_signature is None:
+            self.reserved_construction_space_by_critical_signature = {}
+        self.reserved_construction_space_by_critical_signature[critical_signature] = (corridor,)
 
 
 @dataclass(frozen=True)
@@ -5085,6 +6045,13 @@ def _local_rectangle_at(
     return _rectangle_from_mm(zone_code, x_mm, y_mm, width_mm, depth_mm, rotation)
 
 
+def _cached_local_rectangle_bounds_mm(
+    rectangle: PlacedRectangleV1,
+) -> tuple[int, int, int, int]:
+    """Return the exact integer-mm bounds for a local rectangle."""
+    return rectangle.bounds_mm
+
+
 def _local_adjacent_origin(
     parent: PlacedRectangleV1,
     x_span_mm: int,
@@ -5093,7 +6060,7 @@ def _local_adjacent_origin(
     alignment: str,
 ) -> tuple[int, int]:
     """Derive a child origin from one exact positive-edge interface."""
-    left, bottom, right, top = parent.bounds_mm
+    left, bottom, right, top = _cached_local_rectangle_bounds_mm(parent)
     if side in {"EAST", "WEST"}:
         y = (
             bottom
@@ -5124,7 +6091,7 @@ def _local_rectangles_clear(
 def _local_bbox_bounds(
     placements: Mapping[str, PlacedRectangleV1],
 ) -> tuple[int, int, int, int]:
-    rows = tuple(rectangle.bounds_mm for rectangle in placements.values())
+    rows = tuple(_cached_local_rectangle_bounds_mm(rectangle) for rectangle in placements.values())
     if not rows:
         return (0, 0, 0, 0)
     return (
@@ -5587,6 +6554,118 @@ def _bounded_local_shape_rows(
     return tuple(islice(product(*shape_options), LOCAL_COMPOSITION_SHAPE_VARIANT_LIMIT))
 
 
+def _local_chain_side_pattern_order(link_count: int) -> tuple[tuple[str, ...], ...]:
+    """Return a finite bank-pattern order before generic compactness pruning.
+
+    Straight rows, two-row snakes, and mirrored L-banks are explicit structural
+    construction classes.  Remaining orthogonal side sequences are retained as
+    a bounded fallback, so the ordering describes geometry grammar rather than
+    a fixture-specific coordinate template.
+    """
+    sides = ("EAST", "NORTH", "WEST", "SOUTH")
+    preferred: list[tuple[str, ...]] = []
+    if link_count == 3:
+        preferred.extend((side,) * link_count for side in sides)
+        preferred.extend(
+            (
+                ("EAST", "NORTH", "WEST"),
+                ("WEST", "NORTH", "EAST"),
+                ("EAST", "SOUTH", "WEST"),
+                ("WEST", "SOUTH", "EAST"),
+                ("NORTH", "EAST", "SOUTH"),
+                ("SOUTH", "EAST", "NORTH"),
+                ("NORTH", "WEST", "SOUTH"),
+                ("SOUTH", "WEST", "NORTH"),
+            )
+        )
+        preferred.extend(
+            (
+                ("EAST", "NORTH", "EAST"),
+                ("EAST", "SOUTH", "EAST"),
+                ("WEST", "NORTH", "WEST"),
+                ("WEST", "SOUTH", "WEST"),
+                ("NORTH", "EAST", "NORTH"),
+                ("NORTH", "WEST", "NORTH"),
+                ("SOUTH", "EAST", "SOUTH"),
+                ("SOUTH", "WEST", "SOUTH"),
+            )
+        )
+    preferred_set = set(preferred)
+    return tuple(
+        (
+            *preferred,
+            *(
+                pattern
+                for pattern in product(sides, repeat=link_count)
+                if pattern not in preferred_set
+            ),
+        )
+    )
+
+
+def _explicit_local_chain_bank_modules(
+    context: _PlacementSearchContext,
+    zone_codes: tuple[str, ...],
+    shapes: Mapping[str, Sequence[tuple[int, int, int, int, int]]],
+    *,
+    result_limit: int,
+) -> tuple[dict[str, PlacedRectangleV1], ...]:
+    """Synthesize exact chain interfaces while preserving bank topology classes."""
+    if len(zone_codes) < 2 or result_limit <= 0:
+        return ()
+    shape_rows = _bounded_local_shape_rows(tuple(shapes[code] for code in zone_codes))
+    if not shape_rows:
+        return ()
+    alignments = ("LOW", "CENTER", "HIGH")
+    selected: list[dict[str, PlacedRectangleV1]] = []
+    selected_signatures: set[tuple[tuple[str, tuple[int, ...]], ...]] = set()
+    for side_pattern in _local_chain_side_pattern_order(len(zone_codes) - 1):
+        best: dict[str, PlacedRectangleV1] | None = None
+        best_key: tuple[object, ...] | None = None
+        for shape_row in shape_rows:
+            first_shape = shape_row[0]
+            initial = {zone_codes[0]: _local_rectangle_at(zone_codes[0], first_shape, 0, 0)}
+            if not _local_bbox_fits_site_extents(context, initial):
+                continue
+            for alignment_row in product(alignments, repeat=len(zone_codes) - 1):
+                state = initial
+                for index, (side, alignment) in enumerate(
+                    zip(side_pattern, alignment_row, strict=True), start=1
+                ):
+                    parent = state[zone_codes[index - 1]]
+                    shape = shape_row[index]
+                    x_mm, y_mm = _local_adjacent_origin(parent, shape[3], shape[4], side, alignment)
+                    child = _local_rectangle_at(zone_codes[index], shape, x_mm, y_mm)
+                    if not rectangles_share_positive_edge(parent, child):
+                        break
+                    if not _local_rectangles_clear(child, state):
+                        break
+                    next_state = {**state, zone_codes[index]: child}
+                    if not _local_bbox_fits_site_extents(context, next_state):
+                        break
+                    state = next_state
+                else:
+                    if len(state) != len(zone_codes):
+                        continue
+                    normalized = _normalize_local_placements(state)
+                    signature = _module_signature(normalized)
+                    if signature in selected_signatures:
+                        continue
+                    key = _local_compactness_key(normalized, context, "X")
+                    if best_key is None or key < best_key:
+                        best, best_key = normalized, key
+        if best is None:
+            continue
+        signature = _module_signature(best)
+        if signature in selected_signatures:
+            continue
+        selected.append(best)
+        selected_signatures.add(signature)
+        if len(selected) >= result_limit:
+            break
+    return tuple(selected)
+
+
 def _local_main_process_compositions(
     context: _PlacementSearchContext,
     layout_family: str,
@@ -5896,6 +6975,18 @@ def _local_must_chain_module_compositions(
     shapes = {code: _local_dimension_shapes(context, code) for code in zone_codes}
     if any(not shapes[code] for code in zone_codes):
         return ()
+    structural_modules = _explicit_local_chain_bank_modules(
+        context,
+        zone_codes,
+        shapes,
+        result_limit=min(result_limit, LOCAL_COMPACT_RESULT_LIMIT),
+    )
+    if len(structural_modules) >= result_limit:
+        # The structured bank grammar already supplied the full requested
+        # finite variant set.  The generic orthogonal frontier below is only
+        # a compatibility fill for missing slots; expanding it cannot affect
+        # the returned candidates when the structural set is complete.
+        return structural_modules[:result_limit]
     frontier: tuple[Mapping[str, PlacedRectangleV1], ...] = tuple(
         {zone_codes[0]: _local_rectangle_at(zone_codes[0], shape, 0, 0)}
         for shape in shapes[zone_codes[0]]
@@ -5931,14 +7022,17 @@ def _local_must_chain_module_compositions(
                         )
                         expanded.setdefault(signature, next_state)
         if not expanded:
-            return ()
+            frontier = ()
+            break
         frontier = _retain_compact_local_states(
             expanded.values(),
             context,
             "X",
             min(LOCAL_COMPACT_FRONTIER_LIMIT, max(result_limit * 4, result_limit)),
         )
-    result_rows: dict[tuple[tuple[str, tuple[int, ...]], ...], dict[str, PlacedRectangleV1]] = {}
+    result_rows: dict[tuple[tuple[str, tuple[int, ...]], ...], dict[str, PlacedRectangleV1]] = {
+        _module_signature(module): module for module in structural_modules
+    }
     for state in frontier:
         if all(
             rectangles_share_positive_edge(state[first], state[second])
@@ -5946,11 +7040,17 @@ def _local_must_chain_module_compositions(
         ):
             normalized = _normalize_local_placements(state)
             result_rows.setdefault(_module_signature(normalized), normalized)
-    ordered = sorted(
-        result_rows.values(),
+    generic_rows = sorted(
+        (
+            row
+            for signature, row in result_rows.items()
+            if signature not in {_module_signature(module) for module in structural_modules}
+        ),
         key=lambda row: _local_compactness_key(row, context, "X"),
     )
-    return tuple(ordered[:result_limit])
+    return tuple(
+        (*structural_modules, *generic_rows[: max(0, result_limit - len(structural_modules))])
+    )
 
 
 def _place_local_bank_against_zone(
@@ -7311,25 +8411,29 @@ def _direct_structured_candidates(
     if stats.site_module_variant_counts is None:
         stats.site_module_variant_counts = {}
     stats.site_module_variant_counts["buildable_bays"] = len(bays)
-    stats.site_module_variant_counts["raw_module_variants"] = len(
-        _local_bank_compositions(
+    raw_bank_module_variants = tuple(
+        row[0]
+        for row in _local_bank_compositions(
             context, ("raw_fruit_buffer", "primary_precooling_room"), result_limit=24
         )
     )
+    finished_bank_module_variants = _local_must_chain_module_compositions(
+        context,
+        (
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel",
+        ),
+        result_limit=24,
+    )
+    site_module_variant_catalog = (raw_bank_module_variants, finished_bank_module_variants)
+    stats.site_module_variant_counts["raw_module_variants"] = len(raw_bank_module_variants)
     stats.site_module_variant_counts["process_core_module_variants"] = len(
         _local_dimension_shapes(context, "sorting_packaging_room")
     )
     stats.site_module_variant_counts["finished_module_variants"] = len(
-        _local_must_chain_module_compositions(
-            context,
-            (
-                "secondary_precooling_room",
-                "coating_room",
-                "finished_goods_room",
-                "shipping_channel",
-            ),
-            result_limit=24,
-        )
+        finished_bank_module_variants
     )
     stats.site_module_variant_counts["packaging_module_variants"] = len(
         _local_dimension_shapes(context, "packaging_material_storage")
@@ -7530,7 +8634,10 @@ def _direct_structured_candidates(
             continue
         if layout_family not in module_source_pairs_by_family:
             module_source_pairs_by_family[layout_family] = _main_module_source_pairs(
-                context, main_compositions
+                context,
+                main_compositions,
+                module_variants=site_module_variant_catalog,
+                stats=stats,
             )
 
         candidate_emitted = False
