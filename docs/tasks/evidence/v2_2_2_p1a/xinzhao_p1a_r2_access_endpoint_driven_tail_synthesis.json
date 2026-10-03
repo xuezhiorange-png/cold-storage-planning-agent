@@ -1,0 +1,5578 @@
+{
+  "access_endpoint_driven_tail_synthesis": true,
+  "access_route_probe_count_by_module": {},
+  "access_route_revalidation_count": 14,
+  "access_route_sample_truncated_state_count_by_module": {},
+  "access_route_validator_injected_from_application": true,
+  "access_valid_slot_count_by_module": {
+    "OFFICE_MODULE": 2,
+    "SECONDARY_SUPPORT_MODULE": 1
+  },
+  "application_route_validator_call_counts": {
+    "changing_room->sorting_packaging_room": 4,
+    "main_entrance->changing_room": 4,
+    "sorting_packaging_room->frozen_fruit_room": 3,
+    "sorting_packaging_room->secondary_fruit_buffer": 3
+  },
+  "budgets": {
+    "placement_node": 120,
+    "route_node": 20000,
+    "truck_node": 5000
+  },
+  "changing_access_driven_candidate_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 13,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 15,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 15
+  },
+  "changing_access_valid_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 0,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 0,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 0
+  },
+  "complete_access_aware_site_valid_12_zone_count": 0,
+  "complete_access_witnesses": [],
+  "construction_access_failure_code_counts": {
+    "ROUTE_SEARCH_EXHAUSTED": 7
+  },
+  "construction_access_requirement_failure_counts": {
+    "main_entrance->changing_room": 4,
+    "sorting_packaging_room->frozen_fruit_room": 3
+  },
+  "construction_access_requirement_pass_counts": {
+    "changing_room->sorting_packaging_room": 4,
+    "sorting_packaging_room->secondary_fruit_buffer": 3
+  },
+  "construction_complete_witness_count": 0,
+  "construction_witness_p2d_matching_geometry_count": 0,
+  "corridor_mediated_access_witness_count": 0,
+  "determinism": {
+    "same_input_same_access_slot_counts": true,
+    "same_input_same_access_witnesses": true,
+    "same_input_same_canonical_result_hash": true,
+    "same_input_same_p2d_route_rows": true,
+    "same_input_same_selected_layout": true,
+    "same_input_same_svg_bytes": true,
+    "same_input_same_svg_hash": true
+  },
+  "determinism_result": "PASS",
+  "direct_shared_edge_access_witness_count": 7,
+  "distinct_structured_full_pass_skeleton_count": 0,
+  "final_p2d_access_authority_changed": false,
+  "frozen_access_driven_candidate_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 2,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 5,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 7
+  },
+  "frozen_access_pass_count": 0,
+  "frozen_access_valid_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 0,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 0,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 0
+  },
+  "frozen_raw_candidate_count": 1,
+  "full_pass_layout_family_count": 0,
+  "generic_fallback_deferred_count": 0,
+  "generic_fallback_route_probe_count": 0,
+  "generic_fallback_truncated_count": 0,
+  "generic_representative_sampling_is_primary": false,
+  "global_infeasibility_proven": false,
+  "image_rows": [
+    {
+      "access_witnesses": [
+        {
+          "access_class": "MATERIAL_LOGISTICS",
+          "canonical_hash": "sha256:08c697365ce2aa5dcf5f44cc75c23f0f0856bab36f2eb6fba1c7f66b72fd18fa",
+          "centerline": [
+            {
+              "x": "32.65",
+              "y": "10.05"
+            },
+            {
+              "x": "32.65",
+              "y": "10.05"
+            }
+          ],
+          "clear_width_m": "2.4",
+          "codes": [],
+          "corridor_allowed": true,
+          "corridor_envelope": [],
+          "direct_allowed": true,
+          "edge_alignment_verified": true,
+          "edge_orientation_requirement": null,
+          "flow_kind": "SECONDARY",
+          "from_ref": "sorting_packaging_room",
+          "intersects_truck_envelope": false,
+          "portal_from": {
+            "access_ref": "sorting_packaging_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:sorting_packaging_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "portal_required": true,
+          "portal_to": {
+            "access_ref": "secondary_fruit_buffer",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:secondary_fruit_buffer@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "requires_review": true,
+          "route_length_m": "0",
+          "route_shape": "STRAIGHT",
+          "route_shape_constraint": "NOT_FROZEN",
+          "status": "PASS",
+          "to_ref": "secondary_fruit_buffer",
+          "topology": "DIRECT_SHARED_EDGE",
+          "turn_count": 0
+        }
+      ],
+      "candidate_event_classes": [
+        "CHG 0/2 · FRZ 0/1 · SEC 1/1"
+      ],
+      "critical_assembly_id": "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d",
+      "layout_family": "TAIL SEEDS",
+      "reserved_corridors_mm": [],
+      "skeleton_hash": "sha256:0c8ac00c0d1a4ff189da3113414e2c52f209cd06c78b488ed760124fa4c01570",
+      "truck_entrance_segment_mm": [
+        [
+          0,
+          33700
+        ],
+        [
+          0,
+          33701
+        ]
+      ],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zones": [
+        {
+          "bounds_mm": [
+            13843,
+            23650,
+            21804,
+            33700
+          ],
+          "rotation_deg": 90,
+          "zone_code": "coating_room"
+        },
+        {
+          "bounds_mm": [
+            1624,
+            33700,
+            34024,
+            52300
+          ],
+          "rotation_deg": 0,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "bounds_mm": [
+            14700,
+            0,
+            29200,
+            17300
+          ],
+          "rotation_deg": 90,
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "bounds_mm": [
+            60260,
+            0,
+            74960,
+            10050
+          ],
+          "rotation_deg": 0,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "bounds_mm": [
+            45060,
+            0,
+            60260,
+            8700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "bounds_mm": [
+            21804,
+            23650,
+            31604,
+            33700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "bounds_mm": [
+            1624,
+            26007,
+            8124,
+            33700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "shipping_channel"
+        },
+        {
+          "bounds_mm": [
+            29200,
+            10050,
+            74960,
+            23650
+          ],
+          "rotation_deg": 0,
+          "zone_code": "sorting_packaging_room"
+        },
+        {
+          "bounds_mm": [
+            22875,
+            17325,
+            29200,
+            23650
+          ],
+          "candidate_module": "CHANGING_MODULE",
+          "rotation_deg": 0,
+          "seed_candidate": true,
+          "zone_code": "changing_room"
+        },
+        {
+          "bounds_mm": [
+            29200,
+            3725,
+            35525,
+            10050
+          ],
+          "candidate_module": "CHANGING_MODULE",
+          "rotation_deg": 0,
+          "seed_candidate": true,
+          "zone_code": "changing_room"
+        },
+        {
+          "bounds_mm": [
+            0,
+            0,
+            10800,
+            8200
+          ],
+          "candidate_module": "FROZEN_SUPPORT_MODULE",
+          "rotation_deg": 0,
+          "seed_candidate": true,
+          "zone_code": "frozen_fruit_room"
+        },
+        {
+          "bounds_mm": [
+            29200,
+            1650,
+            36100,
+            10050
+          ],
+          "candidate_module": "SECONDARY_SUPPORT_MODULE",
+          "rotation_deg": 0,
+          "seed_candidate": true,
+          "zone_code": "secondary_fruit_buffer"
+        }
+      ]
+    },
+    {
+      "access_witnesses": [
+        {
+          "access_class": "MATERIAL_LOGISTICS",
+          "canonical_hash": "sha256:08c697365ce2aa5dcf5f44cc75c23f0f0856bab36f2eb6fba1c7f66b72fd18fa",
+          "centerline": [
+            {
+              "x": "32.65",
+              "y": "10.05"
+            },
+            {
+              "x": "32.65",
+              "y": "10.05"
+            }
+          ],
+          "clear_width_m": "2.4",
+          "codes": [],
+          "corridor_allowed": true,
+          "corridor_envelope": [],
+          "direct_allowed": true,
+          "edge_alignment_verified": true,
+          "edge_orientation_requirement": null,
+          "flow_kind": "SECONDARY",
+          "from_ref": "sorting_packaging_room",
+          "intersects_truck_envelope": false,
+          "portal_from": {
+            "access_ref": "sorting_packaging_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:sorting_packaging_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "portal_required": true,
+          "portal_to": {
+            "access_ref": "secondary_fruit_buffer",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:secondary_fruit_buffer@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "requires_review": true,
+          "route_length_m": "0",
+          "route_shape": "STRAIGHT",
+          "route_shape_constraint": "NOT_FROZEN",
+          "status": "PASS",
+          "to_ref": "secondary_fruit_buffer",
+          "topology": "DIRECT_SHARED_EDGE",
+          "turn_count": 0
+        }
+      ],
+      "candidate_event_classes": [
+        "CHG 0/1 · FRZ 0/1 · OFF 1/1 · SEC 1/1"
+      ],
+      "critical_assembly_id": "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e",
+      "layout_family": "TAIL SEEDS",
+      "reserved_corridors_mm": [],
+      "skeleton_hash": "sha256:62bc404539c5bcd1a13fb60f79b72935fe9bea64ce11e13cfa3a6aa808ddd095",
+      "truck_entrance_segment_mm": [
+        [
+          0,
+          33700
+        ],
+        [
+          0,
+          33701
+        ]
+      ],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zones": [
+        {
+          "bounds_mm": [
+            32563,
+            23650,
+            40524,
+            33700
+          ],
+          "rotation_deg": 90,
+          "zone_code": "coating_room"
+        },
+        {
+          "bounds_mm": [
+            8124,
+            33700,
+            40524,
+            52300
+          ],
+          "rotation_deg": 0,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "bounds_mm": [
+            14700,
+            0,
+            29200,
+            17300
+          ],
+          "rotation_deg": 90,
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "bounds_mm": [
+            60260,
+            0,
+            74960,
+            10050
+          ],
+          "rotation_deg": 0,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "bounds_mm": [
+            45060,
+            0,
+            60260,
+            8700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "bounds_mm": [
+            22763,
+            23650,
+            32563,
+            33700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "bounds_mm": [
+            1624,
+            33700,
+            8124,
+            41393
+          ],
+          "rotation_deg": 0,
+          "zone_code": "shipping_channel"
+        },
+        {
+          "bounds_mm": [
+            29200,
+            10050,
+            74960,
+            23650
+          ],
+          "rotation_deg": 0,
+          "zone_code": "sorting_packaging_room"
+        },
+        {
+          "bounds_mm": [
+            22875,
+            17325,
+            29200,
+            23650
+          ],
+          "candidate_module": "CHANGING_MODULE",
+          "rotation_deg": 0,
+          "seed_candidate": true,
+          "zone_code": "changing_room"
+        },
+        {
+          "bounds_mm": [
+            0,
+            0,
+            10800,
+            8200
+          ],
+          "candidate_module": "FROZEN_SUPPORT_MODULE",
+          "rotation_deg": 0,
+          "seed_candidate": true,
+          "zone_code": "frozen_fruit_room"
+        },
+        {
+          "bounds_mm": [
+            378,
+            25954,
+            8124,
+            33700
+          ],
+          "candidate_module": "OFFICE_MODULE",
+          "rotation_deg": 0,
+          "seed_candidate": true,
+          "zone_code": "office"
+        },
+        {
+          "bounds_mm": [
+            29200,
+            1650,
+            36100,
+            10050
+          ],
+          "candidate_module": "SECONDARY_SUPPORT_MODULE",
+          "rotation_deg": 0,
+          "seed_candidate": true,
+          "zone_code": "secondary_fruit_buffer"
+        }
+      ]
+    },
+    {
+      "access_witnesses": [
+        {
+          "access_class": "MATERIAL_LOGISTICS",
+          "canonical_hash": "sha256:08c697365ce2aa5dcf5f44cc75c23f0f0856bab36f2eb6fba1c7f66b72fd18fa",
+          "centerline": [
+            {
+              "x": "32.65",
+              "y": "10.05"
+            },
+            {
+              "x": "32.65",
+              "y": "10.05"
+            }
+          ],
+          "clear_width_m": "2.4",
+          "codes": [],
+          "corridor_allowed": true,
+          "corridor_envelope": [],
+          "direct_allowed": true,
+          "edge_alignment_verified": true,
+          "edge_orientation_requirement": null,
+          "flow_kind": "SECONDARY",
+          "from_ref": "sorting_packaging_room",
+          "intersects_truck_envelope": false,
+          "portal_from": {
+            "access_ref": "sorting_packaging_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:sorting_packaging_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "portal_required": true,
+          "portal_to": {
+            "access_ref": "secondary_fruit_buffer",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:secondary_fruit_buffer@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "requires_review": true,
+          "route_length_m": "0",
+          "route_shape": "STRAIGHT",
+          "route_shape_constraint": "NOT_FROZEN",
+          "status": "PASS",
+          "to_ref": "secondary_fruit_buffer",
+          "topology": "DIRECT_SHARED_EDGE",
+          "turn_count": 0
+        }
+      ],
+      "candidate_event_classes": [
+        "CHG 0/1 · FRZ 0/1 · OFF 1/1 · SEC 1/1"
+      ],
+      "critical_assembly_id": "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9",
+      "layout_family": "TAIL SEEDS",
+      "reserved_corridors_mm": [],
+      "skeleton_hash": "sha256:d87bc7a5c3a002d0e6ba1d751736efa3ffa1959c2628cc2bc87f9a10b8ece16d",
+      "truck_entrance_segment_mm": [
+        [
+          0,
+          33700
+        ],
+        [
+          0,
+          33701
+        ]
+      ],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zones": [
+        {
+          "bounds_mm": [
+            33756,
+            23650,
+            41717,
+            33700
+          ],
+          "rotation_deg": 90,
+          "zone_code": "coating_room"
+        },
+        {
+          "bounds_mm": [
+            9317,
+            33700,
+            41717,
+            52300
+          ],
+          "rotation_deg": 0,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "bounds_mm": [
+            14700,
+            0,
+            29200,
+            17300
+          ],
+          "rotation_deg": 90,
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "bounds_mm": [
+            60260,
+            0,
+            74960,
+            10050
+          ],
+          "rotation_deg": 0,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "bounds_mm": [
+            45060,
+            0,
+            60260,
+            8700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "bounds_mm": [
+            23956,
+            23650,
+            33756,
+            33700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "bounds_mm": [
+            1624,
+            33700,
+            9317,
+            40200
+          ],
+          "rotation_deg": 90,
+          "zone_code": "shipping_channel"
+        },
+        {
+          "bounds_mm": [
+            29200,
+            10050,
+            74960,
+            23650
+          ],
+          "rotation_deg": 0,
+          "zone_code": "sorting_packaging_room"
+        },
+        {
+          "bounds_mm": [
+            22875,
+            17325,
+            29200,
+            23650
+          ],
+          "candidate_module": "CHANGING_MODULE",
+          "rotation_deg": 0,
+          "seed_candidate": true,
+          "zone_code": "changing_room"
+        },
+        {
+          "bounds_mm": [
+            0,
+            0,
+            10800,
+            8200
+          ],
+          "candidate_module": "FROZEN_SUPPORT_MODULE",
+          "rotation_deg": 0,
+          "seed_candidate": true,
+          "zone_code": "frozen_fruit_room"
+        },
+        {
+          "bounds_mm": [
+            1571,
+            25954,
+            9317,
+            33700
+          ],
+          "candidate_module": "OFFICE_MODULE",
+          "rotation_deg": 0,
+          "seed_candidate": true,
+          "zone_code": "office"
+        },
+        {
+          "bounds_mm": [
+            29200,
+            1650,
+            36100,
+            10050
+          ],
+          "candidate_module": "SECONDARY_SUPPORT_MODULE",
+          "rotation_deg": 0,
+          "seed_candidate": true,
+          "zone_code": "secondary_fruit_buffer"
+        }
+      ]
+    }
+  ],
+  "main_entrance_influences_changing_enumeration": true,
+  "main_skeleton_truck_preflight_rows": [
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:05c25f9d903a495e6392f834d120c5f5ce4bddc26b9e62910fdf9a0400dd6799",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 30
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:05e22fb226cb91ab5ff4f47a08fbf99111c570272f8cb72add10ea64313286b6",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 26
+    },
+    {
+      "failure_codes": [],
+      "main_skeleton_hash": "sha256:0c8ac00c0d1a4ff189da3113414e2c52f209cd06c78b488ed760124fa4c01570",
+      "node_budget_exhausted": false,
+      "preflight_status": "PASS",
+      "search_tree_exhausted": true,
+      "visited_nodes": 3
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:0cd754a6522f044b0b95162b75908a053cc49729b108447389f37ede08f3ecf5",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 30
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:1845f779787fdf601d3d83c923333552a3443ad37a2d8facdab3fb4892cf01fd",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 30
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:258ffc43ec7b89ce00f3633084c45f6c8ae588646cefc0ba6057cf00c406cca3",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 30
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:2de04c01a418f49d8c8d367c16773d8c3b0309a072ce2ecd37e36b90ebb14f82",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 26
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:30dc85f54b3e3ca94aec8ee4b70e4603c7834d0a53d36b68eec0de94bb69035b",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 26
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:3cff0de5d9ab3aabca5388fa66048c1e09cab03c7312cdd21bf666b481c49b1d",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 30
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:40eb3cd47f5d4d87547407eea2f2ee15bc4871f5b5cf4e849ecf618a2df0adda",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 30
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:45fb4421b0ece70bc9f11ca5e7b11e8eb4c501da5b1e95483ab8f871fb3624ee",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 30
+    },
+    {
+      "failure_codes": [],
+      "main_skeleton_hash": "sha256:62bc404539c5bcd1a13fb60f79b72935fe9bea64ce11e13cfa3a6aa808ddd095",
+      "node_budget_exhausted": false,
+      "preflight_status": "PASS",
+      "search_tree_exhausted": true,
+      "visited_nodes": 3
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:65b20216d31b6fa1ff5a7a41dd5f3d5aefd249452c90680ed800f9148a4e8abb",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 30
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:7094dd8f3079b8b5a5e183d304b983b05b77af93d3d853d861dd7ca15279e228",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 30
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:73671fd7211a58dee4e861a57fd71f16e0386181342bd5a556426120381758ee",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 26
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:88639171def08d036e47307e573b0e59c33e49e668cbeef49b11d2795a28a489",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 26
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:8c51e1ab649dbe1b4c0d988044c3fbd7a6b793977e1430afe2f78ec11b2bf3a0",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 30
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:98bc981848001f8da92dbfe87a65be80363a0efffc296c421563d0a23014c894",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 30
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:b21caf8fbd45ff66cb7b2d7431f5e738a46fe02353c17aed15635d47bbe61f18",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 26
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:b62b4dd30f2b4e3b1159fe8675e8a0362ff68b3a190a55a76e0112b54f6c9c61",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 30
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:c8ea9a10f244369393349d8b23a8bd05adcacbdd610c9f3cc786575deb1f91da",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 30
+    },
+    {
+      "failure_codes": [],
+      "main_skeleton_hash": "sha256:d87bc7a5c3a002d0e6ba1d751736efa3ffa1959c2628cc2bc87f9a10b8ece16d",
+      "node_budget_exhausted": false,
+      "preflight_status": "PASS",
+      "search_tree_exhausted": true,
+      "visited_nodes": 3
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:e1f5cc0cda7b5d72c9135aa8a0bbc4e083705e646017a3b6fbf7cf8621b52577",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 30
+    },
+    {
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "main_skeleton_hash": "sha256:fd4db7f2fa00b7016d3a5e4b1ffc7c3148206336304c6e436478c41b3ea5212f",
+      "node_budget_exhausted": false,
+      "preflight_status": "REJECT",
+      "search_tree_exhausted": true,
+      "visited_nodes": 30
+    }
+  ],
+  "office_changing_rigid_relation": false,
+  "office_geometry_candidate_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 0,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 4,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 4
+  },
+  "p2d_building_footprint_outline_classes": [],
+  "p2d_gallery_rows": [],
+  "p2d_route_rows": [
+    {
+      "access_pass_count": 12,
+      "access_requirement_count": 12,
+      "canonical_candidate_hash": "sha256:c239f1a49bbe4bd2c30f4798482c8f622be346e247b49fd1b03ea6a75dad848b",
+      "geometry_key": "[[\"changing_room\",[43060,23650,75460,24885],90],[\"coating_room\",[9317,20100,15200,33700],0],[\"finished_goods_room\",[9317,33700,41717,52300],0],[\"frozen_fruit_room\",[50160,1850,60960,10050],0],[\"office\",[1571,25954,9317,33700],0],[\"packaging_material_storage\",[60960,0,75460,17300],90],[\"primary_precooling_room\",[15200,0,29900,10050],0],[\"raw_fruit_buffer\",[0,0,15200,8700],0],[\"secondary_fruit_buffer\",[41760,3150,50160,10050],0],[\"secondary_precooling_room\",[15200,23650,25000,33700],0],[\"shipping_channel\",[1624,33700,9317,40200],90],[\"sorting_packaging_room\",[15200,10050,60960,23650],0]]",
+      "layout_family": "LINEAR_3_BAND",
+      "p2_complete": true,
+      "p2d_building_footprint_outline_class": "STAIR_STEP",
+      "project_layout_validated": true,
+      "search_phase": "GENERAL_FALLBACK",
+      "skeleton_hash": null,
+      "tail_access_results": [
+        {
+          "centerline": [
+            {
+              "x": "52.01",
+              "y": "23.65"
+            },
+            {
+              "x": "52.01",
+              "y": "23.65"
+            }
+          ],
+          "codes": [],
+          "from_ref": "changing_room",
+          "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+          "route_length_m": "0",
+          "status": "PASS",
+          "to_ref": "sorting_packaging_room",
+          "topology": "DIRECT_SHARED_EDGE",
+          "turn_count": 0
+        },
+        {
+          "centerline": [
+            {
+              "x": "74.46",
+              "y": "25.525"
+            },
+            {
+              "x": "74.46",
+              "y": "25.885"
+            },
+            {
+              "x": "43.81",
+              "y": "25.885"
+            },
+            {
+              "x": "43.81",
+              "y": "24.885"
+            }
+          ],
+          "codes": [],
+          "from_ref": "main_entrance",
+          "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+          "route_length_m": "32.01",
+          "status": "PASS",
+          "to_ref": "changing_room",
+          "topology": "CORRIDOR_MEDIATED",
+          "turn_count": 2
+        },
+        {
+          "centerline": [
+            {
+              "x": "55.56",
+              "y": "10.05"
+            },
+            {
+              "x": "55.56",
+              "y": "10.05"
+            }
+          ],
+          "codes": [],
+          "from_ref": "sorting_packaging_room",
+          "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+          "route_length_m": "0",
+          "status": "PASS",
+          "to_ref": "frozen_fruit_room",
+          "topology": "DIRECT_SHARED_EDGE",
+          "turn_count": 0
+        },
+        {
+          "centerline": [
+            {
+              "x": "45.96",
+              "y": "10.05"
+            },
+            {
+              "x": "45.96",
+              "y": "10.05"
+            }
+          ],
+          "codes": [],
+          "from_ref": "sorting_packaging_room",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "route_length_m": "0",
+          "status": "PASS",
+          "to_ref": "secondary_fruit_buffer",
+          "topology": "DIRECT_SHARED_EDGE",
+          "turn_count": 0
+        }
+      ],
+      "truck_route_validated": true,
+      "zones": [
+        {
+          "bounds_mm": [
+            43060,
+            23650,
+            75460,
+            24885
+          ],
+          "rotation_deg": 90,
+          "zone_code": "changing_room"
+        },
+        {
+          "bounds_mm": [
+            9317,
+            20100,
+            15200,
+            33700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "coating_room"
+        },
+        {
+          "bounds_mm": [
+            9317,
+            33700,
+            41717,
+            52300
+          ],
+          "rotation_deg": 0,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "bounds_mm": [
+            50160,
+            1850,
+            60960,
+            10050
+          ],
+          "rotation_deg": 0,
+          "zone_code": "frozen_fruit_room"
+        },
+        {
+          "bounds_mm": [
+            1571,
+            25954,
+            9317,
+            33700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "office"
+        },
+        {
+          "bounds_mm": [
+            60960,
+            0,
+            75460,
+            17300
+          ],
+          "rotation_deg": 90,
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "bounds_mm": [
+            15200,
+            0,
+            29900,
+            10050
+          ],
+          "rotation_deg": 0,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "bounds_mm": [
+            0,
+            0,
+            15200,
+            8700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "bounds_mm": [
+            41760,
+            3150,
+            50160,
+            10050
+          ],
+          "rotation_deg": 0,
+          "zone_code": "secondary_fruit_buffer"
+        },
+        {
+          "bounds_mm": [
+            15200,
+            23650,
+            25000,
+            33700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "bounds_mm": [
+            1624,
+            33700,
+            9317,
+            40200
+          ],
+          "rotation_deg": 90,
+          "zone_code": "shipping_channel"
+        },
+        {
+          "bounds_mm": [
+            15200,
+            10050,
+            60960,
+            23650
+          ],
+          "rotation_deg": 0,
+          "zone_code": "sorting_packaging_room"
+        }
+      ]
+    },
+    {
+      "access_pass_count": 12,
+      "access_requirement_count": 12,
+      "canonical_candidate_hash": "sha256:f2d406b6345430ee2f260e20e130fd718132222ed072ae1053cbf84f2d095e56",
+      "geometry_key": "[[\"changing_room\",[43060,23650,75460,24885],90],[\"coating_room\",[9317,20100,15200,33700],0],[\"finished_goods_room\",[9317,33700,41717,52300],0],[\"frozen_fruit_room\",[50160,1850,60960,10050],0],[\"office\",[1571,25954,9317,33700],0],[\"packaging_material_storage\",[60960,0,75460,17300],90],[\"primary_precooling_room\",[15200,0,29900,10050],0],[\"raw_fruit_buffer\",[0,0,15200,8700],0],[\"secondary_fruit_buffer\",[43260,1650,50160,10050],90],[\"secondary_precooling_room\",[15200,23650,25000,33700],0],[\"shipping_channel\",[1624,33700,9317,40200],90],[\"sorting_packaging_room\",[15200,10050,60960,23650],0]]",
+      "layout_family": "LINEAR_3_BAND",
+      "p2_complete": true,
+      "p2d_building_footprint_outline_class": "STAIR_STEP",
+      "project_layout_validated": true,
+      "search_phase": "GENERAL_FALLBACK",
+      "skeleton_hash": null,
+      "tail_access_results": [
+        {
+          "centerline": [
+            {
+              "x": "52.01",
+              "y": "23.65"
+            },
+            {
+              "x": "52.01",
+              "y": "23.65"
+            }
+          ],
+          "codes": [],
+          "from_ref": "changing_room",
+          "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+          "route_length_m": "0",
+          "status": "PASS",
+          "to_ref": "sorting_packaging_room",
+          "topology": "DIRECT_SHARED_EDGE",
+          "turn_count": 0
+        },
+        {
+          "centerline": [
+            {
+              "x": "74.46",
+              "y": "25.525"
+            },
+            {
+              "x": "74.46",
+              "y": "25.885"
+            },
+            {
+              "x": "43.81",
+              "y": "25.885"
+            },
+            {
+              "x": "43.81",
+              "y": "24.885"
+            }
+          ],
+          "codes": [],
+          "from_ref": "main_entrance",
+          "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+          "route_length_m": "32.01",
+          "status": "PASS",
+          "to_ref": "changing_room",
+          "topology": "CORRIDOR_MEDIATED",
+          "turn_count": 2
+        },
+        {
+          "centerline": [
+            {
+              "x": "55.56",
+              "y": "10.05"
+            },
+            {
+              "x": "55.56",
+              "y": "10.05"
+            }
+          ],
+          "codes": [],
+          "from_ref": "sorting_packaging_room",
+          "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+          "route_length_m": "0",
+          "status": "PASS",
+          "to_ref": "frozen_fruit_room",
+          "topology": "DIRECT_SHARED_EDGE",
+          "turn_count": 0
+        },
+        {
+          "centerline": [
+            {
+              "x": "46.71",
+              "y": "10.05"
+            },
+            {
+              "x": "46.71",
+              "y": "10.05"
+            }
+          ],
+          "codes": [],
+          "from_ref": "sorting_packaging_room",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "route_length_m": "0",
+          "status": "PASS",
+          "to_ref": "secondary_fruit_buffer",
+          "topology": "DIRECT_SHARED_EDGE",
+          "turn_count": 0
+        }
+      ],
+      "truck_route_validated": true,
+      "zones": [
+        {
+          "bounds_mm": [
+            43060,
+            23650,
+            75460,
+            24885
+          ],
+          "rotation_deg": 90,
+          "zone_code": "changing_room"
+        },
+        {
+          "bounds_mm": [
+            9317,
+            20100,
+            15200,
+            33700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "coating_room"
+        },
+        {
+          "bounds_mm": [
+            9317,
+            33700,
+            41717,
+            52300
+          ],
+          "rotation_deg": 0,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "bounds_mm": [
+            50160,
+            1850,
+            60960,
+            10050
+          ],
+          "rotation_deg": 0,
+          "zone_code": "frozen_fruit_room"
+        },
+        {
+          "bounds_mm": [
+            1571,
+            25954,
+            9317,
+            33700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "office"
+        },
+        {
+          "bounds_mm": [
+            60960,
+            0,
+            75460,
+            17300
+          ],
+          "rotation_deg": 90,
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "bounds_mm": [
+            15200,
+            0,
+            29900,
+            10050
+          ],
+          "rotation_deg": 0,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "bounds_mm": [
+            0,
+            0,
+            15200,
+            8700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "bounds_mm": [
+            43260,
+            1650,
+            50160,
+            10050
+          ],
+          "rotation_deg": 90,
+          "zone_code": "secondary_fruit_buffer"
+        },
+        {
+          "bounds_mm": [
+            15200,
+            23650,
+            25000,
+            33700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "bounds_mm": [
+            1624,
+            33700,
+            9317,
+            40200
+          ],
+          "rotation_deg": 90,
+          "zone_code": "shipping_channel"
+        },
+        {
+          "bounds_mm": [
+            15200,
+            10050,
+            60960,
+            23650
+          ],
+          "rotation_deg": 0,
+          "zone_code": "sorting_packaging_room"
+        }
+      ]
+    }
+  ],
+  "personnel_access_2_of_2_pass_count": 0,
+  "personnel_raw_candidate_count": 2,
+  "placement_domain_imports_access_routing": false,
+  "placement_node_budget_exhausted_by_context": [
+    true
+  ],
+  "placement_nodes_visited_by_context": [
+    36
+  ],
+  "raw_geometry_slot_count_by_module": {
+    "CHANGING_MODULE": 2,
+    "FROZEN_SUPPORT_MODULE": 1,
+    "OFFICE_MODULE": 2,
+    "SECONDARY_SUPPORT_MODULE": 1
+  },
+  "raw_geometry_slot_count_semantics": "distinct sampled candidates encountered by exact route checks",
+  "raw_geometry_slot_occurrences_by_module": {},
+  "reserved_access_corridor_count": 0,
+  "result": "FAIL",
+  "result_semantics": "PASS requires deterministic double replay, at least five visually acceptable structured P2D full-pass candidates, and at least three layout families; determinism alone is reported separately.",
+  "sample_tail_access_witnesses": [
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "endpoint_event_class": "GENERIC_GEOMETRY_FALLBACK"
+      },
+      "critical_assembly_id": "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d",
+      "main_skeleton_hash": "sha256:0c8ac00c0d1a4ff189da3113414e2c52f209cd06c78b488ed760124fa4c01570",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          13843,
+          23650,
+          21804,
+          33700
+        ],
+        "finished_goods_room": [
+          1624,
+          33700,
+          34024,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          21804,
+          23650,
+          31604,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          26007,
+          8124,
+          33700
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 0,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "CHANGING_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "CANDIDATE_ROUTE_REJECTED",
+      "route_witness_status": "NOT_PASS",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "changing_room": [
+          22875,
+          17325,
+          29200,
+          23650
+        ]
+      }
+    },
+    {
+      "candidate_index": 2,
+      "candidate_metadata": {
+        "endpoint_event_class": "GENERIC_GEOMETRY_FALLBACK"
+      },
+      "critical_assembly_id": "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d",
+      "main_skeleton_hash": "sha256:0c8ac00c0d1a4ff189da3113414e2c52f209cd06c78b488ed760124fa4c01570",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          13843,
+          23650,
+          21804,
+          33700
+        ],
+        "finished_goods_room": [
+          1624,
+          33700,
+          34024,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          21804,
+          23650,
+          31604,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          26007,
+          8124,
+          33700
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 0,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "CHANGING_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "CANDIDATE_ROUTE_REJECTED",
+      "route_witness_status": "NOT_PASS",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "changing_room": [
+          29200,
+          3725,
+          35525,
+          10050
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "endpoint_event_class": "GENERIC_GEOMETRY_FALLBACK"
+      },
+      "critical_assembly_id": "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d",
+      "main_skeleton_hash": "sha256:0c8ac00c0d1a4ff189da3113414e2c52f209cd06c78b488ed760124fa4c01570",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          13843,
+          23650,
+          21804,
+          33700
+        ],
+        "finished_goods_room": [
+          1624,
+          33700,
+          34024,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          21804,
+          23650,
+          31604,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          26007,
+          8124,
+          33700
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 0,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "FROZEN_SUPPORT_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "CANDIDATE_ROUTE_REJECTED",
+      "route_witness_status": "NOT_PASS",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "frozen_fruit_room": [
+          0,
+          0,
+          10800,
+          8200
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "endpoint_event_class": "GENERIC_GEOMETRY_FALLBACK"
+      },
+      "critical_assembly_id": "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d",
+      "main_skeleton_hash": "sha256:0c8ac00c0d1a4ff189da3113414e2c52f209cd06c78b488ed760124fa4c01570",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          13843,
+          23650,
+          21804,
+          33700
+        ],
+        "finished_goods_room": [
+          1624,
+          33700,
+          34024,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          21804,
+          23650,
+          31604,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          26007,
+          8124,
+          33700
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 0,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "SECONDARY_SUPPORT_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "ACCESS_SEED_FOUND",
+      "route_witness_status": "PASS",
+      "route_witnesses": [
+        {
+          "access_class": "MATERIAL_LOGISTICS",
+          "canonical_hash": "sha256:08c697365ce2aa5dcf5f44cc75c23f0f0856bab36f2eb6fba1c7f66b72fd18fa",
+          "centerline": [
+            {
+              "x": "32.65",
+              "y": "10.05"
+            },
+            {
+              "x": "32.65",
+              "y": "10.05"
+            }
+          ],
+          "clear_width_m": "2.4",
+          "codes": [],
+          "corridor_allowed": true,
+          "corridor_envelope": [],
+          "direct_allowed": true,
+          "edge_alignment_verified": true,
+          "edge_orientation_requirement": null,
+          "flow_kind": "SECONDARY",
+          "from_ref": "sorting_packaging_room",
+          "intersects_truck_envelope": false,
+          "portal_from": {
+            "access_ref": "sorting_packaging_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:sorting_packaging_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "portal_required": true,
+          "portal_to": {
+            "access_ref": "secondary_fruit_buffer",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:secondary_fruit_buffer@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "requires_review": true,
+          "route_length_m": "0",
+          "route_shape": "STRAIGHT",
+          "route_shape_constraint": "NOT_FROZEN",
+          "status": "PASS",
+          "to_ref": "secondary_fruit_buffer",
+          "topology": "DIRECT_SHARED_EDGE",
+          "turn_count": 0
+        }
+      ],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "secondary_fruit_buffer": [
+          29200,
+          1650,
+          36100,
+          10050
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "endpoint_event_class": "GENERIC_GEOMETRY_FALLBACK"
+      },
+      "critical_assembly_id": "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e",
+      "main_skeleton_hash": "sha256:62bc404539c5bcd1a13fb60f79b72935fe9bea64ce11e13cfa3a6aa808ddd095",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          32563,
+          23650,
+          40524,
+          33700
+        ],
+        "finished_goods_room": [
+          8124,
+          33700,
+          40524,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          22763,
+          23650,
+          32563,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          8124,
+          41393
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 0,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "CHANGING_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "CANDIDATE_ROUTE_REJECTED",
+      "route_witness_status": "NOT_PASS",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "changing_room": [
+          22875,
+          17325,
+          29200,
+          23650
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "endpoint_event_class": "GENERIC_GEOMETRY_FALLBACK"
+      },
+      "critical_assembly_id": "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e",
+      "main_skeleton_hash": "sha256:62bc404539c5bcd1a13fb60f79b72935fe9bea64ce11e13cfa3a6aa808ddd095",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          32563,
+          23650,
+          40524,
+          33700
+        ],
+        "finished_goods_room": [
+          8124,
+          33700,
+          40524,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          22763,
+          23650,
+          32563,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          8124,
+          41393
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 0,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "FROZEN_SUPPORT_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "CANDIDATE_ROUTE_REJECTED",
+      "route_witness_status": "NOT_PASS",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "frozen_fruit_room": [
+          0,
+          0,
+          10800,
+          8200
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "endpoint_event_class": "OFFICE_SHIPPING_MUST"
+      },
+      "critical_assembly_id": "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e",
+      "main_skeleton_hash": "sha256:62bc404539c5bcd1a13fb60f79b72935fe9bea64ce11e13cfa3a6aa808ddd095",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          32563,
+          23650,
+          40524,
+          33700
+        ],
+        "finished_goods_room": [
+          8124,
+          33700,
+          40524,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          22763,
+          23650,
+          32563,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          8124,
+          41393
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 0,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "OFFICE_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "GEOMETRY_SEED_FOUND",
+      "route_witness_status": "NOT_REQUIRED",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "office": [
+          378,
+          25954,
+          8124,
+          33700
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "endpoint_event_class": "GENERIC_GEOMETRY_FALLBACK"
+      },
+      "critical_assembly_id": "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e",
+      "main_skeleton_hash": "sha256:62bc404539c5bcd1a13fb60f79b72935fe9bea64ce11e13cfa3a6aa808ddd095",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          32563,
+          23650,
+          40524,
+          33700
+        ],
+        "finished_goods_room": [
+          8124,
+          33700,
+          40524,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          22763,
+          23650,
+          32563,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          8124,
+          41393
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 0,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "SECONDARY_SUPPORT_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "ACCESS_SEED_FOUND",
+      "route_witness_status": "PASS",
+      "route_witnesses": [
+        {
+          "access_class": "MATERIAL_LOGISTICS",
+          "canonical_hash": "sha256:08c697365ce2aa5dcf5f44cc75c23f0f0856bab36f2eb6fba1c7f66b72fd18fa",
+          "centerline": [
+            {
+              "x": "32.65",
+              "y": "10.05"
+            },
+            {
+              "x": "32.65",
+              "y": "10.05"
+            }
+          ],
+          "clear_width_m": "2.4",
+          "codes": [],
+          "corridor_allowed": true,
+          "corridor_envelope": [],
+          "direct_allowed": true,
+          "edge_alignment_verified": true,
+          "edge_orientation_requirement": null,
+          "flow_kind": "SECONDARY",
+          "from_ref": "sorting_packaging_room",
+          "intersects_truck_envelope": false,
+          "portal_from": {
+            "access_ref": "sorting_packaging_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:sorting_packaging_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "portal_required": true,
+          "portal_to": {
+            "access_ref": "secondary_fruit_buffer",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:secondary_fruit_buffer@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "requires_review": true,
+          "route_length_m": "0",
+          "route_shape": "STRAIGHT",
+          "route_shape_constraint": "NOT_FROZEN",
+          "status": "PASS",
+          "to_ref": "secondary_fruit_buffer",
+          "topology": "DIRECT_SHARED_EDGE",
+          "turn_count": 0
+        }
+      ],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "secondary_fruit_buffer": [
+          29200,
+          1650,
+          36100,
+          10050
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "anchor_source": "SORTING_EDGE",
+        "direct_shared_edge_possible": true,
+        "driving_requirement_ids": [
+          "access:changing_room->sorting_packaging_room@1.0.0",
+          "access:main_entrance->changing_room@1.0.0"
+        ],
+        "endpoint_event_class": "SORTING_DIRECT"
+      },
+      "critical_assembly_id": "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9",
+      "main_skeleton_hash": "sha256:d87bc7a5c3a002d0e6ba1d751736efa3ffa1959c2628cc2bc87f9a10b8ece16d",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          33756,
+          23650,
+          41717,
+          33700
+        ],
+        "finished_goods_room": [
+          9317,
+          33700,
+          41717,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          23956,
+          23650,
+          33756,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          9317,
+          40200
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 90,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "CHANGING_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "CANDIDATE_ROUTE_REJECTED",
+      "route_witness_status": "NOT_PASS",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "changing_room": [
+          22875,
+          17325,
+          29200,
+          23650
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "anchor_source": "BAY-0004",
+        "direct_shared_edge_possible": false,
+        "driving_requirement_ids": [
+          "access:sorting_packaging_room->frozen_fruit_room@1.0.0"
+        ],
+        "endpoint_event_class": "SORTING_BAY_EDGE_MEDIATED"
+      },
+      "critical_assembly_id": "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9",
+      "main_skeleton_hash": "sha256:d87bc7a5c3a002d0e6ba1d751736efa3ffa1959c2628cc2bc87f9a10b8ece16d",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          33756,
+          23650,
+          41717,
+          33700
+        ],
+        "finished_goods_room": [
+          9317,
+          33700,
+          41717,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          23956,
+          23650,
+          33756,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          9317,
+          40200
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 90,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "FROZEN_SUPPORT_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "CANDIDATE_ROUTE_REJECTED",
+      "route_witness_status": "NOT_PASS",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "frozen_fruit_room": [
+          0,
+          0,
+          10800,
+          8200
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "endpoint_event_class": "OFFICE_SHIPPING_MUST"
+      },
+      "critical_assembly_id": "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9",
+      "main_skeleton_hash": "sha256:d87bc7a5c3a002d0e6ba1d751736efa3ffa1959c2628cc2bc87f9a10b8ece16d",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          33756,
+          23650,
+          41717,
+          33700
+        ],
+        "finished_goods_room": [
+          9317,
+          33700,
+          41717,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          23956,
+          23650,
+          33756,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          9317,
+          40200
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 90,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "OFFICE_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "GEOMETRY_SEED_FOUND",
+      "route_witness_status": "NOT_REQUIRED",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "office": [
+          1571,
+          25954,
+          9317,
+          33700
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "anchor_source": "SORTING_EDGE",
+        "direct_shared_edge_possible": true,
+        "driving_requirement_ids": [
+          "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0"
+        ],
+        "endpoint_event_class": "SORTING_DIRECT"
+      },
+      "critical_assembly_id": "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9",
+      "main_skeleton_hash": "sha256:d87bc7a5c3a002d0e6ba1d751736efa3ffa1959c2628cc2bc87f9a10b8ece16d",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          33756,
+          23650,
+          41717,
+          33700
+        ],
+        "finished_goods_room": [
+          9317,
+          33700,
+          41717,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          23956,
+          23650,
+          33756,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          9317,
+          40200
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 90,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "SECONDARY_SUPPORT_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "ACCESS_SEED_FOUND",
+      "route_witness_status": "PASS",
+      "route_witnesses": [
+        {
+          "access_class": "MATERIAL_LOGISTICS",
+          "canonical_hash": "sha256:08c697365ce2aa5dcf5f44cc75c23f0f0856bab36f2eb6fba1c7f66b72fd18fa",
+          "centerline": [
+            {
+              "x": "32.65",
+              "y": "10.05"
+            },
+            {
+              "x": "32.65",
+              "y": "10.05"
+            }
+          ],
+          "clear_width_m": "2.4",
+          "codes": [],
+          "corridor_allowed": true,
+          "corridor_envelope": [],
+          "direct_allowed": true,
+          "edge_alignment_verified": true,
+          "edge_orientation_requirement": null,
+          "flow_kind": "SECONDARY",
+          "from_ref": "sorting_packaging_room",
+          "intersects_truck_envelope": false,
+          "portal_from": {
+            "access_ref": "sorting_packaging_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:sorting_packaging_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "portal_required": true,
+          "portal_to": {
+            "access_ref": "secondary_fruit_buffer",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:secondary_fruit_buffer@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "requires_review": true,
+          "route_length_m": "0",
+          "route_shape": "STRAIGHT",
+          "route_shape_constraint": "NOT_FROZEN",
+          "status": "PASS",
+          "to_ref": "secondary_fruit_buffer",
+          "topology": "DIRECT_SHARED_EDGE",
+          "turn_count": 0
+        }
+      ],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "secondary_fruit_buffer": [
+          29200,
+          1650,
+          36100,
+          10050
+        ]
+      }
+    }
+  ],
+  "secondary_access_driven_candidate_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 15,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 17,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 20
+  },
+  "secondary_access_pass_count": 1,
+  "secondary_access_valid_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 1,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 1,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 1
+  },
+  "secondary_raw_candidate_count": 1,
+  "selected": {
+    "access_pass_count": 12,
+    "access_requirement_count": 12,
+    "canonical_result_hash": "sha256:c8f4011cd0d565e6ecd0ce636ee50586d0d1d075e51eff0d845c156f31ca9d19",
+    "p2_complete": true,
+    "project_layout_validated": true,
+    "skeleton_hash": null,
+    "svg_sha256": "sha256:007f8066b55a3bdcf2583e0e4d9c2f325e1c2c6cee4bc9aa8fb9fd4a57c109d2",
+    "truck_route_validated": true,
+    "zone_count": 12
+  },
+  "shipping_influences_office_enumeration": true,
+  "site": {
+    "boundary_mm": [
+      [
+        0,
+        0
+      ],
+      [
+        75460,
+        0
+      ],
+      [
+        75460,
+        55000
+      ],
+      [
+        0,
+        55000
+      ]
+    ],
+    "obstacles_mm": [
+      [
+        [
+          0,
+          8701
+        ],
+        [
+          14699,
+          8701
+        ],
+        [
+          14699,
+          18750
+        ],
+        [
+          0,
+          18750
+        ]
+      ],
+      [
+        [
+          41718,
+          27000
+        ],
+        [
+          74999,
+          27000
+        ],
+        [
+          74999,
+          39385
+        ],
+        [
+          41718,
+          39385
+        ]
+      ],
+      [
+        [
+          41718,
+          39386
+        ],
+        [
+          74999,
+          39386
+        ],
+        [
+          74999,
+          53886
+        ],
+        [
+          41718,
+          53886
+        ]
+      ]
+    ],
+    "truck_entrance_segment_mm": [
+      [
+        0,
+        33700
+      ],
+      [
+        0,
+        33701
+      ]
+    ]
+  },
+  "sorting_influences_changing_enumeration": true,
+  "sorting_influences_frozen_enumeration": true,
+  "sorting_influences_secondary_enumeration": true,
+  "structured_full_pass_skeleton_hashes": [],
+  "structured_p2d_attempt_count": 0,
+  "structured_p2d_full_pass_count": 0,
+  "structured_p2d_full_pass_rows": [],
+  "structured_phase_node_budgets_by_context": [
+    36
+  ],
+  "structured_phase_only": true,
+  "tail_access_aware_admission": true,
+  "tail_access_aware_image": {
+    "png": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_access_endpoint_driven_tail_seeds.png",
+    "png_sha256": "sha256:4031fbe7c48d3ba56cec9093360a0a6a9c198103d996f8b18fa35828d5520201",
+    "route_legend": {
+      "changing_room->sorting_packaging_room": "PEOPLE · 2.0 m corridor",
+      "main_entrance->changing_room": "PEOPLE · 2.0 m corridor",
+      "sorting_packaging_room->frozen_fruit_room": "FROZEN · 2.5 m corridor",
+      "sorting_packaging_room->secondary_fruit_buffer": "SECONDARY · 2.5 m corridor"
+    },
+    "svg": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_access_endpoint_driven_tail_seeds.svg"
+  },
+  "tail_access_capable_main_count": 0,
+  "tail_access_capacity_preflight_rows": [
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "endpoint_event_class": "GENERIC_GEOMETRY_FALLBACK"
+      },
+      "critical_assembly_id": "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d",
+      "main_skeleton_hash": "sha256:0c8ac00c0d1a4ff189da3113414e2c52f209cd06c78b488ed760124fa4c01570",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          13843,
+          23650,
+          21804,
+          33700
+        ],
+        "finished_goods_room": [
+          1624,
+          33700,
+          34024,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          21804,
+          23650,
+          31604,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          26007,
+          8124,
+          33700
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 0,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "CHANGING_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "CANDIDATE_ROUTE_REJECTED",
+      "route_witness_status": "NOT_PASS",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "changing_room": [
+          22875,
+          17325,
+          29200,
+          23650
+        ]
+      }
+    },
+    {
+      "candidate_index": 2,
+      "candidate_metadata": {
+        "endpoint_event_class": "GENERIC_GEOMETRY_FALLBACK"
+      },
+      "critical_assembly_id": "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d",
+      "main_skeleton_hash": "sha256:0c8ac00c0d1a4ff189da3113414e2c52f209cd06c78b488ed760124fa4c01570",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          13843,
+          23650,
+          21804,
+          33700
+        ],
+        "finished_goods_room": [
+          1624,
+          33700,
+          34024,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          21804,
+          23650,
+          31604,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          26007,
+          8124,
+          33700
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 0,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "CHANGING_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "CANDIDATE_ROUTE_REJECTED",
+      "route_witness_status": "NOT_PASS",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "changing_room": [
+          29200,
+          3725,
+          35525,
+          10050
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "endpoint_event_class": "GENERIC_GEOMETRY_FALLBACK"
+      },
+      "critical_assembly_id": "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d",
+      "main_skeleton_hash": "sha256:0c8ac00c0d1a4ff189da3113414e2c52f209cd06c78b488ed760124fa4c01570",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          13843,
+          23650,
+          21804,
+          33700
+        ],
+        "finished_goods_room": [
+          1624,
+          33700,
+          34024,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          21804,
+          23650,
+          31604,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          26007,
+          8124,
+          33700
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 0,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "FROZEN_SUPPORT_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "CANDIDATE_ROUTE_REJECTED",
+      "route_witness_status": "NOT_PASS",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "frozen_fruit_room": [
+          0,
+          0,
+          10800,
+          8200
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "endpoint_event_class": "GENERIC_GEOMETRY_FALLBACK"
+      },
+      "critical_assembly_id": "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d",
+      "main_skeleton_hash": "sha256:0c8ac00c0d1a4ff189da3113414e2c52f209cd06c78b488ed760124fa4c01570",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          13843,
+          23650,
+          21804,
+          33700
+        ],
+        "finished_goods_room": [
+          1624,
+          33700,
+          34024,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          21804,
+          23650,
+          31604,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          26007,
+          8124,
+          33700
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 0,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "SECONDARY_SUPPORT_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "ACCESS_SEED_FOUND",
+      "route_witness_status": "PASS",
+      "route_witnesses": [
+        {
+          "access_class": "MATERIAL_LOGISTICS",
+          "canonical_hash": "sha256:08c697365ce2aa5dcf5f44cc75c23f0f0856bab36f2eb6fba1c7f66b72fd18fa",
+          "centerline": [
+            {
+              "x": "32.65",
+              "y": "10.05"
+            },
+            {
+              "x": "32.65",
+              "y": "10.05"
+            }
+          ],
+          "clear_width_m": "2.4",
+          "codes": [],
+          "corridor_allowed": true,
+          "corridor_envelope": [],
+          "direct_allowed": true,
+          "edge_alignment_verified": true,
+          "edge_orientation_requirement": null,
+          "flow_kind": "SECONDARY",
+          "from_ref": "sorting_packaging_room",
+          "intersects_truck_envelope": false,
+          "portal_from": {
+            "access_ref": "sorting_packaging_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:sorting_packaging_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "portal_required": true,
+          "portal_to": {
+            "access_ref": "secondary_fruit_buffer",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:secondary_fruit_buffer@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "requires_review": true,
+          "route_length_m": "0",
+          "route_shape": "STRAIGHT",
+          "route_shape_constraint": "NOT_FROZEN",
+          "status": "PASS",
+          "to_ref": "secondary_fruit_buffer",
+          "topology": "DIRECT_SHARED_EDGE",
+          "turn_count": 0
+        }
+      ],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "secondary_fruit_buffer": [
+          29200,
+          1650,
+          36100,
+          10050
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "endpoint_event_class": "GENERIC_GEOMETRY_FALLBACK"
+      },
+      "critical_assembly_id": "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e",
+      "main_skeleton_hash": "sha256:62bc404539c5bcd1a13fb60f79b72935fe9bea64ce11e13cfa3a6aa808ddd095",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          32563,
+          23650,
+          40524,
+          33700
+        ],
+        "finished_goods_room": [
+          8124,
+          33700,
+          40524,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          22763,
+          23650,
+          32563,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          8124,
+          41393
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 0,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "CHANGING_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "CANDIDATE_ROUTE_REJECTED",
+      "route_witness_status": "NOT_PASS",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "changing_room": [
+          22875,
+          17325,
+          29200,
+          23650
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "endpoint_event_class": "GENERIC_GEOMETRY_FALLBACK"
+      },
+      "critical_assembly_id": "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e",
+      "main_skeleton_hash": "sha256:62bc404539c5bcd1a13fb60f79b72935fe9bea64ce11e13cfa3a6aa808ddd095",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          32563,
+          23650,
+          40524,
+          33700
+        ],
+        "finished_goods_room": [
+          8124,
+          33700,
+          40524,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          22763,
+          23650,
+          32563,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          8124,
+          41393
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 0,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "FROZEN_SUPPORT_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "CANDIDATE_ROUTE_REJECTED",
+      "route_witness_status": "NOT_PASS",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "frozen_fruit_room": [
+          0,
+          0,
+          10800,
+          8200
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "endpoint_event_class": "OFFICE_SHIPPING_MUST"
+      },
+      "critical_assembly_id": "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e",
+      "main_skeleton_hash": "sha256:62bc404539c5bcd1a13fb60f79b72935fe9bea64ce11e13cfa3a6aa808ddd095",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          32563,
+          23650,
+          40524,
+          33700
+        ],
+        "finished_goods_room": [
+          8124,
+          33700,
+          40524,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          22763,
+          23650,
+          32563,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          8124,
+          41393
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 0,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "OFFICE_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "GEOMETRY_SEED_FOUND",
+      "route_witness_status": "NOT_REQUIRED",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "office": [
+          378,
+          25954,
+          8124,
+          33700
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "endpoint_event_class": "GENERIC_GEOMETRY_FALLBACK"
+      },
+      "critical_assembly_id": "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e",
+      "main_skeleton_hash": "sha256:62bc404539c5bcd1a13fb60f79b72935fe9bea64ce11e13cfa3a6aa808ddd095",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          32563,
+          23650,
+          40524,
+          33700
+        ],
+        "finished_goods_room": [
+          8124,
+          33700,
+          40524,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          22763,
+          23650,
+          32563,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          8124,
+          41393
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 0,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "SECONDARY_SUPPORT_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "ACCESS_SEED_FOUND",
+      "route_witness_status": "PASS",
+      "route_witnesses": [
+        {
+          "access_class": "MATERIAL_LOGISTICS",
+          "canonical_hash": "sha256:08c697365ce2aa5dcf5f44cc75c23f0f0856bab36f2eb6fba1c7f66b72fd18fa",
+          "centerline": [
+            {
+              "x": "32.65",
+              "y": "10.05"
+            },
+            {
+              "x": "32.65",
+              "y": "10.05"
+            }
+          ],
+          "clear_width_m": "2.4",
+          "codes": [],
+          "corridor_allowed": true,
+          "corridor_envelope": [],
+          "direct_allowed": true,
+          "edge_alignment_verified": true,
+          "edge_orientation_requirement": null,
+          "flow_kind": "SECONDARY",
+          "from_ref": "sorting_packaging_room",
+          "intersects_truck_envelope": false,
+          "portal_from": {
+            "access_ref": "sorting_packaging_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:sorting_packaging_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "portal_required": true,
+          "portal_to": {
+            "access_ref": "secondary_fruit_buffer",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:secondary_fruit_buffer@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "requires_review": true,
+          "route_length_m": "0",
+          "route_shape": "STRAIGHT",
+          "route_shape_constraint": "NOT_FROZEN",
+          "status": "PASS",
+          "to_ref": "secondary_fruit_buffer",
+          "topology": "DIRECT_SHARED_EDGE",
+          "turn_count": 0
+        }
+      ],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "secondary_fruit_buffer": [
+          29200,
+          1650,
+          36100,
+          10050
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "anchor_source": "SORTING_EDGE",
+        "direct_shared_edge_possible": true,
+        "driving_requirement_ids": [
+          "access:changing_room->sorting_packaging_room@1.0.0",
+          "access:main_entrance->changing_room@1.0.0"
+        ],
+        "endpoint_event_class": "SORTING_DIRECT"
+      },
+      "critical_assembly_id": "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9",
+      "main_skeleton_hash": "sha256:d87bc7a5c3a002d0e6ba1d751736efa3ffa1959c2628cc2bc87f9a10b8ece16d",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          33756,
+          23650,
+          41717,
+          33700
+        ],
+        "finished_goods_room": [
+          9317,
+          33700,
+          41717,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          23956,
+          23650,
+          33756,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          9317,
+          40200
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 90,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "CHANGING_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "CANDIDATE_ROUTE_REJECTED",
+      "route_witness_status": "NOT_PASS",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "changing_room": [
+          22875,
+          17325,
+          29200,
+          23650
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "anchor_source": "BAY-0004",
+        "direct_shared_edge_possible": false,
+        "driving_requirement_ids": [
+          "access:sorting_packaging_room->frozen_fruit_room@1.0.0"
+        ],
+        "endpoint_event_class": "SORTING_BAY_EDGE_MEDIATED"
+      },
+      "critical_assembly_id": "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9",
+      "main_skeleton_hash": "sha256:d87bc7a5c3a002d0e6ba1d751736efa3ffa1959c2628cc2bc87f9a10b8ece16d",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          33756,
+          23650,
+          41717,
+          33700
+        ],
+        "finished_goods_room": [
+          9317,
+          33700,
+          41717,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          23956,
+          23650,
+          33756,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          9317,
+          40200
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 90,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "FROZEN_SUPPORT_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "CANDIDATE_ROUTE_REJECTED",
+      "route_witness_status": "NOT_PASS",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "frozen_fruit_room": [
+          0,
+          0,
+          10800,
+          8200
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "endpoint_event_class": "OFFICE_SHIPPING_MUST"
+      },
+      "critical_assembly_id": "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9",
+      "main_skeleton_hash": "sha256:d87bc7a5c3a002d0e6ba1d751736efa3ffa1959c2628cc2bc87f9a10b8ece16d",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          33756,
+          23650,
+          41717,
+          33700
+        ],
+        "finished_goods_room": [
+          9317,
+          33700,
+          41717,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          23956,
+          23650,
+          33756,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          9317,
+          40200
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 90,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "OFFICE_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "GEOMETRY_SEED_FOUND",
+      "route_witness_status": "NOT_REQUIRED",
+      "route_witnesses": [],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "office": [
+          1571,
+          25954,
+          9317,
+          33700
+        ]
+      }
+    },
+    {
+      "candidate_index": 1,
+      "candidate_metadata": {
+        "anchor_source": "SORTING_EDGE",
+        "direct_shared_edge_possible": true,
+        "driving_requirement_ids": [
+          "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0"
+        ],
+        "endpoint_event_class": "SORTING_DIRECT"
+      },
+      "critical_assembly_id": "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9",
+      "main_skeleton_hash": "sha256:d87bc7a5c3a002d0e6ba1d751736efa3ffa1959c2628cc2bc87f9a10b8ece16d",
+      "main_zone_bounds_mm": {
+        "coating_room": [
+          33756,
+          23650,
+          41717,
+          33700
+        ],
+        "finished_goods_room": [
+          9317,
+          33700,
+          41717,
+          52300
+        ],
+        "packaging_material_storage": [
+          14700,
+          0,
+          29200,
+          17300
+        ],
+        "primary_precooling_room": [
+          60260,
+          0,
+          74960,
+          10050
+        ],
+        "raw_fruit_buffer": [
+          45060,
+          0,
+          60260,
+          8700
+        ],
+        "secondary_precooling_room": [
+          23956,
+          23650,
+          33756,
+          33700
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          9317,
+          40200
+        ],
+        "sorting_packaging_room": [
+          29200,
+          10050,
+          74960,
+          23650
+        ]
+      },
+      "main_zone_rotation_degrees": {
+        "coating_room": 90,
+        "finished_goods_room": 0,
+        "packaging_material_storage": 90,
+        "primary_precooling_room": 0,
+        "raw_fruit_buffer": 0,
+        "secondary_precooling_room": 0,
+        "shipping_channel": 90,
+        "sorting_packaging_room": 0
+      },
+      "module_name": "SECONDARY_SUPPORT_MODULE",
+      "reserved_corridor_count": 0,
+      "reserved_corridors_mm": [],
+      "result": "ACCESS_SEED_FOUND",
+      "route_witness_status": "PASS",
+      "route_witnesses": [
+        {
+          "access_class": "MATERIAL_LOGISTICS",
+          "canonical_hash": "sha256:08c697365ce2aa5dcf5f44cc75c23f0f0856bab36f2eb6fba1c7f66b72fd18fa",
+          "centerline": [
+            {
+              "x": "32.65",
+              "y": "10.05"
+            },
+            {
+              "x": "32.65",
+              "y": "10.05"
+            }
+          ],
+          "clear_width_m": "2.4",
+          "codes": [],
+          "corridor_allowed": true,
+          "corridor_envelope": [],
+          "direct_allowed": true,
+          "edge_alignment_verified": true,
+          "edge_orientation_requirement": null,
+          "flow_kind": "SECONDARY",
+          "from_ref": "sorting_packaging_room",
+          "intersects_truck_envelope": false,
+          "portal_from": {
+            "access_ref": "sorting_packaging_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:sorting_packaging_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "portal_required": true,
+          "portal_to": {
+            "access_ref": "secondary_fruit_buffer",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:sorting_packaging_room->secondary_fruit_buffer@1.0.0:secondary_fruit_buffer@1.0.0",
+            "segment": {
+              "end": {
+                "x": "33.85",
+                "y": "10.05"
+              },
+              "start": {
+                "x": "31.45",
+                "y": "10.05"
+              }
+            },
+            "status": "VALID"
+          },
+          "profile_identity": "manual-pallet-jack-clear-envelope@1.0.0",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "requires_review": true,
+          "route_length_m": "0",
+          "route_shape": "STRAIGHT",
+          "route_shape_constraint": "NOT_FROZEN",
+          "status": "PASS",
+          "to_ref": "secondary_fruit_buffer",
+          "topology": "DIRECT_SHARED_EDGE",
+          "turn_count": 0
+        }
+      ],
+      "truck_envelopes_mm": [
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ],
+        [
+          [
+            39000,
+            2000
+          ],
+          [
+            39500,
+            2000
+          ],
+          [
+            39500,
+            9800
+          ],
+          [
+            39000,
+            9800
+          ]
+        ],
+        [
+          [
+            0,
+            33700
+          ],
+          [
+            100,
+            33700
+          ],
+          [
+            100,
+            33701
+          ],
+          [
+            0,
+            33701
+          ]
+        ]
+      ],
+      "zone_bounds_mm": {
+        "secondary_fruit_buffer": [
+          29200,
+          1650,
+          36100,
+          10050
+        ]
+      }
+    }
+  ],
+  "tail_access_capacity_status_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": "UNRESOLVED_COVERAGE",
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": "UNRESOLVED_COVERAGE",
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": "UNRESOLVED_COVERAGE"
+  },
+  "tail_access_coverage_status": "FINITE_ACCESS_SEED_COVERAGE_ONLY",
+  "tail_access_nodes_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 4,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 4,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 4
+  },
+  "tail_access_preflight_nodes_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 4,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 4,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 4
+  },
+  "tail_access_preflighted_main_count": 3,
+  "tail_access_slot_placement_budget_exhausted": true,
+  "tail_access_slot_placement_node_attempt_count": 12,
+  "tail_access_valid_candidate_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": {
+      "CHANGING_MODULE": 0,
+      "FROZEN_SUPPORT_MODULE": 0,
+      "OFFICE_MODULE": 0,
+      "SECONDARY_SUPPORT_MODULE": 1
+    },
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": {
+      "CHANGING_MODULE": 0,
+      "FROZEN_SUPPORT_MODULE": 0,
+      "OFFICE_MODULE": 1,
+      "SECONDARY_SUPPORT_MODULE": 1
+    },
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": {
+      "CHANGING_MODULE": 0,
+      "FROZEN_SUPPORT_MODULE": 0,
+      "OFFICE_MODULE": 1,
+      "SECONDARY_SUPPORT_MODULE": 1
+    }
+  },
+  "tail_candidate_space_truncated": false,
+  "tail_construction_access_witness_final_p2d_mismatch_count": 0,
+  "tail_geometry_only_admission": false,
+  "tail_route_representative_limit": 12,
+  "truck_pass_main_count": 3,
+  "truck_pass_main_hashes": [
+    "sha256:0c8ac00c0d1a4ff189da3113414e2c52f209cd06c78b488ed760124fa4c01570",
+    "sha256:62bc404539c5bcd1a13fb60f79b72935fe9bea64ce11e13cfa3a6aa808ddd095",
+    "sha256:d87bc7a5c3a002d0e6ba1d751736efa3ffa1959c2628cc2bc87f9a10b8ece16d"
+  ],
+  "visually_distinct_full_pass_candidate_count": 0
+}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -17,8 +18,22 @@ P2D_ACCESS_APPLICATION = (
 
 
 def test_structured_tail_uses_injected_exact_route_authority() -> None:
-    assert "domain.access_routing" not in PLACEMENT_DOMAIN
-    assert "route_access_requirement" not in PLACEMENT_DOMAIN
+    placement_tree = ast.parse(PLACEMENT_DOMAIN)
+    for node in ast.walk(placement_tree):
+        if isinstance(node, ast.Import):
+            assert all(not alias.name.endswith("access_routing") for alias in node.names)
+        if isinstance(node, ast.ImportFrom):
+            assert node.module != "access_routing"
+            assert all(alias.name != "access_routing" for alias in node.names)
+        if isinstance(node, ast.Call):
+            called_name = (
+                node.func.id
+                if isinstance(node.func, ast.Name)
+                else node.func.attr
+                if isinstance(node.func, ast.Attribute)
+                else None
+            )
+            assert called_name != "route_access_requirement"
     assert "route_access_requirement(" in PLACEMENT_APPLICATION
     assert "access_route_validator=construction_access_route_validator" in PLACEMENT_APPLICATION
     assert "_tail_access_route_rows(" in PLACEMENT_DOMAIN

@@ -57,7 +57,7 @@ def test_structural_search_has_group_band_zone_and_three_required_family_lanes()
     package_assembly = placement_source[
         placement_source.index(
             "def _module_main_site_assemblies_forward("
-        ) : placement_source.index("def _personnel_module_variants(")
+        ) : placement_source.index("def _single_zone_site_module_candidates(")
     ]
     assert "for anchor in anchors:" in package_assembly
     assert "_packaging_driven_sorting_roots(context, anchor, bays=bays, stats=stats)" in (
@@ -102,7 +102,7 @@ def test_packaging_anchor_drives_sorting_root_enumeration_without_new_must_edge(
     assembly = placement_source[
         placement_source.index(
             "def _module_main_site_assemblies_forward("
-        ) : placement_source.index("def _personnel_module_variants(")
+        ) : placement_source.index("def _single_zone_site_module_candidates(")
     ]
 
     assert 'edge_class == "LONG_EDGE"' in roots
@@ -162,7 +162,24 @@ def test_dock_backsolved_assembly_covers_distinct_external_interface_pairs() -> 
     assert "if yielded >= limit:" in dock_assembly
     assert "if pair_emitted:" in dock_assembly
     assert "_shipping_dock_anchor_construction_limit(" in dock_assembly
+    assert "tail_phase_node_reserve = min(" in direct_structured
+    assert "len(BASE_LAYOUT_FAMILIES)" in direct_structured
     assert "main_site_candidate_limit = context.node_budget" in direct_structured
+    assert "tail_access_capacity_round_reserve = _tail_access_capacity_round_reserve(" in (
+        direct_structured
+    )
+    assert "s1_node_ceiling = context.node_budget - tail_access_capacity_round_reserve" in (
+        direct_structured
+    )
+    assert 'stats.normal_stop_reason = "S1_NODE_CEILING_RESERVED_FOR_TAIL_ACCESS"' in (
+        direct_structured
+    )
+    assert "structured_main_node_share" not in direct_structured
+    assert "min(preflight_round_size, tail_phase_node_reserve)" in direct_structured
+    assert "2 * len(BASE_LAYOUT_FAMILIES)" in direct_structured
+    assert "_tail_access_main_identity(" in placement_source
+    assert "tail_access_capacity_attempted_candidates_by_main" in placement_source
+    assert "node_limit=tail_access_preflight_node_limit" in direct_structured
     assert "limit=main_site_candidate_limit" in direct_structured
     assert "_constructive_main_skeleton_tail_admission(" in dock_assembly
     assert "run_truck_preflight=True" in dock_assembly

@@ -3211,13 +3211,20 @@ def _module_main_site_assemblies_forward(
         yield None
 
 
-def _personnel_module_variants(
-    context: _PlacementSearchContext,
-) -> tuple[dict[str, PlacedRectangleV1], ...]:
-    return tuple(
-        row[0]
-        for row in _local_bank_compositions(context, ("office", "changing_room"), result_limit=16)
-    )
+@dataclass(frozen=True)
+class AccessDrivenTailCandidateV1:
+    """Finite S2 construction seed derived from its actual access endpoints."""
+
+    module_name: str
+    placements: tuple[tuple[str, PlacedRectangleV1], ...]
+    driving_requirement_ids: tuple[str, ...]
+    anchor_source: str
+    endpoint_event_class: str
+    direct_shared_edge_possible: bool
+    route_witness_status: str = "UNVALIDATED"
+
+    def as_placements(self) -> dict[str, PlacedRectangleV1]:
+        return dict(self.placements)
 
 
 def _single_zone_site_module_candidates(
@@ -3270,63 +3277,312 @@ def _single_zone_site_module_candidates(
     return tuple(candidates[key] for key in sorted(candidates))
 
 
-def _personnel_site_module_candidates(
+def _office_site_module_candidates(
     context: _PlacementSearchContext,
     fixed: Mapping[str, PlacedRectangleV1],
-    bays: Sequence[BuildableBayV1],
 ) -> tuple[dict[str, PlacedRectangleV1], ...]:
-    """Synthesize frozen office/changing pairs against both access endpoints.
-
-    Office is anchored to its frozen MUST shipping interface. Changing-room
-    positions are then enumerated from exact site/module events against the
-    partial geometry; the completed pair is emitted as one frozen module. This
-    lets the authoritative people-route validator order the pair by actual
-    reachability without promoting changing/sorting SHOULD adjacency to MUST.
-    """
+    """Place the office independently on its frozen shipping MUST interface."""
     shipping = fixed.get("shipping_channel")
     if shipping is None:
         return ()
     candidates: dict[tuple[tuple[str, tuple[int, ...]], ...], dict[str, PlacedRectangleV1]] = {}
-    # Preserve the existing finite row/column module grammar as one candidate
-    # source, then add two-ended site assembly for the existing shipping and
-    # personnel-access interfaces.
-    for module in _personnel_module_variants(context):
-        for transformed in _rigid_module_variants(module):
-            for side in ("WEST", "EAST", "SOUTH", "NORTH"):
-                for alignment in ("CENTER", "LOW", "HIGH"):
-                    attached = _module_attached_to_zone(
-                        transformed, "office", shipping, side, alignment
-                    )
-                    if attached is None or not _site_module_is_usable(context, attached, fixed):
-                        continue
-                    candidates.setdefault(_module_signature(attached), attached)
-
-    for office_shape in _local_dimension_shapes(context, "office"):
-        office = _local_rectangle_at("office", office_shape, 0, 0)
+    for shape in _local_dimension_shapes(context, "office"):
+        office = _local_rectangle_at("office", shape, 0, 0)
         for side in ("WEST", "EAST", "SOUTH", "NORTH"):
-            for alignment in ("CENTER", "LOW", "HIGH"):
-                office_attachment = _module_attached_to_zone(
+            for alignment in ("LOW", "CENTER", "HIGH"):
+                attached = _module_attached_to_zone(
                     {"office": office}, "office", shipping, side, alignment
                 )
-                if office_attachment is None or not _site_module_is_usable(
-                    context, office_attachment, fixed
-                ):
-                    continue
-                partial = {**fixed, **office_attachment}
-                changing_options = _single_zone_site_module_candidates(
-                    context, "changing_room", partial, bays
-                )
-                changing_representatives = _bounded_tail_candidate_representatives(
-                    context,
-                    "PERSONNEL_MODULE",
-                    changing_options,
-                    partial,
-                )
-                for changing in changing_representatives:
-                    attached = {**office_attachment, **changing}
-                    if _site_module_is_usable(context, attached, fixed):
-                        candidates.setdefault(_module_signature(attached), attached)
+                if attached is not None and _site_module_is_usable(context, attached, fixed):
+                    candidates.setdefault(_module_signature(attached), attached)
     return tuple(candidates[key] for key in sorted(candidates))
+
+
+def _tail_requirement_ids(
+    context: _PlacementSearchContext,
+    pairs: frozenset[tuple[str, str]],
+) -> tuple[str, ...]:
+    return tuple(
+        sorted(
+            str(row.get("identity"))
+            for row in context.access_requirements
+            if (str(row.get("from_ref")), str(row.get("to_ref"))) in pairs
+        )
+    )
+
+
+def _access_candidate(
+    module_name: str,
+    zone_code: str,
+    rectangle: PlacedRectangleV1,
+    requirement_ids: tuple[str, ...],
+    *,
+    anchor_source: str,
+    endpoint_event_class: str,
+    direct_shared_edge_possible: bool,
+) -> AccessDrivenTailCandidateV1:
+    return AccessDrivenTailCandidateV1(
+        module_name=module_name,
+        placements=((zone_code, rectangle),),
+        driving_requirement_ids=requirement_ids,
+        anchor_source=anchor_source,
+        endpoint_event_class=endpoint_event_class,
+        direct_shared_edge_possible=direct_shared_edge_possible,
+    )
+
+
+def _access_driven_tail_candidates(
+    context: _PlacementSearchContext,
+    module_name: str,
+    zone_code: str,
+    fixed: Mapping[str, PlacedRectangleV1],
+    bays: Sequence[BuildableBayV1],
+) -> tuple[AccessDrivenTailCandidateV1, ...]:
+    """Build finite S2 seeds from the module's frozen route endpoints.
+
+    Event coordinates come only from authoritative room dimensions, endpoint
+    edges, entrance endpoints, buildable-bay boundaries and the 2.0/2.5 m
+    clearance offsets. Exact route feasibility remains the injected authority.
+    """
+    sorting = fixed.get("sorting_packaging_room")
+    if sorting is None:
+        return ()
+    if zone_code == "changing_room":
+        pairs = frozenset(
+            {
+                ("main_entrance", "changing_room"),
+                ("changing_room", "sorting_packaging_room"),
+            }
+        )
+        module_clearance_mm = 2_000
+        module_name = "CHANGING_MODULE"
+    elif zone_code == "secondary_fruit_buffer":
+        pairs = frozenset({("sorting_packaging_room", "secondary_fruit_buffer")})
+        module_clearance_mm = 2_500
+        module_name = "SECONDARY_SUPPORT_MODULE"
+    elif zone_code == "frozen_fruit_room":
+        pairs = frozenset({("sorting_packaging_room", "frozen_fruit_room")})
+        module_clearance_mm = 2_500
+        module_name = "FROZEN_SUPPORT_MODULE"
+    else:
+        return ()
+    requirement_ids = _tail_requirement_ids(context, pairs)
+    seeds: dict[tuple[tuple[str, tuple[int, ...]], ...], AccessDrivenTailCandidateV1] = {}
+    shapes = _local_dimension_shapes(context, zone_code)
+    alignments = ("LOW", "CENTER", "HIGH")
+    (entrance_start, entrance_end) = context.main_entrance
+    entrance_low, entrance_high = sorted(
+        (entrance_start[1], entrance_end[1])
+        if entrance_start[0] == entrance_end[0]
+        else (entrance_start[0], entrance_end[0])
+    )
+    sort_left, sort_bottom, sort_right, sort_top = sorting.bounds_mm
+    sorting_center = ((sort_left + sort_right) // 2, (sort_bottom + sort_top) // 2)
+
+    def add(
+        rectangle: PlacedRectangleV1,
+        *,
+        source: str,
+        event_class: str,
+    ) -> None:
+        module = {zone_code: rectangle}
+        if not _site_module_is_usable(context, module, fixed):
+            return
+        signature = _module_signature(module)
+        seeds.setdefault(
+            signature,
+            _access_candidate(
+                module_name,
+                zone_code,
+                rectangle,
+                requirement_ids,
+                anchor_source=source,
+                endpoint_event_class=event_class,
+                direct_shared_edge_possible=(
+                    _adjacent_side(sorting, rectangle) is not None
+                    or (
+                        zone_code == "changing_room"
+                        and _rectangle_shares_entrance_boundary(rectangle, context.main_entrance)
+                    )
+                ),
+            ),
+        )
+
+    # Direct sorting-edge candidates are authoritative endpoint events, not
+    # a new MUST relation. The exact route validator decides admission.
+    for shape in shapes:
+        x_span, y_span = shape[3], shape[4]
+        for side in ("WEST", "EAST", "SOUTH", "NORTH"):
+            for alignment in alignments:
+                x_mm, y_mm = _local_adjacent_origin(sorting, x_span, y_span, side, alignment)
+                add(
+                    _local_rectangle_at(zone_code, shape, x_mm, y_mm),
+                    source="SORTING_EDGE",
+                    event_class="SORTING_DIRECT",
+                )
+            # Exact start/end alignment is retained as its own construction
+            # class even when it coincides geometrically with LOW/HIGH.
+            for alignment in ("LOW", "HIGH"):
+                x_mm, y_mm = _local_adjacent_origin(sorting, x_span, y_span, side, alignment)
+                add(
+                    _local_rectangle_at(zone_code, shape, x_mm, y_mm),
+                    source="SORTING_EDGE",
+                    event_class=(
+                        "SORTING_DIRECT_EDGE_START"
+                        if alignment == "LOW"
+                        else "SORTING_DIRECT_EDGE_END"
+                    ),
+                )
+
+            # Clearance-width offsets are exact construction seeds. They do
+            # not assert a route; route_access_requirement remains decisive.
+            for alignment in alignments:
+                x_mm, y_mm = _local_adjacent_origin(sorting, x_span, y_span, side, alignment)
+                if side == "WEST":
+                    x_mm -= module_clearance_mm
+                elif side == "EAST":
+                    x_mm += module_clearance_mm
+                elif side == "SOUTH":
+                    y_mm -= module_clearance_mm
+                else:
+                    y_mm += module_clearance_mm
+                add(
+                    _local_rectangle_at(zone_code, shape, x_mm, y_mm),
+                    source="SORTING_EDGE_PLUS_AUTHORIZED_CLEARANCE_EVENT",
+                    event_class="CORRIDOR_MEDIATED",
+                )
+
+        # Bay-edge mediated candidates reuse the sorting tangential event and
+        # one real bay edge; no arbitrary site-coordinate sweep is introduced.
+        for bay in bays:
+            left, bottom, right, top = bay.bounds_mm
+            for y_mm in sorted({bottom, top - y_span, sort_bottom, sort_top - y_span}):
+                for x_mm in (left, right - x_span):
+                    add(
+                        _local_rectangle_at(zone_code, shape, x_mm, y_mm),
+                        source=bay.bay_id,
+                        event_class="SORTING_BAY_EDGE_MEDIATED",
+                    )
+        for obstacle_index, obstacle in enumerate(context.obstacles):
+            obs_left = min(point[0] for point in obstacle)
+            obs_bottom = min(point[1] for point in obstacle)
+            obs_right = max(point[0] for point in obstacle)
+            obs_top = max(point[1] for point in obstacle)
+            obstacle_x_origins = (obs_left - x_span - GRID_MM, obs_right + GRID_MM)
+            obstacle_y_origins = (obs_bottom - y_span - GRID_MM, obs_top + GRID_MM)
+            sorting_y_origins = (
+                sort_bottom,
+                (sort_bottom + sort_top - y_span) // 2,
+                sort_top - y_span,
+            )
+            for x_mm in obstacle_x_origins:
+                for y_mm in sorting_y_origins:
+                    add(
+                        _local_rectangle_at(zone_code, shape, x_mm, y_mm),
+                        source=f"OBSTACLE-{obstacle_index + 1}",
+                        event_class="SORTING_OBSTACLE_EDGE_MEDIATED",
+                    )
+            sorting_x_origins = (
+                sort_left,
+                (sort_left + sort_right - x_span) // 2,
+                sort_right - x_span,
+            )
+            for y_mm in obstacle_y_origins:
+                for x_mm in sorting_x_origins:
+                    add(
+                        _local_rectangle_at(zone_code, shape, x_mm, y_mm),
+                        source=f"OBSTACLE-{obstacle_index + 1}",
+                        event_class="SORTING_OBSTACLE_EDGE_MEDIATED",
+                    )
+        for bay in bays:
+            left, bottom, right, top = bay.bounds_mm
+            for x_mm in sorted({left, right - x_span, sort_left, sort_right - x_span}):
+                for y_mm in (bottom, top - y_span):
+                    add(
+                        _local_rectangle_at(zone_code, shape, x_mm, y_mm),
+                        source=bay.bay_id,
+                        event_class="SORTING_BAY_EDGE_MEDIATED",
+                    )
+
+        if zone_code == "changing_room":
+            # Entrance-direct placements use the actual entrance segment and
+            # legal room projection, independently of office geometry.
+            entrance_x = entrance_start[0]
+            if entrance_x == entrance_end[0]:
+                for x_mm in (entrance_x, entrance_x - x_span):
+                    for alignment in alignments:
+                        y_mm = (
+                            entrance_low
+                            if alignment == "LOW"
+                            else entrance_high - y_span
+                            if alignment == "HIGH"
+                            else entrance_low + (entrance_high - entrance_low - y_span) // 2
+                        )
+                        add(
+                            _local_rectangle_at(zone_code, shape, x_mm, y_mm),
+                            source="MAIN_ENTRANCE_SEGMENT",
+                            event_class="ENTRANCE_DIRECT",
+                        )
+            else:
+                entrance_y = entrance_start[1]
+                for y_mm in (entrance_y, entrance_y - y_span):
+                    for alignment in alignments:
+                        x_mm = (
+                            entrance_low
+                            if alignment == "LOW"
+                            else entrance_high - x_span
+                            if alignment == "HIGH"
+                            else entrance_low + (entrance_high - entrance_low - x_span) // 2
+                        )
+                        add(
+                            _local_rectangle_at(zone_code, shape, x_mm, y_mm),
+                            source="MAIN_ENTRANCE_SEGMENT",
+                            event_class="ENTRANCE_DIRECT",
+                        )
+
+            # Bridge centers are exact rational interpolants of the two
+            # endpoint events, rounded down to the existing integer-mm grid.
+            entrance_point = (
+                (entrance_start[0] + entrance_end[0]) // 2,
+                (entrance_start[1] + entrance_end[1]) // 2,
+            )
+            for numerator in (1, 2, 3):
+                center_x = (
+                    entrance_point[0] * (4 - numerator) + sorting_center[0] * numerator
+                ) // 4
+                center_y = (
+                    entrance_point[1] * (4 - numerator) + sorting_center[1] * numerator
+                ) // 4
+                add(
+                    _local_rectangle_at(
+                        zone_code,
+                        shape,
+                        center_x - x_span // 2,
+                        center_y - y_span // 2,
+                    ),
+                    source="MAIN_ENTRANCE_AND_SORTING_ENDPOINTS",
+                    event_class="ENTRANCE_SORTING_BRIDGE",
+                )
+    return tuple(
+        seeds[key]
+        for key in sorted(
+            seeds,
+            key=lambda signature: (
+                {
+                    # The bridge is the only event family explicitly derived
+                    # from both live endpoints; probe it before single-endpoint
+                    # placements, while leaving final admission to the route
+                    # authority.
+                    "ENTRANCE_SORTING_BRIDGE": 0,
+                    "ENTRANCE_DIRECT": 1,
+                    "SORTING_DIRECT": 2,
+                    "CORRIDOR_MEDIATED": 3,
+                    "SORTING_BAY_EDGE_MEDIATED": 4,
+                }.get(seeds[signature].endpoint_event_class, 5),
+                signature,
+            ),
+        )
+    )
 
 
 @dataclass(frozen=True)
@@ -3342,7 +3598,7 @@ _S2_ACCESS_ENDPOINTS: Final = (
     ("sorting_packaging_room", "frozen_fruit_room"),
 )
 _S2_MODULE_ACCESS_PAIRS: Final = {
-    "PERSONNEL_MODULE": frozenset(
+    "CHANGING_MODULE": frozenset(
         {
             ("main_entrance", "changing_room"),
             ("changing_room", "sorting_packaging_room"),
@@ -3351,6 +3607,308 @@ _S2_MODULE_ACCESS_PAIRS: Final = {
     "SECONDARY_SUPPORT_MODULE": frozenset({("sorting_packaging_room", "secondary_fruit_buffer")}),
     "FROZEN_SUPPORT_MODULE": frozenset({("sorting_packaging_room", "frozen_fruit_room")}),
 }
+
+_S2_TAIL_MODULES: Final = (
+    "CHANGING_MODULE",
+    "SECONDARY_SUPPORT_MODULE",
+    "FROZEN_SUPPORT_MODULE",
+    "OFFICE_MODULE",
+)
+
+
+def _tail_access_capacity_round_reserve(node_budget: int) -> int:
+    """Reserve one finite tail-capacity round without enlarging placement budget."""
+    return min(
+        max(0, node_budget // 3),
+        len(_S2_TAIL_MODULES) * len(BASE_LAYOUT_FAMILIES),
+    )
+
+
+def _tail_access_main_identity(
+    main_skeleton_hash: str | None,
+    main: Mapping[str, PlacedRectangleV1],
+) -> str:
+    """Identify the full 8-zone critical assembly, not only its 7-zone hash."""
+    return canonical_hash(
+        {
+            "main_process_skeleton_hash": main_skeleton_hash,
+            "critical_assembly": _module_signature(main),
+        }
+    )
+
+
+def _tail_access_capacity_preflight(
+    context: _PlacementSearchContext,
+    main_rows: Sequence[tuple[str, Mapping[str, PlacedRectangleV1]]],
+    bays: Sequence[BuildableBayV1],
+    stats: _PlacementSearchStats,
+    *,
+    node_limit: int | None = None,
+) -> Iterator[dict[str, str] | _SearchQuantumYield]:
+    """Give each truck-pass main a round-robin exact access-seed check."""
+    domains: dict[tuple[str, str], tuple[dict[str, PlacedRectangleV1], ...]] = {}
+    main_by_identity: dict[str, Mapping[str, PlacedRectangleV1]] = {}
+    skeleton_hash_by_identity: dict[str, str] = {}
+    truck_envelopes_by_identity: dict[str, tuple[PolygonMM, ...]] = {}
+    cursors: dict[tuple[str, str], int] = {}
+    found: dict[tuple[str, str], bool] = {}
+    requirements = _tail_access_requirement_rows(context)
+    if requirements is None:
+        yield {skeleton_hash: "UNRESOLVED_AUTHORITY_INPUT" for skeleton_hash, _ in main_rows}
+        return
+
+    for skeleton_hash, main in main_rows:
+        main_identity = _tail_access_main_identity(skeleton_hash, main)
+        main_by_identity[main_identity] = main
+        skeleton_hash_by_identity[main_identity] = skeleton_hash
+        fixed = dict(main)
+        reserved_spaces = (stats.reserved_construction_space_by_critical_signature or {}).get(
+            repr(_module_signature(fixed)), ()
+        )
+        truck_envelopes = (stats.reserved_truck_envelopes_by_critical_signature or {}).get(
+            repr(_module_signature(fixed)), ()
+        )
+        truck_envelopes_by_identity[main_identity] = truck_envelopes
+        changing_candidates = _access_driven_tail_candidates(
+            context, "CHANGING_MODULE", "changing_room", fixed, bays
+        )
+        secondary_candidates = _access_driven_tail_candidates(
+            context,
+            "SECONDARY_SUPPORT_MODULE",
+            "secondary_fruit_buffer",
+            fixed,
+            bays,
+        )
+        frozen_candidates = _access_driven_tail_candidates(
+            context, "FROZEN_SUPPORT_MODULE", "frozen_fruit_room", fixed, bays
+        )
+        module_options: dict[str, tuple[dict[str, PlacedRectangleV1], ...]] = {
+            "CHANGING_MODULE": tuple(row.as_placements() for row in changing_candidates),
+            "SECONDARY_SUPPORT_MODULE": tuple(row.as_placements() for row in secondary_candidates),
+            "FROZEN_SUPPORT_MODULE": tuple(row.as_placements() for row in frozen_candidates),
+            "OFFICE_MODULE": _office_site_module_candidates(context, fixed),
+        }
+        candidate_metadata = {
+            (main_identity, row.module_name, _module_signature(row.as_placements())): row
+            for row in (*changing_candidates, *secondary_candidates, *frozen_candidates)
+        }
+        filtered = {
+            module_name: tuple(
+                candidate
+                for candidate in candidates
+                if not any(
+                    rectangles_overlap(reserved, rectangle)
+                    for reserved in reserved_spaces
+                    for rectangle in candidate.values()
+                )
+                and not any(
+                    rectangle_intersects_closed_obstacle(rectangle, envelope)
+                    for envelope in truck_envelopes
+                    for rectangle in candidate.values()
+                )
+            )
+            for module_name, candidates in module_options.items()
+        }
+        if stats.tail_access_capacity_seed_counts_by_main is None:
+            stats.tail_access_capacity_seed_counts_by_main = {}
+        seed_counts = stats.tail_access_capacity_seed_counts_by_main.setdefault(
+            main_identity, {module_name: 0 for module_name in _S2_TAIL_MODULES}
+        )
+        valid_counts = stats.tail_access_valid_candidate_counts_by_main
+        if valid_counts is None:
+            valid_counts = {}
+            stats.tail_access_valid_candidate_counts_by_main = valid_counts
+        valid_counts.setdefault(main_identity, {module_name: 0 for module_name in _S2_TAIL_MODULES})
+        attempted_by_main = stats.tail_access_capacity_attempted_candidates_by_main
+        if attempted_by_main is None:
+            attempted_by_main = {}
+            stats.tail_access_capacity_attempted_candidates_by_main = attempted_by_main
+        attempted_candidates = attempted_by_main.setdefault(main_identity, set())
+        if stats.tail_access_driven_candidate_counts_by_main is None:
+            stats.tail_access_driven_candidate_counts_by_main = {}
+        stats.tail_access_driven_candidate_counts_by_main[main_identity] = {
+            module_name: len(filtered[module_name]) for module_name in _S2_TAIL_MODULES
+        }
+        if stats.tail_office_geometry_candidate_counts_by_main is None:
+            stats.tail_office_geometry_candidate_counts_by_main = {}
+        stats.tail_office_geometry_candidate_counts_by_main[main_identity] = len(
+            filtered["OFFICE_MODULE"]
+        )
+        for module_name in _S2_TAIL_MODULES:
+            key = (main_identity, module_name)
+            domains[key] = tuple(
+                candidate
+                for candidate in filtered[module_name]
+                if (module_name, _module_signature(candidate)) not in attempted_candidates
+            )
+            cursors[key] = 0
+            found[key] = seed_counts.get(module_name, 0) > 0
+
+    if stats.tail_access_capacity_preflight_nodes_by_main is None:
+        stats.tail_access_capacity_preflight_nodes_by_main = {}
+    if stats.tail_access_capacity_status_by_main is None:
+        stats.tail_access_capacity_status_by_main = {}
+    if stats.tail_access_capacity_preflight_rows is None:
+        stats.tail_access_capacity_preflight_rows = []
+    capacity_seed_counts_by_main = stats.tail_access_capacity_seed_counts_by_main
+    access_valid_counts_by_main = stats.tail_access_valid_candidate_counts_by_main
+    assert capacity_seed_counts_by_main is not None
+    assert access_valid_counts_by_main is not None
+
+    preflight_nodes = 0
+    probe_order = tuple(
+        (main_identity, module_name)
+        for skeleton_hash, main in main_rows
+        for main_identity in (_tail_access_main_identity(skeleton_hash, main),)
+        for module_name in _S2_TAIL_MODULES
+    )
+    pending = True
+    while (
+        pending
+        and not stats.node_budget_exhausted
+        and (node_limit is None or preflight_nodes < node_limit)
+    ):
+        pending = False
+        # Complete one whole main-by-module round before any main gets a
+        # second geometry.  This prevents an early main from consuming the
+        # shared S2 allocation before its Truck-pass peers are checked.
+        for main_identity, module_name in probe_order:
+            key = (main_identity, module_name)
+            if found[key] or cursors[key] >= len(domains[key]):
+                continue
+            pending = True
+            candidate_index = cursors[key] + 1
+            candidate = domains[key][cursors[key]]
+            cursors[key] += 1
+            if not _charge_tail_access_slot_node(
+                context,
+                stats,
+                module_name=module_name,
+                candidate_index=candidate_index,
+                skeleton_hash=main_identity,
+            ):
+                break
+            preflight_nodes += 1
+            stats.tail_access_capacity_preflight_nodes_by_main[main_identity] = (
+                stats.tail_access_capacity_preflight_nodes_by_main.get(main_identity, 0) + 1
+            )
+            quantum = _quantum_checkpoint(stats)
+            if quantum is not None:
+                yield quantum
+            _record_tail_module_slot(stats, module_name, candidate, access_valid=False)
+            extended = {**main_by_identity[main_identity], **candidate}
+            if module_name == "OFFICE_MODULE":
+                valid = True
+                route_results: tuple[Mapping[str, Any], ...] = ()
+                corridors: tuple[PolygonMM, ...] = ()
+            else:
+                routed = _tail_access_route_rows(
+                    context,
+                    extended,
+                    requirements,
+                    module_name=module_name,
+                    stats=stats,
+                    requirement_pairs=_S2_MODULE_ACCESS_PAIRS[module_name],
+                )
+                valid = routed is not None
+                route_results, corridors = routed if routed is not None else ((), ())
+            if valid:
+                found[key] = True
+                capacity_seed_counts_by_main[main_identity][module_name] = 1
+                access_valid_counts_by_main[main_identity][module_name] += 1
+                _record_tail_module_slot(stats, module_name, candidate, access_valid=True)
+                if module_name != "OFFICE_MODULE":
+                    if stats.tail_access_capacity_route_cache is None:
+                        stats.tail_access_capacity_route_cache = {}
+                    stats.tail_access_capacity_route_cache[
+                        (main_identity, module_name, _module_signature(candidate))
+                    ] = (route_results, corridors)
+            if stats.tail_access_capacity_attempted_candidates_by_main is None:
+                stats.tail_access_capacity_attempted_candidates_by_main = {}
+            stats.tail_access_capacity_attempted_candidates_by_main.setdefault(
+                main_identity, set()
+            ).add((module_name, _module_signature(candidate)))
+            candidate_signature = _module_signature(candidate)
+            metadata = candidate_metadata.get((main_identity, module_name, candidate_signature))
+            stats.tail_access_capacity_preflight_rows.append(
+                {
+                    "main_skeleton_hash": skeleton_hash_by_identity[main_identity],
+                    "critical_assembly_id": main_identity,
+                    "module_name": module_name,
+                    "candidate_index": candidate_index,
+                    "result": (
+                        "GEOMETRY_SEED_FOUND"
+                        if valid and module_name == "OFFICE_MODULE"
+                        else "ACCESS_SEED_FOUND"
+                        if valid
+                        else "CANDIDATE_ROUTE_REJECTED"
+                    ),
+                    "route_witness_status": (
+                        "NOT_REQUIRED"
+                        if module_name == "OFFICE_MODULE"
+                        else "PASS"
+                        if valid
+                        else "NOT_PASS"
+                    ),
+                    "zone_bounds_mm": {
+                        code: list(rectangle.bounds_mm)
+                        for code, rectangle in sorted(candidate.items())
+                    },
+                    "main_zone_bounds_mm": {
+                        code: list(rectangle.bounds_mm)
+                        for code, rectangle in sorted(main_by_identity[main_identity].items())
+                    },
+                    "main_zone_rotation_degrees": {
+                        code: rectangle.rotation_deg
+                        for code, rectangle in sorted(main_by_identity[main_identity].items())
+                    },
+                    "truck_envelopes_mm": [
+                        [list(point) for point in polygon]
+                        for polygon in truck_envelopes_by_identity[main_identity]
+                    ],
+                    "candidate_metadata": (
+                        {
+                            "driving_requirement_ids": list(metadata.driving_requirement_ids),
+                            "anchor_source": metadata.anchor_source,
+                            "endpoint_event_class": metadata.endpoint_event_class,
+                            "direct_shared_edge_possible": metadata.direct_shared_edge_possible,
+                        }
+                        if metadata is not None
+                        else {
+                            "endpoint_event_class": (
+                                "OFFICE_SHIPPING_MUST"
+                                if module_name == "OFFICE_MODULE"
+                                else "GENERIC_GEOMETRY_FALLBACK"
+                            )
+                        }
+                    ),
+                    "route_witnesses": [dict(row) for row in route_results],
+                    "reserved_corridors_mm": [
+                        [list(point) for point in polygon] for polygon in corridors
+                    ],
+                    "reserved_corridor_count": len(corridors),
+                }
+            )
+            if stats.node_budget_exhausted:
+                break
+
+    statuses: dict[str, str] = {}
+    for skeleton_hash, main in main_rows:
+        main_identity = _tail_access_main_identity(skeleton_hash, main)
+        counts = capacity_seed_counts_by_main[main_identity]
+        if all(counts[module_name] > 0 for module_name in _S2_TAIL_MODULES):
+            status = "TAIL_ACCESS_CAPABLE_MAIN"
+        elif stats.node_budget_exhausted or any(
+            cursors[(main_identity, module_name)] < len(domains[(main_identity, module_name)])
+            for module_name in _S2_TAIL_MODULES
+            if not found[(main_identity, module_name)]
+        ):
+            status = "UNRESOLVED_COVERAGE"
+        else:
+            status = "NO_ACCESS_DRIVEN_SEED_IN_GENERATED_FINITE_SET"
+        statuses[main_identity] = status
+        stats.tail_access_capacity_status_by_main[main_identity] = status
+    yield statuses
 
 
 def _rectangle_interiors_overlap_orthogonal_polygon(
@@ -3504,7 +4062,7 @@ def _record_tail_module_slot(
             geometry_key
         )
     specific = {
-        "PERSONNEL_MODULE": (
+        "CHANGING_MODULE": (
             "personnel_raw_candidate_signatures",
             "personnel_access_valid_signatures",
         ),
@@ -3579,12 +4137,12 @@ def _tail_candidate_geometry_order_key(
         distance = dx * dx + dy * dy
     entrance_distance = (
         _rectangle_distance_squared_to_entrance(target, context.main_entrance)
-        if module_name == "PERSONNEL_MODULE"
+        if module_name == "CHANGING_MODULE"
         else 0
     )
     return (
         relation_class[0],
-        entrance_distance if module_name == "PERSONNEL_MODULE" else distance,
+        entrance_distance if module_name == "CHANGING_MODULE" else distance,
         relation_class[1],
         relation_class[2],
         -_module_axis_reuse_count(candidate, fixed),
@@ -3698,6 +4256,11 @@ def _charge_tail_access_slot_node(
     stats.visited_nodes += 1
     stats.construction_node_count += 1
     stats.tail_access_slot_attempt_count += 1
+    if stats.tail_access_slot_nodes_by_main is None:
+        stats.tail_access_slot_nodes_by_main = {}
+    stats.tail_access_slot_nodes_by_main[skeleton_hash] = (
+        stats.tail_access_slot_nodes_by_main.get(skeleton_hash, 0) + 1
+    )
     stats.current_work_item = {
         "topology": context.structural_topology,
         "layout_family": (
@@ -3853,7 +4416,7 @@ def _tail_access_route_rows(
                 stats.reserved_access_corridor_geometries.add(key)
     if (
         stats is not None
-        and module_name == "PERSONNEL_MODULE"
+        and module_name == "CHANGING_MODULE"
         and {
             ("main_entrance", "changing_room"),
             ("changing_room", "sorting_packaging_room"),
@@ -3951,7 +4514,7 @@ def _tail_module_option_order_key(
     entrance_length = 0
     people_turns = 0
     people_truck_intersections = 0
-    if module_name == "PERSONNEL_MODULE":
+    if module_name == "CHANGING_MODULE":
         changing_sorting = by_pair.get(("changing_room", "sorting_packaging_room"), {})
         personnel_direct_rank = 0 if changing_sorting.get("topology") == "DIRECT_SHARED_EDGE" else 1
         entrance_length = _route_length_mm(by_pair.get(("main_entrance", "changing_room"), {}))
@@ -3967,7 +4530,7 @@ def _tail_module_option_order_key(
         )
     return (
         personnel_direct_rank,
-        entrance_length,
+        entrance_length if module_name == "CHANGING_MODULE" else 0,
         people_turns,
         people_truck_intersections,
         -_module_axis_reuse_count(candidate, fixed),
@@ -3982,13 +4545,16 @@ def _module_full_site_assemblies(
     *,
     limit: int,
     stats: _PlacementSearchStats | None = None,
+    main_skeleton_hash: str | None = None,
+    node_limit: int | None = None,
 ) -> Iterator[dict[str, PlacedRectangleV1] | _SearchQuantumYield | None]:
     """Complete four independent tail modules by deterministic fail-first slots.
 
     Packaging is already part of ``main`` and is never reassembled as support.
-    Office/changing remains one frozen module; the two branch-storage rooms are
-    independent semantic modules. At every partial state the legal finite
-    candidate counts are recomputed, and the smallest positive domain is chosen.
+    Office and changing are independent modules; branch-storage rooms are
+    independent semantic modules. Endpoint-driven domains are evaluated before
+    the generic geometric fallback, and the smallest positive access-valid
+    domain is selected at every partial state.
     """
     if limit <= 0:
         return
@@ -3998,6 +4564,8 @@ def _module_full_site_assemblies(
         return
 
     critical_signature = repr(_module_signature(main))
+    main_identity = _tail_access_main_identity(main_skeleton_hash, main)
+    tail_nodes_at_start = stats.tail_access_slot_attempt_count if stats is not None else 0
     reserved_spaces = (
         (stats.reserved_construction_space_by_critical_signature or {}).get(critical_signature, ())
         if stats is not None
@@ -4011,12 +4579,14 @@ def _module_full_site_assemblies(
     yielded = 0
     tail_codes = {"secondary_fruit_buffer", "frozen_fruit_room", "office", "changing_room"}
     module_codes = {
-        "PERSONNEL_MODULE": {"office", "changing_room"},
+        "OFFICE_MODULE": {"office"},
+        "CHANGING_MODULE": {"changing_room"},
         "SECONDARY_SUPPORT_MODULE": {"secondary_fruit_buffer"},
         "FROZEN_SUPPORT_MODULE": {"frozen_fruit_room"},
     }
     last_raw_option_counts: dict[str, int] = {}
     last_access_probe_counts: dict[str, int] = {}
+    last_access_domain_exact: dict[str, bool] = {}
 
     requirements = _tail_access_requirement_rows(context)
     if requirements is None:
@@ -4036,17 +4606,32 @@ def _module_full_site_assemblies(
         reserved_corridors: Sequence[PolygonMM],
     ) -> Iterator[dict[str, tuple[_TailModuleOption, ...]] | _SearchQuantumYield]:
         raw_options: dict[str, tuple[dict[str, PlacedRectangleV1], ...]] = {}
-        if not module_codes["PERSONNEL_MODULE"].issubset(fixed):
-            raw_options["PERSONNEL_MODULE"] = _personnel_site_module_candidates(
-                context, fixed, bays
+        if not module_codes["OFFICE_MODULE"].issubset(fixed):
+            raw_options["OFFICE_MODULE"] = _office_site_module_candidates(context, fixed)
+        if not module_codes["CHANGING_MODULE"].issubset(fixed):
+            raw_options["CHANGING_MODULE"] = tuple(
+                candidate.as_placements()
+                for candidate in _access_driven_tail_candidates(
+                    context, "CHANGING_MODULE", "changing_room", fixed, bays
+                )
             )
         if "secondary_fruit_buffer" not in fixed:
-            raw_options["SECONDARY_SUPPORT_MODULE"] = _single_zone_site_module_candidates(
-                context, "secondary_fruit_buffer", fixed, bays
+            raw_options["SECONDARY_SUPPORT_MODULE"] = tuple(
+                candidate.as_placements()
+                for candidate in _access_driven_tail_candidates(
+                    context,
+                    "SECONDARY_SUPPORT_MODULE",
+                    "secondary_fruit_buffer",
+                    fixed,
+                    bays,
+                )
             )
         if "frozen_fruit_room" not in fixed:
-            raw_options["FROZEN_SUPPORT_MODULE"] = _single_zone_site_module_candidates(
-                context, "frozen_fruit_room", fixed, bays
+            raw_options["FROZEN_SUPPORT_MODULE"] = tuple(
+                candidate.as_placements()
+                for candidate in _access_driven_tail_candidates(
+                    context, "FROZEN_SUPPORT_MODULE", "frozen_fruit_room", fixed, bays
+                )
             )
         if reserved_spaces:
             raw_options = {
@@ -4079,15 +4664,12 @@ def _module_full_site_assemblies(
         last_raw_option_counts.update(raw_option_counts)
         last_access_probe_counts.clear()
         last_access_probe_counts.update({name: 0 for name in raw_options})
-        sampled_options = {
-            name: _bounded_tail_candidate_representatives(
-                context,
-                name,
-                candidates,
-                fixed,
-            )
-            for name, candidates in raw_options.items()
-        }
+        last_access_domain_exact.clear()
+        last_access_domain_exact.update({name: True for name in raw_options})
+        # Endpoint-derived domains are already finite construction families;
+        # they must not be sampled a second time. The bounded generic sampler
+        # is applied only in the fallback block after these families fail.
+        sampled_options = dict(raw_options)
         access_probe_counts: dict[str, int] = {}
         options: dict[str, tuple[_TailModuleOption, ...]] = {name: () for name in raw_options}
         evaluation_order = sorted(
@@ -4098,13 +4680,100 @@ def _module_full_site_assemblies(
             candidates = sampled_options[name]
             valid: list[_TailModuleOption] = []
             attempted = 0
+            local_quota_exhausted = False
+
+            def admit_candidate(
+                candidate: dict[str, PlacedRectangleV1],
+                *,
+                generic_fallback: bool,
+                selected_module_name: str,
+            ) -> _TailModuleOption | None:
+                _record_tail_module_slot(stats, selected_module_name, candidate, access_valid=False)
+                if _tail_corridor_conflicts(candidate, reserved_corridors):
+                    return None
+                if selected_module_name == "OFFICE_MODULE":
+                    access_results: tuple[Mapping[str, Any], ...] = ()
+                else:
+                    cache_key = (
+                        main_identity,
+                        selected_module_name,
+                        _module_signature(candidate),
+                    )
+                    cached = (
+                        (stats.tail_access_capacity_route_cache or {}).get(cache_key)
+                        if stats is not None and _module_signature(fixed) == _module_signature(main)
+                        else None
+                    )
+                    if cached is not None:
+                        access_results, _candidate_corridors = cached
+                    else:
+                        routed = _tail_access_route_rows(
+                            context,
+                            {**fixed, **candidate},
+                            requirements,
+                            module_name=selected_module_name,
+                            stats=stats,
+                            requirement_pairs=_S2_MODULE_ACCESS_PAIRS[selected_module_name],
+                        )
+                        if routed is None:
+                            return None
+                        access_results, _candidate_corridors = routed
+                        if generic_fallback and stats is not None:
+                            stats.tail_generic_fallback_route_probe_count += 1
+                _record_tail_module_slot(stats, selected_module_name, candidate, access_valid=True)
+                return _TailModuleOption(candidate, access_results)
+
             for candidate_index, candidate in enumerate(candidates, start=1):
-                if not _charge_tail_access_slot_node(
-                    context,
-                    stats,
-                    module_name=name,
-                    candidate_index=candidate_index,
-                    skeleton_hash=critical_signature,
+                candidate_signature = _module_signature(candidate)
+                preflight_cached = (
+                    name != "OFFICE_MODULE"
+                    and stats is not None
+                    and _module_signature(fixed) == _module_signature(main)
+                    and (
+                        main_identity,
+                        name,
+                        candidate_signature,
+                    )
+                    in (stats.tail_access_capacity_route_cache or {})
+                )
+                preflight_rejected = (
+                    name != "OFFICE_MODULE"
+                    and stats is not None
+                    and _module_signature(fixed) == _module_signature(main)
+                    and (name, candidate_signature)
+                    in (stats.tail_access_capacity_attempted_candidates_by_main or {}).get(
+                        main_identity, set()
+                    )
+                    and not preflight_cached
+                )
+                if preflight_rejected:
+                    # This exact endpoint-driven candidate already failed with
+                    # the same critical assembly as its fixed geometry. Do not
+                    # spend another placement node on the identical route probe.
+                    continue
+                if (
+                    name != "OFFICE_MODULE"
+                    and not preflight_cached
+                    and node_limit is not None
+                    and stats is not None
+                    and stats.tail_access_slot_attempt_count - tail_nodes_at_start >= node_limit
+                ):
+                    local_quota_exhausted = True
+                    last_access_domain_exact[name] = False
+                    if stats.tail_access_s2_node_quota_exhausted_by_main is None:
+                        stats.tail_access_s2_node_quota_exhausted_by_main = set()
+                    stats.tail_access_s2_node_quota_exhausted_by_main.add(main_identity)
+                    break
+                if (
+                    name != "OFFICE_MODULE"
+                    and not preflight_cached
+                    and not _charge_tail_access_slot_node(
+                        context,
+                        stats,
+                        module_name=name,
+                        candidate_index=candidate_index,
+                        skeleton_hash=main_identity,
+                    )
                 ):
                     if stats is not None and stats.site_module_assembly_trace is not None:
                         stats.site_module_assembly_trace.append(
@@ -4128,40 +4797,102 @@ def _module_full_site_assemblies(
                     return
                 attempted += 1
                 last_access_probe_counts[name] = attempted
-                if stats is not None:
+                if stats is not None and name != "OFFICE_MODULE" and not preflight_cached:
                     quantum = _quantum_checkpoint(stats)
                     if quantum is not None:
                         yield quantum
-                _record_tail_module_slot(stats, name, candidate, access_valid=False)
-                if _tail_corridor_conflicts(candidate, reserved_corridors):
-                    continue
-                extended = {**fixed, **candidate}
-                routed = _tail_access_route_rows(
-                    context,
-                    extended,
-                    requirements,
-                    module_name=name,
-                    stats=stats,
-                    requirement_pairs=_S2_MODULE_ACCESS_PAIRS[name],
+                option = admit_candidate(
+                    candidate,
+                    generic_fallback=False,
+                    selected_module_name=name,
                 )
-                if routed is None:
-                    continue
-                access_results, _candidate_corridors = routed
-                _record_tail_module_slot(stats, name, candidate, access_valid=True)
-                valid.append(
-                    _TailModuleOption(
-                        placements=candidate,
-                        access_results=access_results,
+                if option is not None:
+                    valid.append(option)
+
+            fallback_raw_count = 0
+            fallback_count = 0
+            fallback_truncated = False
+            fallback_deferred = False
+            if not valid and name != "OFFICE_MODULE" and not local_quota_exhausted:
+                local_nodes_used = (
+                    stats.tail_access_slot_attempt_count - tail_nodes_at_start
+                    if stats is not None
+                    else 0
+                )
+                remaining_local_nodes = (
+                    None if node_limit is None else max(0, node_limit - local_nodes_used)
+                )
+                if remaining_local_nodes == 0:
+                    fallback_deferred = True
+                    last_access_domain_exact[name] = False
+                    if stats is not None:
+                        stats.tail_generic_fallback_deferred_count += 1
+                else:
+                    zone_code = next(iter(module_codes[name]))
+                    generic = _single_zone_site_module_candidates(context, zone_code, fixed, bays)
+                    primary_signatures = {_module_signature(row) for row in candidates}
+                    generic = tuple(
+                        row for row in generic if _module_signature(row) not in primary_signatures
                     )
-                )
+                    fallback_raw_count = len(generic)
+                    representatives = _bounded_tail_candidate_representatives(
+                        context, name, generic, fixed
+                    )
+                    if remaining_local_nodes is not None:
+                        representatives = representatives[:remaining_local_nodes]
+                    fallback_count = len(representatives)
+                    fallback_truncated = fallback_raw_count > fallback_count
+                    last_access_domain_exact[name] = not fallback_truncated
+                    if fallback_truncated and stats is not None:
+                        stats.tail_generic_fallback_truncated_count += 1
+                for candidate_index, candidate in (
+                    enumerate(representatives, start=len(candidates) + 1)
+                    if not fallback_deferred
+                    else ()
+                ):
+                    if (
+                        node_limit is not None
+                        and stats is not None
+                        and stats.tail_access_slot_attempt_count - tail_nodes_at_start >= node_limit
+                    ):
+                        local_quota_exhausted = True
+                        last_access_domain_exact[name] = False
+                        if stats.tail_access_s2_node_quota_exhausted_by_main is None:
+                            stats.tail_access_s2_node_quota_exhausted_by_main = set()
+                        stats.tail_access_s2_node_quota_exhausted_by_main.add(main_identity)
+                        break
+                    if not _charge_tail_access_slot_node(
+                        context,
+                        stats,
+                        module_name=name,
+                        candidate_index=candidate_index,
+                        skeleton_hash=main_identity,
+                    ):
+                        if stats is not None:
+                            stats.tail_candidate_space_truncated = True
+                        break
+                    attempted += 1
+                    if stats is not None:
+                        quantum = _quantum_checkpoint(stats)
+                        if quantum is not None:
+                            yield quantum
+                    option = admit_candidate(
+                        candidate,
+                        generic_fallback=True,
+                        selected_module_name=name,
+                    )
+                    if option is not None:
+                        valid.append(option)
+
             access_probe_counts[name] = attempted
             last_access_probe_counts[name] = attempted
             _record_tail_candidate_sampling(
                 stats,
                 name,
-                raw_count=raw_option_counts[name],
+                raw_count=raw_option_counts[name] + fallback_raw_count,
                 sampled_count=attempted,
             )
+            last_raw_option_counts[name] = raw_option_counts[name] + fallback_raw_count
             options[name] = tuple(
                 sorted(
                     valid,
@@ -4170,21 +4901,34 @@ def _module_full_site_assemblies(
                     ),
                 )
             )
-            if not options[name] and attempted >= raw_option_counts[name]:
+            if local_quota_exhausted:
+                for later_name in evaluation_order[evaluation_order.index(name) + 1 :]:
+                    last_access_domain_exact[later_name] = False
+                break
+            if (
+                not options[name]
+                and attempted >= raw_option_counts[name]
+                and not fallback_truncated
+            ):
                 if stats is not None and stats.site_module_assembly_trace is not None:
                     stats.site_module_assembly_trace.append(
                         {
                             "stage": "S2_ACCESS_AWARE_FAIL_FIRST_TAIL_MODULE_PLACEMENT",
-                            "result": "COMPLETE_ACCESS_DOMAIN_EMPTY",
+                            "result": "GENERATED_ACCESS_SEED_SET_EXHAUSTED",
                             "module": name,
                             "raw_geometry_slot_count": raw_option_counts[name],
                             "access_valid_slot_count": 0,
                             "access_route_probe_count": attempted,
+                            "generic_fallback_candidate_count": fallback_raw_count,
+                            "generic_fallback_sampled_count": fallback_count,
                             "remaining_zone_codes": sorted(tail_codes - fixed.keys()),
                         }
                     )
                 yield options
                 return
+            if not options[name] and fallback_truncated and stats is not None:
+                stats.tail_candidate_space_truncated = True
+                stats.normal_stop_reason = "UNRESOLVED_COVERAGE"
         if stats is not None and stats.site_module_assembly_trace is not None:
             stats.site_module_assembly_trace.append(
                 {
@@ -4197,7 +4941,7 @@ def _module_full_site_assemblies(
                     "access_route_probe_count_by_module": {
                         name: access_probe_counts.get(name, 0) for name in sorted(raw_options)
                     },
-                    "access_route_probe_limit": TAIL_ACCESS_ROUTE_REPRESENTATIVE_LIMIT,
+                    "generic_fallback_route_probe_limit": TAIL_ACCESS_ROUTE_REPRESENTATIVE_LIMIT,
                     "candidate_sampling_truncated_by_module": {
                         name: raw_option_counts[name] > access_probe_counts.get(name, 0)
                         for name in sorted(raw_options)
@@ -4277,14 +5021,15 @@ def _module_full_site_assemblies(
         if options is None:
             return
         pending = [
-            (len(candidates), name, candidates)
+            (len(candidates), name, candidates, last_access_domain_exact.get(name, True))
             for name, candidates in options.items()
             if not module_codes[name].issubset(fixed)
         ]
         complete_empty_domains = [
             name
-            for count, name, _rows in pending
+            for count, name, _rows, exact_domain in pending
             if count == 0
+            and exact_domain
             and last_access_probe_counts.get(name, 0) >= last_raw_option_counts.get(name, 0)
         ]
         if complete_empty_domains:
@@ -4293,9 +5038,12 @@ def _module_full_site_assemblies(
         if not positive_pending:
             unresolved_domains = [
                 name
-                for count, name, _rows in pending
+                for count, name, _rows, exact_domain in pending
                 if count == 0
-                and last_access_probe_counts.get(name, 0) < last_raw_option_counts.get(name, 0)
+                and (
+                    not exact_domain
+                    or last_access_probe_counts.get(name, 0) < last_raw_option_counts.get(name, 0)
+                )
             ]
             if unresolved_domains and stats is not None:
                 stats.tail_candidate_space_truncated = True
@@ -4310,9 +5058,17 @@ def _module_full_site_assemblies(
                         }
                     )
             return
-        _count, selected_name, selected_rows = min(
-            positive_pending, key=lambda row: (row[0], row[1])
-        )
+        exact_positive = [row for row in positive_pending if row[3]]
+        if exact_positive:
+            _count, selected_name, selected_rows, _exact = min(
+                exact_positive, key=lambda row: (row[0], row[1])
+            )
+        else:
+            # Generic fallback access counts are sampled lower bounds. They are
+            # deliberately not compared as if they were complete domains.
+            _count, selected_name, selected_rows, _exact = min(
+                positive_pending, key=lambda row: row[1]
+            )
         for option in selected_rows:
             candidate = option.placements
             extended = {**fixed, **candidate}
@@ -6637,7 +7393,29 @@ class _PlacementSearchStats:
     tail_access_candidate_witnesses: list[dict[str, Any]] | None = None
     tail_complete_access_witnesses: list[dict[str, Any]] | None = None
     tail_access_trace: list[dict[str, Any]] | None = None
+    tail_access_capacity_preflight_nodes_by_main: dict[str, int] | None = None
+    tail_access_capacity_status_by_main: dict[str, str] | None = None
+    tail_access_capacity_seed_counts_by_main: dict[str, dict[str, int]] | None = None
+    tail_access_driven_candidate_counts_by_main: dict[str, dict[str, int]] | None = None
+    tail_access_valid_candidate_counts_by_main: dict[str, dict[str, int]] | None = None
+    tail_office_geometry_candidate_counts_by_main: dict[str, int] | None = None
+    tail_access_capacity_preflight_rows: list[dict[str, Any]] | None = None
+    tail_access_capacity_route_cache: (
+        dict[
+            tuple[str, str, tuple[tuple[str, tuple[int, ...]], ...]],
+            tuple[tuple[Mapping[str, Any], ...], tuple[PolygonMM, ...]],
+        ]
+        | None
+    ) = None
+    tail_access_capacity_attempted_candidates_by_main: (
+        dict[str, set[tuple[str, tuple[tuple[str, tuple[int, ...]], ...]]]] | None
+    ) = None
+    tail_access_s2_node_quota_exhausted_by_main: set[str] | None = None
+    tail_generic_fallback_route_probe_count: int = 0
+    tail_generic_fallback_truncated_count: int = 0
+    tail_generic_fallback_deferred_count: int = 0
     tail_access_slot_attempt_count: int = 0
+    tail_access_slot_nodes_by_main: dict[str, int] | None = None
     tail_access_slot_budget_exhausted: bool = False
     tail_candidate_space_truncated: bool = False
     family_geometry_collapse_count: int = 0
@@ -9844,16 +10622,25 @@ def _direct_structured_candidates(
     if shipping_dock_anchors is None:
         shipping_dock_anchors = _shipping_dock_anchors_at_entrance(context)
         stats.site_shipping_dock_anchors = shipping_dock_anchors
-    # Candidate generation is bounded by the unchanged global placement node
-    # authority.  A dock-rectangle count is not a suitable cap here because a
-    # rejected sorting root must be allowed to continue within its exact
-    # packaging/dock pair until the authoritative truck preflight admits a
-    # root or the shared placement budget stops the work item.
+    # Keep main-process enumeration at its pre-R2 limit. The bounded reserve
+    # below allocates only S2 capacity-preflight/completion probes from nodes
+    # that remain after a Truck-pass main is found; it does not shrink S1.
+    tail_phase_node_reserve = min(
+        (context.node_budget * 2) // 3,
+        len(_S2_TAIL_MODULES) * len(BASE_LAYOUT_FAMILIES) * 2,
+    )
+    tail_access_capacity_round_reserve = _tail_access_capacity_round_reserve(context.node_budget)
+    s1_node_ceiling = context.node_budget - tail_access_capacity_round_reserve
     main_site_candidate_limit = context.node_budget
     if stats.site_module_variant_counts is None:
         stats.site_module_variant_counts = {}
     stats.site_module_variant_counts["buildable_bays"] = len(bays)
     stats.site_module_variant_counts["main_site_candidate_limit"] = main_site_candidate_limit
+    stats.site_module_variant_counts["tail_phase_node_reserve"] = tail_phase_node_reserve
+    stats.site_module_variant_counts["tail_access_capacity_round_reserve"] = (
+        tail_access_capacity_round_reserve
+    )
+    stats.site_module_variant_counts["s1_node_ceiling"] = s1_node_ceiling
     raw_bank_module_variants = tuple(
         row[0]
         for row in _local_bank_compositions(
@@ -9887,8 +10674,11 @@ def _direct_structured_candidates(
     stats.site_module_variant_counts["frozen_support_module_variants"] = len(
         _local_dimension_shapes(context, "frozen_fruit_room")
     )
-    stats.site_module_variant_counts["personnel_module_variants"] = len(
-        _personnel_module_variants(context)
+    stats.site_module_variant_counts["office_module_variants"] = len(
+        _local_dimension_shapes(context, "office")
+    )
+    stats.site_module_variant_counts["changing_module_variants"] = len(
+        _local_dimension_shapes(context, "changing_room")
     )
 
     def note_module_attempt(row: dict[str, Any]) -> None:
@@ -9999,6 +10789,10 @@ def _direct_structured_candidates(
             stats.node_budget_exhausted = True
             stats.skeleton_search_truncated = True
             return
+        if stats.visited_nodes >= s1_node_ceiling:
+            stats.skeleton_search_truncated = True
+            stats.normal_stop_reason = "S1_NODE_CEILING_RESERVED_FOR_TAIL_ACCESS"
+            break
         stats.visited_nodes += 1
         stats.construction_node_count += 1
         stats.current_work_item = {
@@ -10158,11 +10952,18 @@ def _direct_structured_candidates(
             source_pairs=module_source_pairs_by_family[layout_family],
             stats=stats,
         )
+        pending_tail_candidates: list[
+            tuple[dict[str, PlacedRectangleV1], MainProcessSkeletonCandidateV1, str]
+        ] = []
         for main_candidate in main_rows:
             if stats.visited_nodes >= context.node_budget:
                 stats.node_budget_exhausted = True
                 stats.skeleton_search_truncated = True
                 return
+            if stats.visited_nodes >= s1_node_ceiling:
+                stats.skeleton_search_truncated = True
+                stats.normal_stop_reason = "S1_NODE_CEILING_RESERVED_FOR_TAIL_ACCESS"
+                break
             stats.visited_nodes += 1
             stats.construction_node_count += 1
             module_attempts += 1
@@ -10340,15 +11141,104 @@ def _direct_structured_candidates(
                     "module_internal_geometry_frozen": True,
                 }
             )
+            if (
+                isinstance(truck_preflight_row, Mapping)
+                and truck_preflight_row.get("preflight_status") == "PASS"
+            ):
+                pending_tail_candidates.append((dict(main_candidate), seed, skeleton_hash))
 
-            full_attempts = 0
+        preflight_status_by_main: dict[str, str] | None = None
+        preflight_round_size = len(pending_tail_candidates) * len(_S2_TAIL_MODULES)
+        # A capacity round is one exact route/geometry seed per pending
+        # Truck-pass main and semantic tail module. Further domain coverage is
+        # left to S2 completion, rather than letting repeated preflight rounds
+        # consume the entire reserved tail allocation.
+        tail_access_preflight_node_limit = min(preflight_round_size, tail_phase_node_reserve)
+        for preflight_event in _tail_access_capacity_preflight(
+            context,
+            tuple((skeleton_hash, main) for main, _seed, skeleton_hash in pending_tail_candidates),
+            bays,
+            stats,
+            node_limit=tail_access_preflight_node_limit,
+        ):
+            if isinstance(preflight_event, _SearchQuantumYield):
+                yield preflight_event
+                continue
+            preflight_status_by_main = preflight_event
+        preflight_status_by_main = preflight_status_by_main or {}
+        if stats.node_budget_exhausted:
+            return
+        s2_main_candidates = [
+            (
+                main_candidate,
+                seed,
+                skeleton_hash,
+                preflight_status_by_main.get(
+                    _tail_access_main_identity(skeleton_hash, main_candidate),
+                    "UNRESOLVED_COVERAGE",
+                ),
+            )
+            for main_candidate, seed, skeleton_hash in pending_tail_candidates
+            if preflight_status_by_main.get(
+                _tail_access_main_identity(skeleton_hash, main_candidate),
+                "UNRESOLVED_COVERAGE",
+            )
+            != "NO_ACCESS_DRIVEN_SEED_IN_GENERATED_FINITE_SET"
+        ]
+        for main_index, (main_candidate, seed, skeleton_hash, capacity_status) in enumerate(
+            s2_main_candidates
+        ):
+            if capacity_status == "NO_ACCESS_DRIVEN_SEED_IN_GENERATED_FINITE_SET":
+                note_module_attempt(
+                    {
+                        "layout_family": layout_family,
+                        "stage": "S2_TAIL_ACCESS_CAPACITY_PREFLIGHT",
+                        "result": capacity_status,
+                        "main_process_skeleton_hash": skeleton_hash,
+                        "seed_counts_by_module": (
+                            stats.tail_access_capacity_seed_counts_by_main or {}
+                        ).get(_tail_access_main_identity(skeleton_hash, main_candidate), {}),
+                    }
+                )
+                failure_stage = "S2_TAIL_ACCESS_CAPACITY_PREFLIGHT"
+                failure_reason = capacity_status
+                continue
+            remaining_main_candidates = len(s2_main_candidates) - main_index
+            remaining_context_nodes = max(0, context.node_budget - stats.visited_nodes)
+            family_s2_node_cap = max(
+                1,
+                tail_phase_node_reserve // max(1, 2 * len(BASE_LAYOUT_FAMILIES)),
+            )
+            per_main_s2_node_limit = max(
+                1,
+                min(
+                    remaining_context_nodes // max(1, remaining_main_candidates),
+                    family_s2_node_cap,
+                ),
+            )
+            note_module_attempt(
+                {
+                    "layout_family": layout_family,
+                    "stage": "S2_TAIL_ACCESS_CAPACITY_PREFLIGHT",
+                    "result": capacity_status,
+                    "main_process_skeleton_hash": skeleton_hash,
+                    "seed_counts_by_module": (
+                        stats.tail_access_capacity_seed_counts_by_main or {}
+                    ).get(_tail_access_main_identity(skeleton_hash, main_candidate), {}),
+                }
+            )
             for complete_or_quantum in _module_full_site_assemblies(
-                context, main_candidate, bays, limit=1, stats=stats
+                context,
+                main_candidate,
+                bays,
+                limit=1,
+                stats=stats,
+                main_skeleton_hash=skeleton_hash,
+                node_limit=per_main_s2_node_limit,
             ):
                 if isinstance(complete_or_quantum, _SearchQuantumYield):
                     yield complete_or_quantum
                     continue
-                full_attempts += 1
                 attempt_row["site_module_full_attempt_count"] = (
                     int(attempt_row["site_module_full_attempt_count"]) + 1
                 )
@@ -10356,17 +11246,31 @@ def _direct_structured_candidates(
                 if stats.node_budget_exhausted:
                     return
                 if complete is None:
+                    if _tail_access_main_identity(skeleton_hash, main_candidate) in (
+                        stats.tail_access_s2_node_quota_exhausted_by_main or set()
+                    ):
+                        note_module_attempt(
+                            {
+                                "layout_family": layout_family,
+                                "stage": "S2_SUPPORT_PERSONNEL",
+                                "result": "UNRESOLVED_COVERAGE",
+                                "main_process_skeleton_hash": skeleton_hash,
+                                "per_main_node_limit": per_main_s2_node_limit,
+                                "nodes_used": stats.tail_access_slot_attempt_count,
+                            }
+                        )
+                        continue
                     note_module_attempt(
                         {
                             "layout_family": layout_family,
                             "stage": "S2_SUPPORT_PERSONNEL",
                             "result": "REJECTED",
                             "main_process_skeleton_hash": skeleton_hash,
-                            "reason": "MODULE_SITE_PREDICATE_OR_EXISTING_MUST_REJECTED",
+                            "reason": "NO_SITE_VALID_ACCESS_AWARE_TAIL_MODULE_COMBINATION",
                         }
                     )
                     failure_stage = "SITE_TAIL_MODULE_ASSEMBLY"
-                    failure_reason = "NO_SITE_VALID_SUPPORT_PERSONNEL_MODULE_COMBINATION"
+                    failure_reason = "NO_SITE_VALID_ACCESS_AWARE_TAIL_MODULE_COMBINATION"
                     continue
                 signature = _module_signature(complete)
                 if signature in seen_full_geometry:
@@ -14259,9 +15163,92 @@ class PlacementCandidateEnumerationV1:
                 "tail_access_aware_completion": {
                     "tail_geometry_only_admission": False,
                     "tail_access_aware_admission": True,
+                    "office_changing_rigid_relation": False,
+                    "access_endpoint_driven_tail_synthesis": True,
+                    "generic_representative_sampling_is_primary": False,
                     "access_route_revalidator_injected": (
                         self._context.access_route_validator is not None
                     ),
+                    "truck_pass_main_count": len(
+                        self._stats.tail_access_capacity_status_by_main or ()
+                    ),
+                    "tail_access_preflighted_main_count": len(
+                        self._stats.tail_access_capacity_status_by_main or ()
+                    ),
+                    "tail_access_capable_main_count": sum(
+                        status == "TAIL_ACCESS_CAPABLE_MAIN"
+                        for status in (
+                            self._stats.tail_access_capacity_status_by_main or {}
+                        ).values()
+                    ),
+                    "tail_access_capacity_status_by_main": dict(
+                        sorted((self._stats.tail_access_capacity_status_by_main or {}).items())
+                    ),
+                    "tail_access_preflight_nodes_by_main": dict(
+                        sorted(
+                            (self._stats.tail_access_capacity_preflight_nodes_by_main or {}).items()
+                        )
+                    ),
+                    "changing_access_driven_candidate_count_by_main": {
+                        key: row.get("CHANGING_MODULE", 0)
+                        for key, row in sorted(
+                            (self._stats.tail_access_driven_candidate_counts_by_main or {}).items()
+                        )
+                    },
+                    "changing_access_valid_count_by_main": {
+                        key: row.get("CHANGING_MODULE", 0)
+                        for key, row in sorted(
+                            (self._stats.tail_access_capacity_seed_counts_by_main or {}).items()
+                        )
+                    },
+                    "secondary_access_driven_candidate_count_by_main": {
+                        key: row.get("SECONDARY_SUPPORT_MODULE", 0)
+                        for key, row in sorted(
+                            (self._stats.tail_access_driven_candidate_counts_by_main or {}).items()
+                        )
+                    },
+                    "secondary_access_valid_count_by_main": {
+                        key: row.get("SECONDARY_SUPPORT_MODULE", 0)
+                        for key, row in sorted(
+                            (self._stats.tail_access_capacity_seed_counts_by_main or {}).items()
+                        )
+                    },
+                    "frozen_access_driven_candidate_count_by_main": {
+                        key: row.get("FROZEN_SUPPORT_MODULE", 0)
+                        for key, row in sorted(
+                            (self._stats.tail_access_driven_candidate_counts_by_main or {}).items()
+                        )
+                    },
+                    "frozen_access_valid_count_by_main": {
+                        key: row.get("FROZEN_SUPPORT_MODULE", 0)
+                        for key, row in sorted(
+                            (self._stats.tail_access_capacity_seed_counts_by_main or {}).items()
+                        )
+                    },
+                    "office_geometry_candidate_count_by_main": dict(
+                        sorted(
+                            (
+                                self._stats.tail_office_geometry_candidate_counts_by_main or {}
+                            ).items()
+                        )
+                    ),
+                    "tail_access_capacity_preflight_rows": list(
+                        self._stats.tail_access_capacity_preflight_rows or ()
+                    ),
+                    "generic_fallback_route_probe_count": (
+                        self._stats.tail_generic_fallback_route_probe_count
+                    ),
+                    "generic_fallback_truncated_count": (
+                        self._stats.tail_generic_fallback_truncated_count
+                    ),
+                    "generic_fallback_deferred_count": (
+                        self._stats.tail_generic_fallback_deferred_count
+                    ),
+                    "main_entrance_influences_changing_enumeration": True,
+                    "sorting_influences_changing_enumeration": True,
+                    "sorting_influences_secondary_enumeration": True,
+                    "sorting_influences_frozen_enumeration": True,
+                    "shipping_influences_office_enumeration": True,
                     "raw_geometry_slot_count_by_module": {
                         name: len(signatures)
                         for name, signatures in sorted(

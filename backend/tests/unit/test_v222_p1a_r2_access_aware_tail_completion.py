@@ -173,7 +173,7 @@ def test_tail_slot_route_attempts_share_the_existing_placement_budget() -> None:
     assert placement._charge_tail_access_slot_node(
         context,
         stats,
-        module_name="PERSONNEL_MODULE",
+        module_name="CHANGING_MODULE",
         candidate_index=1,
         skeleton_hash="skeleton-a",
     )
@@ -185,7 +185,7 @@ def test_tail_slot_route_attempts_share_the_existing_placement_budget() -> None:
         "band_family": "LINEAR_3_BAND",
         "skeleton_hash": "skeleton-a",
         "branch": "S2_ACCESS_VALID_TAIL_SLOT",
-        "tail_module": "PERSONNEL_MODULE",
+        "tail_module": "CHANGING_MODULE",
         "tail_candidate_index": 1,
         "placement_node_charged": True,
     }
@@ -193,7 +193,7 @@ def test_tail_slot_route_attempts_share_the_existing_placement_budget() -> None:
     assert not placement._charge_tail_access_slot_node(
         context,
         stats,
-        module_name="PERSONNEL_MODULE",
+        module_name="CHANGING_MODULE",
         candidate_index=2,
         skeleton_hash="skeleton-a",
     )
@@ -316,26 +316,220 @@ def test_failed_shoulder_route_rejects_candidate_without_becoming_a_must_edge() 
     assert stats.construction_access_failure_code_counts == {"ROUTE_SEARCH_EXHAUSTED": 1}
 
 
-def test_exhausted_zero_access_personnel_domain_prunes_before_other_route_probes(
+def _tail_geometry_context(route: Any = None) -> SimpleNamespace:
+    bounds = ((0, 0), (200_000, 0), (200_000, 200_000), (0, 200_000))
+    codes = ("office", "changing_room", "secondary_fruit_buffer", "frozen_fruit_room")
+    return SimpleNamespace(
+        authorities={
+            code: {
+                "zone_code": code,
+                "dimension_mode": "FIXED_RECTANGLE",
+                "required_area_m2": 200,
+                "geometry": {"width_m": 10, "depth_m": 20, "required_area_m2": 200},
+            }
+            for code in codes
+        },
+        boundary=bounds,
+        boundary_bounds=(0, 0, 200_000, 200_000),
+        obstacles=(),
+        main_entrance=((0, 45_000), (0, 55_000)),
+        access_requirements=_access_context(route).access_requirements,
+        access_route_validator=route,
+        spatial_relationships=(),
+    )
+
+
+def _one_bay() -> tuple[placement.BuildableBayV1, ...]:
+    return (placement.BuildableBayV1("BAY-0001", (0, 0, 200_000, 200_000), 40_000_000_000),)
+
+
+def test_access_driven_changing_uses_both_endpoints_and_finite_event_classes() -> None:
+    context = _tail_geometry_context()
+    sorting = _rectangle("sorting_packaging_room", (30_000, 40_000, 40_000, 50_000))
+    shipping = _rectangle("shipping_channel", (70_000, 70_000, 80_000, 80_000))
+    fixed = {"sorting_packaging_room": sorting, "shipping_channel": shipping}
+
+    candidates = placement._access_driven_tail_candidates(
+        context, "CHANGING_MODULE", "changing_room", fixed, _one_bay()
+    )
+    shifted_sorting = dict(fixed)
+    shifted_sorting["sorting_packaging_room"] = _rectangle(
+        "sorting_packaging_room", (80_000, 40_000, 90_000, 50_000)
+    )
+    changed_sorting = placement._access_driven_tail_candidates(
+        context, "CHANGING_MODULE", "changing_room", shifted_sorting, _one_bay()
+    )
+    changed_entrance_context = _tail_geometry_context()
+    changed_entrance_context.main_entrance = ((200_000, 45_000), (200_000, 55_000))
+    changed_entrance = placement._access_driven_tail_candidates(
+        changed_entrance_context, "CHANGING_MODULE", "changing_room", fixed, _one_bay()
+    )
+
+    classes = {candidate.endpoint_event_class for candidate in candidates}
+    assert {
+        "SORTING_DIRECT",
+        "ENTRANCE_DIRECT",
+        "ENTRANCE_SORTING_BRIDGE",
+        "CORRIDOR_MEDIATED",
+    } <= classes
+    assert {placement._module_signature(row.as_placements()) for row in candidates} != {
+        placement._module_signature(row.as_placements()) for row in changed_sorting
+    }
+    assert {placement._module_signature(row.as_placements()) for row in candidates} != {
+        placement._module_signature(row.as_placements()) for row in changed_entrance
+    }
+    assert all(set(dict(candidate.placements)) == {"changing_room"} for candidate in candidates)
+
+
+def test_sorting_and_shipping_independently_drive_tail_zone_origins() -> None:
+    context = _tail_geometry_context()
+    sorting_a = _rectangle("sorting_packaging_room", (30_000, 40_000, 40_000, 50_000))
+    sorting_b = _rectangle("sorting_packaging_room", (90_000, 90_000, 100_000, 100_000))
+    fixed_a = {"sorting_packaging_room": sorting_a}
+    fixed_b = {"sorting_packaging_room": sorting_b}
+    for module_name, zone_code in (
+        ("SECONDARY_SUPPORT_MODULE", "secondary_fruit_buffer"),
+        ("FROZEN_SUPPORT_MODULE", "frozen_fruit_room"),
+    ):
+        first = placement._access_driven_tail_candidates(
+            context, module_name, zone_code, fixed_a, _one_bay()
+        )
+        second = placement._access_driven_tail_candidates(
+            context, module_name, zone_code, fixed_b, _one_bay()
+        )
+        assert {placement._module_signature(row.as_placements()) for row in first} != {
+            placement._module_signature(row.as_placements()) for row in second
+        }
+
+    shipping_a = _rectangle("shipping_channel", (70_000, 70_000, 80_000, 80_000))
+    shipping_b = _rectangle("shipping_channel", (150_000, 150_000, 160_000, 160_000))
+    office_a = placement._office_site_module_candidates(context, {"shipping_channel": shipping_a})
+    office_b = placement._office_site_module_candidates(context, {"shipping_channel": shipping_b})
+    assert {placement._module_signature(row) for row in office_a} != {
+        placement._module_signature(row) for row in office_b
+    }
+    assert all(
+        placement.rectangles_share_positive_edge(shipping_a, row["office"]) for row in office_a
+    )
+
+
+def test_office_and_changing_are_independent_site_modules() -> None:
+    context = _tail_geometry_context()
+    shipping = _rectangle("shipping_channel", (70_000, 70_000, 80_000, 80_000))
+    sorting = _rectangle("sorting_packaging_room", (120_000, 70_000, 130_000, 80_000))
+    office = _rectangle("office", (80_000, 70_000, 90_000, 80_000))
+    fixed = {"shipping_channel": shipping, "sorting_packaging_room": sorting, "office": office}
+    changing = placement._access_driven_tail_candidates(
+        context, "CHANGING_MODULE", "changing_room", fixed, _one_bay()
+    )
+
+    assert changing
+    assert all(set(dict(candidate.placements)) == {"changing_room"} for candidate in changing)
+    assert any(
+        not placement.rectangles_share_positive_edge(
+            office, dict(candidate.placements)["changing_room"]
+        )
+        for candidate in changing
+    )
+
+
+def test_tail_access_capacity_preflight_rotates_across_mains_before_second_probe(
     monkeypatch: Any,
 ) -> None:
-    route_pairs: list[str] = []
-    geometry_calls: list[str] = []
-
     def validator(requirement: Any, **_kwargs: Any) -> tuple[dict[str, Any], tuple[Any, ...]]:
-        pair = f"{requirement['from_ref']}->{requirement['to_ref']}"
-        route_pairs.append(pair)
         return (
-            {**requirement, "status": "BLOCKED", "codes": ["ROUTE_SEARCH_EXHAUSTED"]},
+            {**requirement, "status": "PASS", "codes": [], "topology": "DIRECT_SHARED_EDGE"},
             (),
         )
 
-    context = _access_context(validator)
-    context.node_budget = 100
+    context = _tail_geometry_context(validator)
+    context.node_budget = 120
     context.structural_topology = "STRAIGHT_LINEAR_BAND"
     context.structured_building_plan = SimpleNamespace(layout_family="LINEAR_3_BAND")
+    mains = []
+    for main_index in range(3):
+        main = {
+            code: _rectangle(
+                code,
+                (
+                    index * 10_000,
+                    main_index * 20_000,
+                    (index + 1) * 10_000,
+                    main_index * 20_000 + 10_000,
+                ),
+            )
+            for index, code in enumerate(
+                (
+                    "raw_fruit_buffer",
+                    "primary_precooling_room",
+                    "sorting_packaging_room",
+                    "secondary_precooling_room",
+                    "coating_room",
+                    "finished_goods_room",
+                    "shipping_channel",
+                    "packaging_material_storage",
+                )
+            )
+        }
+        mains.append((f"main-{main_index}", main))
+    same_process_different_packaging = dict(mains[0][1])
+    package = same_process_different_packaging["packaging_material_storage"]
+    left, bottom, right, top = package.bounds_mm
+    same_process_different_packaging["packaging_material_storage"] = _rectangle(
+        "packaging_material_storage", (left, bottom + 1_000, right, top + 1_000)
+    )
+    mains.append(("main-0", same_process_different_packaging))
+
+    def seeded_candidates(
+        _context: Any, module_name: str, zone_code: str, _fixed: Any, _bays: Any
+    ) -> tuple[placement.AccessDrivenTailCandidateV1, ...]:
+        offset = {
+            "CHANGING_MODULE": 100_000,
+            "SECONDARY_SUPPORT_MODULE": 120_000,
+            "FROZEN_SUPPORT_MODULE": 140_000,
+        }[module_name]
+        rectangle = _rectangle(zone_code, (offset, 100_000, offset + 10_000, 110_000))
+        return (
+            placement.AccessDrivenTailCandidateV1(
+                module_name,
+                ((zone_code, rectangle),),
+                (f"REQ:{module_name}",),
+                "UNIT_TEST_ENDPOINT",
+                "UNIT_TEST_DIRECT",
+                True,
+            ),
+        )
+
+    monkeypatch.setattr(placement, "_access_driven_tail_candidates", seeded_candidates)
+    monkeypatch.setattr(
+        placement,
+        "_office_site_module_candidates",
+        lambda *_args: ({"office": _rectangle("office", (160_000, 100_000, 170_000, 110_000))},),
+    )
+    stats = placement._PlacementSearchStats(site_module_assembly_trace=[])
+    preflight_events = tuple(
+        placement._tail_access_capacity_preflight(context, mains, _one_bay(), stats)
+    )
+    statuses = preflight_events[-1]
+
+    rows = stats.tail_access_capacity_preflight_rows or []
+    changing_round = [
+        row["main_skeleton_hash"] for row in rows if row["module_name"] == "CHANGING_MODULE"
+    ]
+    assert changing_round[:4] == ["main-0", "main-1", "main-2", "main-0"]
+    main_identities = {
+        placement._tail_access_main_identity(main_hash, main) for main_hash, main in mains
+    }
+    assert statuses == {identity: "TAIL_ACCESS_CAPABLE_MAIN" for identity in main_identities}
+    assert stats.tail_access_capacity_preflight_nodes_by_main == {
+        identity: 4 for identity in main_identities
+    }
+    assert len(stats.tail_access_capacity_route_cache or {}) == 12
+
+
+def test_tail_access_main_identity_includes_packaging_anchor_geometry() -> None:
     main = {
-        code: _rectangle(code, (index * 10_000, 10_000, (index + 1) * 10_000, 20_000))
+        code: _rectangle(code, (index * 10_000, 0, (index + 1) * 10_000, 10_000))
         for index, code in enumerate(
             (
                 "raw_fruit_buffer",
@@ -345,82 +539,34 @@ def test_exhausted_zero_access_personnel_domain_prunes_before_other_route_probes
                 "coating_room",
                 "finished_goods_room",
                 "shipping_channel",
-                "packaging_material_storage",
             )
         )
     }
-    personnel = {
-        "office": _rectangle("office", (10_000, 30_000, 20_000, 40_000)),
-        "changing_room": _rectangle("changing_room", (20_000, 30_000, 30_000, 40_000)),
+    first = {
+        **main,
+        "packaging_material_storage": _rectangle(
+            "packaging_material_storage", (0, 20_000, 10_000, 30_000)
+        ),
+    }
+    second = {
+        **main,
+        "packaging_material_storage": _rectangle(
+            "packaging_material_storage", (20_000, 20_000, 30_000, 30_000)
+        ),
     }
 
-    monkeypatch.setattr(
-        placement,
-        "_personnel_site_module_candidates",
-        lambda *_args: (personnel,),
+    assert placement._tail_access_main_identity("same-seven-zone-hash", first) != (
+        placement._tail_access_main_identity("same-seven-zone-hash", second)
     )
 
-    def branch_candidate(context_arg: Any, code: str, *_args: Any) -> tuple[dict[str, Any], ...]:
-        geometry_calls.append(code)
-        return (
-            {code: _rectangle(code, (70_000, 70_000, 80_000, 80_000))},
-            {code: _rectangle(code, (70_000, 80_000, 80_000, 90_000))},
-        )
 
-    monkeypatch.setattr(placement, "_single_zone_site_module_candidates", branch_candidate)
+def test_tail_capacity_round_reserves_only_within_the_existing_placement_budget() -> None:
+    for budget in (0, 1, 12, 36, 120):
+        reserve = placement._tail_access_capacity_round_reserve(budget)
+        s1_ceiling = budget - reserve
 
-    rows = tuple(
-        placement._module_full_site_assemblies(
-            context,
-            main,
-            (),
-            limit=1,
-            stats=placement._PlacementSearchStats(site_module_assembly_trace=[]),
-        )
-    )
-
-    assert rows == (None,)
-    assert route_pairs == ["changing_room->sorting_packaging_room"]
-    assert set(geometry_calls) == {"secondary_fruit_buffer", "frozen_fruit_room"}
-
-
-def test_personnel_module_is_synthesized_from_shipping_and_sorting_site_interfaces() -> None:
-    bounds = ((0, 0), (100_000, 0), (100_000, 100_000), (0, 100_000))
-    context = SimpleNamespace(
-        authorities={
-            code: {
-                "zone_code": code,
-                "dimension_mode": "FIXED_RECTANGLE",
-                "required_area_m2": 100,
-                "geometry": {"width_m": 10, "depth_m": 10, "required_area_m2": 100},
-            }
-            for code in ("office", "changing_room")
-        },
-        boundary=bounds,
-        boundary_bounds=(0, 0, 100_000, 100_000),
-        obstacles=(),
-        main_entrance=((0, 45_000), (0, 55_000)),
-    )
-    shipping = _rectangle("shipping_channel", (50_000, 50_000, 60_000, 60_000))
-    sorting_a = _rectangle("sorting_packaging_room", (30_000, 40_000, 40_000, 50_000))
-    sorting_b = _rectangle("sorting_packaging_room", (10_000, 10_000, 20_000, 20_000))
-    bay = placement.BuildableBayV1("BAY-0001", (0, 0, 100_000, 100_000), 10_000_000_000)
-
-    candidates_a = placement._personnel_site_module_candidates(
-        context, {"shipping_channel": shipping, "sorting_packaging_room": sorting_a}, (bay,)
-    )
-    candidates_b = placement._personnel_site_module_candidates(
-        context, {"shipping_channel": shipping, "sorting_packaging_room": sorting_b}, (bay,)
-    )
-    signatures_a = {placement._module_signature(row) for row in candidates_a}
-    signatures_b = {placement._module_signature(row) for row in candidates_b}
-
-    assert candidates_a
-    assert signatures_a != signatures_b
-    assert all(
-        placement.rectangles_share_positive_edge(shipping, row["office"]) for row in candidates_a
-    )
-    assert any(
-        placement.rectangles_share_positive_edge(sorting_a, row["changing_room"])
-        for row in candidates_a
-    )
+        assert reserve >= 0
+        assert s1_ceiling >= 0
+        assert s1_ceiling + reserve == budget
+    assert placement._tail_access_capacity_round_reserve(36) == 12
+    assert placement._tail_access_capacity_round_reserve(120) == 12

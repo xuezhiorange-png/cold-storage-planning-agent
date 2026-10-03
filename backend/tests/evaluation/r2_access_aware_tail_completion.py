@@ -23,8 +23,8 @@ from cold_storage.modules.layout.domain.structural_quality import _outline_class
 from tests.evaluation.final_selection_authority import _capture_tool7
 from tests.evaluation.r13_main_skeleton_truck_preflight import EVIDENCE_DIR, FIXTURE
 
-EVIDENCE_PATH = EVIDENCE_DIR / "xinzhao_p1a_r2_access_aware_tail_completion.json"
-TAIL_IMAGE = EVIDENCE_DIR / "xinzhao_access_aware_tail_candidates.png"
+EVIDENCE_PATH = EVIDENCE_DIR / "xinzhao_p1a_r2_access_endpoint_driven_tail_synthesis.json"
+TAIL_IMAGE = EVIDENCE_DIR / "xinzhao_access_endpoint_driven_tail_seeds.png"
 P2D_IMAGE = EVIDENCE_DIR / "xinzhao_structured_p2d_fullpass_gallery.png"
 
 _TAIL_REQUIREMENTS = (
@@ -46,7 +46,8 @@ _MODULE_COLORS = {
     "PACKAGING_MODULE": "#c9b8df",
     "SECONDARY_SUPPORT_MODULE": "#bca8d8",
     "FROZEN_SUPPORT_MODULE": "#d3c5e6",
-    "PERSONNEL_MODULE": "#dfb9bf",
+    "OFFICE_MODULE": "#dfb9bf",
+    "CHANGING_MODULE": "#e7a7ad",
 }
 _ZONE_MODULE = {
     "raw_fruit_buffer": "RAW_MODULE",
@@ -59,8 +60,8 @@ _ZONE_MODULE = {
     "packaging_material_storage": "PACKAGING_MODULE",
     "secondary_fruit_buffer": "SECONDARY_SUPPORT_MODULE",
     "frozen_fruit_room": "FROZEN_SUPPORT_MODULE",
-    "office": "PERSONNEL_MODULE",
-    "changing_room": "PERSONNEL_MODULE",
+    "office": "OFFICE_MODULE",
+    "changing_room": "CHANGING_MODULE",
 }
 _ZONE_LABELS = {
     "raw_fruit_buffer": "RAW",
@@ -158,8 +159,25 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
         app_route_counts[key] += 1
         return real_access_validator(*args, **kwargs)
 
-    def observe_full(context: Any, main: Any, bays: Any, *, limit: int, stats: Any = None) -> Any:
-        for complete in real_full(context, main, bays, limit=limit, stats=stats):
+    def observe_full(
+        context: Any,
+        main: Any,
+        bays: Any,
+        *,
+        limit: int,
+        stats: Any = None,
+        main_skeleton_hash: str | None = None,
+        node_limit: int | None = None,
+    ) -> Any:
+        for complete in real_full(
+            context,
+            main,
+            bays,
+            limit=limit,
+            stats=stats,
+            main_skeleton_hash=main_skeleton_hash,
+            node_limit=node_limit,
+        ):
             if isinstance(complete, Mapping):
                 full_site_candidates.append(
                     {
@@ -250,6 +268,9 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
                     ],
                     "access_route_revalidation_count": stats.access_route_revalidation_count,
                     "tail_access_slot_attempt_count": stats.tail_access_slot_attempt_count,
+                    "tail_access_slot_nodes_by_main": dict(
+                        stats.tail_access_slot_nodes_by_main or {}
+                    ),
                     "tail_access_slot_budget_exhausted": (stats.tail_access_slot_budget_exhausted),
                     "tail_candidate_space_truncated": stats.tail_candidate_space_truncated,
                     "tail_raw_geometry_slot_total_by_module": dict(
@@ -267,8 +288,56 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
                     "placement_nodes_visited": stats.visited_nodes,
                     "placement_node_budget": context.node_budget,
                     "placement_node_budget_exhausted": stats.node_budget_exhausted,
+                    "main_skeleton_truck_preflight_rows": [
+                        {
+                            "main_skeleton_hash": str(skeleton_hash),
+                            "preflight_status": row.get("preflight_status"),
+                            "failure_codes": list(row.get("failure_codes", [])),
+                            "visited_nodes": int(row.get("visited_nodes", 0)),
+                            "node_budget_exhausted": row.get("node_budget_exhausted"),
+                            "search_tree_exhausted": row.get("search_tree_exhausted"),
+                        }
+                        for skeleton_hash, registry_row in sorted(
+                            (context.global_main_process_geometry_registry or {}).items()
+                        )
+                        if isinstance(registry_row, Mapping)
+                        and isinstance(
+                            (row := registry_row.get("main_skeleton_truck_preflight")),
+                            Mapping,
+                        )
+                    ],
                     "access_candidate_witnesses": list(stats.tail_access_candidate_witnesses or ()),
                     "complete_access_witnesses": list(stats.tail_complete_access_witnesses or ()),
+                    "tail_access_capacity_status_by_main": dict(
+                        stats.tail_access_capacity_status_by_main or {}
+                    ),
+                    "tail_access_capacity_preflight_nodes_by_main": dict(
+                        stats.tail_access_capacity_preflight_nodes_by_main or {}
+                    ),
+                    "tail_access_capacity_seed_counts_by_main": dict(
+                        stats.tail_access_capacity_seed_counts_by_main or {}
+                    ),
+                    "tail_access_driven_candidate_counts_by_main": dict(
+                        stats.tail_access_driven_candidate_counts_by_main or {}
+                    ),
+                    "tail_access_valid_candidate_counts_by_main": dict(
+                        stats.tail_access_valid_candidate_counts_by_main or {}
+                    ),
+                    "tail_office_geometry_candidate_counts_by_main": dict(
+                        stats.tail_office_geometry_candidate_counts_by_main or {}
+                    ),
+                    "tail_access_capacity_preflight_rows": list(
+                        stats.tail_access_capacity_preflight_rows or ()
+                    ),
+                    "tail_generic_fallback_route_probe_count": (
+                        stats.tail_generic_fallback_route_probe_count
+                    ),
+                    "tail_generic_fallback_truncated_count": (
+                        stats.tail_generic_fallback_truncated_count
+                    ),
+                    "tail_generic_fallback_deferred_count": (
+                        stats.tail_generic_fallback_deferred_count
+                    ),
                     "site_module_trace": list(stats.site_module_assembly_trace or ()),
                 }
             )
@@ -457,6 +526,25 @@ def _svg_image(
             f'<polygon points="{polygon_points(boundary, transform)}" fill="#fff" '
             'stroke="#263244" stroke-width="2.2"/>',
         ]
+        event_classes = row.get("candidate_event_classes", [])
+        if event_classes:
+            compact_events = ", ".join(str(value) for value in event_classes[:5])
+            parts.append(
+                f'<text x="{panel_x + 8}" y="{panel_y + 39}" font-family="Arial,sans-serif" '
+                f'font-size="8" fill="#354454">{compact_events}</text>'
+            )
+        entrance = row.get("truck_entrance_segment_mm", [])
+        if isinstance(entrance, list) and len(entrance) == 2:
+            start = _point_mm(entrance[0])
+            end = _point_mm(entrance[1])
+            if start is not None and end is not None:
+                start_x, start_y = transform(*start)
+                end_x, end_y = transform(*end)
+                parts.append(
+                    f'<line x1="{start_x:.2f}" y1="{start_y:.2f}" '
+                    f'x2="{end_x:.2f}" y2="{end_y:.2f}" stroke="#b23a48" '
+                    'stroke-width="5" stroke-linecap="round"/>'
+                )
         for obstacle in obstacles:
             parts.append(
                 f'<polygon points="{polygon_points(obstacle, transform)}" '
@@ -486,10 +574,16 @@ def _svg_image(
             rect_w, rect_h = (right - left) * scale, (top - bottom) * scale
             code = str(zone.get("zone_code", ""))
             module = _ZONE_MODULE.get(code, "PROCESS_CORE_MODULE")
+            is_seed = zone.get("seed_candidate") is True
+            fill_opacity = 0.38 if is_seed else 1.0
+            stroke = "#a33b68" if is_seed else "#263244"
+            stroke_width = 2.0 if is_seed else 1.3
+            dash = "5 3" if is_seed else "none"
             parts.append(
                 f'<rect x="{x:.2f}" y="{y:.2f}" width="{rect_w:.2f}" '
                 f'height="{rect_h:.2f}" fill="{_MODULE_COLORS[module]}" '
-                'stroke="#263244" stroke-width="1.3"/>'
+                f'fill-opacity="{fill_opacity}" stroke="{stroke}" '
+                f'stroke-width="{stroke_width}" stroke-dasharray="{dash}"/>'
             )
             if rect_w > 44 and rect_h > 16:
                 parts.append(
@@ -532,7 +626,8 @@ def _svg_image(
     if not rows:
         parts.append(
             '<text x="36" y="105" font-family="Arial,sans-serif" font-size="20" '
-            'fill="#8a3d3d">No access-valid tail witness captured</text>'
+            'fill="#8a3d3d">No Truck-PASS main skeleton reached tail preflight '
+            "in this replay</text>"
         )
     legend_y = 1060
     for index, (name, color) in enumerate(_ROUTE_COLORS.items()):
@@ -642,30 +737,131 @@ def _summarize_run(run: Mapping[str, Any]) -> dict[str, Any]:
         }
     )
     full_site_candidates = _distinct_rows(run["full_site_candidates"], "geometry_key")
-    tail_candidates = _distinct_rows(
-        [
-            witness
-            for snapshot in snapshots
-            for witness in snapshot.get("access_candidate_witnesses", [])
-            if isinstance(witness, Mapping)
-        ],
-        "module",
-    )
+    preflight_rows_by_key: dict[str, dict[str, Any]] = {}
+    for snapshot in snapshots:
+        for row in snapshot.get("tail_access_capacity_preflight_rows", []):
+            if not isinstance(row, Mapping):
+                continue
+            identity = json.dumps(
+                [
+                    row.get("critical_assembly_id"),
+                    row.get("main_skeleton_hash"),
+                    row.get("module_name"),
+                    row.get("zone_bounds_mm"),
+                ],
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            preflight_rows_by_key.setdefault(identity, dict(row))
+    preflight_rows = [preflight_rows_by_key[key] for key in sorted(preflight_rows_by_key)]
+    capacity_status: dict[str, str] = {}
+    truck_preflight_by_hash: dict[str, dict[str, Any]] = {}
+    capacity_nodes: Counter[str] = Counter()
+    tail_nodes_by_main: Counter[str] = Counter()
+    seed_counts: dict[str, dict[str, int]] = {}
+    driven_counts: dict[str, dict[str, int]] = {}
+    valid_counts: dict[str, dict[str, int]] = {}
+    office_counts: dict[str, int] = {}
+    for snapshot in snapshots:
+        for row in snapshot.get("main_skeleton_truck_preflight_rows", []):
+            if isinstance(row, Mapping):
+                key = str(row.get("main_skeleton_hash", ""))
+                if key:
+                    truck_preflight_by_hash.setdefault(key, dict(row))
+        for key, value in snapshot.get("tail_access_capacity_status_by_main", {}).items():
+            capacity_status[str(key)] = str(value)
+        capacity_nodes.update(
+            {
+                str(key): int(value)
+                for key, value in snapshot.get(
+                    "tail_access_capacity_preflight_nodes_by_main", {}
+                ).items()
+            }
+        )
+        tail_nodes_by_main.update(
+            {
+                str(key): int(value)
+                for key, value in snapshot.get("tail_access_slot_nodes_by_main", {}).items()
+            }
+        )
+        for target, field in (
+            (seed_counts, "tail_access_capacity_seed_counts_by_main"),
+            (driven_counts, "tail_access_driven_candidate_counts_by_main"),
+            (valid_counts, "tail_access_valid_candidate_counts_by_main"),
+        ):
+            for main_hash, counts in snapshot.get(field, {}).items():
+                merged = target.setdefault(str(main_hash), {})
+                for module_name, count in counts.items():
+                    merged[str(module_name)] = max(merged.get(str(module_name), 0), int(count))
+        for main_hash, count in snapshot.get(
+            "tail_office_geometry_candidate_counts_by_main", {}
+        ).items():
+            office_counts[str(main_hash)] = max(office_counts.get(str(main_hash), 0), int(count))
+    first_snapshot = snapshots[0] if snapshots else {}
     image_rows: list[dict[str, Any]] = []
-    for witness in complete_witnesses[:6] or tail_candidates[:6]:
+    preflight_by_main: dict[str, list[Mapping[str, Any]]] = {}
+    for row in preflight_rows:
+        preflight_by_main.setdefault(
+            str(row.get("critical_assembly_id", row.get("main_skeleton_hash", ""))), []
+        ).append(row)
+    for critical_assembly_id, rows in sorted(preflight_by_main.items())[:6]:
+        first = rows[0]
+        zones = [
+            {
+                "zone_code": code,
+                "bounds_mm": bounds,
+                "rotation_deg": first.get("main_zone_rotation_degrees", {}).get(code, 0),
+            }
+            for code, bounds in sorted(first.get("main_zone_bounds_mm", {}).items())
+        ]
+        access_witnesses: list[Mapping[str, Any]] = []
+        reserved_corridors: list[Any] = []
+        probe_totals: Counter[str] = Counter()
+        probe_passes: Counter[str] = Counter()
+        module_labels = {
+            "CHANGING_MODULE": "CHG",
+            "SECONDARY_SUPPORT_MODULE": "SEC",
+            "FROZEN_SUPPORT_MODULE": "FRZ",
+            "OFFICE_MODULE": "OFF",
+        }
+        for row in rows:
+            module_name = str(row.get("module_name", ""))
+            probe_totals[module_name] += 1
+            if (
+                row.get("route_witness_status") == "PASS"
+                or row.get("result") == "GEOMETRY_SEED_FOUND"
+            ):
+                probe_passes[module_name] += 1
+            zone_codes = row.get("zone_bounds_mm", {})
+            for code, bounds in sorted(zone_codes.items()):
+                zones.append(
+                    {
+                        "zone_code": code,
+                        "bounds_mm": bounds,
+                        "rotation_deg": 0,
+                        "seed_candidate": True,
+                        "candidate_module": module_name,
+                    }
+                )
+            for witness in row.get("route_witnesses", []):
+                if isinstance(witness, Mapping):
+                    access_witnesses.append(witness)
+            reserved_corridors.extend(row.get("reserved_corridors_mm", []))
+        probe_summary = " · ".join(
+            f"{module_labels.get(name, name)} {probe_passes[name]}/{count}"
+            for name, count in probe_totals.items()
+        )
         image_rows.append(
             {
-                "layout_family": "STRUCTURED TAIL",
-                # Partial-tail witnesses do not yet have a canonical skeleton
-                # hash. Render a short geometry fingerprint instead of slicing
-                # arbitrary characters from the serialized geometry key.
-                "skeleton_hash": hashlib.sha256(
-                    _witness_geometry_key(witness).encode("utf-8")
-                ).hexdigest()[:8],
-                "zones": _witness_zone_rows(witness),
-                "access_witnesses": witness.get("access_witnesses", []),
-                "reserved_corridors_mm": witness.get("reserved_corridors_mm", []),
-                "truck_envelopes_mm": witness.get("truck_envelopes_mm", []),
+                "layout_family": "TAIL SEEDS",
+                "skeleton_hash": first.get("main_skeleton_hash"),
+                "critical_assembly_id": critical_assembly_id,
+                "zones": zones,
+                "access_witnesses": access_witnesses,
+                "reserved_corridors_mm": reserved_corridors,
+                "truck_envelopes_mm": first.get("truck_envelopes_mm", []),
+                "candidate_event_classes": [probe_summary],
+                "truck_entrance_segment_mm": first_snapshot.get("truck_entrance_segment_mm", []),
             }
         )
     p2d_gallery_rows = [
@@ -679,11 +875,18 @@ def _summarize_run(run: Mapping[str, Any]) -> dict[str, Any]:
         }
         for row in structured_full_pass_rows[:6]
     ]
-    first_snapshot = snapshots[0] if snapshots else {}
     evidence = {
         "structured_phase_only": True,
         "tail_geometry_only_admission": False,
         "tail_access_aware_admission": True,
+        "office_changing_rigid_relation": False,
+        "access_endpoint_driven_tail_synthesis": True,
+        "generic_representative_sampling_is_primary": False,
+        "main_entrance_influences_changing_enumeration": True,
+        "sorting_influences_changing_enumeration": True,
+        "sorting_influences_secondary_enumeration": True,
+        "sorting_influences_frozen_enumeration": True,
+        "shipping_influences_office_enumeration": True,
         "placement_domain_imports_access_routing": False,
         "access_route_validator_injected_from_application": True,
         "final_p2d_access_authority_changed": False,
@@ -710,6 +913,66 @@ def _summarize_run(run: Mapping[str, Any]) -> dict[str, Any]:
             snapshots, "tail_access_sample_truncated_by_module"
         ),
         "tail_route_representative_limit": placement_domain.TAIL_ACCESS_ROUTE_REPRESENTATIVE_LIMIT,
+        "main_skeleton_truck_preflight_rows": [
+            truck_preflight_by_hash[key] for key in sorted(truck_preflight_by_hash)
+        ],
+        "truck_pass_main_hashes": sorted(
+            key
+            for key, row in truck_preflight_by_hash.items()
+            if row.get("preflight_status") == "PASS"
+        ),
+        "truck_pass_main_count": sum(
+            row.get("preflight_status") == "PASS" for row in truck_preflight_by_hash.values()
+        ),
+        "tail_access_preflighted_main_count": len(capacity_status),
+        "tail_access_capable_main_count": sum(
+            status == "TAIL_ACCESS_CAPABLE_MAIN" for status in capacity_status.values()
+        ),
+        "tail_access_capacity_status_by_main": dict(sorted(capacity_status.items())),
+        "tail_access_preflight_nodes_by_main": dict(sorted(capacity_nodes.items())),
+        "tail_access_nodes_by_main": dict(sorted(tail_nodes_by_main.items())),
+        "changing_access_driven_candidate_count_by_main": {
+            key: row.get("CHANGING_MODULE", 0) for key, row in sorted(driven_counts.items())
+        },
+        "changing_access_valid_count_by_main": {
+            key: row.get("CHANGING_MODULE", 0) for key, row in sorted(seed_counts.items())
+        },
+        "secondary_access_driven_candidate_count_by_main": {
+            key: row.get("SECONDARY_SUPPORT_MODULE", 0)
+            for key, row in sorted(driven_counts.items())
+        },
+        "secondary_access_valid_count_by_main": {
+            key: row.get("SECONDARY_SUPPORT_MODULE", 0) for key, row in sorted(seed_counts.items())
+        },
+        "frozen_access_driven_candidate_count_by_main": {
+            key: row.get("FROZEN_SUPPORT_MODULE", 0) for key, row in sorted(driven_counts.items())
+        },
+        "frozen_access_valid_count_by_main": {
+            key: row.get("FROZEN_SUPPORT_MODULE", 0) for key, row in sorted(seed_counts.items())
+        },
+        "tail_access_valid_candidate_count_by_main": {
+            key: dict(sorted(row.items())) for key, row in sorted(valid_counts.items())
+        },
+        "office_geometry_candidate_count_by_main": dict(sorted(office_counts.items())),
+        "tail_access_capacity_preflight_rows": preflight_rows,
+        "global_infeasibility_proven": False,
+        "tail_access_coverage_status": (
+            "NO_TRUCK_PASS_MAIN_REACHED_S2"
+            if not any(
+                row.get("preflight_status") == "PASS" for row in truck_preflight_by_hash.values()
+            )
+            else "FINITE_ACCESS_SEED_COVERAGE_ONLY"
+        ),
+        "generic_fallback_route_probe_count": sum(
+            int(snapshot.get("tail_generic_fallback_route_probe_count", 0))
+            for snapshot in snapshots
+        ),
+        "generic_fallback_truncated_count": sum(
+            int(snapshot.get("tail_generic_fallback_truncated_count", 0)) for snapshot in snapshots
+        ),
+        "generic_fallback_deferred_count": sum(
+            int(snapshot.get("tail_generic_fallback_deferred_count", 0)) for snapshot in snapshots
+        ),
         "personnel_raw_candidate_count": len(
             {
                 value
@@ -810,7 +1073,7 @@ def _summarize_run(run: Mapping[str, Any]) -> dict[str, Any]:
         "selected": {key: value for key, value in run["selected"].items() if key != "svg"},
         "structured_p2d_full_pass_rows": structured_full_pass_rows,
         "complete_access_witnesses": complete_witnesses,
-        "sample_tail_access_witnesses": tail_candidates[:12],
+        "sample_tail_access_witnesses": preflight_rows[:24],
         "p2d_route_rows": run["p2d_rows"],
         "site": {
             "boundary_mm": first_snapshot.get("boundary_mm", []),
@@ -912,4 +1175,11 @@ def capture_access_aware_tail_replay() -> dict[str, Any]:
 
 
 if __name__ == "__main__":
-    print(json.dumps(capture_access_aware_tail_replay(), ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            capture_access_aware_tail_replay(),
+            ensure_ascii=False,
+            indent=2,
+            default=str,
+        )
+    )
