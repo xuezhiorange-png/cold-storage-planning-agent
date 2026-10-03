@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1100" viewBox="0 0 1800 1100">
+<rect width="1800" height="1100" fill="#f5f7f9"/>
+<text x="24" y="35" font-family="Arial,sans-serif" font-size="24" fill="#17212b">R2 access-aware tail construction · exact route witnesses</text>
+<text x="26" y="92" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 1 · STRUCTURED TAIL · ef0a4dc3</text>
+<polygon points="58.00,488.22 558.00,488.22 558.00,123.78 58.00,123.78" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<polygon points="58.00,430.56 155.40,430.56 155.40,363.98 58.00,363.98" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="334.42,309.31 554.95,309.31 554.95,227.25 334.42,227.25" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="334.42,227.24 554.95,227.24 554.95,131.17 334.42,131.17" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="58.00,264.92 58.66,264.92 58.66,264.91 58.00,264.91" fill="#ec8c3525" stroke="#df751e" stroke-width="1.5" stroke-dasharray="5 3"/>
+<polygon points="316.42,474.96 319.73,474.96 319.73,423.28 316.42,423.28" fill="#ec8c3525" stroke="#df751e" stroke-width="1.5" stroke-dasharray="5 3"/>
+<polygon points="58.00,264.92 58.66,264.92 58.66,264.91 58.00,264.91" fill="#ec8c3525" stroke="#df751e" stroke-width="1.5" stroke-dasharray="5 3"/>
+<rect x="273.76" y="264.92" width="52.75" height="66.59" fill="#f1cb86" stroke="#263244" stroke-width="1.3"/>
+<text x="300.14" y="298.21" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">COATING</text>
+<rect x="111.83" y="141.67" width="214.68" height="123.24" fill="#f1cb86" stroke="#263244" stroke-width="1.3"/>
+<text x="219.17" y="203.30" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">FINISHED</text>
+<rect x="155.40" y="373.59" width="96.08" height="114.63" fill="#c9b8df" stroke="#263244" stroke-width="1.3"/>
+<text x="203.44" y="430.90" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">PACKAGING</text>
+<rect x="457.28" y="421.62" width="97.40" height="66.59" fill="#b8d8ec" stroke="#263244" stroke-width="1.3"/>
+<text x="505.99" y="454.92" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">PRIMARY</text>
+<rect x="356.57" y="430.57" width="100.72" height="57.65" fill="#b8d8ec" stroke="#263244" stroke-width="1.3"/>
+<text x="406.93" y="459.39" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">RAW</text>
+<rect x="251.48" y="421.62" width="55.66" height="45.72" fill="#bca8d8" stroke="#263244" stroke-width="1.3"/>
+<text x="279.31" y="444.48" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">SEC. FRUIT</text>
+<rect x="208.83" y="264.92" width="64.94" height="66.59" fill="#f1cb86" stroke="#263244" stroke-width="1.3"/>
+<text x="241.30" y="298.21" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">SECONDARY</text>
+<rect x="68.76" y="213.94" width="43.07" height="50.97" fill="#f1cb86" stroke="#263244" stroke-width="1.3"/>
+<rect x="251.48" y="331.51" width="303.21" height="90.11" fill="#91c9a6" stroke="#263244" stroke-width="1.3"/>
+<text x="403.08" y="376.57" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">SORTING</text>
+<polyline points="279.31,421.62 279.31,421.62" fill="none" stroke="#247a5a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="26" y="540" font-family="Arial,sans-serif" font-size="11" fill="#354454">Truck envelopes: orange dashed · reserved access corridors: teal · route labels in legend</text>
+<line x1="30" y1="1060" x2="58" y2="1060" stroke="#b23a48" stroke-width="4"/><text x="66" y="1064" font-family="Arial,sans-serif" font-size="11" fill="#17212b">main_entrance->changing_room</text>
+<line x1="460" y1="1060" x2="488" y2="1060" stroke="#d17c00" stroke-width="4"/><text x="496" y="1064" font-family="Arial,sans-serif" font-size="11" fill="#17212b">changing_room->sorting_packaging_room</text>
+<line x1="890" y1="1060" x2="918" y2="1060" stroke="#247a5a" stroke-width="4"/><text x="926" y="1064" font-family="Arial,sans-serif" font-size="11" fill="#17212b">sorting_packaging_room->secondary_fruit_buffer</text>
+<line x1="1320" y1="1060" x2="1348" y2="1060" stroke="#3156a3" stroke-width="4"/><text x="1356" y="1064" font-family="Arial,sans-serif" font-size="11" fill="#17212b">sorting_packaging_room->frozen_fruit_room</text>
+</svg>

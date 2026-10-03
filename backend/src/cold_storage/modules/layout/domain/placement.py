@@ -1,10 +1,9 @@
 """Deterministic placement search for the V2.2 P2C MVP.
 
-This module consumes already-bound zone dimensions and site geometry.  It does
-not calculate zone areas, generate a building envelope, or validate portals,
-corridors, or final routes. The Tool 7 structured path may run the existing
-authoritative truck-maneuver validator as a necessary-condition preflight on a
-frozen seven-zone main-process skeleton before tail search. All geometry is
+This module consumes already-bound zone dimensions and site geometry. It does
+not calculate zone areas or generate a building envelope. Structured search
+may call application-injected authoritative truck/access validators during
+construction; final P2D still independently validates all routes. Geometry is
 represented as integer millimetres at the predicate boundary so the bounded
 search is repeatable and has no floating-point tolerance.
 """
@@ -118,6 +117,7 @@ LOCAL_COMPACT_RESULT_LIMIT: Final = 32
 DEFAULT_NODE_BUDGET: Final = 50_000
 MAX_OPTIONS_PER_ZONE: Final = 48
 STRUCTURED_MAX_OPTIONS_PER_ZONE: Final = 6
+TAIL_ACCESS_ROUTE_REPRESENTATIVE_LIMIT: Final = 12
 STRUCTURED_PHASE: Final = "STRUCTURED"
 GENERAL_FALLBACK_PHASE: Final = "GENERAL_FALLBACK"
 LEGACY_COMPAT_PHASE: Final = "LEGACY_COMPAT"
@@ -3273,12 +3273,23 @@ def _single_zone_site_module_candidates(
 def _personnel_site_module_candidates(
     context: _PlacementSearchContext,
     fixed: Mapping[str, PlacedRectangleV1],
+    bays: Sequence[BuildableBayV1],
 ) -> tuple[dict[str, PlacedRectangleV1], ...]:
-    """Place the frozen office/changing module against an existing shipping face."""
+    """Synthesize frozen office/changing pairs against both access endpoints.
+
+    Office is anchored to its frozen MUST shipping interface. Changing-room
+    positions are then enumerated from exact site/module events against the
+    partial geometry; the completed pair is emitted as one frozen module. This
+    lets the authoritative people-route validator order the pair by actual
+    reachability without promoting changing/sorting SHOULD adjacency to MUST.
+    """
     shipping = fixed.get("shipping_channel")
     if shipping is None:
         return ()
     candidates: dict[tuple[tuple[str, tuple[int, ...]], ...], dict[str, PlacedRectangleV1]] = {}
+    # Preserve the existing finite row/column module grammar as one candidate
+    # source, then add two-ended site assembly for the existing shipping and
+    # personnel-access interfaces.
     for module in _personnel_module_variants(context):
         for transformed in _rigid_module_variants(module):
             for side in ("WEST", "EAST", "SOUTH", "NORTH"):
@@ -3289,7 +3300,679 @@ def _personnel_site_module_candidates(
                     if attached is None or not _site_module_is_usable(context, attached, fixed):
                         continue
                     candidates.setdefault(_module_signature(attached), attached)
+
+    for office_shape in _local_dimension_shapes(context, "office"):
+        office = _local_rectangle_at("office", office_shape, 0, 0)
+        for side in ("WEST", "EAST", "SOUTH", "NORTH"):
+            for alignment in ("CENTER", "LOW", "HIGH"):
+                office_attachment = _module_attached_to_zone(
+                    {"office": office}, "office", shipping, side, alignment
+                )
+                if office_attachment is None or not _site_module_is_usable(
+                    context, office_attachment, fixed
+                ):
+                    continue
+                partial = {**fixed, **office_attachment}
+                changing_options = _single_zone_site_module_candidates(
+                    context, "changing_room", partial, bays
+                )
+                changing_representatives = _bounded_tail_candidate_representatives(
+                    context,
+                    "PERSONNEL_MODULE",
+                    changing_options,
+                    partial,
+                )
+                for changing in changing_representatives:
+                    attached = {**office_attachment, **changing}
+                    if _site_module_is_usable(context, attached, fixed):
+                        candidates.setdefault(_module_signature(attached), attached)
     return tuple(candidates[key] for key in sorted(candidates))
+
+
+@dataclass(frozen=True)
+class _TailModuleOption:
+    placements: dict[str, PlacedRectangleV1]
+    access_results: tuple[Mapping[str, Any], ...]
+
+
+_S2_ACCESS_ENDPOINTS: Final = (
+    ("main_entrance", "changing_room"),
+    ("changing_room", "sorting_packaging_room"),
+    ("sorting_packaging_room", "secondary_fruit_buffer"),
+    ("sorting_packaging_room", "frozen_fruit_room"),
+)
+_S2_MODULE_ACCESS_PAIRS: Final = {
+    "PERSONNEL_MODULE": frozenset(
+        {
+            ("main_entrance", "changing_room"),
+            ("changing_room", "sorting_packaging_room"),
+        }
+    ),
+    "SECONDARY_SUPPORT_MODULE": frozenset({("sorting_packaging_room", "secondary_fruit_buffer")}),
+    "FROZEN_SUPPORT_MODULE": frozenset({("sorting_packaging_room", "frozen_fruit_room")}),
+}
+
+
+def _rectangle_interiors_overlap_orthogonal_polygon(
+    rectangle: PlacedRectangleV1, polygon: PolygonMM
+) -> bool:
+    """Exact positive-area overlap for a rectangle and an orthogonal polygon."""
+    if not _polygon_is_orthogonal(polygon):
+        raise _error("S2_ACCESS_CORRIDOR_GEOMETRY_UNSUPPORTED")
+    left, bottom, right, top = rectangle.bounds_mm
+    y_events = sorted({bottom, top} | {y for _x, y in polygon if bottom < y < top})
+    vertical_edges = tuple(
+        (x1, min(y1, y2), max(y1, y2))
+        for (x1, y1), (x2, y2) in zip(polygon, (*polygon[1:], polygon[0]), strict=True)
+        if x1 == x2 and y1 != y2
+    )
+    for low_y, high_y in zip(y_events, y_events[1:], strict=False):
+        if low_y >= high_y:
+            continue
+        doubled_mid_y = low_y + high_y
+        crossings = sorted(
+            x
+            for x, edge_low, edge_high in vertical_edges
+            if 2 * edge_low < doubled_mid_y < 2 * edge_high
+        )
+        for left_crossing, right_crossing in zip(crossings[::2], crossings[1::2], strict=True):
+            if max(left, left_crossing) < min(right, right_crossing):
+                return True
+    return False
+
+
+def _orthogonal_polygons_interiors_overlap(left: PolygonMM, right: PolygonMM) -> bool:
+    """Return whether two orthogonal polygons overlap by positive area."""
+    if not _polygon_is_orthogonal(left) or not _polygon_is_orthogonal(right):
+        raise _error("S2_ACCESS_CORRIDOR_GEOMETRY_UNSUPPORTED")
+    y_events = sorted({y for _x, y in (*left, *right)})
+
+    def intervals_at(low_y: int, high_y: int, polygon: PolygonMM) -> tuple[tuple[int, int], ...]:
+        doubled_mid_y = low_y + high_y
+        crossings = sorted(
+            x1
+            for (x1, y1), (x2, y2) in zip(polygon, (*polygon[1:], polygon[0]), strict=True)
+            if x1 == x2 and y1 != y2 and 2 * min(y1, y2) < doubled_mid_y < 2 * max(y1, y2)
+        )
+        return tuple(zip(crossings[::2], crossings[1::2], strict=True))
+
+    for low_y, high_y in zip(y_events, y_events[1:], strict=False):
+        if low_y >= high_y:
+            continue
+        left_intervals = intervals_at(low_y, high_y, left)
+        right_intervals = intervals_at(low_y, high_y, right)
+        if any(
+            max(left_start, right_start) < min(left_end, right_end)
+            for left_start, left_end in left_intervals
+            for right_start, right_end in right_intervals
+        ):
+            return True
+    return False
+
+
+def _tail_truck_envelopes(
+    context: _PlacementSearchContext,
+    fixed: Mapping[str, PlacedRectangleV1],
+    stats: _PlacementSearchStats | None,
+) -> tuple[PolygonMM, ...]:
+    if stats is None or stats.reserved_truck_envelopes_by_critical_signature is None:
+        return ()
+    critical_zones = {
+        code: rectangle
+        for code, rectangle in fixed.items()
+        if code in {*MAIN_PROCESS_ZONE_CODES, "packaging_material_storage"}
+    }
+    if not set((*MAIN_PROCESS_ZONE_CODES, "packaging_material_storage")).issubset(critical_zones):
+        return ()
+    return stats.reserved_truck_envelopes_by_critical_signature.get(
+        repr(_module_signature(critical_zones)), ()
+    )
+
+
+def _tail_access_requirement_rows(
+    context: _PlacementSearchContext,
+) -> tuple[Mapping[str, Any], ...] | None:
+    by_endpoints = {
+        (str(row.get("from_ref")), str(row.get("to_ref"))): row
+        for row in context.access_requirements
+    }
+    if any(pair not in by_endpoints for pair in _S2_ACCESS_ENDPOINTS):
+        return None
+    return tuple(by_endpoints[pair] for pair in _S2_ACCESS_ENDPOINTS)
+
+
+def _tail_active_access_requirements(
+    requirements: Sequence[Mapping[str, Any]],
+    fixed: Mapping[str, PlacedRectangleV1],
+) -> tuple[Mapping[str, Any], ...]:
+    active: list[Mapping[str, Any]] = []
+    for requirement in requirements:
+        from_ref = str(requirement.get("from_ref"))
+        to_ref = str(requirement.get("to_ref"))
+        if to_ref not in fixed:
+            continue
+        if from_ref != "main_entrance" and from_ref not in fixed:
+            continue
+        active.append(requirement)
+    return tuple(active)
+
+
+def _record_tail_candidate_sampling(
+    stats: _PlacementSearchStats | None,
+    module_name: str,
+    *,
+    raw_count: int,
+    sampled_count: int,
+) -> None:
+    if stats is None:
+        return
+    if stats.tail_raw_geometry_slot_total_by_module is None:
+        stats.tail_raw_geometry_slot_total_by_module = {}
+    if stats.tail_access_sampled_slot_count_by_module is None:
+        stats.tail_access_sampled_slot_count_by_module = {}
+    if stats.tail_access_sample_truncated_by_module is None:
+        stats.tail_access_sample_truncated_by_module = {}
+    stats.tail_raw_geometry_slot_total_by_module[module_name] = (
+        stats.tail_raw_geometry_slot_total_by_module.get(module_name, 0) + raw_count
+    )
+    stats.tail_access_sampled_slot_count_by_module[module_name] = (
+        stats.tail_access_sampled_slot_count_by_module.get(module_name, 0) + sampled_count
+    )
+    stats.tail_access_sample_truncated_by_module[module_name] = (
+        stats.tail_access_sample_truncated_by_module.get(module_name, 0)
+        + int(raw_count > sampled_count)
+    )
+
+
+def _record_tail_module_slot(
+    stats: _PlacementSearchStats | None,
+    module_name: str,
+    candidate: Mapping[str, PlacedRectangleV1],
+    *,
+    access_valid: bool,
+) -> None:
+    if stats is None:
+        return
+    geometry_key = repr(_module_signature(candidate))
+    if stats.tail_raw_geometry_slot_count_by_module is None:
+        stats.tail_raw_geometry_slot_count_by_module = {}
+    if stats.tail_access_valid_slot_count_by_module is None:
+        stats.tail_access_valid_slot_count_by_module = {}
+    stats.tail_raw_geometry_slot_count_by_module.setdefault(module_name, set()).add(geometry_key)
+    if access_valid:
+        stats.tail_access_valid_slot_count_by_module.setdefault(module_name, set()).add(
+            geometry_key
+        )
+    specific = {
+        "PERSONNEL_MODULE": (
+            "personnel_raw_candidate_signatures",
+            "personnel_access_valid_signatures",
+        ),
+        "SECONDARY_SUPPORT_MODULE": (
+            "secondary_raw_candidate_signatures",
+            "secondary_access_valid_signatures",
+        ),
+        "FROZEN_SUPPORT_MODULE": (
+            "frozen_raw_candidate_signatures",
+            "frozen_access_valid_signatures",
+        ),
+    }.get(module_name)
+    if specific is None:
+        return
+    raw_attribute, valid_attribute = specific
+    raw_values = getattr(stats, raw_attribute)
+    if raw_values is None:
+        raw_values = set()
+        setattr(stats, raw_attribute, raw_values)
+    raw_values.add(geometry_key)
+    if access_valid:
+        valid_values = getattr(stats, valid_attribute)
+        if valid_values is None:
+            valid_values = set()
+            setattr(stats, valid_attribute, valid_values)
+        valid_values.add(geometry_key)
+
+
+def _tail_candidate_relation_class(
+    candidate: Mapping[str, PlacedRectangleV1], fixed: Mapping[str, PlacedRectangleV1]
+) -> tuple[int, str, tuple[tuple[str, int], ...]]:
+    sorting = fixed.get("sorting_packaging_room")
+    target = candidate.get("changing_room") or next(iter(candidate.values()))
+    direct_side = _adjacent_side(sorting, target) if sorting is not None else None
+    if direct_side is not None:
+        side = direct_side
+    elif sorting is not None:
+        left, bottom, right, top = sorting.bounds_mm
+        target_left, target_bottom, target_right, target_top = target.bounds_mm
+        dx = (target_left + target_right) - (left + right)
+        dy = (target_bottom + target_top) - (bottom + top)
+        side = (
+            ("EAST" if dx >= 0 else "WEST")
+            if abs(dx) >= abs(dy)
+            else ("NORTH" if dy >= 0 else "SOUTH")
+        )
+    else:
+        side = "UNANCHORED"
+    return (
+        0 if direct_side is not None else 1,
+        side,
+        tuple((code, rectangle.rotation_deg) for code, rectangle in sorted(candidate.items())),
+    )
+
+
+def _tail_candidate_geometry_order_key(
+    context: _PlacementSearchContext,
+    module_name: str,
+    candidate: Mapping[str, PlacedRectangleV1],
+    fixed: Mapping[str, PlacedRectangleV1],
+) -> tuple[Any, ...]:
+    relation_class = _tail_candidate_relation_class(candidate, fixed)
+    sorting = fixed.get("sorting_packaging_room")
+    target = candidate.get("changing_room") or next(iter(candidate.values()))
+    if sorting is None:
+        distance = 0
+    else:
+        target_left, target_bottom, target_right, target_top = target.bounds_mm
+        sort_left, sort_bottom, sort_right, sort_top = sorting.bounds_mm
+        dx = max(sort_left - target_right, 0, target_left - sort_right)
+        dy = max(sort_bottom - target_top, 0, target_bottom - sort_top)
+        distance = dx * dx + dy * dy
+    entrance_distance = (
+        _rectangle_distance_squared_to_entrance(target, context.main_entrance)
+        if module_name == "PERSONNEL_MODULE"
+        else 0
+    )
+    return (
+        relation_class[0],
+        entrance_distance if module_name == "PERSONNEL_MODULE" else distance,
+        relation_class[1],
+        relation_class[2],
+        -_module_axis_reuse_count(candidate, fixed),
+        _module_signature(candidate),
+    )
+
+
+def _bounded_tail_candidate_representatives(
+    context: _PlacementSearchContext,
+    module_name: str,
+    candidates: Sequence[dict[str, PlacedRectangleV1]],
+    fixed: Mapping[str, PlacedRectangleV1],
+    *,
+    limit: int = TAIL_ACCESS_ROUTE_REPRESENTATIVE_LIMIT,
+) -> tuple[dict[str, PlacedRectangleV1], ...]:
+    """Select a finite, deterministic side/orientation-spread route probe set.
+
+    This is construction coverage, not a proof that unselected geometric slots
+    are inaccessible.  Exact route authority is applied to every selected
+    representative before it can enter tail search.
+    """
+    if limit <= 0 or not candidates:
+        return ()
+    ordered = tuple(
+        sorted(
+            candidates,
+            key=lambda candidate: _tail_candidate_geometry_order_key(
+                context, module_name, candidate, fixed
+            ),
+        )
+    )
+    strata: dict[tuple[int, str, tuple[tuple[str, int], ...]], dict[str, PlacedRectangleV1]] = {}
+    for candidate in ordered:
+        strata.setdefault(_tail_candidate_relation_class(candidate, fixed), candidate)
+
+    selected: list[dict[str, PlacedRectangleV1]] = []
+    selected_signatures: set[tuple[tuple[str, tuple[int, ...]], ...]] = set()
+    for _stratum, candidate in sorted(
+        strata.items(),
+        key=lambda row: (
+            row[0][0],
+            (0 if 0 in {rotation for _code, rotation in row[0][2]} else 1),
+            row[0][1],
+            row[0][2],
+            _module_signature(row[1]),
+        ),
+    ):
+        signature = _module_signature(candidate)
+        if signature not in selected_signatures:
+            selected.append(candidate)
+            selected_signatures.add(signature)
+        if len(selected) >= limit:
+            break
+
+    if len(selected) < limit:
+        remaining = tuple(
+            candidate
+            for candidate in ordered
+            if _module_signature(candidate) not in selected_signatures
+        )
+        needed = limit - len(selected)
+        if len(remaining) <= needed:
+            fill = remaining
+        else:
+            indices = {
+                (index * (len(remaining) - 1)) // max(needed - 1, 1) for index in range(needed)
+            }
+            fill = tuple(remaining[index] for index in sorted(indices))
+        for candidate in fill:
+            signature = _module_signature(candidate)
+            if signature not in selected_signatures:
+                selected.append(candidate)
+                selected_signatures.add(signature)
+    return tuple(
+        sorted(
+            selected,
+            key=lambda candidate: _tail_candidate_geometry_order_key(
+                context, module_name, candidate, fixed
+            ),
+        )
+    )
+
+
+def _tail_corridor_conflicts(
+    candidate: Mapping[str, PlacedRectangleV1],
+    reserved_corridors: Sequence[PolygonMM],
+) -> bool:
+    return any(
+        _rectangle_interiors_overlap_orthogonal_polygon(rectangle, corridor)
+        for rectangle in candidate.values()
+        for corridor in reserved_corridors
+    )
+
+
+def _charge_tail_access_slot_node(
+    context: _PlacementSearchContext,
+    stats: _PlacementSearchStats | None,
+    *,
+    module_name: str,
+    candidate_index: int,
+    skeleton_hash: str,
+) -> bool:
+    """Account one exact tail-slot check against the existing placement budget."""
+    if stats is None:
+        return True
+    if stats.visited_nodes >= context.node_budget:
+        stats.node_budget_exhausted = True
+        stats.skeleton_search_truncated = True
+        stats.tail_access_slot_budget_exhausted = True
+        return False
+    stats.visited_nodes += 1
+    stats.construction_node_count += 1
+    stats.tail_access_slot_attempt_count += 1
+    stats.current_work_item = {
+        "topology": context.structural_topology,
+        "layout_family": (
+            context.structured_building_plan.layout_family
+            if context.structured_building_plan is not None
+            else None
+        ),
+        "band_family": (
+            context.structured_building_plan.layout_family
+            if context.structured_building_plan is not None
+            else None
+        ),
+        "skeleton_hash": skeleton_hash,
+        "branch": "S2_ACCESS_VALID_TAIL_SLOT",
+        "tail_module": module_name,
+        "tail_candidate_index": candidate_index,
+        "placement_node_charged": True,
+    }
+    return True
+
+
+def _tail_access_route_rows(
+    context: _PlacementSearchContext,
+    fixed: Mapping[str, PlacedRectangleV1],
+    requirements: Sequence[Mapping[str, Any]],
+    *,
+    module_name: str,
+    stats: _PlacementSearchStats | None,
+    requirement_pairs: frozenset[tuple[str, str]] | None = None,
+) -> tuple[tuple[Mapping[str, Any], ...], tuple[PolygonMM, ...]] | None:
+    validator = getattr(context, "access_route_validator", None)
+    if validator is None:
+        if stats is not None and stats.site_module_assembly_trace is not None:
+            stats.site_module_assembly_trace.append(
+                {
+                    "stage": "S2_ACCESS_AWARE_TAIL_ADMISSION",
+                    "result": "REJECTED",
+                    "module": module_name,
+                    "reason": "ACCESS_ROUTE_VALIDATOR_NOT_INJECTED",
+                }
+            )
+        return None
+    active = tuple(
+        requirement
+        for requirement in _tail_active_access_requirements(requirements, fixed)
+        if requirement_pairs is None
+        or (str(requirement.get("from_ref")), str(requirement.get("to_ref"))) in requirement_pairs
+    )
+    relationships = {
+        str(row["identity"]): row
+        for row in context.spatial_relationships
+        if isinstance(row.get("identity"), str)
+    }
+    result_rows: list[Mapping[str, Any]] = []
+    corridors: dict[tuple[tuple[int, int], ...], PolygonMM] = {}
+    truck_envelopes = _tail_truck_envelopes(context, fixed, stats)
+    passed_pairs: set[tuple[str, str]] = set()
+
+    def direct_topology_possible(requirement: Mapping[str, Any]) -> int:
+        from_ref = str(requirement.get("from_ref"))
+        to_ref = str(requirement.get("to_ref"))
+        destination = fixed.get(to_ref)
+        if destination is None:
+            return 1
+        if from_ref == "main_entrance":
+            return (
+                0 if _rectangle_shares_entrance_boundary(destination, context.main_entrance) else 1
+            )
+        source = fixed.get(from_ref)
+        return (
+            0 if source is not None and rectangles_share_positive_edge(source, destination) else 1
+        )
+
+    for requirement in sorted(
+        active,
+        key=lambda row: (
+            direct_topology_possible(row),
+            str(row.get("from_ref")),
+            str(row.get("to_ref")),
+        ),
+    ):
+        result, polygons = validator(
+            requirement,
+            relationships=relationships,
+            zones=fixed,
+            boundary=context.boundary,
+            obstacles=context.obstacles,
+            entrances={"main_entrance": context.main_entrance},
+        )
+        if stats is not None:
+            stats.access_route_revalidation_count += 1
+            if stats.construction_access_requirement_pass_counts is None:
+                stats.construction_access_requirement_pass_counts = {}
+            if stats.construction_access_requirement_failure_counts is None:
+                stats.construction_access_requirement_failure_counts = {}
+        identity = f"{requirement.get('from_ref')}->{requirement.get('to_ref')}"
+        if result.get("status") != "PASS":
+            if stats is not None:
+                failures = stats.construction_access_requirement_failure_counts
+                assert failures is not None
+                failures[identity] = failures.get(identity, 0) + 1
+                if stats.construction_access_failure_code_counts is None:
+                    stats.construction_access_failure_code_counts = {}
+                for code in result.get("codes", []):
+                    code_name = str(code)
+                    stats.construction_access_failure_code_counts[code_name] = (
+                        stats.construction_access_failure_code_counts.get(code_name, 0) + 1
+                    )
+            # One failed required route is sufficient to reject this candidate.
+            # Later routes are re-evaluated on the next candidate; spending more
+            # route work on an already-invalid slot cannot admit it.
+            return None
+        result_row = dict(result)
+        result_row["intersects_truck_envelope"] = result.get("flow_kind") == "PEOPLE" and any(
+            _orthogonal_polygons_interiors_overlap(corridor, envelope)
+            for corridor in polygons
+            for envelope in truck_envelopes
+        )
+        result_rows.append(result_row)
+        pair = (str(requirement.get("from_ref")), str(requirement.get("to_ref")))
+        passed_pairs.add(pair)
+        if stats is not None:
+            pass_counts = stats.construction_access_requirement_pass_counts
+            assert pass_counts is not None
+            pass_counts[identity] = pass_counts.get(identity, 0) + 1
+            topology = result.get("topology")
+            if topology == "DIRECT_SHARED_EDGE":
+                stats.direct_shared_edge_access_witness_count += 1
+            elif topology == "CORRIDOR_MEDIATED":
+                stats.corridor_mediated_access_witness_count += 1
+            if pair == ("sorting_packaging_room", "secondary_fruit_buffer"):
+                if stats.secondary_access_pass_signatures is None:
+                    stats.secondary_access_pass_signatures = set()
+                stats.secondary_access_pass_signatures.add(
+                    repr(
+                        _module_signature(
+                            {"secondary_fruit_buffer": fixed["secondary_fruit_buffer"]}
+                        )
+                    )
+                )
+            elif pair == ("sorting_packaging_room", "frozen_fruit_room"):
+                if stats.frozen_access_pass_signatures is None:
+                    stats.frozen_access_pass_signatures = set()
+                stats.frozen_access_pass_signatures.add(
+                    repr(_module_signature({"frozen_fruit_room": fixed["frozen_fruit_room"]}))
+                )
+        for polygon in polygons:
+            key = tuple(sorted(polygon))
+            corridors.setdefault(key, polygon)
+            if stats is not None:
+                if stats.reserved_access_corridor_geometries is None:
+                    stats.reserved_access_corridor_geometries = set()
+                stats.reserved_access_corridor_geometries.add(key)
+    if (
+        stats is not None
+        and module_name == "PERSONNEL_MODULE"
+        and {
+            ("main_entrance", "changing_room"),
+            ("changing_room", "sorting_packaging_room"),
+        }.issubset(passed_pairs)
+    ):
+        if stats.personnel_access_2_of_2_pass_signatures is None:
+            stats.personnel_access_2_of_2_pass_signatures = set()
+        stats.personnel_access_2_of_2_pass_signatures.add(
+            repr(
+                _module_signature(
+                    {code: fixed[code] for code in ("office", "changing_room") if code in fixed}
+                )
+            )
+        )
+    if stats is not None:
+        if stats.tail_access_candidate_witnesses is None:
+            stats.tail_access_candidate_witnesses = []
+        if len(stats.tail_access_candidate_witnesses) < 24:
+            stats.tail_access_candidate_witnesses.append(
+                {
+                    "module": module_name,
+                    "zone_bounds_mm": {
+                        code: list(rectangle.bounds_mm) for code, rectangle in sorted(fixed.items())
+                    },
+                    "zone_rotation_degrees": {
+                        code: rectangle.rotation_deg for code, rectangle in sorted(fixed.items())
+                    },
+                    "access_witnesses": [
+                        {
+                            "requirement_identity": row.get("requirement_identity"),
+                            "from_ref": row.get("from_ref"),
+                            "to_ref": row.get("to_ref"),
+                            "flow_kind": row.get("flow_kind"),
+                            "status": row.get("status"),
+                            "topology": row.get("topology"),
+                            "centerline": row.get("centerline", []),
+                            "route_shape": row.get("route_shape"),
+                            "turn_count": row.get("turn_count"),
+                            "route_length_m": row.get("route_length_m"),
+                            "intersects_truck_envelope": row.get(
+                                "intersects_truck_envelope", False
+                            ),
+                        }
+                        for row in result_rows
+                    ],
+                    "reserved_corridors_mm": [
+                        [list(point) for point in polygon] for polygon in corridors.values()
+                    ],
+                    "truck_envelopes_mm": [
+                        [list(point) for point in polygon] for polygon in truck_envelopes
+                    ],
+                }
+            )
+    return tuple(result_rows), tuple(corridors[key] for key in sorted(corridors))
+
+
+def _module_axis_reuse_count(
+    module: Mapping[str, PlacedRectangleV1], fixed: Mapping[str, PlacedRectangleV1]
+) -> int:
+    fixed_x = {
+        coordinate
+        for rectangle in fixed.values()
+        for coordinate in (rectangle.bounds_mm[0], rectangle.bounds_mm[2])
+    }
+    fixed_y = {
+        coordinate
+        for rectangle in fixed.values()
+        for coordinate in (rectangle.bounds_mm[1], rectangle.bounds_mm[3])
+    }
+    return sum(
+        int(x in fixed_x) + int(right in fixed_x) + int(y in fixed_y) + int(top in fixed_y)
+        for rectangle in module.values()
+        for x, y, right, top in (rectangle.bounds_mm,)
+    )
+
+
+def _route_length_mm(result: Mapping[str, Any]) -> int:
+    value = result.get("route_length_m")
+    if value is None:
+        return 0
+    try:
+        return int(Decimal(str(value)) * MILLIMETRES_PER_METRE)
+    except (InvalidOperation, ValueError):
+        return 0
+
+
+def _tail_module_option_order_key(
+    module_name: str,
+    candidate: Mapping[str, PlacedRectangleV1],
+    route_results: Sequence[Mapping[str, Any]],
+    fixed: Mapping[str, PlacedRectangleV1],
+) -> tuple[Any, ...]:
+    by_pair = {(str(row.get("from_ref")), str(row.get("to_ref"))): row for row in route_results}
+    personnel_direct_rank = 1
+    entrance_length = 0
+    people_turns = 0
+    people_truck_intersections = 0
+    if module_name == "PERSONNEL_MODULE":
+        changing_sorting = by_pair.get(("changing_room", "sorting_packaging_room"), {})
+        personnel_direct_rank = 0 if changing_sorting.get("topology") == "DIRECT_SHARED_EDGE" else 1
+        entrance_length = _route_length_mm(by_pair.get(("main_entrance", "changing_room"), {}))
+        people_turns = sum(
+            int(row.get("turn_count", 0))
+            for row in route_results
+            if row.get("flow_kind") == "PEOPLE"
+        )
+        people_truck_intersections = sum(
+            bool(row.get("intersects_truck_envelope"))
+            for row in route_results
+            if row.get("flow_kind") == "PEOPLE"
+        )
+    return (
+        personnel_direct_rank,
+        entrance_length,
+        people_turns,
+        people_truck_intersections,
+        -_module_axis_reuse_count(candidate, fixed),
+        _module_signature(candidate),
+    )
 
 
 def _module_full_site_assemblies(
@@ -3299,7 +3982,7 @@ def _module_full_site_assemblies(
     *,
     limit: int,
     stats: _PlacementSearchStats | None = None,
-) -> Iterator[dict[str, PlacedRectangleV1] | None]:
+) -> Iterator[dict[str, PlacedRectangleV1] | _SearchQuantumYield | None]:
     """Complete four independent tail modules by deterministic fail-first slots.
 
     Packaging is already part of ``main`` and is never reassembled as support.
@@ -3332,21 +4015,41 @@ def _module_full_site_assemblies(
         "SECONDARY_SUPPORT_MODULE": {"secondary_fruit_buffer"},
         "FROZEN_SUPPORT_MODULE": {"frozen_fruit_room"},
     }
+    last_raw_option_counts: dict[str, int] = {}
+    last_access_probe_counts: dict[str, int] = {}
+
+    requirements = _tail_access_requirement_rows(context)
+    if requirements is None:
+        if stats is not None and stats.site_module_assembly_trace is not None:
+            stats.site_module_assembly_trace.append(
+                {
+                    "stage": "S2_ACCESS_AWARE_TAIL_ADMISSION",
+                    "result": "REJECTED",
+                    "reason": "REQUIRED_S2_ACCESS_AUTHORITY_INCOMPLETE",
+                }
+            )
+        yield None
+        return
 
     def enumerate_options(
         fixed: Mapping[str, PlacedRectangleV1],
-    ) -> dict[str, tuple[dict[str, PlacedRectangleV1], ...]]:
-        options = {
-            "PERSONNEL_MODULE": _personnel_site_module_candidates(context, fixed),
-            "SECONDARY_SUPPORT_MODULE": _single_zone_site_module_candidates(
+        reserved_corridors: Sequence[PolygonMM],
+    ) -> Iterator[dict[str, tuple[_TailModuleOption, ...]] | _SearchQuantumYield]:
+        raw_options: dict[str, tuple[dict[str, PlacedRectangleV1], ...]] = {}
+        if not module_codes["PERSONNEL_MODULE"].issubset(fixed):
+            raw_options["PERSONNEL_MODULE"] = _personnel_site_module_candidates(
+                context, fixed, bays
+            )
+        if "secondary_fruit_buffer" not in fixed:
+            raw_options["SECONDARY_SUPPORT_MODULE"] = _single_zone_site_module_candidates(
                 context, "secondary_fruit_buffer", fixed, bays
-            ),
-            "FROZEN_SUPPORT_MODULE": _single_zone_site_module_candidates(
+            )
+        if "frozen_fruit_room" not in fixed:
+            raw_options["FROZEN_SUPPORT_MODULE"] = _single_zone_site_module_candidates(
                 context, "frozen_fruit_room", fixed, bays
-            ),
-        }
+            )
         if reserved_spaces:
-            options = {
+            raw_options = {
                 name: tuple(
                     candidate
                     for candidate in candidates
@@ -3356,10 +4059,10 @@ def _module_full_site_assemblies(
                         for rectangle in candidate.values()
                     )
                 )
-                for name, candidates in options.items()
+                for name, candidates in raw_options.items()
             }
         if reserved_truck_envelopes:
-            options = {
+            raw_options = {
                 name: tuple(
                     candidate
                     for candidate in candidates
@@ -3369,54 +4072,280 @@ def _module_full_site_assemblies(
                         for rectangle in candidate.values()
                     )
                 )
-                for name, candidates in options.items()
+                for name, candidates in raw_options.items()
             }
+        raw_option_counts = {name: len(rows) for name, rows in raw_options.items()}
+        last_raw_option_counts.clear()
+        last_raw_option_counts.update(raw_option_counts)
+        last_access_probe_counts.clear()
+        last_access_probe_counts.update({name: 0 for name in raw_options})
+        sampled_options = {
+            name: _bounded_tail_candidate_representatives(
+                context,
+                name,
+                candidates,
+                fixed,
+            )
+            for name, candidates in raw_options.items()
+        }
+        access_probe_counts: dict[str, int] = {}
+        options: dict[str, tuple[_TailModuleOption, ...]] = {name: () for name in raw_options}
+        evaluation_order = sorted(
+            raw_options,
+            key=lambda name: (raw_option_counts[name], name),
+        )
+        for name in evaluation_order:
+            candidates = sampled_options[name]
+            valid: list[_TailModuleOption] = []
+            attempted = 0
+            for candidate_index, candidate in enumerate(candidates, start=1):
+                if not _charge_tail_access_slot_node(
+                    context,
+                    stats,
+                    module_name=name,
+                    candidate_index=candidate_index,
+                    skeleton_hash=critical_signature,
+                ):
+                    if stats is not None and stats.site_module_assembly_trace is not None:
+                        stats.site_module_assembly_trace.append(
+                            {
+                                "stage": "S2_ACCESS_AWARE_TAIL_ADMISSION",
+                                "result": "PLACEMENT_BUDGET_EXHAUSTED",
+                                "module": name,
+                                "candidate_index": candidate_index,
+                                "visited_nodes": stats.visited_nodes,
+                                "node_budget": context.node_budget,
+                            }
+                        )
+                    _record_tail_candidate_sampling(
+                        stats,
+                        name,
+                        raw_count=raw_option_counts[name],
+                        sampled_count=attempted,
+                    )
+                    access_probe_counts[name] = attempted
+                    last_access_probe_counts[name] = attempted
+                    return
+                attempted += 1
+                last_access_probe_counts[name] = attempted
+                if stats is not None:
+                    quantum = _quantum_checkpoint(stats)
+                    if quantum is not None:
+                        yield quantum
+                _record_tail_module_slot(stats, name, candidate, access_valid=False)
+                if _tail_corridor_conflicts(candidate, reserved_corridors):
+                    continue
+                extended = {**fixed, **candidate}
+                routed = _tail_access_route_rows(
+                    context,
+                    extended,
+                    requirements,
+                    module_name=name,
+                    stats=stats,
+                    requirement_pairs=_S2_MODULE_ACCESS_PAIRS[name],
+                )
+                if routed is None:
+                    continue
+                access_results, _candidate_corridors = routed
+                _record_tail_module_slot(stats, name, candidate, access_valid=True)
+                valid.append(
+                    _TailModuleOption(
+                        placements=candidate,
+                        access_results=access_results,
+                    )
+                )
+            access_probe_counts[name] = attempted
+            last_access_probe_counts[name] = attempted
+            _record_tail_candidate_sampling(
+                stats,
+                name,
+                raw_count=raw_option_counts[name],
+                sampled_count=attempted,
+            )
+            options[name] = tuple(
+                sorted(
+                    valid,
+                    key=lambda option: _tail_module_option_order_key(
+                        name, option.placements, option.access_results, fixed
+                    ),
+                )
+            )
+            if not options[name] and attempted >= raw_option_counts[name]:
+                if stats is not None and stats.site_module_assembly_trace is not None:
+                    stats.site_module_assembly_trace.append(
+                        {
+                            "stage": "S2_ACCESS_AWARE_FAIL_FIRST_TAIL_MODULE_PLACEMENT",
+                            "result": "COMPLETE_ACCESS_DOMAIN_EMPTY",
+                            "module": name,
+                            "raw_geometry_slot_count": raw_option_counts[name],
+                            "access_valid_slot_count": 0,
+                            "access_route_probe_count": attempted,
+                            "remaining_zone_codes": sorted(tail_codes - fixed.keys()),
+                        }
+                    )
+                yield options
+                return
         if stats is not None and stats.site_module_assembly_trace is not None:
             stats.site_module_assembly_trace.append(
                 {
-                    "stage": "S2_FAIL_FIRST_TAIL_MODULE_PLACEMENT",
+                    "stage": "S2_ACCESS_AWARE_FAIL_FIRST_TAIL_MODULE_PLACEMENT",
                     "result": "SLOT_COUNTS_COMPUTED",
                     "remaining_zone_codes": sorted(tail_codes - fixed.keys()),
-                    "legal_slot_count_by_module": {
+                    "raw_geometry_slot_count_by_module": {
+                        name: raw_option_counts[name] for name in sorted(raw_options)
+                    },
+                    "access_route_probe_count_by_module": {
+                        name: access_probe_counts.get(name, 0) for name in sorted(raw_options)
+                    },
+                    "access_route_probe_limit": TAIL_ACCESS_ROUTE_REPRESENTATIVE_LIMIT,
+                    "candidate_sampling_truncated_by_module": {
+                        name: raw_option_counts[name] > access_probe_counts.get(name, 0)
+                        for name in sorted(raw_options)
+                    },
+                    "access_valid_slot_count_by_module": {
                         name: len(rows) for name, rows in sorted(options.items())
                     },
+                    "reserved_access_corridor_count": len(reserved_corridors),
                     "reserved_construction_space_count": len(reserved_spaces),
                     "reserved_truck_envelope_count": len(reserved_truck_envelopes),
                 }
             )
-        return options
+        yield options
 
     def search(
         fixed: dict[str, PlacedRectangleV1],
-    ) -> Iterator[dict[str, PlacedRectangleV1]]:
+        reserved_corridors: tuple[PolygonMM, ...],
+        access_results: tuple[Mapping[str, Any], ...],
+    ) -> Iterator[dict[str, PlacedRectangleV1] | _SearchQuantumYield]:
         if tail_codes.issubset(fixed):
             try:
                 _validate_graph_completeness(context.graph, fixed)
             except LayoutAuthorityError:
                 return
+            if stats is not None:
+                if stats.tail_complete_access_witnesses is None:
+                    stats.tail_complete_access_witnesses = []
+                stats.tail_complete_access_witnesses.append(
+                    {
+                        "complete_geometry_signature": repr(_module_signature(fixed)),
+                        "zone_bounds_mm": {
+                            code: list(rectangle.bounds_mm)
+                            for code, rectangle in sorted(fixed.items())
+                        },
+                        "zone_rotation_degrees": {
+                            code: rectangle.rotation_deg
+                            for code, rectangle in sorted(fixed.items())
+                        },
+                        "access_witnesses": [
+                            {
+                                "requirement_identity": row.get("requirement_identity"),
+                                "from_ref": row.get("from_ref"),
+                                "to_ref": row.get("to_ref"),
+                                "flow_kind": row.get("flow_kind"),
+                                "status": row.get("status"),
+                                "codes": list(row.get("codes", [])),
+                                "topology": row.get("topology"),
+                                "centerline": row.get("centerline", []),
+                                "route_shape": row.get("route_shape"),
+                                "turn_count": row.get("turn_count"),
+                                "route_length_m": row.get("route_length_m"),
+                                "intersects_truck_envelope": row.get(
+                                    "intersects_truck_envelope", False
+                                ),
+                            }
+                            for row in access_results
+                        ],
+                        "reserved_corridors_mm": [
+                            [list(point) for point in polygon] for polygon in reserved_corridors
+                        ],
+                        "truck_envelopes_mm": [
+                            [list(point) for point in polygon]
+                            for polygon in reserved_truck_envelopes
+                        ],
+                    }
+                )
             yield dict(fixed)
             return
-        options = enumerate_options(fixed)
+        option_iterator = enumerate_options(fixed, reserved_corridors)
+        options: dict[str, tuple[_TailModuleOption, ...]] | None = None
+        for option_event in option_iterator:
+            if isinstance(option_event, _SearchQuantumYield):
+                yield option_event
+                continue
+            options = option_event
+            break
+        if options is None:
+            return
         pending = [
             (len(candidates), name, candidates)
             for name, candidates in options.items()
             if not module_codes[name].issubset(fixed)
         ]
-        if not pending or any(count == 0 for count, _name, _rows in pending):
+        complete_empty_domains = [
+            name
+            for count, name, _rows in pending
+            if count == 0
+            and last_access_probe_counts.get(name, 0) >= last_raw_option_counts.get(name, 0)
+        ]
+        if complete_empty_domains:
             return
-        _count, selected_name, selected_rows = min(pending, key=lambda row: (row[0], row[1]))
-        for candidate in selected_rows:
+        positive_pending = [row for row in pending if row[0] > 0]
+        if not positive_pending:
+            unresolved_domains = [
+                name
+                for count, name, _rows in pending
+                if count == 0
+                and last_access_probe_counts.get(name, 0) < last_raw_option_counts.get(name, 0)
+            ]
+            if unresolved_domains and stats is not None:
+                stats.tail_candidate_space_truncated = True
+                stats.normal_stop_reason = "S2_TAIL_ACCESS_REPRESENTATIVE_COVERAGE_LIMIT"
+                if stats.site_module_assembly_trace is not None:
+                    stats.site_module_assembly_trace.append(
+                        {
+                            "stage": "S2_ACCESS_AWARE_TAIL_ADMISSION",
+                            "result": "UNRESOLVED_REPRESENTATIVE_COVERAGE",
+                            "modules": sorted(unresolved_domains),
+                            "node_budget": context.node_budget,
+                        }
+                    )
+            return
+        _count, selected_name, selected_rows = min(
+            positive_pending, key=lambda row: (row[0], row[1])
+        )
+        for option in selected_rows:
+            candidate = option.placements
             extended = {**fixed, **candidate}
             if not _site_module_is_usable(context, candidate, fixed):
                 continue
-            yield from search(extended)
+            # A newly placed module can obstruct any previously established
+            # witness. Re-run all active authoritative routes against the full
+            # partial geometry before admitting the next recursion level.
+            revalidated = _tail_access_route_rows(
+                context,
+                extended,
+                requirements,
+                module_name="S2_TAIL_EXTENSION_REVALIDATION",
+                stats=stats,
+            )
+            if revalidated is None:
+                continue
+            revalidated_results, revalidated_corridors = revalidated
+            yield from search(
+                extended,
+                revalidated_corridors,
+                revalidated_results,
+            )
 
-    for complete in search(dict(main)):
-        yield complete
+    for complete_or_quantum in search(dict(main), (), ()):
+        if isinstance(complete_or_quantum, _SearchQuantumYield):
+            yield complete_or_quantum
+            continue
+        yield complete_or_quantum
         yielded += 1
         if yielded >= limit:
             return
-    if yielded == 0:
+    if yielded == 0 and not (stats and stats.node_budget_exhausted):
         yield None
 
 
@@ -5583,6 +6512,7 @@ class _PlacementSearchContext:
     truck_maneuver_binding: Any
     truck_node_budget: int
     truck_maneuver_validator: Callable[..., Mapping[str, Any]] | None
+    access_route_validator: Callable[..., tuple[Mapping[str, Any], tuple[PolygonMM, ...]]] | None
     complete_candidate_limit: int | None
     boundary: PolygonMM
     boundary_bounds: tuple[int, int, int, int]
@@ -5683,6 +6613,33 @@ class _PlacementSearchStats:
     reserved_truck_envelopes_by_critical_signature: dict[str, tuple[PolygonMM, ...]] | None = None
     truck_maneuver_construction_witness_by_skeleton_hash: dict[str, dict[str, Any]] | None = None
     early_formal_packaging_preflight_mismatch_count: int = 0
+    tail_raw_geometry_slot_count_by_module: dict[str, set[str]] | None = None
+    tail_access_valid_slot_count_by_module: dict[str, set[str]] | None = None
+    tail_raw_geometry_slot_total_by_module: dict[str, int] | None = None
+    tail_access_sampled_slot_count_by_module: dict[str, int] | None = None
+    tail_access_sample_truncated_by_module: dict[str, int] | None = None
+    personnel_raw_candidate_signatures: set[str] | None = None
+    personnel_access_valid_signatures: set[str] | None = None
+    personnel_access_2_of_2_pass_signatures: set[str] | None = None
+    secondary_raw_candidate_signatures: set[str] | None = None
+    secondary_access_valid_signatures: set[str] | None = None
+    secondary_access_pass_signatures: set[str] | None = None
+    frozen_raw_candidate_signatures: set[str] | None = None
+    frozen_access_valid_signatures: set[str] | None = None
+    frozen_access_pass_signatures: set[str] | None = None
+    construction_access_requirement_pass_counts: dict[str, int] | None = None
+    construction_access_requirement_failure_counts: dict[str, int] | None = None
+    construction_access_failure_code_counts: dict[str, int] | None = None
+    direct_shared_edge_access_witness_count: int = 0
+    corridor_mediated_access_witness_count: int = 0
+    reserved_access_corridor_geometries: set[tuple[tuple[int, int], ...]] | None = None
+    access_route_revalidation_count: int = 0
+    tail_access_candidate_witnesses: list[dict[str, Any]] | None = None
+    tail_complete_access_witnesses: list[dict[str, Any]] | None = None
+    tail_access_trace: list[dict[str, Any]] | None = None
+    tail_access_slot_attempt_count: int = 0
+    tail_access_slot_budget_exhausted: bool = False
+    tail_candidate_space_truncated: bool = False
     family_geometry_collapse_count: int = 0
     topology_classification_failures: list[dict[str, Any]] | None = None
     geometry_evaluation_admissions: list[dict[str, Any]] | None = None
@@ -5799,6 +6756,9 @@ def _validated_search_context(
     truck_maneuver_binding: Any = None,
     truck_node_budget: int = 20_000,
     truck_maneuver_validator: Callable[..., Mapping[str, Any]] | None = None,
+    access_route_validator: (
+        Callable[..., tuple[Mapping[str, Any], tuple[PolygonMM, ...]]] | None
+    ) = None,
     complete_candidate_limit: int | None,
     structural_family: StructuralCompositionFamilyV1 | None = None,
     structural_topology: str | None = None,
@@ -5932,6 +6892,7 @@ def _validated_search_context(
         truck_maneuver_binding=truck_maneuver_binding,
         truck_node_budget=truck_node_budget,
         truck_maneuver_validator=truck_maneuver_validator,
+        access_route_validator=access_route_validator,
         complete_candidate_limit=complete_candidate_limit,
         boundary=boundary,
         boundary_bounds=boundary_bounds,
@@ -9381,31 +10342,19 @@ def _direct_structured_candidates(
             )
 
             full_attempts = 0
-            for complete in _module_full_site_assemblies(
+            for complete_or_quantum in _module_full_site_assemblies(
                 context, main_candidate, bays, limit=1, stats=stats
             ):
-                if stats.visited_nodes >= context.node_budget:
-                    stats.node_budget_exhausted = True
-                    stats.skeleton_search_truncated = True
-                    return
-                stats.visited_nodes += 1
-                stats.construction_node_count += 1
+                if isinstance(complete_or_quantum, _SearchQuantumYield):
+                    yield complete_or_quantum
+                    continue
                 full_attempts += 1
                 attempt_row["site_module_full_attempt_count"] = (
                     int(attempt_row["site_module_full_attempt_count"]) + 1
                 )
-                stats.current_work_item = {
-                    "topology": context.structural_topology,
-                    "layout_family": layout_family,
-                    "band_family": layout_family,
-                    "skeleton_hash": skeleton_hash,
-                    "branch": "SITE_MODULE_TAIL_ASSEMBLY",
-                    "module_attempt": full_attempts,
-                    "placement_node_charged": True,
-                }
-                quantum = _quantum_checkpoint(stats)
-                if quantum is not None:
-                    yield quantum
+                complete = complete_or_quantum
+                if stats.node_budget_exhausted:
+                    return
                 if complete is None:
                     note_module_attempt(
                         {
@@ -13307,6 +14256,84 @@ class PlacementCandidateEnumerationV1:
                     sorted((self._stats.site_module_variant_counts or {}).items())
                 ),
                 "family_geometry_collapse_count": self._stats.family_geometry_collapse_count,
+                "tail_access_aware_completion": {
+                    "tail_geometry_only_admission": False,
+                    "tail_access_aware_admission": True,
+                    "access_route_revalidator_injected": (
+                        self._context.access_route_validator is not None
+                    ),
+                    "raw_geometry_slot_count_by_module": {
+                        name: len(signatures)
+                        for name, signatures in sorted(
+                            (self._stats.tail_raw_geometry_slot_count_by_module or {}).items()
+                        )
+                    },
+                    "access_valid_slot_count_by_module": {
+                        name: len(signatures)
+                        for name, signatures in sorted(
+                            (self._stats.tail_access_valid_slot_count_by_module or {}).items()
+                        )
+                    },
+                    "personnel_raw_candidate_count": len(
+                        self._stats.personnel_raw_candidate_signatures or ()
+                    ),
+                    "personnel_access_2_of_2_pass_count": len(
+                        self._stats.personnel_access_2_of_2_pass_signatures or ()
+                    ),
+                    "secondary_raw_candidate_count": len(
+                        self._stats.secondary_raw_candidate_signatures or ()
+                    ),
+                    "secondary_access_pass_count": len(
+                        self._stats.secondary_access_pass_signatures or ()
+                    ),
+                    "frozen_raw_candidate_count": len(
+                        self._stats.frozen_raw_candidate_signatures or ()
+                    ),
+                    "frozen_access_pass_count": len(
+                        self._stats.frozen_access_pass_signatures or ()
+                    ),
+                    "construction_access_requirement_pass_counts": dict(
+                        sorted(
+                            (self._stats.construction_access_requirement_pass_counts or {}).items()
+                        )
+                    ),
+                    "construction_access_requirement_failure_counts": dict(
+                        sorted(
+                            (
+                                self._stats.construction_access_requirement_failure_counts or {}
+                            ).items()
+                        )
+                    ),
+                    "construction_access_failure_code_counts": dict(
+                        sorted((self._stats.construction_access_failure_code_counts or {}).items())
+                    ),
+                    "direct_shared_edge_access_witness_count": (
+                        self._stats.direct_shared_edge_access_witness_count
+                    ),
+                    "corridor_mediated_access_witness_count": (
+                        self._stats.corridor_mediated_access_witness_count
+                    ),
+                    "reserved_access_corridor_count": len(
+                        self._stats.reserved_access_corridor_geometries or ()
+                    ),
+                    "access_route_revalidation_count": (
+                        self._stats.access_route_revalidation_count
+                    ),
+                    "access_slot_placement_nodes_charged": (
+                        self._stats.tail_access_slot_attempt_count
+                    ),
+                    "access_slot_placement_budget_exhausted": (
+                        self._stats.tail_access_slot_budget_exhausted
+                    ),
+                    "candidate_space_truncated": self._stats.tail_candidate_space_truncated,
+                    "revalidate_after_each_tail_extension": True,
+                    "access_candidate_witnesses": list(
+                        self._stats.tail_access_candidate_witnesses or ()
+                    ),
+                    "complete_candidate_access_witnesses": list(
+                        self._stats.tail_complete_access_witnesses or ()
+                    ),
+                },
                 "attempts": list(self._stats.site_module_assembly_trace or []),
             },
             "_r6_topology_ownership_duplicates": list(
@@ -13410,6 +14437,9 @@ def enumerate_placement_candidates(
     truck_maneuver_binding: Any = None,
     truck_node_budget: int = 20_000,
     truck_maneuver_validator: Callable[..., Mapping[str, Any]] | None = None,
+    access_route_validator: (
+        Callable[..., tuple[Mapping[str, Any], tuple[PolygonMM, ...]]] | None
+    ) = None,
     complete_candidate_limit: int | None = None,
     structural_family: StructuralCompositionFamilyV1 | None = None,
     structural_topology: str | None = None,
@@ -13434,6 +14464,7 @@ def enumerate_placement_candidates(
             truck_maneuver_binding=truck_maneuver_binding,
             truck_node_budget=truck_node_budget,
             truck_maneuver_validator=truck_maneuver_validator,
+            access_route_validator=access_route_validator,
             complete_candidate_limit=complete_candidate_limit,
             structural_family=structural_family,
             structural_topology=structural_topology,

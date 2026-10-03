@@ -35,7 +35,48 @@ def _square_authorities() -> dict[str, dict[str, object]]:
 
 
 def _local_context() -> Any:
-    return SimpleNamespace(authorities=_square_authorities(), graph=process_graph())
+    endpoints = (
+        ("main_entrance", "changing_room"),
+        ("changing_room", "sorting_packaging_room"),
+        ("sorting_packaging_room", "secondary_fruit_buffer"),
+        ("sorting_packaging_room", "frozen_fruit_room"),
+    )
+
+    def route_validator(requirement: Any, **kwargs: Any) -> tuple[dict[str, Any], tuple[Any, ...]]:
+        assert kwargs["zones"]
+        return (
+            {
+                **requirement,
+                "status": "PASS",
+                "codes": [],
+                "topology": "DIRECT_SHARED_EDGE",
+                "route_length_m": "0",
+                "turn_count": 0,
+                "centerline": [],
+            },
+            (),
+        )
+
+    return SimpleNamespace(
+        authorities=_square_authorities(),
+        graph=process_graph(),
+        access_requirements=tuple(
+            {
+                "identity": f"S2:{from_ref}:{to_ref}",
+                "from_ref": from_ref,
+                "to_ref": to_ref,
+                "flow_kind": "PEOPLE"
+                if from_ref in {"main_entrance", "changing_room"}
+                else "MATERIAL",
+            }
+            for from_ref, to_ref in endpoints
+        ),
+        spatial_relationships=(),
+        access_route_validator=route_validator,
+        node_budget=120,
+        structural_topology="STRAIGHT_LINEAR_BAND",
+        structured_building_plan=None,
+    )
 
 
 def test_each_family_uses_a_finite_local_composition_and_exact_main_must_chain() -> None:
@@ -914,7 +955,11 @@ def test_critical_eight_zone_assembly_can_complete_with_site_valid_personnel_slo
         )
         if complete is not None
     )
-    assert completed
+    assert completed, [
+        row
+        for row in stats.site_module_assembly_trace or []
+        if str(row.get("stage", "")).startswith("S2_")
+    ]
     assert set(process_graph().nodes) <= set(completed[0])
     assert placement._site_module_is_usable(context, completed[0], {})
 

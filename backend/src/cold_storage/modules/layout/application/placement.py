@@ -15,7 +15,11 @@ from typing import Any
 from cold_storage.modules.layout.application.dimension_zones import ZoneDimensioningResultV1
 from cold_storage.modules.layout.application.site_geometry import ValidatedSiteGeometryV1
 from cold_storage.modules.layout.domain.access_authority import PACKAGING, resolve_access_profile
-from cold_storage.modules.layout.domain.access_routing import DEFAULT_TRUCK_NODE_BUDGET
+from cold_storage.modules.layout.domain.access_routing import (
+    DEFAULT_ROUTE_NODE_BUDGET,
+    DEFAULT_TRUCK_NODE_BUDGET,
+    route_access_requirement,
+)
 from cold_storage.modules.layout.domain.adjacency import ZONE_CODES, process_graph
 from cold_storage.modules.layout.domain.dimensioning import (
     LayoutAuthorityError,
@@ -344,6 +348,32 @@ def enumerate_placement_candidates(
         if search_phase == STRUCTURED_PHASE
         else access_requirements
     )
+
+    construction_access_route_validator: (
+        Callable[..., tuple[Mapping[str, Any], tuple[Any, ...]]] | None
+    ) = None
+    if search_phase == STRUCTURED_PHASE:
+
+        def validate_construction_route(
+            requirement: Mapping[str, Any],
+            *,
+            relationships: Mapping[str, Mapping[str, Any]],
+            zones: Mapping[str, Any],
+            boundary: Any,
+            obstacles: Any,
+            entrances: Mapping[str, Any],
+        ) -> tuple[dict[str, Any], tuple[Any, ...]]:
+            return route_access_requirement(
+                requirement,
+                relationships=relationships,
+                zones=zones,
+                boundary=boundary,
+                obstacles=obstacles,
+                entrances=entrances,
+                route_node_budget=DEFAULT_ROUTE_NODE_BUDGET,
+            )
+
+        construction_access_route_validator = validate_construction_route
     return enumerate_domain_placement_candidates(
         authorities,
         site_geometry.to_dict(),
@@ -358,6 +388,7 @@ def enumerate_placement_candidates(
         truck_maneuver_binding=truck_maneuver_binding,
         truck_node_budget=truck_node_budget,
         truck_maneuver_validator=truck_maneuver_validator,
+        access_route_validator=construction_access_route_validator,
         complete_candidate_limit=complete_candidate_limit,
         structural_family=structural_family,
         structural_topology=structural_topology,
