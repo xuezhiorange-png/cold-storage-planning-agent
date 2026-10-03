@@ -192,9 +192,11 @@ def _p4_selector_scenario() -> _FullChainScenario:
     assert first["drawing"]["svg"] == replay["drawing"]["svg"]
     assert first["drawing"]["svg_sha256"] == replay["drawing"]["svg_sha256"]
     trace = first["selection"]["candidate_validation_trace"]
-    assert len(trace) >= 2
-    assert trace[0]["p2d_full_pass"] is False
-    assert any(item["p2d_full_pass"] is True for item in trace[1:])
+    passing_candidate_hashes = {
+        item["p2c_candidate_hash"] for item in trace if item["p2d_full_pass"] is True
+    }
+    # P1A can emit a full-pass structured candidate first; ordering is not a P1F invariant.
+    assert first["selection"]["selected_p2c_candidate_hash"] in passing_candidate_hashes
     _assert_full_pass(first["layout"])
 
     context = assemble_preview_context(_FIVE_KEYS)

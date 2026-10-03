@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1100" viewBox="0 0 1800 1100">
+<rect width="1800" height="1100" fill="#f5f7f9"/>
+<text x="24" y="35" font-family="Arial,sans-serif" font-size="24" fill="#17212b">Tail access capacity by Truck-pass main · exact validated seeds only</text>
+<text x="26" y="92" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 1 · TAIL CAPACITY · TAIL_ACCESS_INCAPABLE_MAIN · a4c01570</text>
+<polygon points="58.00,488.22 558.00,488.22 558.00,123.78 58.00,123.78" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<text x="26" y="107" font-family="Arial,sans-serif" font-size="8" fill="#354454">CHG 0 · SEC 1 · FRZ 0 · OFF 0</text>
+<line x1="58.00" y1="264.92" x2="58.00" y2="264.91" stroke="#b23a48" stroke-width="5" stroke-linecap="round"/>
+<line x1="558.00" y1="325.71" x2="558.00" y2="312.46" stroke="#246bce" stroke-width="4" stroke-linecap="round" stroke-dasharray="4 2"/>
+<polygon points="58.00,430.56 155.40,430.56 155.40,363.98 58.00,363.98" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="334.42,309.31 554.95,309.31 554.95,227.25 334.42,227.25" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="334.42,227.24 554.95,227.24 554.95,131.17 334.42,131.17" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="58.00,264.92 58.66,264.92 58.66,264.91 58.00,264.91" fill="#ec8c3525" stroke="#df751e" stroke-width="1.5" stroke-dasharray="5 3"/>
+<polygon points="316.42,474.96 319.73,474.96 319.73,423.28 316.42,423.28" fill="#ec8c3525" stroke="#df751e" stroke-width="1.5" stroke-dasharray="5 3"/>
+<polygon points="58.00,264.92 58.66,264.92 58.66,264.91 58.00,264.91" fill="#ec8c3525" stroke="#df751e" stroke-width="1.5" stroke-dasharray="5 3"/>
+<rect x="149.72" y="264.92" width="52.75" height="66.59" fill="#f1cb86" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="176.10" y="298.21" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">COATING</text>
+<rect x="68.76" y="141.67" width="214.68" height="123.24" fill="#f1cb86" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="176.10" y="203.30" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">FINISHED</text>
+<rect x="155.40" y="373.59" width="96.08" height="114.63" fill="#c9b8df" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="203.44" y="430.90" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">PACKAGING</text>
+<rect x="457.28" y="421.62" width="97.40" height="66.59" fill="#b8d8ec" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="505.99" y="454.92" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">PRIMARY</text>
+<rect x="356.57" y="430.57" width="100.72" height="57.65" fill="#b8d8ec" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="406.93" y="459.39" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">RAW</text>
+<rect x="202.47" y="264.92" width="64.94" height="66.59" fill="#f1cb86" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="234.94" y="298.21" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">SECONDARY</text>
+<rect x="68.76" y="264.92" width="43.07" height="50.97" fill="#f1cb86" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<rect x="251.48" y="331.51" width="303.21" height="90.11" fill="#91c9a6" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="403.08" y="376.57" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">SORTING</text>
+<rect x="251.48" y="421.62" width="45.72" height="55.66" fill="#bca8d8" fill-opacity="0.38" stroke="#a33b68" stroke-width="2.0" stroke-dasharray="5 3"/>
+<text x="274.34" y="449.45" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">SEC. FRUIT</text>
+<polyline points="274.34,421.62 274.34,421.62" fill="none" stroke="#247a5a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="26" y="540" font-family="Arial,sans-serif" font-size="11" fill="#354454">Truck envelopes: orange dashed · reserved access corridors: teal · route labels in legend</text>
+<text x="606" y="92" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 2 · TAIL CAPACITY · UNRESOLVED_COVERAGE · 08ddd095</text>
+<polygon points="638.00,488.22 1138.00,488.22 1138.00,123.78 638.00,123.78" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<text x="606" y="107" font-family="Arial,sans-serif" font-size="8" fill="#354454">CHG 0 · SEC 1 · FRZ 0 · OFF 1</text>
+<line x1="638.00" y1="264.92" x2="638.00" y2="264.91" stroke="#b23a48" stroke-width="5" stroke-linecap="round"/>
+<line x1="1138.00" y1="325.71" x2="1138.00" y2="312.46" stroke="#246bce" stroke-width="4" stroke-linecap="round" stroke-dasharray="4 2"/>
+<polygon points="638.00,430.56 735.40,430.56 735.40,363.98 638.00,363.98" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="914.42,309.31 1134.95,309.31 1134.95,227.25 914.42,227.25" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="914.42,227.24 1134.95,227.24 1134.95,131.17 914.42,131.17" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="638.00,264.92 638.66,264.92 638.66,264.91 638.00,264.91" fill="#ec8c3525" stroke="#df751e" stroke-width="1.5" stroke-dasharray="5 3"/>
+<polygon points="896.42,474.96 899.73,474.96 899.73,423.28 896.42,423.28" fill="#ec8c3525" stroke="#df751e" stroke-width="1.5" stroke-dasharray="5 3"/>
+<polygon points="638.00,264.92 638.66,264.92 638.66,264.91 638.00,264.91" fill="#ec8c3525" stroke="#df751e" stroke-width="1.5" stroke-dasharray="5 3"/>
+<rect x="853.76" y="264.92" width="52.75" height="66.59" fill="#f1cb86" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="880.14" y="298.21" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">COATING</text>
+<rect x="691.83" y="141.67" width="214.68" height="123.24" fill="#f1cb86" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="799.17" y="203.30" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">FINISHED</text>
+<rect x="735.40" y="373.59" width="96.08" height="114.63" fill="#c9b8df" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="783.44" y="430.90" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">PACKAGING</text>
+<rect x="1037.28" y="421.62" width="97.40" height="66.59" fill="#b8d8ec" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="1085.99" y="454.92" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">PRIMARY</text>
+<rect x="936.57" y="430.57" width="100.72" height="57.65" fill="#b8d8ec" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="986.93" y="459.39" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">RAW</text>
+<rect x="788.83" y="264.92" width="64.94" height="66.59" fill="#f1cb86" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="821.30" y="298.21" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">SECONDARY</text>
+<rect x="648.76" y="213.94" width="43.07" height="50.97" fill="#f1cb86" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<rect x="831.48" y="331.51" width="303.21" height="90.11" fill="#91c9a6" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="983.08" y="376.57" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">SORTING</text>
+<rect x="640.50" y="264.92" width="51.33" height="51.33" fill="#dfb9bf" fill-opacity="0.38" stroke="#a33b68" stroke-width="2.0" stroke-dasharray="5 3"/>
+<text x="666.17" y="290.58" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">OFFICE</text>
+<rect x="831.48" y="421.62" width="45.72" height="55.66" fill="#bca8d8" fill-opacity="0.38" stroke="#a33b68" stroke-width="2.0" stroke-dasharray="5 3"/>
+<text x="854.34" y="449.45" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">SEC. FRUIT</text>
+<polyline points="854.34,421.62 854.34,421.62" fill="none" stroke="#247a5a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="606" y="540" font-family="Arial,sans-serif" font-size="11" fill="#354454">Truck envelopes: orange dashed · reserved access corridors: teal · route labels in legend</text>
+<text x="1186" y="92" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 3 · TAIL CAPACITY · UNRESOLVED_COVERAGE · b8ece16d</text>
+<polygon points="1218.00,488.22 1718.00,488.22 1718.00,123.78 1218.00,123.78" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<text x="1186" y="107" font-family="Arial,sans-serif" font-size="8" fill="#354454">CHG 0 · SEC 1 · FRZ 0 · OFF 1</text>
+<line x1="1218.00" y1="264.92" x2="1218.00" y2="264.91" stroke="#b23a48" stroke-width="5" stroke-linecap="round"/>
+<line x1="1718.00" y1="325.71" x2="1718.00" y2="312.46" stroke="#246bce" stroke-width="4" stroke-linecap="round" stroke-dasharray="4 2"/>
+<polygon points="1218.00,430.56 1315.40,430.56 1315.40,363.98 1218.00,363.98" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="1494.42,309.31 1714.95,309.31 1714.95,227.25 1494.42,227.25" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="1494.42,227.24 1714.95,227.24 1714.95,131.17 1494.42,131.17" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="1218.00,264.92 1218.66,264.92 1218.66,264.91 1218.00,264.91" fill="#ec8c3525" stroke="#df751e" stroke-width="1.5" stroke-dasharray="5 3"/>
+<polygon points="1476.42,474.96 1479.73,474.96 1479.73,423.28 1476.42,423.28" fill="#ec8c3525" stroke="#df751e" stroke-width="1.5" stroke-dasharray="5 3"/>
+<polygon points="1218.00,264.92 1218.66,264.92 1218.66,264.91 1218.00,264.91" fill="#ec8c3525" stroke="#df751e" stroke-width="1.5" stroke-dasharray="5 3"/>
+<rect x="1441.67" y="264.92" width="52.75" height="66.59" fill="#f1cb86" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="1468.04" y="298.21" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">COATING</text>
+<rect x="1279.73" y="141.67" width="214.68" height="123.24" fill="#f1cb86" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="1387.08" y="203.30" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">FINISHED</text>
+<rect x="1315.40" y="373.59" width="96.08" height="114.63" fill="#c9b8df" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="1363.44" y="430.90" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">PACKAGING</text>
+<rect x="1617.28" y="421.62" width="97.40" height="66.59" fill="#b8d8ec" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="1665.99" y="454.92" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">PRIMARY</text>
+<rect x="1516.57" y="430.57" width="100.72" height="57.65" fill="#b8d8ec" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="1566.93" y="459.39" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">RAW</text>
+<rect x="1376.73" y="264.92" width="64.94" height="66.59" fill="#f1cb86" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="1409.20" y="298.21" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">SECONDARY</text>
+<rect x="1228.76" y="221.85" width="50.97" height="43.07" fill="#f1cb86" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="1254.25" y="243.38" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">SHIPPING</text>
+<rect x="1411.48" y="331.51" width="303.21" height="90.11" fill="#91c9a6" fill-opacity="1.0" stroke="#263244" stroke-width="1.3" stroke-dasharray="none"/>
+<text x="1563.08" y="376.57" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">SORTING</text>
+<rect x="1228.41" y="264.92" width="51.33" height="51.33" fill="#dfb9bf" fill-opacity="0.38" stroke="#a33b68" stroke-width="2.0" stroke-dasharray="5 3"/>
+<text x="1254.07" y="290.58" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">OFFICE</text>
+<rect x="1411.48" y="421.62" width="45.72" height="55.66" fill="#bca8d8" fill-opacity="0.38" stroke="#a33b68" stroke-width="2.0" stroke-dasharray="5 3"/>
+<text x="1434.34" y="449.45" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="9" fill="#17212b">SEC. FRUIT</text>
+<polyline points="1434.34,421.62 1434.34,421.62" fill="none" stroke="#247a5a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="1186" y="540" font-family="Arial,sans-serif" font-size="11" fill="#354454">Truck envelopes: orange dashed · reserved access corridors: teal · route labels in legend</text>
+<line x1="30" y1="1060" x2="58" y2="1060" stroke="#b23a48" stroke-width="4"/><text x="66" y="1064" font-family="Arial,sans-serif" font-size="11" fill="#17212b">main_entrance->changing_room</text>
+<line x1="460" y1="1060" x2="488" y2="1060" stroke="#d17c00" stroke-width="4"/><text x="496" y="1064" font-family="Arial,sans-serif" font-size="11" fill="#17212b">changing_room->sorting_packaging_room</text>
+<line x1="890" y1="1060" x2="918" y2="1060" stroke="#247a5a" stroke-width="4"/><text x="926" y="1064" font-family="Arial,sans-serif" font-size="11" fill="#17212b">sorting_packaging_room->secondary_fruit_buffer</text>
+<line x1="1320" y1="1060" x2="1348" y2="1060" stroke="#3156a3" stroke-width="4"/><text x="1356" y="1064" font-family="Arial,sans-serif" font-size="11" fill="#17212b">sorting_packaging_room->frozen_fruit_room</text>
+</svg>

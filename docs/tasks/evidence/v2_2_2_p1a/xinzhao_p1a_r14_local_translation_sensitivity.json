@@ -1,0 +1,2226 @@
+{
+  "evaluation_only": true,
+  "grid_mm": 1,
+  "identity": "v222-p1a-r14-local-translation-sensitivity@1.0.0",
+  "layout_geometry_compatible_pass_count": 0,
+  "local_feasibility_witness_found": false,
+  "nearest_diagnostic_pass": null,
+  "no_local_feasible_translation_found": true,
+  "rows": [
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [
+          "finished_goods_room"
+        ],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 1,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 1,
+        "y": 0
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "translated_loading_face": {
+        "end_mm": [
+          801,
+          41393
+        ],
+        "start_mm": [
+          801,
+          33700
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 801,
+        "y_mm": 33700,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": false
+      },
+      "dx_mm": -1,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": -1,
+        "y": 0
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "translated_loading_face": {
+        "end_mm": [
+          799,
+          41393
+        ],
+        "start_mm": [
+          799,
+          33700
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 799,
+        "y_mm": 33700,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [
+          "finished_goods_room"
+        ],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 2,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 2,
+        "y": 0
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "translated_loading_face": {
+        "end_mm": [
+          802,
+          41393
+        ],
+        "start_mm": [
+          802,
+          33700
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 802,
+        "y_mm": 33700,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": false
+      },
+      "dx_mm": -2,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": -2,
+        "y": 0
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "translated_loading_face": {
+        "end_mm": [
+          798,
+          41393
+        ],
+        "start_mm": [
+          798,
+          33700
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 798,
+        "y_mm": 33700,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 0,
+      "dy_mm": 1,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": 1
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "translated_loading_face": {
+        "end_mm": [
+          800,
+          41394
+        ],
+        "start_mm": [
+          800,
+          33701
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 800,
+        "y_mm": 33701,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 0,
+      "dy_mm": -1,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": -1
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "translated_loading_face": {
+        "end_mm": [
+          800,
+          41392
+        ],
+        "start_mm": [
+          800,
+          33699
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 800,
+        "y_mm": 33699,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 0,
+      "dy_mm": 2,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": 2
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "translated_loading_face": {
+        "end_mm": [
+          800,
+          41395
+        ],
+        "start_mm": [
+          800,
+          33702
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 800,
+        "y_mm": 33702,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 0,
+      "dy_mm": -2,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": -2
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c",
+      "translated_loading_face": {
+        "end_mm": [
+          800,
+          41391
+        ],
+        "start_mm": [
+          800,
+          33698
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 800,
+        "y_mm": 33698,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 1,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 1,
+        "y": 0
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb",
+      "translated_loading_face": {
+        "end_mm": [
+          13794,
+          27200
+        ],
+        "start_mm": [
+          6101,
+          27200
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 90,
+        "width_mm": 6500,
+        "x_mm": 6101,
+        "y_mm": 27200,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": -1,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": -1,
+        "y": 0
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb",
+      "translated_loading_face": {
+        "end_mm": [
+          13792,
+          27200
+        ],
+        "start_mm": [
+          6099,
+          27200
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 90,
+        "width_mm": 6500,
+        "x_mm": 6099,
+        "y_mm": 27200,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 2,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 2,
+        "y": 0
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb",
+      "translated_loading_face": {
+        "end_mm": [
+          13795,
+          27200
+        ],
+        "start_mm": [
+          6102,
+          27200
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 90,
+        "width_mm": 6500,
+        "x_mm": 6102,
+        "y_mm": 27200,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": -2,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": -2,
+        "y": 0
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb",
+      "translated_loading_face": {
+        "end_mm": [
+          13791,
+          27200
+        ],
+        "start_mm": [
+          6098,
+          27200
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 90,
+        "width_mm": 6500,
+        "x_mm": 6098,
+        "y_mm": 27200,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [
+          "finished_goods_room"
+        ],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 0,
+      "dy_mm": 1,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": 1
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb",
+      "translated_loading_face": {
+        "end_mm": [
+          13793,
+          27201
+        ],
+        "start_mm": [
+          6100,
+          27201
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 90,
+        "width_mm": 6500,
+        "x_mm": 6100,
+        "y_mm": 27201,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": false
+      },
+      "dx_mm": 0,
+      "dy_mm": -1,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": -1
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb",
+      "translated_loading_face": {
+        "end_mm": [
+          13793,
+          27199
+        ],
+        "start_mm": [
+          6100,
+          27199
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 90,
+        "width_mm": 6500,
+        "x_mm": 6100,
+        "y_mm": 27199,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [
+          "finished_goods_room"
+        ],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 0,
+      "dy_mm": 2,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": 2
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb",
+      "translated_loading_face": {
+        "end_mm": [
+          13793,
+          27202
+        ],
+        "start_mm": [
+          6100,
+          27202
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 90,
+        "width_mm": 6500,
+        "x_mm": 6100,
+        "y_mm": 27202,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": false
+      },
+      "dx_mm": 0,
+      "dy_mm": -2,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": -2
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb",
+      "translated_loading_face": {
+        "end_mm": [
+          13793,
+          27198
+        ],
+        "start_mm": [
+          6100,
+          27198
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 90,
+        "width_mm": 6500,
+        "x_mm": 6100,
+        "y_mm": 27198,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [
+          "finished_goods_room"
+        ],
+        "shipping_finished_positive_shared_edge": false
+      },
+      "dx_mm": 1,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 1,
+        "y": 0
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8",
+      "translated_loading_face": {
+        "end_mm": [
+          801,
+          46846
+        ],
+        "start_mm": [
+          801,
+          39153
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 801,
+        "y_mm": 39153,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": false
+      },
+      "dx_mm": -1,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": -1,
+        "y": 0
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8",
+      "translated_loading_face": {
+        "end_mm": [
+          799,
+          46846
+        ],
+        "start_mm": [
+          799,
+          39153
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 799,
+        "y_mm": 39153,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [
+          "finished_goods_room"
+        ],
+        "shipping_finished_positive_shared_edge": false
+      },
+      "dx_mm": 2,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 2,
+        "y": 0
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8",
+      "translated_loading_face": {
+        "end_mm": [
+          802,
+          46846
+        ],
+        "start_mm": [
+          802,
+          39153
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 802,
+        "y_mm": 39153,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": false
+      },
+      "dx_mm": -2,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": -2,
+        "y": 0
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8",
+      "translated_loading_face": {
+        "end_mm": [
+          798,
+          46846
+        ],
+        "start_mm": [
+          798,
+          39153
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 798,
+        "y_mm": 39153,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 0,
+      "dy_mm": 1,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": 1
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8",
+      "translated_loading_face": {
+        "end_mm": [
+          800,
+          46847
+        ],
+        "start_mm": [
+          800,
+          39154
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 800,
+        "y_mm": 39154,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 0,
+      "dy_mm": -1,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": -1
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8",
+      "translated_loading_face": {
+        "end_mm": [
+          800,
+          46845
+        ],
+        "start_mm": [
+          800,
+          39152
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 800,
+        "y_mm": 39152,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 0,
+      "dy_mm": 2,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": 2
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8",
+      "translated_loading_face": {
+        "end_mm": [
+          800,
+          46848
+        ],
+        "start_mm": [
+          800,
+          39155
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 800,
+        "y_mm": 39155,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 0,
+      "dy_mm": -2,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": -2
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8",
+      "translated_loading_face": {
+        "end_mm": [
+          800,
+          46844
+        ],
+        "start_mm": [
+          800,
+          39151
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 800,
+        "y_mm": 39151,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 1,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 1,
+        "y": 0
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "translated_loading_face": {
+        "end_mm": [
+          6101,
+          33700
+        ],
+        "start_mm": [
+          6101,
+          26007
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 6101,
+        "y_mm": 26007,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": -1,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": -1,
+        "y": 0
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "translated_loading_face": {
+        "end_mm": [
+          6099,
+          33700
+        ],
+        "start_mm": [
+          6099,
+          26007
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 6099,
+        "y_mm": 26007,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 2,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 2,
+        "y": 0
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "translated_loading_face": {
+        "end_mm": [
+          6102,
+          33700
+        ],
+        "start_mm": [
+          6102,
+          26007
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 6102,
+        "y_mm": 26007,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": -2,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": -2,
+        "y": 0
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "translated_loading_face": {
+        "end_mm": [
+          6098,
+          33700
+        ],
+        "start_mm": [
+          6098,
+          26007
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 6098,
+        "y_mm": 26007,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [
+          "finished_goods_room"
+        ],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 0,
+      "dy_mm": 1,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": 1
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "translated_loading_face": {
+        "end_mm": [
+          6100,
+          33701
+        ],
+        "start_mm": [
+          6100,
+          26008
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 6100,
+        "y_mm": 26008,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": false
+      },
+      "dx_mm": 0,
+      "dy_mm": -1,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": -1
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "translated_loading_face": {
+        "end_mm": [
+          6100,
+          33699
+        ],
+        "start_mm": [
+          6100,
+          26006
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 6100,
+        "y_mm": 26006,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [
+          "finished_goods_room"
+        ],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 0,
+      "dy_mm": 2,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": 2
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "translated_loading_face": {
+        "end_mm": [
+          6100,
+          33702
+        ],
+        "start_mm": [
+          6100,
+          26009
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 6100,
+        "y_mm": 26009,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": false
+      },
+      "dx_mm": 0,
+      "dy_mm": -2,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": -2
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3",
+      "translated_loading_face": {
+        "end_mm": [
+          6100,
+          33698
+        ],
+        "start_mm": [
+          6100,
+          26005
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 6100,
+        "y_mm": 26005,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [
+          "finished_goods_room"
+        ],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 1,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 1,
+        "y": 0
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa",
+      "translated_loading_face": {
+        "end_mm": [
+          801,
+          52300
+        ],
+        "start_mm": [
+          801,
+          44607
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 801,
+        "y_mm": 44607,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": false
+      },
+      "dx_mm": -1,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": -1,
+        "y": 0
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa",
+      "translated_loading_face": {
+        "end_mm": [
+          799,
+          52300
+        ],
+        "start_mm": [
+          799,
+          44607
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 799,
+        "y_mm": 44607,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [
+          "finished_goods_room"
+        ],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 2,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 2,
+        "y": 0
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa",
+      "translated_loading_face": {
+        "end_mm": [
+          802,
+          52300
+        ],
+        "start_mm": [
+          802,
+          44607
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 802,
+        "y_mm": 44607,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": false
+      },
+      "dx_mm": -2,
+      "dy_mm": 0,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": -2,
+        "y": 0
+      },
+      "layout_geometry_compatible": false,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa",
+      "translated_loading_face": {
+        "end_mm": [
+          798,
+          52300
+        ],
+        "start_mm": [
+          798,
+          44607
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 798,
+        "y_mm": 44607,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 0,
+      "dy_mm": 1,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": 1
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa",
+      "translated_loading_face": {
+        "end_mm": [
+          800,
+          52301
+        ],
+        "start_mm": [
+          800,
+          44608
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 800,
+        "y_mm": 44608,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 0,
+      "dy_mm": -1,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": -1
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa",
+      "translated_loading_face": {
+        "end_mm": [
+          800,
+          52299
+        ],
+        "start_mm": [
+          800,
+          44606
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 800,
+        "y_mm": 44606,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 0,
+      "dy_mm": 2,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": 2
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa",
+      "translated_loading_face": {
+        "end_mm": [
+          800,
+          52302
+        ],
+        "start_mm": [
+          800,
+          44609
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 800,
+        "y_mm": 44609,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    },
+    {
+      "authority_loading_face_changed": false,
+      "diagnostic_geometry_checks": {
+        "inside_effective_boundary": true,
+        "obstacle_intersections": [],
+        "overlap_zone_codes": [],
+        "shipping_finished_positive_shared_edge": true
+      },
+      "dx_mm": 0,
+      "dy_mm": -2,
+      "evaluation_only": true,
+      "grid_mm": 1,
+      "grid_steps": {
+        "x": 0,
+        "y": -2
+      },
+      "layout_geometry_compatible": true,
+      "other_six_main_zones_unchanged": true,
+      "p2c_full_layout_revalidated": false,
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa",
+      "translated_loading_face": {
+        "end_mm": [
+          800,
+          52298
+        ],
+        "start_mm": [
+          800,
+          44605
+        ]
+      },
+      "translated_zone": {
+        "depth_mm": 7693,
+        "rotation_deg": 0,
+        "width_mm": 6500,
+        "x_mm": 800,
+        "y_mm": 44605,
+        "zone_code": "shipping_channel"
+      },
+      "truck_result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "zone_code": "shipping_channel"
+    }
+  ],
+  "translation_vectors_grid_steps": [
+    {
+      "x": 1,
+      "y": 0
+    },
+    {
+      "x": -1,
+      "y": 0
+    },
+    {
+      "x": 2,
+      "y": 0
+    },
+    {
+      "x": -2,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": 1
+    },
+    {
+      "x": 0,
+      "y": -1
+    },
+    {
+      "x": 0,
+      "y": 2
+    },
+    {
+      "x": 0,
+      "y": -2
+    }
+  ],
+  "truck_pass_count": 0
+}

@@ -236,7 +236,15 @@ def _objective_search_fixture(authority_context, monkeypatch, *, node_budget: in
     graph = process_graph()
     requirements = handoff.to_dict()["p1e_historical_handoff"]["access_requirements"]
     relationships = handoff.to_dict()["p1e_historical_handoff"]["spatial_relationships"]
-    authorities = {code: {} for code in graph.nodes}
+    authorities = {
+        code: {
+            "zone_code": code,
+            "dimension_mode": "FIXED_RECTANGLE",
+            "required_area_m2": "1",
+            "geometry": {"width_m": "1", "depth_m": "1", "required_area_m2": "1"},
+        }
+        for code in graph.nodes
+    }
 
     def fake_options(code, _authority, placed, *_args):
         if not placed:

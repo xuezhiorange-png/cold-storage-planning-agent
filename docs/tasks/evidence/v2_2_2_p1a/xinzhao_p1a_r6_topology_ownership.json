@@ -1,0 +1,39 @@
+{
+  "identity": "p1a-r6-topology-ownership-evidence@1.0.0",
+  "one_geometry_one_canonical_topology": true,
+  "canonical_precedence": [
+    "STRAIGHT_LINEAR_BAND",
+    "OFFSET_LINEAR_BAND",
+    "CENTRAL_PROCESS_HUB"
+  ],
+  "r5_shared_skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+  "r5_shared_skeleton_canonical_owner": "STRAIGHT_LINEAR_BAND",
+  "r5_shared_skeleton_also_matches_hub_face_facts": true,
+  "owned_skeletons": [
+    {
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "constructed_topology": "STRAIGHT_LINEAR_BAND",
+      "canonical_owner": "STRAIGHT_LINEAR_BAND",
+      "construction_policy": "STRAIGHT_LINEAR_BAND_V1",
+      "divergence_stage": "ROOT_OR_GROUP_BAND_FORMATION"
+    }
+  ],
+  "non_owner_geometry_skipped": [
+    {
+      "skeleton_hash": "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc",
+      "constructed_lane": "CENTRAL_PROCESS_HUB",
+      "canonical_owner": "STRAIGHT_LINEAR_BAND",
+      "sorting_root_mm": [29238, 13399, 74998, 26999],
+      "raw_side": "SOUTH",
+      "finished_side": "WEST",
+      "tail_search_started": false,
+      "p2d_reached": false
+    }
+  ],
+  "hub_reaccepted_r5_shared_skeleton": false,
+  "hub_continued_after_non_owner_geometry": true,
+  "cross_topology_same_hash_duplicate_count": 0,
+  "global_unique_geometry_registry_count": 2,
+  "classifier_is_engineering_validity_gate": false,
+  "classifier_is_quality_score": false
+}

@@ -1,0 +1,53 @@
+{
+  "identity": "p1a-r5-cross-fixture-regression@1.0.0",
+  "result": "PASS",
+  "source_suite": "backend/tests/evaluation/test_v221_p1f_cross_fixture_drawing_robustness.py::test_existing_authoritative_fixtures_pass_all_profiles_and_replay_deterministically",
+  "executed_at": "2026-09-26",
+  "full_chain_authoritative_fixture_count": 3,
+  "composition_only_fixture_count": 2,
+  "scenario_count": 5,
+  "full_chain_fixtures": [
+    {
+      "fixture_id": "P2D_REPRESENTATIVE_20T_RECTANGULAR_SITE",
+      "full_p2d_validated": true,
+      "p2c_selector_used": false,
+      "same_input_replay_deterministic": true
+    },
+    {
+      "fixture_id": "P3_EXISTING_CONCAVE_SITE_VALIDATED_LAYOUT",
+      "full_p2d_validated": true,
+      "p2c_selector_used": false,
+      "same_input_replay_deterministic": true
+    },
+    {
+      "fixture_id": "P4_REAL_SELECTOR_SITE_WITH_NO_BUILD_ZONES",
+      "full_p2d_validated": true,
+      "p2c_selector_used": true,
+      "same_input_replay_deterministic": true
+    }
+  ],
+  "composition_only_fixtures": [
+    {
+      "fixture_id": "COMPOSITION_ONLY_WIDE_SITE_RIGHT_RAIL",
+      "selected_composition": "RIGHT_RAIL",
+      "full_chain_fixture": false,
+      "drawing_lint": "NOT_RUN_COMPOSITION_ONLY"
+    },
+    {
+      "fixture_id": "COMPOSITION_ONLY_WIDE_PLAN_BOTTOM_RAIL",
+      "selected_composition": "BOTTOM_RAIL",
+      "full_chain_fixture": false,
+      "drawing_lint": "NOT_RUN_COMPOSITION_ONLY"
+    }
+  ],
+  "acceptance_facts": {
+    "all_scenarios_pass": true,
+    "all_authoritative_full_chain_fixtures_p2d_validated": true,
+    "drawing_lint_failed_scenario_count": 0,
+    "determinism_failed_scenario_count": 0,
+    "visual_blocker_scenario_count": 0,
+    "context_inset_blocker_profile_count": 0,
+    "p1f_cross_fixture_regression": "PASS"
+  },
+  "scope_note": "This reused P1F regression suite does not establish Xinzhao Owner visual acceptance or distinct R5 skeleton diversity."
+}

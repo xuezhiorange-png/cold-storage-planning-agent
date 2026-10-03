@@ -1,0 +1,114 @@
+{
+  "identity": "p1a-r5-skeleton-survival-evidence@1.0.0",
+  "skeleton_lifecycle": [
+    {
+      "complete_candidate_count": 2,
+      "construction_nodes": 7,
+      "first_failure_reason": null,
+      "first_failure_stage": null,
+      "p2d_candidate_count": 2,
+      "p2d_full_pass_count": 2,
+      "p2d_reached": true,
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "tail_node_limit": 20,
+      "tail_nodes": 7,
+      "topology": "STRAIGHT_LINEAR_BAND"
+    },
+    {
+      "complete_candidate_count": 2,
+      "construction_nodes": 7,
+      "first_failure_reason": null,
+      "first_failure_stage": null,
+      "p2d_candidate_count": 2,
+      "p2d_full_pass_count": 2,
+      "p2d_reached": true,
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "tail_node_limit": 20,
+      "tail_nodes": 7,
+      "topology": "CENTRAL_PROCESS_HUB"
+    }
+  ],
+  "tail_search_zone_facts_by_lane": [
+    {
+      "facts": {
+        "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953": {
+          "changing_room": {
+            "branch_visits": 1,
+            "candidate_options": 6,
+            "empty_option_branches": 0,
+            "skeleton_region_options": 6
+          },
+          "frozen_fruit_room": {
+            "branch_visits": 1,
+            "candidate_options": 5,
+            "empty_option_branches": 0,
+            "skeleton_region_options": 5
+          },
+          "office": {
+            "branch_visits": 1,
+            "candidate_options": 6,
+            "empty_option_branches": 0,
+            "skeleton_region_options": 6
+          },
+          "packaging_material_storage": {
+            "branch_visits": 1,
+            "candidate_options": 2,
+            "empty_option_branches": 0,
+            "skeleton_region_options": 2
+          },
+          "secondary_fruit_buffer": {
+            "branch_visits": 1,
+            "candidate_options": 6,
+            "empty_option_branches": 0,
+            "skeleton_region_options": 6
+          }
+        }
+      },
+      "search_phase": "STRUCTURED",
+      "topology": "STRAIGHT_LINEAR_BAND"
+    },
+    {
+      "facts": {},
+      "search_phase": "STRUCTURED",
+      "topology": "OFFSET_LINEAR_BAND"
+    },
+    {
+      "facts": {
+        "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953": {
+          "changing_room": {
+            "branch_visits": 1,
+            "candidate_options": 6,
+            "empty_option_branches": 0,
+            "skeleton_region_options": 6
+          },
+          "frozen_fruit_room": {
+            "branch_visits": 1,
+            "candidate_options": 5,
+            "empty_option_branches": 0,
+            "skeleton_region_options": 5
+          },
+          "office": {
+            "branch_visits": 1,
+            "candidate_options": 6,
+            "empty_option_branches": 0,
+            "skeleton_region_options": 6
+          },
+          "packaging_material_storage": {
+            "branch_visits": 1,
+            "candidate_options": 2,
+            "empty_option_branches": 0,
+            "skeleton_region_options": 2
+          },
+          "secondary_fruit_buffer": {
+            "branch_visits": 1,
+            "candidate_options": 6,
+            "empty_option_branches": 0,
+            "skeleton_region_options": 6
+          }
+        }
+      },
+      "search_phase": "STRUCTURED",
+      "topology": "CENTRAL_PROCESS_HUB"
+    }
+  ]
+}

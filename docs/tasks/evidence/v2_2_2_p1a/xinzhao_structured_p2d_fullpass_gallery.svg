@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1040" viewBox="0 0 1800 1040">
+<defs><marker id="packagingArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#a13e32"/></marker></defs>
+<rect width="1800" height="1040" fill="#f5f7f9"/>
+<text x="26" y="38" font-family="Arial,sans-serif" font-size="24" fill="#17212b">R2 structured P2D full-pass module candidates</text>
+<text x="36" y="116" font-family="Arial,sans-serif" font-size="20" fill="#8a3d3d">No structured P2D full-pass candidate was observed; fallback is not shown as structured.</text>
+<text x="26" y="94" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 1 · NO CANDIDATE · none · PACKAGING SLOT REJECT</text>
+<polygon points="50.00,503.05 566.00,503.05 566.00,126.95 50.00,126.95" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<polygon points="50.00,443.55 150.51,443.55 150.51,374.83 50.00,374.83" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="335.27,318.42 562.85,318.42 562.85,233.73 335.27,233.73" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="335.27,233.72 562.85,233.72 562.85,134.57 335.27,134.57" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<text x="28" y="1010" font-family="Arial,sans-serif" font-size="14" fill="#354454">Site boundary and hard no-build polygons shown. Dashed outlines group fixed module geometry; no hidden bays or filler space are drawn.</text>
+</svg>

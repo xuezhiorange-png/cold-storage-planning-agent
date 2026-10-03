@@ -1,0 +1,20 @@
+{
+  "identity": "v222-p1a-r11-scheduler-trace@1.0.0",
+  "search_policy": "STAGED_COVERAGE_THEN_PREFERENCE",
+  "quantum_nodes": 16,
+  "round_count": 3,
+  "queue_order_deterministic": true,
+  "replayed_prefix_node_count": 0,
+  "trace": [
+    {"round": 1, "topology": "OFFSET_LINEAR_BAND", "nodes_before": 0, "nodes_after": 16, "status_before": "ACTIVE", "status_after": "QUANTUM_EXHAUSTED", "continuation_created": true},
+    {"round": 1, "topology": "CENTRAL_PROCESS_HUB", "nodes_before": 16, "nodes_after": 32, "status_before": "ACTIVE", "status_after": "QUANTUM_EXHAUSTED", "continuation_created": true},
+    {"round": 1, "topology": "STRAIGHT_LINEAR_BAND", "nodes_before": 32, "nodes_after": 48, "status_before": "ACTIVE", "status_after": "QUANTUM_EXHAUSTED", "continuation_created": true},
+    {"round": 2, "topology": "OFFSET_LINEAR_BAND", "nodes_before": 48, "nodes_after": 64, "status_before": "QUANTUM_EXHAUSTED", "status_after": "QUANTUM_EXHAUSTED", "continuation_created": true},
+    {"round": 2, "topology": "CENTRAL_PROCESS_HUB", "nodes_before": 64, "nodes_after": 80, "status_before": "QUANTUM_EXHAUSTED", "status_after": "QUANTUM_EXHAUSTED", "continuation_created": true},
+    {"round": 2, "topology": "STRAIGHT_LINEAR_BAND", "nodes_before": 80, "nodes_after": 96, "status_before": "QUANTUM_EXHAUSTED", "status_after": "QUANTUM_EXHAUSTED", "continuation_created": true},
+    {"round": 3, "topology": "OFFSET_LINEAR_BAND", "nodes_before": 96, "nodes_after": 103, "status_before": "QUANTUM_EXHAUSTED", "status_after": "COMPLETED", "continuation_created": false},
+    {"round": 3, "topology": "CENTRAL_PROCESS_HUB", "nodes_before": 103, "nodes_after": 112, "status_before": "QUANTUM_EXHAUSTED", "status_after": "QUANTUM_EXHAUSTED", "continuation_created": true},
+    {"round": 3, "topology": "STRAIGHT_LINEAR_BAND", "nodes_before": 112, "nodes_after": 120, "status_before": "QUANTUM_EXHAUSTED", "status_after": "QUANTUM_EXHAUSTED", "continuation_created": true}
+  ],
+  "accounting_authority": "xinzhao_p1a_r11_budget_accounting.json"
+}

@@ -30,11 +30,11 @@ from cold_storage.modules.layout.domain.access_routing import (
     _edge_segments,
     _segment_from_mapping,
     _segment_length_mm,
-    derive_building_footprint,
     evaluate_personnel_truck_interaction,
     route_access_requirement,
     validate_truck_maneuver_chain,
 )
+from cold_storage.modules.layout.domain.building_footprint import derive_building_footprint
 from cold_storage.modules.layout.domain.dimensioning import (
     LayoutAuthorityError,
     canonical_hash,

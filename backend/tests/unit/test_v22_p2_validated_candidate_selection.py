@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from typing import Any
 
@@ -9,28 +10,105 @@ import pytest
 
 from cold_storage.modules.layout.application import validated_candidate_selection as selection
 from cold_storage.modules.layout.domain.placement import SitePlacementResultV1
+from cold_storage.modules.layout.domain.structural_composition import (
+    CENTRAL_PROCESS_HUB,
+    LINEAR_PROCESS_BAND,
+    MAIN_PROCESS_ZONE_CODES,
+    StructuralCompositionFamilyV1,
+)
+from cold_storage.modules.layout.domain.structural_quality import StructuralQualityFactsV1
 
 
 class _FakeCandidateStream:
-    def __init__(self, candidates: list[SitePlacementResultV1]) -> None:
+    def __init__(
+        self,
+        candidates: list[SitePlacementResultV1],
+        *,
+        structured: Mapping[str, bool] | None = None,
+    ) -> None:
         self._candidates = candidates
+        self._structured = dict(structured or {})
         self._provenance = {
             "search_tree_exhausted": True,
             "node_budget_exhausted": False,
             "complete_candidate_limit_stops_search": False,
             "node_budget_is_only_search_cutoff": True,
         }
+        self.structural_composition_family = StructuralCompositionFamilyV1(
+            CENTRAL_PROCESS_HUB,
+            "X",
+            "UNRESOLVED",
+            "SYNTHETIC_SELECTOR_TEST",
+        )
+        self._cursor = 0
+        self._candidate_quantum_progress = 0
+        self._node_count = 0
+        self.skeleton_generation_report: dict[str, Any] = {}
 
     def iter_candidates(self):
         yield from self._candidates
 
+    def advance_quantum(self, node_limit: int) -> Any:
+        from types import SimpleNamespace
+
+        if self._cursor >= len(self._candidates):
+            return SimpleNamespace(
+                candidates=(),
+                nodes_visited=0,
+                status="SEARCH_EXHAUSTED",
+                work_item={"cursor": self._cursor},
+                search_exhausted=self.search_tree_exhausted,
+                completed=True,
+            )
+        nodes_visited = min(13 - self._candidate_quantum_progress, node_limit)
+        self._candidate_quantum_progress += nodes_visited
+        self._node_count += nodes_visited
+        self.skeleton_generation_report["construction_node_count"] = self._node_count
+        if self._candidate_quantum_progress < 13:
+            return SimpleNamespace(
+                candidates=(),
+                nodes_visited=nodes_visited,
+                status="QUANTUM_EXHAUSTED",
+                work_item={"cursor": self._cursor},
+                search_exhausted=False,
+                completed=False,
+            )
+        candidate = self._candidates[self._cursor]
+        self._cursor += 1
+        self._candidate_quantum_progress = 0
+        completed = self._cursor == len(self._candidates)
+        return SimpleNamespace(
+            candidates=(candidate,),
+            nodes_visited=nodes_visited,
+            status="SEARCH_EXHAUSTED" if completed else "QUANTUM_EXHAUSTED",
+            work_item={"cursor": self._cursor},
+            search_exhausted=completed and bool(self._provenance["search_tree_exhausted"]),
+            completed=completed,
+        )
+
     @property
     def candidate_count(self) -> int:
-        return len(self._candidates)
+        return self._cursor
+
+    @property
+    def distinct_main_process_skeleton_count(self) -> int:
+        return 0
+
+    @property
+    def distinct_structural_core_root_count(self) -> int:
+        return 0
+
+    @property
+    def visited_node_count(self) -> int:
+        return self._node_count
 
     @property
     def search_tree_exhausted(self) -> bool:
-        return True
+        return self.completed and bool(self._provenance["search_tree_exhausted"])
+
+    @property
+    def completed(self) -> bool:
+        return self._cursor >= len(self._candidates)
 
     @property
     def node_budget_exhausted(self) -> bool:
@@ -39,6 +117,9 @@ class _FakeCandidateStream:
     @property
     def provenance(self) -> dict[str, Any]:
         return dict(self._provenance)
+
+    def structurally_generated(self, candidate_hash: str) -> bool:
+        return self._structured.get(candidate_hash, True)
 
 
 class _FakeRoutedResult:
@@ -49,17 +130,45 @@ class _FakeRoutedResult:
         return dict(self._payload)
 
 
+@pytest.fixture(autouse=True)
+def _single_synthetic_lane(monkeypatch: pytest.MonkeyPatch) -> None:
+    family = StructuralCompositionFamilyV1(
+        CENTRAL_PROCESS_HUB,
+        "X",
+        "UNRESOLVED",
+        "SYNTHETIC_SELECTOR_TEST",
+    )
+    monkeypatch.setattr(
+        selection,
+        "composition_family_candidates",
+        lambda _site: (family,),
+    )
+
+
 def _candidate(marker: str, should_count: int) -> SitePlacementResultV1:
+    marker_offset = sum(ord(character) for character in marker)
     return SitePlacementResultV1.from_payload(
         {
             "schema_version": "1.0.0",
             "placement_result_identity": "site_constrained_factory_layout@1.0.0",
             "marker": marker,
+            "canonical_candidate_hash": f"candidate-{marker}",
             "placement_objective_vector": {
                 "aggregation": "LEXICOGRAPHIC",
                 "should_adjacency": {"satisfied_count": should_count},
                 "loading_side": {"preferred_loading_side": "UNSPECIFIED"},
             },
+            "zones": [
+                {
+                    "zone_code": zone_code,
+                    "x": str(marker_offset + index * 10),
+                    "y": "0",
+                    "width_m": "5",
+                    "depth_m": "5",
+                    "rotation_deg": 0,
+                }
+                for index, zone_code in enumerate(MAIN_PROCESS_ZONE_CODES)
+            ],
         }
     )
 
@@ -95,7 +204,16 @@ def _selection_inputs() -> tuple[dict[str, Any], dict[str, Any], object]:
     )
 
 
+def _install_tied_structural_facts(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        selection,
+        "build_structural_quality_facts",
+        lambda *_args, **_kwargs: StructuralQualityFactsV1("{}", (0,)),
+    )
+
+
 def test_selects_later_full_pass_using_existing_p2c_objective(monkeypatch) -> None:
+    _install_tied_structural_facts(monkeypatch)
     first = _candidate("A", 3)
     later = _candidate("B", 4)
     stream = _FakeCandidateStream([first, later])
@@ -119,11 +237,12 @@ def test_selects_later_full_pass_using_existing_p2c_objective(monkeypatch) -> No
     assert body["p2c_candidate_count"] == 2
     assert body["p2d_full_pass_candidate_count"] == 1
     assert body["selection_provenance"]["selection_basis"] == (
-        "P2C_OBJECTIVE_AMONG_P2D_FULL_PASS_CANDIDATES"
+        "P1A_STRUCTURAL_QUALITY_THEN_P2B2_AMONG_P2D_FULL_PASS_CANDIDATES"
     )
 
 
 def test_selection_is_deterministic_for_same_candidate_stream(monkeypatch) -> None:
+    _install_tied_structural_facts(monkeypatch)
     candidates = [_candidate("A", 3), _candidate("B", 4)]
     monkeypatch.setattr(
         selection,
@@ -144,10 +263,13 @@ def test_selection_is_deterministic_for_same_candidate_stream(monkeypatch) -> No
 
 
 def test_no_full_pass_reports_search_exhaustion_not_infeasibility(monkeypatch) -> None:
-    stream = _FakeCandidateStream([_candidate("A", 3)])
-    stream._provenance["search_tree_exhausted"] = False
-    stream._provenance["node_budget_exhausted"] = True
-    monkeypatch.setattr(selection, "enumerate_placement_candidates", lambda *args, **kwargs: stream)
+    def stream_factory(*_args, **_kwargs) -> _FakeCandidateStream:
+        stream = _FakeCandidateStream([_candidate("A", 3)])
+        stream._provenance["search_tree_exhausted"] = False
+        stream._provenance["node_budget_exhausted"] = True
+        return stream
+
+    monkeypatch.setattr(selection, "enumerate_placement_candidates", stream_factory)
     monkeypatch.setattr(
         selection,
         "route_site_placement",
@@ -164,6 +286,7 @@ def test_no_full_pass_reports_search_exhaustion_not_infeasibility(monkeypatch) -
 
 
 def test_p2d_non_full_pass_rejects_one_candidate_and_continues(monkeypatch) -> None:
+    _install_tied_structural_facts(monkeypatch)
     candidates = [_candidate("A", 4), _candidate("B", 3)]
     monkeypatch.setattr(
         selection,
@@ -210,3 +333,510 @@ def test_p2d_authority_error_fails_fast(monkeypatch) -> None:
         selection.select_validated_placement(zone_plan, handoff, geometry)
 
     assert caught.value.code == "P2D_RESULT_INTEGRITY_MISMATCH"
+
+
+def test_hard_feasibility_precedes_structural_quality(monkeypatch) -> None:
+    candidates = [_candidate("pretty-but-invalid", 5), _candidate("valid", 0)]
+    stream = _FakeCandidateStream(candidates)
+    monkeypatch.setattr(selection, "enumerate_placement_candidates", lambda *args, **kwargs: stream)
+    evaluated: list[str] = []
+
+    def facts(candidate, *_args, **_kwargs):
+        marker = candidate["marker"]
+        evaluated.append(marker)
+        value = 100 if marker == "pretty-but-invalid" else 1
+        return StructuralQualityFactsV1(
+            json.dumps({"structurally_generated": True}, sort_keys=True), (value,)
+        )
+
+    monkeypatch.setattr(selection, "build_structural_quality_facts", facts)
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(
+            valid=args[3].to_dict()["marker"] == "valid",
+            marker=args[3].to_dict()["marker"],
+        ),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    body = selection.select_validated_placement(zone_plan, handoff, geometry).to_dict()
+    assert body["selected_layout"]["marker"] == "valid"
+    assert evaluated == ["valid"]
+
+
+def test_structured_full_pass_precedes_legacy_fallback(monkeypatch) -> None:
+    structured = _candidate("structured", 0)
+    fallback = _candidate("fallback", 5)
+    structured_hash = structured.to_dict()["canonical_candidate_hash"]
+    fallback_hash = fallback.to_dict()["canonical_candidate_hash"]
+    stream = _FakeCandidateStream(
+        [fallback, structured], structured={fallback_hash: False, structured_hash: True}
+    )
+    monkeypatch.setattr(selection, "enumerate_placement_candidates", lambda *args, **kwargs: stream)
+    monkeypatch.setattr(
+        selection,
+        "build_structural_quality_facts",
+        lambda candidate, *_args, **_kwargs: StructuralQualityFactsV1(
+            json.dumps(
+                {"structurally_generated": candidate["marker"] == "structured"},
+                sort_keys=True,
+            ),
+            (int(candidate["marker"] == "structured"),),
+        ),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=True, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(zone_plan, handoff, geometry)
+    assert result.to_dict()["selected_layout"]["marker"] == "structured"
+    assert result.internal_evaluation["structural_fallback_used"] is False
+
+
+def test_structural_tie_uses_p2b2_business_objective_before_canonical_fallback(monkeypatch) -> None:
+    _install_tied_structural_facts(monkeypatch)
+    candidates = [_candidate("lower", 3), _candidate("higher", 4)]
+    monkeypatch.setattr(
+        selection,
+        "enumerate_placement_candidates",
+        lambda *args, **kwargs: _FakeCandidateStream(candidates),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=True, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(zone_plan, handoff, geometry)
+    assert result.to_dict()["selected_layout"]["marker"] == "higher"
+    assert result.internal_evaluation["p2b2_tiebreak_used"] is True
+    assert result.internal_evaluation["canonical_json_tiebreak_used"] is False
+    assert result.internal_evaluation["first_decisive_component"] == "P2B2_SHOULD_ADJACENCY"
+
+
+def test_canonical_json_is_used_only_after_structural_and_p2b2_tie(monkeypatch) -> None:
+    _install_tied_structural_facts(monkeypatch)
+    candidates = [_candidate("zeta", 4), _candidate("alpha", 4)]
+    monkeypatch.setattr(
+        selection,
+        "enumerate_placement_candidates",
+        lambda *args, **kwargs: _FakeCandidateStream(candidates),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=True, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(zone_plan, handoff, geometry)
+    assert result.to_dict()["selected_layout"]["marker"] == "alpha"
+    assert result.internal_evaluation["p2b2_tiebreak_used"] is False
+    assert result.internal_evaluation["canonical_json_tiebreak_used"] is True
+    assert result.internal_evaluation["first_decisive_component"] == (
+        "CANONICAL_JSON_FINAL_TIE_BREAK"
+    )
+
+
+def test_structural_facts_precede_p2b2_business_objective(monkeypatch) -> None:
+    candidates = [_candidate("structurally-better", 1), _candidate("business-better", 9)]
+    monkeypatch.setattr(
+        selection,
+        "enumerate_placement_candidates",
+        lambda *args, **kwargs: _FakeCandidateStream(candidates),
+    )
+    monkeypatch.setattr(
+        selection,
+        "build_structural_quality_facts",
+        lambda candidate, *_args, **_kwargs: StructuralQualityFactsV1(
+            json.dumps({"marker": candidate["marker"]}, sort_keys=True),
+            (int(candidate["marker"] == "structurally-better"),),
+        ),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=True, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(zone_plan, handoff, geometry)
+    assert result.to_dict()["selected_layout"]["marker"] == "structurally-better"
+    assert result.internal_evaluation["first_decisive_component"] == "STRUCTURED_GENERATION"
+
+
+def test_selector_enumerates_both_linear_directions_and_central_hub(monkeypatch) -> None:
+    lanes = (
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "X", "POSITIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "X", "NEGATIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(CENTRAL_PROCESS_HUB, "X", "UNRESOLVED", "LANE_TEST"),
+    )
+    monkeypatch.setattr(selection, "composition_family_candidates", lambda _site: lanes)
+    seen: list[tuple[str, str]] = []
+
+    def enumerate_lane(*_args, structural_family, search_phase, **_kwargs):
+        seen.append((structural_family.family, structural_family.dominant_direction))
+        marker = f"{structural_family.family}:{structural_family.dominant_direction}"
+        return _FakeCandidateStream([_candidate(marker, 0)])
+
+    monkeypatch.setattr(selection, "enumerate_placement_candidates", enumerate_lane)
+    monkeypatch.setattr(
+        selection,
+        "build_structural_quality_facts",
+        lambda *_args, **_kwargs: StructuralQualityFactsV1(
+            json.dumps({"structurally_generated": True}, sort_keys=True), (1,)
+        ),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=True, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(
+        zone_plan, handoff, geometry, placement_node_budget=45
+    )
+
+    assert set(seen) == {
+        (LINEAR_PROCESS_BAND, "POSITIVE"),
+        (LINEAR_PROCESS_BAND, "NEGATIVE"),
+        (CENTRAL_PROCESS_HUB, "UNRESOLVED"),
+    }
+    assert len(seen) == 3
+    assert result.internal_evaluation["distinct_full_pass_family_count"] == 3
+
+
+def test_multi_round_scheduler_preserves_fair_lane_coverage_without_stranding_budget(
+    monkeypatch,
+) -> None:
+    lanes = (
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "Y", "POSITIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "Y", "NEGATIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(CENTRAL_PROCESS_HUB, "Y", "UNRESOLVED", "LANE_TEST"),
+    )
+    monkeypatch.setattr(selection, "composition_family_candidates", lambda _site: lanes)
+    enumeration_budgets: list[tuple[str, int]] = []
+
+    def enumerate_lane(*_args, structural_family, search_phase, node_budget, **_kwargs):
+        enumeration_budgets.append((search_phase, node_budget))
+        return _FakeCandidateStream(
+            [
+                _candidate(
+                    f"{structural_family.family}-{structural_family.dominant_direction}-1", 0
+                ),
+                _candidate(
+                    f"{structural_family.family}-{structural_family.dominant_direction}-2", 0
+                ),
+            ]
+        )
+
+    monkeypatch.setattr(selection, "enumerate_placement_candidates", enumerate_lane)
+    monkeypatch.setattr(
+        selection,
+        "build_structural_quality_facts",
+        lambda *_args, **_kwargs: StructuralQualityFactsV1("{}", (1,)),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=True, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(
+        zone_plan, handoff, geometry, placement_node_budget=120
+    )
+    accounting = result.internal_evaluation["r6_topology_diagnostics"]["r11_budget_accounting"]
+    queue = result.internal_evaluation["r6_topology_diagnostics"]["r11_work_queue"]
+
+    assert accounting["global_nodes_visited"] == 78
+    assert accounting["global_nodes_remaining"] == 42
+    # One independent family-level synthesis source runs before lane fallbacks.
+    assert accounting["active_work_item_count"] == 0
+    assert accounting["truncated_active_work_item_count"] == 0
+    assert accounting["unused_global_nodes_with_active_truncated_work"] == 0
+    assert sum(row["phase"] == selection.STRUCTURED_PHASE for row in queue) == 2
+    assert sum(row["phase"] == selection.GENERAL_FALLBACK_PHASE for row in queue) == 4
+    assert enumeration_budgets.count((selection.STRUCTURED_PHASE, 120)) == 1
+    assert sum(phase == selection.GENERAL_FALLBACK_PHASE for phase, _ in enumeration_budgets) == 2
+    lane_report = result.internal_evaluation["family_lanes"][0]
+    assert lane_report["structured_initial_node_allocation"] == (
+        selection.DIRECT_SYNTHESIS_ATTEMPT_COUNT
+    )
+
+
+def test_structured_context_continues_after_initial_allocation_with_shared_budget(
+    monkeypatch,
+) -> None:
+    lanes = (StructuralCompositionFamilyV1(CENTRAL_PROCESS_HUB, "Y", "UNRESOLVED", "LANE_TEST"),)
+    monkeypatch.setattr(selection, "composition_family_candidates", lambda _site: lanes)
+
+    class ContinuingStructuredStream:
+        def __init__(self) -> None:
+            self.visited_node_count = 0
+            self.candidate_count = 0
+            self.distinct_main_process_skeleton_count = 0
+            self.distinct_structural_core_root_count = 0
+            self.node_budget_exhausted = False
+            self.search_tree_exhausted = False
+            self.structural_topology = CENTRAL_PROCESS_HUB
+            self.skeleton_generation_report: dict[str, Any] = {}
+
+        @property
+        def completed(self) -> bool:
+            return False
+
+        @property
+        def provenance(self) -> dict[str, Any]:
+            return {"search_tree_exhausted": False}
+
+        def advance_quantum(self, node_limit: int) -> Any:
+            from types import SimpleNamespace
+
+            visited = min(node_limit, 12)
+            self.visited_node_count += visited
+            self.skeleton_generation_report["construction_node_count"] = self.visited_node_count
+            return SimpleNamespace(
+                candidates=(),
+                nodes_visited=visited,
+                status="QUANTUM_EXHAUSTED",
+                work_item={"cursor": self.visited_node_count},
+                completed=False,
+            )
+
+    class OneNodeFallbackStream(_FakeCandidateStream):
+        def __init__(self) -> None:
+            super().__init__([_candidate("continued-fallback", 0)])
+            self.structural_topology = CENTRAL_PROCESS_HUB
+
+        def advance_quantum(self, _node_limit: int) -> Any:
+            from types import SimpleNamespace
+
+            self._node_count += 1
+            self.skeleton_generation_report["construction_node_count"] = self._node_count
+            candidates = (self._candidates[0],) if self._cursor == 0 else ()
+            self._cursor = 1
+            return SimpleNamespace(
+                candidates=candidates,
+                nodes_visited=1,
+                status="COMPLETED",
+                work_item={"cursor": self._node_count},
+                completed=True,
+            )
+
+    streams: list[Any] = []
+
+    def enumerate_lane(*_args, search_phase, **_kwargs):
+        stream = (
+            ContinuingStructuredStream()
+            if search_phase == selection.STRUCTURED_PHASE
+            else OneNodeFallbackStream()
+        )
+        streams.append((search_phase, stream))
+        return stream
+
+    monkeypatch.setattr(selection, "enumerate_placement_candidates", enumerate_lane)
+    monkeypatch.setattr(
+        selection,
+        "build_structural_quality_facts",
+        lambda *_args, **_kwargs: StructuralQualityFactsV1("{}", (1,)),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=True, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(
+        zone_plan, handoff, geometry, placement_node_budget=120
+    )
+
+    structured = next(stream for phase, stream in streams if phase == selection.STRUCTURED_PHASE)
+    fallbacks = [stream for phase, stream in streams if phase == selection.GENERAL_FALLBACK_PHASE]
+    accounting = result.internal_evaluation["r6_topology_diagnostics"]["r11_budget_accounting"]
+    assert structured.visited_node_count > selection.DIRECT_SYNTHESIS_ATTEMPT_COUNT
+    assert len(fallbacks) == 1
+    assert accounting["global_nodes_visited"] == 120
+    assert accounting["global_nodes_remaining"] == 0
+    assert accounting["truncated_active_work_item_count"] == 1
+    assert result.internal_evaluation["family_lanes"][0]["structured_initial_node_allocation"] == (
+        selection.DIRECT_SYNTHESIS_ATTEMPT_COUNT
+    )
+
+
+def test_general_fallback_covers_each_eligible_lane_after_structured_phase(monkeypatch) -> None:
+    lanes = (
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "Y", "POSITIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "Y", "NEGATIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(CENTRAL_PROCESS_HUB, "Y", "UNRESOLVED", "LANE_TEST"),
+    )
+    monkeypatch.setattr(selection, "composition_family_candidates", lambda _site: lanes)
+    phases: list[tuple[str, str]] = []
+    fallback_markers: set[str] = set()
+
+    def enumerate_lane(*_args, structural_family, search_phase, **_kwargs):
+        phases.append((search_phase, structural_family.dominant_direction))
+        if search_phase == selection.STRUCTURED_PHASE:
+            return _FakeCandidateStream([])
+        assert search_phase == selection.GENERAL_FALLBACK_PHASE
+        marker = f"compatibility-{structural_family.family}-{structural_family.dominant_direction}"
+        fallback_markers.add(marker)
+        return _FakeCandidateStream([_candidate(marker, 0)])
+
+    monkeypatch.setattr(selection, "enumerate_placement_candidates", enumerate_lane)
+    monkeypatch.setattr(
+        selection,
+        "build_structural_quality_facts",
+        lambda *_args, **_kwargs: StructuralQualityFactsV1("{}", (1,)),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=True, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(
+        zone_plan, handoff, geometry, placement_node_budget=120
+    )
+
+    assert [phase for phase, _direction in phases[:1]] == [selection.STRUCTURED_PHASE]
+    assert [phase for phase, _direction in phases[1:]] == [selection.GENERAL_FALLBACK_PHASE] * 3
+    assert len(fallback_markers) == 3
+    assert result.to_dict()["selected_layout"]["marker"] in fallback_markers
+    assert result.internal_evaluation["structural_fallback_used"] is True
+    fallback_work_items = [
+        item
+        for item in result.internal_evaluation["r6_topology_diagnostics"]["r11_work_queue"]
+        if item["phase"] == selection.GENERAL_FALLBACK_PHASE
+    ]
+    assert len(fallback_work_items) == 3
+
+
+def test_fallback_order_compensates_lane_that_spent_structured_nodes(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    lanes = (
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "Y", "POSITIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "Y", "NEGATIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(CENTRAL_PROCESS_HUB, "Y", "UNRESOLVED", "LANE_TEST"),
+    )
+    monkeypatch.setattr(selection, "composition_family_candidates", lambda _site: lanes)
+    fallback_order: list[tuple[str, str]] = []
+
+    class OneNodeStructuredStream(_FakeCandidateStream):
+        def advance_quantum(self, _node_limit: int) -> Any:
+            self._node_count = 1
+            self.skeleton_generation_report["construction_node_count"] = 1
+            return SimpleNamespace(
+                candidates=(),
+                nodes_visited=1,
+                status="SEARCH_EXHAUSTED",
+                work_item={"cursor": 0},
+                search_exhausted=True,
+                completed=True,
+            )
+
+    def enumerate_lane(*_args, structural_family, search_phase, **_kwargs):
+        if search_phase == selection.STRUCTURED_PHASE:
+            return OneNodeStructuredStream([])
+        fallback_order.append((structural_family.family, structural_family.dominant_direction))
+        return _FakeCandidateStream([])
+
+    monkeypatch.setattr(selection, "enumerate_placement_candidates", enumerate_lane)
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(
+        zone_plan, handoff, geometry, placement_node_budget=120
+    )
+
+    assert fallback_order == [
+        (CENTRAL_PROCESS_HUB, "UNRESOLVED"),
+        (LINEAR_PROCESS_BAND, "POSITIVE"),
+        (LINEAR_PROCESS_BAND, "NEGATIVE"),
+    ]
+    fallback_lanes = {
+        lane["composition_family"]["dominant_direction"]: lane
+        for lane in result.internal_evaluation["family_lanes"]
+    }
+    assert fallback_lanes["NEGATIVE"]["fallback_scheduling_policy"] == (
+        "ROUND_ROBIN_STABLE_LANE_ORDER_AFTER_STRUCTURED_SPEND"
+    )
+    assert fallback_lanes["NEGATIVE"]["structured_nodes_before_fallback"] == 1
+
+
+def test_global_budget_exhaustion_never_reports_stranded_unused_nodes(monkeypatch) -> None:
+    lanes = (
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "Y", "POSITIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(LINEAR_PROCESS_BAND, "Y", "NEGATIVE", "LANE_TEST"),
+        StructuralCompositionFamilyV1(CENTRAL_PROCESS_HUB, "Y", "UNRESOLVED", "LANE_TEST"),
+    )
+    monkeypatch.setattr(selection, "composition_family_candidates", lambda _site: lanes)
+    monkeypatch.setattr(
+        selection,
+        "enumerate_placement_candidates",
+        lambda *_args, structural_family, **_kwargs: _FakeCandidateStream(
+            [
+                _candidate(
+                    f"{structural_family.family}-{structural_family.dominant_direction}-{i}", 0
+                )
+                for i in range(1, 5)
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=False, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(
+        zone_plan, handoff, geometry, placement_node_budget=30
+    )
+    accounting = result.internal_evaluation["r6_topology_diagnostics"]["r11_budget_accounting"]
+
+    assert accounting["global_nodes_visited"] == 30
+    assert accounting["global_nodes_remaining"] == 0
+    assert accounting["truncated_active_work_item_count"] > 0
+    assert accounting["unused_global_nodes_with_active_truncated_work"] == 0
+    assert accounting["early_stop_reason"] == "GLOBAL_PLACEMENT_NODE_BUDGET_EXHAUSTED"
+
+
+def test_internal_explanation_reports_first_decisive_structural_component(monkeypatch) -> None:
+    candidates = [_candidate("winner", 0), _candidate("runner-up", 5)]
+    monkeypatch.setattr(
+        selection,
+        "enumerate_placement_candidates",
+        lambda *args, **kwargs: _FakeCandidateStream(candidates),
+    )
+    monkeypatch.setattr(
+        selection,
+        "build_structural_quality_facts",
+        lambda candidate, *_args, **_kwargs: StructuralQualityFactsV1(
+            json.dumps({"structurally_generated": True}, sort_keys=True),
+            (1, 1) if candidate["marker"] == "winner" else (0, 99),
+        ),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=True, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(zone_plan, handoff, geometry)
+    explanation = result.internal_evaluation
+    assert result.to_dict()["selected_layout"]["marker"] == "winner"
+    assert explanation["runner_up_present"] is True
+    assert explanation["first_decisive_component"] == "STRUCTURED_GENERATION"
+    assert explanation["winner_value"] == 1
+    assert explanation["runner_up_value"] == 0
+    assert explanation["hard_feasibility_passed"] is True

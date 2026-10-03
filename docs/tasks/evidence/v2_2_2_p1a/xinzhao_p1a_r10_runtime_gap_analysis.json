@@ -1,0 +1,521 @@
+{
+  "aggregate": {
+    "distinct_main_skeleton_count": 15,
+    "p2d_evaluated_distinct_skeleton_count": 2,
+    "p2d_full_pass_distinct_skeleton_count": 1,
+    "runtime_excluded_admissible_skeleton_found": false,
+    "runtime_excluded_full_pass_skeleton_found": false,
+    "search_exhausted_variant_count": 0,
+    "search_truncated_variant_count": 9,
+    "tail_admissible_distinct_skeleton_count": 3,
+    "unique_skeletons": [
+      {
+        "current_runtime_reachable": true,
+        "discovered_variant": "STRAIGHT_LINEAR_BAND_Y_POSITIVE",
+        "hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+        "p2d_full_pass": true,
+        "p2d_reached": true,
+        "tail_admissible": true
+      },
+      {
+        "current_runtime_reachable": false,
+        "discovered_variant": "OFFSET_LINEAR_BAND_X_POSITIVE",
+        "hash": "sha256:070ad0e20fd0d319c15b3f4f451ba794086f4196072ab9609df75141c278111a",
+        "p2d_full_pass": false,
+        "p2d_reached": false,
+        "tail_admissible": false
+      },
+      {
+        "current_runtime_reachable": false,
+        "discovered_variant": "OFFSET_LINEAR_BAND_X_POSITIVE",
+        "hash": "sha256:1f265d66963c243c9317bf74e02d66a9f152e66d9340c8694164ade874fd8fe2",
+        "p2d_full_pass": false,
+        "p2d_reached": false,
+        "tail_admissible": false
+      },
+      {
+        "current_runtime_reachable": false,
+        "discovered_variant": "OFFSET_LINEAR_BAND_X_POSITIVE",
+        "hash": "sha256:2101965d709f2b290d7c62db3a3329f3ec8a30e5e3cfde3741b54f5d211a5f4c",
+        "p2d_full_pass": false,
+        "p2d_reached": false,
+        "tail_admissible": false
+      },
+      {
+        "current_runtime_reachable": false,
+        "discovered_variant": "OFFSET_LINEAR_BAND_X_POSITIVE",
+        "hash": "sha256:4e75516bdb4c7008066ff35fc97dd962636fceb6095dd469e591053db04c89ea",
+        "p2d_full_pass": false,
+        "p2d_reached": false,
+        "tail_admissible": false
+      },
+      {
+        "current_runtime_reachable": false,
+        "discovered_variant": "OFFSET_LINEAR_BAND_X_POSITIVE",
+        "hash": "sha256:5f1536665d62f9543e06463a08a8cdb4fbb37270942e9dcdb0f8ed041012e931",
+        "p2d_full_pass": false,
+        "p2d_reached": false,
+        "tail_admissible": false
+      },
+      {
+        "current_runtime_reachable": false,
+        "discovered_variant": "OFFSET_LINEAR_BAND_X_POSITIVE",
+        "hash": "sha256:695bf60ecd779e1e49faee1578a1bb98e220296313323bd662ed13e1f1853807",
+        "p2d_full_pass": false,
+        "p2d_reached": false,
+        "tail_admissible": false
+      },
+      {
+        "current_runtime_reachable": false,
+        "discovered_variant": "OFFSET_LINEAR_BAND_X_POSITIVE",
+        "hash": "sha256:a7f917fe6699044a4af33dc77449df9a92d15e46b75ef4a6b2949bdc53c43e50",
+        "p2d_full_pass": false,
+        "p2d_reached": false,
+        "tail_admissible": false
+      },
+      {
+        "current_runtime_reachable": false,
+        "discovered_variant": "OFFSET_LINEAR_BAND_X_POSITIVE",
+        "hash": "sha256:e87b04e14c99a9ebf1fff04984f967f7171b3c4109e95a8088386da4c9896056",
+        "p2d_full_pass": false,
+        "p2d_reached": false,
+        "tail_admissible": false
+      },
+      {
+        "current_runtime_reachable": false,
+        "discovered_variant": "OFFSET_LINEAR_BAND_X_POSITIVE",
+        "hash": "sha256:e89d7eadc2b5ef4a5d66f78494fe34292497b88722203996e44d6b5557ae005a",
+        "p2d_full_pass": false,
+        "p2d_reached": false,
+        "tail_admissible": false
+      },
+      {
+        "current_runtime_reachable": false,
+        "discovered_variant": "OFFSET_LINEAR_BAND_X_POSITIVE",
+        "hash": "sha256:f0bc565d42f9e232ce74740ed3c6c1ad9afe4c96e86adc2eeeb16d602386b290",
+        "p2d_full_pass": false,
+        "p2d_reached": false,
+        "tail_admissible": false
+      },
+      {
+        "current_runtime_reachable": false,
+        "discovered_variant": "OFFSET_LINEAR_BAND_X_POSITIVE",
+        "hash": "sha256:fdcb942b29840c78366d3ec6adda8d6fe771e28f8fdb071d8d8784658dc95d29",
+        "p2d_full_pass": false,
+        "p2d_reached": false,
+        "tail_admissible": false
+      },
+      {
+        "current_runtime_reachable": true,
+        "discovered_variant": "OFFSET_LINEAR_BAND_Y_POSITIVE",
+        "hash": "sha256:868c0c93d713d367b2f07800e8a97432bab35c44f5f0e5d97dbf830efbcae63f",
+        "p2d_full_pass": false,
+        "p2d_reached": true,
+        "tail_admissible": true
+      },
+      {
+        "current_runtime_reachable": true,
+        "discovered_variant": "OFFSET_LINEAR_BAND_Y_POSITIVE",
+        "hash": "sha256:e73b384763b2564a9234b7102a80847f7048d066097e206c21242100fbdbf92d",
+        "p2d_full_pass": false,
+        "p2d_reached": false,
+        "tail_admissible": true
+      },
+      {
+        "current_runtime_reachable": true,
+        "discovered_variant": "CENTRAL_PROCESS_HUB_REFERENCE",
+        "hash": "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc",
+        "p2d_full_pass": false,
+        "p2d_reached": false,
+        "tail_admissible": false
+      }
+    ]
+  },
+  "current_runtime": {
+    "alternate_axis_enumerated": false,
+    "linear_lanes": [
+      {
+        "family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_ORDERING_ONLY",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "topology": "STRAIGHT_LINEAR_BAND"
+      },
+      {
+        "family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_ORDERING_ONLY",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "topology": "OFFSET_LINEAR_BAND"
+      }
+    ],
+    "negative_process_direction_enumerated": false,
+    "ordering_only_claim_accurate": false,
+    "process_axis": "Y",
+    "process_band_axis_docstring_claim": "ORDERING_ONLY",
+    "process_direction": "POSITIVE"
+  },
+  "findings": {
+    "alternate_axis_currently_enumerated": false,
+    "diagnostic_distinct_main_skeleton_count": 15,
+    "diagnostic_p2d_evaluated_distinct_main_skeleton_count": 2,
+    "diagnostic_p2d_full_pass_distinct_main_skeleton_count": 1,
+    "diagnostic_tail_admissible_distinct_main_skeleton_count": 3,
+    "final_production_lane_search_exhausted": false,
+    "final_production_lane_search_truncated": true,
+    "infeasibility_proven": false,
+    "negative_process_direction_currently_enumerated": false,
+    "next_implementation_path": "CONSTRUCTIVE_SEARCH_COVERAGE_REDESIGN",
+    "ordering_only_claim_accurate": false,
+    "process_axis_selection_actual_effect": "SELECTED_AXIS_IS_THE_ONLY_LINEAR_AXIS_ADMITTED_TO_CURRENT_RUNTIME_LANES",
+    "process_axis_selection_docstring_claim": "ORDERING_ONLY",
+    "production_final_lane": "STRAIGHT_LINEAR_BAND",
+    "production_unused_node_cause": "FINAL_LANE_INTERNAL_SEARCH_CUTOFF_OR_CAP;GLOBAL_SCHEDULER_DID_NOT_REVISIT_EARLIER_LANES",
+    "runtime_excluded_admissible_skeleton_found": false,
+    "runtime_excluded_full_pass_skeleton_found": false
+  },
+  "identity": "v222-p1a-r10-axis-direction-candidate-space-audit@1.0.0",
+  "next_implementation_path": "CONSTRUCTIVE_SEARCH_COVERAGE_REDESIGN",
+  "production_search_accounting": {
+    "lane_reports": [
+      {
+        "complete_candidates": 0,
+        "family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_ORDERING_ONLY",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "global_budget_after_lane": 90,
+        "global_budget_before_lane": 120,
+        "lane_node_budget": 40,
+        "node_budget_exhausted": false,
+        "phases": [
+          {
+            "complete_candidates": 0,
+            "constructed_candidate_count": 0,
+            "construction_attempt_count": 3,
+            "construction_attempts": [
+              {
+                "construction_attempt_index": 0,
+                "face_pair_node_limit": 20,
+                "finished_side": "NORTH",
+                "offset_direction": "POSITIVE",
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "MUST_ADJACENCY_FAIL": 12,
+                  "NO_BUILD_COLLISION": 346,
+                  "SITE_OUTSIDE": 468,
+                  "SKELETON_TOPOLOGY_INVALID": 13,
+                  "ZONE_OVERLAP": 163
+                },
+                "result": "TRUNCATED",
+                "search_truncated": true,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  15200,
+                  10050,
+                  60960,
+                  23650
+                ],
+                "sorting_root_node_limit": 17,
+                "topology": "OFFSET_LINEAR_BAND",
+                "visited_node_delta": 16
+              },
+              {
+                "construction_attempt_index": 1,
+                "face_pair_node_limit": 20,
+                "finished_side": "NORTH",
+                "offset_direction": "POSITIVE",
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 13,
+                  "OFFSET_TRANSITION_UNAVAILABLE": 1,
+                  "SITE_OUTSIDE": 5,
+                  "ZONE_OVERLAP": 2
+                },
+                "result": "TRUNCATED",
+                "search_truncated": true,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  29238,
+                  13399,
+                  74998,
+                  26999
+                ],
+                "sorting_root_node_limit": 20,
+                "topology": "OFFSET_LINEAR_BAND",
+                "visited_node_delta": 2
+              },
+              {
+                "construction_attempt_index": 2,
+                "face_pair_node_limit": 30,
+                "finished_side": "NORTH",
+                "offset_direction": "NEGATIVE",
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 58,
+                  "OFFSET_TRANSITION_UNAVAILABLE": 4,
+                  "SITE_OUTSIDE": 168,
+                  "ZONE_OVERLAP": 108
+                },
+                "result": "TRUNCATED",
+                "search_truncated": true,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  15200,
+                  10050,
+                  60960,
+                  23650
+                ],
+                "sorting_root_node_limit": 30,
+                "topology": "OFFSET_LINEAR_BAND",
+                "visited_node_delta": 9
+              }
+            ],
+            "construction_search_truncated": true,
+            "distinct_main_process_skeleton_count": 0,
+            "node_budget": 40,
+            "node_budget_exhausted": false,
+            "root_count": 8,
+            "search_phase": "STRUCTURED",
+            "search_tree_exhausted": false,
+            "visited_nodes": 30
+          }
+        ],
+        "search_tree_exhausted": false,
+        "topology": "OFFSET_LINEAR_BAND",
+        "visited_nodes": 30
+      },
+      {
+        "complete_candidates": 0,
+        "family": {
+          "dominant_axis": "X",
+          "dominant_direction": "UNRESOLVED",
+          "family": "CENTRAL_PROCESS_HUB",
+          "generation_reason": "SORTING_PACKAGING_IS_EXPLICIT_PROCESS_CORE",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "global_budget_after_lane": 57,
+        "global_budget_before_lane": 90,
+        "lane_node_budget": 45,
+        "node_budget_exhausted": false,
+        "phases": [
+          {
+            "complete_candidates": 0,
+            "constructed_candidate_count": 0,
+            "construction_attempt_count": 4,
+            "construction_attempts": [
+              {
+                "construction_attempt_index": 0,
+                "face_pair_node_limit": 20,
+                "finished_side": "WEST",
+                "offset_direction": null,
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 51,
+                  "SITE_OUTSIDE": 36,
+                  "SKELETON_TOPOLOGY_INVALID": 8,
+                  "ZONE_OVERLAP": 10
+                },
+                "result": "REJECTED",
+                "search_truncated": false,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  15200,
+                  10050,
+                  60960,
+                  23650
+                ],
+                "sorting_root_node_limit": 17,
+                "topology": "CENTRAL_PROCESS_HUB",
+                "visited_node_delta": 11
+              },
+              {
+                "construction_attempt_index": 1,
+                "face_pair_node_limit": 20,
+                "finished_side": "WEST",
+                "offset_direction": null,
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "SITE_OUTSIDE": 6,
+                  "SKELETON_TOPOLOGY_INVALID": 1
+                },
+                "result": "REJECTED",
+                "search_truncated": false,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  29700,
+                  0,
+                  75460,
+                  13600
+                ],
+                "sorting_root_node_limit": 20,
+                "topology": "CENTRAL_PROCESS_HUB",
+                "visited_node_delta": 0
+              },
+              {
+                "construction_attempt_index": 2,
+                "face_pair_node_limit": 20,
+                "finished_side": "WEST",
+                "offset_direction": null,
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT": 1,
+                  "NO_BUILD_COLLISION": 103,
+                  "SITE_OUTSIDE": 159,
+                  "ZONE_OVERLAP": 201
+                },
+                "result": "TRUNCATED",
+                "search_truncated": true,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  29238,
+                  13399,
+                  74998,
+                  26999
+                ],
+                "sorting_root_node_limit": 20,
+                "topology": "CENTRAL_PROCESS_HUB",
+                "visited_node_delta": 6
+              },
+              {
+                "construction_attempt_index": 3,
+                "face_pair_node_limit": 33,
+                "finished_side": "EAST",
+                "offset_direction": null,
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 122,
+                  "SITE_OUTSIDE": 422,
+                  "SKELETON_TOPOLOGY_INVALID": 9,
+                  "ZONE_OVERLAP": 129
+                },
+                "result": "TRUNCATED",
+                "search_truncated": true,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  15200,
+                  10050,
+                  60960,
+                  23650
+                ],
+                "sorting_root_node_limit": 33,
+                "topology": "CENTRAL_PROCESS_HUB",
+                "visited_node_delta": 12
+              }
+            ],
+            "construction_search_truncated": true,
+            "distinct_main_process_skeleton_count": 0,
+            "node_budget": 45,
+            "node_budget_exhausted": false,
+            "root_count": 8,
+            "search_phase": "STRUCTURED",
+            "search_tree_exhausted": false,
+            "visited_nodes": 33
+          }
+        ],
+        "search_tree_exhausted": false,
+        "topology": "CENTRAL_PROCESS_HUB",
+        "visited_nodes": 33
+      },
+      {
+        "complete_candidates": 2,
+        "family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_ORDERING_ONLY",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "global_budget_after_lane": 22,
+        "global_budget_before_lane": 57,
+        "lane_node_budget": 57,
+        "node_budget_exhausted": false,
+        "phases": [
+          {
+            "complete_candidates": 2,
+            "constructed_candidate_count": 1,
+            "construction_attempt_count": 2,
+            "construction_attempts": [
+              {
+                "construction_attempt_index": 0,
+                "face_pair_node_limit": 28,
+                "finished_side": "NORTH",
+                "offset_direction": null,
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "NO_BUILD_COLLISION": 117,
+                  "SITE_OUTSIDE": 297,
+                  "SKELETON_TOPOLOGY_INVALID": 10,
+                  "ZONE_OVERLAP": 128
+                },
+                "result": "SKELETON_CONSTRUCTED",
+                "search_truncated": false,
+                "skeleton_hashes": [
+                  "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+                ],
+                "sorting_root_mm": [
+                  15200,
+                  10050,
+                  60960,
+                  23650
+                ],
+                "sorting_root_node_limit": 17,
+                "topology": "STRAIGHT_LINEAR_BAND",
+                "visited_node_delta": 16
+              },
+              {
+                "construction_attempt_index": 1,
+                "face_pair_node_limit": 28,
+                "finished_side": "NORTH",
+                "offset_direction": null,
+                "raw_side": "SOUTH",
+                "rejection_reason_counts": {
+                  "GROUP_ORDER_FAIL": 2,
+                  "NO_BUILD_COLLISION": 150,
+                  "SITE_OUTSIDE": 203,
+                  "SKELETON_TOPOLOGY_INVALID": 3,
+                  "ZONE_OVERLAP": 114
+                },
+                "result": "TRUNCATED",
+                "search_truncated": true,
+                "skeleton_hashes": [],
+                "sorting_root_mm": [
+                  29238,
+                  13399,
+                  74998,
+                  26999
+                ],
+                "sorting_root_node_limit": 28,
+                "topology": "STRAIGHT_LINEAR_BAND",
+                "visited_node_delta": 10
+              }
+            ],
+            "construction_search_truncated": true,
+            "distinct_main_process_skeleton_count": 1,
+            "node_budget": 57,
+            "node_budget_exhausted": false,
+            "root_count": 8,
+            "search_phase": "STRUCTURED",
+            "search_tree_exhausted": false,
+            "visited_nodes": 35
+          }
+        ],
+        "search_tree_exhausted": false,
+        "topology": "STRAIGHT_LINEAR_BAND",
+        "visited_nodes": 35
+      }
+    ],
+    "placement_node_visits": 98,
+    "placement_nodes_remaining": 22,
+    "production_budget": 120
+  }
+}

@@ -1,0 +1,2964 @@
+{
+  "budget_accounting": {
+    "active_work_item_count": 3,
+    "classified_node_total": 120,
+    "construction_nodes": 113,
+    "early_stop_reason": "GLOBAL_PLACEMENT_NODE_BUDGET_EXHAUSTED",
+    "exhausted_work_item_count": 1,
+    "general_fallback_nodes": 96,
+    "global_budget": 120,
+    "global_budget_exhausted": true,
+    "global_node_visits_match_classified_total": true,
+    "global_nodes_remaining": 0,
+    "global_nodes_visited": 120,
+    "nodes_by_round": {
+      "1": 16,
+      "2": 8,
+      "3": 62,
+      "4": 34
+    },
+    "nodes_by_topology": {
+      "CENTRAL_PROCESS_HUB": 51,
+      "OFFSET_LINEAR_BAND": 28,
+      "STRAIGHT_LINEAR_BAND": 41
+    },
+    "nodes_by_work_item": {
+      "sha256:16f2af3aaeeca87faa050294287ed47014d0f10937e5b9e4dcd7726969742902": 16,
+      "sha256:5ac0b916050b622cf55892e45a051fb9609ff43fa74458640d95e98e04bcb38d": 12,
+      "sha256:699ded328eeedb35bff4e376e2f98a8cc2b98945fdd43bf15652154fbbc25afd": 11,
+      "sha256:71f60dee852e2965ba3a6e9b95159390fff783852f35b9a2f4d6fc7e9dc7bdb1": 30,
+      "sha256:751e463e125656d970b2e7033fade0ae8c0d3372c68bda1f069d4a1ca896ecc7": 16,
+      "sha256:a0680b77665193241792436b168ee2567b000cfca5e372e1a75abb57c57c5aa2": 11,
+      "sha256:d71b29ba93e2dc89dfcb8b035ec4c842c8c33e2c888d14b3e101ebe16c8d37c4": 16,
+      "sha256:f6e559bfbafdcb4cfb7cca82eb61ee66656a4463a75121bd6bc4315658c44406": 8
+    },
+    "preflight_compute_nodes": 0,
+    "replayed_prefix_node_count": 0,
+    "stranded_budget_allowed": false,
+    "structured_phase_nodes": 24,
+    "tail_nodes": 7,
+    "truncated_active_work_item_count": 3,
+    "unused_global_nodes_with_active_truncated_work": 0,
+    "work_round_count": 4
+  },
+  "construction_attempts": [
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "INTER_BAND_INTERFACE_OR_FINISHED_SIDE",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "Y",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:INTER_BAND_INTERFACE_OR_FINISHED_SIDE",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "WEST"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "first_failure_stage": "PLAN",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "Y",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+      "support_side": "WEST"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "PROCESS_SPINE_CHAIN",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "Y",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "WEST"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "RAW_SIDE_BAND",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "Y",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:RAW_SIDE_BAND",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "WEST"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "first_failure_stage": "PLAN",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "Y",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+      "support_side": "WEST"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "PROCESS_SPINE_CHAIN",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "Y",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "WEST"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "INTER_BAND_INTERFACE_OR_FINISHED_SIDE",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "Y",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:INTER_BAND_INTERFACE_OR_FINISHED_SIDE",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "NORTH"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "first_failure_stage": "PLAN",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "Y",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+      "support_side": "NORTH"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "PROCESS_SPINE_CHAIN",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "Y",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "NORTH"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "RAW_SIDE_BAND",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "Y",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:RAW_SIDE_BAND",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "NORTH"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "first_failure_stage": "PLAN",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "Y",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+      "support_side": "NORTH"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "PROCESS_SPINE_CHAIN",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "Y",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "NORTH"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "INTER_BAND_INTERFACE_OR_FINISHED_SIDE",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "Y",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:INTER_BAND_INTERFACE_OR_FINISHED_SIDE",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "SOUTH"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "first_failure_stage": "PLAN",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "Y",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+      "support_side": "SOUTH"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "PROCESS_SPINE_CHAIN",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "Y",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "SOUTH"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "RAW_SIDE_BAND",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "Y",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:RAW_SIDE_BAND",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "SOUTH"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "first_failure_stage": "PLAN",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "Y",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+      "support_side": "SOUTH"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "PROCESS_SPINE_CHAIN",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "Y",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "SOUTH"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "INTER_BAND_INTERFACE_OR_FINISHED_SIDE",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "X",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:INTER_BAND_INTERFACE_OR_FINISHED_SIDE",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "WEST"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "first_failure_stage": "PLAN",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "X",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+      "support_side": "WEST"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "PROCESS_SPINE_CHAIN",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "X",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "WEST"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "RAW_SIDE_BAND",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "X",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:RAW_SIDE_BAND",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "WEST"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "first_failure_stage": "PLAN",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "X",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+      "support_side": "WEST"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "PROCESS_SPINE_CHAIN",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "X",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "WEST"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "INTER_BAND_INTERFACE_OR_FINISHED_SIDE",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "X",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:INTER_BAND_INTERFACE_OR_FINISHED_SIDE",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "NORTH"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "first_failure_stage": "PLAN",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "X",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+      "support_side": "NORTH"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "PROCESS_SPINE_CHAIN",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "X",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "NORTH"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "RAW_SIDE_BAND",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "X",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:RAW_SIDE_BAND",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "NORTH"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "first_failure_stage": "PLAN",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "X",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+      "support_side": "NORTH"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "PROCESS_SPINE_CHAIN",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "X",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "NORTH"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "INTER_BAND_INTERFACE_OR_FINISHED_SIDE",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "X",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:INTER_BAND_INTERFACE_OR_FINISHED_SIDE",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "SOUTH"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "first_failure_stage": "PLAN",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "X",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+      "support_side": "SOUTH"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "PROCESS_SPINE_CHAIN",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "X",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "SOUTH"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "RAW_SIDE_BAND",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "X",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:RAW_SIDE_BAND",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "SOUTH"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "first_failure_stage": "PLAN",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "X",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+      "support_side": "SOUTH"
+    },
+    {
+      "envelope_family": "SIMPLE_L",
+      "first_failure_interface": "PROCESS_SPINE_CHAIN",
+      "first_failure_stage": "MAIN_BAND_PACKING",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "X",
+      "rejection_reason": "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN",
+      "result": "GEOMETRY_SYNTHESIS_REJECTED",
+      "support_side": "SOUTH"
+    },
+    {
+      "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+      "result": "REJECTED"
+    },
+    {
+      "envelope_family": "LEGACY_COMPATIBILITY_SEARCH_DOMAIN",
+      "result": "REJECTED"
+    }
+  ],
+  "constructive_plan_attempts": [
+    {},
+    {},
+    {
+      "envelope_bounds_mm": [
+        0,
+        0,
+        75460,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          0,
+          0,
+          75460,
+          55000
+        ]
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "personnel_band_is_full_envelope": true,
+      "process_axis": "Y",
+      "result": "PLAN_READY",
+      "support_band_is_full_envelope": true
+    },
+    {
+      "envelope_bounds_mm": [
+        0,
+        0,
+        75460,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          0,
+          0,
+          75460,
+          55000
+        ]
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "personnel_band_is_full_envelope": true,
+      "process_axis": "Y",
+      "result": "PLAN_READY",
+      "support_band_is_full_envelope": true
+    },
+    {
+      "envelope_bounds_mm": [
+        0,
+        0,
+        75460,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          0,
+          0,
+          75460,
+          55000
+        ]
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "personnel_band_is_full_envelope": true,
+      "process_axis": "Y",
+      "result": "PLAN_READY",
+      "support_band_is_full_envelope": true
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "Y",
+      "reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "Y",
+      "reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "Y",
+      "reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "Y",
+      "reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "Y",
+      "reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "Y",
+      "reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "X",
+      "reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "X",
+      "reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "X",
+      "reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "X",
+      "reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "X",
+      "reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE"
+    },
+    {
+      "envelope_family": "RECTANGLE",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "process_axis": "X",
+      "reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "rejection_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75460,
+        53885
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "Y",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75000,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "Y",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75460,
+        53885
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "Y",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75000,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "Y",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75460,
+        53885
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "Y",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75000,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "Y",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75000,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "X",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75000,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "X",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75460,
+        53885
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "X",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75000,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "X",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75460,
+        53885
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "X",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75000,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LINEAR_3_BAND",
+      "process_axis": "X",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75460,
+        53885
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "Y",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75000,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "Y",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75460,
+        53885
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "Y",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75000,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "Y",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75460,
+        53885
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "Y",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75000,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "Y",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75000,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "X",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75000,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "X",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75460,
+        53885
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "X",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75000,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "X",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75460,
+        53885
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "X",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        14700,
+        0,
+        75000,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "process_axis": "X",
+      "result": "FAMILY_PLAN_READY"
+    },
+    {
+      "envelope_bounds_mm": [
+        0,
+        0,
+        75460,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          0,
+          0,
+          75460,
+          55000
+        ]
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "personnel_band_is_full_envelope": true,
+      "process_axis": "Y",
+      "result": "PLAN_READY",
+      "support_band_is_full_envelope": true
+    },
+    {
+      "envelope_bounds_mm": [
+        0,
+        0,
+        75460,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          0,
+          0,
+          75460,
+          55000
+        ]
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "personnel_band_is_full_envelope": true,
+      "process_axis": "Y",
+      "result": "PLAN_READY",
+      "support_band_is_full_envelope": true
+    },
+    {
+      "envelope_bounds_mm": [
+        0,
+        0,
+        75460,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          0,
+          0,
+          75460,
+          55000
+        ]
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "personnel_band_is_full_envelope": true,
+      "process_axis": "Y",
+      "result": "PLAN_READY",
+      "support_band_is_full_envelope": true
+    },
+    {},
+    {},
+    {
+      "envelope_bounds_mm": [
+        0,
+        0,
+        75460,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          0,
+          0,
+          75460,
+          55000
+        ]
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "personnel_band_is_full_envelope": true,
+      "process_axis": "Y",
+      "result": "PLAN_READY",
+      "support_band_is_full_envelope": true
+    },
+    {
+      "envelope_bounds_mm": [
+        0,
+        0,
+        75460,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          0,
+          0,
+          75460,
+          55000
+        ]
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "personnel_band_is_full_envelope": true,
+      "process_axis": "Y",
+      "result": "PLAN_READY",
+      "support_band_is_full_envelope": true
+    },
+    {
+      "envelope_bounds_mm": [
+        0,
+        0,
+        75460,
+        55000
+      ],
+      "envelope_components_mm": [
+        [
+          0,
+          0,
+          75460,
+          55000
+        ]
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "personnel_band_is_full_envelope": true,
+      "process_axis": "Y",
+      "result": "PLAN_READY",
+      "support_band_is_full_envelope": true
+    },
+    {},
+    {},
+    {}
+  ],
+  "determinism": {
+    "deterministic": true,
+    "replay_count": 2,
+    "same_budget_accounting": true,
+    "same_construction_attempts": true,
+    "same_direct_synthesis_observations": true,
+    "same_full_pass_candidates": true,
+    "same_legacy_fallback_full_pass_candidates": true,
+    "same_phase_lanes": true,
+    "same_selected_result": true,
+    "same_truck_preflight": true
+  },
+  "direct_synthesis_observations": [
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          14700,
+          23650,
+          75460,
+          53885
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67714,
+          12928,
+          75460,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          14700,
+          10050,
+          75460,
+          23650
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          75460,
+          10050
+        ],
+        "SUPPORT_BAND": [
+          14700,
+          10742,
+          29200,
+          43142
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:INTER_BAND_INTERFACE_OR_FINISHED_SIDE"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "Y",
+      "process_direction": "POSITIVE",
+      "support_side": "WEST",
+      "variant_index": 0
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          18400,
+          0,
+          75460,
+          53885
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67714,
+          12928,
+          75460,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          18400,
+          0,
+          71760,
+          53885
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          71760,
+          53885
+        ],
+        "SUPPORT_BAND": [
+          14700,
+          10742,
+          29200,
+          43142
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "Y",
+      "process_direction": "POSITIVE",
+      "support_side": "WEST",
+      "variant_index": 2
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          14700,
+          0,
+          75000,
+          31350
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67254,
+          12928,
+          75000,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          14700,
+          31350,
+          75000,
+          44950
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          44950,
+          75000,
+          55000
+        ],
+        "SUPPORT_BAND": [
+          14700,
+          11300,
+          29200,
+          43700
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:RAW_SIDE_BAND"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE",
+      "support_side": "WEST",
+      "variant_index": 3
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          18170,
+          0,
+          75000,
+          55000
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67254,
+          12928,
+          75000,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          18170,
+          0,
+          71530,
+          55000
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          71530,
+          55000
+        ],
+        "SUPPORT_BAND": [
+          14700,
+          11300,
+          29200,
+          43700
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE",
+      "support_side": "WEST",
+      "variant_index": 5
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          14700,
+          23650,
+          75460,
+          53885
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67714,
+          12928,
+          75460,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          14700,
+          10050,
+          75460,
+          23650
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          75460,
+          10050
+        ],
+        "SUPPORT_BAND": [
+          27217,
+          21485,
+          41717,
+          53885
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:INTER_BAND_INTERFACE_OR_FINISHED_SIDE"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "Y",
+      "process_direction": "POSITIVE",
+      "support_side": "NORTH",
+      "variant_index": 6
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          18400,
+          0,
+          75460,
+          53885
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67714,
+          12928,
+          75460,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          18400,
+          0,
+          71760,
+          53885
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          71760,
+          53885
+        ],
+        "SUPPORT_BAND": [
+          27217,
+          21485,
+          41717,
+          53885
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "Y",
+      "process_direction": "POSITIVE",
+      "support_side": "NORTH",
+      "variant_index": 8
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          14700,
+          0,
+          75000,
+          31350
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67254,
+          12928,
+          75000,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          14700,
+          31350,
+          75000,
+          44950
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          44950,
+          75000,
+          55000
+        ],
+        "SUPPORT_BAND": [
+          27217,
+          22600,
+          41717,
+          55000
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:RAW_SIDE_BAND"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE",
+      "support_side": "NORTH",
+      "variant_index": 9
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          18170,
+          0,
+          75000,
+          55000
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67254,
+          12928,
+          75000,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          18170,
+          0,
+          71530,
+          55000
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          71530,
+          55000
+        ],
+        "SUPPORT_BAND": [
+          27217,
+          22600,
+          41717,
+          55000
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE",
+      "support_side": "NORTH",
+      "variant_index": 11
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          14700,
+          23650,
+          75460,
+          53885
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67714,
+          12928,
+          75460,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          14700,
+          10050,
+          75460,
+          23650
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          75460,
+          10050
+        ],
+        "SUPPORT_BAND": [
+          27217,
+          0,
+          41717,
+          32400
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:INTER_BAND_INTERFACE_OR_FINISHED_SIDE"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "Y",
+      "process_direction": "POSITIVE",
+      "support_side": "SOUTH",
+      "variant_index": 12
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          18400,
+          0,
+          75460,
+          53885
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67714,
+          12928,
+          75460,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          18400,
+          0,
+          71760,
+          53885
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          71760,
+          53885
+        ],
+        "SUPPORT_BAND": [
+          27217,
+          0,
+          41717,
+          32400
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "Y",
+      "process_direction": "POSITIVE",
+      "support_side": "SOUTH",
+      "variant_index": 14
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          14700,
+          0,
+          75000,
+          31350
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67254,
+          12928,
+          75000,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          14700,
+          31350,
+          75000,
+          44950
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          44950,
+          75000,
+          55000
+        ],
+        "SUPPORT_BAND": [
+          27217,
+          0,
+          41717,
+          32400
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:RAW_SIDE_BAND"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE",
+      "support_side": "SOUTH",
+      "variant_index": 15
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          18170,
+          0,
+          75000,
+          55000
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67254,
+          12928,
+          75000,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          18170,
+          0,
+          71530,
+          55000
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          71530,
+          55000
+        ],
+        "SUPPORT_BAND": [
+          27217,
+          0,
+          41717,
+          32400
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE",
+      "support_side": "SOUTH",
+      "variant_index": 17
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          38350,
+          0,
+          75000,
+          55000
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67254,
+          12928,
+          75000,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          24750,
+          0,
+          38350,
+          55000
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          24750,
+          55000
+        ],
+        "SUPPORT_BAND": [
+          14700,
+          11300,
+          29200,
+          43700
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:INTER_BAND_INTERFACE_OR_FINISHED_SIDE"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "X",
+      "process_direction": "POSITIVE",
+      "support_side": "WEST",
+      "variant_index": 18
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          14700,
+          18188,
+          75000,
+          55000
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67254,
+          12928,
+          75000,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          14700,
+          18188,
+          75000,
+          36812
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          75000,
+          36812
+        ],
+        "SUPPORT_BAND": [
+          14700,
+          11300,
+          29200,
+          43700
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "X",
+      "process_direction": "POSITIVE",
+      "support_side": "WEST",
+      "variant_index": 20
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          14700,
+          0,
+          51350,
+          55000
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67254,
+          12928,
+          75000,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          51350,
+          0,
+          64950,
+          55000
+        ],
+        "RAW_SIDE_BAND": [
+          64950,
+          0,
+          75000,
+          55000
+        ],
+        "SUPPORT_BAND": [
+          14700,
+          11300,
+          29200,
+          43700
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:RAW_SIDE_BAND"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "X",
+      "process_direction": "NEGATIVE",
+      "support_side": "WEST",
+      "variant_index": 21
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          14700,
+          18188,
+          75000,
+          55000
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67254,
+          12928,
+          75000,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          14700,
+          18188,
+          75000,
+          36812
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          75000,
+          36812
+        ],
+        "SUPPORT_BAND": [
+          14700,
+          11300,
+          29200,
+          43700
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "X",
+      "process_direction": "NEGATIVE",
+      "support_side": "WEST",
+      "variant_index": 23
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          38350,
+          0,
+          75460,
+          53885
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67714,
+          12928,
+          75460,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          24750,
+          0,
+          38350,
+          53885
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          24750,
+          53885
+        ],
+        "SUPPORT_BAND": [
+          27217,
+          21485,
+          41717,
+          53885
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:INTER_BAND_INTERFACE_OR_FINISHED_SIDE"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "X",
+      "process_direction": "POSITIVE",
+      "support_side": "NORTH",
+      "variant_index": 24
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          14700,
+          17630,
+          75460,
+          53885
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67714,
+          12928,
+          75460,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          14700,
+          17630,
+          75460,
+          36254
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          75460,
+          36254
+        ],
+        "SUPPORT_BAND": [
+          27217,
+          21485,
+          41717,
+          53885
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "X",
+      "process_direction": "POSITIVE",
+      "support_side": "NORTH",
+      "variant_index": 26
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          14700,
+          0,
+          51350,
+          55000
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67254,
+          12928,
+          75000,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          51350,
+          0,
+          64950,
+          55000
+        ],
+        "RAW_SIDE_BAND": [
+          64950,
+          0,
+          75000,
+          55000
+        ],
+        "SUPPORT_BAND": [
+          27217,
+          22600,
+          41717,
+          55000
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:RAW_SIDE_BAND"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "X",
+      "process_direction": "NEGATIVE",
+      "support_side": "NORTH",
+      "variant_index": 27
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          14700,
+          18188,
+          75000,
+          55000
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67254,
+          12928,
+          75000,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          14700,
+          18188,
+          75000,
+          36812
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          75000,
+          36812
+        ],
+        "SUPPORT_BAND": [
+          27217,
+          22600,
+          41717,
+          55000
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "X",
+      "process_direction": "NEGATIVE",
+      "support_side": "NORTH",
+      "variant_index": 29
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          38350,
+          0,
+          75460,
+          53885
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67714,
+          12928,
+          75460,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          24750,
+          0,
+          38350,
+          53885
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          24750,
+          53885
+        ],
+        "SUPPORT_BAND": [
+          27217,
+          0,
+          41717,
+          32400
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:INTER_BAND_INTERFACE_OR_FINISHED_SIDE"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "X",
+      "process_direction": "POSITIVE",
+      "support_side": "SOUTH",
+      "variant_index": 30
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          14700,
+          17630,
+          75460,
+          53885
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67714,
+          12928,
+          75460,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          14700,
+          17630,
+          75460,
+          36254
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          75460,
+          36254
+        ],
+        "SUPPORT_BAND": [
+          27217,
+          0,
+          41717,
+          32400
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          53885
+        ],
+        [
+          41717,
+          0,
+          75460,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "X",
+      "process_direction": "POSITIVE",
+      "support_side": "SOUTH",
+      "variant_index": 32
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          14700,
+          0,
+          51350,
+          55000
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67254,
+          12928,
+          75000,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          51350,
+          0,
+          64950,
+          55000
+        ],
+        "RAW_SIDE_BAND": [
+          64950,
+          0,
+          75000,
+          55000
+        ],
+        "SUPPORT_BAND": [
+          27217,
+          0,
+          41717,
+          32400
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:RAW_SIDE_BAND"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "X",
+      "process_direction": "NEGATIVE",
+      "support_side": "SOUTH",
+      "variant_index": 33
+    },
+    {
+      "bands": {
+        "FINISHED_SIDE_BAND": [
+          14700,
+          18188,
+          75000,
+          55000
+        ],
+        "PERSONNEL_EDGE_BAND": [
+          67254,
+          12928,
+          75000,
+          26999
+        ],
+        "PROCESS_CORE_BAND": [
+          14700,
+          18188,
+          75000,
+          36812
+        ],
+        "RAW_SIDE_BAND": [
+          14700,
+          0,
+          75000,
+          36812
+        ],
+        "SUPPORT_BAND": [
+          27217,
+          0,
+          41717,
+          32400
+        ]
+      },
+      "envelope_components_mm": [
+        [
+          14700,
+          0,
+          41717,
+          55000
+        ],
+        [
+          41717,
+          0,
+          75000,
+          26999
+        ]
+      ],
+      "envelope_family": "SIMPLE_L",
+      "failure_reasons": [
+        "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_process_geometry_emitted": false,
+      "main_process_zone_codes": [],
+      "process_axis": "X",
+      "process_direction": "NEGATIVE",
+      "support_side": "SOUTH",
+      "variant_index": 35
+    }
+  ],
+  "fixture_path": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/backend/tests/fixtures/v22/xinzhao_20t_site_layout_input_v3.json",
+  "fixture_sha256": "d03ecae9e1e2808cba346eb83a39f853c8a4b366acc103669af1cf868363901e",
+  "full_pass_candidates": [],
+  "gallery_canvas": {
+    "same_canvas": false,
+    "same_scale": false,
+    "uncropped": false
+  },
+  "gallery_png": null,
+  "identity": "v222-p1a-r2-band-packing-recovery-replay@1.0.0",
+  "layout_family_failure_summary": {
+    "CENTRAL_PROCESS_WITH_SIDE_BANKS": {
+      "attempt_count": 12,
+      "complete_12_zone_count": 0,
+      "first_failure_reason": "SIMPLE_L_ENVELOPE_UNAVAILABLE",
+      "first_failure_stage": "PLAN"
+    },
+    "LINEAR_3_BAND": {
+      "attempt_count": 12,
+      "complete_12_zone_count": 0,
+      "first_failure_reason": "BAND_PACKING_UNAVAILABLE:INTER_BAND_INTERFACE_OR_FINISHED_SIDE",
+      "first_failure_stage": "MAIN_BAND_PACKING"
+    },
+    "LONGITUDINAL_PROCESS_SPINE": {
+      "attempt_count": 12,
+      "complete_12_zone_count": 0,
+      "first_failure_reason": "BAND_PACKING_UNAVAILABLE:PROCESS_SPINE_CHAIN",
+      "first_failure_stage": "MAIN_BAND_PACKING"
+    },
+    "UNCLASSIFIED": {
+      "attempt_count": 2,
+      "complete_12_zone_count": 0,
+      "first_failure_reason": null,
+      "first_failure_stage": null
+    }
+  },
+  "legacy_fallback_candidate_count": 0,
+  "legacy_fallback_full_pass_candidate_count": 2,
+  "legacy_fallback_full_pass_candidates": [
+    {
+      "access_pass_count": 12,
+      "access_requirement_count": 12,
+      "candidate_number": 1,
+      "p2_complete": true,
+      "p2d_full_pass": true,
+      "png_path": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_general_fallback_r2_recovery_candidate_01.png",
+      "project_layout_validated": true,
+      "search_phase": "GENERAL_FALLBACK",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "svg_path": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_general_fallback_r2_recovery_candidate_01.svg",
+      "svg_sha256": "sha256:007f8066b55a3bdcf2583e0e4d9c2f325e1c2c6cee4bc9aa8fb9fd4a57c109d2",
+      "truck_route_validated": true
+    },
+    {
+      "access_pass_count": 12,
+      "access_requirement_count": 12,
+      "candidate_number": 2,
+      "p2_complete": true,
+      "p2d_full_pass": true,
+      "png_path": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_general_fallback_r2_recovery_candidate_02.png",
+      "project_layout_validated": true,
+      "search_phase": "GENERAL_FALLBACK",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "svg_path": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_general_fallback_r2_recovery_candidate_02.svg",
+      "svg_sha256": "sha256:342775cb44d7165a9a64ad7e7f31cd287c04d5a1655bcc8f31ec1c1224f85981",
+      "truck_route_validated": true
+    }
+  ],
+  "legacy_fallback_gallery_canvas": {
+    "canvas_height": 878.0,
+    "canvas_width": 5858.86,
+    "same_canvas": true,
+    "same_scale": true,
+    "uncropped": true
+  },
+  "legacy_fallback_gallery_png": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_general_fallback_r2_recovery_gallery.png",
+  "mode": "R2_BAND_PACKING_AND_COMPATIBILITY_RECOVERY",
+  "phase_lanes": [
+    {
+      "composition_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "p2d_full_pass_candidate_count": 0,
+      "phases": [
+        {
+          "p2d_full_pass_candidate_count": 0,
+          "search_phase": "GENERAL_FALLBACK",
+          "visited_nodes": 28
+        }
+      ]
+    },
+    {
+      "composition_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "UNRESOLVED",
+        "family": "CENTRAL_PROCESS_HUB",
+        "generation_reason": "SORTING_PACKAGING_IS_EXPLICIT_PROCESS_CORE",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "p2d_full_pass_candidate_count": 0,
+      "phases": [
+        {
+          "p2d_full_pass_candidate_count": 0,
+          "search_phase": "STRUCTURED",
+          "visited_nodes": 24
+        },
+        {
+          "p2d_full_pass_candidate_count": 0,
+          "search_phase": "GENERAL_FALLBACK",
+          "visited_nodes": 27
+        }
+      ]
+    },
+    {
+      "composition_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "p2d_full_pass_candidate_count": 2,
+      "phases": [
+        {
+          "p2d_full_pass_candidate_count": 2,
+          "search_phase": "GENERAL_FALLBACK",
+          "visited_nodes": 41
+        }
+      ]
+    }
+  ],
+  "placement_node_budget": 120,
+  "preview_error": null,
+  "replay": "UNMOCKED_TOOL7_SINGLE_RUN",
+  "selected_layout_present": true,
+  "selected_result": {
+    "access_pass_count": 12,
+    "access_requirement_count": 12,
+    "building_footprint_present": true,
+    "canonical_result_hash": "sha256:9be8014423738b89d3a5c47a4b076ef2b35d51363dec62b90a7437a79ad11c72",
+    "p2_complete": true,
+    "project_layout_validated": true,
+    "svg_sha256": "sha256:007f8066b55a3bdcf2583e0e4d9c2f325e1c2c6cee4bc9aa8fb9fd4a57c109d2",
+    "truck_route_validated": true,
+    "zone_count": 12
+  },
+  "selector_status": "VALIDATED_LAYOUT_SELECTED",
+  "structured_full_pass_candidate_count": 0,
+  "task_id": "V2_2_2_P1A_ENVELOPE_GRID_BAND_ZONE_GENERATOR_R2",
+  "truck_preflight": {
+    "rows": [
+      {
+        "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "main_skeleton_hash": "sha256:0416b77987e6d15c2b38cd88bf9fb5f063cfb17861adc6c1b4a14c08f6f6a89f",
+        "node_budget": 5000,
+        "preflight_status": "REJECT",
+        "tail_search_started": false,
+        "visited_nodes": 39
+      },
+      {
+        "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "main_skeleton_hash": "sha256:4264a43e822dce7e3e8ca22a93dd40f55ddc8336bd1763f6bb80d1d2ba135cae",
+        "node_budget": 5000,
+        "preflight_status": "REJECT",
+        "tail_search_started": false,
+        "visited_nodes": 39
+      },
+      {
+        "failure_reason": null,
+        "layout_family": "LINEAR_3_BAND",
+        "main_skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+        "node_budget": 5000,
+        "preflight_status": "PASS",
+        "tail_search_started": true,
+        "visited_nodes": 3
+      },
+      {
+        "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "main_skeleton_hash": "sha256:bdf2286fd10c24724b7e9ad45ebd5de5cb92a9bda478e96ffed0e23a1ceaaaac",
+        "node_budget": 5000,
+        "preflight_status": "REJECT",
+        "tail_search_started": false,
+        "visited_nodes": 39
+      },
+      {
+        "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+        "main_skeleton_hash": "sha256:d08ed2cd0074ebab4b07feb58516c6ccdc76df652896f3fbc9f5da8637405b18",
+        "node_budget": 5000,
+        "preflight_status": "REJECT",
+        "tail_search_started": false,
+        "visited_nodes": 39
+      }
+    ],
+    "skeleton_hashes": [
+      "sha256:0416b77987e6d15c2b38cd88bf9fb5f063cfb17861adc6c1b4a14c08f6f6a89f",
+      "sha256:4264a43e822dce7e3e8ca22a93dd40f55ddc8336bd1763f6bb80d1d2ba135cae",
+      "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "sha256:bdf2286fd10c24724b7e9ad45ebd5de5cb92a9bda478e96ffed0e23a1ceaaaac",
+      "sha256:d08ed2cd0074ebab4b07feb58516c6ccdc76df652896f3fbc9f5da8637405b18"
+    ],
+    "status_counts": {
+      "PASS": 1,
+      "REJECT": 4
+    },
+    "unique_skeleton_count": 5
+  }
+}

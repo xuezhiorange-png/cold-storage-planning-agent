@@ -1,0 +1,6013 @@
+{
+  "aggregated_row_count": 366,
+  "event_count": 513,
+  "event_count_by_family_direction_zone_reason_stage": [
+    {
+      "count": 4,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "NO_BUILD_COLLISION",
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 15,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "SITE_OUTSIDE",
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 2,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "SKELETON_TOPOLOGY_INVALID",
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 54,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "SITE_OUTSIDE",
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "raw_fruit_buffer"
+    },
+    {
+      "count": 9,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "SKELETON_TOPOLOGY_INVALID",
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "raw_fruit_buffer"
+    },
+    {
+      "count": 36,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "NO_BUILD_COLLISION",
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 135,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "SITE_OUTSIDE",
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 11,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "NO_BUILD_COLLISION",
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 2,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "SITE_OUTSIDE",
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "SKELETON_TOPOLOGY_INVALID",
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 18,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "NO_BUILD_COLLISION",
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "raw_fruit_buffer"
+    },
+    {
+      "count": 40,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "SITE_OUTSIDE",
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "raw_fruit_buffer"
+    },
+    {
+      "count": 8,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "SKELETON_TOPOLOGY_INVALID",
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "raw_fruit_buffer"
+    },
+    {
+      "count": 6,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "SITE_OUTSIDE",
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "secondary_precooling_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "SKELETON_TOPOLOGY_INVALID",
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "secondary_precooling_room"
+    },
+    {
+      "count": 36,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "NO_BUILD_COLLISION",
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 135,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "reason": "SITE_OUTSIDE",
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    }
+  ],
+  "grouping_fields": [
+    "family",
+    "dominant_direction",
+    "sorting_root_mm",
+    "raw_side",
+    "finished_side",
+    "zone_code",
+    "reason",
+    "stage"
+  ],
+  "identity": "xinzhao-linear-rejection-matrix@1.0.0",
+  "instrumentation_scope": "structured P1A placement search; no production code or public Tool 7 payload mutation",
+  "rows": [
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -13600,
+        -45760,
+        0,
+        0
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -13600,
+        0,
+        0,
+        45760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -13600,
+        55000,
+        0,
+        100760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -13600,
+        9240,
+        0,
+        55000
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -13601,
+        -27011,
+        -1,
+        18749
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -13601,
+        -37060,
+        -1,
+        8700
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -13601,
+        18750,
+        -1,
+        64510
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -13601,
+        8701,
+        -1,
+        54461
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -31062,
+        -4900,
+        14698,
+        8700
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -31062,
+        18750,
+        14698,
+        32350
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -31062,
+        5149,
+        14698,
+        18749
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -31062,
+        8701,
+        14698,
+        22301
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -4043,
+        13399,
+        41717,
+        26999
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -4043,
+        25784,
+        41717,
+        39384
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -4043,
+        25785,
+        41717,
+        39385
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -4043,
+        27000,
+        41717,
+        40600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -4043,
+        39385,
+        41717,
+        52985
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -4043,
+        39386,
+        41717,
+        52986
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -4043,
+        40285,
+        41717,
+        53885
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -4043,
+        53886,
+        41717,
+        67486
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -45760,
+        -13600,
+        0,
+        0
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -45760,
+        0,
+        0,
+        13600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -45760,
+        41400,
+        0,
+        55000
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -45760,
+        55000,
+        0,
+        68600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -45761,
+        -4900,
+        -1,
+        8700
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -45761,
+        18750,
+        -1,
+        32350
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -45761,
+        5149,
+        -1,
+        18749
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -45761,
+        8701,
+        -1,
+        22301
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        0,
+        -13600,
+        45760,
+        0
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        0,
+        -27011,
+        13600,
+        18749
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        0,
+        -37060,
+        13600,
+        8700
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        0,
+        -45760,
+        13600,
+        0
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        0,
+        -4900,
+        45760,
+        8700
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        0,
+        0,
+        13600,
+        45760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        0,
+        0,
+        45760,
+        13600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        0,
+        18751,
+        13600,
+        64511
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        0,
+        18751,
+        45760,
+        32351
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        0,
+        41400,
+        45760,
+        55000
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        0,
+        5149,
+        45760,
+        18749
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        0,
+        55000,
+        13600,
+        100760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        0,
+        55000,
+        45760,
+        68600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        0,
+        8702,
+        13600,
+        54462
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        0,
+        8702,
+        45760,
+        22302
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        0,
+        9240,
+        13600,
+        55000
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        1,
+        18750,
+        13601,
+        64510
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        1,
+        18750,
+        45761,
+        32350
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        1,
+        18751,
+        13601,
+        64511
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        1,
+        18751,
+        45761,
+        32351
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        1,
+        8701,
+        13601,
+        54461
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        1,
+        8701,
+        45761,
+        22301
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        1,
+        8702,
+        13601,
+        54462
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        1,
+        8702,
+        45761,
+        22302
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        1098,
+        -27011,
+        14698,
+        18749
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        1098,
+        -37060,
+        14698,
+        8700
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        1098,
+        18750,
+        14698,
+        64510
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        1098,
+        8701,
+        14698,
+        54461
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        14699,
+        -27011,
+        28299,
+        18749
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        14699,
+        -37060,
+        28299,
+        8700
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        14699,
+        -4900,
+        60459,
+        8700
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        14699,
+        18751,
+        28299,
+        64511
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        14699,
+        18751,
+        60459,
+        32351
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        14699,
+        5149,
+        60459,
+        18749
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        14699,
+        8702,
+        28299,
+        54462
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        14699,
+        8702,
+        60459,
+        22302
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        14700,
+        18750,
+        28300,
+        64510
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        14700,
+        18750,
+        60460,
+        32350
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        14700,
+        18751,
+        28300,
+        64511
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        14700,
+        18751,
+        60460,
+        32351
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        15000,
+        15200,
+        60760,
+        28800
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 36,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        15000,
+        8700,
+        60760,
+        22300
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "raw_fruit_buffer"
+    },
+    {
+      "count": 6,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SKELETON_TOPOLOGY_INVALID",
+      "sorting_root_mm": [
+        15000,
+        8700,
+        60760,
+        22300
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "raw_fruit_buffer"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        19650,
+        15200,
+        65410,
+        28800
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 3,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        19650,
+        8700,
+        65410,
+        22300
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 18,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        19650,
+        8700,
+        65410,
+        22300
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "raw_fruit_buffer"
+    },
+    {
+      "count": 3,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SKELETON_TOPOLOGY_INVALID",
+      "sorting_root_mm": [
+        19650,
+        8700,
+        65410,
+        22300
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "raw_fruit_buffer"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        28117,
+        -18761,
+        41717,
+        26999
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        28117,
+        -6375,
+        41717,
+        39385
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        28117,
+        -6376,
+        41717,
+        39384
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        28117,
+        27000,
+        41717,
+        72760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        28117,
+        39385,
+        41717,
+        85145
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        28117,
+        39386,
+        41717,
+        85146
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        28117,
+        53886,
+        41717,
+        99646
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 4,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        28117,
+        8125,
+        41717,
+        53885
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 6,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SKELETON_TOPOLOGY_INVALID",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        25784,
+        74998,
+        39384
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        25785,
+        74998,
+        39385
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        27000,
+        74998,
+        40600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        39385,
+        74998,
+        52985
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        39386,
+        74998,
+        52986
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        40285,
+        74998,
+        53885
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        29238,
+        53886,
+        74998,
+        67486
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        29700,
+        -13600,
+        75460,
+        0
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 6,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        29700,
+        0,
+        75460,
+        13600
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SKELETON_TOPOLOGY_INVALID",
+      "sorting_root_mm": [
+        29700,
+        0,
+        75460,
+        13600
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29700,
+        41400,
+        75460,
+        55000
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        29700,
+        55000,
+        75460,
+        68600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        -18761,
+        55318,
+        26999
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        -6375,
+        55318,
+        39385
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        -6376,
+        55318,
+        39384
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        13399,
+        87478,
+        26999
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        25784,
+        87478,
+        39384
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        25785,
+        87478,
+        39385
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        27001,
+        55318,
+        72761
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        27001,
+        87478,
+        40601
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        39386,
+        55318,
+        85146
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        39386,
+        87478,
+        52986
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        39387,
+        55318,
+        85147
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        39387,
+        87478,
+        52987
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        40285,
+        87478,
+        53885
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        53887,
+        55318,
+        99647
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        53887,
+        87478,
+        67487
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        41718,
+        8125,
+        55318,
+        53885
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        27000,
+        55319,
+        72760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        27000,
+        87479,
+        40600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        27001,
+        55319,
+        72761
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        27001,
+        87479,
+        40601
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        39385,
+        55319,
+        85145
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        39385,
+        87479,
+        52985
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        39386,
+        55319,
+        85146
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        39386,
+        87479,
+        52986
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        39387,
+        55319,
+        85147
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        39387,
+        87479,
+        52987
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        53886,
+        55319,
+        99646
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        53886,
+        87479,
+        67486
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        53887,
+        55319,
+        99647
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        53887,
+        87479,
+        67487
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        47160,
+        15200,
+        60760,
+        60960
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        47160,
+        8700,
+        60760,
+        54460
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        51810,
+        15200,
+        65410,
+        60960
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        51810,
+        8700,
+        65410,
+        54460
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61398,
+        -18761,
+        74998,
+        26999
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61398,
+        -6375,
+        74998,
+        39385
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61398,
+        -6376,
+        74998,
+        39384
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61398,
+        27000,
+        74998,
+        72760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61398,
+        39385,
+        74998,
+        85145
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61398,
+        39386,
+        74998,
+        85146
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61398,
+        53886,
+        74998,
+        99646
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        61398,
+        8125,
+        74998,
+        53885
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61860,
+        -45760,
+        75460,
+        0
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        61860,
+        0,
+        75460,
+        45760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61860,
+        55000,
+        75460,
+        100760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        61860,
+        9240,
+        75460,
+        55000
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        -18761,
+        88599,
+        26999
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        -6375,
+        88599,
+        39385
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        -6376,
+        88599,
+        39384
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        13399,
+        120759,
+        26999
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        25784,
+        120759,
+        39384
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        25785,
+        120759,
+        39385
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        27001,
+        120759,
+        40601
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        27001,
+        88599,
+        72761
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        39386,
+        120759,
+        52986
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        39386,
+        88599,
+        85146
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        39387,
+        120759,
+        52987
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        39387,
+        88599,
+        85147
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        40285,
+        120759,
+        53885
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        53887,
+        120759,
+        67487
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        53887,
+        88599,
+        99647
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        8125,
+        88599,
+        53885
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        27000,
+        120760,
+        40600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        27000,
+        88600,
+        72760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        27001,
+        120760,
+        40601
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        27001,
+        88600,
+        72761
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        39385,
+        120760,
+        52985
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        39385,
+        88600,
+        85145
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        39386,
+        120760,
+        52986
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        39386,
+        88600,
+        85146
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        39387,
+        120760,
+        52987
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        39387,
+        88600,
+        85147
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        53886,
+        120760,
+        67486
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        53886,
+        88600,
+        99646
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        53887,
+        120760,
+        67487
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        53887,
+        88600,
+        99647
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75460,
+        -13600,
+        121220,
+        0
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75460,
+        -45760,
+        89060,
+        0
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75460,
+        0,
+        121220,
+        13600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75460,
+        0,
+        89060,
+        45760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75460,
+        41400,
+        121220,
+        55000
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75460,
+        55000,
+        121220,
+        68600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75460,
+        55000,
+        89060,
+        100760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "WEST",
+      "raw_side": "EAST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75460,
+        9240,
+        89060,
+        55000
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -13600,
+        -45760,
+        0,
+        0
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -13600,
+        0,
+        0,
+        45760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -13600,
+        55000,
+        0,
+        100760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -13600,
+        9240,
+        0,
+        55000
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -13601,
+        -27011,
+        -1,
+        18749
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -13601,
+        -37060,
+        -1,
+        8700
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -13601,
+        18750,
+        -1,
+        64510
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -13601,
+        8701,
+        -1,
+        54461
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -31062,
+        -4900,
+        14698,
+        8700
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -31062,
+        18750,
+        14698,
+        32350
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -31062,
+        5149,
+        14698,
+        18749
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -31062,
+        8701,
+        14698,
+        22301
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -4043,
+        13399,
+        41717,
+        26999
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -4043,
+        25784,
+        41717,
+        39384
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -4043,
+        25785,
+        41717,
+        39385
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -4043,
+        27000,
+        41717,
+        40600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -4043,
+        39385,
+        41717,
+        52985
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -4043,
+        39386,
+        41717,
+        52986
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -4043,
+        40285,
+        41717,
+        53885
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -4043,
+        53886,
+        41717,
+        67486
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -45760,
+        -13600,
+        0,
+        0
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -45760,
+        0,
+        0,
+        13600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -45760,
+        41400,
+        0,
+        55000
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -45760,
+        55000,
+        0,
+        68600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -45761,
+        -4900,
+        -1,
+        8700
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -45761,
+        18750,
+        -1,
+        32350
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -45761,
+        5149,
+        -1,
+        18749
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        -45761,
+        8701,
+        -1,
+        22301
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        0,
+        -13600,
+        45760,
+        0
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        0,
+        -27011,
+        13600,
+        18749
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        0,
+        -37060,
+        13600,
+        8700
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        0,
+        -45760,
+        13600,
+        0
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        0,
+        -4900,
+        45760,
+        8700
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        0,
+        0,
+        13600,
+        45760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        0,
+        0,
+        45760,
+        13600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        0,
+        18751,
+        13600,
+        64511
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        0,
+        18751,
+        45760,
+        32351
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        0,
+        41400,
+        45760,
+        55000
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        0,
+        5149,
+        45760,
+        18749
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        0,
+        55000,
+        13600,
+        100760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        0,
+        55000,
+        45760,
+        68600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        0,
+        8702,
+        13600,
+        54462
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        0,
+        8702,
+        45760,
+        22302
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        0,
+        9240,
+        13600,
+        55000
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        1,
+        18750,
+        13601,
+        64510
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        1,
+        18750,
+        45761,
+        32350
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        1,
+        18751,
+        13601,
+        64511
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        1,
+        18751,
+        45761,
+        32351
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        1,
+        8701,
+        13601,
+        54461
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        1,
+        8701,
+        45761,
+        22301
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        1,
+        8702,
+        13601,
+        54462
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        1,
+        8702,
+        45761,
+        22302
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        10050,
+        15200,
+        23650,
+        60960
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        10050,
+        15200,
+        55810,
+        28800
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        10050,
+        8700,
+        23650,
+        54460
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        10050,
+        8700,
+        55810,
+        22300
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        1098,
+        -27011,
+        14698,
+        18749
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        1098,
+        -37060,
+        14698,
+        8700
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        1098,
+        18750,
+        14698,
+        64510
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        1098,
+        8701,
+        14698,
+        54461
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        14699,
+        -27011,
+        28299,
+        18749
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        14699,
+        -37060,
+        28299,
+        8700
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        14699,
+        -4900,
+        60459,
+        8700
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        14699,
+        18751,
+        28299,
+        64511
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        14699,
+        18751,
+        60459,
+        32351
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        14699,
+        5149,
+        60459,
+        18749
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        14699,
+        8702,
+        28299,
+        54462
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        14699,
+        8702,
+        60459,
+        22302
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        14700,
+        15200,
+        28300,
+        60960
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        14700,
+        15200,
+        60460,
+        28800
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        14700,
+        18750,
+        28300,
+        64510
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        14700,
+        18750,
+        60460,
+        32350
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        14700,
+        18751,
+        28300,
+        64511
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        14700,
+        18751,
+        60460,
+        32351
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 2,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        14700,
+        8700,
+        28300,
+        54460
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 24,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        14700,
+        8700,
+        28300,
+        54460
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "raw_fruit_buffer"
+    },
+    {
+      "count": 4,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SKELETON_TOPOLOGY_INVALID",
+      "sorting_root_mm": [
+        14700,
+        8700,
+        28300,
+        54460
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "raw_fruit_buffer"
+    },
+    {
+      "count": 6,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        14700,
+        8700,
+        60460,
+        22300
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SKELETON_TOPOLOGY_INVALID",
+      "sorting_root_mm": [
+        14700,
+        8700,
+        60460,
+        22300
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        28117,
+        -18761,
+        41717,
+        26999
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        28117,
+        -6375,
+        41717,
+        39385
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        28117,
+        -6376,
+        41717,
+        39384
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        28117,
+        27000,
+        41717,
+        72760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        28117,
+        39385,
+        41717,
+        85145
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        28117,
+        39386,
+        41717,
+        85146
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        28117,
+        53886,
+        41717,
+        99646
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 3,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 11,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "raw_fruit_buffer"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SKELETON_TOPOLOGY_INVALID",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "raw_fruit_buffer"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        25784,
+        74998,
+        39384
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        25785,
+        74998,
+        39385
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        27000,
+        74998,
+        40600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        39385,
+        74998,
+        52985
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        39386,
+        74998,
+        52986
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        40285,
+        74998,
+        53885
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        29238,
+        53886,
+        74998,
+        67486
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        29700,
+        -13600,
+        75460,
+        0
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 2,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        29700,
+        0,
+        75460,
+        13600
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "primary_precooling_room"
+    },
+    {
+      "count": 7,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29700,
+        0,
+        75460,
+        13600
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "raw_fruit_buffer"
+    },
+    {
+      "count": 16,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        29700,
+        0,
+        75460,
+        13600
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "raw_fruit_buffer"
+    },
+    {
+      "count": 3,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SKELETON_TOPOLOGY_INVALID",
+      "sorting_root_mm": [
+        29700,
+        0,
+        75460,
+        13600
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "raw_fruit_buffer"
+    },
+    {
+      "count": 6,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        29700,
+        0,
+        75460,
+        13600
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "secondary_precooling_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SKELETON_TOPOLOGY_INVALID",
+      "sorting_root_mm": [
+        29700,
+        0,
+        75460,
+        13600
+      ],
+      "stage": "SKELETON_CONSTRUCTION",
+      "zone_code": "secondary_precooling_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29700,
+        41400,
+        75460,
+        55000
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        29700,
+        55000,
+        75460,
+        68600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        -18761,
+        55318,
+        26999
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        -6375,
+        55318,
+        39385
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        -6376,
+        55318,
+        39384
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        13399,
+        87478,
+        26999
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        25784,
+        87478,
+        39384
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        25785,
+        87478,
+        39385
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        27001,
+        55318,
+        72761
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        27001,
+        87478,
+        40601
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        39386,
+        55318,
+        85146
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        39386,
+        87478,
+        52986
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        39387,
+        55318,
+        85147
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        39387,
+        87478,
+        52987
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        40285,
+        87478,
+        53885
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        53887,
+        55318,
+        99647
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41718,
+        53887,
+        87478,
+        67487
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        41718,
+        8125,
+        55318,
+        53885
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        27000,
+        55319,
+        72760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        27000,
+        87479,
+        40600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        27001,
+        55319,
+        72761
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        27001,
+        87479,
+        40601
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        39385,
+        55319,
+        85145
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        39385,
+        87479,
+        52985
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        39386,
+        55319,
+        85146
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        39386,
+        87479,
+        52986
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        39387,
+        55319,
+        85147
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        39387,
+        87479,
+        52987
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        53886,
+        55319,
+        99646
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        53886,
+        87479,
+        67486
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        53887,
+        55319,
+        99647
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        41719,
+        53887,
+        87479,
+        67487
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61398,
+        -18761,
+        74998,
+        26999
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61398,
+        -6375,
+        74998,
+        39385
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61398,
+        -6376,
+        74998,
+        39384
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61398,
+        27000,
+        74998,
+        72760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61398,
+        39385,
+        74998,
+        85145
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61398,
+        39386,
+        74998,
+        85146
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61398,
+        53886,
+        74998,
+        99646
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        61398,
+        8125,
+        74998,
+        53885
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61860,
+        -45760,
+        75460,
+        0
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        61860,
+        0,
+        75460,
+        45760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        61860,
+        55000,
+        75460,
+        100760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        61860,
+        9240,
+        75460,
+        55000
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        -18761,
+        88599,
+        26999
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        -6375,
+        88599,
+        39385
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        -6376,
+        88599,
+        39384
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        13399,
+        120759,
+        26999
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        25784,
+        120759,
+        39384
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        25785,
+        120759,
+        39385
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        27001,
+        120759,
+        40601
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        27001,
+        88599,
+        72761
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        39386,
+        120759,
+        52986
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        39386,
+        88599,
+        85146
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        39387,
+        120759,
+        52987
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        39387,
+        88599,
+        85147
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        40285,
+        120759,
+        53885
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        53887,
+        120759,
+        67487
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        53887,
+        88599,
+        99647
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        74999,
+        8125,
+        88599,
+        53885
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        27000,
+        120760,
+        40600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        27000,
+        88600,
+        72760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        27001,
+        120760,
+        40601
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        27001,
+        88600,
+        72761
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        39385,
+        120760,
+        52985
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        39385,
+        88600,
+        85145
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        39386,
+        120760,
+        52986
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        39386,
+        88600,
+        85146
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        39387,
+        120760,
+        52987
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        39387,
+        88600,
+        85147
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        53886,
+        120760,
+        67486
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        53886,
+        88600,
+        99646
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        53887,
+        120760,
+        67487
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75000,
+        53887,
+        88600,
+        99647
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75460,
+        -13600,
+        121220,
+        0
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75460,
+        -45760,
+        89060,
+        0
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75460,
+        0,
+        121220,
+        13600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75460,
+        0,
+        89060,
+        45760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75460,
+        41400,
+        121220,
+        55000
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75460,
+        55000,
+        121220,
+        68600
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75460,
+        55000,
+        89060,
+        100760
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    },
+    {
+      "count": 1,
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "finished_side": "EAST",
+      "raw_side": "WEST",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        75460,
+        9240,
+        89060,
+        55000
+      ],
+      "stage": "SORTING_ROOT_CANDIDATE",
+      "zone_code": "sorting_packaging_room"
+    }
+  ],
+  "source": "process-local rejection-hook replay at PR head 82f3260c17609ec45d0e81318a34c9a1c4568927"
+}

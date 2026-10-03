@@ -1,0 +1,288 @@
+{
+  "entry_lattice_point_mm": [
+    0,
+    33700
+  ],
+  "final_dock_pose": {
+    "rotation_deg": 180,
+    "x": "1.624",
+    "y": "33.7"
+  },
+  "identity": "v222-p1a-r14-control-pass-chain@1.0.0",
+  "initial_rotation_deg": 0,
+  "maneuver_chain": [
+    {
+      "canonical_result_hash": "sha256:80d22e698df8b0bda3f6acf8a80ffebdbd77f40a9d3bbdecc95eba8277d402bf",
+      "canonical_template_hash": "sha256:349951bce57cd10be70a2a4b0e7145b163e6fbd5898bc48aa0da8d38dd0c14c9",
+      "coordinate_system": "LOCAL_CARTESIAN_METERS",
+      "envelope_geometry": {
+        "points": [
+          {
+            "x": "0",
+            "y": "33.7"
+          },
+          {
+            "x": "0.1",
+            "y": "33.7"
+          },
+          {
+            "x": "0.1",
+            "y": "33.701"
+          },
+          {
+            "x": "0",
+            "y": "33.701"
+          }
+        ],
+        "type": "polygon"
+      },
+      "grid_m": "0.001",
+      "maneuver_class": "STRAIGHT_APPROACH",
+      "project_id": "fixture-project",
+      "reference_frame": {
+        "entry_pose": {
+          "rotation_deg": 0,
+          "x": "0",
+          "y": "33.7"
+        },
+        "exit_pose": {
+          "rotation_deg": 0,
+          "x": "0",
+          "y": "33.7"
+        },
+        "forward_axis": "POSITIVE_X",
+        "origin_reference": "ENTRY_REFERENCE_POINT",
+        "reference_frame": "LOCAL_TEMPLATE_FRAME",
+        "vehicle_reference_point": {
+          "x": "0",
+          "y": "33.7"
+        }
+      },
+      "rotation_deg": 0,
+      "schema_version": "1.0.0",
+      "source_content_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "source_reference": "fixture-owner:approved-maneuver-envelope",
+      "template_identity": "truck-maneuver-template:fixture-project:straight@1.0.0",
+      "translation": {
+        "x": "0",
+        "y": "33.7"
+      }
+    },
+    {
+      "canonical_result_hash": "sha256:607ba71ed973a648263b446bfdb2bcb339e6c15996396a944b7989104059daa1",
+      "canonical_template_hash": "sha256:88dd6bbef476386f5ac317c92071594cf226c3b4e79aba362629e89cf6d195d0",
+      "coordinate_system": "LOCAL_CARTESIAN_METERS",
+      "envelope_geometry": {
+        "points": [
+          {
+            "x": "39",
+            "y": "2"
+          },
+          {
+            "x": "39.5",
+            "y": "2"
+          },
+          {
+            "x": "39.5",
+            "y": "9.8"
+          },
+          {
+            "x": "39",
+            "y": "9.8"
+          }
+        ],
+        "type": "polygon"
+      },
+      "grid_m": "0.001",
+      "maneuver_class": "TURN_90",
+      "project_id": "fixture-project",
+      "reference_frame": {
+        "entry_pose": {
+          "rotation_deg": 0,
+          "x": "0",
+          "y": "33.7"
+        },
+        "exit_pose": {
+          "rotation_deg": 0,
+          "x": "0",
+          "y": "33.7"
+        },
+        "forward_axis": "POSITIVE_X",
+        "origin_reference": "ENTRY_REFERENCE_POINT",
+        "reference_frame": "LOCAL_TEMPLATE_FRAME",
+        "vehicle_reference_point": {
+          "x": "0",
+          "y": "33.7"
+        }
+      },
+      "rotation_deg": 0,
+      "schema_version": "1.0.0",
+      "source_content_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "source_reference": "fixture-owner:approved-maneuver-envelope",
+      "template_identity": "truck-maneuver-template:fixture-project:turn@1.0.0",
+      "translation": {
+        "x": "0",
+        "y": "33.7"
+      },
+      "turn_direction": "LEFT"
+    },
+    {
+      "approach_pose": {
+        "rotation_deg": 0,
+        "x": "0",
+        "y": "33.7"
+      },
+      "canonical_result_hash": "sha256:561a1d57e9395f1d4eb699da8b4f939a896b81603da603fcd2191a83100670a8",
+      "canonical_template_hash": "sha256:393a01a47407beabbf291ffdbd71400f7895065f5468a9bd46ae047d9021fc43",
+      "coordinate_system": "LOCAL_CARTESIAN_METERS",
+      "dock_face_reference": "shipping_channel.LONG_EDGE_LOADING_FACE",
+      "envelope_geometry": {
+        "points": [
+          {
+            "x": "0",
+            "y": "33.7"
+          },
+          {
+            "x": "0.1",
+            "y": "33.7"
+          },
+          {
+            "x": "0.1",
+            "y": "33.701"
+          },
+          {
+            "x": "0",
+            "y": "33.701"
+          }
+        ],
+        "type": "polygon"
+      },
+      "final_dock_pose": {
+        "rotation_deg": 180,
+        "x": "1.624",
+        "y": "33.7"
+      },
+      "grid_m": "0.001",
+      "maneuver_class": "DOCK_REVERSE",
+      "project_id": "fixture-project",
+      "reference_frame": {
+        "entry_pose": {
+          "rotation_deg": 0,
+          "x": "0",
+          "y": "33.7"
+        },
+        "exit_pose": {
+          "rotation_deg": 0,
+          "x": "0",
+          "y": "33.7"
+        },
+        "forward_axis": "POSITIVE_X",
+        "origin_reference": "ENTRY_REFERENCE_POINT",
+        "reference_frame": "LOCAL_TEMPLATE_FRAME",
+        "vehicle_reference_point": {
+          "x": "0",
+          "y": "33.7"
+        }
+      },
+      "rotation_deg": 0,
+      "schema_version": "1.0.0",
+      "source_content_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "source_reference": "fixture-owner:approved-maneuver-envelope",
+      "template_identity": "truck-maneuver-template:fixture-project:dock@1.0.0",
+      "translation": {
+        "x": "0",
+        "y": "33.7"
+      }
+    }
+  ],
+  "node_budget": 5000,
+  "selected_sequence": [
+    "STRAIGHT_APPROACH",
+    "TURN_90",
+    "DOCK_REVERSE"
+  ],
+  "selected_template_identities": [
+    "truck-maneuver-template:fixture-project:straight@1.0.0",
+    "truck-maneuver-template:fixture-project:turn@1.0.0",
+    "truck-maneuver-template:fixture-project:dock@1.0.0"
+  ],
+  "shipping_loading_face": {
+    "end_mm": [
+      9317,
+      33700
+    ],
+    "side": "BOTTOM_LONG_EDGE",
+    "start_mm": [
+      1624,
+      33700
+    ]
+  },
+  "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+  "truck_envelopes": [
+    {
+      "points": [
+        {
+          "x": "0",
+          "y": "33.7"
+        },
+        {
+          "x": "0.1",
+          "y": "33.7"
+        },
+        {
+          "x": "0.1",
+          "y": "33.701"
+        },
+        {
+          "x": "0",
+          "y": "33.701"
+        }
+      ],
+      "type": "polygon"
+    },
+    {
+      "points": [
+        {
+          "x": "39",
+          "y": "2"
+        },
+        {
+          "x": "39.5",
+          "y": "2"
+        },
+        {
+          "x": "39.5",
+          "y": "9.8"
+        },
+        {
+          "x": "39",
+          "y": "9.8"
+        }
+      ],
+      "type": "polygon"
+    },
+    {
+      "points": [
+        {
+          "x": "0",
+          "y": "33.7"
+        },
+        {
+          "x": "0.1",
+          "y": "33.7"
+        },
+        {
+          "x": "0.1",
+          "y": "33.701"
+        },
+        {
+          "x": "0",
+          "y": "33.701"
+        }
+      ],
+      "type": "polygon"
+    }
+  ],
+  "truck_route_validated": true,
+  "visited_nodes": 3
+}

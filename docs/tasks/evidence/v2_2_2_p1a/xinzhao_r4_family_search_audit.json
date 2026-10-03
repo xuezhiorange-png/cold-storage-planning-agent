@@ -1,0 +1,441 @@
+{
+  "budget_sensitivity": [
+    {
+      "distinct_full_pass_main_process_skeleton_count": 0,
+      "elapsed_seconds": 0.323,
+      "p2c_candidate_count": 0,
+      "p2d_full_pass_candidate_count": 0,
+      "total_node_budget": 15
+    },
+    {
+      "distinct_full_pass_main_process_skeleton_count": 0,
+      "elapsed_seconds": 2.16,
+      "p2c_candidate_count": 0,
+      "p2d_full_pass_candidate_count": 0,
+      "total_node_budget": 30
+    },
+    {
+      "distinct_full_pass_main_process_skeleton_count": 1,
+      "elapsed_seconds": 3.865,
+      "p2c_candidate_count": 2,
+      "p2d_full_pass_candidate_count": 2,
+      "total_node_budget": 60
+    },
+    {
+      "distinct_full_pass_main_process_skeleton_count": 1,
+      "elapsed_seconds": 11.504,
+      "p2c_candidate_count": 2,
+      "p2d_full_pass_candidate_count": 2,
+      "total_node_budget": 120
+    }
+  ],
+  "candidate_state_classification": {
+    "A_FAMILY_NOT_EXPLORED": {
+      "count": 0,
+      "meaning": "all three declared lanes received a nonzero budget and were visited"
+    },
+    "B_FAMILY_SEARCH_TRUNCATED": {
+      "count": 3,
+      "families": [
+        "CENTRAL_PROCESS_HUB/UNRESOLVED",
+        "LINEAR_PROCESS_BAND/POSITIVE",
+        "LINEAR_PROCESS_BAND/NEGATIVE"
+      ]
+    },
+    "C_SKELETON_CONSTRUCTION_FAILED": {
+      "count": 2,
+      "families": [
+        "LINEAR_PROCESS_BAND/POSITIVE",
+        "LINEAR_PROCESS_BAND/NEGATIVE"
+      ],
+      "qualification": "zero skeletons emitted in explored prefixes; both family searches truncated, so not an infeasibility result"
+    },
+    "D_SKELETON_CONSTRUCTED_BUT_TAIL_FAILED": {
+      "count": 1,
+      "first_failure_reason": "TAIL_NODE_SHARE_EXHAUSTED_WITHOUT_COMPLETE_P2C_CANDIDATE",
+      "first_failure_stage": "TAIL_SEARCH",
+      "skeleton_hash": "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc"
+    },
+    "E_COMPLETE_CANDIDATE_FAILED_P2D": {
+      "count": 0,
+      "qualification": "both complete P2C candidates passed P2D"
+    },
+    "F_P2D_FULL_PASS_LOST_STRUCTURAL_COMPARISON": {
+      "count": 0,
+      "qualification": "both P2D full-pass candidates use the same main-process skeleton hash"
+    },
+    "G_STRUCTURAL_TIE_THEN_P2B2_LOSS": {
+      "count": 1,
+      "first_decisive_component": "P2B2_FINAL_TIE_BREAK",
+      "losing_candidate_hash": "sha256:7245f59f0c0383c5854fc3bcef0b089667fb9b49faf718932f87a36061deb35d",
+      "winner_candidate_hash": "sha256:80e31a1fb80c7b5de497b4aa6dad5bda4a79d9b3912909bbb76819b26ce84e5f"
+    }
+  },
+  "conclusion": "R3 demonstrates bounded candidate-prefix outcomes, not Linear infeasibility; the next design correction should expand topology and plan root anchors against complete group extents before increasing total budget.",
+  "diversity_caps": {
+    "CONSTRUCTIVE_FACE_PAIR_NODE_BUDGET": 20,
+    "CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT": 2,
+    "CONSTRUCTIVE_SORTING_ROOT_NODE_BUDGET": 16,
+    "STRUCTURED_COMPLETIONS_PER_CORE_ROOT": 4,
+    "STRUCTURED_COMPLETIONS_PER_MAIN_SKELETON": 2,
+    "authority_type": "computational_search_caps_not_engineering_or_layout_authority",
+    "candidate_diversity_risk": "completion_limit_of_two can stop new seeds in a lane before family exploration is complete"
+  },
+  "family_lanes": [
+    {
+      "complete_candidate_count": 2,
+      "constructed_skeleton_count": 2,
+      "constructed_skeleton_hashes": [
+        "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+        "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc"
+      ],
+      "construction_attempts": [
+        {
+          "face_pair_node_limit": 20,
+          "finished_side": "NORTH",
+          "raw_side": "SOUTH",
+          "rejection_reason_counts": {
+            "NO_BUILD_COLLISION": 117,
+            "SITE_OUTSIDE": 303,
+            "SKELETON_TOPOLOGY_INVALID": 10,
+            "ZONE_OVERLAP": 128
+          },
+          "result": "SKELETON_CONSTRUCTED",
+          "search_truncated": false,
+          "skeleton_hashes": [
+            "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+          ],
+          "sorting_root_mm": [
+            15200,
+            10050,
+            60960,
+            23650
+          ],
+          "sorting_root_node_limit": 17,
+          "visited_node_delta": 16
+        },
+        {
+          "face_pair_node_limit": 37,
+          "finished_side": "WEST",
+          "raw_side": "SOUTH",
+          "rejection_reason_counts": {
+            "NO_BUILD_COLLISION": 51,
+            "SITE_OUTSIDE": 36,
+            "SKELETON_TOPOLOGY_INVALID": 8,
+            "ZONE_OVERLAP": 10
+          },
+          "result": "REJECTED",
+          "search_truncated": false,
+          "skeleton_hashes": [],
+          "sorting_root_mm": [
+            15200,
+            10050,
+            60960,
+            23650
+          ],
+          "sorting_root_node_limit": 34,
+          "visited_node_delta": 11
+        },
+        {
+          "face_pair_node_limit": 37,
+          "finished_side": "WEST",
+          "raw_side": "SOUTH",
+          "rejection_reason_counts": {
+            "SITE_OUTSIDE": 6,
+            "SKELETON_TOPOLOGY_INVALID": 1
+          },
+          "result": "REJECTED",
+          "search_truncated": false,
+          "skeleton_hashes": [],
+          "sorting_root_mm": [
+            29700,
+            0,
+            75460,
+            13600
+          ],
+          "sorting_root_node_limit": 37,
+          "visited_node_delta": 0
+        },
+        {
+          "face_pair_node_limit": 37,
+          "finished_side": "WEST",
+          "raw_side": "SOUTH",
+          "result": "SKELETON_CONSTRUCTED",
+          "search_truncated": false,
+          "skeleton_hashes": [
+            "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc"
+          ],
+          "sorting_root_mm": [
+            29238,
+            13399,
+            74998,
+            26999
+          ],
+          "sorting_root_node_limit": 37,
+          "visited_node_delta": 6
+        }
+      ],
+      "construction_truncated": true,
+      "distinct_full_pass_skeleton_count": 1,
+      "distinct_full_pass_skeleton_hashes": [
+        "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+      ],
+      "dominant_axis": "X",
+      "dominant_direction": "UNRESOLVED",
+      "family": "CENTRAL_PROCESS_HUB",
+      "first_terminal_class": "B_FAMILY_SEARCH_TRUNCATED",
+      "lane_budget": 80,
+      "p2d_full_pass_count": 2,
+      "preferred_lane": true,
+      "search_exhausted": false,
+      "visited_nodes": 80
+    },
+    {
+      "complete_candidate_count": 0,
+      "constructed_skeleton_count": 0,
+      "constructed_skeleton_hashes": [],
+      "construction_attempts": [
+        {
+          "face_pair_node_limit": 15,
+          "finished_side": "EAST",
+          "raw_side": "WEST",
+          "rejection_reason_counts": {
+            "NO_BUILD_COLLISION": 6,
+            "SKELETON_TOPOLOGY_INVALID": 1
+          },
+          "result": "REJECTED",
+          "search_truncated": false,
+          "skeleton_hashes": [],
+          "sorting_root_mm": [
+            14700,
+            8700,
+            60460,
+            22300
+          ],
+          "sorting_root_node_limit": 15,
+          "visited_node_delta": 0
+        },
+        {
+          "face_pair_node_limit": 15,
+          "finished_side": "EAST",
+          "raw_side": "WEST",
+          "rejection_reason_counts": {
+            "NO_BUILD_COLLISION": 2,
+            "SITE_OUTSIDE": 24,
+            "SKELETON_TOPOLOGY_INVALID": 4
+          },
+          "result": "REJECTED",
+          "search_truncated": false,
+          "skeleton_hashes": [],
+          "sorting_root_mm": [
+            14700,
+            8700,
+            28300,
+            54460
+          ],
+          "sorting_root_node_limit": 15,
+          "visited_node_delta": 4
+        },
+        {
+          "face_pair_node_limit": 15,
+          "finished_side": "EAST",
+          "raw_side": "WEST",
+          "rejection_reason_counts": {
+            "NO_BUILD_COLLISION": 7,
+            "SITE_OUTSIDE": 24,
+            "SKELETON_TOPOLOGY_INVALID": 4
+          },
+          "result": "REJECTED",
+          "search_truncated": false,
+          "skeleton_hashes": [],
+          "sorting_root_mm": [
+            29700,
+            0,
+            75460,
+            13600
+          ],
+          "sorting_root_node_limit": 15,
+          "visited_node_delta": 5
+        },
+        {
+          "face_pair_node_limit": 15,
+          "finished_side": "EAST",
+          "raw_side": "WEST",
+          "rejection_reason_counts": {
+            "NO_BUILD_COLLISION": 14,
+            "SKELETON_TOPOLOGY_INVALID": 1
+          },
+          "result": "TRUNCATED",
+          "search_truncated": true,
+          "skeleton_hashes": [],
+          "sorting_root_mm": [
+            29238,
+            13399,
+            74998,
+            26999
+          ],
+          "sorting_root_node_limit": 15,
+          "visited_node_delta": 2
+        }
+      ],
+      "construction_truncated": true,
+      "distinct_full_pass_skeleton_count": 0,
+      "distinct_full_pass_skeleton_hashes": [],
+      "dominant_axis": "X",
+      "dominant_direction": "POSITIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "first_terminal_class": "B_FAMILY_SEARCH_TRUNCATED",
+      "lane_budget": 20,
+      "p2d_full_pass_count": 0,
+      "preferred_lane": false,
+      "search_exhausted": false,
+      "visited_nodes": 15
+    },
+    {
+      "complete_candidate_count": 0,
+      "constructed_skeleton_count": 0,
+      "constructed_skeleton_hashes": [],
+      "construction_attempts": [
+        {
+          "face_pair_node_limit": 15,
+          "finished_side": "WEST",
+          "raw_side": "EAST",
+          "rejection_reason_counts": {
+            "SITE_OUTSIDE": 36,
+            "SKELETON_TOPOLOGY_INVALID": 6
+          },
+          "result": "REJECTED",
+          "search_truncated": false,
+          "skeleton_hashes": [],
+          "sorting_root_mm": [
+            15000,
+            8700,
+            60760,
+            22300
+          ],
+          "sorting_root_node_limit": 15,
+          "visited_node_delta": 6
+        },
+        {
+          "face_pair_node_limit": 15,
+          "finished_side": "WEST",
+          "raw_side": "EAST",
+          "rejection_reason_counts": {
+            "SITE_OUTSIDE": 21,
+            "SKELETON_TOPOLOGY_INVALID": 3
+          },
+          "result": "REJECTED",
+          "search_truncated": false,
+          "skeleton_hashes": [],
+          "sorting_root_mm": [
+            19650,
+            8700,
+            65410,
+            22300
+          ],
+          "sorting_root_node_limit": 15,
+          "visited_node_delta": 3
+        },
+        {
+          "face_pair_node_limit": 15,
+          "finished_side": "WEST",
+          "raw_side": "EAST",
+          "rejection_reason_counts": {
+            "SITE_OUTSIDE": 6,
+            "SKELETON_TOPOLOGY_INVALID": 1
+          },
+          "result": "REJECTED",
+          "search_truncated": false,
+          "skeleton_hashes": [],
+          "sorting_root_mm": [
+            29700,
+            0,
+            75460,
+            13600
+          ],
+          "sorting_root_node_limit": 15,
+          "visited_node_delta": 0
+        },
+        {
+          "face_pair_node_limit": 15,
+          "finished_side": "WEST",
+          "raw_side": "EAST",
+          "rejection_reason_counts": {
+            "SITE_OUTSIDE": 6,
+            "SKELETON_TOPOLOGY_INVALID": 1
+          },
+          "result": "REJECTED",
+          "search_truncated": false,
+          "skeleton_hashes": [],
+          "sorting_root_mm": [
+            29238,
+            13399,
+            74998,
+            26999
+          ],
+          "sorting_root_node_limit": 15,
+          "visited_node_delta": 0
+        },
+        {
+          "face_pair_node_limit": 15,
+          "finished_side": "WEST",
+          "raw_side": "EAST",
+          "rejection_reason_counts": {
+            "NO_BUILD_COLLISION": 4
+          },
+          "result": "TRUNCATED",
+          "search_truncated": true,
+          "skeleton_hashes": [],
+          "sorting_root_mm": [
+            28117,
+            8125,
+            41717,
+            53885
+          ],
+          "sorting_root_node_limit": 15,
+          "visited_node_delta": 1
+        }
+      ],
+      "construction_truncated": true,
+      "distinct_full_pass_skeleton_count": 0,
+      "distinct_full_pass_skeleton_hashes": [],
+      "dominant_axis": "X",
+      "dominant_direction": "NEGATIVE",
+      "family": "LINEAR_PROCESS_BAND",
+      "first_terminal_class": "B_FAMILY_SEARCH_TRUNCATED",
+      "lane_budget": 20,
+      "p2d_full_pass_count": 0,
+      "preferred_lane": false,
+      "search_exhausted": false,
+      "visited_nodes": 15
+    }
+  ],
+  "identity": "xinzhao-p1a-r4-family-search-audit@1.0.0",
+  "lane_allocation_policy": {
+    "fallback_node_budget": 0,
+    "fallback_reason": "structured family lanes were not shown exhausted; truncation is not infeasibility evidence",
+    "linear_negative_lane_is_explored": true,
+    "linear_positive_lane_is_explored": true,
+    "preferred_family_basis": "sorting_packaging_room is the largest main-process area",
+    "preferred_lane_is_exclusive": false,
+    "preferred_lane_share": "approximately_two_thirds",
+    "production_node_budget": 120
+  },
+  "replay": {
+    "access_pass_count": 12,
+    "access_requirement_count": 12,
+    "building_footprint_present": true,
+    "fixture_sha256": "d03ecae9e1e2808cba346eb83a39f853c8a4b366acc103669af1cf868363901e",
+    "matches_saved_r3": true,
+    "p2_complete": true,
+    "project_layout_validated": true,
+    "saved_r3_result_hash": "sha256:b3dd2de4fb24f74b5ce96601a74edab5f58a9a781eb5af41b29afd0a66ac98da",
+    "saved_r3_svg_sha256": "sha256:342775cb44d7165a9a64ad7e7f31cd287c04d5a1655bcc8f31ec1c1224f85981",
+    "tool7_result_hash": "sha256:b3dd2de4fb24f74b5ce96601a74edab5f58a9a781eb5af41b29afd0a66ac98da",
+    "tool7_svg_sha256": "sha256:342775cb44d7165a9a64ad7e7f31cd287c04d5a1655bcc8f31ec1c1224f85981",
+    "truck_route_validated": true,
+    "zone_count": 12
+  },
+  "source_pr_head": "82f3260c17609ec45d0e81318a34c9a1c4568927",
+  "task_id": "V2_2_2_P1A_R4_CANDIDATE_SPACE_AND_VERSION_ALIGNMENT_REVIEW_R1"
+}

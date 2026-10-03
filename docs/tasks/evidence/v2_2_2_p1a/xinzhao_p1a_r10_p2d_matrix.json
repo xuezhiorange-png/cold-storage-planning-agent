@@ -1,0 +1,163 @@
+{
+  "identity": "v222-p1a-r10-axis-direction-candidate-space-audit@1.0.0",
+  "p2d_by_variant": [
+    {
+      "access_pass_count": null,
+      "access_requirement_count": null,
+      "axis": "X",
+      "building_footprint_present": false,
+      "direction": "POSITIVE",
+      "p2_complete": null,
+      "project_layout_validated": null,
+      "skeletons": [],
+      "tool7_result": "NO_SELECTED_LAYOUT",
+      "topology": "STRAIGHT_LINEAR_BAND",
+      "truck_route_validated": null,
+      "variant_id": "STRAIGHT_LINEAR_BAND_X_POSITIVE"
+    },
+    {
+      "access_pass_count": null,
+      "access_requirement_count": null,
+      "axis": "X",
+      "building_footprint_present": false,
+      "direction": "NEGATIVE",
+      "p2_complete": null,
+      "project_layout_validated": null,
+      "skeletons": [],
+      "tool7_result": "NO_SELECTED_LAYOUT",
+      "topology": "STRAIGHT_LINEAR_BAND",
+      "truck_route_validated": null,
+      "variant_id": "STRAIGHT_LINEAR_BAND_X_NEGATIVE"
+    },
+    {
+      "access_pass_count": 12,
+      "access_requirement_count": 12,
+      "axis": "Y",
+      "building_footprint_present": true,
+      "direction": "POSITIVE",
+      "p2_complete": true,
+      "project_layout_validated": true,
+      "skeletons": [
+        {
+          "first_failure_reason": null,
+          "first_failure_stage": null,
+          "hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+          "p2c_complete_candidate_count": 2,
+          "p2d_full_pass_count": 2,
+          "p2d_reached": true,
+          "tail_admissible": true,
+          "tail_search_started": true
+        }
+      ],
+      "tool7_result": "PASS",
+      "topology": "STRAIGHT_LINEAR_BAND",
+      "truck_route_validated": true,
+      "variant_id": "STRAIGHT_LINEAR_BAND_Y_POSITIVE"
+    },
+    {
+      "access_pass_count": null,
+      "access_requirement_count": null,
+      "axis": "Y",
+      "building_footprint_present": false,
+      "direction": "NEGATIVE",
+      "p2_complete": null,
+      "project_layout_validated": null,
+      "skeletons": [],
+      "tool7_result": "NO_SELECTED_LAYOUT",
+      "topology": "STRAIGHT_LINEAR_BAND",
+      "truck_route_validated": null,
+      "variant_id": "STRAIGHT_LINEAR_BAND_Y_NEGATIVE"
+    },
+    {
+      "access_pass_count": null,
+      "access_requirement_count": null,
+      "axis": "X",
+      "building_footprint_present": false,
+      "direction": "POSITIVE",
+      "p2_complete": null,
+      "project_layout_validated": null,
+      "skeletons": [],
+      "tool7_result": "NO_SELECTED_LAYOUT",
+      "topology": "OFFSET_LINEAR_BAND",
+      "truck_route_validated": null,
+      "variant_id": "OFFSET_LINEAR_BAND_X_POSITIVE"
+    },
+    {
+      "access_pass_count": null,
+      "access_requirement_count": null,
+      "axis": "X",
+      "building_footprint_present": false,
+      "direction": "NEGATIVE",
+      "p2_complete": null,
+      "project_layout_validated": null,
+      "skeletons": [],
+      "tool7_result": "NO_SELECTED_LAYOUT",
+      "topology": "OFFSET_LINEAR_BAND",
+      "truck_route_validated": null,
+      "variant_id": "OFFSET_LINEAR_BAND_X_NEGATIVE"
+    },
+    {
+      "access_pass_count": null,
+      "access_requirement_count": null,
+      "axis": "Y",
+      "building_footprint_present": false,
+      "direction": "POSITIVE",
+      "p2_complete": null,
+      "project_layout_validated": null,
+      "skeletons": [
+        {
+          "first_failure_reason": "ACCESS_REQUIREMENT_VALIDATION_INCOMPLETE",
+          "first_failure_stage": "P2D",
+          "hash": "sha256:868c0c93d713d367b2f07800e8a97432bab35c44f5f0e5d97dbf830efbcae63f",
+          "p2c_complete_candidate_count": 2,
+          "p2d_full_pass_count": 0,
+          "p2d_reached": true,
+          "tail_admissible": true,
+          "tail_search_started": true
+        },
+        {
+          "first_failure_reason": "TAIL_NODE_SHARE_EXHAUSTED_WITHOUT_COMPLETE_P2C_CANDIDATE",
+          "first_failure_stage": "TAIL_SEARCH",
+          "hash": "sha256:e73b384763b2564a9234b7102a80847f7048d066097e206c21242100fbdbf92d",
+          "p2c_complete_candidate_count": 0,
+          "p2d_full_pass_count": 0,
+          "p2d_reached": false,
+          "tail_admissible": true,
+          "tail_search_started": true
+        }
+      ],
+      "tool7_result": "NO_SELECTED_LAYOUT",
+      "topology": "OFFSET_LINEAR_BAND",
+      "truck_route_validated": null,
+      "variant_id": "OFFSET_LINEAR_BAND_Y_POSITIVE"
+    },
+    {
+      "access_pass_count": null,
+      "access_requirement_count": null,
+      "axis": "Y",
+      "building_footprint_present": false,
+      "direction": "NEGATIVE",
+      "p2_complete": null,
+      "project_layout_validated": null,
+      "skeletons": [],
+      "tool7_result": "NO_SELECTED_LAYOUT",
+      "topology": "OFFSET_LINEAR_BAND",
+      "truck_route_validated": null,
+      "variant_id": "OFFSET_LINEAR_BAND_Y_NEGATIVE"
+    },
+    {
+      "access_pass_count": null,
+      "access_requirement_count": null,
+      "axis": "SITE_DERIVED",
+      "building_footprint_present": false,
+      "direction": "UNRESOLVED",
+      "p2_complete": null,
+      "project_layout_validated": null,
+      "skeletons": [],
+      "tool7_result": "NO_SELECTED_LAYOUT",
+      "topology": "CENTRAL_PROCESS_HUB",
+      "truck_route_validated": null,
+      "variant_id": "CENTRAL_PROCESS_HUB_REFERENCE"
+    }
+  ]
+}

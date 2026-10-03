@@ -1,0 +1,517 @@
+"""Architecture locks for structural layout generation without contract drift."""
+
+from __future__ import annotations
+
+import ast
+import hashlib
+import json
+import struct
+from pathlib import Path
+
+from cold_storage.modules.aily.application.site_layout_preview import (
+    P4_PLACEMENT_NODE_BUDGET,
+    PREVIEW_SITE_LAYOUT_INPUT_FIELDS,
+)
+from cold_storage.modules.layout.domain.placement import STRUCTURED_PLACEMENT_ZONE_ORDER
+from cold_storage.modules.layout.domain.structural_composition import (
+    CENTRAL_PROCESS_HUB,
+    FUNCTIONAL_GROUPS,
+    LINEAR_PROCESS_BAND,
+    MAIN_PROCESS_ZONE_CODES,
+)
+
+ROOT = Path(__file__).resolve().parents[3]
+BACKEND_SRC = ROOT / "backend/src/cold_storage/modules"
+LAYOUT = BACKEND_SRC / "layout"
+P1A_EVIDENCE = ROOT / "docs/tasks/evidence/v2_2_2_p1a"
+
+
+def _source(relative_path: str) -> str:
+    return (LAYOUT / relative_path).read_text(encoding="utf-8")
+
+
+def test_p1a_keeps_tool7_contract_and_uses_evidence_supported_search_budget() -> None:
+    assert PREVIEW_SITE_LAYOUT_INPUT_FIELDS == (
+        "daily_inbound_mass_kg",
+        "finished_storage_days",
+        "frozen_storage_days",
+        "main_packaging_storage_days",
+        "auxiliary_packaging_storage_days",
+        "site_constraints",
+        "truck_access",
+        "truck_maneuver",
+    )
+    assert P4_PLACEMENT_NODE_BUDGET == 120
+    preview_source = (BACKEND_SRC / "aily/application/site_layout_preview.py").read_text(
+        encoding="utf-8"
+    )
+    assert "select_validated_placement(" in preview_source
+    assert "place_zones(" not in preview_source
+    assert "route_site_placement(" not in preview_source
+
+
+def test_structural_search_has_group_band_zone_and_three_required_family_lanes() -> None:
+    placement_source = _source("domain/placement.py")
+    composition_source = _source("domain/structural_composition.py")
+    assert "PLACEMENT_ZONE_ORDER" in placement_source
+    package_assembly = placement_source[
+        placement_source.index(
+            "def _module_main_site_assemblies_forward("
+        ) : placement_source.index("def _single_zone_site_module_candidates(")
+    ]
+    assert "for anchor in anchors:" in package_assembly
+    assert "_packaging_driven_sorting_roots(context, anchor, bays=bays, stats=stats)" in (
+        package_assembly
+    )
+    assert package_assembly.index("for anchor in anchors:") < (
+        package_assembly.index(
+            "for root, package_side, reserved_corridor, alignment_witness in root_options:"
+        )
+    )
+    assert "enumerate(selected_source_pairs_with_variants)" in package_assembly
+    assert "sorted(module_pair_variants, key=dock_order)" in package_assembly
+    assert "ordered_module_variants_cache.get(order_key)" in package_assembly
+    assert '"construction_order": [' in package_assembly
+    assert '"PACKAGING_ANCHOR"' in package_assembly
+    assert '"SORTING_CORE"' in package_assembly
+    assert "MAIN_PROCESS_PREDECESSOR" in composition_source
+    assert "composition_family_candidates" in composition_source
+    assert "structural_anchor_references" in placement_source
+    assert LINEAR_PROCESS_BAND == "LINEAR_PROCESS_BAND"
+    assert CENTRAL_PROCESS_HUB == "CENTRAL_PROCESS_HUB"
+    assert len(FUNCTIONAL_GROUPS) == 5
+    assert MAIN_PROCESS_ZONE_CODES[-1] == "shipping_channel"
+    selector = _source("application/validated_candidate_selection.py")
+    assert '"STAGED_COVERAGE_THEN_PREFERENCE"' in selector
+    assert "while active_states and global_node_budget_remaining > 0" in selector
+    assert "advance_quantum(quantum_limit)" in selector
+    assert "PLACEMENT_SEARCH_QUANTUM_NODES" in selector
+    assert "global_node_budget_remaining -= visited" in selector
+    assert "for lane_position, lane_index in enumerate(lane_order)" not in selector
+    assert "divmod(global_node_budget_remaining, lanes_left)" not in selector
+    assert "GENERAL_FALLBACK_PHASE" in selector
+
+
+def test_packaging_anchor_drives_sorting_root_enumeration_without_new_must_edge() -> None:
+    placement_source = _source("domain/placement.py")
+    roots = placement_source[
+        placement_source.index("def _packaging_driven_sorting_roots(") : placement_source.index(
+            "def _module_main_site_assemblies("
+        )
+    ]
+    assembly = placement_source[
+        placement_source.index(
+            "def _module_main_site_assemblies_forward("
+        ) : placement_source.index("def _single_zone_site_module_candidates(")
+    ]
+
+    assert 'edge_class == "LONG_EDGE"' in roots
+    assert 'edge_class != "SHORT_EDGE"' in roots
+    assert "for rotation in (0, 90):" in roots
+    assert '"classification": "CONSTRUCTION_ORDERING_ONLY_NOT_ACCESS_VALIDATION"' in roots
+    assert '"final_p2d_route_validated": False' in roots
+    assert "_packaging_driven_sorting_roots(context, anchor, bays=bays, stats=stats)" in assembly
+    assert "gap_events(package_edge_name, package_edge)" in roots
+    assert "for bay in bays:" in roots
+    assert (
+        '("SITE", context.boundary_bounds)'
+        in placement_source[
+            placement_source.index(
+                "def _packaging_anchor_construction_representatives("
+            ) : placement_source.index("def _orientation_balanced_sorting_roots(")
+        ]
+    )
+    assert "for obstacle_index, obstacle in enumerate(context.obstacles):" in roots
+    assert "_validate_main_process_skeleton_graph" in assembly
+    assert "_packaging_tail_slot_preflight_for_rectangles" in assembly
+    assert "local_joint_anchor_cache" not in assembly
+    assert "joint_anchors = _enumerate_packaging_site_anchors" not in assembly
+    assert "_site_module_is_usable(context, core_pair, {})" in assembly
+    assert "packaging_material_storage" in assembly
+
+
+def test_dock_backsolved_assembly_covers_distinct_external_interface_pairs() -> None:
+    placement_source = _source("domain/placement.py")
+    direct_structured = placement_source[
+        placement_source.index("def _direct_structured_candidates(") : placement_source.index(
+            "def _dual_interface_sorting_roots("
+        )
+    ]
+    dock_assembly = placement_source[
+        placement_source.index(
+            "def _module_main_site_assemblies_dock_backsolved("
+        ) : placement_source.index("def _module_main_site_assemblies(")
+    ]
+    dispatch = placement_source[
+        placement_source.index("def _module_main_site_assemblies(") : placement_source.index(
+            "def _search_provenance("
+        )
+    ]
+
+    assert "_shipping_dock_anchor_construction_representatives(" in dock_assembly
+    assert "_dual_interface_sorting_roots(" in dock_assembly
+    assert "_dock_backsolved_finished_chains(" in dock_assembly
+    assert "external_pair_identity" in dock_assembly
+    assert "for root, _package_side, corridor, package_witness, chains in viable_roots:" in (
+        dock_assembly
+    )
+    assert "root_emitted = False" in dock_assembly
+    assert "root_emitted = True" in dock_assembly
+    assert "pair_emitted = False" in dock_assembly
+    assert "pair_emitted = True" in dock_assembly
+    assert "if yielded >= limit:" in dock_assembly
+    assert "if pair_emitted:" in dock_assembly
+    assert "_shipping_dock_anchor_construction_limit(" in dock_assembly
+    assert "tail_phase_node_reserve = min(" in direct_structured
+    assert "len(BASE_LAYOUT_FAMILIES)" in direct_structured
+    assert "main_site_candidate_limit = context.node_budget" in direct_structured
+    assert "tail_access_capacity_round_reserve = _tail_access_capacity_round_reserve(" in (
+        direct_structured
+    )
+    assert "s1_node_ceiling = context.node_budget - tail_access_capacity_round_reserve" in (
+        direct_structured
+    )
+    assert 'stats.normal_stop_reason = "S1_NODE_CEILING_RESERVED_FOR_TAIL_ACCESS"' in (
+        direct_structured
+    )
+    assert "structured_main_node_share" not in direct_structured
+    assert "min(preflight_round_size, tail_phase_node_reserve)" in direct_structured
+    assert "2 * len(BASE_LAYOUT_FAMILIES)" in direct_structured
+    assert "_tail_access_main_identity(" in placement_source
+    assert "tail_access_capacity_attempted_candidates_by_main" in placement_source
+    assert "node_limit=tail_access_preflight_node_limit" in direct_structured
+    assert "limit=main_site_candidate_limit" in direct_structured
+    assert "_constructive_main_skeleton_tail_admission(" in dock_assembly
+    assert "run_truck_preflight=True" in dock_assembly
+    assert '"stage": "S1_MAIN_TRUCK_PREFLIGHT"' in dock_assembly
+    assert "yield None" in dock_assembly
+    assert "_module_main_site_assemblies_dock_backsolved(" in dispatch
+    assert "_module_main_site_assemblies_forward(" in dispatch
+
+
+def test_r11_scheduler_is_resumable_and_does_not_publish_internal_queue() -> None:
+    selector = _source("application/validated_candidate_selection.py")
+    placement = _source("domain/placement.py")
+    public_projection = selector[
+        selector.index("def _selection_provenance(") : selector.index("def _record_is_better(")
+    ]
+
+    assert (
+        "self._iterator = _walk_complete_candidate_payloads(self._context, self._stats)"
+        in placement
+    )
+    assert "def advance_quantum(self, node_limit: int)" in placement
+    assert '"QUANTUM_EXHAUSTED"' in placement
+    assert "GLOBAL_PLACEMENT_NODE_BUDGET_EXHAUSTED" in selector
+    assert '"r11_work_queue"' in selector
+    assert '"r11_scheduler_trace"' in selector
+    assert '"r11_work_queue"' not in public_projection
+    assert '"r11_scheduler_trace"' not in public_projection
+
+
+def test_r5_staged_topology_coverage_is_bounded_and_xinzhao_result_is_partial() -> None:
+    composition = _source("domain/structural_composition.py")
+    selector = _source("application/validated_candidate_selection.py")
+    placement = _source("domain/placement.py")
+    r5_metrics = json.loads(
+        (P1A_EVIDENCE / "xinzhao_p1a_r5_metrics.json").read_text(encoding="utf-8")
+    )
+    cross_fixture = json.loads(
+        (P1A_EVIDENCE / "xinzhao_p1a_r5_cross_fixture_regression.json").read_text(encoding="utf-8")
+    )
+
+    assert all(
+        topology in composition
+        for topology in (
+            "STRAIGHT_LINEAR_BAND",
+            "OFFSET_LINEAR_BAND",
+            "CENTRAL_PROCESS_HUB",
+        )
+    )
+    assert '"STAGED_COVERAGE_THEN_PREFERENCE"' in selector
+    assert '"root_preflight_mode": "EXACT_NECESSARY_PREDICATE_OR_ORDERING_ONLY"' in placement
+    assert '"heuristic_root_pruning": False' in placement
+    assert "WEIGHTED_SCORE" not in selector
+    assert "XINZHAO" not in selector.upper()
+    assert r5_metrics["production_placement_node_budget"] == 120
+    assert r5_metrics["production_budget_changed"] is False
+    assert r5_metrics["topology_count_explored"] == 3
+    assert r5_metrics["topology_count_with_constructed_skeleton"] == 2
+    assert r5_metrics["distinct_p2d_full_pass_main_process_skeleton_count"] == 1
+    assert r5_metrics["distinct_runner_up_present"] is False
+    assert r5_metrics["result"] == "PARTIAL"
+    assert r5_metrics["owner_xinzhao_p1a_r5_visual_review"] == "PENDING"
+    assert r5_metrics["p1b_threshold_activated"] is False
+    assert r5_metrics["weighted_score_used"] is False
+    assert cross_fixture["result"] == "PASS"
+    assert cross_fixture["full_chain_authoritative_fixture_count"] == 3
+    assert cross_fixture["composition_only_fixture_count"] == 2
+    assert cross_fixture["scenario_count"] == 5
+    assert cross_fixture["acceptance_facts"]["all_scenarios_pass"] is True
+
+
+def test_constructed_skeleton_is_canonicalized_before_tail_search() -> None:
+    placement_source = _source("domain/placement.py")
+    constructor = placement_source.index("def _construct_main_process_skeletons(")
+    walker = placement_source.index("def _walk_complete_candidate_payloads(")
+    skeleton_seed = placement_source.index(
+        "for seed_or_quantum in _construct_main_process_skeletons(discovery_context, stats):",
+        walker,
+    )
+    canonicalize_tail = placement_source.index(
+        "context = _canonical_tail_search_context(discovery_context, seed)", skeleton_seed
+    )
+    tail_walk = placement_source.index(
+        "for tail_event in visit(len(MAIN_PROCESS_ZONE_CODES), True, seed):",
+        canonicalize_tail,
+    )
+    assert constructor < walker < skeleton_seed < canonicalize_tail < tail_walk
+    assert "canonicalize_main_process_skeleton_for_evaluation" in placement_source
+    assert "placed.update({row.zone_code: row for row in seed.zone_rectangles})" in placement_source
+    assert "MAIN_PROCESS_SKELETON_ZONE_CODES" in placement_source
+    assert not set(STRUCTURED_PLACEMENT_ZONE_ORDER[len(MAIN_PROCESS_ZONE_CODES) :]) & set(
+        MAIN_PROCESS_ZONE_CODES
+    )
+
+    rejection_codes = (
+        "SITE_OUTSIDE",
+        "NO_BUILD_COLLISION",
+        "ZONE_OVERLAP",
+        "MUST_ADJACENCY_FAIL",
+        "GROUP_ORDER_FAIL",
+        "SHIPPING_INTERFACE_FAIL",
+        "DIMENSION_VARIANT_UNAVAILABLE",
+        "SKELETON_TOPOLOGY_INVALID",
+    )
+    for code in rejection_codes:
+        assert f'"{code}"' in placement_source
+
+    skeleton_source = _source("domain/main_process_skeleton.py")
+    assert 'IDENTITY: Final = "main-process-skeleton-candidate@1.0.0"' in skeleton_source
+    assert '"authority": "CANDIDATE_SEARCH_GEOMETRY_ONLY"' in skeleton_source
+    assert '"rotation_deg": rectangle.rotation_deg' in skeleton_source
+    assert "MAIN_PROCESS_ZONE_CODES" in skeleton_source
+
+
+def test_r3_evidence_is_explicitly_partial_and_keeps_the_xinzhao_geometry_gap() -> None:
+    metrics = json.loads((P1A_EVIDENCE / "xinzhao_p1a_r3_metrics.json").read_text(encoding="utf-8"))
+    search = json.loads(
+        (P1A_EVIDENCE / "xinzhao_p1a_r3_skeleton_search.json").read_text(encoding="utf-8")
+    )
+    assert metrics["result"] == "PARTIAL"
+    assert metrics["owner_xinzhao_p1a_r3_visual_review"] == "PENDING"
+    assert metrics["r3_main_process_geometry_changed"] is False
+    assert metrics["r3_main_process_changed_zone_count"] == 0
+    assert metrics["distinct_full_pass_main_process_skeleton_count"] == 1
+    assert metrics["p2d_full_pass_candidate_count"] == 2
+    assert metrics["first_decisive_component"] == "P2B2_FINAL_TIE_BREAK"
+    assert metrics["node_budget"] == 120
+    assert metrics["search_provenance"]["global_optimum_claimed"] is False
+    assert metrics["search_provenance"]["node_budget_is_only_search_cutoff"] is True
+
+    lanes = search["family_lanes"]
+    assert {
+        (lane["composition_family"]["family"], lane["composition_family"]["dominant_direction"])
+        for lane in lanes
+    } == {
+        ("LINEAR_PROCESS_BAND", "POSITIVE"),
+        ("LINEAR_PROCESS_BAND", "NEGATIVE"),
+        ("CENTRAL_PROCESS_HUB", "UNRESOLVED"),
+    }
+    central = next(
+        lane for lane in lanes if lane["composition_family"]["family"] == "CENTRAL_PROCESS_HUB"
+    )
+    constructed = [
+        candidate
+        for phase in central["phases"]
+        for candidate in phase["main_process_skeleton_generation"]["candidates"]
+    ]
+    assert len(constructed) == 2
+    assert all(len(candidate["zone_rectangles"]) == 7 for candidate in constructed)
+    assert len({candidate["main_process_skeleton_hash"] for candidate in constructed}) == 2
+    assert all(lane["search_tree_exhausted"] is False for lane in lanes)
+
+
+def test_r3_four_way_visual_artifacts_are_direct_rasters_with_pinned_hashes() -> None:
+    metrics = json.loads((P1A_EVIDENCE / "xinzhao_p1a_r3_metrics.json").read_text(encoding="utf-8"))
+    sources = {
+        "V221": ("xinzhao_v221_before.svg", "xinzhao_p1a_r3_compare_v221.png"),
+        "R1": ("xinzhao_p1a_after.svg", "xinzhao_p1a_r3_compare_r1.png"),
+        "R2": ("xinzhao_p1a_r2_after.svg", "xinzhao_p1a_r3_compare_r2.png"),
+        "R3": ("xinzhao_p1a_r3_after.svg", "xinzhao_p1a_r3_after.png"),
+    }
+    hashes: dict[str, str] = {}
+    for profile, (svg_name, png_name) in sources.items():
+        svg_bytes = (P1A_EVIDENCE / svg_name).read_bytes()
+        assert b'viewBox="0 0 1931.62 830"' in svg_bytes
+        png_bytes = (P1A_EVIDENCE / png_name).read_bytes()
+        assert png_bytes.startswith(b"\x89PNG\r\n\x1a\n")
+        width, height = struct.unpack(">II", png_bytes[16:24])
+        assert (width, height) == (2400, 2400)
+        digest = hashlib.sha256(png_bytes).hexdigest()
+        hashes[profile] = digest
+        record = metrics["visual_render_records"][profile]
+        assert record["sha256"] == digest
+        assert record["rasterizer"].startswith("macOS Quick Look")
+        assert (record["width"], record["height"]) == (width, height)
+
+    assert hashes["R2"] == hashes["R3"]
+    debug_svg_hash = hashlib.sha256(
+        (P1A_EVIDENCE / "xinzhao_p1a_r3_skeleton_debug.svg").read_bytes()
+    ).hexdigest()
+    assert debug_svg_hash == metrics["skeleton_debug_svg_sha256"]
+    debug_png = (P1A_EVIDENCE / "xinzhao_p1a_r3_skeleton_debug.png").read_bytes()
+    assert hashlib.sha256(debug_png).hexdigest() == metrics["skeleton_debug_png"]["sha256"]
+    assert struct.unpack(">II", debug_png[16:24]) == (2400, 2400)
+
+
+def test_selector_orders_structural_p2b2_and_canonical_tiebreak_stages() -> None:
+    selector = _source("application/validated_candidate_selection.py")
+    placement = _source("domain/placement.py")
+    hard_gate = selector.index("if not full_pass:")
+    structural_evaluation = selector.index("build_structural_quality_facts(")
+    assert hard_gate < structural_evaluation
+    assert "structural_candidate_is_better" in selector
+    assert "compare_placement_candidate_business_objectives" in selector
+    assert "placement_candidate_canonical_tiebreak_key" in selector
+    assert "candidate_facts.comparison_key != best_facts.comparison_key" in selector
+    record_comparator = selector[
+        selector.index("def _record_is_better") : selector.index("_STRUCTURAL_COMPONENTS")
+    ]
+    assert (
+        record_comparator.index("structural_candidate_is_better")
+        < record_comparator.index("compare_placement_candidate_business_objectives")
+        < record_comparator.index("placement_candidate_canonical_tiebreak_key")
+    )
+    domain_comparator = placement[
+        placement.index("def _is_better(") : placement.index("def _validate_graph_completeness")
+    ]
+    assert domain_comparator.index(
+        "compare_placement_candidate_business_objectives"
+    ) < domain_comparator.index("placement_candidate_canonical_tiebreak_key")
+    assert "CANONICAL_JSON_FINAL_TIE_BREAK" in selector
+    assert '"FINISHED_SHIPPING_INTERFACE_ALIGNMENT"' in selector
+    assert "LEXICOGRAPHIC_ATOMIC_FACTS" in selector
+    assert "weighted_score" not in selector.lower()
+    assert "selection_body" not in selector
+
+
+def test_no_uncalibrated_p1b_threshold_or_p2d_runtime_dependency_in_structural_domain() -> None:
+    composition = _source("domain/structural_composition.py")
+    quality = _source("domain/structural_quality.py")
+    placement = _source("domain/placement.py")
+
+    for source in (composition, quality, placement):
+        tree = ast.parse(source)
+        imported_modules = {
+            node.module
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom) and node.module is not None
+        }
+        assert not any("access_routing" in module for module in imported_modules)
+        assert not any("site_layout_preview" in module for module in imported_modules)
+        assert "GRID_ALIGNMENT_THRESHOLD" not in source
+        assert "DEPTH_ALIGNMENT_THRESHOLD" not in source
+        assert "OCCUPANCY_THRESHOLD" not in source
+        assert "NOTCH_THRESHOLD" not in source
+        assert "APPENDAGE_THRESHOLD" not in source
+
+    assert '"main_flow_backtrack_count": {"status": "UNAVAILABLE"' in quality
+    assert '"main_flow_turn_count": {"status": "UNAVAILABLE"' in quality
+    assert '"process_route_efficiency": {"status": "UNAVAILABLE"' in quality
+
+
+def test_structural_quality_remains_internal_and_does_not_redefine_hard_status() -> None:
+    selector = _source("application/validated_candidate_selection.py")
+    assert "_internal_evaluation_json" in selector
+    assert '"project_layout_validated": True' in selector
+    assert '"p2_complete": True' in selector
+    assert '"PROCESS_FLOW_VALIDATED"' not in selector
+    assert '"LAYOUT_REGULARITY_VALIDATED"' not in selector
+
+
+def test_xinzhao_evidence_pins_hashes_and_does_not_hide_unimproved_core_facts() -> None:
+    evidence = ROOT / "docs/tasks/evidence/v2_2_2_p1a"
+    report = json.loads((evidence / "xinzhao_p1a_metrics.json").read_text(encoding="utf-8"))
+    assert report["historical_v221_baseline"]["canonical_result_hash"].endswith(
+        "eaa791651fa3fdb20d707d18fa31620992ab17b1ade8dc89554b8b2331742b30"
+    )
+    assert report["p1a_result"]["project_layout_validated"] is True
+    assert report["p1a_result"]["p2_complete"] is True
+    assert report["p1a_result"]["access_pass_count"] == 12
+    assert report["p1a_result"]["process_core_direct_edge_count"] == 2
+    assert report["comparative_result"]["process_core_legibility_improved"] is False
+    assert report["p1a_result"]["main_flow_turn_count"] == "UNAVAILABLE"
+    for artifact_name, expected_sha in (
+        (
+            "xinzhao_v221_before.svg",
+            "db63fa7a6954820dd21dc0a7c70aba6f2cbfa7de6c5d2299027176100b109973",
+        ),
+        (
+            "xinzhao_p1a_after.svg",
+            "7f24aabd674218c097ce71d229d7bd57d9d774ab47f3ec612fded749abf2779f",
+        ),
+    ):
+        assert hashlib.sha256((evidence / artifact_name).read_bytes()).hexdigest() == expected_sha
+    assert (evidence / "xinzhao_v221_before.png").is_file()
+    assert (evidence / "xinzhao_p1a_after.png").is_file()
+
+
+def test_r2_evidence_reports_multi_family_limits_and_visual_non_improvement() -> None:
+    evidence = ROOT / "docs/tasks/evidence/v2_2_2_p1a"
+    metrics = json.loads((evidence / "xinzhao_p1a_r2_metrics.json").read_text(encoding="utf-8"))
+    budget = json.loads(
+        (evidence / "xinzhao_p1a_r2_budget_sensitivity.json").read_text(encoding="utf-8")
+    )
+    assert [row["node_budget"] for row in budget["runs"]] == [15, 30, 60, 120, 240]
+    assert budget["decision"]["smallest_tested_budget_yielding_two_p2d_full_pass_candidates"] == 120
+    assert budget["decision"]["distinct_full_pass_families_at_budget_120"] == 1
+    assert budget["decision"]["linear_lane_noncompletion_is_proven_infeasible"] is False
+    assert metrics["p2d_full_pass_candidate_count"] == 2
+    assert metrics["distinct_full_pass_family_count"] == 1
+    assert metrics["runner_up_present"] is True
+    assert metrics["first_decisive_component"] == "P2B2_FINAL_TIE_BREAK"
+    assert metrics["main_process_geometry_equal_to_v221"] is True
+    assert metrics["main_process_geometry_equal_to_r1"] is True
+    assert metrics["owner_xinzhao_p1a_r2_visual_review"] == "PENDING"
+
+    baseline = json.loads((evidence / "xinzhao_v221_before_layout.json").read_text())
+    r1 = json.loads((evidence / "xinzhao_p1a_after_layout.json").read_text())
+    r2 = json.loads((evidence / "xinzhao_p1a_r2_after_layout.json").read_text())
+    main_zones = (
+        "raw_fruit_buffer",
+        "primary_precooling_room",
+        "sorting_packaging_room",
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel",
+    )
+
+    def geometry(layout: dict[str, object]) -> dict[str, tuple[object, ...]]:
+        rows = layout["zones"]
+        assert isinstance(rows, list)
+        return {
+            str(row["zone_code"]): tuple(
+                row.get(field) for field in ("x", "y", "width_m", "depth_m", "rotation_deg")
+            )
+            for row in rows
+            if isinstance(row, dict) and row.get("zone_code") in main_zones
+        }
+
+    baseline_geometry = geometry(baseline)
+    r1_geometry = geometry(r1)
+    r2_geometry = geometry(r2)
+    assert set(r2_geometry) == set(main_zones)
+    assert r2_geometry == baseline_geometry == r1_geometry
+
+    for name in (
+        "xinzhao_v221_before.svg",
+        "xinzhao_p1a_after.svg",
+        "xinzhao_p1a_r2_after.svg",
+    ):
+        svg = (evidence / name).read_text(encoding="utf-8")
+        assert 'viewBox="0 0 1931.62 830"' in svg
+    assert "OWNER_XINZHAO_P1A_R2_VISUAL_REVIEW=PENDING" in (
+        evidence / "xinzhao_p1a_r2_comparison.md"
+    ).read_text(encoding="utf-8")

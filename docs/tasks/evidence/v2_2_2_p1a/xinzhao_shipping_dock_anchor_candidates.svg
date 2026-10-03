@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1040" viewBox="0 0 1800 1040">
+<defs><marker id="packagingArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#a13e32"/></marker></defs>
+<rect width="1800" height="1040" fill="#f5f7f9"/>
+<text x="26" y="38" font-family="Arial,sans-serif" font-size="24" fill="#17212b">Authoritative truck dock events and legal shipping rectangles</text>
+<text x="26" y="94" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 1 · DOCK · LEFT_LONG_EDGE · truck-maneuver-template:fixture-project:dock@1.0.0 · , 32076] · PACKAGING SLOT PASS</text>
+<polygon points="50.00,503.05 566.00,503.05 566.00,126.95 50.00,126.95" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<polygon points="50.00,443.55 150.51,443.55 150.51,374.83 50.00,374.83" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="335.27,318.42 562.85,318.42 562.85,233.73 335.27,233.73" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="335.27,233.72 562.85,233.72 562.85,134.57 335.27,134.57" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<line x1="50.00" y1="272.60" x2="50.00" y2="272.60" stroke="#e4572e" stroke-width="5" stroke-linecap="round"/>
+<rect x="50.00" y="283.71" width="44.45" height="52.61" fill="#f1cb86" stroke="#263244" stroke-width="1.4"/>
+<line x1="50.00" y1="336.31" x2="50.00" y2="283.71" stroke="#125f91" stroke-width="4"/>
+<circle cx="50.00" cy="283.71" r="5" fill="#d62828" stroke="#fff" stroke-width="1.5"/>
+<text x="57.00" y="276.71" font-family="Arial,sans-serif" font-size="9" fill="#8e1717">AUTHORITATIVE DOCK POINT</text>
+<rect x="50.00" y="283.71" width="44.45" height="52.61" fill="none" stroke="#27384a" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text x="53.00" y="295.71" font-family="Arial,sans-serif" font-size="9" fill="#22313f">FINISHED_MODULE</text>
+<text x="606" y="94" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 2 · DOCK · LEFT_LONG_EDGE · truck-maneuver-template:fixture-project:dock@1.0.0 · , 32076] · PACKAGING SLOT PASS</text>
+<polygon points="630.00,503.05 1146.00,503.05 1146.00,126.95 630.00,126.95" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<polygon points="630.00,443.55 730.51,443.55 730.51,374.83 630.00,374.83" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="915.27,318.42 1142.85,318.42 1142.85,233.73 915.27,233.73" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="915.27,233.72 1142.85,233.72 1142.85,134.57 915.27,134.57" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<line x1="630.00" y1="272.60" x2="630.00" y2="272.60" stroke="#e4572e" stroke-width="5" stroke-linecap="round"/>
+<rect x="630.00" y="231.10" width="44.45" height="52.61" fill="#f1cb86" stroke="#263244" stroke-width="1.4"/>
+<line x1="630.00" y1="283.71" x2="630.00" y2="231.10" stroke="#125f91" stroke-width="4"/>
+<circle cx="630.00" cy="283.71" r="5" fill="#d62828" stroke="#fff" stroke-width="1.5"/>
+<text x="637.00" y="276.71" font-family="Arial,sans-serif" font-size="9" fill="#8e1717">AUTHORITATIVE DOCK POINT</text>
+<rect x="630.00" y="231.10" width="44.45" height="52.61" fill="none" stroke="#27384a" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text x="633.00" y="243.10" font-family="Arial,sans-serif" font-size="9" fill="#22313f">FINISHED_MODULE</text>
+<text x="1186" y="94" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 3 · DOCK · BOTTOM_LONG_EDGE · truck-maneuver-template:fixture-project:dock@1.0.0 · , 32076] · PACKAGING SLOT PASS</text>
+<polygon points="1210.00,503.05 1726.00,503.05 1726.00,126.95 1210.00,126.95" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<polygon points="1210.00,443.55 1310.51,443.55 1310.51,374.83 1210.00,374.83" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="1495.27,318.42 1722.85,318.42 1722.85,233.73 1495.27,233.73" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="1495.27,233.72 1722.85,233.72 1722.85,134.57 1495.27,134.57" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<line x1="1210.00" y1="272.60" x2="1210.00" y2="272.60" stroke="#e4572e" stroke-width="5" stroke-linecap="round"/>
+<rect x="1210.00" y="239.26" width="52.61" height="44.45" fill="#f1cb86" stroke="#263244" stroke-width="1.4"/>
+<line x1="1210.00" y1="283.71" x2="1262.61" y2="283.71" stroke="#125f91" stroke-width="4"/>
+<circle cx="1210.00" cy="283.71" r="5" fill="#d62828" stroke="#fff" stroke-width="1.5"/>
+<text x="1217.00" y="276.71" font-family="Arial,sans-serif" font-size="9" fill="#8e1717">AUTHORITATIVE DOCK POINT</text>
+<rect x="1210.00" y="239.26" width="52.61" height="44.45" fill="none" stroke="#27384a" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text x="1213.00" y="251.26" font-family="Arial,sans-serif" font-size="9" fill="#22313f">FINISHED_MODULE</text>
+<text x="26" y="584" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 4 · DOCK · LEFT_LONG_EDGE · truck-maneuver-template:fixture-project:dock@1.0.0 · , 32077] · PACKAGING SLOT PASS</text>
+<polygon points="50.00,993.05 566.00,993.05 566.00,616.95 50.00,616.95" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<polygon points="50.00,933.55 150.51,933.55 150.51,864.83 50.00,864.83" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="335.27,808.42 562.85,808.42 562.85,723.73 335.27,723.73" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="335.27,723.72 562.85,723.72 562.85,624.57 335.27,624.57" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<line x1="50.00" y1="762.60" x2="50.00" y2="762.60" stroke="#e4572e" stroke-width="5" stroke-linecap="round"/>
+<rect x="50.00" y="773.70" width="44.45" height="52.61" fill="#f1cb86" stroke="#263244" stroke-width="1.4"/>
+<line x1="50.00" y1="826.31" x2="50.00" y2="773.70" stroke="#125f91" stroke-width="4"/>
+<circle cx="50.00" cy="773.70" r="5" fill="#d62828" stroke="#fff" stroke-width="1.5"/>
+<text x="57.00" y="766.70" font-family="Arial,sans-serif" font-size="9" fill="#8e1717">AUTHORITATIVE DOCK POINT</text>
+<rect x="50.00" y="773.70" width="44.45" height="52.61" fill="none" stroke="#27384a" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text x="53.00" y="785.70" font-family="Arial,sans-serif" font-size="9" fill="#22313f">FINISHED_MODULE</text>
+<text x="606" y="584" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 5 · DOCK · LEFT_LONG_EDGE · truck-maneuver-template:fixture-project:dock@1.0.0 · , 32077] · PACKAGING SLOT PASS</text>
+<polygon points="630.00,993.05 1146.00,993.05 1146.00,616.95 630.00,616.95" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<polygon points="630.00,933.55 730.51,933.55 730.51,864.83 630.00,864.83" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="915.27,808.42 1142.85,808.42 1142.85,723.73 915.27,723.73" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="915.27,723.72 1142.85,723.72 1142.85,624.57 915.27,624.57" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<line x1="630.00" y1="762.60" x2="630.00" y2="762.60" stroke="#e4572e" stroke-width="5" stroke-linecap="round"/>
+<rect x="630.00" y="721.10" width="44.45" height="52.61" fill="#f1cb86" stroke="#263244" stroke-width="1.4"/>
+<line x1="630.00" y1="773.70" x2="630.00" y2="721.10" stroke="#125f91" stroke-width="4"/>
+<circle cx="630.00" cy="773.70" r="5" fill="#d62828" stroke="#fff" stroke-width="1.5"/>
+<text x="637.00" y="766.70" font-family="Arial,sans-serif" font-size="9" fill="#8e1717">AUTHORITATIVE DOCK POINT</text>
+<rect x="630.00" y="721.10" width="44.45" height="52.61" fill="none" stroke="#27384a" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text x="633.00" y="733.10" font-family="Arial,sans-serif" font-size="9" fill="#22313f">FINISHED_MODULE</text>
+<text x="1186" y="584" font-family="Arial,sans-serif" font-size="15" fill="#17212b">Candidate 6 · DOCK · BOTTOM_LONG_EDGE · truck-maneuver-template:fixture-project:dock@1.0.0 · , 32077] · PACKAGING SLOT PASS</text>
+<polygon points="1210.00,993.05 1726.00,993.05 1726.00,616.95 1210.00,616.95" fill="#fff" stroke="#263244" stroke-width="2.2"/>
+<polygon points="1210.00,933.55 1310.51,933.55 1310.51,864.83 1210.00,864.83" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="1495.27,808.42 1722.85,808.42 1722.85,723.73 1495.27,723.73" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<polygon points="1495.27,723.72 1722.85,723.72 1722.85,624.57 1495.27,624.57" fill="#59636e" stroke="#25303a" stroke-width="1.2"/>
+<line x1="1210.00" y1="762.60" x2="1210.00" y2="762.60" stroke="#e4572e" stroke-width="5" stroke-linecap="round"/>
+<rect x="1210.00" y="729.25" width="52.61" height="44.45" fill="#f1cb86" stroke="#263244" stroke-width="1.4"/>
+<line x1="1210.00" y1="773.70" x2="1262.61" y2="773.70" stroke="#125f91" stroke-width="4"/>
+<circle cx="1210.00" cy="773.70" r="5" fill="#d62828" stroke="#fff" stroke-width="1.5"/>
+<text x="1217.00" y="766.70" font-family="Arial,sans-serif" font-size="9" fill="#8e1717">AUTHORITATIVE DOCK POINT</text>
+<rect x="1210.00" y="729.25" width="52.61" height="44.45" fill="none" stroke="#27384a" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text x="1213.00" y="741.25" font-family="Arial,sans-serif" font-size="9" fill="#22313f">FINISHED_MODULE</text>
+<text x="28" y="1010" font-family="Arial,sans-serif" font-size="14" fill="#354454">Site boundary and hard no-build polygons shown. Dashed outlines group fixed module geometry; no hidden bays or filler space are drawn.</text>
+</svg>

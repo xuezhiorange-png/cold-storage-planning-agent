@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="860" viewBox="0 0 1200 860">
+<rect x="0" y="0" width="1200" height="860" fill="#ffffff"/>
+<text x="28" y="34" font-family="Arial,sans-serif" font-size="20" fill="#263244">Local composition · no site coordinates</text>
+<rect x="207.247" y="50.000" width="785.506" height="760.000" fill="none" stroke="#17212b" stroke-width="3" stroke-dasharray="8 5"/>
+<rect x="207.247" y="748.781" width="55.041" height="55.041" fill="#dfb8bd" stroke="#263244" stroke-width="2"/>
+<text x="234.768" y="776.301" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">CHANGING</text>
+<rect x="548.118" y="527.816" width="77.840" height="77.840" fill="#8dc5a4" stroke="#263244" stroke-width="2"/>
+<text x="587.038" y="566.736" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">COATING</text>
+<rect x="386.258" y="527.816" width="161.860" height="281.949" fill="#f1cb86" stroke="#263244" stroke-width="2"/>
+<text x="467.188" y="668.791" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">FINISHED GOODS</text>
+<rect x="711.239" y="273.645" width="71.357" height="93.983" fill="#c5b6df" stroke="#263244" stroke-width="2"/>
+<text x="746.918" y="320.636" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">FROZEN</text>
+<rect x="262.288" y="742.593" width="67.407" height="67.407" fill="#dfb8bd" stroke="#263244" stroke-width="2"/>
+<text x="295.991" y="776.297" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">OFFICE</text>
+<rect x="711.239" y="123.098" width="126.181" height="150.547" fill="#c5b6df" stroke="#263244" stroke-width="2"/>
+<text x="774.330" y="198.371" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">PACKAGING</text>
+<rect x="829.588" y="637.915" width="87.456" height="127.921" fill="#b7d5eb" stroke="#263244" stroke-width="2"/>
+<text x="873.316" y="701.876" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">PRIMARY PRECOOL</text>
+<rect x="917.044" y="637.915" width="75.708" height="132.272" fill="#b7d5eb" stroke="#263244" stroke-width="2"/>
+<text x="954.899" y="704.052" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">RAW</text>
+<rect x="711.239" y="50.000" width="60.045" height="73.098" fill="#c5b6df" stroke="#263244" stroke-width="2"/>
+<text x="741.262" y="86.549" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">FRUIT BUFFER</text>
+<rect x="625.958" y="523.004" width="85.281" height="87.456" fill="#f1cb86" stroke="#263244" stroke-width="2"/>
+<text x="668.599" y="566.732" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">SECONDARY PRECOOL</text>
+<rect x="329.695" y="742.820" width="56.564" height="66.945" fill="#f1cb86" stroke="#263244" stroke-width="2"/>
+<text x="357.977" y="776.292" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">SHIPPING</text>
+<rect x="711.239" y="367.628" width="118.349" height="398.209" fill="#8dc5a4" stroke="#263244" stroke-width="2"/>
+<text x="770.414" y="566.732" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">SORTING</text>
+<text x="28" y="-140.0" font-family="Arial,sans-serif" font-size="14" fill="#263244">Family: CENTRAL_PROCESS_WITH_SIDE_BANKS · Local zone union: STAIR_STEP · Planned frame (not footprint): 90.266 m × 87.335 m · Unoccupied space remains blank</text>
+</svg>

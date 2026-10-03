@@ -1,0 +1,818 @@
+{
+  "canonical_family": {
+    "dominant_axis": "Y",
+    "dominant_direction": "POSITIVE",
+    "family": "LINEAR_PROCESS_BAND",
+    "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+    "identity": "structural-composition-family@1.0.0"
+  },
+  "canonical_topology": "STRAIGHT_LINEAR_BAND",
+  "diagnostic_node_limit_per_policy": 5000,
+  "enumerated_authority_scope": "The package-slot proof exhausts every integer-mm origin for every fixed or deterministic authoritative package dimension/orientation on the exact rectangular site, exact rectangular obstacles and frozen seven-zone geometry. It does not prove that another main-process skeleton is incompatible, nor evaluate access/truck/P2D for a nonexistent package placement.",
+  "enumerated_candidate_anchor_families_exhausted": true,
+  "fixed_main_process_rectangles": {
+    "coating_room": [
+      16613,
+      26999,
+      31813,
+      32263
+    ],
+    "finished_goods_room": [
+      8013,
+      32263,
+      40413,
+      50863
+    ],
+    "primary_precooling_room": [
+      29238,
+      3349,
+      43938,
+      13399
+    ],
+    "raw_fruit_buffer": [
+      20538,
+      774,
+      29238,
+      15974
+    ],
+    "secondary_precooling_room": [
+      19188,
+      17199,
+      29238,
+      26999
+    ],
+    "shipping_channel": [
+      320,
+      32263,
+      8013,
+      38763
+    ],
+    "sorting_packaging_room": [
+      29238,
+      13399,
+      74998,
+      26999
+    ]
+  },
+  "global_geometric_infeasibility_proven": false,
+  "identity": "r8-fixed-skeleton-tail-feasibility@1.0.0",
+  "infeasibility_proven": false,
+  "packaging_has_no_site_no_build_skeleton_slot_for_authoritative_dimensions": true,
+  "packaging_rejection_matrix_by_discovery_root_face_zone_reason_blocker": [
+    {
+      "blocker_identity_or_site_failure": "HARD_OBSTACLE_1",
+      "count": 42,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "HARD_OBSTACLE_2",
+      "count": 22,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "HARD_OBSTACLE_2,HARD_OBSTACLE_3",
+      "count": 28,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "HARD_OBSTACLE_3",
+      "count": 6,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "NO_BUILD_COLLISION",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "BOUNDING_EXTENTS",
+      "count": 157,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "SITE_OUTSIDE",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "coating_room,finished_goods_room",
+      "count": 9,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "ZONE_OVERLAP",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "coating_room,finished_goods_room,secondary_precooling_room",
+      "count": 7,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "ZONE_OVERLAP",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "coating_room,finished_goods_room,secondary_precooling_room,sorting_packaging_room",
+      "count": 9,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "ZONE_OVERLAP",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "coating_room,finished_goods_room,shipping_channel",
+      "count": 2,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "ZONE_OVERLAP",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "coating_room,raw_fruit_buffer,secondary_precooling_room",
+      "count": 2,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "ZONE_OVERLAP",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "coating_room,raw_fruit_buffer,secondary_precooling_room,sorting_packaging_room",
+      "count": 2,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "ZONE_OVERLAP",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "coating_room,secondary_precooling_room,sorting_packaging_room",
+      "count": 4,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "ZONE_OVERLAP",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "finished_goods_room",
+      "count": 13,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "ZONE_OVERLAP",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "finished_goods_room,shipping_channel",
+      "count": 5,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "ZONE_OVERLAP",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "primary_precooling_room,raw_fruit_buffer,secondary_precooling_room,sorting_packaging_room",
+      "count": 9,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "ZONE_OVERLAP",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "primary_precooling_room,raw_fruit_buffer,sorting_packaging_room",
+      "count": 2,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "ZONE_OVERLAP",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "primary_precooling_room,sorting_packaging_room",
+      "count": 8,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "ZONE_OVERLAP",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "raw_fruit_buffer,secondary_precooling_room",
+      "count": 4,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "ZONE_OVERLAP",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    },
+    {
+      "blocker_identity_or_site_failure": "sorting_packaging_room",
+      "count": 7,
+      "face_pair_or_generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "family": "CENTRAL_PROCESS_HUB",
+      "reason": "ZONE_OVERLAP",
+      "sorting_root_mm": [
+        29238,
+        13399,
+        74998,
+        26999
+      ],
+      "zone_code": "packaging_material_storage"
+    }
+  ],
+  "production_tail_node_limit": 12,
+  "real_tool7_replay": {
+    "access_pass_count": 12,
+    "access_requirement_count": 12,
+    "building_footprint_present": true,
+    "canonical_result_hash": "sha256:30daa8da4bb3d181f4dc0004c027f86152b995c68535c8baef0678e53947702a",
+    "fixture_sha256": "d03ecae9e1e2808cba346eb83a39f853c8a4b366acc103669af1cf868363901e",
+    "p2_complete": true,
+    "project_layout_validated": true,
+    "svg_sha256": "sha256:342775cb44d7165a9a64ad7e7f31cd287c04d5a1655bcc8f31ec1c1224f85981",
+    "truck_route_validated": true,
+    "zone_count": 12
+  },
+  "root_cause_classification": {
+    "P2D_HARD_FAILURE_AFTER_COMPLETE_P2C": false,
+    "PACKAGING_ANCHOR_COVERAGE_GAP": false,
+    "PERSONNEL_BRANCH_STARVES_SUPPORT": false,
+    "TAIL_ORDERING_STARVATION": false,
+    "TAIL_SHARE_ALLOCATION_STARVATION": true,
+    "TAIL_SHARE_IS_PRIMARY_CAUSE_OF_ZERO_PACKAGING_OPTIONS": false,
+    "TRUE_ENUMERATED_GEOMETRY_CONFLICT": true,
+    "UNRESOLVED_BOUNDED_SEARCH": false
+  },
+  "skeleton_geometry_match_r7": true,
+  "strategies": [
+    {
+      "bounded_search_no_witness": false,
+      "complete_p2c_candidate_count": 0,
+      "complete_tail_witness_found": false,
+      "dead_end_state_count": 36,
+      "diagnostic_budget_is_production_budget": false,
+      "diagnostic_node_limit": 5000,
+      "dynamic_mrv": false,
+      "node_limit_reached": false,
+      "nodes_used": 43,
+      "p2d_full_pass": false,
+      "p2d_reached": false,
+      "search_exhausted": true,
+      "search_phase": "STRUCTURED",
+      "strategy": "PERSONNEL_FIRST",
+      "tail_order": [
+        "changing_room",
+        "office",
+        "packaging_material_storage",
+        "frozen_fruit_room",
+        "secondary_fruit_buffer"
+      ],
+      "witness": null,
+      "zero_option_events": [
+        {
+          "node": 3,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 4,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 5,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 6,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 7,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 8,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 10,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 11,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 12,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 13,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 14,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 15,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 17,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 18,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 19,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 20,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 21,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 22,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 24,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 25,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 26,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 27,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 28,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 29,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 31,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 32,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 33,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 34,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 35,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 36,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 38,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 39,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 40,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 41,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 42,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "node": 43,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        }
+      ]
+    },
+    {
+      "bounded_search_no_witness": false,
+      "complete_p2c_candidate_count": 0,
+      "complete_tail_witness_found": false,
+      "dead_end_state_count": 1,
+      "diagnostic_budget_is_production_budget": false,
+      "diagnostic_node_limit": 5000,
+      "dynamic_mrv": false,
+      "node_limit_reached": false,
+      "nodes_used": 1,
+      "p2d_full_pass": false,
+      "p2d_reached": false,
+      "search_exhausted": true,
+      "search_phase": "STRUCTURED",
+      "strategy": "SUPPORT_FIRST",
+      "tail_order": [
+        "packaging_material_storage",
+        "frozen_fruit_room",
+        "secondary_fruit_buffer",
+        "changing_room",
+        "office"
+      ],
+      "witness": null,
+      "zero_option_events": [
+        {
+          "node": 1,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer",
+            "changing_room",
+            "office"
+          ],
+          "zone_code": "packaging_material_storage"
+        }
+      ]
+    },
+    {
+      "bounded_search_no_witness": false,
+      "complete_p2c_candidate_count": 0,
+      "complete_tail_witness_found": false,
+      "dead_end_state_count": 1,
+      "diagnostic_budget_is_production_budget": false,
+      "diagnostic_node_limit": 5000,
+      "dynamic_mrv": true,
+      "node_limit_reached": false,
+      "nodes_used": 1,
+      "p2d_full_pass": false,
+      "p2d_reached": false,
+      "search_exhausted": true,
+      "search_phase": "STRUCTURED",
+      "strategy": "MOST_CONSTRAINED_FIRST",
+      "tail_order": [
+        "changing_room",
+        "office",
+        "packaging_material_storage",
+        "frozen_fruit_room",
+        "secondary_fruit_buffer"
+      ],
+      "witness": null,
+      "zero_option_events": [
+        {
+          "node": 1,
+          "remaining": [
+            "changing_room",
+            "office",
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer"
+          ],
+          "zone_code": "packaging_material_storage"
+        }
+      ]
+    },
+    {
+      "bounded_search_no_witness": false,
+      "complete_p2c_candidate_count": 0,
+      "complete_tail_witness_found": false,
+      "dead_end_state_count": 1,
+      "diagnostic_budget_is_production_budget": false,
+      "diagnostic_node_limit": 5000,
+      "dynamic_mrv": false,
+      "node_limit_reached": false,
+      "nodes_used": 1,
+      "p2d_full_pass": false,
+      "p2d_reached": false,
+      "search_exhausted": true,
+      "search_phase": "GENERAL_FALLBACK",
+      "strategy": "SUPPORT_FIRST",
+      "tail_order": [
+        "packaging_material_storage",
+        "frozen_fruit_room",
+        "secondary_fruit_buffer",
+        "changing_room",
+        "office"
+      ],
+      "witness": null,
+      "zero_option_events": [
+        {
+          "node": 1,
+          "remaining": [
+            "packaging_material_storage",
+            "frozen_fruit_room",
+            "secondary_fruit_buffer",
+            "changing_room",
+            "office"
+          ],
+          "zone_code": "packaging_material_storage"
+        }
+      ]
+    }
+  ],
+  "tail_completion_infeasible_within_fixed_skeleton_authority": true,
+  "target_skeleton_hash": "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc"
+}

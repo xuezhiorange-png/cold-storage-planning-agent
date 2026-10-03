@@ -1,0 +1,57 @@
+{
+  "allocated_lane_budgets": [
+    40,
+    40,
+    40
+  ],
+  "allocated_total": 120,
+  "coverage_node_budget_per_topology": 15,
+  "diversity_expansion_node_budget_per_topology": [
+    25,
+    25,
+    25
+  ],
+  "global_optimum_claimed": false,
+  "node_budget_is_bounded_search_cutoff": true,
+  "preferred_topology_extra_budget": [
+    0,
+    0,
+    0
+  ],
+  "production_budget_changed": false,
+  "production_placement_node_budget": 120,
+  "skeleton_tail_lifecycle": [
+    {
+      "complete_candidate_count": 2,
+      "construction_nodes": 7,
+      "first_failure_reason": null,
+      "first_failure_stage": null,
+      "p2d_candidate_count": 2,
+      "p2d_full_pass_count": 2,
+      "p2d_reached": true,
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "tail_node_limit": 20,
+      "tail_nodes": 7,
+      "topology": "STRAIGHT_LINEAR_BAND"
+    },
+    {
+      "complete_candidate_count": 2,
+      "construction_nodes": 7,
+      "first_failure_reason": null,
+      "first_failure_stage": null,
+      "p2d_candidate_count": 2,
+      "p2d_full_pass_count": 2,
+      "p2d_reached": true,
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "tail_node_limit": 20,
+      "tail_nodes": 7,
+      "topology": "CENTRAL_PROCESS_HUB"
+    }
+  ],
+  "visited_lane_nodes": [
+    27,
+    20,
+    27
+  ],
+  "visited_total": 74
+}

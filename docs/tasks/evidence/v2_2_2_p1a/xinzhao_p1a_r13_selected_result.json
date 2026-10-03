@@ -1,0 +1,18 @@
+{
+  "access_pass_count": 12,
+  "access_requirement_count": 12,
+  "building_footprint_present": true,
+  "canonical_result_hash": "sha256:ed11e746cd65142b26cfb20e371dda3a91b39501175681d2538d4359ee017c0d",
+  "complete_p2c_candidate_count": 2,
+  "identity": "v222-p1a-r13-selected-result@1.0.0",
+  "loading_face_matches_preflight": true,
+  "old_r12_canonical_result_hash": "sha256:ed11e746cd65142b26cfb20e371dda3a91b39501175681d2538d4359ee017c0d",
+  "old_r12_svg_sha256": "sha256:342775cb44d7165a9a64ad7e7f31cd287c04d5a1655bcc8f31ec1c1224f85981",
+  "p2_complete": true,
+  "project_layout_validated": true,
+  "same_selected_main_skeleton_as_r12": true,
+  "selected_main_process_skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+  "svg_sha256": "sha256:342775cb44d7165a9a64ad7e7f31cd287c04d5a1655bcc8f31ec1c1224f85981",
+  "truck_route_validated": true,
+  "zone_count": 12
+}

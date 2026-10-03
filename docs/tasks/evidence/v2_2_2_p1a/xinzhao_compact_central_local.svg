@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1230" height="850" viewBox="0 0 1230 850">
+<rect width="1230" height="850" fill="#fff"/>
+<text x="28" y="38" font-family="Arial,sans-serif" font-size="21" fill="#1b2733">CENTRAL_PROCESS_WITH_SIDE_BANKS · compact local composition</text>
+<rect x="90.00" y="107.12" width="895.75" height="652.88" fill="none" stroke="#385b88" stroke-width="2.5" stroke-dasharray="9 6"/>
+<rect x="643.71" y="116.87" width="75.08" height="75.08" fill="#dfb8bd" stroke="#263244" stroke-width="1.8"/>
+<text x="681.25" y="154.41" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">CHANGING</text>
+<rect x="474.60" y="204.46" width="96.91" height="116.33" fill="#8dc5a4" stroke="#263244" stroke-width="1.8"/>
+<text x="523.06" y="262.63" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">COATING</text>
+<rect x="90.00" y="100.00" width="384.60" height="220.79" fill="#f1cb86" stroke="#263244" stroke-width="1.8"/>
+<text x="282.30" y="210.40" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">FINISHED GOODS</text>
+<rect x="147.62" y="654.35" width="128.20" height="97.34" fill="#c5b6df" stroke="#263244" stroke-width="1.8"/>
+<text x="211.72" y="703.02" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">FROZEN</text>
+<rect x="551.76" y="100.00" width="91.95" height="91.95" fill="#dfb8bd" stroke="#263244" stroke-width="1.8"/>
+<text x="597.74" y="145.97" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">OFFICE</text>
+<rect x="170.17" y="482.23" width="205.36" height="172.12" fill="#c5b6df" stroke="#263244" stroke-width="1.8"/>
+<text x="272.85" y="568.29" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">PACKAGING</text>
+<rect x="571.52" y="482.23" width="119.30" height="174.50" fill="#b7d5eb" stroke="#263244" stroke-width="1.8"/>
+<text x="631.16" y="569.48" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">PRIMARY PRECOOL</text>
+<rect x="510.38" y="656.73" width="180.43" height="103.27" fill="#b7d5eb" stroke="#263244" stroke-width="1.8"/>
+<text x="600.60" y="708.36" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">RAW</text>
+<rect x="275.82" y="669.78" width="99.71" height="81.91" fill="#c5b6df" stroke="#263244" stroke-width="1.8"/>
+<text x="325.68" y="710.74" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">FRUIT BUFFER</text>
+<rect x="571.52" y="204.46" width="119.30" height="116.33" fill="#f1cb86" stroke="#263244" stroke-width="1.8"/>
+<text x="631.16" y="262.63" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">SECONDARY PRECOOL</text>
+<rect x="474.60" y="100.00" width="77.16" height="91.32" fill="#f1cb86" stroke="#263244" stroke-width="1.8"/>
+<text x="513.18" y="145.66" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">SHIPPING</text>
+<rect x="147.62" y="320.79" width="543.19" height="161.44" fill="#8dc5a4" stroke="#263244" stroke-width="1.8"/>
+<text x="419.22" y="401.51" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="10" fill="#17212b">SORTING</text>
+<text x="28" y="814" font-family="Arial,sans-serif" font-size="15" fill="#263244">Local bbox 52.971 × 55.600 m · site extent reference 75.460 × 55.000 m · extent feasible: YES · dashed outline is a size reference only</text>
+</svg>

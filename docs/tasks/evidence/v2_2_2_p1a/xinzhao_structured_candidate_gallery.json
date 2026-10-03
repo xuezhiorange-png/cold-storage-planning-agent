@@ -1,0 +1,1240 @@
+{
+  "active_work_item_count": 3,
+  "candidates": [
+    {
+      "access_pass_count": 12,
+      "access_requirement_count": 12,
+      "building_outline_class": "STAIR_STEP",
+      "candidate_number": 1,
+      "canonical_topology": "STRAIGHT_LINEAR_BAND",
+      "changed_main_process_zone_codes_vs_control": [],
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LINEAR_3_BAND",
+      "main_band_signature": [
+        "RAW_SIDE_BAND:PROCESS_CORE_BAND:X:OVERLAP",
+        "RAW_SIDE_BAND:PROCESS_CORE_BAND:Y:A_BEFORE_B",
+        "RAW_SIDE_BAND:FINISHED_SIDE_BAND:X:OVERLAP",
+        "RAW_SIDE_BAND:FINISHED_SIDE_BAND:Y:A_BEFORE_B",
+        "PROCESS_CORE_BAND:FINISHED_SIDE_BAND:X:OVERLAP",
+        "PROCESS_CORE_BAND:FINISHED_SIDE_BAND:Y:OVERLAP"
+      ],
+      "main_process_zone_rectangles_mm": {
+        "coating_room": [
+          9317,
+          20100,
+          5883,
+          13600,
+          0
+        ],
+        "finished_goods_room": [
+          9317,
+          33700,
+          32400,
+          18600,
+          0
+        ],
+        "primary_precooling_room": [
+          15200,
+          0,
+          14700,
+          10050,
+          0
+        ],
+        "raw_fruit_buffer": [
+          0,
+          0,
+          15200,
+          8700,
+          0
+        ],
+        "secondary_precooling_room": [
+          15200,
+          23650,
+          9800,
+          10050,
+          0
+        ],
+        "shipping_channel": [
+          1624,
+          33700,
+          7693,
+          6500,
+          90
+        ],
+        "sorting_packaging_room": [
+          15200,
+          10050,
+          45760,
+          13600,
+          0
+        ]
+      },
+      "main_process_zone_relation_signature": [
+        "RAW_SIDE_BAND:PROCESS_CORE_BAND:X:OVERLAP",
+        "RAW_SIDE_BAND:PROCESS_CORE_BAND:Y:A_BEFORE_B",
+        "RAW_SIDE_BAND:FINISHED_SIDE_BAND:X:OVERLAP",
+        "RAW_SIDE_BAND:FINISHED_SIDE_BAND:Y:A_BEFORE_B",
+        "PROCESS_CORE_BAND:FINISHED_SIDE_BAND:X:OVERLAP",
+        "PROCESS_CORE_BAND:FINISHED_SIDE_BAND:Y:OVERLAP"
+      ],
+      "p2_complete": true,
+      "p2d_full_pass": true,
+      "png_path": "/private/tmp/cold-storage-p1a-envelope-r1.f6k7ha/docs/tasks/evidence/v2_2_2_p1a/xinzhao_structured_candidate_01.png",
+      "project_layout_validated": true,
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "structural_comparison_key": [
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        2,
+        2,
+        0,
+        2,
+        1,
+        3,
+        -3,
+        -1,
+        3,
+        -2,
+        0,
+        1,
+        0,
+        8,
+        0,
+        -3
+      ],
+      "structural_quality_facts": {
+        "building_outline_class": "STAIR_STEP",
+        "composition_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "composition_family_match": false,
+        "finished_shipping_interface_alignment": {
+          "finished_face_endpoint_alignment_count": 1,
+          "shared_edge_orientation": "VERTICAL",
+          "status": "MEASURED"
+        },
+        "functional_group_edge_counts": {
+          "FINISHED_SIDE_GROUP": 2,
+          "PERSONNEL_GROUP": 0,
+          "PROCESSING_CORE_GROUP": 1,
+          "RAW_SIDE_GROUP": 1,
+          "SUPPORT_GROUP": 2
+        },
+        "functional_grouping_status": "MEASURED",
+        "group_envelopes": {
+          "FINISHED_SIDE_GROUP": {
+            "connected_shared_edge_component_count": 1,
+            "max_x": "41.717",
+            "max_y": "52.3",
+            "min_x": "1.624",
+            "min_y": "23.65",
+            "shared_internal_edge_count": 2,
+            "zone_count": 3
+          },
+          "PERSONNEL_GROUP": {
+            "connected_shared_edge_component_count": 2,
+            "max_x": "75.46",
+            "max_y": "33.700",
+            "min_x": "1.571",
+            "min_y": "23.65",
+            "shared_internal_edge_count": 0,
+            "zone_count": 2
+          },
+          "PROCESSING_CORE_GROUP": {
+            "connected_shared_edge_component_count": 1,
+            "max_x": "60.96",
+            "max_y": "33.7",
+            "min_x": "9.317",
+            "min_y": "10.05",
+            "shared_internal_edge_count": 1,
+            "zone_count": 2
+          },
+          "RAW_SIDE_GROUP": {
+            "connected_shared_edge_component_count": 1,
+            "max_x": "29.9",
+            "max_y": "10.05",
+            "min_x": "0",
+            "min_y": "0",
+            "shared_internal_edge_count": 1,
+            "zone_count": 2
+          },
+          "SUPPORT_GROUP": {
+            "connected_shared_edge_component_count": 1,
+            "max_x": "75.46",
+            "max_y": "17.3",
+            "min_x": "41.76",
+            "min_y": "0",
+            "shared_internal_edge_count": 2,
+            "zone_count": 3
+          }
+        },
+        "hard_feasibility_passed": true,
+        "identity": "structural-quality-vector@2.0.0",
+        "inferred_process_family": "CENTRAL_PROCESS_HUB",
+        "main_flow_backtrack_count": {
+          "status": "UNAVAILABLE",
+          "value": null
+        },
+        "main_flow_turn_count": {
+          "status": "UNAVAILABLE",
+          "value": null
+        },
+        "main_group_order_monotonic": {
+          "axis": "Y",
+          "intervals": {
+            "axis": "Y",
+            "finished_interval": [
+              "33.7",
+              "52.3"
+            ],
+            "finished_terminal_zone_codes": [
+              "finished_goods_room",
+              "shipping_channel"
+            ],
+            "processing_core_interval": [
+              "10.05",
+              "33.7"
+            ],
+            "raw_interval": [
+              "0",
+              "10.05"
+            ],
+            "transition_zone_codes": [
+              "secondary_precooling_room"
+            ]
+          },
+          "status": "MEASURED",
+          "value": true
+        },
+        "major_zone_depth_alignment": {
+          "aligned_eligible_pairs": 0,
+          "eligible_pairs": 1,
+          "rate": "0",
+          "status": "MEASURED"
+        },
+        "major_zone_grid_alignment": {
+          "aligned_boundary_incidences": 8,
+          "rate": "0.4",
+          "status": "MEASURED",
+          "total_boundary_incidences": 20
+        },
+        "personnel_peripherality": {
+          "status": "MEASURED",
+          "zone_count": 2,
+          "zones_touching_effective_boundary": 1
+        },
+        "process_core_contiguous": {
+          "component_count": 1,
+          "status": "MEASURED",
+          "value": true
+        },
+        "process_core_faces": {
+          "core_exposed_main_faces": [],
+          "core_zone_code": "sorting_packaging_room",
+          "status": "MEASURED",
+          "support_occupied_core_faces": [
+            "EAST",
+            "SOUTH"
+          ]
+        },
+        "process_core_legibility": {
+          "direct_main_process_edges": 2,
+          "required_edges": 2,
+          "status": "MEASURED"
+        },
+        "process_route_efficiency": {
+          "status": "UNAVAILABLE",
+          "value": null
+        },
+        "search_phase": "STRUCTURED",
+        "storage_bank_alignment": {
+          "aligned_pair_count": 0,
+          "banks": {
+            "FINISHED_SIDE_BANK": {
+              "aligned_pair_count": 0,
+              "eligible_pair_count": 1,
+              "status": "MEASURED"
+            },
+            "FROZEN_SIDE_BRANCH": {
+              "aligned_pair_count": 0,
+              "eligible_pair_count": 0,
+              "status": "NOT_APPLICABLE"
+            },
+            "RAW_SIDE_BANK": {
+              "aligned_pair_count": 0,
+              "eligible_pair_count": 1,
+              "status": "MEASURED"
+            }
+          },
+          "status": "MEASURED"
+        },
+        "structural_fallback_used": false,
+        "structural_profile_identity": "structural-quality-profile@2.0.0",
+        "structurally_generated": true,
+        "support_branch_subordination": {
+          "attachment_side_count": 3,
+          "attachment_sides": [
+            "EAST",
+            "SOUTH",
+            "WEST"
+          ],
+          "authoritative_access_routes": 3,
+          "direct_group_edges": 3,
+          "required_access_routes": 3,
+          "status": "MEASURED",
+          "support_chain_root": "sorting_packaging_room",
+          "support_component_count": 1
+        }
+      },
+      "svg_path": "/private/tmp/cold-storage-p1a-envelope-r1.f6k7ha/docs/tasks/evidence/v2_2_2_p1a/xinzhao_structured_candidate_01.svg",
+      "svg_sha256": "sha256:007f8066b55a3bdcf2583e0e4d9c2f325e1c2c6cee4bc9aa8fb9fd4a57c109d2",
+      "truck_route_validated": true
+    },
+    {
+      "access_pass_count": 12,
+      "access_requirement_count": 12,
+      "building_outline_class": "STAIR_STEP",
+      "candidate_number": 2,
+      "canonical_topology": "STRAIGHT_LINEAR_BAND",
+      "changed_main_process_zone_codes_vs_control": [
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel"
+      ],
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "envelope_family": "RECTANGLE",
+      "layout_family": "LINEAR_3_BAND",
+      "main_band_signature": [
+        "RAW_SIDE_BAND:PROCESS_CORE_BAND:X:OVERLAP",
+        "RAW_SIDE_BAND:PROCESS_CORE_BAND:Y:A_BEFORE_B",
+        "RAW_SIDE_BAND:FINISHED_SIDE_BAND:X:OVERLAP",
+        "RAW_SIDE_BAND:FINISHED_SIDE_BAND:Y:A_BEFORE_B",
+        "PROCESS_CORE_BAND:FINISHED_SIDE_BAND:X:OVERLAP",
+        "PROCESS_CORE_BAND:FINISHED_SIDE_BAND:Y:OVERLAP"
+      ],
+      "main_process_zone_rectangles_mm": {
+        "coating_room": [
+          25000,
+          23650,
+          7961,
+          10050,
+          0
+        ],
+        "finished_goods_room": [
+          561,
+          33700,
+          32400,
+          18600,
+          0
+        ],
+        "primary_precooling_room": [
+          15200,
+          0,
+          14700,
+          10050,
+          0
+        ],
+        "raw_fruit_buffer": [
+          0,
+          0,
+          15200,
+          8700,
+          0
+        ],
+        "secondary_precooling_room": [
+          15200,
+          23650,
+          9800,
+          10050,
+          0
+        ],
+        "shipping_channel": [
+          1624,
+          26007,
+          6500,
+          7693,
+          0
+        ],
+        "sorting_packaging_room": [
+          15200,
+          10050,
+          45760,
+          13600,
+          0
+        ]
+      },
+      "main_process_zone_relation_signature": [
+        "RAW_SIDE_BAND:PROCESS_CORE_BAND:X:OVERLAP",
+        "RAW_SIDE_BAND:PROCESS_CORE_BAND:Y:A_BEFORE_B",
+        "RAW_SIDE_BAND:FINISHED_SIDE_BAND:X:OVERLAP",
+        "RAW_SIDE_BAND:FINISHED_SIDE_BAND:Y:A_BEFORE_B",
+        "PROCESS_CORE_BAND:FINISHED_SIDE_BAND:X:OVERLAP",
+        "PROCESS_CORE_BAND:FINISHED_SIDE_BAND:Y:OVERLAP"
+      ],
+      "p2_complete": true,
+      "p2d_full_pass": true,
+      "png_path": "/private/tmp/cold-storage-p1a-envelope-r1.f6k7ha/docs/tasks/evidence/v2_2_2_p1a/xinzhao_structured_candidate_02.png",
+      "project_layout_validated": true,
+      "skeleton_hash": "sha256:f5f71519639ffbb14dc8a197c117f170eddfd98c2e61fe1af5116486b775146f",
+      "structural_comparison_key": [
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        2,
+        2,
+        0,
+        2,
+        0,
+        3,
+        -3,
+        -1,
+        3,
+        -2,
+        1,
+        1,
+        0,
+        8,
+        0,
+        -3
+      ],
+      "structural_quality_facts": {
+        "building_outline_class": "STAIR_STEP",
+        "composition_family": {
+          "dominant_axis": "Y",
+          "dominant_direction": "POSITIVE",
+          "family": "LINEAR_PROCESS_BAND",
+          "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+          "identity": "structural-composition-family@1.0.0"
+        },
+        "composition_family_match": false,
+        "finished_shipping_interface_alignment": {
+          "finished_face_endpoint_alignment_count": 0,
+          "shared_edge_orientation": "HORIZONTAL",
+          "status": "MEASURED"
+        },
+        "functional_group_edge_counts": {
+          "FINISHED_SIDE_GROUP": 2,
+          "PERSONNEL_GROUP": 0,
+          "PROCESSING_CORE_GROUP": 1,
+          "RAW_SIDE_GROUP": 1,
+          "SUPPORT_GROUP": 2
+        },
+        "functional_grouping_status": "MEASURED",
+        "group_envelopes": {
+          "FINISHED_SIDE_GROUP": {
+            "connected_shared_edge_component_count": 1,
+            "max_x": "32.961",
+            "max_y": "52.3",
+            "min_x": "0.561",
+            "min_y": "23.65",
+            "shared_internal_edge_count": 2,
+            "zone_count": 3
+          },
+          "PERSONNEL_GROUP": {
+            "connected_shared_edge_component_count": 2,
+            "max_x": "75.46",
+            "max_y": "26.007",
+            "min_x": "0.524",
+            "min_y": "19.11",
+            "shared_internal_edge_count": 0,
+            "zone_count": 2
+          },
+          "PROCESSING_CORE_GROUP": {
+            "connected_shared_edge_component_count": 1,
+            "max_x": "60.96",
+            "max_y": "33.70",
+            "min_x": "15.2",
+            "min_y": "10.05",
+            "shared_internal_edge_count": 1,
+            "zone_count": 2
+          },
+          "RAW_SIDE_GROUP": {
+            "connected_shared_edge_component_count": 1,
+            "max_x": "29.9",
+            "max_y": "10.05",
+            "min_x": "0",
+            "min_y": "0",
+            "shared_internal_edge_count": 1,
+            "zone_count": 2
+          },
+          "SUPPORT_GROUP": {
+            "connected_shared_edge_component_count": 1,
+            "max_x": "75.46",
+            "max_y": "17.3",
+            "min_x": "41.76",
+            "min_y": "0",
+            "shared_internal_edge_count": 2,
+            "zone_count": 3
+          }
+        },
+        "hard_feasibility_passed": true,
+        "identity": "structural-quality-vector@2.0.0",
+        "inferred_process_family": "CENTRAL_PROCESS_HUB",
+        "main_flow_backtrack_count": {
+          "status": "UNAVAILABLE",
+          "value": null
+        },
+        "main_flow_turn_count": {
+          "status": "UNAVAILABLE",
+          "value": null
+        },
+        "main_group_order_monotonic": {
+          "axis": "Y",
+          "intervals": {
+            "axis": "Y",
+            "finished_interval": [
+              "26.007",
+              "52.3"
+            ],
+            "finished_terminal_zone_codes": [
+              "finished_goods_room",
+              "shipping_channel"
+            ],
+            "processing_core_interval": [
+              "10.05",
+              "33.70"
+            ],
+            "raw_interval": [
+              "0",
+              "10.05"
+            ],
+            "transition_zone_codes": [
+              "secondary_precooling_room"
+            ]
+          },
+          "status": "MEASURED",
+          "value": false
+        },
+        "major_zone_depth_alignment": {
+          "aligned_eligible_pairs": 0,
+          "eligible_pairs": 1,
+          "rate": "0",
+          "status": "MEASURED"
+        },
+        "major_zone_grid_alignment": {
+          "aligned_boundary_incidences": 8,
+          "rate": "0.4",
+          "status": "MEASURED",
+          "total_boundary_incidences": 20
+        },
+        "personnel_peripherality": {
+          "status": "MEASURED",
+          "zone_count": 2,
+          "zones_touching_effective_boundary": 1
+        },
+        "process_core_contiguous": {
+          "component_count": 1,
+          "status": "MEASURED",
+          "value": true
+        },
+        "process_core_faces": {
+          "core_exposed_main_faces": [
+            "WEST"
+          ],
+          "core_zone_code": "sorting_packaging_room",
+          "status": "MEASURED",
+          "support_occupied_core_faces": [
+            "EAST",
+            "SOUTH"
+          ]
+        },
+        "process_core_legibility": {
+          "direct_main_process_edges": 2,
+          "required_edges": 2,
+          "status": "MEASURED"
+        },
+        "process_route_efficiency": {
+          "status": "UNAVAILABLE",
+          "value": null
+        },
+        "search_phase": "STRUCTURED",
+        "storage_bank_alignment": {
+          "aligned_pair_count": 0,
+          "banks": {
+            "FINISHED_SIDE_BANK": {
+              "aligned_pair_count": 0,
+              "eligible_pair_count": 1,
+              "status": "MEASURED"
+            },
+            "FROZEN_SIDE_BRANCH": {
+              "aligned_pair_count": 0,
+              "eligible_pair_count": 0,
+              "status": "NOT_APPLICABLE"
+            },
+            "RAW_SIDE_BANK": {
+              "aligned_pair_count": 0,
+              "eligible_pair_count": 1,
+              "status": "MEASURED"
+            }
+          },
+          "status": "MEASURED"
+        },
+        "structural_fallback_used": false,
+        "structural_profile_identity": "structural-quality-profile@2.0.0",
+        "structurally_generated": true,
+        "support_branch_subordination": {
+          "attachment_side_count": 3,
+          "attachment_sides": [
+            "EAST",
+            "SOUTH",
+            "WEST"
+          ],
+          "authoritative_access_routes": 3,
+          "direct_group_edges": 3,
+          "required_access_routes": 3,
+          "status": "MEASURED",
+          "support_chain_root": "sorting_packaging_room",
+          "support_component_count": 1
+        }
+      },
+      "svg_path": "/private/tmp/cold-storage-p1a-envelope-r1.f6k7ha/docs/tasks/evidence/v2_2_2_p1a/xinzhao_structured_candidate_02.svg",
+      "svg_sha256": "sha256:9a404fa19ed953cc25ac6f5b85b3a9e7f327246c45569d18fabf803c491f1de0",
+      "truck_route_validated": true
+    }
+  ],
+  "determinism": {
+    "same_canonical_result_hash": true,
+    "same_selected_layout": true,
+    "same_svg_bytes": true,
+    "same_svg_hash": true
+  },
+  "distinct_p2d_full_pass_skeleton_count": 2,
+  "distinct_truck_feasible_skeleton_count": 2,
+  "early_stop_reason": "GLOBAL_PLACEMENT_NODE_BUDGET_EXHAUSTED",
+  "envelope_family_full_pass_candidate_counts": {
+    "RECTANGLE": 2
+  },
+  "fixture_sha256": "d03ecae9e1e2808cba346eb83a39f853c8a4b366acc103669af1cf868363901e",
+  "generator_architecture": "ENVELOPE_GRID_BAND_ZONE",
+  "identity": "v222-p1a-envelope-grid-band-zone-candidates@1.0.0",
+  "layout_families_implemented_and_attempted": [
+    "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+    "LINEAR_3_BAND",
+    "LONGITUDINAL_PROCESS_SPINE"
+  ],
+  "layout_family_attempt_counts": {
+    "CENTRAL_PROCESS_WITH_SIDE_BANKS": 3,
+    "LINEAR_3_BAND": 3,
+    "LONGITUDINAL_PROCESS_SPINE": 3
+  },
+  "layout_family_full_pass_candidate_counts": {
+    "LINEAR_3_BAND": 2
+  },
+  "main_skeleton_truck_preflight_trace": [
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+      "main_skeleton_hash": "sha256:040612b9a4f63a513e9658488a700cca29fa1f7a6b077e74915129ec047b6c41",
+      "node_budget": 5000,
+      "node_budget_exhausted": false,
+      "preflight_action": "REJECT_SKELETON",
+      "preflight_compute_nodes": 39,
+      "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+      "preflight_reexecuted": true,
+      "preflight_status": "REJECT",
+      "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+      "search_tree_exhausted": true,
+      "shipping_loading_face_segment": {
+        "end": {
+          "x": "9.317",
+          "y": "39.75"
+        },
+        "start": {
+          "x": "1.624",
+          "y": "39.75"
+        }
+      },
+      "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+      "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+      "tail_search_started": false,
+      "truck_route_validated": false,
+      "truck_validation_result_hash": null,
+      "visited_nodes": 39,
+      "zones_checked": [
+        "raw_fruit_buffer",
+        "primary_precooling_room",
+        "sorting_packaging_room",
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel"
+      ]
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+      "main_skeleton_hash": "sha256:0416b77987e6d15c2b38cd88bf9fb5f063cfb17861adc6c1b4a14c08f6f6a89f",
+      "node_budget": 5000,
+      "node_budget_exhausted": false,
+      "preflight_action": "REJECT_SKELETON",
+      "preflight_compute_nodes": 39,
+      "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+      "preflight_reexecuted": true,
+      "preflight_status": "REJECT",
+      "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+      "search_tree_exhausted": true,
+      "shipping_loading_face_segment": {
+        "end": {
+          "x": "40.654",
+          "y": "39.75"
+        },
+        "start": {
+          "x": "32.961",
+          "y": "39.75"
+        }
+      },
+      "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+      "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+      "tail_search_started": false,
+      "truck_route_validated": false,
+      "truck_validation_result_hash": null,
+      "visited_nodes": 39,
+      "zones_checked": [
+        "raw_fruit_buffer",
+        "primary_precooling_room",
+        "sorting_packaging_room",
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel"
+      ]
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+      "main_skeleton_hash": "sha256:1af97dd478d02fcb41639e6c58e08cc6161fbd02f04073363bb42ee9b23b88be",
+      "node_budget": 5000,
+      "node_budget_exhausted": false,
+      "preflight_action": "REJECT_SKELETON",
+      "preflight_compute_nodes": 39,
+      "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+      "preflight_reexecuted": true,
+      "preflight_status": "REJECT",
+      "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+      "search_tree_exhausted": true,
+      "shipping_loading_face_segment": {
+        "end": {
+          "x": "32.961",
+          "y": "52.3"
+        },
+        "start": {
+          "x": "32.961",
+          "y": "44.607"
+        }
+      },
+      "shipping_loading_face_side": "LEFT_LONG_EDGE",
+      "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+      "tail_search_started": false,
+      "truck_route_validated": false,
+      "truck_validation_result_hash": null,
+      "visited_nodes": 39,
+      "zones_checked": [
+        "raw_fruit_buffer",
+        "primary_precooling_room",
+        "sorting_packaging_room",
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel"
+      ]
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+      "main_skeleton_hash": "sha256:3ead1d87a48b20ebec8b7e15044e123a9623dff8624b89c12d268439dc1a21b5",
+      "node_budget": 5000,
+      "node_budget_exhausted": false,
+      "preflight_action": "REJECT_SKELETON",
+      "preflight_compute_nodes": 39,
+      "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+      "preflight_reexecuted": true,
+      "preflight_status": "REJECT",
+      "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+      "search_tree_exhausted": true,
+      "shipping_loading_face_segment": {
+        "end": {
+          "x": "32.961",
+          "y": "41.393"
+        },
+        "start": {
+          "x": "32.961",
+          "y": "33.7"
+        }
+      },
+      "shipping_loading_face_side": "LEFT_LONG_EDGE",
+      "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+      "tail_search_started": false,
+      "truck_route_validated": false,
+      "truck_validation_result_hash": null,
+      "visited_nodes": 39,
+      "zones_checked": [
+        "raw_fruit_buffer",
+        "primary_precooling_room",
+        "sorting_packaging_room",
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel"
+      ]
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+      "main_skeleton_hash": "sha256:4264a43e822dce7e3e8ca22a93dd40f55ddc8336bd1763f6bb80d1d2ba135cae",
+      "node_budget": 5000,
+      "node_budget_exhausted": false,
+      "preflight_action": "REJECT_SKELETON",
+      "preflight_compute_nodes": 39,
+      "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+      "preflight_reexecuted": true,
+      "preflight_status": "REJECT",
+      "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+      "search_tree_exhausted": true,
+      "shipping_loading_face_segment": {
+        "end": {
+          "x": "40.654",
+          "y": "33.7"
+        },
+        "start": {
+          "x": "32.961",
+          "y": "33.7"
+        }
+      },
+      "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+      "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+      "tail_search_started": false,
+      "truck_route_validated": false,
+      "truck_validation_result_hash": null,
+      "visited_nodes": 39,
+      "zones_checked": [
+        "raw_fruit_buffer",
+        "primary_precooling_room",
+        "sorting_packaging_room",
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel"
+      ]
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "event": "CACHED_MAIN_SKELETON_TRUCK_PREFLIGHT",
+      "failure_codes": [],
+      "failure_reason": null,
+      "main_skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "node_budget": 5000,
+      "node_budget_exhausted": false,
+      "preflight_action": "ALLOW_TAIL_SEARCH",
+      "preflight_compute_nodes": 3,
+      "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+      "preflight_reexecuted": false,
+      "preflight_status": "PASS",
+      "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+      "search_tree_exhausted": true,
+      "shipping_loading_face_segment": {
+        "end": {
+          "x": "9.317",
+          "y": "33.7"
+        },
+        "start": {
+          "x": "1.624",
+          "y": "33.7"
+        }
+      },
+      "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+      "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+      "tail_search_started": true,
+      "truck_route_validated": true,
+      "truck_validation_result_hash": null,
+      "visited_nodes": 3,
+      "zones_checked": [
+        "raw_fruit_buffer",
+        "primary_precooling_room",
+        "sorting_packaging_room",
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel"
+      ]
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+      "main_skeleton_hash": "sha256:bdf2286fd10c24724b7e9ad45ebd5de5cb92a9bda478e96ffed0e23a1ceaaaac",
+      "node_budget": 5000,
+      "node_budget_exhausted": false,
+      "preflight_action": "REJECT_SKELETON",
+      "preflight_compute_nodes": 39,
+      "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+      "preflight_reexecuted": true,
+      "preflight_status": "REJECT",
+      "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+      "search_tree_exhausted": true,
+      "shipping_loading_face_segment": {
+        "end": {
+          "x": "40.654",
+          "y": "45.8"
+        },
+        "start": {
+          "x": "32.961",
+          "y": "45.8"
+        }
+      },
+      "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+      "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+      "tail_search_started": false,
+      "truck_route_validated": false,
+      "truck_validation_result_hash": null,
+      "visited_nodes": 39,
+      "zones_checked": [
+        "raw_fruit_buffer",
+        "primary_precooling_room",
+        "sorting_packaging_room",
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel"
+      ]
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+      "main_skeleton_hash": "sha256:c31eb7de6ddb92ee9e3e8dc4a8694db5d3d72a2cc215f0bccc675aec63b43a8c",
+      "node_budget": 5000,
+      "node_budget_exhausted": false,
+      "preflight_action": "REJECT_SKELETON",
+      "preflight_compute_nodes": 39,
+      "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+      "preflight_reexecuted": true,
+      "preflight_status": "REJECT",
+      "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+      "search_tree_exhausted": true,
+      "shipping_loading_face_segment": {
+        "end": {
+          "x": "0.561",
+          "y": "33.7"
+        },
+        "start": {
+          "x": "0.561",
+          "y": "26.007"
+        }
+      },
+      "shipping_loading_face_side": "LEFT_LONG_EDGE",
+      "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+      "tail_search_started": false,
+      "truck_route_validated": false,
+      "truck_validation_result_hash": null,
+      "visited_nodes": 39,
+      "zones_checked": [
+        "raw_fruit_buffer",
+        "primary_precooling_room",
+        "sorting_packaging_room",
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel"
+      ]
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+      "main_skeleton_hash": "sha256:d08ed2cd0074ebab4b07feb58516c6ccdc76df652896f3fbc9f5da8637405b18",
+      "node_budget": 5000,
+      "node_budget_exhausted": false,
+      "preflight_action": "REJECT_SKELETON",
+      "preflight_compute_nodes": 39,
+      "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+      "preflight_reexecuted": true,
+      "preflight_status": "REJECT",
+      "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+      "search_tree_exhausted": true,
+      "shipping_loading_face_segment": {
+        "end": {
+          "x": "8.254",
+          "y": "27.2"
+        },
+        "start": {
+          "x": "0.561",
+          "y": "27.2"
+        }
+      },
+      "shipping_loading_face_side": "BOTTOM_LONG_EDGE",
+      "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+      "tail_search_started": false,
+      "truck_route_validated": false,
+      "truck_validation_result_hash": null,
+      "visited_nodes": 39,
+      "zones_checked": [
+        "raw_fruit_buffer",
+        "primary_precooling_room",
+        "sorting_packaging_room",
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel"
+      ]
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "event": "MAIN_SKELETON_TRUCK_PREFLIGHT_CONSTRUCTION_GATE",
+      "failure_codes": [
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+      ],
+      "failure_reason": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+      "main_skeleton_hash": "sha256:e36137bb539d36c87ca2bc7381a50a8807ff1ab2eb7ae2a85060bd24ed588a29",
+      "node_budget": 5000,
+      "node_budget_exhausted": false,
+      "preflight_action": "REJECT_SKELETON",
+      "preflight_compute_nodes": 39,
+      "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+      "preflight_reexecuted": true,
+      "preflight_status": "REJECT",
+      "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+      "search_tree_exhausted": true,
+      "shipping_loading_face_segment": {
+        "end": {
+          "x": "32.961",
+          "y": "46.846"
+        },
+        "start": {
+          "x": "32.961",
+          "y": "39.153"
+        }
+      },
+      "shipping_loading_face_side": "LEFT_LONG_EDGE",
+      "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+      "tail_search_started": false,
+      "truck_route_validated": false,
+      "truck_validation_result_hash": null,
+      "visited_nodes": 39,
+      "zones_checked": [
+        "raw_fruit_buffer",
+        "primary_precooling_room",
+        "sorting_packaging_room",
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel"
+      ]
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "AUTHORITATIVE_GROUP_ENVELOPE_AXIS_SELECTION",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "event": "CACHED_MAIN_SKELETON_TRUCK_PREFLIGHT",
+      "failure_codes": [],
+      "failure_reason": null,
+      "main_skeleton_hash": "sha256:f5f71519639ffbb14dc8a197c117f170eddfd98c2e61fe1af5116486b775146f",
+      "node_budget": 5000,
+      "node_budget_exhausted": false,
+      "preflight_action": "ALLOW_TAIL_SEARCH",
+      "preflight_compute_nodes": 3,
+      "preflight_name": "MAIN_SKELETON_TRUCK_MANEUVER_NECESSARY_CONDITION_V1",
+      "preflight_reexecuted": false,
+      "preflight_status": "PASS",
+      "search_profile_identity": "truck-maneuver-chain-search@1.0.0",
+      "search_tree_exhausted": true,
+      "shipping_loading_face_segment": {
+        "end": {
+          "x": "1.624",
+          "y": "33.7"
+        },
+        "start": {
+          "x": "1.624",
+          "y": "26.007"
+        }
+      },
+      "shipping_loading_face_side": "LEFT_LONG_EDGE",
+      "stage": "MAIN_SKELETON_TRUCK_PREFLIGHT",
+      "tail_search_started": true,
+      "truck_route_validated": true,
+      "truck_validation_result_hash": null,
+      "visited_nodes": 3,
+      "zones_checked": [
+        "raw_fruit_buffer",
+        "primary_precooling_room",
+        "sorting_packaging_room",
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel"
+      ]
+    }
+  ],
+  "main_skeletons_examined": 11,
+  "major_band_configuration_changed_candidate_count": 0,
+  "major_band_configuration_count": 1,
+  "meaningful_structured_skeleton_count": 2,
+  "micro_jitter_variant_count": 0,
+  "nodes_by_band_family": {
+    "CENTRAL_PROCESS_WITH_SIDE_BANKS": 24,
+    "LINEAR_3_BAND": 32,
+    "LONGITUDINAL_PROCESS_SPINE": 48,
+    "UNCLASSIFIED": 16
+  },
+  "nodes_by_envelope_family": {
+    "RECTANGLE": 104,
+    "UNCLASSIFIED": 16
+  },
+  "preflight_status_counts": {
+    "PASS": 2,
+    "REJECT": 9
+  },
+  "primary_x_axis_count": 8,
+  "primary_y_axis_count": 13,
+  "production_node_visits": 120,
+  "production_placement_node_budget": 120,
+  "selected_result": {
+    "access_pass_count": 12,
+    "access_requirement_count": 12,
+    "building_footprint_present": true,
+    "canonical_result_hash": "sha256:4e4d1e3bfb8f5438a5cb788a3809451aa03f7ec74e5715631d297d2e89609086",
+    "p2_complete": true,
+    "project_layout_validated": true,
+    "svg_sha256": "sha256:007f8066b55a3bdcf2583e0e4d9c2f325e1c2c6cee4bc9aa8fb9fd4a57c109d2",
+    "truck_route_validated": true,
+    "zone_count": 12
+  },
+  "task_id": "V2_2_2_P1A_ENVELOPE_GRID_BAND_ZONE_GENERATOR_R1",
+  "truncated_active_work_item_count": 3,
+  "visual_gallery": {
+    "gallery_png": "/private/tmp/cold-storage-p1a-envelope-r1.f6k7ha/docs/tasks/evidence/v2_2_2_p1a/xinzhao_structured_candidate_gallery.png",
+    "gallery_svg": "/private/tmp/cold-storage-p1a-envelope-r1.f6k7ha/docs/tasks/evidence/v2_2_2_p1a/xinzhao_structured_candidate_gallery.svg",
+    "same_canvas": true,
+    "same_scale": true,
+    "site_boundary_visible": true,
+    "uncropped": true
+  },
+  "visually_distinct_full_pass_candidate_count": 2,
+  "work_round_count": 3
+}

@@ -1,0 +1,46 @@
+{
+  "identity": "p1a-r6-constructive-divergence-evidence@1.0.0",
+  "search_policy": "STAGED_COVERAGE_THEN_PREFERENCE",
+  "topology_lanes": [
+    {
+      "topology": "STRAIGHT_LINEAR_BAND",
+      "construction_policy": "STRAIGHT_LINEAR_BAND_V1",
+      "divergence_stage": "ROOT_OR_GROUP_BAND_FORMATION",
+      "constructive_divergence_attempted": true,
+      "visited_nodes": 35,
+      "complete_candidates": 2,
+      "canonical_owner_skeletons": 1,
+      "p2d_reached_skeletons": 1,
+      "p2d_full_pass_candidates": 2
+    },
+    {
+      "topology": "OFFSET_LINEAR_BAND",
+      "construction_policy": "OFFSET_LINEAR_BAND_V1",
+      "divergence_stage": "CORE_TO_FINISHED",
+      "constructive_divergence_attempted": true,
+      "offset_directions": ["POSITIVE", "NEGATIVE"],
+      "visited_nodes": 30,
+      "complete_candidates": 0,
+      "canonical_owner_skeletons": 0,
+      "p2d_reached_skeletons": 0,
+      "offset_transition_options_nonzero": true,
+      "first_successful_skeleton_hash": null
+    },
+    {
+      "topology": "CENTRAL_PROCESS_HUB",
+      "construction_policy": "CENTRAL_PROCESS_HUB_V1",
+      "divergence_stage": "RAW_FINISHED_FACE_PAIR",
+      "constructive_divergence_attempted": true,
+      "visited_nodes": 33,
+      "complete_candidates": 0,
+      "canonical_owner_skeletons": 0,
+      "p2d_reached_skeletons": 0,
+      "non_owner_geometries_found": 1,
+      "continued_after_non_owner_geometry": true
+    }
+  ],
+  "global_budget": 120,
+  "actual_global_node_visits": 98,
+  "search_is_global_optimum_claim": false,
+  "linear_infeasibility_proven": false
+}

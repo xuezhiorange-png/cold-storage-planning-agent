@@ -1,0 +1,8 @@
+{
+  "fixture_sha256": "d03ecae9e1e2808cba346eb83a39f853c8a4b366acc103669af1cf868363901e",
+  "identity": "v222-p1a-r14-determinism@1.0.0",
+  "same_input_same_diagnostic_tree": true,
+  "same_input_same_preflight_matrix": true,
+  "same_input_same_selected_canonical_hash": true,
+  "same_input_same_svg_hash": true
+}

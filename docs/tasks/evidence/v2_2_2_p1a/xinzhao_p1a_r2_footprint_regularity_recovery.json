@@ -1,0 +1,2050 @@
+{
+  "family_lane_count": 3,
+  "general_fallback_p2d_full_pass_candidate_count": 2,
+  "individual_zone_movement_after_local_composition": false,
+  "input_fixture": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/backend/tests/fixtures/v22/xinzhao_20t_site_layout_input_v3.json",
+  "local_composition_examples": {
+    "CENTRAL_PROCESS_WITH_SIDE_BANKS": {
+      "bounds_mm": [
+        0,
+        0,
+        90266,
+        87335
+      ],
+      "identity": "local-building-composition@1.0.0",
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "local_zone_union_outline_class": "STAIR_STEP",
+      "must_interfaces": [
+        [
+          "raw_fruit_buffer",
+          "primary_precooling_room"
+        ],
+        [
+          "primary_precooling_room",
+          "sorting_packaging_room"
+        ],
+        [
+          "sorting_packaging_room",
+          "secondary_precooling_room"
+        ],
+        [
+          "secondary_precooling_room",
+          "coating_room"
+        ],
+        [
+          "coating_room",
+          "finished_goods_room"
+        ],
+        [
+          "finished_goods_room",
+          "shipping_channel"
+        ],
+        [
+          "office",
+          "shipping_channel"
+        ]
+      ],
+      "outline_class": "STAIR_STEP",
+      "planned_composition_envelope": {
+        "bounds_mm": [
+          0,
+          0,
+          90266,
+          87335
+        ],
+        "engineering_building_footprint_authority": false,
+        "role": "PLANNED_COMPOSITION_ENVELOPE"
+      },
+      "process_axis": "Y",
+      "process_direction": "POSITIVE",
+      "side_bank_zone_codes": [
+        "raw_fruit_buffer",
+        "primary_precooling_room"
+      ],
+      "spine_axis": null,
+      "spine_zone_codes": [],
+      "zone_placements": [
+        {
+          "band_code": "PERSONNEL_EDGE_BAND",
+          "rectangle_bounds_mm": [
+            0,
+            710,
+            6325,
+            7035
+          ],
+          "rotation_deg": 0,
+          "zone_code": "changing_room"
+        },
+        {
+          "band_code": "PROCESS_CORE_BAND",
+          "rectangle_bounds_mm": [
+            39171,
+            23482,
+            48116,
+            32427
+          ],
+          "rotation_deg": 0,
+          "zone_code": "coating_room"
+        },
+        {
+          "band_code": "FINISHED_SIDE_BAND",
+          "rectangle_bounds_mm": [
+            20571,
+            27,
+            39171,
+            32427
+          ],
+          "rotation_deg": 0,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "band_code": "SUPPORT_BAND",
+          "rectangle_bounds_mm": [
+            57916,
+            50835,
+            66116,
+            61635
+          ],
+          "rotation_deg": 0,
+          "zone_code": "frozen_fruit_room"
+        },
+        {
+          "band_code": "PERSONNEL_EDGE_BAND",
+          "rectangle_bounds_mm": [
+            6325,
+            0,
+            14071,
+            7746
+          ],
+          "rotation_deg": 0,
+          "zone_code": "office"
+        },
+        {
+          "band_code": "SUPPORT_BAND",
+          "rectangle_bounds_mm": [
+            57916,
+            61635,
+            72416,
+            78935
+          ],
+          "rotation_deg": 0,
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "band_code": "RAW_SIDE_BAND",
+          "rectangle_bounds_mm": [
+            71516,
+            5075,
+            81566,
+            19775
+          ],
+          "rotation_deg": 0,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "band_code": "RAW_SIDE_BAND",
+          "rectangle_bounds_mm": [
+            81566,
+            4575,
+            90266,
+            19775
+          ],
+          "rotation_deg": 0,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "band_code": "SUPPORT_BAND",
+          "rectangle_bounds_mm": [
+            57916,
+            78935,
+            64816,
+            87335
+          ],
+          "rotation_deg": 0,
+          "zone_code": "secondary_fruit_buffer"
+        },
+        {
+          "band_code": "FINISHED_SIDE_BAND",
+          "rectangle_bounds_mm": [
+            48116,
+            22930,
+            57916,
+            32980
+          ],
+          "rotation_deg": 0,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "band_code": "FINISHED_SIDE_BAND",
+          "rectangle_bounds_mm": [
+            14071,
+            27,
+            20571,
+            7720
+          ],
+          "rotation_deg": 0,
+          "zone_code": "shipping_channel"
+        },
+        {
+          "band_code": "PROCESS_CORE_BAND",
+          "rectangle_bounds_mm": [
+            57916,
+            5075,
+            71516,
+            50835
+          ],
+          "rotation_deg": 0,
+          "zone_code": "sorting_packaging_room"
+        }
+      ]
+    },
+    "LINEAR_3_BAND": {
+      "bounds_mm": [
+        0,
+        0,
+        33099,
+        134774
+      ],
+      "identity": "local-building-composition@1.0.0",
+      "layout_family": "LINEAR_3_BAND",
+      "local_zone_union_outline_class": "STAIR_STEP",
+      "must_interfaces": [
+        [
+          "raw_fruit_buffer",
+          "primary_precooling_room"
+        ],
+        [
+          "primary_precooling_room",
+          "sorting_packaging_room"
+        ],
+        [
+          "sorting_packaging_room",
+          "secondary_precooling_room"
+        ],
+        [
+          "secondary_precooling_room",
+          "coating_room"
+        ],
+        [
+          "coating_room",
+          "finished_goods_room"
+        ],
+        [
+          "finished_goods_room",
+          "shipping_channel"
+        ],
+        [
+          "office",
+          "shipping_channel"
+        ]
+      ],
+      "outline_class": "STAIR_STEP",
+      "planned_composition_envelope": {
+        "bounds_mm": [
+          0,
+          0,
+          33099,
+          134774
+        ],
+        "engineering_building_footprint_authority": false,
+        "role": "PLANNED_COMPOSITION_ENVELOPE"
+      },
+      "process_axis": "Y",
+      "process_direction": "POSITIVE",
+      "side_bank_zone_codes": [
+        "raw_fruit_buffer",
+        "primary_precooling_room"
+      ],
+      "spine_axis": null,
+      "spine_zone_codes": [],
+      "zone_placements": [
+        {
+          "band_code": "PERSONNEL_EDGE_BAND",
+          "rectangle_bounds_mm": [
+            0,
+            127738,
+            6325,
+            134063
+          ],
+          "rotation_deg": 0,
+          "zone_code": "changing_room"
+        },
+        {
+          "band_code": "PROCESS_CORE_BAND",
+          "rectangle_bounds_mm": [
+            23726,
+            85710,
+            32671,
+            94655
+          ],
+          "rotation_deg": 0,
+          "zone_code": "coating_room"
+        },
+        {
+          "band_code": "FINISHED_SIDE_BAND",
+          "rectangle_bounds_mm": [
+            14071,
+            94655,
+            32671,
+            127055
+          ],
+          "rotation_deg": 0,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "band_code": "SUPPORT_BAND",
+          "rectangle_bounds_mm": [
+            4999,
+            29900,
+            13199,
+            40700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "frozen_fruit_room"
+        },
+        {
+          "band_code": "PERSONNEL_EDGE_BAND",
+          "rectangle_bounds_mm": [
+            6325,
+            127028,
+            14071,
+            134774
+          ],
+          "rotation_deg": 0,
+          "zone_code": "office"
+        },
+        {
+          "band_code": "SUPPORT_BAND",
+          "rectangle_bounds_mm": [
+            4999,
+            40700,
+            19499,
+            58000
+          ],
+          "rotation_deg": 0,
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "band_code": "RAW_SIDE_BAND",
+          "rectangle_bounds_mm": [
+            19499,
+            15200,
+            29549,
+            29900
+          ],
+          "rotation_deg": 0,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "band_code": "RAW_SIDE_BAND",
+          "rectangle_bounds_mm": [
+            19499,
+            0,
+            28199,
+            15200
+          ],
+          "rotation_deg": 0,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "band_code": "SUPPORT_BAND",
+          "rectangle_bounds_mm": [
+            4999,
+            58000,
+            11899,
+            66400
+          ],
+          "rotation_deg": 0,
+          "zone_code": "secondary_fruit_buffer"
+        },
+        {
+          "band_code": "FINISHED_SIDE_BAND",
+          "rectangle_bounds_mm": [
+            23299,
+            75660,
+            33099,
+            85710
+          ],
+          "rotation_deg": 0,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "band_code": "FINISHED_SIDE_BAND",
+          "rectangle_bounds_mm": [
+            14071,
+            127055,
+            20571,
+            134748
+          ],
+          "rotation_deg": 0,
+          "zone_code": "shipping_channel"
+        },
+        {
+          "band_code": "PROCESS_CORE_BAND",
+          "rectangle_bounds_mm": [
+            19499,
+            29900,
+            33099,
+            75660
+          ],
+          "rotation_deg": 0,
+          "zone_code": "sorting_packaging_room"
+        }
+      ]
+    },
+    "LONGITUDINAL_PROCESS_SPINE": {
+      "bounds_mm": [
+        0,
+        0,
+        72416,
+        85710
+      ],
+      "identity": "local-building-composition@1.0.0",
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "local_zone_union_outline_class": "STAIR_STEP",
+      "must_interfaces": [
+        [
+          "raw_fruit_buffer",
+          "primary_precooling_room"
+        ],
+        [
+          "primary_precooling_room",
+          "sorting_packaging_room"
+        ],
+        [
+          "sorting_packaging_room",
+          "secondary_precooling_room"
+        ],
+        [
+          "secondary_precooling_room",
+          "coating_room"
+        ],
+        [
+          "coating_room",
+          "finished_goods_room"
+        ],
+        [
+          "finished_goods_room",
+          "shipping_channel"
+        ],
+        [
+          "office",
+          "shipping_channel"
+        ]
+      ],
+      "outline_class": "STAIR_STEP",
+      "planned_composition_envelope": {
+        "bounds_mm": [
+          0,
+          0,
+          72416,
+          85710
+        ],
+        "engineering_building_footprint_authority": false,
+        "role": "PLANNED_COMPOSITION_ENVELOPE"
+      },
+      "process_axis": "Y",
+      "process_direction": "POSITIVE",
+      "side_bank_zone_codes": [
+        "raw_fruit_buffer",
+        "primary_precooling_room"
+      ],
+      "spine_axis": "Y",
+      "spine_zone_codes": [
+        "sorting_packaging_room",
+        "secondary_precooling_room",
+        "coating_room",
+        "finished_goods_room",
+        "shipping_channel"
+      ],
+      "zone_placements": [
+        {
+          "band_code": "PERSONNEL_EDGE_BAND",
+          "rectangle_bounds_mm": [
+            0,
+            53440,
+            6325,
+            59765
+          ],
+          "rotation_deg": 0,
+          "zone_code": "changing_room"
+        },
+        {
+          "band_code": "PROCESS_CORE_BAND",
+          "rectangle_bounds_mm": [
+            39171,
+            76212,
+            48116,
+            85157
+          ],
+          "rotation_deg": 0,
+          "zone_code": "coating_room"
+        },
+        {
+          "band_code": "FINISHED_SIDE_BAND",
+          "rectangle_bounds_mm": [
+            20571,
+            52757,
+            39171,
+            85157
+          ],
+          "rotation_deg": 0,
+          "zone_code": "finished_goods_room"
+        },
+        {
+          "band_code": "SUPPORT_BAND",
+          "rectangle_bounds_mm": [
+            57916,
+            29900,
+            66116,
+            40700
+          ],
+          "rotation_deg": 0,
+          "zone_code": "frozen_fruit_room"
+        },
+        {
+          "band_code": "PERSONNEL_EDGE_BAND",
+          "rectangle_bounds_mm": [
+            6325,
+            52730,
+            14071,
+            60476
+          ],
+          "rotation_deg": 0,
+          "zone_code": "office"
+        },
+        {
+          "band_code": "SUPPORT_BAND",
+          "rectangle_bounds_mm": [
+            57916,
+            40700,
+            72416,
+            58000
+          ],
+          "rotation_deg": 0,
+          "zone_code": "packaging_material_storage"
+        },
+        {
+          "band_code": "RAW_SIDE_BAND",
+          "rectangle_bounds_mm": [
+            44316,
+            15200,
+            54366,
+            29900
+          ],
+          "rotation_deg": 0,
+          "zone_code": "primary_precooling_room"
+        },
+        {
+          "band_code": "RAW_SIDE_BAND",
+          "rectangle_bounds_mm": [
+            44316,
+            0,
+            53016,
+            15200
+          ],
+          "rotation_deg": 0,
+          "zone_code": "raw_fruit_buffer"
+        },
+        {
+          "band_code": "SUPPORT_BAND",
+          "rectangle_bounds_mm": [
+            57916,
+            58000,
+            64816,
+            66400
+          ],
+          "rotation_deg": 0,
+          "zone_code": "secondary_fruit_buffer"
+        },
+        {
+          "band_code": "FINISHED_SIDE_BAND",
+          "rectangle_bounds_mm": [
+            48116,
+            75660,
+            57916,
+            85710
+          ],
+          "rotation_deg": 0,
+          "zone_code": "secondary_precooling_room"
+        },
+        {
+          "band_code": "FINISHED_SIDE_BAND",
+          "rectangle_bounds_mm": [
+            14071,
+            52757,
+            20571,
+            60450
+          ],
+          "rotation_deg": 0,
+          "zone_code": "shipping_channel"
+        },
+        {
+          "band_code": "PROCESS_CORE_BAND",
+          "rectangle_bounds_mm": [
+            44316,
+            29900,
+            57916,
+            75660
+          ],
+          "rotation_deg": 0,
+          "zone_code": "sorting_packaging_room"
+        }
+      ]
+    }
+  },
+  "local_composition_first": true,
+  "local_composition_image_source_by_family": {
+    "CENTRAL_PROCESS_WITH_SIDE_BANKS": "FULL_12_ZONE",
+    "LINEAR_3_BAND": "FULL_12_ZONE",
+    "LONGITUDINAL_PROCESS_SPINE": "FULL_12_ZONE"
+  },
+  "local_composition_images": {
+    "CENTRAL_PROCESS_WITH_SIDE_BANKS": {
+      "png": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_local_central_composition.png",
+      "png_sha256": "sha256:292025ce8ca40e8b837e2ada84da3bbc55a590ca43830fdb329283f8b26efaec",
+      "svg": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_local_central_composition.svg",
+      "svg_sha256": "sha256:607253aca74bc36fca8adeb52bfaf0399f81d244fef794d8f31240b41dcbcf48"
+    },
+    "LINEAR_3_BAND": {
+      "png": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_local_linear_composition.png",
+      "png_sha256": "sha256:fb9a9f4a76a4276ea626255ac1c6c0a9e71342a65c12a08c3d239856722b6774",
+      "svg": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_local_linear_composition.svg",
+      "svg_sha256": "sha256:363c5914417ae66d54b71b883d8094401229103475eb4c05b659f1ed233e3cdc"
+    },
+    "LONGITUDINAL_PROCESS_SPINE": {
+      "png": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_local_spine_composition.png",
+      "png_sha256": "sha256:143c2c56c4a889c94f0bac893c3335cfa21aeb5f1182fcb343c58e4bc741cc21",
+      "svg": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_local_spine_composition.svg",
+      "svg_sha256": "sha256:742c96e2f8208b794aad071800fddcec2d50d3c02f772553105c7bb9e946eb3b"
+    }
+  },
+  "local_full_building_attempts": [
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LINEAR_3_BAND",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "complete_12_zone_count": 3,
+      "complete_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "main_outline_class": "STAIR_STEP",
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    }
+  ],
+  "local_full_building_composition_exists_by_family": {
+    "CENTRAL_PROCESS_WITH_SIDE_BANKS": true,
+    "LINEAR_3_BAND": true,
+    "LONGITUDINAL_PROCESS_SPINE": true
+  },
+  "local_full_building_images": {
+    "CENTRAL_PROCESS_WITH_SIDE_BANKS": {
+      "png": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_local_central_composition.png",
+      "png_sha256": "sha256:292025ce8ca40e8b837e2ada84da3bbc55a590ca43830fdb329283f8b26efaec",
+      "svg": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_local_central_composition.svg",
+      "svg_sha256": "sha256:607253aca74bc36fca8adeb52bfaf0399f81d244fef794d8f31240b41dcbcf48"
+    },
+    "LINEAR_3_BAND": {
+      "png": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_local_linear_composition.png",
+      "png_sha256": "sha256:fb9a9f4a76a4276ea626255ac1c6c0a9e71342a65c12a08c3d239856722b6774",
+      "svg": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_local_linear_composition.svg",
+      "svg_sha256": "sha256:363c5914417ae66d54b71b883d8094401229103475eb4c05b659f1ed233e3cdc"
+    },
+    "LONGITUDINAL_PROCESS_SPINE": {
+      "png": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_local_spine_composition.png",
+      "png_sha256": "sha256:143c2c56c4a889c94f0bac893c3335cfa21aeb5f1182fcb343c58e4bc741cc21",
+      "svg": "/private/tmp/cold-storage-p1a-r2.FN4IIg/repo/docs/tasks/evidence/v2_2_2_p1a/xinzhao_local_spine_composition.svg",
+      "svg_sha256": "sha256:742c96e2f8208b794aad071800fddcec2d50d3c02f772553105c7bb9e946eb3b"
+    }
+  },
+  "local_main_composition_attempts": [
+    {
+      "layout_family": "LINEAR_3_BAND",
+      "local_main_composition_count": 8,
+      "local_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "local_main_composition_count": 8,
+      "local_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "local_main_composition_count": 8,
+      "local_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "process_axis": "Y",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "layout_family": "LINEAR_3_BAND",
+      "local_main_composition_count": 8,
+      "local_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "local_main_composition_count": 8,
+      "local_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "local_main_composition_count": 8,
+      "local_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "process_axis": "Y",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "layout_family": "LINEAR_3_BAND",
+      "local_main_composition_count": 8,
+      "local_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "local_main_composition_count": 8,
+      "local_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "local_main_composition_count": 8,
+      "local_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "process_axis": "X",
+      "process_direction": "POSITIVE"
+    },
+    {
+      "layout_family": "LINEAR_3_BAND",
+      "local_main_composition_count": 8,
+      "local_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+      "local_main_composition_count": 8,
+      "local_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    },
+    {
+      "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+      "local_main_composition_count": 8,
+      "local_zone_union_outline_classes": [
+        "STAIR_STEP"
+      ],
+      "process_axis": "X",
+      "process_direction": "NEGATIVE"
+    }
+  ],
+  "local_zone_union_outline_classes": [
+    "STAIR_STEP"
+  ],
+  "mode": "R2_P2D_FOOTPRINT_REGULARITY_RECOVERY",
+  "p2d_building_footprint_authority": "EXACT_ZONE_RECTANGLES_PLUS_ACCESS_CORRIDOR_ENVELOPES",
+  "p2d_footprint_outline_classifications": [
+    {
+      "layout_family": "LINEAR_3_BAND",
+      "local_zone_union_outline_class": "STAIR_STEP",
+      "local_zone_union_outline_error": null,
+      "p2d_building_footprint_outline_class": "STAIR_STEP",
+      "p2d_building_footprint_source": "EXACT_ZONE_RECTANGLES_PLUS_ACCESS_CORRIDOR_ENVELOPES",
+      "search_phase": "GENERAL_FALLBACK",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "visual_regularity_pass": false
+    },
+    {
+      "layout_family": "LINEAR_3_BAND",
+      "local_zone_union_outline_class": "STAIR_STEP",
+      "local_zone_union_outline_error": null,
+      "p2d_building_footprint_outline_class": "STAIR_STEP",
+      "p2d_building_footprint_source": "EXACT_ZONE_RECTANGLES_PLUS_ACCESS_CORRIDOR_ENVELOPES",
+      "search_phase": "GENERAL_FALLBACK",
+      "skeleton_hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "visual_regularity_pass": false
+    }
+  ],
+  "planned_composition_envelope_authority": false,
+  "precomputed_site_envelope_used_as_synthesis_gate": false,
+  "raw_local_main_composition_count": 96,
+  "raw_local_main_composition_count_by_family": {
+    "CENTRAL_PROCESS_WITH_SIDE_BANKS": 32,
+    "LINEAR_3_BAND": 32,
+    "LONGITUDINAL_PROCESS_SPINE": 32
+  },
+  "search_phase_summaries": [
+    {
+      "complete_candidates": 0,
+      "construction_attempts": [],
+      "construction_node_count": 32,
+      "node_budget": 120,
+      "node_budget_exhausted": false,
+      "p2d_full_pass_candidate_count": 0,
+      "p2d_rejected_candidate_count": 0,
+      "rejection_reason_counts": {
+        "ENVELOPE_OR_BAND_REJECT": 171,
+        "MUST_ADJACENCY_FAIL": 165,
+        "NO_BUILD_COLLISION": 3328,
+        "SITE_OUTSIDE": 8458,
+        "SKELETON_TOPOLOGY_INVALID": 22,
+        "ZONE_OVERLAP": 1588
+      },
+      "search_phase": "GENERAL_FALLBACK",
+      "search_tree_exhausted": false,
+      "tail_node_count": 0,
+      "topology": "OFFSET_LINEAR_BAND",
+      "validated_unique_candidates": 0,
+      "visited_nodes": 32
+    },
+    {
+      "complete_candidates": 0,
+      "construction_attempts": [
+        {
+          "first_failure_interface": null,
+          "first_failure_stage": "SITE_PLACEMENT",
+          "full_building_composition_count": 24,
+          "layout_family": "LINEAR_3_BAND",
+          "local_composition_count": 8,
+          "process_axis": "Y",
+          "process_direction": "POSITIVE",
+          "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+          "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+          "site_rigid_placement_count": 0,
+          "skeleton_hash": null
+        },
+        {
+          "first_failure_interface": null,
+          "first_failure_stage": "SITE_PLACEMENT",
+          "full_building_composition_count": 24,
+          "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+          "local_composition_count": 8,
+          "process_axis": "Y",
+          "process_direction": "POSITIVE",
+          "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+          "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+          "site_rigid_placement_count": 0,
+          "skeleton_hash": null
+        },
+        {
+          "first_failure_interface": null,
+          "first_failure_stage": "SITE_PLACEMENT",
+          "full_building_composition_count": 24,
+          "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+          "local_composition_count": 8,
+          "process_axis": "Y",
+          "process_direction": "POSITIVE",
+          "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+          "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+          "site_rigid_placement_count": 0,
+          "skeleton_hash": null
+        },
+        {
+          "first_failure_interface": null,
+          "first_failure_stage": "SITE_PLACEMENT",
+          "full_building_composition_count": 24,
+          "layout_family": "LINEAR_3_BAND",
+          "local_composition_count": 8,
+          "process_axis": "Y",
+          "process_direction": "NEGATIVE",
+          "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+          "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+          "site_rigid_placement_count": 0,
+          "skeleton_hash": null
+        },
+        {
+          "first_failure_interface": null,
+          "first_failure_stage": "SITE_PLACEMENT",
+          "full_building_composition_count": 24,
+          "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+          "local_composition_count": 8,
+          "process_axis": "Y",
+          "process_direction": "NEGATIVE",
+          "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+          "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+          "site_rigid_placement_count": 0,
+          "skeleton_hash": null
+        },
+        {
+          "first_failure_interface": null,
+          "first_failure_stage": "SITE_PLACEMENT",
+          "full_building_composition_count": 24,
+          "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+          "local_composition_count": 8,
+          "process_axis": "Y",
+          "process_direction": "NEGATIVE",
+          "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+          "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+          "site_rigid_placement_count": 0,
+          "skeleton_hash": null
+        },
+        {
+          "first_failure_interface": null,
+          "first_failure_stage": "SITE_PLACEMENT",
+          "full_building_composition_count": 24,
+          "layout_family": "LINEAR_3_BAND",
+          "local_composition_count": 8,
+          "process_axis": "X",
+          "process_direction": "POSITIVE",
+          "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+          "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+          "site_rigid_placement_count": 0,
+          "skeleton_hash": null
+        },
+        {
+          "first_failure_interface": null,
+          "first_failure_stage": "SITE_PLACEMENT",
+          "full_building_composition_count": 24,
+          "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+          "local_composition_count": 8,
+          "process_axis": "X",
+          "process_direction": "POSITIVE",
+          "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+          "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+          "site_rigid_placement_count": 0,
+          "skeleton_hash": null
+        },
+        {
+          "first_failure_interface": null,
+          "first_failure_stage": "SITE_PLACEMENT",
+          "full_building_composition_count": 24,
+          "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+          "local_composition_count": 8,
+          "process_axis": "X",
+          "process_direction": "POSITIVE",
+          "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+          "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+          "site_rigid_placement_count": 0,
+          "skeleton_hash": null
+        },
+        {
+          "first_failure_interface": null,
+          "first_failure_stage": "SITE_PLACEMENT",
+          "full_building_composition_count": 24,
+          "layout_family": "LINEAR_3_BAND",
+          "local_composition_count": 8,
+          "process_axis": "X",
+          "process_direction": "NEGATIVE",
+          "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+          "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+          "site_rigid_placement_count": 0,
+          "skeleton_hash": null
+        },
+        {
+          "first_failure_interface": null,
+          "first_failure_stage": "SITE_PLACEMENT",
+          "full_building_composition_count": 24,
+          "layout_family": "CENTRAL_PROCESS_WITH_SIDE_BANKS",
+          "local_composition_count": 8,
+          "process_axis": "X",
+          "process_direction": "NEGATIVE",
+          "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+          "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+          "site_rigid_placement_count": 0,
+          "skeleton_hash": null
+        },
+        {
+          "first_failure_interface": null,
+          "first_failure_stage": "SITE_PLACEMENT",
+          "full_building_composition_count": 24,
+          "layout_family": "LONGITUDINAL_PROCESS_SPINE",
+          "local_composition_count": 8,
+          "process_axis": "X",
+          "process_direction": "NEGATIVE",
+          "rejection_reason": "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES",
+          "result": "DETERMINISTIC_SYNTHESIS_IMPOSSIBLE",
+          "site_rigid_placement_count": 0,
+          "skeleton_hash": null
+        }
+      ],
+      "construction_node_count": 12,
+      "node_budget": 36,
+      "node_budget_exhausted": false,
+      "p2d_full_pass_candidate_count": 0,
+      "p2d_rejected_candidate_count": 0,
+      "rejection_reason_counts": {
+        "NO_EXACT_RIGID_TRANSLATION_FITS_SITE_AND_OBSTACLES": 12
+      },
+      "search_phase": "STRUCTURED",
+      "search_tree_exhausted": true,
+      "tail_node_count": 0,
+      "topology": "CENTRAL_PROCESS_HUB",
+      "validated_unique_candidates": 0,
+      "visited_nodes": 12
+    },
+    {
+      "complete_candidates": 0,
+      "construction_attempts": [
+        {
+          "first_failure_interface": null,
+          "first_failure_stage": null,
+          "full_building_composition_count": null,
+          "layout_family": null,
+          "local_composition_count": null,
+          "process_axis": null,
+          "process_direction": null,
+          "rejection_reason": null,
+          "result": "REJECTED",
+          "site_rigid_placement_count": null,
+          "skeleton_hash": null
+        },
+        {
+          "first_failure_interface": null,
+          "first_failure_stage": null,
+          "full_building_composition_count": null,
+          "layout_family": null,
+          "local_composition_count": null,
+          "process_axis": null,
+          "process_direction": null,
+          "rejection_reason": null,
+          "result": "REJECTED",
+          "site_rigid_placement_count": null,
+          "skeleton_hash": null
+        }
+      ],
+      "construction_node_count": 31,
+      "node_budget": 120,
+      "node_budget_exhausted": false,
+      "p2d_full_pass_candidate_count": 0,
+      "p2d_rejected_candidate_count": 0,
+      "rejection_reason_counts": {
+        "ENVELOPE_OR_BAND_REJECT": 189,
+        "NO_BUILD_COLLISION": 2090,
+        "SITE_OUTSIDE": 4227,
+        "SKELETON_TOPOLOGY_INVALID": 17,
+        "ZONE_OVERLAP": 886
+      },
+      "search_phase": "GENERAL_FALLBACK",
+      "search_tree_exhausted": false,
+      "tail_node_count": 0,
+      "topology": "CENTRAL_PROCESS_HUB",
+      "validated_unique_candidates": 0,
+      "visited_nodes": 31
+    },
+    {
+      "complete_candidates": 2,
+      "construction_attempts": [],
+      "construction_node_count": 38,
+      "node_budget": 120,
+      "node_budget_exhausted": false,
+      "p2d_full_pass_candidate_count": 2,
+      "p2d_rejected_candidate_count": 0,
+      "rejection_reason_counts": {
+        "ENVELOPE_OR_BAND_REJECT": 313,
+        "MUST_ADJACENCY_FAIL": 52,
+        "NO_BUILD_COLLISION": 3177,
+        "SITE_OUTSIDE": 5329,
+        "SKELETON_TOPOLOGY_INVALID": 11,
+        "TRUCK_MANEUVER_SEARCH_EXHAUSTED": 8,
+        "ZONE_OVERLAP": 1144
+      },
+      "search_phase": "GENERAL_FALLBACK",
+      "search_tree_exhausted": false,
+      "tail_node_count": 7,
+      "topology": "STRAIGHT_LINEAR_BAND",
+      "validated_unique_candidates": 2,
+      "visited_nodes": 45
+    }
+  ],
+  "selected_canonical_result_hash": "sha256:c8f4011cd0d565e6ecd0ce636ee50586d0d1d075e51eff0d845c156f31ca9d19",
+  "selected_layout_building_footprint_present": true,
+  "selected_layout_svg_sha256": "sha256:007f8066b55a3bdcf2583e0e4d9c2f325e1c2c6cee4bc9aa8fb9fd4a57c109d2",
+  "selected_layout_validation": {
+    "access_pass_count": 12,
+    "access_requirement_count": 12,
+    "p2_complete": true,
+    "project_layout_validated": true,
+    "truck_route_validated": true,
+    "zone_count": 12
+  },
+  "selector_candidate_counts": {
+    "p2c_candidate_count": 2,
+    "p2d_full_pass_candidate_count": 2,
+    "p2d_validated_candidate_count": 2,
+    "status": "VALIDATED_LAYOUT_SELECTED"
+  },
+  "structured_p2d_footprint_regularity_pass_layout_family_count": 0,
+  "structured_p2d_footprint_regularity_pass_skeleton_count": 0,
+  "structured_p2d_full_pass_candidate_count": 0,
+  "task_id": "V2_2_2_P1A_ENVELOPE_GRID_BAND_ZONE_GENERATOR_R2",
+  "tool7_unmocked": true,
+  "zones_only_outline_used_as_pre_p2d_hard_gate": false
+}

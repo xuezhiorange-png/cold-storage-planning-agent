@@ -1,0 +1,449 @@
+{
+  "identity": "v222-p1a-r10-axis-direction-candidate-space-audit@1.0.0",
+  "skeletons": [
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "R10_DIAGNOSTIC_AXIS_DIRECTION_VARIANT",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "STRAIGHT_LINEAR_BAND",
+      "first_failure_reason": null,
+      "first_failure_stage": null,
+      "generation_pattern": "STRAIGHT_LINEAR_BAND:RAW_SOUTH:RAW_BANK_WEST:FINISHED_NORTH:ROOT_15.2_10.05_CONSTRUCTIVE_PROCESS_CHAIN",
+      "hash": "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953",
+      "p2c_complete_candidate_count": 2,
+      "p2d_full_pass_count": 2,
+      "p2d_reached": true,
+      "packaging_slot_exists": true,
+      "packaging_slot_status": "LEGAL_SLOT_EXISTS",
+      "packaging_witness": {
+        "actual_area_m2": "250.85",
+        "depth_m": "14.5",
+        "rotation_deg": 90,
+        "width_m": "17.3",
+        "x": "60.96",
+        "y": "0",
+        "zone_code": "packaging_material_storage"
+      },
+      "sorting_root": {
+        "x": "15.2",
+        "y": "10.05"
+      },
+      "tail_admissible": true,
+      "tail_search_started": true,
+      "variant_id": "STRAIGHT_LINEAR_BAND_Y_POSITIVE"
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "R10_DIAGNOSTIC_AXIS_DIRECTION_VARIANT",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "OFFSET_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "first_failure_reason": "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT",
+      "first_failure_stage": "TAIL_SLOT_PREFLIGHT",
+      "generation_pattern": "OFFSET_LINEAR_BAND:RAW_WEST:RAW_BANK_NORTH:FINISHED_EAST:ROOT_14.7_8.702_CONSTRUCTIVE_PROCESS_CHAIN",
+      "hash": "sha256:070ad0e20fd0d319c15b3f4f451ba794086f4196072ab9609df75141c278111a",
+      "p2c_complete_candidate_count": 0,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": false,
+      "packaging_slot_exists": false,
+      "packaging_slot_status": "NO_LEGAL_SLOT",
+      "packaging_witness": null,
+      "sorting_root": {
+        "x": "14.7",
+        "y": "8.702"
+      },
+      "tail_admissible": false,
+      "tail_search_started": false,
+      "variant_id": "OFFSET_LINEAR_BAND_X_POSITIVE"
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "R10_DIAGNOSTIC_AXIS_DIRECTION_VARIANT",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "OFFSET_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "first_failure_reason": "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT",
+      "first_failure_stage": "TAIL_SLOT_PREFLIGHT",
+      "generation_pattern": "OFFSET_LINEAR_BAND:RAW_WEST:RAW_BANK_NORTH:FINISHED_EAST:ROOT_14.7_8.7_CONSTRUCTIVE_PROCESS_CHAIN",
+      "hash": "sha256:1f265d66963c243c9317bf74e02d66a9f152e66d9340c8694164ade874fd8fe2",
+      "p2c_complete_candidate_count": 0,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": false,
+      "packaging_slot_exists": false,
+      "packaging_slot_status": "NO_LEGAL_SLOT",
+      "packaging_witness": null,
+      "sorting_root": {
+        "x": "14.7",
+        "y": "8.7"
+      },
+      "tail_admissible": false,
+      "tail_search_started": false,
+      "variant_id": "OFFSET_LINEAR_BAND_X_POSITIVE"
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "R10_DIAGNOSTIC_AXIS_DIRECTION_VARIANT",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "OFFSET_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "first_failure_reason": "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT",
+      "first_failure_stage": "TAIL_SLOT_PREFLIGHT",
+      "generation_pattern": "OFFSET_LINEAR_BAND:RAW_WEST:RAW_BANK_NORTH:FINISHED_EAST:ROOT_14.7_8.7_CONSTRUCTIVE_PROCESS_CHAIN",
+      "hash": "sha256:2101965d709f2b290d7c62db3a3329f3ec8a30e5e3cfde3741b54f5d211a5f4c",
+      "p2c_complete_candidate_count": 0,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": false,
+      "packaging_slot_exists": false,
+      "packaging_slot_status": "NO_LEGAL_SLOT",
+      "packaging_witness": null,
+      "sorting_root": {
+        "x": "14.7",
+        "y": "8.7"
+      },
+      "tail_admissible": false,
+      "tail_search_started": false,
+      "variant_id": "OFFSET_LINEAR_BAND_X_POSITIVE"
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "R10_DIAGNOSTIC_AXIS_DIRECTION_VARIANT",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "OFFSET_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "first_failure_reason": "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT",
+      "first_failure_stage": "TAIL_SLOT_PREFLIGHT",
+      "generation_pattern": "OFFSET_LINEAR_BAND:RAW_WEST:RAW_BANK_NORTH:FINISHED_EAST:ROOT_14.7_8.702_CONSTRUCTIVE_PROCESS_CHAIN",
+      "hash": "sha256:4e75516bdb4c7008066ff35fc97dd962636fceb6095dd469e591053db04c89ea",
+      "p2c_complete_candidate_count": 0,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": false,
+      "packaging_slot_exists": false,
+      "packaging_slot_status": "NO_LEGAL_SLOT",
+      "packaging_witness": null,
+      "sorting_root": {
+        "x": "14.7",
+        "y": "8.702"
+      },
+      "tail_admissible": false,
+      "tail_search_started": false,
+      "variant_id": "OFFSET_LINEAR_BAND_X_POSITIVE"
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "R10_DIAGNOSTIC_AXIS_DIRECTION_VARIANT",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "OFFSET_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "first_failure_reason": "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT",
+      "first_failure_stage": "TAIL_SLOT_PREFLIGHT",
+      "generation_pattern": "OFFSET_LINEAR_BAND:RAW_WEST:RAW_BANK_NORTH:FINISHED_EAST:ROOT_14.7_8.7_CONSTRUCTIVE_PROCESS_CHAIN",
+      "hash": "sha256:5f1536665d62f9543e06463a08a8cdb4fbb37270942e9dcdb0f8ed041012e931",
+      "p2c_complete_candidate_count": 0,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": false,
+      "packaging_slot_exists": false,
+      "packaging_slot_status": "NO_LEGAL_SLOT",
+      "packaging_witness": null,
+      "sorting_root": {
+        "x": "14.7",
+        "y": "8.7"
+      },
+      "tail_admissible": false,
+      "tail_search_started": false,
+      "variant_id": "OFFSET_LINEAR_BAND_X_POSITIVE"
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "R10_DIAGNOSTIC_AXIS_DIRECTION_VARIANT",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "OFFSET_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "first_failure_reason": "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT",
+      "first_failure_stage": "TAIL_SLOT_PREFLIGHT",
+      "generation_pattern": "OFFSET_LINEAR_BAND:RAW_WEST:RAW_BANK_NORTH:FINISHED_EAST:ROOT_14.7_8.7_CONSTRUCTIVE_PROCESS_CHAIN",
+      "hash": "sha256:695bf60ecd779e1e49faee1578a1bb98e220296313323bd662ed13e1f1853807",
+      "p2c_complete_candidate_count": 0,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": false,
+      "packaging_slot_exists": false,
+      "packaging_slot_status": "NO_LEGAL_SLOT",
+      "packaging_witness": null,
+      "sorting_root": {
+        "x": "14.7",
+        "y": "8.7"
+      },
+      "tail_admissible": false,
+      "tail_search_started": false,
+      "variant_id": "OFFSET_LINEAR_BAND_X_POSITIVE"
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "R10_DIAGNOSTIC_AXIS_DIRECTION_VARIANT",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "OFFSET_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "first_failure_reason": "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT",
+      "first_failure_stage": "TAIL_SLOT_PREFLIGHT",
+      "generation_pattern": "OFFSET_LINEAR_BAND:RAW_WEST:RAW_BANK_NORTH:FINISHED_EAST:ROOT_14.7_8.702_CONSTRUCTIVE_PROCESS_CHAIN",
+      "hash": "sha256:a7f917fe6699044a4af33dc77449df9a92d15e46b75ef4a6b2949bdc53c43e50",
+      "p2c_complete_candidate_count": 0,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": false,
+      "packaging_slot_exists": false,
+      "packaging_slot_status": "NO_LEGAL_SLOT",
+      "packaging_witness": null,
+      "sorting_root": {
+        "x": "14.7",
+        "y": "8.702"
+      },
+      "tail_admissible": false,
+      "tail_search_started": false,
+      "variant_id": "OFFSET_LINEAR_BAND_X_POSITIVE"
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "R10_DIAGNOSTIC_AXIS_DIRECTION_VARIANT",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "OFFSET_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "first_failure_reason": "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT",
+      "first_failure_stage": "TAIL_SLOT_PREFLIGHT",
+      "generation_pattern": "OFFSET_LINEAR_BAND:RAW_WEST:RAW_BANK_NORTH:FINISHED_EAST:ROOT_14.7_8.7_CONSTRUCTIVE_PROCESS_CHAIN",
+      "hash": "sha256:e87b04e14c99a9ebf1fff04984f967f7171b3c4109e95a8088386da4c9896056",
+      "p2c_complete_candidate_count": 0,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": false,
+      "packaging_slot_exists": false,
+      "packaging_slot_status": "NO_LEGAL_SLOT",
+      "packaging_witness": null,
+      "sorting_root": {
+        "x": "14.7",
+        "y": "8.7"
+      },
+      "tail_admissible": false,
+      "tail_search_started": false,
+      "variant_id": "OFFSET_LINEAR_BAND_X_POSITIVE"
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "R10_DIAGNOSTIC_AXIS_DIRECTION_VARIANT",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "OFFSET_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "first_failure_reason": "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT",
+      "first_failure_stage": "TAIL_SLOT_PREFLIGHT",
+      "generation_pattern": "OFFSET_LINEAR_BAND:RAW_WEST:RAW_BANK_NORTH:FINISHED_EAST:ROOT_14.7_8.702_CONSTRUCTIVE_PROCESS_CHAIN",
+      "hash": "sha256:e89d7eadc2b5ef4a5d66f78494fe34292497b88722203996e44d6b5557ae005a",
+      "p2c_complete_candidate_count": 0,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": false,
+      "packaging_slot_exists": false,
+      "packaging_slot_status": "NO_LEGAL_SLOT",
+      "packaging_witness": null,
+      "sorting_root": {
+        "x": "14.7",
+        "y": "8.702"
+      },
+      "tail_admissible": false,
+      "tail_search_started": false,
+      "variant_id": "OFFSET_LINEAR_BAND_X_POSITIVE"
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "R10_DIAGNOSTIC_AXIS_DIRECTION_VARIANT",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "OFFSET_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "first_failure_reason": "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT",
+      "first_failure_stage": "TAIL_SLOT_PREFLIGHT",
+      "generation_pattern": "OFFSET_LINEAR_BAND:RAW_WEST:RAW_BANK_NORTH:FINISHED_EAST:ROOT_14.7_8.7_CONSTRUCTIVE_PROCESS_CHAIN",
+      "hash": "sha256:f0bc565d42f9e232ce74740ed3c6c1ad9afe4c96e86adc2eeeb16d602386b290",
+      "p2c_complete_candidate_count": 0,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": false,
+      "packaging_slot_exists": false,
+      "packaging_slot_status": "NO_LEGAL_SLOT",
+      "packaging_witness": null,
+      "sorting_root": {
+        "x": "14.7",
+        "y": "8.7"
+      },
+      "tail_admissible": false,
+      "tail_search_started": false,
+      "variant_id": "OFFSET_LINEAR_BAND_X_POSITIVE"
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "X",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "R10_DIAGNOSTIC_AXIS_DIRECTION_VARIANT",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "OFFSET_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "first_failure_reason": "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT",
+      "first_failure_stage": "TAIL_SLOT_PREFLIGHT",
+      "generation_pattern": "OFFSET_LINEAR_BAND:RAW_WEST:RAW_BANK_NORTH:FINISHED_EAST:ROOT_14.7_8.702_CONSTRUCTIVE_PROCESS_CHAIN",
+      "hash": "sha256:fdcb942b29840c78366d3ec6adda8d6fe771e28f8fdb071d8d8784658dc95d29",
+      "p2c_complete_candidate_count": 0,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": false,
+      "packaging_slot_exists": false,
+      "packaging_slot_status": "NO_LEGAL_SLOT",
+      "packaging_witness": null,
+      "sorting_root": {
+        "x": "14.7",
+        "y": "8.702"
+      },
+      "tail_admissible": false,
+      "tail_search_started": false,
+      "variant_id": "OFFSET_LINEAR_BAND_X_POSITIVE"
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "first_failure_reason": "ACCESS_REQUIREMENT_VALIDATION_INCOMPLETE",
+      "first_failure_stage": "P2D",
+      "generation_pattern": "OFFSET_LINEAR_BAND:RAW_SOUTH:RAW_BANK_EAST:FINISHED_NORTH:ROOT_15.2_10.05_CONSTRUCTIVE_PROCESS_CHAIN",
+      "hash": "sha256:868c0c93d713d367b2f07800e8a97432bab35c44f5f0e5d97dbf830efbcae63f",
+      "p2c_complete_candidate_count": 2,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": true,
+      "packaging_slot_exists": true,
+      "packaging_slot_status": "LEGAL_SLOT_EXISTS",
+      "packaging_witness": {
+        "actual_area_m2": "250.85",
+        "depth_m": "14.5",
+        "rotation_deg": 90,
+        "width_m": "17.3",
+        "x": "60.96",
+        "y": "0",
+        "zone_code": "packaging_material_storage"
+      },
+      "sorting_root": {
+        "x": "15.2",
+        "y": "10.05"
+      },
+      "tail_admissible": true,
+      "tail_search_started": true,
+      "variant_id": "OFFSET_LINEAR_BAND_Y_POSITIVE"
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "OFFSET_LINEAR_BAND",
+      "first_failure_reason": "TAIL_NODE_SHARE_EXHAUSTED_WITHOUT_COMPLETE_P2C_CANDIDATE",
+      "first_failure_stage": "TAIL_SEARCH",
+      "generation_pattern": "OFFSET_LINEAR_BAND:RAW_SOUTH:RAW_BANK_EAST:FINISHED_NORTH:ROOT_15.2_10.05_CONSTRUCTIVE_PROCESS_CHAIN",
+      "hash": "sha256:e73b384763b2564a9234b7102a80847f7048d066097e206c21242100fbdbf92d",
+      "p2c_complete_candidate_count": 0,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": false,
+      "packaging_slot_exists": true,
+      "packaging_slot_status": "LEGAL_SLOT_EXISTS",
+      "packaging_witness": {
+        "actual_area_m2": "250.85",
+        "depth_m": "14.5",
+        "rotation_deg": 90,
+        "width_m": "17.3",
+        "x": "60.96",
+        "y": "0",
+        "zone_code": "packaging_material_storage"
+      },
+      "sorting_root": {
+        "x": "15.2",
+        "y": "10.05"
+      },
+      "tail_admissible": true,
+      "tail_search_started": true,
+      "variant_id": "OFFSET_LINEAR_BAND_Y_POSITIVE"
+    },
+    {
+      "canonical_family": {
+        "dominant_axis": "Y",
+        "dominant_direction": "POSITIVE",
+        "family": "LINEAR_PROCESS_BAND",
+        "generation_reason": "EXACT_GEOMETRY_CLASSIFICATION_V1",
+        "identity": "structural-composition-family@1.0.0"
+      },
+      "canonical_topology_owner": "STRAIGHT_LINEAR_BAND",
+      "discovery_topology": "CENTRAL_PROCESS_HUB",
+      "first_failure_reason": "AUTHORITATIVE_PACKAGING_RECTANGLE_NO_LEGAL_SLOT",
+      "first_failure_stage": "TAIL_SLOT_PREFLIGHT",
+      "generation_pattern": "CENTRAL_PROCESS_HUB:RAW_SOUTH:RAW_BANK_WEST:FINISHED_WEST:ROOT_29.238_13.399_CONSTRUCTIVE_PROCESS_CHAIN",
+      "hash": "sha256:956e85adebc6f55ded51a481fb07dee437d364d241159beecd5714fbac24dfcc",
+      "p2c_complete_candidate_count": 0,
+      "p2d_full_pass_count": 0,
+      "p2d_reached": false,
+      "packaging_slot_exists": false,
+      "packaging_slot_status": "NO_LEGAL_SLOT",
+      "packaging_witness": null,
+      "sorting_root": {
+        "x": "29.238",
+        "y": "13.399"
+      },
+      "tail_admissible": false,
+      "tail_search_started": false,
+      "variant_id": "CENTRAL_PROCESS_HUB_REFERENCE"
+    }
+  ]
+}

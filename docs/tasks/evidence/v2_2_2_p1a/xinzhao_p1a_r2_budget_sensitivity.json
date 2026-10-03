@@ -1,0 +1,94 @@
+{
+  "identity": "v222-p1a-r2-xinzhao-budget-sensitivity@1.0.0",
+  "fixture_id": "xinzhao_20t_site_layout_input_v3",
+  "fixture_sha256": "d03ecae9e1e2808cba346eb83a39f853c8a4b366acc103669af1cf868363901e",
+  "measurement": "unmocked P2 selector, including P2D validation",
+  "runtime_scope": "selector only; Tool 7 setup and SVG projection excluded",
+  "node_budget_is_only_search_cutoff": true,
+  "global_optimum_claimed": false,
+  "runs": [
+    {
+      "node_budget": 15,
+      "runtime_ms": 1749.1,
+      "visited_nodes": 15,
+      "p2c_candidates": 0,
+      "p2d_validated_candidates": 0,
+      "p2d_full_pass_candidates": 0,
+      "node_budget_exhausted": true,
+      "search_tree_exhausted": false,
+      "family_lanes": [
+        {"family": "CENTRAL_PROCESS_HUB", "direction": "UNRESOLVED", "visited_nodes": 5, "complete_candidates": 0, "p2d_full_pass_candidates": 0, "search_tree_exhausted": false},
+        {"family": "LINEAR_PROCESS_BAND", "direction": "POSITIVE", "visited_nodes": 5, "complete_candidates": 0, "p2d_full_pass_candidates": 0, "search_tree_exhausted": false},
+        {"family": "LINEAR_PROCESS_BAND", "direction": "NEGATIVE", "visited_nodes": 5, "complete_candidates": 0, "p2d_full_pass_candidates": 0, "search_tree_exhausted": false}
+      ]
+    },
+    {
+      "node_budget": 30,
+      "runtime_ms": 3323.5,
+      "visited_nodes": 30,
+      "p2c_candidates": 0,
+      "p2d_validated_candidates": 0,
+      "p2d_full_pass_candidates": 0,
+      "node_budget_exhausted": true,
+      "search_tree_exhausted": false,
+      "family_lanes": [
+        {"family": "CENTRAL_PROCESS_HUB", "direction": "UNRESOLVED", "visited_nodes": 10, "complete_candidates": 0, "p2d_full_pass_candidates": 0, "search_tree_exhausted": false},
+        {"family": "LINEAR_PROCESS_BAND", "direction": "POSITIVE", "visited_nodes": 10, "complete_candidates": 0, "p2d_full_pass_candidates": 0, "search_tree_exhausted": false},
+        {"family": "LINEAR_PROCESS_BAND", "direction": "NEGATIVE", "visited_nodes": 10, "complete_candidates": 0, "p2d_full_pass_candidates": 0, "search_tree_exhausted": false}
+      ]
+    },
+    {
+      "node_budget": 60,
+      "runtime_ms": 9051.4,
+      "visited_nodes": 60,
+      "p2c_candidates": 0,
+      "p2d_validated_candidates": 0,
+      "p2d_full_pass_candidates": 0,
+      "node_budget_exhausted": true,
+      "search_tree_exhausted": false,
+      "family_lanes": [
+        {"family": "CENTRAL_PROCESS_HUB", "direction": "UNRESOLVED", "visited_nodes": 20, "complete_candidates": 0, "p2d_full_pass_candidates": 0, "search_tree_exhausted": false},
+        {"family": "LINEAR_PROCESS_BAND", "direction": "POSITIVE", "visited_nodes": 20, "complete_candidates": 0, "p2d_full_pass_candidates": 0, "search_tree_exhausted": false},
+        {"family": "LINEAR_PROCESS_BAND", "direction": "NEGATIVE", "visited_nodes": 20, "complete_candidates": 0, "p2d_full_pass_candidates": 0, "search_tree_exhausted": false}
+      ]
+    },
+    {
+      "node_budget": 120,
+      "runtime_ms": 12647.8,
+      "visited_nodes": 95,
+      "p2c_candidates": 2,
+      "p2d_validated_candidates": 2,
+      "p2d_full_pass_candidates": 2,
+      "node_budget_exhausted": true,
+      "search_tree_exhausted": false,
+      "family_lanes": [
+        {"family": "CENTRAL_PROCESS_HUB", "direction": "UNRESOLVED", "visited_nodes": 24, "complete_candidates": 2, "p2d_full_pass_candidates": 2, "search_tree_exhausted": false},
+        {"family": "LINEAR_PROCESS_BAND", "direction": "POSITIVE", "visited_nodes": 40, "complete_candidates": 0, "p2d_full_pass_candidates": 0, "search_tree_exhausted": false},
+        {"family": "LINEAR_PROCESS_BAND", "direction": "NEGATIVE", "visited_nodes": 31, "complete_candidates": 0, "p2d_full_pass_candidates": 0, "search_tree_exhausted": false}
+      ]
+    },
+    {
+      "node_budget": 240,
+      "runtime_ms": 56270.7,
+      "visited_nodes": 175,
+      "p2c_candidates": 4,
+      "p2d_validated_candidates": 4,
+      "p2d_full_pass_candidates": 2,
+      "node_budget_exhausted": true,
+      "search_tree_exhausted": false,
+      "family_lanes": [
+        {"family": "CENTRAL_PROCESS_HUB", "direction": "UNRESOLVED", "visited_nodes": 48, "complete_candidates": 4, "p2d_full_pass_candidates": 2, "search_tree_exhausted": false},
+        {"family": "LINEAR_PROCESS_BAND", "direction": "POSITIVE", "visited_nodes": 80, "complete_candidates": 0, "p2d_full_pass_candidates": 0, "search_tree_exhausted": false},
+        {"family": "LINEAR_PROCESS_BAND", "direction": "NEGATIVE", "visited_nodes": 47, "complete_candidates": 0, "p2d_full_pass_candidates": 0, "search_tree_exhausted": false}
+      ]
+    }
+  ],
+  "decision": {
+    "smallest_tested_budget_yielding_two_p2d_full_pass_candidates": 120,
+    "distinct_full_pass_families_at_budget_120": 1,
+    "runner_up_present_at_budget_120": true,
+    "first_decisive_component": "P2B2_FINAL_TIE_BREAK",
+    "linear_lane_noncompletion_is_proven_infeasible": false,
+    "interpretation": "The two full-pass candidates are from CENTRAL_PROCESS_HUB. Linear lanes produced no complete P2C candidates within the explored budgets; they were truncated and this is not a family infeasibility proof."
+  }
+}

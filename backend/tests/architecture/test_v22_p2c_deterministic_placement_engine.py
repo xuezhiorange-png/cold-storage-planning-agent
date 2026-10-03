@@ -113,14 +113,22 @@ def test_placement_domain_has_only_domain_dependencies() -> None:
         "dataclasses",
         "decimal",
         "fractions",
+        "itertools",
         "math",
         "typing",
     }
     allowed_domain = {
         "cold_storage.modules.layout.domain.adjacency",
+        "cold_storage.modules.layout.domain.building_footprint",
         "cold_storage.modules.layout.domain.dimensioning",
+        "cold_storage.modules.layout.domain.main_process_topology",
+        "cold_storage.modules.layout.domain.main_process_skeleton",
         "cold_storage.modules.layout.domain.objective_profile",
         "cold_storage.modules.layout.domain.site_geometry",
+        "cold_storage.modules.layout.domain.structural_composition",
+        "cold_storage.modules.layout.domain.structural_quality",
+        "cold_storage.modules.layout.domain.structured_building",
+        "cold_storage.modules.layout.domain.tail_slot_feasibility",
     }
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.Import):

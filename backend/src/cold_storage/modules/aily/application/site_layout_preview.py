@@ -49,12 +49,12 @@ PREVIEW_SITE_LAYOUT_TOOL_NAME = "preview_site_layout"
 SITE_LAYOUT_RESULT_IDENTITY = "site_validated_layout@1.0.0"
 SVG_PROJECTION_RESULT_IDENTITY = "validated-layout-svg-projection@1.0.0"
 
-# The P2 search is already bounded and deterministic.  These are orchestration
-# budgets only; they are not new layout or engineering authority.  Tool 7
-# intentionally keeps the selector's explored candidate family small enough
-# for a stateless preview response; P2 still records when this bound cuts off
-# the family and does not claim a mathematical optimum.
-P4_PLACEMENT_NODE_BUDGET = 15
+# The P2 search is bounded and deterministic. Budget sensitivity on the
+# canonical Xinzhao fixture found 120 nodes to be the smallest tested budget
+# yielding two P2D full-pass candidates across the three structural lanes.
+# Higher tested budgets added rejected candidates without another full pass.
+# This remains a search cutoff, not an optimum or infeasibility claim.
+P4_PLACEMENT_NODE_BUDGET = 120
 P4_ROUTE_NODE_BUDGET = 5_000
 P4_TRUCK_NODE_BUDGET = 5_000
 

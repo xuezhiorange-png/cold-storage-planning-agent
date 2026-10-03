@@ -1,0 +1,70 @@
+{
+  "access_pass_count": 12,
+  "access_requirement_count": 12,
+  "building_footprint_present": true,
+  "constructed_main_process_skeleton_count": 1,
+  "constructed_main_process_skeleton_hashes": [
+    "sha256:55589c20f3c3336c1c92a8c1ffc8b14a813ac558bac78871d4e6b1fa8ee9b953"
+  ],
+  "constructed_skeleton_topologies": [
+    "CENTRAL_PROCESS_HUB",
+    "STRAIGHT_LINEAR_BAND"
+  ],
+  "distinct_p2d_full_pass_main_process_skeleton_count": 1,
+  "distinct_runner_up_present": false,
+  "distinct_runner_up_skeleton_hash": null,
+  "distinct_runner_up_topology": null,
+  "distinct_skeleton_first_decisive_component": "ONLY_ONE_P2D_FULL_PASS_MAIN_SKELETON",
+  "first_decisive_component": "P2B2_FINAL_TIE_BREAK",
+  "heuristic_root_pruning_used": false,
+  "input_sha256": "d03ecae9e1e2808cba346eb83a39f853c8a4b366acc103669af1cf868363901e",
+  "owner_xinzhao_p1a_r5_visual_review": "PENDING",
+  "p1b_threshold_activated": false,
+  "p2_complete": true,
+  "p2d_evaluated_distinct_main_process_skeleton_count": 1,
+  "p2d_full_pass_candidate_count": 4,
+  "production_budget_changed": false,
+  "production_placement_node_budget": 120,
+  "project_layout_validated": true,
+  "r3_canonical_result_hash": "sha256:b3dd2de4fb24f74b5ce96601a74edab5f58a9a781eb5af41b29afd0a66ac98da",
+  "r3_svg_sha256": "sha256:342775cb44d7165a9a64ad7e7f31cd287c04d5a1655bcc8f31ec1c1224f85981",
+  "r5_canonical_result_hash": "sha256:4c95a88e74c977f9c122d46c09d7f4d3235b4524f842d6e4cdefa3ed8a7e13c8",
+  "r5_svg_hash_equals_r3": true,
+  "r5_svg_sha256": "sha256:342775cb44d7165a9a64ad7e7f31cd287c04d5a1655bcc8f31ec1c1224f85981",
+  "result": "PARTIAL",
+  "root_preflight_mode": "EXACT_NECESSARY_PREDICATE_OR_ORDERING_ONLY",
+  "same_input_same_canonical_hash": true,
+  "same_input_same_layout_bytes": true,
+  "same_input_same_selected_main_skeleton": true,
+  "same_input_same_svg_bytes": true,
+  "same_input_same_svg_hash": true,
+  "search_policy": "STAGED_COVERAGE_THEN_PREFERENCE",
+  "selected_main_process_changed_zone_count": 0,
+  "selected_main_process_changed_zones": [],
+  "selected_main_process_geometry_changed_from_r3": false,
+  "selected_topology": "CENTRAL_PROCESS_HUB",
+  "support_group_shared_internal_edge_count": 2,
+  "task_id": "V2_2_2_P1A_R5_STAGED_MULTI_TOPOLOGY_SEARCH_IMPLEMENTATION_R1",
+  "topology_count_explored": 3,
+  "topology_count_with_constructed_skeleton": 2,
+  "truck_route_validated": true,
+  "visited_node_count": 74,
+  "visual_render_records": {
+    "selected": {
+      "file": "xinzhao_p1a_r5_selected.png",
+      "height": 2400,
+      "rasterizer": "macOS Quick Look qlmanage -t -s 2400",
+      "sha256": "53ccc32e5cf0f393c213b3038aaa158cf7315520ed227553776ec7c6998d5ae5",
+      "width": 2400
+    },
+    "structural_debug": {
+      "file": "xinzhao_p1a_r5_structural_debug.png",
+      "height": 2400,
+      "rasterizer": "macOS Quick Look qlmanage -t -s 2400",
+      "sha256": "13fef7ca6e7f391fa94e7519d742378d099c37e56fbba0c1501659898da66c9c",
+      "width": 2400
+    }
+  },
+  "weighted_score_used": false,
+  "zone_count": 12
+}

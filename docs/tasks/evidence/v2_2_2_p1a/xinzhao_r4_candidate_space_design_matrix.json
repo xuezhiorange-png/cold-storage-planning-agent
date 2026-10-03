@@ -1,0 +1,106 @@
+{
+  "design_gate": {
+    "AT_LEAST_TWO_STRUCTURALLY_DISTINCT_MAIN_PROCESS_TOPOLOGIES_DEFINED": true,
+    "CANDIDATE_SPACE_DESIGN_REVIEW_COMPLETE": true,
+    "GOLDEN_COORDINATE_TEMPLATE_USED": false,
+    "LINEAR_FAMILY_CLASSIFICATION": "SEARCH_PREFIX_TRUNCATED_WITH_NARROW_EXACT_CHAIN_AND_NO_PROJECTED_FULL_GROUP_EXTENT_ROOT_TEST; INFEASIBILITY_UNPROVEN",
+    "LINEAR_FAMILY_FAILURE_CLASSIFIED": true,
+    "NEXT_IMPLEMENTATION_AUTHORIZED": false,
+    "NEXT_IMPLEMENTATION_ENTRY_READY": true,
+    "P1B_NUMERIC_THRESHOLD_USED": false,
+    "SEARCH_BUDGET_SEPARATED_FROM_LAYOUT_AUTHORITY": true,
+    "SECOND_HUB_SKELETON_FAILURE_CLASSIFIED": true,
+    "development_fixture_acceptance_target": "at least two distinct main-process skeletons on Xinzhao, both hard feasible and both reaching complete P2D evaluation",
+    "owner_visual_acceptance_is_separate": true,
+    "target_is_permanent_production_threshold": false
+  },
+  "golden_reference_role": "qualitative organization principles only; no coordinates, dimensions, room counts, or runtime templates",
+  "hard_predicates_remain_authoritative": [
+    "zone dimensions and areas",
+    "site/buildable containment",
+    "no-build geometry",
+    "MUST adjacency",
+    "access",
+    "truck",
+    "P2D"
+  ],
+  "identity": "xinzhao-p1a-r4-candidate-space-design-matrix@1.0.0",
+  "implementation_authorized": false,
+  "lane_allocation_policy_options": [
+    {
+      "cons": [
+        "sorting room being largest does not prove hub is the only/strongest topology; may starve alternatives"
+      ],
+      "description": "current preferred family receives about two thirds",
+      "policy": "A_PREFERRED_FAMILY_BIASED",
+      "pros": [
+        "exploits role-based prior ordering"
+      ]
+    },
+    {
+      "cons": [
+        "may spend equal compute on unproductive lanes"
+      ],
+      "description": "equal initial share for every family/topology lane",
+      "policy": "B_EQUAL_FAMILY_EXPLORATION",
+      "pros": [
+        "clear baseline coverage and comparability"
+      ]
+    },
+    {
+      "cons": [
+        "requires fair scheduling and explicit stop semantics"
+      ],
+      "description": "allocate until each topology reaches a small distinct-skeleton discovery target, then rank/continue",
+      "policy": "C_SKELETON_COUNT_TARGETED",
+      "pros": [
+        "budget follows actual candidate diversity rather than a family label"
+      ]
+    },
+    {
+      "cons": [
+        "a topology that cannot produce a seed may consume its exploration reserve"
+      ],
+      "description": "first secure at least one seed per viable topology, then allocate remaining nodes by preference",
+      "policy": "D_STAGED_COVERAGE_THEN_PREFERENCE",
+      "pros": [
+        "prevents preferred lane monopolization while retaining useful ordering"
+      ]
+    }
+  ],
+  "search_limit_semantics": {
+    "CONSTRUCTIVE_SKELETON_COMPLETION_LIMIT": 2,
+    "limit_two_may_cut_off_diversity": true,
+    "limits_are_computational_caps": true,
+    "no_caps_changed_by_this_review": true,
+    "production_budget_increase_authorized": false
+  },
+  "task_id": "V2_2_2_P1A_R4_CANDIDATE_SPACE_AND_VERSION_ALIGNMENT_REVIEW_R1",
+  "topologies": [
+    {
+      "R3_gap_addressed": "avoid current exact-face single chain being the only linear form",
+      "distinct_geometry": "monotonic raw/core/finished group intervals on one axis; raw bank and finished chain share a principal band",
+      "topology": "STRAIGHT_LINEAR_BAND"
+    },
+    {
+      "R3_gap_addressed": "permits width/depth packing when a straight single row does not fit",
+      "distinct_geometry": "monotonic group order with parallel/offset rows and shared axis families",
+      "topology": "OFFSET_LINEAR_BAND"
+    },
+    {
+      "R3_gap_addressed": "tests orthogonal/folded continuations missing from current single-direction linear lane",
+      "distinct_geometry": "process spine with one explicit terminal bend while preserving group order",
+      "topology": "FOLDED_LINEAR_BAND"
+    },
+    {
+      "R3_gap_addressed": "retain hub but avoid one sampled root/face ordering starving alternatives",
+      "distinct_geometry": "sorting room as core; raw and finished groups attach by independently enumerated permitted faces",
+      "topology": "CENTRAL_PROCESS_HUB"
+    },
+    {
+      "R3_gap_addressed": "make grouped storage a first-class topology rather than a late quality fact",
+      "distinct_geometry": "hub plus a co-constructed raw or finished cold-storage bank; support remains a bounded branch",
+      "topology": "HUB_WITH_STORAGE_BANK"
+    }
+  ]
+}

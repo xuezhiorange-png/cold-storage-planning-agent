@@ -1,0 +1,608 @@
+{
+  "evaluation_only": true,
+  "identity": "v222-p1a-r14-zone-removal-counterfactual@1.0.0",
+  "pass_witnesses": [],
+  "production_candidate": false,
+  "rows": [
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "raw_fruit_buffer",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "primary_precooling_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "sorting_packaging_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "secondary_precooling_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "coating_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "finished_goods_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "raw_fruit_buffer",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "primary_precooling_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "sorting_packaging_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "secondary_precooling_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "coating_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "finished_goods_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "raw_fruit_buffer",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "primary_precooling_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "sorting_packaging_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "secondary_precooling_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "coating_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "finished_goods_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "raw_fruit_buffer",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "primary_precooling_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "sorting_packaging_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "secondary_precooling_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "coating_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "finished_goods_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "raw_fruit_buffer",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "primary_precooling_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "sorting_packaging_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "secondary_precooling_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "coating_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa"
+    },
+    {
+      "evaluation_only": true,
+      "removal_causes_pass": false,
+      "removed_zone_code": "finished_goods_room",
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa"
+    }
+  ]
+}

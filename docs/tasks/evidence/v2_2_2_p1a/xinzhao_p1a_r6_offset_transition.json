@@ -1,0 +1,17 @@
+{
+  "identity": "p1a-r6-offset-transition-trace@1.0.0",
+  "topology": "OFFSET_LINEAR_BAND",
+  "transition_stage": "CORE_TO_FINISHED",
+  "process_axis": "Y",
+  "cross_axis": "X",
+  "directions_attempted": ["POSITIVE", "NEGATIVE"],
+  "positive_transition_option_count": 2,
+  "positive_cross_axis_shifts_mm": [14700, 14700],
+  "negative_transition_option_count": 4,
+  "negative_cross_axis_shifts_mm": [-35960, -35710, -30230, -30230],
+  "offset_transition_present": true,
+  "cross_axis_shift_gt_zero_in_magnitude": true,
+  "complete_offset_skeleton_count": 0,
+  "first_successful_skeleton_hash": null,
+  "notes": "Exact secondary-zone transition options were generated. They did not complete the downstream authoritative coating/finished/shipping chain within the lane search. No minimum offset threshold is used."
+}

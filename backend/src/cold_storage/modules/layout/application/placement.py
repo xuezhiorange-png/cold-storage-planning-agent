@@ -8,12 +8,18 @@ for the three explicitly flexible zones.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import asdict
 from typing import Any
 
 from cold_storage.modules.layout.application.dimension_zones import ZoneDimensioningResultV1
 from cold_storage.modules.layout.application.site_geometry import ValidatedSiteGeometryV1
+from cold_storage.modules.layout.domain.access_authority import PACKAGING, resolve_access_profile
+from cold_storage.modules.layout.domain.access_routing import (
+    DEFAULT_ROUTE_NODE_BUDGET,
+    DEFAULT_TRUCK_NODE_BUDGET,
+    route_access_requirement,
+)
 from cold_storage.modules.layout.domain.adjacency import ZONE_CODES, process_graph
 from cold_storage.modules.layout.domain.dimensioning import (
     LayoutAuthorityError,
@@ -26,12 +32,20 @@ from cold_storage.modules.layout.domain.objective_profile import (
     validate_objective_profile,
 )
 from cold_storage.modules.layout.domain.placement import (
+    LEGACY_COMPAT_PHASE,
+    STRUCTURED_PHASE,
     PlacementCandidateEnumerationV1,
     SitePlacementResultV1,
     search_placement,
 )
 from cold_storage.modules.layout.domain.placement import (
     enumerate_placement_candidates as enumerate_domain_placement_candidates,
+)
+from cold_storage.modules.layout.domain.structural_composition import (
+    StructuralCompositionFamilyV1,
+)
+from cold_storage.modules.layout.domain.truck_maneuver import (
+    BoundTruckManeuverProjectInputV1,
 )
 
 IDENTITY = "site-constrained-placement-application@1.0.0"
@@ -218,6 +232,35 @@ def _validated_objective_profile(
     return profile, profile.canonical_result_hash
 
 
+def _structured_construction_access_requirements(
+    access_requirements: tuple[Mapping[str, Any], ...],
+) -> tuple[Mapping[str, Any], ...]:
+    """Pass frozen profile widths only to the structured construction ordering.
+
+    The generic access-requirement objects remain byte-for-byte compatible for
+    the legacy and GENERAL_FALLBACK phases. These derived fields are private
+    search hints; P2D continues to resolve and validate the original profile.
+    """
+    profile = resolve_access_profile(PACKAGING)
+    rows: list[Mapping[str, Any]] = []
+    for requirement in access_requirements:
+        if (
+            requirement.get("from_ref") == "packaging_material_storage"
+            and requirement.get("to_ref") == "sorting_packaging_room"
+            and requirement.get("profile_identity") == PACKAGING
+        ):
+            rows.append(
+                {
+                    **requirement,
+                    "construction_portal_clear_width_m": str(profile.portal_clear_width_m),
+                    "construction_corridor_clear_width_m": str(profile.corridor_clear_width_m),
+                }
+            )
+        else:
+            rows.append(requirement)
+    return tuple(rows)
+
+
 def place_zones(
     canonical_zone_plan: Mapping[str, Any],
     p1_handoff: ZoneDimensioningResultV1 | Mapping[str, Any],
@@ -268,13 +311,25 @@ def enumerate_placement_candidates(
     objective_profile: ObjectiveProfileV1 | Mapping[str, object] | None = None,
     *,
     node_budget: int = 50_000,
+    truck_maneuver_binding: BoundTruckManeuverProjectInputV1 | Mapping[str, Any] | None = None,
+    truck_node_budget: int = DEFAULT_TRUCK_NODE_BUDGET,
+    truck_maneuver_validator: Callable[..., Mapping[str, Any]] | None = None,
     complete_candidate_limit: int | None = None,
+    structural_family: StructuralCompositionFamilyV1 | None = None,
+    structural_topology: str | None = None,
+    search_phase: str = LEGACY_COMPAT_PHASE,
+    direct_synthesis_enabled: bool = True,
+    global_main_process_geometry_registry: dict[str, dict[str, Any]] | None = None,
+    global_cross_topology_duplicate_trace: list[dict[str, Any]] | None = None,
 ) -> PlacementCandidateEnumerationV1:
     """Expose complete P2C candidates for downstream P2 validation.
 
-    This is still a P2C-only application boundary: it verifies the same P1
-    authority and site inputs as :func:`place_zones`, then delegates to the
-    domain's deterministic candidate stream.  It does not invoke P2D routing.
+    This verifies the same P1 authority and site inputs as :func:`place_zones`,
+    then delegates to the domain's deterministic candidate stream. When a
+    bound truck input is supplied, the structured Tool 7 path may use the
+    existing truck maneuver validator only as a necessary-condition preflight
+    on a frozen main-process skeleton; complete candidates still go through
+    the unchanged P2D application validation.
     """
     if not isinstance(canonical_zone_plan, Mapping):
         raise _error("ZONE_PLAN_IDENTITY_INVALID")
@@ -288,6 +343,37 @@ def enumerate_placement_candidates(
         _validate_p1_authority(canonical_zone_plan, p1_handoff, site_geometry)
     )
     _, profile_hash = _validated_objective_profile(objective_profile)
+    construction_access_requirements = (
+        _structured_construction_access_requirements(access_requirements)
+        if search_phase == STRUCTURED_PHASE
+        else access_requirements
+    )
+
+    construction_access_route_validator: (
+        Callable[..., tuple[Mapping[str, Any], tuple[Any, ...]]] | None
+    ) = None
+    if search_phase == STRUCTURED_PHASE:
+
+        def validate_construction_route(
+            requirement: Mapping[str, Any],
+            *,
+            relationships: Mapping[str, Mapping[str, Any]],
+            zones: Mapping[str, Any],
+            boundary: Any,
+            obstacles: Any,
+            entrances: Mapping[str, Any],
+        ) -> tuple[dict[str, Any], tuple[Any, ...]]:
+            return route_access_requirement(
+                requirement,
+                relationships=relationships,
+                zones=zones,
+                boundary=boundary,
+                obstacles=obstacles,
+                entrances=entrances,
+                route_node_budget=DEFAULT_ROUTE_NODE_BUDGET,
+            )
+
+        construction_access_route_validator = validate_construction_route
     return enumerate_domain_placement_candidates(
         authorities,
         site_geometry.to_dict(),
@@ -296,8 +382,18 @@ def enumerate_placement_candidates(
         source_p1_handoff_hash=handoff_hash,
         source_site_geometry_hash=site_geometry.canonical_result_hash,
         objective_profile_hash=profile_hash,
-        access_requirements=access_requirements,
+        access_requirements=construction_access_requirements,
         spatial_relationships=spatial_relationships,
         node_budget=node_budget,
+        truck_maneuver_binding=truck_maneuver_binding,
+        truck_node_budget=truck_node_budget,
+        truck_maneuver_validator=truck_maneuver_validator,
+        access_route_validator=construction_access_route_validator,
         complete_candidate_limit=complete_candidate_limit,
+        structural_family=structural_family,
+        structural_topology=structural_topology,
+        search_phase=search_phase,
+        direct_synthesis_enabled=direct_synthesis_enabled,
+        global_main_process_geometry_registry=global_main_process_geometry_registry,
+        global_cross_topology_duplicate_trace=global_cross_topology_duplicate_trace,
     )

@@ -126,8 +126,9 @@ evidence; future layout algorithm work may change it:
 
 ## P1 entry decision
 
-The missing canonical-input blocker is cleared. P1 implementation entry is
-still **not ready** because Owner-labelled positive samples are unavailable,
-depth alignment cannot yet be evaluated under a stable eligibility policy,
-and the compactness classifiers/thresholds are not calibrated. Runtime layout
-algorithm implementation remains separately unauthorized.
+At P0A completion, the missing canonical-input blocker was cleared while P1
+implementation entry remained **not ready** because Owner-labelled positive
+samples were unavailable, depth alignment could not yet be evaluated under a
+stable eligibility policy, and compactness thresholds were not calibrated.
+The Owner later separately authorized structural P1A without activating those
+numeric thresholds; see the [P1A implementation/evidence report](V2_2_2-P1A-structural-layout-generation.md).

@@ -86,6 +86,23 @@ authorization.
   but numeric thresholds remain not ready and no runtime implementation is
   authorized.
 
+## P1A implementation evidence (2026-09-25)
+
+P1A is now separately authorized and implements an additive structural
+composition family, exact support/personnel anchor preferences, and a
+lexicographic candidate-quality vector in layout domain/application code.
+P2D remains the hard feasibility gate, P2B2 remains the final compatibility
+tie-break, and Tool 7's public input contract and hard-validation semantics
+are unchanged. The canonical Xinzhao regression remains 12-zone, 12/12-access,
+truck- and footprint-valid; its support group gains two positive shared edges
+and its footprint has one fewer reflex corner. Its process-core direct edges
+remain 2/2 and grid alignment remains 0.4, so this evidence does not prove
+improved process-core legibility or global layout regularity. Search remains
+bounded at 15 nodes and is explicitly not a global optimum. Main-flow
+backtrack/turn and route-efficiency facts remain unavailable; P1B numeric
+thresholds remain uncalibrated and inactive. The exact before/after artifacts
+and current visual review status are recorded in the P1A task evidence.
+
 ## References
 
 - [V2.2.2 P0 contract](../tasks/V2_2_2-P0-process-flow-layout-regularity-contract.md)

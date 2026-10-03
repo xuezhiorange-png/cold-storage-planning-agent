@@ -1,0 +1,163 @@
+{
+  "alternate_loading_face_pass_count": 0,
+  "current_authority_loading_face_changed": false,
+  "evaluation_only": true,
+  "identity": "v222-p1a-r14-loading-face-counterfactual@1.0.0",
+  "rows": [
+    {
+      "alternate_long_edge": {
+        "end_mm": [
+          7300,
+          41393
+        ],
+        "start_mm": [
+          7300,
+          33700
+        ]
+      },
+      "alternate_long_edge_side": "RIGHT_LONG_EDGE",
+      "current_authority_loading_face_changed": false,
+      "current_face_side": "LEFT_LONG_EDGE",
+      "evaluation_only": true,
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:062f563bec94c66ff2769d08da8f06a76b9b853c6441b148e4b7a72b6dc0d51c"
+    },
+    {
+      "alternate_long_edge": {
+        "end_mm": [
+          13793,
+          33700
+        ],
+        "start_mm": [
+          6100,
+          33700
+        ]
+      },
+      "alternate_long_edge_side": "TOP_LONG_EDGE",
+      "current_authority_loading_face_changed": false,
+      "current_face_side": "BOTTOM_LONG_EDGE",
+      "evaluation_only": true,
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:36bb2818ddb16e40fe1a50e0918f148b35e2f01bf93772b6caf239d2b44ccccb"
+    },
+    {
+      "alternate_long_edge": {
+        "end_mm": [
+          7300,
+          46846
+        ],
+        "start_mm": [
+          7300,
+          39153
+        ]
+      },
+      "alternate_long_edge_side": "RIGHT_LONG_EDGE",
+      "current_authority_loading_face_changed": false,
+      "current_face_side": "LEFT_LONG_EDGE",
+      "evaluation_only": true,
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:6613e0eac6cc7991f9c176398b1a0466288898f49a8282b4eddf9a2239ba92b8"
+    },
+    {
+      "alternate_long_edge": {
+        "end_mm": [
+          12600,
+          33700
+        ],
+        "start_mm": [
+          12600,
+          26007
+        ]
+      },
+      "alternate_long_edge_side": "RIGHT_LONG_EDGE",
+      "current_authority_loading_face_changed": false,
+      "current_face_side": "LEFT_LONG_EDGE",
+      "evaluation_only": true,
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:a148aab89040232091a5486897ac3d895a2685ae3c3cf0c48b0362d08d9eeff3"
+    },
+    {
+      "alternate_long_edge": {
+        "end_mm": [
+          7300,
+          52300
+        ],
+        "start_mm": [
+          7300,
+          44607
+        ]
+      },
+      "alternate_long_edge_side": "RIGHT_LONG_EDGE",
+      "current_authority_loading_face_changed": false,
+      "current_face_side": "LEFT_LONG_EDGE",
+      "evaluation_only": true,
+      "result": {
+        "canonical_result_hash": null,
+        "codes": [
+          "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+        ],
+        "maneuver_chain": [],
+        "node_budget": 5000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": true,
+        "status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+        "truck_envelopes": [],
+        "truck_route_validated": false,
+        "visited_nodes": 39
+      },
+      "skeleton_hash": "sha256:b667428b8c43add574cec021c508d4d29f481670e38a290cd10b968f4e4840aa"
+    }
+  ]
+}
