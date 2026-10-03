@@ -563,13 +563,112 @@ def test_multi_round_scheduler_preserves_fair_lane_coverage_without_stranding_bu
     assert accounting["unused_global_nodes_with_active_truncated_work"] == 0
     assert sum(row["phase"] == selection.STRUCTURED_PHASE for row in queue) == 2
     assert sum(row["phase"] == selection.GENERAL_FALLBACK_PHASE for row in queue) == 4
-    assert (
-        enumeration_budgets.count(
-            (selection.STRUCTURED_PHASE, selection.DIRECT_SYNTHESIS_ATTEMPT_COUNT)
-        )
-        == 1
-    )
+    assert enumeration_budgets.count((selection.STRUCTURED_PHASE, 120)) == 1
     assert sum(phase == selection.GENERAL_FALLBACK_PHASE for phase, _ in enumeration_budgets) == 2
+    lane_report = result.internal_evaluation["family_lanes"][0]
+    assert lane_report["structured_initial_node_allocation"] == (
+        selection.DIRECT_SYNTHESIS_ATTEMPT_COUNT
+    )
+
+
+def test_structured_context_continues_after_initial_allocation_with_shared_budget(
+    monkeypatch,
+) -> None:
+    lanes = (StructuralCompositionFamilyV1(CENTRAL_PROCESS_HUB, "Y", "UNRESOLVED", "LANE_TEST"),)
+    monkeypatch.setattr(selection, "composition_family_candidates", lambda _site: lanes)
+
+    class ContinuingStructuredStream:
+        def __init__(self) -> None:
+            self.visited_node_count = 0
+            self.candidate_count = 0
+            self.distinct_main_process_skeleton_count = 0
+            self.distinct_structural_core_root_count = 0
+            self.node_budget_exhausted = False
+            self.search_tree_exhausted = False
+            self.structural_topology = CENTRAL_PROCESS_HUB
+            self.skeleton_generation_report: dict[str, Any] = {}
+
+        @property
+        def completed(self) -> bool:
+            return False
+
+        @property
+        def provenance(self) -> dict[str, Any]:
+            return {"search_tree_exhausted": False}
+
+        def advance_quantum(self, node_limit: int) -> Any:
+            from types import SimpleNamespace
+
+            visited = min(node_limit, 12)
+            self.visited_node_count += visited
+            self.skeleton_generation_report["construction_node_count"] = self.visited_node_count
+            return SimpleNamespace(
+                candidates=(),
+                nodes_visited=visited,
+                status="QUANTUM_EXHAUSTED",
+                work_item={"cursor": self.visited_node_count},
+                completed=False,
+            )
+
+    class OneNodeFallbackStream(_FakeCandidateStream):
+        def __init__(self) -> None:
+            super().__init__([_candidate("continued-fallback", 0)])
+            self.structural_topology = CENTRAL_PROCESS_HUB
+
+        def advance_quantum(self, _node_limit: int) -> Any:
+            from types import SimpleNamespace
+
+            self._node_count += 1
+            self.skeleton_generation_report["construction_node_count"] = self._node_count
+            candidates = (self._candidates[0],) if self._cursor == 0 else ()
+            self._cursor = 1
+            return SimpleNamespace(
+                candidates=candidates,
+                nodes_visited=1,
+                status="COMPLETED",
+                work_item={"cursor": self._node_count},
+                completed=True,
+            )
+
+    streams: list[Any] = []
+
+    def enumerate_lane(*_args, search_phase, **_kwargs):
+        stream = (
+            ContinuingStructuredStream()
+            if search_phase == selection.STRUCTURED_PHASE
+            else OneNodeFallbackStream()
+        )
+        streams.append((search_phase, stream))
+        return stream
+
+    monkeypatch.setattr(selection, "enumerate_placement_candidates", enumerate_lane)
+    monkeypatch.setattr(
+        selection,
+        "build_structural_quality_facts",
+        lambda *_args, **_kwargs: StructuralQualityFactsV1("{}", (1,)),
+    )
+    monkeypatch.setattr(
+        selection,
+        "route_site_placement",
+        lambda *args, **kwargs: _result(valid=True, marker=args[3].to_dict()["marker"]),
+    )
+    zone_plan, handoff, geometry = _selection_inputs()
+
+    result = selection.select_validated_placement(
+        zone_plan, handoff, geometry, placement_node_budget=120
+    )
+
+    structured = next(stream for phase, stream in streams if phase == selection.STRUCTURED_PHASE)
+    fallbacks = [stream for phase, stream in streams if phase == selection.GENERAL_FALLBACK_PHASE]
+    accounting = result.internal_evaluation["r6_topology_diagnostics"]["r11_budget_accounting"]
+    assert structured.visited_node_count > selection.DIRECT_SYNTHESIS_ATTEMPT_COUNT
+    assert len(fallbacks) == 1
+    assert accounting["global_nodes_visited"] == 120
+    assert accounting["global_nodes_remaining"] == 0
+    assert accounting["truncated_active_work_item_count"] == 1
+    assert result.internal_evaluation["family_lanes"][0]["structured_initial_node_allocation"] == (
+        selection.DIRECT_SYNTHESIS_ATTEMPT_COUNT
+    )
 
 
 def test_general_fallback_covers_each_eligible_lane_after_structured_phase(monkeypatch) -> None:

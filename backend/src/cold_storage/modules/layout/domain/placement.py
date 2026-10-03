@@ -3331,6 +3331,69 @@ def _access_candidate(
     )
 
 
+def _access_tail_dimension_shapes(
+    context: _PlacementSearchContext,
+    zone_code: str,
+    fixed: Mapping[str, PlacedRectangleV1],
+) -> tuple[tuple[int, int, int, int, int], ...]:
+    """Use P2C's complete dimension authority for flexible access-tail zones."""
+    authority = context.authorities.get(zone_code)
+    if authority is None:
+        return ()
+    if zone_code != "changing_room" or _authority_mode(authority) != "FLEXIBLE_RECTANGLE":
+        return _local_dimension_shapes(context, zone_code)
+
+    # `_unique_dimensions` is the P2C flexible-rectangle authority: it derives
+    # finite 1 mm-grid candidates from required area, boundary spans, and the
+    # already placed geometry.  Do not replace it with the structured
+    # generator's near-square-only estimates.
+    dimensions = _unique_dimensions(authority, fixed, context.boundary)
+    shapes: dict[tuple[int, int, int, int, int], None] = {}
+    for width_mm, depth_mm in dimensions:
+        for rotation in (0, 90):
+            x_span, y_span = (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
+            shapes.setdefault((width_mm, depth_mm, rotation, x_span, y_span), None)
+    return tuple(sorted(shapes))
+
+
+def _shared_edge_length_mm(left: PlacedRectangleV1, right: PlacedRectangleV1) -> int:
+    left_x0, left_y0, left_x1, left_y1 = left.bounds_mm
+    right_x0, right_y0, right_x1, right_y1 = right.bounds_mm
+    if left_x1 == right_x0 or right_x1 == left_x0:
+        return max(0, min(left_y1, right_y1) - max(left_y0, right_y0))
+    if left_y1 == right_y0 or right_y1 == left_y0:
+        return max(0, min(left_x1, right_x1) - max(left_x0, right_x0))
+    return 0
+
+
+def _sorting_shared_interval_mm(
+    sorting: PlacedRectangleV1, candidate: PlacedRectangleV1
+) -> tuple[str, int, int] | None:
+    sort_left, sort_bottom, sort_right, sort_top = sorting.bounds_mm
+    left, bottom, right, top = candidate.bounds_mm
+    if right == sort_left:
+        side, low, high = "WEST", max(bottom, sort_bottom), min(top, sort_top)
+    elif left == sort_right:
+        side, low, high = "EAST", max(bottom, sort_bottom), min(top, sort_top)
+    elif top == sort_bottom:
+        side, low, high = "SOUTH", max(left, sort_left), min(right, sort_right)
+    elif bottom == sort_top:
+        side, low, high = "NORTH", max(left, sort_left), min(right, sort_right)
+    else:
+        return None
+    return (side, low, high) if low < high else None
+
+
+def _entrance_shared_length_mm(rectangle: PlacedRectangleV1, entrance: SegmentMM) -> int:
+    left, bottom, right, top = rectangle.bounds_mm
+    (x0, y0), (x1, y1) = entrance
+    if x0 == x1 and (left == x0 or right == x0):
+        return max(0, min(top, max(y0, y1)) - max(bottom, min(y0, y1)))
+    if y0 == y1 and (bottom == y0 or top == y0):
+        return max(0, min(right, max(x0, x1)) - max(left, min(x0, x1)))
+    return 0
+
+
 def _access_driven_tail_candidates(
     context: _PlacementSearchContext,
     module_name: str,
@@ -3368,7 +3431,7 @@ def _access_driven_tail_candidates(
         return ()
     requirement_ids = _tail_requirement_ids(context, pairs)
     seeds: dict[tuple[tuple[str, tuple[int, ...]], ...], AccessDrivenTailCandidateV1] = {}
-    shapes = _local_dimension_shapes(context, zone_code)
+    shapes = _access_tail_dimension_shapes(context, zone_code, fixed)
     alignments = ("LOW", "CENTER", "HIGH")
     (entrance_start, entrance_end) = context.main_entrance
     entrance_low, entrance_high = sorted(
@@ -3407,6 +3470,66 @@ def _access_driven_tail_candidates(
                 ),
             ),
         )
+
+    if zone_code == "changing_room":
+        # Exact dual-endpoint construction: one changing-room edge lies on
+        # the entrance segment and another shares a portal-capable sorting
+        # edge.  Origins are endpoint/edge events only; no interpolated or
+        # arbitrary site coordinates are introduced.
+        minimum_portal_mm = 1_500
+        entrance_is_vertical = entrance_start[0] == entrance_end[0]
+        entrance_axis = entrance_start[0] if entrance_is_vertical else entrance_start[1]
+        entrance_low, entrance_high = sorted(
+            (entrance_start[1], entrance_end[1])
+            if entrance_is_vertical
+            else (entrance_start[0], entrance_end[0])
+        )
+        for shape in shapes:
+            _width, _depth, _rotation, x_span, y_span = shape
+            if entrance_is_vertical:
+                fixed_x_origins = (entrance_axis - x_span, entrance_axis)
+                sorting_edge_y_origins = {
+                    sort_bottom,
+                    sort_top - y_span,
+                    sort_bottom + (sort_top - sort_bottom - y_span) // 2,
+                    sort_bottom - y_span,
+                    sort_top,
+                    entrance_low,
+                    entrance_high - y_span,
+                }
+                origins = (
+                    (x_mm, y_mm)
+                    for x_mm in fixed_x_origins
+                    for y_mm in sorted(sorting_edge_y_origins)
+                )
+            else:
+                fixed_y_origins = (entrance_axis - y_span, entrance_axis)
+                sorting_edge_x_origins = {
+                    sort_left,
+                    sort_right - x_span,
+                    sort_left + (sort_right - sort_left - x_span) // 2,
+                    sort_left - x_span,
+                    sort_right,
+                    entrance_low,
+                    entrance_high - x_span,
+                }
+                origins = (
+                    (x_mm, y_mm)
+                    for y_mm in fixed_y_origins
+                    for x_mm in sorted(sorting_edge_x_origins)
+                )
+            for x_mm, y_mm in origins:
+                rectangle = _local_rectangle_at(zone_code, shape, x_mm, y_mm)
+                if (
+                    _entrance_shared_length_mm(rectangle, context.main_entrance) < minimum_portal_mm
+                    or _shared_edge_length_mm(sorting, rectangle) < minimum_portal_mm
+                ):
+                    continue
+                add(
+                    rectangle,
+                    source="MAIN_ENTRANCE_AND_SORTING_PORTAL_EDGES",
+                    event_class="ENTRANCE_SORTING_DUAL_DIRECT",
+                )
 
     # Direct sorting-edge candidates are authoritative endpoint events, not
     # a new MUST relation. The exact route validator decides admission.
@@ -3563,26 +3686,35 @@ def _access_driven_tail_candidates(
                     source="MAIN_ENTRANCE_AND_SORTING_ENDPOINTS",
                     event_class="ENTRANCE_SORTING_BRIDGE",
                 )
-    return tuple(
-        seeds[key]
-        for key in sorted(
-            seeds,
-            key=lambda signature: (
-                {
-                    # The bridge is the only event family explicitly derived
-                    # from both live endpoints; probe it before single-endpoint
-                    # placements, while leaving final admission to the route
-                    # authority.
-                    "ENTRANCE_SORTING_BRIDGE": 0,
-                    "ENTRANCE_DIRECT": 1,
-                    "SORTING_DIRECT": 2,
-                    "CORRIDOR_MEDIATED": 3,
-                    "SORTING_BAY_EDGE_MEDIATED": 4,
-                }.get(seeds[signature].endpoint_event_class, 5),
-                signature,
-            ),
+
+    def candidate_order_key(
+        signature: tuple[tuple[str, tuple[int, ...]], ...],
+    ) -> tuple[int, int, int, tuple[tuple[str, tuple[int, ...]], ...]]:
+        candidate = seeds[signature]
+        priority = {
+            "ENTRANCE_SORTING_DUAL_DIRECT": 0,
+            "ENTRANCE_DIRECT": 1,
+            "SORTING_DIRECT": 2,
+            "ENTRANCE_SORTING_BRIDGE": 3,
+            "CORRIDOR_MEDIATED": 4,
+            "SORTING_BAY_EDGE_MEDIATED": 5,
+        }.get(candidate.endpoint_event_class, 5)
+        if candidate.endpoint_event_class != "ENTRANCE_SORTING_DUAL_DIRECT":
+            return priority, 0, 0, signature
+
+        rectangle = dict(candidate.placements)[zone_code]
+        # This is only deterministic construction ordering: favor a dual-endpoint
+        # seed that can use the full authorized corridor width at the entrance,
+        # then the longest sorting interface. The route authority still decides
+        # whether either endpoint is actually reachable.
+        entrance_span = min(
+            _entrance_shared_length_mm(rectangle, context.main_entrance),
+            module_clearance_mm,
         )
-    )
+        sorting_span = _shared_edge_length_mm(sorting, rectangle)
+        return priority, -entrance_span, -sorting_span, signature
+
+    return tuple(seeds[key] for key in sorted(seeds, key=candidate_order_key))
 
 
 @dataclass(frozen=True)
@@ -3624,6 +3756,11 @@ def _tail_access_capacity_round_reserve(node_budget: int) -> int:
     )
 
 
+def _tail_access_main_is_s2_admissible(status: str) -> bool:
+    """Only a proven tail-capacity witness may enter complete S2 assembly."""
+    return status == "TAIL_ACCESS_CAPABLE_MAIN"
+
+
 def _tail_access_main_identity(
     main_skeleton_hash: str | None,
     main: Mapping[str, PlacedRectangleV1],
@@ -3654,7 +3791,14 @@ def _tail_access_capacity_preflight(
     found: dict[tuple[str, str], bool] = {}
     requirements = _tail_access_requirement_rows(context)
     if requirements is None:
-        yield {skeleton_hash: "UNRESOLVED_AUTHORITY_INPUT" for skeleton_hash, _ in main_rows}
+        unresolved = {
+            _tail_access_main_identity(skeleton_hash, main): "UNRESOLVED_COVERAGE"
+            for skeleton_hash, main in main_rows
+        }
+        if stats.tail_access_capacity_status_by_main is None:
+            stats.tail_access_capacity_status_by_main = {}
+        stats.tail_access_capacity_status_by_main.update(unresolved)
+        yield unresolved
         return
 
     for skeleton_hash, main in main_rows:
@@ -3672,6 +3816,24 @@ def _tail_access_capacity_preflight(
         changing_candidates = _access_driven_tail_candidates(
             context, "CHANGING_MODULE", "changing_room", fixed, bays
         )
+        changing_authority = context.authorities.get("changing_room")
+        if (
+            changing_authority is not None
+            and _authority_mode(changing_authority) == "FLEXIBLE_RECTANGLE"
+        ):
+            if stats.changing_flexible_shape_signatures is None:
+                stats.changing_flexible_shape_signatures = set()
+            stats.changing_flexible_shape_signatures.update(
+                (min(shape[0], shape[1]), max(shape[0], shape[1]))
+                for shape in _access_tail_dimension_shapes(context, "changing_room", fixed)
+            )
+            if stats.changing_dual_endpoint_seed_signatures is None:
+                stats.changing_dual_endpoint_seed_signatures = set()
+            stats.changing_dual_endpoint_seed_signatures.update(
+                _module_signature(candidate.as_placements())
+                for candidate in changing_candidates
+                if candidate.endpoint_event_class == "ENTRANCE_SORTING_DUAL_DIRECT"
+            )
         secondary_candidates = _access_driven_tail_candidates(
             context,
             "SECONDARY_SUPPORT_MODULE",
@@ -3688,9 +3850,49 @@ def _tail_access_capacity_preflight(
             "FROZEN_SUPPORT_MODULE": tuple(row.as_placements() for row in frozen_candidates),
             "OFFICE_MODULE": _office_site_module_candidates(context, fixed),
         }
-        candidate_metadata = {
-            (main_identity, row.module_name, _module_signature(row.as_placements())): row
+        candidate_metadata_by_signature = {
+            _module_signature(row.as_placements()): row
             for row in (*changing_candidates, *secondary_candidates, *frozen_candidates)
+        }
+        truck_filtered = {
+            module_name: tuple(
+                candidate
+                for candidate in candidates
+                if not any(
+                    rectangle_intersects_closed_obstacle(rectangle, envelope)
+                    for envelope in truck_envelopes
+                    for rectangle in candidate.values()
+                )
+            )
+            for module_name, candidates in module_options.items()
+        }
+
+        def direct_seed_count(
+            module_name: str,
+            candidates: Sequence[dict[str, PlacedRectangleV1]],
+            *,
+            metadata_by_signature: Mapping[
+                tuple[tuple[str, tuple[int, ...]], ...], AccessDrivenTailCandidateV1
+            ] = candidate_metadata_by_signature,
+        ) -> int:
+            return sum(
+                (metadata := metadata_by_signature.get(_module_signature(candidate))) is not None
+                and metadata.module_name == module_name
+                and metadata.endpoint_event_class.startswith("SORTING_DIRECT")
+                for candidate in candidates
+            )
+
+        if stats.tail_direct_seed_counts_before_truck_filter_by_main is None:
+            stats.tail_direct_seed_counts_before_truck_filter_by_main = {}
+        if stats.tail_direct_seed_counts_after_truck_filter_by_main is None:
+            stats.tail_direct_seed_counts_after_truck_filter_by_main = {}
+        stats.tail_direct_seed_counts_before_truck_filter_by_main[main_identity] = {
+            module_name: direct_seed_count(module_name, module_options[module_name])
+            for module_name in ("SECONDARY_SUPPORT_MODULE", "FROZEN_SUPPORT_MODULE")
+        }
+        stats.tail_direct_seed_counts_after_truck_filter_by_main[main_identity] = {
+            module_name: direct_seed_count(module_name, truck_filtered[module_name])
+            for module_name in ("SECONDARY_SUPPORT_MODULE", "FROZEN_SUPPORT_MODULE")
         }
         filtered = {
             module_name: tuple(
@@ -3701,14 +3903,40 @@ def _tail_access_capacity_preflight(
                     for reserved in reserved_spaces
                     for rectangle in candidate.values()
                 )
-                and not any(
-                    rectangle_intersects_closed_obstacle(rectangle, envelope)
-                    for envelope in truck_envelopes
-                    for rectangle in candidate.values()
-                )
             )
-            for module_name, candidates in module_options.items()
+            for module_name, candidates in truck_filtered.items()
         }
+        sorting = main_by_identity[main_identity]["sorting_packaging_room"]
+        side_branch_intervals: dict[str, dict[str, list[dict[str, Any]]]] = {}
+        for module_name in ("SECONDARY_SUPPORT_MODULE", "FROZEN_SUPPORT_MODULE"):
+            interval_rows = {
+                (side, low, high): {
+                    "sorting_side": side,
+                    "interval_mm": [low, high],
+                }
+                for candidate in filtered[module_name]
+                if (
+                    interval := _sorting_shared_interval_mm(
+                        sorting,
+                        candidate[
+                            "secondary_fruit_buffer"
+                            if module_name == "SECONDARY_SUPPORT_MODULE"
+                            else "frozen_fruit_room"
+                        ],
+                    )
+                )
+                is not None
+                for side, low, high in (interval,)
+            }
+            side_branch_intervals[module_name] = {
+                "GEOMETRY_AND_TRUCK_CLEAR_SEED_INTERVALS": [
+                    interval_rows[key] for key in sorted(interval_rows)
+                ],
+                "ACCESS_VALID_SEED_INTERVALS": [],
+            }
+        if stats.sorting_side_branch_free_intervals_by_main is None:
+            stats.sorting_side_branch_free_intervals_by_main = {}
+        stats.sorting_side_branch_free_intervals_by_main[main_identity] = side_branch_intervals
         if stats.tail_access_capacity_seed_counts_by_main is None:
             stats.tail_access_capacity_seed_counts_by_main = {}
         seed_counts = stats.tail_access_capacity_seed_counts_by_main.setdefault(
@@ -3754,6 +3982,16 @@ def _tail_access_capacity_preflight(
     access_valid_counts_by_main = stats.tail_access_valid_candidate_counts_by_main
     assert capacity_seed_counts_by_main is not None
     assert access_valid_counts_by_main is not None
+    if stats.tail_access_capacity_candidate_cursor_by_main is None:
+        stats.tail_access_capacity_candidate_cursor_by_main = {}
+    if stats.tail_access_capacity_domain_exhausted_by_main is None:
+        stats.tail_access_capacity_domain_exhausted_by_main = {}
+    if any(
+        stats.tail_access_capacity_attempted_candidates_by_main
+        and stats.tail_access_capacity_attempted_candidates_by_main.get(identity)
+        for identity in main_by_identity
+    ):
+        stats.tail_access_capacity_continuation_count += 1
 
     preflight_nodes = 0
     probe_order = tuple(
@@ -3773,13 +4011,17 @@ def _tail_access_capacity_preflight(
         # second geometry.  This prevents an early main from consuming the
         # shared S2 allocation before its Truck-pass peers are checked.
         for main_identity, module_name in probe_order:
+            if node_limit is not None and preflight_nodes >= node_limit:
+                break
             key = (main_identity, module_name)
             if found[key] or cursors[key] >= len(domains[key]):
                 continue
             pending = True
-            candidate_index = cursors[key] + 1
+            cursor_by_module = stats.tail_access_capacity_candidate_cursor_by_main.setdefault(
+                main_identity, {}
+            )
+            candidate_index = cursor_by_module.get(module_name, 0) + 1
             candidate = domains[key][cursors[key]]
-            cursors[key] += 1
             if not _charge_tail_access_slot_node(
                 context,
                 stats,
@@ -3788,6 +4030,8 @@ def _tail_access_capacity_preflight(
                 skeleton_hash=main_identity,
             ):
                 break
+            cursors[key] += 1
+            cursor_by_module[module_name] = candidate_index
             preflight_nodes += 1
             stats.tail_access_capacity_preflight_nodes_by_main[main_identity] = (
                 stats.tail_access_capacity_preflight_nodes_by_main.get(main_identity, 0) + 1
@@ -3823,13 +4067,37 @@ def _tail_access_capacity_preflight(
                     stats.tail_access_capacity_route_cache[
                         (main_identity, module_name, _module_signature(candidate))
                     ] = (route_results, corridors)
+                    if module_name in side_branch_intervals:
+                        zone_code = (
+                            "secondary_fruit_buffer"
+                            if module_name == "SECONDARY_SUPPORT_MODULE"
+                            else "frozen_fruit_room"
+                        )
+                        interval = _sorting_shared_interval_mm(
+                            main_by_identity[main_identity]["sorting_packaging_room"],
+                            candidate[zone_code],
+                        )
+                        if interval is not None:
+                            side_branch_intervals[module_name][
+                                "ACCESS_VALID_SEED_INTERVALS"
+                            ].append(
+                                {
+                                    "sorting_side": interval[0],
+                                    "interval_mm": [interval[1], interval[2]],
+                                }
+                            )
             if stats.tail_access_capacity_attempted_candidates_by_main is None:
                 stats.tail_access_capacity_attempted_candidates_by_main = {}
             stats.tail_access_capacity_attempted_candidates_by_main.setdefault(
                 main_identity, set()
             ).add((module_name, _module_signature(candidate)))
             candidate_signature = _module_signature(candidate)
-            metadata = candidate_metadata.get((main_identity, module_name, candidate_signature))
+            metadata = candidate_metadata_by_signature.get(candidate_signature)
+            if module_name != "OFFICE_MODULE" and (
+                metadata is None or metadata.module_name != module_name
+            ):
+                metadata = None
+                stats.endpoint_driven_candidate_metadata_miss_count += 1
             stats.tail_access_capacity_preflight_rows.append(
                 {
                     "main_skeleton_hash": skeleton_hash_by_identity[main_identity],
@@ -3878,7 +4146,7 @@ def _tail_access_capacity_preflight(
                             "endpoint_event_class": (
                                 "OFFICE_SHIPPING_MUST"
                                 if module_name == "OFFICE_MODULE"
-                                else "GENERIC_GEOMETRY_FALLBACK"
+                                else "ENDPOINT_METADATA_MISSING"
                             )
                         }
                     ),
@@ -3896,16 +4164,27 @@ def _tail_access_capacity_preflight(
     for skeleton_hash, main in main_rows:
         main_identity = _tail_access_main_identity(skeleton_hash, main)
         counts = capacity_seed_counts_by_main[main_identity]
+        domain_exhausted = {
+            module_name: (
+                counts[module_name] > 0
+                or cursors[(main_identity, module_name)]
+                >= len(domains[(main_identity, module_name)])
+            )
+            for module_name in _S2_TAIL_MODULES
+        }
+        stats.tail_access_capacity_domain_exhausted_by_main[main_identity] = domain_exhausted
         if all(counts[module_name] > 0 for module_name in _S2_TAIL_MODULES):
             status = "TAIL_ACCESS_CAPABLE_MAIN"
-        elif stats.node_budget_exhausted or any(
-            cursors[(main_identity, module_name)] < len(domains[(main_identity, module_name)])
+        elif any(
+            counts[module_name] == 0 and domain_exhausted[module_name]
             for module_name in _S2_TAIL_MODULES
-            if not found[(main_identity, module_name)]
         ):
-            status = "UNRESOLVED_COVERAGE"
+            status = "TAIL_ACCESS_INCAPABLE_MAIN"
         else:
-            status = "NO_ACCESS_DRIVEN_SEED_IN_GENERATED_FINITE_SET"
+            status = "UNRESOLVED_COVERAGE"
+        previous_status = stats.tail_access_capacity_status_by_main.get(main_identity)
+        if status == "TAIL_ACCESS_INCAPABLE_MAIN" and previous_status != status:
+            stats.truck_pass_main_rejected_for_tail_access_count += 1
         statuses[main_identity] = status
         stats.tail_access_capacity_status_by_main[main_identity] = status
     yield statuses
@@ -4633,6 +4912,24 @@ def _module_full_site_assemblies(
                     context, "FROZEN_SUPPORT_MODULE", "frozen_fruit_room", fixed, bays
                 )
             )
+        if stats is not None and _module_signature(fixed) == _module_signature(main):
+            for name, candidates in tuple(raw_options.items()):
+                cached_signatures = {
+                    cache_key[2]
+                    for cache_key in (stats.tail_access_capacity_route_cache or {})
+                    if cache_key[0] == main_identity and cache_key[1] == name
+                }
+                if cached_signatures:
+                    raw_options[name] = tuple(
+                        sorted(
+                            candidates,
+                            key=lambda candidate: (
+                                _module_signature(candidate) not in cached_signatures,
+                                _module_signature(candidate),
+                            ),
+                        )
+                    )
+                    stats.tail_capacity_seed_cache_reused_in_s2 = True
         if reserved_spaces:
             raw_options = {
                 name: tuple(
@@ -7410,7 +7707,25 @@ class _PlacementSearchStats:
     tail_access_capacity_attempted_candidates_by_main: (
         dict[str, set[tuple[str, tuple[tuple[str, tuple[int, ...]], ...]]]] | None
     ) = None
+    tail_access_capacity_candidate_cursor_by_main: dict[str, dict[str, int]] | None = None
+    tail_access_capacity_domain_exhausted_by_main: dict[str, dict[str, bool]] | None = None
+    sorting_side_branch_free_intervals_by_main: (
+        dict[str, dict[str, dict[str, list[dict[str, Any]]]]] | None
+    ) = None
+    tail_direct_seed_counts_before_truck_filter_by_main: dict[str, dict[str, int]] | None = None
+    tail_direct_seed_counts_after_truck_filter_by_main: dict[str, dict[str, int]] | None = None
     tail_access_s2_node_quota_exhausted_by_main: set[str] | None = None
+    changing_flexible_shape_signatures: set[tuple[int, int]] | None = None
+    changing_dual_endpoint_seed_signatures: set[tuple[tuple[str, tuple[int, ...]], ...]] | None = (
+        None
+    )
+    endpoint_driven_candidate_metadata_miss_count: int = 0
+    tail_access_capacity_continuation_count: int = 0
+    truck_pass_main_rejected_for_tail_access_count: int = 0
+    main_enumeration_continued_after_tail_access_reject: bool = False
+    main_generator_resumed_from_continuation: bool = False
+    replayed_main_prefix_node_count: int = 0
+    tail_capacity_seed_cache_reused_in_s2: bool = False
     tail_generic_fallback_route_probe_count: int = 0
     tail_generic_fallback_truncated_count: int = 0
     tail_generic_fallback_deferred_count: int = 0
@@ -10615,6 +10930,11 @@ def _direct_structured_candidates(
     seen_critical_assemblies: set[tuple[tuple[str, tuple[int, ...]], ...]] = set()
     main_skeleton_admission: dict[str, bool] = {}
     family_by_geometry: dict[str, str] = {}
+    pending_tail_candidates_by_identity: dict[
+        str, tuple[dict[str, PlacedRectangleV1], MainProcessSkeletonCandidateV1, str]
+    ] = {}
+    s2_started_main_identities: set[str] = set()
+    tail_incapable_main_seen = False
     site_bounds = context.boundary_bounds
     bays = _orthogonal_site_buildable_bays(context)
     stats.site_bay_rows = bays
@@ -10685,6 +11005,69 @@ def _direct_structured_candidates(
         if stats.site_module_assembly_trace is None:
             stats.site_module_assembly_trace = []
         stats.site_module_assembly_trace.append(row)
+
+    def advance_pending_tail_capacity_round() -> Any:
+        active_rows = tuple(
+            (main, seed, skeleton_hash)
+            for main, seed, skeleton_hash in pending_tail_candidates_by_identity.values()
+            if (stats.tail_access_capacity_status_by_main or {}).get(
+                _tail_access_main_identity(skeleton_hash, main)
+            )
+            not in {"TAIL_ACCESS_CAPABLE_MAIN", "TAIL_ACCESS_INCAPABLE_MAIN"}
+        )
+        if not active_rows:
+            return {}
+        unresolved_module_count = sum(
+            (stats.tail_access_capacity_seed_counts_by_main or {})
+            .get(_tail_access_main_identity(skeleton_hash, main), {})
+            .get(module_name, 0)
+            == 0
+            for main, _seed, skeleton_hash in active_rows
+            for module_name in _S2_TAIL_MODULES
+        )
+        node_limit = max(1, unresolved_module_count)
+        statuses: dict[str, str] = {}
+        for event in _tail_access_capacity_preflight(
+            context,
+            tuple((skeleton_hash, main) for main, _seed, skeleton_hash in active_rows),
+            bays,
+            stats,
+            node_limit=node_limit,
+        ):
+            if isinstance(event, _SearchQuantumYield):
+                yield event
+            else:
+                statuses.update(event)
+        return statuses
+
+    def apply_tail_capacity_statuses(
+        previous: Mapping[str, str], current: Mapping[str, str]
+    ) -> int:
+        nonlocal s1_node_ceiling, tail_incapable_main_seen
+        newly_incapable = tuple(
+            identity
+            for identity, status in current.items()
+            if status == "TAIL_ACCESS_INCAPABLE_MAIN"
+            and previous.get(identity) != "TAIL_ACCESS_INCAPABLE_MAIN"
+        )
+        if newly_incapable:
+            tail_incapable_main_seen = True
+            releasable = max(0, context.node_budget - s1_node_ceiling)
+            released = min(releasable, len(_S2_TAIL_MODULES) * len(newly_incapable))
+            s1_node_ceiling += released
+            if stats.site_module_variant_counts is None:
+                stats.site_module_variant_counts = {}
+            stats.site_module_variant_counts[
+                "tail_capacity_reserve_released_for_incapable_mains"
+            ] = (
+                int(
+                    stats.site_module_variant_counts.get(
+                        "tail_capacity_reserve_released_for_incapable_mains", 0
+                    )
+                )
+                + released
+            )
+        return len(newly_incapable)
 
     def make_full_candidate_payload(
         synthesis: Mapping[str, PlacedRectangleV1],
@@ -10952,18 +11335,43 @@ def _direct_structured_candidates(
             source_pairs=module_source_pairs_by_family[layout_family],
             stats=stats,
         )
-        pending_tail_candidates: list[
-            tuple[dict[str, PlacedRectangleV1], MainProcessSkeletonCandidateV1, str]
-        ] = []
         for main_candidate in main_rows:
+            if main_candidate is not None:
+                candidate_signature = _module_signature(main_candidate)
+                if candidate_signature in seen_critical_assemblies:
+                    note_module_attempt(
+                        {
+                            "layout_family": layout_family,
+                            "stage": "S1_MAIN_PROCESS",
+                            "result": "DUPLICATE_CRITICAL_ASSEMBLY_SKIPPED_WITHOUT_NODE_REPLAY",
+                        }
+                    )
+                    continue
+                if tail_incapable_main_seen:
+                    stats.main_enumeration_continued_after_tail_access_reject = True
+                    stats.main_generator_resumed_from_continuation = True
             if stats.visited_nodes >= context.node_budget:
                 stats.node_budget_exhausted = True
                 stats.skeleton_search_truncated = True
                 return
             if stats.visited_nodes >= s1_node_ceiling:
-                stats.skeleton_search_truncated = True
-                stats.normal_stop_reason = "S1_NODE_CEILING_RESERVED_FOR_TAIL_ACCESS"
-                break
+                while stats.visited_nodes < context.node_budget:
+                    previous_statuses = dict(stats.tail_access_capacity_status_by_main or {})
+                    nodes_before_round = stats.visited_nodes
+                    round_statuses = yield from advance_pending_tail_capacity_round()
+                    new_incapable = apply_tail_capacity_statuses(previous_statuses, round_statuses)
+                    if new_incapable:
+                        break
+                    unresolved = any(
+                        status == "UNRESOLVED_COVERAGE"
+                        for status in (stats.tail_access_capacity_status_by_main or {}).values()
+                    )
+                    if not unresolved or stats.visited_nodes == nodes_before_round:
+                        break
+                if stats.visited_nodes >= s1_node_ceiling:
+                    stats.skeleton_search_truncated = True
+                    stats.normal_stop_reason = "S1_NODE_CEILING_RESERVED_FOR_TAIL_ACCESS"
+                    break
             stats.visited_nodes += 1
             stats.construction_node_count += 1
             module_attempts += 1
@@ -11145,27 +11553,28 @@ def _direct_structured_candidates(
                 isinstance(truck_preflight_row, Mapping)
                 and truck_preflight_row.get("preflight_status") == "PASS"
             ):
-                pending_tail_candidates.append((dict(main_candidate), seed, skeleton_hash))
+                main_identity = _tail_access_main_identity(skeleton_hash, main_candidate)
+                pending_tail_candidates_by_identity.setdefault(
+                    main_identity, (dict(main_candidate), seed, skeleton_hash)
+                )
+                previous_statuses = dict(stats.tail_access_capacity_status_by_main or {})
+                round_statuses = yield from advance_pending_tail_capacity_round()
+                apply_tail_capacity_statuses(previous_statuses, round_statuses)
 
-        preflight_status_by_main: dict[str, str] | None = None
-        preflight_round_size = len(pending_tail_candidates) * len(_S2_TAIL_MODULES)
-        # A capacity round is one exact route/geometry seed per pending
-        # Truck-pass main and semantic tail module. Further domain coverage is
-        # left to S2 completion, rather than letting repeated preflight rounds
-        # consume the entire reserved tail allocation.
-        tail_access_preflight_node_limit = min(preflight_round_size, tail_phase_node_reserve)
-        for preflight_event in _tail_access_capacity_preflight(
-            context,
-            tuple((skeleton_hash, main) for main, _seed, skeleton_hash in pending_tail_candidates),
-            bays,
-            stats,
-            node_limit=tail_access_preflight_node_limit,
+        # Continue finite capacity domains round-robin while this context has
+        # budget. UNRESOLVED mains are not admitted to full S2; an exhausted
+        # domain frees a small, formula-derived part of the same node budget
+        # for the still-live main generator.
+        while stats.visited_nodes < context.node_budget and any(
+            status == "UNRESOLVED_COVERAGE"
+            for status in (stats.tail_access_capacity_status_by_main or {}).values()
         ):
-            if isinstance(preflight_event, _SearchQuantumYield):
-                yield preflight_event
-                continue
-            preflight_status_by_main = preflight_event
-        preflight_status_by_main = preflight_status_by_main or {}
+            previous_statuses = dict(stats.tail_access_capacity_status_by_main or {})
+            nodes_before_round = stats.visited_nodes
+            round_statuses = yield from advance_pending_tail_capacity_round()
+            apply_tail_capacity_statuses(previous_statuses, round_statuses)
+            if stats.visited_nodes == nodes_before_round:
+                break
         if stats.node_budget_exhausted:
             return
         s2_main_candidates = [
@@ -11173,36 +11582,26 @@ def _direct_structured_candidates(
                 main_candidate,
                 seed,
                 skeleton_hash,
-                preflight_status_by_main.get(
+                (stats.tail_access_capacity_status_by_main or {}).get(
                     _tail_access_main_identity(skeleton_hash, main_candidate),
                     "UNRESOLVED_COVERAGE",
                 ),
             )
-            for main_candidate, seed, skeleton_hash in pending_tail_candidates
-            if preflight_status_by_main.get(
-                _tail_access_main_identity(skeleton_hash, main_candidate),
-                "UNRESOLVED_COVERAGE",
+            for main_candidate, seed, skeleton_hash in pending_tail_candidates_by_identity.values()
+            if _tail_access_main_is_s2_admissible(
+                (stats.tail_access_capacity_status_by_main or {}).get(
+                    _tail_access_main_identity(skeleton_hash, main_candidate),
+                    "UNRESOLVED_COVERAGE",
+                )
             )
-            != "NO_ACCESS_DRIVEN_SEED_IN_GENERATED_FINITE_SET"
+            and _tail_access_main_identity(skeleton_hash, main_candidate)
+            not in s2_started_main_identities
         ]
         for main_index, (main_candidate, seed, skeleton_hash, capacity_status) in enumerate(
             s2_main_candidates
         ):
-            if capacity_status == "NO_ACCESS_DRIVEN_SEED_IN_GENERATED_FINITE_SET":
-                note_module_attempt(
-                    {
-                        "layout_family": layout_family,
-                        "stage": "S2_TAIL_ACCESS_CAPACITY_PREFLIGHT",
-                        "result": capacity_status,
-                        "main_process_skeleton_hash": skeleton_hash,
-                        "seed_counts_by_module": (
-                            stats.tail_access_capacity_seed_counts_by_main or {}
-                        ).get(_tail_access_main_identity(skeleton_hash, main_candidate), {}),
-                    }
-                )
-                failure_stage = "S2_TAIL_ACCESS_CAPACITY_PREFLIGHT"
-                failure_reason = capacity_status
-                continue
+            main_identity = _tail_access_main_identity(skeleton_hash, main_candidate)
+            s2_started_main_identities.add(main_identity)
             remaining_main_candidates = len(s2_main_candidates) - main_index
             remaining_context_nodes = max(0, context.node_budget - stats.visited_nodes)
             family_s2_node_cap = max(
@@ -15093,6 +15492,12 @@ class PlacementCandidateEnumerationV1:
 
     @property
     def skeleton_generation_report(self) -> dict[str, Any]:
+        changing_shapes = self._stats.changing_flexible_shape_signatures or set()
+        changing_aspects = tuple(
+            max(width_mm, depth_mm) / min(width_mm, depth_mm)
+            for width_mm, depth_mm in changing_shapes
+            if min(width_mm, depth_mm) > 0
+        )
         return {
             "identity": "main-process-skeleton-construction@1.0.0",
             "topology": self._context.structural_topology,
@@ -15181,8 +15586,111 @@ class PlacementCandidateEnumerationV1:
                             self._stats.tail_access_capacity_status_by_main or {}
                         ).values()
                     ),
+                    "tail_access_incapable_main_count": sum(
+                        status == "TAIL_ACCESS_INCAPABLE_MAIN"
+                        for status in (
+                            self._stats.tail_access_capacity_status_by_main or {}
+                        ).values()
+                    ),
+                    "tail_access_unresolved_main_count": sum(
+                        status == "UNRESOLVED_COVERAGE"
+                        for status in (
+                            self._stats.tail_access_capacity_status_by_main or {}
+                        ).values()
+                    ),
                     "tail_access_capacity_status_by_main": dict(
                         sorted((self._stats.tail_access_capacity_status_by_main or {}).items())
+                    ),
+                    "tail_access_capacity_candidate_cursor_by_main": {
+                        main: dict(sorted(module_rows.items()))
+                        for main, module_rows in sorted(
+                            (
+                                self._stats.tail_access_capacity_candidate_cursor_by_main or {}
+                            ).items()
+                        )
+                    },
+                    "tail_access_capacity_domain_exhausted_by_main": {
+                        main: dict(sorted(module_rows.items()))
+                        for main, module_rows in sorted(
+                            (
+                                self._stats.tail_access_capacity_domain_exhausted_by_main or {}
+                            ).items()
+                        )
+                    },
+                    "sorting_side_branch_free_intervals_by_main": {
+                        main: {
+                            module_name: {
+                                interval_kind: list(rows)
+                                for interval_kind, rows in sorted(interval_sets.items())
+                            }
+                            for module_name, interval_sets in sorted(module_rows.items())
+                        }
+                        for main, module_rows in sorted(
+                            (self._stats.sorting_side_branch_free_intervals_by_main or {}).items()
+                        )
+                    },
+                    "secondary_direct_seed_count_before_truck_filter_by_main": {
+                        main: row.get("SECONDARY_SUPPORT_MODULE", 0)
+                        for main, row in sorted(
+                            (
+                                self._stats.tail_direct_seed_counts_before_truck_filter_by_main
+                                or {}
+                            ).items()
+                        )
+                    },
+                    "secondary_direct_seed_count_after_truck_filter_by_main": {
+                        main: row.get("SECONDARY_SUPPORT_MODULE", 0)
+                        for main, row in sorted(
+                            (
+                                self._stats.tail_direct_seed_counts_after_truck_filter_by_main or {}
+                            ).items()
+                        )
+                    },
+                    "frozen_direct_seed_count_before_truck_filter_by_main": {
+                        main: row.get("FROZEN_SUPPORT_MODULE", 0)
+                        for main, row in sorted(
+                            (
+                                self._stats.tail_direct_seed_counts_before_truck_filter_by_main
+                                or {}
+                            ).items()
+                        )
+                    },
+                    "frozen_direct_seed_count_after_truck_filter_by_main": {
+                        main: row.get("FROZEN_SUPPORT_MODULE", 0)
+                        for main, row in sorted(
+                            (
+                                self._stats.tail_direct_seed_counts_after_truck_filter_by_main or {}
+                            ).items()
+                        )
+                    },
+                    "tail_access_capacity_continuation_count": (
+                        self._stats.tail_access_capacity_continuation_count
+                    ),
+                    "truck_pass_main_rejected_for_tail_access_count": (
+                        self._stats.truck_pass_main_rejected_for_tail_access_count
+                    ),
+                    "main_enumeration_continued_after_tail_access_reject": (
+                        self._stats.main_enumeration_continued_after_tail_access_reject
+                    ),
+                    "main_generator_resumed_from_continuation": (
+                        self._stats.main_generator_resumed_from_continuation
+                    ),
+                    "replayed_main_prefix_node_count": self._stats.replayed_main_prefix_node_count,
+                    "tail_capacity_seed_cache_reused_in_s2": (
+                        self._stats.tail_capacity_seed_cache_reused_in_s2
+                    ),
+                    "changing_flexible_authority_source": "P2C_UNIQUE_DIMENSIONS",
+                    "changing_flexible_shape_count": len(changing_shapes),
+                    "changing_non_square_shape_count": sum(
+                        width_mm != depth_mm for width_mm, depth_mm in changing_shapes
+                    ),
+                    "changing_min_aspect_ratio": min(changing_aspects, default=None),
+                    "changing_max_aspect_ratio": max(changing_aspects, default=None),
+                    "changing_dual_endpoint_direct_seed_count": len(
+                        self._stats.changing_dual_endpoint_seed_signatures or ()
+                    ),
+                    "endpoint_driven_candidate_metadata_miss_count": (
+                        self._stats.endpoint_driven_candidate_metadata_miss_count
                     ),
                     "tail_access_preflight_nodes_by_main": dict(
                         sorted(

@@ -6,6 +6,8 @@ from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
 from cold_storage.modules.layout.domain import placement
 from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
 
@@ -379,6 +381,204 @@ def test_access_driven_changing_uses_both_endpoints_and_finite_event_classes() -
         placement._module_signature(row.as_placements()) for row in changed_entrance
     }
     assert all(set(dict(candidate.placements)) == {"changing_room"} for candidate in candidates)
+
+
+@pytest.mark.parametrize(
+    ("candidate_bounds", "expected"),
+    (
+        ((50_000, 125_000, 100_000, 175_000), ("WEST", 125_000, 175_000)),
+        ((200_000, 125_000, 250_000, 175_000), ("EAST", 125_000, 175_000)),
+        ((125_000, 50_000, 175_000, 100_000), ("SOUTH", 125_000, 175_000)),
+        ((125_000, 200_000, 175_000, 250_000), ("NORTH", 125_000, 175_000)),
+    ),
+)
+def test_sorting_side_branch_intervals_are_exact_and_side_labeled(
+    candidate_bounds: tuple[int, int, int, int], expected: tuple[str, int, int]
+) -> None:
+    sorting = _rectangle("sorting_packaging_room", (100_000, 100_000, 200_000, 200_000))
+    candidate = _rectangle("branch_zone", candidate_bounds)
+
+    assert placement._sorting_shared_interval_mm(sorting, candidate) == expected
+
+
+def _flexible_changing_context(
+    entrance: tuple[tuple[int, int], tuple[int, int]],
+) -> SimpleNamespace:
+    context = _tail_geometry_context()
+    context.main_entrance = entrance
+    context.authorities["changing_room"] = {
+        "zone_code": "changing_room",
+        "dimension_mode": "FLEXIBLE_RECTANGLE",
+        "required_area_m2": 40,
+        "geometry": {"required_area_m2": 40},
+    }
+    return context
+
+
+def test_changing_uses_p2c_flexible_dimension_domain_including_non_square_shapes() -> None:
+    context = _flexible_changing_context(((200_000, 45_000), (200_000, 55_000)))
+
+    shapes = placement._access_tail_dimension_shapes(context, "changing_room", {})
+    non_square = [shape for shape in shapes if shape[0] != shape[1]]
+
+    assert shapes
+    assert non_square
+    assert all(width * depth >= 40_000_000 for width, depth, *_ in shapes)
+    assert len({(shape[0], shape[1], shape[2]) for shape in shapes}) == len(shapes)
+
+
+@pytest.mark.parametrize(
+    ("entrance", "sorting_bounds"),
+    (
+        (((200_000, 45_000), (200_000, 55_000)), (160_000, 45_000, 180_000, 55_000)),
+        (((45_000, 200_000), (55_000, 200_000)), (45_000, 160_000, 55_000, 180_000)),
+    ),
+)
+def test_changing_dual_endpoint_direct_supports_vertical_and_horizontal_entrances(
+    entrance: tuple[tuple[int, int], tuple[int, int]],
+    sorting_bounds: tuple[int, int, int, int],
+) -> None:
+    context = _flexible_changing_context(entrance)
+    sorting = _rectangle("sorting_packaging_room", sorting_bounds)
+    candidates = placement._access_driven_tail_candidates(
+        context,
+        "CHANGING_MODULE",
+        "changing_room",
+        {"sorting_packaging_room": sorting},
+        _one_bay(),
+    )
+    dual = [
+        dict(candidate.placements)["changing_room"]
+        for candidate in candidates
+        if candidate.endpoint_event_class == "ENTRANCE_SORTING_DUAL_DIRECT"
+    ]
+
+    assert dual
+    assert all(placement._entrance_shared_length_mm(row, entrance) >= 1_500 for row in dual)
+    assert all(placement._shared_edge_length_mm(sorting, row) >= 1_500 for row in dual)
+    assert all(
+        placement._site_module_is_usable(
+            context, {"changing_room": row}, {"sorting_packaging_room": sorting}
+        )
+        for row in dual
+    )
+    entrance_clearance_spans = [
+        min(placement._entrance_shared_length_mm(row, entrance), 2_000) for row in dual
+    ]
+    first = dual[0]
+    first_clearance_span = min(placement._entrance_shared_length_mm(first, entrance), 2_000)
+    first_sorting_span = placement._shared_edge_length_mm(sorting, first)
+    assert first_clearance_span == max(entrance_clearance_spans)
+    assert first_sorting_span == max(
+        placement._shared_edge_length_mm(sorting, row)
+        for row, entrance_span in zip(dual, entrance_clearance_spans, strict=True)
+        if entrance_span == first_clearance_span
+    )
+
+
+def test_tail_capacity_cursor_continues_and_unresolved_is_not_s2_admissible(
+    monkeypatch: Any,
+) -> None:
+    def validator(requirement: Any, **kwargs: Any) -> tuple[dict[str, Any], tuple[Any, ...]]:
+        pair = f"{requirement['from_ref']}->{requirement['to_ref']}"
+        changing = kwargs["zones"].get("changing_room")
+        if pair == "main_entrance->changing_room" and changing is not None:
+            bounds = changing.bounds_mm
+            blocked = bounds[0] == 100_000
+        else:
+            bounds = kwargs["zones"].get("frozen_fruit_room")
+            if pair == "sorting_packaging_room->frozen_fruit_room" and bounds is not None:
+                blocked = True
+            else:
+                blocked = False
+        status = "BLOCKED" if blocked else "PASS"
+        return (
+            {
+                **requirement,
+                "status": status,
+                "codes": ["ROUTE_SEARCH_EXHAUSTED"] if blocked else [],
+                "topology": "DIRECT_SHARED_EDGE",
+            },
+            (),
+        )
+
+    context = _tail_geometry_context(validator)
+    context.node_budget = 120
+    context.structural_topology = "STRAIGHT_LINEAR_BAND"
+    context.structured_building_plan = SimpleNamespace(layout_family="LINEAR_3_BAND")
+    main = {
+        code: _rectangle(
+            code,
+            (index * 10_000, 0, (index + 1) * 10_000, 10_000),
+        )
+        for index, code in enumerate(
+            (
+                "raw_fruit_buffer",
+                "primary_precooling_room",
+                "sorting_packaging_room",
+                "secondary_precooling_room",
+                "coating_room",
+                "finished_goods_room",
+                "shipping_channel",
+                "packaging_material_storage",
+            )
+        )
+    }
+
+    def seeded_candidates(
+        _context: Any, module_name: str, zone_code: str, _fixed: Any, _bays: Any
+    ) -> tuple[placement.AccessDrivenTailCandidateV1, ...]:
+        x_origins = {
+            "CHANGING_MODULE": (100_000, 110_000),
+            "SECONDARY_SUPPORT_MODULE": (120_000,),
+            "FROZEN_SUPPORT_MODULE": (140_000,),
+        }[module_name]
+        return tuple(
+            placement.AccessDrivenTailCandidateV1(
+                module_name,
+                ((zone_code, _rectangle(zone_code, (x, 100_000, x + 8_000, 110_000))),),
+                (f"REQ:{module_name}",),
+                "UNIT_TEST_ENDPOINT",
+                "UNIT_TEST_DIRECT",
+                True,
+            )
+            for x in x_origins
+        )
+
+    monkeypatch.setattr(placement, "_access_driven_tail_candidates", seeded_candidates)
+    monkeypatch.setattr(
+        placement,
+        "_office_site_module_candidates",
+        lambda *_args: ({"office": _rectangle("office", (160_000, 100_000, 168_000, 110_000))},),
+    )
+    stats = placement._PlacementSearchStats()
+
+    first = tuple(
+        placement._tail_access_capacity_preflight(
+            context, (("main-a", main),), _one_bay(), stats, node_limit=1
+        )
+    )[-1]
+    second = tuple(
+        placement._tail_access_capacity_preflight(
+            context, (("main-a", main),), _one_bay(), stats, node_limit=8
+        )
+    )[-1]
+    identity = placement._tail_access_main_identity("main-a", main)
+    changing_rows = [
+        row
+        for row in stats.tail_access_capacity_preflight_rows or []
+        if row["module_name"] == "CHANGING_MODULE"
+    ]
+
+    assert first[identity] == "UNRESOLVED_COVERAGE"
+    assert second[identity] == "TAIL_ACCESS_INCAPABLE_MAIN"
+    assert [row["candidate_index"] for row in changing_rows] == [1, 2]
+    assert len({row["zone_bounds_mm"]["changing_room"][0] for row in changing_rows}) == 2
+    assert stats.tail_access_capacity_candidate_cursor_by_main[identity]["CHANGING_MODULE"] == 2
+    assert stats.tail_access_capacity_continuation_count == 1
+    assert placement._tail_access_main_is_s2_admissible("TAIL_ACCESS_CAPABLE_MAIN")
+    assert not placement._tail_access_main_is_s2_admissible("UNRESOLVED_COVERAGE")
+    assert not placement._tail_access_main_is_s2_admissible("TAIL_ACCESS_INCAPABLE_MAIN")
 
 
 def test_sorting_and_shipping_independently_drive_tail_zone_origins() -> None:

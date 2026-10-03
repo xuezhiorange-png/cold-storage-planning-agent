@@ -768,20 +768,19 @@ def select_validated_placement(
     lane_state: dict[int, dict[str, Any]] = {}
     phase_states: list[dict[str, Any]] = []
     fallback_started: set[int] = set()
+    structured_initial_allocation = min(placement_node_budget, DIRECT_SYNTHESIS_ATTEMPT_COUNT)
 
     def make_enumeration(lane_index: int, phase: str) -> Any:
         lane = topology_lanes[lane_index]
-        phase_budget = (
-            min(placement_node_budget, DIRECT_SYNTHESIS_ATTEMPT_COUNT)
-            if phase == STRUCTURED_PHASE
-            else placement_node_budget
-        )
         return enumerate_placement_candidates(
             canonical_zone_plan,
             p1_handoff,
             site_geometry,
             objective_profile,
-            node_budget=phase_budget,
+            # The enumeration can continue through scheduler quanta up to the
+            # shared placement budget. DIRECT_SYNTHESIS_ATTEMPT_COUNT is the
+            # initial structured allocation, not a second lifetime cutoff.
+            node_budget=placement_node_budget,
             truck_maneuver_binding=truck_maneuver_binding,
             truck_node_budget=truck_node_budget,
             truck_maneuver_validator=validate_truck_maneuver_chain,
@@ -832,8 +831,14 @@ def select_validated_placement(
         for fallback_lane in eligible_fallback_lanes:
             fallback_started.add(fallback_lane)
             fallback_report = lane_state[fallback_lane]["report"]
+            structured_unfinished = any(
+                state["phase"] == STRUCTURED_PHASE and not state["finalized"]
+                for state in phase_states
+            )
             fallback_report["fallback_admission_reason"] = (
-                "STRUCTURED_PHASES_COMPLETED_WITH_REMAINING_GLOBAL_BUDGET"
+                "STRUCTURED_INITIAL_ALLOCATION_REACHED_WITH_REMAINING_GLOBAL_BUDGET"
+                if structured_unfinished
+                else "STRUCTURED_PHASES_COMPLETED_WITH_REMAINING_GLOBAL_BUDGET"
             )
             fallback_report["fallback_node_budget"] = global_node_budget_remaining
             fallback_report["fallback_budget_is_shared_pool"] = True
@@ -841,7 +846,9 @@ def select_validated_placement(
                 fallback_lane, 0
             )
             fallback_report["fallback_scheduling_policy"] = (
-                "ROUND_ROBIN_STABLE_LANE_ORDER_AFTER_STRUCTURED_SPEND"
+                "ROUND_ROBIN_STABLE_LANE_ORDER_WITH_SHARED_STRUCTURED_CONTINUATION"
+                if structured_unfinished
+                else "ROUND_ROBIN_STABLE_LANE_ORDER_AFTER_STRUCTURED_SPEND"
             )
             fallback_state = {
                 "lane_index": fallback_lane,
@@ -870,9 +877,10 @@ def select_validated_placement(
             "lane_node_budget": placement_node_budget,
             "global_budget_before_lane": None,
             "structured_node_budget": (
-                min(placement_node_budget, DIRECT_SYNTHESIS_ATTEMPT_COUNT)
-                if lane_index == direct_synthesis_lane_index
-                else 0
+                placement_node_budget if lane_index == direct_synthesis_lane_index else 0
+            ),
+            "structured_initial_node_allocation": (
+                structured_initial_allocation if lane_index == direct_synthesis_lane_index else 0
             ),
             "fallback_node_budget": 0,
             "phases": [],
@@ -895,7 +903,8 @@ def select_validated_placement(
                 {
                     "lane_index": lane_index,
                     "phase": STRUCTURED_PHASE,
-                    "phase_budget": min(placement_node_budget, DIRECT_SYNTHESIS_ATTEMPT_COUNT),
+                    "phase_budget": placement_node_budget,
+                    "initial_node_allocation": structured_initial_allocation,
                     "enumeration": make_enumeration(lane_index, STRUCTURED_PHASE),
                     "candidate_count": 0,
                     "rejected_count": 0,
@@ -1139,6 +1148,7 @@ def select_validated_placement(
         phase_row = {
             "search_phase": phase,
             "node_budget": state["phase_budget"],
+            "initial_node_allocation": state.get("initial_node_allocation"),
             "visited_nodes": enumeration.visited_node_count,
             "complete_candidates": enumeration.candidate_count,
             "distinct_main_process_skeleton_count": (
@@ -1227,9 +1237,15 @@ def select_validated_placement(
         fallback_is_active = any(
             state["phase"] == GENERAL_FALLBACK_PHASE for state in active_states
         )
+        structured_initial_allocation_reached = any(
+            state["phase"] == STRUCTURED_PHASE
+            and not state["finalized"]
+            and state["enumeration"].visited_node_count >= structured_initial_allocation
+            for state in phase_states
+        )
         if (
-            not structured_work_remains
-            and not fallback_is_active
+            not fallback_is_active
+            and (not structured_work_remains or structured_initial_allocation_reached)
             and global_node_budget_remaining > 0
         ):
             enqueue_compatibility_fallbacks()
