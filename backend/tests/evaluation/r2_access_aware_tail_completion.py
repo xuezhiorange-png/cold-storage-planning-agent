@@ -148,7 +148,7 @@ def _witness_zone_rows(witness: Mapping[str, Any]) -> list[dict[str, Any]]:
 def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
     snapshots: list[dict[str, Any]] = []
     full_site_candidates: list[dict[str, Any]] = []
-    changing_dual_endpoint_candidates: list[dict[str, Any]] = []
+    changing_endpoint_candidates: list[dict[str, Any]] = []
     p2d_rows: list[dict[str, Any]] = []
     app_route_counts: Counter[str] = Counter()
     real_direct = placement_domain._direct_structured_candidates
@@ -183,7 +183,10 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
                 else ()
             )
             for candidate in rows:
-                if candidate.endpoint_event_class != "ENTRANCE_SORTING_DUAL_DIRECT":
+                if candidate.endpoint_event_class not in {
+                    "ENTRANCE_CORRIDOR_COMPATIBLE_SORTING_DIRECT",
+                    "ENTRANCE_SORTING_DUAL_DIRECT",
+                }:
                     continue
                 placements = candidate.as_placements()
                 zone_rows = [
@@ -205,7 +208,7 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
                 ]
                 changing = placements[zone_code]
                 changing_width, changing_depth = changing.width_m, changing.depth_m
-                changing_dual_endpoint_candidates.append(
+                changing_endpoint_candidates.append(
                     {
                         "geometry_key": _geometry_key(zone_rows),
                         "layout_family": getattr(
@@ -451,8 +454,45 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
                     "changing_flexible_shape_signatures": sorted(
                         stats.changing_flexible_shape_signatures or ()
                     ),
+                    "changing_authority_shape_signatures": sorted(
+                        stats.changing_authority_shape_signatures or ()
+                    ),
+                    "changing_construction_footprint_signatures": sorted(
+                        stats.changing_construction_footprint_signatures or ()
+                    ),
+                    "changing_extreme_aspect_shape_signatures": sorted(
+                        stats.changing_extreme_aspect_shape_signatures or ()
+                    ),
                     "changing_dual_endpoint_seed_signatures": sorted(
                         repr(value) for value in stats.changing_dual_endpoint_seed_signatures or ()
+                    ),
+                    "entrance_route_compatible_changing_seed_count": (
+                        stats.entrance_route_compatible_changing_seed_count
+                    ),
+                    "entrance_route_compatible_changing_seed_counts_by_main": dict(
+                        stats.entrance_route_compatible_changing_seed_counts_by_main or {}
+                    ),
+                    "entrance_route_compatible_changing_access_pass_count": (
+                        stats.entrance_route_compatible_changing_access_pass_count
+                    ),
+                    "changing_to_sorting_direct_pass_count": (
+                        stats.changing_to_sorting_direct_pass_count
+                    ),
+                    "changing_extreme_aspect_probed_before_route_compatible_count": (
+                        stats.changing_extreme_aspect_probed_before_route_compatible_count
+                    ),
+                    "main_entrance_to_changing_failure_code_counts": dict(
+                        stats.main_entrance_to_changing_failure_code_counts or {}
+                    ),
+                    "tail_incapable_reason_by_main": {
+                        main: list(modules)
+                        for main, modules in (stats.tail_incapable_reason_by_main or {}).items()
+                    },
+                    "tail_incapable_proof_scope_by_main": dict(
+                        stats.tail_incapable_proof_scope_by_main or {}
+                    ),
+                    "frozen_direct_seed_truck_rejection_rows": list(
+                        stats.frozen_direct_seed_truck_rejection_rows or ()
                     ),
                     "endpoint_driven_candidate_metadata_miss_count": (
                         stats.endpoint_driven_candidate_metadata_miss_count
@@ -609,9 +649,14 @@ def _capture_one(payload: Mapping[str, Any]) -> dict[str, Any]:
         "snapshots": snapshots,
         "enumeration_phase_rows": enumeration_phase_rows,
         "full_site_candidates": full_site_candidates,
-        "changing_dual_endpoint_candidates": changing_dual_endpoint_candidates,
+        "changing_dual_endpoint_candidates": changing_endpoint_candidates,
         "p2d_rows": p2d_rows,
         "app_route_counts": dict(sorted(app_route_counts.items())),
+        "scheduler_budget_accounting": (
+            tool7.get("internal", {})
+            .get("r6_topology_diagnostics", {})
+            .get("r11_budget_accounting", {})
+        ),
         "selected": {
             "skeleton_hash": layout.get("selected_main_process_skeleton_hash"),
             "project_layout_validated": result.get("project_layout_validated"),
@@ -936,7 +981,7 @@ def _summarize_run(run: Mapping[str, Any]) -> dict[str, Any]:
         }
     )
     full_site_candidates = _distinct_rows(run["full_site_candidates"], "geometry_key")
-    changing_dual_rows = _distinct_rows(
+    changing_endpoint_rows = _distinct_rows(
         run.get("changing_dual_endpoint_candidates", []), "geometry_key"
     )
     preflight_rows_by_key: dict[str, dict[str, Any]] = {}
@@ -973,7 +1018,15 @@ def _summarize_run(run: Mapping[str, Any]) -> dict[str, Any]:
     office_counts: dict[str, int] = {}
     sorting_side_branch_intervals_by_main: dict[str, dict[str, Any]] = {}
     changing_shape_signatures: set[tuple[int, int]] = set()
+    changing_authority_shape_signatures: set[tuple[int, int, int]] = set()
+    changing_construction_footprints: set[tuple[int, int]] = set()
+    changing_extreme_shape_signatures: set[tuple[int, int]] = set()
     dual_endpoint_seed_signatures: set[str] = set()
+    entrance_route_seed_count_by_main: dict[str, int] = {}
+    main_entrance_failure_codes: Counter[str] = Counter()
+    frozen_direct_rejection_rows_by_key: dict[str, dict[str, Any]] = {}
+    incapable_reasons_by_main: dict[str, list[str]] = {}
+    incapable_scope_by_main: dict[str, str] = {}
     domain_exhausted_by_main: dict[str, dict[str, bool]] = {}
     candidate_cursor_by_main: dict[str, dict[str, int]] = {}
     direct_before_by_main: dict[str, dict[str, int]] = {}
@@ -1037,6 +1090,47 @@ def _summarize_run(run: Mapping[str, Any]) -> dict[str, Any]:
             (min(int(row[0]), int(row[1])), max(int(row[0]), int(row[1])))
             for row in snapshot.get("changing_flexible_shape_signatures", [])
             if isinstance(row, (list, tuple)) and len(row) == 2
+        )
+        changing_authority_shape_signatures.update(
+            (int(row[0]), int(row[1]), int(row[2]))
+            for row in snapshot.get("changing_authority_shape_signatures", [])
+            if isinstance(row, (list, tuple)) and len(row) == 3
+        )
+        changing_construction_footprints.update(
+            (int(row[0]), int(row[1]))
+            for row in snapshot.get("changing_construction_footprint_signatures", [])
+            if isinstance(row, (list, tuple)) and len(row) == 2
+        )
+        changing_extreme_shape_signatures.update(
+            (int(row[0]), int(row[1]))
+            for row in snapshot.get("changing_extreme_aspect_shape_signatures", [])
+            if isinstance(row, (list, tuple)) and len(row) == 2
+        )
+        for main, count in snapshot.get(
+            "entrance_route_compatible_changing_seed_counts_by_main", {}
+        ).items():
+            entrance_route_seed_count_by_main[str(main)] = max(
+                entrance_route_seed_count_by_main.get(str(main), 0), int(count)
+            )
+        main_entrance_failure_codes.update(
+            {
+                str(code): int(count)
+                for code, count in snapshot.get(
+                    "main_entrance_to_changing_failure_code_counts", {}
+                ).items()
+            }
+        )
+        for row in snapshot.get("frozen_direct_seed_truck_rejection_rows", []):
+            if isinstance(row, Mapping):
+                identity = json.dumps(row, sort_keys=True, separators=(",", ":"))
+                frozen_direct_rejection_rows_by_key.setdefault(identity, dict(row))
+        for main, modules in snapshot.get("tail_incapable_reason_by_main", {}).items():
+            incapable_reasons_by_main[str(main)] = sorted(str(module) for module in modules)
+        incapable_scope_by_main.update(
+            {
+                str(main): str(scope)
+                for main, scope in snapshot.get("tail_incapable_proof_scope_by_main", {}).items()
+            }
         )
         dual_endpoint_seed_signatures.update(
             str(value) for value in snapshot.get("changing_dual_endpoint_seed_signatures", [])
@@ -1206,14 +1300,14 @@ def _summarize_run(run: Mapping[str, Any]) -> dict[str, Any]:
                 "main_entrance_segment_mm": first_snapshot.get("main_entrance_segment_mm", []),
             }
         )
-    changing_image_rows = changing_dual_rows[:6]
+    changing_image_rows = changing_endpoint_rows[:6]
     if not changing_image_rows and first_snapshot:
         changing_image_rows = [
             {
-                "layout_family": "NO DUAL-DIRECT SEED",
+                "layout_family": "NO ENTRANCE-ROUTE-COMPATIBLE SEED",
                 "skeleton_hash": "none",
                 "zones": [],
-                "candidate_event_classes": ["No exact dual-endpoint candidate captured"],
+                "candidate_event_classes": ["No exact entrance/sorting endpoint seed captured"],
                 "truck_entrance_segment_mm": first_snapshot.get("truck_entrance_segment_mm", []),
                 "main_entrance_segment_mm": first_snapshot.get("main_entrance_segment_mm", []),
             }
@@ -1315,6 +1409,8 @@ def _summarize_run(run: Mapping[str, Any]) -> dict[str, Any]:
             status == "TAIL_ACCESS_CAPABLE_MAIN" for status in capacity_status.values()
         ),
         "tail_access_capacity_status_by_main": dict(sorted(capacity_status.items())),
+        "tail_incapable_reason_by_main": dict(sorted(incapable_reasons_by_main.items())),
+        "tail_incapable_proof_scope_by_main": dict(sorted(incapable_scope_by_main.items())),
         "tail_access_preflight_nodes_by_main": dict(sorted(capacity_nodes.items())),
         "tail_access_capacity_candidate_cursor_by_main": {
             main: dict(sorted(rows.items()))
@@ -1341,6 +1437,19 @@ def _summarize_run(run: Mapping[str, Any]) -> dict[str, Any]:
         "tail_capacity_cursor_continuation_count": continuation_count,
         "tail_capacity_seed_cache_reused_in_s2": seed_cache_reused,
         "changing_flexible_authority_source": "P2C_UNIQUE_DIMENSIONS",
+        "changing_authority_shape_count": len(changing_authority_shape_signatures),
+        "changing_construction_canonical_shape_count": len(changing_construction_footprints),
+        "changing_equivalent_footprint_dedup_count": max(
+            0, len(changing_authority_shape_signatures) - len(changing_construction_footprints)
+        ),
+        "changing_extreme_aspect_shape_count": len(changing_extreme_shape_signatures),
+        "changing_extreme_aspect_probed_before_route_compatible_count": max(
+            (
+                int(snapshot.get("changing_extreme_aspect_probed_before_route_compatible_count", 0))
+                for snapshot in snapshots
+            ),
+            default=0,
+        ),
         "changing_flexible_shape_count": len(changing_shape_signatures),
         "changing_non_square_shape_count": sum(
             width != depth for width, depth in changing_shape_signatures
@@ -1348,7 +1457,41 @@ def _summarize_run(run: Mapping[str, Any]) -> dict[str, Any]:
         "changing_min_aspect_ratio": min(shape_aspects, default=None),
         "changing_max_aspect_ratio": max(shape_aspects, default=None),
         "changing_dual_endpoint_direct_seed_count": len(dual_endpoint_seed_signatures),
-        "changing_dual_endpoint_direct_candidate_count": len(changing_dual_rows),
+        "changing_dual_endpoint_direct_candidate_count": len(
+            {
+                str(row.get("geometry_key"))
+                for row in changing_endpoint_rows
+                if "ENTRANCE_SORTING_DUAL_DIRECT" in row.get("candidate_event_classes", [])
+            }
+        ),
+        "entrance_route_compatible_changing_seed_count": len(
+            {
+                str(row.get("geometry_key"))
+                for row in changing_endpoint_rows
+                if "ENTRANCE_CORRIDOR_COMPATIBLE_SORTING_DIRECT"
+                in row.get("candidate_event_classes", [])
+            }
+        ),
+        "entrance_route_compatible_changing_seed_count_by_main": dict(
+            sorted(entrance_route_seed_count_by_main.items())
+        ),
+        "entrance_route_compatible_changing_access_pass_count": max(
+            (
+                int(snapshot.get("entrance_route_compatible_changing_access_pass_count", 0))
+                for snapshot in snapshots
+            ),
+            default=0,
+        ),
+        "changing_to_sorting_direct_pass_count": max(
+            (
+                int(snapshot.get("changing_to_sorting_direct_pass_count", 0))
+                for snapshot in snapshots
+            ),
+            default=0,
+        ),
+        "main_entrance_to_changing_failure_code_counts": dict(
+            sorted(main_entrance_failure_codes.items())
+        ),
         "endpoint_driven_candidate_metadata_miss_count": metadata_miss_count,
         "secondary_direct_seed_count_before_truck_filter_by_main": {
             main: rows.get("SECONDARY_SUPPORT_MODULE", 0)
@@ -1366,6 +1509,11 @@ def _summarize_run(run: Mapping[str, Any]) -> dict[str, Any]:
             main: rows.get("FROZEN_SUPPORT_MODULE", 0)
             for main, rows in sorted(direct_after_by_main.items())
         },
+        "frozen_direct_seed_truck_rejection_rows": [
+            frozen_direct_rejection_rows_by_key[key]
+            for key in sorted(frozen_direct_rejection_rows_by_key)
+        ],
+        "scheduler_budget_accounting": dict(run.get("scheduler_budget_accounting", {})),
         "tail_access_nodes_by_main": dict(sorted(tail_nodes_by_main.items())),
         "changing_access_driven_candidate_count_by_main": {
             key: row.get("CHANGING_MODULE", 0) for key, row in sorted(driven_counts.items())
@@ -1529,7 +1677,7 @@ def _summarize_run(run: Mapping[str, Any]) -> dict[str, Any]:
         "image_rows": image_rows,
         "capacity_image_rows": capacity_image_rows,
         "changing_image_rows": changing_image_rows,
-        "changing_dual_endpoint_candidates": changing_dual_rows,
+        "changing_dual_endpoint_candidates": changing_endpoint_rows,
         "p2d_gallery_rows": p2d_gallery_rows,
     }
     return evidence
@@ -1553,6 +1701,18 @@ def capture_access_aware_tail_replay() -> dict[str, Any]:
         "same_input_same_access_witnesses": (
             first_summary["complete_access_witnesses"]
             == second_summary["complete_access_witnesses"]
+        ),
+        "same_input_same_scheduler_accounting": (
+            first_summary.get("scheduler_budget_accounting")
+            == second_summary.get("scheduler_budget_accounting")
+        ),
+        "same_input_same_tail_capacity_state": (
+            first_summary.get("tail_access_capacity_status_by_main")
+            == second_summary.get("tail_access_capacity_status_by_main")
+            and first_summary.get("tail_access_capacity_candidate_cursor_by_main")
+            == second_summary.get("tail_access_capacity_candidate_cursor_by_main")
+            and first_summary.get("main_entrance_to_changing_failure_code_counts")
+            == second_summary.get("main_entrance_to_changing_failure_code_counts")
         ),
         "same_input_same_p2d_route_rows": (
             first_summary["p2d_route_rows"] == second_summary["p2d_route_rows"]

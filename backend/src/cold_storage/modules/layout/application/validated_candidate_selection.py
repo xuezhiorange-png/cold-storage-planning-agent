@@ -769,6 +769,16 @@ def select_validated_placement(
     phase_states: list[dict[str, Any]] = []
     fallback_started: set[int] = set()
     structured_initial_allocation = min(placement_node_budget, DIRECT_SYNTHESIS_ATTEMPT_COUNT)
+    structured_continuation_reserved_nodes = 0
+    structured_continuation_used_nodes = 0
+    structured_continuation_nodes_remaining = 0
+    general_fallback_nodes_after_structured_reservation = 0
+    unresolved_main_count_before_continuation = 0
+    unresolved_main_count_after_continuation = 0
+    structured_work_remains_when_fallback_started = False
+    fallback_started_before_reserved_structured_continuation_exhausted = False
+    reserved_structured_main_identities: set[str] = set()
+    continuation_reservation_started = False
 
     def make_enumeration(lane_index: int, phase: str) -> Any:
         lane = topology_lanes[lane_index]
@@ -795,6 +805,13 @@ def select_validated_placement(
 
     def enqueue_compatibility_fallbacks() -> None:
         """Resume uncovered legacy lanes, compensating for structured-phase spend."""
+        nonlocal fallback_started_before_reserved_structured_continuation_exhausted
+        nonlocal structured_work_remains_when_fallback_started
+        if structured_continuation_nodes_remaining > 0:
+            fallback_started_before_reserved_structured_continuation_exhausted = True
+        structured_work_remains_when_fallback_started = any(
+            state["phase"] == STRUCTURED_PHASE and not state["finalized"] for state in phase_states
+        )
         stable_fallback_order = list(
             fallback_lane
             for fallback_lane in dict.fromkeys(
@@ -863,6 +880,62 @@ def select_validated_placement(
             }
             phase_states.append(fallback_state)
             active_states.append(fallback_state)
+
+    def unresolved_structured_tail_mains(*, include_finalized: bool = False) -> set[str]:
+        unresolved: set[str] = set()
+        for phase_state in phase_states:
+            if phase_state["phase"] != STRUCTURED_PHASE or (
+                phase_state["finalized"] and not include_finalized
+            ):
+                continue
+            report = phase_state["enumeration"].skeleton_generation_report
+            site_report = report.get("site_module_assembly", {})
+            tail_report = (
+                site_report.get("tail_access_aware_completion", {})
+                if isinstance(site_report, Mapping)
+                else {}
+            )
+            if not isinstance(tail_report, Mapping):
+                continue
+            statuses = tail_report.get("tail_access_capacity_status_by_main", {})
+            exhausted = tail_report.get("tail_access_capacity_domain_exhausted_by_main", {})
+            if not isinstance(statuses, Mapping):
+                continue
+            for identity, status in statuses.items():
+                if status != "UNRESOLVED_COVERAGE":
+                    continue
+                module_rows = exhausted.get(identity, {}) if isinstance(exhausted, Mapping) else {}
+                if not isinstance(module_rows, Mapping) or any(
+                    value is False for value in module_rows.values()
+                ):
+                    unresolved.add(str(identity))
+        return unresolved
+
+    def reserve_structured_continuation_if_needed() -> None:
+        nonlocal structured_continuation_reserved_nodes
+        nonlocal structured_continuation_nodes_remaining
+        nonlocal unresolved_main_count_before_continuation
+        nonlocal continuation_reservation_started
+        unresolved = unresolved_structured_tail_mains()
+        if not unresolved:
+            return
+        new_mains = unresolved - reserved_structured_main_identities
+        if not new_mains or global_node_budget_remaining <= 0:
+            return
+        if not continuation_reservation_started:
+            unresolved_main_count_before_continuation = len(unresolved)
+            continuation_reservation_started = True
+        # One existing scheduler quantum per unresolved main.  This is an
+        # allocation from the fixed shared 120-node pool, not a budget increase.
+        reservation = min(
+            global_node_budget_remaining,
+            len(new_mains) * PLACEMENT_SEARCH_QUANTUM_NODES,
+        )
+        if reservation <= 0:
+            return
+        structured_continuation_reserved_nodes += reservation
+        structured_continuation_nodes_remaining += reservation
+        reserved_structured_main_identities.update(new_mains)
 
     for lane_index in lane_order:
         lane = topology_lanes[lane_index]
@@ -1174,10 +1247,20 @@ def select_validated_placement(
     active_states = list(phase_states)
     scheduler_round = 0
     while active_states and global_node_budget_remaining > 0:
+        reserve_structured_continuation_if_needed()
         scheduler_round += 1
-        round_states = list(active_states)
+        round_states = sorted(
+            active_states,
+            key=lambda state: 0 if state["phase"] == STRUCTURED_PHASE else 1,
+        )
         active_states = []
         for turn_index, state in enumerate(round_states):
+            if (
+                state["phase"] == GENERAL_FALLBACK_PHASE
+                and structured_continuation_nodes_remaining > 0
+            ):
+                active_states.append(state)
+                continue
             if global_node_budget_remaining <= 0:
                 active_states.append(state)
                 continue
@@ -1186,6 +1269,11 @@ def select_validated_placement(
             turns_remaining = len(round_states) - turn_index
             fair_share = (global_node_budget_remaining + turns_remaining - 1) // turns_remaining
             quantum_limit = min(PLACEMENT_SEARCH_QUANTUM_NODES, fair_share)
+            continuation_quantum = (
+                state["phase"] == STRUCTURED_PHASE and structured_continuation_nodes_remaining > 0
+            )
+            if continuation_quantum:
+                quantum_limit = min(quantum_limit, structured_continuation_nodes_remaining)
             advance = enumeration.advance_quantum(quantum_limit)
             visited = advance.nodes_visited
             if visited > global_node_budget_remaining:
@@ -1195,6 +1283,13 @@ def select_validated_placement(
                 )
             global_node_visits += visited
             global_node_budget_remaining -= visited
+            if continuation_quantum:
+                structured_continuation_used_nodes += visited
+                structured_continuation_nodes_remaining = max(
+                    0, structured_continuation_nodes_remaining - visited
+                )
+            elif state["phase"] == GENERAL_FALLBACK_PHASE:
+                general_fallback_nodes_after_structured_reservation += visited
             state["status"] = advance.status
             lane_index = int(state["lane_index"])
             work_item = dict(advance.work_item or {})
@@ -1230,6 +1325,10 @@ def select_validated_placement(
                 finalize_phase(state)
             else:
                 active_states.append(state)
+            if state["phase"] == STRUCTURED_PHASE:
+                reserve_structured_continuation_if_needed()
+                if not unresolved_structured_tail_mains():
+                    structured_continuation_nodes_remaining = 0
 
         structured_work_remains = any(
             state["phase"] == STRUCTURED_PHASE and not state["finalized"] for state in phase_states
@@ -1243,8 +1342,11 @@ def select_validated_placement(
             and state["enumeration"].visited_node_count >= structured_initial_allocation
             for state in phase_states
         )
+        if continuation_reservation_started and structured_continuation_nodes_remaining == 0:
+            unresolved_main_count_after_continuation = len(unresolved_structured_tail_mains())
         if (
             not fallback_is_active
+            and structured_continuation_nodes_remaining == 0
             and (not structured_work_remains or structured_initial_allocation_reached)
             and global_node_budget_remaining > 0
         ):
@@ -1252,6 +1354,11 @@ def select_validated_placement(
 
     for state in phase_states:
         finalize_phase(state)
+
+    if continuation_reservation_started:
+        unresolved_main_count_after_continuation = len(
+            unresolved_structured_tail_mains(include_finalized=True)
+        )
 
     global_node_budget_remaining = placement_node_budget - global_node_visits
     global_budget_exhausted = global_node_budget_remaining == 0
@@ -1309,6 +1416,19 @@ def select_validated_placement(
         "construction_nodes": construction_nodes,
         "tail_nodes": tail_nodes,
         "general_fallback_nodes": general_fallback_nodes,
+        "structured_continuation_reserved_nodes": structured_continuation_reserved_nodes,
+        "structured_continuation_used_nodes": structured_continuation_used_nodes,
+        "general_fallback_nodes_after_structured_reservation": (
+            general_fallback_nodes_after_structured_reservation
+        ),
+        "unresolved_main_count_before_continuation": unresolved_main_count_before_continuation,
+        "unresolved_main_count_after_continuation": unresolved_main_count_after_continuation,
+        "structured_work_remains_when_fallback_started": (
+            structured_work_remains_when_fallback_started
+        ),
+        "fallback_started_before_reserved_structured_continuation_exhausted": (
+            fallback_started_before_reserved_structured_continuation_exhausted
+        ),
         "classified_node_total": classified_node_total,
         "global_node_visits_match_classified_total": True,
         "replayed_prefix_node_count": 0,

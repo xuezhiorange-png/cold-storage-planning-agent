@@ -425,6 +425,57 @@ def test_changing_uses_p2c_flexible_dimension_domain_including_non_square_shapes
     assert non_square
     assert all(width * depth >= 40_000_000 for width, depth, *_ in shapes)
     assert len({(shape[0], shape[1], shape[2]) for shape in shapes}) == len(shapes)
+    assert len({(shape[3], shape[4]) for shape in shapes}) == len(shapes)
+    authority_shapes = placement._access_tail_authority_shape_signatures(
+        context, "changing_room", {}
+    )
+    assert len(authority_shapes) > len(shapes)
+
+
+@pytest.mark.parametrize(
+    ("entrance", "sorting_bounds", "route_start"),
+    (
+        (
+            ((200_000, 45_000), (200_000, 55_000)),
+            (160_000, 45_000, 180_000, 55_000),
+            (198_000, 50_000),
+        ),
+        (
+            ((45_000, 200_000), (55_000, 200_000)),
+            (45_000, 160_000, 55_000, 180_000),
+            (50_000, 198_000),
+        ),
+    ),
+)
+def test_entrance_corridor_compatible_changing_seed_is_sorting_direct_and_not_boundary_touching(
+    entrance: tuple[tuple[int, int], tuple[int, int]],
+    sorting_bounds: tuple[int, int, int, int],
+    route_start: tuple[int, int],
+) -> None:
+    context = _flexible_changing_context(entrance)
+    context.main_entrance_route_start_points = (route_start,)
+    sorting = _rectangle("sorting_packaging_room", sorting_bounds)
+
+    candidates = placement._access_driven_tail_candidates(
+        context,
+        "CHANGING_MODULE",
+        "changing_room",
+        {"sorting_packaging_room": sorting},
+        _one_bay(),
+    )
+    aligned = [
+        dict(candidate.placements)["changing_room"]
+        for candidate in candidates
+        if candidate.endpoint_event_class == "ENTRANCE_CORRIDOR_COMPATIBLE_SORTING_DIRECT"
+    ]
+
+    assert aligned
+    assert candidates[0].endpoint_event_class == ("ENTRANCE_CORRIDOR_COMPATIBLE_SORTING_DIRECT")
+    for rectangle in aligned:
+        left, bottom, right, top = rectangle.bounds_mm
+        assert not (left <= route_start[0] <= right and bottom <= route_start[1] <= top)
+        assert placement._shared_edge_length_mm(sorting, rectangle) >= 1_500
+        assert placement._entrance_shared_length_mm(rectangle, entrance) == 0
 
 
 @pytest.mark.parametrize(

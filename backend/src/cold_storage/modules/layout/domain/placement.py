@@ -3348,12 +3348,53 @@ def _access_tail_dimension_shapes(
     # already placed geometry.  Do not replace it with the structured
     # generator's near-square-only estimates.
     dimensions = _unique_dimensions(authority, fixed, context.boundary)
-    shapes: dict[tuple[int, int, int, int, int], None] = {}
+    by_world_footprint: dict[tuple[int, int], tuple[int, int, int, int, int]] = {}
     for width_mm, depth_mm in dimensions:
         for rotation in (0, 90):
             x_span, y_span = (depth_mm, width_mm) if rotation == 90 else (width_mm, depth_mm)
-            shapes.setdefault((width_mm, depth_mm, rotation, x_span, y_span), None)
-    return tuple(sorted(shapes))
+            representative = (width_mm, depth_mm, rotation, x_span, y_span)
+            footprint = (x_span, y_span)
+            current = by_world_footprint.get(footprint)
+            if current is None or representative[:3] < current[:3]:
+                by_world_footprint[footprint] = representative
+    return tuple(
+        sorted(
+            by_world_footprint.values(),
+            key=lambda shape: (
+                shape[3] * shape[4],
+                Fraction(max(shape[3], shape[4]), min(shape[3], shape[4])),
+                max(shape[3], shape[4]),
+                min(shape[3], shape[4]),
+                shape[3],
+                shape[4],
+                shape[:3],
+            ),
+        )
+    )
+
+
+def _access_tail_authority_shape_signatures(
+    context: _PlacementSearchContext,
+    zone_code: str,
+    fixed: Mapping[str, PlacedRectangleV1],
+) -> tuple[tuple[int, int, int], ...]:
+    authority = context.authorities.get(zone_code)
+    if authority is None:
+        return ()
+    if zone_code != "changing_room" or _authority_mode(authority) != "FLEXIBLE_RECTANGLE":
+        return tuple(
+            (width_mm, depth_mm, rotation)
+            for width_mm, depth_mm, rotation in _dimension_variants(
+                authority, fixed, context.boundary
+            )
+        )
+    return tuple(
+        sorted(
+            (width_mm, depth_mm, rotation)
+            for width_mm, depth_mm in _unique_dimensions(authority, fixed, context.boundary)
+            for rotation in (0, 90)
+        )
+    )
 
 
 def _shared_edge_length_mm(left: PlacedRectangleV1, right: PlacedRectangleV1) -> int:
@@ -3472,12 +3513,105 @@ def _access_driven_tail_candidates(
         )
 
     if zone_code == "changing_room":
+        # A boundary entrance is not a room endpoint: P2D starts from its
+        # corridor-width interior point and routes to a portal on changing.
+        # Build only exact, collinear endpoint events with sorting on one side;
+        # the injected official router still decides whether that corridor is
+        # clear through all current zones, obstacles, and reservations.
+        minimum_portal_mm = 1_500
+        entrance_is_vertical = entrance_start[0] == entrance_end[0]
+        entrance_route_starts = getattr(context, "main_entrance_route_start_points", ())
+        x_events = {point[0] for point in context.boundary}
+        y_events = {point[1] for point in context.boundary}
+        x_events.update((sort_left, sort_right))
+        y_events.update((sort_bottom, sort_top))
+        for bay in bays:
+            bay_left, bay_bottom, bay_right, bay_top = bay.bounds_mm
+            x_events.update((bay_left, bay_right))
+            y_events.update((bay_bottom, bay_top))
+        for obstacle in context.obstacles:
+            obstacle_left, obstacle_bottom, obstacle_right, obstacle_top = _boundary_extents(
+                obstacle
+            )
+            x_events.update((obstacle_left, obstacle_right))
+            y_events.update((obstacle_bottom, obstacle_top))
+        for start_x, start_y in entrance_route_starts:
+            x_events.add(start_x)
+            y_events.add(start_y)
+
+        def axis_origin_events(events: set[int], span: int) -> tuple[int, ...]:
+            return tuple(
+                sorted(
+                    {
+                        origin
+                        for event in events
+                        for origin in (event, event - span, event - span // 2)
+                    }
+                )
+            )
+
+        for shape in shapes:
+            _width, _depth, _rotation, x_span, y_span = shape
+            for start_x, start_y in entrance_route_starts:
+                for side in ("WEST", "EAST", "SOUTH", "NORTH"):
+                    if side in {"WEST", "EAST"}:
+                        x_mm, _ = _local_adjacent_origin(sorting, x_span, y_span, side, "CENTER")
+                        y_origins = set(axis_origin_events(y_events, y_span))
+                        y_origins.update(
+                            {
+                                sort_bottom,
+                                sort_top - y_span,
+                                sort_bottom + (sort_top - sort_bottom - y_span) // 2,
+                                start_y - y_span // 2,
+                                start_y - y_span + minimum_portal_mm,
+                                start_y - minimum_portal_mm,
+                            }
+                        )
+                        origins = ((x_mm, y_mm) for y_mm in sorted(y_origins))
+                    else:
+                        _, y_mm = _local_adjacent_origin(sorting, x_span, y_span, side, "CENTER")
+                        x_origins = set(axis_origin_events(x_events, x_span))
+                        x_origins.update(
+                            {
+                                sort_left,
+                                sort_right - x_span,
+                                sort_left + (sort_right - sort_left - x_span) // 2,
+                                start_x - x_span // 2,
+                                start_x - x_span + minimum_portal_mm,
+                                start_x - minimum_portal_mm,
+                            }
+                        )
+                        origins = ((x_mm, y_mm) for x_mm in sorted(x_origins))
+                    for x_mm, y_mm in origins:
+                        rectangle = _local_rectangle_at(zone_code, shape, x_mm, y_mm)
+                        interval = _sorting_shared_interval_mm(sorting, rectangle)
+                        if interval is None or interval[2] - interval[1] < minimum_portal_mm:
+                            continue
+                        left, bottom, right, top = rectangle.bounds_mm
+                        if entrance_is_vertical:
+                            portal_aligned = (
+                                bottom + minimum_portal_mm // 2
+                                <= start_y
+                                <= top - minimum_portal_mm // 2
+                            ) and (start_x < left or start_x > right)
+                        else:
+                            portal_aligned = (
+                                left + minimum_portal_mm // 2
+                                <= start_x
+                                <= right - minimum_portal_mm // 2
+                            ) and (start_y < bottom or start_y > top)
+                        if not portal_aligned:
+                            continue
+                        add(
+                            rectangle,
+                            source="MAIN_ENTRANCE_INTERIOR_PORTAL_AND_SORTING_EDGE_EVENTS",
+                            event_class="ENTRANCE_CORRIDOR_COMPATIBLE_SORTING_DIRECT",
+                        )
+
         # Exact dual-endpoint construction: one changing-room edge lies on
         # the entrance segment and another shares a portal-capable sorting
         # edge.  Origins are endpoint/edge events only; no interpolated or
         # arbitrary site coordinates are introduced.
-        minimum_portal_mm = 1_500
-        entrance_is_vertical = entrance_start[0] == entrance_end[0]
         entrance_axis = entrance_start[0] if entrance_is_vertical else entrance_start[1]
         entrance_low, entrance_high = sorted(
             (entrance_start[1], entrance_end[1])
@@ -3689,30 +3823,46 @@ def _access_driven_tail_candidates(
 
     def candidate_order_key(
         signature: tuple[tuple[str, tuple[int, ...]], ...],
-    ) -> tuple[int, int, int, tuple[tuple[str, tuple[int, ...]], ...]]:
+    ) -> tuple[Any, ...]:
         candidate = seeds[signature]
         priority = {
-            "ENTRANCE_SORTING_DUAL_DIRECT": 0,
+            "ENTRANCE_CORRIDOR_COMPATIBLE_SORTING_DIRECT": 0,
             "ENTRANCE_DIRECT": 1,
             "SORTING_DIRECT": 2,
-            "ENTRANCE_SORTING_BRIDGE": 3,
-            "CORRIDOR_MEDIATED": 4,
-            "SORTING_BAY_EDGE_MEDIATED": 5,
-        }.get(candidate.endpoint_event_class, 5)
-        if candidate.endpoint_event_class != "ENTRANCE_SORTING_DUAL_DIRECT":
-            return priority, 0, 0, signature
+            "ENTRANCE_SORTING_DUAL_DIRECT": 3,
+            "ENTRANCE_SORTING_BRIDGE": 4,
+            "CORRIDOR_MEDIATED": 5,
+            "SORTING_BAY_EDGE_MEDIATED": 6,
+        }.get(candidate.endpoint_event_class, 7)
 
         rectangle = dict(candidate.placements)[zone_code]
-        # This is only deterministic construction ordering: favor a dual-endpoint
-        # seed that can use the full authorized corridor width at the entrance,
-        # then the longest sorting interface. The route authority still decides
-        # whether either endpoint is actually reachable.
-        entrance_span = min(
-            _entrance_shared_length_mm(rectangle, context.main_entrance),
-            module_clearance_mm,
-        )
+        left, bottom, right, top = rectangle.bounds_mm
+        x_span, y_span = right - left, top - bottom
+        aspect_ratio = Fraction(max(x_span, y_span), min(x_span, y_span))
+        area = x_span * y_span
         sorting_span = _shared_edge_length_mm(sorting, rectangle)
-        return priority, -entrance_span, -sorting_span, signature
+        entrance_distance = 0
+        entrance_route_starts = getattr(context, "main_entrance_route_start_points", ())
+        if entrance_route_starts:
+            distances = []
+            for start_x, start_y in entrance_route_starts:
+                if context.main_entrance[0][0] == context.main_entrance[1][0]:
+                    distances.append(min(abs(start_x - left), abs(start_x - right)))
+                else:
+                    distances.append(min(abs(start_y - bottom), abs(start_y - top)))
+            entrance_distance = min(distances)
+        portal_edge_span = max(x_span, y_span)
+        return (
+            priority,
+            entrance_distance if priority == 0 else 0,
+            -sorting_span,
+            -portal_edge_span if priority == 0 else 0,
+            area,
+            aspect_ratio,
+            x_span,
+            y_span,
+            signature,
+        )
 
     return tuple(seeds[key] for key in sorted(seeds, key=candidate_order_key))
 
@@ -3827,6 +3977,25 @@ def _tail_access_capacity_preflight(
                 (min(shape[0], shape[1]), max(shape[0], shape[1]))
                 for shape in _access_tail_dimension_shapes(context, "changing_room", fixed)
             )
+            if stats.changing_authority_shape_signatures is None:
+                stats.changing_authority_shape_signatures = set()
+            stats.changing_authority_shape_signatures.update(
+                _access_tail_authority_shape_signatures(context, "changing_room", fixed)
+            )
+            if stats.changing_construction_footprint_signatures is None:
+                stats.changing_construction_footprint_signatures = set()
+            stats.changing_construction_footprint_signatures.update(
+                (shape[3], shape[4])
+                for shape in _access_tail_dimension_shapes(context, "changing_room", fixed)
+            )
+            if stats.changing_extreme_aspect_shape_signatures is None:
+                stats.changing_extreme_aspect_shape_signatures = set()
+            stats.changing_extreme_aspect_shape_signatures.update(
+                (shape[3], shape[4])
+                for shape in _access_tail_dimension_shapes(context, "changing_room", fixed)
+                if min(shape[3], shape[4]) > 0
+                and Fraction(max(shape[3], shape[4]), min(shape[3], shape[4])) >= 10
+            )
             if stats.changing_dual_endpoint_seed_signatures is None:
                 stats.changing_dual_endpoint_seed_signatures = set()
             stats.changing_dual_endpoint_seed_signatures.update(
@@ -3906,7 +4075,86 @@ def _tail_access_capacity_preflight(
             )
             for module_name, candidates in truck_filtered.items()
         }
+        entrance_compatible_count = sum(
+            (metadata := candidate_metadata_by_signature.get(_module_signature(candidate)))
+            is not None
+            and metadata.endpoint_event_class == "ENTRANCE_CORRIDOR_COMPATIBLE_SORTING_DIRECT"
+            for candidate in filtered["CHANGING_MODULE"]
+        )
+        if stats.entrance_route_compatible_changing_seed_counts_by_main is None:
+            stats.entrance_route_compatible_changing_seed_counts_by_main = {}
+        stats.entrance_route_compatible_changing_seed_counts_by_main[main_identity] = (
+            entrance_compatible_count
+        )
+        stats.entrance_route_compatible_changing_seed_count = sum(
+            stats.entrance_route_compatible_changing_seed_counts_by_main.values()
+        )
+
         sorting = main_by_identity[main_identity]["sorting_packaging_room"]
+        frozen_metadata = {_module_signature(row.as_placements()): row for row in frozen_candidates}
+        attempted_frozen_candidates = (
+            stats.tail_access_capacity_attempted_candidates_by_main or {}
+        ).get(main_identity, set())
+        mediated_frozen_remains = any(
+            ("FROZEN_SUPPORT_MODULE", (signature := _module_signature(candidate)))
+            not in attempted_frozen_candidates
+            and (metadata := frozen_metadata.get(signature)) is not None
+            and metadata.endpoint_event_class
+            in {
+                "CORRIDOR_MEDIATED",
+                "SORTING_BAY_EDGE_MEDIATED",
+                "SORTING_OBSTACLE_EDGE_MEDIATED",
+            }
+            for candidate in truck_filtered["FROZEN_SUPPORT_MODULE"]
+        )
+        rejection_rows = stats.frozen_direct_seed_truck_rejection_rows
+        if rejection_rows is None:
+            rejection_rows = []
+            stats.frozen_direct_seed_truck_rejection_rows = rejection_rows
+        for candidate in module_options["FROZEN_SUPPORT_MODULE"]:
+            signature = _module_signature(candidate)
+            metadata = frozen_metadata.get(signature)
+            if metadata is None or not metadata.endpoint_event_class.startswith("SORTING_DIRECT"):
+                continue
+            rectangle = candidate["frozen_fruit_room"]
+            bounds = rectangle.bounds_mm
+            shared = _sorting_shared_interval_mm(sorting, rectangle)
+            for envelope_index, envelope in enumerate(truck_envelopes):
+                if not rectangle_intersects_closed_obstacle(rectangle, envelope):
+                    continue
+                envelope_bounds = _boundary_extents(envelope)
+                overlap_bounds = (
+                    max(bounds[0], envelope_bounds[0]),
+                    max(bounds[1], envelope_bounds[1]),
+                    min(bounds[2], envelope_bounds[2]),
+                    min(bounds[3], envelope_bounds[3]),
+                )
+                rejection = {
+                    "main_identity": main_identity,
+                    "main_skeleton_hash": skeleton_hash,
+                    "frozen_bounds_mm": list(bounds),
+                    "sorting_shared_side": shared[0] if shared else None,
+                    "sorting_shared_interval_mm": list(shared[1:]) if shared else None,
+                    "truck_envelope_identity": f"TRUCK_ENVELOPE-{envelope_index + 1:02d}",
+                    "truck_envelope_index": envelope_index,
+                    "closed_geometry_intersection": True,
+                    "exact_positive_area_overlap": _rectangle_interiors_overlap_orthogonal_polygon(
+                        rectangle, envelope
+                    ),
+                    "overlap_bounds_mm": list(overlap_bounds)
+                    if overlap_bounds[0] < overlap_bounds[2]
+                    and overlap_bounds[1] < overlap_bounds[3]
+                    else None,
+                    "alternative_sorting_side_interval_exists": any(
+                        _sorting_shared_interval_mm(sorting, alternative["frozen_fruit_room"])
+                        is not None
+                        and _module_signature(alternative) != signature
+                        for alternative in truck_filtered["FROZEN_SUPPORT_MODULE"]
+                    ),
+                    "mediated_candidate_remains_unsearched": mediated_frozen_remains,
+                }
+                if rejection not in rejection_rows:
+                    rejection_rows.append(rejection)
         side_branch_intervals: dict[str, dict[str, list[dict[str, Any]]]] = {}
         for module_name in ("SECONDARY_SUPPORT_MODULE", "FROZEN_SUPPORT_MODULE"):
             interval_rows = {
@@ -3986,6 +4234,10 @@ def _tail_access_capacity_preflight(
         stats.tail_access_capacity_candidate_cursor_by_main = {}
     if stats.tail_access_capacity_domain_exhausted_by_main is None:
         stats.tail_access_capacity_domain_exhausted_by_main = {}
+    if stats.tail_incapable_reason_by_main is None:
+        stats.tail_incapable_reason_by_main = {}
+    if stats.tail_incapable_proof_scope_by_main is None:
+        stats.tail_incapable_proof_scope_by_main = {}
     if any(
         stats.tail_access_capacity_attempted_candidates_by_main
         and stats.tail_access_capacity_attempted_candidates_by_main.get(identity)
@@ -4041,6 +4293,24 @@ def _tail_access_capacity_preflight(
                 yield quantum
             _record_tail_module_slot(stats, module_name, candidate, access_valid=False)
             extended = {**main_by_identity[main_identity], **candidate}
+            candidate_signature = _module_signature(candidate)
+            metadata = candidate_metadata_by_signature.get(candidate_signature)
+            if module_name != "OFFICE_MODULE" and (
+                metadata is None or metadata.module_name != module_name
+            ):
+                metadata = None
+                stats.endpoint_driven_candidate_metadata_miss_count += 1
+            if module_name == "CHANGING_MODULE" and main_identity not in (
+                stats.entrance_route_compatible_passed_by_main or set()
+            ):
+                changing = candidate.get("changing_room")
+                if changing is not None:
+                    left, bottom, right, top = changing.bounds_mm
+                    aspect_ratio = Fraction(
+                        max(right - left, top - bottom), min(right - left, top - bottom)
+                    )
+                    if aspect_ratio >= 10:
+                        stats.changing_extreme_aspect_probed_before_route_compatible_count += 1
             if module_name == "OFFICE_MODULE":
                 valid = True
                 route_results: tuple[Mapping[str, Any], ...] = ()
@@ -4061,6 +4331,16 @@ def _tail_access_capacity_preflight(
                 capacity_seed_counts_by_main[main_identity][module_name] = 1
                 access_valid_counts_by_main[main_identity][module_name] += 1
                 _record_tail_module_slot(stats, module_name, candidate, access_valid=True)
+                if (
+                    module_name == "CHANGING_MODULE"
+                    and metadata is not None
+                    and metadata.endpoint_event_class
+                    == "ENTRANCE_CORRIDOR_COMPATIBLE_SORTING_DIRECT"
+                ):
+                    stats.entrance_route_compatible_changing_access_pass_count += 1
+                    if stats.entrance_route_compatible_passed_by_main is None:
+                        stats.entrance_route_compatible_passed_by_main = set()
+                    stats.entrance_route_compatible_passed_by_main.add(main_identity)
                 if module_name != "OFFICE_MODULE":
                     if stats.tail_access_capacity_route_cache is None:
                         stats.tail_access_capacity_route_cache = {}
@@ -4091,13 +4371,6 @@ def _tail_access_capacity_preflight(
             stats.tail_access_capacity_attempted_candidates_by_main.setdefault(
                 main_identity, set()
             ).add((module_name, _module_signature(candidate)))
-            candidate_signature = _module_signature(candidate)
-            metadata = candidate_metadata_by_signature.get(candidate_signature)
-            if module_name != "OFFICE_MODULE" and (
-                metadata is None or metadata.module_name != module_name
-            ):
-                metadata = None
-                stats.endpoint_driven_candidate_metadata_miss_count += 1
             stats.tail_access_capacity_preflight_rows.append(
                 {
                     "main_skeleton_hash": skeleton_hash_by_identity[main_identity],
@@ -4173,6 +4446,19 @@ def _tail_access_capacity_preflight(
             for module_name in _S2_TAIL_MODULES
         }
         stats.tail_access_capacity_domain_exhausted_by_main[main_identity] = domain_exhausted
+        incapable_reasons = sorted(
+            module_name
+            for module_name in _S2_TAIL_MODULES
+            if counts[module_name] == 0 and domain_exhausted[module_name]
+        )
+        if incapable_reasons:
+            stats.tail_incapable_reason_by_main[main_identity] = incapable_reasons
+            stats.tail_incapable_proof_scope_by_main[main_identity] = (
+                "CURRENT_FINITE_TAIL_CONSTRUCTION_DOMAIN_ONLY"
+            )
+        else:
+            stats.tail_incapable_reason_by_main.pop(main_identity, None)
+            stats.tail_incapable_proof_scope_by_main.pop(main_identity, None)
         if all(counts[module_name] > 0 for module_name in _S2_TAIL_MODULES):
             status = "TAIL_ACCESS_CAPABLE_MAIN"
         elif any(
@@ -4648,6 +4934,13 @@ def _tail_access_route_rows(
                     stats.construction_access_failure_code_counts[code_name] = (
                         stats.construction_access_failure_code_counts.get(code_name, 0) + 1
                     )
+                    if identity == "main_entrance->changing_room":
+                        if stats.main_entrance_to_changing_failure_code_counts is None:
+                            stats.main_entrance_to_changing_failure_code_counts = {}
+                        stats.main_entrance_to_changing_failure_code_counts[code_name] = (
+                            stats.main_entrance_to_changing_failure_code_counts.get(code_name, 0)
+                            + 1
+                        )
             # One failed required route is sufficient to reject this candidate.
             # Later routes are re-evaluated on the next candidate; spending more
             # route work on an already-invalid slot cannot admit it.
@@ -4668,6 +4961,8 @@ def _tail_access_route_rows(
             topology = result.get("topology")
             if topology == "DIRECT_SHARED_EDGE":
                 stats.direct_shared_edge_access_witness_count += 1
+                if pair == ("changing_room", "sorting_packaging_room"):
+                    stats.changing_to_sorting_direct_pass_count += 1
             elif topology == "CORRIDOR_MEDIATED":
                 stats.corridor_mediated_access_witness_count += 1
             if pair == ("sorting_packaging_room", "secondary_fruit_buffer"):
@@ -7566,6 +7861,7 @@ class _PlacementSearchContext:
     truck_node_budget: int
     truck_maneuver_validator: Callable[..., Mapping[str, Any]] | None
     access_route_validator: Callable[..., tuple[Mapping[str, Any], tuple[PolygonMM, ...]]] | None
+    main_entrance_route_start_points: tuple[tuple[int, int], ...]
     complete_candidate_limit: int | None
     boundary: PolygonMM
     boundary_bounds: tuple[int, int, int, int]
@@ -7716,9 +8012,22 @@ class _PlacementSearchStats:
     tail_direct_seed_counts_after_truck_filter_by_main: dict[str, dict[str, int]] | None = None
     tail_access_s2_node_quota_exhausted_by_main: set[str] | None = None
     changing_flexible_shape_signatures: set[tuple[int, int]] | None = None
+    changing_authority_shape_signatures: set[tuple[int, int, int]] | None = None
+    changing_construction_footprint_signatures: set[tuple[int, int]] | None = None
     changing_dual_endpoint_seed_signatures: set[tuple[tuple[str, tuple[int, ...]], ...]] | None = (
         None
     )
+    entrance_route_compatible_changing_seed_count: int = 0
+    entrance_route_compatible_changing_access_pass_count: int = 0
+    entrance_route_compatible_changing_seed_counts_by_main: dict[str, int] | None = None
+    changing_to_sorting_direct_pass_count: int = 0
+    changing_extreme_aspect_shape_signatures: set[tuple[int, int]] | None = None
+    changing_extreme_aspect_probed_before_route_compatible_count: int = 0
+    entrance_route_compatible_passed_by_main: set[str] | None = None
+    main_entrance_to_changing_failure_code_counts: dict[str, int] | None = None
+    tail_incapable_reason_by_main: dict[str, list[str]] | None = None
+    tail_incapable_proof_scope_by_main: dict[str, str] | None = None
+    frozen_direct_seed_truck_rejection_rows: list[dict[str, Any]] | None = None
     endpoint_driven_candidate_metadata_miss_count: int = 0
     tail_access_capacity_continuation_count: int = 0
     truck_pass_main_rejected_for_tail_access_count: int = 0
@@ -7852,6 +8161,7 @@ def _validated_search_context(
     access_route_validator: (
         Callable[..., tuple[Mapping[str, Any], tuple[PolygonMM, ...]]] | None
     ) = None,
+    main_entrance_route_start_points: Sequence[tuple[int, int]] = (),
     complete_candidate_limit: int | None,
     structural_family: StructuralCompositionFamilyV1 | None = None,
     structural_topology: str | None = None,
@@ -7986,6 +8296,7 @@ def _validated_search_context(
         truck_node_budget=truck_node_budget,
         truck_maneuver_validator=truck_maneuver_validator,
         access_route_validator=access_route_validator,
+        main_entrance_route_start_points=tuple(sorted(set(main_entrance_route_start_points))),
         complete_candidate_limit=complete_candidate_limit,
         boundary=boundary,
         boundary_bounds=boundary_bounds,
@@ -10950,6 +11261,10 @@ def _direct_structured_candidates(
         len(_S2_TAIL_MODULES) * len(BASE_LAYOUT_FAMILIES) * 2,
     )
     tail_access_capacity_round_reserve = _tail_access_capacity_round_reserve(context.node_budget)
+    preflight_round_size = tail_access_capacity_round_reserve
+    # The finite S2 preflight round is also capped by the existing tail-phase
+    # reserve; neither term enlarges the shared placement budget.
+    tail_access_capacity_round_reserve = min(preflight_round_size, tail_phase_node_reserve)
     s1_node_ceiling = context.node_budget - tail_access_capacity_round_reserve
     main_site_candidate_limit = context.node_budget
     if stats.site_module_variant_counts is None:
@@ -11025,14 +11340,14 @@ def _direct_structured_candidates(
             for main, _seed, skeleton_hash in active_rows
             for module_name in _S2_TAIL_MODULES
         )
-        node_limit = max(1, unresolved_module_count)
+        tail_access_preflight_node_limit = max(1, unresolved_module_count)
         statuses: dict[str, str] = {}
         for event in _tail_access_capacity_preflight(
             context,
             tuple((skeleton_hash, main) for main, _seed, skeleton_hash in active_rows),
             bays,
             stats,
-            node_limit=node_limit,
+            node_limit=tail_access_preflight_node_limit,
         ):
             if isinstance(event, _SearchQuantumYield):
                 yield event
@@ -15601,6 +15916,16 @@ class PlacementCandidateEnumerationV1:
                     "tail_access_capacity_status_by_main": dict(
                         sorted((self._stats.tail_access_capacity_status_by_main or {}).items())
                     ),
+                    "tail_incapable_reason_by_main": {
+                        main: list(modules)
+                        for main, modules in sorted(
+                            (self._stats.tail_incapable_reason_by_main or {}).items()
+                        )
+                    },
+                    "tail_incapable_proof_scope_by_main": dict(
+                        sorted((self._stats.tail_incapable_proof_scope_by_main or {}).items())
+                    ),
+                    "global_infeasibility_proven": False,
                     "tail_access_capacity_candidate_cursor_by_main": {
                         main: dict(sorted(module_rows.items()))
                         for main, module_rows in sorted(
@@ -15681,6 +16006,25 @@ class PlacementCandidateEnumerationV1:
                     ),
                     "changing_flexible_authority_source": "P2C_UNIQUE_DIMENSIONS",
                     "changing_flexible_shape_count": len(changing_shapes),
+                    "changing_authority_shape_count": len(
+                        self._stats.changing_authority_shape_signatures or ()
+                    ),
+                    "changing_construction_canonical_shape_count": len(
+                        self._stats.changing_construction_footprint_signatures or ()
+                    ),
+                    "changing_equivalent_footprint_dedup_count": max(
+                        0,
+                        len(self._stats.changing_authority_shape_signatures or ())
+                        - len(self._stats.changing_construction_footprint_signatures or ()),
+                    ),
+                    "changing_extreme_aspect_shape_count": len(
+                        self._stats.changing_extreme_aspect_shape_signatures or ()
+                    ),
+                    "changing_extreme_aspect_diagnostic_ratio_threshold": 10,
+                    "changing_extreme_aspect_threshold_is_authority": False,
+                    "changing_extreme_aspect_probed_before_route_compatible_count": (
+                        self._stats.changing_extreme_aspect_probed_before_route_compatible_count
+                    ),
                     "changing_non_square_shape_count": sum(
                         width_mm != depth_mm for width_mm, depth_mm in changing_shapes
                     ),
@@ -15688,6 +16032,36 @@ class PlacementCandidateEnumerationV1:
                     "changing_max_aspect_ratio": max(changing_aspects, default=None),
                     "changing_dual_endpoint_direct_seed_count": len(
                         self._stats.changing_dual_endpoint_seed_signatures or ()
+                    ),
+                    "entrance_route_compatible_changing_seed_count": (
+                        self._stats.entrance_route_compatible_changing_seed_count
+                    ),
+                    "entrance_route_compatible_changing_seed_count_by_main": dict(
+                        sorted(
+                            (
+                                self._stats.entrance_route_compatible_changing_seed_counts_by_main
+                                or {}
+                            ).items()
+                        )
+                    ),
+                    "entrance_route_compatible_changing_access_pass_count": (
+                        self._stats.entrance_route_compatible_changing_access_pass_count
+                    ),
+                    "changing_to_sorting_direct_pass_count": (
+                        self._stats.changing_to_sorting_direct_pass_count
+                    ),
+                    "main_entrance_to_changing_failure_code_counts": dict(
+                        sorted(
+                            (
+                                self._stats.main_entrance_to_changing_failure_code_counts or {}
+                            ).items()
+                        )
+                    ),
+                    "frozen_direct_seed_truck_rejection_count": len(
+                        self._stats.frozen_direct_seed_truck_rejection_rows or ()
+                    ),
+                    "frozen_direct_seed_truck_rejection_rows": list(
+                        self._stats.frozen_direct_seed_truck_rejection_rows or ()
                     ),
                     "endpoint_driven_candidate_metadata_miss_count": (
                         self._stats.endpoint_driven_candidate_metadata_miss_count
@@ -15935,6 +16309,7 @@ def enumerate_placement_candidates(
     access_route_validator: (
         Callable[..., tuple[Mapping[str, Any], tuple[PolygonMM, ...]]] | None
     ) = None,
+    main_entrance_route_start_points: Sequence[tuple[int, int]] = (),
     complete_candidate_limit: int | None = None,
     structural_family: StructuralCompositionFamilyV1 | None = None,
     structural_topology: str | None = None,
@@ -15960,6 +16335,7 @@ def enumerate_placement_candidates(
             truck_node_budget=truck_node_budget,
             truck_maneuver_validator=truck_maneuver_validator,
             access_route_validator=access_route_validator,
+            main_entrance_route_start_points=main_entrance_route_start_points,
             complete_candidate_limit=complete_candidate_limit,
             structural_family=structural_family,
             structural_topology=structural_topology,

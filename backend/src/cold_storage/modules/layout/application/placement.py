@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import asdict
+from decimal import Decimal
 from typing import Any
 
 from cold_storage.modules.layout.application.dimension_zones import ZoneDimensioningResultV1
@@ -18,6 +19,9 @@ from cold_storage.modules.layout.domain.access_authority import PACKAGING, resol
 from cold_storage.modules.layout.domain.access_routing import (
     DEFAULT_ROUTE_NODE_BUDGET,
     DEFAULT_TRUCK_NODE_BUDGET,
+    _boundary_interior_point,
+    _edge_options,
+    _portal_center,
     route_access_requirement,
 )
 from cold_storage.modules.layout.domain.adjacency import ZONE_CODES, process_graph
@@ -40,6 +44,10 @@ from cold_storage.modules.layout.domain.placement import (
 )
 from cold_storage.modules.layout.domain.placement import (
     enumerate_placement_candidates as enumerate_domain_placement_candidates,
+)
+from cold_storage.modules.layout.domain.site_geometry import (
+    normalize_polygon,
+    normalize_segment,
 )
 from cold_storage.modules.layout.domain.structural_composition import (
     StructuralCompositionFamilyV1,
@@ -65,6 +73,67 @@ def _mapping(value: object, *, field: str) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
         raise _error("PLACEMENT_AUTHORITY_INVALID", field=field)
     return value
+
+
+def _main_entrance_route_start_points(
+    site_geometry: ValidatedSiteGeometryV1,
+    access_requirements: tuple[Mapping[str, Any], ...],
+) -> tuple[tuple[int, int], ...]:
+    """Derive exact entrance-side corridor start events from routing primitives.
+
+    These points only order finite construction candidates.  The injected
+    ``route_access_requirement`` remains the sole route admission authority.
+    """
+    requirement = next(
+        (
+            row
+            for row in access_requirements
+            if row.get("from_ref") == "main_entrance" and row.get("to_ref") == "changing_room"
+        ),
+        None,
+    )
+    if requirement is None:
+        return ()
+    profile_identity = requirement.get("profile_identity")
+    if not isinstance(profile_identity, str):
+        return ()
+    profile = resolve_access_profile(profile_identity)
+    body = site_geometry.to_dict()
+    site = _mapping(body.get("site"), field="site")
+    entrances = _mapping(body.get("entrances"), field="entrances")
+    boundary = normalize_polygon(
+        site.get("effective_buildable_boundary"), allow_numeric_string=True
+    )
+    raw_entrance = entrances.get("main_entrance")
+    normalized_entrance: object = raw_entrance
+    if isinstance(raw_entrance, Mapping):
+        normalized_entrance = {
+            endpoint: {
+                axis: Decimal(str(value)) for axis, value in point.items() if axis in {"x", "y"}
+            }
+            if isinstance(point, Mapping)
+            else point
+            for endpoint, point in raw_entrance.items()
+        }
+    entrance = normalize_segment(normalized_entrance, error_code="INVALID_SITE_GEOMETRY_RESULT")
+    portal_width_mm = int(profile.portal_clear_width_m * Decimal(1000))
+    corridor_width_mm = int(profile.corridor_clear_width_m * Decimal(1000))
+    portal_options = _edge_options(
+        None,
+        required_class=None,
+        clear_width_mm=portal_width_mm,
+        boundary_segment=entrance,
+    )
+    points = {
+        _boundary_interior_point(
+            _portal_center(option["segment_mm"]),
+            entrance,
+            boundary,
+            corridor_width_mm // 2,
+        )
+        for option in portal_options
+    }
+    return tuple(sorted(points))
 
 
 def _p1_body(handoff: object) -> tuple[dict[str, Any], str]:
@@ -348,6 +417,11 @@ def enumerate_placement_candidates(
         if search_phase == STRUCTURED_PHASE
         else access_requirements
     )
+    entrance_route_start_points = (
+        _main_entrance_route_start_points(site_geometry, construction_access_requirements)
+        if search_phase == STRUCTURED_PHASE
+        else ()
+    )
 
     construction_access_route_validator: (
         Callable[..., tuple[Mapping[str, Any], tuple[Any, ...]]] | None
@@ -389,6 +463,7 @@ def enumerate_placement_candidates(
         truck_node_budget=truck_node_budget,
         truck_maneuver_validator=truck_maneuver_validator,
         access_route_validator=construction_access_route_validator,
+        main_entrance_route_start_points=entrance_route_start_points,
         complete_candidate_limit=complete_candidate_limit,
         structural_family=structural_family,
         structural_topology=structural_topology,
