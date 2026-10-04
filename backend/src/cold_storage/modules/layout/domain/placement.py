@@ -3540,7 +3540,7 @@ def _frozen_endpoint_pair_placement_candidates(
                     min(bounds[2], envelope_bounds[2]),
                     min(bounds[3], envelope_bounds[3]),
                 )
-                row = {
+                rejection_row = {
                     "main_identity": main_identity,
                     "frozen_bounds_mm": list(bounds),
                     "sorting_shared_side": shared[0] if shared else None,
@@ -3564,8 +3564,8 @@ def _frozen_endpoint_pair_placement_candidates(
                 }
                 if stats.frozen_direct_seed_truck_rejection_rows is None:
                     stats.frozen_direct_seed_truck_rejection_rows = []
-                if row not in stats.frozen_direct_seed_truck_rejection_rows:
-                    stats.frozen_direct_seed_truck_rejection_rows.append(row)
+                if rejection_row not in stats.frozen_direct_seed_truck_rejection_rows:
+                    stats.frozen_direct_seed_truck_rejection_rows.append(rejection_row)
 
     feature_events: dict[str, set[tuple[str, str, int]]] = {"X": set(), "Y": set()}
 
@@ -4332,7 +4332,7 @@ def _frozen_truck_clear_corridor_candidates(
     """Route from sorting portal events first, then derive Frozen room origins."""
     sorting = fixed.get("sorting_packaging_room")
     portal_provider = getattr(context, "access_portal_event_provider", None)
-    route_endpoint_provider = getattr(context, "access_route_skeleton_endpoint_provider", None)
+    route_provider = getattr(context, "access_route_skeleton_provider", None)
     requirement = next(
         (
             row
@@ -4346,7 +4346,7 @@ def _frozen_truck_clear_corridor_candidates(
         sorting is None
         or not truck_envelopes
         or portal_provider is None
-        or route_endpoint_provider is None
+        or route_provider is None
         or requirement is None
     ):
         return ()
@@ -4455,9 +4455,13 @@ def _frozen_truck_clear_corridor_candidates(
     # Physical event counts describe geometry-derived event sources, not their
     # Cartesian products or translated candidate placements.
     physical_events: dict[str, set[tuple[str, int]]] = {}
+    physical_event_points: dict[str, set[tuple[int, int]]] = {}
 
     def add_events(kind: str, coordinates: Sequence[tuple[str, int]]) -> None:
         physical_events.setdefault(kind, set()).update(coordinates)
+
+    def add_event_points(kind: str, points: Sequence[tuple[int, int]]) -> None:
+        physical_event_points.setdefault(kind, set()).update(points)
 
     clearance_offsets = (corridor_width_mm // 2, corridor_width_mm // 2 + 1)
 
@@ -4482,15 +4486,63 @@ def _frozen_truck_clear_corridor_candidates(
             for axis in ("X", "Y")
         ),
     )
+    add_event_points("SITE_BOUNDARY", tuple(context.boundary))
     add_events("OBSTACLE", polygon_events(context.obstacles, include_clearance=True))
+    add_event_points(
+        "OBSTACLE",
+        tuple(
+            (x + x_sign * x_offset, y + y_sign * y_offset)
+            for polygon in context.obstacles
+            for x, y in polygon
+            for x_offset in (0, *clearance_offsets)
+            for y_offset in (0, *clearance_offsets)
+            for x_sign in ((-1, 1) if x_offset else (1,))
+            for y_sign in ((-1, 1) if y_offset else (1,))
+        ),
+    )
     add_events("TRUCK_ENVELOPE", polygon_events(truck_envelopes, include_clearance=True))
+    add_event_points(
+        "TRUCK_ENVELOPE",
+        tuple(
+            (x + x_sign * x_offset, y + y_sign * y_offset)
+            for polygon in truck_envelopes
+            for x, y in polygon
+            for x_offset in (0, *clearance_offsets)
+            for y_offset in (0, *clearance_offsets)
+            for x_sign in ((-1, 1) if x_offset else (1,))
+            for y_sign in ((-1, 1) if y_offset else (1,))
+        ),
+    )
     add_events(
         "RESERVED_ACCESS_CORRIDOR",
         polygon_events(reserved_corridors, include_clearance=True),
     )
+    add_event_points(
+        "RESERVED_ACCESS_CORRIDOR",
+        tuple(
+            (x + x_sign * x_offset, y + y_sign * y_offset)
+            for polygon in reserved_corridors
+            for x, y in polygon
+            for x_offset in (0, *clearance_offsets)
+            for y_offset in (0, *clearance_offsets)
+            for x_sign in ((-1, 1) if x_offset else (1,))
+            for y_sign in ((-1, 1) if y_offset else (1,))
+        ),
+    )
     for _code, rectangle in sorted(fixed.items()):
         left, bottom, right, top = rectangle.bounds_mm
         half = corridor_width_mm // 2
+        add_event_points(
+            "FIXED_ZONE",
+            tuple(
+                (x + x_sign * offset, y + y_sign * offset)
+                for x in (left, right)
+                for y in (bottom, top)
+                for offset in (0, half)
+                for x_sign in ((-1, 1) if offset else (1,))
+                for y_sign in ((-1, 1) if offset else (1,))
+            ),
+        )
         add_events(
             "FIXED_ZONE",
             tuple(
@@ -4503,6 +4555,9 @@ def _frozen_truck_clear_corridor_candidates(
     for bay in bays:
         left, bottom, right, top = bay.bounds_mm
         add_events("BUILDABLE_BAY", (("X", left), ("X", right), ("Y", bottom), ("Y", top)))
+        add_event_points(
+            "BUILDABLE_BAY", ((left, bottom), (left, top), (right, bottom), (right, top))
+        )
     add_events(
         "SORTING_PORTAL",
         tuple(
@@ -4511,9 +4566,30 @@ def _frozen_truck_clear_corridor_candidates(
             for axis in ("X", "Y")
         ),
     )
+    add_events(
+        "SORTING_PORTAL_CORRIDOR_WIDTH",
+        tuple(
+            (axis, int(portal["center_mm"][0 if axis == "X" else 1]) + sign * corridor_width_mm)
+            for portal in sorting_portals
+            for axis in ("X", "Y")
+            for sign in (-1, 1)
+        ),
+    )
+    add_event_points(
+        "SORTING_PORTAL",
+        tuple(
+            (int(point[0]), int(point[1]))
+            for portal in sorting_portals
+            for point in (
+                *portal["segment_mm"],
+                portal["center_mm"],
+            )
+        ),
+    )
 
-    # Query one central, portal-capable event per sorting face. Each source
-    # gets an equal deterministic share of the existing route-hint allowance.
+    # Keep one formal sorting portal per side, matching the previous bounded
+    # source coverage. Frozen rooms are constructed from physical events first;
+    # the route graph is queried only for their legal target portal states.
     portal_by_side: dict[str, Mapping[str, Any]] = {}
     for portal in sorting_portals:
         portal_by_side.setdefault(str(portal["side"]), portal)
@@ -4523,19 +4599,6 @@ def _frozen_truck_clear_corridor_candidates(
         if side in portal_by_side
     )
     hint_budget_remaining = max(0, int(getattr(context, "access_route_hint_node_budget", 20_000)))
-    endpoint_limit = 1024
-    per_source_hint_quota = hint_budget_remaining // 4
-    per_source_budget = min(
-        per_source_hint_quota,
-        max(1, hint_budget_remaining // max(1, len(source_portals))),
-    )
-    route_rows: list[tuple[int, Mapping[str, Any], Mapping[str, Any]]] = []
-    total_reachable_endpoint_count = 0
-    nodes_by_main = 0
-    probe_count = 0
-    node_budget_exhausted_count = 0
-    graph_exhausted_count = 0
-    route_hint_failures: dict[str, int] = {}
     source_outward = {
         "WEST": (-1, 0),
         "EAST": (1, 0),
@@ -4548,72 +4611,23 @@ def _frozen_truck_clear_corridor_candidates(
         "SOUTH": (0, 1),
         "NORTH": (0, -1),
     }
-    for source_index, (_side, portal) in enumerate(source_portals, start=1):
-        if hint_budget_remaining <= 0:
-            break
-        start = tuple(int(value) for value in portal["center_mm"])
-        budget = min(per_source_budget, hint_budget_remaining)
-        result = route_endpoint_provider(
-            start,
-            width_mm=corridor_width_mm,
-            boundary=context.boundary,
-            obstacles=context.obstacles,
-            zones=fixed,
-            incident_refs=frozenset({"sorting_packaging_room", "frozen_fruit_room"}),
-            node_budget=budget,
-            endpoint_limit=endpoint_limit,
-            additional_keepouts=(*truck_envelopes, *reserved_corridors),
-        )
-        probe_count += 1
-        visited = max(0, int(result.get("nodes_visited", 0)))
-        nodes_by_main += visited
-        hint_budget_remaining = max(0, hint_budget_remaining - visited)
-        if result.get("node_budget_exhausted") is True:
-            node_budget_exhausted_count += 1
-        if result.get("graph_exhausted") is True:
-            graph_exhausted_count += 1
-        endpoint_rows = tuple(result.get("endpoint_skeletons", ()))
-        total_reachable_endpoint_count += len(endpoint_rows)
-        if not endpoint_rows:
-            failure_code = str(result.get("reason") or "NO_REACHABLE_ROUTE_EVENT")
-            route_hint_failures[failure_code] = route_hint_failures.get(failure_code, 0) + 1
-        for endpoint_row in endpoint_rows:
-            route_rows.append(
-                (
-                    source_index,
-                    portal,
-                    {
-                        **endpoint_row,
-                        "_route_search_provenance": {
-                            "nodes_visited": visited,
-                            "node_budget": budget,
-                            "node_budget_exhausted": bool(result.get("node_budget_exhausted")),
-                            "graph_exhausted": bool(result.get("graph_exhausted")),
-                            "search_source": str(result.get("search_source") or ""),
-                        },
-                    },
-                )
-            )
-
-    unique_route_rows: dict[
-        tuple[tuple[int, int], ...], tuple[int, Mapping[str, Any], Mapping[str, Any]]
-    ] = {}
-    for source_index, portal, endpoint_row in route_rows:
-        path = cast(
-            tuple[tuple[int, int], ...],
-            tuple((int(point[0]), int(point[1])) for point in endpoint_row["path"]),
-        )
-        if len(path) < 2:
-            continue
-        current = unique_route_rows.get(path)
-        route_row_candidate = (source_index, portal, endpoint_row)
-        if current is None or (source_index, path[-1]) < (
-            current[0],
-            cast(tuple[int, int], tuple(current[2]["endpoint"])),
-        ):
-            unique_route_rows[path] = route_row_candidate
-
     placement_count = 0
+    legal_room_signatures: set[tuple[tuple[str, tuple[int, ...]], ...]] = set()
+    room_rejections: dict[str, int] = {
+        "SITE_INVALID": 0,
+        "OBSTACLE": 0,
+        "FIXED_ZONE": 0,
+        "TRUCK": 0,
+        "RESERVED_CORRIDOR": 0,
+    }
+    portal_rejections: dict[str, int] = {"NO_LEGAL_PORTAL": 0, "PORTAL_DIRECTION_INVALID": 0}
+    route_rejections: dict[str, int] = {
+        "GRAPH_EXHAUSTED": 0,
+        "NODE_BUDGET_EXHAUSTED": 0,
+        "NO_DIRECTION_COMPATIBLE_PATH": 0,
+        "CORRIDOR_KEEP_OUT_CONFLICT": 0,
+    }
+    final_rejections: dict[str, int] = {}
     candidate_before_truck_filter_count = 0
     candidate_after_truck_filter_count = 0
     candidate_after_fixed_zone_filter_count = 0
@@ -4625,214 +4639,480 @@ def _frozen_truck_clear_corridor_candidates(
 
     candidates: dict[tuple[tuple[str, tuple[int, ...]], ...], AccessDrivenTailCandidateV1] = {}
     route_skeleton_witnesses: list[dict[str, Any]] = []
-    seen_route_skeletons: set[tuple[Any, ...]] = set()
-    for _route_signature, (source_index, source_portal, endpoint_row) in sorted(
-        unique_route_rows.items(),
-        key=lambda item: (
-            sum(
-                1
-                for index in range(1, len(item[0]) - 1)
-                if (item[0][index - 1][0] == item[0][index][0])
-                != (item[0][index][0] == item[0][index + 1][0])
-            ),
-            sum(
-                abs(second[0] - first[0]) + abs(second[1] - first[1])
-                for first, second in zip(item[0], item[0][1:], strict=False)
-            ),
-            item[0][-1],
-            item[0],
-        ),
-    ):
-        path = cast(
-            tuple[tuple[int, int], ...],
-            tuple((int(point[0]), int(point[1])) for point in endpoint_row["path"]),
-        )
-        endpoint = (int(endpoint_row["endpoint"][0]), int(endpoint_row["endpoint"][1]))
-        proposed_envelopes = cast(
-            tuple[PolygonMM, ...],
-            tuple(
-                tuple((int(point[0]), int(point[1])) for point in polygon)
-                for polygon in endpoint_row.get("corridor_envelopes", ())
-            ),
-        )
-        if len(path) < 2 or not proposed_envelopes:
-            continue
-        corridor_rectangles = _truck_clear_corridor_path(
-            context,
-            path,
-            corridor_width_mm,
-            fixed,
-            truck_envelopes,
-            reserved_corridors,
-        )
-        if not corridor_rectangles:
-            record_rejection("NO_TRUCK_CLEAR_CORRIDOR_EVENT")
-            continue
-        if tuple(rectangle.polygon_mm for rectangle in corridor_rectangles) != proposed_envelopes:
-            record_rejection("OTHER_AUTHORITY_FAILURE")
-            continue
-        source_center = (
-            int(source_portal["center_mm"][0]),
-            int(source_portal["center_mm"][1]),
-        )
-        route_turn_count = sum(
-            1
-            for index in range(1, len(path) - 1)
-            if (path[index - 1][0] == path[index][0]) != (path[index][0] == path[index + 1][0])
-        )
-        route_length_mm = sum(
-            abs(second[0] - first[0]) + abs(second[1] - first[1])
-            for first, second in zip(path, path[1:], strict=False)
-        )
-        for shape in shapes:
-            base = _local_rectangle_at("frozen_fruit_room", shape, 0, 0)
-            target_portals = tuple(
-                portal_row
-                for portal_row in portal_provider(requirement, "frozen_fruit_room", base).get(
-                    "portals", ()
-                )
+    # A Frozen rectangle is first aligned to corners of exact physical event
+    # geometry (including authoritative clearance offsets). Pairing unrelated
+    # X and Y event axes would create a large synthetic Cartesian placement
+    # space, so only actual geometry-derived event points seed room corners.
+    legal_rooms: dict[tuple[tuple[str, tuple[int, ...]], ...], PlacedRectangleV1] = {}
+    target_states: dict[
+        tuple[Any, ...], tuple[PlacedRectangleV1, Mapping[str, Any], tuple[int, int], str]
+    ] = {}
+    min_x, min_y, max_x, max_y = context.boundary_bounds
+    boundary_rectangle = _axis_aligned_rectangle_polygon_bounds(context.boundary)
+    for shape in shapes:
+        origin_sources: dict[tuple[int, int], set[str]] = {}
+        for kind, points in physical_event_points.items():
+            for event_x, event_y in points:
+                for x_offset in (0, shape[3]):
+                    for y_offset in (0, shape[4]):
+                        origin_sources.setdefault(
+                            (event_x - x_offset, event_y - y_offset), set()
+                        ).add(kind)
+        base = _local_rectangle_at("frozen_fruit_room", shape, 0, 0)
+        base_portals = tuple(
+            portal_row
+            for portal_row in portal_provider(requirement, "frozen_fruit_room", base).get(
+                "portals", ()
             )
-            for target_portal in target_portals:
-                placement_count += 1
-                offset = tuple(int(value) for value in target_portal["center_mm"])
-                origin = (endpoint[0] - offset[0], endpoint[1] - offset[1])
-                rectangle = _local_rectangle_at("frozen_fruit_room", shape, *origin)
-                target_side = str(target_portal["side"])
-                first_vector = (path[1][0] - path[0][0], path[1][1] - path[0][1])
-                last_vector = (path[-1][0] - path[-2][0], path[-1][1] - path[-2][1])
-                first_direction = (
-                    0 if first_vector[0] == 0 else (1 if first_vector[0] > 0 else -1),
-                    0 if first_vector[1] == 0 else (1 if first_vector[1] > 0 else -1),
+        )
+        # Portal-state placements use one event axis and one exact source
+        # portal projection. This is a finite geometry-derived construction
+        # family, not an independent X-by-Y coordinate sweep.
+        for _source_side, source_portal in source_portals:
+            source_x, source_y = (
+                int(source_portal["center_mm"][0]),
+                int(source_portal["center_mm"][1]),
+            )
+            for target_portal in base_portals:
+                target_side = str(target_portal.get("side", ""))
+                local_center_x, local_center_y = (
+                    int(target_portal["center_mm"][0]),
+                    int(target_portal["center_mm"][1]),
                 )
-                last_direction = (
-                    0 if last_vector[0] == 0 else (1 if last_vector[0] > 0 else -1),
-                    0 if last_vector[1] == 0 else (1 if last_vector[1] > 0 else -1),
+                event_axis = "X" if target_side in {"WEST", "EAST"} else "Y"
+                event_coordinates = sorted(
+                    {
+                        coordinate
+                        for rows in physical_events.values()
+                        for axis, coordinate in rows
+                        if axis == event_axis
+                    }
                 )
-                if first_direction != source_outward.get(
-                    str(source_portal["side"])
-                ) or last_direction != target_inward.get(target_side):
-                    record_rejection("ACCESS_TOPOLOGY_PROHIBITED")
+                if event_axis == "X":
+                    target_y = source_y - local_center_y
+                    for event_x in event_coordinates:
+                        origin_sources.setdefault((event_x - local_center_x, target_y), set()).add(
+                            f"SORTING_PORTAL_AXIS_ALIGNMENT:{target_side}"
+                        )
+                else:
+                    target_x = source_x - local_center_x
+                    for event_y in event_coordinates:
+                        origin_sources.setdefault((target_x, event_y - local_center_y), set()).add(
+                            f"SORTING_PORTAL_AXIS_ALIGNMENT:{target_side}"
+                        )
+        for x_mm, y_mm in sorted(origin_sources):
+            rectangle = _local_rectangle_at("frozen_fruit_room", shape, x_mm, y_mm)
+            placement_count += 1
+            bounds = rectangle.bounds_mm
+            if (
+                x_mm < min_x
+                or y_mm < min_y
+                or x_mm + shape[3] > max_x
+                or y_mm + shape[4] > max_y
+                or (
+                    boundary_rectangle is None
+                    and not rectangle_inside_polygon(rectangle, context.boundary)
+                )
+            ):
+                room_rejections["SITE_INVALID"] += 1
+                record_rejection("FROZEN_SITE_INVALID")
+                continue
+            obstacle_hit = any(
+                rectangle_intersects_closed_obstacle(rectangle, obstacle)
+                for obstacle in context.obstacles
+            )
+            if obstacle_hit:
+                room_rejections["OBSTACLE"] += 1
+                record_rejection("FROZEN_OBSTACLE")
+                continue
+            candidate_before_truck_filter_count += 1
+            if any(rectangles_overlap(rectangle, other) for other in fixed.values()):
+                room_rejections["FIXED_ZONE"] += 1
+                record_rejection("FROZEN_OVERLAPS_FIXED_ZONE")
+                continue
+            candidate_after_fixed_zone_filter_count += 1
+            if any(
+                rectangle_intersects_closed_obstacle(rectangle, envelope)
+                for envelope in truck_envelopes
+            ):
+                room_rejections["TRUCK"] += 1
+                record_rejection("FROZEN_OVERLAPS_TRUCK_ENVELOPE")
+                continue
+            candidate_after_truck_filter_count += 1
+            if any(
+                _orthogonal_polygons_interiors_overlap(rectangle.polygon_mm, reserved)
+                for reserved in reserved_corridors
+            ):
+                room_rejections["RESERVED_CORRIDOR"] += 1
+                record_rejection("FROZEN_OVERLAPS_RESERVED_ACCESS_CORRIDOR")
+                continue
+            candidate_after_reserved_corridor_filter_count += 1
+            room_signature = _module_signature({"frozen_fruit_room": rectangle})
+            legal_rooms.setdefault(room_signature, rectangle)
+            legal_room_signatures.add(room_signature)
+            for target_portal in base_portals:
+                side = str(target_portal.get("side", ""))
+                required_direction = target_inward.get(side)
+                if required_direction is None:
+                    portal_rejections["PORTAL_DIRECTION_INVALID"] += 1
+                    record_rejection("PORTAL_DIRECTION_INVALID")
                     continue
-                if not _rectangle_is_usable(
-                    rectangle,
-                    {},
-                    context.boundary,
-                    context.boundary_bounds,
-                    context.obstacles,
-                ):
-                    record_rejection("FROZEN_SITE_INVALID")
-                    continue
-                candidate_before_truck_filter_count += 1
-                if any(
-                    rectangle_intersects_closed_obstacle(rectangle, envelope)
-                    for envelope in truck_envelopes
-                ):
-                    record_rejection("FROZEN_OVERLAPS_TRUCK_ENVELOPE")
-                    continue
-                candidate_after_truck_filter_count += 1
-                if any(rectangles_overlap(rectangle, other) for other in fixed.values()):
-                    record_rejection("FROZEN_OVERLAPS_FIXED_ZONE")
-                    continue
-                candidate_after_fixed_zone_filter_count += 1
-                if any(
-                    _orthogonal_polygons_interiors_overlap(rectangle.polygon_mm, reserved)
-                    for reserved in reserved_corridors
-                ):
-                    record_rejection("FROZEN_OVERLAPS_RESERVED_ACCESS_CORRIDOR")
-                    continue
-                if any(
-                    _orthogonal_polygons_interiors_overlap(
-                        corridor.polygon_mm, rectangle.polygon_mm
-                    )
-                    for corridor in corridor_rectangles
-                ):
-                    record_rejection("FROZEN_CORRIDOR_CROSSES_TARGET_ROOM")
-                    continue
-                candidate_after_reserved_corridor_filter_count += 1
-                signature = _module_signature({"frozen_fruit_room": rectangle})
-                side = target_side
-                target_segment = tuple(
-                    (int(point[0]) + origin[0], int(point[1]) + origin[1])
+                offset_x, offset_y = (
+                    int(target_portal["center_mm"][0]),
+                    int(target_portal["center_mm"][1]),
+                )
+                segment = tuple(
+                    (int(point[0]) + x_mm, int(point[1]) + y_mm)
                     for point in target_portal["segment_mm"]
                 )
-                skeleton_signature = (
-                    source_center,
-                    endpoint,
-                    path,
-                    target_segment,
-                    rectangle.bounds_mm,
+                center = (offset_x + x_mm, offset_y + y_mm)
+                portal_key = (
+                    room_signature,
+                    side,
+                    segment,
+                    center,
+                    required_direction,
+                    target_portal.get("edge_class"),
                 )
-                if skeleton_signature not in seen_route_skeletons:
-                    seen_route_skeletons.add(skeleton_signature)
-                    route_skeleton_witnesses.append(
-                        {
-                            "sorting_portal_side": str(source_portal["side"]),
-                            "sorting_portal_mm": list(source_center),
-                            "frozen_bounds_mm": list(rectangle.bounds_mm),
-                            "frozen_portal_side": side,
-                            "frozen_portal_segment_mm": [list(point) for point in target_segment],
-                            "endpoint_mm": list(endpoint),
-                            "centerline_mm": [list(point) for point in path],
-                            "corridor_envelopes_mm": [
-                                [list(point) for point in polygon] for polygon in proposed_envelopes
-                            ],
-                            "route_turn_count": route_turn_count,
-                            "route_length_mm": route_length_mm,
-                        }
-                    )
-                if signature in candidates:
-                    continue
-                route_hint_provenance = dict(endpoint_row.get("_route_search_provenance", {}))
-                candidate = replace(
-                    _access_candidate(
-                        "FROZEN_SUPPORT_MODULE",
-                        "frozen_fruit_room",
+                target_states.setdefault(
+                    portal_key,
+                    (
                         rectangle,
-                        _tail_requirement_ids(
-                            context,
-                            frozenset({("sorting_packaging_room", "frozen_fruit_room")}),
-                        ),
-                        anchor_source=(
-                            f"SORTING_PORTAL-{source_index:02d}-{source_portal['side']}"
-                            f"|VISIBILITY_ENDPOINT:{endpoint[0]},{endpoint[1]}"
-                            f"|TARGET_PORTAL:{side}:{target_portal['edge_class']}"
-                        ),
-                        endpoint_event_class="FROZEN_ENDPOINT_PAIR_ROUTE_PENDING",
-                        direct_shared_edge_possible=False,
+                        {
+                            **target_portal,
+                            "side": side,
+                            "center_mm": center,
+                            "segment_mm": segment,
+                            "required_arrival_axis": "X" if required_direction[0] else "Y",
+                            "required_arrival_direction": required_direction,
+                            "frozen_bounds_mm": bounds,
+                            "frozen_rotation_deg": rectangle.rotation_deg,
+                        },
+                        required_direction,
+                        ",".join(sorted(origin_sources[(x_mm, y_mm)])),
                     ),
-                    construction_corridor_centerline_mm=path,
-                    construction_corridor_envelopes_mm=proposed_envelopes,
-                    endpoint_event_class="FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-                    construction_order_key=(
-                        0,
-                        route_turn_count,
-                        route_length_mm,
-                        source_index,
-                        shape[3] * shape[4],
-                        Fraction(max(shape[3], shape[4]), min(shape[3], shape[4])),
-                        rectangle.bounds_mm,
-                        rectangle.rotation_deg,
-                    ),
-                    construction_portal_pair_mm=(source_center, endpoint),
-                    construction_route_hint_provenance=route_hint_provenance,
                 )
-                candidates[signature] = candidate
+        if not base_portals:
+            portal_rejections["NO_LEGAL_PORTAL"] += len(origin_sources)
+            record_rejection("NO_TARGET_PORTAL_EVENT")
 
-    pending_candidates: tuple[AccessDrivenTailCandidateV1, ...] = ()
-    if not candidates:
-        # Endpoint-only event placements remain an explicitly lower-priority
-        # fallback domain. They receive no graph-pass label and cannot be
-        # mistaken for a truck-clear route skeleton.
-        pending_candidates = _frozen_endpoint_pair_placement_candidates(
-            context,
-            fixed,
-            bays,
-            truck_envelopes,
-            stats=None,
-            main_identity=main_identity,
-            reserved_corridors=reserved_corridors,
-            route_hint_probe_limit=0,
+    legal_target_state_count = len(target_states)
+    if not target_states:
+        portal_rejections["NO_LEGAL_PORTAL"] += 1
+        record_rejection("NO_TARGET_PORTAL_EVENT")
+
+    sorted_target_states = tuple(
+        sorted(
+            target_states.values(),
+            key=lambda row: (
+                min(
+                    abs(int(row[1]["center_mm"][0]) - int(portal["center_mm"][0]))
+                    + abs(int(row[1]["center_mm"][1]) - int(portal["center_mm"][1]))
+                    for _side, portal in source_portals
+                ),
+                (row[0].bounds_mm[2] - row[0].bounds_mm[0])
+                * (row[0].bounds_mm[3] - row[0].bounds_mm[1]),
+                Fraction(
+                    max(
+                        row[0].bounds_mm[2] - row[0].bounds_mm[0],
+                        row[0].bounds_mm[3] - row[0].bounds_mm[1],
+                    ),
+                    min(
+                        row[0].bounds_mm[2] - row[0].bounds_mm[0],
+                        row[0].bounds_mm[3] - row[0].bounds_mm[1],
+                    ),
+                ),
+                row[1]["center_mm"],
+                row[1]["side"],
+                row[0].bounds_mm,
+                row[0].rotation_deg,
+            ),
         )
+    )
+    probe_count = 0
+    route_pass_count = 0
+    nodes_by_main = 0
+    node_budget_exhausted_count = 0
+    graph_exhausted_count = 0
+    route_hint_failures: dict[str, int] = {}
+    source_budget_remaining = {
+        side: hint_budget_remaining // max(1, len(source_portals))
+        for side, _portal in source_portals
+    }
+    relationships = {
+        str(row["identity"]): row
+        for row in context.spatial_relationships
+        if isinstance(row.get("identity"), str)
+    }
+    official_validator = getattr(context, "access_route_validator", None)
+    stop_after_formal_pass = False
+    for source_index, (source_side, source_portal) in enumerate(source_portals, start=1):
+        start = (int(source_portal["center_mm"][0]), int(source_portal["center_mm"][1]))
+        required_start_direction = source_outward[source_side]
+        ordered_source_states = sorted(
+            sorted_target_states,
+            key=lambda row: (
+                row[2] != required_start_direction,
+                abs(int(row[1]["center_mm"][0]) - start[0])
+                + abs(int(row[1]["center_mm"][1]) - start[1]),
+                (row[0].bounds_mm[2] - row[0].bounds_mm[0])
+                * (row[0].bounds_mm[3] - row[0].bounds_mm[1]),
+                row[1]["center_mm"],
+                row[1]["side"],
+                row[0].bounds_mm,
+                row[0].rotation_deg,
+            ),
+        )
+        represented_state_classes: set[tuple[int, str, str]] = set()
+        source_state_representatives: list[
+            tuple[PlacedRectangleV1, Mapping[str, Any], tuple[int, int], str]
+        ] = []
+        for target_state_row in ordered_source_states:
+            rectangle, target_portal, _arrival_direction, anchor_kinds = target_state_row
+            event_kinds = {kind.split(":", 1)[0] for kind in anchor_kinds.split(",") if kind}
+            state_classes = {
+                (rectangle.rotation_deg, str(target_portal["side"]), kind) for kind in event_kinds
+            }
+            new_classes = state_classes - represented_state_classes
+            if new_classes:
+                source_state_representatives.append(target_state_row)
+                represented_state_classes.update(new_classes)
+
+        for (
+            rectangle,
+            target_portal,
+            required_arrival_direction,
+            anchor_kinds,
+        ) in source_state_representatives:
+            if hint_budget_remaining <= 0:
+                break
+            side_budget = source_budget_remaining.get(source_side, 0)
+            if side_budget <= 0:
+                break
+            target = (
+                int(target_portal["center_mm"][0]),
+                int(target_portal["center_mm"][1]),
+            )
+            per_probe_budget = min(
+                side_budget,
+                max(1, int(getattr(context, "access_route_hint_node_budget", 20_000)) // 4),
+            )
+            route_zones = {**fixed, "frozen_fruit_room": rectangle}
+            result = route_provider(
+                start,
+                target,
+                width_mm=corridor_width_mm,
+                straight_only=False,
+                boundary=context.boundary,
+                obstacles=context.obstacles,
+                zones=route_zones,
+                incident_refs=frozenset({"sorting_packaging_room", "frozen_fruit_room"}),
+                node_budget=per_probe_budget,
+                additional_keepouts=(*truck_envelopes, *reserved_corridors),
+                required_start_direction=required_start_direction,
+                required_arrival_direction=required_arrival_direction,
+            )
+            probe_count += 1
+            visited = max(0, int(result.get("nodes_visited", 0)))
+            nodes_by_main += visited
+            hint_budget_remaining = max(0, hint_budget_remaining - visited)
+            source_budget_remaining[source_side] = max(0, side_budget - visited)
+            if result.get("node_budget_exhausted") is True:
+                node_budget_exhausted_count += 1
+            if result.get("graph_exhausted") is True:
+                graph_exhausted_count += 1
+            path = tuple((int(point[0]), int(point[1])) for point in (result.get("path") or ()))
+            if result.get("path") is None:
+                reason = str(result.get("reason") or "ROUTE_SEARCH_EXHAUSTED")
+                route_hint_failures[reason] = route_hint_failures.get(reason, 0) + 1
+                route_rejections[
+                    "NODE_BUDGET_EXHAUSTED"
+                    if result.get("node_budget_exhausted") is True
+                    else "NO_DIRECTION_COMPATIBLE_PATH"
+                    if reason == "NO_DIRECTION_COMPATIBLE_PATH"
+                    else "GRAPH_EXHAUSTED"
+                    if result.get("graph_exhausted") is True
+                    else "GRAPH_EXHAUSTED"
+                ] += 1
+                if result.get("node_budget_exhausted") is True:
+                    break
+                continue
+            if len(path) < 2 or not result.get("corridor_envelopes"):
+                route_rejections["CORRIDOR_KEEP_OUT_CONFLICT"] += 1
+                record_rejection("NO_TRUCK_CLEAR_CORRIDOR_EVENT")
+                continue
+            first_delta = (path[1][0] - path[0][0], path[1][1] - path[0][1])
+            last_delta = (path[-1][0] - path[-2][0], path[-1][1] - path[-2][1])
+            first = (
+                0 if first_delta[0] == 0 else (1 if first_delta[0] > 0 else -1),
+                0 if first_delta[1] == 0 else (1 if first_delta[1] > 0 else -1),
+            )
+            last = (
+                0 if last_delta[0] == 0 else (1 if last_delta[0] > 0 else -1),
+                0 if last_delta[1] == 0 else (1 if last_delta[1] > 0 else -1),
+            )
+            if first != required_start_direction or last != required_arrival_direction:
+                route_rejections["NO_DIRECTION_COMPATIBLE_PATH"] += 1
+                record_rejection("ACCESS_TOPOLOGY_PROHIBITED")
+                continue
+            proposed_envelopes = tuple(
+                tuple((int(point[0]), int(point[1])) for point in polygon)
+                for polygon in result.get("corridor_envelopes", ())
+            )
+            corridor_rectangles = _truck_clear_corridor_path(
+                context,
+                path,
+                corridor_width_mm,
+                fixed,
+                truck_envelopes,
+                reserved_corridors,
+            )
+            if not corridor_rectangles or any(
+                _orthogonal_polygons_interiors_overlap(envelope, keepout)
+                for envelope in proposed_envelopes
+                for keepout in (*truck_envelopes, *reserved_corridors)
+            ):
+                route_rejections["CORRIDOR_KEEP_OUT_CONFLICT"] += 1
+                record_rejection("NO_TRUCK_CLEAR_CORRIDOR_EVENT")
+                continue
+            route_pass_count += 1
+            turns = sum(
+                1
+                for index in range(1, len(path) - 1)
+                if (path[index - 1][0] == path[index][0]) != (path[index][0] == path[index + 1][0])
+            )
+            length = sum(
+                abs(second[0] - first[0]) + abs(second[1] - first[1])
+                for first, second in zip(path, path[1:], strict=False)
+            )
+            source_center = start
+            target_center = target
+            side = str(target_portal["side"])
+            segment = tuple((int(point[0]), int(point[1])) for point in target_portal["segment_mm"])
+            witness = {
+                "sorting_portal_side": source_side,
+                "sorting_portal_mm": list(source_center),
+                "frozen_bounds_mm": list(rectangle.bounds_mm),
+                "frozen_rotation_deg": rectangle.rotation_deg,
+                "frozen_portal_side": side,
+                "frozen_portal_segment_mm": [list(point) for point in segment],
+                "target_portal_center_mm": list(target_center),
+                "required_arrival_axis": target_portal["required_arrival_axis"],
+                "required_arrival_direction": list(required_arrival_direction),
+                "centerline_mm": [list(point) for point in path],
+                "corridor_envelopes_mm": [
+                    [list(point) for point in polygon] for polygon in proposed_envelopes
+                ],
+                "route_turn_count": turns,
+                "route_length_mm": length,
+                "anchor_event_kinds": anchor_kinds,
+                "hint_search": {
+                    "nodes_visited": visited,
+                    "node_budget": per_probe_budget,
+                    "node_budget_exhausted": bool(result.get("node_budget_exhausted")),
+                    "graph_exhausted": bool(result.get("graph_exhausted")),
+                    "search_source": str(result.get("search_source") or ""),
+                },
+            }
+            route_skeleton_witnesses.append(witness)
+            if official_validator is not None:
+                official, official_corridors = official_validator(
+                    requirement,
+                    relationships=relationships,
+                    zones=route_zones,
+                    boundary=context.boundary,
+                    obstacles=context.obstacles,
+                    entrances={"main_entrance": context.main_entrance},
+                )
+                if official.get("status") != "PASS":
+                    for code in official.get("codes", ()):
+                        code_name = str(code)
+                        final_rejections[code_name] = final_rejections.get(code_name, 0) + 1
+                    continue
+                official_collision = any(
+                    _orthogonal_polygons_interiors_overlap(corridor, keepout)
+                    for corridor in official_corridors
+                    for keepout in (*truck_envelopes, *reserved_corridors)
+                )
+                if official_collision:
+                    route_rejections["CORRIDOR_KEEP_OUT_CONFLICT"] += 1
+                    record_rejection("FROZEN_FINAL_AUTHORITY_ROUTE_KEEP_OUT_CONFLICT")
+                    continue
+                witness["final_authority"] = {
+                    "status": "PASS",
+                    "topology": official.get("topology"),
+                    "centerline": official.get("centerline", ()),
+                    "corridor_envelopes_mm": [
+                        [list(point) for point in polygon] for polygon in official_corridors
+                    ],
+                }
+                if stats is not None and main_identity is not None:
+                    if stats.frozen_final_authority_probe_count_by_main is None:
+                        stats.frozen_final_authority_probe_count_by_main = {}
+                    if stats.frozen_final_authority_pass_count_by_main is None:
+                        stats.frozen_final_authority_pass_count_by_main = {}
+                    stats.frozen_final_authority_probe_count_by_main[main_identity] = (
+                        stats.frozen_final_authority_probe_count_by_main.get(main_identity, 0) + 1
+                    )
+                    stats.frozen_final_authority_pass_count_by_main[main_identity] = (
+                        stats.frozen_final_authority_pass_count_by_main.get(main_identity, 0) + 1
+                    )
+                stop_after_formal_pass = True
+            signature = _module_signature({"frozen_fruit_room": rectangle})
+            candidate = replace(
+                _access_candidate(
+                    "FROZEN_SUPPORT_MODULE",
+                    "frozen_fruit_room",
+                    rectangle,
+                    _tail_requirement_ids(
+                        context,
+                        frozenset({("sorting_packaging_room", "frozen_fruit_room")}),
+                    ),
+                    anchor_source=(
+                        f"SORTING_PORTAL-{source_index:02d}-{source_side}"
+                        f"|PHYSICAL_ROOM_EVENTS:{anchor_kinds}"
+                        f"|TARGET_PORTAL:{side}:{target_portal['edge_class']}"
+                        f"|ARRIVAL:{required_arrival_direction[0]},{required_arrival_direction[1]}"
+                    ),
+                    endpoint_event_class="FROZEN_ENDPOINT_PAIR_ROUTE_PENDING",
+                    direct_shared_edge_possible=False,
+                ),
+                endpoint_event_class="FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
+                route_witness_status=(
+                    "CONSTRUCTION_HINT_AND_FORMAL_ACCESS_PASS"
+                    if official_validator is not None
+                    else "CONSTRUCTION_HINT_PENDING_FORMAL_ACCESS"
+                ),
+                construction_corridor_centerline_mm=path,
+                construction_corridor_envelopes_mm=proposed_envelopes,
+                construction_order_key=(
+                    0,
+                    turns,
+                    length,
+                    source_index,
+                    (rectangle.bounds_mm[2] - rectangle.bounds_mm[0])
+                    * (rectangle.bounds_mm[3] - rectangle.bounds_mm[1]),
+                    Fraction(
+                        max(
+                            rectangle.bounds_mm[2] - rectangle.bounds_mm[0],
+                            rectangle.bounds_mm[3] - rectangle.bounds_mm[1],
+                        ),
+                        min(
+                            rectangle.bounds_mm[2] - rectangle.bounds_mm[0],
+                            rectangle.bounds_mm[3] - rectangle.bounds_mm[1],
+                        ),
+                    ),
+                    rectangle.bounds_mm,
+                    rectangle.rotation_deg,
+                ),
+                construction_portal_pair_mm=(source_center, target_center),
+                construction_route_hint_provenance=dict(witness["hint_search"]),
+            )
+            candidates.setdefault(signature, candidate)
+            stop_after_formal_pass = True
+            break
+        if stop_after_formal_pass:
+            break
 
     if stats is not None and main_identity is not None:
 
@@ -4845,9 +5125,9 @@ def _frozen_truck_clear_corridor_candidates(
 
         increment_map("frozen_sorting_portal_event_count_by_main", len(sorting_portals))
         increment_map("frozen_target_face_layout_count_by_main", placement_count)
-        increment_map("frozen_endpoint_pair_pending_count_by_main", len(pending_candidates))
+        increment_map("frozen_endpoint_pair_pending_count_by_main", 0)
         increment_map("frozen_route_hint_probe_count_by_main", probe_count)
-        increment_map("frozen_route_hint_pass_count_by_main", total_reachable_endpoint_count)
+        increment_map("frozen_route_hint_pass_count_by_main", route_pass_count)
         increment_map("frozen_route_hint_nodes_visited_by_main", nodes_by_main)
         increment_map(
             "frozen_route_hint_node_budget_exhausted_count_by_main",
@@ -4868,9 +5148,83 @@ def _frozen_truck_clear_corridor_candidates(
         }
         if stats.frozen_target_portal_event_count_by_main is None:
             stats.frozen_target_portal_event_count_by_main = {}
-        stats.frozen_target_portal_event_count_by_main[main_identity] = len(
-            {tuple(row[2]["endpoint"]) for row in route_rows}
+        stats.frozen_target_portal_event_count_by_main[main_identity] = legal_target_state_count
+        if stats.frozen_legal_room_placement_count_by_main is None:
+            stats.frozen_legal_room_placement_count_by_main = {}
+        stats.frozen_legal_room_placement_count_by_main[main_identity] = len(legal_rooms)
+        if stats.frozen_legal_room_placement_signatures_by_main is None:
+            stats.frozen_legal_room_placement_signatures_by_main = {}
+        room_signatures = stats.frozen_legal_room_placement_signatures_by_main.setdefault(
+            main_identity, set()
         )
+        room_signatures.update(repr(signature) for signature in legal_room_signatures)
+        if stats.frozen_room_placement_rejections_by_main is None:
+            stats.frozen_room_placement_rejections_by_main = {}
+        room_rejection_map = stats.frozen_room_placement_rejections_by_main.setdefault(
+            main_identity, {}
+        )
+        for code, count in room_rejections.items():
+            room_rejection_map[code] = room_rejection_map.get(code, 0) + count
+        if stats.frozen_legal_target_portal_state_count_by_main is None:
+            stats.frozen_legal_target_portal_state_count_by_main = {}
+        stats.frozen_legal_target_portal_state_count_by_main[main_identity] = len(target_states)
+        if stats.frozen_target_portal_state_signatures_by_main is None:
+            stats.frozen_target_portal_state_signatures_by_main = {}
+        target_signatures = stats.frozen_target_portal_state_signatures_by_main.setdefault(
+            main_identity, set()
+        )
+        target_signatures.update(repr(signature) for signature in target_states)
+        if stats.frozen_target_portal_state_rejections_by_main is None:
+            stats.frozen_target_portal_state_rejections_by_main = {}
+        portal_rejection_map = stats.frozen_target_portal_state_rejections_by_main.setdefault(
+            main_identity, {}
+        )
+        for code, count in portal_rejections.items():
+            portal_rejection_map[code] = portal_rejection_map.get(code, 0) + count
+        if stats.frozen_sorting_portal_unique_signatures_by_main is None:
+            stats.frozen_sorting_portal_unique_signatures_by_main = {}
+        source_signatures = stats.frozen_sorting_portal_unique_signatures_by_main.setdefault(
+            main_identity, set()
+        )
+        source_signatures.update(
+            repr(
+                (
+                    portal.get("side"),
+                    tuple(portal.get("center_mm", ())),
+                    tuple(tuple(point) for point in portal.get("segment_mm", ())),
+                )
+            )
+            for portal in sorting_portals
+        )
+        if stats.frozen_sorting_portal_enumeration_occurrence_count_by_main is None:
+            stats.frozen_sorting_portal_enumeration_occurrence_count_by_main = {}
+        occurrences = stats.frozen_sorting_portal_enumeration_occurrence_count_by_main
+        occurrences[main_identity] = occurrences.get(main_identity, 0) + len(sorting_portals)
+        if stats.frozen_target_state_route_probe_count_by_main is None:
+            stats.frozen_target_state_route_probe_count_by_main = {}
+        if stats.frozen_target_state_route_pass_count_by_main is None:
+            stats.frozen_target_state_route_pass_count_by_main = {}
+        stats.frozen_target_state_route_probe_count_by_main[main_identity] = (
+            stats.frozen_target_state_route_probe_count_by_main.get(main_identity, 0) + probe_count
+        )
+        stats.frozen_target_state_route_pass_count_by_main[main_identity] = (
+            stats.frozen_target_state_route_pass_count_by_main.get(main_identity, 0)
+            + route_pass_count
+        )
+        if stats.frozen_route_to_target_state_rejections_by_main is None:
+            stats.frozen_route_to_target_state_rejections_by_main = {}
+        target_route_rejections = stats.frozen_route_to_target_state_rejections_by_main.setdefault(
+            main_identity, {}
+        )
+        for code, count in route_rejections.items():
+            target_route_rejections[code] = target_route_rejections.get(code, 0) + count
+        if stats.frozen_final_authority_rejections_by_main is None:
+            stats.frozen_final_authority_rejections_by_main = {}
+        authority_rejections = stats.frozen_final_authority_rejections_by_main.setdefault(
+            main_identity, {}
+        )
+        for code, count in final_rejections.items():
+            authority_rejections[code] = authority_rejections.get(code, 0) + count
         if stats.frozen_candidate_counts_by_main is None:
             stats.frozen_candidate_counts_by_main = {}
         candidate_counts = stats.frozen_candidate_counts_by_main.setdefault(main_identity, {})
@@ -4886,7 +5240,7 @@ def _frozen_truck_clear_corridor_candidates(
         taxonomy = stats.frozen_candidate_rejection_taxonomy_by_main.setdefault(main_identity, {})
         for code, count in rejection_counts.items():
             taxonomy[code] = taxonomy.get(code, 0) + count
-        if not candidates and total_reachable_endpoint_count == 0:
+        if not candidates and route_pass_count == 0:
             taxonomy["NO_TRUCK_CLEAR_CORRIDOR_EVENT"] = (
                 taxonomy.get("NO_TRUCK_CLEAR_CORRIDOR_EVENT", 0) + 1
             )
@@ -4919,7 +5273,7 @@ def _frozen_truck_clear_corridor_candidates(
                 "portal_event_pair_mm": [
                     list(point) for point in candidate.construction_portal_pair_mm or ()
                 ],
-                "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE",
+                "status": candidate.route_witness_status,
             }
             for candidate in sorted(
                 candidates.values(), key=lambda row: row.construction_order_key
@@ -4930,7 +5284,7 @@ def _frozen_truck_clear_corridor_candidates(
         stats.frozen_route_skeleton_witness_by_main[main_identity] = route_skeleton_witnesses[:12]
 
     ordered = tuple(sorted(candidates.values(), key=lambda row: row.construction_order_key))
-    return ordered if ordered else pending_candidates
+    return ordered
 
 
 def _access_tail_authority_shape_signatures(
@@ -9943,6 +10297,18 @@ class _PlacementSearchStats:
     frozen_access_witness_by_main: dict[str, dict[str, Any]] | None = None
     frozen_constructive_candidate_witness_by_main: dict[str, list[dict[str, Any]]] | None = None
     frozen_route_skeleton_witness_by_main: dict[str, list[dict[str, Any]]] | None = None
+    frozen_legal_room_placement_count_by_main: dict[str, int] | None = None
+    frozen_legal_room_placement_signatures_by_main: dict[str, set[str]] | None = None
+    frozen_room_placement_rejections_by_main: dict[str, dict[str, int]] | None = None
+    frozen_legal_target_portal_state_count_by_main: dict[str, int] | None = None
+    frozen_target_portal_state_signatures_by_main: dict[str, set[str]] | None = None
+    frozen_target_portal_state_rejections_by_main: dict[str, dict[str, int]] | None = None
+    frozen_sorting_portal_unique_signatures_by_main: dict[str, set[str]] | None = None
+    frozen_sorting_portal_enumeration_occurrence_count_by_main: dict[str, int] | None = None
+    frozen_target_state_route_probe_count_by_main: dict[str, int] | None = None
+    frozen_target_state_route_pass_count_by_main: dict[str, int] | None = None
+    frozen_route_to_target_state_rejections_by_main: dict[str, dict[str, int]] | None = None
+    frozen_final_authority_rejections_by_main: dict[str, dict[str, int]] | None = None
     endpoint_driven_candidate_metadata_miss_count: int = 0
     tail_access_capacity_continuation_count: int = 0
     truck_pass_main_rejected_for_tail_access_count: int = 0
@@ -18099,6 +18465,95 @@ class PlacementCandidateEnumerationV1:
                         main: dict(sorted(counts.items()))
                         for main, counts in sorted(
                             (self._stats.frozen_physical_event_count_by_main or {}).items()
+                        )
+                    },
+                    "frozen_physical_event_count_by_kind": {
+                        kind: max(
+                            counts.get(kind, 0)
+                            for counts in (
+                                self._stats.frozen_physical_event_count_by_main or {}
+                            ).values()
+                        )
+                        for kind in sorted(
+                            {
+                                kind
+                                for counts in (
+                                    self._stats.frozen_physical_event_count_by_main or {}
+                                ).values()
+                                for kind in counts
+                            }
+                        )
+                    },
+                    "frozen_legal_room_placement_count_by_main": {
+                        main: len(signatures)
+                        for main, signatures in sorted(
+                            (
+                                self._stats.frozen_legal_room_placement_signatures_by_main or {}
+                            ).items()
+                        )
+                    },
+                    "frozen_room_placement_rejections_by_main": {
+                        main: dict(sorted(codes.items()))
+                        for main, codes in sorted(
+                            (self._stats.frozen_room_placement_rejections_by_main or {}).items()
+                        )
+                    },
+                    "frozen_legal_target_portal_state_count_by_main": {
+                        main: len(signatures)
+                        for main, signatures in sorted(
+                            (
+                                self._stats.frozen_target_portal_state_signatures_by_main or {}
+                            ).items()
+                        )
+                    },
+                    "frozen_target_portal_state_rejections_by_main": {
+                        main: dict(sorted(codes.items()))
+                        for main, codes in sorted(
+                            (
+                                self._stats.frozen_target_portal_state_rejections_by_main or {}
+                            ).items()
+                        )
+                    },
+                    "frozen_sorting_portal_unique_count_by_main": {
+                        main: len(signatures)
+                        for main, signatures in sorted(
+                            (
+                                self._stats.frozen_sorting_portal_unique_signatures_by_main or {}
+                            ).items()
+                        )
+                    },
+                    "frozen_sorting_portal_enumeration_occurrence_count_by_main": dict(
+                        sorted(
+                            (
+                                self._stats.frozen_sorting_portal_enumeration_occurrence_count_by_main
+                                or {}
+                            ).items()
+                        )
+                    ),
+                    "frozen_target_state_route_probe_count_by_main": dict(
+                        sorted(
+                            (
+                                self._stats.frozen_target_state_route_probe_count_by_main or {}
+                            ).items()
+                        )
+                    ),
+                    "frozen_target_state_route_pass_count_by_main": dict(
+                        sorted(
+                            (self._stats.frozen_target_state_route_pass_count_by_main or {}).items()
+                        )
+                    ),
+                    "frozen_route_to_target_state_rejections_by_main": {
+                        main: dict(sorted(codes.items()))
+                        for main, codes in sorted(
+                            (
+                                self._stats.frozen_route_to_target_state_rejections_by_main or {}
+                            ).items()
+                        )
+                    },
+                    "frozen_final_authority_rejections_by_main": {
+                        main: dict(sorted(codes.items()))
+                        for main, codes in sorted(
+                            (self._stats.frozen_final_authority_rejections_by_main or {}).items()
                         )
                     },
                     "frozen_truck_clear_route_skeleton_count_by_main": dict(

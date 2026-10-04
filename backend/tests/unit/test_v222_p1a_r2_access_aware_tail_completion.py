@@ -597,7 +597,7 @@ def test_frozen_direct_seed_is_rejected_for_exact_truck_overlap() -> None:
     assert rejection["overlap_bounds_mm"] == [39_000, 2_000, 39_500, 9_800]
 
 
-def test_frozen_target_portal_can_be_anchored_to_remote_free_space_event() -> None:
+def test_frozen_target_portal_uses_physical_room_event_placement() -> None:
     context, _main = _xinzhao_frozen_corridor_context()
     context.boundary = ((0, 0), (100_000, 0), (100_000, 100_000), (0, 100_000))
     context.boundary_bounds = (0, 0, 100_000, 100_000)
@@ -615,11 +615,7 @@ def test_frozen_target_portal_can_be_anchored_to_remote_free_space_event() -> No
         stats=None,
         main_identity="remote-event-main",
     )
-    candidate = next(
-        candidate
-        for candidate in candidates
-        if candidate.as_placements()["frozen_fruit_room"].bounds_mm[1] == 50_000
-    )
+    candidate = candidates[0]
     frozen = candidate.as_placements()["frozen_fruit_room"]
     result, corridors = route_access_requirement(
         context.access_requirements[0],
@@ -630,17 +626,14 @@ def test_frozen_target_portal_can_be_anchored_to_remote_free_space_event() -> No
         entrances={},
     )
 
-    assert "VISIBILITY_ENDPOINT" in candidate.anchor_source
+    assert "VISIBILITY_ENDPOINT" not in candidate.anchor_source
     assert "SORTING_PORTAL" in candidate.anchor_source
+    assert "PHYSICAL_ROOM_EVENTS" in candidate.anchor_source
     assert result["status"] == "PASS"
-    if candidate.endpoint_event_class == "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED":
-        assert len(candidate.construction_corridor_centerline_mm) >= 2
-        assert candidate.construction_corridor_envelopes_mm
-        assert corridors
-    else:
-        assert candidate.endpoint_event_class == "FROZEN_ENDPOINT_PAIR_ROUTE_PENDING"
-        assert candidate.construction_corridor_centerline_mm == ()
-        assert candidate.construction_corridor_envelopes_mm == ()
+    assert candidate.endpoint_event_class == "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED"
+    assert len(candidate.construction_corridor_centerline_mm) >= 2
+    assert candidate.construction_corridor_envelopes_mm
+    assert corridors
 
 
 def test_frozen_router_pass_overlapping_fixed_zone_is_rejected_for_construction() -> None:

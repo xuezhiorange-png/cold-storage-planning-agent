@@ -66,6 +66,7 @@ TRUCK_REPRESENTATION = "OPTION_C_APPROVED_MANEUVER_TEMPLATES"
 INCIDENT_ZONE_INTERIOR_TRANSIT_ALLOWED = False
 PORTAL_ONLY_ZONE_BOUNDARY_TRANSIT = True
 CROSSING_NECESSITY_INFERRED_FROM_GEOMETRY = False
+type _RouteSearchStateV1 = tuple[tuple[int, int], str, tuple[int, int] | None]
 
 
 def _error(code: str, **details: object) -> LayoutAuthorityError:
@@ -534,6 +535,8 @@ def _route_grid_search(
     enumerate_endpoints: bool = False,
     endpoint_limit: int = 0,
     construction_search: bool = False,
+    required_start_direction: tuple[int, int] | None = None,
+    required_arrival_direction: tuple[int, int] | None = None,
 ) -> RouteSkeletonSearchResultV1:
     """Search the router's finite visibility graph in stable coordinate order."""
     half = width_mm // 2
@@ -683,21 +686,22 @@ def _route_grid_search(
     # A visibility node alone is not a sufficient construction search state:
     # corridor clearance at a turn depends on the incoming axis. Keep
     # horizontal and vertical arrivals distinct in endpoint-enumeration mode.
-    start_state = (start, "")
-    queue: deque[tuple[tuple[int, int], str]] = deque([start_state])
-    parents: dict[tuple[tuple[int, int], str], tuple[tuple[int, int], str] | None] = {
-        start_state: None
-    }
-    straight_run_starts: dict[tuple[tuple[int, int], str], tuple[int, int]] = {start_state: start}
+    # Construction target-state queries retain the signed incoming direction
+    # as part of the state. Ordinary construction searches keep the previous
+    # point+axis state shape, and final authority searches stay in the
+    # point-only branch above.
+    start_state = (start, "", None)
+    queue: deque[_RouteSearchStateV1] = deque([start_state])
+    parents: dict[_RouteSearchStateV1, _RouteSearchStateV1 | None] = {start_state: None}
+    straight_run_starts: dict[_RouteSearchStateV1, tuple[int, int]] = {start_state: start}
     visited = 0
     reached_endpoints: list[RouteSkeletonEndpointV1] = []
-    reached_endpoint_states: set[tuple[tuple[int, int], str]] = set()
+    reached_endpoint_states: set[_RouteSearchStateV1] = set()
+    wrong_direction_target_reached = False
 
-    def path_to_state(
-        state: tuple[tuple[int, int], str],
-    ) -> tuple[tuple[int, int], ...]:
+    def path_to_state(state: _RouteSearchStateV1) -> tuple[tuple[int, int], ...]:
         raw_path: list[tuple[int, int]] = []
-        cursor_state: tuple[tuple[int, int], str] | None = state
+        cursor_state: _RouteSearchStateV1 | None = state
         while cursor_state is not None:
             raw_path.append(cursor_state[0])
             cursor_state = parents[cursor_state]
@@ -716,9 +720,15 @@ def _route_grid_search(
                 tuple(reached_endpoints),
             )
         current_state = queue.popleft()
-        current, incoming_axis = current_state
+        current, incoming_axis, incoming_direction = current_state
         visited += 1
         if current == end and not enumerate_endpoints:
+            if (
+                required_arrival_direction is not None
+                and incoming_direction != required_arrival_direction
+            ):
+                wrong_direction_target_reached = True
+                continue
             path = path_to_state(current_state)
             safe, reason, envelopes = _route_is_safe(
                 path,
@@ -775,7 +785,18 @@ def _route_grid_search(
                     )
         for candidate in neighbors(current):
             outgoing_axis = "H" if candidate[1] == current[1] else "V"
-            candidate_state = (candidate, outgoing_axis)
+            direction = (
+                1 if candidate[0] > current[0] else -1 if candidate[0] < current[0] else 0,
+                1 if candidate[1] > current[1] else -1 if candidate[1] < current[1] else 0,
+            )
+            if (
+                current == start
+                and required_start_direction is not None
+                and direction != required_start_direction
+            ):
+                continue
+            state_direction = direction if required_arrival_direction is not None else None
+            candidate_state: _RouteSearchStateV1 = (candidate, outgoing_axis, state_direction)
             if candidate_state in parents:
                 continue
             edge_safe, _, _ = _route_is_safe(
@@ -819,7 +840,9 @@ def _route_grid_search(
                 queue.append(candidate_state)
     return RouteSkeletonSearchResultV1(
         None,
-        "ROUTE_SEARCH_EXHAUSTED",
+        "NO_DIRECTION_COMPATIBLE_PATH"
+        if wrong_direction_target_reached
+        else "ROUTE_SEARCH_EXHAUSTED",
         (),
         visited,
         False,
@@ -900,6 +923,8 @@ def _find_route_skeleton_v1(
     incident_refs: frozenset[str],
     node_budget: int,
     additional_keepouts: Sequence[PolygonMM] = (),
+    required_start_direction: tuple[int, int] | None = None,
+    required_arrival_direction: tuple[int, int] | None = None,
 ) -> RouteSkeletonSearchResultV1:
     """Find a route skeleton using the same geometry search as final P2D.
 
@@ -910,6 +935,25 @@ def _find_route_skeleton_v1(
     route_obstacles = (*obstacles, *additional_keepouts)
     reasons: list[str] = []
     for path in _candidate_paths(start, end, straight_only=straight_only):
+        if len(path) < 2:
+            if required_start_direction is not None or required_arrival_direction is not None:
+                continue
+        else:
+            first_direction = (
+                0 if path[1][0] == path[0][0] else (1 if path[1][0] > path[0][0] else -1),
+                0 if path[1][1] == path[0][1] else (1 if path[1][1] > path[0][1] else -1),
+            )
+            last_direction = (
+                0 if path[-1][0] == path[-2][0] else (1 if path[-1][0] > path[-2][0] else -1),
+                0 if path[-1][1] == path[-2][1] else (1 if path[-1][1] > path[-2][1] else -1),
+            )
+            if (
+                required_start_direction is not None and first_direction != required_start_direction
+            ) or (
+                required_arrival_direction is not None
+                and last_direction != required_arrival_direction
+            ):
+                continue
         safe, reason, envelopes = _route_is_safe(
             path,
             width_mm=width_mm,
@@ -947,6 +991,8 @@ def _find_route_skeleton_v1(
         node_budget=node_budget,
         additional_keepouts=additional_keepouts,
         construction_search=True,
+        required_start_direction=required_start_direction,
+        required_arrival_direction=required_arrival_direction,
     )
     if result.path is not None:
         return result

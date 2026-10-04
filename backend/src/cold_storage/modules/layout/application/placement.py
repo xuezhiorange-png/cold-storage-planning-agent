@@ -471,6 +471,8 @@ def enumerate_placement_candidates(
             node_budget: int,
             additional_keepouts: Any = (),
             straight_only: bool = False,
+            required_start_direction: tuple[int, int] | None = None,
+            required_arrival_direction: tuple[int, int] | None = None,
         ) -> Mapping[str, Any]:
             """Expose the final router's bounded event graph to construction."""
             result = _find_route_skeleton_v1(
@@ -484,6 +486,8 @@ def enumerate_placement_candidates(
                 incident_refs=incident_refs,
                 node_budget=min(node_budget, DEFAULT_ROUTE_NODE_BUDGET // 4),
                 additional_keepouts=additional_keepouts,
+                required_start_direction=required_start_direction,
+                required_arrival_direction=required_arrival_direction,
             )
             return {
                 "path": result.path,

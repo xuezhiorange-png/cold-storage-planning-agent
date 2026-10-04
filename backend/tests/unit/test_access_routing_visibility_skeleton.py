@@ -160,6 +160,47 @@ def test_visibility_endpoint_enumerator_keeps_distinct_arrival_directions():
     assert any(len(axes) > 1 for axes in arrivals.values())
 
 
+def test_visibility_route_can_target_a_portal_arrival_direction():
+    result = _find_route_skeleton_v1(
+        (20_000, 50_000),
+        (80_000, 50_000),
+        width_mm=2_500,
+        straight_only=False,
+        boundary=BOUNDARY,
+        obstacles=(),
+        zones={SOURCE.zone_code: SOURCE, TARGET.zone_code: TARGET},
+        incident_refs=frozenset({SOURCE.zone_code, TARGET.zone_code}),
+        node_budget=1_000,
+        required_start_direction=(1, 0),
+        required_arrival_direction=(1, 0),
+    )
+
+    assert result.path == ((20_000, 50_000), (80_000, 50_000))
+    assert result.envelopes
+    assert result.node_budget_exhausted is False
+
+
+def test_visibility_route_rejects_wrong_portal_arrival_direction():
+    narrow_boundary = ((0, 0), (100_000, 0), (100_000, 2_500), (0, 2_500))
+    result = _find_route_skeleton_v1(
+        (20_000, 1_250),
+        (80_000, 1_250),
+        width_mm=2_500,
+        straight_only=False,
+        boundary=narrow_boundary,
+        obstacles=(),
+        zones={},
+        incident_refs=frozenset(),
+        node_budget=1_000,
+        required_start_direction=(1, 0),
+        required_arrival_direction=(-1, 0),
+    )
+
+    assert result.path is None
+    assert result.reason == "NO_DIRECTION_COMPATIBLE_PATH"
+    assert result.graph_exhausted is True
+
+
 def test_extra_construction_keepout_does_not_change_default_route_search():
     zones = {SOURCE.zone_code: SOURCE, TARGET.zone_code: TARGET}
     without = _search(zones=zones)
