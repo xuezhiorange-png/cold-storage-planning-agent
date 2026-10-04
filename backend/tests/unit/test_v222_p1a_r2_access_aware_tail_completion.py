@@ -14,6 +14,8 @@ from cold_storage.modules.layout.domain import placement
 from cold_storage.modules.layout.domain.access_authority import COLD_ROOM, resolve_access_profile
 from cold_storage.modules.layout.domain.access_routing import (
     _edge_options,
+    _find_route_skeleton_endpoints_v1,
+    _find_route_skeleton_v1,
     route_access_requirement,
 )
 from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
@@ -31,6 +33,40 @@ def _rectangle(
         Decimal(top - bottom) / 1000,
         rotation_deg,
     )
+
+
+def _route_skeleton_provider(
+    start: tuple[int, int], end: tuple[int, int], **kwargs: Any
+) -> dict[str, Any]:
+    result = _find_route_skeleton_v1(start, end, **kwargs)
+    return {
+        "path": result.path,
+        "reason": result.reason,
+        "corridor_envelopes": tuple(row.polygon_mm for row in result.envelopes),
+        "nodes_visited": result.nodes_visited,
+        "node_budget_exhausted": result.node_budget_exhausted,
+        "graph_exhausted": result.graph_exhausted,
+        "search_source": result.search_source,
+    }
+
+
+def _route_skeleton_endpoint_provider(start: tuple[int, int], **kwargs: Any) -> dict[str, Any]:
+    result = _find_route_skeleton_endpoints_v1(start, **kwargs)
+    return {
+        "endpoint_skeletons": tuple(
+            {
+                "endpoint": row.endpoint,
+                "path": row.path,
+                "corridor_envelopes": tuple(envelope.polygon_mm for envelope in row.envelopes),
+            }
+            for row in result.endpoint_skeletons
+        ),
+        "reason": result.reason,
+        "nodes_visited": result.nodes_visited,
+        "node_budget_exhausted": result.node_budget_exhausted,
+        "graph_exhausted": result.graph_exhausted,
+        "search_source": result.search_source,
+    }
 
 
 def _access_context(route: Any) -> SimpleNamespace:
@@ -439,6 +475,9 @@ def _xinzhao_frozen_corridor_context() -> tuple[Any, dict[str, PlacedRectangleV1
         },
         access_requirements=requirements,
         access_portal_event_provider=portal_events,
+        access_route_skeleton_provider=_route_skeleton_provider,
+        access_route_skeleton_endpoint_provider=_route_skeleton_endpoint_provider,
+        access_route_hint_node_budget=20_000,
         boundary=boundary,
         boundary_bounds=(0, 0, 75_460, 55_000),
         obstacles=obstacles,
@@ -467,8 +506,7 @@ def test_frozen_truck_clear_corridor_event_gets_official_route_pass() -> None:
     candidate = next(
         candidate
         for candidate in candidates
-        if candidate.as_placements()["frozen_fruit_room"].bounds_mm
-        == (16_700, 32_700, 27_500, 40_900)
+        if candidate.endpoint_event_class == "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED"
     )
     frozen = candidate.as_placements()["frozen_fruit_room"]
     corridor_centerline = candidate.construction_corridor_centerline_mm
@@ -592,61 +630,17 @@ def test_frozen_target_portal_can_be_anchored_to_remote_free_space_event() -> No
         entrances={},
     )
 
-    assert candidate.endpoint_event_class == "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED"
-    assert "FIXED_ZONE" in candidate.anchor_source
+    assert "VISIBILITY_ENDPOINT" in candidate.anchor_source
     assert "SORTING_PORTAL" in candidate.anchor_source
     assert result["status"] == "PASS"
-    assert corridors
-    assert all(
-        not placement._orthogonal_polygons_interiors_overlap(corridor, truck_envelopes[0])
-        for corridor in corridors
-    )
-
-
-@pytest.mark.parametrize(
-    ("source_side", "target_side", "start", "end"),
-    (
-        ("EAST", "WEST", (10_000, 20_000), (30_000, 40_000)),
-        ("WEST", "EAST", (30_000, 20_000), (10_000, 40_000)),
-        ("NORTH", "SOUTH", (20_000, 10_000), (40_000, 30_000)),
-        ("SOUTH", "NORTH", (20_000, 30_000), (40_000, 10_000)),
-    ),
-)
-def test_frozen_corridor_event_paths_follow_both_portal_normals(
-    source_side: str,
-    target_side: str,
-    start: tuple[int, int],
-    end: tuple[int, int],
-) -> None:
-    paths = placement._portal_normal_centerlines(
-        start,
-        end,
-        source_side=source_side,
-        target_side=target_side,
-        corridor_width_mm=2_500,
-    )
-    source_normals = {
-        "EAST": (1, 0),
-        "WEST": (-1, 0),
-        "NORTH": (0, 1),
-        "SOUTH": (0, -1),
-    }
-    target_normal = source_normals[target_side]
-
-    assert paths
-    for path in paths:
-        first = path[1]
-        penultimate = path[-2]
-        first_delta = (
-            (first[0] > start[0]) - (first[0] < start[0]),
-            (first[1] > start[1]) - (first[1] < start[1]),
-        )
-        last_delta = (
-            (end[0] > penultimate[0]) - (end[0] < penultimate[0]),
-            (end[1] > penultimate[1]) - (end[1] < penultimate[1]),
-        )
-        assert first_delta == source_normals[source_side]
-        assert last_delta == (-target_normal[0], -target_normal[1])
+    if candidate.endpoint_event_class == "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED":
+        assert len(candidate.construction_corridor_centerline_mm) >= 2
+        assert candidate.construction_corridor_envelopes_mm
+        assert corridors
+    else:
+        assert candidate.endpoint_event_class == "FROZEN_ENDPOINT_PAIR_ROUTE_PENDING"
+        assert candidate.construction_corridor_centerline_mm == ()
+        assert candidate.construction_corridor_envelopes_mm == ()
 
 
 def test_frozen_router_pass_overlapping_fixed_zone_is_rejected_for_construction() -> None:

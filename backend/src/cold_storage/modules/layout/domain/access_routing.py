@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from collections import deque
 from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from decimal import Context, Decimal, localcontext
 from itertools import permutations
 from typing import Any
@@ -491,7 +492,35 @@ def _candidate_paths(
     return tuple(paths)
 
 
-def _route_grid_path(
+@dataclass(frozen=True)
+class RouteSkeletonEndpointV1:
+    """One reached event node and its safe path from the construction source."""
+
+    endpoint: tuple[int, int]
+    path: tuple[tuple[int, int], ...]
+    envelopes: tuple[PlacedRectangleV1, ...]
+
+
+@dataclass(frozen=True)
+class RouteSkeletonSearchResultV1:
+    """Geometry-only result from the shared finite orthogonal route search.
+
+    ``route_access_requirement`` remains the authority for portal/profile
+    admission.  This result exposes search provenance so construction callers
+    can distinguish a bounded search from an exhausted event graph.
+    """
+
+    path: tuple[tuple[int, int], ...] | None
+    reason: str
+    envelopes: tuple[PlacedRectangleV1, ...]
+    nodes_visited: int
+    node_budget_exhausted: bool
+    graph_exhausted: bool
+    search_source: str
+    endpoint_skeletons: tuple[RouteSkeletonEndpointV1, ...] = ()
+
+
+def _route_grid_search(
     start: tuple[int, int],
     end: tuple[int, int],
     *,
@@ -501,9 +530,14 @@ def _route_grid_path(
     zones: Mapping[str, PlacedRectangleV1],
     incident_refs: frozenset[str],
     node_budget: int,
-) -> tuple[tuple[tuple[int, int], ...] | None, str, tuple[PlacedRectangleV1, ...]]:
-    """Search a finite visibility graph in stable coordinate order."""
+    additional_keepouts: Sequence[PolygonMM] = (),
+    enumerate_endpoints: bool = False,
+    endpoint_limit: int = 0,
+    construction_search: bool = False,
+) -> RouteSkeletonSearchResultV1:
+    """Search the router's finite visibility graph in stable coordinate order."""
     half = width_mm // 2
+    route_obstacles = (*obstacles, *additional_keepouts)
     x_values = {start[0], end[0]}
     y_values = {start[1], end[1]}
     for point in boundary:
@@ -513,12 +547,46 @@ def _route_grid_path(
         left, bottom, right, top = rectangle.bounds_mm
         x_values.update((left - half, left, right, right + half))
         y_values.update((bottom - half, bottom, top, top + half))
+    # Keep the production authority graph's event set byte-for-byte equivalent
+    # to its pre-extraction form. Construction hints may add one exact-grid
+    # clearance event around closed keepouts, but that must not alter the
+    # final route authority's candidate ordering or result.
+    legal_grid_step_mm = int(GRID * MILLIMETRES_PER_METRE)
+    authority_semantics = not enumerate_endpoints and not construction_search
+    obstacle_clearance_offsets = (
+        (half,)
+        if authority_semantics
+        else (
+            half,
+            half + legal_grid_step_mm,
+        )
+    )
     for obstacle in obstacles:
         for x, y in obstacle:
-            x_values.update((x - half, x, x + half))
-            y_values.update((y - half, y, y + half))
+            x_values.add(x)
+            y_values.add(y)
+            x_values.update(
+                value for offset in obstacle_clearance_offsets for value in (x - offset, x + offset)
+            )
+            y_values.update(
+                value for offset in obstacle_clearance_offsets for value in (y - offset, y + offset)
+            )
+    if additional_keepouts:
+        clearance_offsets = (half, half + legal_grid_step_mm)
+        for keepout in additional_keepouts:
+            for x, y in keepout:
+                x_values.add(x)
+                y_values.add(y)
+                x_values.update(
+                    value for offset in clearance_offsets for value in (x - offset, x + offset)
+                )
+                y_values.update(
+                    value for offset in clearance_offsets for value in (y - offset, y + offset)
+                )
     xs = tuple(sorted(x_values))
     ys = tuple(sorted(y_values))
+    x_indices = {coordinate: index for index, coordinate in enumerate(xs)}
+    y_indices = {coordinate: index for index, coordinate in enumerate(ys)}
     nodes = {
         (x, y)
         for x in xs
@@ -527,14 +595,11 @@ def _route_grid_path(
         or any(_on_segment((x, y), a, b) for a, b in _polygon_edges(boundary))
     }
     nodes.update((start, end))
-    queue: deque[tuple[int, int]] = deque([start])
-    parents: dict[tuple[int, int], tuple[int, int] | None] = {start: None}
-    visited = 0
 
     def neighbors(node: tuple[int, int]) -> Iterable[tuple[int, int]]:
         x, y = node
-        x_index = xs.index(x)
-        y_index = ys.index(y)
+        x_index = x_indices[x]
+        y_index = y_indices[y]
         candidates: set[tuple[int, int]] = set()
         if x_index:
             candidates.add((xs[x_index - 1], y))
@@ -546,46 +611,354 @@ def _route_grid_path(
             candidates.add((x, ys[y_index + 1]))
         return tuple(sorted(candidate for candidate in candidates if candidate in nodes))
 
+    visited = 0
+    # The final authority retains its original point-only BFS semantics.
+    # Construction endpoint enumeration tracks incoming axis so alternate
+    # safe turn states at the same geometric event are not collapsed.
+    if authority_semantics:
+        queue_points: deque[tuple[int, int]] = deque([start])
+        point_parents: dict[tuple[int, int], tuple[int, int] | None] = {start: None}
+        while queue_points:
+            current = queue_points.popleft()
+            visited += 1
+            if visited > node_budget:
+                return RouteSkeletonSearchResultV1(
+                    None,
+                    "ROUTE_SEARCH_EXHAUSTED",
+                    (),
+                    visited,
+                    True,
+                    False,
+                    "VISIBILITY_EVENT_GRAPH",
+                )
+            if current == end:
+                raw_path: list[tuple[int, int]] = []
+                cursor: tuple[int, int] | None = current
+                while cursor is not None:
+                    raw_path.append(cursor)
+                    cursor = point_parents[cursor]
+                path = _compact_path(tuple(reversed(raw_path)))
+                safe, _reason, envelopes = _route_is_safe(
+                    path,
+                    width_mm=width_mm,
+                    boundary=boundary,
+                    obstacles=obstacles,
+                    zones=zones,
+                    incident_refs=incident_refs,
+                )
+                if safe:
+                    return RouteSkeletonSearchResultV1(
+                        path,
+                        "",
+                        envelopes,
+                        visited,
+                        False,
+                        False,
+                        "VISIBILITY_EVENT_GRAPH",
+                    )
+            for candidate in neighbors(current):
+                if candidate in point_parents:
+                    continue
+                safe, _, _ = _route_is_safe(
+                    (current, candidate),
+                    width_mm=width_mm,
+                    boundary=boundary,
+                    obstacles=obstacles,
+                    zones=zones,
+                    incident_refs=incident_refs,
+                )
+                if safe:
+                    point_parents[candidate] = current
+                    queue_points.append(candidate)
+        return RouteSkeletonSearchResultV1(
+            None,
+            "ROUTE_SEARCH_EXHAUSTED",
+            (),
+            visited,
+            False,
+            True,
+            "VISIBILITY_EVENT_GRAPH",
+        )
+
+    # A visibility node alone is not a sufficient construction search state:
+    # corridor clearance at a turn depends on the incoming axis. Keep
+    # horizontal and vertical arrivals distinct in endpoint-enumeration mode.
+    start_state = (start, "")
+    queue: deque[tuple[tuple[int, int], str]] = deque([start_state])
+    parents: dict[tuple[tuple[int, int], str], tuple[tuple[int, int], str] | None] = {
+        start_state: None
+    }
+    straight_run_starts: dict[tuple[tuple[int, int], str], tuple[int, int]] = {start_state: start}
+    visited = 0
+    reached_endpoints: list[RouteSkeletonEndpointV1] = []
+    reached_endpoint_states: set[tuple[tuple[int, int], str]] = set()
+
+    def path_to_state(
+        state: tuple[tuple[int, int], str],
+    ) -> tuple[tuple[int, int], ...]:
+        raw_path: list[tuple[int, int]] = []
+        cursor_state: tuple[tuple[int, int], str] | None = state
+        while cursor_state is not None:
+            raw_path.append(cursor_state[0])
+            cursor_state = parents[cursor_state]
+        return _compact_path(tuple(reversed(raw_path)))
+
     while queue:
-        current = queue.popleft()
+        if visited >= node_budget:
+            return RouteSkeletonSearchResultV1(
+                None,
+                "ROUTE_SEARCH_EXHAUSTED",
+                (),
+                visited,
+                True,
+                False,
+                "VISIBILITY_EVENT_GRAPH_ENDPOINTS",
+                tuple(reached_endpoints),
+            )
+        current_state = queue.popleft()
+        current, incoming_axis = current_state
         visited += 1
-        if visited > node_budget:
-            return None, "ROUTE_SEARCH_EXHAUSTED", ()
-        if current == end:
-            raw_path: list[tuple[int, int]] = []
-            cursor: tuple[int, int] | None = current
-            while cursor is not None:
-                raw_path.append(cursor)
-                cursor = parents[cursor]
-            path = _compact_path(tuple(reversed(raw_path)))
+        if current == end and not enumerate_endpoints:
+            path = path_to_state(current_state)
             safe, reason, envelopes = _route_is_safe(
                 path,
                 width_mm=width_mm,
                 boundary=boundary,
-                obstacles=obstacles,
+                obstacles=route_obstacles,
                 zones=zones,
                 incident_refs=incident_refs,
             )
             if safe:
-                return path, "", envelopes
+                return RouteSkeletonSearchResultV1(
+                    path,
+                    "",
+                    envelopes,
+                    visited,
+                    False,
+                    False,
+                    "VISIBILITY_EVENT_GRAPH",
+                )
             if reason not in {None, "ROUTE_SEARCH_EXHAUSTED"}:
                 # Continue looking: another parent may avoid the obstacle.
                 pass
-        for candidate in neighbors(current):
-            if candidate in parents:
-                continue
-            safe, _, _ = _route_is_safe(
-                (current, candidate),
+        elif (
+            enumerate_endpoints
+            and current != start
+            and current_state not in reached_endpoint_states
+        ):
+            path = path_to_state(current_state)
+            safe, _reason, envelopes = _route_is_safe(
+                path,
                 width_mm=width_mm,
                 boundary=boundary,
-                obstacles=obstacles,
+                obstacles=route_obstacles,
                 zones=zones,
                 incident_refs=incident_refs,
             )
             if safe:
-                parents[candidate] = current
-                queue.append(candidate)
-    return None, "ROUTE_SEARCH_EXHAUSTED", ()
+                # Keep distinct arrivals at the same physical point. The
+                # final segment direction determines which target portal can
+                # legally use this event, so point-only deduplication can
+                # discard the only portal-compatible construction route.
+                reached_endpoint_states.add(current_state)
+                reached_endpoints.append(RouteSkeletonEndpointV1(current, path, envelopes))
+                if endpoint_limit > 0 and len(reached_endpoints) >= endpoint_limit:
+                    return RouteSkeletonSearchResultV1(
+                        None,
+                        "",
+                        (),
+                        visited,
+                        False,
+                        False,
+                        "VISIBILITY_EVENT_GRAPH_ENDPOINTS",
+                        tuple(reached_endpoints),
+                    )
+        for candidate in neighbors(current):
+            outgoing_axis = "H" if candidate[1] == current[1] else "V"
+            candidate_state = (candidate, outgoing_axis)
+            if candidate_state in parents:
+                continue
+            edge_safe, _, _ = _route_is_safe(
+                (current, candidate),
+                width_mm=width_mm,
+                boundary=boundary,
+                obstacles=route_obstacles,
+                zones=zones,
+                incident_refs=incident_refs,
+            )
+            if not edge_safe:
+                continue
+            if incoming_axis and incoming_axis != outgoing_axis:
+                previous_state = parents[current_state]
+                previous = start if previous_state is None else previous_state[0]
+                safe, _, _ = _route_is_safe(
+                    (previous, current, candidate),
+                    width_mm=width_mm,
+                    boundary=boundary,
+                    obstacles=route_obstacles,
+                    zones=zones,
+                    incident_refs=incident_refs,
+                )
+                next_run_start = current
+            else:
+                next_run_start = straight_run_starts[current_state]
+                # Validate the whole newly extended straight run. Testing only
+                # event-to-event edges can miss a zone contained exactly
+                # between adjacent event coordinates.
+                safe, _, _ = _route_is_safe(
+                    (next_run_start, candidate),
+                    width_mm=width_mm,
+                    boundary=boundary,
+                    obstacles=route_obstacles,
+                    zones=zones,
+                    incident_refs=incident_refs,
+                )
+            if safe:
+                parents[candidate_state] = current_state
+                straight_run_starts[candidate_state] = next_run_start
+                queue.append(candidate_state)
+    return RouteSkeletonSearchResultV1(
+        None,
+        "ROUTE_SEARCH_EXHAUSTED",
+        (),
+        visited,
+        False,
+        True,
+        "VISIBILITY_EVENT_GRAPH_ENDPOINTS" if enumerate_endpoints else "VISIBILITY_EVENT_GRAPH",
+        tuple(reached_endpoints),
+    )
+
+
+def _find_route_skeleton_endpoints_v1(
+    start: tuple[int, int],
+    *,
+    width_mm: int,
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+    zones: Mapping[str, PlacedRectangleV1],
+    incident_refs: frozenset[str],
+    node_budget: int,
+    endpoint_limit: int,
+    additional_keepouts: Sequence[PolygonMM] = (),
+) -> RouteSkeletonSearchResultV1:
+    """Enumerate safe event-node route skeletons from one source portal.
+
+    The event coordinates and clearance checks are the exact same machinery as
+    `_route_grid_search`; this variant gathers bounded reachable endpoints so a
+    construction caller can derive a target rectangle from a route endpoint.
+    """
+    return _route_grid_search(
+        start,
+        start,
+        width_mm=width_mm,
+        boundary=boundary,
+        obstacles=obstacles,
+        zones=zones,
+        incident_refs=incident_refs,
+        node_budget=node_budget,
+        additional_keepouts=additional_keepouts,
+        enumerate_endpoints=True,
+        endpoint_limit=endpoint_limit,
+        construction_search=True,
+    )
+
+
+def _route_grid_path(
+    start: tuple[int, int],
+    end: tuple[int, int],
+    *,
+    width_mm: int,
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+    zones: Mapping[str, PlacedRectangleV1],
+    incident_refs: frozenset[str],
+    node_budget: int,
+) -> tuple[tuple[tuple[int, int], ...] | None, str, tuple[PlacedRectangleV1, ...]]:
+    """Backward-compatible tuple view of the shared visibility-graph search."""
+    result = _route_grid_search(
+        start,
+        end,
+        width_mm=width_mm,
+        boundary=boundary,
+        obstacles=obstacles,
+        zones=zones,
+        incident_refs=incident_refs,
+        node_budget=node_budget,
+    )
+    return result.path, result.reason, result.envelopes
+
+
+def _find_route_skeleton_v1(
+    start: tuple[int, int],
+    end: tuple[int, int],
+    *,
+    width_mm: int,
+    straight_only: bool,
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+    zones: Mapping[str, PlacedRectangleV1],
+    incident_refs: frozenset[str],
+    node_budget: int,
+    additional_keepouts: Sequence[PolygonMM] = (),
+) -> RouteSkeletonSearchResultV1:
+    """Find a route skeleton using the same geometry search as final P2D.
+
+    Extra keepouts are a construction-only extension (for example reserved
+    truck envelopes). The public access requirement evaluator calls this with
+    no extra keepouts and still owns all final route/profile decisions.
+    """
+    route_obstacles = (*obstacles, *additional_keepouts)
+    reasons: list[str] = []
+    for path in _candidate_paths(start, end, straight_only=straight_only):
+        safe, reason, envelopes = _route_is_safe(
+            path,
+            width_mm=width_mm,
+            boundary=boundary,
+            obstacles=route_obstacles,
+            zones=zones,
+            incident_refs=incident_refs,
+        )
+        if safe:
+            return RouteSkeletonSearchResultV1(
+                path, "", envelopes, 0, False, False, "PORTAL_LOCAL_CANDIDATE"
+            )
+        if reason is not None:
+            reasons.append(reason)
+    if straight_only:
+        # Preserve the official validator's stable failure code for a frozen
+        # straight-only relationship; no visibility-graph detour is allowed.
+        return RouteSkeletonSearchResultV1(
+            None,
+            "PACKAGING_SORTING_STRAIGHT_ROUTE_REQUIRED",
+            (),
+            0,
+            False,
+            True,
+            "STRAIGHT_ONLY_PROHIBITION",
+        )
+    result = _route_grid_search(
+        start,
+        end,
+        width_mm=width_mm,
+        boundary=boundary,
+        obstacles=obstacles,
+        zones=zones,
+        incident_refs=incident_refs,
+        node_budget=node_budget,
+        additional_keepouts=additional_keepouts,
+        construction_search=True,
+    )
+    if result.path is not None:
+        return result
+    return RouteSkeletonSearchResultV1(
+        None,
+        result.reason or (reasons[0] if reasons else "ROUTE_SEARCH_EXHAUSTED"),
+        result.envelopes,
+        result.nodes_visited,
+        result.node_budget_exhausted,
+        result.graph_exhausted,
+        result.search_source,
+    )
 
 
 def _find_route(
@@ -600,37 +973,18 @@ def _find_route(
     incident_refs: frozenset[str],
     node_budget: int,
 ) -> tuple[tuple[tuple[int, int], ...] | None, str, tuple[PlacedRectangleV1, ...]]:
-    reasons: list[str] = []
-    for path in _candidate_paths(start, end, straight_only=straight_only):
-        safe, reason, envelopes = _route_is_safe(
-            path,
-            width_mm=width_mm,
-            boundary=boundary,
-            obstacles=obstacles,
-            zones=zones,
-            incident_refs=incident_refs,
-        )
-        if safe:
-            return path, "", envelopes
-        if reason is not None:
-            reasons.append(reason)
-    if straight_only:
-        # A straight-only requirement has no legal fallback route.  Keep the
-        # failure stable even when the straight segment also hits an obstacle
-        # or an unrelated zone; callers must not interpret a rejected bend as
-        # an ordinary route-search exhaustion.
-        return None, "PACKAGING_SORTING_STRAIGHT_ROUTE_REQUIRED", ()
-    grid_path, reason, envelopes = _route_grid_path(
+    result = _find_route_skeleton_v1(
         start,
         end,
         width_mm=width_mm,
+        straight_only=straight_only,
         boundary=boundary,
         obstacles=obstacles,
         zones=zones,
         incident_refs=incident_refs,
         node_budget=node_budget,
     )
-    return grid_path, reason or (reasons[0] if reasons else "ROUTE_SEARCH_EXHAUSTED"), envelopes
+    return result.path, result.reason, result.envelopes
 
 
 def _requirement_object(requirement: Mapping[str, Any]) -> AccessRequirementV1:

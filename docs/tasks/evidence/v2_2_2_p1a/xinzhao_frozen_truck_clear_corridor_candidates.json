@@ -11,45 +11,46 @@
     }
   },
   "frozen_access_valid_count_by_main": {},
+  "frozen_access_witness_by_main": {},
   "frozen_candidate_counts_by_main": {
     "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": {
-      "after_fixed_zone_filter": 20,
-      "after_reserved_corridor_filter": 20,
-      "after_truck_filter": 6737,
-      "before_truck_filter": 6773
+      "after_fixed_zone_filter": 0,
+      "after_reserved_corridor_filter": 0,
+      "after_truck_filter": 0,
+      "before_truck_filter": 0
     },
     "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": {
-      "after_fixed_zone_filter": 588,
-      "after_reserved_corridor_filter": 588,
-      "after_truck_filter": 7043,
-      "before_truck_filter": 7087
+      "after_fixed_zone_filter": 0,
+      "after_reserved_corridor_filter": 0,
+      "after_truck_filter": 0,
+      "before_truck_filter": 0
     },
     "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": {
-      "after_fixed_zone_filter": 368,
-      "after_reserved_corridor_filter": 368,
-      "after_truck_filter": 5878,
-      "before_truck_filter": 5910
+      "after_fixed_zone_filter": 0,
+      "after_reserved_corridor_filter": 0,
+      "after_truck_filter": 0,
+      "before_truck_filter": 0
     }
   },
   "frozen_candidate_rejection_taxonomy_by_main": {
     "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": {
-      "FROZEN_OVERLAPS_FIXED_ZONE": 6717,
-      "FROZEN_OVERLAPS_TRUCK_ENVELOPE": 37,
-      "FROZEN_SITE_INVALID": 20883,
-      "NO_TRUCK_CLEAR_CORRIDOR_EVENT": 1
+      "ACCESS_TOPOLOGY_PROHIBITED": 36,
+      "FROZEN_OVERLAPS_FIXED_ZONE": 20,
+      "FROZEN_SITE_INVALID": 12,
+      "NO_TRUCK_CLEAR_FROZEN_ROOM_ATTACHMENT": 1
     },
     "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": {
-      "FROZEN_OVERLAPS_FIXED_ZONE": 11956,
-      "FROZEN_OVERLAPS_TRUCK_ENVELOPE": 78,
-      "FROZEN_SITE_INVALID": 46625,
-      "NO_TRUCK_CLEAR_CORRIDOR_EVENT": 2,
+      "ACCESS_TOPOLOGY_PROHIBITED": 72,
+      "FROZEN_OVERLAPS_FIXED_ZONE": 887,
+      "FROZEN_SITE_INVALID": 24,
+      "NO_TRUCK_CLEAR_FROZEN_ROOM_ATTACHMENT": 2,
       "ROUTE_SEARCH_EXHAUSTED": 2
     },
     "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": {
-      "FROZEN_OVERLAPS_FIXED_ZONE": 5510,
-      "FROZEN_OVERLAPS_TRUCK_ENVELOPE": 33,
-      "FROZEN_SITE_INVALID": 19380,
-      "NO_TRUCK_CLEAR_CORRIDOR_EVENT": 1,
+      "ACCESS_TOPOLOGY_PROHIBITED": 36,
+      "FROZEN_OVERLAPS_FIXED_ZONE": 368,
+      "FROZEN_SITE_INVALID": 12,
+      "NO_TRUCK_CLEAR_FROZEN_ROOM_ATTACHMENT": 1,
       "ROUTE_SEARCH_EXHAUSTED": 1
     }
   },
@@ -99,1308 +100,9 @@
     ]
   },
   "frozen_constructive_candidate_witness_by_main": {
-    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": [
-      {
-        "anchor_source": "SORTING_PORTAL-07-WEST|NORMAL:BUILDABLE_BAY:BAY-0001_X_14700|TANGENT:BUILDABLE_BAY:BAY-0004_Y_8700|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          18250,
-          1,
-          5,
-          5,
-          88560000,
-          2600,
-          3900,
-          500,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          3900,
-          500,
-          14700,
-          8700
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            11250
-          ],
-          [
-            14700,
-            7500
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-07-WEST|NORMAL:OBSTACLE:OBSTACLE-01_X_14699|TANGENT:BUILDABLE_BAY:BAY-0004_Y_8700|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          18251,
-          1,
-          1,
-          5,
-          88560000,
-          2600,
-          3899,
-          500,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          3899,
-          500,
-          14699,
-          8700
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            11250
-          ],
-          [
-            14699,
-            7500
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-07-WEST|NORMAL:BUILDABLE_BAY:BAY-0001_X_14700|TANGENT:OBSTACLE:OBSTACLE-01_Y_8701|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          18300,
-          1,
-          5,
-          1,
-          88560000,
-          2600,
-          3900,
-          450,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          3900,
-          450,
-          14700,
-          8650
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            11250
-          ],
-          [
-            14700,
-            7450
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-07-WEST|NORMAL:OBSTACLE:OBSTACLE-01_X_14699|TANGENT:OBSTACLE:OBSTACLE-01_Y_8701|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          18301,
-          1,
-          1,
-          1,
-          88560000,
-          2600,
-          3899,
-          450,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          3899,
-          450,
-          14699,
-          8650
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            11250
-          ],
-          [
-            14699,
-            7450
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-07-WEST|NORMAL:BUILDABLE_BAY:BAY-0001_X_14700|TANGENT:TRUCK_ENVELOPE:TRUCK_ENVELOPE-02_Y_9800|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          18401,
-          1,
-          5,
-          0,
-          88560000,
-          2600,
-          3900,
-          349,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          3900,
-          349,
-          14700,
-          8549
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            11250
-          ],
-          [
-            14700,
-            7349
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-07-WEST|NORMAL:OBSTACLE:OBSTACLE-01_X_14699|TANGENT:TRUCK_ENVELOPE:TRUCK_ENVELOPE-02_Y_9800|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          18402,
-          1,
-          1,
-          0,
-          88560000,
-          2600,
-          3899,
-          349,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          3899,
-          349,
-          14699,
-          8549
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            11250
-          ],
-          [
-            14699,
-            7349
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-07-WEST|NORMAL:BUILDABLE_BAY:BAY-0001_X_14700|TANGENT:BUILDABLE_BAY:BAY-0001_Y_0|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          18750,
-          1,
-          5,
-          5,
-          88560000,
-          2600,
-          3900,
-          0,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          3900,
-          0,
-          14700,
-          8200
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            11250
-          ],
-          [
-            14700,
-            7000
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-07-WEST|NORMAL:OBSTACLE:OBSTACLE-01_X_14699|TANGENT:BUILDABLE_BAY:BAY-0001_Y_0|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          18751,
-          1,
-          1,
-          5,
-          88560000,
-          2600,
-          3899,
-          0,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          3899,
-          0,
-          14699,
-          8200
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            11250
-          ],
-          [
-            14699,
-            7000
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-07-WEST|NORMAL:FIXED_ZONE:coating_room_X_13843|TANGENT:BUILDABLE_BAY:BAY-0004_Y_8700|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          19107,
-          1,
-          3,
-          5,
-          88560000,
-          2600,
-          3043,
-          500,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          3043,
-          500,
-          13843,
-          8700
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            11250
-          ],
-          [
-            13843,
-            7500
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-07-WEST|NORMAL:FIXED_ZONE:coating_room_X_13843|TANGENT:OBSTACLE:OBSTACLE-01_Y_8701|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          19157,
-          1,
-          3,
-          1,
-          88560000,
-          2600,
-          3043,
-          450,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          3043,
-          450,
-          13843,
-          8650
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            11250
-          ],
-          [
-            13843,
-            7450
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-07-WEST|NORMAL:FIXED_ZONE:coating_room_X_13843|TANGENT:TRUCK_ENVELOPE:TRUCK_ENVELOPE-02_Y_9800|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          19258,
-          1,
-          3,
-          0,
-          88560000,
-          2600,
-          3043,
-          349,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          3043,
-          349,
-          13843,
-          8549
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            11250
-          ],
-          [
-            13843,
-            7349
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-07-WEST|NORMAL:OBSTACLE:OBSTACLE-01_X_14699|TANGENT:BUILDABLE_BAY:BAY-0004_Y_8700|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          19502,
-          1,
-          1,
-          5,
-          88560000,
-          2600,
-          2648,
-          500,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          2648,
-          500,
-          13448,
-          8700
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            11250
-          ],
-          [
-            13448,
-            7500
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      }
-    ],
-    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": [
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_22763|TANGENT:SORTING_PORTAL:SORTING_PORTAL-12-EAST|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          6437,
-          0,
-          3,
-          4,
-          88560000,
-          2600,
-          11963,
-          21250,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          11963,
-          21250,
-          22763,
-          29450
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            22763,
-            22450
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_22763|TANGENT:SORTING_PORTAL:SORTING_PORTAL-12-EAST|TARGET_PORTAL:EAST:LONG_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          6437,
-          0,
-          3,
-          4,
-          88560000,
-          2600,
-          14563,
-          21250,
-          90
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          14563,
-          21250,
-          22763,
-          32050
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            22763,
-            22450
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_22763|TANGENT:OBSTACLE:OBSTACLE-02_Y_27000|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          6438,
-          1,
-          3,
-          1,
-          88560000,
-          2600,
-          11963,
-          21251,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          11963,
-          21251,
-          22763,
-          29451
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            22763,
-            22451
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_22763|TANGENT:FIXED_ZONE:coating_room_Y_23650|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          6488,
-          1,
-          3,
-          3,
-          88560000,
-          2600,
-          11963,
-          21199,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          11963,
-          21199,
-          22763,
-          29399
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            22763,
-            22399
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_22763|TANGENT:FIXED_ZONE:coating_room_Y_23650|TARGET_PORTAL:EAST:LONG_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          6488,
-          1,
-          3,
-          3,
-          88560000,
-          2600,
-          14563,
-          21199,
-          90
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          14563,
-          21199,
-          22763,
-          31999
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            22763,
-            22399
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_22763|TANGENT:RESERVED_ACCESS_CORRIDOR:RESERVED_ACCESS_CORRIDOR-03_Y_25525|TARGET_PORTAL:EAST:LONG_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          6563,
-          1,
-          3,
-          2,
-          88560000,
-          2600,
-          14563,
-          21376,
-          90
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          14563,
-          21376,
-          22763,
-          32176
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            22763,
-            22576
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_22763|TANGENT:RESERVED_ACCESS_CORRIDOR:RESERVED_ACCESS_CORRIDOR-01_Y_23966|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          6570,
-          1,
-          3,
-          2,
-          88560000,
-          2600,
-          11963,
-          21117,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          11963,
-          21117,
-          22763,
-          29317
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            22763,
-            22317
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_22763|TANGENT:RESERVED_ACCESS_CORRIDOR:RESERVED_ACCESS_CORRIDOR-03_Y_25525|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          6612,
-          1,
-          3,
-          2,
-          88560000,
-          2600,
-          11963,
-          21425,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          11963,
-          21425,
-          22763,
-          29625
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            22763,
-            22625
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_22763|TANGENT:RESERVED_ACCESS_CORRIDOR:RESERVED_ACCESS_CORRIDOR-01_Y_23966|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          6702,
-          1,
-          3,
-          2,
-          88560000,
-          2600,
-          11963,
-          21515,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          11963,
-          21515,
-          22763,
-          29715
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            22763,
-            22715
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_22763|TANGENT:RESERVED_ACCESS_CORRIDOR:RESERVED_ACCESS_CORRIDOR-01_Y_23966|TARGET_PORTAL:EAST:LONG_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          6702,
-          1,
-          3,
-          2,
-          88560000,
-          2600,
-          14563,
-          21515,
-          90
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          14563,
-          21515,
-          22763,
-          32315
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            22763,
-            22715
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_22763|TANGENT:BUILDABLE_BAY:BAY-0001_Y_26999|TARGET_PORTAL:EAST:LONG_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          6786,
-          1,
-          3,
-          5,
-          88560000,
-          2600,
-          14563,
-          21599,
-          90
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          14563,
-          21599,
-          22763,
-          32399
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            22763,
-            22799
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_22763|TANGENT:OBSTACLE:OBSTACLE-02_Y_27000|TARGET_PORTAL:EAST:LONG_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          6787,
-          1,
-          3,
-          1,
-          88560000,
-          2600,
-          14563,
-          21600,
-          90
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          14563,
-          21600,
-          22763,
-          32400
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            22763,
-            22800
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      }
-    ],
-    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": [
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_23956|TANGENT:SORTING_PORTAL:SORTING_PORTAL-12-EAST|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          5244,
-          0,
-          3,
-          4,
-          88560000,
-          2600,
-          13156,
-          21250,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          13156,
-          21250,
-          23956,
-          29450
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            23956,
-            22450
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_23956|TANGENT:SORTING_PORTAL:SORTING_PORTAL-12-EAST|TARGET_PORTAL:EAST:LONG_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          5244,
-          0,
-          3,
-          4,
-          88560000,
-          2600,
-          15756,
-          21250,
-          90
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          15756,
-          21250,
-          23956,
-          32050
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            23956,
-            22450
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_23956|TANGENT:OBSTACLE:OBSTACLE-02_Y_27000|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          5245,
-          1,
-          3,
-          1,
-          88560000,
-          2600,
-          13156,
-          21251,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          13156,
-          21251,
-          23956,
-          29451
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            23956,
-            22451
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_23956|TANGENT:FIXED_ZONE:coating_room_Y_23650|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          5295,
-          1,
-          3,
-          3,
-          88560000,
-          2600,
-          13156,
-          21199,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          13156,
-          21199,
-          23956,
-          29399
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            23956,
-            22399
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_23956|TANGENT:FIXED_ZONE:coating_room_Y_23650|TARGET_PORTAL:EAST:LONG_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          5295,
-          1,
-          3,
-          3,
-          88560000,
-          2600,
-          15756,
-          21199,
-          90
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          15756,
-          21199,
-          23956,
-          31999
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            23956,
-            22399
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_23956|TANGENT:FIXED_ZONE:packaging_material_storage_Y_17300|TARGET_PORTAL:EAST:LONG_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          5494,
-          1,
-          3,
-          3,
-          88560000,
-          2600,
-          15756,
-          17300,
-          90
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          15756,
-          17300,
-          23956,
-          28100
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            23956,
-            22700
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_23956|TANGENT:FIXED_ZONE:packaging_material_storage_Y_17300|TARGET_PORTAL:EAST:LONG_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          5545,
-          1,
-          3,
-          3,
-          88560000,
-          2600,
-          15756,
-          17351,
-          90
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          15756,
-          17351,
-          23956,
-          28151
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            23956,
-            22751
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_23956|TANGENT:BUILDABLE_BAY:BAY-0001_Y_26999|TARGET_PORTAL:EAST:LONG_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          5593,
-          1,
-          3,
-          5,
-          88560000,
-          2600,
-          15756,
-          17399,
-          90
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          15756,
-          17399,
-          23956,
-          28199
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            23956,
-            22799
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_23956|TANGENT:BUILDABLE_BAY:BAY-0001_Y_26999|TARGET_PORTAL:EAST:LONG_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          5593,
-          1,
-          3,
-          5,
-          88560000,
-          2600,
-          15756,
-          21599,
-          90
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          15756,
-          21599,
-          23956,
-          32399
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            23956,
-            22799
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_23956|TANGENT:OBSTACLE:OBSTACLE-02_Y_27000|TARGET_PORTAL:EAST:LONG_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          5594,
-          1,
-          3,
-          1,
-          88560000,
-          2600,
-          15756,
-          17400,
-          90
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          15756,
-          17400,
-          23956,
-          28200
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            23956,
-            22800
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_23956|TANGENT:OBSTACLE:OBSTACLE-02_Y_27000|TARGET_PORTAL:EAST:LONG_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          5594,
-          1,
-          3,
-          1,
-          88560000,
-          2600,
-          15756,
-          21600,
-          90
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          15756,
-          21600,
-          23956,
-          32400
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            23956,
-            22800
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      },
-      {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_23956|TANGENT:OBSTACLE:OBSTACLE-02_Y_27000|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
-        "centerline_mm": [],
-        "construction_order_key": [
-          1,
-          0,
-          5643,
-          1,
-          3,
-          1,
-          88560000,
-          2600,
-          13156,
-          21649,
-          0
-        ],
-        "corridor_envelopes_mm": [],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED",
-        "frozen_bounds_mm": [
-          13156,
-          21649,
-          23956,
-          29849
-        ],
-        "portal_event_pair_mm": [
-          [
-            29200,
-            22450
-          ],
-          [
-            23956,
-            22849
-          ]
-        ],
-        "status": "CONSTRUCTION_CLEAR_PENDING_OFFICIAL_ROUTE"
-      }
-    ]
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": [],
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": [],
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": []
   },
   "frozen_direct_seed_count_after_truck_filter_by_main": {
     "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 0,
@@ -1492,33 +194,133 @@
       "truck_envelope_index": 1
     }
   ],
-  "frozen_route_constructive_seed_count_by_main": {
+  "frozen_endpoint_pair_pending_count_by_main": {
     "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 20,
-    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 588,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 887,
     "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 368
+  },
+  "frozen_final_authority_pass_count_by_main": {},
+  "frozen_final_authority_probe_count_by_main": {
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 2,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 1
+  },
+  "frozen_hint_found_authority_rejected_count_by_main": {},
+  "frozen_physical_event_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": {
+      "BUILDABLE_BAY": 11,
+      "FIXED_ZONE": 57,
+      "OBSTACLE": 48,
+      "RESERVED_ACCESS_CORRIDOR": 0,
+      "SITE_BOUNDARY": 4,
+      "SORTING_PORTAL": 10,
+      "TRUCK_ENVELOPE": 38
+    },
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": {
+      "BUILDABLE_BAY": 11,
+      "FIXED_ZONE": 54,
+      "OBSTACLE": 48,
+      "RESERVED_ACCESS_CORRIDOR": 40,
+      "SITE_BOUNDARY": 4,
+      "SORTING_PORTAL": 10,
+      "TRUCK_ENVELOPE": 38
+    },
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": {
+      "BUILDABLE_BAY": 11,
+      "FIXED_ZONE": 54,
+      "OBSTACLE": 48,
+      "RESERVED_ACCESS_CORRIDOR": 0,
+      "SITE_BOUNDARY": 4,
+      "SORTING_PORTAL": 10,
+      "TRUCK_ENVELOPE": 38
+    }
+  },
+  "frozen_route_constructive_seed_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 0,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 0,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 0
+  },
+  "frozen_route_hint_candidate_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 0,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 0,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 0
+  },
+  "frozen_route_hint_failure_code_counts_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": {
+      "ROUTE_SEARCH_EXHAUSTED": 3
+    },
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": {
+      "ROUTE_SEARCH_EXHAUSTED": 6
+    },
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": {
+      "ROUTE_SEARCH_EXHAUSTED": 3
+    }
+  },
+  "frozen_route_hint_graph_exhausted_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 4,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 8,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 4
+  },
+  "frozen_route_hint_node_budget_exhausted_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 0,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 0,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 0
+  },
+  "frozen_route_hint_nodes_visited_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 6,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 12,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 6
+  },
+  "frozen_route_hint_pass_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 2,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 4,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 2
+  },
+  "frozen_route_hint_probe_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 4,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 8,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 4
   },
   "frozen_route_probe_count_by_main": {
     "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 2,
     "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 1
   },
+  "frozen_route_skeleton_witness_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": [],
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": [],
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": []
+  },
   "frozen_sorting_portal_event_count_by_main": {
     "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 12,
-    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 12,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 24,
     "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 12
   },
   "frozen_target_portal_event_count_by_main": {
-    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 62668,
-    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 75000,
-    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 57264
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 2,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 2,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 2
   },
-  "frozen_truck_clear_corridor_authority_pass_count_by_main": {},
+  "frozen_target_portal_placement_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 48,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 96,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 48
+  },
+  "frozen_truck_clear_corridor_authority_pass_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 0,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 0,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 0
+  },
   "frozen_truck_clear_corridor_candidate_event_count_by_main": {
     "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 0,
     "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 0,
     "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 0
   },
+  "frozen_truck_clear_route_skeleton_count_by_main": {
+    "sha256:00b5c5faf77a86d0a3a11cbb14071e80f88b1bbf42ff4feb9862067f51ff836d": 0,
+    "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e": 0,
+    "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9": 0
+  },
   "global_infeasibility_proven": false,
-  "mode": "R2_FROZEN_TRUCK_ENVELOPE_AWARE_CORRIDOR_MEDIATED_RECOVERY",
+  "mode": "R2_FROZEN_VISIBILITY_GRAPH_ROUTE_SKELETON_RECOVERY",
   "pr15_r15_full_pass_requirement": {
     "observed": 1,
     "required": 2
@@ -2169,7 +971,7 @@
     {
       "candidate_index": 1,
       "candidate_metadata": {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_22763|TANGENT:SORTING_PORTAL:SORTING_PORTAL-12-EAST|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
+        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_22763|TANGENT:SORTING_PORTAL:SORTING_PORTAL-12-EAST|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:FROZEN_ENDPOINT_PAIR_ROUTE_PENDING",
         "construction_portal_pair_mm": [
           [
             29200,
@@ -2184,7 +986,7 @@
         "driving_requirement_ids": [
           "access:sorting_packaging_room->frozen_fruit_room@1.0.0"
         ],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED"
+        "endpoint_event_class": "FROZEN_ENDPOINT_PAIR_ROUTE_PENDING"
       },
       "critical_assembly_id": "sha256:34888140538be8187332c6dcb07f5441c16ca619673124d80a23d9433c1cf60e",
       "main_skeleton_hash": "sha256:62bc404539c5bcd1a13fb60f79b72935fe9bea64ce11e13cfa3a6aa808ddd095",
@@ -3219,7 +2021,7 @@
     {
       "candidate_index": 1,
       "candidate_metadata": {
-        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_23956|TANGENT:SORTING_PORTAL:SORTING_PORTAL-12-EAST|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:ENDPOINT_PAIR",
+        "anchor_source": "SORTING_PORTAL-09-WEST|NORMAL:FIXED_ZONE:secondary_precooling_room_X_23956|TANGENT:SORTING_PORTAL:SORTING_PORTAL-12-EAST|TARGET_PORTAL:EAST:SHORT_EDGE|CORRIDOR_EVENT:FROZEN_ENDPOINT_PAIR_ROUTE_PENDING",
         "construction_portal_pair_mm": [
           [
             29200,
@@ -3234,7 +2036,7 @@
         "driving_requirement_ids": [
           "access:sorting_packaging_room->frozen_fruit_room@1.0.0"
         ],
-        "endpoint_event_class": "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED"
+        "endpoint_event_class": "FROZEN_ENDPOINT_PAIR_ROUTE_PENDING"
       },
       "critical_assembly_id": "sha256:ce4ff5d3c7c29dcf8ab02212cd56c7f2f36541a268130923d5b55db66c0942c9",
       "main_skeleton_hash": "sha256:d87bc7a5c3a002d0e6ba1d751736efa3ffa1959c2628cc2bc87f9a10b8ece16d",

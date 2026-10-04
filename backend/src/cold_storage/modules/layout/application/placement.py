@@ -26,6 +26,8 @@ from cold_storage.modules.layout.domain.access_routing import (
     _boundary_interior_point,
     _edge_class,
     _edge_options,
+    _find_route_skeleton_endpoints_v1,
+    _find_route_skeleton_v1,
     _portal_center,
     route_access_requirement,
 )
@@ -431,6 +433,8 @@ def enumerate_placement_candidates(
     construction_access_route_validator: (
         Callable[..., tuple[Mapping[str, Any], tuple[Any, ...]]] | None
     ) = None
+    construction_route_skeleton_provider: Callable[..., Mapping[str, Any]] | None = None
+    construction_route_skeleton_endpoint_provider: Callable[..., Mapping[str, Any]] | None = None
     construction_access_portal_event_provider: Callable[..., Mapping[str, Any]] | None = None
     if search_phase == STRUCTURED_PHASE:
 
@@ -454,6 +458,90 @@ def enumerate_placement_candidates(
             )
 
         construction_access_route_validator = validate_construction_route
+
+        def find_construction_route_skeleton(
+            start: tuple[int, int],
+            end: tuple[int, int],
+            *,
+            width_mm: int,
+            boundary: Any,
+            obstacles: Any,
+            zones: Mapping[str, Any],
+            incident_refs: frozenset[str],
+            node_budget: int,
+            additional_keepouts: Any = (),
+            straight_only: bool = False,
+        ) -> Mapping[str, Any]:
+            """Expose the final router's bounded event graph to construction."""
+            result = _find_route_skeleton_v1(
+                start,
+                end,
+                width_mm=width_mm,
+                straight_only=straight_only,
+                boundary=boundary,
+                obstacles=obstacles,
+                zones=zones,
+                incident_refs=incident_refs,
+                node_budget=min(node_budget, DEFAULT_ROUTE_NODE_BUDGET // 4),
+                additional_keepouts=additional_keepouts,
+            )
+            return {
+                "path": result.path,
+                "reason": result.reason,
+                "corridor_envelopes": tuple(rectangle.polygon_mm for rectangle in result.envelopes),
+                "nodes_visited": result.nodes_visited,
+                "node_budget_exhausted": result.node_budget_exhausted,
+                "graph_exhausted": result.graph_exhausted,
+                "search_source": result.search_source,
+            }
+
+        construction_route_skeleton_provider = find_construction_route_skeleton
+
+        def enumerate_construction_route_skeleton_endpoints(
+            start: tuple[int, int],
+            *,
+            width_mm: int,
+            boundary: Any,
+            obstacles: Any,
+            zones: Mapping[str, Any],
+            incident_refs: frozenset[str],
+            node_budget: int,
+            endpoint_limit: int,
+            additional_keepouts: Any = (),
+        ) -> Mapping[str, Any]:
+            """Enumerate finite reachable visibility events for room derivation."""
+            result = _find_route_skeleton_endpoints_v1(
+                start,
+                width_mm=width_mm,
+                boundary=boundary,
+                obstacles=obstacles,
+                zones=zones,
+                incident_refs=incident_refs,
+                node_budget=min(node_budget, DEFAULT_ROUTE_NODE_BUDGET // 4),
+                endpoint_limit=endpoint_limit,
+                additional_keepouts=additional_keepouts,
+            )
+            return {
+                "endpoint_skeletons": tuple(
+                    {
+                        "endpoint": row.endpoint,
+                        "path": row.path,
+                        "corridor_envelopes": tuple(
+                            rectangle.polygon_mm for rectangle in row.envelopes
+                        ),
+                    }
+                    for row in result.endpoint_skeletons
+                ),
+                "reason": result.reason,
+                "nodes_visited": result.nodes_visited,
+                "node_budget_exhausted": result.node_budget_exhausted,
+                "graph_exhausted": result.graph_exhausted,
+                "search_source": result.search_source,
+            }
+
+        construction_route_skeleton_endpoint_provider = (
+            enumerate_construction_route_skeleton_endpoints
+        )
 
         spatial_by_identity = {
             str(row["identity"]): row
@@ -550,6 +638,9 @@ def enumerate_placement_candidates(
         truck_node_budget=truck_node_budget,
         truck_maneuver_validator=truck_maneuver_validator,
         access_route_validator=construction_access_route_validator,
+        access_route_skeleton_provider=construction_route_skeleton_provider,
+        access_route_skeleton_endpoint_provider=construction_route_skeleton_endpoint_provider,
+        access_route_hint_node_budget=DEFAULT_ROUTE_NODE_BUDGET,
         access_portal_event_provider=construction_access_portal_event_provider,
         main_entrance_route_start_points=entrance_route_start_points,
         complete_candidate_limit=complete_candidate_limit,
