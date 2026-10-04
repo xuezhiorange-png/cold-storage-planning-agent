@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
+from cold_storage.modules.layout.application.access_handoff import required_access_connections
 from cold_storage.modules.layout.domain import placement
+from cold_storage.modules.layout.domain.access_authority import COLD_ROOM, resolve_access_profile
+from cold_storage.modules.layout.domain.access_routing import (
+    _edge_options,
+    route_access_requirement,
+)
 from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
 
 
@@ -345,6 +352,360 @@ def _one_bay() -> tuple[placement.BuildableBayV1, ...]:
     return (placement.BuildableBayV1("BAY-0001", (0, 0, 200_000, 200_000), 40_000_000_000),)
 
 
+def _xinzhao_frozen_corridor_context() -> tuple[Any, dict[str, PlacedRectangleV1]]:
+    main = {
+        "raw_fruit_buffer": _rectangle("raw_fruit_buffer", (45_060, 0, 60_260, 8_700)),
+        "primary_precooling_room": _rectangle(
+            "primary_precooling_room", (60_260, 0, 74_960, 10_050)
+        ),
+        "sorting_packaging_room": _rectangle(
+            "sorting_packaging_room", (29_200, 10_050, 74_960, 23_650)
+        ),
+        "secondary_precooling_room": _rectangle(
+            "secondary_precooling_room", (22_763, 23_650, 32_563, 33_700)
+        ),
+        "coating_room": _rectangle("coating_room", (32_563, 23_650, 40_524, 33_700)),
+        "finished_goods_room": _rectangle("finished_goods_room", (32_563, 33_700, 40_524, 52_300)),
+        "shipping_channel": _rectangle("shipping_channel", (1_624, 33_700, 8_124, 41_393)),
+        "packaging_material_storage": _rectangle(
+            "packaging_material_storage", (14_700, 0, 29_200, 17_300)
+        ),
+    }
+    requirements = tuple(
+        asdict(requirement)
+        for requirement in required_access_connections()
+        if (requirement.from_ref, requirement.to_ref)
+        == ("sorting_packaging_room", "frozen_fruit_room")
+    )
+    boundary = ((0, 0), (75_460, 0), (75_460, 55_000), (0, 55_000))
+    obstacles = (
+        ((0, 8_701), (14_699, 8_701), (14_699, 18_750), (0, 18_750)),
+        ((41_718, 27_000), (74_999, 27_000), (74_999, 39_385), (41_718, 39_385)),
+        ((41_718, 39_386), (74_999, 39_386), (74_999, 53_886), (41_718, 53_886)),
+    )
+
+    def portal_events(
+        requirement: Any, endpoint_ref: str, rectangle: PlacedRectangleV1
+    ) -> dict[str, Any]:
+        profile = resolve_access_profile(str(requirement["profile_identity"]))
+        portal_width = int(profile.portal_clear_width_m * 1000)
+        if endpoint_ref in requirement.get("cold_room_refs", ()):
+            portal_width = max(
+                portal_width,
+                int(resolve_access_profile(COLD_ROOM).portal_clear_width_m * 1000),
+            )
+        left, bottom, right, top = rectangle.bounds_mm
+        portals = []
+        for option in _edge_options(rectangle, required_class=None, clear_width_mm=portal_width):
+            (x0, y0), (x1, y1) = option["segment_mm"]
+            side = (
+                "WEST"
+                if x0 == x1 == left
+                else "EAST"
+                if x0 == x1 == right
+                else "SOUTH"
+                if y0 == y1 == bottom
+                else "NORTH"
+                if y0 == y1 == top
+                else None
+            )
+            if side is not None:
+                portals.append(
+                    {
+                        "side": side,
+                        "edge_class": option["edge_class"],
+                        "segment_mm": option["segment_mm"],
+                        "center_mm": (
+                            (option["segment_mm"][0][0] + option["segment_mm"][1][0]) // 2,
+                            (option["segment_mm"][0][1] + option["segment_mm"][1][1]) // 2,
+                        ),
+                        "clear_width_mm": portal_width,
+                    }
+                )
+        return {
+            "portals": tuple(portals),
+            "portal_clear_width_mm": portal_width,
+            "corridor_clear_width_mm": int(profile.corridor_clear_width_m * 1000),
+        }
+
+    context = SimpleNamespace(
+        authorities={
+            "frozen_fruit_room": {
+                "zone_code": "frozen_fruit_room",
+                "dimension_mode": "FIXED_RECTANGLE",
+                "required_area_m2": 88.56,
+                "geometry": {"width_m": 10.8, "depth_m": 8.2, "required_area_m2": 88.56},
+            }
+        },
+        access_requirements=requirements,
+        access_portal_event_provider=portal_events,
+        boundary=boundary,
+        boundary_bounds=(0, 0, 75_460, 55_000),
+        obstacles=obstacles,
+        spatial_relationships=(),
+        main_entrance=((75_460, 24_525), (75_460, 26_525)),
+    )
+    return context, main
+
+
+def test_frozen_truck_clear_corridor_event_gets_official_route_pass() -> None:
+    context, _main = _xinzhao_frozen_corridor_context()
+    context.boundary = ((0, 0), (100_000, 0), (100_000, 100_000), (0, 100_000))
+    context.boundary_bounds = (0, 0, 100_000, 100_000)
+    context.obstacles = ()
+    sorting = _rectangle("sorting_packaging_room", (30_000, 30_000, 45_000, 43_600))
+    fixed = {"sorting_packaging_room": sorting}
+    truck_envelopes = (((70_000, 70_000), (80_000, 70_000), (80_000, 70_001), (70_000, 70_001)),)
+    candidates = placement._frozen_truck_clear_corridor_candidates(
+        context,
+        fixed,
+        (),
+        truck_envelopes,
+        stats=None,
+        main_identity="open-site-main",
+    )
+    candidate = next(
+        candidate
+        for candidate in candidates
+        if candidate.as_placements()["frozen_fruit_room"].bounds_mm
+        == (16_700, 32_700, 27_500, 40_900)
+    )
+    frozen = candidate.as_placements()["frozen_fruit_room"]
+    corridor_centerline = candidate.construction_corridor_centerline_mm
+    construction_corridors = placement._corridor_rectangles_for_centerline(
+        corridor_centerline, 2_500
+    )
+    result, corridors = route_access_requirement(
+        context.access_requirements[0],
+        relationships={},
+        zones={**fixed, "frozen_fruit_room": frozen},
+        boundary=context.boundary,
+        obstacles=context.obstacles,
+        entrances={},
+    )
+    assert candidate.endpoint_event_class == "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED"
+    assert "SORTING_PORTAL" in candidate.anchor_source
+    assert candidate.construction_corridor_centerline_mm
+    assert candidate.construction_corridor_envelopes_mm
+    assert (
+        candidate.construction_corridor_centerline_mm[0]
+        != (candidate.construction_corridor_centerline_mm[-1])
+    )
+    assert tuple(row.polygon_mm for row in construction_corridors) == (
+        candidate.construction_corridor_envelopes_mm
+    )
+    repeated = placement._frozen_truck_clear_corridor_candidates(
+        context,
+        fixed,
+        (),
+        truck_envelopes,
+        stats=None,
+        main_identity="open-site-main",
+    )
+    assert [row.as_placements() for row in candidates] == [row.as_placements() for row in repeated]
+    assert result["status"] == "PASS"
+    assert result["topology"] == "CORRIDOR_MEDIATED"
+    assert corridors
+    assert result["centerline"]
+    assert all(
+        not placement._orthogonal_polygons_interiors_overlap(corridor, truck_envelopes[0])
+        for corridor in corridors
+    )
+    assert all(
+        not placement._orthogonal_polygons_interiors_overlap(corridor, zone.polygon_mm)
+        for corridor in corridors
+        for zone in (sorting, frozen)
+    )
+    assert all(
+        not placement._orthogonal_polygons_interiors_overlap(corridor, truck_envelopes[0])
+        for corridor in corridors
+    )
+
+
+def test_frozen_direct_seed_is_rejected_for_exact_truck_overlap() -> None:
+    context, fixed = _xinzhao_frozen_corridor_context()
+    truck_envelope = (
+        (39_000, 2_000),
+        (39_500, 2_000),
+        (39_500, 9_800),
+        (39_000, 9_800),
+    )
+    stats = placement._PlacementSearchStats()
+
+    placement._frozen_truck_clear_corridor_candidates(
+        context,
+        fixed,
+        (),
+        (truck_envelope,),
+        stats=stats,
+        main_identity="verified-direct-truck-overlap",
+    )
+
+    assert (
+        stats.tail_direct_seed_counts_before_truck_filter_by_main["verified-direct-truck-overlap"][
+            "FROZEN_SUPPORT_MODULE"
+        ]
+        == 1
+    )
+    assert (
+        stats.tail_direct_seed_counts_after_truck_filter_by_main["verified-direct-truck-overlap"][
+            "FROZEN_SUPPORT_MODULE"
+        ]
+        == 0
+    )
+    rejection = stats.frozen_direct_seed_truck_rejection_rows[0]
+    assert rejection["truck_envelope_identity"] == "TRUCK_ENVELOPE-01"
+    assert rejection["exact_positive_area_overlap"] is True
+    assert rejection["overlap_bounds_mm"] == [39_000, 2_000, 39_500, 9_800]
+
+
+def test_frozen_target_portal_can_be_anchored_to_remote_free_space_event() -> None:
+    context, _main = _xinzhao_frozen_corridor_context()
+    context.boundary = ((0, 0), (100_000, 0), (100_000, 100_000), (0, 100_000))
+    context.boundary_bounds = (0, 0, 100_000, 100_000)
+    context.obstacles = ()
+    sorting = _rectangle("sorting_packaging_room", (30_000, 30_000, 45_000, 43_600))
+    changing = _rectangle("changing_room", (5_000, 45_000, 15_800, 50_000))
+    fixed = {"sorting_packaging_room": sorting, "changing_room": changing}
+    truck_envelopes = (((70_000, 70_000), (80_000, 70_000), (80_000, 80_000), (70_000, 80_000)),)
+
+    candidates = placement._frozen_truck_clear_corridor_candidates(
+        context,
+        fixed,
+        (),
+        truck_envelopes,
+        stats=None,
+        main_identity="remote-event-main",
+    )
+    candidate = next(
+        candidate
+        for candidate in candidates
+        if candidate.as_placements()["frozen_fruit_room"].bounds_mm[1] == 50_000
+    )
+    frozen = candidate.as_placements()["frozen_fruit_room"]
+    result, corridors = route_access_requirement(
+        context.access_requirements[0],
+        relationships={},
+        zones={**fixed, "frozen_fruit_room": frozen},
+        boundary=context.boundary,
+        obstacles=context.obstacles,
+        entrances={},
+    )
+
+    assert candidate.endpoint_event_class == "FROZEN_TRUCK_CLEAR_CORRIDOR_MEDIATED"
+    assert "FIXED_ZONE" in candidate.anchor_source
+    assert "SORTING_PORTAL" in candidate.anchor_source
+    assert result["status"] == "PASS"
+    assert corridors
+    assert all(
+        not placement._orthogonal_polygons_interiors_overlap(corridor, truck_envelopes[0])
+        for corridor in corridors
+    )
+
+
+@pytest.mark.parametrize(
+    ("source_side", "target_side", "start", "end"),
+    (
+        ("EAST", "WEST", (10_000, 20_000), (30_000, 40_000)),
+        ("WEST", "EAST", (30_000, 20_000), (10_000, 40_000)),
+        ("NORTH", "SOUTH", (20_000, 10_000), (40_000, 30_000)),
+        ("SOUTH", "NORTH", (20_000, 30_000), (40_000, 10_000)),
+    ),
+)
+def test_frozen_corridor_event_paths_follow_both_portal_normals(
+    source_side: str,
+    target_side: str,
+    start: tuple[int, int],
+    end: tuple[int, int],
+) -> None:
+    paths = placement._portal_normal_centerlines(
+        start,
+        end,
+        source_side=source_side,
+        target_side=target_side,
+        corridor_width_mm=2_500,
+    )
+    source_normals = {
+        "EAST": (1, 0),
+        "WEST": (-1, 0),
+        "NORTH": (0, 1),
+        "SOUTH": (0, -1),
+    }
+    target_normal = source_normals[target_side]
+
+    assert paths
+    for path in paths:
+        first = path[1]
+        penultimate = path[-2]
+        first_delta = (
+            (first[0] > start[0]) - (first[0] < start[0]),
+            (first[1] > start[1]) - (first[1] < start[1]),
+        )
+        last_delta = (
+            (end[0] > penultimate[0]) - (end[0] < penultimate[0]),
+            (end[1] > penultimate[1]) - (end[1] < penultimate[1]),
+        )
+        assert first_delta == source_normals[source_side]
+        assert last_delta == (-target_normal[0], -target_normal[1])
+
+
+def test_frozen_router_pass_overlapping_fixed_zone_is_rejected_for_construction() -> None:
+    context, main = _xinzhao_frozen_corridor_context()
+    frozen = _rectangle("frozen_fruit_room", (20_800, 33_700, 31_600, 41_900))
+    fixed = {
+        **main,
+        "changing_room": _rectangle("changing_room", (44_480, 23_650, 59_680, 26_282)),
+        "office": _rectangle("office", (378, 25_954, 8_124, 33_700)),
+        "secondary_fruit_buffer": _rectangle(
+            "secondary_fruit_buffer", (29_200, 3_150, 37_600, 10_050)
+        ),
+        "frozen_fruit_room": frozen,
+    }
+    authoritative, corridors = route_access_requirement(
+        context.access_requirements[0],
+        relationships={},
+        zones=fixed,
+        boundary=context.boundary,
+        obstacles=context.obstacles,
+        entrances={},
+    )
+    assert authoritative["status"] == "PASS"
+    assert any(
+        placement._orthogonal_polygons_interiors_overlap(
+            corridor, fixed["secondary_precooling_room"].polygon_mm
+        )
+        for corridor in corridors
+    )
+
+    context.access_route_validator = route_access_requirement
+    context.access_requirements = tuple(
+        asdict(requirement)
+        for requirement in required_access_connections()
+        if (requirement.from_ref, requirement.to_ref)
+        in {
+            ("main_entrance", "changing_room"),
+            ("changing_room", "sorting_packaging_room"),
+            ("sorting_packaging_room", "secondary_fruit_buffer"),
+            ("sorting_packaging_room", "frozen_fruit_room"),
+        }
+    )
+    stats = placement._PlacementSearchStats()
+    admitted = placement._tail_access_route_rows(
+        context,
+        fixed,
+        context.access_requirements,
+        module_name="FROZEN_SUPPORT_MODULE",
+        stats=stats,
+        requirement_pairs=frozenset({("sorting_packaging_room", "frozen_fruit_room")}),
+        require_truck_clear_corridors=True,
+        main_identity="main-34888140",
+    )
+    assert admitted is None
+    assert stats.frozen_candidate_rejection_taxonomy_by_main == {
+        "main-34888140": {"FROZEN_CORRIDOR_OVERLAPS_FIXED_ZONE": 1}
+    }
+
+
 def test_access_driven_changing_uses_both_endpoints_and_finite_event_classes() -> None:
     context = _tail_geometry_context()
     sorting = _rectangle("sorting_packaging_room", (30_000, 40_000, 40_000, 50_000))
@@ -577,7 +938,12 @@ def test_tail_capacity_cursor_continues_and_unresolved_is_not_s2_admissible(
     }
 
     def seeded_candidates(
-        _context: Any, module_name: str, zone_code: str, _fixed: Any, _bays: Any
+        _context: Any,
+        module_name: str,
+        zone_code: str,
+        _fixed: Any,
+        _bays: Any,
+        **_kwargs: Any,
     ) -> tuple[placement.AccessDrivenTailCandidateV1, ...]:
         x_origins = {
             "CHANGING_MODULE": (100_000, 110_000),
@@ -684,7 +1050,7 @@ def test_office_and_changing_are_independent_site_modules() -> None:
     )
 
 
-def test_tail_access_capacity_preflight_rotates_across_mains_before_second_probe(
+def test_tail_access_capacity_skips_empty_module_domains_and_fairly_probes_remaining_mains(
     monkeypatch: Any,
 ) -> None:
     def validator(requirement: Any, **_kwargs: Any) -> tuple[dict[str, Any], tuple[Any, ...]]:
@@ -732,7 +1098,12 @@ def test_tail_access_capacity_preflight_rotates_across_mains_before_second_probe
     mains.append(("main-0", same_process_different_packaging))
 
     def seeded_candidates(
-        _context: Any, module_name: str, zone_code: str, _fixed: Any, _bays: Any
+        _context: Any,
+        module_name: str,
+        zone_code: str,
+        _fixed: Any,
+        _bays: Any,
+        **_kwargs: Any,
     ) -> tuple[placement.AccessDrivenTailCandidateV1, ...]:
         offset = {
             "CHANGING_MODULE": 100_000,
@@ -755,7 +1126,11 @@ def test_tail_access_capacity_preflight_rotates_across_mains_before_second_probe
     monkeypatch.setattr(
         placement,
         "_office_site_module_candidates",
-        lambda *_args: ({"office": _rectangle("office", (160_000, 100_000, 170_000, 110_000))},),
+        lambda _context, fixed: (
+            ()
+            if fixed["raw_fruit_buffer"].bounds_mm[1] == 0
+            else ({"office": _rectangle("office", (160_000, 100_000, 170_000, 110_000))},)
+        ),
     )
     stats = placement._PlacementSearchStats(site_module_assembly_trace=[])
     preflight_events = tuple(
@@ -767,15 +1142,26 @@ def test_tail_access_capacity_preflight_rotates_across_mains_before_second_probe
     changing_round = [
         row["main_skeleton_hash"] for row in rows if row["module_name"] == "CHANGING_MODULE"
     ]
-    assert changing_round[:4] == ["main-0", "main-1", "main-2", "main-0"]
+    assert changing_round == ["main-1", "main-2"]
     main_identities = {
         placement._tail_access_main_identity(main_hash, main) for main_hash, main in mains
     }
-    assert statuses == {identity: "TAIL_ACCESS_CAPABLE_MAIN" for identity in main_identities}
-    assert stats.tail_access_capacity_preflight_nodes_by_main == {
-        identity: 4 for identity in main_identities
+    incapable_identities = {placement._tail_access_main_identity(mains[0][0], mains[0][1])}
+    duplicate_identity = placement._tail_access_main_identity("main-0", mains[-1][1])
+    incapable_identities.add(duplicate_identity)
+    capable_identities = main_identities - incapable_identities
+    assert statuses == {
+        **{identity: "TAIL_ACCESS_INCAPABLE_MAIN" for identity in incapable_identities},
+        **{identity: "TAIL_ACCESS_CAPABLE_MAIN" for identity in capable_identities},
     }
-    assert len(stats.tail_access_capacity_route_cache or {}) == 12
+    assert stats.tail_access_capacity_preflight_nodes_by_main == {
+        identity: 4 for identity in capable_identities
+    }
+    assert len(stats.tail_access_capacity_route_cache or {}) == 6
+    assert all(
+        stats.tail_incapable_reason_by_main[identity] == ["OFFICE_MODULE"]
+        for identity in incapable_identities
+    )
 
 
 def test_tail_access_main_identity_includes_packaging_anchor_geometry() -> None:

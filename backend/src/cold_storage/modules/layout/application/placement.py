@@ -15,11 +15,16 @@ from typing import Any
 
 from cold_storage.modules.layout.application.dimension_zones import ZoneDimensioningResultV1
 from cold_storage.modules.layout.application.site_geometry import ValidatedSiteGeometryV1
-from cold_storage.modules.layout.domain.access_authority import PACKAGING, resolve_access_profile
+from cold_storage.modules.layout.domain.access_authority import (
+    COLD_ROOM,
+    PACKAGING,
+    resolve_access_profile,
+)
 from cold_storage.modules.layout.domain.access_routing import (
     DEFAULT_ROUTE_NODE_BUDGET,
     DEFAULT_TRUCK_NODE_BUDGET,
     _boundary_interior_point,
+    _edge_class,
     _edge_options,
     _portal_center,
     route_access_requirement,
@@ -426,6 +431,7 @@ def enumerate_placement_candidates(
     construction_access_route_validator: (
         Callable[..., tuple[Mapping[str, Any], tuple[Any, ...]]] | None
     ) = None
+    construction_access_portal_event_provider: Callable[..., Mapping[str, Any]] | None = None
     if search_phase == STRUCTURED_PHASE:
 
         def validate_construction_route(
@@ -448,6 +454,87 @@ def enumerate_placement_candidates(
             )
 
         construction_access_route_validator = validate_construction_route
+
+        spatial_by_identity = {
+            str(row["identity"]): row
+            for row in spatial_relationships
+            if isinstance(row.get("identity"), str)
+        }
+
+        def construction_access_portal_events(
+            requirement: Mapping[str, Any],
+            endpoint_ref: str,
+            rectangle: Any,
+        ) -> Mapping[str, Any]:
+            """Expose the routing authority's exact portal events to construction.
+
+            These events order construction candidates only. The injected
+            ``route_access_requirement`` remains the admission authority.
+            """
+            profile_identity = requirement.get("profile_identity")
+            if not isinstance(profile_identity, str):
+                return {"portals": (), "portal_clear_width_mm": 0, "corridor_clear_width_mm": 0}
+            profile = resolve_access_profile(profile_identity)
+            portal_width_mm = int(profile.portal_clear_width_m * Decimal(1000))
+            if endpoint_ref in requirement.get("cold_room_refs", ()):
+                cold_identity = requirement.get("cold_room_portal_profile_identity") or COLD_ROOM
+                cold_profile = resolve_access_profile(str(cold_identity))
+                portal_width_mm = max(
+                    portal_width_mm,
+                    int(cold_profile.portal_clear_width_m * Decimal(1000)),
+                )
+            relationship_identity = requirement.get("edge_orientation_requirement")
+            relationship = (
+                spatial_by_identity.get(str(relationship_identity))
+                if relationship_identity is not None
+                else None
+            )
+            expected_edge_class = _edge_class(
+                relationship.get(
+                    "from_edge_class"
+                    if endpoint_ref == requirement.get("from_ref")
+                    else "to_edge_class"
+                )
+                if relationship is not None
+                else None
+            )
+            options = _edge_options(
+                rectangle,
+                required_class=expected_edge_class,
+                clear_width_mm=portal_width_mm,
+            )
+            left, bottom, right, top = rectangle.bounds_mm
+            portals = []
+            for option in options:
+                (x0, y0), (x1, y1) = option["segment_mm"]
+                side = (
+                    "WEST"
+                    if x0 == x1 == left
+                    else "EAST"
+                    if x0 == x1 == right
+                    else "SOUTH"
+                    if y0 == y1 == bottom
+                    else "NORTH"
+                    if y0 == y1 == top
+                    else None
+                )
+                if side is not None:
+                    portals.append(
+                        {
+                            "side": side,
+                            "edge_class": option["edge_class"],
+                            "segment_mm": option["segment_mm"],
+                            "center_mm": _portal_center(option["segment_mm"]),
+                            "clear_width_mm": portal_width_mm,
+                        }
+                    )
+            return {
+                "portals": tuple(portals),
+                "portal_clear_width_mm": portal_width_mm,
+                "corridor_clear_width_mm": int(profile.corridor_clear_width_m * Decimal(1000)),
+            }
+
+        construction_access_portal_event_provider = construction_access_portal_events
     return enumerate_domain_placement_candidates(
         authorities,
         site_geometry.to_dict(),
@@ -463,6 +550,7 @@ def enumerate_placement_candidates(
         truck_node_budget=truck_node_budget,
         truck_maneuver_validator=truck_maneuver_validator,
         access_route_validator=construction_access_route_validator,
+        access_portal_event_provider=construction_access_portal_event_provider,
         main_entrance_route_start_points=entrance_route_start_points,
         complete_candidate_limit=complete_candidate_limit,
         structural_family=structural_family,
