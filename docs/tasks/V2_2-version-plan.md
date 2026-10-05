@@ -1077,6 +1077,50 @@ DEPLOYMENT_AUTHORIZED=false
 NO_STEP_IMPLIES_THE_NEXT=true
 ```
 
+## V2.2.2 P1A Reset P1-S3 — composition-constrained exact-placement MVP
+
+P1-S3 adds a server-replayed composition placement path and an independent,
+bounded rectangle-placement domain. It shares layout authority binding with
+legacy placement and preserves the composition, dimension, site, and MUST
+adjacency authorities. The first 60,000-node Xinzhao attempt covered all three
+families but emitted no complete 12-zone composition-native candidate; the
+MVP candidate gate is therefore **FAIL**. Access, Truck, P2D, selection, and
+Tool 7 remain outside this slice, and P1 is not complete.
+
+See the [P1-S3 task record](V2_2_2-P1A-whole-building-composition-P1-S3.md)
+and [exact-placement evidence](evidence/v2_2_2_p1a_reset_s3/xinzhao_composition_exact_placements.json).
+
+```ini
+TASK_ID=V2_2_2_P1A_WHOLE_BUILDING_COMPOSITION_P1_S3
+ACTIVE_GOVERNANCE_LANE=V2.2.2_P1A_RESET_P1_S3
+PR_NUMBER=304
+PR_STATE=DRAFT
+SHARED_LAYOUT_AUTHORITY_BINDING_IMPLEMENTED=true
+COMPOSITION_HANDOFF_SERVER_REPLAY_ENFORCED=true
+COMPOSITION_PLACEMENT_NODE_BUDGET=60000
+FAMILY_COUNT=3
+ALL_FAMILIES_EXACT_PLACEMENT_ATTEMPTED=true
+FAMILY_FIRST_EXACT_PLACEMENT_ROUND_COMPLETE=true
+COMPOSITION_NATIVE_COMPLETE_CANDIDATE_COUNT=0
+COMPLETE_12_ZONE_PLACEMENT_COUNT=0
+P1_S3_STATUS=MVP_DRAFT_REVIEW
+P1_COMPLETE=false
+ACCESS_ROUTING_IMPLEMENTED=false
+TRUCK_VALIDATION_IMPLEMENTED=false
+P2D_IMPLEMENTED=false
+VALIDATED_CANDIDATE_SELECTOR_CHANGED=false
+TOOL7_BEHAVIOR_CHANGED=false
+RECOVERY_ROUND_USED=0
+RECOVERY_ROUND_1_AUTHORIZED=false
+RECOVERY_ROUND_2_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```
+
 ## V2.2.2 P1A Reset P1-S2 — composition authority and placement handoff
 
 P1-S2 binds the P1-S1 whole-building compositions to the canonical zone plan,

@@ -16,9 +16,10 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, cast
 
 from cold_storage.modules.layout.application.dimension_zones import ZoneDimensioningResultV1
-from cold_storage.modules.layout.application.placement import (
+from cold_storage.modules.layout.application.layout_authority_binding import (
     P1_HANDOFF_IDENTITY,
-    _validate_p1_authority,
+    bind_layout_authority,
+    validate_canonical_zone_plan,
 )
 from cold_storage.modules.layout.application.site_geometry import ValidatedSiteGeometryV1
 from cold_storage.modules.layout.domain.adjacency import ZONE_CODES
@@ -373,22 +374,13 @@ def build_structural_compositions(
     this public application API.  P1 checks are delegated to the existing P2C
     integrity validator; this boundary does not recalculate dimensions.
     """
-    if not isinstance(canonical_zone_plan, Mapping) or (
-        canonical_zone_plan.get("success") is not True
-        or canonical_zone_plan.get("calculator_name") != ZONE_PLAN_CALCULATOR_NAME
-        or canonical_zone_plan.get("calculator_version") != ZONE_PLAN_CALCULATOR_VERSION
-    ):
-        raise _authority_error("ZONE_PLAN_IDENTITY_INVALID")
+    validate_canonical_zone_plan(canonical_zone_plan)
     if not isinstance(site_geometry, ValidatedSiteGeometryV1):
         raise _authority_error("INVALID_SITE_GEOMETRY_RESULT", reason="UNVERIFIED_GEOMETRY_RESULT")
 
-    (
-        p1_body,
-        p1_handoff_hash,
-        _authorities,
-        _access_requirements,
-        _spatial_relationships,
-    ) = _validate_p1_authority(canonical_zone_plan, p1_handoff, site_geometry)
+    binding = bind_layout_authority(canonical_zone_plan, p1_handoff, site_geometry)
+    p1_body = dict(binding.p1_body)
+    p1_handoff_hash = binding.p1_handoff_hash
     if p1_body.get("p2_authorized") is not False:
         raise _authority_error("P1_HANDOFF_NOT_COMPLETE", field="p2_authorized")
     historical = _required_mapping(
@@ -411,8 +403,8 @@ def build_structural_compositions(
         ).items()
     )
     composition_counts = tuple((key, int(value)) for key, value in sorted(family_counts.items()))
-    zone_plan_hash = canonical_hash(canonical_zone_plan)
-    geometry_hash = site_geometry.canonical_result_hash
+    zone_plan_hash = binding.canonical_zone_plan_hash
+    geometry_hash = binding.site_geometry_hash
     handoffs = tuple(
         _handoff_for_composition(
             plan,
