@@ -157,6 +157,8 @@ class CompositionPlacementSearchAttemptV1:
     process_axis: ProcessAxisV1
     process_direction: ProcessDirectionV1
     peripheral_bank_sign: int
+    search_order_lane: str
+    access_critical_construction_intent_identity: str | None
     construction_domains: tuple[ConstructionDomainV1, ...]
     nodes_allocated: int
     nodes_visited: int
@@ -172,6 +174,8 @@ class CompositionPlacementSearchAttemptV1:
     shipping_office_interface_preflight_status: str
     shipping_truck_preflight_status: str
     shipping_truck_preflight_counts: tuple[tuple[str, int], ...]
+    packaging_preflight_pass_partial_count: int
+    packaging_preflight_fail_partial_count: int
     band_capacity_preflight_status: str
     peripheral_capacity_preflight_status: str
     best_partial_placement_witness: PartialPlacementWitnessV1
@@ -187,6 +191,10 @@ class CompositionPlacementSearchAttemptV1:
             "process_axis": self.process_axis.value,
             "process_direction": self.process_direction.value,
             "peripheral_bank_sign": self.peripheral_bank_sign,
+            "search_order_lane": self.search_order_lane,
+            "access_critical_construction_intent_identity": (
+                self.access_critical_construction_intent_identity
+            ),
             "construction_domains": [asdict(domain) for domain in self.construction_domains],
             "nodes_allocated": self.nodes_allocated,
             "nodes_visited": self.nodes_visited,
@@ -214,6 +222,8 @@ class CompositionPlacementSearchAttemptV1:
             "shipping_office_interface_preflight_status": (
                 self.shipping_office_interface_preflight_status
             ),
+            "packaging_preflight_pass_partial_count": (self.packaging_preflight_pass_partial_count),
+            "packaging_preflight_fail_partial_count": (self.packaging_preflight_fail_partial_count),
             "band_capacity_preflight_status": self.band_capacity_preflight_status,
             "peripheral_capacity_preflight_status": self.peripheral_capacity_preflight_status,
             "best_partial_placement_witness": self.best_partial_placement_witness.to_dict(),
@@ -248,6 +258,7 @@ class RoleSearchFunnelV1:
     must_edge_rejection_count: int
     coupled_interface_rejection_count: int
     composition_intent_rejection_count: int
+    access_interface_rejection_count: int
     accepted_partial_placement_count: int
     backtrack_count: int
 
@@ -269,6 +280,7 @@ class RoleSearchFunnelV1:
             "must_edge_rejection_count": self.must_edge_rejection_count,
             "coupled_interface_rejection_count": self.coupled_interface_rejection_count,
             "composition_intent_rejection_count": self.composition_intent_rejection_count,
+            "access_interface_rejection_count": self.access_interface_rejection_count,
             "accepted_partial_placement_count": self.accepted_partial_placement_count,
             "backtrack_count": self.backtrack_count,
         }
@@ -312,6 +324,8 @@ class _SearchDiagnostics:
     shipping_office_status: str = "PASS_TO_SEARCH"
     shipping_truck_preflight_status: str = "NOT_PERFORMED"
     shipping_truck_preflight_counts: dict[str, int] = field(default_factory=dict)
+    packaging_preflight_pass_partial_count: int = 0
+    packaging_preflight_fail_partial_count: int = 0
     band_capacity_status: str = "UNKNOWN_NOT_PROVEN_IMPOSSIBLE"
     peripheral_capacity_status: str = "UNKNOWN_NOT_PROVEN_IMPOSSIBLE"
     best_witness: PartialPlacementWitnessV1 | None = None
@@ -327,6 +341,9 @@ class _SearchDiagnostics:
     generic_nodes_by_role: dict[str, int] = field(default_factory=dict)
     authority_shape_count: dict[str, int] = field(default_factory=dict)
     construction_shape_count: dict[str, int] = field(default_factory=dict)
+    complete_placements: list[tuple[dict[str, PlacedRectangleV1], int]] = field(
+        default_factory=list
+    )
 
 
 @dataclass(frozen=True)
@@ -368,6 +385,9 @@ class CompositionPlacementEnumerationV1:
     project_layout_validated_claimed: bool = False
 
     def to_dict(self) -> dict[str, Any]:
+        lane_counts: dict[str, int] = defaultdict(int)
+        for attempt in self.search_attempts:
+            lane_counts[attempt.search_order_lane] += 1
         return {
             "identity": self.identity,
             "schema_version": self.schema_version,
@@ -379,6 +399,14 @@ class CompositionPlacementEnumerationV1:
             "continuation_selection_reason": self.continuation_selection_reason,
             "family_coverage_order": list(self.family_coverage_order),
             "family_first_round_complete": self.family_first_round_complete,
+            "attempt_count": len(self.search_attempts),
+            "attempt_count_by_search_order_lane": dict(sorted(lane_counts.items())),
+            "search_order_lanes_enabled": {
+                "ACCESS_AWARE_ORDER": lane_counts.get("ACCESS_AWARE_ORDER", 0) > 0,
+                "S3_COMPATIBILITY_ORDER": lane_counts.get("S3_COMPATIBILITY_ORDER", 0) > 0,
+            },
+            "search_order_is_engineering_authority": False,
+            "legacy_placement_fallback_used": False,
             "attempt_count_by_family": dict(self.attempt_count_by_family),
             "nodes_used_by_family": dict(self.nodes_used_by_family),
             "deepest_role_attempted_by_family": dict(self.deepest_role_attempted_by_family),
@@ -404,6 +432,7 @@ class CompositionPlacementEnumerationV1:
             "failure_reason_by_family": dict(self.failure_reason_by_family),
             "search_attempts": [attempt.to_dict() for attempt in self.search_attempts],
             "candidates": [candidate.to_dict() for candidate in self.candidates],
+            "complete_candidates_constructed": len(self.candidates),
             "exact_placement_performed": self.exact_placement_performed,
             "access_routing_performed": self.access_routing_performed,
             "truck_validation_performed": self.truck_validation_performed,
@@ -1235,11 +1264,12 @@ def _zone_order(
     handoff: StructuralCompositionPlacementHandoffV1,
     *,
     access_aware: bool = False,
+    search_order_lane: str | None = None,
 ) -> tuple[str, ...]:
-    # Composition-aware constrained-first sequence interleaves the already
-    # reserved branches with the process chain. It does not complete the main
-    # chain and then append every peripheral role. Shipping/Office stay coupled.
-    if access_aware:
+    # The lanes change variable ordering only. Both may run with CR1 access
+    # intents, anchors, dimensions, site/overlap checks, and MUST predicates.
+    lane = search_order_lane or ("ACCESS_AWARE_ORDER" if access_aware else "S3_COMPATIBILITY_ORDER")
+    if lane == "ACCESS_AWARE_ORDER":
         return (
             "sorting_packaging_room",
             "packaging_material_storage",
@@ -1252,13 +1282,18 @@ def _zone_order(
             "secondary_fruit_buffer",
             "frozen_fruit_room",
             "shipping_channel",
-            "office",
-            # Finish the process bridge after both terminal interfaces are
-            # spatially known: coating attaches to secondary precooling, and
-            # finished goods must bridge the coating and dock-anchored Shipping.
+            # Build the attached finished/process bridge before selecting the
+            # personnel Office attachment. This leaves the existing hard
+            # Shipping/Finished MUST edge available while keeping the coupled
+            # Shipping/Office preflight early; Office itself remains an
+            # independent zone searched after the process bridge. All roles
+            # remain in the same whole-building composition DFS.
             "coating_room",
             "finished_goods_room",
+            "office",
         )
+    if lane != "S3_COMPATIBILITY_ORDER":
+        raise ValueError("COMPOSITION_SEARCH_ORDER_LANE_INVALID")
     return (
         "sorting_packaging_room",
         "primary_precooling_room",
@@ -1733,20 +1768,26 @@ def _domain_derived_anchors(
         )
         return tuple(sorted(pairs))
 
+    interface_anchors: set[tuple[int, int]] = set()
     if access_intent is not None:
-        interface_anchors = _access_interface_anchors(
-            role, shape, handoff, access_intent, placed, boundary, bank_sign
+        # Access-critical events augment the composition face domain; they do
+        # not replace it. This preserves the S3 composition-native search space
+        # while still prioritizing CR1 endpoint-derived anchors. Every
+        # Packaging candidate continues through the unchanged straight-only
+        # preflight below, and final Access remains independently authoritative.
+        interface_anchors.update(
+            _access_interface_anchors(
+                role, shape, handoff, access_intent, placed, boundary, bank_sign
+            )
         )
-        if interface_anchors:
-            return interface_anchors
 
     face = _domain_faces(handoff, bank_sign).get(role)
     if face is None:
-        return ()
+        return tuple(sorted(interface_anchors))
     axis, sign = face
     sorting = placed.get("sorting_packaging_room")
     if sorting is None:
-        return ()
+        return tuple(sorted(interface_anchors))
     bases = [sorting]
     for other_role, rectangle in placed.items():
         if other_role == "sorting_packaging_room":
@@ -1757,6 +1798,7 @@ def _domain_derived_anchors(
     face_anchors: set[tuple[int, int]] = set()
     for base in bases:
         face_anchors.update(_face_anchors(base, shape, axis, sign, boundary, obstacles, placed))
+    face_anchors.update(interface_anchors)
     return tuple(sorted(face_anchors))
 
 
@@ -1795,6 +1837,59 @@ def _generic_fallback_anchors(
         }
         anchors = tuple(sorted(anchors_set))
     return anchors[:GENERIC_FALLBACK_ANCHOR_LIMIT_PER_ROLE]
+
+
+def _packaging_interface_capacity_remains(
+    handoff: StructuralCompositionPlacementHandoffV1,
+    shapes: Mapping[str, tuple[_Shape, ...]],
+    intent: AccessCriticalConstructionIntentV1,
+    domains: Sequence[ConstructionDomainV1],
+    bank_sign: int,
+    placed: Mapping[str, PlacedRectangleV1],
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+) -> bool:
+    """Return whether a finite, still-clear Packaging interface seed remains.
+
+    This is a conservative construction look-ahead used only before the
+    Packaging role has been placed.  It reuses the same finite domain and
+    physical-event anchor generators as placement and the existing
+    straight-interface construction preflight; it neither reserves geometry
+    as engineering authority nor asserts an Access PASS.
+    """
+    sorting = placed.get("sorting_packaging_room")
+    if sorting is None:
+        return True
+    role = "packaging_material_storage"
+    for shape in shapes[role]:
+        domain_origins = _domain_derived_anchors(
+            role,
+            shape,
+            handoff,
+            domains,
+            bank_sign,
+            placed,
+            boundary,
+            obstacles,
+            intent,
+        )
+        generic_origins = _generic_fallback_anchors(role, shape, placed, boundary, obstacles)
+        for x, y in (*domain_origins, *generic_origins):
+            package = _rectangle(role, x, y, shape)
+            if _candidate_rejection(package, placed, boundary, obstacles) is not None:
+                continue
+            if not _side_ok(role, package, sorting, _domain_faces(handoff, bank_sign)):
+                continue
+            if _packaging_straight_interface_possible(
+                package,
+                sorting,
+                intent,
+                boundary,
+                obstacles,
+                placed,
+            ):
+                return True
+    return False
 
 
 def _candidate_rejection(
@@ -1902,10 +1997,18 @@ def _search_one(
     obstacles: Sequence[PolygonMM],
     domains: tuple[ConstructionDomainV1, ...],
     bank_sign: int,
+    search_order_lane: str,
     node_limit: int,
     access_intent: AccessCriticalConstructionIntentV1 | None = None,
     complete_candidate_admission: Callable[
-        [StructuralCompositionPlacementHandoffV1, Mapping[str, PlacedRectangleV1]], bool
+        [
+            StructuralCompositionPlacementHandoffV1,
+            Mapping[str, PlacedRectangleV1],
+            int,
+            str,
+            int,
+        ],
+        bool,
     ]
     | None = None,
     shipping_candidate_preflight: Callable[
@@ -1915,11 +2018,28 @@ def _search_one(
     | None = None,
 ) -> _SearchOutcome:
     access_aware = access_intent is not None
-    order = _zone_order(handoff, access_aware=access_aware)
+    order = _zone_order(
+        handoff,
+        access_aware=access_aware,
+        search_order_lane=search_order_lane,
+    )
     faces = _domain_faces(handoff, bank_sign)
-    ordered_shapes = _composition_shape_order(handoff, shapes, bank_sign, access_intent)
+    shape_order_intent = access_intent if search_order_lane == "ACCESS_AWARE_ORDER" else None
+    # S3 compatibility retains the immediately preceding deterministic shape
+    # ordering, while still receiving the CR1 intent in every anchor, partial
+    # Packaging, and final Access checkpoint.
+    ordered_shapes = _composition_shape_order(handoff, shapes, bank_sign, shape_order_intent)
     diagnostics = _SearchDiagnostics(node_limit=node_limit)
     role_rank = {role: index for index, role in enumerate(order)}
+    material_flows = tuple(flow for flow in process_graph().flows if flow.kind == "MATERIAL")
+    material_predecessors = {
+        role: tuple(flow.from_ref for flow in material_flows if flow.to_ref == role)
+        for role in order
+    }
+    material_successors = {
+        role: tuple(flow.to_ref for flow in material_flows if flow.from_ref == role)
+        for role in order
+    }
     for role in order:
         diagnostics.funnel[role] = {
             "role_attempt_count": 0,
@@ -1939,6 +2059,7 @@ def _search_one(
             "must_edge_rejection_count": 0,
             "coupled_interface_rejection_count": 0,
             "composition_intent_rejection_count": 0,
+            "access_interface_rejection_count": 0,
             "accepted_partial_placement_count": 0,
             "backtrack_count": 0,
         }
@@ -2032,13 +2153,24 @@ def _search_one(
                 for first, second in process_graph().must_adjacencies
             )
             if must_ok and _intent_preserved(handoff, placed, faces):
-                if complete_candidate_admission is not None and not complete_candidate_admission(
-                    handoff, dict(placed)
-                ):
-                    diagnostics.failure_taxonomy = "COMPLETE_CANDIDATE_ACCESS_ADMISSION_REJECTED"
-                    save_witness(placed, "ACCESS_VALIDATION_CHECKPOINT")
-                    return None
-                return dict(placed)
+                zones_snapshot = dict(placed)
+                diagnostics.complete_placements.append((zones_snapshot, diagnostics.nodes))
+                stop_search = (
+                    True
+                    if complete_candidate_admission is None
+                    else complete_candidate_admission(
+                        handoff,
+                        zones_snapshot,
+                        bank_sign,
+                        search_order_lane,
+                        diagnostics.nodes,
+                    )
+                )
+                if stop_search:
+                    return zones_snapshot
+                diagnostics.failure_taxonomy = "COMPLETE_CANDIDATE_RETAINED_SEARCH_CONTINUED"
+                save_witness(placed, "ACCESS_VALIDATION_CHECKPOINT")
+                return None
             diagnostics.failure_taxonomy = (
                 "FINAL_MUST_ADJACENCY_REJECTION" if not must_ok else "COMPOSITION_INTENT_REJECTION"
             )
@@ -2051,12 +2183,47 @@ def _search_one(
         def ordered_points(
             points: Sequence[tuple[int, int]], shape: _Shape
         ) -> tuple[tuple[int, int], ...]:
-            def key(point: tuple[int, int]) -> tuple[int, int, int, int, int, int, int]:
+            def key(
+                point: tuple[int, int],
+            ) -> tuple[int, int, int, int, int, int, int, int, int]:
                 projection = (
                     point[0] + shape.world_width_mm // 2
                     if axis == "X"
                     else point[1] + shape.world_depth_mm // 2
                 )
+                process_axis = handoff.process_axis.value
+                process_projection = (
+                    point[0] + shape.world_width_mm // 2
+                    if process_axis == "X"
+                    else point[1] + shape.world_depth_mm // 2
+                )
+                process_sign = 1 if handoff.process_direction == ProcessDirectionV1.POSITIVE else -1
+                process_projection *= process_sign
+                flow_violation_mm = 0
+                if access_intent is not None:
+                    previous_flow_positions = [
+                        process_sign * _center(placed[predecessor], process_axis)
+                        for predecessor in material_predecessors[code]
+                        if predecessor in placed
+                    ]
+                    following_flow_positions = [
+                        process_sign * _center(placed[successor], process_axis)
+                        for successor in material_successors[code]
+                        if successor in placed
+                    ]
+                    flow_violation_mm = max(
+                        [
+                            *(
+                                position - process_projection
+                                for position in previous_flow_positions
+                            ),
+                            *(
+                                process_projection - position
+                                for position in following_flow_positions
+                            ),
+                            0,
+                        ]
+                    )
                 interval_penalty = 0
                 if interval is not None:
                     low, high = interval
@@ -2118,6 +2285,8 @@ def _search_one(
                         )
                     )
                 return (
+                    int(flow_violation_mm > 0),
+                    flow_violation_mm,
                     access_departure_penalty,
                     interval_penalty,
                     process_center_penalty,
@@ -2256,7 +2425,11 @@ def _search_one(
                             )
                             save_witness(placed, code)
                             continue
-                    if code == "shipping_channel" and shipping_candidate_preflight is not None:
+                    if (
+                        not access_aware
+                        and code == "shipping_channel"
+                        and shipping_candidate_preflight is not None
+                    ):
                         partial_zones = dict(placed)
                         partial_zones[code] = candidate
                         preflight = shipping_candidate_preflight(handoff, partial_zones)
@@ -2284,6 +2457,33 @@ def _search_one(
                         )
                         placed.pop(code, None)
                         continue
+                    if (
+                        access_intent is not None
+                        and code != "packaging_material_storage"
+                        and "sorting_packaging_room" in placed
+                        and "packaging_material_storage" not in placed
+                    ):
+                        packaging_capacity_remains = _packaging_interface_capacity_remains(
+                            handoff,
+                            ordered_shapes,
+                            access_intent,
+                            domains,
+                            bank_sign,
+                            placed,
+                            boundary,
+                            obstacles,
+                        )
+                        if packaging_capacity_remains:
+                            diagnostics.packaging_preflight_pass_partial_count += 1
+                        else:
+                            diagnostics.packaging_preflight_fail_partial_count += 1
+                            diagnostics.funnel[code]["access_interface_rejection_count"] += 1
+                            diagnostics.failure_taxonomy = (
+                                "PACKAGING_STRAIGHT_INTERFACE_CAPACITY_CLOSED_BY_PARTIAL_PLACEMENT"
+                            )
+                            save_witness(placed, "packaging_material_storage")
+                            placed.pop(code, None)
+                            continue
                     diagnostics.max_placed = max(diagnostics.max_placed, len(placed))
                     if diagnostics.deepest_successfully_placed == "NOT_PLACED" or role_rank[
                         code
@@ -2400,7 +2600,14 @@ def enumerate_composition_placements(
     node_budget: int = DEFAULT_COMPOSITION_PLACEMENT_NODE_BUDGET,
     access_intent: AccessCriticalConstructionIntentV1 | None = None,
     complete_candidate_admission: Callable[
-        [StructuralCompositionPlacementHandoffV1, Mapping[str, PlacedRectangleV1]], bool
+        [
+            StructuralCompositionPlacementHandoffV1,
+            Mapping[str, PlacedRectangleV1],
+            int,
+            str,
+            int,
+        ],
+        bool,
     ]
     | None = None,
     shipping_candidate_preflight: Callable[
@@ -2451,9 +2658,10 @@ def enumerate_composition_placements(
     if set(by_family) != set(FAMILY_ORDER):
         raise ValueError("COMPOSITION_FAMILY_COVERAGE_INVALID")
 
-    attempt_budget_by_stage: tuple[int, int, int]
+    attempt_budget_by_stage: tuple[int, ...]
     if access_intent is None:
         per_attempt_budget = max(1, node_budget // (len(FAMILY_ORDER) * 2 * 2))
+        alternate_mirrored_slice = per_attempt_budget
         initial_family_budget = per_attempt_budget * 2
         continuation_budget = max(0, node_budget - initial_family_budget * len(FAMILY_ORDER))
         attempt_budget_by_stage = (
@@ -2462,13 +2670,18 @@ def enumerate_composition_placements(
             per_attempt_budget,
         )
     else:
-        # Keep the total authority at 60,000 while giving every family a
-        # meaningful first-composition probe and an entrance-aligned alternate
-        # composition probe. The mirrored first-composition probe is smaller
-        # so all three families retain equal bounded coverage.
-        first_composition_slice = max(1, node_budget // 8)
-        mirrored_composition_slice = max(1, node_budget // 12)
-        alternate_composition_slice = first_composition_slice
+        # Stage A gives every family both banks on its first composition.
+        # Stage B covers alternate-composition positive banks for all families
+        # (including the known S3-feasible Linear r1/+1 lane), then all three
+        # opposite banks. Stage C spends the remaining fixed allocation on
+        # the Linear positive-bank partial-progress lane. No family is skipped
+        # and the task allocations sum to the existing 60,000-node cap.
+        first_composition_slice = max(1, node_budget // 120)
+        mirrored_composition_slice = max(1, node_budget // 120)
+        alternate_composition_slice = max(1, node_budget // 15)
+        known_lane_slice = max(1, node_budget // 3)
+        linear_first_lane_continuation_slice = max(1, node_budget * 11 // 24)
+        alternate_mirrored_slice = max(1, node_budget // 120)
         per_attempt_budget = first_composition_slice
         initial_family_budget = first_composition_slice + mirrored_composition_slice
         continuation_budget = max(0, node_budget - initial_family_budget * len(FAMILY_ORDER))
@@ -2476,6 +2689,7 @@ def enumerate_composition_placements(
             first_composition_slice,
             mirrored_composition_slice,
             alternate_composition_slice,
+            alternate_mirrored_slice,
         )
     remaining = node_budget
     attempts: dict[str, int] = {family.value: 0 for family in FAMILY_ORDER}
@@ -2494,7 +2708,8 @@ def enumerate_composition_placements(
     generic_nodes_by_family: dict[str, int] = {family.value: 0 for family in FAMILY_ORDER}
     failures: dict[str, str] = {}
     hashes = (source_zone_plan_hash, source_p1_handoff_hash, source_site_geometry_hash)
-    candidate_by_family: dict[CompositionFamilyV2, CompositionPlacementCandidateV1] = {}
+    candidates: list[CompositionPlacementCandidateV1] = []
+    families_with_candidate: set[CompositionFamilyV2] = set()
     search_attempts: list[CompositionPlacementSearchAttemptV1] = []
     # True family-first rounds: every family receives its positive-bank probe
     # before any family receives the mirrored probe, then composition variants
@@ -2504,36 +2719,106 @@ def enumerate_composition_placements(
             CompositionFamilyV2,
             StructuralCompositionPlacementHandoffV1,
             int,
+            str,
             int,
         ]
-    ] = [(family, by_family[family][0], 1, attempt_budget_by_stage[0]) for family in FAMILY_ORDER]
-    tasks.extend(
-        (family, by_family[family][0], -1, attempt_budget_by_stage[1]) for family in FAMILY_ORDER
-    )
+    ] = []
     if access_intent is None:
         tasks.extend(
-            (family, by_family[family][1], 1, per_attempt_budget)
+            (
+                family,
+                by_family[family][0],
+                1,
+                "S3_COMPATIBILITY_ORDER",
+                attempt_budget_by_stage[0],
+            )
+            for family in FAMILY_ORDER
+        )
+        tasks.extend(
+            (
+                family,
+                by_family[family][0],
+                -1,
+                "S3_COMPATIBILITY_ORDER",
+                attempt_budget_by_stage[1],
+            )
+            for family in FAMILY_ORDER
+        )
+        tasks.extend(
+            (family, by_family[family][1], 1, "S3_COMPATIBILITY_ORDER", per_attempt_budget)
             for family in FAMILY_ORDER
             if len(by_family[family]) > 1
         )
         tasks.extend(
-            (family, by_family[family][1], -1, per_attempt_budget)
+            (family, by_family[family][1], -1, "S3_COMPATIBILITY_ORDER", per_attempt_budget)
             for family in FAMILY_ORDER
             if len(by_family[family]) > 1
         )
     else:
+        # Stage A is family-first on both first-composition banks. Stage B
+        # explicitly covers all alternate-composition positive and opposite
+        # banks. Stage C uses the remaining bounded slice on the Linear lane
+        # with the deepest prior partial witness.
+        tasks.extend(
+            (
+                family,
+                by_family[family][0],
+                1,
+                "ACCESS_AWARE_ORDER",
+                attempt_budget_by_stage[0],
+            )
+            for family in FAMILY_ORDER
+        )
+        tasks.extend(
+            (
+                family,
+                by_family[family][0],
+                -1,
+                "ACCESS_AWARE_ORDER",
+                attempt_budget_by_stage[1],
+            )
+            for family in FAMILY_ORDER
+        )
         tasks.extend(
             (
                 family,
                 by_family[family][1],
-                _preferred_access_bank_sign(by_family[family][1], access_intent),
-                attempt_budget_by_stage[2],
+                1,
+                "S3_COMPATIBILITY_ORDER",
+                (
+                    known_lane_slice
+                    if family == CompositionFamilyV2.LINEAR_BANDED
+                    and by_family[family][1].composition_identity.endswith(
+                        "LINEAR_BANDED:Y:POSITIVE:r1"
+                    )
+                    else attempt_budget_by_stage[2]
+                ),
             )
             for family in FAMILY_ORDER
             if len(by_family[family]) > 1
         )
-    for family, handoff, bank_sign, task_budget in tasks:
-        if remaining <= 0 or family in candidate_by_family:
+        tasks.extend(
+            (
+                family,
+                by_family[family][1],
+                -1,
+                "S3_COMPATIBILITY_ORDER",
+                alternate_mirrored_slice,
+            )
+            for family in FAMILY_ORDER
+            if len(by_family[family]) > 1
+        )
+        tasks.append(
+            (
+                CompositionFamilyV2.LINEAR_BANDED,
+                by_family[CompositionFamilyV2.LINEAR_BANDED][0],
+                1,
+                "ACCESS_AWARE_ORDER",
+                linear_first_lane_continuation_slice,
+            )
+        )
+    for family, handoff, bank_sign, search_order_lane, task_budget in tasks:
+        if remaining <= 0 or (access_intent is None and family in families_with_candidate):
             continue
         family_key = family.value
         attempts[family_key] += 1
@@ -2548,6 +2833,7 @@ def enumerate_composition_placements(
             obstacles,
             domains,
             bank_sign,
+            search_order_lane,
             allocation,
             access_intent,
             complete_candidate_admission,
@@ -2565,7 +2851,11 @@ def enumerate_composition_placements(
         max_placed_by_family[family_key] = max(
             max_placed_by_family[family_key], diagnostics.max_placed
         )
-        search_order = _zone_order(handoff, access_aware=access_intent is not None)
+        search_order = _zone_order(
+            handoff,
+            access_aware=access_intent is not None,
+            search_order_lane=search_order_lane,
+        )
         attempt_role_rank = {role: index for index, role in enumerate(search_order)}
         if attempt_role_rank[deepest_attempted] >= deepest_attempted_rank[family_key]:
             deepest_attempted_by_family[family_key] = deepest_attempted
@@ -2577,15 +2867,15 @@ def enumerate_composition_placements(
         ):
             deepest_successfully_placed[family_key] = deepest_placed
             deepest_success_rank[family_key] = attempt_role_rank[deepest_placed]
-        attempt_failure = (
-            None
-            if solution is not None
-            else (
+        attempt_failure = None
+        if solution is None and not diagnostics.complete_placements:
+            attempt_failure = (
                 "COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED"
                 if hit
                 else "NO_COMPLETE_COMPOSITION_CONSTRAINED_LAYOUT"
             )
-        )
+        elif solution is None:
+            attempt_failure = "COMPLETE_CANDIDATE_RETAINED_SEARCH_CONTINUED"
         search_attempts.append(
             CompositionPlacementSearchAttemptV1(
                 family=family,
@@ -2594,6 +2884,10 @@ def enumerate_composition_placements(
                 process_axis=handoff.process_axis,
                 process_direction=handoff.process_direction,
                 peripheral_bank_sign=bank_sign,
+                search_order_lane=search_order_lane,
+                access_critical_construction_intent_identity=(
+                    access_intent.identity if access_intent is not None else None
+                ),
                 construction_domains=domains,
                 nodes_allocated=allocation,
                 nodes_visited=visited,
@@ -2627,6 +2921,12 @@ def enumerate_composition_placements(
                 shipping_truck_preflight_counts=tuple(
                     sorted(diagnostics.shipping_truck_preflight_counts.items())
                 ),
+                packaging_preflight_pass_partial_count=(
+                    diagnostics.packaging_preflight_pass_partial_count
+                ),
+                packaging_preflight_fail_partial_count=(
+                    diagnostics.packaging_preflight_fail_partial_count
+                ),
                 band_capacity_preflight_status=diagnostics.band_capacity_status,
                 peripheral_capacity_preflight_status=diagnostics.peripheral_capacity_status,
                 best_partial_placement_witness=diagnostics.best_witness
@@ -2641,42 +2941,67 @@ def enumerate_composition_placements(
                     nodes_used=visited,
                 ),
                 node_budget_exhausted=hit,
-                complete_layout_found=solution is not None,
+                complete_layout_found=bool(diagnostics.complete_placements),
                 failure_reason=attempt_failure,
             )
         )
         remaining -= visited
-        if solution is not None:
-            candidate_provenance = [
-                (
-                    "domain_arrangement",
-                    "MIRROR_POSITIVE" if bank_sign > 0 else "MIRROR_NEGATIVE",
-                ),
-                ("nodes_visited", str(used[family_key])),
-                ("event_policy", "SITE_ROOM_EDGE_AND_CLOSED_OBSTACLE_PLUS_MINUS_GRID_MM"),
-                ("per_attempt_node_allocation", str(per_attempt_budget)),
-                ("domain_anchor_path", "COMPOSITION_DOMAIN_FIRST_BOUNDED_GENERIC_FALLBACK"),
-                ("shipping_office_preflight", diagnostics.shipping_office_status),
-            ]
-            if access_intent is not None:
-                candidate_provenance.append(
-                    ("access_critical_construction_intent", access_intent.identity)
+        if diagnostics.complete_placements:
+            for complete_zones, nodes_at_discovery in diagnostics.complete_placements:
+                if access_intent is None:
+                    candidate_provenance = [
+                        (
+                            "domain_arrangement",
+                            "MIRROR_POSITIVE" if bank_sign > 0 else "MIRROR_NEGATIVE",
+                        ),
+                        ("nodes_visited", str(used[family_key])),
+                        ("event_policy", "SITE_ROOM_EDGE_AND_CLOSED_OBSTACLE_PLUS_MINUS_GRID_MM"),
+                        ("per_attempt_node_allocation", str(per_attempt_budget)),
+                        (
+                            "domain_anchor_path",
+                            "COMPOSITION_DOMAIN_FIRST_BOUNDED_GENERIC_FALLBACK",
+                        ),
+                        ("shipping_office_preflight", diagnostics.shipping_office_status),
+                    ]
+                else:
+                    candidate_provenance = [
+                        (
+                            "domain_arrangement",
+                            "MIRROR_POSITIVE" if bank_sign > 0 else "MIRROR_NEGATIVE",
+                        ),
+                        ("nodes_visited", str(nodes_at_discovery)),
+                        ("event_policy", "SITE_ROOM_EDGE_AND_CLOSED_OBSTACLE_PLUS_MINUS_GRID_MM"),
+                        ("per_attempt_node_allocation", str(allocation)),
+                        (
+                            "domain_anchor_path",
+                            "COMPOSITION_DOMAIN_FIRST_BOUNDED_GENERIC_FALLBACK",
+                        ),
+                        ("shipping_office_preflight", diagnostics.shipping_office_status),
+                        ("search_order_lane", search_order_lane),
+                        ("peripheral_bank_sign", str(bank_sign)),
+                    ]
+                if access_intent is not None:
+                    candidate_provenance.append(
+                        ("access_critical_construction_intent", access_intent.identity)
+                    )
+                candidates.append(
+                    _candidate(
+                        handoff,
+                        complete_zones,
+                        domains,
+                        hashes,
+                        tuple(candidate_provenance),
+                    )
                 )
-            candidate_by_family[family] = _candidate(
-                handoff,
-                solution,
-                domains,
-                hashes,
-                tuple(candidate_provenance),
-            )
+        if solution is not None:
             failures.pop(family_key, None)
+            families_with_candidate.add(family)
+        elif diagnostics.complete_placements:
+            failures.setdefault(family_key, "COMPLETE_CANDIDATE_RETAINED_SEARCH_CONTINUED")
         elif hit:
             failures[family_key] = "COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED"
         else:
             failures.setdefault(family_key, "NO_COMPLETE_COMPOSITION_CONSTRAINED_LAYOUT")
-    candidates = [
-        candidate_by_family[family] for family in FAMILY_ORDER if family in candidate_by_family
-    ]
     best_partial_by_family: dict[str, PartialPlacementWitnessV1] = {}
     for attempt in search_attempts:
         witness = attempt.best_partial_placement_witness
@@ -2709,10 +3034,13 @@ def enumerate_composition_placements(
         continuation_budget=continuation_budget,
         continuation_selection_reason=(
             (
-                "ACCESS_AWARE: each family receives a 7,500-node first-composition positive-bank "
-                "probe and a 5,000-node mirrored probe; the remaining 22,500 nodes are split into "
-                "one 7,500-node alternate-composition probe per family, bank selected from the "
-                "validated main-entrance side when aligned with the cross axis"
+                "ACCESS_AWARE_CR2: Stage A gives each family 500 nodes on each first-composition "
+                "bank. Stage B covers every alternate-composition positive bank, assigning "
+                "20,000 nodes to the previously proven LINEAR_BANDED:Y:POSITIVE:r1 lane and "
+                "4,000 to each other family, then 500 to every opposite alternate bank. Stage C "
+                "allocates 27,500 nodes to the Linear first-composition positive-bank lane, "
+                "whose prior partial witness reached 11/12. Allocations total exactly 60,000; "
+                "historical geometry and candidate hashes are not reused."
             )
             if access_intent is not None and node_budget == 60_000
             else (

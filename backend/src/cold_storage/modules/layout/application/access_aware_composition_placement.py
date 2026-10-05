@@ -56,7 +56,6 @@ from cold_storage.modules.layout.domain.truck_maneuver import (
     BoundTruckManeuverProjectInputV1,
 )
 
-MAX_ACCESS_VALIDATION_CHECKPOINTS_PER_FAMILY = 3
 NON_TRUCK_ACCESS_REQUIREMENT_COUNT = 11
 TRUCK_NODE_BUDGET = 20_000
 
@@ -72,8 +71,20 @@ class AccessAwareCompositionPlacementResultV1:
     construction_preflight: Mapping[str, str]
     placements: CompositionPlacementEnumerationV1
     candidate_assessments: tuple[Mapping[str, Any], ...]
+    complete_candidates_constructed: int
+    complete_candidates_access_assessed: int
+    candidates_admitted: int
+    candidates_selected: int
+    best_candidate_hash: str | None
     selected_candidate_hash: str | None
+    best_non_truck_access_pass_count: int
+    best_non_truck_access_fail_count: int
     selected_non_truck_access_pass_count: int
+    selected_non_truck_access_fail_count: int
+    packaging_preflight_pass_partial_count: int
+    packaging_preflight_pass_complete_candidate_count: int
+    packaging_final_access_pass_candidate_count: int
+    truck_preflight_complete_candidate_prune_count: int
     access_validation_attempts: int
     truck_validation_attempts: int
     p2d_validation_attempts: int
@@ -95,8 +106,26 @@ class AccessAwareCompositionPlacementResultV1:
             "construction_preflight": dict(self.construction_preflight),
             "placements": self.placements.to_dict(),
             "candidate_assessments": [dict(row) for row in self.candidate_assessments],
+            "complete_candidates_constructed": self.complete_candidates_constructed,
+            "complete_candidates_access_assessed": self.complete_candidates_access_assessed,
+            "candidates_admitted": self.candidates_admitted,
+            "candidates_selected": self.candidates_selected,
+            "best_candidate_hash": self.best_candidate_hash,
             "selected_candidate_hash": self.selected_candidate_hash,
+            "best_non_truck_access_pass_count": self.best_non_truck_access_pass_count,
+            "best_non_truck_access_fail_count": self.best_non_truck_access_fail_count,
             "selected_non_truck_access_pass_count": self.selected_non_truck_access_pass_count,
+            "selected_non_truck_access_fail_count": self.selected_non_truck_access_fail_count,
+            "packaging_preflight_pass_partial_count": (self.packaging_preflight_pass_partial_count),
+            "packaging_preflight_pass_complete_candidate_count": (
+                self.packaging_preflight_pass_complete_candidate_count
+            ),
+            "packaging_final_access_pass_candidate_count": (
+                self.packaging_final_access_pass_candidate_count
+            ),
+            "truck_preflight_complete_candidate_prune_count": (
+                self.truck_preflight_complete_candidate_prune_count
+            ),
             "access_validation_attempts": self.access_validation_attempts,
             "truck_validation_attempts": self.truck_validation_attempts,
             "p2d_validation_attempts": self.p2d_validation_attempts,
@@ -321,10 +350,12 @@ def search_access_aware_composition_placements(
 ) -> AccessAwareCompositionPlacementResultV1:
     """Replay authority, build with access intents, and validate complete checkpoints.
 
-    The only geometry admission path is the composition-native engine. Search
-    callbacks invoke the existing 11 non-Truck Access predicates; candidates
-    below the control improvement threshold are not admitted. Full P2D is
-    independently replayed only for an 11/11 non-Truck candidate.
+    The only geometry construction path is the composition-native engine.
+    Every completed hard-subset candidate is retained and assessed by the
+    existing 11 non-Truck Access predicates; Access score affects ranking only
+    after geometry exists. Truck preflight follows that ranking and cannot
+    prune complete candidates. Full P2D is independently replayed only for a
+    selected 11/11 non-Truck candidate with a permissive necessary preflight.
     """
     if node_budget != DEFAULT_COMPOSITION_PLACEMENT_NODE_BUDGET:
         raise ValueError("COMPOSITION_PLACEMENT_NODE_BUDGET_FROZEN")
@@ -358,29 +389,15 @@ def search_access_aware_composition_placements(
     else:
         bound_truck = BoundTruckManeuverProjectInputV1.from_mapping(truck_binding_source)
     assessment_rows: list[dict[str, Any]] = []
-    probes_by_family: Counter[str] = Counter()
 
-    def preflight_shipping(
-        _handoff: Any, zones: Mapping[str, PlacedRectangleV1]
-    ) -> Mapping[str, Any]:
-        return _truck_necessary_preflight(zones, intent, site_geometry.to_dict())
-
-    def assess_complete_candidate(handoff: Any, zones: Mapping[str, PlacedRectangleV1]) -> bool:
-        family = handoff.family.value
-        if probes_by_family[family] >= MAX_ACCESS_VALIDATION_CHECKPOINTS_PER_FAMILY:
-            return False
+    def assess_complete_candidate(
+        handoff: Any,
+        zones: Mapping[str, PlacedRectangleV1],
+        bank_sign: int,
+        search_order_lane: str,
+        nodes_at_discovery: int,
+    ) -> bool:
         signature = _geometry_signature(zones)
-        duplicate = next(
-            (
-                row
-                for row in assessment_rows
-                if row["candidate_geometry_hash"] == signature
-                and row["composition_identity"] == handoff.composition_identity
-            ),
-            None,
-        )
-        if duplicate is not None:
-            return int(duplicate["non_truck_access_pass_count"]) > 7
         route_results: list[dict[str, Any]] = []
         for requirement in non_truck:
             routed, _corridors = validate_access_requirement(
@@ -392,7 +409,16 @@ def search_access_aware_composition_placements(
                 entrances=entrances,
                 route_node_budget=route_node_budget,
             )
-            route_results.append(routed)
+            route_results.append(
+                {
+                    "requirement_identity": str(requirement.get("identity", "")),
+                    "from_ref": str(requirement.get("from_ref", "")),
+                    "to_ref": str(requirement.get("to_ref", "")),
+                    "flow_kind": str(requirement.get("flow_kind", "")),
+                    "route_shape_constraint": str(requirement.get("route_shape_constraint", "")),
+                    **routed,
+                }
+            )
         pass_count = sum(row.get("status") == "PASS" for row in route_results)
         codes: Counter[str] = Counter(
             str(code)
@@ -400,7 +426,6 @@ def search_access_aware_composition_placements(
             if row.get("status") != "PASS"
             for code in row.get("codes", [])
         )
-        probes_by_family[family] += 1
         assessment_rows.append(
             {
                 "candidate_geometry_hash": signature,
@@ -409,21 +434,35 @@ def search_access_aware_composition_placements(
                 "family": handoff.family.value,
                 "process_axis": handoff.process_axis.value,
                 "process_direction": handoff.process_direction.value,
+                "bank_sign": bank_sign,
+                "search_order_lane": search_order_lane,
+                "nodes_at_discovery": nodes_at_discovery,
                 "zone_bounds_mm": {
                     role: list(rectangle.bounds_mm) for role, rectangle in sorted(zones.items())
                 },
+                # Reaching a full candidate proves the unchanged CR1 straight
+                # interface construction preflight passed for this packaging
+                # placement; the Access authority result is recorded separately.
+                "packaging_straight_construction_preflight_passed": True,
                 "non_truck_access_requirement_count": len(non_truck),
                 "non_truck_access_pass_count": pass_count,
                 "non_truck_access_fail_count": len(non_truck) - pass_count,
                 "access_results": route_results,
                 "failure_code_counts": dict(sorted(codes.items())),
-                "checkpoint_limit_per_family": MAX_ACCESS_VALIDATION_CHECKPOINTS_PER_FAMILY,
+                "truck_preflight": {
+                    "status": "NOT_RUN_UNTIL_NON_TRUCK_RANKING",
+                    "truck_validated": False,
+                    "construction_preflight_is_truck_authority": False,
+                },
+                "access_assessed_before_truck_preflight": True,
+                "candidate_admitted_for_access_progress": pass_count > 7,
+                "truck_preflight_complete_candidate_prune_count": 0,
             }
         )
-        return (
-            pass_count > 7
-            or probes_by_family[family] >= MAX_ACCESS_VALIDATION_CHECKPOINTS_PER_FAMILY
-        )
+        # A complete hard-subset geometry is always observable. Access score
+        # affects ranking/admission only after construction; it must not turn a
+        # complete candidate into a hidden DFS failure.
+        return True
 
     placements = enumerate_domain_placements(
         composition_result.placement_handoffs,
@@ -435,34 +474,46 @@ def search_access_aware_composition_placements(
         node_budget=node_budget,
         access_intent=intent,
         complete_candidate_admission=assess_complete_candidate,
-        shipping_candidate_preflight=preflight_shipping,
     )
 
-    assessment_by_identity_and_geometry = {
-        (row["composition_identity"], row["candidate_geometry_hash"]): row
-        for row in assessment_rows
-    }
     assessed_candidates: list[tuple[CompositionPlacementCandidateV1, dict[str, Any]]] = []
-    for candidate in placements.candidates:
+    for candidate, original_row in zip(placements.candidates, assessment_rows, strict=True):
         zones = {zone.zone_code: zone for zone in candidate.zones}
-        row = assessment_by_identity_and_geometry.get(
-            (candidate.composition_identity, _geometry_signature(zones))
-        )
-        if row is not None:
-            row = dict(row)
-            row["candidate_hash"] = candidate.canonical_result_hash
-            assessed_candidates.append((candidate, row))
-    selected_pair = max(
+        row = original_row
+        if row["composition_identity"] != candidate.composition_identity or row[
+            "candidate_geometry_hash"
+        ] != _geometry_signature(zones):
+            raise RuntimeError("COMPLETE_CANDIDATE_ASSESSMENT_REPLAY_MISMATCH")
+        row["candidate_hash"] = candidate.canonical_result_hash
+        row["search_provenance"] = dict(candidate.search_provenance)
+        assessed_candidates.append((candidate, row))
+    best_pair = max(
         assessed_candidates,
         key=lambda pair: (
             int(pair[1]["non_truck_access_pass_count"]),
             pair[1]["family"] == "LINEAR_BANDED",
-            pair[0].composition_identity,
+            pair[1]["candidate_geometry_hash"],
+            pair[1]["search_order_lane"],
+        ),
+        default=None,
+    )
+    admitted_pairs = [
+        pair for pair in assessed_candidates if int(pair[1]["non_truck_access_pass_count"]) > 7
+    ]
+    selected_pair = max(
+        admitted_pairs,
+        key=lambda pair: (
+            int(pair[1]["non_truck_access_pass_count"]),
+            pair[1]["family"] == "LINEAR_BANDED",
+            pair[1]["candidate_geometry_hash"],
+            pair[1]["search_order_lane"],
         ),
         default=None,
     )
     selected_candidate = selected_pair[0] if selected_pair else None
     selected_assessment = selected_pair[1] if selected_pair else None
+    best_candidate = best_pair[0] if best_pair else None
+    best_assessment = best_pair[1] if best_pair else None
     truck_preflight: dict[str, Any] | None = None
     final_validation: Mapping[str, Any] | None = None
     truck_attempts = 0
@@ -473,6 +524,8 @@ def search_access_aware_composition_placements(
             intent,
             site_geometry.to_dict(),
         )
+        if selected_assessment is not None:
+            selected_assessment["truck_preflight"] = truck_preflight
         if (
             selected_assessment is not None
             and truck_preflight is not None
@@ -511,12 +564,44 @@ def search_access_aware_composition_placements(
         construction_preflight=_interface_preflight(binding, intent),
         placements=placements,
         candidate_assessments=tuple(assessment_rows),
+        complete_candidates_constructed=len(placements.candidates),
+        complete_candidates_access_assessed=len(assessment_rows),
+        candidates_admitted=len(admitted_pairs),
+        candidates_selected=1 if selected_candidate is not None else 0,
+        best_candidate_hash=(
+            best_candidate.canonical_result_hash if best_candidate is not None else None
+        ),
         selected_candidate_hash=(
             selected_candidate.canonical_result_hash if selected_candidate else None
+        ),
+        best_non_truck_access_pass_count=(
+            int(best_assessment["non_truck_access_pass_count"]) if best_assessment else 0
+        ),
+        best_non_truck_access_fail_count=(
+            int(best_assessment["non_truck_access_fail_count"]) if best_assessment else 11
         ),
         selected_non_truck_access_pass_count=(
             int(selected_assessment["non_truck_access_pass_count"]) if selected_assessment else 0
         ),
+        selected_non_truck_access_fail_count=(
+            int(selected_assessment["non_truck_access_fail_count"]) if selected_assessment else 11
+        ),
+        packaging_preflight_pass_partial_count=sum(
+            attempt.packaging_preflight_pass_partial_count for attempt in placements.search_attempts
+        ),
+        packaging_preflight_pass_complete_candidate_count=sum(
+            int(row["packaging_straight_construction_preflight_passed"]) for row in assessment_rows
+        ),
+        packaging_final_access_pass_candidate_count=sum(
+            any(
+                row.get("from_ref") == "packaging_material_storage"
+                and row.get("to_ref") == "sorting_packaging_room"
+                and row.get("status") == "PASS"
+                for row in candidate_row["access_results"]
+            )
+            for candidate_row in assessment_rows
+        ),
+        truck_preflight_complete_candidate_prune_count=0,
         access_validation_attempts=len(assessment_rows),
         truck_validation_attempts=truck_attempts,
         p2d_validation_attempts=p2d_attempts,
