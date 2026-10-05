@@ -1080,15 +1080,18 @@ NO_STEP_IMPLIES_THE_NEXT=true
 ## V2.2.2 P1A Reset P1-S3 — composition-constrained exact-placement MVP
 
 P1-S3 adds a server-replayed composition placement path and an independent,
-bounded rectangle-placement domain. It shares layout authority binding with
-legacy placement and preserves the composition, dimension, site, and MUST
-adjacency authorities. The first 60,000-node Xinzhao attempt covered all three
-families but emitted no complete 12-zone composition-native candidate; the
-MVP candidate gate is therefore **FAIL**. Access, Truck, P2D, selection, and
-Tool 7 remain outside this slice, and P1 is not complete.
+bounded rectangle-placement domain. Its main implementation attempt remains
+historically **FAIL** (zero complete candidates). Owner-authorized Correction
+Round 1 changed finite anchor construction and coupled Shipping/Office
+preflight without raising the 60,000-node budget. The real Xinzhao replay now
+emits one composition-native 12-zone candidate in `LINEAR_BANDED`; it passes
+site, dimension, non-overlap, 7/7 MUST adjacency, and composition-intent
+checks. Access, Truck, and P2D remain unvalidated, so this is only the S3 hard
+subset MVP and P1 is not complete. Correction Round 2 is unauthorized.
 
 See the [P1-S3 task record](V2_2_2-P1A-whole-building-composition-P1-S3.md)
-and [exact-placement evidence](evidence/v2_2_2_p1a_reset_s3/xinzhao_composition_exact_placements.json).
+and [main-attempt evidence](evidence/v2_2_2_p1a_reset_s3/xinzhao_composition_exact_placements.json)
+and [CR1 evidence](evidence/v2_2_2_p1a_reset_s3/xinzhao_composition_exact_placements_cr1.json).
 
 ```ini
 TASK_ID=V2_2_2_P1A_WHOLE_BUILDING_COMPOSITION_P1_S3
@@ -1101,17 +1104,25 @@ COMPOSITION_PLACEMENT_NODE_BUDGET=60000
 FAMILY_COUNT=3
 ALL_FAMILIES_EXACT_PLACEMENT_ATTEMPTED=true
 FAMILY_FIRST_EXACT_PLACEMENT_ROUND_COMPLETE=true
-COMPOSITION_NATIVE_COMPLETE_CANDIDATE_COUNT=0
-COMPLETE_12_ZONE_PLACEMENT_COUNT=0
+P1_S3_MAIN_IMPLEMENTATION_CANDIDATE_COUNT=0
+P1_S3_MAIN_IMPLEMENTATION_COMPLETE_12_ZONE_COUNT=0
+CURRENT_CR1_COMPOSITION_NATIVE_COMPLETE_CANDIDATE_COUNT=1
+CURRENT_CR1_COMPLETE_12_ZONE_PLACEMENT_COUNT=1
+CURRENT_CR1_CANDIDATE_FAMILY=LINEAR_BANDED
 P1_S3_STATUS=MVP_DRAFT_REVIEW
+P1_S3_MAIN_IMPLEMENTATION_RESULT=FAIL
+P1_S3_CR1_RESULT=PASS
+P1_S3_CR1_NODES_USED=50621
+P1_S3_CR1_COMPOSITION_NATIVE_COMPLETE_CANDIDATE_COUNT=1
+P1_S3_CR1_COMPLETE_CANDIDATE_FAMILY=LINEAR_BANDED
 P1_COMPLETE=false
 ACCESS_ROUTING_IMPLEMENTED=false
 TRUCK_VALIDATION_IMPLEMENTED=false
 P2D_IMPLEMENTED=false
 VALIDATED_CANDIDATE_SELECTOR_CHANGED=false
 TOOL7_BEHAVIOR_CHANGED=false
-RECOVERY_ROUND_USED=0
-RECOVERY_ROUND_1_AUTHORIZED=false
+RECOVERY_ROUND_USED=1
+RECOVERY_ROUND_1_AUTHORIZED=true
 RECOVERY_ROUND_2_AUTHORIZED=false
 READY_AUTHORIZED=false
 MERGE_AUTHORIZED=false

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200" viewBox="0 0 1600 1200">
+<defs><marker id="arrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#b43b2d"/></marker></defs>
+<rect width="1600" height="1200" fill="#fbfcfe"/>
+<text x="100" y="48" font-family="Arial,sans-serif" font-size="27" font-weight="700" fill="#162d43">Xinzhao composition-constrained exact placement — CR1</text>
+<text x="100" y="80" font-family="Arial,sans-serif" font-size="16" fill="#526579">Exact rectangles, hard subset only. Access / Truck / P2D were not run; this is not a building-footprint claim.</text>
+<text x="100" y="122" font-family="Arial,sans-serif" font-size="17" font-weight="700" fill="#b43b2d">RAW → PROCESS CORE → FINISHED → SHIPPING</text>
+<line x1="650" y1="116" x2="1480" y2="116" stroke="#b43b2d" stroke-width="3" marker-end="url(#arrow)"/>
+<polygon points="175.74,1060.00 1424.26,1060.00 1424.26,150.00 175.74,150.00" fill="#f2f5f7" stroke="#19324c" stroke-width="3"/>
+<polygon points="175.74,916.04 418.94,916.04 418.94,749.77 175.74,749.77" fill="#d8dde3" stroke="#7f8995" stroke-width="1.5"/>
+<text x="297.3" y="832.9" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#4c5662">NO-BUILD</text>
+<polygon points="865.98,613.27 1416.63,613.27 1416.63,408.36 865.98,408.36" fill="#d8dde3" stroke="#7f8995" stroke-width="1.5"/>
+<text x="1141.3" y="510.8" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#4c5662">NO-BUILD</text>
+<polygon points="865.98,408.34 1416.63,408.34 1416.63,168.43 865.98,168.43" fill="#d8dde3" stroke="#7f8995" stroke-width="1.5"/>
+<text x="1141.3" y="288.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#4c5662">NO-BUILD</text>
+<rect x="483.8" y="271.0" width="128.2" height="128.2" rx="4" fill="#f7d9e4" stroke="#263d54" stroke-width="1.7"/>
+<text x="547.9" y="339.1" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">Office</text>
+<rect x="536.3" y="506.8" width="104.6" height="104.6" rx="4" fill="#f7d9e4" stroke="#263d54" stroke-width="1.7"/>
+<text x="588.6" y="556.6" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">Changing</text>
+<text x="588.6" y="569.6" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">room</text>
+<rect x="866.0" y="893.7" width="243.2" height="166.3" rx="4" fill="#dcecff" stroke="#263d54" stroke-width="1.7"/>
+<text x="987.6" y="974.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">Primary</text>
+<text x="987.6" y="987.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">precooling</text>
+<rect x="474.7" y="759.4" width="166.3" height="162.1" rx="4" fill="#ffe1aa" stroke="#263d54" stroke-width="1.7"/>
+<text x="557.8" y="838.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">Secondary</text>
+<text x="557.8" y="851.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">precooling</text>
+<rect x="1109.2" y="916.1" width="251.5" height="143.9" rx="4" fill="#dcecff" stroke="#263d54" stroke-width="1.7"/>
+<text x="1234.9" y="985.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">Raw fruit</text>
+<text x="1234.9" y="998.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">buffer</text>
+<rect x="640.9" y="164.4" width="225.0" height="757.1" rx="4" fill="#ffe1aa" stroke="#263d54" stroke-width="1.7"/>
+<text x="753.5" y="540.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">Sorting /</text>
+<text x="753.5" y="553.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">packaging</text>
+<rect x="483.8" y="611.4" width="148.0" height="148.0" rx="4" fill="#ffe1aa" stroke="#263d54" stroke-width="1.7"/>
+<text x="557.8" y="689.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">Coating</text>
+<rect x="176.1" y="213.7" width="307.7" height="536.1" rx="4" fill="#d8f0dd" stroke="#263d54" stroke-width="1.7"/>
+<text x="329.9" y="485.7" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">Finished goods</text>
+<rect x="1152.2" y="777.1" width="114.2" height="139.0" rx="4" fill="#e7def8" stroke="#263d54" stroke-width="1.7"/>
+<text x="1209.3" y="844.1" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">Secondary fruit</text>
+<text x="1209.3" y="857.1" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">buffer</text>
+<rect x="1266.4" y="737.4" width="135.7" height="178.7" rx="4" fill="#e7def8" stroke="#263d54" stroke-width="1.7"/>
+<text x="1334.2" y="824.2" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">Frozen fruit</text>
+<text x="1334.2" y="837.2" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">room</text>
+<rect x="866.0" y="653.8" width="286.2" height="239.9" rx="4" fill="#e7def8" stroke="#263d54" stroke-width="1.7"/>
+<text x="1009.1" y="771.3" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">Packaging</text>
+<text x="1009.1" y="784.3" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">storage</text>
+<rect x="483.8" y="399.2" width="127.3" height="107.5" rx="4" fill="#d8f0dd" stroke="#263d54" stroke-width="1.7"/>
+<text x="547.4" y="457.0" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#142c43">Shipping</text>
+<text x="100" y="1128" font-family="Arial,sans-serif" font-size="15" fill="#334b63">Family: LINEAR_BANDED  •  axis: Y  •  direction: POSITIVE  •  zones: 12/12  •  MUST adjacency: 7/7</text>
+<text x="100" y="1158" font-family="Arial,sans-serif" font-size="14" fill="#526579">Construction result only • route status remains PENDING_ROUTE_VALIDATION • legacy fallback not used</text>
+<g font-family="Arial,sans-serif" font-size="13" fill="#24384b"><rect x="930" y="1110" width="18" height="14" fill="#dcecff" stroke="#263d54"/><text x="955" y="1122">RAW</text><rect x="1010" y="1110" width="18" height="14" fill="#ffe1aa" stroke="#263d54"/><text x="1035" y="1122">PROCESS</text><rect x="1125" y="1110" width="18" height="14" fill="#d8f0dd" stroke="#263d54"/><text x="1150" y="1122">FINISHED</text><rect x="1250" y="1110" width="18" height="14" fill="#e7def8" stroke="#263d54"/><text x="1275" y="1122">SUPPORT</text><rect x="1380" y="1110" width="18" height="14" fill="#f7d9e4" stroke="#263d54"/><text x="1405" y="1122">PERSONNEL</text></g>
+</svg>

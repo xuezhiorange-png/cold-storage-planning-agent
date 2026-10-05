@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 from math import isqrt
 from typing import Any
@@ -47,6 +47,7 @@ FAMILY_ORDER = (
 DEFAULT_COMPOSITION_PLACEMENT_NODE_BUDGET = 60_000
 MAX_COMPOSITION_PLACEMENT_NODE_BUDGET = DEFAULT_COMPOSITION_PLACEMENT_NODE_BUDGET
 GRID_MM = 1
+GENERIC_FALLBACK_ANCHOR_LIMIT_PER_ROLE = 24
 
 
 @dataclass(frozen=True)
@@ -155,7 +156,19 @@ class CompositionPlacementSearchAttemptV1:
     construction_domains: tuple[ConstructionDomainV1, ...]
     nodes_allocated: int
     nodes_visited: int
-    deepest_role_reached: str
+    deepest_role_attempted: str
+    deepest_role_successfully_placed: str
+    max_simultaneously_placed_role_count: int
+    role_search_funnel: tuple[RoleSearchFunnelV1, ...]
+    domain_derived_anchor_count_by_role: tuple[tuple[str, int], ...]
+    generic_fallback_anchor_count_by_role: tuple[tuple[str, int], ...]
+    generic_fallback_node_count_by_role: tuple[tuple[str, int], ...]
+    authority_shape_variant_count_by_role: tuple[tuple[str, int], ...]
+    construction_shape_variant_count_by_role: tuple[tuple[str, int], ...]
+    shipping_office_interface_preflight_status: str
+    band_capacity_preflight_status: str
+    peripheral_capacity_preflight_status: str
+    best_partial_placement_witness: PartialPlacementWitnessV1
     node_budget_exhausted: bool
     complete_layout_found: bool
     failure_reason: str | None
@@ -171,11 +184,142 @@ class CompositionPlacementSearchAttemptV1:
             "construction_domains": [asdict(domain) for domain in self.construction_domains],
             "nodes_allocated": self.nodes_allocated,
             "nodes_visited": self.nodes_visited,
-            "deepest_role_reached": self.deepest_role_reached,
+            "deepest_role_attempted": self.deepest_role_attempted,
+            "deepest_role_successfully_placed": self.deepest_role_successfully_placed,
+            "max_simultaneously_placed_role_count": self.max_simultaneously_placed_role_count,
+            "role_search_funnel": [item.to_dict() for item in self.role_search_funnel],
+            "domain_derived_anchor_count_by_role": dict(self.domain_derived_anchor_count_by_role),
+            "generic_fallback_anchor_count_by_role": dict(
+                self.generic_fallback_anchor_count_by_role
+            ),
+            "generic_fallback_used_by_role": {
+                role: count > 0 for role, count in self.generic_fallback_node_count_by_role
+            },
+            "generic_fallback_node_count_by_role": dict(self.generic_fallback_node_count_by_role),
+            "domain_derived_anchor_path_is_primary_by_role": {
+                role: True for role, _ in self.domain_derived_anchor_count_by_role
+            },
+            "authority_shape_variant_count_by_role": dict(
+                self.authority_shape_variant_count_by_role
+            ),
+            "construction_shape_variant_count_by_role": dict(
+                self.construction_shape_variant_count_by_role
+            ),
+            "shipping_office_interface_preflight_status": (
+                self.shipping_office_interface_preflight_status
+            ),
+            "band_capacity_preflight_status": self.band_capacity_preflight_status,
+            "peripheral_capacity_preflight_status": self.peripheral_capacity_preflight_status,
+            "best_partial_placement_witness": self.best_partial_placement_witness.to_dict(),
             "node_budget_exhausted": self.node_budget_exhausted,
             "complete_layout_found": self.complete_layout_found,
             "failure_reason": self.failure_reason,
         }
+
+
+@dataclass(frozen=True)
+class RoleSearchFunnelV1:
+    zone_role: str
+    role_attempt_count: int
+    authority_shape_variant_count: int
+    authority_rotation_variant_count: int
+    construction_shape_variant_count: int
+    shape_variant_attempt_count: int
+    domain_derived_anchor_count: int
+    generic_fallback_anchor_count: int
+    candidate_rectangle_attempt_count: int
+    site_rejection_count: int
+    obstacle_rejection_count: int
+    overlap_rejection_count: int
+    domain_side_rejection_count: int
+    must_edge_rejection_count: int
+    coupled_interface_rejection_count: int
+    composition_intent_rejection_count: int
+    accepted_partial_placement_count: int
+    backtrack_count: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "zone_role": self.zone_role,
+            "role_attempt_count": self.role_attempt_count,
+            "authority_shape_variant_count": self.authority_shape_variant_count,
+            "authority_rotation_variant_count": self.authority_rotation_variant_count,
+            "construction_shape_variant_count": self.construction_shape_variant_count,
+            "shape_variant_attempt_count": self.shape_variant_attempt_count,
+            "domain_derived_anchor_count": self.domain_derived_anchor_count,
+            "generic_fallback_anchor_count": self.generic_fallback_anchor_count,
+            "candidate_rectangle_attempt_count": self.candidate_rectangle_attempt_count,
+            "site_rejection_count": self.site_rejection_count,
+            "obstacle_rejection_count": self.obstacle_rejection_count,
+            "overlap_rejection_count": self.overlap_rejection_count,
+            "domain_side_rejection_count": self.domain_side_rejection_count,
+            "must_edge_rejection_count": self.must_edge_rejection_count,
+            "coupled_interface_rejection_count": self.coupled_interface_rejection_count,
+            "composition_intent_rejection_count": self.composition_intent_rejection_count,
+            "accepted_partial_placement_count": self.accepted_partial_placement_count,
+            "backtrack_count": self.backtrack_count,
+        }
+
+
+@dataclass(frozen=True)
+class PartialPlacementWitnessV1:
+    composition_identity: str
+    placed_roles: tuple[str, ...]
+    zone_bounds_mm: tuple[tuple[str, tuple[int, int, int, int]], ...]
+    next_role: str
+    failure_taxonomy: str
+    hard_subset_rejection_count: int
+    bank_sign: int
+    nodes_used: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "composition_identity": self.composition_identity,
+            "placed_roles": list(self.placed_roles),
+            "zone_bounds_mm": {role: list(bounds) for role, bounds in self.zone_bounds_mm},
+            "next_role": self.next_role,
+            "failure_taxonomy": self.failure_taxonomy,
+            "hard_subset_rejection_count": self.hard_subset_rejection_count,
+            "bank_sign": self.bank_sign,
+            "nodes_used": self.nodes_used,
+            "is_complete_candidate": False,
+        }
+
+
+@dataclass
+class _SearchDiagnostics:
+    node_limit: int = 0
+    nodes: int = 0
+    budget_hit: bool = False
+    deepest_attempted: str = "NOT_ATTEMPTED"
+    deepest_successfully_placed: str = "NOT_PLACED"
+    max_placed: int = 0
+    generic_nodes: int = 0
+    failure_taxonomy: str = "SEARCH_STARTED"
+    shipping_office_status: str = "PASS_TO_SEARCH"
+    band_capacity_status: str = "UNKNOWN_NOT_PROVEN_IMPOSSIBLE"
+    peripheral_capacity_status: str = "UNKNOWN_NOT_PROVEN_IMPOSSIBLE"
+    best_witness: PartialPlacementWitnessV1 | None = None
+    best_witness_key: tuple[int, int, tuple[tuple[str, tuple[int, int, int, int]], ...]] | None = (
+        None
+    )
+    office_seed_by_shipping: dict[tuple[int, int, int, int], tuple[_Shape, tuple[int, int]]] = (
+        field(default_factory=dict)
+    )
+    funnel: dict[str, dict[str, int]] = field(default_factory=dict)
+    domain_anchor_count: dict[str, int] = field(default_factory=dict)
+    generic_anchor_count: dict[str, int] = field(default_factory=dict)
+    generic_nodes_by_role: dict[str, int] = field(default_factory=dict)
+    authority_shape_count: dict[str, int] = field(default_factory=dict)
+    construction_shape_count: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class _SearchOutcome:
+    solution: dict[str, PlacedRectangleV1] | None
+    diagnostics: _SearchDiagnostics
+    deepest_attempted: str
+    deepest_successfully_placed: str
 
 
 @dataclass(frozen=True)
@@ -185,11 +329,20 @@ class CompositionPlacementEnumerationV1:
     node_budget: int
     nodes_used: int
     node_budget_exhausted: bool
+    initial_family_budget: int
+    continuation_budget: int
+    continuation_selection_reason: str
     family_coverage_order: tuple[str, ...]
     family_first_round_complete: bool
     attempt_count_by_family: tuple[tuple[str, int], ...]
     nodes_used_by_family: tuple[tuple[str, int], ...]
-    deepest_role_reached_by_family: tuple[tuple[str, str], ...]
+    deepest_role_attempted_by_family: tuple[tuple[str, str], ...]
+    deepest_role_successfully_placed_by_family: tuple[tuple[str, str], ...]
+    max_simultaneously_placed_role_count_by_family: tuple[tuple[str, int], ...]
+    best_partial_placement_witness_by_family: tuple[tuple[str, PartialPlacementWitnessV1], ...]
+    domain_derived_anchor_count_by_family: tuple[tuple[str, int], ...]
+    generic_fallback_anchor_count_by_family: tuple[tuple[str, int], ...]
+    generic_fallback_node_count_by_family: tuple[tuple[str, int], ...]
     failure_reason_by_family: tuple[tuple[str, str], ...]
     search_attempts: tuple[CompositionPlacementSearchAttemptV1, ...]
     candidates: tuple[CompositionPlacementCandidateV1, ...]
@@ -206,11 +359,33 @@ class CompositionPlacementEnumerationV1:
             "node_budget": self.node_budget,
             "nodes_used": self.nodes_used,
             "node_budget_exhausted": self.node_budget_exhausted,
+            "initial_family_budget": self.initial_family_budget,
+            "continuation_budget": self.continuation_budget,
+            "continuation_selection_reason": self.continuation_selection_reason,
             "family_coverage_order": list(self.family_coverage_order),
             "family_first_round_complete": self.family_first_round_complete,
             "attempt_count_by_family": dict(self.attempt_count_by_family),
             "nodes_used_by_family": dict(self.nodes_used_by_family),
-            "deepest_role_reached_by_family": dict(self.deepest_role_reached_by_family),
+            "deepest_role_attempted_by_family": dict(self.deepest_role_attempted_by_family),
+            "deepest_role_successfully_placed_by_family": dict(
+                self.deepest_role_successfully_placed_by_family
+            ),
+            "max_simultaneously_placed_role_count_by_family": dict(
+                self.max_simultaneously_placed_role_count_by_family
+            ),
+            "best_partial_placement_witness_by_family": {
+                family: witness.to_dict()
+                for family, witness in self.best_partial_placement_witness_by_family
+            },
+            "domain_derived_anchor_count_by_family": dict(
+                self.domain_derived_anchor_count_by_family
+            ),
+            "generic_fallback_anchor_count_by_family": dict(
+                self.generic_fallback_anchor_count_by_family
+            ),
+            "generic_fallback_node_count_by_family": dict(
+                self.generic_fallback_node_count_by_family
+            ),
             "failure_reason_by_family": dict(self.failure_reason_by_family),
             "search_attempts": [attempt.to_dict() for attempt in self.search_attempts],
             "candidates": [candidate.to_dict() for candidate in self.candidates],
@@ -250,6 +425,96 @@ def _mm(value: object) -> int:
 
 def _m(value: int) -> Decimal:
     return Decimal(value) / 1000
+
+
+def _polygon_area_mm2(polygon: PolygonMM) -> int:
+    return (
+        abs(
+            sum(
+                first[0] * second[1] - second[0] * first[1]
+                for first, second in zip(polygon, polygon[1:] + polygon[:1], strict=True)
+            )
+        )
+        // 2
+    )
+
+
+def _authority_area_mm2(authority: Mapping[str, Any]) -> int:
+    required = authority.get("required_area_m2")
+    if required is not None:
+        return int(Decimal(str(required)) * 1_000_000)
+    geometry = authority.get("geometry")
+    if not isinstance(geometry, Mapping):
+        raise ValueError("DIMENSION_AUTHORITY_AREA_MISSING")
+    return _mm(geometry.get("width_m")) * _mm(geometry.get("depth_m"))
+
+
+def _capacity_preflight_status(
+    role_groups: Sequence[Sequence[str]],
+    authorities: Mapping[str, Mapping[str, Any]],
+    authority_shapes: Mapping[str, Sequence[_Shape]],
+    boundary: PolygonMM,
+) -> str:
+    """Apply only gross-area and bounding-box necessary capacity checks."""
+    site_area = _polygon_area_mm2(boundary)
+    min_x, max_x = min(point[0] for point in boundary), max(point[0] for point in boundary)
+    min_y, max_y = min(point[1] for point in boundary), max(point[1] for point in boundary)
+    bbox_width, bbox_depth = max_x - min_x, max_y - min_y
+    for role_group in role_groups:
+        roles = tuple(role_group)
+        if not roles:
+            continue
+        if sum(_authority_area_mm2(authorities[role]) for role in roles) > site_area:
+            return "PROVABLY_EXCEEDS_BUILDABLE_SITE_AREA"
+        for role in roles:
+            authority = authorities[role]
+            if authority.get("dimension_mode") == "FLEXIBLE_RECTANGLE":
+                # Area is the only lower bound here; flexible aspect semantics
+                # stay owned by the authoritative dimension validator.
+                continue
+            if not any(
+                shape.world_width_mm <= bbox_width and shape.world_depth_mm <= bbox_depth
+                for shape in authority_shapes[role]
+            ):
+                return f"PROVABLY_NO_AUTHORIZED_ORIENTATION_FITS_SITE_BOUNDS:{role}"
+    return "PASS_TO_SEARCH_GROSS_AREA_AND_SITE_BOUNDS"
+
+
+def _shipping_office_interface_preflight_status(
+    shipping_shapes: Sequence[_Shape],
+    office_shapes: Sequence[_Shape],
+    boundary: PolygonMM,
+) -> str:
+    """Check only whether any authorized shipping/office pair can share an edge
+    inside the site bounding box.
+
+    A possible pair is not a placement witness: concavity, obstacles, other
+    rooms, and composition domains still belong to exact search. Rejection is
+    safe only when no pair of allowed footprints can geometrically fit with a
+    positive shared edge even in the larger site bounding box.
+    """
+    min_x, max_x = min(point[0] for point in boundary), max(point[0] for point in boundary)
+    min_y, max_y = min(point[1] for point in boundary), max(point[1] for point in boundary)
+    site_width, site_depth = max_x - min_x, max_y - min_y
+    for shipping in shipping_shapes:
+        shipping_width, shipping_depth = shipping.world_width_mm, shipping.world_depth_mm
+        if shipping_width > site_width or shipping_depth > site_depth:
+            continue
+        for office in office_shapes:
+            office_width, office_depth = office.world_width_mm, office.world_depth_mm
+            if office_width > site_width or office_depth > site_depth:
+                continue
+            vertical_pair_fits = (
+                shipping_width + office_width <= site_width
+                and min(shipping_depth, office_depth) > 0
+            )
+            horizontal_pair_fits = (
+                shipping_depth + office_depth <= site_depth
+                and min(shipping_width, office_width) > 0
+            )
+            if vertical_pair_fits or horizontal_pair_fits:
+                return "PASS_TO_SEARCH_SITE_BOUNDS_NECESSARY_CONDITION"
+    return "PROVABLY_NO_SHARED_EDGE_CAPACITY_IN_SITE_BOUNDS"
 
 
 def _rectangle(code: str, x: int, y: int, shape: _Shape) -> PlacedRectangleV1:
@@ -339,6 +604,32 @@ def _authority_shapes(
             _Shape(width, depth, rotation) for width, depth in ordered for rotation in rotations
         )
     return shapes
+
+
+def _canonical_construction_shapes(
+    variants: Sequence[_Shape],
+) -> tuple[_Shape, ...]:
+    """Deduplicate equivalent world footprints without changing authority.
+
+    Each retained item remains an authority-approved width/depth/rotation
+    tuple.  This only removes construction-search variants that serialize
+    differently but produce the same axis-aligned footprint.
+    """
+    by_footprint: dict[tuple[int, int], _Shape] = {}
+    for shape in variants:
+        by_footprint.setdefault((shape.world_width_mm, shape.world_depth_mm), shape)
+    return tuple(
+        by_footprint[key]
+        for key in sorted(
+            by_footprint,
+            key=lambda pair: (
+                abs(pair[0] - pair[1]),
+                pair[0] * pair[1],
+                max(pair),
+                pair,
+            ),
+        )
+    )
 
 
 def _bounds(rect: PlacedRectangleV1) -> tuple[int, int, int, int]:
@@ -431,37 +722,6 @@ def _anchors_at_must_faces(
     return tuple(sorted(anchors))
 
 
-def _root_anchors(
-    shape: _Shape,
-    placed: Mapping[str, PlacedRectangleV1],
-    boundary: PolygonMM,
-    obstacles: Sequence[PolygonMM],
-) -> tuple[tuple[int, int], ...]:
-    width, depth = shape.world_width_mm, shape.world_depth_mm
-    xs, ys = _axis_events(
-        boundary=boundary,
-        obstacles=obstacles,
-        placed=placed,
-        width=width,
-        depth=depth,
-    )
-    min_x, max_x = min(point[0] for point in boundary), max(point[0] for point in boundary)
-    min_y, max_y = min(point[1] for point in boundary), max(point[1] for point in boundary)
-    center_x = (min_x + max_x - width) // 2
-    center_y = (min_y + max_y - depth) // 2
-    return tuple(
-        sorted(
-            {(x, y) for x in xs for y in ys},
-            key=lambda point: (
-                abs((2 * point[0] + width) - (min_x + max_x))
-                + abs((2 * point[1] + depth) - (min_y + max_y)),
-                abs(point[0] - center_x) + abs(point[1] - center_y),
-                point,
-            ),
-        )
-    )
-
-
 def _domain_faces(
     handoff: StructuralCompositionPlacementHandoffV1, bank_sign: int
 ) -> dict[str, tuple[str, int]]:
@@ -469,6 +729,12 @@ def _domain_faces(
     cross_axis = "Y" if axis == "X" else "X"
     direction_sign = 1 if handoff.process_direction == ProcessDirectionV1.POSITIVE else -1
     result: dict[str, tuple[str, int]] = {}
+    # Process-band side hints are ordering inputs only; group ordering remains
+    # the composition-level predicate rather than a new room-by-room rule.
+    result["raw_fruit_buffer"] = (axis, -direction_sign)
+    result["primary_precooling_room"] = (axis, -direction_sign)
+    result["finished_goods_room"] = (axis, direction_sign)
+    result["shipping_channel"] = (axis, direction_sign)
     if handoff.family == CompositionFamilyV2.CENTRAL_PROCESS_CORE:
         result["packaging_material_storage"] = (axis, direction_sign)
         result["secondary_fruit_buffer"] = (cross_axis, bank_sign)
@@ -535,6 +801,29 @@ def _domain_arrangement(
                 ),
             )
         )
+    if handoff.process_direction == ProcessDirectionV1.NEGATIVE:
+        reflected: list[ConstructionDomainV1] = []
+        for domain in domains:
+            interval = domain.preferred_interval_mm
+            if interval is None:
+                reflected.append(domain)
+                continue
+            low, high = interval
+            reflected.append(
+                ConstructionDomainV1(
+                    domain_id=domain.domain_id,
+                    zone_roles=domain.zone_roles,
+                    domain_kind=domain.domain_kind,
+                    reference_axis=domain.reference_axis,
+                    preferred_interval_mm=(min_x + max_x - high, min_x + max_x - low)
+                    if axis == "X"
+                    else (min_y + max_y - high, min_y + max_y - low),
+                    preferred_face=domain.preferred_face,
+                    origin_event_policy=domain.origin_event_policy,
+                    engineering_authority=domain.engineering_authority,
+                )
+            )
+        domains = reflected
     for band in all_bands:
         if band.sequence_index is not None:
             continue
@@ -550,22 +839,23 @@ def _domain_arrangement(
             )
         )
     faces = _domain_faces(handoff, bank_sign)
-    for domain in handoff.peripheral_domain_intents:
+    for peripheral_intent in handoff.peripheral_domain_intents:
         preferred = next(
             (
                 ("POSITIVE" if sign > 0 else "NEGATIVE") + f"_{ref_axis}"
                 for role, (ref_axis, sign) in faces.items()
-                if role in domain.zone_roles
+                if role in peripheral_intent.zone_roles
             ),
-            domain.relative_side,
+            peripheral_intent.relative_side,
         )
         domains.append(
             ConstructionDomainV1(
-                domain_id=domain.domain_id,
-                zone_roles=domain.zone_roles,
+                domain_id=peripheral_intent.domain_id,
+                zone_roles=peripheral_intent.zone_roles,
                 domain_kind="RESERVED_PERIPHERAL_SEARCH_DOMAIN",
                 reference_axis=next(
-                    (faces[role][0] for role in domain.zone_roles if role in faces), cross_axis
+                    (faces[role][0] for role in peripheral_intent.zone_roles if role in faces),
+                    cross_axis,
                 ),
                 preferred_interval_mm=None,
                 preferred_face=preferred,
@@ -583,6 +873,14 @@ def _side_ok(
     sorting: PlacedRectangleV1,
     faces: Mapping[str, tuple[str, int]],
 ) -> bool:
+    if role not in {
+        "packaging_material_storage",
+        "secondary_fruit_buffer",
+        "frozen_fruit_room",
+        "changing_room",
+        "office",
+    }:
+        return True
     side = faces.get(role)
     if side is None:
         return True
@@ -666,21 +964,77 @@ def _intent_preserved(
     return all(first <= second for first, second in zip(projections, projections[1:], strict=False))
 
 
+def _partial_intent_possible(
+    handoff: StructuralCompositionPlacementHandoffV1,
+    placed: Mapping[str, PlacedRectangleV1],
+    faces: Mapping[str, tuple[str, int]],
+) -> bool:
+    sorting = placed.get("sorting_packaging_room")
+    if sorting is None:
+        return True
+    if any(
+        not _side_ok(role, rectangle, sorting, faces)
+        for role, rectangle in placed.items()
+        if role in faces
+    ):
+        return False
+    axis = handoff.process_axis.value
+    sign = 1 if handoff.process_direction == ProcessDirectionV1.POSITIVE else -1
+
+    def group_center(roles: Sequence[str]) -> int:
+        return sum(_axis_coordinate(placed[role], axis) for role in roles) // len(roles)
+
+    raw_roles = ("raw_fruit_buffer", "primary_precooling_room")
+    core_roles = ("sorting_packaging_room", "secondary_precooling_room", "coating_room")
+    finished_roles = ("finished_goods_room", "shipping_channel")
+    if handoff.family == CompositionFamilyV2.PROCESS_SPINE_WITH_PERIPHERAL_BANKS:
+        flow = (
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel",
+        )
+        placed_flow = [
+            sign * _axis_coordinate(placed[role], axis) for role in flow if role in placed
+        ]
+        return all(
+            first <= second for first, second in zip(placed_flow, placed_flow[1:], strict=False)
+        )
+    if all(role in placed for role in raw_roles) and all(role in placed for role in core_roles):
+        raw_center, core_center = group_center(raw_roles), group_center(core_roles)
+        if handoff.family == CompositionFamilyV2.LINEAR_BANDED:
+            if (raw_center - core_center) * sign >= 0:
+                return False
+        elif (raw_center - _center(sorting, axis)) * sign >= 0:
+            return False
+    if all(role in placed for role in finished_roles) and all(
+        role in placed for role in core_roles
+    ):
+        finished_center, core_center = group_center(finished_roles), group_center(core_roles)
+        if handoff.family == CompositionFamilyV2.LINEAR_BANDED:
+            return (finished_center - core_center) * sign > 0
+        return (finished_center - _center(sorting, axis)) * sign > 0
+    return True
+
+
 def _zone_order(handoff: StructuralCompositionPlacementHandoffV1) -> tuple[str, ...]:
-    # Start with the composition core, then materialize its reserved support
-    # and personnel banks before extending both ends of the product chain.
-    # This is deliberately not a main-chain-complete-then-tail lifecycle.
+    # Composition-aware constrained-first sequence interleaves the already
+    # reserved branches with the process chain. It does not complete the main
+    # chain and then append every peripheral role. Shipping/Office stay coupled.
     return (
         "sorting_packaging_room",
+        "primary_precooling_room",
+        "raw_fruit_buffer",
         "secondary_precooling_room",
         "packaging_material_storage",
+        "coating_room",
+        "finished_goods_room",
         "secondary_fruit_buffer",
         "frozen_fruit_room",
         "changing_room",
-        "primary_precooling_room",
-        "raw_fruit_buffer",
-        "coating_room",
-        "finished_goods_room",
         "shipping_channel",
         "office",
     )
@@ -705,6 +1059,23 @@ def _composition_shape_order(
             result[role] = variants
             continue
         axis = faces.get(role, (handoff.process_axis.value, 1))[0]
+        if role == "sorting_packaging_room":
+            # Family topology determines the useful core footprint: linear and
+            # spine families align the long face with the process axis, while a
+            # central core keeps the short face on that axis so opposite
+            # process-side domains remain available around the organizer.
+            central_core = handoff.family == CompositionFamilyV2.CENTRAL_PROCESS_CORE
+            result[role] = tuple(
+                sorted(
+                    variants,
+                    key=lambda shape: (
+                        (shape.world_width_mm if axis == "X" else shape.world_depth_mm)
+                        * (1 if central_core else -1),
+                        shape.rotation_deg,
+                    ),
+                )
+            )
+            continue
         result[role] = tuple(
             sorted(
                 variants,
@@ -730,29 +1101,414 @@ def _domain_interval(
     return handoff.process_axis.value, None
 
 
+def _interval_origin_events(
+    interval: tuple[int, int] | None,
+    extent: int,
+) -> tuple[int, ...]:
+    if interval is None:
+        return ()
+    low, high = interval
+    return tuple(sorted({low, low + (high - low - extent) // 2, high - extent}))
+
+
+def _face_anchors(
+    base: PlacedRectangleV1,
+    shape: _Shape,
+    axis: str,
+    sign: int,
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+    placed: Mapping[str, PlacedRectangleV1],
+) -> set[tuple[int, int]]:
+    """Finite edge-event origins on a composition-selected face."""
+    left, bottom, right, top = _bounds(base)
+    width, depth = shape.world_width_mm, shape.world_depth_mm
+    xs, ys = _axis_events(
+        boundary=boundary,
+        obstacles=obstacles,
+        placed=placed,
+        width=width,
+        depth=depth,
+    )
+    result: set[tuple[int, int]] = set()
+    if axis == "X":
+        x = right if sign > 0 else left - width
+        cross_events = {
+            bottom,
+            top - depth,
+            (bottom + top - depth) // 2,
+            *(event for event in ys if event < top and event + depth > bottom),
+        }
+        for y in cross_events:
+            result.add((x, y))
+    else:
+        y = top if sign > 0 else bottom - depth
+        cross_events = {
+            left,
+            right - width,
+            (left + right - width) // 2,
+            *(event for event in xs if event < right and event + width > left),
+        }
+        for x in cross_events:
+            result.add((x, y))
+    return result
+
+
+def _domain_derived_anchors(
+    role: str,
+    shape: _Shape,
+    handoff: StructuralCompositionPlacementHandoffV1,
+    domains: Sequence[ConstructionDomainV1],
+    bank_sign: int,
+    placed: Mapping[str, PlacedRectangleV1],
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+) -> tuple[tuple[int, int], ...]:
+    """Construct a bounded role domain from composition and physical events.
+
+    MUST neighbors are used as authoritative attachment events where present;
+    branch and personnel roles are instead seeded from their assigned domain
+    face relative to Sorting and already-placed members of that bank.
+    """
+    width, depth = shape.world_width_mm, shape.world_depth_mm
+    neighbors = tuple(name for name in _must_neighbors(role) if name in placed)
+    if neighbors:
+        must_face_anchors = set(
+            _anchors_at_must_faces(role, shape, placed, neighbors, boundary, obstacles)
+        )
+        axis, interval = _domain_interval(role, handoff, domains)
+        if interval is not None:
+            # The primary domain is an actual finite subset, not merely an
+            # ordering preference. Out-of-band MUST-face events remain
+            # available through the bounded generic physical-event fallback.
+            band_low, band_high = interval
+
+            def center_in_band(point: tuple[int, int]) -> bool:
+                projection = point[0] + width // 2 if axis == "X" else point[1] + depth // 2
+                return band_low <= projection <= band_high
+
+            must_face_anchors = {point for point in must_face_anchors if center_in_band(point)}
+        return tuple(sorted(must_face_anchors))
+
+    if role == "sorting_packaging_room":
+        axis, interval = _domain_interval(role, handoff, domains)
+        min_x, max_x = min(point[0] for point in boundary), max(point[0] for point in boundary)
+        min_y, max_y = min(point[1] for point in boundary), max(point[1] for point in boundary)
+        x_events, y_events = _axis_events(
+            boundary=boundary,
+            obstacles=obstacles,
+            placed=placed,
+            width=width,
+            depth=depth,
+        )
+        longitudinal = _interval_origin_events(interval, width if axis == "X" else depth)
+        if not longitudinal:
+            physical_axis_events = x_events if axis == "X" else y_events
+            axis_low = min_x if axis == "X" else min_y
+            axis_high = max_x - width if axis == "X" else max_y - depth
+            eligible = tuple(
+                event for event in physical_axis_events if axis_low <= event <= axis_high
+            )
+            midpoint = (axis_low + axis_high) // 2
+            ranked = sorted(eligible, key=lambda event: (abs(event - midpoint), event))
+            longitudinal = tuple(sorted({axis_low, axis_high, *ranked[:12]}))
+        cross = (
+            {
+                min_y,
+                max_y - depth,
+                (min_y + max_y - depth) // 2,
+                *(y for y in y_events if min_y <= y <= max_y - depth),
+            }
+            if axis == "X"
+            else {
+                min_x,
+                max_x - width,
+                (min_x + max_x - width) // 2,
+                *(x for x in x_events if min_x <= x <= max_x - width),
+            }
+        )
+        pairs = (
+            {(event, cross_event) for event in longitudinal for cross_event in cross}
+            if axis == "X"
+            else {(cross_event, event) for event in longitudinal for cross_event in cross}
+        )
+        return tuple(sorted(pairs))
+
+    face = _domain_faces(handoff, bank_sign).get(role)
+    if face is None:
+        return ()
+    axis, sign = face
+    sorting = placed.get("sorting_packaging_room")
+    if sorting is None:
+        return ()
+    bases = [sorting]
+    for other_role, rectangle in placed.items():
+        if other_role == "sorting_packaging_room":
+            continue
+        other_face = _domain_faces(handoff, bank_sign).get(other_role)
+        if other_face == face:
+            bases.append(rectangle)
+    face_anchors: set[tuple[int, int]] = set()
+    for base in bases:
+        face_anchors.update(_face_anchors(base, shape, axis, sign, boundary, obstacles, placed))
+    return tuple(sorted(face_anchors))
+
+
+def _generic_fallback_anchors(
+    role: str,
+    shape: _Shape,
+    placed: Mapping[str, PlacedRectangleV1],
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+) -> tuple[tuple[int, int], ...]:
+    neighbors = tuple(name for name in _must_neighbors(role) if name in placed)
+    if neighbors:
+        anchors = _anchors_at_must_faces(role, shape, placed, neighbors, boundary, obstacles)
+    else:
+        width, depth = shape.world_width_mm, shape.world_depth_mm
+        xs, ys = _axis_events(
+            boundary=boundary,
+            obstacles=obstacles,
+            placed=placed,
+            width=width,
+            depth=depth,
+        )
+        min_x, max_x = min(point[0] for point in boundary), max(point[0] for point in boundary)
+        min_y, max_y = min(point[1] for point in boundary), max(point[1] for point in boundary)
+        center_x = (min_x + max_x - width) // 2
+        center_y = (min_y + max_y - depth) // 2
+        anchors_set = {
+            (min_x, min_y),
+            (max_x - width, min_y),
+            (min_x, max_y - depth),
+            (max_x - width, max_y - depth),
+            (center_x, center_y),
+            *((x, center_y) for x in xs),
+            *((center_x, y) for y in ys),
+            *((x, y) for x, y in zip(xs, ys, strict=False)),
+        }
+        anchors = tuple(sorted(anchors_set))
+    return anchors[:GENERIC_FALLBACK_ANCHOR_LIMIT_PER_ROLE]
+
+
+def _candidate_rejection(
+    candidate: PlacedRectangleV1,
+    placed: Mapping[str, PlacedRectangleV1],
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+) -> str | None:
+    if not rectangle_inside_polygon(candidate, boundary):
+        return "SITE"
+    if any(rectangle_intersects_closed_obstacle(candidate, obstacle) for obstacle in obstacles):
+        return "OBSTACLE"
+    if any(rectangles_overlap(candidate, existing) for existing in placed.values()):
+        return "OVERLAP"
+    return None
+
+
+def _shipping_office_seed(
+    shipping: PlacedRectangleV1,
+    placed: Mapping[str, PlacedRectangleV1],
+    office_shapes: Sequence[_Shape],
+    handoff: StructuralCompositionPlacementHandoffV1,
+    domains: Sequence[ConstructionDomainV1],
+    bank_sign: int,
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+    diagnostics: _SearchDiagnostics,
+) -> tuple[_Shape, tuple[int, int]] | None:
+    office_neighbors = tuple(name for name in _must_neighbors("office") if name in placed)
+    if "shipping_channel" not in office_neighbors:
+        return None
+    faces = _domain_faces(handoff, bank_sign)
+    domain_origins_by_shape: dict[_Shape, set[tuple[int, int]]] = {}
+    for source in ("DOMAIN", "GENERIC"):
+        if source == "GENERIC" and diagnostics.generic_nodes >= max(
+            1, diagnostics.node_limit // 10
+        ):
+            break
+        for shape in office_shapes:
+            if source == "DOMAIN":
+                anchors = _domain_derived_anchors(
+                    "office", shape, handoff, domains, bank_sign, placed, boundary, obstacles
+                )
+                diagnostics.domain_anchor_count["office"] = diagnostics.domain_anchor_count.get(
+                    "office", 0
+                ) + len(anchors)
+                diagnostics.funnel["office"]["domain_derived_anchor_count"] += len(anchors)
+                domain_origins_by_shape[shape] = set(anchors)
+            else:
+                anchors = _generic_fallback_anchors("office", shape, placed, boundary, obstacles)
+                anchors = tuple(
+                    point
+                    for point in anchors
+                    if point not in domain_origins_by_shape.get(shape, set())
+                )
+                diagnostics.generic_anchor_count["office"] = diagnostics.generic_anchor_count.get(
+                    "office", 0
+                ) + len(anchors)
+                diagnostics.funnel["office"]["generic_fallback_anchor_count"] += len(anchors)
+            for point in anchors:
+                if source == "GENERIC" and diagnostics.generic_nodes >= max(
+                    1, diagnostics.node_limit // 10
+                ):
+                    break
+                if diagnostics.nodes >= diagnostics.node_limit:
+                    diagnostics.budget_hit = True
+                    diagnostics.shipping_office_status = "UNRESOLVED_NODE_BUDGET"
+                    return None
+                diagnostics.nodes += 1
+                funnel = diagnostics.funnel["office"]
+                funnel["candidate_rectangle_attempt_count"] += 1
+                if source == "GENERIC":
+                    diagnostics.generic_nodes += 1
+                    diagnostics.generic_nodes_by_role["office"] = (
+                        diagnostics.generic_nodes_by_role.get("office", 0) + 1
+                    )
+                candidate = _rectangle("office", point[0], point[1], shape)
+                rejected = _candidate_rejection(candidate, placed, boundary, obstacles)
+                if rejected is not None:
+                    funnel[f"{rejected.lower()}_rejection_count"] += 1
+                    diagnostics.failure_taxonomy = f"OFFICE_{rejected}_REJECTION"
+                    continue
+                sorting = placed.get("sorting_packaging_room")
+                if sorting is not None and not _side_ok("office", candidate, sorting, faces):
+                    funnel["domain_side_rejection_count"] += 1
+                    diagnostics.failure_taxonomy = "OFFICE_DOMAIN_SIDE_REJECTION"
+                    continue
+                if not rectangles_share_positive_edge(candidate, shipping):
+                    funnel["must_edge_rejection_count"] += 1
+                    diagnostics.failure_taxonomy = "OFFICE_SHIPPING_MUST_EDGE_REJECTION"
+                    continue
+                diagnostics.office_seed_by_shipping[shipping.bounds_mm] = (shape, point)
+                diagnostics.shipping_office_status = "PASS"
+                return shape, point
+    diagnostics.shipping_office_status = "NO_AUTHORITY_VALID_OFFICE_ATTACHMENT"
+    return None
+
+
 def _search_one(
     handoff: StructuralCompositionPlacementHandoffV1,
-    authorities: Mapping[str, Mapping[str, Any]],
     shapes: Mapping[str, tuple[_Shape, ...]],
+    authority_shapes: Mapping[str, tuple[_Shape, ...]],
+    dimension_authorities: Mapping[str, Mapping[str, Any]],
     boundary: PolygonMM,
     obstacles: Sequence[PolygonMM],
     domains: tuple[ConstructionDomainV1, ...],
     bank_sign: int,
     node_limit: int,
-) -> tuple[dict[str, PlacedRectangleV1] | None, int, bool, str]:
-    nodes = 0
-    budget_hit = False
-    deepest_role = "sorting_packaging_room"
+) -> _SearchOutcome:
     order = _zone_order(handoff)
     faces = _domain_faces(handoff, bank_sign)
     ordered_shapes = _composition_shape_order(handoff, shapes, bank_sign)
+    diagnostics = _SearchDiagnostics(node_limit=node_limit)
+    role_rank = {role: index for index, role in enumerate(order)}
+    for role in order:
+        diagnostics.funnel[role] = {
+            "role_attempt_count": 0,
+            "authority_shape_variant_count": len(authority_shapes[role]),
+            "authority_rotation_variant_count": len(
+                {shape.rotation_deg for shape in authority_shapes[role]}
+            ),
+            "construction_shape_variant_count": len(ordered_shapes[role]),
+            "shape_variant_attempt_count": 0,
+            "domain_derived_anchor_count": 0,
+            "generic_fallback_anchor_count": 0,
+            "candidate_rectangle_attempt_count": 0,
+            "site_rejection_count": 0,
+            "obstacle_rejection_count": 0,
+            "overlap_rejection_count": 0,
+            "domain_side_rejection_count": 0,
+            "must_edge_rejection_count": 0,
+            "coupled_interface_rejection_count": 0,
+            "composition_intent_rejection_count": 0,
+            "accepted_partial_placement_count": 0,
+            "backtrack_count": 0,
+        }
+        diagnostics.authority_shape_count[role] = len(authority_shapes[role])
+        diagnostics.construction_shape_count[role] = len(ordered_shapes[role])
+        diagnostics.domain_anchor_count[role] = 0
+        diagnostics.generic_anchor_count[role] = 0
+        diagnostics.generic_nodes_by_role[role] = 0
+
+    # These are conservative gates only. Construction domains do not become
+    # engineering authority, so uncertain capacity always proceeds to search.
+    required_roles = {item.zone_role for item in handoff.zone_role_assignment}
+    diagnostics.shipping_office_status = (
+        _shipping_office_interface_preflight_status(
+            ordered_shapes["shipping_channel"], ordered_shapes["office"], boundary
+        )
+        if {"office", "shipping_channel"} <= required_roles
+        else "UNKNOWN_ROLE_COVERAGE"
+    )
+    site_area = _polygon_area_mm2(boundary)
+    total_zone_area = sum(_authority_area_mm2(item) for item in dimension_authorities.values())
+    principal_band_groups = tuple(
+        tuple(role for role in band.zone_roles if role in required_roles)
+        for band in handoff.principal_band_intents
+    )
+    peripheral_groups = tuple(
+        tuple(role for role in domain.zone_roles if role in required_roles)
+        for domain in handoff.peripheral_domain_intents
+        if domain.zone_roles
+    )
+    diagnostics_band_status = _capacity_preflight_status(
+        principal_band_groups,
+        dimension_authorities,
+        authority_shapes,
+        boundary,
+    )
+    diagnostics_peripheral_status = _capacity_preflight_status(
+        peripheral_groups,
+        dimension_authorities,
+        authority_shapes,
+        boundary,
+    )
+    diagnostics.band_capacity_status = diagnostics_band_status
+    diagnostics.peripheral_capacity_status = diagnostics_peripheral_status
+
+    def rejection_count() -> int:
+        return sum(
+            value
+            for role_funnel in diagnostics.funnel.values()
+            for key, value in role_funnel.items()
+            if key.endswith("_rejection_count")
+        )
+
+    def save_witness(placed: Mapping[str, PlacedRectangleV1], next_role: str) -> None:
+        role_bounds = tuple((role, _bounds(placed[role])) for role in ZONE_CODES if role in placed)
+        key = (-len(placed), rejection_count(), role_bounds)
+        if diagnostics.best_witness_key is not None and key >= diagnostics.best_witness_key:
+            return
+        diagnostics.best_witness_key = key
+        diagnostics.best_witness = PartialPlacementWitnessV1(
+            composition_identity=handoff.composition_identity,
+            placed_roles=tuple(role for role in ZONE_CODES if role in placed),
+            zone_bounds_mm=role_bounds,
+            next_role=next_role,
+            failure_taxonomy=diagnostics.failure_taxonomy,
+            hard_subset_rejection_count=rejection_count(),
+            bank_sign=bank_sign,
+            nodes_used=diagnostics.nodes,
+        )
+
+    def set_attempted(role: str, placed: Mapping[str, PlacedRectangleV1]) -> None:
+        if diagnostics.deepest_attempted == "NOT_ATTEMPTED" or role_rank[role] > role_rank.get(
+            diagnostics.deepest_attempted, -1
+        ):
+            diagnostics.deepest_attempted = role
+        diagnostics.funnel[role]["role_attempt_count"] += 1
+        save_witness(placed, role)
+
+    def count_candidate_failure(role: str, reason: str) -> None:
+        diagnostics.funnel[role][f"{reason.lower()}_rejection_count"] += 1
+        diagnostics.failure_taxonomy = f"{role.upper()}_{reason}_REJECTION"
 
     def recurse(
         index: int, placed: dict[str, PlacedRectangleV1]
     ) -> dict[str, PlacedRectangleV1] | None:
-        nonlocal nodes, budget_hit, deepest_role
         if index < len(order):
-            deepest_role = order[index]
+            set_attempted(order[index], placed)
         if index == len(order):
             must_ok = all(
                 rectangles_share_positive_edge(placed[first], placed[second])
@@ -760,58 +1516,58 @@ def _search_one(
             )
             if must_ok and _intent_preserved(handoff, placed, faces):
                 return dict(placed)
+            diagnostics.failure_taxonomy = (
+                "FINAL_MUST_ADJACENCY_REJECTION" if not must_ok else "COMPOSITION_INTENT_REJECTION"
+            )
+            save_witness(placed, "COMPLETE")
             return None
         code = order[index]
         neighbors = tuple(name for name in _must_neighbors(code) if name in placed)
         axis, interval = _domain_interval(code, handoff, domains)
-        for shape in ordered_shapes[code]:
-            if neighbors:
-                origins = _anchors_at_must_faces(
-                    code, shape, placed, neighbors, boundary, obstacles
-                )
-            else:
-                origins = _root_anchors(shape, placed, boundary, obstacles)
-            sorting = placed.get("sorting_packaging_room")
-            if sorting is not None and code in faces:
-                ref_axis, sign = faces[code]
-                sorting_coordinate = _center(sorting, ref_axis)
-                origins = tuple(
-                    point
-                    for point in origins
-                    if (
-                        (
-                            point[0] + shape.world_width_mm // 2
-                            if ref_axis == "X"
-                            else point[1] + shape.world_depth_mm // 2
-                        )
-                        - sorting_coordinate
-                    )
-                    * sign
-                    > 0
-                )
 
-            def origin_key(
-                point: tuple[int, int],
-                *,
-                shape: _Shape = shape,
-                interval: tuple[int, int] | None = interval,
-            ) -> tuple[int, int, int]:
+        def ordered_points(
+            points: Sequence[tuple[int, int]], shape: _Shape
+        ) -> tuple[tuple[int, int], ...]:
+            def key(point: tuple[int, int]) -> tuple[int, int, int, int, int, int]:
                 projection = (
                     point[0] + shape.world_width_mm // 2
                     if axis == "X"
                     else point[1] + shape.world_depth_mm // 2
                 )
-                if interval is None:
-                    interval_penalty = 0
-                else:
-                    left, right = interval
+                interval_penalty = 0
+                if interval is not None:
+                    low, high = interval
                     interval_penalty = (
                         0
-                        if left <= projection <= right
-                        else min(abs(projection - left), abs(projection - right))
+                        if low <= projection <= high
+                        else min(abs(projection - low), abs(projection - high))
                     )
                 sorting = placed.get("sorting_packaging_room")
                 side_penalty = 0
+                cross_penalty = 0
+                process_center_penalty = 0
+                if code == "sorting_packaging_room":
+                    if handoff.process_axis == ProcessAxisV1.X:
+                        process_center = (
+                            min(item[0] for item in boundary) + max(item[0] for item in boundary)
+                        ) // 2
+                        process_center_penalty = abs(projection - process_center)
+                        cross_center = point[1] + shape.world_depth_mm // 2
+                        site_center = (
+                            min(item[1] for item in boundary) + max(item[1] for item in boundary)
+                        ) // 2
+                    else:
+                        process_center = (
+                            min(item[1] for item in boundary) + max(item[1] for item in boundary)
+                        ) // 2
+                        process_center_penalty = abs(projection - process_center)
+                        cross_center = point[0] + shape.world_width_mm // 2
+                        site_center = (
+                            min(item[0] for item in boundary) + max(item[0] for item in boundary)
+                        ) // 2
+                    cross_penalty = abs(cross_center - site_center)
+                    if handoff.family != CompositionFamilyV2.CENTRAL_PROCESS_CORE:
+                        process_center_penalty = 0
                 if sorting is not None and code in faces:
                     ref_axis, sign = faces[code]
                     coordinate = (
@@ -819,37 +1575,181 @@ def _search_one(
                         if ref_axis == "X"
                         else point[1] + shape.world_depth_mm // 2
                     )
-                    delta = (coordinate - _center(sorting, ref_axis)) * sign
-                    side_penalty = 0 if delta > 0 else abs(delta) + 1
-                return interval_penalty + side_penalty, point[0], point[1]
+                    side_penalty = 0 if (coordinate - _center(sorting, ref_axis)) * sign > 0 else 1
+                return (
+                    interval_penalty,
+                    process_center_penalty,
+                    cross_penalty,
+                    side_penalty,
+                    point[0],
+                    point[1],
+                )
 
-            for x, y in sorted(origins, key=origin_key):
-                if nodes >= node_limit:
-                    budget_hit = True
-                    return None
-                nodes += 1
-                candidate = _rectangle(code, x, y, shape)
-                if not _candidate_is_clear(candidate, placed, boundary, obstacles):
-                    continue
-                if neighbors and any(
-                    not rectangles_share_positive_edge(candidate, placed[neighbor])
-                    for neighbor in neighbors
-                ):
-                    continue
-                sorting = placed.get("sorting_packaging_room")
-                if sorting is not None and not _side_ok(code, candidate, sorting, faces):
-                    continue
-                placed[code] = candidate
-                solution = recurse(index + 1, placed)
-                if solution is not None:
-                    return solution
-                placed.pop(code, None)
-                if budget_hit:
-                    return None
+            return tuple(sorted(set(points), key=key))
+
+        # The complete finite domain-derived set is attempted first across all
+        # authority shapes. Generic physical-event anchors are a bounded,
+        # explicitly secondary continuation.
+        domain_origins_by_shape: dict[_Shape, set[tuple[int, int]]] = {}
+        for source in ("DOMAIN", "GENERIC"):
+            if source == "GENERIC" and diagnostics.generic_nodes >= max(1, node_limit // 10):
+                break
+            for shape in ordered_shapes[code]:
+                diagnostics.funnel[code]["shape_variant_attempt_count"] += 1
+                if source == "DOMAIN":
+                    origins = _domain_derived_anchors(
+                        code, shape, handoff, domains, bank_sign, placed, boundary, obstacles
+                    )
+                    cached_office = (
+                        diagnostics.office_seed_by_shipping.get(
+                            placed["shipping_channel"].bounds_mm
+                        )
+                        if code == "office" and "shipping_channel" in placed
+                        else None
+                    )
+                    if cached_office is not None and cached_office[0] == shape:
+                        origins = (cached_office[1],) + tuple(
+                            point for point in origins if point != cached_office[1]
+                        )
+                    diagnostics.domain_anchor_count[code] += len(origins)
+                    diagnostics.funnel[code]["domain_derived_anchor_count"] += len(origins)
+                    domain_origins_by_shape[shape] = set(origins)
+                else:
+                    if diagnostics.generic_nodes >= max(1, node_limit // 10):
+                        break
+                    origins = _generic_fallback_anchors(code, shape, placed, boundary, obstacles)
+                    origins = tuple(
+                        point
+                        for point in origins
+                        if point not in domain_origins_by_shape.get(shape, set())
+                    )
+                    diagnostics.generic_anchor_count[code] += len(origins)
+                    diagnostics.funnel[code]["generic_fallback_anchor_count"] += len(origins)
+                for x, y in ordered_points(origins, shape):
+                    cached_office = (
+                        diagnostics.office_seed_by_shipping.get(
+                            placed["shipping_channel"].bounds_mm
+                        )
+                        if code == "office" and "shipping_channel" in placed
+                        else None
+                    )
+                    reused_office_probe = (
+                        source == "DOMAIN"
+                        and cached_office is not None
+                        and cached_office == (shape, (x, y))
+                    )
+                    if diagnostics.nodes >= node_limit and not reused_office_probe:
+                        diagnostics.budget_hit = True
+                        diagnostics.failure_taxonomy = "PLACEMENT_NODE_BUDGET_EXHAUSTED"
+                        save_witness(placed, code)
+                        return None
+                    if source == "GENERIC" and diagnostics.generic_nodes >= max(
+                        1, node_limit // 10
+                    ):
+                        break
+                    if not reused_office_probe:
+                        diagnostics.nodes += 1
+                        diagnostics.funnel[code]["candidate_rectangle_attempt_count"] += 1
+                    if source == "GENERIC":
+                        diagnostics.generic_nodes += 1
+                        diagnostics.generic_nodes_by_role[code] += 1
+                    candidate = _rectangle(code, x, y, shape)
+                    rejected = _candidate_rejection(candidate, placed, boundary, obstacles)
+                    if rejected is not None:
+                        count_candidate_failure(code, rejected)
+                        save_witness(placed, code)
+                        continue
+                    if neighbors and any(
+                        not rectangles_share_positive_edge(candidate, placed[neighbor])
+                        for neighbor in neighbors
+                    ):
+                        diagnostics.funnel[code]["must_edge_rejection_count"] += 1
+                        diagnostics.failure_taxonomy = f"{code.upper()}_MUST_EDGE_REJECTION"
+                        save_witness(placed, code)
+                        continue
+                    sorting = placed.get("sorting_packaging_room")
+                    if sorting is not None and not _side_ok(code, candidate, sorting, faces):
+                        diagnostics.funnel[code]["domain_side_rejection_count"] += 1
+                        diagnostics.failure_taxonomy = f"{code.upper()}_DOMAIN_SIDE_REJECTION"
+                        save_witness(placed, code)
+                        continue
+                    placed[code] = candidate
+                    if not _partial_intent_possible(handoff, placed, faces):
+                        diagnostics.funnel[code]["composition_intent_rejection_count"] += 1
+                        diagnostics.failure_taxonomy = (
+                            f"{code.upper()}_PARTIAL_COMPOSITION_INTENT_REJECTION"
+                        )
+                        save_witness(
+                            placed,
+                            order[index + 1] if index + 1 < len(order) else "COMPLETE",
+                        )
+                        placed.pop(code, None)
+                        continue
+                    diagnostics.max_placed = max(diagnostics.max_placed, len(placed))
+                    if diagnostics.deepest_successfully_placed == "NOT_PLACED" or role_rank[
+                        code
+                    ] > role_rank.get(diagnostics.deepest_successfully_placed, -1):
+                        diagnostics.deepest_successfully_placed = code
+                    diagnostics.funnel[code]["accepted_partial_placement_count"] += 1
+                    diagnostics.failure_taxonomy = "PARTIAL_PLACEMENT_ACCEPTED"
+                    save_witness(placed, order[index + 1] if index + 1 < len(order) else "COMPLETE")
+                    if code == "shipping_channel":
+                        seed = _shipping_office_seed(
+                            candidate,
+                            placed,
+                            ordered_shapes["office"],
+                            handoff,
+                            domains,
+                            bank_sign,
+                            boundary,
+                            obstacles,
+                            diagnostics,
+                        )
+                        if seed is None:
+                            diagnostics.funnel[code]["coupled_interface_rejection_count"] += 1
+                            diagnostics.failure_taxonomy = "SHIPPING_OFFICE_INTERFACE_REJECTION"
+                            save_witness(placed, "office")
+                            placed.pop(code, None)
+                            if diagnostics.budget_hit:
+                                return None
+                            continue
+                    solution = recurse(index + 1, placed)
+                    if solution is not None:
+                        return solution
+                    placed.pop(code, None)
+                    diagnostics.funnel[code]["backtrack_count"] += 1
+                    if diagnostics.budget_hit:
+                        return None
         return None
 
+    if diagnostics.shipping_office_status == "PROVABLY_NO_SHARED_EDGE_CAPACITY_IN_SITE_BOUNDS":
+        diagnostics.failure_taxonomy = "SHIPPING_OFFICE_INTERFACE_PROVED_IMPOSSIBLE_IN_SITE_BOUNDS"
+        return _SearchOutcome(
+            solution=None,
+            diagnostics=diagnostics,
+            deepest_attempted="NOT_ATTEMPTED",
+            deepest_successfully_placed="NOT_PLACED",
+        )
+
+    if total_zone_area > site_area:
+        diagnostics.failure_taxonomy = "AUTHORITATIVE_ZONE_AREA_EXCEEDS_BUILDABLE_SITE_AREA"
+        save_witness({}, "PREFLIGHT")
+        return _SearchOutcome(
+            solution=None,
+            diagnostics=diagnostics,
+            deepest_attempted="NOT_ATTEMPTED",
+            deepest_successfully_placed="NOT_PLACED",
+        )
     solution = recurse(0, {})
-    return solution, nodes, budget_hit, deepest_role
+    if diagnostics.best_witness is None:
+        diagnostics.failure_taxonomy = "NO_PARTIAL_PLACEMENT"
+        save_witness({}, order[0])
+    return _SearchOutcome(
+        solution=solution,
+        diagnostics=diagnostics,
+        deepest_attempted=diagnostics.deepest_attempted,
+        deepest_successfully_placed=diagnostics.deepest_successfully_placed,
+    )
 
 
 def _candidate(
@@ -921,7 +1821,11 @@ def enumerate_composition_placements(
     if not isinstance(obstacles_raw, list):
         raise ValueError("VALIDATED_OBSTACLES_REQUIRED")
     obstacles = tuple(normalize_polygon(item, allow_numeric_string=True) for item in obstacles_raw)
-    shapes = _authority_shapes(dimension_authorities, boundary, obstacles)
+    authority_shapes = _authority_shapes(dimension_authorities, boundary, obstacles)
+    shapes = {
+        role: _canonical_construction_shapes(variants)
+        for role, variants in authority_shapes.items()
+    }
     by_family: dict[CompositionFamilyV2, list[StructuralCompositionPlacementHandoffV1]] = (
         defaultdict(list)
     )
@@ -931,28 +1835,37 @@ def enumerate_composition_placements(
         raise ValueError("COMPOSITION_FAMILY_COVERAGE_INVALID")
 
     per_attempt_budget = max(1, node_budget // (len(FAMILY_ORDER) * 2 * 2))
+    initial_family_budget = per_attempt_budget * 2
+    continuation_budget = max(0, node_budget - initial_family_budget * len(FAMILY_ORDER))
     remaining = node_budget
     attempts: dict[str, int] = {family.value: 0 for family in FAMILY_ORDER}
     used: dict[str, int] = {family.value: 0 for family in FAMILY_ORDER}
-    deepest: dict[str, str] = {family.value: "NOT_ATTEMPTED" for family in FAMILY_ORDER}
-    deepest_rank: dict[str, int] = {family.value: -1 for family in FAMILY_ORDER}
+    deepest_attempted_by_family: dict[str, str] = {
+        family.value: "NOT_ATTEMPTED" for family in FAMILY_ORDER
+    }
+    deepest_attempted_rank: dict[str, int] = {family.value: -1 for family in FAMILY_ORDER}
+    deepest_successfully_placed: dict[str, str] = {
+        family.value: "NOT_PLACED" for family in FAMILY_ORDER
+    }
+    deepest_success_rank: dict[str, int] = {family.value: -1 for family in FAMILY_ORDER}
+    max_placed_by_family: dict[str, int] = {family.value: 0 for family in FAMILY_ORDER}
+    domain_anchor_by_family: dict[str, int] = {family.value: 0 for family in FAMILY_ORDER}
+    generic_anchor_by_family: dict[str, int] = {family.value: 0 for family in FAMILY_ORDER}
+    generic_nodes_by_family: dict[str, int] = {family.value: 0 for family in FAMILY_ORDER}
     failures: dict[str, str] = {}
     hashes = (source_zone_plan_hash, source_p1_handoff_hash, source_site_geometry_hash)
     candidate_by_family: dict[CompositionFamilyV2, CompositionPlacementCandidateV1] = {}
     search_attempts: list[CompositionPlacementSearchAttemptV1] = []
-    role_rank = {
-        role: index for index, role in enumerate(_zone_order(by_family[FAMILY_ORDER[0]][0]))
-    }
-    tasks = [
-        (family, by_family[family][0], bank_sign)
-        for family in FAMILY_ORDER
-        for bank_sign in (1, -1)
-    ]
+    # True family-first rounds: every family receives its positive-bank probe
+    # before any family receives the mirrored probe, then composition variants
+    # continue in the same deterministic family order.
+    tasks = [(family, by_family[family][0], 1) for family in FAMILY_ORDER]
+    tasks.extend((family, by_family[family][0], -1) for family in FAMILY_ORDER)
     tasks.extend(
-        (family, by_family[family][1], bank_sign)
-        for family in FAMILY_ORDER
-        if len(by_family[family]) > 1
-        for bank_sign in (1, -1)
+        (family, by_family[family][1], 1) for family in FAMILY_ORDER if len(by_family[family]) > 1
+    )
+    tasks.extend(
+        (family, by_family[family][1], -1) for family in FAMILY_ORDER if len(by_family[family]) > 1
     )
     for family, handoff, bank_sign in tasks:
         if remaining <= 0 or family in candidate_by_family:
@@ -961,17 +1874,40 @@ def enumerate_composition_placements(
         attempts[family_key] += 1
         domains = _domain_arrangement(handoff, bank_sign, boundary, dimension_authorities)
         allocation = min(per_attempt_budget, remaining)
-        solution, visited, hit, deepest_role = _search_one(
+        outcome = _search_one(
             handoff,
-            dimension_authorities,
             shapes,
+            authority_shapes,
+            dimension_authorities,
             boundary,
             obstacles,
             domains,
             bank_sign,
             allocation,
         )
+        solution = outcome.solution
+        diagnostics = outcome.diagnostics
+        visited = diagnostics.nodes
+        hit = diagnostics.budget_hit
+        deepest_attempted = outcome.deepest_attempted
         used[family_key] += visited
+        domain_anchor_by_family[family_key] += sum(diagnostics.domain_anchor_count.values())
+        generic_anchor_by_family[family_key] += sum(diagnostics.generic_anchor_count.values())
+        generic_nodes_by_family[family_key] += diagnostics.generic_nodes
+        max_placed_by_family[family_key] = max(
+            max_placed_by_family[family_key], diagnostics.max_placed
+        )
+        attempt_role_rank = {role: index for index, role in enumerate(_zone_order(handoff))}
+        if attempt_role_rank[deepest_attempted] >= deepest_attempted_rank[family_key]:
+            deepest_attempted_by_family[family_key] = deepest_attempted
+            deepest_attempted_rank[family_key] = attempt_role_rank[deepest_attempted]
+        deepest_placed = outcome.deepest_successfully_placed
+        if (
+            deepest_placed != "NOT_PLACED"
+            and attempt_role_rank[deepest_placed] >= deepest_success_rank[family_key]
+        ):
+            deepest_successfully_placed[family_key] = deepest_placed
+            deepest_success_rank[family_key] = attempt_role_rank[deepest_placed]
         attempt_failure = (
             None
             if solution is not None
@@ -992,15 +1928,51 @@ def enumerate_composition_placements(
                 construction_domains=domains,
                 nodes_allocated=allocation,
                 nodes_visited=visited,
-                deepest_role_reached=deepest_role,
+                deepest_role_attempted=outcome.deepest_attempted,
+                deepest_role_successfully_placed=deepest_placed,
+                max_simultaneously_placed_role_count=diagnostics.max_placed,
+                role_search_funnel=tuple(
+                    RoleSearchFunnelV1(
+                        zone_role=role,
+                        **metrics,
+                    )
+                    for role, metrics in diagnostics.funnel.items()
+                ),
+                domain_derived_anchor_count_by_role=tuple(
+                    (role, diagnostics.domain_anchor_count[role]) for role in _zone_order(handoff)
+                ),
+                generic_fallback_anchor_count_by_role=tuple(
+                    (role, diagnostics.generic_anchor_count[role]) for role in _zone_order(handoff)
+                ),
+                generic_fallback_node_count_by_role=tuple(
+                    (role, diagnostics.generic_nodes_by_role[role]) for role in _zone_order(handoff)
+                ),
+                authority_shape_variant_count_by_role=tuple(
+                    (role, diagnostics.authority_shape_count[role]) for role in _zone_order(handoff)
+                ),
+                construction_shape_variant_count_by_role=tuple(
+                    (role, diagnostics.construction_shape_count[role])
+                    for role in _zone_order(handoff)
+                ),
+                shipping_office_interface_preflight_status=diagnostics.shipping_office_status,
+                band_capacity_preflight_status=diagnostics.band_capacity_status,
+                peripheral_capacity_preflight_status=diagnostics.peripheral_capacity_status,
+                best_partial_placement_witness=diagnostics.best_witness
+                or PartialPlacementWitnessV1(
+                    composition_identity=handoff.composition_identity,
+                    placed_roles=(),
+                    zone_bounds_mm=(),
+                    next_role=_zone_order(handoff)[0],
+                    failure_taxonomy="NO_PARTIAL_PLACEMENT",
+                    hard_subset_rejection_count=0,
+                    bank_sign=bank_sign,
+                    nodes_used=visited,
+                ),
                 node_budget_exhausted=hit,
                 complete_layout_found=solution is not None,
                 failure_reason=attempt_failure,
             )
         )
-        if role_rank[deepest_role] >= deepest_rank[family_key]:
-            deepest[family_key] = deepest_role
-            deepest_rank[family_key] = role_rank[deepest_role]
         remaining -= visited
         if solution is not None:
             candidate_by_family[family] = _candidate(
@@ -1016,6 +1988,8 @@ def enumerate_composition_placements(
                     ("nodes_visited", str(used[family_key])),
                     ("event_policy", "SITE_ROOM_EDGE_AND_CLOSED_OBSTACLE_PLUS_MINUS_GRID_MM"),
                     ("per_attempt_node_allocation", str(per_attempt_budget)),
+                    ("domain_anchor_path", "COMPOSITION_DOMAIN_FIRST_BOUNDED_GENERIC_FALLBACK"),
+                    ("shipping_office_preflight", diagnostics.shipping_office_status),
                 ),
             )
             failures.pop(family_key, None)
@@ -1026,6 +2000,26 @@ def enumerate_composition_placements(
     candidates = [
         candidate_by_family[family] for family in FAMILY_ORDER if family in candidate_by_family
     ]
+    best_partial_by_family: dict[str, PartialPlacementWitnessV1] = {}
+    for attempt in search_attempts:
+        witness = attempt.best_partial_placement_witness
+        family_key = attempt.family.value
+        current = best_partial_by_family.get(family_key)
+        witness_key = (
+            -len(witness.placed_roles),
+            witness.hard_subset_rejection_count,
+            witness.zone_bounds_mm,
+            witness.composition_identity,
+            witness.bank_sign,
+        )
+        if current is None or witness_key < (
+            -len(current.placed_roles),
+            current.hard_subset_rejection_count,
+            current.zone_bounds_mm,
+            current.composition_identity,
+            current.bank_sign,
+        ):
+            best_partial_by_family[family_key] = witness
 
     nodes_used = sum(used.values())
     return CompositionPlacementEnumerationV1(
@@ -1034,14 +2028,41 @@ def enumerate_composition_placements(
         node_budget=node_budget,
         nodes_used=nodes_used,
         node_budget_exhausted=nodes_used >= node_budget,
+        initial_family_budget=initial_family_budget,
+        continuation_budget=continuation_budget,
+        continuation_selection_reason=(
+            "ROUND_1: positive-bank probe for each family; ROUND_2: mirrored first-composition "
+            "probe for each family; only then deterministic second-composition continuations "
+            "in family order, each bounded by the same per-attempt slice"
+        ),
         family_coverage_order=tuple(family.value for family in FAMILY_ORDER),
         family_first_round_complete=all(attempts[family.value] >= 1 for family in FAMILY_ORDER),
         attempt_count_by_family=tuple(
             (family.value, attempts[family.value]) for family in FAMILY_ORDER
         ),
         nodes_used_by_family=tuple((family.value, used[family.value]) for family in FAMILY_ORDER),
-        deepest_role_reached_by_family=tuple(
-            (family.value, deepest[family.value]) for family in FAMILY_ORDER
+        deepest_role_attempted_by_family=tuple(
+            (family.value, deepest_attempted_by_family[family.value]) for family in FAMILY_ORDER
+        ),
+        deepest_role_successfully_placed_by_family=tuple(
+            (family.value, deepest_successfully_placed[family.value]) for family in FAMILY_ORDER
+        ),
+        max_simultaneously_placed_role_count_by_family=tuple(
+            (family.value, max_placed_by_family[family.value]) for family in FAMILY_ORDER
+        ),
+        best_partial_placement_witness_by_family=tuple(
+            (family.value, best_partial_by_family[family.value])
+            for family in FAMILY_ORDER
+            if family.value in best_partial_by_family
+        ),
+        domain_derived_anchor_count_by_family=tuple(
+            (family.value, domain_anchor_by_family[family.value]) for family in FAMILY_ORDER
+        ),
+        generic_fallback_anchor_count_by_family=tuple(
+            (family.value, generic_anchor_by_family[family.value]) for family in FAMILY_ORDER
+        ),
+        generic_fallback_node_count_by_family=tuple(
+            (family.value, generic_nodes_by_family[family.value]) for family in FAMILY_ORDER
         ),
         failure_reason_by_family=tuple((key, failures[key]) for key in sorted(failures)),
         search_attempts=tuple(search_attempts),
