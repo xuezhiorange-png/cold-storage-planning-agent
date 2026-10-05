@@ -989,3 +989,44 @@ NO_STEP_IMPLIES_THE_NEXT=true
 
 See the [P0C abstraction and calibration report](V2_2_2-P0C-golden-layout-abstraction-and-calibration.md)
 and its [normalized evidence pack](evidence/v2_2_2_p0c/).
+
+## V2.2.2 P1A Architecture Reset P0 — Whole-building composition contract
+
+P1A Architecture Reset P0 is a documentation-only contract freeze from the
+clean `main` baseline. It records PR #302 as closed unmerged after terminal
+exact-head CI failure and selects a whole-building group-band composition with
+reserved peripheral domains (B/C hybrid) as the proposed next structured
+primary architecture. Main-process-first plus tail attachment is rejected as
+that primary path. The contract assigns all twelve zone roles before exact
+placement and keeps personnel ingress, Packaging, Secondary, Frozen, and
+Shipping/Truck interface as explicit construction domains—not zones, routes,
+footprints, or new engineering authorities.
+
+This is not implementation-entry authorization. Existing zone dimensions,
+site, adjacency, access, Truck, loading-face, P2D, footprint, Tool 7, and
+`P2_COMPLETE` contracts remain unchanged. Future bounded work prioritizes
+family coverage, then meaningful composition variants, then local exact
+placement; a common-scale Owner gallery and a finite recovery stop rule are
+required parts of the next implementation proposal. See the [P1A whole-building
+composition contract](V2_2_2-P1A-architecture-reset-whole-building-composition-contract.md)
+and [ADR-049](../architecture/ADR-049-whole-building-group-band-composition.md).
+
+```ini
+TASK_ID=V2_2_2_P1A_ARCHITECTURE_RESET_P0_WHOLE_BUILDING_COMPOSITION_CONTRACT_R1
+ACTIVE_GOVERNANCE_LANE=V2.2.2_P1A_ARCHITECTURE_RESET_P0
+PR_302_CLOSED_UNMERGED=true
+PR_302_TERMINAL_CI=FAIL
+BASE_BRANCH=main
+BASE_MAIN_SHA=955e5e532236fb6c33a80709e90362b12124fb72
+MAIN_FIRST_TAIL_ATTACHMENT_PRIMARY_PATH=false
+SELECTED_ARCHITECTURE=B_C_HYBRID
+WHOLE_BUILDING_COMPOSITION_CONTRACT=FROZEN_FOR_REVIEW
+RUNTIME_IMPLEMENTATION_STARTED=false
+NEXT_RUNTIME_IMPLEMENTATION_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+GITHUB_RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```
