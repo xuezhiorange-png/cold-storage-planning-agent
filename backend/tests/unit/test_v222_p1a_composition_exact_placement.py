@@ -60,6 +60,8 @@ def test_public_api_replays_server_compositions_and_never_accepts_a_handoff() ->
     assert result.composition_replay_enforced is True
     assert result.replayed_server_handoff_count == 6
     assert result.project_layout_validated_claimed is False
+    replayed = enumerate_composition_placements(zone_plan, p1_handoff, site_geometry, node_budget=3)
+    assert replayed.canonical_result_hash == result.canonical_result_hash
     with pytest.raises(ValueError, match="INVALID_COMPOSITION_PLACEMENT_NODE_BUDGET"):
         enumerate_composition_placements(
             zone_plan,
