@@ -7,12 +7,15 @@ search organizers, not site/access/Truck engineering authorities.
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
-from decimal import Decimal
+from decimal import ROUND_CEILING, Decimal
 from math import isqrt
 from typing import Any
 
+from cold_storage.modules.layout.domain.access_critical_construction import (
+    AccessCriticalConstructionIntentV1,
+)
 from cold_storage.modules.layout.domain.adjacency import ZONE_CODES, process_graph
 from cold_storage.modules.layout.domain.composition_handoff import (
     StructuralCompositionPlacementHandoffV1,
@@ -48,6 +51,7 @@ DEFAULT_COMPOSITION_PLACEMENT_NODE_BUDGET = 60_000
 MAX_COMPOSITION_PLACEMENT_NODE_BUDGET = DEFAULT_COMPOSITION_PLACEMENT_NODE_BUDGET
 GRID_MM = 1
 GENERIC_FALLBACK_ANCHOR_LIMIT_PER_ROLE = 24
+ACCESS_VALIDATION_CHECKPOINTS_PER_FAMILY = 3
 
 
 @dataclass(frozen=True)
@@ -166,6 +170,8 @@ class CompositionPlacementSearchAttemptV1:
     authority_shape_variant_count_by_role: tuple[tuple[str, int], ...]
     construction_shape_variant_count_by_role: tuple[tuple[str, int], ...]
     shipping_office_interface_preflight_status: str
+    shipping_truck_preflight_status: str
+    shipping_truck_preflight_counts: tuple[tuple[str, int], ...]
     band_capacity_preflight_status: str
     peripheral_capacity_preflight_status: str
     best_partial_placement_witness: PartialPlacementWitnessV1
@@ -174,7 +180,7 @@ class CompositionPlacementSearchAttemptV1:
     failure_reason: str | None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "family": self.family.value,
             "composition_identity": self.composition_identity,
             "composition_signature": self.composition_signature,
@@ -215,6 +221,13 @@ class CompositionPlacementSearchAttemptV1:
             "complete_layout_found": self.complete_layout_found,
             "failure_reason": self.failure_reason,
         }
+        if self.shipping_truck_preflight_status != "NOT_PERFORMED":
+            result["shipping_truck_maneuver_necessary_preflight"] = {
+                "status": self.shipping_truck_preflight_status,
+                "counts": dict(self.shipping_truck_preflight_counts),
+                "is_truck_authority": False,
+            }
+        return result
 
 
 @dataclass(frozen=True)
@@ -297,6 +310,8 @@ class _SearchDiagnostics:
     generic_nodes: int = 0
     failure_taxonomy: str = "SEARCH_STARTED"
     shipping_office_status: str = "PASS_TO_SEARCH"
+    shipping_truck_preflight_status: str = "NOT_PERFORMED"
+    shipping_truck_preflight_counts: dict[str, int] = field(default_factory=dict)
     band_capacity_status: str = "UNKNOWN_NOT_PROVEN_IMPOSSIBLE"
     peripheral_capacity_status: str = "UNKNOWN_NOT_PROVEN_IMPOSSIBLE"
     best_witness: PartialPlacementWitnessV1 | None = None
@@ -517,6 +532,43 @@ def _shipping_office_interface_preflight_status(
     return "PROVABLY_NO_SHARED_EDGE_CAPACITY_IN_SITE_BOUNDS"
 
 
+def _shipping_office_candidate_preflight_status(
+    shipping: PlacedRectangleV1,
+    office_shapes: Sequence[_Shape],
+    boundary: PolygonMM,
+) -> str:
+    """Conservatively check if Office can share any face with this Shipping.
+
+    The site bounding box is intentionally permissive for non-rectangular
+    boundaries. A negative result proves impossibility even in that larger box;
+    a positive result only admits the exact Office search.
+    """
+    site_left = min(point[0] for point in boundary)
+    site_bottom = min(point[1] for point in boundary)
+    site_right = max(point[0] for point in boundary)
+    site_top = max(point[1] for point in boundary)
+    ship_left, ship_bottom, ship_right, ship_top = shipping.bounds_mm
+    site_width, site_depth = site_right - site_left, site_top - site_bottom
+    for shape in office_shapes:
+        office_width, office_depth = shape.world_width_mm, shape.world_depth_mm
+        if office_width > site_width or office_depth > site_depth:
+            continue
+        vertical_low = max(site_bottom, ship_bottom - office_depth + 1)
+        vertical_high = min(site_top - office_depth, ship_top - 1)
+        horizontal_low = max(site_left, ship_left - office_width + 1)
+        horizontal_high = min(site_right - office_width, ship_right - 1)
+        vertical_overlap_possible = vertical_low <= vertical_high
+        horizontal_overlap_possible = horizontal_low <= horizontal_high
+        if (
+            (ship_left - office_width >= site_left and vertical_overlap_possible)
+            or (ship_right + office_width <= site_right and vertical_overlap_possible)
+            or (ship_bottom - office_depth >= site_bottom and horizontal_overlap_possible)
+            or (ship_top + office_depth <= site_top and horizontal_overlap_possible)
+        ):
+            return "PASS_TO_SEARCH"
+    return "PROVABLY_NO_SHARED_EDGE_CAPACITY_IN_SITE_BOUNDS"
+
+
 def _rectangle(code: str, x: int, y: int, shape: _Shape) -> PlacedRectangleV1:
     return PlacedRectangleV1(
         code,
@@ -532,6 +584,7 @@ def _authority_shapes(
     authorities: Mapping[str, Mapping[str, Any]],
     boundary: PolygonMM,
     obstacle_polygons: Sequence[PolygonMM],
+    access_intent: AccessCriticalConstructionIntentV1 | None = None,
 ) -> dict[str, tuple[_Shape, ...]]:
     spans = {
         abs(second[0] - first[0])
@@ -595,6 +648,31 @@ def _authority_shapes(
                         continue
                     raise
                 candidates.add((width, depth))
+        if access_intent is not None and code == "changing_room":
+            # The personnel authority's corridor width is a physical shape
+            # event, not a new dimension rule. Validate the derived shape
+            # through the existing flexible-area authority before admitting it.
+            clear_width = access_intent.interface(
+                "PERSONNEL_INGRESS_INTERFACE"
+            ).corridor_clear_width_mm
+            required_area_mm2 = required * Decimal(1_000_000)
+            if clear_width is not None and clear_width > 0:
+                long_span = int(
+                    (required_area_mm2 / Decimal(clear_width)).to_integral_value(
+                        rounding=ROUND_CEILING
+                    )
+                )
+                for width, depth in ((long_span, clear_width), (clear_width, long_span)):
+                    try:
+                        validate_flexible_candidate(authority, _m(width), _m(depth))
+                    except Exception as exc:
+                        if getattr(exc, "code", None) in (
+                            "INVALID_FLEXIBLE_DIMENSION",
+                            "FLEXIBLE_DIMENSION_AREA_UNSATISFIED",
+                        ):
+                            continue
+                        raise
+                    candidates.add((width, depth))
         if not candidates:
             raise ValueError(f"FLEXIBLE_DIMENSION_DOMAIN_EMPTY:{code}")
         ordered = sorted(
@@ -867,6 +945,27 @@ def _domain_arrangement(
     return tuple(domains)
 
 
+def _preferred_access_bank_sign(
+    handoff: StructuralCompositionPlacementHandoffV1,
+    intent: AccessCriticalConstructionIntentV1,
+) -> int:
+    """Choose an alternate peripheral side from the validated entrance side."""
+    entrance_faces = intent.face_order("changing_room")
+    if not entrance_faces:
+        return 1
+    side = entrance_faces[0]
+    side_axis = "X" if side in ("EAST", "WEST") else "Y"
+    cross_axis = "Y" if handoff.process_axis.value == "X" else "X"
+    if side_axis != cross_axis:
+        return 1
+    entrance_sign = 1 if side in ("EAST", "NORTH") else -1
+    if handoff.family == CompositionFamilyV2.CENTRAL_PROCESS_CORE:
+        return entrance_sign
+    # In the linear and spine families, personnel occupy the opposite bank
+    # from the room-face sign used by the domain relation.
+    return -entrance_sign
+
+
 def _side_ok(
     role: str,
     rectangle: PlacedRectangleV1,
@@ -900,6 +999,118 @@ def _candidate_is_clear(
     if any(rectangle_intersects_closed_obstacle(candidate, obstacle) for obstacle in obstacles):
         return False
     return not any(rectangles_overlap(candidate, existing) for existing in placed.values())
+
+
+def _packaging_straight_interface_possible(
+    packaging: PlacedRectangleV1,
+    sorting: PlacedRectangleV1,
+    intent: AccessCriticalConstructionIntentV1,
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+    placed: Mapping[str, PlacedRectangleV1],
+) -> bool:
+    """Conservatively preflight the frozen straight-only interface geometry."""
+    interface = intent.interface("PACKAGING_SORTING_STRAIGHT_INTERFACE")
+    portal_width = interface.portal_clear_width_mm
+    corridor_width = interface.corridor_clear_width_mm
+    if portal_width is None or corridor_width is None:
+        return True
+
+    package_left, package_bottom, package_right, package_top = packaging.bounds_mm
+    sorting_left, sorting_bottom, sorting_right, sorting_top = sorting.bounds_mm
+    candidates: list[tuple[str, str, int, int, int, int]] = []
+    if package_right <= sorting_left:
+        candidates.append(
+            (
+                "EAST",
+                "WEST",
+                sorting_left - package_right,
+                max(package_bottom, sorting_bottom),
+                min(package_top, sorting_top),
+                package_right,
+            )
+        )
+    if sorting_right <= package_left:
+        candidates.append(
+            (
+                "WEST",
+                "EAST",
+                package_left - sorting_right,
+                max(package_bottom, sorting_bottom),
+                min(package_top, sorting_top),
+                sorting_right,
+            )
+        )
+    if package_top <= sorting_bottom:
+        candidates.append(
+            (
+                "NORTH",
+                "SOUTH",
+                sorting_bottom - package_top,
+                max(package_left, sorting_left),
+                min(package_right, sorting_right),
+                package_top,
+            )
+        )
+    if sorting_top <= package_bottom:
+        candidates.append(
+            (
+                "SOUTH",
+                "NORTH",
+                package_bottom - sorting_top,
+                max(package_left, sorting_left),
+                min(package_right, sorting_right),
+                sorting_top,
+            )
+        )
+
+    for package_side, sorting_side, gap, cross_low, cross_high, normal_start in candidates:
+        package_class = _edge_class_for_side(
+            package_right - package_left, package_top - package_bottom, package_side
+        )
+        sorting_class = _edge_class_for_side(
+            sorting_right - sorting_left, sorting_top - sorting_bottom, sorting_side
+        )
+        required_from = interface.from_edge_class
+        required_to = interface.to_edge_class
+        if required_to == "SHORT_EDGE_EXIT_SIDE":
+            required_to = "SHORT_EDGE"
+        if (required_from is not None and package_class != required_from) or (
+            required_to is not None and sorting_class != required_to
+        ):
+            continue
+        if cross_high - cross_low < portal_width:
+            continue
+        if gap == 0:
+            return True
+
+        center = (cross_low + cross_high) // 2
+        if package_side in ("EAST", "WEST"):
+            channel = _rectangle(
+                "__packaging_straight_preflight__",
+                normal_start,
+                center - corridor_width // 2,
+                _Shape(gap, corridor_width, 0),
+            )
+        else:
+            channel = _rectangle(
+                "__packaging_straight_preflight__",
+                center - corridor_width // 2,
+                normal_start,
+                _Shape(corridor_width, gap, 0),
+            )
+        if not rectangle_inside_polygon(channel, boundary):
+            continue
+        if any(rectangle_intersects_closed_obstacle(channel, obstacle) for obstacle in obstacles):
+            continue
+        if any(
+            rectangles_overlap(channel, rectangle)
+            for role, rectangle in placed.items()
+            if role not in ("packaging_material_storage", "sorting_packaging_room")
+        ):
+            continue
+        return True
+    return False
 
 
 def _must_neighbors(code: str) -> tuple[str, ...]:
@@ -1020,10 +1231,34 @@ def _partial_intent_possible(
     return True
 
 
-def _zone_order(handoff: StructuralCompositionPlacementHandoffV1) -> tuple[str, ...]:
+def _zone_order(
+    handoff: StructuralCompositionPlacementHandoffV1,
+    *,
+    access_aware: bool = False,
+) -> tuple[str, ...]:
     # Composition-aware constrained-first sequence interleaves the already
     # reserved branches with the process chain. It does not complete the main
     # chain and then append every peripheral role. Shipping/Office stay coupled.
+    if access_aware:
+        return (
+            "sorting_packaging_room",
+            "packaging_material_storage",
+            # Keep a finite entrance-facing personnel footprint available
+            # before the support branches consume the site edge.
+            "changing_room",
+            "primary_precooling_room",
+            "raw_fruit_buffer",
+            "secondary_precooling_room",
+            "secondary_fruit_buffer",
+            "frozen_fruit_room",
+            "shipping_channel",
+            "office",
+            # Finish the process bridge after both terminal interfaces are
+            # spatially known: coating attaches to secondary precooling, and
+            # finished goods must bridge the coating and dock-anchored Shipping.
+            "coating_room",
+            "finished_goods_room",
+        )
     return (
         "sorting_packaging_room",
         "primary_precooling_room",
@@ -1044,6 +1279,7 @@ def _composition_shape_order(
     handoff: StructuralCompositionPlacementHandoffV1,
     shapes: Mapping[str, tuple[_Shape, ...]],
     bank_sign: int,
+    access_intent: AccessCriticalConstructionIntentV1 | None = None,
 ) -> dict[str, tuple[_Shape, ...]]:
     """Order authoritative variants toward their assigned composition band axis.
 
@@ -1055,8 +1291,77 @@ def _composition_shape_order(
     faces = _domain_faces(handoff, bank_sign)
     result: dict[str, tuple[_Shape, ...]] = {}
     for role, variants in shapes.items():
+        if access_intent is not None and role == "changing_room":
+            start, end = access_intent.main_entrance_segment_mm
+            entrance_span = abs((end[1] - start[1]) or (end[0] - start[0]))
+            vertical_entrance = start[0] == end[0]
+            result[role] = tuple(
+                sorted(
+                    variants,
+                    key=lambda shape: (
+                        abs(
+                            (shape.world_depth_mm if vertical_entrance else shape.world_width_mm)
+                            - entrance_span
+                        ),
+                        shape.world_width_mm * shape.world_depth_mm,
+                        shape.world_width_mm,
+                        shape.world_depth_mm,
+                        shape.rotation_deg,
+                    ),
+                )
+            )
+            continue
         if len(variants) != 2:
             result[role] = variants
+            continue
+        if access_intent is not None and role == "sorting_packaging_room":
+            result[role] = tuple(
+                sorted(
+                    variants,
+                    key=lambda shape: (
+                        0
+                        if shape.world_width_mm >= shape.world_depth_mm
+                        and any(
+                            package.world_depth_mm > package.world_width_mm
+                            for package in shapes["packaging_material_storage"]
+                        )
+                        else 1,
+                        abs(shape.world_width_mm - shape.world_depth_mm),
+                        shape.rotation_deg,
+                    ),
+                )
+            )
+            continue
+        if access_intent is not None and role == "packaging_material_storage":
+            sorting = result.get("sorting_packaging_room", shapes["sorting_packaging_room"])[0]
+            vertical_sorting_short_face = sorting.world_width_mm >= sorting.world_depth_mm
+            result[role] = tuple(
+                sorted(
+                    variants,
+                    key=lambda shape: (
+                        0
+                        if (shape.world_depth_mm > shape.world_width_mm)
+                        == vertical_sorting_short_face
+                        else 1,
+                        shape.rotation_deg,
+                    ),
+                )
+            )
+            continue
+        if access_intent is not None and role == "shipping_channel":
+            entrance_start, entrance_end = access_intent.truck_entrance_segment_mm
+            entrance_is_vertical = entrance_start[0] == entrance_end[0]
+            result[role] = tuple(
+                sorted(
+                    variants,
+                    key=lambda shape: (
+                        0
+                        if (shape.world_depth_mm >= shape.world_width_mm) == entrance_is_vertical
+                        else 1,
+                        shape.rotation_deg,
+                    ),
+                )
+            )
             continue
         axis = faces.get(role, (handoff.process_axis.value, 1))[0]
         if role == "sorting_packaging_room":
@@ -1154,6 +1459,183 @@ def _face_anchors(
     return result
 
 
+def _edge_class_for_side(width: int, depth: int, side: str) -> str:
+    horizontal = side in ("NORTH", "SOUTH")
+    horizontal_class = "LONG_EDGE" if width >= depth else "SHORT_EDGE"
+    if horizontal:
+        return horizontal_class
+    return "SHORT_EDGE" if horizontal_class == "LONG_EDGE" else "LONG_EDGE"
+
+
+def _side_event_origins(
+    base: PlacedRectangleV1,
+    shape: _Shape,
+    side: str,
+    *,
+    gap_mm: int = 0,
+) -> tuple[tuple[int, int], ...]:
+    """Finite low/center/high placements on or at an offset from one face."""
+    left, bottom, right, top = _bounds(base)
+    width, depth = shape.world_width_mm, shape.world_depth_mm
+    if side in ("WEST", "EAST"):
+        x = left - width - gap_mm if side == "WEST" else right + gap_mm
+        low, high = bottom, top
+        extent = depth
+        return tuple(
+            sorted(
+                {
+                    (x, low),
+                    (x, high - extent),
+                    (x, (low + high - extent) // 2),
+                }
+            )
+        )
+    y = bottom - depth - gap_mm if side == "SOUTH" else top + gap_mm
+    low, high = left, right
+    extent = width
+    return tuple(
+        sorted(
+            {
+                (low, y),
+                (high - extent, y),
+                ((low + high - extent) // 2, y),
+            }
+        )
+    )
+
+
+def _access_interface_anchors(
+    role: str,
+    shape: _Shape,
+    handoff: StructuralCompositionPlacementHandoffV1,
+    intent: AccessCriticalConstructionIntentV1,
+    placed: Mapping[str, PlacedRectangleV1],
+    boundary: PolygonMM,
+    bank_sign: int,
+) -> tuple[tuple[int, int], ...]:
+    """Generate finite authority-event origins for access-critical endpoints.
+
+    These are search seeds only.  The injected final Access/Truck authorities
+    still decide whether any generated placement is admissible.
+    """
+    result: set[tuple[int, int]] = set()
+    width, depth = shape.world_width_mm, shape.world_depth_mm
+    if role == "changing_room":
+        start, end = intent.main_entrance_segment_mm
+        min_x, max_x = min(point[0] for point in boundary), max(point[0] for point in boundary)
+        min_y, max_y = min(point[1] for point in boundary), max(point[1] for point in boundary)
+        interface = intent.interface("PERSONNEL_INGRESS_INTERFACE")
+        clear_width = interface.corridor_clear_width_mm or 0
+        low_y, high_y = sorted((start[1], end[1]))
+        low_x, high_x = sorted((start[0], end[0]))
+        y_events = {low_y, high_y - depth, (low_y + high_y - depth) // 2}
+        x_events = {low_x, high_x - width, (low_x + high_x - width) // 2}
+        sorting = placed.get("sorting_packaging_room")
+        if sorting is not None:
+            left, bottom, right, top = sorting.bounds_mm
+            y_events.update((bottom, top - depth, (bottom + top - depth) // 2))
+            x_events.update((left, right - width, (left + right - width) // 2))
+        personnel_face = _domain_faces(handoff, bank_sign).get(role)
+        if personnel_face is None:
+            return ()
+        axis, sign = personnel_face
+        personnel_side = (
+            ("WEST" if sign < 0 else "EAST") if axis == "X" else ("SOUTH" if sign < 0 else "NORTH")
+        )
+        entrance_side: str | None = None
+        if start[0] == end[0] and start[0] in (min_x, max_x):
+            entrance_side = "WEST" if start[0] == min_x else "EAST"
+        elif start[1] == end[1] and start[1] in (min_y, max_y):
+            entrance_side = "SOUTH" if start[1] == min_y else "NORTH"
+
+        # Site/boundary and room-face events place personnel in its assigned
+        # composition domain; entrance events align the candidate set but do
+        # not force a direct or straight route across the product building.
+        if axis == "X":
+            boundary_x = min_x if sign < 0 else max_x - width
+            result.update((boundary_x, y) for y in y_events)
+        else:
+            boundary_y = min_y if sign < 0 else max_y - depth
+            result.update((x, boundary_y) for x in x_events)
+        if sorting is not None:
+            for gap in (clear_width, 0):
+                result.update(_side_event_origins(sorting, shape, personnel_side, gap_mm=gap))
+        if entrance_side == personnel_side:
+            if entrance_side in ("WEST", "EAST"):
+                for gap in (clear_width, 0):
+                    x = min_x + gap if entrance_side == "WEST" else max_x - width - gap
+                    result.update((x, y) for y in y_events)
+            else:
+                for gap in (clear_width, 0):
+                    y = min_y + gap if entrance_side == "SOUTH" else max_y - depth - gap
+                    result.update((x, y) for x in x_events)
+        return tuple(sorted(result))
+
+    sorting = placed.get("sorting_packaging_room")
+    if (
+        role
+        in (
+            "packaging_material_storage",
+            "secondary_fruit_buffer",
+            "frozen_fruit_room",
+        )
+        and sorting is not None
+    ):
+        interface_kind = {
+            "packaging_material_storage": "PACKAGING_SORTING_STRAIGHT_INTERFACE",
+            "secondary_fruit_buffer": "SECONDARY_SORTING_ACCESS_INTERFACE",
+            "frozen_fruit_room": "FROZEN_SORTING_ACCESS_INTERFACE",
+        }[role]
+        interface = intent.interface(interface_kind)
+        for side in ("NORTH", "SOUTH", "EAST", "WEST"):
+            for gap in (0, interface.corridor_clear_width_mm or 0):
+                if role == "packaging_material_storage" and gap == 0:
+                    package_class = _edge_class_for_side(width, depth, side)
+                    sorting_class = _edge_class_for_side(
+                        sorting.bounds_mm[2] - sorting.bounds_mm[0],
+                        sorting.bounds_mm[3] - sorting.bounds_mm[1],
+                        {"NORTH": "SOUTH", "SOUTH": "NORTH", "EAST": "WEST", "WEST": "EAST"}[side],
+                    )
+                    required_from = interface.from_edge_class
+                    required_to = interface.to_edge_class
+                    if required_to == "SHORT_EDGE_EXIT_SIDE":
+                        required_to = "SHORT_EDGE"
+                    if required_from is not None and package_class != required_from:
+                        continue
+                    if required_to is not None and sorting_class != required_to:
+                        continue
+                result.update(_side_event_origins(sorting, shape, side, gap_mm=gap))
+        return tuple(sorted(result))
+
+    if role == "shipping_channel":
+        # Dock-point events are transformed from bound DOCK_REVERSE templates;
+        # align the candidate's long face to each event, without claiming a
+        # Truck route or PASS.
+        for event in intent.truck_dock_point_events:
+            px, py = event.point_mm
+            if depth >= width:
+                for x in (px, px - width):
+                    result.update((x, y) for y in (py, py - depth, py - depth // 2))
+            else:
+                for y in (py, py - depth):
+                    result.update((x, y) for x in (px, px - width, px - width // 2))
+        if "finished_goods_room" in placed:
+            result = {
+                point
+                for point in result
+                if any(
+                    rectangles_share_positive_edge(
+                        _rectangle("shipping_channel", point[0], point[1], shape),
+                        placed[neighbor],
+                    )
+                    for neighbor in _must_neighbors("shipping_channel")
+                    if neighbor in placed
+                )
+            }
+        return tuple(sorted(result))
+    return ()
+
+
 def _domain_derived_anchors(
     role: str,
     shape: _Shape,
@@ -1163,6 +1645,7 @@ def _domain_derived_anchors(
     placed: Mapping[str, PlacedRectangleV1],
     boundary: PolygonMM,
     obstacles: Sequence[PolygonMM],
+    access_intent: AccessCriticalConstructionIntentV1 | None = None,
 ) -> tuple[tuple[int, int], ...]:
     """Construct a bounded role domain from composition and physical events.
 
@@ -1188,6 +1671,22 @@ def _domain_derived_anchors(
                 return band_low <= projection <= band_high
 
             must_face_anchors = {point for point in must_face_anchors if center_in_band(point)}
+        if access_intent is not None:
+            must_face_anchors.update(
+                _access_interface_anchors(
+                    role, shape, handoff, access_intent, placed, boundary, bank_sign
+                )
+            )
+            must_face_anchors = {
+                point
+                for point in must_face_anchors
+                if any(
+                    rectangles_share_positive_edge(
+                        _rectangle(role, point[0], point[1], shape), placed[neighbor]
+                    )
+                    for neighbor in neighbors
+                )
+            }
         return tuple(sorted(must_face_anchors))
 
     if role == "sorting_packaging_room":
@@ -1233,6 +1732,13 @@ def _domain_derived_anchors(
             else {(cross_event, event) for event in longitudinal for cross_event in cross}
         )
         return tuple(sorted(pairs))
+
+    if access_intent is not None:
+        interface_anchors = _access_interface_anchors(
+            role, shape, handoff, access_intent, placed, boundary, bank_sign
+        )
+        if interface_anchors:
+            return interface_anchors
 
     face = _domain_faces(handoff, bank_sign).get(role)
     if face is None:
@@ -1397,10 +1903,21 @@ def _search_one(
     domains: tuple[ConstructionDomainV1, ...],
     bank_sign: int,
     node_limit: int,
+    access_intent: AccessCriticalConstructionIntentV1 | None = None,
+    complete_candidate_admission: Callable[
+        [StructuralCompositionPlacementHandoffV1, Mapping[str, PlacedRectangleV1]], bool
+    ]
+    | None = None,
+    shipping_candidate_preflight: Callable[
+        [StructuralCompositionPlacementHandoffV1, Mapping[str, PlacedRectangleV1]],
+        Mapping[str, Any],
+    ]
+    | None = None,
 ) -> _SearchOutcome:
-    order = _zone_order(handoff)
+    access_aware = access_intent is not None
+    order = _zone_order(handoff, access_aware=access_aware)
     faces = _domain_faces(handoff, bank_sign)
-    ordered_shapes = _composition_shape_order(handoff, shapes, bank_sign)
+    ordered_shapes = _composition_shape_order(handoff, shapes, bank_sign, access_intent)
     diagnostics = _SearchDiagnostics(node_limit=node_limit)
     role_rank = {role: index for index, role in enumerate(order)}
     for role in order:
@@ -1515,6 +2032,12 @@ def _search_one(
                 for first, second in process_graph().must_adjacencies
             )
             if must_ok and _intent_preserved(handoff, placed, faces):
+                if complete_candidate_admission is not None and not complete_candidate_admission(
+                    handoff, dict(placed)
+                ):
+                    diagnostics.failure_taxonomy = "COMPLETE_CANDIDATE_ACCESS_ADMISSION_REJECTED"
+                    save_witness(placed, "ACCESS_VALIDATION_CHECKPOINT")
+                    return None
                 return dict(placed)
             diagnostics.failure_taxonomy = (
                 "FINAL_MUST_ADJACENCY_REJECTION" if not must_ok else "COMPOSITION_INTENT_REJECTION"
@@ -1528,7 +2051,7 @@ def _search_one(
         def ordered_points(
             points: Sequence[tuple[int, int]], shape: _Shape
         ) -> tuple[tuple[int, int], ...]:
-            def key(point: tuple[int, int]) -> tuple[int, int, int, int, int, int]:
+            def key(point: tuple[int, int]) -> tuple[int, int, int, int, int, int, int]:
                 projection = (
                     point[0] + shape.world_width_mm // 2
                     if axis == "X"
@@ -1546,6 +2069,7 @@ def _search_one(
                 side_penalty = 0
                 cross_penalty = 0
                 process_center_penalty = 0
+                access_departure_penalty = 0
                 if code == "sorting_packaging_room":
                     if handoff.process_axis == ProcessAxisV1.X:
                         process_center = (
@@ -1576,7 +2100,25 @@ def _search_one(
                         else point[1] + shape.world_depth_mm // 2
                     )
                     side_penalty = 0 if (coordinate - _center(sorting, ref_axis)) * sign > 0 else 1
+                if (
+                    access_aware
+                    and code
+                    in (
+                        "secondary_fruit_buffer",
+                        "frozen_fruit_room",
+                    )
+                    and sorting is not None
+                ):
+                    # Keep Sorting's hard process faces available where possible;
+                    # the exact route authority later decides whether the seeded
+                    # finite corridor offset is actually usable.
+                    access_departure_penalty = int(
+                        rectangles_share_positive_edge(
+                            _rectangle(code, point[0], point[1], shape), sorting
+                        )
+                    )
                 return (
+                    access_departure_penalty,
                     interval_penalty,
                     process_center_penalty,
                     cross_penalty,
@@ -1598,7 +2140,15 @@ def _search_one(
                 diagnostics.funnel[code]["shape_variant_attempt_count"] += 1
                 if source == "DOMAIN":
                     origins = _domain_derived_anchors(
-                        code, shape, handoff, domains, bank_sign, placed, boundary, obstacles
+                        code,
+                        shape,
+                        handoff,
+                        domains,
+                        bank_sign,
+                        placed,
+                        boundary,
+                        obstacles,
+                        access_intent,
                     )
                     cached_office = (
                         diagnostics.office_seed_by_shipping.get(
@@ -1659,6 +2209,25 @@ def _search_one(
                         count_candidate_failure(code, rejected)
                         save_witness(placed, code)
                         continue
+                    if (
+                        access_intent is not None
+                        and code == "packaging_material_storage"
+                        and "sorting_packaging_room" in placed
+                        and not _packaging_straight_interface_possible(
+                            candidate,
+                            placed["sorting_packaging_room"],
+                            access_intent,
+                            boundary,
+                            obstacles,
+                            placed,
+                        )
+                    ):
+                        diagnostics.funnel[code]["coupled_interface_rejection_count"] += 1
+                        diagnostics.failure_taxonomy = (
+                            "PACKAGING_SORTING_STRAIGHT_INTERFACE_PREFLIGHT_REJECTION"
+                        )
+                        save_witness(placed, code)
+                        continue
                     if neighbors and any(
                         not rectangles_share_positive_edge(candidate, placed[neighbor])
                         for neighbor in neighbors
@@ -1673,6 +2242,36 @@ def _search_one(
                         diagnostics.failure_taxonomy = f"{code.upper()}_DOMAIN_SIDE_REJECTION"
                         save_witness(placed, code)
                         continue
+                    if access_aware and code == "shipping_channel":
+                        office_status = _shipping_office_candidate_preflight_status(
+                            candidate,
+                            ordered_shapes["office"],
+                            boundary,
+                        )
+                        diagnostics.shipping_office_status = office_status
+                        if office_status == "PROVABLY_NO_SHARED_EDGE_CAPACITY_IN_SITE_BOUNDS":
+                            diagnostics.funnel[code]["coupled_interface_rejection_count"] += 1
+                            diagnostics.failure_taxonomy = (
+                                "SHIPPING_OFFICE_INTERFACE_PROVED_IMPOSSIBLE_IN_SITE_BOUNDS"
+                            )
+                            save_witness(placed, code)
+                            continue
+                    if code == "shipping_channel" and shipping_candidate_preflight is not None:
+                        partial_zones = dict(placed)
+                        partial_zones[code] = candidate
+                        preflight = shipping_candidate_preflight(handoff, partial_zones)
+                        status = str(preflight.get("status", "UNKNOWN_NOT_PROVEN_IMPOSSIBLE"))
+                        diagnostics.shipping_truck_preflight_status = status
+                        diagnostics.shipping_truck_preflight_counts[status] = (
+                            diagnostics.shipping_truck_preflight_counts.get(status, 0) + 1
+                        )
+                        if status != "PASS_TO_TRUCK_SEARCH":
+                            diagnostics.funnel[code]["coupled_interface_rejection_count"] += 1
+                            diagnostics.failure_taxonomy = (
+                                "SHIPPING_TRUCK_CAPACITY_PREFLIGHT_REJECTION"
+                            )
+                            save_witness(placed, code)
+                            continue
                     placed[code] = candidate
                     if not _partial_intent_possible(handoff, placed, faces):
                         diagnostics.funnel[code]["composition_intent_rejection_count"] += 1
@@ -1693,7 +2292,7 @@ def _search_one(
                     diagnostics.funnel[code]["accepted_partial_placement_count"] += 1
                     diagnostics.failure_taxonomy = "PARTIAL_PLACEMENT_ACCEPTED"
                     save_witness(placed, order[index + 1] if index + 1 < len(order) else "COMPLETE")
-                    if code == "shipping_channel":
+                    if code == "shipping_channel" and not access_aware:
                         seed = _shipping_office_seed(
                             candidate,
                             placed,
@@ -1799,6 +2398,16 @@ def enumerate_composition_placements(
     source_p1_handoff_hash: str,
     source_site_geometry_hash: str,
     node_budget: int = DEFAULT_COMPOSITION_PLACEMENT_NODE_BUDGET,
+    access_intent: AccessCriticalConstructionIntentV1 | None = None,
+    complete_candidate_admission: Callable[
+        [StructuralCompositionPlacementHandoffV1, Mapping[str, PlacedRectangleV1]], bool
+    ]
+    | None = None,
+    shipping_candidate_preflight: Callable[
+        [StructuralCompositionPlacementHandoffV1, Mapping[str, PlacedRectangleV1]],
+        Mapping[str, Any],
+    ]
+    | None = None,
 ) -> CompositionPlacementEnumerationV1:
     """Generate bounded, family-first exact candidates from server-bound intents."""
     if (
@@ -1813,6 +2422,14 @@ def enumerate_composition_placements(
         not isinstance(item, StructuralCompositionPlacementHandoffV1) for item in handoffs
     ):
         raise ValueError("SERVER_BOUND_COMPOSITION_HANDOFFS_REQUIRED")
+    if access_intent is not None and not isinstance(
+        access_intent, AccessCriticalConstructionIntentV1
+    ):
+        raise ValueError("SERVER_BOUND_ACCESS_CRITICAL_INTENT_REQUIRED")
+    if (complete_candidate_admission is not None or shipping_candidate_preflight is not None) and (
+        access_intent is None
+    ):
+        raise ValueError("ACCESS_ADMISSION_REQUIRES_ACCESS_INTENT")
     boundary_raw = site_geometry.get("site", {}).get("effective_buildable_boundary")
     if not isinstance(boundary_raw, Mapping):
         raise ValueError("VALIDATED_BUILDABLE_BOUNDARY_REQUIRED")
@@ -1821,7 +2438,7 @@ def enumerate_composition_placements(
     if not isinstance(obstacles_raw, list):
         raise ValueError("VALIDATED_OBSTACLES_REQUIRED")
     obstacles = tuple(normalize_polygon(item, allow_numeric_string=True) for item in obstacles_raw)
-    authority_shapes = _authority_shapes(dimension_authorities, boundary, obstacles)
+    authority_shapes = _authority_shapes(dimension_authorities, boundary, obstacles, access_intent)
     shapes = {
         role: _canonical_construction_shapes(variants)
         for role, variants in authority_shapes.items()
@@ -1834,9 +2451,32 @@ def enumerate_composition_placements(
     if set(by_family) != set(FAMILY_ORDER):
         raise ValueError("COMPOSITION_FAMILY_COVERAGE_INVALID")
 
-    per_attempt_budget = max(1, node_budget // (len(FAMILY_ORDER) * 2 * 2))
-    initial_family_budget = per_attempt_budget * 2
-    continuation_budget = max(0, node_budget - initial_family_budget * len(FAMILY_ORDER))
+    attempt_budget_by_stage: tuple[int, int, int]
+    if access_intent is None:
+        per_attempt_budget = max(1, node_budget // (len(FAMILY_ORDER) * 2 * 2))
+        initial_family_budget = per_attempt_budget * 2
+        continuation_budget = max(0, node_budget - initial_family_budget * len(FAMILY_ORDER))
+        attempt_budget_by_stage = (
+            per_attempt_budget,
+            per_attempt_budget,
+            per_attempt_budget,
+        )
+    else:
+        # Keep the total authority at 60,000 while giving every family a
+        # meaningful first-composition probe and an entrance-aligned alternate
+        # composition probe. The mirrored first-composition probe is smaller
+        # so all three families retain equal bounded coverage.
+        first_composition_slice = max(1, node_budget // 8)
+        mirrored_composition_slice = max(1, node_budget // 12)
+        alternate_composition_slice = first_composition_slice
+        per_attempt_budget = first_composition_slice
+        initial_family_budget = first_composition_slice + mirrored_composition_slice
+        continuation_budget = max(0, node_budget - initial_family_budget * len(FAMILY_ORDER))
+        attempt_budget_by_stage = (
+            first_composition_slice,
+            mirrored_composition_slice,
+            alternate_composition_slice,
+        )
     remaining = node_budget
     attempts: dict[str, int] = {family.value: 0 for family in FAMILY_ORDER}
     used: dict[str, int] = {family.value: 0 for family in FAMILY_ORDER}
@@ -1859,21 +2499,46 @@ def enumerate_composition_placements(
     # True family-first rounds: every family receives its positive-bank probe
     # before any family receives the mirrored probe, then composition variants
     # continue in the same deterministic family order.
-    tasks = [(family, by_family[family][0], 1) for family in FAMILY_ORDER]
-    tasks.extend((family, by_family[family][0], -1) for family in FAMILY_ORDER)
+    tasks: list[
+        tuple[
+            CompositionFamilyV2,
+            StructuralCompositionPlacementHandoffV1,
+            int,
+            int,
+        ]
+    ] = [(family, by_family[family][0], 1, attempt_budget_by_stage[0]) for family in FAMILY_ORDER]
     tasks.extend(
-        (family, by_family[family][1], 1) for family in FAMILY_ORDER if len(by_family[family]) > 1
+        (family, by_family[family][0], -1, attempt_budget_by_stage[1]) for family in FAMILY_ORDER
     )
-    tasks.extend(
-        (family, by_family[family][1], -1) for family in FAMILY_ORDER if len(by_family[family]) > 1
-    )
-    for family, handoff, bank_sign in tasks:
+    if access_intent is None:
+        tasks.extend(
+            (family, by_family[family][1], 1, per_attempt_budget)
+            for family in FAMILY_ORDER
+            if len(by_family[family]) > 1
+        )
+        tasks.extend(
+            (family, by_family[family][1], -1, per_attempt_budget)
+            for family in FAMILY_ORDER
+            if len(by_family[family]) > 1
+        )
+    else:
+        tasks.extend(
+            (
+                family,
+                by_family[family][1],
+                _preferred_access_bank_sign(by_family[family][1], access_intent),
+                attempt_budget_by_stage[2],
+            )
+            for family in FAMILY_ORDER
+            if len(by_family[family]) > 1
+        )
+    for family, handoff, bank_sign, task_budget in tasks:
         if remaining <= 0 or family in candidate_by_family:
             continue
         family_key = family.value
         attempts[family_key] += 1
         domains = _domain_arrangement(handoff, bank_sign, boundary, dimension_authorities)
-        allocation = min(per_attempt_budget, remaining)
+        allocation = min(task_budget, remaining)
         outcome = _search_one(
             handoff,
             shapes,
@@ -1884,6 +2549,9 @@ def enumerate_composition_placements(
             domains,
             bank_sign,
             allocation,
+            access_intent,
+            complete_candidate_admission,
+            shipping_candidate_preflight,
         )
         solution = outcome.solution
         diagnostics = outcome.diagnostics
@@ -1897,7 +2565,8 @@ def enumerate_composition_placements(
         max_placed_by_family[family_key] = max(
             max_placed_by_family[family_key], diagnostics.max_placed
         )
-        attempt_role_rank = {role: index for index, role in enumerate(_zone_order(handoff))}
+        search_order = _zone_order(handoff, access_aware=access_intent is not None)
+        attempt_role_rank = {role: index for index, role in enumerate(search_order)}
         if attempt_role_rank[deepest_attempted] >= deepest_attempted_rank[family_key]:
             deepest_attempted_by_family[family_key] = deepest_attempted
             deepest_attempted_rank[family_key] = attempt_role_rank[deepest_attempted]
@@ -1939,22 +2608,25 @@ def enumerate_composition_placements(
                     for role, metrics in diagnostics.funnel.items()
                 ),
                 domain_derived_anchor_count_by_role=tuple(
-                    (role, diagnostics.domain_anchor_count[role]) for role in _zone_order(handoff)
+                    (role, diagnostics.domain_anchor_count[role]) for role in search_order
                 ),
                 generic_fallback_anchor_count_by_role=tuple(
-                    (role, diagnostics.generic_anchor_count[role]) for role in _zone_order(handoff)
+                    (role, diagnostics.generic_anchor_count[role]) for role in search_order
                 ),
                 generic_fallback_node_count_by_role=tuple(
-                    (role, diagnostics.generic_nodes_by_role[role]) for role in _zone_order(handoff)
+                    (role, diagnostics.generic_nodes_by_role[role]) for role in search_order
                 ),
                 authority_shape_variant_count_by_role=tuple(
-                    (role, diagnostics.authority_shape_count[role]) for role in _zone_order(handoff)
+                    (role, diagnostics.authority_shape_count[role]) for role in search_order
                 ),
                 construction_shape_variant_count_by_role=tuple(
-                    (role, diagnostics.construction_shape_count[role])
-                    for role in _zone_order(handoff)
+                    (role, diagnostics.construction_shape_count[role]) for role in search_order
                 ),
                 shipping_office_interface_preflight_status=diagnostics.shipping_office_status,
+                shipping_truck_preflight_status=diagnostics.shipping_truck_preflight_status,
+                shipping_truck_preflight_counts=tuple(
+                    sorted(diagnostics.shipping_truck_preflight_counts.items())
+                ),
                 band_capacity_preflight_status=diagnostics.band_capacity_status,
                 peripheral_capacity_preflight_status=diagnostics.peripheral_capacity_status,
                 best_partial_placement_witness=diagnostics.best_witness
@@ -1962,7 +2634,7 @@ def enumerate_composition_placements(
                     composition_identity=handoff.composition_identity,
                     placed_roles=(),
                     zone_bounds_mm=(),
-                    next_role=_zone_order(handoff)[0],
+                    next_role=search_order[0],
                     failure_taxonomy="NO_PARTIAL_PLACEMENT",
                     hard_subset_rejection_count=0,
                     bank_sign=bank_sign,
@@ -1975,22 +2647,27 @@ def enumerate_composition_placements(
         )
         remaining -= visited
         if solution is not None:
+            candidate_provenance = [
+                (
+                    "domain_arrangement",
+                    "MIRROR_POSITIVE" if bank_sign > 0 else "MIRROR_NEGATIVE",
+                ),
+                ("nodes_visited", str(used[family_key])),
+                ("event_policy", "SITE_ROOM_EDGE_AND_CLOSED_OBSTACLE_PLUS_MINUS_GRID_MM"),
+                ("per_attempt_node_allocation", str(per_attempt_budget)),
+                ("domain_anchor_path", "COMPOSITION_DOMAIN_FIRST_BOUNDED_GENERIC_FALLBACK"),
+                ("shipping_office_preflight", diagnostics.shipping_office_status),
+            ]
+            if access_intent is not None:
+                candidate_provenance.append(
+                    ("access_critical_construction_intent", access_intent.identity)
+                )
             candidate_by_family[family] = _candidate(
                 handoff,
                 solution,
                 domains,
                 hashes,
-                (
-                    (
-                        "domain_arrangement",
-                        "MIRROR_POSITIVE" if bank_sign > 0 else "MIRROR_NEGATIVE",
-                    ),
-                    ("nodes_visited", str(used[family_key])),
-                    ("event_policy", "SITE_ROOM_EDGE_AND_CLOSED_OBSTACLE_PLUS_MINUS_GRID_MM"),
-                    ("per_attempt_node_allocation", str(per_attempt_budget)),
-                    ("domain_anchor_path", "COMPOSITION_DOMAIN_FIRST_BOUNDED_GENERIC_FALLBACK"),
-                    ("shipping_office_preflight", diagnostics.shipping_office_status),
-                ),
+                tuple(candidate_provenance),
             )
             failures.pop(family_key, None)
         elif hit:
@@ -2031,9 +2708,18 @@ def enumerate_composition_placements(
         initial_family_budget=initial_family_budget,
         continuation_budget=continuation_budget,
         continuation_selection_reason=(
-            "ROUND_1: positive-bank probe for each family; ROUND_2: mirrored first-composition "
-            "probe for each family; only then deterministic second-composition continuations "
-            "in family order, each bounded by the same per-attempt slice"
+            (
+                "ACCESS_AWARE: each family receives a 7,500-node first-composition positive-bank "
+                "probe and a 5,000-node mirrored probe; the remaining 22,500 nodes are split into "
+                "one 7,500-node alternate-composition probe per family, bank selected from the "
+                "validated main-entrance side when aligned with the cross axis"
+            )
+            if access_intent is not None and node_budget == 60_000
+            else (
+                "ROUND_1: positive-bank probe for each family; ROUND_2: mirrored first-composition "
+                "probe for each family; only then deterministic second-composition continuations "
+                "in family order, each bounded by the same per-attempt slice"
+            )
         ),
         family_coverage_order=tuple(family.value for family in FAMILY_ORDER),
         family_first_round_complete=all(attempts[family.value] >= 1 for family in FAMILY_ORDER),

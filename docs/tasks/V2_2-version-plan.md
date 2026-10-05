@@ -194,6 +194,46 @@ DEPLOYMENT_AUTHORIZED=false
 NO_STEP_IMPLIES_THE_NEXT=true
 ```
 
+## V2.2.2 P1A S4 CR1 — access-critical construction intents
+
+S4 Correction Round 1 binds existing Access and Truck interface facts into a
+composition-native exact-placement search. The construction hints and
+necessary preflights are not engineering validation. The real Xinzhao replay
+preserved the 7/12 S4 control result, but the bounded 60,000-node CR1 search did
+not produce a complete new 12-zone candidate, so no new candidate reached
+Access, Truck, or P2D validation. This is a construction search failure, not a
+global infeasibility proof. P1 remains incomplete and no additional correction
+round is authorized here.
+
+See the [S4 CR1 task record](V2_2_2-P1A-composition-native-hard-validation-P1-S4-CR1.md)
+and [access-aware search evidence](evidence/v2_2_2_p1a_s4_cr1/xinzhao_access_aware_candidate_search.json).
+
+```ini
+TASK_ID=V2_2_2_P1A_COMPOSITION_NATIVE_HARD_VALIDATION_P1_S4_CR1
+ACTIVE_GOVERNANCE_LANE=V2.2.2_P1A_S4_CR1_ACCESS_AWARE_PLACEMENT
+PR_STATE=DRAFT
+PLACEMENT_BUDGET=60000
+ACCESS_REQUIREMENT_COUNT=12
+NON_TRUCK_ACCESS_REQUIREMENT_COUNT=11
+CONTROL_NON_TRUCK_ACCESS_PASS_COUNT=7
+NEW_COMPOSITION_NATIVE_COMPLETE_CANDIDATE_COUNT=0
+NEW_ACCESS_VALIDATION_ATTEMPTS=0
+NEW_TRUCK_VALIDATION_ATTEMPTS=0
+NEW_P2D_VALIDATION_ATTEMPTS=0
+ACCESS_AUTHORITY_CHANGED=false
+TRUCK_AUTHORITY_CHANGED=false
+P2D_AUTHORITY_CHANGED=false
+P1_COMPLETE=false
+GLOBAL_INFEASIBILITY_PROVEN=false
+CORRECTION_ROUND_2_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```
+
 See the [P1E implementation evidence](V2_2_1-P1E-engineering-sheet-composition.md)
 and [ADR-046](../architecture/ADR-046-engineering-sheet-composition.md). The
 composition is presentation-only; passing automated lint does not replace
