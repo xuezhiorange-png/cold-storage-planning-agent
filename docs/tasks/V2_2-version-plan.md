@@ -1030,3 +1030,49 @@ GITHUB_RELEASE_AUTHORIZED=false
 DEPLOYMENT_AUTHORIZED=false
 NO_STEP_IMPLIES_THE_NEXT=true
 ```
+
+## V2.2.2 P1A Reset P1-S1 — Whole-building composition core
+
+P1-S1 implements the new independent structural-composition domain on the
+authorized branch from clean `main`. It emits complete twelve-role topology
+plans for `LINEAR_BANDED`, `CENTRAL_PROCESS_CORE`, and
+`PROCESS_SPINE_WITH_PERIPHERAL_BANKS`, assigns all five functional groups and
+all five non-authoritative peripheral domains at composition creation, and
+schedules family coverage before cross-axis variants. Xinzhao fixture evidence
+is composition-only; exact placement, access, Truck, P2D, Tool 7, and candidate
+selection remain unimplemented. This is one implementation slice, not P1
+completion and not authorization for the next runtime stage.
+
+See the [P1-S1 task record](V2_2_2-P1A-whole-building-composition-P1-S1.md)
+and [Xinzhao composition evidence](evidence/v2_2_2_p1a_reset_s1/xinzhao_whole_building_compositions.json).
+
+```ini
+TASK_ID=V2_2_2_P1A_WHOLE_BUILDING_COMPOSITION_P1_S1
+ACTIVE_GOVERNANCE_LANE=V2.2.2_P1A_RESET_P1_S1
+BASE_MAIN_SHA=a781398cf483320327d23e2f942b5762dc18d845
+WHOLE_BUILDING_COMPOSITION_RUNTIME_IMPLEMENTED=true
+STRUCTURAL_COMPOSITION_VALUE_OBJECT_IMPLEMENTED=true
+FAMILY_COUNT=3
+FAMILY_COVERAGE_COMPLETE=true
+COMPLETE_12_ROLE_COMPOSITION_COUNT=6
+DISTINCT_STRUCTURAL_COMPOSITION_COUNT=6
+PAIRWISE_TOPOLOGY_SIGNATURE_DISTINCT=true
+FROZEN_ASSIGNED_AT_COMPOSITION_CREATION=true
+SECONDARY_ASSIGNED_AT_COMPOSITION_CREATION=true
+PACKAGING_ASSIGNED_AT_COMPOSITION_CREATION=true
+LEGACY_PLACEMENT_RUNTIME_CHANGED=false
+VALIDATED_CANDIDATE_SELECTOR_CHANGED=false
+TOOL7_BEHAVIOR_CHANGED=false
+EXACT_PLACEMENT_IMPLEMENTED=false
+ACCESS_ROUTING_IMPLEMENTED=false
+TRUCK_VALIDATION_IMPLEMENTED=false
+P2D_IMPLEMENTED=false
+TOOL7_INTEGRATION_IMPLEMENTED=false
+NEXT_RUNTIME_IMPLEMENTATION_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```

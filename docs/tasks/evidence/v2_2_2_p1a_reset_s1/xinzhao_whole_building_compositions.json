@@ -1,0 +1,1554 @@
+{
+  "authoritative_process_flow_intent": [
+    [
+      "raw_fruit_buffer",
+      "primary_precooling_room"
+    ],
+    [
+      "primary_precooling_room",
+      "sorting_packaging_room"
+    ],
+    [
+      "sorting_packaging_room",
+      "secondary_precooling_room"
+    ],
+    [
+      "secondary_precooling_room",
+      "coating_room"
+    ],
+    [
+      "coating_room",
+      "finished_goods_room"
+    ],
+    [
+      "finished_goods_room",
+      "shipping_channel"
+    ]
+  ],
+  "candidates": [
+    {
+      "candidate_id": "A",
+      "composition_adjacency_intent": [
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "raw_fruit_buffer",
+          "target": "primary_precooling_room",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "primary_precooling_room",
+          "target": "sorting_packaging_room",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "sorting_packaging_room",
+          "target": "secondary_precooling_room",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "secondary_precooling_room",
+          "target": "coating_room",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "coating_room",
+          "target": "finished_goods_room",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "finished_goods_room",
+          "target": "shipping_channel",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "RAW_SIDE_GROUP",
+          "target": "PROCESSING_CORE_GROUP",
+          "topology_intent": "UPSTREAM_TO_MIDDLE_BAND"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "PROCESSING_CORE_GROUP",
+          "target": "FINISHED_SIDE_GROUP",
+          "topology_intent": "MIDDLE_TO_DOWNSTREAM_BAND"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "INGRESS_DOMAIN_INTENT",
+          "source": "PERSONNEL_GROUP",
+          "target": "PERSONNEL_INGRESS_DOMAIN",
+          "topology_intent": "OUTSIDE_PRODUCT_CHAIN"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "SUBORDINATE_BRANCH",
+          "source": "packaging_material_storage",
+          "target": "sorting_packaging_room",
+          "topology_intent": "PACKAGING_SUPPORT_RELATIONSHIP_INTENT"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "SUBORDINATE_BRANCH",
+          "source": "secondary_fruit_buffer",
+          "target": "sorting_packaging_room",
+          "topology_intent": "SECONDARY_BRANCH_RELATIONSHIP_INTENT"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "SUBORDINATE_BRANCH",
+          "source": "frozen_fruit_room",
+          "target": "sorting_packaging_room",
+          "topology_intent": "FROZEN_BRANCH_RELATIONSHIP_INTENT"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "TERMINAL_INTERFACE_INTENT",
+          "source": "shipping_channel",
+          "target": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+          "topology_intent": "FINISHED_SIDE_TERMINAL_TRUCK_INTERFACE_INTENT_ONLY"
+        }
+      ],
+      "construction_provenance": {
+        "family_coverage_round": 0,
+        "golden_reference_used": false,
+        "process_graph_identity": "charles-v22-process-flow@1.1.0",
+        "source_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+        "source_geometry_identity": "site-geometry-foundation@1.0.0",
+        "source_validation_status": "VALIDATED_GEOMETRY_FOUNDATION",
+        "variant_index": 0
+      },
+      "dominant_axis_family": {
+        "axes": [
+          "PRIMARY_PROCESS_AXIS",
+          "CROSS_BAND_AXIS",
+          "PERIPHERAL_BANK_AXIS"
+        ],
+        "basis": "COMPOSITION_INTENT_ONLY",
+        "engineering_axis_authority": false
+      },
+      "family": "LINEAR_BANDED",
+      "frozen_branch_relationship": {
+        "engineering_authority": false,
+        "relation_kind": "SUBORDINATE_BRANCH",
+        "source": "frozen_fruit_room",
+        "target": "sorting_packaging_room",
+        "topology_intent": "FROZEN_BRANCH_RELATIONSHIP_INTENT"
+      },
+      "functional_groups": [
+        {
+          "group_id": "RAW_SIDE_GROUP",
+          "product_chain_relation": "PRODUCT_FLOW_GROUP",
+          "structural_role": "ORDERED_PROCESS_END_BAND",
+          "zone_roles": [
+            "raw_fruit_buffer",
+            "primary_precooling_room"
+          ]
+        },
+        {
+          "group_id": "PROCESSING_CORE_GROUP",
+          "product_chain_relation": "PRODUCT_FLOW_GROUP",
+          "structural_role": "MIDDLE_PROCESS_BAND",
+          "zone_roles": [
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room"
+          ]
+        },
+        {
+          "group_id": "FINISHED_SIDE_GROUP",
+          "product_chain_relation": "PRODUCT_FLOW_GROUP",
+          "structural_role": "ORDERED_PROCESS_END_BAND",
+          "zone_roles": [
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "group_id": "SUPPORT_GROUP",
+          "product_chain_relation": "SUBORDINATE_SUPPORT_GROUP",
+          "structural_role": "SUBORDINATE_PARALLEL_BRANCH",
+          "zone_roles": [
+            "packaging_material_storage",
+            "secondary_fruit_buffer",
+            "frozen_fruit_room"
+          ]
+        },
+        {
+          "group_id": "PERSONNEL_GROUP",
+          "product_chain_relation": "OUTSIDE_PRODUCT_CHAIN",
+          "structural_role": "SEPARATE_PERSONNEL_INGRESS_DOMAIN",
+          "zone_roles": [
+            "changing_room",
+            "office"
+          ]
+        }
+      ],
+      "identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:X:NEGATIVE:r0",
+      "packaging_branch_relationship": {
+        "engineering_authority": false,
+        "relation_kind": "SUBORDINATE_BRANCH",
+        "source": "packaging_material_storage",
+        "target": "sorting_packaging_room",
+        "topology_intent": "PACKAGING_SUPPORT_RELATIONSHIP_INTENT"
+      },
+      "peripheral_domain_is_engineering_authority": false,
+      "peripheral_domains": [
+        {
+          "band_relationship": "OUTSIDE_PRODUCT_BANDS",
+          "domain_id": "PERSONNEL_INGRESS_DOMAIN",
+          "engineering_authority": false,
+          "group_relationship": "PERSONNEL_GROUP",
+          "relative_side": "PERSONNEL_SIDE_OUTSIDE_PRODUCT_FLOW",
+          "topology": "PERSONNEL_OUTSIDE_LINEAR_PRODUCT_BANDS",
+          "zone_roles": [
+            "changing_room",
+            "office"
+          ]
+        },
+        {
+          "band_relationship": "SUPPORT_BRANCH",
+          "domain_id": "PACKAGING_SUPPORT_DOMAIN",
+          "engineering_authority": false,
+          "group_relationship": "SUPPORT_GROUP",
+          "relative_side": "SERVICE_SIDE_OF_PROCESS_BAND",
+          "topology": "SUBORDINATE_TO_PROCESS_CORE",
+          "zone_roles": [
+            "packaging_material_storage"
+          ]
+        },
+        {
+          "band_relationship": "SUPPORT_BRANCH",
+          "domain_id": "SECONDARY_BRANCH_DOMAIN",
+          "engineering_authority": false,
+          "group_relationship": "SUPPORT_GROUP",
+          "relative_side": "BRANCH_SIDE_OF_PROCESS_BAND",
+          "topology": "BRANCH_FROM_PROCESS_CORE",
+          "zone_roles": [
+            "secondary_fruit_buffer"
+          ]
+        },
+        {
+          "band_relationship": "SUPPORT_BRANCH",
+          "domain_id": "FROZEN_BRANCH_DOMAIN",
+          "engineering_authority": false,
+          "group_relationship": "SUPPORT_GROUP",
+          "relative_side": "BRANCH_SIDE_OF_PROCESS_BAND",
+          "topology": "BRANCH_FROM_PROCESS_CORE",
+          "zone_roles": [
+            "frozen_fruit_room"
+          ]
+        },
+        {
+          "band_relationship": "FINISHED_TERMINAL",
+          "domain_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+          "engineering_authority": false,
+          "group_relationship": "FINISHED_SIDE_GROUP",
+          "relative_side": "FINISHED_TERMINAL_SIDE",
+          "topology": "FINISHED_TERMINAL_WITH_TRUCK_INTERFACE_INTENT",
+          "zone_roles": [
+            "shipping_channel"
+          ]
+        }
+      ],
+      "personnel_ingress_relationship": {
+        "engineering_authority": false,
+        "relation_kind": "INGRESS_DOMAIN_INTENT",
+        "source": "PERSONNEL_GROUP",
+        "target": "PERSONNEL_INGRESS_DOMAIN",
+        "topology_intent": "OUTSIDE_PRODUCT_CHAIN"
+      },
+      "principal_bands": [
+        {
+          "axis_relation": "ALONG_PROCESS_AXIS",
+          "band_id": "RAW_UPSTREAM_BAND",
+          "group_ids": [
+            "RAW_SIDE_GROUP"
+          ],
+          "relative_position": "PROCESS_UPSTREAM",
+          "sequence_index": 0,
+          "topology": "ORDERED_GROUP_BAND",
+          "zone_roles": [
+            "raw_fruit_buffer",
+            "primary_precooling_room"
+          ]
+        },
+        {
+          "axis_relation": "ALONG_PROCESS_AXIS",
+          "band_id": "PROCESS_CORE_BAND",
+          "group_ids": [
+            "PROCESSING_CORE_GROUP"
+          ],
+          "relative_position": "PROCESS_MIDDLE",
+          "sequence_index": 1,
+          "topology": "ORDERED_PROCESS_CORE_BAND",
+          "zone_roles": [
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room"
+          ]
+        },
+        {
+          "axis_relation": "ALONG_PROCESS_AXIS",
+          "band_id": "FINISHED_TERMINAL_BAND",
+          "group_ids": [
+            "FINISHED_SIDE_GROUP"
+          ],
+          "relative_position": "PROCESS_DOWNSTREAM",
+          "sequence_index": 2,
+          "topology": "ORDERED_FINISHED_TERMINAL_BAND",
+          "zone_roles": [
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "axis_relation": "PERIPHERAL_OR_CORE_FACE",
+          "band_id": "SUPPORT_BRANCH_BAND",
+          "group_ids": [
+            "SUPPORT_GROUP"
+          ],
+          "relative_position": "PERIPHERAL_SERVICE_SIDE",
+          "sequence_index": null,
+          "topology": "SUBORDINATE_PARALLEL_SUPPORT_BAND",
+          "zone_roles": [
+            "packaging_material_storage",
+            "secondary_fruit_buffer",
+            "frozen_fruit_room"
+          ]
+        }
+      ],
+      "process_axis": "X",
+      "process_direction": "NEGATIVE",
+      "schema_version": "2.0.0",
+      "secondary_branch_relationship": {
+        "engineering_authority": false,
+        "relation_kind": "SUBORDINATE_BRANCH",
+        "source": "secondary_fruit_buffer",
+        "target": "sorting_packaging_room",
+        "topology_intent": "SECONDARY_BRANCH_RELATIONSHIP_INTENT"
+      },
+      "shipping_truck_interface_relationship": {
+        "engineering_authority": false,
+        "relation_kind": "TERMINAL_INTERFACE_INTENT",
+        "source": "shipping_channel",
+        "target": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+        "topology_intent": "FINISHED_SIDE_TERMINAL_TRUCK_INTERFACE_INTENT_ONLY"
+      },
+      "signature": {
+        "band_topology": [
+          [
+            "RAW_UPSTREAM_BAND",
+            [
+              "RAW_SIDE_GROUP"
+            ],
+            "ORDERED_GROUP_BAND",
+            0
+          ],
+          [
+            "PROCESS_CORE_BAND",
+            [
+              "PROCESSING_CORE_GROUP"
+            ],
+            "ORDERED_PROCESS_CORE_BAND",
+            1
+          ],
+          [
+            "FINISHED_TERMINAL_BAND",
+            [
+              "FINISHED_SIDE_GROUP"
+            ],
+            "ORDERED_FINISHED_TERMINAL_BAND",
+            2
+          ],
+          [
+            "SUPPORT_BRANCH_BAND",
+            [
+              "SUPPORT_GROUP"
+            ],
+            "SUBORDINATE_PARALLEL_SUPPORT_BAND",
+            null
+          ]
+        ],
+        "family": "LINEAR_BANDED",
+        "functional_group_order": [
+          "RAW_SIDE_GROUP",
+          "PROCESSING_CORE_GROUP",
+          "FINISHED_SIDE_GROUP",
+          "SUPPORT_GROUP",
+          "PERSONNEL_GROUP"
+        ],
+        "peripheral_topology": [
+          [
+            "PERSONNEL_INGRESS_DOMAIN",
+            "PERSONNEL_SIDE_OUTSIDE_PRODUCT_FLOW",
+            "OUTSIDE_PRODUCT_BANDS",
+            "PERSONNEL_OUTSIDE_LINEAR_PRODUCT_BANDS"
+          ],
+          [
+            "PACKAGING_SUPPORT_DOMAIN",
+            "SERVICE_SIDE_OF_PROCESS_BAND",
+            "SUPPORT_BRANCH",
+            "SUBORDINATE_TO_PROCESS_CORE"
+          ],
+          [
+            "SECONDARY_BRANCH_DOMAIN",
+            "BRANCH_SIDE_OF_PROCESS_BAND",
+            "SUPPORT_BRANCH",
+            "BRANCH_FROM_PROCESS_CORE"
+          ],
+          [
+            "FROZEN_BRANCH_DOMAIN",
+            "BRANCH_SIDE_OF_PROCESS_BAND",
+            "SUPPORT_BRANCH",
+            "BRANCH_FROM_PROCESS_CORE"
+          ],
+          [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+            "FINISHED_TERMINAL_SIDE",
+            "FINISHED_TERMINAL",
+            "FINISHED_TERMINAL_WITH_TRUCK_INTERFACE_INTENT"
+          ]
+        ],
+        "personnel_relationship": [
+          "PERSONNEL_GROUP",
+          "PERSONNEL_INGRESS_DOMAIN",
+          "OUTSIDE_PRODUCT_CHAIN"
+        ],
+        "process_axis": "X",
+        "process_direction": "NEGATIVE",
+        "shipping_truck_relationship": [
+          "shipping_channel",
+          "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+          "FINISHED_SIDE_TERMINAL_TRUCK_INTERFACE_INTENT_ONLY"
+        ]
+      },
+      "site_orientation_intent": {
+        "direction_policy": "FINISHED_TERMINAL_TOWARD_TRUCK_ENTRANCE_SIDE",
+        "dominant_site_axis": "X",
+        "main_entrance_side": "EAST",
+        "preferred_loading_side": "UNSPECIFIED",
+        "selected_process_axis": "X",
+        "selected_process_direction": "NEGATIVE",
+        "source_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+        "source_geometry_identity": "site-geometry-foundation@1.0.0",
+        "truck_entrance_side": "WEST"
+      },
+      "zone_role_assignment": [
+        {
+          "band_id": "RAW_UPSTREAM_BAND",
+          "group_id": "RAW_SIDE_GROUP",
+          "topology_role": "RAW_CHAIN_ENTRY",
+          "zone_role": "raw_fruit_buffer"
+        },
+        {
+          "band_id": "RAW_UPSTREAM_BAND",
+          "group_id": "RAW_SIDE_GROUP",
+          "topology_role": "RAW_PRECOOL_LINK",
+          "zone_role": "primary_precooling_room"
+        },
+        {
+          "band_id": "PROCESS_CORE_BAND",
+          "group_id": "PROCESSING_CORE_GROUP",
+          "topology_role": "PROCESS_CORE",
+          "zone_role": "sorting_packaging_room"
+        },
+        {
+          "band_id": "PROCESS_CORE_BAND",
+          "group_id": "PROCESSING_CORE_GROUP",
+          "topology_role": "PROCESS_TRANSITION",
+          "zone_role": "secondary_precooling_room"
+        },
+        {
+          "band_id": "PROCESS_CORE_BAND",
+          "group_id": "PROCESSING_CORE_GROUP",
+          "topology_role": "PROCESS_TRANSITION",
+          "zone_role": "coating_room"
+        },
+        {
+          "band_id": "FINISHED_TERMINAL_BAND",
+          "group_id": "FINISHED_SIDE_GROUP",
+          "topology_role": "FINISHED_STORAGE",
+          "zone_role": "finished_goods_room"
+        },
+        {
+          "band_id": "FINISHED_TERMINAL_BAND",
+          "group_id": "FINISHED_SIDE_GROUP",
+          "topology_role": "SHIPPING_TERMINAL",
+          "zone_role": "shipping_channel"
+        },
+        {
+          "band_id": "SUPPORT_BRANCH_BAND",
+          "group_id": "SUPPORT_GROUP",
+          "topology_role": "PACKAGING_BRANCH",
+          "zone_role": "packaging_material_storage"
+        },
+        {
+          "band_id": "SUPPORT_BRANCH_BAND",
+          "group_id": "SUPPORT_GROUP",
+          "topology_role": "SECONDARY_BRANCH",
+          "zone_role": "secondary_fruit_buffer"
+        },
+        {
+          "band_id": "SUPPORT_BRANCH_BAND",
+          "group_id": "SUPPORT_GROUP",
+          "topology_role": "FROZEN_BRANCH",
+          "zone_role": "frozen_fruit_room"
+        },
+        {
+          "band_id": null,
+          "group_id": "PERSONNEL_GROUP",
+          "topology_role": "PERSONNEL_INGRESS",
+          "zone_role": "changing_room"
+        },
+        {
+          "band_id": null,
+          "group_id": "PERSONNEL_GROUP",
+          "topology_role": "PERSONNEL_SUPPORT",
+          "zone_role": "office"
+        }
+      ]
+    },
+    {
+      "candidate_id": "B",
+      "composition_adjacency_intent": [
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "raw_fruit_buffer",
+          "target": "primary_precooling_room",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "primary_precooling_room",
+          "target": "sorting_packaging_room",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "sorting_packaging_room",
+          "target": "secondary_precooling_room",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "secondary_precooling_room",
+          "target": "coating_room",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "coating_room",
+          "target": "finished_goods_room",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "finished_goods_room",
+          "target": "shipping_channel",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "CENTRAL_ORGANIZER",
+          "source": "sorting_packaging_room",
+          "target": "PROCESSING_CORE_GROUP",
+          "topology_intent": "SORTING_IS_CENTRAL_ORGANIZER"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "CORE_FACE_ATTACHMENT",
+          "source": "RAW_SIDE_GROUP",
+          "target": "sorting_packaging_room",
+          "topology_intent": "ONE_CORE_FACE"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "CORE_FACE_ATTACHMENT",
+          "source": "FINISHED_SIDE_GROUP",
+          "target": "sorting_packaging_room",
+          "topology_intent": "DISTINCT_OPPOSING_CORE_FACE"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "INGRESS_DOMAIN_INTENT",
+          "source": "PERSONNEL_GROUP",
+          "target": "PERSONNEL_INGRESS_DOMAIN",
+          "topology_intent": "SEPARATE_FROM_PRODUCT_CHAIN"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "SUBORDINATE_BRANCH",
+          "source": "packaging_material_storage",
+          "target": "sorting_packaging_room",
+          "topology_intent": "PACKAGING_SUPPORT_RELATIONSHIP_INTENT"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "SUBORDINATE_BRANCH",
+          "source": "secondary_fruit_buffer",
+          "target": "sorting_packaging_room",
+          "topology_intent": "SECONDARY_BRANCH_RELATIONSHIP_INTENT"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "SUBORDINATE_BRANCH",
+          "source": "frozen_fruit_room",
+          "target": "sorting_packaging_room",
+          "topology_intent": "FROZEN_BRANCH_RELATIONSHIP_INTENT"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "TERMINAL_INTERFACE_INTENT",
+          "source": "shipping_channel",
+          "target": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+          "topology_intent": "FINISHED_SIDE_TERMINAL_TRUCK_INTERFACE_INTENT_ONLY"
+        }
+      ],
+      "construction_provenance": {
+        "family_coverage_round": 0,
+        "golden_reference_used": false,
+        "process_graph_identity": "charles-v22-process-flow@1.1.0",
+        "source_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+        "source_geometry_identity": "site-geometry-foundation@1.0.0",
+        "source_validation_status": "VALIDATED_GEOMETRY_FOUNDATION",
+        "variant_index": 0
+      },
+      "dominant_axis_family": {
+        "axes": [
+          "PRIMARY_PROCESS_AXIS",
+          "CROSS_BAND_AXIS",
+          "PERIPHERAL_BANK_AXIS"
+        ],
+        "basis": "COMPOSITION_INTENT_ONLY",
+        "engineering_axis_authority": false
+      },
+      "family": "CENTRAL_PROCESS_CORE",
+      "frozen_branch_relationship": {
+        "engineering_authority": false,
+        "relation_kind": "SUBORDINATE_BRANCH",
+        "source": "frozen_fruit_room",
+        "target": "sorting_packaging_room",
+        "topology_intent": "FROZEN_BRANCH_RELATIONSHIP_INTENT"
+      },
+      "functional_groups": [
+        {
+          "group_id": "RAW_SIDE_GROUP",
+          "product_chain_relation": "PRODUCT_FLOW_GROUP",
+          "structural_role": "DISTINCT_CORE_FACE_ATTACHMENT",
+          "zone_roles": [
+            "raw_fruit_buffer",
+            "primary_precooling_room"
+          ]
+        },
+        {
+          "group_id": "PROCESSING_CORE_GROUP",
+          "product_chain_relation": "PRODUCT_FLOW_GROUP",
+          "structural_role": "CENTRAL_ORGANIZER_CORE",
+          "zone_roles": [
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room"
+          ]
+        },
+        {
+          "group_id": "FINISHED_SIDE_GROUP",
+          "product_chain_relation": "PRODUCT_FLOW_GROUP",
+          "structural_role": "DISTINCT_CORE_FACE_ATTACHMENT",
+          "zone_roles": [
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "group_id": "SUPPORT_GROUP",
+          "product_chain_relation": "SUBORDINATE_SUPPORT_GROUP",
+          "structural_role": "PERIPHERAL_CORE_FACES",
+          "zone_roles": [
+            "packaging_material_storage",
+            "secondary_fruit_buffer",
+            "frozen_fruit_room"
+          ]
+        },
+        {
+          "group_id": "PERSONNEL_GROUP",
+          "product_chain_relation": "OUTSIDE_PRODUCT_CHAIN",
+          "structural_role": "SEPARATE_PERSONNEL_INGRESS_DOMAIN",
+          "zone_roles": [
+            "changing_room",
+            "office"
+          ]
+        }
+      ],
+      "identity": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:X:NEGATIVE:r0",
+      "packaging_branch_relationship": {
+        "engineering_authority": false,
+        "relation_kind": "SUBORDINATE_BRANCH",
+        "source": "packaging_material_storage",
+        "target": "sorting_packaging_room",
+        "topology_intent": "PACKAGING_SUPPORT_RELATIONSHIP_INTENT"
+      },
+      "peripheral_domain_is_engineering_authority": false,
+      "peripheral_domains": [
+        {
+          "band_relationship": "OUTSIDE_PRODUCT_BANDS",
+          "domain_id": "PERSONNEL_INGRESS_DOMAIN",
+          "engineering_authority": false,
+          "group_relationship": "PERSONNEL_GROUP",
+          "relative_side": "SEPARATE_INGRESS_FACE",
+          "topology": "PERSONNEL_ON_SEPARATE_CORE_FACE",
+          "zone_roles": [
+            "changing_room",
+            "office"
+          ]
+        },
+        {
+          "band_relationship": "SUPPORT_BRANCH",
+          "domain_id": "PACKAGING_SUPPORT_DOMAIN",
+          "engineering_authority": false,
+          "group_relationship": "SUPPORT_GROUP",
+          "relative_side": "PERIPHERAL_FACE_A",
+          "topology": "PACKAGING_ON_PERIPHERAL_CORE_FACE",
+          "zone_roles": [
+            "packaging_material_storage"
+          ]
+        },
+        {
+          "band_relationship": "SUPPORT_BRANCH",
+          "domain_id": "SECONDARY_BRANCH_DOMAIN",
+          "engineering_authority": false,
+          "group_relationship": "SUPPORT_GROUP",
+          "relative_side": "PERIPHERAL_FACE_B",
+          "topology": "SECONDARY_ON_PERIPHERAL_CORE_FACE",
+          "zone_roles": [
+            "secondary_fruit_buffer"
+          ]
+        },
+        {
+          "band_relationship": "SUPPORT_BRANCH",
+          "domain_id": "FROZEN_BRANCH_DOMAIN",
+          "engineering_authority": false,
+          "group_relationship": "SUPPORT_GROUP",
+          "relative_side": "PERIPHERAL_FACE_C",
+          "topology": "FROZEN_ON_PERIPHERAL_CORE_FACE",
+          "zone_roles": [
+            "frozen_fruit_room"
+          ]
+        },
+        {
+          "band_relationship": "FINISHED_TERMINAL",
+          "domain_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+          "engineering_authority": false,
+          "group_relationship": "FINISHED_SIDE_GROUP",
+          "relative_side": "FINISHED_SIDE_INTERFACE",
+          "topology": "SHIPPING_ON_FINISHED_OPPOSING_FACE",
+          "zone_roles": [
+            "shipping_channel"
+          ]
+        }
+      ],
+      "personnel_ingress_relationship": {
+        "engineering_authority": false,
+        "relation_kind": "INGRESS_DOMAIN_INTENT",
+        "source": "PERSONNEL_GROUP",
+        "target": "PERSONNEL_INGRESS_DOMAIN",
+        "topology_intent": "SEPARATE_FROM_PRODUCT_CHAIN"
+      },
+      "principal_bands": [
+        {
+          "axis_relation": "PERIPHERAL_OR_CORE_FACE",
+          "band_id": "CENTRAL_SORTING_CORE",
+          "group_ids": [
+            "PROCESSING_CORE_GROUP"
+          ],
+          "relative_position": "COMPOSITION_CENTER",
+          "sequence_index": null,
+          "topology": "CENTRAL_ORGANIZER_CORE",
+          "zone_roles": [
+            "sorting_packaging_room"
+          ]
+        },
+        {
+          "axis_relation": "PERIPHERAL_OR_CORE_FACE",
+          "band_id": "RAW_CORE_FACE",
+          "group_ids": [
+            "RAW_SIDE_GROUP"
+          ],
+          "relative_position": "CORE_FACE_A",
+          "sequence_index": null,
+          "topology": "DISTINCT_CORE_FACE_ATTACHMENT",
+          "zone_roles": [
+            "raw_fruit_buffer",
+            "primary_precooling_room"
+          ]
+        },
+        {
+          "axis_relation": "PERIPHERAL_OR_CORE_FACE",
+          "band_id": "PROCESS_CORE_FACE",
+          "group_ids": [
+            "PROCESSING_CORE_GROUP"
+          ],
+          "relative_position": "CORE_FACE_B",
+          "sequence_index": null,
+          "topology": "PROCESSING_CORE_SUPPORT_ARC",
+          "zone_roles": [
+            "secondary_precooling_room",
+            "coating_room"
+          ]
+        },
+        {
+          "axis_relation": "PERIPHERAL_OR_CORE_FACE",
+          "band_id": "FINISHED_OPPOSING_FACE",
+          "group_ids": [
+            "FINISHED_SIDE_GROUP"
+          ],
+          "relative_position": "OPPOSITE_CORE_FACE",
+          "sequence_index": null,
+          "topology": "DISTINCT_OPPOSING_CORE_FACE",
+          "zone_roles": [
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "axis_relation": "PERIPHERAL_OR_CORE_FACE",
+          "band_id": "SUPPORT_OTHER_FACES",
+          "group_ids": [
+            "SUPPORT_GROUP"
+          ],
+          "relative_position": "OTHER_PERIPHERAL_FACES",
+          "sequence_index": null,
+          "topology": "MULTI_FACE_PERIPHERAL_GROUP",
+          "zone_roles": [
+            "packaging_material_storage",
+            "secondary_fruit_buffer",
+            "frozen_fruit_room"
+          ]
+        }
+      ],
+      "process_axis": "X",
+      "process_direction": "NEGATIVE",
+      "schema_version": "2.0.0",
+      "secondary_branch_relationship": {
+        "engineering_authority": false,
+        "relation_kind": "SUBORDINATE_BRANCH",
+        "source": "secondary_fruit_buffer",
+        "target": "sorting_packaging_room",
+        "topology_intent": "SECONDARY_BRANCH_RELATIONSHIP_INTENT"
+      },
+      "shipping_truck_interface_relationship": {
+        "engineering_authority": false,
+        "relation_kind": "TERMINAL_INTERFACE_INTENT",
+        "source": "shipping_channel",
+        "target": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+        "topology_intent": "FINISHED_SIDE_TERMINAL_TRUCK_INTERFACE_INTENT_ONLY"
+      },
+      "signature": {
+        "band_topology": [
+          [
+            "CENTRAL_SORTING_CORE",
+            [
+              "PROCESSING_CORE_GROUP"
+            ],
+            "CENTRAL_ORGANIZER_CORE",
+            null
+          ],
+          [
+            "RAW_CORE_FACE",
+            [
+              "RAW_SIDE_GROUP"
+            ],
+            "DISTINCT_CORE_FACE_ATTACHMENT",
+            null
+          ],
+          [
+            "PROCESS_CORE_FACE",
+            [
+              "PROCESSING_CORE_GROUP"
+            ],
+            "PROCESSING_CORE_SUPPORT_ARC",
+            null
+          ],
+          [
+            "FINISHED_OPPOSING_FACE",
+            [
+              "FINISHED_SIDE_GROUP"
+            ],
+            "DISTINCT_OPPOSING_CORE_FACE",
+            null
+          ],
+          [
+            "SUPPORT_OTHER_FACES",
+            [
+              "SUPPORT_GROUP"
+            ],
+            "MULTI_FACE_PERIPHERAL_GROUP",
+            null
+          ]
+        ],
+        "family": "CENTRAL_PROCESS_CORE",
+        "functional_group_order": [
+          "PROCESSING_CORE_GROUP",
+          "RAW_SIDE_GROUP",
+          "FINISHED_SIDE_GROUP",
+          "SUPPORT_GROUP",
+          "PERSONNEL_GROUP"
+        ],
+        "peripheral_topology": [
+          [
+            "PERSONNEL_INGRESS_DOMAIN",
+            "SEPARATE_INGRESS_FACE",
+            "OUTSIDE_PRODUCT_BANDS",
+            "PERSONNEL_ON_SEPARATE_CORE_FACE"
+          ],
+          [
+            "PACKAGING_SUPPORT_DOMAIN",
+            "PERIPHERAL_FACE_A",
+            "SUPPORT_BRANCH",
+            "PACKAGING_ON_PERIPHERAL_CORE_FACE"
+          ],
+          [
+            "SECONDARY_BRANCH_DOMAIN",
+            "PERIPHERAL_FACE_B",
+            "SUPPORT_BRANCH",
+            "SECONDARY_ON_PERIPHERAL_CORE_FACE"
+          ],
+          [
+            "FROZEN_BRANCH_DOMAIN",
+            "PERIPHERAL_FACE_C",
+            "SUPPORT_BRANCH",
+            "FROZEN_ON_PERIPHERAL_CORE_FACE"
+          ],
+          [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+            "FINISHED_SIDE_INTERFACE",
+            "FINISHED_TERMINAL",
+            "SHIPPING_ON_FINISHED_OPPOSING_FACE"
+          ]
+        ],
+        "personnel_relationship": [
+          "PERSONNEL_GROUP",
+          "PERSONNEL_INGRESS_DOMAIN",
+          "SEPARATE_FROM_PRODUCT_CHAIN"
+        ],
+        "process_axis": "X",
+        "process_direction": "NEGATIVE",
+        "shipping_truck_relationship": [
+          "shipping_channel",
+          "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+          "FINISHED_SIDE_TERMINAL_TRUCK_INTERFACE_INTENT_ONLY"
+        ]
+      },
+      "site_orientation_intent": {
+        "direction_policy": "FINISHED_TERMINAL_TOWARD_TRUCK_ENTRANCE_SIDE",
+        "dominant_site_axis": "X",
+        "main_entrance_side": "EAST",
+        "preferred_loading_side": "UNSPECIFIED",
+        "selected_process_axis": "X",
+        "selected_process_direction": "NEGATIVE",
+        "source_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+        "source_geometry_identity": "site-geometry-foundation@1.0.0",
+        "truck_entrance_side": "WEST"
+      },
+      "zone_role_assignment": [
+        {
+          "band_id": "RAW_CORE_FACE",
+          "group_id": "RAW_SIDE_GROUP",
+          "topology_role": "RAW_FACE_ENTRY",
+          "zone_role": "raw_fruit_buffer"
+        },
+        {
+          "band_id": "RAW_CORE_FACE",
+          "group_id": "RAW_SIDE_GROUP",
+          "topology_role": "RAW_FACE_PRECOOL",
+          "zone_role": "primary_precooling_room"
+        },
+        {
+          "band_id": "CENTRAL_SORTING_CORE",
+          "group_id": "PROCESSING_CORE_GROUP",
+          "topology_role": "CENTRAL_ORGANIZER",
+          "zone_role": "sorting_packaging_room"
+        },
+        {
+          "band_id": "PROCESS_CORE_FACE",
+          "group_id": "PROCESSING_CORE_GROUP",
+          "topology_role": "CORE_PROCESS_FACE",
+          "zone_role": "secondary_precooling_room"
+        },
+        {
+          "band_id": "PROCESS_CORE_FACE",
+          "group_id": "PROCESSING_CORE_GROUP",
+          "topology_role": "PROCESS_TRANSITION_FACE",
+          "zone_role": "coating_room"
+        },
+        {
+          "band_id": "FINISHED_OPPOSING_FACE",
+          "group_id": "FINISHED_SIDE_GROUP",
+          "topology_role": "FINISHED_OPPOSING_FACE",
+          "zone_role": "finished_goods_room"
+        },
+        {
+          "band_id": "FINISHED_OPPOSING_FACE",
+          "group_id": "FINISHED_SIDE_GROUP",
+          "topology_role": "FINISHED_SIDE_TERMINAL",
+          "zone_role": "shipping_channel"
+        },
+        {
+          "band_id": "SUPPORT_OTHER_FACES",
+          "group_id": "SUPPORT_GROUP",
+          "topology_role": "PACKAGING_PERIPHERAL_FACE",
+          "zone_role": "packaging_material_storage"
+        },
+        {
+          "band_id": "SUPPORT_OTHER_FACES",
+          "group_id": "SUPPORT_GROUP",
+          "topology_role": "SECONDARY_PERIPHERAL_FACE",
+          "zone_role": "secondary_fruit_buffer"
+        },
+        {
+          "band_id": "SUPPORT_OTHER_FACES",
+          "group_id": "SUPPORT_GROUP",
+          "topology_role": "FROZEN_PERIPHERAL_FACE",
+          "zone_role": "frozen_fruit_room"
+        },
+        {
+          "band_id": null,
+          "group_id": "PERSONNEL_GROUP",
+          "topology_role": "PERSONNEL_SEPARATE_FACE",
+          "zone_role": "changing_room"
+        },
+        {
+          "band_id": null,
+          "group_id": "PERSONNEL_GROUP",
+          "topology_role": "PERSONNEL_SEPARATE_FACE",
+          "zone_role": "office"
+        }
+      ]
+    },
+    {
+      "candidate_id": "C",
+      "composition_adjacency_intent": [
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "raw_fruit_buffer",
+          "target": "primary_precooling_room",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "primary_precooling_room",
+          "target": "sorting_packaging_room",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "sorting_packaging_room",
+          "target": "secondary_precooling_room",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "secondary_precooling_room",
+          "target": "coating_room",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "coating_room",
+          "target": "finished_goods_room",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "finished_goods_room",
+          "target": "shipping_channel",
+          "topology_intent": "CURRENT_PROCESS_GRAPH_FLOW_DIRECTION_ONLY"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "RAW_SIDE_GROUP",
+          "target": "PROCESSING_CORE_GROUP",
+          "topology_intent": "SPINE_ENTRY_TO_CORE"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PROCESS_ORDER",
+          "source": "PROCESSING_CORE_GROUP",
+          "target": "FINISHED_SIDE_GROUP",
+          "topology_intent": "CORE_TO_SPINE_FINISHED_TERMINAL"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "PARALLEL_BANK",
+          "source": "SUPPORT_GROUP",
+          "target": "DOMINANT_PROCESS_SPINE",
+          "topology_intent": "PARALLEL_PRODUCT_SUPPORT_BANK"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "INGRESS_DOMAIN_INTENT",
+          "source": "PERSONNEL_GROUP",
+          "target": "PERSONNEL_INGRESS_DOMAIN",
+          "topology_intent": "SEPARATE_PERSONNEL_BANK"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "SUBORDINATE_BRANCH",
+          "source": "packaging_material_storage",
+          "target": "sorting_packaging_room",
+          "topology_intent": "PACKAGING_SUPPORT_RELATIONSHIP_INTENT"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "SUBORDINATE_BRANCH",
+          "source": "secondary_fruit_buffer",
+          "target": "sorting_packaging_room",
+          "topology_intent": "SECONDARY_BRANCH_RELATIONSHIP_INTENT"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "SUBORDINATE_BRANCH",
+          "source": "frozen_fruit_room",
+          "target": "sorting_packaging_room",
+          "topology_intent": "FROZEN_BRANCH_RELATIONSHIP_INTENT"
+        },
+        {
+          "engineering_authority": false,
+          "relation_kind": "TERMINAL_INTERFACE_INTENT",
+          "source": "shipping_channel",
+          "target": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+          "topology_intent": "FINISHED_SIDE_TERMINAL_TRUCK_INTERFACE_INTENT_ONLY"
+        }
+      ],
+      "construction_provenance": {
+        "family_coverage_round": 0,
+        "golden_reference_used": false,
+        "process_graph_identity": "charles-v22-process-flow@1.1.0",
+        "source_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+        "source_geometry_identity": "site-geometry-foundation@1.0.0",
+        "source_validation_status": "VALIDATED_GEOMETRY_FOUNDATION",
+        "variant_index": 0
+      },
+      "dominant_axis_family": {
+        "axes": [
+          "PRIMARY_PROCESS_AXIS",
+          "CROSS_BAND_AXIS",
+          "PERIPHERAL_BANK_AXIS"
+        ],
+        "basis": "COMPOSITION_INTENT_ONLY",
+        "engineering_axis_authority": false
+      },
+      "family": "PROCESS_SPINE_WITH_PERIPHERAL_BANKS",
+      "frozen_branch_relationship": {
+        "engineering_authority": false,
+        "relation_kind": "SUBORDINATE_BRANCH",
+        "source": "frozen_fruit_room",
+        "target": "sorting_packaging_room",
+        "topology_intent": "FROZEN_BRANCH_RELATIONSHIP_INTENT"
+      },
+      "functional_groups": [
+        {
+          "group_id": "RAW_SIDE_GROUP",
+          "product_chain_relation": "PRODUCT_FLOW_GROUP",
+          "structural_role": "SPINE_TERMINAL_GROUP",
+          "zone_roles": [
+            "raw_fruit_buffer",
+            "primary_precooling_room"
+          ]
+        },
+        {
+          "group_id": "PROCESSING_CORE_GROUP",
+          "product_chain_relation": "PRODUCT_FLOW_GROUP",
+          "structural_role": "PROCESS_CORE_ON_SPINE",
+          "zone_roles": [
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room"
+          ]
+        },
+        {
+          "group_id": "FINISHED_SIDE_GROUP",
+          "product_chain_relation": "PRODUCT_FLOW_GROUP",
+          "structural_role": "SPINE_TERMINAL_GROUP",
+          "zone_roles": [
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "group_id": "SUPPORT_GROUP",
+          "product_chain_relation": "SUBORDINATE_SUPPORT_GROUP",
+          "structural_role": "SPINE_SIDE_BANK",
+          "zone_roles": [
+            "packaging_material_storage",
+            "secondary_fruit_buffer",
+            "frozen_fruit_room"
+          ]
+        },
+        {
+          "group_id": "PERSONNEL_GROUP",
+          "product_chain_relation": "OUTSIDE_PRODUCT_CHAIN",
+          "structural_role": "SEPARATE_PERSONNEL_INGRESS_DOMAIN",
+          "zone_roles": [
+            "changing_room",
+            "office"
+          ]
+        }
+      ],
+      "identity": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:X:NEGATIVE:r0",
+      "packaging_branch_relationship": {
+        "engineering_authority": false,
+        "relation_kind": "SUBORDINATE_BRANCH",
+        "source": "packaging_material_storage",
+        "target": "sorting_packaging_room",
+        "topology_intent": "PACKAGING_SUPPORT_RELATIONSHIP_INTENT"
+      },
+      "peripheral_domain_is_engineering_authority": false,
+      "peripheral_domains": [
+        {
+          "band_relationship": "OUTSIDE_PRODUCT_BANDS",
+          "domain_id": "PERSONNEL_INGRESS_DOMAIN",
+          "engineering_authority": false,
+          "group_relationship": "PERSONNEL_GROUP",
+          "relative_side": "PERSONNEL_BANK_SEPARATE_FROM_PRODUCT_BANK",
+          "topology": "PERSONNEL_SEPARATE_SPINE_BANK",
+          "zone_roles": [
+            "changing_room",
+            "office"
+          ]
+        },
+        {
+          "band_relationship": "SUPPORT_BRANCH",
+          "domain_id": "PACKAGING_SUPPORT_DOMAIN",
+          "engineering_authority": false,
+          "group_relationship": "SUPPORT_GROUP",
+          "relative_side": "PRODUCT_SUPPORT_BANK_A",
+          "topology": "PACKAGING_PRODUCT_SUPPORT_BANK",
+          "zone_roles": [
+            "packaging_material_storage"
+          ]
+        },
+        {
+          "band_relationship": "SUPPORT_BRANCH",
+          "domain_id": "SECONDARY_BRANCH_DOMAIN",
+          "engineering_authority": false,
+          "group_relationship": "SUPPORT_GROUP",
+          "relative_side": "PRODUCT_SUPPORT_BANK_A",
+          "topology": "SECONDARY_PRODUCT_SUPPORT_BANK",
+          "zone_roles": [
+            "secondary_fruit_buffer"
+          ]
+        },
+        {
+          "band_relationship": "SUPPORT_BRANCH",
+          "domain_id": "FROZEN_BRANCH_DOMAIN",
+          "engineering_authority": false,
+          "group_relationship": "SUPPORT_GROUP",
+          "relative_side": "PRODUCT_SUPPORT_BANK_A",
+          "topology": "FROZEN_PRODUCT_SUPPORT_BANK",
+          "zone_roles": [
+            "frozen_fruit_room"
+          ]
+        },
+        {
+          "band_relationship": "FINISHED_TERMINAL",
+          "domain_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+          "engineering_authority": false,
+          "group_relationship": "FINISHED_SIDE_GROUP",
+          "relative_side": "FINISHED_SPINE_TERMINAL",
+          "topology": "SPINE_FINISHED_TERMINAL_TRUCK_INTENT",
+          "zone_roles": [
+            "shipping_channel"
+          ]
+        }
+      ],
+      "personnel_ingress_relationship": {
+        "engineering_authority": false,
+        "relation_kind": "INGRESS_DOMAIN_INTENT",
+        "source": "PERSONNEL_GROUP",
+        "target": "PERSONNEL_INGRESS_DOMAIN",
+        "topology_intent": "SEPARATE_PERSONNEL_BANK"
+      },
+      "principal_bands": [
+        {
+          "axis_relation": "ALONG_PROCESS_AXIS",
+          "band_id": "DOMINANT_PROCESS_SPINE",
+          "group_ids": [
+            "RAW_SIDE_GROUP",
+            "PROCESSING_CORE_GROUP",
+            "FINISHED_SIDE_GROUP"
+          ],
+          "relative_position": "SPINE_ENTRY_TO_FINISHED_TERMINAL",
+          "sequence_index": 0,
+          "topology": "LONGITUDINAL_ROLE_SEQUENCE",
+          "zone_roles": [
+            "raw_fruit_buffer",
+            "primary_precooling_room",
+            "sorting_packaging_room",
+            "secondary_precooling_room",
+            "coating_room",
+            "finished_goods_room",
+            "shipping_channel"
+          ]
+        },
+        {
+          "axis_relation": "PERIPHERAL_OR_CORE_FACE",
+          "band_id": "PRODUCT_SUPPORT_SIDE_BANK",
+          "group_ids": [
+            "SUPPORT_GROUP"
+          ],
+          "relative_position": "SPINE_SIDE_BANK_A",
+          "sequence_index": null,
+          "topology": "PARALLEL_PRODUCT_SUPPORT_BANK",
+          "zone_roles": [
+            "packaging_material_storage",
+            "secondary_fruit_buffer",
+            "frozen_fruit_room"
+          ]
+        },
+        {
+          "axis_relation": "PERIPHERAL_OR_CORE_FACE",
+          "band_id": "PERSONNEL_INGRESS_BANK",
+          "group_ids": [
+            "PERSONNEL_GROUP"
+          ],
+          "relative_position": "SPINE_SIDE_BANK_B_OUTSIDE_PRODUCT_CHAIN",
+          "sequence_index": null,
+          "topology": "SEPARATE_PERSONNEL_BANK",
+          "zone_roles": [
+            "changing_room",
+            "office"
+          ]
+        }
+      ],
+      "process_axis": "X",
+      "process_direction": "NEGATIVE",
+      "schema_version": "2.0.0",
+      "secondary_branch_relationship": {
+        "engineering_authority": false,
+        "relation_kind": "SUBORDINATE_BRANCH",
+        "source": "secondary_fruit_buffer",
+        "target": "sorting_packaging_room",
+        "topology_intent": "SECONDARY_BRANCH_RELATIONSHIP_INTENT"
+      },
+      "shipping_truck_interface_relationship": {
+        "engineering_authority": false,
+        "relation_kind": "TERMINAL_INTERFACE_INTENT",
+        "source": "shipping_channel",
+        "target": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+        "topology_intent": "FINISHED_SIDE_TERMINAL_TRUCK_INTERFACE_INTENT_ONLY"
+      },
+      "signature": {
+        "band_topology": [
+          [
+            "DOMINANT_PROCESS_SPINE",
+            [
+              "RAW_SIDE_GROUP",
+              "PROCESSING_CORE_GROUP",
+              "FINISHED_SIDE_GROUP"
+            ],
+            "LONGITUDINAL_ROLE_SEQUENCE",
+            0
+          ],
+          [
+            "PRODUCT_SUPPORT_SIDE_BANK",
+            [
+              "SUPPORT_GROUP"
+            ],
+            "PARALLEL_PRODUCT_SUPPORT_BANK",
+            null
+          ],
+          [
+            "PERSONNEL_INGRESS_BANK",
+            [
+              "PERSONNEL_GROUP"
+            ],
+            "SEPARATE_PERSONNEL_BANK",
+            null
+          ]
+        ],
+        "family": "PROCESS_SPINE_WITH_PERIPHERAL_BANKS",
+        "functional_group_order": [
+          "RAW_SIDE_GROUP",
+          "PROCESSING_CORE_GROUP",
+          "FINISHED_SIDE_GROUP",
+          "SUPPORT_GROUP",
+          "PERSONNEL_GROUP"
+        ],
+        "peripheral_topology": [
+          [
+            "PERSONNEL_INGRESS_DOMAIN",
+            "PERSONNEL_BANK_SEPARATE_FROM_PRODUCT_BANK",
+            "OUTSIDE_PRODUCT_BANDS",
+            "PERSONNEL_SEPARATE_SPINE_BANK"
+          ],
+          [
+            "PACKAGING_SUPPORT_DOMAIN",
+            "PRODUCT_SUPPORT_BANK_A",
+            "SUPPORT_BRANCH",
+            "PACKAGING_PRODUCT_SUPPORT_BANK"
+          ],
+          [
+            "SECONDARY_BRANCH_DOMAIN",
+            "PRODUCT_SUPPORT_BANK_A",
+            "SUPPORT_BRANCH",
+            "SECONDARY_PRODUCT_SUPPORT_BANK"
+          ],
+          [
+            "FROZEN_BRANCH_DOMAIN",
+            "PRODUCT_SUPPORT_BANK_A",
+            "SUPPORT_BRANCH",
+            "FROZEN_PRODUCT_SUPPORT_BANK"
+          ],
+          [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+            "FINISHED_SPINE_TERMINAL",
+            "FINISHED_TERMINAL",
+            "SPINE_FINISHED_TERMINAL_TRUCK_INTENT"
+          ]
+        ],
+        "personnel_relationship": [
+          "PERSONNEL_GROUP",
+          "PERSONNEL_INGRESS_DOMAIN",
+          "SEPARATE_PERSONNEL_BANK"
+        ],
+        "process_axis": "X",
+        "process_direction": "NEGATIVE",
+        "shipping_truck_relationship": [
+          "shipping_channel",
+          "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+          "FINISHED_SIDE_TERMINAL_TRUCK_INTERFACE_INTENT_ONLY"
+        ]
+      },
+      "site_orientation_intent": {
+        "direction_policy": "FINISHED_TERMINAL_TOWARD_TRUCK_ENTRANCE_SIDE",
+        "dominant_site_axis": "X",
+        "main_entrance_side": "EAST",
+        "preferred_loading_side": "UNSPECIFIED",
+        "selected_process_axis": "X",
+        "selected_process_direction": "NEGATIVE",
+        "source_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+        "source_geometry_identity": "site-geometry-foundation@1.0.0",
+        "truck_entrance_side": "WEST"
+      },
+      "zone_role_assignment": [
+        {
+          "band_id": "DOMINANT_PROCESS_SPINE",
+          "group_id": "RAW_SIDE_GROUP",
+          "topology_role": "SPINE_ENTRY",
+          "zone_role": "raw_fruit_buffer"
+        },
+        {
+          "band_id": "DOMINANT_PROCESS_SPINE",
+          "group_id": "RAW_SIDE_GROUP",
+          "topology_role": "RAW_PRECOOL_SPINE_LINK",
+          "zone_role": "primary_precooling_room"
+        },
+        {
+          "band_id": "DOMINANT_PROCESS_SPINE",
+          "group_id": "PROCESSING_CORE_GROUP",
+          "topology_role": "PROCESS_CORE_ON_SPINE",
+          "zone_role": "sorting_packaging_room"
+        },
+        {
+          "band_id": "DOMINANT_PROCESS_SPINE",
+          "group_id": "PROCESSING_CORE_GROUP",
+          "topology_role": "PROCESS_SPINE_TRANSITION",
+          "zone_role": "secondary_precooling_room"
+        },
+        {
+          "band_id": "DOMINANT_PROCESS_SPINE",
+          "group_id": "PROCESSING_CORE_GROUP",
+          "topology_role": "PROCESS_SPINE_TRANSITION",
+          "zone_role": "coating_room"
+        },
+        {
+          "band_id": "DOMINANT_PROCESS_SPINE",
+          "group_id": "FINISHED_SIDE_GROUP",
+          "topology_role": "SPINE_FINISHED_ROLE",
+          "zone_role": "finished_goods_room"
+        },
+        {
+          "band_id": "DOMINANT_PROCESS_SPINE",
+          "group_id": "FINISHED_SIDE_GROUP",
+          "topology_role": "SPINE_FINISHED_TERMINAL",
+          "zone_role": "shipping_channel"
+        },
+        {
+          "band_id": "PRODUCT_SUPPORT_SIDE_BANK",
+          "group_id": "SUPPORT_GROUP",
+          "topology_role": "PACKAGING_SIDE_BANK",
+          "zone_role": "packaging_material_storage"
+        },
+        {
+          "band_id": "PRODUCT_SUPPORT_SIDE_BANK",
+          "group_id": "SUPPORT_GROUP",
+          "topology_role": "SECONDARY_SIDE_BANK",
+          "zone_role": "secondary_fruit_buffer"
+        },
+        {
+          "band_id": "PRODUCT_SUPPORT_SIDE_BANK",
+          "group_id": "SUPPORT_GROUP",
+          "topology_role": "FROZEN_SIDE_BANK",
+          "zone_role": "frozen_fruit_room"
+        },
+        {
+          "band_id": "PERSONNEL_INGRESS_BANK",
+          "group_id": "PERSONNEL_GROUP",
+          "topology_role": "PERSONNEL_INGRESS_BANK",
+          "zone_role": "changing_room"
+        },
+        {
+          "band_id": "PERSONNEL_INGRESS_BANK",
+          "group_id": "PERSONNEL_GROUP",
+          "topology_role": "PERSONNEL_INGRESS_BANK",
+          "zone_role": "office"
+        }
+      ]
+    }
+  ],
+  "evidence_schema": "v2.2.2-p1a-reset-s1@1.0.0",
+  "fixture": "xinzhao_20t_site_layout_input_v3",
+  "generation_scope": "STRUCTURAL_COMPOSITION_ONLY_NO_EXACT_PLACEMENT",
+  "summary": {
+    "axis_family_is_intent_only": true,
+    "complete_12_role_composition_count": 3,
+    "distinct_structural_composition_count": 3,
+    "family_count": 3,
+    "family_coverage_order": [
+      "LINEAR_BANDED",
+      "CENTRAL_PROCESS_CORE",
+      "PROCESS_SPINE_WITH_PERIPHERAL_BANKS"
+    ],
+    "family_first_round_complete": true,
+    "peripheral_domain_is_engineering_authority": false,
+    "process_graph_identity": "charles-v22-process-flow@1.1.0",
+    "structural_composition_count": 3,
+    "truck_interface_is_composition_intent_only": true
+  }
+}
