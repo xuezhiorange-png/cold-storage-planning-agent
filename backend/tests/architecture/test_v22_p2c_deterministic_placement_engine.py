@@ -153,6 +153,9 @@ def test_p2c_runtime_status_does_not_claim_route_or_final_layout_validation() ->
     application = (
         ROOT / "backend/src/cold_storage/modules/layout/application/placement.py"
     ).read_text()
+    authority_binding = (
+        ROOT / "backend/src/cold_storage/modules/layout/application/layout_authority_binding.py"
+    ).read_text()
     for text in (source,):
         assert "p2_complete" in text
         assert "routing_validated" in text
@@ -163,7 +166,8 @@ def test_p2c_runtime_status_does_not_claim_route_or_final_layout_validation() ->
     assert "node_budget_is_only_search_cutoff" in source
     assert "objective_optimal_within_search_family" in source
     assert "if complete_candidates >= complete_candidate_limit" not in source
-    assert 'historical.get("access_requirements")' in application
+    assert "bind_layout_authority(zone_plan, handoff, geometry)" in application
+    assert 'historical.get("access_requirements")' in authority_binding
     assert "access_requirements=access_requirements" in application
     assert "for requirement in access_requirements" in source
     assert "search_placement" in application

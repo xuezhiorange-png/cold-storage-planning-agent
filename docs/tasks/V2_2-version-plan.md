@@ -1030,3 +1030,147 @@ GITHUB_RELEASE_AUTHORIZED=false
 DEPLOYMENT_AUTHORIZED=false
 NO_STEP_IMPLIES_THE_NEXT=true
 ```
+
+## V2.2.2 P1A Reset P1-S1 — Whole-building composition core
+
+P1-S1 implements the new independent structural-composition domain on the
+authorized branch from clean `main`. It emits complete twelve-role topology
+plans for `LINEAR_BANDED`, `CENTRAL_PROCESS_CORE`, and
+`PROCESS_SPINE_WITH_PERIPHERAL_BANKS`, assigns all five functional groups and
+all five non-authoritative peripheral domains at composition creation, and
+schedules family coverage before cross-axis variants. Xinzhao fixture evidence
+is composition-only; exact placement, access, Truck, P2D, Tool 7, and candidate
+selection remain unimplemented. This is one implementation slice, not P1
+completion and not authorization for the next runtime stage.
+
+See the [P1-S1 task record](V2_2_2-P1A-whole-building-composition-P1-S1.md)
+and [Xinzhao composition evidence](evidence/v2_2_2_p1a_reset_s1/xinzhao_whole_building_compositions.json).
+
+```ini
+TASK_ID=V2_2_2_P1A_WHOLE_BUILDING_COMPOSITION_P1_S1
+ACTIVE_GOVERNANCE_LANE=V2.2.2_P1A_RESET_P1_S1
+BASE_MAIN_SHA=a781398cf483320327d23e2f942b5762dc18d845
+WHOLE_BUILDING_COMPOSITION_RUNTIME_IMPLEMENTED=true
+STRUCTURAL_COMPOSITION_VALUE_OBJECT_IMPLEMENTED=true
+FAMILY_COUNT=3
+FAMILY_COVERAGE_COMPLETE=true
+COMPLETE_12_ROLE_COMPOSITION_COUNT=6
+DISTINCT_STRUCTURAL_COMPOSITION_COUNT=6
+PAIRWISE_TOPOLOGY_SIGNATURE_DISTINCT=true
+FROZEN_ASSIGNED_AT_COMPOSITION_CREATION=true
+SECONDARY_ASSIGNED_AT_COMPOSITION_CREATION=true
+PACKAGING_ASSIGNED_AT_COMPOSITION_CREATION=true
+LEGACY_PLACEMENT_RUNTIME_CHANGED=false
+VALIDATED_CANDIDATE_SELECTOR_CHANGED=false
+TOOL7_BEHAVIOR_CHANGED=false
+EXACT_PLACEMENT_IMPLEMENTED=false
+ACCESS_ROUTING_IMPLEMENTED=false
+TRUCK_VALIDATION_IMPLEMENTED=false
+P2D_IMPLEMENTED=false
+TOOL7_INTEGRATION_IMPLEMENTED=false
+NEXT_RUNTIME_IMPLEMENTATION_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```
+
+## V2.2.2 P1A Reset P1-S3 — composition-constrained exact-placement MVP
+
+P1-S3 adds a server-replayed composition placement path and an independent,
+bounded rectangle-placement domain. Its main implementation attempt remains
+historically **FAIL** (zero complete candidates). Owner-authorized Correction
+Round 1 changed finite anchor construction and coupled Shipping/Office
+preflight without raising the 60,000-node budget. The real Xinzhao replay now
+emits one composition-native 12-zone candidate in `LINEAR_BANDED`; it passes
+site, dimension, non-overlap, 7/7 MUST adjacency, and composition-intent
+checks. Access, Truck, and P2D remain unvalidated, so this is only the S3 hard
+subset MVP and P1 is not complete. Correction Round 2 is unauthorized.
+
+See the [P1-S3 task record](V2_2_2-P1A-whole-building-composition-P1-S3.md)
+and [main-attempt evidence](evidence/v2_2_2_p1a_reset_s3/xinzhao_composition_exact_placements.json)
+and [CR1 evidence](evidence/v2_2_2_p1a_reset_s3/xinzhao_composition_exact_placements_cr1.json).
+
+```ini
+TASK_ID=V2_2_2_P1A_WHOLE_BUILDING_COMPOSITION_P1_S3
+ACTIVE_GOVERNANCE_LANE=V2.2.2_P1A_RESET_P1_S3
+PR_NUMBER=304
+PR_STATE=DRAFT
+SHARED_LAYOUT_AUTHORITY_BINDING_IMPLEMENTED=true
+COMPOSITION_HANDOFF_SERVER_REPLAY_ENFORCED=true
+COMPOSITION_PLACEMENT_NODE_BUDGET=60000
+FAMILY_COUNT=3
+ALL_FAMILIES_EXACT_PLACEMENT_ATTEMPTED=true
+FAMILY_FIRST_EXACT_PLACEMENT_ROUND_COMPLETE=true
+P1_S3_MAIN_IMPLEMENTATION_CANDIDATE_COUNT=0
+P1_S3_MAIN_IMPLEMENTATION_COMPLETE_12_ZONE_COUNT=0
+CURRENT_CR1_COMPOSITION_NATIVE_COMPLETE_CANDIDATE_COUNT=1
+CURRENT_CR1_COMPLETE_12_ZONE_PLACEMENT_COUNT=1
+CURRENT_CR1_CANDIDATE_FAMILY=LINEAR_BANDED
+P1_S3_STATUS=MVP_DRAFT_REVIEW
+P1_S3_MAIN_IMPLEMENTATION_RESULT=FAIL
+P1_S3_CR1_RESULT=PASS
+P1_S3_CR1_NODES_USED=50621
+P1_S3_CR1_COMPOSITION_NATIVE_COMPLETE_CANDIDATE_COUNT=1
+P1_S3_CR1_COMPLETE_CANDIDATE_FAMILY=LINEAR_BANDED
+P1_COMPLETE=false
+ACCESS_ROUTING_IMPLEMENTED=false
+TRUCK_VALIDATION_IMPLEMENTED=false
+P2D_IMPLEMENTED=false
+VALIDATED_CANDIDATE_SELECTOR_CHANGED=false
+TOOL7_BEHAVIOR_CHANGED=false
+RECOVERY_ROUND_USED=1
+RECOVERY_ROUND_1_AUTHORIZED=true
+RECOVERY_ROUND_2_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```
+
+## V2.2.2 P1A Reset P1-S2 — composition authority and placement handoff
+
+P1-S2 binds the P1-S1 whole-building compositions to the canonical zone plan,
+server-owned P1 handoff, and authenticated `ValidatedSiteGeometryV1` through a
+new application boundary. It derives categorical entrance/boundary facts and a
+versioned dominant-site-axis policy, then emits one geometry-free
+`StructuralCompositionPlacementHandoffV1` for each of the six compositions.
+The handoff preserves all twelve role/group/band/topology/domain assignments
+and references (but does not duplicate) dimension authority. Exact placement,
+access, Truck, P2D, selection, and Tool 7 remain outside this slice. P1 remains
+incomplete; exact placement is a separately authorized next stage.
+
+See the [P1-S2 task record](V2_2_2-P1A-whole-building-composition-P1-S2.md)
+and [authority/handoff evidence](evidence/v2_2_2_p1a_reset_s2/xinzhao_composition_authority_binding.json).
+
+```ini
+TASK_ID=V2_2_2_P1A_WHOLE_BUILDING_COMPOSITION_P1_S2
+ACTIVE_GOVERNANCE_LANE=V2.2.2_P1A_RESET_P1_S2
+PR_NUMBER=304
+PR_STATE=DRAFT
+COMPOSITION_APPLICATION_BOUNDARY_IMPLEMENTED=true
+COMPOSITION_PLACEMENT_HANDOFF_CONTRACT_IMPLEMENTED=true
+COMPOSITION_HANDOFF_COUNT=6
+HANDOFF_COMPLETE_12_ROLE_COUNT=6
+LEGACY_PLACEMENT_RUNTIME_CHANGED=false
+VALIDATED_CANDIDATE_SELECTOR_CHANGED=false
+TOOL7_BEHAVIOR_CHANGED=false
+EXACT_PLACEMENT_IMPLEMENTED=false
+ACCESS_ROUTING_IMPLEMENTED=false
+TRUCK_VALIDATION_IMPLEMENTED=false
+P2D_IMPLEMENTED=false
+TOOL7_INTEGRATION_IMPLEMENTED=false
+P1_COMPLETE=false
+EXACT_PLACEMENT_IMPLEMENTATION_AUTHORIZED=false
+NEXT_RUNTIME_IMPLEMENTATION_AUTHORIZED=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```

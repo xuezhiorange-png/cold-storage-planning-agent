@@ -1,0 +1,129 @@
+{
+  "task_id": "V2_2_2_P1A_WHOLE_BUILDING_COMPOSITION_P1_S3",
+  "mode": "COMPOSITION_CONSTRAINED_EXACT_PLACEMENT_MVP",
+  "result": "FAIL",
+  "authority_chain": {
+    "zone_plan_hash": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd",
+    "p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+    "site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+    "composition_enumeration_hash": "sha256:ba23c02e248c8988f85ed86366eba704d04f9d8cfa4910ca41f6a7d496e460f1",
+    "server_owned_handoff_count": 6,
+    "caller_handoff_consumed": false,
+    "composition_replay_enforced": true,
+    "composition_signatures_source": "../v2_2_2_p1a_reset_s1/xinzhao_whole_building_compositions.json"
+  },
+  "placement_contract": {
+    "identity": "composition-constrained-exact-placement@1.0.0",
+    "schema_version": "1.0.0",
+    "node_budget": 60000,
+    "nodes_used": 60000,
+    "node_budget_exhausted": true,
+    "placement_scope": "SITE_DIMENSIONS_OVERLAP_MUST_ADJACENCY_ONLY",
+    "composition_first": true,
+    "main_first_tail_attachment_primary_path": false,
+    "construction_domain_is_hard_engineering_authority": false,
+    "must_adjacency_authority_changed": false,
+    "required_must_adjacency_count": 7,
+    "access_routing_performed": false,
+    "truck_validation_performed": false,
+    "p2d_performed": false,
+    "project_layout_validated_claimed": false,
+    "p2_complete_claimed": false,
+    "legacy_fallback_used": false
+  },
+  "family_coverage_order": [
+    "LINEAR_BANDED",
+    "CENTRAL_PROCESS_CORE",
+    "PROCESS_SPINE_WITH_PERIPHERAL_BANKS"
+  ],
+  "family_first_exact_placement_round_complete": true,
+  "attempt_count_by_family": {
+    "LINEAR_BANDED": 4,
+    "CENTRAL_PROCESS_CORE": 4,
+    "PROCESS_SPINE_WITH_PERIPHERAL_BANKS": 4
+  },
+  "nodes_used_by_family": {
+    "LINEAR_BANDED": 20000,
+    "CENTRAL_PROCESS_CORE": 20000,
+    "PROCESS_SPINE_WITH_PERIPHERAL_BANKS": 20000
+  },
+  "deepest_role_reached_by_family": {
+    "LINEAR_BANDED": "office",
+    "CENTRAL_PROCESS_CORE": "finished_goods_room",
+    "PROCESS_SPINE_WITH_PERIPHERAL_BANKS": "office"
+  },
+  "failure_reason_by_family": {
+    "LINEAR_BANDED": "COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED",
+    "CENTRAL_PROCESS_CORE": "COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED",
+    "PROCESS_SPINE_WITH_PERIPHERAL_BANKS": "COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED"
+  },
+  "construction_domain_role_map": {
+    "LINEAR_BANDED": {
+      "RAW_UPSTREAM_BAND": ["raw_fruit_buffer", "primary_precooling_room"],
+      "PROCESS_CORE_BAND": ["sorting_packaging_room", "secondary_precooling_room", "coating_room"],
+      "FINISHED_TERMINAL_BAND": ["finished_goods_room", "shipping_channel"],
+      "SUPPORT_BRANCH_BAND": ["packaging_material_storage", "secondary_fruit_buffer", "frozen_fruit_room"],
+      "PERSONNEL_INGRESS_DOMAIN": ["changing_room", "office"],
+      "PACKAGING_SUPPORT_DOMAIN": ["packaging_material_storage"],
+      "SECONDARY_BRANCH_DOMAIN": ["secondary_fruit_buffer"],
+      "FROZEN_BRANCH_DOMAIN": ["frozen_fruit_room"],
+      "SHIPPING_TRUCK_INTERFACE_DOMAIN": ["shipping_channel"]
+    },
+    "CENTRAL_PROCESS_CORE": {
+      "CENTRAL_SORTING_CORE": ["sorting_packaging_room"],
+      "RAW_CORE_FACE": ["raw_fruit_buffer", "primary_precooling_room"],
+      "PROCESS_CORE_FACE": ["secondary_precooling_room", "coating_room"],
+      "FINISHED_OPPOSING_FACE": ["finished_goods_room", "shipping_channel"],
+      "SUPPORT_OTHER_FACES": ["packaging_material_storage", "secondary_fruit_buffer", "frozen_fruit_room"],
+      "PERSONNEL_INGRESS_DOMAIN": ["changing_room", "office"],
+      "PACKAGING_SUPPORT_DOMAIN": ["packaging_material_storage"],
+      "SECONDARY_BRANCH_DOMAIN": ["secondary_fruit_buffer"],
+      "FROZEN_BRANCH_DOMAIN": ["frozen_fruit_room"],
+      "SHIPPING_TRUCK_INTERFACE_DOMAIN": ["shipping_channel"]
+    },
+    "PROCESS_SPINE_WITH_PERIPHERAL_BANKS": {
+      "DOMINANT_PROCESS_SPINE": ["raw_fruit_buffer", "primary_precooling_room", "sorting_packaging_room", "secondary_precooling_room", "coating_room", "finished_goods_room", "shipping_channel"],
+      "PRODUCT_SUPPORT_SIDE_BANK": ["packaging_material_storage", "secondary_fruit_buffer", "frozen_fruit_room"],
+      "PERSONNEL_INGRESS_BANK": ["changing_room", "office"],
+      "PERSONNEL_INGRESS_DOMAIN": ["changing_room", "office"],
+      "PACKAGING_SUPPORT_DOMAIN": ["packaging_material_storage"],
+      "SECONDARY_BRANCH_DOMAIN": ["secondary_fruit_buffer"],
+      "FROZEN_BRANCH_DOMAIN": ["frozen_fruit_room"],
+      "SHIPPING_TRUCK_INTERFACE_DOMAIN": ["shipping_channel"]
+    }
+  },
+  "search_attempts": [
+    {"family":"LINEAR_BANDED","composition_identity":"whole-building-structural-composition@2.0.0:LINEAR_BANDED:X:NEGATIVE:r0","axis":"X","direction":"NEGATIVE","bank_sign":1,"nodes_allocated":5000,"nodes_visited":5000,"deepest_role":"finished_goods_room","budget_exhausted":true,"failure_reason":"COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED"},
+    {"family":"LINEAR_BANDED","composition_identity":"whole-building-structural-composition@2.0.0:LINEAR_BANDED:X:NEGATIVE:r0","axis":"X","direction":"NEGATIVE","bank_sign":-1,"nodes_allocated":5000,"nodes_visited":5000,"deepest_role":"finished_goods_room","budget_exhausted":true,"failure_reason":"COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED"},
+    {"family":"CENTRAL_PROCESS_CORE","composition_identity":"whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:X:NEGATIVE:r0","axis":"X","direction":"NEGATIVE","bank_sign":1,"nodes_allocated":5000,"nodes_visited":5000,"deepest_role":"coating_room","budget_exhausted":true,"failure_reason":"COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED"},
+    {"family":"CENTRAL_PROCESS_CORE","composition_identity":"whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:X:NEGATIVE:r0","axis":"X","direction":"NEGATIVE","bank_sign":-1,"nodes_allocated":5000,"nodes_visited":5000,"deepest_role":"coating_room","budget_exhausted":true,"failure_reason":"COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED"},
+    {"family":"PROCESS_SPINE_WITH_PERIPHERAL_BANKS","composition_identity":"whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:X:NEGATIVE:r0","axis":"X","direction":"NEGATIVE","bank_sign":1,"nodes_allocated":5000,"nodes_visited":5000,"deepest_role":"coating_room","budget_exhausted":true,"failure_reason":"COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED"},
+    {"family":"PROCESS_SPINE_WITH_PERIPHERAL_BANKS","composition_identity":"whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:X:NEGATIVE:r0","axis":"X","direction":"NEGATIVE","bank_sign":-1,"nodes_allocated":5000,"nodes_visited":5000,"deepest_role":"coating_room","budget_exhausted":true,"failure_reason":"COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED"},
+    {"family":"LINEAR_BANDED","composition_identity":"whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1","axis":"Y","direction":"POSITIVE","bank_sign":1,"nodes_allocated":5000,"nodes_visited":5000,"deepest_role":"primary_precooling_room","budget_exhausted":true,"failure_reason":"COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED"},
+    {"family":"LINEAR_BANDED","composition_identity":"whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1","axis":"Y","direction":"POSITIVE","bank_sign":-1,"nodes_allocated":5000,"nodes_visited":5000,"deepest_role":"office","budget_exhausted":true,"failure_reason":"COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED"},
+    {"family":"CENTRAL_PROCESS_CORE","composition_identity":"whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:Y:POSITIVE:r1","axis":"Y","direction":"POSITIVE","bank_sign":1,"nodes_allocated":5000,"nodes_visited":5000,"deepest_role":"coating_room","budget_exhausted":true,"failure_reason":"COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED"},
+    {"family":"CENTRAL_PROCESS_CORE","composition_identity":"whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:Y:POSITIVE:r1","axis":"Y","direction":"POSITIVE","bank_sign":-1,"nodes_allocated":5000,"nodes_visited":5000,"deepest_role":"finished_goods_room","budget_exhausted":true,"failure_reason":"COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED"},
+    {"family":"PROCESS_SPINE_WITH_PERIPHERAL_BANKS","composition_identity":"whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:Y:POSITIVE:r1","axis":"Y","direction":"POSITIVE","bank_sign":1,"nodes_allocated":5000,"nodes_visited":5000,"deepest_role":"office","budget_exhausted":true,"failure_reason":"COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED"},
+    {"family":"PROCESS_SPINE_WITH_PERIPHERAL_BANKS","composition_identity":"whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:Y:POSITIVE:r1","axis":"Y","direction":"POSITIVE","bank_sign":-1,"nodes_allocated":5000,"nodes_visited":5000,"deepest_role":"finished_goods_room","budget_exhausted":true,"failure_reason":"COMPOSITION_VARIANT_NODE_ALLOCATION_EXHAUSTED"}
+  ],
+  "candidate_count": 0,
+  "complete_12_zone_placement_count": 0,
+  "emitted_candidates": [],
+  "candidate_hard_predicates": {
+    "site_valid": "NOT_EVALUATED_NO_COMPLETE_CANDIDATE",
+    "dimension_valid": "NOT_EVALUATED_NO_COMPLETE_CANDIDATE",
+    "non_overlap_valid": "NOT_EVALUATED_NO_COMPLETE_CANDIDATE",
+    "must_adjacency_valid": "NOT_EVALUATED_NO_COMPLETE_CANDIDATE",
+    "composition_intent_preserved": "NOT_EVALUATED_NO_COMPLETE_CANDIDATE"
+  },
+  "must_adjacency_pairs": [
+    ["raw_fruit_buffer","primary_precooling_room"],
+    ["primary_precooling_room","sorting_packaging_room"],
+    ["sorting_packaging_room","secondary_precooling_room"],
+    ["secondary_precooling_room","coating_room"],
+    ["coating_room","finished_goods_room"],
+    ["finished_goods_room","shipping_channel"],
+    ["office","shipping_channel"]
+  ],
+  "failure_scope": "BOUNDED_COMPOSITION_CONSTRUCTION_SEARCH_NO_COMPLETE_CANDIDATE; NOT_GLOBAL_INFEASIBILITY"
+}
