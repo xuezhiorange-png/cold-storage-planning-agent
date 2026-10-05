@@ -1174,3 +1174,46 @@ RELEASE_AUTHORIZED=false
 DEPLOYMENT_AUTHORIZED=false
 NO_STEP_IMPLIES_THE_NEXT=true
 ```
+
+## V2.2.2 P1A P1-S4 — composition-native hard-validation bridge
+
+P1-S4 is a separate Draft implementation slice that replays one
+composition-native exact-placement candidate by server-side canonical hash and
+sends its unchanged geometry through the existing Access/portal, Truck, and
+P2D authority chain. The bridge reports the validator's measured result; a
+hard-validation failure is not a global-infeasibility claim and does not
+authorize geometry repair. Candidate ranking, visual acceptance, selector
+integration, Tool 7, and P1 completion remain out of scope.
+
+Current S4 execution: the validation bridge is implemented and exercised on
+the real Xinzhao fixture. It replayed a 12-zone `LINEAR_BANDED` candidate and
+the existing validator returned `FAIL_ACCESS` (7/12 access requirements PASS;
+truck maneuver search exhausted; `project_layout_validated=false`,
+`p2_complete=false`). Full result and exact hashes are retained in the evidence
+file. This is a candidate-level hard-validation failure, not global
+infeasibility; no geometry repair was attempted. PR/CI status is tracked in the
+S4 task record and must not be treated as P1 completion.
+
+See the [P1-S4 task record](V2_2_2-P1A-composition-native-hard-validation-P1-S4.md)
+and [Xinzhao hard-validation evidence](evidence/v2_2_2_p1a_reset_s4/xinzhao_composition_candidate_hard_validation.json).
+
+```ini
+TASK_ID=V2_2_2_P1A_COMPOSITION_NATIVE_HARD_VALIDATION_P1_S4
+ACTIVE_GOVERNANCE_LANE=V2.2.2_P1A_COMPOSITION_NATIVE_HARD_VALIDATION_P1_S4
+PR_STATE=DRAFT
+COMPOSITION_CANDIDATE_VALIDATION_BRIDGE_IMPLEMENTED=true
+SERVER_SIDE_CANDIDATE_REPLAY_ENFORCED=true
+COMPOSITION_PLACEMENT_NODE_BUDGET=60000
+GEOMETRY_REPAIR_DURING_VALIDATION=false
+S3_PLACEMENT_SEARCH_BEHAVIOR_CHANGED=false
+VALIDATED_CANDIDATE_SELECTOR_CHANGED=false
+TOOL7_BEHAVIOR_CHANGED=false
+P1_COMPLETE=false
+GLOBAL_INFEASIBILITY_PROVEN=false
+READY_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+TAG_AUTHORIZED=false
+RELEASE_AUTHORIZED=false
+DEPLOYMENT_AUTHORIZED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```
