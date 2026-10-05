@@ -59,8 +59,12 @@ def _json(path: Path) -> dict[str, Any]:
 
 
 def test_p0c_is_limited_to_offline_evidence_docs_and_tests() -> None:
-    subprocess.run(["git", "merge-base", "--is-ancestor", P0C_BASE, P0C_FINAL], cwd=ROOT, check=True)
-    subprocess.run(["git", "merge-base", "--is-ancestor", P0C_FINAL, "HEAD"], cwd=ROOT, check=True)
+    subprocess.run(
+        ["git", "merge-base", "--is-ancestor", P0C_BASE, P0C_FINAL], cwd=ROOT, check=True
+    )
+    subprocess.run(
+        ["git", "merge-base", "--is-ancestor", P0C_FINAL, "HEAD"], cwd=ROOT, check=True
+    )
     assert _changed_paths() == ALLOWED_PATHS
     for forbidden in ("backend/src/", "frontend/", "database/", "backend/alembic/"):
         assert not any(path.startswith(forbidden) for path in _changed_paths())
