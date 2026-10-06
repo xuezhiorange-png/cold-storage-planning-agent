@@ -205,10 +205,56 @@ def test_xinzhao_candidate_runs_once_through_existing_access_truck_and_p2d(
     assert result["existing_access_authority_used"] is True
     assert result["access_routing_performed"] is True
     assert result["access_requirement_count"] == 12
+    assert result["candidate_hash"] == (
+        "sha256:4a4b8f6695526ea0bd1cf30238ae4c7c45b35e6d9677b0c4bd8f98228e8f3c47"
+    )
+    assert result["access_pass_count"] == 7
+    assert result["access_fail_count"] == 5
     assert result["access_pass_count"] + result["access_fail_count"] == 12
+    access_statuses = {
+        row["requirement_identity"]: (row["status"], tuple(row.get("codes", [])))
+        for row in validation["access_results"]
+    }
+    assert access_statuses == {
+        "access:changing_room->sorting_packaging_room@1.0.0": ("PASS", ()),
+        "access:coating_room->finished_goods_room@1.0.0": ("PASS", ()),
+        "access:finished_goods_room->shipping_channel@1.0.0": ("PASS", ()),
+        "access:main_entrance->changing_room@1.0.0": (
+            "BLOCKED",
+            ("ROUTE_SEARCH_EXHAUSTED",),
+        ),
+        "access:packaging_material_storage->sorting_packaging_room@1.0.0": (
+            "FAIL",
+            ("PACKAGING_SORTING_STRAIGHT_ROUTE_REQUIRED",),
+        ),
+        "access:primary_precooling_room->sorting_packaging_room@1.0.0": ("PASS", ()),
+        "access:raw_fruit_buffer->primary_precooling_room@1.0.0": ("PASS", ()),
+        "access:secondary_precooling_room->coating_room@1.0.0": ("PASS", ()),
+        "access:sorting_packaging_room->frozen_fruit_room@1.0.0": (
+            "BLOCKED",
+            ("ROUTE_SEARCH_EXHAUSTED",),
+        ),
+        "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0": (
+            "BLOCKED",
+            ("ROUTE_SEARCH_EXHAUSTED",),
+        ),
+        "access:sorting_packaging_room->secondary_precooling_room@1.0.0": ("PASS", ()),
+        "access:truck_entrance->shipping_channel@1.0.0": (
+            "BLOCKED",
+            ("TRUCK_MANEUVER_SEARCH_EXHAUSTED",),
+        ),
+    }
     assert result["portal_validation_performed"] is True
     assert result["existing_truck_authority_used"] is True
     assert result["truck_validation_performed"] is True
+    assert result["truck_route_status"] == "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+    assert validation["truck_search_provenance"] == {
+        "node_budget": 20_000,
+        "node_budget_exhausted": False,
+        "search_tree_exhausted": True,
+        "template_reuse_allowed": False,
+        "visited_nodes": 27,
+    }
     assert result["loading_face_validated"] is True
     assert result["existing_p2d_authority_used"] is True
     assert result["p2d_performed"] is True
