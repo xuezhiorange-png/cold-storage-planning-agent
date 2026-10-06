@@ -1,0 +1,319 @@
+{
+  "task_id": "V2_2_2_P1A_COMPOSITION_NATIVE_HARD_VALIDATION_P1_S4_CR4",
+  "mode": "FORWARD_CHECK_WITNESS_REUSE_AND_MAIN_CHAIN_WITNESS_GUIDED_SEARCH",
+  "source_head": "1e3bfac4affcc562fb8b9e544c9dc3f5646686cb",
+  "result": "FAIL",
+  "validation_progress_result": "FORWARD_WITNESS_NOT_EFFECTIVELY_CONSUMED",
+  "global_infeasibility_proven": false,
+  "authority_freeze": {
+    "placement_budget": 60000,
+    "access_route_budget": 20000,
+    "truck_budget": 20000,
+    "placement_budget_changed": false,
+    "access_route_budget_changed": false,
+    "truck_budget_changed": false,
+    "zone_dimension_authority_changed": false,
+    "must_adjacency_authority_changed": false,
+    "access_authority_changed": false,
+    "truck_authority_changed": false,
+    "p2d_authority_changed": false,
+    "composition_contract_changed": false,
+    "validated_candidate_selector_changed": false,
+    "tool7_behavior_changed": false,
+    "search_order_lanes_changed": false,
+    "legacy_r2_recovery_used": false,
+    "post_validation_geometry_repair_used": false,
+    "historical_coordinate_reuse": false,
+    "cr3_witness_coordinates_hardcoded_in_runtime": false,
+    "witness_scope": "CURRENT_SEARCH_INVOCATION_ONLY"
+  },
+  "cr3_baseline": {
+    "primary_search_nodes": 47702,
+    "forward_check_nodes": 8262,
+    "total_nodes": 55964,
+    "forward_check_invocation_count": 124,
+    "forward_check_pass_count": 1,
+    "forward_check_negative_count": 10,
+    "forward_check_unknown_budget_count": 113,
+    "complete_candidates_constructed": 0,
+    "known_lane": {
+      "composition_identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+      "bank_sign": 1,
+      "search_order_lane": "S3_COMPATIBILITY_ORDER",
+      "max_placed": 5,
+      "next_role": "coating_room",
+      "positive_forward_witness_found": true,
+      "forward_witness": {
+        "source_partial_geometry_hash": "sha256:c37225dcbb5e3edd0e3b1e7334b2a7db16630b0f9ce5191c6ca978753e435f93",
+        "fixed_main_chain_roles": [
+          "raw_fruit_buffer",
+          "primary_precooling_room",
+          "sorting_packaging_room",
+          "secondary_precooling_room"
+        ],
+        "unplaced_main_chain_roles": [
+          "coating_room",
+          "finished_goods_room",
+          "shipping_channel"
+        ],
+        "ordered_witness_roles": [
+          "coating_room",
+          "finished_goods_room",
+          "shipping_channel"
+        ],
+        "probe_nodes_used": 663,
+        "geometry_bounds_mm": {
+          "coating_room": [32772, 31768, 41717, 40713],
+          "finished_goods_room": [372, 33951, 32772, 52551],
+          "shipping_channel": [32772, 40713, 40465, 47213]
+        }
+      }
+    }
+  },
+  "cr4_replay": {
+    "placement_node_budget": 60000,
+    "placement_nodes_used": 55964,
+    "primary_search_nodes_used": 46699,
+    "forward_check_nodes_used": 9265,
+    "node_accounting_sum_valid": true,
+    "placement_node_budget_exhausted": false,
+    "attempt_count": 13,
+    "attempt_count_by_family": {
+      "LINEAR_BANDED": 5,
+      "CENTRAL_PROCESS_CORE": 4,
+      "PROCESS_SPINE_WITH_PERIPHERAL_BANKS": 4
+    },
+    "attempt_count_by_search_order_lane": {
+      "ACCESS_AWARE_ORDER": 7,
+      "S3_COMPATIBILITY_ORDER": 6
+    },
+    "cr2_outer_attempt_schedule_preserved": true,
+    "nodes_used_by_family": {
+      "LINEAR_BANDED": 48662,
+      "CENTRAL_PROCESS_CORE": 5500,
+      "PROCESS_SPINE_WITH_PERIPHERAL_BANKS": 1802
+    },
+    "max_simultaneously_placed_role_count_by_family": {
+      "LINEAR_BANDED": 10,
+      "CENTRAL_PROCESS_CORE": 9,
+      "PROCESS_SPINE_WITH_PERIPHERAL_BANKS": 9
+    },
+    "forward_check": {
+      "invocation_count": 124,
+      "pass_count": 0,
+      "proved_no_completion_count": 10,
+      "unknown_budget_count": 114,
+      "unknown_other_count": 0,
+      "exact_cache_hit_count": 0,
+      "skipped_due_to_valid_witness_count": 0,
+      "witnesses_created": 0,
+      "witness_reuse_attempts": 0,
+      "witness_reuse_accepted": 0,
+      "witness_reuse_rejected": 0,
+      "witness_inheritance": 0,
+      "witness_events": [],
+      "same_parent_witness_primary_replay_mismatch": false
+    },
+    "known_lane_attempts": [
+      {
+        "composition_identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+        "bank_sign": 1,
+        "search_order_lane": "S3_COMPATIBILITY_ORDER",
+        "nodes_allocated": 20000,
+        "nodes_used": 20000,
+        "primary_search_nodes_used": 18334,
+        "forward_check_nodes_used": 1666,
+        "max_placed": 5,
+        "deepest_role_attempted": "coating_room",
+        "deepest_role_successfully_placed": "packaging_material_storage",
+        "next_role": "coating_room",
+        "forward_check_invocation_count": 1,
+        "forward_check_pass_count": 0,
+        "forward_check_unknown_budget_count": 1,
+        "forward_check_witnesses": [],
+        "witness_created_count": 0,
+        "witness_reuse_attempt_count": 0,
+        "best_partial": {
+          "bank_sign": 1,
+          "nodes_used_when_saved": 1887,
+          "failure_taxonomy": "PARTIAL_PLACEMENT_ACCEPTED",
+          "placed_roles": [
+            "primary_precooling_room",
+            "secondary_precooling_room",
+            "raw_fruit_buffer",
+            "sorting_packaging_room",
+            "packaging_material_storage"
+          ],
+          "zone_bounds_mm": {
+            "packaging_material_storage": [60610, 0, 75110, 17300],
+            "primary_precooling_room": [14698, 21968, 29398, 32018],
+            "raw_fruit_buffer": [5998, 18751, 14698, 33951],
+            "secondary_precooling_room": [29398, 21968, 39448, 31768],
+            "sorting_packaging_room": [14850, 8368, 60610, 21968]
+          }
+        }
+      },
+      {
+        "composition_identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+        "bank_sign": -1,
+        "search_order_lane": "S3_COMPATIBILITY_ORDER",
+        "nodes_allocated": 500,
+        "nodes_used": 500,
+        "primary_search_nodes_used": 459,
+        "forward_check_nodes_used": 41,
+        "max_placed": 6,
+        "deepest_role_attempted": "finished_goods_room",
+        "deepest_role_successfully_placed": "coating_room",
+        "next_role": "finished_goods_room",
+        "forward_check_invocation_count": 1,
+        "forward_check_pass_count": 0,
+        "forward_check_unknown_budget_count": 1,
+        "forward_check_witnesses": [],
+        "witness_created_count": 0,
+        "witness_reuse_attempt_count": 0
+      }
+    ],
+    "attempt_allocation_summary": [
+      {"family": "LINEAR_BANDED", "composition": "X:NEGATIVE:r0", "bank_sign": 1, "lane": "ACCESS_AWARE_ORDER", "allocated": 500, "used": 500},
+      {"family": "CENTRAL_PROCESS_CORE", "composition": "X:NEGATIVE:r0", "bank_sign": 1, "lane": "ACCESS_AWARE_ORDER", "allocated": 500, "used": 500},
+      {"family": "PROCESS_SPINE_WITH_PERIPHERAL_BANKS", "composition": "X:NEGATIVE:r0", "bank_sign": 1, "lane": "ACCESS_AWARE_ORDER", "allocated": 500, "used": 500},
+      {"family": "LINEAR_BANDED", "composition": "X:NEGATIVE:r0", "bank_sign": -1, "lane": "ACCESS_AWARE_ORDER", "allocated": 500, "used": 162},
+      {"family": "CENTRAL_PROCESS_CORE", "composition": "X:NEGATIVE:r0", "bank_sign": -1, "lane": "ACCESS_AWARE_ORDER", "allocated": 500, "used": 500},
+      {"family": "PROCESS_SPINE_WITH_PERIPHERAL_BANKS", "composition": "X:NEGATIVE:r0", "bank_sign": -1, "lane": "ACCESS_AWARE_ORDER", "allocated": 500, "used": 500},
+      {"family": "LINEAR_BANDED", "composition": "Y:POSITIVE:r1", "bank_sign": 1, "lane": "S3_COMPATIBILITY_ORDER", "allocated": 20000, "used": 20000},
+      {"family": "CENTRAL_PROCESS_CORE", "composition": "Y:POSITIVE:r1", "bank_sign": 1, "lane": "S3_COMPATIBILITY_ORDER", "allocated": 4000, "used": 4000},
+      {"family": "PROCESS_SPINE_WITH_PERIPHERAL_BANKS", "composition": "Y:POSITIVE:r1", "bank_sign": 1, "lane": "S3_COMPATIBILITY_ORDER", "allocated": 4000, "used": 302},
+      {"family": "LINEAR_BANDED", "composition": "Y:POSITIVE:r1", "bank_sign": -1, "lane": "S3_COMPATIBILITY_ORDER", "allocated": 500, "used": 500},
+      {"family": "CENTRAL_PROCESS_CORE", "composition": "Y:POSITIVE:r1", "bank_sign": -1, "lane": "S3_COMPATIBILITY_ORDER", "allocated": 500, "used": 500},
+      {"family": "PROCESS_SPINE_WITH_PERIPHERAL_BANKS", "composition": "Y:POSITIVE:r1", "bank_sign": -1, "lane": "S3_COMPATIBILITY_ORDER", "allocated": 500, "used": 500},
+      {"family": "LINEAR_BANDED", "composition": "X:NEGATIVE:r0", "bank_sign": 1, "lane": "ACCESS_AWARE_ORDER", "allocated": 27500, "used": 27500}
+    ],
+    "best_partial_by_family": {
+      "LINEAR_BANDED": {
+        "composition_identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:X:NEGATIVE:r0",
+        "bank_sign": 1,
+        "max_placed": 10,
+        "next_role": "finished_goods_room",
+        "failure_taxonomy": "PARTIAL_PLACEMENT_ACCEPTED",
+        "placed_roles": ["changing_room", "primary_precooling_room", "secondary_precooling_room", "raw_fruit_buffer", "sorting_packaging_room", "coating_room", "secondary_fruit_buffer", "frozen_fruit_room", "packaging_material_storage", "shipping_channel"],
+        "hard_subset_rejection_count": 311,
+        "zone_bounds_mm": {
+          "changing_room": [14700, 11399, 34700, 13399],
+          "coating_room": [24900, 37049, 33845, 45994],
+          "frozen_fruit_room": [0, 43050, 10800, 51250],
+          "packaging_material_storage": [0, 18850, 14500, 36150],
+          "primary_precooling_room": [63979, 0, 74029, 14700],
+          "raw_fruit_buffer": [48779, 0, 63979, 8700],
+          "secondary_fruit_buffer": [0, 36150, 8400, 43050],
+          "secondary_precooling_room": [24900, 26999, 34700, 37049],
+          "shipping_channel": [0, 0, 6500, 7693],
+          "sorting_packaging_room": [18219, 13399, 63979, 26999]
+        }
+      },
+      "CENTRAL_PROCESS_CORE": {
+        "composition_identity": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:X:NEGATIVE:r0",
+        "bank_sign": -1,
+        "max_placed": 9,
+        "next_role": "finished_goods_room",
+        "failure_taxonomy": "COATING_ROOM_PARTIAL_COMPOSITION_INTENT_REJECTION",
+        "placed_roles": ["changing_room", "primary_precooling_room", "secondary_precooling_room", "raw_fruit_buffer", "sorting_packaging_room", "coating_room", "secondary_fruit_buffer", "frozen_fruit_room", "packaging_material_storage", "shipping_channel"],
+        "hard_subset_rejection_count": 413,
+        "zone_bounds_mm": {
+          "changing_room": [60610, 8700, 66935, 15025],
+          "coating_room": [24500, 0, 33445, 8945],
+          "frozen_fruit_room": [63110, 18799, 73910, 26999],
+          "packaging_material_storage": [350, 18751, 14850, 36051],
+          "primary_precooling_room": [31667, 26999, 41717, 41699],
+          "raw_fruit_buffer": [22967, 26999, 31667, 42199],
+          "secondary_fruit_buffer": [33530, 3999, 41930, 10899],
+          "secondary_precooling_room": [14700, 3349, 24500, 13399],
+          "shipping_channel": [0, 0, 6500, 7693],
+          "sorting_packaging_room": [14850, 13399, 60610, 26999]
+        }
+      },
+      "PROCESS_SPINE_WITH_PERIPHERAL_BANKS": {
+        "composition_identity": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:X:NEGATIVE:r0",
+        "bank_sign": -1,
+        "max_placed": 9,
+        "next_role": "coating_room",
+        "failure_taxonomy": "PARTIAL_PLACEMENT_ACCEPTED",
+        "placed_roles": ["changing_room", "primary_precooling_room", "secondary_precooling_room", "raw_fruit_buffer", "sorting_packaging_room", "secondary_fruit_buffer", "frozen_fruit_room", "packaging_material_storage", "shipping_channel"],
+        "hard_subset_rejection_count": 368,
+        "zone_bounds_mm": {
+          "changing_room": [0, 26999, 20000, 28999],
+          "frozen_fruit_room": [32900, 2599, 41100, 13399],
+          "packaging_material_storage": [60610, 9699, 75110, 26999],
+          "primary_precooling_room": [41717, 3349, 56417, 13399],
+          "raw_fruit_buffer": [56417, 0, 71617, 8700],
+          "secondary_fruit_buffer": [24500, 6499, 32900, 13399],
+          "secondary_precooling_room": [14700, 3349, 24500, 13399],
+          "shipping_channel": [0, 31478, 6500, 39171],
+          "sorting_packaging_room": [14850, 13399, 60610, 26999]
+        }
+      }
+    },
+    "complete_candidates_constructed": 0,
+    "complete_candidates_access_assessed": 0,
+    "candidates_admitted": 0,
+    "candidates_selected": 0,
+    "access_validation_attempts": 0,
+    "truck_validation_attempts": 0,
+    "p2d_validation_attempts": 0,
+    "access_results": [],
+    "truck_preflight": null,
+    "final_validation": null
+  },
+  "control_replay": {
+    "candidate_hash": "sha256:4a4b8f6695526ea0bd1cf30238ae4c7c45b35e6d9677b0c4bd8f98228e8f3c47",
+    "geometry_mutated": false,
+    "replayed_on_current_working_tree": true,
+    "access_requirement_count": 12,
+    "access_pass_count": 7,
+    "access_fail_count": 5,
+    "non_truck_access_pass_count": 7,
+    "truck_status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED",
+    "truck_search_provenance": {
+      "node_budget": 20000,
+      "node_budget_exhausted": false,
+      "search_tree_exhausted": true,
+      "visited_nodes": 27,
+      "template_reuse_allowed": false
+    },
+    "project_layout_validated": false,
+    "p2_complete": false,
+    "access_results": [
+      {"requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0", "status": "PASS", "codes": []},
+      {"requirement_identity": "access:coating_room->finished_goods_room@1.0.0", "status": "PASS", "codes": []},
+      {"requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0", "status": "PASS", "codes": []},
+      {"requirement_identity": "access:main_entrance->changing_room@1.0.0", "status": "BLOCKED", "codes": ["ROUTE_SEARCH_EXHAUSTED"]},
+      {"requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0", "status": "FAIL", "codes": ["PACKAGING_SORTING_STRAIGHT_ROUTE_REQUIRED"]},
+      {"requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0", "status": "PASS", "codes": []},
+      {"requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0", "status": "PASS", "codes": []},
+      {"requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0", "status": "PASS", "codes": []},
+      {"requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0", "status": "BLOCKED", "codes": ["ROUTE_SEARCH_EXHAUSTED"]},
+      {"requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0", "status": "BLOCKED", "codes": ["ROUTE_SEARCH_EXHAUSTED"]},
+      {"requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0", "status": "PASS", "codes": []},
+      {"requirement_identity": "access:truck_entrance->shipping_channel@1.0.0", "status": "BLOCKED", "codes": ["TRUCK_MANEUVER_SEARCH_EXHAUSTED"]}
+    ]
+  },
+  "determinism": {
+    "access_aware_replay_runs": 2,
+    "attempt_schedule_replay": "PASS; repeated replay matched attempt counts, family/lane coverage, node totals, maxima, and known-lane status",
+    "forward_check_sequence": "no positive witness events in either replay; same-input witness sequence is empty",
+    "candidate_hashes": [],
+    "best_candidate": null,
+    "access_results": []
+  },
+  "validation": {
+    "cr4_forward_check_unit_file": "PASS: 10 passed",
+    "composition_architecture_boundaries": "PASS: 4 passed",
+    "combined_regression_before_provenance_scope_fix": "88 passed, 1 failed; this exposed CR4 provenance fields changing the no-intent candidate hash; corrected by limiting those fields to access-aware candidates",
+    "ruff": "PASS",
+    "ruff_format": "PASS",
+    "mypy": "PASS: no issues found in 1 source file",
+    "candidate_validation_regression_after_fix": "INCOMPLETE: interrupted after more than 7 minutes while Python import was blocked reading backend source; no assertion result was obtained",
+    "candidate_hash_replay_after_fix": "INCOMPLETE: same source-import stall before placement replay began",
+    "diff_check": "PASS before final evidence additions"
+  },
+  "stop_reason": "Known lane produced no PASS_TO_SEARCH forward witness, no witness was created or reused, max placed remained 5, and no complete candidate was constructed. Do not start CR5."
+}

@@ -196,6 +196,21 @@ class CompositionPlacementSearchAttemptV1:
     forward_check_cache_hit_count: int
     forward_check_unique_partial_signature_count: int
     forward_check_sequence_hash: str
+    forward_check_skipped_due_to_valid_witness_count: int
+    forward_check_exact_cache_hit_count: int
+    witness_created_count: int
+    witness_reuse_attempt_count: int
+    witness_reuse_accepted_count: int
+    witness_reuse_rejected_count: int
+    witness_inheritance_count: int
+    witness_invalidated_by_new_geometry_count: int
+    witness_invalidated_by_site_count: int
+    witness_invalidated_by_obstacle_count: int
+    witness_invalidated_by_overlap_count: int
+    witness_invalidated_by_must_edge_count: int
+    witness_invalidated_by_other_hard_check_count: int
+    witness_sequence_hash: str
+    witness_events: tuple[Mapping[str, Any], ...]
     chain_starvation_prune_count_by_trigger_role: tuple[tuple[str, int], ...]
     packaging_local_pass_chain_forward_fail_count: int
     packaging_local_pass_chain_forward_pass_count: int
@@ -259,6 +274,27 @@ class CompositionPlacementSearchAttemptV1:
                 self.forward_check_unique_partial_signature_count
             ),
             "forward_check_sequence_hash": self.forward_check_sequence_hash,
+            "forward_check_skipped_due_to_valid_witness_count": (
+                self.forward_check_skipped_due_to_valid_witness_count
+            ),
+            "forward_check_exact_cache_hit_count": self.forward_check_exact_cache_hit_count,
+            "witness_created_count": self.witness_created_count,
+            "witness_reuse_attempt_count": self.witness_reuse_attempt_count,
+            "witness_reuse_accepted_count": self.witness_reuse_accepted_count,
+            "witness_reuse_rejected_count": self.witness_reuse_rejected_count,
+            "witness_inheritance_count": self.witness_inheritance_count,
+            "witness_invalidated_by_new_geometry_count": (
+                self.witness_invalidated_by_new_geometry_count
+            ),
+            "witness_invalidated_by_site_count": self.witness_invalidated_by_site_count,
+            "witness_invalidated_by_obstacle_count": self.witness_invalidated_by_obstacle_count,
+            "witness_invalidated_by_overlap_count": self.witness_invalidated_by_overlap_count,
+            "witness_invalidated_by_must_edge_count": self.witness_invalidated_by_must_edge_count,
+            "witness_invalidated_by_other_hard_check_count": (
+                self.witness_invalidated_by_other_hard_check_count
+            ),
+            "witness_sequence_hash": self.witness_sequence_hash,
+            "witness_events": [dict(item) for item in self.witness_events],
             "chain_starvation_prune_count_by_trigger_role": dict(
                 self.chain_starvation_prune_count_by_trigger_role
             ),
@@ -453,6 +489,19 @@ class _SearchDiagnostics:
     personnel_local_pass_chain_forward_fail_count: int = 0
     forward_check_witnesses: list[Mapping[str, Any]] = field(default_factory=list)
     forward_check_negative_proofs: list[Mapping[str, Any]] = field(default_factory=list)
+    witness_created_count: int = 0
+    witness_reuse_attempt_count: int = 0
+    witness_reuse_accepted_count: int = 0
+    witness_reuse_rejected_count: int = 0
+    witness_inheritance_count: int = 0
+    witness_invalidated_by_new_geometry_count: int = 0
+    witness_invalidated_by_site_count: int = 0
+    witness_invalidated_by_obstacle_count: int = 0
+    witness_invalidated_by_overlap_count: int = 0
+    witness_invalidated_by_must_edge_count: int = 0
+    witness_invalidated_by_other_hard_check_count: int = 0
+    forward_check_skipped_due_to_valid_witness_count: int = 0
+    witness_events: list[Mapping[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.forward_check_node_limit < 0:
@@ -482,8 +531,50 @@ class _MainChainForwardCheckResultV1:
     probe_nodes_used: int
     first_unplaceable_role: str | None
     failure_taxonomy: str
+    witness_shape_specs: tuple[tuple[str, _Shape], ...] = ()
     cache_hit: bool = False
     cached_probe_nodes: int = 0
+
+
+@dataclass(frozen=True)
+class _MainChainCompletionWitnessV1:
+    """Invocation-local constructive hint from a positive optimistic probe.
+
+    The witness is neither placement nor validation authority. Every geometry
+    is replayed through the ordinary primary candidate checks before use.
+    """
+
+    source_partial_geometry_hash: str
+    composition_identity: str
+    composition_signature: str
+    bank_sign: int
+    main_chain_source: str
+    fixed_main_chain_roles: tuple[str, ...]
+    unplaced_main_chain_roles: tuple[str, ...]
+    ordered_witness_roles: tuple[str, ...]
+    witness_geometry: tuple[tuple[str, tuple[int, int, int, int], _Shape, str], ...]
+    source_forward_check_status: str
+    engineering_authority: bool = False
+    validation_authority: bool = False
+
+    def geometry_for(self, role: str) -> tuple[tuple[int, int, int, int], _Shape, str] | None:
+        for witness_role, bounds, shape, shape_identity in self.witness_geometry:
+            if witness_role == role:
+                return bounds, shape, shape_identity
+        return None
+
+    def without_role(self, role: str) -> _MainChainCompletionWitnessV1 | None:
+        remaining = tuple(item for item in self.witness_geometry if item[0] != role)
+        if len(remaining) == len(self.witness_geometry):
+            return self
+        if not remaining:
+            return None
+        remaining_roles = tuple(item[0] for item in remaining)
+        return replace(
+            self,
+            ordered_witness_roles=remaining_roles,
+            witness_geometry=remaining,
+        )
 
 
 @dataclass(frozen=True)
@@ -575,6 +666,15 @@ class CompositionPlacementEnumerationV1:
             "forward_check_engineering_authority": FORWARD_CHECK_ENGINEERING_AUTHORITY,
             "forward_check_validation_authority": FORWARD_CHECK_VALIDATION_AUTHORITY,
             "forward_check_is_optimistic": FORWARD_CHECK_IS_OPTIMISTIC,
+            "main_chain_completion_witness_implemented": True,
+            "witness_engineering_authority": False,
+            "witness_validation_authority": False,
+            "witness_scope": "CURRENT_SEARCH_INVOCATION_ONLY",
+            "witness_footprint_is_hard_reserved": False,
+            "witness_compatibility_can_reorder": True,
+            "witness_compatibility_can_hard_reject": False,
+            "witness_source_must_be_forward_check_pass": True,
+            "witness_bypasses_hard_checks": False,
             "forward_check_attempt_slice_divisor": FORWARD_CHECK_ATTEMPT_SLICE_DIVISOR,
             "forward_check_trigger_roles": sorted(FORWARD_CHECK_TRIGGER_ROLES),
             "unplaced_non_main_roles_ignored": True,
@@ -600,6 +700,61 @@ class CompositionPlacementEnumerationV1:
             ),
             "forward_check_cache_hit_count": sum(
                 item.forward_check_cache_hit_count for item in self.search_attempts
+            ),
+            "forward_check_exact_cache_hit_count": sum(
+                item.forward_check_exact_cache_hit_count for item in self.search_attempts
+            ),
+            "forward_check_skipped_due_to_valid_witness_count": sum(
+                item.forward_check_skipped_due_to_valid_witness_count
+                for item in self.search_attempts
+            ),
+            "witness_created_count": sum(
+                item.witness_created_count for item in self.search_attempts
+            ),
+            "witness_reuse_attempt_count": sum(
+                item.witness_reuse_attempt_count for item in self.search_attempts
+            ),
+            "witness_reuse_accepted_count": sum(
+                item.witness_reuse_accepted_count for item in self.search_attempts
+            ),
+            "witness_reuse_rejected_count": sum(
+                item.witness_reuse_rejected_count for item in self.search_attempts
+            ),
+            "witness_inheritance_count": sum(
+                item.witness_inheritance_count for item in self.search_attempts
+            ),
+            "witness_invalidated_by_new_geometry_count": sum(
+                item.witness_invalidated_by_new_geometry_count for item in self.search_attempts
+            ),
+            "witness_invalidated_by_site_count": sum(
+                item.witness_invalidated_by_site_count for item in self.search_attempts
+            ),
+            "witness_invalidated_by_obstacle_count": sum(
+                item.witness_invalidated_by_obstacle_count for item in self.search_attempts
+            ),
+            "witness_invalidated_by_overlap_count": sum(
+                item.witness_invalidated_by_overlap_count for item in self.search_attempts
+            ),
+            "witness_invalidated_by_must_edge_count": sum(
+                item.witness_invalidated_by_must_edge_count for item in self.search_attempts
+            ),
+            "witness_invalidated_by_other_hard_check_count": sum(
+                item.witness_invalidated_by_other_hard_check_count for item in self.search_attempts
+            ),
+            "witness_sequence_hashes": {
+                f"{attempt.family.value}:{attempt.composition_identity}:"
+                f"{attempt.peripheral_bank_sign}:{attempt.search_order_lane}": (
+                    attempt.witness_sequence_hash
+                )
+                for attempt in self.search_attempts
+            },
+            "witness_events": [
+                dict(row) for attempt in self.search_attempts for row in attempt.witness_events
+            ],
+            "same_parent_witness_primary_replay_mismatch": any(
+                bool(row.get("same_parent_replay_mismatch"))
+                for attempt in self.search_attempts
+                for row in attempt.witness_events
             ),
             "forward_check_unique_partial_signature_count": sum(
                 item.forward_check_unique_partial_signature_count for item in self.search_attempts
@@ -2152,6 +2307,22 @@ def _main_chain_roles_from_process_graph() -> tuple[str, ...]:
     return tuple(roles)
 
 
+def _main_chain_partial_geometry_hash(
+    handoff: StructuralCompositionPlacementHandoffV1,
+    bank_sign: int,
+    placed: Mapping[str, PlacedRectangleV1],
+) -> str:
+    return canonical_hash(
+        {
+            "composition_identity": handoff.composition_identity,
+            "composition_signature": handoff.composition_signature,
+            "bank_sign": bank_sign,
+            "fixed_geometry": {role: list(_bounds(placed[role])) for role in sorted(placed)},
+            "main_chain": list(_main_chain_roles_from_process_graph()),
+        }
+    )
+
+
 def _optimistic_main_chain_completion_probe(
     handoff: StructuralCompositionPlacementHandoffV1,
     shapes: Mapping[str, tuple[_Shape, ...]],
@@ -2173,17 +2344,20 @@ def _optimistic_main_chain_completion_probe(
     been exhausted.  A shared-slice limit or incomplete input is UNKNOWN.
     """
     chain = _main_chain_roles_from_process_graph()
+    material_flows = tuple(flow for flow in process_graph().flows if flow.kind == "MATERIAL")
+    predecessors = {
+        role: tuple(flow.from_ref for flow in material_flows if flow.to_ref == role)
+        for role in chain
+    }
+    successors = {
+        role: tuple(flow.to_ref for flow in material_flows if flow.from_ref == role)
+        for role in chain
+    }
+    process_axis = handoff.process_axis.value
+    process_sign = 1 if handoff.process_direction == ProcessDirectionV1.POSITIVE else -1
     fixed_chain = tuple(role for role in chain if role in placed)
     unplaced_chain = tuple(role for role in chain if role not in placed)
-    signature = canonical_hash(
-        {
-            "composition_identity": handoff.composition_identity,
-            "composition_signature": handoff.composition_signature,
-            "bank_sign": bank_sign,
-            "fixed_geometry": {role: list(_bounds(placed[role])) for role in sorted(placed)},
-            "main_chain": list(chain),
-        }
-    )
+    signature = _main_chain_partial_geometry_hash(handoff, bank_sign, placed)
     diagnostics.forward_check_invocation_count += 1
     diagnostics.forward_check_signatures.add(signature)
     cached = diagnostics.forward_check_cache.get(signature)
@@ -2250,6 +2424,7 @@ def _optimistic_main_chain_completion_probe(
             probe_placed = dict(placed)
             witness_order: list[str] = []
             witness_bounds: dict[str, tuple[int, int, int, int]] = {}
+            witness_shapes: dict[str, _Shape] = {}
             failure_counts_by_role: dict[str, Counter[str]] = defaultdict(Counter)
             exhausted_roles: set[str] = set()
             nodes_before = diagnostics.nodes
@@ -2277,9 +2452,11 @@ def _optimistic_main_chain_completion_probe(
             probe_status = "PROVED_NO_MAIN_CHAIN_COMPLETION_IN_CURRENT_SEARCH_DOMAIN"
             incomplete_proof = False
             probe_budget_exhausted = False
+            composition_faces = _domain_faces(handoff, bank_sign)
 
             def candidate_origins(role: str, shape: _Shape) -> tuple[tuple[int, int], ...]:
                 origins: set[tuple[int, int]] = set()
+                must_face_origins: set[tuple[int, int]] = set()
                 # Union, rather than filter: preserve composition-domain and
                 # CR1 interface event anchors while also admitting the full
                 # finite physical-event fallback as an optimistic superset.
@@ -2321,12 +2498,63 @@ def _optimistic_main_chain_completion_probe(
                 )
                 neighbors = tuple(name for name in _must_neighbors(role) if name in probe_placed)
                 if neighbors:
-                    origins.update(
+                    must_face_origins.update(
                         _anchors_at_must_faces(
                             role, shape, probe_placed, neighbors, boundary, obstacles
                         )
                     )
-                return tuple(sorted(origins))
+                    origins.update(must_face_origins)
+
+                axis, interval = _domain_interval(role, handoff, domains)
+
+                def completion_order(
+                    point: tuple[int, int],
+                ) -> tuple[int, int, int, int, int, int]:
+                    candidate = _rectangle(role, point[0], point[1], shape)
+                    trial = dict(probe_placed)
+                    trial[role] = candidate
+                    # Ordering only: keep every finite event anchor in the
+                    # probe domain, but try primary-search-compatible intent
+                    # states first so a positive witness can be replayed
+                    # without consuming the shared slice on known-invalid
+                    # group/band placements.
+                    process_projection = process_sign * _center(candidate, process_axis)
+                    predecessor_positions = [
+                        process_sign * _center(probe_placed[name], process_axis)
+                        for name in predecessors[role]
+                        if name in probe_placed
+                    ]
+                    successor_positions = [
+                        process_sign * _center(probe_placed[name], process_axis)
+                        for name in successors[role]
+                        if name in probe_placed
+                    ]
+                    flow_violation = max(
+                        [
+                            *(position - process_projection for position in predecessor_positions),
+                            *(process_projection - position for position in successor_positions),
+                            0,
+                        ]
+                    )
+                    projection = _center(candidate, axis)
+                    interval_penalty = 0
+                    if interval is not None:
+                        low, high = interval
+                        interval_penalty = (
+                            0
+                            if low <= projection <= high
+                            else min(abs(projection - low), abs(projection - high))
+                        )
+                    return (
+                        int(point not in must_face_origins),
+                        int(not _partial_intent_possible(handoff, trial, composition_faces)),
+                        flow_violation,
+                        interval_penalty,
+                        point[0],
+                        point[1],
+                    )
+
+                return tuple(sorted(origins, key=completion_order))
 
             def visit_next() -> bool | None:
                 nonlocal incomplete_proof, probe_budget_exhausted
@@ -2369,16 +2597,22 @@ def _optimistic_main_chain_completion_probe(
                         ):
                             role_failure_counts["MUST_EDGE"] += 1
                             continue
-                        role_had_anchor = True
                         probe_placed[role] = candidate
+                        if not _partial_intent_possible(handoff, probe_placed, composition_faces):
+                            role_failure_counts["COMPOSITION_INTENT"] += 1
+                            probe_placed.pop(role, None)
+                            continue
+                        role_had_anchor = True
                         witness_order.append(role)
                         witness_bounds[role] = _bounds(candidate)
+                        witness_shapes[role] = shape
                         child = visit_next()
                         if child is True:
                             return True
                         probe_placed.pop(role, None)
                         witness_order.pop()
                         witness_bounds.pop(role, None)
+                        witness_shapes.pop(role, None)
                         if child is None and (probe_budget_exhausted or incomplete_proof):
                             return None
                 failure_counts_by_role[role].update(role_failure_counts)
@@ -2405,6 +2639,9 @@ def _optimistic_main_chain_completion_probe(
                     probe_nodes_used=probe_nodes,
                     first_unplaceable_role=None,
                     failure_taxonomy="OPTIMISTIC_MAIN_CHAIN_WITNESS_FOUND",
+                    witness_shape_specs=tuple(
+                        (role, witness_shapes[role]) for role in witness_order
+                    ),
                 )
                 diagnostics.forward_check_cache[signature] = result
             elif probe_result is None:
@@ -2469,6 +2706,9 @@ def _optimistic_main_chain_completion_probe(
                     "witness_zone_bounds_mm": {
                         role: list(bounds) for role, bounds in result.witness_zone_bounds_mm
                     },
+                    "witness_shape_specs": {
+                        role: asdict(shape) for role, shape in result.witness_shape_specs
+                    },
                     "probe_nodes_used": result.probe_nodes_used,
                     "cache_hit": result.cache_hit,
                 }
@@ -2495,6 +2735,99 @@ def _optimistic_main_chain_completion_probe(
     else:
         diagnostics.forward_check_unknown_other_count += 1
     return result
+
+
+def _shape_authority_identity(role: str, authority: Mapping[str, Any], shape: _Shape) -> str:
+    return canonical_hash(
+        {
+            "zone_role": role,
+            "dimension_authority": dict(authority),
+            "authorized_shape": asdict(shape),
+        }
+    )
+
+
+def _completion_witness_from_probe(
+    probe: _MainChainForwardCheckResultV1,
+    handoff: StructuralCompositionPlacementHandoffV1,
+    bank_sign: int,
+    dimension_authorities: Mapping[str, Mapping[str, Any]],
+) -> _MainChainCompletionWitnessV1 | None:
+    if probe.status != "PASS_TO_SEARCH" or not probe.witness_role_order:
+        return None
+    bounds_by_role = dict(probe.witness_zone_bounds_mm)
+    shape_by_role = dict(probe.witness_shape_specs)
+    if set(bounds_by_role) != set(probe.witness_role_order) or set(shape_by_role) != set(
+        probe.witness_role_order
+    ):
+        return None
+    geometry = tuple(
+        (
+            role,
+            bounds_by_role[role],
+            shape_by_role[role],
+            _shape_authority_identity(role, dimension_authorities[role], shape_by_role[role]),
+        )
+        for role in probe.witness_role_order
+    )
+    return _MainChainCompletionWitnessV1(
+        source_partial_geometry_hash=probe.partial_geometry_hash,
+        composition_identity=handoff.composition_identity,
+        composition_signature=handoff.composition_signature,
+        bank_sign=bank_sign,
+        main_chain_source=MAIN_CHAIN_SOURCE,
+        fixed_main_chain_roles=probe.fixed_main_chain_roles,
+        unplaced_main_chain_roles=probe.unplaced_main_chain_roles,
+        ordered_witness_roles=probe.witness_role_order,
+        witness_geometry=geometry,
+        source_forward_check_status=probe.status,
+    )
+
+
+def _completion_witness_incompatibility(
+    witness: _MainChainCompletionWitnessV1,
+    handoff: StructuralCompositionPlacementHandoffV1,
+    bank_sign: int,
+    shapes: Mapping[str, tuple[_Shape, ...]],
+    authority_shapes: Mapping[str, tuple[_Shape, ...]],
+    dimension_authorities: Mapping[str, Mapping[str, Any]],
+    placed: Mapping[str, PlacedRectangleV1],
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+    faces: Mapping[str, tuple[str, int]],
+) -> str | None:
+    """Revalidate an advisory suffix against the current deterministic state."""
+    if (
+        witness.source_forward_check_status != "PASS_TO_SEARCH"
+        or witness.engineering_authority
+        or witness.validation_authority
+        or witness.main_chain_source != MAIN_CHAIN_SOURCE
+        or witness.composition_identity != handoff.composition_identity
+        or witness.composition_signature != handoff.composition_signature
+        or witness.bank_sign != bank_sign
+    ):
+        return "OTHER_HARD_CHECK"
+    trial = dict(placed)
+    for role, bounds, shape, shape_identity in witness.witness_geometry:
+        if role in trial or shape not in authority_shapes.get(role, ()):
+            return "OTHER_HARD_CHECK"
+        if shape not in shapes.get(role, ()):
+            return "OTHER_HARD_CHECK"
+        if shape_identity != _shape_authority_identity(role, dimension_authorities[role], shape):
+            return "OTHER_HARD_CHECK"
+        rectangle = _rectangle(role, bounds[0], bounds[1], shape)
+        if _bounds(rectangle) != bounds:
+            return "OTHER_HARD_CHECK"
+        rejected = _candidate_rejection(rectangle, trial, boundary, obstacles)
+        if rejected is not None:
+            return rejected
+        neighbors = tuple(name for name in _must_neighbors(role) if name in trial)
+        if any(not rectangles_share_positive_edge(rectangle, trial[name]) for name in neighbors):
+            return "MUST_EDGE"
+        trial[role] = rectangle
+        if not _partial_intent_possible(handoff, trial, faces):
+            return "OTHER_HARD_CHECK"
+    return None
 
 
 def _shipping_office_seed(
@@ -2735,8 +3068,65 @@ def _search_one(
         diagnostics.funnel[role][f"{reason.lower()}_rejection_count"] += 1
         diagnostics.failure_taxonomy = f"{role.upper()}_{reason}_REJECTION"
 
+    def record_witness_rejection(
+        source: str,
+        role: str,
+        reason: str,
+        candidate: PlacedRectangleV1,
+        witness: _MainChainCompletionWitnessV1 | None,
+        current_placed: Mapping[str, PlacedRectangleV1],
+    ) -> None:
+        if source != "WITNESS" or witness is None:
+            return
+        diagnostics.witness_reuse_rejected_count += 1
+        parent_geometry = dict(current_placed)
+        parent_geometry.pop(role, None)
+        mismatch = _main_chain_partial_geometry_hash(handoff, bank_sign, parent_geometry) == (
+            witness.source_partial_geometry_hash
+        )
+        record_witness_event(
+            "REUSE_REJECTED",
+            role=role,
+            reason=reason,
+            same_parent_replay_mismatch=mismatch,
+            candidate_bounds_mm=list(_bounds(candidate)),
+        )
+
+    def record_witness_event(event: str, **details: Any) -> None:
+        diagnostics.witness_events.append({"event": event, **details})
+
+    def invalidate_witness(
+        witness: _MainChainCompletionWitnessV1,
+        role: str,
+        reason: str,
+        current_placed: Mapping[str, PlacedRectangleV1],
+    ) -> None:
+        diagnostics.witness_invalidated_by_new_geometry_count += 1
+        counter_by_reason = {
+            "SITE": "witness_invalidated_by_site_count",
+            "OBSTACLE": "witness_invalidated_by_obstacle_count",
+            "OVERLAP": "witness_invalidated_by_overlap_count",
+            "MUST_EDGE": "witness_invalidated_by_must_edge_count",
+        }
+        counter_name = counter_by_reason.get(reason)
+        if counter_name is not None:
+            setattr(diagnostics, counter_name, getattr(diagnostics, counter_name) + 1)
+        elif reason != "NEW_GEOMETRY":
+            diagnostics.witness_invalidated_by_other_hard_check_count += 1
+        record_witness_event(
+            "INVALIDATED",
+            role=role,
+            reason=reason,
+            source_partial_geometry_hash=witness.source_partial_geometry_hash,
+            current_partial_geometry_hash=_main_chain_partial_geometry_hash(
+                handoff, bank_sign, current_placed
+            ),
+        )
+
     def recurse(
-        index: int, placed: dict[str, PlacedRectangleV1]
+        index: int,
+        placed: dict[str, PlacedRectangleV1],
+        active_witness: _MainChainCompletionWitnessV1 | None = None,
     ) -> dict[str, PlacedRectangleV1] | None:
         if index < len(order):
             set_attempted(order[index], placed)
@@ -2773,12 +3163,22 @@ def _search_one(
         neighbors = tuple(name for name in _must_neighbors(code) if name in placed)
         axis, interval = _domain_interval(code, handoff, domains)
 
+        witness_geometry = active_witness.geometry_for(code) if active_witness else None
+        witness_shape = witness_geometry[1] if witness_geometry else None
+        witness_bounds = witness_geometry[0] if witness_geometry else None
+        witness_origin = (witness_bounds[0], witness_bounds[1]) if witness_bounds else None
+        role_shapes = ordered_shapes[code]
+        if witness_shape in role_shapes:
+            role_shapes = (witness_shape,) + tuple(
+                shape for shape in role_shapes if shape != witness_shape
+            )
+
         def ordered_points(
             points: Sequence[tuple[int, int]], shape: _Shape
         ) -> tuple[tuple[int, int], ...]:
             def key(
                 point: tuple[int, int],
-            ) -> tuple[int, int, int, int, int, int, int, int, int]:
+            ) -> tuple[int, int, int, int, int, int, int, int, int, int]:
                 projection = (
                     point[0] + shape.world_width_mm // 2
                     if axis == "X"
@@ -2830,6 +3230,27 @@ def _search_one(
                 cross_penalty = 0
                 process_center_penalty = 0
                 access_departure_penalty = 0
+                witness_compatibility_penalty = 0
+                if active_witness is not None and code not in {
+                    item[0] for item in active_witness.witness_geometry
+                }:
+                    hypothetical = dict(placed)
+                    hypothetical[code] = _rectangle(code, point[0], point[1], shape)
+                    witness_compatibility_penalty = int(
+                        _completion_witness_incompatibility(
+                            active_witness,
+                            handoff,
+                            bank_sign,
+                            shapes,
+                            authority_shapes,
+                            dimension_authorities,
+                            hypothetical,
+                            boundary,
+                            obstacles,
+                            faces,
+                        )
+                        is not None
+                    )
                 if code == "sorting_packaging_room":
                     if handoff.process_axis == ProcessAxisV1.X:
                         process_center = (
@@ -2878,6 +3299,7 @@ def _search_one(
                         )
                     )
                 return (
+                    witness_compatibility_penalty,
                     int(flow_violation_mm > 0),
                     flow_violation_mm,
                     access_departure_penalty,
@@ -2895,12 +3317,22 @@ def _search_one(
         # authority shapes. Generic physical-event anchors are a bounded,
         # explicitly secondary continuation.
         domain_origins_by_shape: dict[_Shape, set[tuple[int, int]]] = {}
-        for source in ("DOMAIN", "GENERIC"):
+        sources = ("WITNESS", "DOMAIN", "GENERIC") if witness_geometry else ("DOMAIN", "GENERIC")
+        for source in sources:
             if source == "GENERIC" and diagnostics.generic_nodes >= max(1, node_limit // 10):
                 break
-            for shape in ordered_shapes[code]:
+            if source == "WITNESS":
+                assert witness_shape is not None
+                source_shapes: tuple[_Shape, ...] = (witness_shape,)
+            else:
+                source_shapes = role_shapes
+            for shape in source_shapes:
                 diagnostics.funnel[code]["shape_variant_attempt_count"] += 1
-                if source == "DOMAIN":
+                origins: Sequence[tuple[int, int]]
+                if source == "WITNESS":
+                    assert witness_origin is not None
+                    origins = (witness_origin,)
+                elif source == "DOMAIN":
                     origins = _domain_derived_anchors(
                         code,
                         shape,
@@ -2926,6 +3358,9 @@ def _search_one(
                     diagnostics.domain_anchor_count[code] += len(origins)
                     diagnostics.funnel[code]["domain_derived_anchor_count"] += len(origins)
                     domain_origins_by_shape[shape] = set(origins)
+                    if witness_origin is not None and shape == witness_shape:
+                        origins = tuple(point for point in origins if point != witness_origin)
+                        domain_origins_by_shape[shape].discard(witness_origin)
                 else:
                     if diagnostics.generic_nodes >= max(1, node_limit // 10):
                         break
@@ -2935,9 +3370,12 @@ def _search_one(
                         for point in origins
                         if point not in domain_origins_by_shape.get(shape, set())
                     )
+                    if witness_origin is not None and shape == witness_shape:
+                        origins = tuple(point for point in origins if point != witness_origin)
                     diagnostics.generic_anchor_count[code] += len(origins)
                     diagnostics.funnel[code]["generic_fallback_anchor_count"] += len(origins)
-                for x, y in ordered_points(origins, shape):
+                points = origins if source == "WITNESS" else ordered_points(origins, shape)
+                for x, y in points:
                     cached_office = (
                         diagnostics.office_seed_by_shipping.get(
                             placed["shipping_channel"].bounds_mm
@@ -2963,6 +3401,19 @@ def _search_one(
                         diagnostics.nodes += 1
                         diagnostics.primary_search_nodes += 1
                         diagnostics.funnel[code]["candidate_rectangle_attempt_count"] += 1
+                    witness_candidate = source == "WITNESS"
+                    if witness_candidate:
+                        diagnostics.witness_reuse_attempt_count += 1
+                        record_witness_event(
+                            "REUSE_ATTEMPTED",
+                            role=code,
+                            bounds_mm=list(witness_bounds or ()),
+                            source_partial_geometry_hash=(
+                                active_witness.source_partial_geometry_hash
+                                if active_witness is not None
+                                else None
+                            ),
+                        )
                     if source == "GENERIC":
                         diagnostics.generic_nodes += 1
                         diagnostics.generic_nodes_by_role[code] += 1
@@ -2970,6 +3421,9 @@ def _search_one(
                     rejected = _candidate_rejection(candidate, placed, boundary, obstacles)
                     if rejected is not None:
                         count_candidate_failure(code, rejected)
+                        record_witness_rejection(
+                            source, code, rejected, candidate, active_witness, placed
+                        )
                         save_witness(placed, code)
                         continue
                     if (
@@ -2989,6 +3443,14 @@ def _search_one(
                         diagnostics.failure_taxonomy = (
                             "PACKAGING_SORTING_STRAIGHT_INTERFACE_PREFLIGHT_REJECTION"
                         )
+                        record_witness_rejection(
+                            source,
+                            code,
+                            "PACKAGING_STRAIGHT_INTERFACE",
+                            candidate,
+                            active_witness,
+                            placed,
+                        )
                         save_witness(placed, code)
                         continue
                     if neighbors and any(
@@ -2997,12 +3459,18 @@ def _search_one(
                     ):
                         diagnostics.funnel[code]["must_edge_rejection_count"] += 1
                         diagnostics.failure_taxonomy = f"{code.upper()}_MUST_EDGE_REJECTION"
+                        record_witness_rejection(
+                            source, code, "MUST_EDGE", candidate, active_witness, placed
+                        )
                         save_witness(placed, code)
                         continue
                     sorting = placed.get("sorting_packaging_room")
                     if sorting is not None and not _side_ok(code, candidate, sorting, faces):
                         diagnostics.funnel[code]["domain_side_rejection_count"] += 1
                         diagnostics.failure_taxonomy = f"{code.upper()}_DOMAIN_SIDE_REJECTION"
+                        record_witness_rejection(
+                            source, code, "COMPOSITION_SIDE", candidate, active_witness, placed
+                        )
                         save_witness(placed, code)
                         continue
                     if access_aware and code == "shipping_channel":
@@ -3016,6 +3484,14 @@ def _search_one(
                             diagnostics.funnel[code]["coupled_interface_rejection_count"] += 1
                             diagnostics.failure_taxonomy = (
                                 "SHIPPING_OFFICE_INTERFACE_PROVED_IMPOSSIBLE_IN_SITE_BOUNDS"
+                            )
+                            record_witness_rejection(
+                                source,
+                                code,
+                                "SHIPPING_OFFICE_INTERFACE",
+                                candidate,
+                                active_witness,
+                                placed,
                             )
                             save_witness(placed, code)
                             continue
@@ -3037,6 +3513,9 @@ def _search_one(
                             diagnostics.failure_taxonomy = (
                                 "SHIPPING_TRUCK_CAPACITY_PREFLIGHT_REJECTION"
                             )
+                            record_witness_rejection(
+                                source, code, "TRUCK_PREFLIGHT", candidate, active_witness, placed
+                            )
                             save_witness(placed, code)
                             continue
                     placed[code] = candidate
@@ -3044,6 +3523,9 @@ def _search_one(
                         diagnostics.funnel[code]["composition_intent_rejection_count"] += 1
                         diagnostics.failure_taxonomy = (
                             f"{code.upper()}_PARTIAL_COMPOSITION_INTENT_REJECTION"
+                        )
+                        record_witness_rejection(
+                            source, code, "COMPOSITION_INTENT", candidate, active_witness, placed
                         )
                         save_witness(
                             placed,
@@ -3075,9 +3557,94 @@ def _search_one(
                             diagnostics.failure_taxonomy = (
                                 "PACKAGING_STRAIGHT_INTERFACE_CAPACITY_CLOSED_BY_PARTIAL_PLACEMENT"
                             )
+                            record_witness_rejection(
+                                source,
+                                code,
+                                "PACKAGING_CAPACITY",
+                                candidate,
+                                active_witness,
+                                placed,
+                            )
                             save_witness(placed, "packaging_material_storage")
                             placed.pop(code, None)
                             continue
+                    child_witness = active_witness
+                    witness_invalidated = False
+                    if active_witness is not None:
+                        inherited_entry = active_witness.geometry_for(code)
+                        if inherited_entry is not None:
+                            expected_bounds, expected_shape, _ = inherited_entry
+                            selected_shape = _Shape(
+                                _mm(candidate.width_m),
+                                _mm(candidate.depth_m),
+                                candidate.rotation_deg,
+                            )
+                            if (
+                                _bounds(candidate) == expected_bounds
+                                and selected_shape == expected_shape
+                            ):
+                                child_witness = active_witness.without_role(code)
+                                reason = (
+                                    _completion_witness_incompatibility(
+                                        child_witness,
+                                        handoff,
+                                        bank_sign,
+                                        shapes,
+                                        authority_shapes,
+                                        dimension_authorities,
+                                        placed,
+                                        boundary,
+                                        obstacles,
+                                        faces,
+                                    )
+                                    if child_witness is not None
+                                    else None
+                                )
+                            else:
+                                child_witness = None
+                                reason = "NEW_GEOMETRY"
+                        else:
+                            reason = _completion_witness_incompatibility(
+                                active_witness,
+                                handoff,
+                                bank_sign,
+                                shapes,
+                                authority_shapes,
+                                dimension_authorities,
+                                placed,
+                                boundary,
+                                obstacles,
+                                faces,
+                            )
+                        if reason is not None:
+                            invalidate_witness(active_witness, code, reason, placed)
+                            child_witness = None
+                            witness_invalidated = True
+                        elif child_witness is not None:
+                            diagnostics.witness_inheritance_count += 1
+                            record_witness_event(
+                                "INHERITED",
+                                role=code,
+                                remaining_roles=list(child_witness.ordered_witness_roles),
+                                source_partial_geometry_hash=(
+                                    child_witness.source_partial_geometry_hash
+                                ),
+                                current_partial_geometry_hash=(
+                                    _main_chain_partial_geometry_hash(handoff, bank_sign, placed)
+                                ),
+                            )
+                    if witness_candidate and not witness_invalidated:
+                        diagnostics.witness_reuse_accepted_count += 1
+                        record_witness_event(
+                            "REUSE_ACCEPTED",
+                            role=code,
+                            candidate_bounds_mm=list(_bounds(candidate)),
+                            remaining_roles=(
+                                list(child_witness.ordered_witness_roles)
+                                if child_witness is not None
+                                else []
+                            ),
+                        )
                     remaining_main_chain_role_count = sum(
                         role not in placed for role in material_chain_roles
                     )
@@ -3105,7 +3672,7 @@ def _search_one(
                         and fixed_main_chain_role_count >= 3
                         and remaining_main_chain_role_count <= 3
                     )
-                    if (
+                    forward_check_triggered = (
                         access_intent is not None
                         and remaining_main_chain_role_count > 0
                         and (
@@ -3113,7 +3680,15 @@ def _search_one(
                             or shipping_capacity_trigger
                             or main_chain_hole_trigger
                         )
-                    ):
+                    )
+                    if forward_check_triggered and child_witness is not None:
+                        diagnostics.forward_check_skipped_due_to_valid_witness_count += 1
+                        record_witness_event(
+                            "REDUNDANT_FORWARD_CHECK_SKIPPED",
+                            trigger_role=code,
+                            witness_roles=list(child_witness.ordered_witness_roles),
+                        )
+                    elif forward_check_triggered:
                         probe = _optimistic_main_chain_completion_probe(
                             handoff,
                             ordered_shapes,
@@ -3128,6 +3703,31 @@ def _search_one(
                             chain_hole=main_chain_hole_trigger
                             and remaining_main_chain_role_count <= 1,
                         )
+                        child_witness = _completion_witness_from_probe(
+                            probe, handoff, bank_sign, dimension_authorities
+                        )
+                        if child_witness is not None:
+                            diagnostics.witness_created_count += 1
+                            record_witness_event(
+                                "CREATED",
+                                trigger_role=code,
+                                source_partial_geometry_hash=(
+                                    child_witness.source_partial_geometry_hash
+                                ),
+                                witness_roles=list(child_witness.ordered_witness_roles),
+                                witness_geometry={
+                                    role: {
+                                        "bounds_mm": list(bounds),
+                                        "shape": asdict(shape),
+                                        "shape_authority_identity": shape_identity,
+                                    }
+                                    for role, bounds, shape, shape_identity in (
+                                        child_witness.witness_geometry
+                                    )
+                                },
+                                engineering_authority=False,
+                                validation_authority=False,
+                            )
                         if code == "packaging_material_storage" and access_intent is not None:
                             diagnostics.packaging_local_pass_chain_forward_fail_count += int(
                                 probe.status
@@ -3202,7 +3802,7 @@ def _search_one(
                             if diagnostics.budget_hit:
                                 return None
                             continue
-                    solution = recurse(index + 1, placed)
+                    solution = recurse(index + 1, placed, child_witness)
                     if solution is not None:
                         return solution
                     placed.pop(code, None)
@@ -3606,6 +4206,35 @@ def enumerate_composition_placements(
                 forward_check_sequence_hash=canonical_hash(
                     [list(item) for item in diagnostics.forward_check_sequence]
                 ),
+                forward_check_skipped_due_to_valid_witness_count=(
+                    diagnostics.forward_check_skipped_due_to_valid_witness_count
+                ),
+                forward_check_exact_cache_hit_count=diagnostics.forward_check_cache_hit_count,
+                witness_created_count=diagnostics.witness_created_count,
+                witness_reuse_attempt_count=diagnostics.witness_reuse_attempt_count,
+                witness_reuse_accepted_count=diagnostics.witness_reuse_accepted_count,
+                witness_reuse_rejected_count=diagnostics.witness_reuse_rejected_count,
+                witness_inheritance_count=diagnostics.witness_inheritance_count,
+                witness_invalidated_by_new_geometry_count=(
+                    diagnostics.witness_invalidated_by_new_geometry_count
+                ),
+                witness_invalidated_by_site_count=diagnostics.witness_invalidated_by_site_count,
+                witness_invalidated_by_obstacle_count=(
+                    diagnostics.witness_invalidated_by_obstacle_count
+                ),
+                witness_invalidated_by_overlap_count=(
+                    diagnostics.witness_invalidated_by_overlap_count
+                ),
+                witness_invalidated_by_must_edge_count=(
+                    diagnostics.witness_invalidated_by_must_edge_count
+                ),
+                witness_invalidated_by_other_hard_check_count=(
+                    diagnostics.witness_invalidated_by_other_hard_check_count
+                ),
+                witness_sequence_hash=canonical_hash(
+                    [dict(item) for item in diagnostics.witness_events]
+                ),
+                witness_events=tuple(diagnostics.witness_events),
                 chain_starvation_prune_count_by_trigger_role=tuple(
                     sorted(diagnostics.chain_starvation_prune_count_by_trigger_role.items())
                 ),
@@ -3715,6 +4344,23 @@ def enumerate_composition_placements(
                         ("search_order_lane", search_order_lane),
                         ("peripheral_bank_sign", str(bank_sign)),
                     ]
+                if access_intent is not None:
+                    candidate_provenance.extend(
+                        (
+                            (
+                                "witness_guidance_used",
+                                str(diagnostics.witness_reuse_accepted_count > 0).lower(),
+                            ),
+                            (
+                                "witness_guided_roles",
+                                ",".join(
+                                    str(event.get("role"))
+                                    for event in diagnostics.witness_events
+                                    if event.get("event") == "REUSE_ACCEPTED"
+                                ),
+                            ),
+                        )
+                    )
                 if access_intent is not None:
                     candidate_provenance.append(
                         ("access_critical_construction_intent", access_intent.identity)
