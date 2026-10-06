@@ -6,9 +6,9 @@ search organizers, not site/access/Truck engineering authorities.
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from decimal import ROUND_CEILING, Decimal
 from math import isqrt
 from typing import Any
@@ -52,6 +52,25 @@ MAX_COMPOSITION_PLACEMENT_NODE_BUDGET = DEFAULT_COMPOSITION_PLACEMENT_NODE_BUDGE
 GRID_MM = 1
 GENERIC_FALLBACK_ANCHOR_LIMIT_PER_ROLE = 24
 ACCESS_VALIDATION_CHECKPOINTS_PER_FAMILY = 3
+MAIN_CHAIN_SOURCE = "EXISTING_PROCESS_GRAPH"
+FORWARD_CHECK_ENGINEERING_AUTHORITY = False
+FORWARD_CHECK_VALIDATION_AUTHORITY = False
+FORWARD_CHECK_IS_OPTIMISTIC = True
+UNKNOWN_FORWARD_CHECK_CAN_PRUNE = False
+FORWARD_CHECK_BUDGET_EXHAUSTION_CAN_PRUNE = False
+FORWARD_CHECK_ATTEMPT_SLICE_DIVISOR = 4
+# Capacity-consuming branches and Shipping are probed once a meaningful
+# main-chain prefix is fixed; chain holes use a separate late checkpoint.
+FORWARD_CHECK_TRIGGER_ROLES = frozenset(
+    {
+        "packaging_material_storage",
+        "secondary_fruit_buffer",
+        "frozen_fruit_room",
+        "changing_room",
+        "office",
+        "shipping_channel",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -162,6 +181,29 @@ class CompositionPlacementSearchAttemptV1:
     construction_domains: tuple[ConstructionDomainV1, ...]
     nodes_allocated: int
     nodes_visited: int
+    primary_search_nodes_used: int
+    forward_check_nodes_used: int
+    forward_check_attempt_node_limit: int
+    forward_check_regular_nodes_used: int
+    forward_check_chain_hole_nodes_used: int
+    forward_check_regular_node_limit: int
+    forward_check_chain_hole_node_limit: int
+    forward_check_invocation_count: int
+    forward_check_pass_count: int
+    forward_check_proved_no_completion_count: int
+    forward_check_unknown_budget_count: int
+    forward_check_unknown_other_count: int
+    forward_check_cache_hit_count: int
+    forward_check_unique_partial_signature_count: int
+    forward_check_sequence_hash: str
+    chain_starvation_prune_count_by_trigger_role: tuple[tuple[str, int], ...]
+    packaging_local_pass_chain_forward_fail_count: int
+    packaging_local_pass_chain_forward_pass_count: int
+    secondary_local_pass_chain_forward_fail_count: int
+    frozen_local_pass_chain_forward_fail_count: int
+    personnel_local_pass_chain_forward_fail_count: int
+    forward_check_witnesses: tuple[Mapping[str, Any], ...]
+    forward_check_negative_proofs: tuple[Mapping[str, Any], ...]
     deepest_role_attempted: str
     deepest_role_successfully_placed: str
     max_simultaneously_placed_role_count: int
@@ -198,6 +240,47 @@ class CompositionPlacementSearchAttemptV1:
             "construction_domains": [asdict(domain) for domain in self.construction_domains],
             "nodes_allocated": self.nodes_allocated,
             "nodes_visited": self.nodes_visited,
+            "primary_search_nodes_used": self.primary_search_nodes_used,
+            "forward_check_nodes_used": self.forward_check_nodes_used,
+            "forward_check_attempt_node_limit": self.forward_check_attempt_node_limit,
+            "forward_check_regular_nodes_used": self.forward_check_regular_nodes_used,
+            "forward_check_chain_hole_nodes_used": self.forward_check_chain_hole_nodes_used,
+            "forward_check_regular_node_limit": self.forward_check_regular_node_limit,
+            "forward_check_chain_hole_node_limit": self.forward_check_chain_hole_node_limit,
+            "forward_check_invocation_count": self.forward_check_invocation_count,
+            "forward_check_pass_count": self.forward_check_pass_count,
+            "forward_check_proved_no_completion_count": (
+                self.forward_check_proved_no_completion_count
+            ),
+            "forward_check_unknown_budget_count": self.forward_check_unknown_budget_count,
+            "forward_check_unknown_other_count": self.forward_check_unknown_other_count,
+            "forward_check_cache_hit_count": self.forward_check_cache_hit_count,
+            "forward_check_unique_partial_signature_count": (
+                self.forward_check_unique_partial_signature_count
+            ),
+            "forward_check_sequence_hash": self.forward_check_sequence_hash,
+            "chain_starvation_prune_count_by_trigger_role": dict(
+                self.chain_starvation_prune_count_by_trigger_role
+            ),
+            "packaging_local_pass_chain_forward_fail_count": (
+                self.packaging_local_pass_chain_forward_fail_count
+            ),
+            "packaging_local_pass_chain_forward_pass_count": (
+                self.packaging_local_pass_chain_forward_pass_count
+            ),
+            "secondary_local_pass_chain_forward_fail_count": (
+                self.secondary_local_pass_chain_forward_fail_count
+            ),
+            "frozen_local_pass_chain_forward_fail_count": (
+                self.frozen_local_pass_chain_forward_fail_count
+            ),
+            "personnel_local_pass_chain_forward_fail_count": (
+                self.personnel_local_pass_chain_forward_fail_count
+            ),
+            "forward_check_witnesses": [dict(item) for item in self.forward_check_witnesses],
+            "forward_check_negative_proofs": [
+                dict(item) for item in self.forward_check_negative_proofs
+            ],
             "deepest_role_attempted": self.deepest_role_attempted,
             "deepest_role_successfully_placed": self.deepest_role_successfully_placed,
             "max_simultaneously_placed_role_count": self.max_simultaneously_placed_role_count,
@@ -259,6 +342,7 @@ class RoleSearchFunnelV1:
     coupled_interface_rejection_count: int
     composition_intent_rejection_count: int
     access_interface_rejection_count: int
+    main_chain_forward_check_prune_count: int
     accepted_partial_placement_count: int
     backtrack_count: int
 
@@ -281,6 +365,7 @@ class RoleSearchFunnelV1:
             "coupled_interface_rejection_count": self.coupled_interface_rejection_count,
             "composition_intent_rejection_count": self.composition_intent_rejection_count,
             "access_interface_rejection_count": self.access_interface_rejection_count,
+            "main_chain_forward_check_prune_count": self.main_chain_forward_check_prune_count,
             "accepted_partial_placement_count": self.accepted_partial_placement_count,
             "backtrack_count": self.backtrack_count,
         }
@@ -314,7 +399,14 @@ class PartialPlacementWitnessV1:
 @dataclass
 class _SearchDiagnostics:
     node_limit: int = 0
+    forward_check_node_limit: int = -1
+    forward_check_regular_node_limit: int = -1
+    forward_check_chain_hole_node_limit: int = -1
     nodes: int = 0
+    primary_search_nodes: int = 0
+    forward_check_nodes: int = 0
+    forward_check_regular_nodes: int = 0
+    forward_check_chain_hole_nodes: int = 0
     budget_hit: bool = False
     deepest_attempted: str = "NOT_ATTEMPTED"
     deepest_successfully_placed: str = "NOT_PLACED"
@@ -344,6 +436,54 @@ class _SearchDiagnostics:
     complete_placements: list[tuple[dict[str, PlacedRectangleV1], int]] = field(
         default_factory=list
     )
+    forward_check_cache: dict[str, _MainChainForwardCheckResultV1] = field(default_factory=dict)
+    forward_check_signatures: set[str] = field(default_factory=set)
+    forward_check_sequence: list[tuple[str, str, str, bool]] = field(default_factory=list)
+    forward_check_invocation_count: int = 0
+    forward_check_pass_count: int = 0
+    forward_check_proved_no_completion_count: int = 0
+    forward_check_unknown_budget_count: int = 0
+    forward_check_unknown_other_count: int = 0
+    forward_check_cache_hit_count: int = 0
+    chain_starvation_prune_count_by_trigger_role: dict[str, int] = field(default_factory=dict)
+    packaging_local_pass_chain_forward_fail_count: int = 0
+    packaging_local_pass_chain_forward_pass_count: int = 0
+    secondary_local_pass_chain_forward_fail_count: int = 0
+    frozen_local_pass_chain_forward_fail_count: int = 0
+    personnel_local_pass_chain_forward_fail_count: int = 0
+    forward_check_witnesses: list[Mapping[str, Any]] = field(default_factory=list)
+    forward_check_negative_proofs: list[Mapping[str, Any]] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if self.forward_check_node_limit < 0:
+            self.forward_check_node_limit = (
+                min(
+                    self.node_limit,
+                    max(1, self.node_limit // FORWARD_CHECK_ATTEMPT_SLICE_DIVISOR),
+                )
+                if self.node_limit
+                else 0
+            )
+        category_limit = max(1, self.node_limit // 8) if self.node_limit else 0
+        if self.forward_check_regular_node_limit < 0:
+            self.forward_check_regular_node_limit = category_limit
+        if self.forward_check_chain_hole_node_limit < 0:
+            self.forward_check_chain_hole_node_limit = category_limit
+
+
+@dataclass(frozen=True)
+class _MainChainForwardCheckResultV1:
+    status: str
+    partial_geometry_hash: str
+    fixed_main_chain_roles: tuple[str, ...]
+    unplaced_main_chain_roles: tuple[str, ...]
+    witness_role_order: tuple[str, ...]
+    witness_zone_bounds_mm: tuple[tuple[str, tuple[int, int, int, int]], ...]
+    probe_nodes_used: int
+    first_unplaceable_role: str | None
+    failure_taxonomy: str
+    cache_hit: bool = False
+    cached_probe_nodes: int = 0
 
 
 @dataclass(frozen=True)
@@ -388,11 +528,34 @@ class CompositionPlacementEnumerationV1:
         lane_counts: dict[str, int] = defaultdict(int)
         for attempt in self.search_attempts:
             lane_counts[attempt.search_order_lane] += 1
+        primary_nodes = sum(item.primary_search_nodes_used for item in self.search_attempts)
+        forward_nodes = sum(item.forward_check_nodes_used for item in self.search_attempts)
+        forward_regular_nodes = sum(
+            item.forward_check_regular_nodes_used for item in self.search_attempts
+        )
+        forward_chain_hole_nodes = sum(
+            item.forward_check_chain_hole_nodes_used for item in self.search_attempts
+        )
+        trigger_prunes: dict[str, int] = defaultdict(int)
+        for attempt in self.search_attempts:
+            for role, count in attempt.chain_starvation_prune_count_by_trigger_role:
+                trigger_prunes[role] += count
         return {
             "identity": self.identity,
             "schema_version": self.schema_version,
             "node_budget": self.node_budget,
             "nodes_used": self.nodes_used,
+            "primary_search_nodes_used": primary_nodes,
+            "forward_check_nodes_used": forward_nodes,
+            "forward_check_regular_nodes_used": forward_regular_nodes,
+            "forward_check_chain_hole_nodes_used": forward_chain_hole_nodes,
+            "forward_check_regular_node_limit_total": sum(
+                item.forward_check_regular_node_limit for item in self.search_attempts
+            ),
+            "forward_check_chain_hole_node_limit_total": sum(
+                item.forward_check_chain_hole_node_limit for item in self.search_attempts
+            ),
+            "node_accounting_sum_valid": primary_nodes + forward_nodes == self.nodes_used,
             "node_budget_exhausted": self.node_budget_exhausted,
             "initial_family_budget": self.initial_family_budget,
             "continuation_budget": self.continuation_budget,
@@ -407,6 +570,73 @@ class CompositionPlacementEnumerationV1:
             },
             "search_order_is_engineering_authority": False,
             "legacy_placement_fallback_used": False,
+            "main_chain_source": MAIN_CHAIN_SOURCE,
+            "main_chain_authority_changed": False,
+            "forward_check_engineering_authority": FORWARD_CHECK_ENGINEERING_AUTHORITY,
+            "forward_check_validation_authority": FORWARD_CHECK_VALIDATION_AUTHORITY,
+            "forward_check_is_optimistic": FORWARD_CHECK_IS_OPTIMISTIC,
+            "forward_check_attempt_slice_divisor": FORWARD_CHECK_ATTEMPT_SLICE_DIVISOR,
+            "forward_check_trigger_roles": sorted(FORWARD_CHECK_TRIGGER_ROLES),
+            "unplaced_non_main_roles_ignored": True,
+            "unknown_forward_check_can_prune": UNKNOWN_FORWARD_CHECK_CAN_PRUNE,
+            "forward_check_budget_exhaustion_can_prune": (
+                FORWARD_CHECK_BUDGET_EXHAUSTION_CAN_PRUNE
+            ),
+            "whole_building_completion_first_class_search_objective": True,
+            "forward_check_invocation_count": sum(
+                item.forward_check_invocation_count for item in self.search_attempts
+            ),
+            "forward_check_pass_count": sum(
+                item.forward_check_pass_count for item in self.search_attempts
+            ),
+            "forward_check_proved_no_completion_count": sum(
+                item.forward_check_proved_no_completion_count for item in self.search_attempts
+            ),
+            "forward_check_unknown_budget_count": sum(
+                item.forward_check_unknown_budget_count for item in self.search_attempts
+            ),
+            "forward_check_unknown_other_count": sum(
+                item.forward_check_unknown_other_count for item in self.search_attempts
+            ),
+            "forward_check_cache_hit_count": sum(
+                item.forward_check_cache_hit_count for item in self.search_attempts
+            ),
+            "forward_check_unique_partial_signature_count": sum(
+                item.forward_check_unique_partial_signature_count for item in self.search_attempts
+            ),
+            "chain_starvation_prune_count_by_trigger_role": dict(sorted(trigger_prunes.items())),
+            "packaging_local_pass_chain_forward_fail_count": sum(
+                item.packaging_local_pass_chain_forward_fail_count for item in self.search_attempts
+            ),
+            "packaging_local_pass_chain_forward_pass_count": sum(
+                item.packaging_local_pass_chain_forward_pass_count for item in self.search_attempts
+            ),
+            "secondary_local_pass_chain_forward_fail_count": sum(
+                item.secondary_local_pass_chain_forward_fail_count for item in self.search_attempts
+            ),
+            "frozen_local_pass_chain_forward_fail_count": sum(
+                item.frozen_local_pass_chain_forward_fail_count for item in self.search_attempts
+            ),
+            "personnel_local_pass_chain_forward_fail_count": sum(
+                item.personnel_local_pass_chain_forward_fail_count for item in self.search_attempts
+            ),
+            "forward_check_witnesses": [
+                dict(row)
+                for attempt in self.search_attempts
+                for row in attempt.forward_check_witnesses
+            ],
+            "forward_check_negative_proofs": [
+                dict(row)
+                for attempt in self.search_attempts
+                for row in attempt.forward_check_negative_proofs
+            ],
+            "forward_check_sequence_hashes": {
+                f"{attempt.family.value}:{attempt.composition_identity}:"
+                f"{attempt.peripheral_bank_sign}:{attempt.search_order_lane}": (
+                    attempt.forward_check_sequence_hash
+                )
+                for attempt in self.search_attempts
+            },
             "attempt_count_by_family": dict(self.attempt_count_by_family),
             "nodes_used_by_family": dict(self.nodes_used_by_family),
             "deepest_role_attempted_by_family": dict(self.deepest_role_attempted_by_family),
@@ -1808,6 +2038,8 @@ def _generic_fallback_anchors(
     placed: Mapping[str, PlacedRectangleV1],
     boundary: PolygonMM,
     obstacles: Sequence[PolygonMM],
+    *,
+    limit: int | None = GENERIC_FALLBACK_ANCHOR_LIMIT_PER_ROLE,
 ) -> tuple[tuple[int, int], ...]:
     neighbors = tuple(name for name in _must_neighbors(role) if name in placed)
     if neighbors:
@@ -1836,7 +2068,7 @@ def _generic_fallback_anchors(
             *((x, y) for x, y in zip(xs, ys, strict=False)),
         }
         anchors = tuple(sorted(anchors_set))
-    return anchors[:GENERIC_FALLBACK_ANCHOR_LIMIT_PER_ROLE]
+    return anchors if limit is None else anchors[:limit]
 
 
 def _packaging_interface_capacity_remains(
@@ -1907,6 +2139,364 @@ def _candidate_rejection(
     return None
 
 
+def _main_chain_roles_from_process_graph() -> tuple[str, ...]:
+    """Read the ordered mandatory material chain from the existing graph."""
+    material_flows = tuple(flow for flow in process_graph().flows if flow.kind == "MATERIAL")
+    if not material_flows:
+        return ()
+    roles = [material_flows[0].from_ref]
+    for flow in material_flows:
+        if roles[-1] != flow.from_ref:
+            return ()
+        roles.append(flow.to_ref)
+    return tuple(roles)
+
+
+def _optimistic_main_chain_completion_probe(
+    handoff: StructuralCompositionPlacementHandoffV1,
+    shapes: Mapping[str, tuple[_Shape, ...]],
+    domains: Sequence[ConstructionDomainV1],
+    bank_sign: int,
+    placed: Mapping[str, PlacedRectangleV1],
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+    access_intent: AccessCriticalConstructionIntentV1 | None,
+    diagnostics: _SearchDiagnostics,
+    trigger_role: str,
+    *,
+    chain_hole: bool = False,
+) -> _MainChainForwardCheckResultV1:
+    """Probe an optimistic finite completion of only the existing MATERIAL chain.
+
+    This is construction-search pruning only.  A negative result is returned
+    only after every event-derived candidate in the probe's union domain has
+    been exhausted.  A shared-slice limit or incomplete input is UNKNOWN.
+    """
+    chain = _main_chain_roles_from_process_graph()
+    fixed_chain = tuple(role for role in chain if role in placed)
+    unplaced_chain = tuple(role for role in chain if role not in placed)
+    signature = canonical_hash(
+        {
+            "composition_identity": handoff.composition_identity,
+            "composition_signature": handoff.composition_signature,
+            "bank_sign": bank_sign,
+            "fixed_geometry": {role: list(_bounds(placed[role])) for role in sorted(placed)},
+            "main_chain": list(chain),
+        }
+    )
+    diagnostics.forward_check_invocation_count += 1
+    diagnostics.forward_check_signatures.add(signature)
+    cached = diagnostics.forward_check_cache.get(signature)
+    if cached is not None:
+        result = replace(
+            cached,
+            probe_nodes_used=0,
+            cache_hit=True,
+            cached_probe_nodes=cached.probe_nodes_used,
+        )
+        diagnostics.forward_check_cache_hit_count += 1
+    elif not chain or any(role not in shapes for role in unplaced_chain):
+        result = _MainChainForwardCheckResultV1(
+            status="UNKNOWN_INCOMPLETE_PROOF",
+            partial_geometry_hash=signature,
+            fixed_main_chain_roles=fixed_chain,
+            unplaced_main_chain_roles=unplaced_chain,
+            witness_role_order=(),
+            witness_zone_bounds_mm=(),
+            probe_nodes_used=0,
+            first_unplaceable_role=None,
+            failure_taxonomy="MAIN_CHAIN_OR_AUTHORITY_SHAPES_INCOMPLETE",
+        )
+    else:
+        chain_adjacencies = process_graph().must_adjacencies
+        fixed_must_conflict = next(
+            (
+                (first, second)
+                for first, second in chain_adjacencies
+                if first in placed
+                and second in placed
+                and not rectangles_share_positive_edge(placed[first], placed[second])
+            ),
+            None,
+        )
+        if fixed_must_conflict is not None:
+            first, second = fixed_must_conflict
+            result = _MainChainForwardCheckResultV1(
+                status="PROVED_NO_MAIN_CHAIN_COMPLETION_IN_CURRENT_SEARCH_DOMAIN",
+                partial_geometry_hash=signature,
+                fixed_main_chain_roles=fixed_chain,
+                unplaced_main_chain_roles=unplaced_chain,
+                witness_role_order=(),
+                witness_zone_bounds_mm=(),
+                probe_nodes_used=0,
+                first_unplaceable_role=second,
+                failure_taxonomy=f"FIXED_MUST_EDGE_CONFLICT:{first}:{second}",
+            )
+            diagnostics.forward_check_cache[signature] = result
+        elif not unplaced_chain:
+            result = _MainChainForwardCheckResultV1(
+                status="PASS_TO_SEARCH",
+                partial_geometry_hash=signature,
+                fixed_main_chain_roles=fixed_chain,
+                unplaced_main_chain_roles=(),
+                witness_role_order=(),
+                witness_zone_bounds_mm=(),
+                probe_nodes_used=0,
+                first_unplaceable_role=None,
+                failure_taxonomy="ALL_MAIN_CHAIN_ROLES_ALREADY_FIXED",
+            )
+            diagnostics.forward_check_cache[signature] = result
+        else:
+            probe_placed = dict(placed)
+            witness_order: list[str] = []
+            witness_bounds: dict[str, tuple[int, int, int, int]] = {}
+            failure_counts_by_role: dict[str, Counter[str]] = defaultdict(Counter)
+            exhausted_roles: set[str] = set()
+            nodes_before = diagnostics.nodes
+            forward_nodes_before = diagnostics.forward_check_nodes
+            category_node_limit = (
+                diagnostics.forward_check_chain_hole_node_limit
+                if chain_hole
+                else diagnostics.forward_check_regular_node_limit
+            )
+            category_nodes_used = (
+                diagnostics.forward_check_chain_hole_nodes
+                if chain_hole
+                else diagnostics.forward_check_regular_nodes
+            )
+            forward_slice_remaining = max(
+                0,
+                diagnostics.forward_check_node_limit - diagnostics.forward_check_nodes,
+            )
+            category_slice_remaining = max(0, category_node_limit - category_nodes_used)
+            forward_probe_slice_limit = min(
+                forward_slice_remaining,
+                category_slice_remaining,
+                max(1, diagnostics.node_limit // (4 * len(unplaced_chain))),
+            )
+            probe_status = "PROVED_NO_MAIN_CHAIN_COMPLETION_IN_CURRENT_SEARCH_DOMAIN"
+            incomplete_proof = False
+            probe_budget_exhausted = False
+
+            def candidate_origins(role: str, shape: _Shape) -> tuple[tuple[int, int], ...]:
+                origins: set[tuple[int, int]] = set()
+                # Union, rather than filter: preserve composition-domain and
+                # CR1 interface event anchors while also admitting the full
+                # finite physical-event fallback as an optimistic superset.
+                origins.update(
+                    _domain_derived_anchors(
+                        role,
+                        shape,
+                        handoff,
+                        domains,
+                        bank_sign,
+                        probe_placed,
+                        boundary,
+                        obstacles,
+                    )
+                )
+                if access_intent is not None:
+                    origins.update(
+                        _domain_derived_anchors(
+                            role,
+                            shape,
+                            handoff,
+                            domains,
+                            bank_sign,
+                            probe_placed,
+                            boundary,
+                            obstacles,
+                            access_intent,
+                        )
+                    )
+                origins.update(
+                    _generic_fallback_anchors(
+                        role,
+                        shape,
+                        probe_placed,
+                        boundary,
+                        obstacles,
+                        limit=None,
+                    )
+                )
+                neighbors = tuple(name for name in _must_neighbors(role) if name in probe_placed)
+                if neighbors:
+                    origins.update(
+                        _anchors_at_must_faces(
+                            role, shape, probe_placed, neighbors, boundary, obstacles
+                        )
+                    )
+                return tuple(sorted(origins))
+
+            def visit_next() -> bool | None:
+                nonlocal incomplete_proof, probe_budget_exhausted
+                role = next((item for item in chain if item not in probe_placed), None)
+                if role is None:
+                    return True
+                if not shapes[role]:
+                    incomplete_proof = True
+                    return None
+                role_had_anchor = False
+                role_failure_counts: Counter[str] = Counter()
+                for shape in shapes[role]:
+                    for x, y in candidate_origins(role, shape):
+                        if (
+                            diagnostics.nodes >= diagnostics.node_limit
+                            or diagnostics.forward_check_nodes - forward_nodes_before
+                            >= forward_probe_slice_limit
+                        ):
+                            probe_budget_exhausted = True
+                            return None
+                        diagnostics.nodes += 1
+                        diagnostics.forward_check_nodes += 1
+                        if chain_hole:
+                            diagnostics.forward_check_chain_hole_nodes += 1
+                        else:
+                            diagnostics.forward_check_regular_nodes += 1
+                        candidate = _rectangle(role, x, y, shape)
+                        rejected = _candidate_rejection(
+                            candidate, probe_placed, boundary, obstacles
+                        )
+                        if rejected is not None:
+                            role_failure_counts[rejected] += 1
+                            continue
+                        neighbors = tuple(
+                            name for name in _must_neighbors(role) if name in probe_placed
+                        )
+                        if any(
+                            not rectangles_share_positive_edge(candidate, probe_placed[neighbor])
+                            for neighbor in neighbors
+                        ):
+                            role_failure_counts["MUST_EDGE"] += 1
+                            continue
+                        role_had_anchor = True
+                        probe_placed[role] = candidate
+                        witness_order.append(role)
+                        witness_bounds[role] = _bounds(candidate)
+                        child = visit_next()
+                        if child is True:
+                            return True
+                        probe_placed.pop(role, None)
+                        witness_order.pop()
+                        witness_bounds.pop(role, None)
+                        if child is None and (probe_budget_exhausted or incomplete_proof):
+                            return None
+                failure_counts_by_role[role].update(role_failure_counts)
+                # A role with no safe candidate is a concrete leaf failure;
+                # if it had candidates but every suffix failed, the deepest
+                # exhausted descendant provides the more precise taxonomy.
+                if not role_had_anchor:
+                    exhausted_roles.add(role)
+                return False
+
+            probe_result = visit_next()
+            probe_nodes = diagnostics.nodes - nodes_before
+            if probe_result is True:
+                probe_status = "PASS_TO_SEARCH"
+                result = _MainChainForwardCheckResultV1(
+                    status=probe_status,
+                    partial_geometry_hash=signature,
+                    fixed_main_chain_roles=fixed_chain,
+                    unplaced_main_chain_roles=unplaced_chain,
+                    witness_role_order=tuple(witness_order),
+                    witness_zone_bounds_mm=tuple(
+                        (role, witness_bounds[role]) for role in witness_order
+                    ),
+                    probe_nodes_used=probe_nodes,
+                    first_unplaceable_role=None,
+                    failure_taxonomy="OPTIMISTIC_MAIN_CHAIN_WITNESS_FOUND",
+                )
+                diagnostics.forward_check_cache[signature] = result
+            elif probe_result is None:
+                probe_status = (
+                    "UNKNOWN_BUDGET_EXHAUSTED"
+                    if probe_budget_exhausted
+                    else "UNKNOWN_INCOMPLETE_PROOF"
+                )
+                result = _MainChainForwardCheckResultV1(
+                    status=probe_status,
+                    partial_geometry_hash=signature,
+                    fixed_main_chain_roles=fixed_chain,
+                    unplaced_main_chain_roles=unplaced_chain,
+                    witness_role_order=(),
+                    witness_zone_bounds_mm=(),
+                    probe_nodes_used=probe_nodes,
+                    first_unplaceable_role=None,
+                    failure_taxonomy=(
+                        "SHARED_ATTEMPT_FORWARD_CHECK_SLICE_EXHAUSTED"
+                        if probe_status == "UNKNOWN_BUDGET_EXHAUSTED"
+                        else "PROBE_INPUT_OR_SEARCH_INCOMPLETE"
+                    ),
+                )
+            else:
+                first_unplaceable = max(
+                    exhausted_roles,
+                    key=chain.index,
+                    default=unplaced_chain[-1],
+                )
+                counts = failure_counts_by_role[first_unplaceable]
+                if counts:
+                    reason = sorted(counts, key=lambda item: (-counts[item], item))[0]
+                    failure_taxonomy = f"{first_unplaceable.upper()}_{reason}_REJECTION"
+                else:
+                    failure_taxonomy = f"{first_unplaceable.upper()}_NO_FINITE_EVENT_ANCHOR"
+                result = _MainChainForwardCheckResultV1(
+                    status=probe_status,
+                    partial_geometry_hash=signature,
+                    fixed_main_chain_roles=fixed_chain,
+                    unplaced_main_chain_roles=unplaced_chain,
+                    witness_role_order=(),
+                    witness_zone_bounds_mm=(),
+                    probe_nodes_used=probe_nodes,
+                    first_unplaceable_role=first_unplaceable,
+                    failure_taxonomy=failure_taxonomy,
+                )
+                diagnostics.forward_check_cache[signature] = result
+
+    diagnostics.forward_check_sequence.append(
+        (trigger_role, result.partial_geometry_hash, result.status, result.cache_hit)
+    )
+    if result.status == "PASS_TO_SEARCH":
+        diagnostics.forward_check_pass_count += 1
+        if len(diagnostics.forward_check_witnesses) < 24:
+            diagnostics.forward_check_witnesses.append(
+                {
+                    "trigger_role": trigger_role,
+                    "partial_geometry_hash": result.partial_geometry_hash,
+                    "fixed_main_chain_roles": list(result.fixed_main_chain_roles),
+                    "unplaced_main_chain_roles": list(result.unplaced_main_chain_roles),
+                    "witness_role_order": list(result.witness_role_order),
+                    "witness_zone_bounds_mm": {
+                        role: list(bounds) for role, bounds in result.witness_zone_bounds_mm
+                    },
+                    "probe_nodes_used": result.probe_nodes_used,
+                    "cache_hit": result.cache_hit,
+                }
+            )
+    elif result.status == "PROVED_NO_MAIN_CHAIN_COMPLETION_IN_CURRENT_SEARCH_DOMAIN":
+        diagnostics.forward_check_proved_no_completion_count += 1
+        if len(diagnostics.forward_check_negative_proofs) < 32:
+            diagnostics.forward_check_negative_proofs.append(
+                {
+                    "trigger_role": trigger_role,
+                    "partial_geometry_hash": result.partial_geometry_hash,
+                    "fixed_roles": list(result.fixed_main_chain_roles),
+                    "remaining_main_chain_roles": list(result.unplaced_main_chain_roles),
+                    "forward_check_status": result.status,
+                    "probe_nodes_used": result.probe_nodes_used,
+                    "probe_budget_exhausted": False,
+                    "first_unplaceable_role_or_chain_hole": result.first_unplaceable_role,
+                    "failure_taxonomy": result.failure_taxonomy,
+                    "cache_hit": result.cache_hit,
+                }
+            )
+    elif result.status == "UNKNOWN_BUDGET_EXHAUSTED":
+        diagnostics.forward_check_unknown_budget_count += 1
+    else:
+        diagnostics.forward_check_unknown_other_count += 1
+    return result
+
+
 def _shipping_office_seed(
     shipping: PlacedRectangleV1,
     placed: Mapping[str, PlacedRectangleV1],
@@ -1959,6 +2549,7 @@ def _shipping_office_seed(
                     diagnostics.shipping_office_status = "UNRESOLVED_NODE_BUDGET"
                     return None
                 diagnostics.nodes += 1
+                diagnostics.primary_search_nodes += 1
                 funnel = diagnostics.funnel["office"]
                 funnel["candidate_rectangle_attempt_count"] += 1
                 if source == "GENERIC":
@@ -2032,6 +2623,7 @@ def _search_one(
     diagnostics = _SearchDiagnostics(node_limit=node_limit)
     role_rank = {role: index for index, role in enumerate(order)}
     material_flows = tuple(flow for flow in process_graph().flows if flow.kind == "MATERIAL")
+    material_chain_roles = _main_chain_roles_from_process_graph()
     material_predecessors = {
         role: tuple(flow.from_ref for flow in material_flows if flow.to_ref == role)
         for role in order
@@ -2060,6 +2652,7 @@ def _search_one(
             "coupled_interface_rejection_count": 0,
             "composition_intent_rejection_count": 0,
             "access_interface_rejection_count": 0,
+            "main_chain_forward_check_prune_count": 0,
             "accepted_partial_placement_count": 0,
             "backtrack_count": 0,
         }
@@ -2368,6 +2961,7 @@ def _search_one(
                         break
                     if not reused_office_probe:
                         diagnostics.nodes += 1
+                        diagnostics.primary_search_nodes += 1
                         diagnostics.funnel[code]["candidate_rectangle_attempt_count"] += 1
                     if source == "GENERIC":
                         diagnostics.generic_nodes += 1
@@ -2483,6 +3077,102 @@ def _search_one(
                             )
                             save_witness(placed, "packaging_material_storage")
                             placed.pop(code, None)
+                            continue
+                    remaining_main_chain_role_count = sum(
+                        role not in placed for role in material_chain_roles
+                    )
+                    fixed_main_chain_role_count = sum(
+                        role in placed for role in material_chain_roles
+                    )
+                    fixed_successor_with_chain_hole = any(
+                        role in placed
+                        and any(previous not in placed for previous in material_chain_roles[:index])
+                        for index, role in enumerate(material_chain_roles)
+                    )
+                    branch_capacity_trigger = (
+                        code in FORWARD_CHECK_TRIGGER_ROLES
+                        and code != "shipping_channel"
+                        and fixed_main_chain_role_count >= 3
+                        and remaining_main_chain_role_count <= 3
+                    )
+                    main_chain_hole_trigger = (
+                        code in material_chain_roles
+                        and fixed_successor_with_chain_hole
+                        and remaining_main_chain_role_count <= 2
+                    )
+                    shipping_capacity_trigger = (
+                        code == "shipping_channel"
+                        and fixed_main_chain_role_count >= 3
+                        and remaining_main_chain_role_count <= 3
+                    )
+                    if (
+                        access_intent is not None
+                        and remaining_main_chain_role_count > 0
+                        and (
+                            branch_capacity_trigger
+                            or shipping_capacity_trigger
+                            or main_chain_hole_trigger
+                        )
+                    ):
+                        probe = _optimistic_main_chain_completion_probe(
+                            handoff,
+                            ordered_shapes,
+                            domains,
+                            bank_sign,
+                            placed,
+                            boundary,
+                            obstacles,
+                            access_intent,
+                            diagnostics,
+                            code,
+                            chain_hole=main_chain_hole_trigger
+                            and remaining_main_chain_role_count <= 1,
+                        )
+                        if code == "packaging_material_storage" and access_intent is not None:
+                            diagnostics.packaging_local_pass_chain_forward_fail_count += int(
+                                probe.status
+                                == "PROVED_NO_MAIN_CHAIN_COMPLETION_IN_CURRENT_SEARCH_DOMAIN"
+                            )
+                            diagnostics.packaging_local_pass_chain_forward_pass_count += int(
+                                probe.status == "PASS_TO_SEARCH"
+                            )
+                        elif code == "secondary_fruit_buffer":
+                            diagnostics.secondary_local_pass_chain_forward_fail_count += int(
+                                probe.status
+                                == "PROVED_NO_MAIN_CHAIN_COMPLETION_IN_CURRENT_SEARCH_DOMAIN"
+                            )
+                        elif code == "frozen_fruit_room":
+                            diagnostics.frozen_local_pass_chain_forward_fail_count += int(
+                                probe.status
+                                == "PROVED_NO_MAIN_CHAIN_COMPLETION_IN_CURRENT_SEARCH_DOMAIN"
+                            )
+                        elif code in ("changing_room", "office"):
+                            diagnostics.personnel_local_pass_chain_forward_fail_count += int(
+                                probe.status
+                                == "PROVED_NO_MAIN_CHAIN_COMPLETION_IN_CURRENT_SEARCH_DOMAIN"
+                            )
+                        if (
+                            probe.status
+                            == "PROVED_NO_MAIN_CHAIN_COMPLETION_IN_CURRENT_SEARCH_DOMAIN"
+                        ):
+                            diagnostics.chain_starvation_prune_count_by_trigger_role[code] = (
+                                diagnostics.chain_starvation_prune_count_by_trigger_role.get(
+                                    code, 0
+                                )
+                                + 1
+                            )
+                            diagnostics.funnel[code]["main_chain_forward_check_prune_count"] += 1
+                            diagnostics.failure_taxonomy = (
+                                "PROVED_NO_MAIN_CHAIN_COMPLETION_IN_CURRENT_SEARCH_DOMAIN"
+                            )
+                            save_witness(
+                                placed,
+                                order[index + 1]
+                                if index + 1 < len(order)
+                                else "MAIN_CHAIN_FORWARD_CHECK",
+                            )
+                            placed.pop(code, None)
+                            diagnostics.funnel[code]["backtrack_count"] += 1
                             continue
                     diagnostics.max_placed = max(diagnostics.max_placed, len(placed))
                     if diagnostics.deepest_successfully_placed == "NOT_PLACED" or role_rank[
@@ -2842,6 +3532,8 @@ def enumerate_composition_placements(
         solution = outcome.solution
         diagnostics = outcome.diagnostics
         visited = diagnostics.nodes
+        if diagnostics.primary_search_nodes + diagnostics.forward_check_nodes != visited:
+            raise RuntimeError("COMPOSITION_PLACEMENT_NODE_ACCOUNTING_MISMATCH")
         hit = diagnostics.budget_hit
         deepest_attempted = outcome.deepest_attempted
         used[family_key] += visited
@@ -2891,6 +3583,49 @@ def enumerate_composition_placements(
                 construction_domains=domains,
                 nodes_allocated=allocation,
                 nodes_visited=visited,
+                primary_search_nodes_used=diagnostics.primary_search_nodes,
+                forward_check_nodes_used=diagnostics.forward_check_nodes,
+                forward_check_attempt_node_limit=diagnostics.forward_check_node_limit,
+                forward_check_regular_nodes_used=diagnostics.forward_check_regular_nodes,
+                forward_check_chain_hole_nodes_used=diagnostics.forward_check_chain_hole_nodes,
+                forward_check_regular_node_limit=diagnostics.forward_check_regular_node_limit,
+                forward_check_chain_hole_node_limit=(
+                    diagnostics.forward_check_chain_hole_node_limit
+                ),
+                forward_check_invocation_count=diagnostics.forward_check_invocation_count,
+                forward_check_pass_count=diagnostics.forward_check_pass_count,
+                forward_check_proved_no_completion_count=(
+                    diagnostics.forward_check_proved_no_completion_count
+                ),
+                forward_check_unknown_budget_count=diagnostics.forward_check_unknown_budget_count,
+                forward_check_unknown_other_count=diagnostics.forward_check_unknown_other_count,
+                forward_check_cache_hit_count=diagnostics.forward_check_cache_hit_count,
+                forward_check_unique_partial_signature_count=len(
+                    diagnostics.forward_check_signatures
+                ),
+                forward_check_sequence_hash=canonical_hash(
+                    [list(item) for item in diagnostics.forward_check_sequence]
+                ),
+                chain_starvation_prune_count_by_trigger_role=tuple(
+                    sorted(diagnostics.chain_starvation_prune_count_by_trigger_role.items())
+                ),
+                packaging_local_pass_chain_forward_fail_count=(
+                    diagnostics.packaging_local_pass_chain_forward_fail_count
+                ),
+                packaging_local_pass_chain_forward_pass_count=(
+                    diagnostics.packaging_local_pass_chain_forward_pass_count
+                ),
+                secondary_local_pass_chain_forward_fail_count=(
+                    diagnostics.secondary_local_pass_chain_forward_fail_count
+                ),
+                frozen_local_pass_chain_forward_fail_count=(
+                    diagnostics.frozen_local_pass_chain_forward_fail_count
+                ),
+                personnel_local_pass_chain_forward_fail_count=(
+                    diagnostics.personnel_local_pass_chain_forward_fail_count
+                ),
+                forward_check_witnesses=tuple(diagnostics.forward_check_witnesses),
+                forward_check_negative_proofs=tuple(diagnostics.forward_check_negative_proofs),
                 deepest_role_attempted=outcome.deepest_attempted,
                 deepest_role_successfully_placed=deepest_placed,
                 max_simultaneously_placed_role_count=diagnostics.max_placed,
