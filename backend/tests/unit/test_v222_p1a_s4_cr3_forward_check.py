@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -34,6 +35,7 @@ from cold_storage.modules.layout.domain.composition_placement import (
     _composition_intent_projection_decision,
     _CompositionIntentProjectionDecisionV1,
     _domain_arrangement,
+    _feasible_successor_domain,
     _main_chain_partial_geometry_hash,
     _main_chain_roles_from_process_graph,
     _MainChainForwardCheckResultV1,
@@ -516,7 +518,9 @@ def test_known_linear_probe_reports_propagation_funnel_within_cr4_slice(context)
     assert sum(
         metrics["raw_anchor_count"] for metrics in diagnostics.forward_probe_funnel.values()
     ) == sum(
-        metrics["propagation_rejected_count"] + metrics["after_propagation_count"]
+        metrics["must_edge_rejected_count"]
+        + metrics["propagation_rejected_count"]
+        + metrics["after_propagation_count"]
         for metrics in diagnostics.forward_probe_funnel.values()
     )
     if result.status == "PASS_TO_SEARCH":
@@ -547,6 +551,269 @@ def test_known_linear_probe_reports_propagation_funnel_within_cr4_slice(context)
         assert (
             diagnostics.forward_probe_funnel["finished_goods_room"]["after_propagation_count"] > 0
         )
+
+
+def _chain_hole_probe_inputs(context, monkeypatch, *, shipping_x_mm: int, origins):
+    handoff = context["handoffs"][
+        "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1"
+    ]
+    chain = _main_chain_roles_from_process_graph()
+    material_flows = tuple(
+        SimpleNamespace(kind="MATERIAL", from_ref=first, to_ref=second)
+        for first, second in zip(chain, chain[1:], strict=False)
+    )
+    graph = SimpleNamespace(
+        flows=material_flows,
+        must_adjacencies=tuple(zip(chain, chain[1:], strict=False)),
+    )
+    monkeypatch.setattr(placement_domain, "process_graph", lambda: graph)
+    boundary = normalize_polygon(
+        {
+            "type": "polygon",
+            "points": [
+                {"x": 0, "y": 0},
+                {"x": 12, "y": 0},
+                {"x": 12, "y": 3},
+                {"x": 0, "y": 3},
+            ],
+        }
+    )
+    shape = _Shape(1000, 1000, 0)
+    shapes = {role: (shape,) for role in context["shapes"]}
+    fixed_x = {
+        "raw_fruit_buffer": 0,
+        "primary_precooling_room": 1000,
+        "sorting_packaging_room": 2000,
+        "secondary_precooling_room": 3000,
+        "coating_room": 4000,
+        "shipping_channel": shipping_x_mm,
+    }
+    partial = {
+        role: _rectangle_from_bounds(role, (x, 0, x + 1000, 1000)) for role, x in fixed_x.items()
+    }
+    monkeypatch.setattr(
+        placement_domain,
+        "_domain_derived_anchors",
+        lambda role, *_args, **_kwargs: tuple(origins) if role == "finished_goods_room" else (),
+    )
+    monkeypatch.setattr(placement_domain, "_generic_fallback_anchors", lambda *_args, **_kwargs: ())
+    monkeypatch.setattr(placement_domain, "_anchors_at_must_faces", lambda *_args, **_kwargs: ())
+    monkeypatch.setattr(placement_domain, "_partial_intent_possible", lambda *_args: True)
+    monkeypatch.setattr(
+        placement_domain,
+        "_composition_intent_projection_decision",
+        lambda *_args: _CompositionIntentProjectionDecisionV1(
+            "POSSIBLY_COMPATIBLE", 0, "TEST_SUCCESSOR_CAPACITY"
+        ),
+    )
+    domains = _domain_arrangement(handoff, 1, boundary, context["dimension_authorities"])
+    return handoff, shapes, domains, boundary, partial
+
+
+def test_successor_domain_is_exact_union_filter_for_multiple_must_neighbors(context, monkeypatch):
+    handoff = context["handoff"]
+    monkeypatch.setattr(
+        placement_domain,
+        "_must_neighbors",
+        lambda role: ("coating_room", "shipping_channel") if role == "finished_goods_room" else (),
+    )
+    fixed = {
+        "coating_room": _rectangle_from_bounds("coating_room", (0, 0, 1000, 1000)),
+        "shipping_channel": _rectangle_from_bounds("shipping_channel", (2000, 0, 3000, 1000)),
+    }
+    shape = _Shape(1000, 1000, 0)
+    primary_origins = ((3000, 0), (1000, 1000))
+    must_face_origins = ((1000, 0),)
+    finite_origin_union = (*primary_origins, *must_face_origins)
+    domain = _feasible_successor_domain(
+        "finished_goods_room", shape, finite_origin_union, fixed, handoff, 1
+    )
+    expected = tuple(
+        origin
+        for origin in sorted(set(finite_origin_union))
+        if all(
+            placement_domain.rectangles_share_positive_edge(
+                placement_domain._rectangle("finished_goods_room", *origin, shape),
+                fixed[neighbor],
+            )
+            for neighbor in ("coating_room", "shipping_channel")
+        )
+    )
+
+    assert domain.fixed_must_neighbors == ("coating_room", "shipping_channel")
+    assert domain.raw_finite_origin_count == 3
+    assert set(must_face_origins) <= set(finite_origin_union)
+    assert domain.origins == expected == ((1000, 0),)
+    assert domain.engineering_authority is False
+    assert domain.validation_authority is False
+
+
+def test_successor_capacity_exhausts_impossible_chain_hole_without_extra_domain(
+    context, monkeypatch
+):
+    handoff, shapes, domains, boundary, partial = _chain_hole_probe_inputs(
+        context,
+        monkeypatch,
+        shipping_x_mm=7000,
+        origins=((5000, 0), (6000, 0)),
+    )
+    diagnostics = _SearchDiagnostics(node_limit=1000)
+    result = _optimistic_main_chain_completion_probe(
+        handoff,
+        shapes,
+        domains,
+        1,
+        partial,
+        boundary,
+        (),
+        None,
+        diagnostics,
+        "shipping_channel",
+        chain_hole=True,
+        dimension_authorities=context["dimension_authorities"],
+    )
+
+    assert result.status == "PROVED_NO_MAIN_CHAIN_COMPLETION_IN_CURRENT_SEARCH_DOMAIN"
+    assert result.first_unplaceable_role == "finished_goods_room"
+    edge = diagnostics.successor_capacity_edge_diagnostics["coating_room->finished_goods_room"]
+    assert edge["finite_candidates"] > 0
+    assert edge["must_edge_compatible"] == 0
+    shipping_edge = diagnostics.successor_capacity_edge_diagnostics[
+        "finished_goods_room->shipping_channel"
+    ]
+    assert shipping_edge["finite_candidates"] > 0
+    assert shipping_edge["must_edge_compatible"] == 0
+    assert diagnostics.successor_capacity_proved_none_count == 2
+    assert diagnostics.forward_check_nodes == 0
+
+
+def test_first_hard_valid_successor_stops_probe_and_emits_replayable_capacity_witness(
+    context, monkeypatch
+):
+    handoff, shapes, domains, boundary, partial = _chain_hole_probe_inputs(
+        context,
+        monkeypatch,
+        shipping_x_mm=6000,
+        origins=((5000, 0), (5000, 1)),
+    )
+    shape = shapes["finished_goods_room"][0]
+    diagnostics = _SearchDiagnostics(node_limit=1000)
+    result = _optimistic_main_chain_completion_probe(
+        handoff,
+        shapes,
+        domains,
+        1,
+        partial,
+        boundary,
+        (),
+        None,
+        diagnostics,
+        "shipping_channel",
+        chain_hole=True,
+        dimension_authorities=context["dimension_authorities"],
+    )
+
+    assert result.status == "PASS_TO_SEARCH"
+    assert result.witness_role_order == ("finished_goods_room",)
+    assert result.witness_zone_bounds_mm == (("finished_goods_room", (5000, 0, 6000, 1000)),)
+    assert diagnostics.forward_check_nodes == 1
+    assert diagnostics.forward_probe_funnel["finished_goods_room"]["raw_anchor_count"] == 2
+    assert diagnostics.forward_probe_funnel["finished_goods_room"]["full_hard_valid_count"] == 1
+    assert (
+        diagnostics.successor_capacity_edge_diagnostics["coating_room->finished_goods_room"][
+            "pass_count"
+        ]
+        == 1
+    )
+    assert (
+        diagnostics.successor_capacity_edge_diagnostics["finished_goods_room->shipping_channel"][
+            "pass_count"
+        ]
+        == 1
+    )
+    witness = diagnostics.successor_capacity_witnesses[0]
+    assert witness["parent_partial_geometry_hash"] == _main_chain_partial_geometry_hash(
+        handoff, 1, partial
+    )
+    assert witness["authoritative_shape_identity"] == placement_domain._shape_authority_identity(
+        "finished_goods_room",
+        context["dimension_authorities"]["finished_goods_room"],
+        shape,
+    )
+    assert witness["forward_probe_candidate_revalidated"] is True
+
+
+def test_successor_capacity_unknown_budget_does_not_prune(context, monkeypatch):
+    handoff, shapes, domains, boundary, partial = _chain_hole_probe_inputs(
+        context,
+        monkeypatch,
+        shipping_x_mm=6000,
+        origins=((5000, 0), (5000, 1)),
+    )
+    monkeypatch.setattr(
+        placement_domain,
+        "_candidate_rejection",
+        lambda candidate, *_args: "OVERLAP" if candidate.y == 0 else None,
+    )
+    diagnostics = _SearchDiagnostics(node_limit=4)
+    result = _optimistic_main_chain_completion_probe(
+        handoff,
+        shapes,
+        domains,
+        1,
+        partial,
+        boundary,
+        (),
+        None,
+        diagnostics,
+        "shipping_channel",
+        chain_hole=True,
+    )
+
+    assert result.status == "UNKNOWN_BUDGET_EXHAUSTED"
+    assert result.probe_nodes_used == 1
+    assert diagnostics.successor_capacity_proved_none_count == 0
+    assert diagnostics.successor_capacity_unknown_budget_count == 2
+    assert diagnostics.chain_starvation_prune_count_by_trigger_role == {}
+
+
+def test_no_successor_capacity_prunes_parent_after_exhaustive_domain(context, monkeypatch):
+    boundary, handoff, shapes, authorities, domains, _anchors, lane = _cr4_search_inputs(
+        context, monkeypatch
+    )
+
+    def no_successor_probe(*args, **kwargs):
+        del kwargs
+        return _cr4_forward_probe_result(
+            args[0],
+            args[3],
+            args[4],
+            args[8],
+            {},
+            status="PROVED_NO_MAIN_CHAIN_COMPLETION_IN_CURRENT_SEARCH_DOMAIN",
+        )
+
+    monkeypatch.setattr(
+        placement_domain, "_optimistic_main_chain_completion_probe", no_successor_probe
+    )
+    outcome = _search_one(
+        handoff,
+        shapes,
+        shapes,
+        authorities,
+        boundary,
+        (),
+        domains,
+        1,
+        lane,
+        2000,
+        context["intent"],
+    )
+
+    assert outcome.solution is None
+    assert outcome.diagnostics.chain_starvation_prune_count_by_trigger_role == {
+        "packaging_material_storage": 1
+    }
 
 
 def test_zero_shared_probe_slice_is_unknown_and_never_a_negative_proof(context) -> None:
@@ -793,6 +1060,23 @@ def _cr4_forward_probe_result(
             failure_taxonomy="OPTIMISTIC_MAIN_CHAIN_WITNESS_FOUND",
             witness_shape_specs=tuple((role, _Shape(1000, 1000, 0)) for role in witness_roles),
         )
+    elif status == "PROVED_NO_MAIN_CHAIN_COMPLETION_IN_CURRENT_SEARCH_DOMAIN":
+        diagnostics.forward_check_proved_no_completion_count += 1
+        result = _MainChainForwardCheckResultV1(
+            status=status,
+            partial_geometry_hash=signature,
+            fixed_main_chain_roles=tuple(
+                role for role in _main_chain_roles_from_process_graph() if role in placed
+            ),
+            unplaced_main_chain_roles=tuple(
+                role for role in _main_chain_roles_from_process_graph() if role not in placed
+            ),
+            witness_role_order=(),
+            witness_zone_bounds_mm=(),
+            probe_nodes_used=0,
+            first_unplaceable_role="coating_room",
+            failure_taxonomy="NO_SUCCESSOR_CAPACITY_IN_TEST_FINITE_DOMAIN",
+        )
     else:
         diagnostics.forward_check_unknown_budget_count += 1
         result = _MainChainForwardCheckResultV1(
@@ -808,6 +1092,218 @@ def _cr4_forward_probe_result(
         )
     diagnostics.forward_check_sequence.append(("test", signature, status, False))
     return result
+
+
+def test_successor_capacity_witness_is_first_primary_candidate(context, monkeypatch) -> None:
+    boundary, handoff, shapes, authorities, domains, anchors, lane = _cr4_search_inputs(
+        context, monkeypatch
+    )
+    witness_bounds = (80_000, 80_000, 81_000, 81_000)
+    attempted_coating_bounds: list[tuple[int, int, int, int]] = []
+    original_rejection = placement_domain._candidate_rejection
+
+    def successor_probe(*args, **kwargs):
+        del kwargs
+        if args[9] == "packaging_material_storage":
+            diagnostics = args[8]
+            diagnostics.successor_capacity_witnesses.append(
+                {
+                    "parent_partial_geometry_hash": _main_chain_partial_geometry_hash(
+                        args[0], args[3], args[4]
+                    ),
+                    "composition_identity": args[0].composition_identity,
+                    "composition_signature": args[0].composition_signature,
+                    "bank_sign": args[3],
+                    "predecessor_roles": ["secondary_precooling_room"],
+                    "successor_role": "coating_room",
+                    "bounds_mm": list(witness_bounds),
+                    "shape": {
+                        "width_mm": 1000,
+                        "depth_mm": 1000,
+                        "rotation_deg": 0,
+                    },
+                    "authoritative_shape_identity": placement_domain._shape_authority_identity(
+                        "coating_room", authorities["coating_room"], _Shape(1000, 1000, 0)
+                    ),
+                    "source_finite_domain_identity": "same-invocation-test-domain",
+                    "engineering_authority": False,
+                    "validation_authority": False,
+                }
+            )
+        return _cr4_forward_probe_result(
+            args[0], args[3], args[4], args[8], {}, status="UNKNOWN_BUDGET_EXHAUSTED"
+        )
+
+    def record_attempt(candidate, *args):
+        if candidate.zone_code == "coating_room":
+            attempted_coating_bounds.append(candidate.bounds_mm)
+        return original_rejection(candidate, *args)
+
+    monkeypatch.setattr(
+        placement_domain, "_optimistic_main_chain_completion_probe", successor_probe
+    )
+    monkeypatch.setattr(placement_domain, "_candidate_rejection", record_attempt)
+    outcome = _search_one(
+        handoff,
+        shapes,
+        shapes,
+        authorities,
+        boundary,
+        (),
+        domains,
+        1,
+        lane,
+        2000,
+        context["intent"],
+    )
+
+    assert outcome.solution is not None
+    assert attempted_coating_bounds[0] == witness_bounds
+    assert any(
+        event["event"] == "SUCCESSOR_CAPACITY_WITNESS_REUSED" and event["role"] == "coating_room"
+        for event in outcome.diagnostics.witness_events
+    )
+    assert outcome.diagnostics.successor_capacity_witness_reuse_attempt_count == 1
+    assert anchors["coating_room"] != witness_bounds[:2]
+
+
+def test_changed_parent_does_not_reuse_stale_successor_capacity_witness(
+    context, monkeypatch
+) -> None:
+    boundary, handoff, shapes, authorities, domains, anchors, lane = _cr4_search_inputs(
+        context, monkeypatch
+    )
+    stale_bounds = (80_000, 80_000, 81_000, 81_000)
+
+    def stale_successor_probe(*args, **kwargs):
+        del kwargs
+        if args[9] == "packaging_material_storage":
+            diagnostics = args[8]
+            diagnostics.successor_capacity_witnesses.append(
+                {
+                    "parent_partial_geometry_hash": "different-parent-partial-hash",
+                    "composition_identity": args[0].composition_identity,
+                    "composition_signature": args[0].composition_signature,
+                    "bank_sign": args[3],
+                    "predecessor_roles": ["secondary_precooling_room"],
+                    "successor_role": "coating_room",
+                    "bounds_mm": list(stale_bounds),
+                    "shape": {
+                        "width_mm": 1000,
+                        "depth_mm": 1000,
+                        "rotation_deg": 0,
+                    },
+                    "authoritative_shape_identity": placement_domain._shape_authority_identity(
+                        "coating_room", authorities["coating_room"], _Shape(1000, 1000, 0)
+                    ),
+                    "source_finite_domain_identity": "stale-test-domain",
+                    "engineering_authority": False,
+                    "validation_authority": False,
+                }
+            )
+        return _cr4_forward_probe_result(
+            args[0], args[3], args[4], args[8], {}, status="UNKNOWN_BUDGET_EXHAUSTED"
+        )
+
+    monkeypatch.setattr(
+        placement_domain, "_optimistic_main_chain_completion_probe", stale_successor_probe
+    )
+    outcome = _search_one(
+        handoff,
+        shapes,
+        shapes,
+        authorities,
+        boundary,
+        (),
+        domains,
+        1,
+        lane,
+        2000,
+        context["intent"],
+    )
+
+    assert outcome.solution is not None
+    assert not any(
+        event["event"] == "SUCCESSOR_CAPACITY_WITNESS_REUSE_ATTEMPTED"
+        for event in outcome.diagnostics.witness_events
+    )
+    assert outcome.diagnostics.funnel["coating_room"]["domain_derived_anchor_count"] > 0
+    assert anchors["coating_room"] != stale_bounds[:2]
+
+
+def test_successor_capacity_witness_is_revalidated_before_acceptance(context, monkeypatch) -> None:
+    boundary, handoff, shapes, authorities, domains, _anchors, lane = _cr4_search_inputs(
+        context, monkeypatch
+    )
+    rejected_bounds: list[int] = []
+
+    def overlapping_successor_probe(*args, **kwargs):
+        del kwargs
+        if args[9] == "packaging_material_storage":
+            diagnostics = args[8]
+            overlapping_bounds = args[4]["sorting_packaging_room"].bounds_mm
+            rejected_bounds[:] = list(overlapping_bounds)
+            diagnostics.successor_capacity_witnesses.append(
+                {
+                    "parent_partial_geometry_hash": _main_chain_partial_geometry_hash(
+                        args[0], args[3], args[4]
+                    ),
+                    "composition_identity": args[0].composition_identity,
+                    "composition_signature": args[0].composition_signature,
+                    "bank_sign": args[3],
+                    "predecessor_roles": ["secondary_precooling_room"],
+                    "successor_role": "coating_room",
+                    "bounds_mm": list(overlapping_bounds),
+                    "shape": {
+                        "width_mm": 1000,
+                        "depth_mm": 1000,
+                        "rotation_deg": 0,
+                    },
+                    "authoritative_shape_identity": placement_domain._shape_authority_identity(
+                        "coating_room", authorities["coating_room"], _Shape(1000, 1000, 0)
+                    ),
+                    "source_finite_domain_identity": "intentionally-invalid-test-witness",
+                    "engineering_authority": False,
+                    "validation_authority": False,
+                }
+            )
+        return _cr4_forward_probe_result(
+            args[0], args[3], args[4], args[8], {}, status="UNKNOWN_BUDGET_EXHAUSTED"
+        )
+
+    monkeypatch.setattr(
+        placement_domain,
+        "_optimistic_main_chain_completion_probe",
+        overlapping_successor_probe,
+    )
+    outcome = _search_one(
+        handoff,
+        shapes,
+        shapes,
+        authorities,
+        boundary,
+        (),
+        domains,
+        1,
+        lane,
+        2000,
+        context["intent"],
+    )
+
+    assert outcome.solution is not None
+    invalidations = [
+        event
+        for event in outcome.diagnostics.witness_events
+        if event["event"] == "SUCCESSOR_CAPACITY_WITNESS_INVALIDATED"
+        and event["role"] == "coating_room"
+    ]
+    assert invalidations
+    assert invalidations[0]["reason"] == "OVERLAP"
+    assert invalidations[0]["same_parent_replay_mismatch"] is True
+    assert invalidations[0]["candidate_bounds_mm"] == rejected_bounds
+    assert outcome.diagnostics.successor_capacity_same_parent_replay_mismatch is True
+    assert outcome.diagnostics.successor_capacity_witness_invalidated_count >= 1
+    assert outcome.diagnostics.funnel["coating_room"]["domain_derived_anchor_count"] > 0
 
 
 def test_constructive_forward_witness_is_first_primary_candidate_and_suffix_is_inherited(
