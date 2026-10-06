@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
@@ -30,11 +31,15 @@ from cold_storage.modules.layout.domain.composition_placement import (
     _canonical_construction_shapes,
     _completion_witness_from_probe,
     _completion_witness_incompatibility,
+    _composition_intent_projection_decision,
+    _CompositionIntentProjectionDecisionV1,
     _domain_arrangement,
     _main_chain_partial_geometry_hash,
     _main_chain_roles_from_process_graph,
     _MainChainForwardCheckResultV1,
+    _must_neighbors,
     _optimistic_main_chain_completion_probe,
+    _partial_intent_possible,
     _search_one,
     _SearchDiagnostics,
     _Shape,
@@ -60,6 +65,38 @@ def _rectangle_from_bounds(role: str, bounds: tuple[int, int, int, int]) -> Plac
         Decimal(bottom) / 1000,
         Decimal(right - left) / 1000,
         Decimal(top - bottom) / 1000,
+    )
+
+
+def _rectangle_at_center(role: str, x_mm: int, y_mm: int, size_mm: int = 100) -> PlacedRectangleV1:
+    half = size_mm // 2
+    return _rectangle_from_bounds(
+        role,
+        (x_mm - half, y_mm - half, x_mm + (size_mm - half), y_mm + (size_mm - half)),
+    )
+
+
+def _two_metre_square() -> Any:
+    return normalize_polygon(
+        {
+            "type": "polygon",
+            "points": [
+                {"x": 2, "y": 0},
+                {"x": 2, "y": 2},
+                {"x": 0, "y": 2},
+                {"x": 0, "y": 0},
+            ],
+        }
+    )
+
+
+def _family_handoff(context: Mapping[str, Any], family: str):
+    return next(
+        item
+        for item in context["handoffs"].values()
+        if item.family.value == family
+        and item.process_axis.value == "Y"
+        and item.process_direction.value == "POSITIVE"
     )
 
 
@@ -111,6 +148,186 @@ def test_main_chain_source_is_existing_material_flow_authority() -> None:
         flows[0].from_ref,
         *(flow.to_ref for flow in flows),
     )
+
+
+def test_linear_raw_core_projection_bound_filters_only_proven_candidates(context) -> None:
+    handoff = _family_handoff(context, "LINEAR_BANDED")
+    boundary = _two_metre_square()
+    fixed = {
+        "raw_fruit_buffer": _rectangle_at_center("raw_fruit_buffer", 500, 500),
+        "primary_precooling_room": _rectangle_at_center("primary_precooling_room", 500, 500),
+        "sorting_packaging_room": _rectangle_at_center("sorting_packaging_room", 500, 600),
+        "secondary_precooling_room": _rectangle_at_center("secondary_precooling_room", 500, 600),
+    }
+    impossible = {
+        **fixed,
+        "coating_room": _rectangle_at_center("coating_room", 500, 100),
+    }
+    possible = {
+        **fixed,
+        "coating_room": _rectangle_at_center("coating_room", 500, 950),
+    }
+    rejected = _composition_intent_projection_decision(handoff, impossible, boundary)
+    retained = _composition_intent_projection_decision(handoff, possible, boundary)
+
+    assert rejected.status == "PROVABLY_INCOMPATIBLE"
+    assert "LINEAR_RAW_CORE" in rejected.rejected_rules
+    assert retained.status == "POSSIBLY_COMPATIBLE"
+    assert _partial_intent_possible(handoff, possible, {}) is True
+    assert _partial_intent_possible(handoff, impossible, {}) is False
+
+
+def test_linear_projection_bounds_respect_negative_process_direction(context) -> None:
+    handoff = next(
+        item
+        for item in context["handoffs"].values()
+        if item.family.value == "LINEAR_BANDED"
+        and item.process_axis.value == "X"
+        and item.process_direction.value == "NEGATIVE"
+    )
+    boundary = _two_metre_square()
+    valid = {
+        "raw_fruit_buffer": _rectangle_at_center("raw_fruit_buffer", 1500, 500),
+        "primary_precooling_room": _rectangle_at_center("primary_precooling_room", 1500, 500),
+        "sorting_packaging_room": _rectangle_at_center("sorting_packaging_room", 1000, 500),
+        "secondary_precooling_room": _rectangle_at_center("secondary_precooling_room", 1000, 500),
+        "coating_room": _rectangle_at_center("coating_room", 1000, 500),
+        "finished_goods_room": _rectangle_at_center("finished_goods_room", 500, 500),
+        "shipping_channel": _rectangle_at_center("shipping_channel", 500, 500),
+    }
+    invalid = {
+        **valid,
+        "raw_fruit_buffer": _rectangle_at_center("raw_fruit_buffer", 500, 500),
+        "primary_precooling_room": _rectangle_at_center("primary_precooling_room", 500, 500),
+    }
+
+    assert _partial_intent_possible(handoff, valid, {}) is True
+    assert (
+        _composition_intent_projection_decision(handoff, valid, boundary).status
+        == "POSSIBLY_COMPATIBLE"
+    )
+    assert _partial_intent_possible(handoff, invalid, {}) is False
+    decision = _composition_intent_projection_decision(handoff, invalid, boundary)
+    assert decision.status == "PROVABLY_INCOMPATIBLE"
+    assert "LINEAR_RAW_CORE" in decision.rejected_rules
+
+
+def test_linear_finished_chain_hole_projection_uses_existing_group_average(context) -> None:
+    handoff = _family_handoff(context, "LINEAR_BANDED")
+    boundary = _two_metre_square()
+    fixed = {
+        "raw_fruit_buffer": _rectangle_at_center("raw_fruit_buffer", 500, 100),
+        "primary_precooling_room": _rectangle_at_center("primary_precooling_room", 500, 100),
+        "sorting_packaging_room": _rectangle_at_center("sorting_packaging_room", 500, 800),
+        "secondary_precooling_room": _rectangle_at_center("secondary_precooling_room", 500, 900),
+        "coating_room": _rectangle_at_center("coating_room", 500, 1000),
+        "shipping_channel": _rectangle_at_center("shipping_channel", 500, 100),
+    }
+    impossible = {
+        **fixed,
+        "finished_goods_room": _rectangle_at_center("finished_goods_room", 500, 200),
+    }
+    possible = {
+        **fixed,
+        "finished_goods_room": _rectangle_at_center("finished_goods_room", 500, 1900),
+    }
+
+    rejected = _composition_intent_projection_decision(handoff, impossible, boundary)
+    retained = _composition_intent_projection_decision(handoff, possible, boundary)
+    assert "LINEAR_CORE_FINISHED" in rejected.rejected_rules
+    assert rejected.status == "PROVABLY_INCOMPATIBLE"
+    assert retained.status == "POSSIBLY_COMPATIBLE"
+    assert _partial_intent_possible(handoff, possible, {}) is True
+    assert _partial_intent_possible(handoff, impossible, {}) is False
+
+
+def test_central_propagation_uses_only_central_sorting_center_rules(context) -> None:
+    handoff = _family_handoff(context, "CENTRAL_PROCESS_CORE")
+    boundary = _two_metre_square()
+    raw_partial = {
+        "sorting_packaging_room": _rectangle_at_center("sorting_packaging_room", 500, 1000),
+        "raw_fruit_buffer": _rectangle_at_center("raw_fruit_buffer", 500, 1200),
+        "primary_precooling_room": _rectangle_at_center("primary_precooling_room", 500, 1300),
+    }
+    finished_partial = {
+        "sorting_packaging_room": raw_partial["sorting_packaging_room"],
+        "finished_goods_room": _rectangle_at_center("finished_goods_room", 500, 500),
+        "shipping_channel": _rectangle_at_center("shipping_channel", 500, 600),
+    }
+
+    raw_decision = _composition_intent_projection_decision(handoff, raw_partial, boundary)
+    finished_decision = _composition_intent_projection_decision(handoff, finished_partial, boundary)
+    assert raw_decision.status == "PROVABLY_INCOMPATIBLE"
+    assert "CENTRAL_RAW_SORTING" in raw_decision.rejected_rules
+    assert finished_decision.status == "PROVABLY_INCOMPATIBLE"
+    assert "CENTRAL_FINISHED_SORTING" in finished_decision.rejected_rules
+    assert all("LINEAR_" not in item for item in raw_decision.evaluated_rules)
+    assert all("LINEAR_" not in item for item in finished_decision.evaluated_rules)
+
+
+def test_spine_propagation_uses_existing_material_chain_monotonicity(context) -> None:
+    handoff = _family_handoff(context, "PROCESS_SPINE_WITH_PERIPHERAL_BANKS")
+    boundary = _two_metre_square()
+    fixed = {
+        "raw_fruit_buffer": _rectangle_at_center("raw_fruit_buffer", 500, 100),
+        "primary_precooling_room": _rectangle_at_center("primary_precooling_room", 500, 200),
+        "sorting_packaging_room": _rectangle_at_center("sorting_packaging_room", 500, 500),
+        "secondary_precooling_room": _rectangle_at_center("secondary_precooling_room", 500, 1000),
+    }
+    impossible = {
+        **fixed,
+        "coating_room": _rectangle_at_center("coating_room", 500, 900),
+    }
+    possible = {
+        **fixed,
+        "coating_room": _rectangle_at_center("coating_room", 500, 1200),
+    }
+
+    rejected = _composition_intent_projection_decision(handoff, impossible, boundary)
+    retained = _composition_intent_projection_decision(handoff, possible, boundary)
+    assert rejected.status == "PROVABLY_INCOMPATIBLE"
+    assert "SPINE_MONOTONIC" in rejected.rejected_rules
+    assert retained.status == "POSSIBLY_COMPATIBLE"
+
+
+def test_projection_rejection_has_no_false_prune_in_exhaustive_small_domain(context) -> None:
+    handoff = _family_handoff(context, "LINEAR_BANDED")
+    boundary = _two_metre_square()
+    fixed = {
+        "raw_fruit_buffer": _rectangle_at_center("raw_fruit_buffer", 500, 1500),
+        "primary_precooling_room": _rectangle_at_center("primary_precooling_room", 500, 1500),
+        "sorting_packaging_room": _rectangle_at_center("sorting_packaging_room", 500, 500),
+        "secondary_precooling_room": _rectangle_at_center("secondary_precooling_room", 500, 500),
+        "coating_room": _rectangle_at_center("coating_room", 500, 100),
+    }
+    decision = _composition_intent_projection_decision(handoff, fixed, boundary)
+    assert decision.status == "PROVABLY_INCOMPATIBLE"
+    # Exhaust all remaining finite finished-group positions. The unchanged
+    # final predicate rejects every completion because RAW cannot precede CORE.
+    for finished_y in (100, 1000, 1900):
+        for shipping_y in (100, 1000, 1900):
+            complete = {
+                **fixed,
+                "finished_goods_room": _rectangle_at_center("finished_goods_room", 500, finished_y),
+                "shipping_channel": _rectangle_at_center("shipping_channel", 500, shipping_y),
+            }
+            assert _partial_intent_possible(handoff, complete, {}) is False
+
+
+def test_poor_projection_slack_is_rank_only_not_a_hard_rejection(context) -> None:
+    handoff = _family_handoff(context, "LINEAR_BANDED")
+    boundary = _two_metre_square()
+    partial = {
+        "raw_fruit_buffer": _rectangle_at_center("raw_fruit_buffer", 500, 700),
+        "primary_precooling_room": _rectangle_at_center("primary_precooling_room", 500, 700),
+        "sorting_packaging_room": _rectangle_at_center("sorting_packaging_room", 500, 700),
+        "secondary_precooling_room": _rectangle_at_center("secondary_precooling_room", 500, 700),
+        "coating_room": _rectangle_at_center("coating_room", 500, 750),
+    }
+    decision = _composition_intent_projection_decision(handoff, partial, boundary)
+    assert decision.status == "POSSIBLY_COMPATIBLE"
+    assert decision.slack > 0
+    assert _partial_intent_possible(handoff, partial, {}) is True
     assert MAIN_CHAIN_SOURCE == "EXISTING_PROCESS_GRAPH"
     assert FORWARD_CHECK_ENGINEERING_AUTHORITY is False
     assert FORWARD_CHECK_VALIDATION_AUTHORITY is False
@@ -178,6 +395,13 @@ def test_packaging_compatible_cr2_partial_retains_an_optimistic_chain_witness(
     # monotonicity is separately enforced when a forward witness is built for
     # primary-DFS reuse.
     monkeypatch.setattr(placement_domain, "_partial_intent_possible", lambda *_args: True)
+    monkeypatch.setattr(
+        placement_domain,
+        "_composition_intent_projection_decision",
+        lambda *_args: _CompositionIntentProjectionDecisionV1(
+            "POSSIBLY_COMPATIBLE", 0, "TEST_PHYSICAL_PROBE_ONLY"
+        ),
+    )
     handoff_identity = "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1"
     bounds = {
         "packaging_material_storage": (60610, 0, 75110, 17300),
@@ -212,6 +436,116 @@ def test_packaging_compatible_cr2_partial_retains_an_optimistic_chain_witness(
         assert all(
             not placement_domain.rectangles_overlap(witness_rect, fixed_rect)
             for fixed_rect in partial.values()
+        )
+
+
+def test_cr3_optimistic_witness_is_rejected_by_existing_composition_intent(context) -> None:
+    """Historical CR3 geometry is a negative fixture, never a runtime seed."""
+    handoff = context["handoffs"][
+        "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1"
+    ]
+    initial_bounds = {
+        "packaging_material_storage": (60610, 0, 75110, 17300),
+        "primary_precooling_room": (14698, 21968, 29398, 32018),
+        "raw_fruit_buffer": (5998, 18751, 14698, 33951),
+        "secondary_precooling_room": (29398, 21968, 39448, 31768),
+        "sorting_packaging_room": (14850, 8368, 60610, 21968),
+    }
+    cr3_witness_bounds = {
+        "coating_room": (32772, 31768, 41717, 40713),
+        "finished_goods_room": (372, 33951, 32772, 52551),
+        "shipping_channel": (32772, 40713, 40465, 47213),
+    }
+    placed = {role: _rectangle_from_bounds(role, bounds) for role, bounds in initial_bounds.items()}
+    for role, bounds in cr3_witness_bounds.items():
+        candidate = _rectangle_from_bounds(role, bounds)
+        assert (
+            placement_domain._candidate_rejection(
+                candidate, placed, context["boundary"], context["obstacles"]
+            )
+            is None
+        )
+        assert all(
+            placement_domain.rectangles_share_positive_edge(candidate, placed[neighbor])
+            for neighbor in _must_neighbors(role)
+            if neighbor in placed
+        )
+        placed[role] = candidate
+
+    assert (
+        _partial_intent_possible(handoff, placed, placement_domain._domain_faces(handoff, 1))
+        is False
+    )
+
+
+def test_known_linear_probe_reports_propagation_funnel_within_cr4_slice(context) -> None:
+    handoff = context["handoffs"][
+        "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1"
+    ]
+    partial_bounds = {
+        "packaging_material_storage": (60610, 0, 75110, 17300),
+        "primary_precooling_room": (14698, 21968, 29398, 32018),
+        "raw_fruit_buffer": (5998, 18751, 14698, 33951),
+        "secondary_precooling_room": (29398, 21968, 39448, 31768),
+        "sorting_packaging_room": (14850, 8368, 60610, 21968),
+    }
+    partial = {
+        role: _rectangle_from_bounds(role, bounds) for role, bounds in partial_bounds.items()
+    }
+    domains = _domain_arrangement(handoff, 1, context["boundary"], context["dimension_authorities"])
+    diagnostics = _SearchDiagnostics(node_limit=20_000)
+    result = _optimistic_main_chain_completion_probe(
+        handoff,
+        context["shapes"],
+        domains,
+        1,
+        partial,
+        context["boundary"],
+        context["obstacles"],
+        context["intent"],
+        diagnostics,
+        "packaging_material_storage",
+    )
+
+    assert diagnostics.forward_check_node_limit == 5_000
+    assert result.probe_nodes_used <= 1_666
+    assert diagnostics.composition_propagation_evaluation_count > 0
+    assert diagnostics.composition_propagation_provable_rejection_count > 0
+    assert result.status in {"PASS_TO_SEARCH", "UNKNOWN_BUDGET_EXHAUSTED"}
+    assert result.status != "PROVED_NO_MAIN_CHAIN_COMPLETION_IN_CURRENT_SEARCH_DOMAIN"
+    assert sum(
+        metrics["raw_anchor_count"] for metrics in diagnostics.forward_probe_funnel.values()
+    ) == sum(
+        metrics["propagation_rejected_count"] + metrics["after_propagation_count"]
+        for metrics in diagnostics.forward_probe_funnel.values()
+    )
+    if result.status == "PASS_TO_SEARCH":
+        assert result.witness_role_order
+        witness = _completion_witness_from_probe(
+            result, handoff, 1, context["dimension_authorities"]
+        )
+        assert witness is not None
+        assert (
+            _completion_witness_incompatibility(
+                witness,
+                handoff,
+                1,
+                context["shapes"],
+                context["authoritative_shapes"],
+                context["dimension_authorities"],
+                partial,
+                context["boundary"],
+                context["obstacles"],
+                placement_domain._domain_faces(handoff, 1),
+            )
+            is None
+        )
+    else:
+        assert result.probe_nodes_used == 1_666
+        assert result.failure_taxonomy == "SHARED_ATTEMPT_FORWARD_CHECK_SLICE_EXHAUSTED"
+        assert diagnostics.forward_probe_funnel["coating_room"]["propagation_rejected_count"] > 0
+        assert (
+            diagnostics.forward_probe_funnel["finished_goods_room"]["after_propagation_count"] > 0
         )
 
 
@@ -272,6 +606,13 @@ def test_unknown_forward_check_does_not_prune_parent_search(context, monkeypatch
     monkeypatch.setattr(placement_domain, "_intent_preserved", lambda *_args: True)
     monkeypatch.setattr(placement_domain, "_partial_intent_possible", lambda *_args: True)
     monkeypatch.setattr(
+        placement_domain,
+        "_composition_intent_projection_decision",
+        lambda *_args: _CompositionIntentProjectionDecisionV1(
+            "POSSIBLY_COMPATIBLE", 0, "TEST_PHYSICAL_PROBE_ONLY"
+        ),
+    )
+    monkeypatch.setattr(
         placement_domain, "_packaging_straight_interface_possible", lambda *_args: True
     )
     monkeypatch.setattr(
@@ -322,6 +663,13 @@ def test_shipping_before_finished_hole_is_inserted_between_both_fixed_neighbors(
     context, monkeypatch
 ) -> None:
     monkeypatch.setattr(placement_domain, "_partial_intent_possible", lambda *_args: True)
+    monkeypatch.setattr(
+        placement_domain,
+        "_composition_intent_projection_decision",
+        lambda *_args: _CompositionIntentProjectionDecisionV1(
+            "POSSIBLY_COMPATIBLE", 0, "TEST_CHAIN_HOLE_ONLY"
+        ),
+    )
     boundary = normalize_polygon(
         {
             "type": "polygon",
@@ -513,6 +861,46 @@ def test_constructive_forward_witness_is_first_primary_candidate_and_suffix_is_i
     )
 
 
+def test_forward_witness_reuse_is_accounted_as_primary_search_work(context, monkeypatch) -> None:
+    boundary, handoff, shapes, authorities, domains, _anchors, lane = _cr4_search_inputs(
+        context, monkeypatch
+    )
+    witness_bounds = {
+        "coating_room": (60_000, 60_000, 61_000, 61_000),
+        "finished_goods_room": (62_000, 60_000, 63_000, 61_000),
+        "shipping_channel": (64_000, 60_000, 65_000, 61_000),
+    }
+
+    monkeypatch.setattr(
+        placement_domain,
+        "_optimistic_main_chain_completion_probe",
+        lambda *args, **kwargs: _cr4_forward_probe_result(
+            args[0], args[3], args[4], args[8], witness_bounds
+        ),
+    )
+    node_budget = 1_000
+    outcome = _search_one(
+        handoff,
+        shapes,
+        shapes,
+        authorities,
+        boundary,
+        (),
+        domains,
+        1,
+        lane,
+        node_budget,
+        context["intent"],
+    )
+
+    assert outcome.diagnostics.witness_reuse_attempt_count == 3
+    assert outcome.diagnostics.primary_search_nodes >= 3
+    assert outcome.diagnostics.nodes == (
+        outcome.diagnostics.primary_search_nodes + outcome.diagnostics.forward_check_nodes
+    )
+    assert outcome.diagnostics.nodes <= node_budget
+
+
 def test_support_geometry_overlap_invalidates_but_does_not_hard_reserve_witness(
     context, monkeypatch
 ) -> None:
@@ -565,6 +953,56 @@ def test_support_geometry_overlap_invalidates_but_does_not_hard_reserve_witness(
     )
     assert outcome.diagnostics.forward_check_unknown_budget_count >= 1
     assert outcome.diagnostics.chain_starvation_prune_count_by_trigger_role == {}
+
+
+def test_support_preserves_witness_and_skips_redundant_forward_probe(context, monkeypatch) -> None:
+    boundary, handoff, shapes, authorities, domains, _anchors, _lane = _cr4_search_inputs(
+        context, monkeypatch, lane="ACCESS_AWARE_ORDER"
+    )
+    witness_bounds = {
+        "coating_room": (60_000, 60_000, 61_000, 61_000),
+        "finished_goods_room": (62_000, 60_000, 63_000, 61_000),
+        "shipping_channel": (64_000, 60_000, 65_000, 61_000),
+    }
+    probe_triggers: list[str] = []
+
+    def positive_probe(*args, **kwargs):
+        del kwargs
+        probe_triggers.append(args[9])
+        return _cr4_forward_probe_result(args[0], args[3], args[4], args[8], witness_bounds)
+
+    monkeypatch.setattr(placement_domain, "_optimistic_main_chain_completion_probe", positive_probe)
+    outcome = _search_one(
+        handoff,
+        shapes,
+        shapes,
+        authorities,
+        boundary,
+        (),
+        domains,
+        1,
+        "ACCESS_AWARE_ORDER",
+        3000,
+        context["intent"],
+    )
+
+    assert outcome.solution is not None
+    assert probe_triggers
+    assert outcome.diagnostics.forward_check_skipped_due_to_valid_witness_count >= 1
+    assert any(
+        event["event"] == "REDUNDANT_FORWARD_CHECK_SKIPPED"
+        and event["trigger_role"] in {"frozen_fruit_room", "shipping_channel"}
+        for event in outcome.diagnostics.witness_events
+    )
+    assert any(
+        event["event"] == "INHERITED" and event["role"] in {"frozen_fruit_room", "shipping_channel"}
+        for event in outcome.diagnostics.witness_events
+    )
+    assert not any(
+        event["event"] == "INVALIDATED"
+        and event["role"] in {"frozen_fruit_room", "shipping_channel"}
+        for event in outcome.diagnostics.witness_events
+    )
 
 
 def test_chain_hole_finished_witness_is_reused_after_coating_and_shipping_are_fixed(

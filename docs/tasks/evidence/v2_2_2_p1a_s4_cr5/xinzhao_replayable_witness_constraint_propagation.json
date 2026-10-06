@@ -1,0 +1,242 @@
+{
+  "task_id": "V2_2_2_P1A_COMPOSITION_NATIVE_HARD_VALIDATION_P1_S4_CR5",
+  "mode": "REPLAYABLE_MAIN_CHAIN_WITNESS_DISCOVERY_AND_COMPOSITION_INTENT_CONSTRAINT_PROPAGATION",
+  "source_head": "83c7d3ff8d42614c166d7c97ad3f539cb2162324",
+  "result": "FAIL",
+  "validation_progress_result": "REPLAYABLE_WITNESS_DISCOVERY_NOT_RECOVERED",
+  "global_infeasibility_proven": false,
+  "authority_freeze": {
+    "placement_budget": 60000,
+    "access_route_budget": 20000,
+    "truck_budget": 20000,
+    "placement_budget_changed": false,
+    "access_route_budget_changed": false,
+    "truck_budget_changed": false,
+    "zone_dimension_authority_changed": false,
+    "must_adjacency_authority_changed": false,
+    "access_authority_changed": false,
+    "truck_authority_changed": false,
+    "p2d_authority_changed": false,
+    "composition_contract_changed": false,
+    "validated_candidate_selector_changed": false,
+    "tool7_behavior_changed": false,
+    "search_order_lanes_changed": false,
+    "legacy_r2_recovery_used": false,
+    "post_validation_geometry_repair_used": false,
+    "historical_coordinate_reuse": false,
+    "cr3_witness_coordinates_hardcoded_in_runtime": false,
+    "propagation_engineering_authority": false,
+    "propagation_validation_authority": false,
+    "propagation_source": "EXISTING_COMPOSITION_INTENT_PREDICATE",
+    "existing_partial_intent_predicate_preserved": true,
+    "propagation_false_negative_allowed": false,
+    "propagation_range_is_conservative": true,
+    "witness_scope": "CURRENT_SEARCH_INVOCATION_ONLY"
+  },
+  "cr3_baseline": {
+    "primary_search_nodes": 47702,
+    "forward_check_nodes": 8262,
+    "total_nodes": 55964,
+    "forward_check_invocation_count": 124,
+    "forward_check_pass_count": 1,
+    "forward_check_negative_count": 10,
+    "forward_check_unknown_budget_count": 113,
+    "complete_candidates_constructed": 0,
+    "known_lane": {
+      "composition_identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+      "bank_sign": 1,
+      "search_order_lane": "S3_COMPATIBILITY_ORDER",
+      "max_placed": 5,
+      "next_role": "coating_room",
+      "probe_status": "PASS_TO_SEARCH",
+      "probe_nodes_used": 663,
+      "primary_replayable": false,
+      "reason": "CR3_PROBE_DID_NOT_ENFORCE_FULL_EXISTING_COMPOSITION_INTENT"
+    }
+  },
+  "cr4_baseline": {
+    "primary_search_nodes": 46699,
+    "forward_check_nodes": 9265,
+    "total_nodes": 55964,
+    "attempt_count": 13,
+    "attempt_count_by_family": {
+      "LINEAR_BANDED": 5,
+      "CENTRAL_PROCESS_CORE": 4,
+      "PROCESS_SPINE_WITH_PERIPHERAL_BANKS": 4
+    },
+    "attempt_count_by_search_order_lane": {
+      "ACCESS_AWARE_ORDER": 7,
+      "S3_COMPATIBILITY_ORDER": 6
+    },
+    "forward_check_invocation_count": 124,
+    "forward_check_pass_count": 0,
+    "forward_check_proved_no_completion_count": 10,
+    "forward_check_unknown_budget_count": 114,
+    "witness_created_count": 0,
+    "witness_reuse_attempt_count": 0,
+    "witness_inheritance_count": 0,
+    "complete_candidates_constructed": 0,
+    "known_lane": {
+      "composition_identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+      "bank_sign": 1,
+      "search_order_lane": "S3_COMPATIBILITY_ORDER",
+      "forward_check_node_limit": 1666,
+      "forward_check_status": "UNKNOWN_BUDGET_EXHAUSTED",
+      "max_placed": 5,
+      "next_role": "coating_room"
+    }
+  },
+  "cr5_projection_semantics": {
+    "signed_projection": "direction_sign * floor_axis_center_mm",
+    "linear_raw_core": "signed(raw_group_center) < signed(core_group_center)",
+    "linear_core_finished": "signed(core_group_center) < signed(finished_group_center)",
+    "central_raw": "signed(raw_group_center) < signed(sorting_center)",
+    "central_finished": "signed(sorting_center) < signed(finished_group_center)",
+    "spine": "existing material-chain projections are monotonically nondecreasing",
+    "unplaced_role_range": "effective-site-boundary axis bounding interval, widened by authoritative shape and already-fixed MUST-neighbor limits only when safely implied",
+    "final_predicate": "_partial_intent_possible remains the exact final partial-intent predicate",
+    "only_provable_incompatibility_prunes": true,
+    "heuristic_slack_only_reorders": true,
+    "candidate_anchor_sets_are_filtered_before_geometry_expansion": true
+  },
+  "cr5_known_lane_probe": {
+    "capture_scope": "direct_real_xinzhao_forward_probe_from_the_CR2_partial_witness_fixture",
+    "composition_identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+    "family": "LINEAR_BANDED",
+    "process_axis": "Y",
+    "process_direction": "POSITIVE",
+    "bank_sign": 1,
+    "search_order_lane": "S3_COMPATIBILITY_ORDER",
+    "source_partial_geometry_hash": "sha256:c37225dcbb5e3edd0e3b1e7334b2a7db16630b0f9ce5191c6ca978753e435f93",
+    "fixed_roles": [
+      "raw_fruit_buffer",
+      "primary_precooling_room",
+      "sorting_packaging_room",
+      "secondary_precooling_room",
+      "packaging_material_storage"
+    ],
+    "unplaced_main_chain_roles": [
+      "coating_room",
+      "finished_goods_room",
+      "shipping_channel"
+    ],
+    "fixed_partial_zone_bounds_mm": {
+      "packaging_material_storage": [60610, 0, 75110, 17300],
+      "primary_precooling_room": [14698, 21968, 29398, 32018],
+      "raw_fruit_buffer": [5998, 18751, 14698, 33951],
+      "secondary_precooling_room": [29398, 21968, 39448, 31768],
+      "sorting_packaging_room": [14850, 8368, 60610, 21968]
+    },
+    "probe_node_limit": 1666,
+    "probe_nodes_used": 1666,
+    "status": "UNKNOWN_BUDGET_EXHAUSTED",
+    "failure_taxonomy": "SHARED_ATTEMPT_FORWARD_CHECK_SLICE_EXHAUSTED",
+    "witness_created": false,
+    "witness_reuse_attempted": false,
+    "witness_primary_replayable": null,
+    "composition_intent_valid_witness_found": false,
+    "funnel_by_role": {
+      "coating_room": {
+        "raw_anchor_count": 7962,
+        "propagation_rejected_count": 7323,
+        "after_propagation_count": 639,
+        "site_rejected_count": 213,
+        "obstacle_rejected_count": 216,
+        "overlap_rejected_count": 200,
+        "must_rejected_count": 0,
+        "partial_intent_rejected_after_propagation_count": 0,
+        "accepted_probe_partial_count": 7
+      },
+      "finished_goods_room": {
+        "raw_anchor_count": 1180,
+        "propagation_rejected_count": 115,
+        "after_propagation_count": 1065,
+        "site_rejected_count": 496,
+        "obstacle_rejected_count": 485,
+        "overlap_rejected_count": 49,
+        "must_rejected_count": 0,
+        "partial_intent_rejected_after_propagation_count": 0,
+        "accepted_probe_partial_count": 0
+      }
+    },
+    "aggregate": {
+      "composition_propagation_evaluation_count": 9142,
+      "composition_propagation_provable_rejection_count": 7438,
+      "composition_propagation_rank_only_count": 1704,
+      "linear_raw_core_bound_evaluation_count": 7962,
+      "linear_raw_core_provable_rejection_count": 7323,
+      "linear_core_finished_bound_evaluation_count": 1180,
+      "linear_core_finished_provable_rejection_count": 115,
+      "central_bound_evaluation_count": 0,
+      "central_provable_rejection_count": 0,
+      "spine_monotonic_bound_evaluation_count": 0,
+      "spine_monotonic_provable_rejection_count": 0,
+      "geometry_candidate_expansions": 1666,
+      "site_rejections": 709,
+      "obstacle_rejections": 701,
+      "overlap_rejections": 249,
+      "must_rejections": 0,
+      "late_partial_intent_rejections": 0,
+      "accepted_partial_placements": 7,
+      "remaining_propagated_anchors_not_expanded_before_slice_end": 38
+    },
+    "propagation_decision_sequence_hash": "5c7ded58a9a36ec2e193400279a52ee4ce433da71eb03fab0b2e8dc3d22cb271",
+    "first_budget_stop_sample": {
+      "role": "finished_goods_room",
+      "bounds_mm": [13068, 6984, 31668, 39384],
+      "projection_status": "POSSIBLY_COMPATIBLE",
+      "projection_reason": "NO_PROVEN_INTENT_CONFLICT",
+      "probe_budget_exhausted": true
+    }
+  },
+  "full_xinzhao_replay_capture": {
+    "attempt_schedule_expected_from_CR2": {
+      "attempt_count": 13,
+      "attempt_count_by_family": {
+        "LINEAR_BANDED": 5,
+        "CENTRAL_PROCESS_CORE": 4,
+        "PROCESS_SPINE_WITH_PERIPHERAL_BANKS": 4
+      },
+      "attempt_count_by_search_order_lane": {
+        "ACCESS_AWARE_ORDER": 7,
+        "S3_COMPATIBILITY_ORDER": 6
+      },
+      "schedule_preserved": true
+    },
+    "cr5_full_run_aggregate_capture": "NOT_CAPTURED",
+    "reason": "LOCAL_REPLAY_CAPTURE_RETRY_INTERRUPTED_DURING_PYTEST_IMPORT_BEFORE_TEST_COLLECTION; no aggregate candidate count is inferred from the missing capture",
+    "complete_candidates_constructed": null,
+    "complete_candidates_access_assessed": null,
+    "best_non_truck_access_pass_count": null,
+    "truck_validation_attempts": null,
+    "p2d_validation_attempts": null,
+    "prior_local_integration_suite": {
+      "access_aware_search_test_items_reported_pass": true,
+      "deterministic_replay_test_item_reported_pass": true,
+      "pytest_terminal_exit_summary": "INCOMPLETE_AFTER_ALL_SEVEN_TEST_ITEMS_PRINTED_PASSED; runner stalled during teardown/source reporting and was interrupted",
+      "canonical_result_hash_values_captured": false
+    }
+  },
+  "control_replay": {
+    "control_candidate_hash": "sha256:4a4b8f6695526ea0bd1cf30238ae4c7c45b35e6d9677b0c4bd8f98228e8f3c47",
+    "expected_unchanged_result_from_CR4": {
+      "access_requirement_count": 12,
+      "total_access_pass_count": 7,
+      "total_access_fail_count": 5,
+      "non_truck_access_pass_count": 7,
+      "truck_status": "TRUCK_MANEUVER_SEARCH_EXHAUSTED"
+    },
+    "cr5_control_replay_attempted": false,
+    "reason": "Known-lane discovery gate remained UNKNOWN; no new complete candidate was captured for downstream validation"
+  },
+  "test_results": {
+    "cr5_cr3_cr4_focused_file": "21 passed",
+    "s1_s2_s3_and_architecture_regressions": "72 passed",
+    "s4_test_items": "7 passed; pytest process did not exit cleanly after teardown/reporting",
+    "ruff_check": "PASS",
+    "ruff_format_check": "PASS",
+    "diff_check": "PASS",
+    "mypy": "NOT_CONFIRMED_LOCALLY",
+    "exact_head_ci": "PENDING"
+  }
+}

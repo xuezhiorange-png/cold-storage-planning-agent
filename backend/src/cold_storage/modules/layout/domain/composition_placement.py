@@ -219,6 +219,21 @@ class CompositionPlacementSearchAttemptV1:
     personnel_local_pass_chain_forward_fail_count: int
     forward_check_witnesses: tuple[Mapping[str, Any], ...]
     forward_check_negative_proofs: tuple[Mapping[str, Any], ...]
+    composition_propagation_evaluation_count: int
+    composition_propagation_provable_rejection_count: int
+    composition_propagation_rank_only_count: int
+    linear_raw_core_bound_evaluation_count: int
+    linear_raw_core_provable_rejection_count: int
+    linear_core_finished_bound_evaluation_count: int
+    linear_core_finished_provable_rejection_count: int
+    central_bound_evaluation_count: int
+    central_provable_rejection_count: int
+    spine_monotonic_bound_evaluation_count: int
+    spine_monotonic_provable_rejection_count: int
+    composition_propagation_sequence_hash: str
+    forward_probe_funnel_by_role: tuple[tuple[str, tuple[tuple[str, int], ...]], ...]
+    forward_probe_candidate_samples: tuple[Mapping[str, Any], ...]
+    forward_probe_budget_stop_samples: tuple[Mapping[str, Any], ...]
     deepest_role_attempted: str
     deepest_role_successfully_placed: str
     max_simultaneously_placed_role_count: int
@@ -317,6 +332,48 @@ class CompositionPlacementSearchAttemptV1:
             "forward_check_negative_proofs": [
                 dict(item) for item in self.forward_check_negative_proofs
             ],
+            "composition_propagation": {
+                "engineering_authority": False,
+                "validation_authority": False,
+                "search_optimization_only": True,
+                "source": "EXISTING_COMPOSITION_INTENT_PREDICATE",
+                "evaluation_count": self.composition_propagation_evaluation_count,
+                "provable_rejection_count": (self.composition_propagation_provable_rejection_count),
+                "rank_only_count": self.composition_propagation_rank_only_count,
+                "linear_raw_core_bound_evaluation_count": (
+                    self.linear_raw_core_bound_evaluation_count
+                ),
+                "linear_raw_core_provable_rejection_count": (
+                    self.linear_raw_core_provable_rejection_count
+                ),
+                "linear_core_finished_bound_evaluation_count": (
+                    self.linear_core_finished_bound_evaluation_count
+                ),
+                "linear_core_finished_provable_rejection_count": (
+                    self.linear_core_finished_provable_rejection_count
+                ),
+                "central_bound_evaluation_count": self.central_bound_evaluation_count,
+                "central_provable_rejection_count": self.central_provable_rejection_count,
+                "spine_monotonic_bound_evaluation_count": (
+                    self.spine_monotonic_bound_evaluation_count
+                ),
+                "spine_monotonic_provable_rejection_count": (
+                    self.spine_monotonic_provable_rejection_count
+                ),
+                "decision_sequence_hash": self.composition_propagation_sequence_hash,
+                "forward_probe_funnel_by_role": {
+                    role: dict(metrics) for role, metrics in self.forward_probe_funnel_by_role
+                },
+                "accepted_candidate_samples": [
+                    dict(item) for item in self.forward_probe_candidate_samples
+                ],
+                "budget_stop_candidate_samples": [
+                    dict(item) for item in self.forward_probe_budget_stop_samples
+                ],
+                "propagation_range_is_conservative": True,
+                "false_negative_allowed": False,
+                "heuristic_can_hard_reject": False,
+            },
             "deepest_role_attempted": self.deepest_role_attempted,
             "deepest_role_successfully_placed": self.deepest_role_successfully_placed,
             "max_simultaneously_placed_role_count": self.max_simultaneously_placed_role_count,
@@ -502,6 +559,23 @@ class _SearchDiagnostics:
     witness_invalidated_by_other_hard_check_count: int = 0
     forward_check_skipped_due_to_valid_witness_count: int = 0
     witness_events: list[Mapping[str, Any]] = field(default_factory=list)
+    composition_propagation_evaluation_count: int = 0
+    composition_propagation_provable_rejection_count: int = 0
+    composition_propagation_rank_only_count: int = 0
+    linear_raw_core_bound_evaluation_count: int = 0
+    linear_raw_core_provable_rejection_count: int = 0
+    linear_core_finished_bound_evaluation_count: int = 0
+    linear_core_finished_provable_rejection_count: int = 0
+    central_bound_evaluation_count: int = 0
+    central_provable_rejection_count: int = 0
+    spine_monotonic_bound_evaluation_count: int = 0
+    spine_monotonic_provable_rejection_count: int = 0
+    composition_propagation_sequence: list[tuple[str, tuple[int, int, int, int], str, str, int]] = (
+        field(default_factory=list)
+    )
+    forward_probe_funnel: dict[str, dict[str, int]] = field(default_factory=dict)
+    forward_probe_candidate_samples: list[Mapping[str, Any]] = field(default_factory=list)
+    forward_probe_budget_stop_samples: list[Mapping[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.forward_check_node_limit < 0:
@@ -575,6 +649,24 @@ class _MainChainCompletionWitnessV1:
             ordered_witness_roles=remaining_roles,
             witness_geometry=remaining,
         )
+
+
+@dataclass(frozen=True)
+class _CompositionIntentProjectionDecisionV1:
+    """Conservative necessary-condition result derived from existing intent.
+
+    The site-boundary projection interval is a superset of every legal room
+    center in the finite construction search. A negative result is therefore
+    used only when no completion can satisfy the existing group/chain
+    inequalities; all surviving geometry still reaches the original exact
+    partial-intent predicate.
+    """
+
+    status: str
+    slack: int
+    reason: str
+    evaluated_rules: tuple[str, ...] = ()
+    rejected_rules: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -1539,6 +1631,174 @@ def _axis_coordinate(rectangle: PlacedRectangleV1, axis: str) -> int:
     return _center(rectangle, axis)
 
 
+def _signed_group_center_range(
+    roles: Sequence[str],
+    placed: Mapping[str, PlacedRectangleV1],
+    boundary: PolygonMM,
+    axis: str,
+    sign: int,
+    shape_variants: Mapping[str, tuple[_Shape, ...]] | None = None,
+) -> tuple[int, int]:
+    """Bound the exact floor-average group center used by composition intent."""
+    site_coordinates = [point[0 if axis == "X" else 1] for point in boundary]
+    site_low, site_high = min(site_coordinates), max(site_coordinates)
+    centers: list[tuple[int, int]] = []
+    for role in roles:
+        if role in placed:
+            center = _axis_coordinate(placed[role], axis)
+            centers.append((center, center))
+            continue
+        low, high = site_low, site_high
+        variants = (shape_variants or {}).get(role, ())
+        if variants:
+            role_max_span = max(
+                item.world_width_mm if axis == "X" else item.world_depth_mm for item in variants
+            )
+            for neighbor in _must_neighbors(role):
+                neighbor_rectangle = placed.get(neighbor)
+                if neighbor_rectangle is None:
+                    continue
+                neighbor_bounds = _bounds(neighbor_rectangle)
+                neighbor_span = (
+                    neighbor_bounds[2] - neighbor_bounds[0]
+                    if axis == "X"
+                    else neighbor_bounds[3] - neighbor_bounds[1]
+                )
+                # A positive shared edge bounds center separation by the sum
+                # of half-spans. The extra grid unit covers integer-center
+                # flooring and keeps this a conservative superset.
+                max_delta = (role_max_span + neighbor_span + 1) // 2 + GRID_MM
+                neighbor_center = _axis_coordinate(neighbor_rectangle, axis)
+                low = max(low, neighbor_center - max_delta)
+                high = min(high, neighbor_center + max_delta)
+        # An empty interval is not converted into a propagation proof here;
+        # the exact MUST construction predicate remains responsible for it.
+        centers.append((low, high) if low <= high else (site_low, site_high))
+    physical_low = sum(low for low, _ in centers) // len(roles)
+    physical_high = sum(high for _, high in centers) // len(roles)
+    return (physical_low, physical_high) if sign > 0 else (-physical_high, -physical_low)
+
+
+def _composition_intent_projection_decision(
+    handoff: StructuralCompositionPlacementHandoffV1,
+    placed: Mapping[str, PlacedRectangleV1],
+    boundary: PolygonMM,
+    shape_variants: Mapping[str, tuple[_Shape, ...]] | None = None,
+    faces: Mapping[str, tuple[str, int]] | None = None,
+) -> _CompositionIntentProjectionDecisionV1:
+    """Project only necessary inequalities from the existing intent rules.
+
+    This is a safe prefilter/order signal, not a replacement for
+    ``_partial_intent_possible``. Unknown future roles retain the full site
+    bbox projection range; only a provably empty completion interval rejects.
+    """
+    axis = handoff.process_axis.value
+    sign = 1 if handoff.process_direction == ProcessDirectionV1.POSITIVE else -1
+    evaluated: list[str] = []
+    rejected: list[str] = []
+    slack_values: list[int] = []
+
+    sorting = placed.get("sorting_packaging_room")
+    if sorting is not None and faces:
+        for role, rectangle in placed.items():
+            if role in faces:
+                rule = f"EXISTING_SIDE_INTENT:{role}"
+                evaluated.append(rule)
+                if not _side_ok(role, rectangle, sorting, faces):
+                    rejected.append(rule)
+
+    if handoff.family == CompositionFamilyV2.LINEAR_BANDED and "sorting_packaging_room" in placed:
+        raw = _signed_group_center_range(
+            ("raw_fruit_buffer", "primary_precooling_room"),
+            placed,
+            boundary,
+            axis,
+            sign,
+            shape_variants,
+        )
+        core = _signed_group_center_range(
+            ("sorting_packaging_room", "secondary_precooling_room", "coating_room"),
+            placed,
+            boundary,
+            axis,
+            sign,
+            shape_variants,
+        )
+        evaluated.append("LINEAR_RAW_CORE")
+        raw_core_slack = core[1] - raw[0]
+        slack_values.append(raw_core_slack)
+        if raw[0] >= core[1]:
+            rejected.append("LINEAR_RAW_CORE")
+
+        finished = _signed_group_center_range(
+            ("finished_goods_room", "shipping_channel"),
+            placed,
+            boundary,
+            axis,
+            sign,
+            shape_variants,
+        )
+        evaluated.append("LINEAR_CORE_FINISHED")
+        core_finished_slack = finished[1] - core[0]
+        slack_values.append(core_finished_slack)
+        if core[0] >= finished[1]:
+            rejected.append("LINEAR_CORE_FINISHED")
+
+    elif (
+        handoff.family == CompositionFamilyV2.CENTRAL_PROCESS_CORE
+        and "sorting_packaging_room" in placed
+    ):
+        sorting_projection = sign * _axis_coordinate(placed["sorting_packaging_room"], axis)
+        raw = _signed_group_center_range(
+            ("raw_fruit_buffer", "primary_precooling_room"),
+            placed,
+            boundary,
+            axis,
+            sign,
+            shape_variants,
+        )
+        evaluated.append("CENTRAL_RAW_SORTING")
+        raw_slack = sorting_projection - raw[0]
+        slack_values.append(raw_slack)
+        if raw[0] >= sorting_projection:
+            rejected.append("CENTRAL_RAW_SORTING")
+
+        finished = _signed_group_center_range(
+            ("finished_goods_room", "shipping_channel"),
+            placed,
+            boundary,
+            axis,
+            sign,
+            shape_variants,
+        )
+        evaluated.append("CENTRAL_FINISHED_SORTING")
+        finished_slack = finished[1] - sorting_projection
+        slack_values.append(finished_slack)
+        if finished[1] <= sorting_projection:
+            rejected.append("CENTRAL_FINISHED_SORTING")
+
+    elif handoff.family == CompositionFamilyV2.PROCESS_SPINE_WITH_PERIPHERAL_BANKS:
+        chain = _main_chain_roles_from_process_graph()
+        fixed = tuple(role for role in chain if role in placed)
+        if len(fixed) >= 2:
+            evaluated.append("SPINE_MONOTONIC")
+            projections = tuple(sign * _axis_coordinate(placed[role], axis) for role in fixed)
+            gaps = tuple(
+                second - first for first, second in zip(projections, projections[1:], strict=False)
+            )
+            slack_values.extend(gaps)
+            if any(gap < 0 for gap in gaps):
+                rejected.append("SPINE_MONOTONIC")
+
+    return _CompositionIntentProjectionDecisionV1(
+        status="PROVABLY_INCOMPATIBLE" if rejected else "POSSIBLY_COMPATIBLE",
+        slack=min(slack_values, default=0),
+        reason=",".join(rejected) if rejected else "NO_PROVEN_INTENT_CONFLICT",
+        evaluated_rules=tuple(evaluated),
+        rejected_rules=tuple(rejected),
+    )
+
+
 def _intent_preserved(
     handoff: StructuralCompositionPlacementHandoffV1,
     placed: Mapping[str, PlacedRectangleV1],
@@ -2454,9 +2714,76 @@ def _optimistic_main_chain_completion_probe(
             probe_budget_exhausted = False
             composition_faces = _domain_faces(handoff, bank_sign)
 
+            def probe_funnel(role: str) -> dict[str, int]:
+                return diagnostics.forward_probe_funnel.setdefault(
+                    role,
+                    {
+                        "raw_anchor_count": 0,
+                        "propagation_rejected_count": 0,
+                        "after_propagation_count": 0,
+                        "site_rejected_count": 0,
+                        "obstacle_rejected_count": 0,
+                        "overlap_rejected_count": 0,
+                        "must_rejected_count": 0,
+                        "partial_intent_rejected_after_propagation_count": 0,
+                        "accepted_probe_partial_count": 0,
+                    },
+                )
+
+            def record_propagation(
+                role: str,
+                decision: _CompositionIntentProjectionDecisionV1,
+                candidate: PlacedRectangleV1,
+            ) -> None:
+                diagnostics.composition_propagation_evaluation_count += 1
+                metrics = probe_funnel(role)
+                for rule in decision.evaluated_rules:
+                    if rule == "LINEAR_RAW_CORE":
+                        diagnostics.linear_raw_core_bound_evaluation_count += 1
+                    elif rule == "LINEAR_CORE_FINISHED":
+                        diagnostics.linear_core_finished_bound_evaluation_count += 1
+                    elif rule.startswith("CENTRAL_"):
+                        diagnostics.central_bound_evaluation_count += 1
+                    elif rule == "SPINE_MONOTONIC":
+                        diagnostics.spine_monotonic_bound_evaluation_count += 1
+                if decision.status == "PROVABLY_INCOMPATIBLE":
+                    diagnostics.composition_propagation_provable_rejection_count += 1
+                    metrics["propagation_rejected_count"] += 1
+                    for rule in decision.rejected_rules:
+                        if rule == "LINEAR_RAW_CORE":
+                            diagnostics.linear_raw_core_provable_rejection_count += 1
+                        elif rule == "LINEAR_CORE_FINISHED":
+                            diagnostics.linear_core_finished_provable_rejection_count += 1
+                        elif rule.startswith("CENTRAL_"):
+                            diagnostics.central_provable_rejection_count += 1
+                        elif rule == "SPINE_MONOTONIC":
+                            diagnostics.spine_monotonic_provable_rejection_count += 1
+                else:
+                    diagnostics.composition_propagation_rank_only_count += int(
+                        bool(decision.evaluated_rules)
+                    )
+                    metrics["after_propagation_count"] += 1
+                diagnostics.composition_propagation_sequence.append(
+                    (role, _bounds(candidate), decision.status, decision.reason, decision.slack)
+                )
+
+            projection_decisions_by_role_shape: dict[
+                tuple[str, tuple[int, int, int]],
+                dict[tuple[int, int], _CompositionIntentProjectionDecisionV1],
+            ] = {}
+            propagation_rejection_count_by_role: Counter[str] = Counter()
+
             def candidate_origins(role: str, shape: _Shape) -> tuple[tuple[int, int], ...]:
                 origins: set[tuple[int, int]] = set()
                 must_face_origins: set[tuple[int, int]] = set()
+                shape_key = (shape.world_width_mm, shape.world_depth_mm, shape.rotation_deg)
+                projection_decisions: dict[
+                    tuple[int, int], _CompositionIntentProjectionDecisionV1
+                ] = {}
+                projection_axes = {process_axis}
+                if role in composition_faces:
+                    projection_axes.add(composition_faces[role][0])
+                decision_cache: dict[tuple[int, ...], _CompositionIntentProjectionDecisionV1] = {}
                 # Union, rather than filter: preserve composition-domain and
                 # CR1 interface event anchors while also admitting the full
                 # finite physical-event fallback as an optimistic superset.
@@ -2505,11 +2832,55 @@ def _optimistic_main_chain_completion_probe(
                     )
                     origins.update(must_face_origins)
 
+                # Propagate existing composition-intent necessary conditions
+                # before sorting or expanding geometry. Only a proven conflict
+                # is removed; all survivors still pass through the unchanged
+                # physical checks and _partial_intent_possible below.
+                metrics = probe_funnel(role)
+                metrics["raw_anchor_count"] += len(origins)
+                compatible_origins: list[tuple[int, int]] = []
+                for point in sorted(origins):
+                    candidate = _rectangle(role, point[0], point[1], shape)
+                    projection_key = tuple(
+                        _center(candidate, axis) for axis in sorted(projection_axes)
+                    )
+                    decision = decision_cache.get(projection_key)
+                    if decision is None:
+                        trial = dict(probe_placed)
+                        trial[role] = candidate
+                        decision = _composition_intent_projection_decision(
+                            handoff, trial, boundary, shapes, composition_faces
+                        )
+                        decision_cache[projection_key] = decision
+                    projection_decisions[point] = decision
+                    record_propagation(role, decision, candidate)
+                    if decision.status == "PROVABLY_INCOMPATIBLE":
+                        propagation_rejection_count_by_role[role] += 1
+                        continue
+                    compatible_origins.append(point)
+                origins = set(compatible_origins)
+
                 axis, interval = _domain_interval(role, handoff, domains)
+                boundary_bbox = (
+                    min(point[0] for point in boundary),
+                    min(point[1] for point in boundary),
+                    max(point[0] for point in boundary),
+                    max(point[1] for point in boundary),
+                )
+                obstacle_bboxes = tuple(
+                    (
+                        min(point[0] for point in obstacle),
+                        min(point[1] for point in obstacle),
+                        max(point[0] for point in obstacle),
+                        max(point[1] for point in obstacle),
+                    )
+                    for obstacle in obstacles
+                )
+                occupied_bounds = tuple(_bounds(item) for item in probe_placed.values())
 
                 def completion_order(
                     point: tuple[int, int],
-                ) -> tuple[int, int, int, int, int, int]:
+                ) -> tuple[int, ...]:
                     candidate = _rectangle(role, point[0], point[1], shape)
                     trial = dict(probe_placed)
                     trial[role] = candidate
@@ -2519,6 +2890,8 @@ def _optimistic_main_chain_completion_probe(
                     # without consuming the shared slice on known-invalid
                     # group/band placements.
                     process_projection = process_sign * _center(candidate, process_axis)
+                    projection_decision = projection_decisions.get(point)
+                    assert projection_decision is not None
                     predecessor_positions = [
                         process_sign * _center(probe_placed[name], process_axis)
                         for name in predecessors[role]
@@ -2545,15 +2918,50 @@ def _optimistic_main_chain_completion_probe(
                             if low <= projection <= high
                             else min(abs(projection - low), abs(projection - high))
                         )
+                    candidate_bounds = _bounds(candidate)
+                    boundary_bbox_penalty = int(
+                        candidate_bounds[0] < boundary_bbox[0]
+                        or candidate_bounds[1] < boundary_bbox[1]
+                        or candidate_bounds[2] > boundary_bbox[2]
+                        or candidate_bounds[3] > boundary_bbox[3]
+                    )
+                    # Ranking only: axis-aligned rectangle overlap is a cheap
+                    # predictor of the unchanged physical predicates, while
+                    # obstacle bounding-box overlap is deliberately
+                    # conservative. Neither signal removes a candidate or
+                    # substitutes for the normal site/obstacle/overlap checks.
+                    placed_bbox_overlap_count = sum(
+                        int(
+                            candidate_bounds[0] < bounds[2]
+                            and bounds[0] < candidate_bounds[2]
+                            and candidate_bounds[1] < bounds[3]
+                            and bounds[1] < candidate_bounds[3]
+                        )
+                        for bounds in occupied_bounds
+                    )
+                    obstacle_bbox_overlap_count = sum(
+                        int(
+                            candidate_bounds[0] < obstacle_bbox[2]
+                            and obstacle_bbox[0] < candidate_bounds[2]
+                            and candidate_bounds[1] < obstacle_bbox[3]
+                            and obstacle_bbox[1] < candidate_bounds[3]
+                        )
+                        for obstacle_bbox in obstacle_bboxes
+                    )
                     return (
                         int(point not in must_face_origins),
-                        int(not _partial_intent_possible(handoff, trial, composition_faces)),
+                        boundary_bbox_penalty,
+                        placed_bbox_overlap_count,
+                        obstacle_bbox_overlap_count,
+                        int(projection_decision.status == "PROVABLY_INCOMPATIBLE"),
+                        -projection_decision.slack,
                         flow_violation,
                         interval_penalty,
                         point[0],
                         point[1],
                     )
 
+                projection_decisions_by_role_shape[(role, shape_key)] = projection_decisions
                 return tuple(sorted(origins, key=completion_order))
 
             def visit_next() -> bool | None:
@@ -2566,13 +2974,38 @@ def _optimistic_main_chain_completion_probe(
                     return None
                 role_had_anchor = False
                 role_failure_counts: Counter[str] = Counter()
+                if propagation_rejection_count_by_role[role]:
+                    role_failure_counts["COMPOSITION_INTENT_PROPAGATION"] = (
+                        propagation_rejection_count_by_role[role]
+                    )
                 for shape in shapes[role]:
                     for x, y in candidate_origins(role, shape):
+                        metrics = probe_funnel(role)
+                        candidate = _rectangle(role, x, y, shape)
+                        shape_key = (
+                            shape.world_width_mm,
+                            shape.world_depth_mm,
+                            shape.rotation_deg,
+                        )
+                        decision = projection_decisions_by_role_shape[(role, shape_key)][(x, y)]
                         if (
                             diagnostics.nodes >= diagnostics.node_limit
                             or diagnostics.forward_check_nodes - forward_nodes_before
                             >= forward_probe_slice_limit
                         ):
+                            diagnostics.forward_probe_budget_stop_samples.append(
+                                {
+                                    "role": role,
+                                    "bounds_mm": list(_bounds(candidate)),
+                                    "projection_status": decision.status,
+                                    "projection_reason": decision.reason,
+                                    "placed_main_chain_bounds_mm": {
+                                        item: list(_bounds(probe_placed[item]))
+                                        for item in chain
+                                        if item in probe_placed
+                                    },
+                                }
+                            )
                             probe_budget_exhausted = True
                             return None
                         diagnostics.nodes += 1
@@ -2581,12 +3014,12 @@ def _optimistic_main_chain_completion_probe(
                             diagnostics.forward_check_chain_hole_nodes += 1
                         else:
                             diagnostics.forward_check_regular_nodes += 1
-                        candidate = _rectangle(role, x, y, shape)
                         rejected = _candidate_rejection(
                             candidate, probe_placed, boundary, obstacles
                         )
                         if rejected is not None:
                             role_failure_counts[rejected] += 1
+                            metrics[f"{rejected.lower()}_rejected_count"] += 1
                             continue
                         neighbors = tuple(
                             name for name in _must_neighbors(role) if name in probe_placed
@@ -2596,13 +3029,26 @@ def _optimistic_main_chain_completion_probe(
                             for neighbor in neighbors
                         ):
                             role_failure_counts["MUST_EDGE"] += 1
+                            metrics["must_rejected_count"] += 1
                             continue
                         probe_placed[role] = candidate
                         if not _partial_intent_possible(handoff, probe_placed, composition_faces):
                             role_failure_counts["COMPOSITION_INTENT"] += 1
+                            metrics["partial_intent_rejected_after_propagation_count"] += 1
                             probe_placed.pop(role, None)
                             continue
                         role_had_anchor = True
+                        metrics["accepted_probe_partial_count"] += 1
+                        if len(diagnostics.forward_probe_candidate_samples) < 256:
+                            diagnostics.forward_probe_candidate_samples.append(
+                                {
+                                    "role": role,
+                                    "bounds_mm": list(_bounds(candidate)),
+                                    "projection_slack_mm": decision.slack,
+                                    "projection_rules": list(decision.evaluated_rules),
+                                    "partial_intent_passed": True,
+                                }
+                            )
                         witness_order.append(role)
                         witness_bounds[role] = _bounds(candidate)
                         witness_shapes[role] = shape
@@ -4255,6 +4701,49 @@ def enumerate_composition_placements(
                 ),
                 forward_check_witnesses=tuple(diagnostics.forward_check_witnesses),
                 forward_check_negative_proofs=tuple(diagnostics.forward_check_negative_proofs),
+                composition_propagation_evaluation_count=(
+                    diagnostics.composition_propagation_evaluation_count
+                ),
+                composition_propagation_provable_rejection_count=(
+                    diagnostics.composition_propagation_provable_rejection_count
+                ),
+                composition_propagation_rank_only_count=(
+                    diagnostics.composition_propagation_rank_only_count
+                ),
+                linear_raw_core_bound_evaluation_count=(
+                    diagnostics.linear_raw_core_bound_evaluation_count
+                ),
+                linear_raw_core_provable_rejection_count=(
+                    diagnostics.linear_raw_core_provable_rejection_count
+                ),
+                linear_core_finished_bound_evaluation_count=(
+                    diagnostics.linear_core_finished_bound_evaluation_count
+                ),
+                linear_core_finished_provable_rejection_count=(
+                    diagnostics.linear_core_finished_provable_rejection_count
+                ),
+                central_bound_evaluation_count=diagnostics.central_bound_evaluation_count,
+                central_provable_rejection_count=diagnostics.central_provable_rejection_count,
+                spine_monotonic_bound_evaluation_count=(
+                    diagnostics.spine_monotonic_bound_evaluation_count
+                ),
+                spine_monotonic_provable_rejection_count=(
+                    diagnostics.spine_monotonic_provable_rejection_count
+                ),
+                composition_propagation_sequence_hash=canonical_hash(
+                    [list(item) for item in diagnostics.composition_propagation_sequence]
+                ),
+                forward_probe_funnel_by_role=tuple(
+                    (
+                        role,
+                        tuple(sorted(metrics.items())),
+                    )
+                    for role, metrics in sorted(diagnostics.forward_probe_funnel.items())
+                ),
+                forward_probe_candidate_samples=tuple(diagnostics.forward_probe_candidate_samples),
+                forward_probe_budget_stop_samples=tuple(
+                    diagnostics.forward_probe_budget_stop_samples
+                ),
                 deepest_role_attempted=outcome.deepest_attempted,
                 deepest_role_successfully_placed=deepest_placed,
                 max_simultaneously_placed_role_count=diagnostics.max_placed,
