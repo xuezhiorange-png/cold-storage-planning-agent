@@ -6,10 +6,12 @@ search organizers, not site/access/Truck engineering authorities.
 
 from __future__ import annotations
 
+import json
 from collections import Counter, defaultdict
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from decimal import ROUND_CEILING, Decimal
+from hashlib import sha256
 from math import isqrt
 from typing import Any
 
@@ -600,6 +602,7 @@ class _SearchDiagnostics:
     successor_capacity_decision_sequence: list[tuple[str, str, str, str, int]] = field(
         default_factory=list
     )
+    successor_free_space_profiles: list[Mapping[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.forward_check_node_limit < 0:
@@ -1835,8 +1838,179 @@ def _successor_edge_keys(
     )
 
 
+def _rectangular_polygon_bounds(polygon: PolygonMM) -> tuple[int, int, int, int] | None:
+    """Recognize exact axis-aligned rectangles, never approximate polygons."""
+    left, right = min(p[0] for p in polygon), max(p[0] for p in polygon)
+    bottom, top = min(p[1] for p in polygon), max(p[1] for p in polygon)
+    if len(polygon) == 4 and set(polygon) == {
+        (left, bottom),
+        (left, top),
+        (right, bottom),
+        (right, top),
+    }:
+        return left, bottom, right, top
+    return None
+
+
+def _exact_successor_free_space_domain(
+    role: str,
+    shape: _Shape,
+    origins: Sequence[tuple[int, int]],
+    placed: Mapping[str, PlacedRectangleV1],
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+    handoff: StructuralCompositionPlacementHandoffV1,
+    bank_sign: int,
+) -> tuple[tuple[tuple[int, int], ...], Mapping[str, Any]]:
+    """Subtract exact physical exclusions from a finite origin domain.
+
+    No new origins, shape search, recursive expansion, or validator is added.
+    All blockers are recorded (not just the first failing predicate). The
+    result is only a search domain: survivors still undergo normal hard checks.
+    Counterfactuals release ONE non-MUST room footprint in this fixed domain;
+    they never mutate placement or authorize a room's removal.
+    """
+    groups = {item.zone_role: item.composition_group for item in handoff.zone_role_assignment}
+    must_neighbors = set(_must_neighbors(role))
+    rows: list[dict[str, Any]] = []
+    survivors: list[tuple[int, int]] = []
+    exclusive: Counter[str] = Counter()
+    obstacle_counts: Counter[str] = Counter()
+    room_counts: Counter[str] = Counter()
+    group_counts: Counter[str] = Counter()
+    release: dict[str, list[list[int]]] = {}
+    boundary_box = _rectangular_polygon_bounds(boundary)
+    obstacle_facts = tuple(
+        (canonical_hash({"polygon_mm": polygon}), polygon, _rectangular_polygon_bounds(polygon))
+        for polygon in obstacles
+    )
+    occupied = {name: _bounds(existing) for name, existing in placed.items()}
+    polygon_fallback_count = 0
+    for x, y in origins:
+        right, top = x + shape.world_width_mm, y + shape.world_depth_mm
+        candidate = None
+        if boundary_box is not None:
+            site_blocked = not (
+                boundary_box[0] <= x
+                and boundary_box[1] <= y
+                and right <= boundary_box[2]
+                and top <= boundary_box[3]
+            )
+        else:
+            candidate = _rectangle(role, x, y, shape)
+            site_blocked = not rectangle_inside_polygon(candidate, boundary)
+            polygon_fallback_count += 1
+        obstacle_ids = []
+        for identity, polygon, box in obstacle_facts:
+            if box is not None:
+                # Closed obstacles prohibit touching; room overlaps below
+                # require positive area. These are exact origin exclusions,
+                # not bounding-box approximations of a nonrectangular polygon.
+                blocked = x <= box[2] and box[0] <= right and y <= box[3] and box[1] <= top
+            else:
+                if candidate is None:
+                    candidate = _rectangle(role, x, y, shape)
+                blocked = rectangle_intersects_closed_obstacle(candidate, polygon)
+                polygon_fallback_count += 1
+            if blocked:
+                obstacle_ids.append(identity)
+        room_roles = sorted(
+            name
+            for name, box in occupied.items()
+            if x < box[2] and box[0] < right and y < box[3] and box[1] < top
+        )
+        first = (
+            "SITE"
+            if site_blocked
+            else "OBSTACLE"
+            if obstacle_ids
+            else "OVERLAP"
+            if room_roles
+            else "FREE_SPACE"
+        )
+        exclusive[first] += 1
+        obstacle_counts.update(obstacle_ids)
+        room_counts.update(room_roles)
+        group_counts.update(sorted({groups[name] for name in room_roles}))
+        bounds = [x, y, right, top]
+        if first == "FREE_SPACE":
+            survivors.append((x, y))
+        # A simultaneous site/obstacle/MUST blocker cannot be released by
+        # removing a single non-MUST room. Retain exactly the same origins.
+        if not site_blocked and not obstacle_ids and len(room_roles) == 1:
+            blocker = room_roles[0]
+            if blocker not in must_neighbors:
+                release.setdefault(blocker, []).append(bounds)
+        rows.append(
+            {
+                "bounds_mm": bounds,
+                "site_boundary_blocked": site_blocked,
+                "obstacle_identities": obstacle_ids,
+                "overlapping_room_roles": room_roles,
+                "overlapping_groups": sorted({groups[name] for name in room_roles}),
+                "exclusive_classification": first,
+            }
+        )
+    profile = {
+        "engineering_authority": False,
+        "validation_authority": False,
+        "search_optimization_only": True,
+        "source": "EXISTING_EXACT_SITE_OBSTACLE_OVERLAP_PREDICATES",
+        "rectangular_origin_interval_subtraction": True,
+        "nonrectangular_polygon_predicate_fallback_count": polygon_fallback_count,
+        "role": role,
+        "shape": asdict(shape),
+        "partial_geometry_hash": _main_chain_partial_geometry_hash(handoff, bank_sign, placed),
+        "fixed_zone_bounds_mm": {name: list(_bounds(placed[name])) for name in sorted(placed)},
+        "finite_domain_count": len(rows),
+        "free_space_count": len(survivors),
+        "classified_count": sum(exclusive.values()),
+        "unclassified_count": 0,
+        "exclusive_counts": dict(sorted(exclusive.items())),
+        "obstacle_identity_counts": dict(sorted(obstacle_counts.items())),
+        "overlapping_room_counts": dict(sorted(room_counts.items())),
+        "overlapping_group_counts": dict(sorted(group_counts.items())),
+        "candidates": rows,
+        "single_non_must_blocker_release": [
+            {
+                "released_role": name,
+                "released_group": groups[name],
+                "restored_physical_domain_count": len(release.get(name, [])),
+                "restored_bounds_mm": release.get(name, []),
+                "diagnostic_only": True,
+                "geometry_mutated": False,
+                "proves_complete_layout": False,
+            }
+            for name in sorted(set(placed) - must_neighbors)
+        ],
+        "successor_domain_conflict_set": {
+            "site_boundary": exclusive["SITE"] > 0,
+            "obstacle_identities": sorted(obstacle_counts),
+            "room_roles": sorted(room_counts),
+            "groups": sorted(group_counts),
+            "covers_all_physical_exclusions": True,
+            "minimal_conflict_set_claimed": False,
+            "global_infeasibility_proven": False,
+            "hard_recovery_authority": False,
+        },
+    }
+    return tuple(survivors), profile
+
+
 def _axis_coordinate(rectangle: PlacedRectangleV1, axis: str) -> int:
     return _center(rectangle, axis)
+
+
+def _primitive_diagnostic_hash(value: object) -> str:
+    """Canonical digest for diagnostic trees of strings/ints/bools only.
+
+    These records contain no Decimal/float or authority objects. Avoid the
+    recursive engineering-number normalization for every diagnostic scalar;
+    JSON's tuple-to-array encoding is identical to canonical_hash here.
+    This function is never used for authority or candidate identities.
+    """
+    encoded = json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return "sha256:" + sha256(encoded.encode("utf-8")).hexdigest()
 
 
 def _signed_group_center_range(
@@ -2943,6 +3117,9 @@ def _optimistic_main_chain_completion_probe(
                         "accepted_probe_partial_count": 0,
                         "full_hard_valid_count": 0,
                         "not_expanded_budget_stop_count": 0,
+                        "free_space_classified_count": 0,
+                        "free_space_rejected_count": 0,
+                        "free_space_surviving_count": 0,
                     },
                 )
 
@@ -3155,7 +3332,47 @@ def _optimistic_main_chain_completion_probe(
                     metrics["cr5_propagation_compatible_count"] += 1
                     for edge_key in capacity_edge_keys:
                         edge_metrics(edge_key)["cr5_propagation_compatible"] += 1
-                origins = set(compatible_origins)
+                if capacity_edge_keys:
+                    free_origins, free_profile = _exact_successor_free_space_domain(
+                        role,
+                        shape,
+                        tuple(compatible_origins),
+                        probe_placed,
+                        boundary,
+                        obstacles,
+                        handoff,
+                        bank_sign,
+                    )
+                    # Preserve every classification through a canonical row
+                    # digest and complete blocker counters, without retaining
+                    # repeated per-origin trees across the entire search.
+                    # The historical seven/debt diagnostic runner retains
+                    # unabridged rows separately; it is not a runtime seed.
+                    recorded_profile = dict(free_profile)
+                    recorded_profile["candidate_classification_rows_hash"] = (
+                        _primitive_diagnostic_hash(recorded_profile.pop("candidates"))
+                    )
+                    diagnostics.successor_free_space_profiles.append(recorded_profile)
+                    classified = free_profile["exclusive_counts"]
+                    metrics["free_space_classified_count"] += len(compatible_origins)
+                    metrics["free_space_surviving_count"] += len(free_origins)
+                    metrics["free_space_rejected_count"] += len(compatible_origins) - len(
+                        free_origins
+                    )
+                    for reason in ("SITE", "OBSTACLE", "OVERLAP"):
+                        metrics[f"{reason.lower()}_rejected_count"] += classified.get(reason, 0)
+                    for edge_key in capacity_edge_keys:
+                        edge = edge_metrics(edge_key)
+                        edge["site_valid"] += len(compatible_origins) - classified.get("SITE", 0)
+                        edge["obstacle_valid"] += (
+                            len(compatible_origins)
+                            - classified.get("SITE", 0)
+                            - classified.get("OBSTACLE", 0)
+                        )
+                        edge["non_overlap_valid"] += len(free_origins)
+                    origins = set(free_origins)
+                else:
+                    origins = set(compatible_origins)
 
                 axis, interval = _domain_interval(role, handoff, domains)
                 boundary_bbox = (
@@ -3286,10 +3503,18 @@ def _optimistic_main_chain_completion_probe(
                     role_failure_counts["MUST_EDGE"] = probe_funnel(role)[
                         "must_edge_rejected_count"
                     ]
+                physical_failures_before = {
+                    reason: probe_funnel(role)[f"{reason.lower()}_rejected_count"]
+                    for reason in ("SITE", "OBSTACLE", "OVERLAP")
+                }
                 shape_points = tuple(
                     (shape, candidate_origins(role, shape, capacity_edge_keys))
                     for shape in shapes[role]
                 )
+                for reason, before in physical_failures_before.items():
+                    role_failure_counts[reason] += (
+                        probe_funnel(role)[f"{reason.lower()}_rejected_count"] - before
+                    )
                 for shape_index, (shape, points) in enumerate(shape_points):
                     for point_index, (x, y) in enumerate(points):
                         metrics = probe_funnel(role)
@@ -3364,9 +3589,8 @@ def _optimistic_main_chain_completion_probe(
                                 increment_edges(capacity_edge_keys, "site_valid")
                                 increment_edges(capacity_edge_keys, "obstacle_valid")
                             continue
-                        increment_edges(capacity_edge_keys, "site_valid")
-                        increment_edges(capacity_edge_keys, "obstacle_valid")
-                        increment_edges(capacity_edge_keys, "non_overlap_valid")
+                        # Capacity edges already classified these exact
+                        # physical facts during finite-domain subtraction.
                         neighbors = tuple(
                             name for name in _must_neighbors(role) if name in probe_placed
                         )
@@ -5320,8 +5544,8 @@ def enumerate_composition_placements(
                 spine_monotonic_provable_rejection_count=(
                     diagnostics.spine_monotonic_provable_rejection_count
                 ),
-                composition_propagation_sequence_hash=canonical_hash(
-                    [list(item) for item in diagnostics.composition_propagation_sequence]
+                composition_propagation_sequence_hash=_primitive_diagnostic_hash(
+                    diagnostics.composition_propagation_sequence
                 ),
                 forward_probe_funnel_by_role=tuple(
                     (
@@ -5423,6 +5647,23 @@ def enumerate_composition_placements(
                         )
                     },
                     "witnesses": [dict(item) for item in diagnostics.successor_capacity_witnesses],
+                    "exact_successor_free_space": {
+                        "engineering_authority": False,
+                        "validation_authority": False,
+                        "domain_classification_is_recursive_expansion": False,
+                        "recursive_survivor_evaluation_charged_to_shared_budget": True,
+                        "classification_count": sum(
+                            int(item["classified_count"])
+                            for item in diagnostics.successor_free_space_profiles
+                        ),
+                        "unclassified_count": 0,
+                        "profiles": [
+                            dict(item) for item in diagnostics.successor_free_space_profiles
+                        ],
+                        "sequence_hash": _primitive_diagnostic_hash(
+                            diagnostics.successor_free_space_profiles
+                        ),
+                    },
                     "decision_sequence_hash": canonical_hash(
                         [list(item) for item in diagnostics.successor_capacity_decision_sequence]
                     ),

@@ -386,7 +386,10 @@ def test_cr2_finished_goods_starvation_witness_is_detected(context) -> None:
 
     assert result.status == "PROVED_NO_MAIN_CHAIN_COMPLETION_IN_CURRENT_SEARCH_DOMAIN"
     assert result.first_unplaceable_role == "finished_goods_room"
-    assert result.probe_nodes_used > 0
+    # CR7 exhausts the exact physical origin domain before recursive
+    # expansion; zero expansion nodes is valid when every origin is blocked.
+    assert diagnostics.successor_free_space_profiles
+    assert all(row["unclassified_count"] == 0 for row in diagnostics.successor_free_space_profiles)
     assert diagnostics.nodes == diagnostics.forward_check_nodes
 
 
