@@ -360,6 +360,7 @@ def _handoff_for_composition(
         source_p1_handoff_hash=p1_handoff_hash,
         source_site_geometry_hash=site_geometry_hash,
         dimension_authority_identity=dimension_authority_identity,
+        mandatory_hard_interfaces=plan.mandatory_hard_interfaces,
     )
 
 

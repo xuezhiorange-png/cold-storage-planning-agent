@@ -349,9 +349,19 @@ def test_machine_readable_s2_evidence_matches_the_bound_runtime_result() -> None
     assert evidence["enumeration"]["composition_count"] == 6
     assert evidence["enumeration"]["family_count"] == 3
     assert evidence["enumeration"]["family_first_round_complete"] is True
-    assert [item["canonical_hash"] for item in evidence["handoffs"]] == [
-        handoff.canonical_result_hash for handoff in result.placement_handoffs
-    ]
+    # S2 evidence is immutable historical serialization, before the additive
+    # P0 mandatory-interface projection. Reconstruct that exact body rather
+    # than overwrite the evidence or pretend the new contract has its hash.
+    for historical, plan, handoff in zip(
+        evidence["handoffs"], result.compositions, result.placement_handoffs, strict=True
+    ):
+        old_plan = plan.to_dict()
+        old_plan.pop("mandatory_hard_interfaces")
+        old_handoff = asdict(handoff)
+        old_handoff.pop("mandatory_hard_interfaces")
+        old_handoff["source_composition_hash"] = canonical_hash(old_plan)
+        assert historical["canonical_hash"] == canonical_hash(old_handoff)
+        assert historical["canonical_hash"] != handoff.canonical_result_hash
     assert all(item["role_count"] == 12 for item in evidence["handoffs"])
     assert all(
         item["peripheral_memberships"]["frozen_fruit_room"] == ["FROZEN_BRANCH_DOMAIN"]

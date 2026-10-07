@@ -14,10 +14,12 @@ from cold_storage.modules.layout.domain.dimensioning import canonical_hash
 from cold_storage.modules.layout.domain.structural_composition import (
     CompositionFamilyV2,
     DominantAxisFamilyV1,
+    MandatoryHardInterfaceIntentV1,
     PeripheralDomainIdV1,
     ProcessAxisV1,
     ProcessDirectionV1,
     SiteOrientationIntentV1,
+    validate_mandatory_hard_interfaces,
 )
 
 IDENTITY = "structural-composition-placement-handoff@1.0.0"
@@ -119,6 +121,7 @@ class StructuralCompositionPlacementHandoffV1:
     source_p1_handoff_hash: str
     source_site_geometry_hash: str
     dimension_authority_identity: str
+    mandatory_hard_interfaces: tuple[MandatoryHardInterfaceIntentV1, ...]
     composition_relationships_are_engineering_authority: bool = False
     placement_handoff_is_final_layout: bool = PLACEMENT_HANDOFF_IS_FINAL_LAYOUT
     placement_handoff_is_p2c_candidate: bool = PLACEMENT_HANDOFF_IS_P2C_CANDIDATE
@@ -176,6 +179,15 @@ class StructuralCompositionPlacementHandoffV1:
             )
         ):
             raise ValueError("COMPOSITION_HANDOFF_PROVENANCE_REQUIRED")
+        validate_mandatory_hard_interfaces(
+            self.mandatory_hard_interfaces,
+            {item.zone_role: item.composition_group for item in self.zone_role_assignment},
+            {item.zone_role: item.composition_band for item in self.zone_role_assignment},
+            {
+                item.zone_role: item.peripheral_domain_membership
+                for item in self.zone_role_assignment
+            },
+        )
 
     @property
     def canonical_result_hash(self) -> str:
