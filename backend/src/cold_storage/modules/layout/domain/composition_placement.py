@@ -10,10 +10,22 @@ from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
-from math import isqrt
 from typing import Any
 
 from cold_storage.modules.layout.domain.adjacency import ZONE_CODES, process_graph
+from cold_storage.modules.layout.domain.authority_shapes import (
+    AuthoritativeZoneShapeV1 as _Shape,
+)
+from cold_storage.modules.layout.domain.authority_shapes import (
+    _m,
+    _mm,
+)
+from cold_storage.modules.layout.domain.authority_shapes import (
+    authoritative_zone_shapes as _authority_shapes,
+)
+from cold_storage.modules.layout.domain.authority_shapes import (
+    canonical_construction_shapes as _canonical_construction_shapes,
+)
 from cold_storage.modules.layout.domain.composition_handoff import (
     StructuralCompositionPlacementHandoffV1,
 )
@@ -26,7 +38,6 @@ from cold_storage.modules.layout.domain.site_geometry import (
     rectangle_intersects_closed_obstacle,
     rectangles_overlap,
     rectangles_share_positive_edge,
-    validate_flexible_candidate,
 )
 from cold_storage.modules.layout.domain.structural_composition import (
     CompositionFamilyV2,
@@ -397,36 +408,6 @@ class CompositionPlacementEnumerationV1:
         }
 
 
-@dataclass(frozen=True)
-class _Shape:
-    width_mm: int
-    depth_mm: int
-    rotation_deg: int
-
-    @property
-    def world_width_mm(self) -> int:
-        return self.depth_mm if self.rotation_deg == 90 else self.width_mm
-
-    @property
-    def world_depth_mm(self) -> int:
-        return self.width_mm if self.rotation_deg == 90 else self.depth_mm
-
-
-def _mm(value: object) -> int:
-    number = Decimal(str(value))
-    if (
-        not number.is_finite()
-        or number <= 0
-        or number * 1000 != (number * 1000).to_integral_value()
-    ):
-        raise ValueError("INVALID_AUTHORITATIVE_DIMENSION")
-    return int(number * 1000)
-
-
-def _m(value: int) -> Decimal:
-    return Decimal(value) / 1000
-
-
 def _polygon_area_mm2(polygon: PolygonMM) -> int:
     return (
         abs(
@@ -525,110 +506,6 @@ def _rectangle(code: str, x: int, y: int, shape: _Shape) -> PlacedRectangleV1:
         _m(shape.width_mm),
         _m(shape.depth_mm),
         shape.rotation_deg,
-    )
-
-
-def _authority_shapes(
-    authorities: Mapping[str, Mapping[str, Any]],
-    boundary: PolygonMM,
-    obstacle_polygons: Sequence[PolygonMM],
-) -> dict[str, tuple[_Shape, ...]]:
-    spans = {
-        abs(second[0] - first[0])
-        for polygon in (boundary, *obstacle_polygons)
-        for first, second in zip(polygon, polygon[1:] + polygon[:1], strict=True)
-        if first[0] != second[0]
-    }
-    spans.update(
-        abs(second[1] - first[1])
-        for polygon in (boundary, *obstacle_polygons)
-        for first, second in zip(polygon, polygon[1:] + polygon[:1], strict=True)
-        if first[1] != second[1]
-    )
-    fixed_shapes: dict[str, tuple[int, int]] = {}
-    for code, authority in authorities.items():
-        geometry = authority.get("geometry")
-        if authority.get("dimension_mode") == "FLEXIBLE_RECTANGLE":
-            continue
-        if not isinstance(geometry, Mapping):
-            raise ValueError(f"DIMENSION_AUTHORITY_MISSING:{code}")
-        fixed = (_mm(geometry.get("width_m")), _mm(geometry.get("depth_m")))
-        fixed_shapes[code] = fixed
-        spans.update(fixed)
-
-    min_x, min_y = min(p[0] for p in boundary), min(p[1] for p in boundary)
-    max_x, max_y = max(p[0] for p in boundary), max(p[1] for p in boundary)
-    spans.update((max_x - min_x, max_y - min_y))
-    shapes: dict[str, tuple[_Shape, ...]] = {}
-    for code, authority in authorities.items():
-        rotations = authority.get("rotation_allowed")
-        if (
-            not isinstance(rotations, list)
-            or not rotations
-            or any(type(rotation) is not int or rotation not in (0, 90) for rotation in rotations)
-        ):
-            raise ValueError(f"DIMENSION_AUTHORITY_ROTATION_INVALID:{code}")
-        if authority.get("dimension_mode") != "FLEXIBLE_RECTANGLE":
-            width, depth = fixed_shapes[code]
-            shapes[code] = tuple(_Shape(width, depth, rotation) for rotation in rotations)
-            continue
-        required = Decimal(str(authority.get("required_area_m2")))
-        required_mm2 = int(required * 1_000_000)
-        near = isqrt(required_mm2)
-        if near * near < required_mm2:
-            near += 1
-        widths = set(spans) | {near, near + 1}
-        candidates: set[tuple[int, int]] = set()
-        for width in widths:
-            if width <= 0:
-                continue
-            for depth in widths:
-                if depth <= 0:
-                    continue
-                try:
-                    validate_flexible_candidate(authority, _m(width), _m(depth))
-                except Exception as exc:
-                    if (
-                        getattr(exc, "code", None) == "INVALID_FLEXIBLE_DIMENSION"
-                        or getattr(exc, "code", None) == "FLEXIBLE_DIMENSION_AREA_UNSATISFIED"
-                    ):
-                        continue
-                    raise
-                candidates.add((width, depth))
-        if not candidates:
-            raise ValueError(f"FLEXIBLE_DIMENSION_DOMAIN_EMPTY:{code}")
-        ordered = sorted(
-            candidates, key=lambda pair: (abs(pair[0] - pair[1]), pair[0] * pair[1], pair)
-        )
-        shapes[code] = tuple(
-            _Shape(width, depth, rotation) for width, depth in ordered for rotation in rotations
-        )
-    return shapes
-
-
-def _canonical_construction_shapes(
-    variants: Sequence[_Shape],
-) -> tuple[_Shape, ...]:
-    """Deduplicate equivalent world footprints without changing authority.
-
-    Each retained item remains an authority-approved width/depth/rotation
-    tuple.  This only removes construction-search variants that serialize
-    differently but produce the same axis-aligned footprint.
-    """
-    by_footprint: dict[tuple[int, int], _Shape] = {}
-    for shape in variants:
-        by_footprint.setdefault((shape.world_width_mm, shape.world_depth_mm), shape)
-    return tuple(
-        by_footprint[key]
-        for key in sorted(
-            by_footprint,
-            key=lambda pair: (
-                abs(pair[0] - pair[1]),
-                pair[0] * pair[1],
-                max(pair),
-                pair,
-            ),
-        )
     )
 
 

@@ -1,7 +1,7 @@
 # ADR-050: Project hard MUST interfaces into structural composition
 
-Status: proposed; P0 projection and authorized P1 topological reservation.
-P2 metric realization is not authorized.
+Status: proposed; P0 projection, authorized P1 topological reservation and P2
+pairwise metric realization. P3 consumption is not authorized.
 
 ## Context
 
@@ -127,6 +127,48 @@ P1 runs no full placement, Access, Truck or P2D replay. The exact-placement
 algorithm and all engineering authorities stay untouched. Existing CI regression
 tests remain required; they do not constitute a new production layout proof.
 Future concept: METRIC_INTERFACE_RESERVATION_REALIZATION. P2 is not authorized.
+
+## P2 authorized addendum — pairwise metric realization
+
+The preceding P1 authorization statement is historical. Owner subsequently
+authorized P2 on the same Draft PR, starting at
+`4576614282a362e86b9cd1f7bf48eb296eac1674`.
+
+Keep P0/P1 Plan and Handoff coordinate-free and byte-for-byte unchanged. A
+separate server-owned application binds the canonical zone plan, P1 dimension
+handoff and validated site, rebuilds/replays structural handoffs and emits
+`MetricInterfaceReservationRealizationV1`. It accepts no caller-authored
+composition or metric artifact as authority.
+
+Each P1 reservation has a pairwise metric realization. Its site is the effective
+buildable polygon; its obstacles are the complete validated hard-obstacle set,
+including retained buildings, not merely no-build zones. Conditional removals
+remain conditional. Shared pure shape derivation is mechanically extracted from
+exact placement, preserving all rotations and flexible authority semantics.
+
+Metric slots satisfy the existing exact site, closed-obstacle, non-overlap and
+positive-shared-edge predicates. They are construction alternatives, not final
+room placements, and invent no minimum shared-edge length. Topological hosts
+still have no proven metric footprint. Other rooms are intentionally absent.
+
+The finite domain is a deterministic symmetric union: all canonical shapes,
+corner events at boundary/obstacle vertices, closed-obstacle ±1mm diagonal
+events, and four shared-face start/end/center alignments. Its complete
+exhaustion supports only a current-finite-domain negative, never global
+infeasibility. The explicit 10,000,000 unique-pair safety cap yields UNKNOWN
+when exhausted and does not draw from or increase placement-node budgets.
+Counts, deterministic slot-set digests and replay identities represent the
+domain; small representative samples are explicitly non-exclusive.
+
+All-pass aggregate is `PASS_METRIC_RESERVATIONS_TO_FUTURE_PLACEMENT`; an exhaustive
+empty interface rejects only in the current metric domain; otherwise unresolved
+capacity remains UNKNOWN. None is project-layout validation or P2D. Independent
+new P2 artifacts do not modify Plan/Handoff versions, signatures or ownership.
+
+The existing exact-placement obstacle parser uses `no_build_zones` rather than
+`hard_obstacles`. This authority parity gap is diagnosed, not silently repaired
+or inherited. It blocks future P3 metric-slot consumption until separately
+authorized remediation. P3 is not authorized by P2; no DFS consumption occurs.
 
 ## Verification
 
