@@ -38,6 +38,7 @@ from cold_storage.modules.layout.domain.site_geometry import (
     rectangle_intersects_closed_obstacle,
     rectangles_overlap,
     rectangles_share_positive_edge,
+    validated_hard_obstacle_polygons,
 )
 from cold_storage.modules.layout.domain.structural_composition import (
     CompositionFamilyV2,
@@ -1694,10 +1695,7 @@ def enumerate_composition_placements(
     if not isinstance(boundary_raw, Mapping):
         raise ValueError("VALIDATED_BUILDABLE_BOUNDARY_REQUIRED")
     boundary = normalize_polygon(boundary_raw, allow_numeric_string=True)
-    obstacles_raw = site_geometry.get("obstacles", {}).get("no_build_zones", [])
-    if not isinstance(obstacles_raw, list):
-        raise ValueError("VALIDATED_OBSTACLES_REQUIRED")
-    obstacles = tuple(normalize_polygon(item, allow_numeric_string=True) for item in obstacles_raw)
+    obstacles = validated_hard_obstacle_polygons(site_geometry)
     authority_shapes = _authority_shapes(dimension_authorities, boundary, obstacles)
     shapes = {
         role: _canonical_construction_shapes(variants)

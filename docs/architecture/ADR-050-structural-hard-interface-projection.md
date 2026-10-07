@@ -1,7 +1,8 @@
 # ADR-050: Project hard MUST interfaces into structural composition
 
 Status: proposed; P0 projection, authorized P1 topological reservation and P2
-pairwise metric realization. P3 consumption is not authorized.
+pairwise metric realization, and authorized R1 hard-obstacle source remediation.
+P3 consumption is not authorized.
 
 ## Context
 
@@ -169,6 +170,26 @@ The existing exact-placement obstacle parser uses `no_build_zones` rather than
 `hard_obstacles`. This authority parity gap is diagnosed, not silently repaired
 or inherited. It blocks future P3 metric-slot consumption until separately
 authorized remediation. P3 is not authorized by P2; no DFS consumption occurs.
+
+## R1 authorized addendum — validated hard-obstacle source parity
+
+The P2 gap above records the historical state. R1 aligns exact placement and
+P2 through one pure `validated_hard_obstacle_polygons` parser of the existing
+validated `hard_obstacles` authority. It preserves source order and strictly
+requires the list, hard marker and normalizable footprints; there is no fallback
+to no-build-only data. Retained buildings stay hard and conditional removals
+stay conditional according to the upstream authority, not a new classification.
+
+Both candidate collision checks and flexible shape derivation now receive the
+same obstacle polygons as P2. Existing search and shape algorithms, effective
+boundary source and all engineering/contract authorities are unchanged.
+Retained-building inputs may intentionally change placement results. The
+canonical no-retained fixture must retain exact START/FINAL result parity;
+two full placement and metric replays verify deterministic correspondence.
+
+After remediation verification, P2 and exact placement share the same validated
+hard-obstacle source. This removes only the diagnosed authority parity blocker.
+It does not implement metric-slot consumption: P3 remains unauthorized.
 
 ## Verification
 

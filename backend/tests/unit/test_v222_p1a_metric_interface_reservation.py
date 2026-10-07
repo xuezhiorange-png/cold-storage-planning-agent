@@ -287,7 +287,7 @@ def test_conditional_removal_authority_regression() -> None:
     # Application consumes only hard_obstacles; conditional removal is never
     # promoted by shape parsing or metric event generation.
     source = inspect.getsource(realize_metric_interface_reservations)
-    assert '["hard_obstacles"]' in source
+    assert "validated_hard_obstacle_polygons(body)" in source
     assert "no_build_zones" not in source and "conditional_removal" not in source
 
 

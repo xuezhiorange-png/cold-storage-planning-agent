@@ -26,7 +26,10 @@ from cold_storage.modules.layout.domain.metric_interface_reservation import (
     evaluate_pair_domain,
     realize_interface,
 )
-from cold_storage.modules.layout.domain.site_geometry import normalize_polygon
+from cold_storage.modules.layout.domain.site_geometry import (
+    normalize_polygon,
+    validated_hard_obstacle_polygons,
+)
 from cold_storage.modules.layout.domain.structural_composition import _mandatory_edge_identity
 
 
@@ -126,10 +129,7 @@ def realize_metric_interface_reservations(
     boundary = normalize_polygon(
         body["site"]["effective_buildable_boundary"], allow_numeric_string=True
     )
-    obstacles = tuple(
-        normalize_polygon(o["footprint"], allow_numeric_string=True)
-        for o in body["obstacles"]["hard_obstacles"]
-    )
+    obstacles = validated_hard_obstacle_polygons(body)
     shapes = authoritative_zone_shapes(binding.dimension_authorities, boundary, obstacles)
     construction = {role: canonical_construction_shapes(s) for role, s in shapes.items()}
     domains = {}
