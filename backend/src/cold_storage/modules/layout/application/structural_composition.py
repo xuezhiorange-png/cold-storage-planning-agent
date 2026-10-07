@@ -361,6 +361,8 @@ def _handoff_for_composition(
         source_site_geometry_hash=site_geometry_hash,
         dimension_authority_identity=dimension_authority_identity,
         mandatory_hard_interfaces=plan.mandatory_hard_interfaces,
+        mandatory_interface_reservations=plan.mandatory_interface_reservations,
+        structural_interface_capacity_gate=plan.structural_interface_capacity_gate,
     )
 
 

@@ -18,6 +18,15 @@ from cold_storage.modules.layout.domain.adjacency import (
     AdjacencyGraphV1,
     process_graph,
 )
+from cold_storage.modules.layout.domain.mandatory_interface_reservation import (
+    MandatoryInterfaceReservationV1,
+    MandatoryInterfaceTopologyV1,
+    StructuralMandatoryInterfaceCapacityGateV1,
+    assess_mandatory_interface_capacity,
+    interface_topology,
+    reserve_mandatory_interfaces,
+    validate_reserved_interface_contract,
+)
 
 SCHEMA_VERSION = "2.0.0"
 IDENTITY_PREFIX = "whole-building-structural-composition"
@@ -415,7 +424,21 @@ class StructuralCompositionPlanV2:
     construction_provenance: ConstructionProvenanceV1
     signature: StructuralCompositionSignatureV1
     mandatory_hard_interfaces: tuple[MandatoryHardInterfaceIntentV1, ...]
+    mandatory_interface_reservations: tuple[MandatoryInterfaceReservationV1, ...]
+    structural_interface_capacity_gate: StructuralMandatoryInterfaceCapacityGateV1
     peripheral_domain_is_engineering_authority: bool = PERIPHERAL_DOMAIN_IS_ENGINEERING_AUTHORITY
+
+    @property
+    def mandatory_interface_topology(self) -> MandatoryInterfaceTopologyV1:
+        return interface_topology(
+            self.family,
+            tuple(
+                (b.band_id, b.zone_roles, b.topology, b.sequence_index)
+                for b in self.principal_bands
+            ),
+            tuple((d.domain_id, d.zone_roles) for d in self.peripheral_domains),
+            tuple((g.group_id, g.zone_roles) for g in self.functional_groups),
+        )
 
     def __post_init__(self) -> None:
         if self.schema_version != SCHEMA_VERSION:
@@ -480,6 +503,12 @@ class StructuralCompositionPlanV2:
         )
         if self.construction_provenance.process_graph_identity != process_graph().identity:
             raise StructuralCompositionError("MANDATORY_INTERFACE_SOURCE_INVALID")
+        validate_reserved_interface_contract(
+            self.mandatory_hard_interfaces,
+            self.mandatory_interface_reservations,
+            self.structural_interface_capacity_gate,
+            self.mandatory_interface_topology,
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """Return a stable JSON-compatible evidence projection."""
@@ -655,6 +684,23 @@ def _build_plan(
         shipping_truck_relationship=(shipping.source, shipping.target, shipping.topology_intent),
         personnel_relationship=(personnel.source, personnel.target, personnel.topology_intent),
     )
+    interfaces = project_mandatory_hard_interfaces(
+        {item.zone_role: item.group_id for item in assignments},
+        {item.zone_role: item.band_id for item in assignments},
+        {
+            item.zone_role: tuple(
+                d.domain_id.value for d in domains if item.zone_role in d.zone_roles
+            )
+            for item in assignments
+        },
+    )
+    topology = interface_topology(
+        family,
+        tuple((b.band_id, b.zone_roles, b.topology, b.sequence_index) for b in bands),
+        tuple((d.domain_id, d.zone_roles) for d in domains),
+        tuple((g.group_id, g.zone_roles) for g in groups),
+    )
+    reservations = reserve_mandatory_interfaces(interfaces, topology)
     return StructuralCompositionPlanV2(
         identity=(
             f"{IDENTITY_PREFIX}@{SCHEMA_VERSION}:{family.value}:"
@@ -687,17 +733,12 @@ def _build_plan(
             variant_index=variant_index,
         ),
         signature=signature,
-        mandatory_hard_interfaces=project_mandatory_hard_interfaces(
-            {item.zone_role: item.group_id for item in assignments},
-            {item.zone_role: item.band_id for item in assignments},
-            {
-                item.zone_role: tuple(
-                    domain.domain_id.value
-                    for domain in domains
-                    if item.zone_role in domain.zone_roles
-                )
-                for item in assignments
-            },
+        mandatory_hard_interfaces=interfaces,
+        mandatory_interface_reservations=reservations,
+        structural_interface_capacity_gate=assess_mandatory_interface_capacity(
+            interfaces,
+            reservations,
+            topology,
         ),
     )
 

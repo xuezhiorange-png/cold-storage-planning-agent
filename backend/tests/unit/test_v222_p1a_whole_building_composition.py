@@ -167,6 +167,8 @@ def test_machine_readable_evidence_is_a_deterministic_projection_of_runtime_plan
     for index, plan in enumerate(plans):
         body = plan.to_dict()
         body.pop("mandatory_hard_interfaces")
+        body.pop("mandatory_interface_reservations")
+        body.pop("structural_interface_capacity_gate")
         historical_projection.append({"candidate_id": chr(65 + index), **body})
     assert evidence["candidates"] == historical_projection
 

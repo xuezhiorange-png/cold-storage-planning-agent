@@ -357,8 +357,12 @@ def test_machine_readable_s2_evidence_matches_the_bound_runtime_result() -> None
     ):
         old_plan = plan.to_dict()
         old_plan.pop("mandatory_hard_interfaces")
+        old_plan.pop("mandatory_interface_reservations")
+        old_plan.pop("structural_interface_capacity_gate")
         old_handoff = asdict(handoff)
         old_handoff.pop("mandatory_hard_interfaces")
+        old_handoff.pop("mandatory_interface_reservations")
+        old_handoff.pop("structural_interface_capacity_gate")
         old_handoff["source_composition_hash"] = canonical_hash(old_plan)
         assert historical["canonical_hash"] == canonical_hash(old_handoff)
         assert historical["canonical_hash"] != handoff.canonical_result_hash
