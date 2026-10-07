@@ -22,11 +22,15 @@ from cold_storage.modules.layout.domain.composition_handoff import (
 from cold_storage.modules.layout.domain.composition_placement import (
     DEFAULT_COMPOSITION_PLACEMENT_NODE_BUDGET,
     CompositionPlacementEnumerationV1,
+    validate_composition_placement_node_budget,
 )
 from cold_storage.modules.layout.domain.composition_placement import (
     enumerate_composition_placements as enumerate_domain_composition_placements,
 )
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError, canonical_hash
+from cold_storage.modules.layout.domain.metric_reservation_consumption import (
+    build_metric_runtime_context,
+)
 
 IDENTITY = "composition-placement-application@1.0.0"
 SCHEMA_VERSION = "1.0.0"
@@ -155,12 +159,19 @@ def enumerate_composition_placements(
     The public API accepts no composition handoff object.  Caller-supplied
     composition payloads therefore cannot become the placement engine input.
     """
+    validate_composition_placement_node_budget(node_budget)
     binding = bind_layout_authority(canonical_zone_plan, p1_handoff, site_geometry)
     composition_result = build_structural_compositions(
         canonical_zone_plan, p1_handoff, site_geometry
     )
     _assert_server_replay(composition_result, binding)
     site_body = site_geometry.to_dict()
+    runtime = build_metric_runtime_context(
+        composition_result.placement_handoffs,
+        binding.dimension_authorities,
+        site_body,
+        binding.site_geometry_hash,
+    )
     placements = enumerate_domain_composition_placements(
         composition_result.placement_handoffs,
         binding.dimension_authorities,
@@ -169,6 +180,7 @@ def enumerate_composition_placements(
         source_p1_handoff_hash=binding.p1_handoff_hash,
         source_site_geometry_hash=binding.site_geometry_hash,
         node_budget=node_budget,
+        runtime_context=runtime,
     )
     return CompositionPlacementApplicationResultV1(
         identity=IDENTITY,

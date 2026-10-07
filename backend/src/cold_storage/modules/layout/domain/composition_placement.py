@@ -30,6 +30,15 @@ from cold_storage.modules.layout.domain.composition_handoff import (
     StructuralCompositionPlacementHandoffV1,
 )
 from cold_storage.modules.layout.domain.dimensioning import canonical_hash
+from cold_storage.modules.layout.domain.metric_reservation_consumption import (
+    MetricReservationSupportQueryV1,
+    MetricReservationSupportStateV1,
+    MetricRuntimeContextV1,
+    MetricSupportDiagnosticsV1,
+    MetricSupportStatusV1,
+    RuntimeMetricReservationDomainV1,
+    build_metric_runtime_context,
+)
 from cold_storage.modules.layout.domain.site_geometry import (
     PlacedRectangleV1,
     PolygonMM,
@@ -186,10 +195,12 @@ class CompositionPlacementSearchAttemptV1:
     node_budget_exhausted: bool
     complete_layout_found: bool
     failure_reason: str | None
+    metric_reservation_diagnostics: Mapping[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "family": self.family.value,
+            "metric_reservation_diagnostics": dict(self.metric_reservation_diagnostics),
             "composition_identity": self.composition_identity,
             "composition_signature": self.composition_signature,
             "process_axis": self.process_axis.value,
@@ -326,6 +337,8 @@ class _SearchDiagnostics:
     generic_nodes_by_role: dict[str, int] = field(default_factory=dict)
     authority_shape_count: dict[str, int] = field(default_factory=dict)
     construction_shape_count: dict[str, int] = field(default_factory=dict)
+    metric_support: MetricSupportDiagnosticsV1 = field(default_factory=MetricSupportDiagnosticsV1)
+    metric_capacity: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -360,6 +373,7 @@ class CompositionPlacementEnumerationV1:
     failure_reason_by_family: tuple[tuple[str, str], ...]
     search_attempts: tuple[CompositionPlacementSearchAttemptV1, ...]
     candidates: tuple[CompositionPlacementCandidateV1, ...]
+    metric_runtime_diagnostics: Mapping[str, Any] = field(default_factory=dict)
     exact_placement_performed: bool = True
     access_routing_performed: bool = False
     truck_validation_performed: bool = False
@@ -371,6 +385,7 @@ class CompositionPlacementEnumerationV1:
             "identity": self.identity,
             "schema_version": self.schema_version,
             "node_budget": self.node_budget,
+            "metric_runtime_diagnostics": dict(self.metric_runtime_diagnostics),
             "nodes_used": self.nodes_used,
             "node_budget_exhausted": self.node_budget_exhausted,
             "initial_family_budget": self.initial_family_budget,
@@ -1277,11 +1292,26 @@ def _search_one(
     domains: tuple[ConstructionDomainV1, ...],
     bank_sign: int,
     node_limit: int,
+    runtime_domains: tuple[RuntimeMetricReservationDomainV1, ...],
 ) -> _SearchOutcome:
     order = _zone_order(handoff)
     faces = _domain_faces(handoff, bank_sign)
     ordered_shapes = _composition_shape_order(handoff, shapes, bank_sign)
     diagnostics = _SearchDiagnostics(node_limit=node_limit)
+    support_query = MetricReservationSupportQueryV1(
+        runtime_domains,
+        process_graph().must_adjacencies,
+        lambda partial: _partial_intent_possible(handoff, partial, faces),
+    )
+    diagnostics.metric_support = support_query.diagnostics
+    diagnostics.metric_capacity = {
+        "prunes": 0,
+        "support_candidate_attempts": 0,
+        "support_candidate_accepts": 0,
+        "accepted_partial_with_zero_capacity": 0,
+        "final_consumed": [],
+        "legacy_role_specific_seed_calls": 0,
+    }
     role_rank = {role: index for index, role in enumerate(order)}
     for role in order:
         diagnostics.funnel[role] = {
@@ -1385,7 +1415,9 @@ def _search_one(
         diagnostics.failure_taxonomy = f"{role.upper()}_{reason}_REJECTION"
 
     def recurse(
-        index: int, placed: dict[str, PlacedRectangleV1]
+        index: int,
+        placed: dict[str, PlacedRectangleV1],
+        support_states: tuple[MetricReservationSupportStateV1, ...],
     ) -> dict[str, PlacedRectangleV1] | None:
         if index < len(order):
             set_attempted(order[index], placed)
@@ -1394,10 +1426,21 @@ def _search_one(
                 rectangles_share_positive_edge(placed[first], placed[second])
                 for first, second in process_graph().must_adjacencies
             )
-            if must_ok and _intent_preserved(handoff, placed, faces):
+            intent_ok = must_ok and _intent_preserved(handoff, placed, faces)
+            consumed_ok = intent_ok and support_query.consumed(placed, support_states)
+            if consumed_ok:
+                diagnostics.metric_capacity["final_consumed"] = [
+                    domain.proof(state.support_index)
+                    for domain, state in zip(runtime_domains, support_states, strict=True)
+                    if state.support_index is not None
+                ]
                 return dict(placed)
             diagnostics.failure_taxonomy = (
-                "FINAL_MUST_ADJACENCY_REJECTION" if not must_ok else "COMPOSITION_INTENT_REJECTION"
+                "FINAL_MUST_ADJACENCY_REJECTION"
+                if not must_ok
+                else "COMPOSITION_INTENT_REJECTION"
+                if not intent_ok
+                else "FINAL_METRIC_RESERVATION_UNCONSUMED"
             )
             save_witness(placed, "COMPLETE")
             return None
@@ -1471,26 +1514,30 @@ def _search_one(
         # authority shapes. Generic physical-event anchors are a bounded,
         # explicitly secondary continuation.
         domain_origins_by_shape: dict[_Shape, set[tuple[int, int]]] = {}
-        for source in ("DOMAIN", "GENERIC"):
+        support_candidates = support_query.support_candidates(code, placed, support_states)
+        attempted: set[tuple[_Shape, int, int]] = set()
+        for source in ("METRIC_RESERVATION_SUPPORT", "DOMAIN", "GENERIC"):
             if source == "GENERIC" and diagnostics.generic_nodes >= max(1, node_limit // 10):
                 break
-            for shape in ordered_shapes[code]:
+            source_shapes = (
+                tuple(dict.fromkeys(shape for shape, _ in support_candidates))
+                if source == "METRIC_RESERVATION_SUPPORT"
+                else ordered_shapes[code]
+            )
+            for shape in source_shapes:
+                if shape not in ordered_shapes[code]:
+                    raise ValueError("METRIC_SUPPORT_SHAPE_AUTHORITY_MISMATCH")
                 diagnostics.funnel[code]["shape_variant_attempt_count"] += 1
-                if source == "DOMAIN":
+                if source == "METRIC_RESERVATION_SUPPORT":
+                    origins = tuple(
+                        origin
+                        for supplied_shape, origin in support_candidates
+                        if supplied_shape == shape
+                    )
+                elif source == "DOMAIN":
                     origins = _domain_derived_anchors(
                         code, shape, handoff, domains, bank_sign, placed, boundary, obstacles
                     )
-                    cached_office = (
-                        diagnostics.office_seed_by_shipping.get(
-                            placed["shipping_channel"].bounds_mm
-                        )
-                        if code == "office" and "shipping_channel" in placed
-                        else None
-                    )
-                    if cached_office is not None and cached_office[0] == shape:
-                        origins = (cached_office[1],) + tuple(
-                            point for point in origins if point != cached_office[1]
-                        )
                     diagnostics.domain_anchor_count[code] += len(origins)
                     diagnostics.funnel[code]["domain_derived_anchor_count"] += len(origins)
                     domain_origins_by_shape[shape] = set(origins)
@@ -1505,20 +1552,16 @@ def _search_one(
                     )
                     diagnostics.generic_anchor_count[code] += len(origins)
                     diagnostics.funnel[code]["generic_fallback_anchor_count"] += len(origins)
-                for x, y in ordered_points(origins, shape):
-                    cached_office = (
-                        diagnostics.office_seed_by_shipping.get(
-                            placed["shipping_channel"].bounds_mm
-                        )
-                        if code == "office" and "shipping_channel" in placed
-                        else None
-                    )
-                    reused_office_probe = (
-                        source == "DOMAIN"
-                        and cached_office is not None
-                        and cached_office == (shape, (x, y))
-                    )
-                    if diagnostics.nodes >= node_limit and not reused_office_probe:
+                points = (
+                    origins
+                    if source == "METRIC_RESERVATION_SUPPORT"
+                    else ordered_points(origins, shape)
+                )
+                for x, y in points:
+                    candidate_key = (shape, x, y)
+                    if candidate_key in attempted:
+                        continue
+                    if diagnostics.nodes >= node_limit:
                         diagnostics.budget_hit = True
                         diagnostics.failure_taxonomy = "PLACEMENT_NODE_BUDGET_EXHAUSTED"
                         save_witness(placed, code)
@@ -1527,9 +1570,14 @@ def _search_one(
                         1, node_limit // 10
                     ):
                         break
-                    if not reused_office_probe:
-                        diagnostics.nodes += 1
-                        diagnostics.funnel[code]["candidate_rectangle_attempt_count"] += 1
+                    attempted.add(candidate_key)
+                    diagnostics.nodes += 1
+                    diagnostics.funnel[code]["candidate_rectangle_attempt_count"] += 1
+                    if source == "METRIC_RESERVATION_SUPPORT":
+                        diagnostics.metric_capacity["support_candidate_attempts"] += 1
+                        support_query.candidate_event(
+                            "candidate_attempts", code, (shape, (x, y)), placed, support_states
+                        )
                     if source == "GENERIC":
                         diagnostics.generic_nodes += 1
                         diagnostics.generic_nodes_by_role[code] += 1
@@ -1565,6 +1613,22 @@ def _search_one(
                         )
                         placed.pop(code, None)
                         continue
+                    child_support = support_query.update(placed, support_states)
+                    if any(state.status == MetricSupportStatusV1.NONE for state in child_support):
+                        diagnostics.metric_capacity["prunes"] += 1
+                        diagnostics.failure_taxonomy = "METRIC_RESERVATION_CAPACITY_CLOSED"
+                        placed.pop(code, None)
+                        save_witness(placed, code)
+                        continue
+                    if source == "METRIC_RESERVATION_SUPPORT":
+                        diagnostics.metric_capacity["support_candidate_accepts"] += 1
+                        support_query.candidate_event(
+                            "candidate_accepts",
+                            code,
+                            (shape, (x, y)),
+                            {r: v for r, v in placed.items() if r != code},
+                            support_states,
+                        )
                     diagnostics.max_placed = max(diagnostics.max_placed, len(placed))
                     if diagnostics.deepest_successfully_placed == "NOT_PLACED" or role_rank[
                         code
@@ -1573,27 +1637,7 @@ def _search_one(
                     diagnostics.funnel[code]["accepted_partial_placement_count"] += 1
                     diagnostics.failure_taxonomy = "PARTIAL_PLACEMENT_ACCEPTED"
                     save_witness(placed, order[index + 1] if index + 1 < len(order) else "COMPLETE")
-                    if code == "shipping_channel":
-                        seed = _shipping_office_seed(
-                            candidate,
-                            placed,
-                            ordered_shapes["office"],
-                            handoff,
-                            domains,
-                            bank_sign,
-                            boundary,
-                            obstacles,
-                            diagnostics,
-                        )
-                        if seed is None:
-                            diagnostics.funnel[code]["coupled_interface_rejection_count"] += 1
-                            diagnostics.failure_taxonomy = "SHIPPING_OFFICE_INTERFACE_REJECTION"
-                            save_witness(placed, "office")
-                            placed.pop(code, None)
-                            if diagnostics.budget_hit:
-                                return None
-                            continue
-                    solution = recurse(index + 1, placed)
+                    solution = recurse(index + 1, placed, child_support)
                     if solution is not None:
                         return solution
                     placed.pop(code, None)
@@ -1601,15 +1645,6 @@ def _search_one(
                     if diagnostics.budget_hit:
                         return None
         return None
-
-    if diagnostics.shipping_office_status == "PROVABLY_NO_SHARED_EDGE_CAPACITY_IN_SITE_BOUNDS":
-        diagnostics.failure_taxonomy = "SHIPPING_OFFICE_INTERFACE_PROVED_IMPOSSIBLE_IN_SITE_BOUNDS"
-        return _SearchOutcome(
-            solution=None,
-            diagnostics=diagnostics,
-            deepest_attempted="NOT_ATTEMPTED",
-            deepest_successfully_placed="NOT_PLACED",
-        )
 
     if total_zone_area > site_area:
         diagnostics.failure_taxonomy = "AUTHORITATIVE_ZONE_AREA_EXCEEDS_BUILDABLE_SITE_AREA"
@@ -1620,7 +1655,14 @@ def _search_one(
             deepest_attempted="NOT_ATTEMPTED",
             deepest_successfully_placed="NOT_PLACED",
         )
-    solution = recurse(0, {})
+    root_support = support_query.update({})
+    diagnostics.metric_capacity["root"] = [asdict(state) for state in root_support]
+    if any(state.status == MetricSupportStatusV1.NONE for state in root_support):
+        diagnostics.failure_taxonomy = "ROOT_METRIC_RESERVATION_CAPACITY_CLOSED"
+        save_witness({}, order[0])
+        solution = None
+    else:
+        solution = recurse(0, {}, root_support)
     if diagnostics.best_witness is None:
         diagnostics.failure_taxonomy = "NO_PARTIAL_PLACEMENT"
         save_witness({}, order[0])
@@ -1670,6 +1712,16 @@ def _candidate(
     )
 
 
+def validate_composition_placement_node_budget(node_budget: int) -> None:
+    """Existing budget contract, also checked before costly runtime construction."""
+    if (
+        type(node_budget) is not int
+        or node_budget < len(FAMILY_ORDER)
+        or node_budget > MAX_COMPOSITION_PLACEMENT_NODE_BUDGET
+    ):
+        raise ValueError("INVALID_COMPOSITION_PLACEMENT_NODE_BUDGET")
+
+
 def enumerate_composition_placements(
     handoffs: Sequence[StructuralCompositionPlacementHandoffV1],
     dimension_authorities: Mapping[str, Mapping[str, Any]],
@@ -1679,14 +1731,10 @@ def enumerate_composition_placements(
     source_p1_handoff_hash: str,
     source_site_geometry_hash: str,
     node_budget: int = DEFAULT_COMPOSITION_PLACEMENT_NODE_BUDGET,
+    runtime_context: MetricRuntimeContextV1 | None = None,
 ) -> CompositionPlacementEnumerationV1:
     """Generate bounded, family-first exact candidates from server-bound intents."""
-    if (
-        type(node_budget) is not int
-        or node_budget < len(FAMILY_ORDER)
-        or node_budget > MAX_COMPOSITION_PLACEMENT_NODE_BUDGET
-    ):
-        raise ValueError("INVALID_COMPOSITION_PLACEMENT_NODE_BUDGET")
+    validate_composition_placement_node_budget(node_budget)
     if set(dimension_authorities) != set(ZONE_CODES):
         raise ValueError("DIMENSION_AUTHORITY_ROLE_COVERAGE_INVALID")
     if not handoffs or any(
@@ -1703,6 +1751,22 @@ def enumerate_composition_placements(
         role: _canonical_construction_shapes(variants)
         for role, variants in authority_shapes.items()
     }
+    if runtime_context is None:
+        runtime_context = build_metric_runtime_context(
+            handoffs, dimension_authorities, site_geometry, source_site_geometry_hash
+        )
+    if (
+        runtime_context.source_site_geometry_hash != source_site_geometry_hash
+        or runtime_context.source_dimension_authorities_hash
+        != canonical_hash(dimension_authorities)
+        or runtime_context.handoff_hashes != tuple(h.canonical_result_hash for h in handoffs)
+    ):
+        raise ValueError("METRIC_RUNTIME_CONTEXT_PROVENANCE_MISMATCH")
+    expected_edges = tuple(
+        r.interface_source_edge_identity for r in handoffs[0].mandatory_interface_reservations
+    )
+    if tuple(d.source_edge_identity for d in runtime_context.domains) != expected_edges:
+        raise ValueError("METRIC_RUNTIME_AUTHORITY_COVERAGE_MISMATCH")
     by_family: dict[CompositionFamilyV2, list[StructuralCompositionPlacementHandoffV1]] = (
         defaultdict(list)
     )
@@ -1761,6 +1825,7 @@ def enumerate_composition_placements(
             domains,
             bank_sign,
             allocation,
+            runtime_context.domains,
         )
         solution = outcome.solution
         diagnostics = outcome.diagnostics
@@ -1775,9 +1840,9 @@ def enumerate_composition_placements(
             max_placed_by_family[family_key], diagnostics.max_placed
         )
         attempt_role_rank = {role: index for index, role in enumerate(_zone_order(handoff))}
-        if attempt_role_rank[deepest_attempted] >= deepest_attempted_rank[family_key]:
+        if attempt_role_rank.get(deepest_attempted, -1) >= deepest_attempted_rank[family_key]:
             deepest_attempted_by_family[family_key] = deepest_attempted
-            deepest_attempted_rank[family_key] = attempt_role_rank[deepest_attempted]
+            deepest_attempted_rank[family_key] = attempt_role_rank.get(deepest_attempted, -1)
         deepest_placed = outcome.deepest_successfully_placed
         if (
             deepest_placed != "NOT_PLACED"
@@ -1848,6 +1913,10 @@ def enumerate_composition_placements(
                 node_budget_exhausted=hit,
                 complete_layout_found=solution is not None,
                 failure_reason=attempt_failure,
+                metric_reservation_diagnostics={
+                    **diagnostics.metric_capacity,
+                    **diagnostics.metric_support.to_dict(),
+                },
             )
         )
         remaining -= visited
@@ -1944,4 +2013,20 @@ def enumerate_composition_placements(
         failure_reason_by_family=tuple((key, failures[key]) for key in sorted(failures)),
         search_attempts=tuple(search_attempts),
         candidates=tuple(candidates),
+        metric_runtime_diagnostics={
+            "unique_domain_build_count": len(runtime_context.domains),
+            "reused_across_compositions": True,
+            "total_valid_slot_count": sum(len(d.slots) for d in runtime_context.domains),
+            "domains": [
+                {
+                    "source_edge_identity": d.source_edge_identity,
+                    "roles": d.summary.roles,
+                    "valid_slot_count": len(d.slots),
+                    "slot_set_digest": d.summary.slot_set_digest,
+                    "finite_domain_identity": d.summary.finite_domain_identity,
+                    "finite_domain_complete": d.summary.complete,
+                }
+                for d in runtime_context.domains
+            ],
+        },
     )

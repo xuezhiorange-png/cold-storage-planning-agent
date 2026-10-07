@@ -6,7 +6,7 @@ It is not the continuous feasible set. Topological hosts have no metric footprin
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from functools import lru_cache
@@ -341,6 +341,10 @@ def evaluate_pair_domain(
     obstacles: tuple[PolygonMM, ...],
     *,
     evaluation_cap: int = DEFAULT_PAIR_EVALUATION_CAP,
+    slot_sink: Callable[
+        [tuple[Bounds, Bounds, AuthoritativeZoneShapeV1, AuthoritativeZoneShapeV1]], None
+    ]
+    | None = None,
 ) -> PairwiseMetricDomainResultV1:
     if evaluation_cap < 0:
         raise ValueError("INVALID_METRIC_EVALUATION_CAP")
@@ -400,6 +404,10 @@ def evaluate_pair_domain(
             continue
         valid_count += 1
         digest.update((str(key) + "\n").encode("ascii"))
+        if slot_sink is not None:
+            # Runtime consumption and serialized P2 summaries share this exact
+            # enumeration, predicate set, canonical order and completeness cap.
+            slot_sink((ba, bb, sa, sb))
         assert a is not None and b is not None
         side, _, _ = shared_edge(a, b)
         if side not in witnesses:

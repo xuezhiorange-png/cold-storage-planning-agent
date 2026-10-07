@@ -2,7 +2,68 @@
 
 Status: proposed; P0 projection, authorized P1 topological reservation and P2
 pairwise metric realization, and authorized R1 hard-obstacle source remediation.
-P3 consumption is not authorized.
+P3 dynamic partial-layout consumption is now separately authorized; later phases are not.
+
+## P3: dynamic partial-layout consumption of complete metric domains
+
+Owner authorized P3 from `112f30115d201dd8ef2daf541f5352b92d2154fe`.
+P0 makes hard interfaces visible; P1 reserves topological attachment slots;
+P2 enumerates finite pairwise site/dimension-aware alternatives; R1 aligns
+validated hard-obstacle authority. P3 now consumes those alternatives during
+construction, not after the last room is placed.
+
+The server-owned application rebuilds a runtime context from replayed structural
+handoffs, bound dimensions and validated site. Each unique authority edge is
+built once per invocation and shared across compositions. The existing P2
+evaluator supplies all valid compact bounds/shape keys through an internal sink;
+its enumeration order, count, digest, cap, predicates and serialized result are
+unchanged. Representative slots are audit samples, never complete domains,
+support-query inputs, or coordinate seeds. Complete runtime domains are not
+serialized into Plan/Handoff or evidence.
+
+Every ordinarily hard-valid candidate updates all reservation supports before
+recursive acceptance. A placed endpoint must exactly match the slot footprint.
+Unplaced endpoints must avoid every placed room, satisfy all placed MUST
+neighbors and pass the unchanged partial-composition predicate provisionally.
+Both placed endpoints must consume an exact P2 pair, in addition to the final
+engineering MUST checks. Missing finite-domain support is a construction-domain
+rejection, not engineering or global infeasibility. Incomplete domains yield
+UNKNOWN and never hard-prune.
+
+Support states are immutable branch values. Reuse the current witness first;
+otherwise advance a deterministic cursor through an exact endpoint index or
+the complete slot sequence. Earlier failed slots remain invalid on descendants:
+placed geometry only grows; overlap, placed-endpoint mismatch, placed MUST
+failure and the existing fixed-predicate violations cannot be undone without
+backtracking. If a provisional endpoint is later fixed differently, the old
+slot fails exact endpoint matching. Parent states remain untouched, restoring
+their cursor/witness for every sibling. Small exhaustive fixtures verify this
+optimization against full-domain support existence.
+
+A current support is advisory, not a hard spatial lock. It may migrate when
+blocked. Only a reservation with exactly one placed endpoint may offer its
+partner as a prioritized construction candidate. That candidate consumes a
+normal placement node and passes every existing hard check and all reservation
+updates. Deterministic geometry dedup prevents duplicate node charges; normal
+DOMAIN/GENERIC fallback remains. Unanchored pair slots never seed coordinates.
+Legacy role-specific Shipping/Office seed code has no production call path.
+
+Seven independent support witnesses do not establish joint whole-building
+feasibility. Only a fully constructed candidate with seven exact consumed pairs
+closes this phase's business gate. No Access, Truck, P2D or candidate selection
+is added. Engineering authorities, shape algorithm, zone order, scheduler and
+60,000 placement-node budget are unchanged. Reservation filtering is separately
+diagnosed, not charged as a rectangle expansion or a hidden capped search.
+
+Schema policy: runtime context/support/indexes are internal and non-persisted;
+only additive search diagnostics change exact-placement serialization. Historical
+P0/P1/P2/R1 evidence is immutable, Plan/Handoff remain coordinate-free, and the
+independent P2 public artifact retains its canonical hash. The prior R1
+unchanged-search assertion remains pinned to the R1 commit; P3 intentionally
+adds a new construction lifecycle constraint, without changing hard authority.
+
+No phase follows automatically. Access/Truck/P2D, selection, Ready, Merge,
+release and deployment remain unauthorized after P3.
 
 ## Context
 

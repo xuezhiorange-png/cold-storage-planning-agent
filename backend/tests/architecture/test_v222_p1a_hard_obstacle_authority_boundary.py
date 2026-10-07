@@ -3,6 +3,8 @@
 import ast
 import hashlib
 import inspect
+import subprocess
+from pathlib import Path
 
 from cold_storage.modules.layout.application import metric_interface_reservation as metric
 from cold_storage.modules.layout.domain import composition_placement as exact
@@ -21,10 +23,25 @@ def test_p2_and_exact_placement_share_one_hard_obstacle_parser() -> None:
         assert '["hard_obstacles"]' not in source
 
 
-def test_search_and_candidate_acceptance_ast_unchanged_from_r1_start() -> None:
+def test_r1_historical_search_ast_unchanged_from_r1_start() -> None:
+    # P3 is separately authorized to change construction consumption. Keep the
+    # R1 claim pinned to its actual final Git object, not to every future search.
+    source = subprocess.run(
+        [
+            "git",
+            "show",
+            "112f30115d201dd8ef2daf541f5352b92d2154fe:"
+            "backend/src/cold_storage/modules/layout/domain/composition_placement.py",
+        ],
+        cwd=Path(__file__).resolve().parents[3],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    ).stdout
     nodes = [
         node
-        for node in ast.parse(inspect.getsource(exact)).body
+        for node in ast.parse(source).body
         if isinstance(node, (ast.FunctionDef, ast.ClassDef))
         and node.name != "enumerate_composition_placements"
     ]
