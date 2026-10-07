@@ -36,7 +36,7 @@ from cold_storage.modules.layout.domain.metric_interface_reservation import (
     evaluate_pair_domain,
     rectangle_at,
 )
-from cold_storage.modules.layout.domain.site_geometry import (
+from cold_storage.modules.layout.domain.validated_site_obstacles import (
     validated_hard_obstacle_polygons,
 )
 from tests.unit.test_v222_p1a_composition_authority_handoff import FIXTURE, _context

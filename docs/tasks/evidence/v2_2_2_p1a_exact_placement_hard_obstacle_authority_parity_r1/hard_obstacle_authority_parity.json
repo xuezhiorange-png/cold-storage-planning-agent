@@ -31,7 +31,7 @@
       "sha256:81985030fd850d911123e3c28255a75c227891b237985d0670983ab08bff2b08",
       "sha256:c2e0a7d2b22ce5d0ba89e3b39b2adb0af274bc1943f70e9d41f384f34b4ab5e1"
     ],
-    "shared_parser": "site_geometry.validated_hard_obstacle_polygons",
+    "shared_parser": "validated_site_obstacles.validated_hard_obstacle_polygons",
     "site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
     "source_hard_obstacle_identities": [
       "sha256:b3ea040f1d8c5cb0d62ce8a420cc873443b29697018fe65ddd0101f48efbc549",
@@ -9107,6 +9107,38 @@
     "ruff": "PASS_CI_SCOPE_904_FILES",
     "mypy": "PASS_400_SOURCE_FILES",
     "extra_explicit_pilot_scan": "PREEXISTING_FORMAT_DIFFERENCES_TWO_UNRELATED_FILES_NOT_EDITED",
-    "single_green_full_local_invocation_claimed": false
-  }
+    "single_green_full_local_invocation_claimed": false,
+    "relocated_focused": "35 passed",
+    "relocated_ruff": "PASS_CI_SCOPE_905_FILES",
+    "relocated_mypy": "PASS_401_SOURCE_FILES"
+  },
+  "parser_relocation": {
+    "source_commit": "3147194d9ec407025f8f52262a0456302ac46409",
+    "source_function_ast_sha256": "da84ad9ccf1f0ae3d6b24fe1f0348fd7ea1637328edd6f78ba39403f3e8455e6",
+    "complete_function_ast_preserved": true,
+    "site_geometry_authority_file_restored_to_start": true,
+    "legacy_authority_freeze_test_unchanged": true,
+    "final_head_revalidation": "TWO_REAL_PRODUCTION_REPLAYS_REQUIRED_AFTER_RELOCATION_COMPARE_TO_THIS_CAPTURE",
+    "site_geometry_start_and_final_blob": "a0fa04aa53cd04e2d7a21cda6e08f74ff3fb0f4e"
+  },
+  "prior_ci_attempts": [
+    {
+      "event": "pull_request",
+      "run_id": 37591462176,
+      "attempt": 1,
+      "head_sha": "3147194d9ec407025f8f52262a0456302ac46409",
+      "conclusion": "failure",
+      "failure": "P2B2_SITE_GEOMETRY_WHOLE_FILE_AUTHORITY_FREEZE",
+      "postgresql": "success"
+    },
+    {
+      "event": "push",
+      "run_id": 37591455812,
+      "attempt": 1,
+      "head_sha": "3147194d9ec407025f8f52262a0456302ac46409",
+      "conclusion": "failure",
+      "failure": "P2B2_SITE_GEOMETRY_WHOLE_FILE_AUTHORITY_FREEZE",
+      "postgresql": "success"
+    }
+  ]
 }

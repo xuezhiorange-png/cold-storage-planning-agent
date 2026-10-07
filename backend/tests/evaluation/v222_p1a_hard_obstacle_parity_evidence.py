@@ -10,8 +10,8 @@ from cold_storage.modules.layout.application.metric_interface_reservation import
     realize_metric_interface_reservations,
 )
 from cold_storage.modules.layout.domain.dimensioning import canonical_hash, canonical_json
-from cold_storage.modules.layout.domain.site_geometry import (
-    normalize_polygon,
+from cold_storage.modules.layout.domain.site_geometry import normalize_polygon
+from cold_storage.modules.layout.domain.validated_site_obstacles import (
     validated_hard_obstacle_polygons,
 )
 from tests.unit.test_v222_p1a_composition_authority_handoff import _context
@@ -70,7 +70,7 @@ def capture() -> dict[str, Any]:
             "final_exact_polygon_hashes": [canonical_hash(p) for p in current],
             "p2_polygon_hashes": [canonical_hash(p) for p in current],
             "site_geometry_hash": context[2].canonical_result_hash,
-            "shared_parser": "site_geometry.validated_hard_obstacle_polygons",
+            "shared_parser": "validated_site_obstacles.validated_hard_obstacle_polygons",
         },
         "p2_metric_parity": {
             "start_evidence": str(p2_path.relative_to(ROOT)),

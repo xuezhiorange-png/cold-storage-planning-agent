@@ -174,7 +174,8 @@ authorized remediation. P3 is not authorized by P2; no DFS consumption occurs.
 ## R1 authorized addendum — validated hard-obstacle source parity
 
 The P2 gap above records the historical state. R1 aligns exact placement and
-P2 through one pure `validated_hard_obstacle_polygons` parser of the existing
+P2 through one pure `validated_site_obstacles.validated_hard_obstacle_polygons`
+parser of the existing
 validated `hard_obstacles` authority. It preserves source order and strictly
 requires the list, hard marker and normalizable footprints; there is no fallback
 to no-build-only data. Retained buildings stay hard and conditional removals
@@ -190,6 +191,10 @@ two full placement and metric replays verify deterministic correspondence.
 After remediation verification, P2 and exact placement share the same validated
 hard-obstacle source. This removes only the diagnosed authority parity blocker.
 It does not implement metric-slot consumption: P3 remains unauthorized.
+
+The original `site_geometry.py` authority file remains byte-identical to the
+baseline. The pure input projection is in a separate domain module, preserving
+the existing P2B2 whole-file authority lock without weakening its regression.
 
 ## Verification
 

@@ -16,7 +16,8 @@ Before: exact placement parsed `obstacles.no_build_zones`, while P2 parsed
 `obstacles.hard_obstacles`. Retained existing buildings could therefore be absent
 from both exact candidate rejection and flexible-shape obstacle span events.
 
-After: both use the pure domain function `validated_hard_obstacle_polygons`.
+After: both use the pure domain function
+`validated_site_obstacles.validated_hard_obstacle_polygons`.
 It requires an obstacles mapping and an explicit hard-obstacle list; each item
 must be a mapping with `hard is True` and a normalizable footprint. Source order
 is preserved. Missing/malformed authority fails closed, without a no-build
@@ -100,7 +101,27 @@ focused evidence-record test. This is not represented as a single green local
 full-suite invocation. Exact-head PR/Push CI remains the complete clean-environment
 gate, recorded separately in the PR and final response.
 
-## Stop
+## Exact-head CI correction: preserve the frozen site authority file
+
+The first R1 commit `3147194d9ec407025f8f52262a0456302ac46409` had a pure
+parser added to `site_geometry.py`. PR CI `37591462176` and Push CI
+`37591455812` (attempt 1) failed the existing P2B2 whole-file authority freeze:
+`test_scope_is_additive_and_does_not_touch_layout_authorities`.
+Both PostgreSQL jobs succeeded. The failed architecture test is not weakened
+or edited. The helper is mechanically relocated to the dedicated domain module
+`validated_site_obstacles.py`, and `site_geometry.py` is restored byte-for-byte
+to the pinned START authority. A complete function AST regression binds the
+parser to its already replayed implementation (digest
+`da84ad9ccf1f0ae3d6b24fe1f0348fd7ea1637328edd6f78ba39403f3e8455e6`).
+Only imports/provenance change; parser logic and both consumer algorithms do not.
+Relocated focused selection: 35 passed; Ruff/format: 905 files already formatted;
+all-source mypy: 401 files passed. The final committed code is revalidated with
+two actual canonical exact and two actual full metric production calls, comparing
+to this captured evidence; stdout/PR confirmation records that final-head check.
+Final exact/metric revalidation and new exact-head PR/Push CI must still finish;
+the failed older-SHA runs remain part of the audit history, not final evidence.
+
+## Final stop boundary
 
 Closing this source parity gap removes that specific future-consumption blocker.
 It does not prove whole-building feasibility or authorize metric-slot consumption.

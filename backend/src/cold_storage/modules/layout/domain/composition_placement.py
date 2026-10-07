@@ -38,12 +38,14 @@ from cold_storage.modules.layout.domain.site_geometry import (
     rectangle_intersects_closed_obstacle,
     rectangles_overlap,
     rectangles_share_positive_edge,
-    validated_hard_obstacle_polygons,
 )
 from cold_storage.modules.layout.domain.structural_composition import (
     CompositionFamilyV2,
     ProcessAxisV1,
     ProcessDirectionV1,
+)
+from cold_storage.modules.layout.domain.validated_site_obstacles import (
+    validated_hard_obstacle_polygons,
 )
 
 IDENTITY = "composition-constrained-exact-placement@1.0.0"
