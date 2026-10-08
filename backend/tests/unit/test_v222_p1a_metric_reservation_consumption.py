@@ -228,7 +228,9 @@ def small_search(monkeypatch, d, origins, rejection=None):
     handoff = _result().placement_handoffs[0]
     monkeypatch.setattr(exact, "_zone_order", lambda h: ("shipping_channel", "office"))
     monkeypatch.setattr(
-        exact, "process_graph", lambda: SimpleNamespace(must_adjacencies=(d.summary.roles,))
+        exact,
+        "process_graph",
+        lambda: SimpleNamespace(identity="fixture-hard-graph", must_adjacencies=(d.summary.roles,)),
     )
     monkeypatch.setattr(exact, "_authority_area_mm2", lambda a: 1)
     monkeypatch.setattr(exact, "_capacity_preflight_status", lambda *a: "UNKNOWN")
@@ -288,7 +290,9 @@ def test_static_absence_is_not_a_zero_capacity_proof(monkeypatch):
     assert outcome.diagnostics.max_placed == 1
     assert outcome.diagnostics.funnel["office"]["role_attempt_count"] == 1
     assert outcome.diagnostics.metric_capacity["prunes"] == 0
-    assert outcome.diagnostics.metric_capacity["accepted_partial_with_unknown_capacity"] > 0
+    assert outcome.diagnostics.metric_capacity["accepted_partial_with_pairwise_unknown"] > 0
+    # R3's necessary-origin events independently recover a fully verified joint witness.
+    assert outcome.diagnostics.metric_capacity["accepted_partial_with_joint_certificate"] > 0
 
 
 def test_incomplete_runtime_capacity_does_not_prune_recursion(monkeypatch):

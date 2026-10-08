@@ -35,6 +35,10 @@ from cold_storage.modules.layout.domain.conditional_metric_support import (
     ConditionalSupportStatusV2,
 )
 from cold_storage.modules.layout.domain.dimensioning import canonical_hash
+from cold_storage.modules.layout.domain.joint_metric_capacity import (
+    JointMetricCapacityQueryV1,
+    JointMetricSupportStateV1,
+)
 from cold_storage.modules.layout.domain.metric_reservation_consumption import (
     MetricRuntimeContextV1,
     MetricSupportDiagnosticsV1,
@@ -1330,15 +1334,20 @@ def _search_one(
         },
     )
     diagnostics.metric_support = support_query.diagnostics
+    joint_query = JointMetricCapacityQueryV1(support_query, graph_identity=process_graph().identity)
     diagnostics.metric_capacity = {
         "prunes": 0,
         "support_candidate_attempts": 0,
         "support_candidate_accepts": 0,
         "accepted_partial_with_zero_capacity": 0,
         "accepted_partial_with_unknown_capacity": 0,
+        "accepted_partial_with_pairwise_unknown": 0,
+        "accepted_partial_with_joint_certificate": 0,
+        "accepted_partial_with_false_positive_joint_proof": 0,
         "accepted_partial_pairwise_supported": 0,
         "joint_unplaced_role_capacity_proven": False,
         "final_consumed": [],
+        "final_joint_certificates": [],
         "legacy_role_specific_seed_calls": 0,
     }
     role_rank = {role: index for index, role in enumerate(order)}
@@ -1447,6 +1456,7 @@ def _search_one(
         index: int,
         placed: dict[str, PlacedRectangleV1],
         support_states: tuple[ConditionalMetricSupportStateV2, ...],
+        joint_states: tuple[JointMetricSupportStateV1, ...],
     ) -> dict[str, PlacedRectangleV1] | None:
         if index < len(order):
             set_attempted(order[index], placed)
@@ -1457,10 +1467,19 @@ def _search_one(
             )
             intent_ok = must_ok and _intent_preserved(handoff, placed, faces)
             consumed_ok = intent_ok and support_query.consumed(placed, support_states)
+            consumed_ok = consumed_ok and all(
+                state.certificate is not None and joint_query.verify(state.certificate, placed)
+                for state in joint_states
+            )
             if consumed_ok:
                 diagnostics.metric_capacity["final_consumed"] = [
                     state.certificate.proof()
                     for state in support_states
+                    if state.certificate is not None
+                ]
+                diagnostics.metric_capacity["final_joint_certificates"] = [
+                    state.certificate.proof()
+                    for state in joint_states
                     if state.certificate is not None
                 ]
                 return dict(placed)
@@ -1651,13 +1670,29 @@ def _search_one(
                         placed.pop(code, None)
                         save_witness(placed, code)
                         continue
-                    if any(
+                    pairwise_unknown = any(
                         state.status == ConditionalSupportStatusV2.UNKNOWN
                         for state in child_support
+                    )
+                    child_joint = joint_query.update(placed, child_support, joint_states)
+                    if any(
+                        state.status == ConditionalSupportStatusV2.NONE for state in child_joint
+                    ):
+                        diagnostics.metric_capacity["prunes"] += 1
+                        diagnostics.failure_taxonomy = "JOINT_METRIC_CAPACITY_PROVED_ZERO"
+                        placed.pop(code, None)
+                        save_witness(placed, code)
+                        continue
+                    if pairwise_unknown:
+                        diagnostics.metric_capacity["accepted_partial_with_pairwise_unknown"] += 1
+                    else:
+                        diagnostics.metric_capacity["accepted_partial_pairwise_supported"] += 1
+                    if any(
+                        state.status == ConditionalSupportStatusV2.UNKNOWN for state in child_joint
                     ):
                         diagnostics.metric_capacity["accepted_partial_with_unknown_capacity"] += 1
                     else:
-                        diagnostics.metric_capacity["accepted_partial_pairwise_supported"] += 1
+                        diagnostics.metric_capacity["accepted_partial_with_joint_certificate"] += 1
                     if source == "METRIC_RESERVATION_SUPPORT":
                         diagnostics.metric_capacity["support_candidate_accepts"] += 1
                         support_query.candidate_event(
@@ -1675,7 +1710,7 @@ def _search_one(
                     diagnostics.funnel[code]["accepted_partial_placement_count"] += 1
                     diagnostics.failure_taxonomy = "PARTIAL_PLACEMENT_ACCEPTED"
                     save_witness(placed, order[index + 1] if index + 1 < len(order) else "COMPLETE")
-                    solution = recurse(index + 1, placed, child_support)
+                    solution = recurse(index + 1, placed, child_support, child_joint)
                     if solution is not None:
                         return solution
                     placed.pop(code, None)
@@ -1695,12 +1730,22 @@ def _search_one(
         )
     root_support = support_query.update({})
     diagnostics.metric_capacity["root"] = [asdict(state) for state in root_support]
-    if any(state.status == ConditionalSupportStatusV2.NONE for state in root_support):
+    root_joint = joint_query.update({}, root_support)
+    diagnostics.metric_capacity["root_joint"] = [asdict(state) for state in root_joint]
+    if any(state.status == ConditionalSupportStatusV2.NONE for state in root_support) or any(
+        state.status == ConditionalSupportStatusV2.NONE for state in root_joint
+    ):
+        diagnostics.metric_capacity["prunes"] += 1
         diagnostics.failure_taxonomy = "ROOT_METRIC_RESERVATION_CAPACITY_CLOSED"
         save_witness({}, order[0])
         solution = None
     else:
-        solution = recurse(0, {}, root_support)
+        solution = recurse(0, {}, root_support, root_joint)
+    diagnostics.metric_capacity["joint_capacity"] = joint_query.diagnostics()
+    diagnostics.metric_capacity["joint_unplaced_role_capacity_proven"] = (
+        all(state.status == ConditionalSupportStatusV2.SUPPORTED for state in root_joint)
+        and diagnostics.metric_capacity["accepted_partial_with_unknown_capacity"] == 0
+    )
     if diagnostics.best_witness is None:
         diagnostics.failure_taxonomy = "NO_PARTIAL_PLACEMENT"
         save_witness({}, order[0])

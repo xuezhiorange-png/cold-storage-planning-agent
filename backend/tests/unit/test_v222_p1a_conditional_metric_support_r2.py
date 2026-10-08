@@ -257,4 +257,11 @@ def test_sound_zero_capacity_prunes_before_exact_recursion(monkeypatch):
     assert result.diagnostics.metric_capacity["prunes"] == 1
     assert result.diagnostics.max_placed == 0
     assert result.diagnostics.funnel["office"]["role_attempt_count"] == 0
-    assert any(c.get("proved_none", 0) for c in result.diagnostics.metric_support.by_edge.values())
+    pairwise_negative = any(
+        c.get("proved_none", 0) for c in result.diagnostics.metric_support.by_edge.values()
+    )
+    joint_negative = result.diagnostics.metric_capacity["joint_capacity"]["counts"].get(
+        "PROVED_NO_SUPPORT", 0
+    )
+    # R3 can prove the two-room minimum area impossible already at the root.
+    assert pairwise_negative or joint_negative

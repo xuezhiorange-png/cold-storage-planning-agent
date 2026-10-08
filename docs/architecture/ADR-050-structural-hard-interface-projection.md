@@ -4,6 +4,62 @@ Status: proposed; P0 projection, authorized P1 topological reservation and P2
 pairwise metric realization, and authorized R1 hard-obstacle source remediation.
 P3 dynamic partial-layout consumption is now separately authorized; later phases are not.
 
+## P3-R3: connected HARD component proof (authorized)
+
+Owner authorized R3 from `8c921b0f654d5d00e8664cf19650a278d558a7a0`.
+R2's pairwise certificates remain valid pairwise facts, not joint proofs.
+The runtime proof hierarchy is explicit:
+
+1. `PAIRWISE_POSITIVE`: one exact-valid edge witness.
+2. `SHARED_ROLE_GEOMETRICALLY_COMPATIBLE`: incident witnesses use one geometry
+   for the shared variable; this alone is not a connected-component proof.
+3. `CONNECTED_HARD_COMPONENT_JOINTLY_SUPPORTED`: one authoritative shape and
+   rectangle per role in the entire connected HARD component, all its edges
+   simultaneously valid, all rectangles mutually non-overlapping and compatible
+   with fixed rooms, site, full hard obstacles and current composition intent.
+
+Only level 3 discharges joint capacity for that component. Distinct components
+are assessed independently; no cross-component joint assignment or full 12-room
+feasibility is claimed. Roles outside the HARD graph are fixed blockers if already
+placed, not future variables in this certificate.
+
+The immutable runtime certificate binds source graph, reservation edge identities,
+the R2 site/dimension/handoff authority identity, exact partial geometry and a
+dynamic-domain revision. Positive cache entries are freshly revalidated. No
+negative cursor or sibling-mutated assignment can authorize a prune.
+
+Use deterministic shared-variable unification and multi-neighbor necessary-origin
+intersection before bounded witness exploration. Existing pairwise positives and
+parent joint assignments are advisory inputs. All completed joint witnesses must
+be checked again with exact hard predicates, including every placed MUST neighbor
+and the complete provisional composition intent. No static-domain membership is
+required. Unsuccessful or resource-exhausted witness exploration is UNKNOWN,
+never a negative proof. UNKNOWN remains search-admissible and explicitly counted.
+
+Negative component certificates require an independently rechecked R2 analytic
+necessary-origin-space contradiction, a minimum component-area contradiction
+against the site bbox, or an empty conservative integer-origin MUST arc
+relaxation under the *actual* fixed partial geometry. Face projections enlarge
+the neighbor's union to bounding rectangles, losing correlations only toward
+additional possible capacity. An empty such necessary superset is sound. Arc
+resource exhaustion discards the attempted negative proof and returns unresolved.
+A contradiction under a speculative witness branch only backtracks that witness;
+it cannot reject the actual placement partial. No finite dynamic enumeration is
+claimed to cover every legal metric position. Proof scope stays the unchanged
+canonical construction footprints; it is not global engineering infeasibility.
+
+The joint query has explicit runtime resource guards, not placement nodes or a
+second layout budget. Its work and exhaustion are diagnosed separately. It does
+not alter zone order, family schedule, ordinary candidate sources or placement
+budget. Joint certificates do not lock geometry and do not become candidate seeds.
+R2 normal fallback and support-candidate provenance remain unchanged.
+
+P0/P1 remain coordinate-free; P2 public policy/result, all engineering authorities
+and PR #306 diagnostic-only status are frozen. Runtime proof state is not persisted
+in Plan/Handoff or accepted from callers. Final evidence must distinguish accepted
+pairwise UNKNOWN from joint UNKNOWN; no acceptance completeness claim is permitted
+while any admitted partial lacks a connected-component certificate.
+
 ## P3-R2: conditional geometry-aware metric support
 
 Owner authorized R2 from `ff4626fce1d88f9860b64cd183af3ce1db21a26a`.
