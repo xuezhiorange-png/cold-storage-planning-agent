@@ -279,13 +279,16 @@ def test_reservation_support_candidate_dedup_and_node_accounting(monkeypatch):
     )
 
 
-def test_zero_capacity_shipping_rejected_before_recursion(monkeypatch):
+def test_static_absence_is_not_a_zero_capacity_proof(monkeypatch):
     outcome = small_search(
         monkeypatch, domain(), {"shipping_channel": ((4000, 4000),), "office": ((0, 0),)}
     )
     assert outcome.solution is None
-    assert outcome.diagnostics.max_placed == 0
-    assert outcome.diagnostics.funnel["office"]["role_attempt_count"] == 0
+    # R2: a missing static endpoint is not a geometric no-capacity proof.
+    assert outcome.diagnostics.max_placed == 1
+    assert outcome.diagnostics.funnel["office"]["role_attempt_count"] == 1
+    assert outcome.diagnostics.metric_capacity["prunes"] == 0
+    assert outcome.diagnostics.metric_capacity["accepted_partial_with_unknown_capacity"] > 0
 
 
 def test_incomplete_runtime_capacity_does_not_prune_recursion(monkeypatch):
@@ -299,16 +302,18 @@ def test_incomplete_runtime_capacity_does_not_prune_recursion(monkeypatch):
     assert outcome.diagnostics.metric_capacity["prunes"] == 0
 
 
-def test_final_unknown_support_is_not_mislabeled_as_intent_failure(monkeypatch):
+def test_incomplete_static_domain_does_not_prevent_direct_final_certificate(monkeypatch):
     outcome = small_search(
         monkeypatch,
         domain(origins=(), complete=False),
         {"shipping_channel": ((1000, 0),), "office": ((0, 0),)},
     )
-    assert outcome.solution is None
+    assert outcome.solution is not None
     assert outcome.diagnostics.max_placed == 2
     assert outcome.diagnostics.metric_capacity["prunes"] == 0
-    assert outcome.diagnostics.failure_taxonomy == "FINAL_METRIC_RESERVATION_UNCONSUMED"
+    proofs = outcome.diagnostics.metric_capacity["final_consumed"]
+    assert len(proofs) == 1
+    assert proofs[0]["certificate_source"] == "DIRECT_FINAL"
 
 
 def test_p3_derives_from_mandatory_reservation_authority(monkeypatch):

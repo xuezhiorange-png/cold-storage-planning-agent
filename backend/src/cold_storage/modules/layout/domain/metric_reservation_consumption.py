@@ -10,6 +10,7 @@ from bisect import bisect_left
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
+from functools import lru_cache
 from hashlib import sha256
 from types import MappingProxyType
 from typing import Any
@@ -45,7 +46,7 @@ type IntentPredicate = Callable[[Mapping[str, PlacedRectangleV1]], bool]
 
 class MetricSupportStatusV1(StrEnum):
     SUPPORTED = "SUPPORTED"
-    NONE = "PROVED_NO_SUPPORT_IN_CURRENT_FINITE_DOMAIN"
+    NONE = "NO_STATIC_EVENT_DOMAIN_MEMBER"
     UNKNOWN = "UNKNOWN_SUPPORT_DOMAIN"
 
 
@@ -100,6 +101,7 @@ class RuntimeMetricReservationDomainV1:
         }
 
 
+@lru_cache(maxsize=7)
 def build_runtime_domain(
     edge_identity: str,
     roles: tuple[str, str],
@@ -197,7 +199,11 @@ class MetricSupportDiagnosticsV1:
 
 
 class MetricReservationSupportQueryV1:
-    """Shared immutable domains; only diagnostics/cache mutate, never branch state."""
+    """Legacy static-membership diagnostic, NOT a conditional capacity authority.
+
+    Production placement uses ConditionalMetricSupportQueryV2. NONE here means
+    only no static-domain member and must never authorize a placement prune.
+    """
 
     def __init__(
         self,

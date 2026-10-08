@@ -29,13 +29,15 @@ from cold_storage.modules.layout.domain.authority_shapes import (
 from cold_storage.modules.layout.domain.composition_handoff import (
     StructuralCompositionPlacementHandoffV1,
 )
+from cold_storage.modules.layout.domain.conditional_metric_support import (
+    ConditionalMetricSupportQueryV2,
+    ConditionalMetricSupportStateV2,
+    ConditionalSupportStatusV2,
+)
 from cold_storage.modules.layout.domain.dimensioning import canonical_hash
 from cold_storage.modules.layout.domain.metric_reservation_consumption import (
-    MetricReservationSupportQueryV1,
-    MetricReservationSupportStateV1,
     MetricRuntimeContextV1,
     MetricSupportDiagnosticsV1,
-    MetricSupportStatusV1,
     RuntimeMetricReservationDomainV1,
     build_metric_runtime_context,
 )
@@ -1298,10 +1300,34 @@ def _search_one(
     faces = _domain_faces(handoff, bank_sign)
     ordered_shapes = _composition_shape_order(handoff, shapes, bank_sign)
     diagnostics = _SearchDiagnostics(node_limit=node_limit)
-    support_query = MetricReservationSupportQueryV1(
+
+    def conditional_origins(
+        role: str, shape: _Shape, partial: Mapping[str, PlacedRectangleV1]
+    ) -> tuple[tuple[int, int], ...]:
+        return tuple(
+            dict.fromkeys(
+                (
+                    *_domain_derived_anchors(
+                        role, shape, handoff, domains, bank_sign, partial, boundary, obstacles
+                    ),
+                    *_generic_fallback_anchors(role, shape, partial, boundary, obstacles),
+                )
+            )
+        )
+
+    support_query = ConditionalMetricSupportQueryV2(
         runtime_domains,
         process_graph().must_adjacencies,
         lambda partial: _partial_intent_possible(handoff, partial, faces),
+        shapes=ordered_shapes,
+        boundary=boundary,
+        obstacles=obstacles,
+        origin_provider=conditional_origins,
+        provenance={
+            "handoff_hash": handoff.canonical_result_hash,
+            "dimension_authority_hash": canonical_hash(dimension_authorities),
+            "site_geometry_hash": handoff.source_site_geometry_hash,
+        },
     )
     diagnostics.metric_support = support_query.diagnostics
     diagnostics.metric_capacity = {
@@ -1309,6 +1335,9 @@ def _search_one(
         "support_candidate_attempts": 0,
         "support_candidate_accepts": 0,
         "accepted_partial_with_zero_capacity": 0,
+        "accepted_partial_with_unknown_capacity": 0,
+        "accepted_partial_pairwise_supported": 0,
+        "joint_unplaced_role_capacity_proven": False,
         "final_consumed": [],
         "legacy_role_specific_seed_calls": 0,
     }
@@ -1417,7 +1446,7 @@ def _search_one(
     def recurse(
         index: int,
         placed: dict[str, PlacedRectangleV1],
-        support_states: tuple[MetricReservationSupportStateV1, ...],
+        support_states: tuple[ConditionalMetricSupportStateV2, ...],
     ) -> dict[str, PlacedRectangleV1] | None:
         if index < len(order):
             set_attempted(order[index], placed)
@@ -1430,9 +1459,9 @@ def _search_one(
             consumed_ok = intent_ok and support_query.consumed(placed, support_states)
             if consumed_ok:
                 diagnostics.metric_capacity["final_consumed"] = [
-                    domain.proof(state.support_index)
-                    for domain, state in zip(runtime_domains, support_states, strict=True)
-                    if state.support_index is not None
+                    state.certificate.proof()
+                    for state in support_states
+                    if state.certificate is not None
                 ]
                 return dict(placed)
             diagnostics.failure_taxonomy = (
@@ -1614,12 +1643,21 @@ def _search_one(
                         placed.pop(code, None)
                         continue
                     child_support = support_query.update(placed, support_states)
-                    if any(state.status == MetricSupportStatusV1.NONE for state in child_support):
+                    if any(
+                        state.status == ConditionalSupportStatusV2.NONE for state in child_support
+                    ):
                         diagnostics.metric_capacity["prunes"] += 1
                         diagnostics.failure_taxonomy = "METRIC_RESERVATION_CAPACITY_CLOSED"
                         placed.pop(code, None)
                         save_witness(placed, code)
                         continue
+                    if any(
+                        state.status == ConditionalSupportStatusV2.UNKNOWN
+                        for state in child_support
+                    ):
+                        diagnostics.metric_capacity["accepted_partial_with_unknown_capacity"] += 1
+                    else:
+                        diagnostics.metric_capacity["accepted_partial_pairwise_supported"] += 1
                     if source == "METRIC_RESERVATION_SUPPORT":
                         diagnostics.metric_capacity["support_candidate_accepts"] += 1
                         support_query.candidate_event(
@@ -1657,7 +1695,7 @@ def _search_one(
         )
     root_support = support_query.update({})
     diagnostics.metric_capacity["root"] = [asdict(state) for state in root_support]
-    if any(state.status == MetricSupportStatusV1.NONE for state in root_support):
+    if any(state.status == ConditionalSupportStatusV2.NONE for state in root_support):
         diagnostics.failure_taxonomy = "ROOT_METRIC_RESERVATION_CAPACITY_CLOSED"
         save_witness({}, order[0])
         solution = None

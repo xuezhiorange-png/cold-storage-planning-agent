@@ -4,7 +4,77 @@ Status: proposed; P0 projection, authorized P1 topological reservation and P2
 pairwise metric realization, and authorized R1 hard-obstacle source remediation.
 P3 dynamic partial-layout consumption is now separately authorized; later phases are not.
 
-## P3: dynamic partial-layout consumption of complete metric domains
+## P3-R2: conditional geometry-aware metric support
+
+Owner authorized R2 from `ff4626fce1d88f9860b64cd183af3ce1db21a26a`.
+The read-only RCA established that the genuine pre-P3 control candidate from
+`112f30115d201dd8ef2daf541f5352b92d2154fe` is hard-valid but has 0/7 static
+P2 pair memberships; this is not a complete candidate produced by the failed
+P3 starting head `ff4626fce1d88f9860b64cd183af3ce1db21a26a`. Finite event enumeration
+completion is not coverage of the dynamic exact-placement construction domain.
+The historical P3 exclusion contract below is superseded, not relabelled PASS.
+
+The three proof states now mean:
+
+- `SUPPORTED`: a replayable pair certificate validates authoritative construction
+  footprints, exact fixed endpoints, effective buildable polygon, full hard
+  obstacles, positive shared edge, non-overlap, every placed MUST neighbor and
+  current composition intent. Source is static-positive, dynamic-positive or
+  direct-final. Static absence is not a reason for rejection.
+- `PROVED_NO_SUPPORT`: a verified analytic necessary-origin-space contradiction.
+  It is NOT produced by finite event exhaustion or a query resource limit.
+- `UNKNOWN_SUPPORT`: the bounded witness query or analytic proof is insufficient.
+  Search may continue; diagnostics must not call this preserved positive capacity.
+
+### Sound negative proof and coverage scope
+
+The unchanged exact constructor uses integer-mm origins (`GRID_MM=1`) and the
+unchanged complete canonical construction-footprint collection from shared
+shape authority. For each footprint, construct the inclusive origin-space box
+inside the site's bbox. Subtract exact positive-area overlaps with every fixed
+room; intersect with the union of the four positive-length shared-face origin
+intervals for EACH fixed MUST neighbor. Integer interval/box subtraction is an
+analytic cover, not sampling or an event-domain scan. Any actual constructible
+origin, including a future room-edge event, belongs to this necessary relaxation.
+
+Ignore site concavity, hard obstacles and composition intent in this negative
+relaxation: this deliberately ENLARGES capacity. Only if all footprints of an
+unplaced endpoint have an empty relaxation may its edge return PROVED_NO_SUPPORT.
+Empty authority inputs or a box-operation limit yield UNKNOWN, never negative.
+The proof is relative to unchanged canonical construction footprints, not every
+possible flexible engineering shape, continuous positions, or global feasibility.
+The proof verifier recomputes the cover and validates current authority/partial
+identity. No caller-authored or stale certificate authorizes pruning.
+
+### Conditional witnesses and immutable state
+
+With neither endpoint fixed, use static positive witnesses and symmetric dynamic
+events derived from existing construction anchors and current geometry. With
+one fixed endpoint, use that exact footprint and the existing shared-face/event
+construction for its partner, including ALL placed MUST neighbors. With both
+fixed, directly certify the actual pair; static P2 membership is not required.
+Every complete candidate needs seven direct-final geometric certificates in
+addition to the unchanged final hard predicates.
+
+Identity binds the source edge, validated site/obstacles, dimensions/shapes,
+composition/handoff, full current placed geometry and conditional policy revision.
+Only positive witnesses may be reused, after revalidation. A changed domain never
+inherits a negative cursor. Immutable parent values restore sibling state.
+Witnesses are advisory, never spatial locks; normal DOMAIN/GENERIC fallback and
+ordinary candidate node accounting remain. Query work is separately diagnosed.
+
+All proofs are graph-driven and pairwise. Shared placed roles use the same exact
+geometry in every incident certificate. Different witnesses for an UNPLACED
+shared role do not establish a joint assignment: explicitly leave joint capacity
+unproven. UNKNOWN accepted partials and independent pair witnesses cannot be
+reported as all-partial positive-capacity proof or whole-building feasibility.
+
+P0/P1 remain coordinate-free. P2 policy, public hash, static runtime count/digests,
+R1 authority parity, shape derivation, scheduler, zone order and budgets remain
+frozen. No PR #306 recovery code, role-specific seed, historical coordinate seed,
+Access/Truck/P2D business acceptance or next phase is authorized by this decision.
+
+## Historical P3: static-domain consumption (superseded by R2)
 
 Owner authorized P3 from `112f30115d201dd8ef2daf541f5352b92d2154fe`.
 P0 makes hard interfaces visible; P1 reserves topological attachment slots;
