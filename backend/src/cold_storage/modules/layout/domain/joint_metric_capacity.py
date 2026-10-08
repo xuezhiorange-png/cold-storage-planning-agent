@@ -6,8 +6,8 @@ Only revalidated necessary-origin contradictions under real placed rooms prune.
 
 from __future__ import annotations
 
-from collections import Counter
-from collections.abc import Iterator, Mapping
+from collections import Counter, defaultdict
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from hashlib import sha256
 
@@ -19,6 +19,7 @@ from cold_storage.modules.layout.domain.conditional_metric_support import (
     OriginBox,
     intersect,
     necessary_origin_boxes,
+    subtract,
 )
 from cold_storage.modules.layout.domain.conditional_metric_support import (
     ConditionalSupportStatusV2 as Status,
@@ -28,8 +29,38 @@ from cold_storage.modules.layout.domain.metric_interface_reservation import Boun
 from cold_storage.modules.layout.domain.metric_reservation_consumption import _edge, _overlap
 from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
 
-REVISION = "connected-hard-component-positive-proof@1.0.0"
+REVISION = "connected-hard-component-positive-proof@1.1.0"
 type Assignment = tuple[tuple[str, Bounds, Shape], ...]
+type ShapeOriginSpaces = tuple[tuple[Shape, OriginBox], ...]
+
+
+def _coalesce_origin_spaces(values: Sequence[tuple[Shape, OriginBox]]) -> ShapeOriginSpaces:
+    """Exact integer strip union, not a bbox approximation or point sampling."""
+    grouped: dict[Shape, list[OriginBox]] = defaultdict(list)
+    for shape, box in values:
+        grouped[shape].append(box)
+    result: list[tuple[Shape, OriginBox]] = []
+    for shape, boxes in grouped.items():
+        for axis in (0, 1, 0, 1):
+            strips: dict[tuple[int, int], list[tuple[int, int]]] = defaultdict(list)
+            for box in boxes:
+                strips[box[1 - axis], box[3 - axis]].append((box[axis], box[axis + 2]))
+            boxes = []
+            for fixed, intervals in sorted(strips.items()):
+                merged: list[tuple[int, int]] = []
+                for low, high in sorted(intervals):
+                    if merged and low <= merged[-1][1] + 1:
+                        merged[-1] = merged[-1][0], max(high, merged[-1][1])
+                    else:
+                        merged.append((low, high))
+                for low, high in merged:
+                    boxes.append(
+                        (low, fixed[0], high, fixed[1])
+                        if axis == 0
+                        else (fixed[0], low, fixed[1], high)
+                    )
+        result.extend((shape, box) for box in sorted(set(boxes)))
+    return tuple(result)
 
 
 @dataclass(frozen=True)
@@ -353,38 +384,164 @@ class JointMetricCapacityQueryV1:
         )
         return candidate if self.verify(candidate, placed) else None
 
+    def positive_origin_spaces(
+        self, roles: tuple[str, ...], placed: Mapping[str, PlacedRectangleV1]
+    ) -> dict[str, ShapeOriginSpaces]:
+        """Necessary supersets for positive queries only; never prune on this map.
+
+        Exact rectangular obstacle subtraction includes forbidden boundary contact.
+        Other polygons remain relaxed until exact witness validation. All guards
+        return an enlarged/less-propagated space, never a false empty region.
+        """
+        q = self.pairwise
+        result: dict[str, ShapeOriginSpaces] = {}
+        for role in roles:
+            if role in placed:
+                continue
+            values: list[tuple[Shape, OriginBox]] = []
+            for shape in q.shapes[role]:
+                boxes = necessary_origin_boxes(role, shape, placed, q.boundary, q.must_edges)
+                if boxes is None:
+                    boxes = (
+                        (
+                            min(x for x, _ in q.boundary),
+                            min(y for _, y in q.boundary),
+                            max(x for x, _ in q.boundary) - shape.world_width_mm,
+                            max(y for _, y in q.boundary) - shape.world_depth_mm,
+                        ),
+                    )
+                original = boxes
+                for polygon in q.obstacles:
+                    xs, ys = {x for x, _ in polygon}, {y for _, y in polygon}
+                    if (
+                        len(xs) != 2
+                        or len(ys) != 2
+                        or set(polygon) != {(x, y) for x in xs for y in ys}
+                    ):
+                        continue
+                    forbidden = (
+                        min(xs) - shape.world_width_mm,
+                        min(ys) - shape.world_depth_mm,
+                        max(xs),
+                        max(ys),
+                    )
+                    boxes = tuple(piece for box in boxes for piece in subtract(box, forbidden))
+                    self.counts["positive_obstacle_space_subtractions"] += 1
+                    if len(boxes) > 8192:
+                        boxes = original
+                        self.counts["positive_space_resource_relaxations"] += 1
+                        break
+                values.extend(
+                    (shape, box) for box in boxes if box[0] <= box[2] and box[1] <= box[3]
+                )
+            result[role] = _coalesce_origin_spaces(values)
+        work = 0
+        for _ in range(len(result)):
+            changed = False
+            for role in result:
+                for neighbor in sorted(self.neighbors[role] & result.keys()):
+                    other = result[neighbor]
+                    if not other:
+                        changed |= bool(result[role])
+                        result[role] = ()
+                        continue
+                    low_x = min(b[0] for _, b in other)
+                    low_y = min(b[1] for _, b in other)
+                    high_x = max(b[2] for _, b in other)
+                    high_y = max(b[3] for _, b in other)
+                    low_right = min(b[0] + s.world_width_mm for s, b in other)
+                    low_top = min(b[1] + s.world_depth_mm for s, b in other)
+                    high_right = max(b[2] + s.world_width_mm for s, b in other)
+                    high_top = max(b[3] + s.world_depth_mm for s, b in other)
+                    following: list[tuple[Shape, OriginBox]] = []
+                    seen = set()
+                    for shape, box in result[role]:
+                        w, h = shape.world_width_mm, shape.world_depth_mm
+                        projections = (
+                            (low_x - w, low_y - h + 1, high_x - w, high_top - 1),
+                            (low_right, low_y - h + 1, high_right, high_top - 1),
+                            (low_x - w + 1, low_y - h, high_right - 1, high_y - h),
+                            (low_x - w + 1, low_top, high_right - 1, high_top),
+                        )
+                        for projection in projections:
+                            if work >= 8192:
+                                self.counts["positive_space_resource_relaxations"] += 1
+                                return result
+                            work += 1
+                            self.counts["positive_constraint_intersections"] += 1
+                            hit = intersect(box, projection)
+                            if hit is not None and (shape, hit) not in seen:
+                                following.append((shape, hit))
+                                seen.add((shape, hit))
+                    coalesced = _coalesce_origin_spaces(following)
+                    changed |= coalesced != result[role]
+                    result[role] = coalesced
+            if not changed:
+                break
+        return result
+
     def candidates(
         self,
         role: str,
         placed: Mapping[str, PlacedRectangleV1],
         hints: tuple[tuple[str, Bounds, Shape], ...],
         event_limit: int,
+        spaces: ShapeOriginSpaces | None = None,
     ) -> Iterator[tuple[Bounds, Shape]]:
         q = self.pairwise
+        spaces = self.positive_origin_spaces((role,), placed)[role] if spaces is None else spaces
+        groups: dict[Shape, list[OriginBox]] = defaultdict(list)
+        for shape, box in spaces:
+            groups[shape].append(box)
         seen = set()
         for r, bounds, shape in hints:
-            if r == role and (bounds, shape) not in seen:
+            if r != role or shape not in groups:
+                continue
+            x, y = bounds[:2]
+            if not any(a <= x <= c and b <= y <= d for a, b, c, d in groups[shape]):
+                self.counts["necessary_hint_exclusions"] += 1
+                continue
+            if (bounds, shape) not in seen:
                 seen.add((bounds, shape))
                 yield bounds, shape
         for shape in q.shapes[role]:
-            boxes = necessary_origin_boxes(role, shape, placed, q.boundary, q.must_edges)
-            if boxes == ():
+            if shape not in groups:
                 self.counts["empty_necessary_shape_spaces"] += 1
                 continue
+            boxes = groups[shape]
+            base = necessary_origin_boxes(role, shape, placed, q.boundary, q.must_edges)
             origins = q.origin_provider(role, shape, placed)
-            # Necessary box intersections add multi-neighbor events without a raster.
+            # Keep existing coarse events first, then refine all four box corners.
             critical = tuple(
                 point
-                for x, y, right, top in boxes or ()
+                for x, y, right, top in base or ()
                 for point in ((x, y), (right, top), ((x + right) // 2, (y + top) // 2))
             )
-            for x, y in (*critical, *origins):
+            refined = tuple(
+                point
+                for x, y, right, top in boxes
+                for point in (
+                    (x, y),
+                    (right, top),
+                    ((x + right) // 2, (y + top) // 2),
+                    (x, top),
+                    (right, y),
+                )
+            )
+            admissible: list[tuple[int, int]] = []
+            other: list[tuple[int, int]] = []
+            for point in origins:
+                target = (
+                    admissible
+                    if any(a <= point[0] <= c and b <= point[1] <= d for a, b, c, d in boxes)
+                    else other
+                )
+                target.append(point)
+            for x, y in (*critical, *admissible, *refined, *other):
                 if self.counts["origin_events"] >= event_limit:
                     return
                 self.counts["origin_events"] += 1
-                if boxes is not None and not any(
-                    a <= x <= c and b <= y <= d for a, b, c, d in boxes
-                ):
+                if not any(a <= x <= c and b <= y <= d for a, b, c, d in boxes):
                     continue
                 bounds = x, y, x + shape.world_width_mm, y + shape.world_depth_mm
                 key = bounds, shape
@@ -417,17 +574,22 @@ class JointMetricCapacityQueryV1:
             if not missing:
                 assignment = tuple((r, working[r].bounds_mm, selected[r]) for r in roles)
                 return self.certificate(roles, assignment, placed)
+            space_map = self.positive_origin_spaces(roles, working)
+            fixed_degree = {r: sum(n in working for n in self.neighbors[r]) for r in missing}
             role = min(
                 missing,
                 key=lambda r: (
-                    -sum(n in working for n in self.neighbors[r]),
+                    -fixed_degree[r],
                     len(q.shapes[r]),
                     -len(self.neighbors[r]),
+                    sum((c - a + 1) * (d - b + 1) for _, (a, b, c, d) in space_map[r])
+                    if fixed_degree[r] >= 2
+                    else 0,
                     r,
                 ),
             )
             for bounds, shape in self.candidates(
-                role, working, hints, initial_events + self.event_cap
+                role, working, hints, initial_events + self.event_cap, space_map[role]
             ):
                 if (
                     checked >= self.evaluation_cap

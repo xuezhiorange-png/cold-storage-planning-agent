@@ -389,3 +389,36 @@ Focused tests cover full authority equality, 7/4/3 current classification,
 Office/Shipping ownership, handoff preservation, coordinate-free serialization,
 invalid contracts and deterministic canonical hashes. Lightweight canonical
 Xinzhao projection runs twice without entering exact placement.
+
+## R4 proof-query refinement (authorized, acceptance evidence required)
+
+R4 may improve the existing connected-component positive query through
+conservative origin-space propagation, deterministic shared-variable ordering,
+and better use of current authority-derived geometric events. This does not
+change the placement scheduler, zone order, budget, engineering authority or
+P2 public finite-domain policy.
+
+Each shared role still has one authoritative shape and one geometry. A necessary
+origin region is a superset, not a sufficient attachment certificate. Exact
+integer subtraction is allowed for axis-aligned rectangular hard obstacles;
+the bbox of a nonrectangular obstacle must not be substituted for that obstacle.
+MUST arc projections may deliberately enlarge neighbor unions. Exact strip
+coalescing preserves the integer point union. Resource guards must relax the
+positive propagation result, never authorize a negative.
+
+Positive-probe limits remain 256 actual candidate checks and 1024 visited
+origin events. Necessary-space calculations and variable ordering do not become
+placement nodes. No limit increase, hidden restart allowance or UNKNOWN-to-PASS
+conversion is permitted. Domain revision invalidates prior proof identity.
+
+Every positive common assignment is revalidated against physical authority,
+all relevant MUST edges, non-overlap, fixed geometry and composition intent.
+The positive necessary-space map is not an input to negative authorization;
+covered negatives continue to require the existing independent verifier.
+Joint witnesses remain proof objects, not unanchored production coordinate
+templates. Independent small integer references must verify that propagation
+cannot lose real feasible points.
+
+R4 is complete only if its actual canonical and exact-head CI evidence supports
+the declared outcome. Accepted UNKNOWNs remain in the denominator; their
+presence requires PARTIAL and P3_COMPLETE=false, even with a complete candidate.
