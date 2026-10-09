@@ -8,6 +8,11 @@ MODE=DOCUMENTATION_ONLY_OWNER_REVIEW
 OWNER_REVIEW_CORRECTION_TASK_ID=V2_2_2_VERSION_MASTER_PLAN_OWNER_REVIEW_CORRECTION_R1
 OWNER_REVIEW_CORRECTION_MODE=DOCUMENTATION_ONLY_REVISION
 OWNER_REVIEW_FRAMEWORK_STATUS=CONDITIONALLY_ACCEPTED_NOT_FROZEN
+DECISION_ALIGNMENT_TASK_ID=V2_2_2_OWNER_DECISION_ALIGNMENT_D01_D03_D04_R1
+DECISION_ALIGNMENT_MODE=DOCUMENTATION_ONLY_DECISION_ALIGNMENT
+DECISION_ALIGNMENT_BASE_HEAD=f6b17fb6d34b637ea5887af1b420e5da5ef244c8
+OWNER_DIRECTION_APPROVED=true
+FORMAL_CONTRACT_AMENDMENT_AUTHORIZED=false
 REVIEW_BASE_HEAD=183229a3a1251cd32eed45f73d9073b1d739143e
 BASE_MAIN_SHA=a0ef560de778770e4c26c4d027a239afe78eeadd
 BRANCH=codex/v2.2.2-p1a-structural-hard-interface-reservation-p0
@@ -243,10 +248,10 @@ R5对272queries重新分类：192zero-check=174Finished空origin cover+18Coating
 
 | 决策 | 问题/选项 | 建议审核输出 | 未批准前 | REVIEW_RECOMMENDATION | OWNER_DECISION_STATUS | IMPLEMENTATION_IMPACT |
 |---|---|---|---|---|---|---|
-| D01 P3职责/验收 | A安全容量门禁、B联合正证明覆盖率、C完整Access/Truck/P2D工程验证是否分别承担验收责任 | 明确三层invariant、证明范围、UNKNOWN处理、正式合同/ADR050/测试变更allowlist | 现行零UNKNOWN强验收与历史PARTIAL保留，P3=false，R6A=false | 建议分别评审安全性与正证明覆盖，不以C成功倒推全部partial具备B；责任拆分仅为提案 | PENDING_OWNER | 若批准新责任划分，须另行授权合同/ADR/测试及实现变更；本轮不执行、不降低现行门槛 |
+| D01 P3职责/验收 | A=SAFE_CAPACITY_ADMISSION；B=JOINT_POSITIVE_COVERAGE；C=FULL_ENGINEERING_VALIDATION | 见8.3三层精确invariant、证明范围、UNKNOWN、测试和验收边界 | 现行零UNKNOWN强验收与历史PARTIAL保留，P3=false，R6A=false | 按Owner同意方向形成三层责任修订提案，不以C成功倒推全部partial具备B | DIRECTION_APPROVED_FORMAL_AMENDMENT_PENDING_OWNER | 方向批准不等于合同修订或实施授权；正式批准后才可按allowlist另行修订合同/ADR/测试 |
 | D02 numeric calibration | room-level depth、exact正例outline、appendage purpose如何取得和标注 | 可比样本、eligibility/classifier版本、阈值提案与Owner批准 | numeric P1B BLOCKED，不能宣称规整度PASS | 先批准取证协议和可比粒度；depth0.80不冻结，occupancy/notch/appendage不猜值 | PENDING_OWNER | 取证、阈值冻结、runtime评价各需独立授权；当前不改数值门槛 |
-| D03 原始合同差异 | 冲突一：P0的grid 0.90目标与ADR-047未校准numeric gate；冲突二：P0将secondary_precooling_room归FINISHED_SIDE_GROUP，P1A reset归PROCESSING_CORE_GROUP | 分别裁定目标与可执行gate的关系、功能组归属及迁移/兼容要求；明确哪份合同如何正式修订 | 两项实际权威冲突保留，不能假设一致；不改原始合同、不重写角色归属 | 建议先做两项独立裁决，不以band映射解释自动消解functional group冲突 | PENDING_OWNER | 若需修改合同、group mapping或评价阈值，须另行批准范围及回归要求；本轮无任何权威变更 |
-| D04 round ledger/architecture stop | 各轮对应架构、主尝试、修正行为、Owner授权及原两轮限制归属，见8.1独立账本 | 对REQUIRES_OWNER_CLASSIFICATION逐项裁定，形成架构计数及例外授权记录 | MAX=2保持；不根据改名/新子链自动重置；不补造历史豁免 | 建议先冻结账本分类和剩余可执行范围，再讨论下一轮 | PENDING_OWNER | 分类未完成不授权新恢复；历史明确任务授权不自动等于两轮规则豁免 |
+| D03 原始合同差异 | 冲突一：P0的grid 0.90目标与ADR-047未校准numeric gate；冲突二：P0将secondary_precooling_room归FINISHED_SIDE_GROUP，P1A reset归PROCESSING_CORE_GROUP | 见8.4两项独立修订提案、历史兼容与迁移方案 | 两项实际权威冲突仍存在；不改原始合同、当前runtime分组或numeric gate | 保留0.90原始目标并单列gate校准状态；建议当前P1A继续PROCESSING_CORE_GROUP，历史P0口径版本化兼容 | DIRECTION_APPROVED_FORMAL_AMENDMENT_PENDING_OWNER | 实际合同文字、版本适用范围与迁移细则仍待正式批准；本轮无权威或runtime变更 |
+| D04 round ledger/architecture stop | 各轮对应架构、主尝试、修正行为、Owner授权及原两轮限制归属，见8.1/8.5 | 对REQUIRES_OWNER_CLASSIFICATION逐项裁定并完成新布局实施前架构审核 | MAX=2保持；不根据改名/新子链自动重置；不补造历史豁免 | 按方向批准建立架构级账本，分主实现、布局修正、证明机制、诊断、环境恢复 | DIRECTION_APPROVED_FORMAL_AMENDMENT_PENDING_OWNER | 历史计数和例外未自动批准；架构审核完成且新任务另行授权后，才可开展新布局实施 |
 | D05 正式版本剩余任务编号 | REVIEW-*工作包正式TASK_ID及依赖、交付、门槛 | Owner核定正式编号与逐任务scope | 仅完成现有已知任务和已识别剩余工作包盘点；future IDs未冻结 | 建议保留业务工作包映射后再分配正式ID，避免借旧版P3编号 | PENDING_OWNER | 编号批准不等于实施批准；后续仍需独立授权 |
 | D06 下一次实施/验证顺序 | 区分已有候选工程诊断性复核、多结构候选生成实施、numeric calibration取证、最终业务验收，见8.2 | 分别确认输入、范围、依赖、证据性质及授权 | 四类工作均不因草案自动获授权；不触发Access/Truck/P2D或新layout | 建议将诊断与实施、取证与最终验收分开审批；独立可规划不等于可执行 | PENDING_OWNER | 诊断不能抵扣5/3最终门槛；生成、取证、验收均须各自批准，当前不执行 |
 | D07 草案审核、提交、冻结 | 版本表框架有条件通过，但未授权冻结 | 正式批准修订草案，再单独授权doc commit/push/计划冻结 | 不commit/push、不改PR body；PLAN_STATUS保持草案 | 建议先审D01–D06，再明确冻结范围；不从本轮修订授权推断后续 | PENDING_OWNER | 本轮仅修改目标草案；发布/Ready/Merge等授权继续为false |
@@ -290,6 +295,60 @@ R5对272queries重新分类：192zero-check=174Finished空origin cover+18Coating
 | numeric calibration取证 | Owner批准的正例、room/outline/route粒度及标注协议 | 可比原子事实、来源、eligibility、阈值提案 | 取证不等于阈值冻结或候选规整度PASS | NOT_AUTHORIZED_BY_THIS_DRAFT |
 | 最终业务验收 | 可追溯5个distinct P2D full-pass、3类主要结构、质量与视觉证据 | 版本closure及Owner验收结论 | 不以诊断、topology标签、重复候选或CI全绿替代；验收也不自动授权发布 | NOT_AUTHORIZED_BY_THIS_DRAFT |
 
+### 8.3 D01三层验收责任修订提案（方向已同意，合同未修订）
+
+以下为待正式审核的规范提案，不是已生效规则。三层必须独立出具状态，不能以一层通过代替另一层。历史依据为原P3任务、R3/R4 Owner强验收与C09；`ACCEPTED_PARTIAL_WITH_UNKNOWN_COUNT=0`继续保留。R2的213 pairwise UNKNOWN、R3的265 joint UNKNOWN、R4的262 joint UNKNOWN及PARTIAL结论不重算、不抹除；root queries与accepted partial的分母保持区分。
+
+| 层次 | 精确invariant（提案） | 证明范围 | UNKNOWN处理 | 必需测试/证据 | 验收边界（待批准） |
+|---|---|---|---|---|---|
+| A SAFE_CAPACITY_ADMISSION | 任一容量剪枝必须有与当前partial及authority绑定、覆盖声明充分且可复核的否定证书；`PRUNE_WITHOUT_SOUND_NEGATIVE_CERTIFICATE_COUNT=0`；`ACCEPTED_PARTIAL_WITH_VERIFIED_PROVED_ZERO_CAPACITY_COUNT=0`。这些计数不证明所有实际零容量状态已被识别 | 现有HARD interfaces/必要联合约束下的安全准入；证书须声明shape/origin-space覆盖、适用约束与资源完整性；不声称未证明的几何全集覆盖 | 未找到witness、static域未命中或cap耗尽只能UNKNOWN；UNKNOWN可继续但必须单列，不作正容量保证；已失效证书不得授权剪枝 | 独立小型整数穷举；negative覆盖/资源保护/域revision/回溯隔离；KNOWN-valid control prefixes不得误剪；记录每次剪枝的证书identity、authority、partial hash及适用范围 | 若正式批准分层，可单独判定“安全剪枝机制通过”，但不得据此宣称B全覆盖、当前P3完成或工程full-pass；零观测反例不等于全域soundness证明 |
+| B JOINT_POSITIVE_COVERAGE | 每个计为SUPPORTED的connected HARD component必须有统一角色几何赋值，逐项exact复验通过；`JOINT_SUPPORTED_WITHOUT_VALID_CERTIFICATE_COUNT=0`。覆盖率=获证accepted partial数/全部accepted partial数，另报root queries；不可减少统计范围 | 当前8-role/7-edge component及当前placed约束，通用graph-driven扩展；每个role唯一shape/bounds。只有pairwise证书不能计component SUPPORTED | 无完整统一赋值即UNKNOWN；不因UNKNOWN或positive probe耗尽而剪枝；不能将必要空间非空当正证书 | 共享角色冲突/多边一致性、exact revalidation、graph extension、域revision、backtracking；逐partial状态明细可重汇总，独立小oracle检查false positive/negative，保留冷暖耗时与内存 | 现行零UNKNOWN门槛仍有效且未达成。未来是否将B作为独立覆盖率阶段、阈值及P3责任如何归属须正式批准；本提案不设新数值、不宣布豁免 |
+| C FULL_ENGINEERING_VALIDATION | 每个计入full-pass的实际12-role候选须通过既有site/dimension/non-overlap/MUST、完整Access、Truck及P2D权威；`COUNTED_FULL_PASS_WITH_MISSING_REQUIRED_VALIDATION_COUNT=0` | 完整候选及project-bound工程输入；包括既有interaction/footprint权威，不只8-role component或7条证书 | 未运行、BLOCKED、UNKNOWN或required事实缺失不得计full-pass；保留真实上游失败，不伪造footprint或以CI抵扣 | 可回放候选geometry/input/hash/authority版本、逐项Access/Truck/P2D结果、结构去重依据；至少5个distinct structured full-pass、3类实质结构；质量与Owner视觉另验收 | 7/7 direct certificates只证明对应hard interfaces，不等于C。C通过不倒推历史全部partial具备B，也不自动授权Tool7/发布 |
+
+正式修订批准件必须回答：A/B如何分别命名与归属、B是否仍要求全覆盖、P3总体完成条件如何表述、历史结果如何展示、测试allowlist及未来授权边界。在此之前禁止按提案重命名当前P3为PASS。
+
+### 8.4 D03两项合同修订与兼容提案
+
+**D03-GRID：产品目标与可执行numeric gate分离。** 保留P0原始 `major-zone grid target=0.90`，不删除、不降低，也不把目标直接当作已经校准的可执行gate。建议正式合同同时记录 `PRODUCT_GRID_TARGET=0.90`、`NUMERIC_GATE_CALIBRATION_STATUS=NOT_CALIBRATED_PENDING_OWNER`、指标版本、eligible zone集合、分母、容差/轴网提取规则、来源及review状态。后者是提议字段，不是本轮runtime schema变更。没有批准的校准协议和可比样本，不宣称numeric regularity PASS；亦不把未校准解释为目标作废。
+
+迁移方案：历史报告保留原值、原policy版本和原判定；新报告待正式批准后并列展示产品目标、测量事实和gate校准状态。旧版“目标达到”不得无条件转换为新版“正式gate PASS”。需校准时按D02独立授权取证，不在本轮发明容差、depth/compactness/appendage阈值。拟修订位置为P0/C07及本计划的术语/适用范围对照，实际文件修改另授权。
+
+**D03-GROUP：当前P1A保持PROCESSING_CORE_GROUP，历史P0归属显式保留。** 建议正式确认 `secondary_precooling_room` 在当前P1A结构生成中继续属于 `PROCESSING_CORE_GROUP`；P0原始 `FINISHED_SIDE_GROUP` 是实际不同的functional ownership口径，不通过band映射或“意思一致”消解。该建议不改变当前runtime，不增删role/MUST，不改变dimension/shape/site权威。
+
+迁移方案：正式批准后以合同/policy版本标识适用范围，历史P0报告和fixture不就地重写；保留原group标签，并附显式旧→新映射及原因。依赖group的P0质量指标、calibration eligibility与未来报告须逐项影响审计，不能只改标签假定指标不变。若需按新口径重算，另行授权并保留新旧证据，不能沿用旧PASS。当前P1A plan/handoff及P0/P1 interface projection保持既有输出；schema/version兼容性审计先于任何迁移实现。Owner仍需批准正式文字、适用版本、历史兼容规则及受影响指标清单。
+
+### 8.5 D04架构级分类与新布局实施前门禁
+
+以下是8.1逐轮账本的架构级索引；行为分类按任务scope描述，不自动决定原两轮计数。混合行为保留双重分类，不用“证明改动”或“diagnostic”名称掩盖真实布局构造变化。
+
+| 架构/切片 | 主实现 | 真正布局修正 | 证明机制/权威对齐 | 只读诊断/环境 | 原两轮归属与审核要求 |
+|---|---|---|---|---|---|
+| #302旧R2/tail生命周期 | E04旧主实现，精确边界待核定 | 多轮tail/recovery，逐轮证据待Owner分类 | 不能仅凭commit标题拆分轮次 | 历史诊断不抵扣修正 | REQUIRES_OWNER_CLASSIFICATION；terminal失败不被新计划豁免 |
+| S3 whole-building MVP | S3主尝试 | S3 CR1 anchor修正 | hard subset与intent约束 | 证据回放不独立计修正 | REQUIRES_OWNER_CLASSIFICATION：主尝试起点及CR1计数须核定 |
+| S4工程桥接 | bridge实施，不是新布局主架构 | bridge本身无post-validation几何修复 | 接既有工程权威 | 诊断结果7/12/Truck失败 | 不由S4切片名称重置S3架构轮次 |
+| #306 access-aware构造 | 延续S4失败后的构造修正谱系，是否独立主尝试待审 | CR1/2、CR4及CR5–7涉及候选构造/排序/传播等实际变化 | CR3及CR5–7含forward/capacity/free-space证明，CR4含witness replay；混合行为不自动免计 | post-CR7只读audit；Git环境任务另列 | CR1–7逐条REQUIRES_OWNER_CLASSIFICATION，见8.1；原分支冻结不继承代码 |
+| #307 structural/metric与P3 | clean-main子P0/P1/P2，原P3为消费主尝试；架构计数边界待审 | P3/R2改变准入及构造生命周期；不能把它们全部视为纯证明无布局影响 | R1权威对齐；R2条件化契约；R3/R4联合证明与传播 | exclusion RCA/R5只读；独立clone/lock恢复属环境 | REQUIRES_OWNER_CLASSIFICATION；明确Owner任务授权不自动等于恢复stop例外 |
+
+**新布局实施前必须完成架构审核。** 审核件至少包含：架构identity与baseline；主尝试及逐轮行为分类；每轮Owner授权原文/可定位证据；两轮限制归属；若有例外则提供真实单独授权（没有则不补造）；terminal/stop记录；新的范围、验收、rollback和预算不变约束。任一历史计数未能核定则继续标REQUIRES_OWNER_CLASSIFICATION，不能以本账本推算可用额度。架构审核完成仍不等于新任务获实施授权，R6A及下一阶段继续false。
+
+### 8.6 拟议合同变更allowlist、禁止项与验收证据
+
+本节仅是未来正式修订的候选allowlist，不授予写入这些文件的权限；**本轮实际allowlist只有 `docs/tasks/V2_2_2-version-plan.md`**。
+
+| 待批准范围 | 拟允许的最小变更 | 正式批准前/之后的边界 | 必须提交的审核证据 |
+|---|---|---|---|
+| D01责任合同 | 原P3任务及R3/R4验收条款的具名补充/修订记录；ADR-050的A/B/C职责与supersession；本计划对应状态说明 | 保留历史原门槛、失败/PARTIAL与trace；具体文件/段落和是否采用附录须Owner批准；不由文档修订自动修改生产机制 | 旧→新invariant映射、UNKNOWN分母与scope、sound negative边界、联合正证书要求、P3完成条件及迁移说明 |
+| D03-GRID | P0工艺/规整度合同及ADR-047中产品0.90目标与gate校准状态的明确区分；本计划对照 | 只在正式授权后修改；不得删除0.90或凭空冻结numeric阈值；P0A/P0C原证据不覆盖 | 校准协议/样本缺口、版本与eligible集合、旧判定兼容及不可推导项；校准实施另授权 |
+| D03-GROUP | P0、P1A reset合同及ADR-049必要的适用版本/ownership兼容说明；本计划映射 | 不改当前runtime分组、历史原数据或HARD graph；具体变更段落待批 | 历史FINISHED_SIDE与当前PROCESSING_CORE对照、受影响quality/calibration消费者清单、schema版本审计及迁移方案 |
+| D04治理 | P1A reset合同/ADR-049中architecture identity、恢复轮次计数与例外审批的具名澄清；本计划账本 | MAX_RECOVERY_ROUNDS_PER_ARCHITECTURE=2不变，不追认不存在的授权，不以新编号清零 | 逐轮可定位授权、主尝试/混合行为分类、未定项、Owner裁决与新布局实施前审核记录 |
+| 后续测试适配（独立授权） | 仅与获批新合同直接对应的断言、文档一致性和兼容测试；具体test路径须另列 | 本轮TESTS_CHANGED=false；不得删除既有安全测试/缩分母/把UNKNOWN改SUPPORTED；生产实现不在文档修订allowlist | 小型独立穷举、negative soundness/positive exact复验、历史control及prefix兼容、回溯与domain revision、group/schema/质量版本迁移回归；测试无法证明的scope明确列出 |
+
+禁止修改：process_graph MUST/flows、12个roles、dimension/shape/site/full hard-obstacle权威、P0/P1 coordinate-free contract语义、P2 public policy/result、60000 placement budget、zone order、scheduler、families、Access/Truck/P2D工程权威；禁止历史坐标seed、#302/#306 recovery移植、旧证据覆盖、原工作区/锁操作。本提案不授权production/tests/ADR/原合同写入，不启动搜索优化或新的工程验证。
+
+正式修订验收要求：提供逐段diff与批准号、38项/4组/9字段不丢失、5full-pass/3实质结构/原质量目标不降级、历史验收保留、未决项不冒称批准；证据绑定SHA/input/authority及真实scope，R5仍为LOCAL_ONLY_NOT_INDEPENDENTLY_ARCHIVED，归档另授权。实施后的工程结果必须另行取得，不能借本轮文档审核补造。任何改动超出具名allowlist，STOP再请求授权。
+
+这些方向有助于多方案开发：A明确何时可以安全剪枝，避免静态有限域或资源耗尽误杀合法候选；B单列联合证明覆盖及成本，避免把未证UNKNOWN包装成正容量或把证明覆盖混作工程布局；C让5个full-pass/3类结构回到真实业务交付。D03避免未校准gate或group口径冲突误导质量评价；D04要求先审核架构与恢复额度，防止继续无边界修正。上述是职责与治理方向，不是性能/候选数量改善的已验证结论，也不授权立即恢复布局实施。
+
 停止条件：HEAD/remote PR变更或未知Git writer/I/O异常；发现范围外文件改动；需改原始合同或测试才可“对齐”；需提高budget/改scheduler/order；无可靠覆盖却要求negative；UNKNOWN冒充SUPPORTED；试图以家族标签/CI/hash数替代5/3/质量/视觉；触及recovery stop需architecture review；任何后续工作无Owner授权。均STOP，不自动绕过。
 
 ## 9. 建议业务实施顺序与允许规划的并行项
@@ -322,10 +381,12 @@ R5对272queries重新分类：192zero-check=174Finished空origin cover+18Coating
 
 ## 11. 本轮交付/自检
 
-唯一仓库新增文件：`docs/tasks/V2_2_2-version-plan.md`。现有合同/ADR/production/tests/evidence均不改。本轮审查不是新搜索、测试或工程验收，不产生新的P3业务PASS。执行文档字段、内部链接/证据存在、冻结目标和只改一文件的只读自检；不运行runtime suites或CI。
+唯一仓库变更文件：`docs/tasks/V2_2_2-version-plan.md`（首次草案为新增文件，本次为已入库文件的修订）。现有合同/ADR/production/tests/evidence均不改。本轮审查不是新搜索、测试或工程验收，不产生新的P3业务PASS。执行文档字段、冻结目标和只改一文件的只读自检；不运行runtime suites或CI。
 
 仓库外审查来源快照：`/Users/charles/codex-r3-isolated.m45h1H/version-plan-review.mhUKrM/` 中 `source_manifest.json`、三个 `pr-*-read-only-snapshot.json` 和只读capture脚本。它们记录当时完整SHA/来源digest，非正式入库evidence、非计划冻结。R5报告及相关CSV/JSON明确为 `LOCAL_ONLY_NOT_INDEPENDENTLY_ARCHIVED`；后续独立归档须Owner另行授权，本草案修订不授权归档。
 
 版本任务完整性仅限“现有已知任务和已识别剩余工作包完成盘点”；38项、4组及全部9字段保留，未批准的未来正式TASK_ID不是冻结完成。
 
-本次Owner审核修订完成意味着 **OWNER_REVIEW_CORRECTION_READY**，`PLAN_STATUS=OWNER_REVIEW_DRAFT_NOT_FROZEN`。版本表框架有条件通过不等于D01–D07已裁决，不是v2.2.2、P1A或P3完成。等待Owner正式批准；不commit、不push、不改PR body、不Ready/Merge、不Tag/Release/Deploy、不启动R6A或其他实施。
+前次审核修订及文档交付记录保留：草案已由独立documentation commit f6b17fb6...入库，仍未冻结。本次决策对齐仅修改该现有草案，不创建新commit或push。
+
+本次完成意味着 **OWNER_DECISION_ALIGNMENT_DRAFT_READY**，`PLAN_STATUS=OWNER_REVIEW_DRAFT_NOT_FROZEN`。D01/D03/D04为方向已同意、正式合同修订待批准；D02/D05/D06/D07仍PENDING_OWNER。原零UNKNOWN强验收和P3=false不变，不是v2.2.2或P1A完成。等待正式合同变更、架构分类及逐任务授权；不commit、不push、不改PR body、不Ready/Merge、不Tag/Release/Deploy、不启动R6A或其他实施。
