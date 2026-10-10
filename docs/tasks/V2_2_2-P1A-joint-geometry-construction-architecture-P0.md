@@ -1,16 +1,24 @@
 # V2.2.2 P1A — Joint Geometry Construction Architecture P0
 
 TASK_ID=V2_2_2_JOINT_GEOMETRY_CONSTRUCTION_ARCHITECTURE_CONTRACT_P0
-P0_CONTRACT_STATUS=OWNER_REVIEW_DRAFT_NOT_FROZEN
-CONTRACT_AUTHORITY=PROPOSED_CONTRACT_PENDING_OWNER_APPROVAL
+P0_CONTRACT_STATUS=OWNER_APPROVED_ARCHITECTURE_SCOPE_FROZEN
+CONTRACT_AUTHORITY=OWNER_APPROVED_ARCHITECTURE_DESIGN_SCOPE
 AUDIT_HEAD=35206a37e6ee9416d1f2ca30f010cb85e4d63f98
 
 ```ini
 CURRENT_WHOLE_BUILDING_ARCHITECTURE=WHOLE_BUILDING_GROUP_BAND_COMPOSITION_WITH_RESERVED_PERIPHERAL_DOMAINS
 SELECTED_DIRECTION=B_C_HYBRID_WITH_ENGINEERING_INTERFACE_DRIVEN_JOINT_GEOMETRY
+P0_ARCHITECTURE_CONTRACT_FROZEN=true
+OWNER_ARCHITECTURE_DESIGN_APPROVED=true
+WHOLE_BUILDING_ARCHITECTURE_RETAINED=true
 WHOLE_BUILDING_ARCHITECTURE_RESET=false
 MAJOR_CONSTRUCTION_SUBARCHITECTURE_REFACTOR=true
-PROPOSED_CONSTRUCTION_STRATEGY_ID=engineering-interface-driven-joint-geometry@1.0.0
+FROZEN_CONSTRUCTION_STRATEGY_ID=engineering-interface-driven-joint-geometry@1.0.0
+CONSTRUCTION_STRATEGY_IDENTITY_APPROVED=true
+CONSTRUCTION_STRATEGY_IMPLEMENTED=false
+ENGINEERING_AUTHORITY_CHANGE_AUTHORIZED=false
+ARCHITECTURE_DESIGN_FROZEN=true
+IMPLEMENTATION_READINESS=NOT_AUTHORIZED
 STRATEGY_IMPLEMENTED=false
 PRODUCTION_IMPLEMENTATION_AUTHORIZED=false
 P1_IMPLEMENTATION_AUTHORIZED=false
@@ -19,19 +27,23 @@ VERSION_PLAN_FROZEN=false
 MAX_RECOVERY_ROUNDS_PER_ARCHITECTURE=2
 D04_RECOVERY_LEDGER_RESOLVED=false
 HISTORICAL_RECOVERY_ROUNDS=REQUIRES_OWNER_CLASSIFICATION
+HISTORICAL_RECOVERY_ROUNDS_REMAINING=UNKNOWN
+RESOURCE_MAPPING_OWNER_APPROVAL_PENDING=true
 RESOURCE_CONTRACT_CHANGE_REQUIRED=CONDITIONAL_PENDING_RESOURCE_MAPPING
 NEW_INDEPENDENT_SEARCH_BUDGET_AUTHORIZED=false
+D01_FORMAL_AMENDMENT_COMPLETE=false
+D03_FORMAL_AMENDMENT_COMPLETE=false
 ```
 
-`engineering-interface-driven-joint-geometry@1.0.0` is a proposed versioned identity for an Exact-construction strategy. It is not the identity of the whole-building B/C architecture, not an engineering-authority identity, not a claim that production code exists, and not a new recovery-round allowance. The final name/version and the way D04 accounts for it remain Owner decisions. It must not overwrite or impersonate the existing legacy strategy identity.
+`engineering-interface-driven-joint-geometry@1.0.0` is the Owner-approved, frozen versioned identity for the future exact-construction strategy. It is distinct from the whole-building B/C architecture and is not an engineering-authority identity, a claim that production code exists, or a new recovery-round allowance. Its implementation readiness remains separate from architecture-design approval: production implementation, resource mapping, D04 classification and the named implementation task remain pending. It must not overwrite or impersonate the existing legacy strategy identity.
 
 ## PURPOSE
 
-Define an Owner-reviewable architecture contract for generating complete factory layouts by jointly constructing shared room geometry and engineering-interface alternatives, while retaining the current B/C whole-building structural architecture and all existing engineering authorities.
+Record the Owner-approved architecture design contract for generating complete factory layouts by jointly constructing shared room geometry and engineering-interface alternatives, while retaining the current B/C whole-building structural architecture and all existing engineering authorities. This freezes the architecture-design scope only; it does not grant implementation readiness or amend engineering-authority contracts.
 
 The intended result is a candidate producer for the whole 12-zone factory—not a Packaging-only solver and not a replacement engineering validator. Structural composition continues to express functional groups, principal bands, peripheral domains, family topology and mandatory structural relationships. A versioned joint-geometry construction strategy then assigns the original rooms and their interfaces in a mutually consistent way. The existing Access, Truck, interaction, footprint and P2D authorities remain responsible for final validation.
 
-Proposed construction flow:
+Frozen architecture flow (design-level; implementation remains unauthorized):
 
 ```text
 STRUCTURAL_COMPOSITION
@@ -42,7 +54,7 @@ STRUCTURAL_COMPOSITION
     → EXISTING_ACCESS_TRUCK_P2D_VALIDATION
 ```
 
-This draft resolves neither the D01 P3 acceptance contract nor D03 numeric/group conflicts. It preserves them and requires separate Owner decisions before a future implementation can claim changed acceptance semantics.
+This architecture freeze resolves neither the D01 P3 acceptance contract nor the D03 numeric/group conflicts. It preserves them; any changed acceptance semantics still require separate formal Owner-approved amendments.
 
 ## ENGINEERING_AUTHORITY
 
@@ -66,7 +78,7 @@ This draft resolves neither the D01 P3 acceptance contract nor D03 numeric/group
 3. Authoritative dimensions, shape domains, effective site boundary, complete hard obstacles, non-overlap semantics, Access, Truck, personnel/Truck interaction, footprint and P2D rules do not change.
 4. A construction witness is not an engineering acceptance. Only the corresponding existing validator may emit final PASS.
 5. Missing or conflicting authority is BLOCKED or UNKNOWN; it is never filled with guessed values.
-6. This document is a contract proposal only; it does not amend ADR-047/049/050 or the existing P0/P1A contracts.
+6. This document freezes only the approved architecture-design scope; it does not amend ADR-047/049/050 or the existing P0/P1A engineering-authority contracts.
 
 ## SCOPE
 
@@ -327,7 +339,7 @@ Stages are dependent where stated; they do not authorize parallel code or a new 
 ### This P0 document gate
 
 1. Exactly one new repository document in a fresh clean clone; all prior source documents and evidence unchanged.
-2. Whole-building B/C identity and proposed strategy identity are separate and correctly marked as unimplemented.
+2. Whole-building B/C identity and the Owner-approved frozen strategy identity are separate; strategy implementation remains explicitly false.
 3. All requested joint geometry variables and source/derived ownership are defined.
 4. Direct and corridor-mediated Packaging alternatives are both retained; no false “direct failure ⇒ interface impossible” rule.
 5. All twelve roles participate in global space competition; no thirteenth corridor role.
@@ -338,7 +350,7 @@ Stages are dependent where stated; they do not authorize parallel code or a new 
 10. Original process/regularity goals and D01/D03/D04 open conflicts are preserved.
 11. All eight old P1/CR1 files are individually dispositioned with source SHA; no source path is modified in the old clone.
 12. P1–P5 stage plans contain inputs, dependencies, outputs, proposed allowlist, tests/evidence, business gates, resources, stop/rollback and separate Owner authorization.
-13. No production/test/ADR/fixture/evidence change, run, commit, push or phase start is implied.
+13. This freeze amendment authorizes only the specified P0-document amendment, its single commit and normal push. No production/test/ADR/fixture/evidence change, canonical or engineering run, future task commit/push, or phase start is implied.
 
 ### Later implementation and business gates (not granted by this P0)
 
@@ -376,31 +388,62 @@ Every future implementation task must separately authorize and test, at minimum:
 
 ## OWNER_DECISIONS_REQUIRED
 
-1. Approve, amend or reject this contract and the proposed strategy ID/version. Decide whether `engineering-interface-driven-joint-geometry@1.0.0` is the final identifier; it is not frozen here.
-2. Confirm that the top-level B/C architecture identity remains and classify the new construction core as a major subarchitecture refactor; define the version/compatibility relationship to the legacy constructor.
-3. Resolve D04 historical recovery-round membership for relevant #302/#306/#307/P1/CR1 behavior, or state a named one-time implementation authorization without resetting `MAX_RECOVERY_ROUNDS_PER_ARCHITECTURE=2`.
-4. Before P1, approve the exact tuple/propagation resource accounting, cap scope and behavior. `RESOURCE_CONTRACT_CHANGE_REQUIRED=CONDITIONAL_PENDING_RESOURCE_MAPPING`: no independent budget or numeric increase is proposed or authorized; if a bounded mapping to current limits cannot be proven, a separately approved resource-contract change is required before implementation.
-5. Decide whether existing P0/P1 serialized contracts need an amendment; default proposal is keep them coordinate-free and runtime joint data internal.
-6. Preserve current D01 zero-UNKNOWN gate until a separate formal amendment is approved; do not treat this P0 as that amendment.
-7. Preserve both D03 conflicts and decide their formal compatibility/migration changes in a separate authorized task.
-8. Confirm exact P1–P5 task IDs, module/test/evidence allowlists, run counts and Owner authorization separately; the stage labels here are not frozen IDs.
-9. Approve a material structural-distinctness rule and multi-candidate output lifecycle; the five/three version goals remain required.
-10. Confirm that no production, tests, ADR, fixtures, evidence, canonical replay, Access/Truck/P2D, commit, push, PR update, Ready, Merge, release or deployment is authorized by this P0.
+1. `APPROVED_BY_OWNER_IN_THIS_FREEZE`: retain the top-level B/C architecture and classify the engineering-interface-driven joint-geometry core as a major construction subarchitecture refactor.
+2. `APPROVED_BY_OWNER_IN_THIS_FREEZE`: freeze `engineering-interface-driven-joint-geometry@1.0.0` as the construction-strategy identity, distinct from the whole-building architecture; implementation remains false.
+3. `PENDING_OWNER`: classify the historical #302/#306/#307/Packaging behavior under D04, determine any remaining recovery allowance from evidence, and decide whether to grant a named implementation permission. No round is reset or exempted by this architecture freeze.
+4. `PENDING_OWNER`: approve the exact tuple/propagation resource accounting, cap scope and behavior before implementation. `RESOURCE_CONTRACT_CHANGE_REQUIRED=CONDITIONAL_PENDING_RESOURCE_MAPPING`: no independent budget or numeric increase is authorized; if a bounded mapping to current limits cannot be proven, a separate resource-contract amendment is required.
+5. `PENDING_OWNER`: approve a formal P1 task ID, exact module/test/evidence allowlists and the separately scoped implementation permission; the P1–P5 labels here are not frozen task IDs.
+6. `PENDING_OWNER`: approve P1 independent integer-mm oracle fixtures, comparison method, acceptance thresholds and evidence requirements.
+7. `PENDING_OWNER`: authorize or reject the P2 Adapter implementation and decide any serialized-contract/schema amendment; the coordinate-free/runtime-only design remains the default proposal.
+8. `PENDING_OWNER`: authorize P3 canonical replay and full engineering-validation run counts, limits and evidence capture separately.
+9. `PENDING_OWNER`: authorize the P4 multi-candidate output mechanism and approve the material structural-distinctness rule; the five/three version goals remain required.
+10. `PENDING_OWNER`: complete P5 numeric regularity calibration and approve the Owner visual-review protocol; no uncalibrated numeric threshold is implied.
+11. `PENDING_OWNER`: preserve the current D01 zero-UNKNOWN P3 gate until a separate formal amendment is approved; this P0 is not that amendment.
+12. `PENDING_OWNER`: preserve both D03 conflicts and decide their formal numeric/group applicability, compatibility and migration changes in a separate authorized task.
+13. `PENDING_OWNER`: any other future production, test, ADR, fixture, evidence, canonical replay, Access/Truck/P2D, task commit/push, PR update, Ready, Merge, release or deployment authorization remains separate. This amendment's document-only commit/push permission is not reusable.
 
 ## Source register and scope statement
 
-The source manifest and external review report identify the exact SHA-256 of the previous decision package, each of its eight reports, the governing repository documents, and the eight pre-existing P1/CR1 files. Source fact, historical evidence, engineering inference, proposed contract and Owner-pending decision are not interchangeable. No report statement is a frozen authority until Owner approval and any required formal amendment.
+The source manifest and external review report identify the exact SHA-256 of the previous decision package, each of its eight reports, the governing repository documents, and the eight pre-existing P1/CR1 files. Source fact, historical evidence, engineering inference, approved architecture design, resource mapping, D04 classification and Owner-pending decisions are not interchangeable. This Owner decision freezes only the architecture-design scope and strategy identity stated above; it does not freeze resource mapping, resolve D04/D01/D03, amend engineering authorities or authorize implementation.
 
 ```ini
-P0_DOCUMENT_STATUS=OWNER_REVIEW_DRAFT_NOT_FROZEN
+P0_DOCUMENT_STATUS=OWNER_APPROVED_ARCHITECTURE_SCOPE_FROZEN
+P0_ARCHITECTURE_CONTRACT_FROZEN=true
+OWNER_ARCHITECTURE_DESIGN_APPROVED=true
+WHOLE_BUILDING_ARCHITECTURE_RETAINED=true
+WHOLE_BUILDING_ARCHITECTURE_RESET=false
+MAJOR_CONSTRUCTION_SUBARCHITECTURE_REFACTOR=true
+FROZEN_CONSTRUCTION_STRATEGY_ID=engineering-interface-driven-joint-geometry@1.0.0
+CONSTRUCTION_STRATEGY_IDENTITY_APPROVED=true
+CONSTRUCTION_STRATEGY_IMPLEMENTED=false
+ENGINEERING_AUTHORITY_CHANGE_AUTHORIZED=false
+ARCHITECTURE_DESIGN_FROZEN=true
+IMPLEMENTATION_READINESS=NOT_AUTHORIZED
+RESOURCE_MAPPING_OWNER_APPROVAL_PENDING=true
+RESOURCE_CONTRACT_CHANGE_REQUIRED=CONDITIONAL_PENDING_RESOURCE_MAPPING
+NEW_INDEPENDENT_SEARCH_BUDGET_AUTHORIZED=false
+D04_RECOVERY_LEDGER_RESOLVED=false
+HISTORICAL_RECOVERY_ROUNDS=REQUIRES_OWNER_CLASSIFICATION
+HISTORICAL_RECOVERY_ROUNDS_REMAINING=UNKNOWN
+MAX_RECOVERY_ROUNDS_PER_ARCHITECTURE=2
+D01_FORMAL_AMENDMENT_COMPLETE=false
+D03_FORMAL_AMENDMENT_COMPLETE=false
 PRODUCTION_IMPLEMENTATION_AUTHORIZED=false
 ARCHITECTURE_RESET_AUTHORIZED=false
 NEW_RECOVERY_ROUND_AUTHORIZED=false
 TEST_MODIFICATION_AUTHORIZED=false
 CANONICAL_REPLAY_AUTHORIZED=false
-FORMAL_CONTRACT_FREEZE_AUTHORIZED=false
-COMMIT_AUTHORIZED=false
-PUSH_AUTHORIZED=false
+FORMAL_CONTRACT_FREEZE_AUTHORIZED=true
+FORMAL_CONTRACT_FREEZE_SCOPE=ARCHITECTURE_DESIGN_ONLY
+FORMAL_CONTRACT_AMENDMENT_AUTHORIZED=false
+DOCUMENT_AMENDMENT_COMMIT_AUTHORIZED=true
+DOCUMENT_AMENDMENT_NORMAL_PUSH_AUTHORIZED=true
+COMMIT_AUTHORIZED=true
+COMMIT_AUTHORIZATION_SCOPE=THIS_DOCUMENT_AMENDMENT_ONLY
+PUSH_AUTHORIZED=true
+PUSH_AUTHORIZATION_SCOPE=THIS_DOCUMENT_AMENDMENT_ONLY
+FUTURE_CODE_OR_DOCUMENT_COMMIT_AUTHORIZED=false
+FUTURE_CODE_OR_DOCUMENT_PUSH_AUTHORIZED=false
 P1_IMPLEMENTATION_AUTHORIZED=false
 CR2_AUTHORIZED=false
 R6A_AUTHORIZED=false
