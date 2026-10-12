@@ -23,7 +23,9 @@ FIXTURE = ROOT / "backend/tests/fixtures/v22/xinzhao_20t_site_layout_input_v3.js
 PROVENANCE = ROOT / "backend/tests/fixtures/v22/xinzhao_20t_site_layout_input_v3.provenance.json"
 EXPECTED_RAW_SHA256 = "d03ecae9e1e2808cba346eb83a39f853c8a4b366acc103669af1cf868363901e"
 EXPECTED_CANONICAL_RESULT_HASH = (
-    "sha256:eaa791651fa3fdb20d707d18fa31620992ab17b1ade8dc89554b8b2331742b30"
+    # R11 derives each Direct destination edge class from its own geometry.
+    # Geometry and presentation SVG are unchanged; corrected metadata is hashed.
+    "sha256:e00d1c6869cf689915613ec448d7f68305cb8957c4d720f5ed4e92acc0df8825"
 )
 EXPECTED_SVG_SHA256 = "sha256:db63fa7a6954820dd21dc0a7c70aba6f2cbfa7de6c5d2299027176100b109973"
 _SENSITIVE_KEY = re.compile(

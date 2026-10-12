@@ -35,13 +35,21 @@ from cold_storage.modules.layout.domain.site_geometry import (
     PlacedRectangleV1,
     PolygonMM,
     SegmentMM,
+    _fraction_point,
+    _point_in_polygon_fraction,
+    _point_on_fraction_segment,
     _polygon_edges,
+    _segment_intersection_parameters,
     _segments_intersect_closed,
     normalize_polygon,
-    point_in_polygon,
-    polygon_contains_polygon,
     polygon_to_dict,
     segments_share_positive_length,
+)
+from cold_storage.modules.layout.domain.site_geometry import (
+    point_in_polygon as _site_point_in_polygon,
+)
+from cold_storage.modules.layout.domain.site_geometry import (
+    polygon_contains_polygon as _site_polygon_contains_polygon,
 )
 from cold_storage.modules.layout.domain.truck_maneuver import (
     DOCK_REVERSE,
@@ -142,19 +150,89 @@ def _proper_segment_cross(first: SegmentMM, second: SegmentMM) -> bool:
 
 
 def _polygon_interiors_overlap(first: PolygonMM, second: PolygonMM) -> bool:
-    """Return true for positive-area overlap, but permit boundary contact."""
-    if any(
-        _proper_segment_cross(first_edge, second_edge)
-        for first_edge in _polygon_edges(first)
-        for second_edge in _polygon_edges(second)
-    ):
-        return True
-    if any(_strict_point_in_polygon(point, second) for point in first):
-        return True
-    return any(_strict_point_in_polygon(point, first) for point in second)
+    """Exact positive area, including containment and coincident edges.
+
+    Vertex and intersection x events partition the plane into open slabs.
+    Within each slab edge ordering is constant, so positive vertical interval
+    overlap at its rational sample is equivalent to positive intersection area.
+    Boundary-only contact has zero area. No rounding or bbox substitution is
+    used for general simple polygons.
+    """
+    a, b = _rectangle_bounds(first), _rectangle_bounds(second)
+    if a is not None and b is not None:
+        return max(a[0], b[0]) < min(a[2], b[2]) and max(a[1], b[1]) < min(a[3], b[3])
+    _validate_route_polygon(first)
+    _validate_route_polygon(second)
+    xs = {_fraction_point(point)[0] for point in (*first, *second)}
+    for start, end in _polygon_edges(first):
+        for other_start, other_end in _polygon_edges(second):
+            for t in _segment_intersection_parameters(start, end, other_start, other_end):
+                xs.add(_fraction_point(start)[0] + t * (end[0] - start[0]))
+    ordered = sorted(xs)
+    for left, right in zip(ordered, ordered[1:], strict=False):
+        sample = (left + right) / 2
+        if any(
+            max(bottom_a, bottom_b) < min(top_a, top_b)
+            for bottom_a, top_a in _vertical_intervals(first, sample)
+            for bottom_b, top_b in _vertical_intervals(second, sample)
+        ):
+            return True
+    return False
+
+
+def _rectangle_bounds(polygon: PolygonMM) -> tuple[int, int, int, int] | None:
+    """Recognize an ordered, nondegenerate rectangle, never a bow-tie."""
+    if len(polygon) != 4 or len(set(polygon)) != 4:
+        return None
+    xs, ys = sorted({p[0] for p in polygon}), sorted({p[1] for p in polygon})
+    if len(xs) != 2 or len(ys) != 2:
+        return None
+    if any(a[0] != b[0] and a[1] != b[1] for a, b in _polygon_edges(polygon)):
+        return None
+    return xs[0], ys[0], xs[1], ys[1]
+
+
+def _validate_route_polygon(polygon: PolygonMM) -> None:
+    normalize_polygon(polygon_to_dict(polygon), error_code="INVALID_ROUTE_GEOMETRY")
+
+
+def _vertical_intervals(polygon: PolygonMM, x: Any) -> tuple[tuple[Any, Any], ...]:
+    crossings = sorted(
+        a[1] + (x - a[0]) * (b[1] - a[1]) / (b[0] - a[0])
+        for start, end in _polygon_edges(polygon)
+        for a, b in ((_fraction_point(start), _fraction_point(end)),)
+        if min(a[0], b[0]) < x < max(a[0], b[0])
+    )
+    return tuple(zip(crossings[::2], crossings[1::2], strict=True))
+
+
+def point_in_polygon(point: tuple[int, int], polygon: PolygonMM) -> bool:
+    bounds = _rectangle_bounds(polygon)
+    if bounds is not None:
+        return bounds[0] <= point[0] <= bounds[2] and bounds[1] <= point[1] <= bounds[3]
+    _validate_route_polygon(polygon)
+    return _site_point_in_polygon(point, polygon)
+
+
+def polygon_contains_polygon(outer: PolygonMM, inner: PolygonMM) -> bool:
+    bounds = _rectangle_bounds(outer)
+    if bounds is not None:
+        # A convex rectangle contains the entire polygon iff all vertices are
+        # contained. Validate the inner ring before taking this fast path.
+        if _rectangle_bounds(inner) is None:
+            _validate_route_polygon(inner)
+        return all(bounds[0] <= x <= bounds[2] and bounds[1] <= y <= bounds[3] for x, y in inner)
+    _validate_route_polygon(outer)
+    _validate_route_polygon(inner)
+    return _site_polygon_contains_polygon(outer, inner)
 
 
 def _polygon_intersects_closed(first: PolygonMM, second: PolygonMM) -> bool:
+    a, b = _rectangle_bounds(first), _rectangle_bounds(second)
+    if a is not None and b is not None:
+        return max(a[0], b[0]) <= min(a[2], b[2]) and max(a[1], b[1]) <= min(a[3], b[3])
+    _validate_route_polygon(first)
+    _validate_route_polygon(second)
     if any(
         _segments_intersect_closed(a, b, c, d)
         for a, b in _polygon_edges(first)
@@ -394,10 +472,27 @@ def _segment_open_interval_overlaps_polygon_interior(
     start, end = segment
     if start == end:
         return False
-    left = min(point[0] for point in polygon)
-    right = max(point[0] for point in polygon)
-    bottom = min(point[1] for point in polygon)
-    top = max(point[1] for point in polygon)
+    if start[0] != end[0] and start[1] != end[1]:
+        raise _error("INVALID_RECTILINEAR_ROUTE")
+    bounds = _rectangle_bounds(polygon)
+    if bounds is None:
+        _validate_route_polygon(polygon)
+        a, b = _fraction_point(start), _fraction_point(end)
+        parameters = {a[0] * 0, a[0] * 0 + 1}
+        for c, d in _polygon_edges(polygon):
+            parameters.update(_segment_intersection_parameters(start, end, c, d))
+        ordered = sorted(parameters)
+        for lower, upper in zip(ordered, ordered[1:], strict=False):
+            t = (lower + upper) / 2
+            sample = (a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]))
+            on_boundary = any(
+                _point_on_fraction_segment(sample, _fraction_point(c), _fraction_point(d))
+                for c, d in _polygon_edges(polygon)
+            )
+            if not on_boundary and _point_in_polygon_fraction(sample, polygon):
+                return True
+        return False
+    left, bottom, right, top = bounds
     if start[1] == end[1]:
         if not bottom < start[1] < top:
             return False
@@ -488,6 +583,47 @@ def _candidate_paths(
     return tuple(paths)
 
 
+def _cached_route_is_safe(
+    path: Sequence[tuple[int, int]],
+    *,
+    width_mm: int,
+    boundary: PolygonMM,
+    obstacles: Sequence[PolygonMM],
+    zones: Mapping[str, PlacedRectangleV1],
+    incident_refs: frozenset[str],
+    cache: dict[tuple[Any, ...], Any] | None,
+    capacity: int,
+) -> tuple[bool, str | None, tuple[PlacedRectangleV1, ...]]:
+    """Memoize only identical geometry queries; never cache route acceptance.
+
+    Storage is call-local and bounded by the unchanged search budget. A full
+    cache falls through to calculation, not pruning. Every influential input
+    is present even if this helper is called with a reused cache by a test.
+    """
+    key = (
+        tuple(path),
+        width_mm,
+        boundary,
+        tuple(obstacles),
+        tuple(sorted((role, zone.polygon_mm) for role, zone in zones.items())),
+        incident_refs,
+    )
+    if cache is not None and key in cache:
+        value: tuple[bool, str | None, tuple[PlacedRectangleV1, ...]] = cache[key]
+        return value
+    result = _route_is_safe(
+        path,
+        width_mm=width_mm,
+        boundary=boundary,
+        obstacles=obstacles,
+        zones=zones,
+        incident_refs=incident_refs,
+    )
+    if cache is not None and len(cache) < capacity:
+        cache[key] = result
+    return result
+
+
 def _route_grid_path(
     start: tuple[int, int],
     end: tuple[int, int],
@@ -498,6 +634,7 @@ def _route_grid_path(
     zones: Mapping[str, PlacedRectangleV1],
     incident_refs: frozenset[str],
     node_budget: int,
+    safety_cache: dict[tuple[Any, ...], Any] | None = None,
 ) -> tuple[tuple[tuple[int, int], ...] | None, str, tuple[PlacedRectangleV1, ...]]:
     """Search a finite visibility graph in stable coordinate order."""
     half = width_mm // 2
@@ -516,6 +653,8 @@ def _route_grid_path(
             y_values.update((y - half, y, y + half))
     xs = tuple(sorted(x_values))
     ys = tuple(sorted(y_values))
+    x_indices = {value: index for index, value in enumerate(xs)}
+    y_indices = {value: index for index, value in enumerate(ys)}
     nodes = {
         (x, y)
         for x in xs
@@ -530,8 +669,8 @@ def _route_grid_path(
 
     def neighbors(node: tuple[int, int]) -> Iterable[tuple[int, int]]:
         x, y = node
-        x_index = xs.index(x)
-        y_index = ys.index(y)
+        x_index = x_indices[x]
+        y_index = y_indices[y]
         candidates: set[tuple[int, int]] = set()
         if x_index:
             candidates.add((xs[x_index - 1], y))
@@ -555,13 +694,15 @@ def _route_grid_path(
                 raw_path.append(cursor)
                 cursor = parents[cursor]
             path = _compact_path(tuple(reversed(raw_path)))
-            safe, reason, envelopes = _route_is_safe(
+            safe, reason, envelopes = _cached_route_is_safe(
                 path,
                 width_mm=width_mm,
                 boundary=boundary,
                 obstacles=obstacles,
                 zones=zones,
                 incident_refs=incident_refs,
+                cache=safety_cache,
+                capacity=node_budget,
             )
             if safe:
                 return path, "", envelopes
@@ -571,13 +712,15 @@ def _route_grid_path(
         for candidate in neighbors(current):
             if candidate in parents:
                 continue
-            safe, _, _ = _route_is_safe(
+            safe, _, _ = _cached_route_is_safe(
                 (current, candidate),
                 width_mm=width_mm,
                 boundary=boundary,
                 obstacles=obstacles,
                 zones=zones,
                 incident_refs=incident_refs,
+                cache=safety_cache,
+                capacity=node_budget,
             )
             if safe:
                 parents[candidate] = current
@@ -596,16 +739,19 @@ def _find_route(
     zones: Mapping[str, PlacedRectangleV1],
     incident_refs: frozenset[str],
     node_budget: int,
+    safety_cache: dict[tuple[Any, ...], Any] | None = None,
 ) -> tuple[tuple[tuple[int, int], ...] | None, str, tuple[PlacedRectangleV1, ...]]:
     reasons: list[str] = []
     for path in _candidate_paths(start, end, straight_only=straight_only):
-        safe, reason, envelopes = _route_is_safe(
+        safe, reason, envelopes = _cached_route_is_safe(
             path,
             width_mm=width_mm,
             boundary=boundary,
             obstacles=obstacles,
             zones=zones,
             incident_refs=incident_refs,
+            cache=safety_cache,
+            capacity=node_budget,
         )
         if safe:
             return path, "", envelopes
@@ -626,6 +772,7 @@ def _find_route(
         zones=zones,
         incident_refs=incident_refs,
         node_budget=node_budget,
+        safety_cache=safety_cache,
     )
     return grid_path, reason or (reasons[0] if reasons else "ROUTE_SEARCH_EXHAUSTED"), envelopes
 
@@ -803,7 +950,11 @@ def route_access_requirement(
                     {
                         "topology": "DIRECT_SHARED_EDGE",
                         "portal_from": _portal_record(requirement, from_ref, portal),
-                        "portal_to": _portal_record(requirement, to_ref, portal),
+                        "portal_to": _portal_record(
+                            requirement,
+                            to_ref,
+                            {**portal, "edge_class": actual_to or "SHARED_EDGE"},
+                        ),
                         "centerline": [portal_center, portal_center],
                         "clear_width_m": portal["clear_width_m"],
                         "route_length_m": Decimal("0"),
@@ -843,6 +994,7 @@ def route_access_requirement(
 
     straight_only = requirement_object.route_shape_constraint == "STRAIGHT_ONLY"
     route_failures: list[str] = []
+    safety_cache: dict[tuple[Any, ...], Any] = {}
     for from_candidate in from_options:
         for to_candidate in to_options:
             start = _portal_center(from_candidate["segment_mm"])
@@ -854,6 +1006,46 @@ def route_access_requirement(
                     boundary,
                     corridor_width_mm // 2,
                 )
+            # Necessary final-leg clearance, restricted to the proved boundary
+            # entrance / strict-interior rectangular target-face domain. Other
+            # cases retain the original search, including odd widths/corners.
+            target_bounds = to_rectangle.bounds_mm
+            left, bottom, right, top = target_bounds
+            normal = (
+                (-1, 0)
+                if end[0] == left and bottom < end[1] < top
+                else (1, 0)
+                if end[0] == right and bottom < end[1] < top
+                else (0, -1)
+                if end[1] == bottom and left < end[0] < right
+                else (0, 1)
+                if end[1] == top and left < end[0] < right
+                else None
+            )
+            if (
+                from_ref == "main_entrance"
+                and normal is not None
+                and start != end
+                and corridor_width_mm % 2 == 0
+                and _rectangle_bounds(boundary) is not None
+                and all(_rectangle_bounds(obstacle) is not None for obstacle in obstacles)
+            ):
+                # Nonaligned endpoints require a final turn. Its full square
+                # plus the last normal leg contains this outward strip. For
+                # aligned endpoints only a one-mm necessary strip is tested.
+                distance = corridor_width_mm if start[0] != end[0] and start[1] != end[1] else 1
+                outside = (end[0] + normal[0] * distance, end[1] + normal[1] * distance)
+                clear, reason, _ = _route_is_safe(
+                    (outside, end),
+                    width_mm=corridor_width_mm,
+                    boundary=boundary,
+                    obstacles=obstacles,
+                    zones=zones,
+                    incident_refs=frozenset((from_ref, to_ref)),
+                )
+                if not clear:
+                    route_failures.append(reason or "ROUTE_SEARCH_EXHAUSTED")
+                    continue
             path, reason, envelopes = _find_route(
                 start,
                 end,
@@ -864,6 +1056,7 @@ def route_access_requirement(
                 zones=zones,
                 incident_refs=frozenset((from_ref, to_ref)),
                 node_budget=route_node_budget,
+                safety_cache=safety_cache,
             )
             if path is None:
                 route_failures.append(reason)

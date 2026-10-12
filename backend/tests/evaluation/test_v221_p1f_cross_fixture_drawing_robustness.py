@@ -89,7 +89,9 @@ _EXPECTED_REPRESENTATIVE_HASHES = {
     "PRESENTATION": "sha256:e89ca6e1f797fedca41780d2027e728b3a3f37db19c979c0fa9dc863531b2f1a",
     "MOBILE_PREVIEW": "sha256:dc0b5313113e69fdfc6c59b88f4bd911316d74b71762bae83768c1bdd70153f2",
     "ENGINEERING_SHEET": "sha256:96c82d7296d027a9b41b4b2d8198e7239bed61dbc0811259e0575e2ca3eb25d3",
-    "ENGINEERING_REVIEW": "sha256:48ea97310b955b3e5b94ea68eebed49c377031c74cb4eeba9db003e36042f37d",
+    # R11 corrects Direct destination metadata; this profile displays the layout
+    # hash. Its SVG differs only in that source hash, not drawing geometry.
+    "ENGINEERING_REVIEW": "sha256:bec4d8e200af35a7c4b80618769fa4c5d3686d1786b875d9ca5fcccf6f2fa005",
 }
 _CONTEXT_INSET_PROFILES = frozenset({"PRESENTATION", "MOBILE_PREVIEW", "ENGINEERING_SHEET"})
 
