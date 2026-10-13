@@ -55,9 +55,14 @@ def _reject(code: str, **details: object) -> NoReturn:
 
 
 def _object(value: object, fields: set[str], name: str) -> Mapping[str, Any]:
-    if not isinstance(value, Mapping) or set(value) != fields:
+    if not isinstance(value, Mapping):
         _reject("INVALID_TRUCK_PREVIEW_INPUT", field=name)
     assert isinstance(value, Mapping)
+    missing = sorted(fields - set(value))
+    if missing:
+        _reject("PROJECT_INPUT_REQUIRED", missing_fields=[name + "." + k for k in missing])
+    if set(value) - fields:
+        _reject("INVALID_TRUCK_PREVIEW_INPUT", field=name)
     return value
 
 

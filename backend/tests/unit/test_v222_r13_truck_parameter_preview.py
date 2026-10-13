@@ -149,6 +149,11 @@ def test_missing_vehicle_and_owner_documents() -> None:
     r = invoke_truck_preview(p)
     assert r["status"] == "PROJECT_INPUT_REQUIRED" and not r["REAL_PROJECT_APPROVED"]
     assert invoke_truck_preview(example())["status"] == "PASS"
+    p = example()
+    del p["entrance"]["clear_width_m"]
+    r = invoke_truck_preview(p)
+    assert r["status"] == "PROJECT_INPUT_REQUIRED"
+    assert r["missing_fields"] == ["entrance.clear_width_m"]
 
 
 def test_content_and_declared_hashes_must_match_actual_bytes() -> None:
