@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "parameterized-truck-preview-input@1.0.0",
+  "title": "Additive parameterized Option C Truck preview input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "mode", "vehicle_type", "vehicle_body", "vehicle_source_reference", "truck_access", "truck_maneuver", "entrance", "shipping_loading_face", "loading_face_reference", "site_geometry", "evidence", "approval_reference"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "mode": {"enum": ["SYNTHETIC_TEST", "OWNER_PROJECT"]},
+    "vehicle_type": {"type": "string", "minLength": 1},
+    "vehicle_body": {"$ref": "#/$defs/polygon"},
+    "vehicle_source_reference": {"type": "string", "minLength": 1},
+    "truck_access": {"$ref": "#/$defs/p1f"},
+    "truck_maneuver": {"$ref": "#/$defs/maneuver_project"},
+    "entrance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["locator_segment", "clear_opening_segment", "clear_width_m", "measurement_reference", "clearance_reference"],
+      "properties": {
+        "locator_segment": {"$ref": "#/$defs/segment"},
+        "clear_opening_segment": {"$ref": "#/$defs/segment"},
+        "clear_width_m": {"$ref": "#/$defs/coordinate"},
+        "measurement_reference": {"type": "string", "minLength": 1},
+        "clearance_reference": {"type": "string", "minLength": 1}
+      }
+    },
+    "shipping_loading_face": {"$ref": "#/$defs/segment"},
+    "loading_face_reference": {"type": "string", "minLength": 1},
+    "site_geometry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["effective_buildable_boundary", "hard_obstacles", "zones", "personnel_corridors"],
+      "properties": {
+        "effective_buildable_boundary": {"$ref": "#/$defs/polygon"},
+        "hard_obstacles": {"type": "array", "items": {"$ref": "#/$defs/polygon"}},
+        "personnel_corridors": {"type": "array", "items": {"$ref": "#/$defs/polygon"}},
+        "zones": {"type": "array", "items": {
+          "type": "object", "additionalProperties": false,
+          "required": ["zone_code", "x", "y", "width_m", "depth_m", "rotation_deg"],
+          "properties": {
+            "zone_code": {"type": "string", "minLength": 1},
+            "x": {"$ref": "#/$defs/coordinate"}, "y": {"$ref": "#/$defs/coordinate"},
+            "width_m": {"$ref": "#/$defs/coordinate"}, "depth_m": {"$ref": "#/$defs/coordinate"},
+            "rotation_deg": {"enum": [0, 90]}
+          }
+        }}
+      }
+    },
+    "evidence": {"type": "array", "maxItems": 32, "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reference", "content_sha256", "content_base64"],
+      "properties": {
+        "reference": {"type": "string", "minLength": 1},
+        "content_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "content_base64": {"type": "string", "maxLength": 1398104}
+      }
+    }},
+    "approval_reference": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "source": {"type": "object", "additionalProperties": false,
+      "required": ["schema_version", "source_authority", "project_id", "reference", "content_sha256", "provided_by"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "source_authority": {"const": "PROJECT_INPUT"},
+        "project_id": {"$ref": "#/$defs/text"}, "reference": {"$ref": "#/$defs/text"},
+        "content_sha256": {"$ref": "#/$defs/digest"}, "provided_by": {"$ref": "#/$defs/text"}
+      }
+    },
+    "p1f": {"type": "object", "additionalProperties": false,
+      "required": ["schema_version", "source_authority", "project_id", "vehicle_width_m", "vehicle_length_m", "turning_envelope", "straight_approach", "loading_operation_clearance"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "source_authority": {"const": "PROJECT_INPUT"},
+        "project_id": {"$ref": "#/$defs/text"},
+        "vehicle_width_m": {"type": "number", "exclusiveMinimum": 0, "description": "实际车宽m，无默认值；精确0.001m由原Domain校验。"},
+        "vehicle_length_m": {"type": "number", "exclusiveMinimum": 0, "description": "实际车长m，无默认值。"},
+        "turning_envelope": {"$ref": "#/$defs/source"},
+        "straight_approach": {"$ref": "#/$defs/source"},
+        "loading_operation_clearance": {"$ref": "#/$defs/source"}
+      }
+    },
+    "pose": {"type": "object", "additionalProperties": false, "required": ["x", "y", "rotation_deg"],
+      "properties": {"x": {"$ref": "#/$defs/coordinate"}, "y": {"$ref": "#/$defs/coordinate"}, "rotation_deg": {"enum": [0, 90, 180, 270]}}
+    },
+    "frame": {"type": "object", "additionalProperties": false,
+      "required": ["reference_frame", "forward_axis", "origin_reference", "vehicle_reference_point", "entry_pose", "exit_pose"],
+      "properties": {
+        "reference_frame": {"const": "LOCAL_TEMPLATE_FRAME"}, "forward_axis": {"const": "POSITIVE_X"},
+        "origin_reference": {"const": "ENTRY_REFERENCE_POINT"},
+        "vehicle_reference_point": {"$ref": "#/$defs/point"},
+        "entry_pose": {"$ref": "#/$defs/pose"}, "exit_pose": {"$ref": "#/$defs/pose"}
+      }, "description": "原模板局部坐标框架；参考点和进入姿态的原点条件由原Domain严格校验。"
+    },
+    "template": {"type": "object", "additionalProperties": false,
+      "required": ["schema_version", "project_id", "source_authority", "template_id", "maneuver_class", "vehicle_width_m", "vehicle_length_m", "envelope_geometry", "reference", "reference_frame", "content_sha256", "provided_by"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "source_authority": {"const": "PROJECT_INPUT"},
+        "project_id": {"$ref": "#/$defs/text"}, "template_id": {"$ref": "#/$defs/text"},
+        "identity": {"$ref": "#/$defs/text"}, "provided_by": {"$ref": "#/$defs/text"},
+        "maneuver_class": {"enum": ["STRAIGHT_APPROACH", "TURN_90", "DOCK_REVERSE"]},
+        "vehicle_width_m": {"$ref": "#/$defs/coordinate"}, "vehicle_length_m": {"$ref": "#/$defs/coordinate"},
+        "envelope_geometry": {"$ref": "#/$defs/polygon"}, "reference": {"$ref": "#/$defs/text"},
+        "reference_frame": {"$ref": "#/$defs/frame"}, "content_sha256": {"$ref": "#/$defs/digest"},
+        "turn_direction": {"enum": ["LEFT", "RIGHT"]},
+        "dock_face_reference": {"const": "shipping_channel.LONG_EDGE_LOADING_FACE"},
+        "approach_pose": {"$ref": "#/$defs/pose"}, "final_dock_pose": {"$ref": "#/$defs/pose"}
+      },
+      "allOf": [
+        {"if": {"properties": {"maneuver_class": {"const": "TURN_90"}}}, "then": {"required": ["turn_direction"]}},
+        {"if": {"properties": {"maneuver_class": {"const": "DOCK_REVERSE"}}}, "then": {"required": ["dock_face_reference", "approach_pose", "final_dock_pose"]}}
+      ]
+    },
+    "template_set": {"type": "object", "additionalProperties": false,
+      "required": ["schema_version", "project_id", "source_authority", "templates", "content_sha256", "provided_by"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "source_authority": {"const": "PROJECT_INPUT"},
+        "project_id": {"$ref": "#/$defs/text"}, "provided_by": {"$ref": "#/$defs/text"},
+        "identity": {"$ref": "#/$defs/text"}, "content_sha256": {"$ref": "#/$defs/digest"},
+        "templates": {"type": "array", "items": {"$ref": "#/$defs/template"}}
+      }
+    },
+    "requirement": {"type": "object", "additionalProperties": false,
+      "required": ["schema_version", "project_id", "source_authority", "required_maneuver_classes", "content_sha256", "provided_by"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "source_authority": {"const": "PROJECT_INPUT"},
+        "project_id": {"$ref": "#/$defs/text"}, "provided_by": {"$ref": "#/$defs/text"},
+        "identity": {"$ref": "#/$defs/text"}, "content_sha256": {"$ref": "#/$defs/digest"},
+        "required_maneuver_classes": {"type": "array", "items": {"enum": ["STRAIGHT_APPROACH", "TURN_90", "DOCK_REVERSE"]}}
+      }
+    },
+    "maneuver_project": {"type": "object", "additionalProperties": false,
+      "required": ["schema_version", "project_id", "source_authority", "template_set", "requirement", "content_sha256", "provided_by"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "source_authority": {"const": "PROJECT_INPUT"},
+        "project_id": {"$ref": "#/$defs/text"}, "provided_by": {"$ref": "#/$defs/text"},
+        "identity": {"$ref": "#/$defs/text"}, "content_sha256": {"$ref": "#/$defs/digest"},
+        "template_set": {"$ref": "#/$defs/template_set"}, "requirement": {"$ref": "#/$defs/requirement"}
+      }
+    },
+    "coordinate": {"type": ["number", "string"], "description": "Metres; production exact 0.001 m normalization rejects invalid values"},
+    "point": {"type": "object", "additionalProperties": false, "required": ["x", "y"], "properties": {"x": {"$ref": "#/$defs/coordinate"}, "y": {"$ref": "#/$defs/coordinate"}}},
+    "segment": {"type": "object", "additionalProperties": false, "required": ["start", "end"], "properties": {"start": {"$ref": "#/$defs/point"}, "end": {"$ref": "#/$defs/point"}}},
+    "polygon": {"type": "object", "additionalProperties": false, "required": ["type", "points"], "properties": {"type": {"const": "polygon"}, "points": {"type": "array", "minItems": 3, "items": {"$ref": "#/$defs/point"}}}}
+  }
+}

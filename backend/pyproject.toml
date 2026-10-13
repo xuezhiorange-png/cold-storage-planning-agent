@@ -56,3 +56,4 @@ ignore_missing_imports = true
 # No other pyproject.toml sections are modified by this round.
 [tool.setuptools.package-data]
 "cold_storage.evaluation.schema" = ["manifest.schema.json"]
+"cold_storage.modules.aily.application" = ["truck_preview.schema.json"]

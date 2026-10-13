@@ -348,6 +348,7 @@ def test_tools_list_appends_site_layout_as_seventh_tool() -> None:
         "preview_investment",
         "preview_factory_power",
         "preview_site_layout",
+        "preview_truck",
     ]
     first_schema = tools[0]["inputSchema"]
     for tool in tools[:6]:
