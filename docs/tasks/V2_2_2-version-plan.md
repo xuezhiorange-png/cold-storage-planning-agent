@@ -1,5 +1,7 @@
 # V2.2.2 版本开发总计划 — Owner 审核草案
 
+> **最新进度导航（2026-10-15）：见[第12节 R1–R15 对账](#r1-r15-current-reconciliation)。** 第1–11节及其授权/CI/“当前”字段是2026-10-09审查历史，原文保留；后续状态以第12节具名证据及适用范围补充，不倒改历史。MCP八工具上线不代表v2.2.2完成。
+
 > **DRAFT / NOT FROZEN / DOCUMENTATION ONLY。** 本文是对既有合同、任务和证据的对账，不替代或修改原始权威合同，不授权任何实施。待 Owner 审核后，文档提交、计划冻结及后续任务分别授权。
 
 ```ini
@@ -390,3 +392,224 @@ R5对272queries重新分类：192zero-check=174Finished空origin cover+18Coating
 前次审核修订及文档交付记录保留：草案已由独立documentation commit f6b17fb6...入库，仍未冻结。本次决策对齐仅修改该现有草案，不创建新commit或push。
 
 本次完成意味着 **OWNER_DECISION_ALIGNMENT_DRAFT_READY**，`PLAN_STATUS=OWNER_REVIEW_DRAFT_NOT_FROZEN`。D01/D03/D04为方向已同意、正式合同修订待批准；D02/D05/D06/D07仍PENDING_OWNER。原零UNKNOWN强验收和P3=false不变，不是v2.2.2或P1A完成。等待正式合同变更、架构分类及逐任务授权；不commit、不push、不改PR body、不Ready/Merge、不Tag/Release/Deploy、不启动R6A或其他实施。
+
+<a id="r1-r15-current-reconciliation"></a>
+
+## 12. 2026-10-15：R1–R15 实际成果与剩余交付路线（Owner 审核增补）
+
+### 12.1 先看结论、原目标和下一项工作
+
+**已得到：一个可核验的CP-SAT重建完整布局；固定布局的11项非货车Access生产源码验证；参数化Truck软件能力；八工具MCP生产集成、公网部署。尚未得到：新哨真实Truck/P2D full-pass、多结构5方案集合、正式工艺/规整度评价与排序、最终图集及新布局Tool7闭环。**
+
+本轮原始产品目标仍是“完整、工艺方向清楚、主流程无折返、分组与建筑轮廓规整、主功能区轴网协调、人员与物流合理分离的整厂方案”，不是“能摆12个矩形”或“能调用第8个工具”。C02/C06/C07/C08/C09的原文均已重新读取；本节不修改它们。
+
+```ini
+TASK_ID=V2_2_2_VERSION_PLAN_R1_R15_RECONCILIATION
+MODE=DOCUMENTATION_ONLY
+RECONCILIATION_DATE=2026-10-15
+START_HEAD=64b842919d0fcb05264b7902e2b3a8a8c1b3a47e
+DOCUMENT_ALLOWLIST=docs/tasks/V2_2_2-version-plan.md
+DOC_COMMIT_PUSH_AUTHORIZED_BY_CURRENT_TASK=true
+PLAN_STATUS=OWNER_REVIEW_DRAFT_NOT_FROZEN
+STRUCTURED_P2D_FULL_PASS_CANDIDATE_COUNT_TARGET=5
+MAJOR_LAYOUT_FAMILY_TARGET=3
+MAIN_FLOW_BACKTRACK_COUNT_TARGET=0
+MAJOR_ZONE_GRID_ALIGNMENT_PRODUCT_TARGET=0.90
+NUMERIC_GATE_CALIBRATION_STATUS=NOT_CALIBRATED_PENDING_OWNER
+VERIFIED_NEW_STRUCTURED_P2D_FULL_PASS_CANDIDATE_COUNT=0
+VERIFIED_FULL_PASS_MAJOR_LAYOUT_FAMILY_COUNT=0
+P3_COMPLETE=false
+P3_R4_ACCEPTED_JOINT_UNKNOWN_HISTORICAL_COUNT=262
+VERSION_COMPLETE=false
+OWNER_REVIEW_REQUIRED=true
+NEXT_DEVELOPMENT_AUTHORIZED=false
+SERVER_REPLAY_ACCEPTED=false
+NO_STEP_IMPLIES_THE_NEXT=true
+```
+
+“0”指本次能计入**新结构完整工程验收集合**的已核验数量，不是项目无解证明；历史v2.2.1 fixture full-pass、3个family词汇、6个topology plans、实验候选数量或新Hash均不能填补5/3门槛。0.90保留为原产品目标，不能伪装成已经校准生效的numeric gate。
+
+**建议下一项正式开发：`REVIEW-MULTI-CANDIDATE`阶段A——可信全局求解成果与整厂结构的生产整合。** 先由Owner在现有`REVIEW-SAFETY-CONTRACT`内完成D01/D03/D04的具名范围和合同决策，再另行授权实施；不重新启动泛化证明研究，不回到逐房间/尾部修补。同步由Owner准备真实Truck资料和质量校准输入。本文不授予这项开发、依赖安装或生产资源映射的实施权限。
+
+### 12.2 证据分级与本次核验范围
+
+| 级别 | 可采信内容 | 不可推导 |
+|---|---|---|
+| `GITHUB_EXACT_HEAD_VERIFIED` | 本轮读取真实PR、commit和指定SHA的terminal CI；可定位生产源码 | 不能证明布局质量、工程full-pass或部署已验收 |
+| `LOCAL_ARCHIVE_SHA_VERIFIED` | 本地持久化归档SHA及其Manifest中每个文件均重算匹配；已读取相关原始验证JSON | 不是本轮重跑求解/工程链；本地归档也不是远端仓库内正式evidence |
+| `OWNER_REPORTED` | Owner本次明确回执；可记录Owner观察和接受的范围 | 不是Codex独立客户端复测、截图/逐项原始调用证据或工程批准 |
+| `NOT_VERIFIED` | 仅历史任务叙述，原件缺失或无法验证 | 不补造Hash、路径、PASS、候选数量或来源批准 |
+
+持久化来源根目录记为 `A=/Users/charles/Documents/Codex/cold-storage-planning-agent/artifacts/`；以下相对`A`的路径用于Owner本机审计，不宣称GitHub读者可直接下载。归档均在`A/archives/`。本轮只读核对，不改原报告、Manifest或归档，不登录/修改服务器，不运行CP-SAT、Truck或新工程验证。
+
+| 引用 | EVIDENCE_SOURCE | EVIDENCE_VERIFIED / 核验边界 |
+|---|---|---|
+| N01 | 历史全局求解R1–R8任务叙述及本轮Owner对账指令 | `OWNER_REPORTED`；历史原件/完整来源链`NOT_VERIFIED`，尤其原R8原件丢失；少量恢复源码不能替代完整证据。不得从重建结果倒填历史PASS |
+| N02 | `solver-feasibility-recovery-r1/evidence/results.md`、`candidates/new_best_candidate.json`、`validation/independent_validation.json`及其Manifest；`solver-feasibility-recovery-r1-2026-10-12.tar.gz` | `LOCAL_ARCHIVE_SHA_VERIFIED`：464项；新候选规范化Hash独立重算一致，12区/7 MUST及独立11 Access、共存、无孔洞、原Footprint/Site验证证据；不是历史R8Hash或原Access/P2D PASS |
+| N03 | `r9-access-validator-closure-rebuilt-r1/evidence/results.md`及实际逐项/资源结果；`r9-access-validator-closure-rebuilt-r1-2026-10-12-portable.tar.gz` | `LOCAL_ARCHIVE_SHA_VERIFIED`：465项；冻结原10 PASS/1资源中断、隔离11 PASS；通用几何和元数据当时仍有缺口 |
+| N04 | `r10-access-validator-engineering-closure/validation/`的geometry、portal、typed-Site、Application及footprint JSON；`evidence/results.md`；同名归档 | `LOCAL_ARCHIVE_SHA_VERIFIED`：939项；隔离Domain/Application非货车11 PASS、原来源绑定、独立几何与实际Application通道建筑复核；合法Mapping明确为实验适配器 |
+| N05 | `r11-access-production-integration/typed_site_application_validation.json`、`independent_access_validation.json`、`building_footprint_validation.json`及报告/归档；生产commit `514d013…`、最终`5df2d537…` | 归档114项匹配；`GITHUB_EXACT_HEAD_VERIFIED`确认源码集成和最终CI成功。固定布局生产源码Domain/Application各11 PASS，不是server-generated placement或正式Server Replay |
+| N06 | `r12-truck-p2d-engineering-validation/p2d_application_validation.json`、Truck来源清单、Owner缺项表及报告/归档 | 归档47项匹配；原应用实际12结果=11非货车PASS+1 `BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED`；`project_layout_validated=false`、`p2_complete=false` |
+| N07 | `r13-truck-parameterized/results.md`、`synthetic_input.json`、实际结果/SVG及归档；最终commit `03b99f2c…` | 归档47项匹配，生产源码/最终CI核实；3段Option C合成机动软件PASS，真实项目批准和完整动力学仿真均非其结论 |
+| N08 | `r14-truck-mcp-integration/results.md`、HTTP原始结果、Schema/冻结七工具快照及归档；初始commit `d0975789…` | 归档63项匹配；Tool8实现存在，但该初始SHA两条CI实际FAIL，不能只沿用其报告中的PENDING |
+| N09 | `r14-exact-head-ci-remediation/results.md`、wheel/测试证据及归档；修复commit `64b84291…`、GitHub最终CI | 封存归档27项匹配；工作目录`evidence/final-pr.json`有1项与Manifest不符，**不宣称工作目录全量匹配，也不修历史文件**。最终状态以封存记录及本轮GitHub精确HEAD核验为准 |
+| N10 | `r15-controlled-backend-restart-deployment/validation/deployment_result.json`、`public-external/`原始HTTPS结果/SVG、报告/归档 | 归档75项匹配；记录部署目标SHA、active服务、公网8工具、合成Truck三段/包络/SVG哈希。不是本轮服务器复测；前6工具实际计算与第7工具缺参合同回归，非新Tool7完整出图验收 |
+| N11 | Owner本次指令：“豆包已经发现全部8个工具，并成功调用preview_truck、返回和显示合成车辆路线SVG” | `OWNER_REPORTED`：记录客户端发现/调用/显示成功回执；N10当时客户端`NOT_EVALUATED`历史不改。本轮未新增独立豆包测试或新哨工程批准 |
+
+归档SHA256（本轮重算；不修改历史摘要）：
+
+| 引用 | 归档文件名 | SHA256 |
+|---|---|---|
+| N02 | `solver-feasibility-recovery-r1-2026-10-12.tar.gz` | `9333e4db8daba5948fa8cbe7e566adf32be4d88070139295f9503fe587f4da94` |
+| N03 | `r9-access-validator-closure-rebuilt-r1-2026-10-12-portable.tar.gz` | `2dd4b5e778c79a35c5ebc65ce23c187bef06d39f701072261194bc70839ff09b` |
+| N04 | `r10-access-validator-engineering-closure.tar.gz` | `04f175b519fc40815a7b1c1fddae85df78484fdb111347f470a1886b00158e10` |
+| N05 | `r11-access-production-integration.tar.gz` | `08188542cef11cec11084aaedef389e44ce63b2f828678f49fc9be4f7c51b139` |
+| N06 | `r12-truck-p2d-engineering-validation.tar.gz` | `64505cf0cd3d070822bf9b589faa2485a8e9b0af31a7fbcb7628e7aa7749664a` |
+| N07 | `r13-truck-parameterized.tar.gz` | `0a2d8d7a1d72b37fd53bb1fa2c980be00f006aa28ca084e1995feae00408ca30` |
+| N08 | `r14-truck-mcp-integration.tar.gz` | `4e030465077813ea847108b8afbe336cb49ded412212f79f4d91c9b24b951e41` |
+| N09 | `r14-exact-head-ci-remediation.tar.gz` | `52c86281297a9f97413f794e9149aa387bed61438d5c17518aaff4bcfde825d6` |
+| N10 | `r15-controlled-backend-restart-deployment.tar.gz` | `068d04cf8e9b43334ae90f25aa3f36ebe752de08d95f49e02f9f26e1b9fe6643` |
+
+可信重建候选：`sha256:870d7c48cf2a1f65f8bcf5df0ecc3030e422e0707b9831f9e85565ff62690811`。按N02声明的`zones`以`zone_code`排序、canonical JSON规则重算一致。原Fixture raw SHA仍为`d03ecae9e1e2808cba346eb83a39f853c8a4b366acc103669af1cf868363901e`；这不是历史R8 Hash恢复成功的声明。
+
+### 12.3 R1–R15最新任务总账（独立编号空间）
+
+本节“全局R1–R15”与第4.3节P1A/P3内的R1–R5、旧PR #302的R15断言**互不等同**。下列索引只便于连接表格，不是新TASK_ID、架构identity或恢复轮数。`B0`是可信重建，`R14-CI`是同轮后续修复，不伪造成R16。
+
+| 索引 | TASK_ID |
+|---|---|
+| R1 | `V2_2_2_GLOBAL_CONSTRAINT_LAYOUT_SOLVER_R1` |
+| R2 | `V2_2_2_GLOBAL_CONSTRAINT_LAYOUT_SOLVER_R2_ENGINEERING_CLOSURE` |
+| R3 | `V2_2_2_GLOBAL_CONSTRAINT_LAYOUT_SOLVER_R3_ACCESS_ENGINEERING_VALIDATION` |
+| R4 | `V2_2_2_GLOBAL_CONSTRAINT_LAYOUT_SOLVER_R4_ACCESS_GEOMETRIC_FEASIBILITY_PROOF` |
+| R5 | `V2_2_2_GLOBAL_CONSTRAINT_LAYOUT_SOLVER_R5_ACCESS_AWARE_GLOBAL_LAYOUT` |
+| R6 | `V2_2_2_GLOBAL_CONSTRAINT_LAYOUT_SOLVER_R6_ENGINEERING_QUALITY_OPTIMIZATION` |
+| R7 | `V2_2_2_GLOBAL_CONSTRAINT_LAYOUT_SOLVER_R7_CORRIDOR_STRUCTURE_AND_BUILDING_COMPACTNESS` |
+| R8 | `V2_2_2_GLOBAL_CONSTRAINT_LAYOUT_SOLVER_R8_HOLE_FREE_BUILDING_AND_PERSONNEL_ROUTE_CLOSURE` |
+| B0 | `V2_2_2_REBUILT_CP_SAT_FEASIBILITY_RECOVERY_R1` |
+| R9 | `V2_2_2_R9_ACCESS_VALIDATOR_CLOSURE_REBUILT_R1` |
+| R10 | `V2_2_2_R10_ACCESS_VALIDATOR_ENGINEERING_CLOSURE` |
+| R11 | `V2_2_2_R11_ACCESS_VALIDATOR_PRODUCTION_INTEGRATION` |
+| R12 | `V2_2_2_R12_TRUCK_ENGINEERING_AND_P2D_VALIDATION` |
+| R13 | `V2_2_2_R13_TRUCK_PARAMETERIZED_CAPABILITY_IMPLEMENTATION` |
+| R14 | `V2_2_2_R14_TRUCK_MCP_PRODUCTION_INTEGRATION` |
+| R14-CI | `V2_2_2_R14_EXACT_HEAD_CI_REMEDIATION` |
+| R15 | `V2_2_2_R15_CONTROLLED_BACKEND_RESTART_DEPLOYMENT`；此前同轮公网预检、认证续办暂停和升级机制阻断保留，不视为当时已部署 |
+
+以下两表按索引连接，连同上表TASK_ID完整记录指定的11个字段。
+
+| 索引 | OBJECTIVE | DELIVERABLE | ACTUAL_RESULT | EVIDENCE_SOURCE | EVIDENCE_VERIFIED |
+|---|---|---|---|---|---|
+| R1 | 同一CP-SAT模型构造12区 | 全局模型/候选/Oracle | 历史记录：完整12区、7 MUST、Packaging PASS；不重新认定原件已验证 | N01 | 原件`NOT_VERIFIED` |
+| R2 | Flexible软优化与工程闭环尝试 | 多候选/质量与Access诊断 | 历史记录：质量改善、非货车6 PASS/5资源中断；不是P2D | N01 | 原件`NOT_VERIFIED` |
+| R3 | 固定R2布局的Access优化 | 插桩/隔离性能实验 | 历史记录：6 PASS、1 BLOCKED、4资源/累计额度未完成；不能当工程FAIL | N01 | 原件`NOT_VERIFIED`，最后一项未新计费执行不等于运行后中断 |
+| R4 | 判定5项固定几何可达性 | 精确谓词反例/路线/不可行证书 | 历史记录：3物流合法、2人员固定布局不可行、5谓词反例；原证书不能凭叙述重建为PROVEN | N01；N03/N04仅复现缺陷类型 | 原件`NOT_VERIFIED`，复现不等于原字节恢复 |
+| R5 | 12区与11 Access联合建模 | 通道感知全局模型/候选 | 历史记录：独立11几何及共存、原10 PASS/1中断；房间狭长 | N01 | 原件`NOT_VERIFIED` |
+| R6 | 房间形状与面积优化 | 质量Pareto/通道与建筑证据 | 历史记录：形状改善但走廊、人员路线增加；非全面质量成功 | N01 | 原件`NOT_VERIFIED` |
+| R7 | 通道结构和建筑紧凑度 | 新候选/并集与轮廓诊断 | 历史记录：质量取舍、封闭孔洞，不能推荐为有效建筑轮廓 | N01 | 原件`NOT_VERIFIED` |
+| R8 | 无孔洞、人员路线及原Access闭环 | 求解器/候选/完整证据包 | 历史原件丢失；不沿用旧Hash或直接记PASS；后续恢复另列B0 | N01 | `NOT_VERIFIED` |
+| B0 | 重建可长期复现的工程几何基线 | 新候选870d…、完整源码/JSON/SVG/归档 | 1个新完整12区，7/7 MUST、独立11 Access/共存、无孔洞，原Footprint/Site通过；原Access/Truck/P2D当轮未执行 | N02 | `LOCAL_ARCHIVE_SHA_VERIFIED` |
+| R9 | 固定B0解决入口资源中断 | 隔离优化及原始/独立对照 | 原10 PASS/1 Host中断；隔离11 PASS；独立当前矩形布局通过；语义等价PARTIAL | N03 | 同上 |
+| R10 | 通用谓词、Portal、typed-Site和应用验证 | 精确修复/11项应用结果/实际建筑 | 隔离11/11、精确几何、元数据、来源、共存与建筑通过；Truck原缺输入分支保留 | N04 | 同上 |
+| R11 | 将验证器修复迁入生产代码 | 源码/测试/固定候选验证/CI | 生产源码Domain/Application各11 PASS；独立几何/typed-Site/Footprint通过；不是正式Server Replay | N05 | 归档核验+`GITHUB_EXACT_HEAD_VERIFIED` |
+| R12 | 查验真实Truck并尝试P2D | 来源清单/缺项/原应用结果 | `R12_TRUCK_PROJECT_INPUT_BLOCKED`；11非货车PASS+Truck BLOCKED，P2D未完成 | N06 | 归档核验；不是实际获批准车辆验证 |
+| R13 | 用户结构化Truck参数入口 | Domain/Application/CLI/独立Schema | Option C合成三段机动/SVG PASS；尺寸/来源/入口/碰撞/人车待审fail-closed；真实资料仍缺 | N07 | 归档+生产源码/CI核验 |
+| R14 | 添加第8个`preview_truck` | MCP适配器/包内Schema/HTTP测试 | 八工具本地调用成功；初始CI实际失败，未以本地成功掩盖 | N08 | 归档+生产源码/失败CI核验 |
+| R14-CI | 修复3项旧断言冲突 | 仅打包与工具列表测试修正 | 合法Schema仍打包、原7 Schema严格保留；本地Backend6522 PASS/470跳过，最终PR/Push CI成功 | N09 | 归档核验；工作目录快照例外已明示；CI独立核验 |
+| R15 | 实际公网发布及软件调用 | 备份/独立版本/受控重启/HTTPS结果 | 目标HEAD实际上线8工具；合成Truck三段、Envelope及SVG哈希通过；本轮Owner补充豆包发现/调用/显示成功 | N10+N11 | 部署原始结果/归档核验；客户端为`OWNER_REPORTED` |
+
+| 索引 | PRODUCTION_INTEGRATED | CI_STATUS | DEPLOYMENT_STATUS | VERSION_ACCEPTANCE_CONTRIBUTION | REMAINING_BLOCKER |
+|---|---|---|---|---|---|
+| R1 | false（全局求解实验） | 原实验`NOT_VERIFIED` | 未核验部署 | 同时求解构造路线探索 | 原件及生产整合；不能计full-pass |
+| R2 | false | 同上 | 同上 | 形状质量与工程闭环取舍探索 | 原始质量/候选证据未核验 |
+| R3 | false | 同上 | 同上 | 将资源中断与路径FAIL分开 | 性能实验不能作可达性结论 |
+| R4 | false | 同上 | 同上 | 将搜索域与工程几何、谓词缺陷分开 | 原证书未核验，负证明不可扩大范围 |
+| R5 | false | 同上 | 同上 | 通道进入全局模型的实验路线 | 可恢复性、生产构造与质量 |
+| R6 | false | 同上 | 同上 | 房间/面积/路线Pareto评价 | 未证明全面改善或原归档完整 |
+| R7 | false | 同上 | 同上 | 并集与孔洞纳入候选拒绝的需求 | 有孔洞不等于建筑PASS |
+| R8 | false（不得拿B0冒充） | 同上 | 同上 | 历史目标保留 | 历史完整原件丢失 |
+| B0 | false（求解器仍隔离） | 无本轮新增生产CI | 候选/求解器不是公网新布局链 | 可信单候选几何基线，支持后续固定回归 | 不是5/3、真实Truck/P2D或质量验收 |
+| R9 | false（隔离修复后由R11迁入） | 无对应生产commit CI | 当轮未部署 | 原入口资源瓶颈取得可复现改善 | 当时通用谓词/元数据/应用层缺口 |
+| R10 | false（隔离，随后R11迁入） | 隔离测试不替代生产CI | 当轮未部署 | Access工程闭环的迁移依据 | 不等于原应用整体p2_complete |
+| R11 | true（验证器修复） | 最终`5df2d537…` PR/Push SUCCESS | 后随R15目标代码上线 | 11项非货车正式源码能力 | Truck资料、P2D、全局生成/质量链 |
+| R12 | 无新生产代码，仅生产源码复核 | 审计基线CI SUCCESS；非新功能CI | 无新增部署 | 真实Truck缺项边界，阻止fixture伪验收 | Owner批准的实际车辆/入口/模板/装卸依据 |
+| R13 | true（通用Truck扩展） | 最终`03b99f2c…` PR/Push SUCCESS | 后随R15上线 | 用户参数化Option C软件能力 | 合成资料不补真实新哨输入 |
+| R14 | true（MCP Tool8） | `d0975789…` PR/Push FAILURE | 初始未部署；随后修复版本上线 | 对外调用接口和包内Schema | 不能跳过失败CI或替代Tool7新布局集成 |
+| R14-CI | true（仅测试修复） | `64b84291…` PR/Push SUCCESS | R15部署该精确SHA | 消除实际CI冲突，保持历史功能断言 | CI绿不证明版本布局质量 |
+| R15 | true（既有生产能力上线，非CP-SAT集成） | 部署目标CI SUCCESS | `DEPLOYED`于实际HTTPS Origin | 八工具可用；豆包软件验收有Owner回执 | 认证仍未启用；真实Truck/P2D、5/3、质量与新Tool7链仍未完成 |
+
+生产源码与CI定位（本轮只读更新状态，原报告中PENDING/失败记录不覆盖）：
+
+| 切片 | 精确HEAD | PR CI / Push CI与本次终态 |
+|---|---|---|
+| R11 | `5df2d537bb752980e939bbf80301ac35250d47a2` | [38288182450](https://github.com/xuezhiorange-png/cold-storage-planning-agent/actions/runs/38288182450) / [38288176217](https://github.com/xuezhiorange-png/cold-storage-planning-agent/actions/runs/38288176217)：SUCCESS / SUCCESS |
+| R13 | `03b99f2cc60b462783b4a71b9ef1a27689a68db8` | [38421699200](https://github.com/xuezhiorange-png/cold-storage-planning-agent/actions/runs/38421699200) / [38421694620](https://github.com/xuezhiorange-png/cold-storage-planning-agent/actions/runs/38421694620)：SUCCESS / SUCCESS |
+| R14初始 | `d097578940871c5aca96a56efce93ec26da2c506` | [38450690416](https://github.com/xuezhiorange-png/cold-storage-planning-agent/actions/runs/38450690416) / [38450684570](https://github.com/xuezhiorange-png/cold-storage-planning-agent/actions/runs/38450684570)：FAILURE / FAILURE |
+| R14修复 / R15部署 | `64b842919d0fcb05264b7902e2b3a8a8c1b3a47e` | [38593554620](https://github.com/xuezhiorange-png/cold-storage-planning-agent/actions/runs/38593554620) / [38593543535](https://github.com/xuezhiorange-png/cold-storage-planning-agent/actions/runs/38593543535)：SUCCESS / SUCCESS |
+
+实际公网MCP：`https://mcp.coldstorageamz.site/api/v1/aily/v1/mcp/sse`，Streamable HTTP，8工具，`preview_truck`第8。R15服务器原始证据保留首次就绪探测超时及后续通过，不把它删除为“从无异常”；认证未加固单列运维风险，不以本轮文档授权处理。Owner豆包回执也不能替代新整厂方案视觉审核或真实Truck批准。
+
+### 12.4 版本目标完成矩阵：能力完成不等于版本完成
+
+状态仅用`COMPLETE / PARTIAL / BLOCKED / NOT_STARTED`，每项必须同时读取范围列。
+
+| VERSION_TARGET | CURRENT_STATUS | 已有证据及完成范围 | 距离原目标的缺口 / 完成标准 |
+|---|---|---|---|
+| `12_ZONE_LAYOUT_GENERATION` | PARTIAL | B0有一个可复现全局12区构造；S1/S2有全组结构合同 | 将全局求解与整厂结构生产生命周期整合，持续生成server-owned完整候选，不是固定旧坐标或传统顺序修补 |
+| `MUST_ADJACENCY` | COMPLETE | 固定870d…候选实际7/7，N02/N05/N06；工程Graph未变 | 仅该基线能力范围完成；所有未来候选仍须重新7/7，不能继承此PASS |
+| `NON_TRUCK_ACCESS` | COMPLETE | 同一固定候选生产源码Domain/Application11/11、独立几何/共存及typed-Site通过 | 不包括第12项Truck、不等于新候选全通过或正式Server Replay |
+| `TRUCK_ENGINEERING_VALIDATION` | BLOCKED | R13/R14/R15通用软件合成测试成功；N06真实项目来源缺失 | Owner提交真实车辆尺寸、实测入口净宽/限制、批准的完整机动模板与装卸面、原件SHA/姿态/审核；真实绑定与几何通过 |
+| `P2D_FULL_PASS` | BLOCKED | 原应用12结果中11 PASS、Truck BLOCKED，`p2_complete=false` | 全部Access、真实Truck、人车交互、Footprint/Site与原应用最终P2D逐项通过；需评审不得转PASS |
+| `DISTINCT_FULL_PASS_CANDIDATES` | BLOCKED | 本次可计入新结构full-pass集合为0/5；1个可信construction基线不抵扣 | ≥5个几何/主要组织真正不同、同各自身份完整full-pass的候选及去重证据 |
+| `MAJOR_LAYOUT_FAMILIES` | PARTIAL | 3个结构词汇/6个topology plans已实现 | full-pass集合实质结构覆盖≥3；当前可核验合格family为0，不按标签/旋转/微移/尾部置换计数 |
+| `PROCESS_FLOW_ASSESSMENT` | PARTIAL | P0/ADR-047指标合同存在，实验有路线长度等局部事实 | 原Receiving映射、实际route顺序/回折/turn/支路等原子指标与解释；verified backtrack=0，缺事实不填0 |
+| `REGULARITY_ASSESSMENT` | PARTIAL | 有定性正例、实验比例/面积/并集/轮廓事实 | 完整分组/轴网/进深/轮廓/净效率评价，D02/D03校准及Owner批准；0.90目标不是已生效gate |
+| `QUALITY_RANKING` | NOT_STARTED | 原P2B2比较器及隔离软目标/Pareto不等于新生产质量排序 | 对真实full-pass集合实施P0字典序原子比较，输出`WHY_THIS_CANDIDATE_WON`及winner-vs-next，不以加权分抵硬失败 |
+| `MULTI_CANDIDATE_GALLERY` | PARTIAL | 实验画图和可信单基线SVG存在，不补造丢失的旧比较图 | ≥5个full-pass、≥3实质结构的同尺度/方向整厂图集与真实质量对照 |
+| `OWNER_VISUAL_ACCEPTANCE` | NOT_STARTED | P0C参考overlay已审核；豆包合成Truck SVG有Owner显示成功回执 | 针对最终新5/3整厂集合的Owner视觉判断/签认；两类历史回执不抵扣 |
+| `TOOL7_NEW_LAYOUT_CHAIN_INTEGRATION` | NOT_STARTED | 原Tool7仍在；新上线的是Tool8，不是CP-SAT多方案自动布局链 | server-owned多结构构造→工程full-pass→质量排序→多方案图纸真实接入Tool7，兼容全部8工具 |
+| `VERSION_RELEASE_ACCEPTANCE` | BLOCKED | 功能子集已生产集成/部署；PR仍Draft未合并 | 5/3、零回折、质量/校准/视觉/Tool7、真实工程链和版本closure全部闭环；Ready/Merge/Release/Deploy各自另授权 |
+
+独立通道几何“可共存”不自动等于P0质量层的`PERSONNEL_LOGISTICS_SEPARATION=PASS`；实际共享/交叉及其工程使用策略仍须按原权威和Owner评审分别判定。
+
+### 12.5 P3历史与正式决策继续保留
+
+1. **三条证据链分开：** 原P3证明机制（E15–E19/C09）≠独立CP-SAT实验（N01/N02）≠固定完整候选的正式源码工程验证（N05/N06）。B0或11 Access成功不能证明历史全部partial存在joint capacity。
+2. `P3_COMPLETE=false`；原P3-R4的317个accepted partial中55 SUPPORTED、262 accepted joint UNKNOWN保留，另10个root UNKNOWN按原分母保留。`ACCEPTED_PARTIAL_WITH_UNKNOWN_COUNT_TARGET=0`未被本节取消；不能自动重算262为0或以新求解器成功豁免旧门禁。
+3. D01职责、D03-GRID与D03-GROUP、D04架构级round ledger仍为`DIRECTION_APPROVED_FORMAL_AMENDMENT_PENDING_OWNER`。0.90产品目标与numeric gate校准状态分离；P0的Secondary归FINISHED_SIDE与当前P1A归PROCESSING_CORE差异仍须具名正式决定，不以“意思相同”消解。
+4. `MAX_RECOVERY_ROUNDS_PER_ARCHITECTURE=2`及原停止规则保持。全局R1–R15的主实现/布局优化/证明/诊断/环境恢复/代码集成/部署应按真实行为分类并补齐D04授权映射；不能用新编号或MCP上线自动清零计数。已有后续Owner单项授权不是本计划追认一切架构例外。
+5. D06须区分**已另获授权并执行的R9–R15工作**与未来未授权工作；本次只登记事实，不再把已做范围称为未授权，也不由已做范围推导后续任务获批。D05未来正式编号仍待批准；D07本次仅doc commit/push已授权，计划冻结/原合同修订仍未授权。
+6. 正式资源合同不变：`PLACEMENT_NODE_BUDGET=60000`、`ACCESS_ROUTE_NODE_BUDGET=20000`、`TRUCK_NODE_BUDGET=20000`、`JOINT_EVALUATION_CAP=256`、`JOINT_ORIGIN_EVENT_CAP=1024`、`EXISTING_JOINT_WORK_PROTECTION=8192`；Host保护沿实际冻结合同。CP-SAT原生branches/conflicts/wall time不是RS primitive work，实验账本不能静默变成生产资源合同，也不能为新family重置预算。
+
+### 12.6 剩余工作包：交付顺序、依赖和具体完成标准
+
+沿用第4.4节`REVIEW-*`映射；“阶段A/B”只是同一工作包内的交付切片建议，不是新正式TASK_ID或恢复额度。所有未来实施均为`NOT_AUTHORIZED_BY_THIS_DOCUMENT`。第一项是整合已有真实成果，不是再开展无边界证明研究。
+
+| TASK_ID或待批准工作包名称 | OBJECTIVE | DEPENDENCIES | DELIVERABLES | ACCEPTANCE_GATES | CURRENT_STATUS | EVIDENCE_REFERENCE | BLOCKERS | OWNER_AUTHORIZATION |
+|---|---|---|---|---|---|---|---|---|
+| `REVIEW-SAFETY-CONTRACT`（开工前具名决策） | 确认CP-SAT整合与原整厂架构、安全证明职责/轮次适用关系 | C02/C06/C08/C09、D01/D03/D04及本对账 | 具名合同适用/历史保留/架构身份与轮次结论；下项allowlist和验收 | 不把历史UNKNOWN改PASS、不降低5/3、不改工程权威/预算、不以改名重置恢复；批准与实施分开 | BLOCKED：方向已同意、正式修订待批 | 第8节、12.5、N02 | D01/D03/D04正式决策 | 本轮仅审核增补；正式合同修订与新实施另批 |
+| `REVIEW-MULTI-CANDIDATE`阶段A：整厂结构生产整合（建议下一开发） | 将可信全局求解成果纳入group/band/domain→全12区联合求解，不固定历史房间/后补尾部 | 上行Owner决定；N02–N05、原Plan/Handoff/Authority | 生产适配器、输入/候选身份与来源、完整房间/Portal/Corridor/拓扑模型、确定性与累计资源账本、测试 | ≥1个server-owned完整construction candidate，12区/7 MUST/Site/全障碍/尺寸旋转/非重叠，独立11 Access/共存/Packaging及原Footprint/Site；明确仍非真实Truck/P2D；不得假造Mapping为server-produced | PARTIAL实验基础；生产整合NOT_STARTED | C06/C08/C09、N02、N05/N06 | 求解器依赖/资源映射与结构兼容范围须批准；旧P3未被解决 | 待批准正式TASK_ID、代码/依赖allowlist及资源映射；不增加原预算 |
+| `REVIEW-MULTI-CANDIDATE`阶段B：多结构生成 | 生成至少5套不同construction candidates，覆盖≥3种实质组织 | 阶段A的生产全局生成入口 | 候选池、几何/主要band/主工艺结构去重、family coverage与搜索截断证据 | 全角色同时建模、每候选独立硬复核；不是标签、旋转、微移或尾部置换凑数；construction数量和full-pass数量分栏 | PARTIAL结构词汇；合格多结构集合未交付 | E05/E06、N02、12.4 | family覆盖与有限模型域需明确；不足只能UNKNOWN/未达成 | 待另行授权；不得借family循环重置预算 |
+| `REVIEW-HARD-VALIDATION` | 对每个新候选取得真实完整工程full-pass | 阶段A/B候选身份；Owner真实Truck来源/实测入口与装卸/批准模板 | 各候选12 Access、Truck链/包络、人车交互、typed-Site、实际通道并集/原Footprint、原应用P2D完整输出 | 每个计数候选所有原门禁PASS，`p2_complete=true`；待工程评审不得转PASS；最终≥5 distinct full-pass且≥3实质结构；不得跨候选拼结果 | BLOCKED_REAL_TRUCK_INPUT | N05/N06、C06/C08 | 缺真实车辆及工程批准，合成模板不能填补 | Owner先给输入并批准验证；合成软件验证可单独授权但不得计真实验收 |
+| `REVIEW-NUMERIC-CALIBRATION` | 完成可比正例与数值gate批准依据 | Owner室级/建筑/route正例与用途标注，D02/D03 | 数据来源/精度/eligibility/classifier版本、进深/轮廓/轴网原子测量及阈值提案 | 保留0.90产品目标；不猜depth/compactness/appendage阈值，正式批准前不启用；不可比资料不得充正例 | BLOCKED_OWNER_INPUT | C02–C05/C07、D02/D03 | exact正例、用途和标注粒度未齐 | 与构造可并行取证，取证/阈值冻结/实施分别授权 |
+| `REVIEW-QUALITY-ASSESSMENT` | 自动计算并解释工艺与规整度原子事实 | 实际同候选route/portal与项目Receiving映射；批准的指标/校准版本 | 顺序、回折/turn、支路、功能组、轴网/进深、轮廓/凹口、实际路线与效率、人员物流分离质量sidecar | 主流程顺序正确、verified backtrack=0；普通场地turn目标与例外按C02；所有所需事实有来源/单位/版本/状态，缺失不填0/PASS；不以中心距代route | PARTIAL合同/实验指标；正式实现未完成 | C02/C07、N02/N05 | Owner Receiving映射、D02/D03、可比最短路径依据 | 可先批准事实提取，与A/B并行；最终质量验收依赖真实工程结果与校准 |
+| `REVIEW-QUALITY-RANKING` | 工程full-pass后质量优先选择 | 至少可比较的full-pass集合+上行质量事实 | 原子字典序排序、候选对比、`WHY_THIS_CANDIDATE_WON`、winner-vs-next | 原P0顺序：process order→backtrack→turns→required adjacency→grid→depth→compactness→route efficiency→branches→personnel/logistics，最后原P2B2 tie-break；不以加权总分掩盖硬失败/UNAVAILABLE | NOT_STARTED（旧P2B2不是本项完成） | C02/C07、第6.1节 | full-pass和完整quality事实未齐 | 待独立授权，不提前改selector |
+| `REVIEW-OWNER-GALLERY` | 交付可审核的多方案整厂图集 | ≥5 full-pass、≥3实质结构、完整质量事实 | ≥5套统一坐标方向/比例/配色整厂图，12区、主流/支路、人员/货车入口、Shipping装卸面、建筑与障碍、质量值齐全 | 图纸从各自已验证JSON/route生成；Hash/几何一致；Owner对工艺清晰、分组、轴网、轮廓及分离做具名视觉判断 | PARTIAL绘图基础；最终图集及视觉审核未开始 | C06/C08、N02；N11不抵扣 | 合格多方案不足；需要Owner视觉判断 | 图集规格可并行审核；生成和最终签认分别授权，不是施工图 |
+| `REVIEW-TOOL7-INTEGRATION` | 将新多结构自动布局全链接入Tool7 | 生产全局构造+真实工程验证+质量排序/图集门禁 | server-owned生成/选择/投影链、兼容公开Schema与8工具、真实业务调用/资源与来源测试 | 不是输入一个实验候选伪Server Replay；不以Tool8替代；同候选完整链和原7/新增8兼容通过 | NOT_STARTED_FOR_NEW_LAYOUT_CHAIN | N05/N08/N10、12.4 | 新布局/质量上游未完成 | 待独立授权；不因现有公网8工具自动接入 |
+| `REVIEW-VERSION-ACCEPTANCE-RELEASE` | 正式核验v2.2.2全部产品目标 | 上述交付、D01/D03/D04正式处理、最终exact-head CI和Owner签认 | 5/3去重计数与工程/质量/视觉闭环矩阵、版本说明和指定SHA | 全部原目标实际满足；未决质量/人员车辆交互不得隐藏；版本验收与Ready/Merge/Tag/Release/Deploy分别决定 | BLOCKED，VERSION_COMPLETE=false | C02/C06/C08及本增补 | 真实Truck/P2D、5/3、质量与Tool7链均未完成 | 本轮仅文档提交推送；正式验收、冻结和发布动作均另批 |
+
+**串行主交付：** 具名开工决策 → 整厂生产整合A → 多结构construction B → 每候选真实完整工程验证 → 合格集合的质量排序 → 5/3同尺度图集与Owner视觉审核 → 新链Tool7及正式版本验收。验证可在候选产生后逐个流水进行，不必等候选池全部结束；每条证据仍绑定自身候选。
+
+**可并行但须各自授权：** Owner真实Truck资料准备、人车交互工程决策、Receiving映射；numeric正例取证及校准提案；质量事实提取/测试设计；图集规范审核。它们可与A/B并行，但不能以合成资料填真实工程门禁、以未批准阈值做正式质量判定，或在full-pass前发布质量获胜结论。
+
+**真正的Owner输入与判断：** 实际车辆尺寸及来源、入口实测净宽/限制、批准机动包络/坐标姿态/模板Hash、装卸面确认及审批；人车共享/交叉需要的工程评审；Receiving角色映射；可比较的室级/outline/route正例与用途；numeric gate和分组适用版本决定；最后5/3新整厂方案视觉签认。不得靠fixture-project/fixture-engineer或豆包合成SVG显示成功代替这些输入。
+
+### 12.7 本次文档交付、适用检查与停止边界
+
+本轮唯一允许变更并提交的文件为`docs/tasks/V2_2_2-version-plan.md`。2026-10-09第1–11节保留原文；仅增加顶部导航和本节。当前任务授权该文档正常Commit/Push，不授权改其他源码/测试/合同/历史证据，也不改变原章节当时“未授权提交”的历史事实。
+
+提交前检查实时HEAD仍为`64b842919d0fcb05264b7902e2b3a8a8c1b3a47e`、唯一文件allowlist、历史原文一致、17条本节任务索引及完整字段、14项目标状态、5/3/0回折/0.90目标、262 UNKNOWN与D01/D03/D04保留、相对链接/表格/`git diff --check`。适用文档/架构检查按仓库既有机制执行，不为修改一份计划重跑求解、Truck或服务器验收。
+
+本次实际检查：单文件范围、去掉新增导航后历史全文一致、17条任务索引/14项目标及字段覆盖、目标/UNKNOWN保留、相对链接/表格/代码围栏自检通过，`git diff --check`通过。现有完整Architecture Suite为 **768 passed / 16 skipped**（19.28秒）；未修改测试或运行新布局/Truck验证。本地文档门禁通过不冒充提交后的CI成功。
+
+提交后只读取本次精确HEAD的PR状态/CI。尚未结束写`PENDING`；不得用R14的绿色CI冒充本次文档commit CI。历史归档读验不等于重跑工程PASS，Owner回执不伪装独立复测。计划仍待Owner审核/冻结；`VERSION_COMPLETE=false`、`NEXT_DEVELOPMENT_AUTHORIZED=false`。不Ready、Merge、Deploy，不自动启动任何新布局开发，完成后STOP。
