@@ -7,6 +7,7 @@ geometry, access, Truck, footprint, or validated-layout representation.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from typing import Any, cast
@@ -16,6 +17,15 @@ from cold_storage.modules.layout.domain.adjacency import (
     ZONE_CODES,
     AdjacencyGraphV1,
     process_graph,
+)
+from cold_storage.modules.layout.domain.mandatory_interface_reservation import (
+    MandatoryInterfaceReservationV1,
+    MandatoryInterfaceTopologyV1,
+    StructuralMandatoryInterfaceCapacityGateV1,
+    assess_mandatory_interface_capacity,
+    interface_topology,
+    reserve_mandatory_interfaces,
+    validate_reserved_interface_contract,
 )
 
 SCHEMA_VERSION = "2.0.0"
@@ -78,6 +88,155 @@ class CompositionRelationKindV1(StrEnum):
     PARALLEL_BANK = "PARALLEL_BANK"
     TERMINAL_INTERFACE_INTENT = "TERMINAL_INTERFACE_INTENT"
     INGRESS_DOMAIN_INTENT = "INGRESS_DOMAIN_INTENT"
+
+
+class MandatoryInterfaceScopeV1(StrEnum):
+    INTRA_GROUP = "INTRA_GROUP"
+    CROSS_GROUP = "CROSS_GROUP"
+
+
+@dataclass(frozen=True)
+class MandatoryHardInterfaceIntentV1:
+    """Coordinate-free reference to an existing hard edge, not new authority.
+
+    The preservation policy is an obligation for a future construction phase;
+    this object neither computes attachment capacity nor claims validity.
+    """
+
+    endpoint_a_role: str
+    endpoint_b_role: str
+    endpoint_a_group: FunctionalGroupIdV1
+    endpoint_b_group: FunctionalGroupIdV1
+    endpoint_a_band: str | None
+    endpoint_b_band: str | None
+    endpoint_a_peripheral_domains: tuple[PeripheralDomainIdV1, ...]
+    endpoint_b_peripheral_domains: tuple[PeripheralDomainIdV1, ...]
+    interface_scope: MandatoryInterfaceScopeV1
+    source_graph_identity: str
+    source_edge_identity: str
+    source_constraint_kind: str = "MUST_ADJACENCY"
+    hard_requirement: str = "POSITIVE_SHARED_EDGE"
+    engineering_authority: bool = False
+    geometry_authority: bool = False
+    creates_new_authority: bool = False
+    references_existing_hard_authority: bool = True
+    requires_attachment_capacity_preservation: bool = True
+    interface_preservation_policy: str = "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH"
+
+    def __post_init__(self) -> None:
+        graph = process_graph()
+        if self.endpoint_a_role not in graph.nodes or self.endpoint_b_role not in graph.nodes:
+            raise StructuralCompositionError("MANDATORY_INTERFACE_UNKNOWN_ROLE")
+        edge = tuple(sorted((self.endpoint_a_role, self.endpoint_b_role)))
+        if edge not in {tuple(sorted(pair)) for pair in graph.must_adjacencies}:
+            raise StructuralCompositionError("MANDATORY_INTERFACE_NON_AUTHORITY_EDGE")
+        if (
+            self.source_graph_identity != graph.identity
+            or self.source_constraint_kind != "MUST_ADJACENCY"
+            or self.source_edge_identity != _mandatory_edge_identity(graph, edge)
+        ):
+            raise StructuralCompositionError("MANDATORY_INTERFACE_SOURCE_INVALID")
+        if self.hard_requirement != "POSITIVE_SHARED_EDGE":
+            raise StructuralCompositionError("MANDATORY_INTERFACE_REQUIREMENT_INVALID")
+        if (
+            self.engineering_authority is not False
+            or self.geometry_authority is not False
+            or self.creates_new_authority is not False
+            or self.references_existing_hard_authority is not True
+        ):
+            raise StructuralCompositionError("MANDATORY_INTERFACE_AUTHORITY_FORBIDDEN")
+        if (
+            self.requires_attachment_capacity_preservation is not True
+            or self.interface_preservation_policy
+            != "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH"
+        ):
+            raise StructuralCompositionError("MANDATORY_INTERFACE_PRESERVATION_REQUIRED")
+        if not isinstance(self.endpoint_a_peripheral_domains, tuple) or not isinstance(
+            self.endpoint_b_peripheral_domains, tuple
+        ):
+            raise StructuralCompositionError("MANDATORY_INTERFACE_IMMUTABLE_DOMAINS_REQUIRED")
+
+
+def _mandatory_edge_identity(graph: AdjacencyGraphV1, edge: tuple[str, ...]) -> str:
+    return f"{graph.identity}:MUST_ADJACENCY:{':'.join(edge)}"
+
+
+def project_mandatory_hard_interfaces(
+    role_groups: Mapping[str, str],
+    role_bands: Mapping[str, str | None],
+    role_domains: Mapping[str, tuple[str, ...]],
+) -> tuple[MandatoryHardInterfaceIntentV1, ...]:
+    """Project every current MUST in source authority order, for any family."""
+    graph = process_graph()
+    return tuple(
+        MandatoryHardInterfaceIntentV1(
+            endpoint_a_role=a,
+            endpoint_b_role=b,
+            endpoint_a_group=FunctionalGroupIdV1(role_groups[a]),
+            endpoint_b_group=FunctionalGroupIdV1(role_groups[b]),
+            endpoint_a_band=role_bands[a],
+            endpoint_b_band=role_bands[b],
+            endpoint_a_peripheral_domains=tuple(
+                PeripheralDomainIdV1(value) for value in role_domains.get(a, ())
+            ),
+            endpoint_b_peripheral_domains=tuple(
+                PeripheralDomainIdV1(value) for value in role_domains.get(b, ())
+            ),
+            interface_scope=(
+                MandatoryInterfaceScopeV1.INTRA_GROUP
+                if role_groups[a] == role_groups[b]
+                else MandatoryInterfaceScopeV1.CROSS_GROUP
+            ),
+            source_graph_identity=graph.identity,
+            source_edge_identity=_mandatory_edge_identity(graph, tuple(sorted((a, b)))),
+        )
+        for a, b in graph.must_adjacencies
+    )
+
+
+def validate_mandatory_hard_interfaces(
+    interfaces: tuple[MandatoryHardInterfaceIntentV1, ...],
+    role_groups: Mapping[str, str],
+    role_bands: Mapping[str, str | None],
+    role_domains: Mapping[str, tuple[str, ...]],
+) -> None:
+    """Reject missing/extra/duplicate edges and drift from endpoint ownership."""
+    if not isinstance(interfaces, tuple) or any(
+        not isinstance(item, MandatoryHardInterfaceIntentV1) for item in interfaces
+    ):
+        raise StructuralCompositionError("MANDATORY_INTERFACE_TYPED_COLLECTION_REQUIRED")
+    edges = [tuple(sorted((item.endpoint_a_role, item.endpoint_b_role))) for item in interfaces]
+    if len(edges) != len(set(edges)):
+        raise StructuralCompositionError("MANDATORY_INTERFACE_DUPLICATE")
+    expected = project_mandatory_hard_interfaces(role_groups, role_bands, role_domains)
+    expected_edges = [
+        tuple(sorted((item.endpoint_a_role, item.endpoint_b_role))) for item in expected
+    ]
+    if set(edges) != set(expected_edges):
+        raise StructuralCompositionError("MANDATORY_INTERFACE_AUTHORITY_COVERAGE_INVALID")
+    if edges != expected_edges:
+        raise StructuralCompositionError("MANDATORY_INTERFACE_AUTHORITY_ORDER_INVALID")
+    for item in interfaces:
+        # Validate provenance/flags again at the aggregate boundary, then bind
+        # group, band and domain references to this plan/handoff's assignments.
+        item.__post_init__()
+        a, b = item.endpoint_a_role, item.endpoint_b_role
+        if (item.endpoint_a_group, item.endpoint_b_group) != (role_groups[a], role_groups[b]):
+            raise StructuralCompositionError("MANDATORY_INTERFACE_GROUP_REFERENCE_INVALID")
+        if (item.endpoint_a_band, item.endpoint_b_band) != (role_bands[a], role_bands[b]):
+            raise StructuralCompositionError("MANDATORY_INTERFACE_BAND_REFERENCE_INVALID")
+        if (item.endpoint_a_peripheral_domains, item.endpoint_b_peripheral_domains) != (
+            role_domains.get(a, ()),
+            role_domains.get(b, ()),
+        ):
+            raise StructuralCompositionError("MANDATORY_INTERFACE_DOMAIN_REFERENCE_INVALID")
+        scope = (
+            MandatoryInterfaceScopeV1.INTRA_GROUP
+            if role_groups[a] == role_groups[b]
+            else MandatoryInterfaceScopeV1.CROSS_GROUP
+        )
+        if item.interface_scope != scope:
+            raise StructuralCompositionError("MANDATORY_INTERFACE_SCOPE_INVALID")
 
 
 _ZONE_GROUPS: tuple[tuple[FunctionalGroupIdV1, tuple[str, ...]], ...] = (
@@ -264,7 +423,22 @@ class StructuralCompositionPlanV2:
     site_orientation_intent: SiteOrientationIntentV1
     construction_provenance: ConstructionProvenanceV1
     signature: StructuralCompositionSignatureV1
+    mandatory_hard_interfaces: tuple[MandatoryHardInterfaceIntentV1, ...]
+    mandatory_interface_reservations: tuple[MandatoryInterfaceReservationV1, ...]
+    structural_interface_capacity_gate: StructuralMandatoryInterfaceCapacityGateV1
     peripheral_domain_is_engineering_authority: bool = PERIPHERAL_DOMAIN_IS_ENGINEERING_AUTHORITY
+
+    @property
+    def mandatory_interface_topology(self) -> MandatoryInterfaceTopologyV1:
+        return interface_topology(
+            self.family,
+            tuple(
+                (b.band_id, b.zone_roles, b.topology, b.sequence_index)
+                for b in self.principal_bands
+            ),
+            tuple((d.domain_id, d.zone_roles) for d in self.peripheral_domains),
+            tuple((g.group_id, g.zone_roles) for g in self.functional_groups),
+        )
 
     def __post_init__(self) -> None:
         if self.schema_version != SCHEMA_VERSION:
@@ -314,6 +488,27 @@ class StructuralCompositionPlanV2:
             raise StructuralCompositionError("PERSONNEL_PRODUCT_CHAIN_MIXED")
         if self.construction_provenance.golden_reference_used:
             raise StructuralCompositionError("GOLDEN_REFERENCE_RUNTIME_INPUT_FORBIDDEN")
+        validate_mandatory_hard_interfaces(
+            self.mandatory_hard_interfaces,
+            role_groups,
+            {item.zone_role: item.band_id for item in self.zone_role_assignment},
+            {
+                role: tuple(
+                    domain.domain_id.value
+                    for domain in self.peripheral_domains
+                    if role in domain.zone_roles
+                )
+                for role in assigned
+            },
+        )
+        if self.construction_provenance.process_graph_identity != process_graph().identity:
+            raise StructuralCompositionError("MANDATORY_INTERFACE_SOURCE_INVALID")
+        validate_reserved_interface_contract(
+            self.mandatory_hard_interfaces,
+            self.mandatory_interface_reservations,
+            self.structural_interface_capacity_gate,
+            self.mandatory_interface_topology,
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """Return a stable JSON-compatible evidence projection."""
@@ -489,6 +684,23 @@ def _build_plan(
         shipping_truck_relationship=(shipping.source, shipping.target, shipping.topology_intent),
         personnel_relationship=(personnel.source, personnel.target, personnel.topology_intent),
     )
+    interfaces = project_mandatory_hard_interfaces(
+        {item.zone_role: item.group_id for item in assignments},
+        {item.zone_role: item.band_id for item in assignments},
+        {
+            item.zone_role: tuple(
+                d.domain_id.value for d in domains if item.zone_role in d.zone_roles
+            )
+            for item in assignments
+        },
+    )
+    topology = interface_topology(
+        family,
+        tuple((b.band_id, b.zone_roles, b.topology, b.sequence_index) for b in bands),
+        tuple((d.domain_id, d.zone_roles) for d in domains),
+        tuple((g.group_id, g.zone_roles) for g in groups),
+    )
+    reservations = reserve_mandatory_interfaces(interfaces, topology)
     return StructuralCompositionPlanV2(
         identity=(
             f"{IDENTITY_PREFIX}@{SCHEMA_VERSION}:{family.value}:"
@@ -521,6 +733,13 @@ def _build_plan(
             variant_index=variant_index,
         ),
         signature=signature,
+        mandatory_hard_interfaces=interfaces,
+        mandatory_interface_reservations=reservations,
+        structural_interface_capacity_gate=assess_mandatory_interface_capacity(
+            interfaces,
+            reservations,
+            topology,
+        ),
     )
 
 

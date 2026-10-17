@@ -9,6 +9,7 @@ dependencies = [
   "jsonschema>=4.20",
   "openai==2.53.0",
   "openpyxl>=3.1",
+  "ortools==9.15.6755",
   "pydantic>=2.8",
   "pydantic-settings>=2.4",
   "pymupdf>=1.24",
@@ -56,3 +57,4 @@ ignore_missing_imports = true
 # No other pyproject.toml sections are modified by this round.
 [tool.setuptools.package-data]
 "cold_storage.evaluation.schema" = ["manifest.schema.json"]
+"cold_storage.modules.aily.application" = ["truck_preview.schema.json"]

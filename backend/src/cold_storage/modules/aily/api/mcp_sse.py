@@ -56,6 +56,11 @@ from cold_storage.modules.aily.application.mcp_stage_preview import (
     PREVIEW_INVESTMENT_TOOL_NAME,
     invoke_stage_preview_tool,
 )
+from cold_storage.modules.aily.application.mcp_truck_preview import (
+    PREVIEW_TRUCK_TOOL_NAME,
+    invoke_preview_truck_tool,
+    preview_truck_input_schema,
+)
 from cold_storage.modules.aily.application.mcp_zone_plan import (
     PREVIEW_ZONE_PLAN_TOOL_NAME,
     invoke_preview_zone_plan_tool,
@@ -145,6 +150,11 @@ _STAGE_TOOL_DESCRIPTIONS: dict[str, str] = {
     PREVIEW_INVESTMENT_TOOL_NAME: _INVESTMENT_TOOL_DESCRIPTION,
     PREVIEW_FACTORY_POWER_TOOL_NAME: _FACTORY_POWER_TOOL_DESCRIPTION,
     PREVIEW_SITE_LAYOUT_TOOL_NAME: _SITE_LAYOUT_TOOL_DESCRIPTION,
+    PREVIEW_TRUCK_TOOL_NAME: (
+        "用于验证货车进场、转弯、倒车靠台及与人员通道的交互。"
+        "必须提供车辆和场地参数，不得自行编造车辆尺寸或机动模板。"
+        "合成测试结果不能用于真实工程验收。结果需工程复核，不是车辆动力学仿真。"
+    ),
 }
 
 _PREVIEW_TOOL_ORDER: tuple[str, ...] = (
@@ -161,6 +171,7 @@ _PREVIEW_TOOL_ORDER: tuple[str, ...] = (
 _MCP_TOOL_ORDER: tuple[str, ...] = (
     *_PREVIEW_TOOL_ORDER,
     PREVIEW_SITE_LAYOUT_TOOL_NAME,
+    PREVIEW_TRUCK_TOOL_NAME,
 )
 
 _KEY_DESCRIPTIONS: dict[str, str] = {
@@ -228,7 +239,9 @@ def build_zone_plan_mcp_server() -> Server[Any, Any]:
                 name=tool_name,
                 description=_STAGE_TOOL_DESCRIPTIONS[tool_name],
                 inputSchema=(
-                    site_layout_schema
+                    preview_truck_input_schema()
+                    if tool_name == PREVIEW_TRUCK_TOOL_NAME
+                    else site_layout_schema
                     if tool_name == PREVIEW_SITE_LAYOUT_TOOL_NAME
                     else input_schema
                 ),
@@ -246,6 +259,8 @@ def build_zone_plan_mcp_server() -> Server[Any, Any]:
             payload = invoke_preview_factory_power_tool(arguments)
         elif name == PREVIEW_SITE_LAYOUT_TOOL_NAME:
             payload = invoke_preview_site_layout_tool(arguments)
+        elif name == PREVIEW_TRUCK_TOOL_NAME:
+            payload = invoke_preview_truck_tool(arguments)
         elif name in _STAGE_TOOL_DESCRIPTIONS and name != PREVIEW_ZONE_PLAN_TOOL_NAME:
             payload = invoke_stage_preview_tool(name, arguments)
         else:
@@ -266,7 +281,7 @@ def build_zone_plan_mcp_server() -> Server[Any, Any]:
         return CallToolResult(
             content=[TextContent(type="text", text=_dumps(payload))],
             structuredContent=payload,
-            isError=False,
+            isError=name == PREVIEW_TRUCK_TOOL_NAME and not payload["ok"],
         )
 
     return server

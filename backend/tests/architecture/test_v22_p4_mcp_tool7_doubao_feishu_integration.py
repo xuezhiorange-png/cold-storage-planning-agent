@@ -137,8 +137,9 @@ def test_mcp_surface_appends_exactly_one_tool_at_position_seven() -> None:
         "preview_investment",
         "preview_factory_power",
     )
-    assert (*_PREVIEW_TOOL_ORDER, PREVIEW_SITE_LAYOUT_TOOL_NAME) == _MCP_TOOL_ORDER
-    assert len(_MCP_TOOL_ORDER) == 7
+    assert (*_PREVIEW_TOOL_ORDER, PREVIEW_SITE_LAYOUT_TOOL_NAME) == _MCP_TOOL_ORDER[:7]
+    assert _MCP_TOOL_ORDER[7:] == ("preview_truck",)
+    assert len(_MCP_TOOL_ORDER) == 8
     tools = anyio.run(_list_tools)
     names = [tool.name for tool in tools]  # type: ignore[attr-defined]
     assert names == list(_MCP_TOOL_ORDER)

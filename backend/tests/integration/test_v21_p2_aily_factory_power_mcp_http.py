@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -70,8 +71,17 @@ def test_factory_power_mcp_tools_list_appends_sixth_tool_with_five_key_schema() 
         "preview_investment",
         "preview_factory_power",
         "preview_site_layout",
+        "preview_truck",
     ]
-    factory_tool = tools[-2]
+    frozen = json.loads(
+        (Path(__file__).parents[1] / "fixtures/v22/r14_frozen_seven_mcp_tools.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert [(tool["name"], tool["inputSchema"]) for tool in tools[:7]] == [
+        (tool["name"], tool["inputSchema"]) for tool in frozen
+    ]
+    factory_tool = next(tool for tool in tools if tool["name"] == "preview_factory_power")
     assert "估算工厂电功率" in factory_tool["description"]
     assert "kW" in factory_tool["description"]
     schema = factory_tool["inputSchema"]

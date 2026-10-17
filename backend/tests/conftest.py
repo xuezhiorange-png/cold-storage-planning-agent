@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 from httpx import Client as TestClient
@@ -15,6 +16,11 @@ from cold_storage.modules.coefficients.infrastructure.database import (
 )
 from cold_storage.modules.projects.infrastructure.database import DatabaseProjectService
 from cold_storage.modules.projects.infrastructure.orm import Base
+from tests.stage_a_resource_process import (
+    RESOURCE_TEST_FILES,
+    WORKER_ENV,
+    run_resource_test_worker,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -100,3 +106,15 @@ def ensure_cjk_font():
             f"CJK font not available: {exc}. "
             "Install fonts-wqy-zenhei, or rely on the PyMuPDF builtin china-s fallback."
         )
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_pyfunc_call(pyfuncitem):
+    """Keep process-scoped resource tests independent of prior PDF memory peaks."""
+    if Path(str(pyfuncitem.path)).name not in RESOURCE_TEST_FILES:
+        return None
+    if os.environ.get(WORKER_ENV) == "1":
+        return None
+    evidence = run_resource_test_worker(pyfuncitem.nodeid)
+    pyfuncitem.add_report_section("call", "isolated_resource_worker", evidence)
+    return True

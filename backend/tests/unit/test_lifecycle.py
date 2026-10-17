@@ -32,13 +32,14 @@ class TestInitDependencies:
         deps._singletons.clear()
 
         url = f"sqlite:///{tmp_path / 'lifecycle_test.db'}"
-        settings = Settings(database_url=url)
+        settings = Settings(COLD_STORAGE_DATABASE_URL=url)
 
         deps.init_dependencies(settings)
 
         assert "engine" in deps._singletons
         assert "project_service" in deps._singletons
         assert "agent_service" in deps._singletons
+        assert str(deps.get_engine().url) == url
 
         # Cleanup
         deps.shutdown_dependencies()
@@ -53,8 +54,9 @@ class TestShutdownDependencies:
         deps._singletons.clear()
 
         url = f"sqlite:///{tmp_path / 'shutdown_test.db'}"
-        settings = Settings(database_url=url)
+        settings = Settings(COLD_STORAGE_DATABASE_URL=url)
         deps.init_dependencies(settings)
+        assert str(deps.get_engine().url) == url
 
         deps.shutdown_dependencies()
 

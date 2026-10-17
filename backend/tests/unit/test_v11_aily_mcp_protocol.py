@@ -58,6 +58,7 @@ async def _list_tools() -> None:
         PREVIEW_INVESTMENT_TOOL_NAME,
         PREVIEW_FACTORY_POWER_TOOL_NAME,
         PREVIEW_SITE_LAYOUT_TOOL_NAME,
+        "preview_truck",
     ]
     tool = result.tools[0]
     assert tool.name == PREVIEW_ZONE_PLAN_TOOL_NAME

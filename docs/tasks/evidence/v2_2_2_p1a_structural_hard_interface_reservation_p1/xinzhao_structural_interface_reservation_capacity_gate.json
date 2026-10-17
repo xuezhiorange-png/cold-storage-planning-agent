@@ -1,0 +1,3762 @@
+{
+  "authority_freeze": {
+    "access_authority_changed": false,
+    "exact_placement_search_behavior_changed": false,
+    "must_adjacency_authority_changed": false,
+    "p2d_authority_changed": false,
+    "packaging_sorting_straight_only_authority_changed": false,
+    "pr_306_code_reused": false,
+    "process_graph_authority_changed": false,
+    "site_authority_changed": false,
+    "tool7_behavior_changed": false,
+    "truck_authority_changed": false,
+    "validated_candidate_selector_changed": false,
+    "zone_dimension_authority_changed": false
+  },
+  "complete_layout_proven": false,
+  "compositions": [
+    {
+      "assessment_count": 7,
+      "axis": "X",
+      "composition_identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:X:NEGATIVE:r0",
+      "cross_group_reservations": [
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "RAW_UPSTREAM_BAND",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "PROCESS_CORE_BAND",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "RAW_UPSTREAM_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "PROCESS_CORE_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "ADJACENT_PRINCIPAL_BAND_INTERFACE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PROCESS_CORE_BAND",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PROCESS_CORE_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "FINISHED_TERMINAL_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "ADJACENT_PRINCIPAL_BAND_INTERFACE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": null,
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PERSONNEL_INGRESS_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "host_b": {
+            "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        }
+      ],
+      "direction": "NEGATIVE",
+      "family": "LINEAR_BANDED",
+      "handoff_projection": {
+        "canonical_hash": "sha256:b3eb702ef623e5323046ae49f303cd7c8e6772b624f8781d3d97cdef66819655",
+        "gate_equal": true,
+        "reservation_source_edges": [
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel"
+        ],
+        "reservations_equal": true
+      },
+      "interface_count": 7,
+      "mandatory_interface_reservations": [
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "RAW_UPSTREAM_BAND",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "raw_fruit_buffer",
+          "endpoint_b_band": "RAW_UPSTREAM_BAND",
+          "endpoint_b_group": "RAW_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "primary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "RAW_UPSTREAM_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "RAW_UPSTREAM_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "RAW_UPSTREAM_BAND",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "PROCESS_CORE_BAND",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "RAW_UPSTREAM_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "PROCESS_CORE_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "ADJACENT_PRINCIPAL_BAND_INTERFACE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PROCESS_CORE_BAND",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "sorting_packaging_room",
+          "endpoint_b_band": "PROCESS_CORE_BAND",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "secondary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PROCESS_CORE_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "PROCESS_CORE_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PROCESS_CORE_BAND",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "secondary_precooling_room",
+          "endpoint_b_band": "PROCESS_CORE_BAND",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "coating_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PROCESS_CORE_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "PROCESS_CORE_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PROCESS_CORE_BAND",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PROCESS_CORE_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "FINISHED_TERMINAL_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "ADJACENT_PRINCIPAL_BAND_INTERFACE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_a_group": "FINISHED_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "finished_goods_room",
+          "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "FINISHED_TERMINAL_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "FINISHED_TERMINAL_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": null,
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PERSONNEL_INGRESS_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "host_b": {
+            "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        }
+      ],
+      "mandatory_interfaces": [
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "RAW_UPSTREAM_BAND",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "raw_fruit_buffer",
+          "endpoint_b_band": "RAW_UPSTREAM_BAND",
+          "endpoint_b_group": "RAW_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "primary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "RAW_UPSTREAM_BAND",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "PROCESS_CORE_BAND",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "PROCESS_CORE_BAND",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "sorting_packaging_room",
+          "endpoint_b_band": "PROCESS_CORE_BAND",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "secondary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "PROCESS_CORE_BAND",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "secondary_precooling_room",
+          "endpoint_b_band": "PROCESS_CORE_BAND",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "coating_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "PROCESS_CORE_BAND",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_a_group": "FINISHED_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "finished_goods_room",
+          "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": null,
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        }
+      ],
+      "office_shipping_reservation": {
+        "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+        "creates_new_hard_edge": false,
+        "downstream_consumption_required": true,
+        "endpoint_a_band": null,
+        "endpoint_a_group": "PERSONNEL_GROUP",
+        "endpoint_a_peripheral_domains": [
+          "PERSONNEL_INGRESS_DOMAIN"
+        ],
+        "endpoint_a_role": "office",
+        "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+        "endpoint_b_group": "FINISHED_SIDE_GROUP",
+        "endpoint_b_peripheral_domains": [
+          "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+        ],
+        "endpoint_b_role": "shipping_channel",
+        "engineering_authority": false,
+        "geometry_authority": false,
+        "host_a": {
+          "container_id": "PERSONNEL_INGRESS_DOMAIN",
+          "kind": "PERIPHERAL_DOMAIN"
+        },
+        "host_b": {
+          "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+          "kind": "PERIPHERAL_DOMAIN"
+        },
+        "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+        "references_existing_mandatory_interface": true,
+        "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+        "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+        "reservation_scope": "CROSS_GROUP",
+        "source_graph_identity": "charles-v22-process-flow@1.1.0",
+        "validation_authority": false
+      },
+      "p0_projection_hash_preserved": true,
+      "plan_hash": "sha256:9a5a0c828bcca4b0185f25df09ccfde22b02738dfacd11f09a8c0f94812d95f8",
+      "reservation_count": 7,
+      "structural_interface_capacity_gate": {
+        "assessments": [
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          }
+        ],
+        "contract_errors": [],
+        "metric_geometric_attachment_capacity_proven": false,
+        "scope": "TOPOLOGICAL_RESERVATION_ONLY",
+        "status": "PASS_TO_EXACT_PLACEMENT"
+      }
+    },
+    {
+      "assessment_count": 7,
+      "axis": "X",
+      "composition_identity": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:X:NEGATIVE:r0",
+      "cross_group_reservations": [
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "RAW_CORE_FACE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "CENTRAL_SORTING_CORE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "RAW_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "CENTRAL_SORTING_CORE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "ADJACENT_PRINCIPAL_BAND_INTERFACE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PROCESS_CORE_FACE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PROCESS_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "FINISHED_OPPOSING_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": null,
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PERSONNEL_INGRESS_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "host_b": {
+            "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        }
+      ],
+      "direction": "NEGATIVE",
+      "family": "CENTRAL_PROCESS_CORE",
+      "handoff_projection": {
+        "canonical_hash": "sha256:69507a6c9ccec1a506c77017564e205684636b73e6a5a526e15d1b490800d033",
+        "gate_equal": true,
+        "reservation_source_edges": [
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel"
+        ],
+        "reservations_equal": true
+      },
+      "interface_count": 7,
+      "mandatory_interface_reservations": [
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "RAW_CORE_FACE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "raw_fruit_buffer",
+          "endpoint_b_band": "RAW_CORE_FACE",
+          "endpoint_b_group": "RAW_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "primary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "RAW_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "RAW_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "RAW_CORE_FACE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "CENTRAL_SORTING_CORE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "RAW_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "CENTRAL_SORTING_CORE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "ADJACENT_PRINCIPAL_BAND_INTERFACE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "CENTRAL_SORTING_CORE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "sorting_packaging_room",
+          "endpoint_b_band": "PROCESS_CORE_FACE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "secondary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "CENTRAL_SORTING_CORE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "PROCESS_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "ADJACENT_PRINCIPAL_BAND_INTERFACE",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PROCESS_CORE_FACE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "secondary_precooling_room",
+          "endpoint_b_band": "PROCESS_CORE_FACE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "coating_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PROCESS_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "PROCESS_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PROCESS_CORE_FACE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PROCESS_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "FINISHED_OPPOSING_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_a_group": "FINISHED_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "finished_goods_room",
+          "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "FINISHED_OPPOSING_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "FINISHED_OPPOSING_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": null,
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PERSONNEL_INGRESS_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "host_b": {
+            "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        }
+      ],
+      "mandatory_interfaces": [
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "RAW_CORE_FACE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "raw_fruit_buffer",
+          "endpoint_b_band": "RAW_CORE_FACE",
+          "endpoint_b_group": "RAW_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "primary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "RAW_CORE_FACE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "CENTRAL_SORTING_CORE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "CENTRAL_SORTING_CORE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "sorting_packaging_room",
+          "endpoint_b_band": "PROCESS_CORE_FACE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "secondary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "PROCESS_CORE_FACE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "secondary_precooling_room",
+          "endpoint_b_band": "PROCESS_CORE_FACE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "coating_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "PROCESS_CORE_FACE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_a_group": "FINISHED_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "finished_goods_room",
+          "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": null,
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        }
+      ],
+      "office_shipping_reservation": {
+        "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+        "creates_new_hard_edge": false,
+        "downstream_consumption_required": true,
+        "endpoint_a_band": null,
+        "endpoint_a_group": "PERSONNEL_GROUP",
+        "endpoint_a_peripheral_domains": [
+          "PERSONNEL_INGRESS_DOMAIN"
+        ],
+        "endpoint_a_role": "office",
+        "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+        "endpoint_b_group": "FINISHED_SIDE_GROUP",
+        "endpoint_b_peripheral_domains": [
+          "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+        ],
+        "endpoint_b_role": "shipping_channel",
+        "engineering_authority": false,
+        "geometry_authority": false,
+        "host_a": {
+          "container_id": "PERSONNEL_INGRESS_DOMAIN",
+          "kind": "PERIPHERAL_DOMAIN"
+        },
+        "host_b": {
+          "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+          "kind": "PERIPHERAL_DOMAIN"
+        },
+        "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+        "references_existing_mandatory_interface": true,
+        "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+        "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+        "reservation_scope": "CROSS_GROUP",
+        "source_graph_identity": "charles-v22-process-flow@1.1.0",
+        "validation_authority": false
+      },
+      "p0_projection_hash_preserved": true,
+      "plan_hash": "sha256:63fce88ab68e39302a1c3d97a93799376f21796f996f0fc1600d1fdc245565ce",
+      "reservation_count": 7,
+      "structural_interface_capacity_gate": {
+        "assessments": [
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          }
+        ],
+        "contract_errors": [],
+        "metric_geometric_attachment_capacity_proven": false,
+        "scope": "TOPOLOGICAL_RESERVATION_ONLY",
+        "status": "PASS_TO_EXACT_PLACEMENT"
+      }
+    },
+    {
+      "assessment_count": 7,
+      "axis": "X",
+      "composition_identity": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:X:NEGATIVE:r0",
+      "cross_group_reservations": [
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PERSONNEL_INGRESS_BANK",
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PERSONNEL_INGRESS_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "host_b": {
+            "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        }
+      ],
+      "direction": "NEGATIVE",
+      "family": "PROCESS_SPINE_WITH_PERIPHERAL_BANKS",
+      "handoff_projection": {
+        "canonical_hash": "sha256:101097a478b55e9c460f143d16da0fedac54b64771fbe666421d8d72b1a7a6fc",
+        "gate_equal": true,
+        "reservation_source_edges": [
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel"
+        ],
+        "reservations_equal": true
+      },
+      "interface_count": 7,
+      "mandatory_interface_reservations": [
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "raw_fruit_buffer",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "RAW_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "primary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "sorting_packaging_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "secondary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "secondary_precooling_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "coating_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "FINISHED_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "finished_goods_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PERSONNEL_INGRESS_BANK",
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PERSONNEL_INGRESS_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "host_b": {
+            "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        }
+      ],
+      "mandatory_interfaces": [
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "raw_fruit_buffer",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "RAW_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "primary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "sorting_packaging_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "secondary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "secondary_precooling_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "coating_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "FINISHED_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "finished_goods_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "PERSONNEL_INGRESS_BANK",
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        }
+      ],
+      "office_shipping_reservation": {
+        "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+        "creates_new_hard_edge": false,
+        "downstream_consumption_required": true,
+        "endpoint_a_band": "PERSONNEL_INGRESS_BANK",
+        "endpoint_a_group": "PERSONNEL_GROUP",
+        "endpoint_a_peripheral_domains": [
+          "PERSONNEL_INGRESS_DOMAIN"
+        ],
+        "endpoint_a_role": "office",
+        "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+        "endpoint_b_group": "FINISHED_SIDE_GROUP",
+        "endpoint_b_peripheral_domains": [
+          "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+        ],
+        "endpoint_b_role": "shipping_channel",
+        "engineering_authority": false,
+        "geometry_authority": false,
+        "host_a": {
+          "container_id": "PERSONNEL_INGRESS_DOMAIN",
+          "kind": "PERIPHERAL_DOMAIN"
+        },
+        "host_b": {
+          "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+          "kind": "PERIPHERAL_DOMAIN"
+        },
+        "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+        "references_existing_mandatory_interface": true,
+        "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+        "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+        "reservation_scope": "CROSS_GROUP",
+        "source_graph_identity": "charles-v22-process-flow@1.1.0",
+        "validation_authority": false
+      },
+      "p0_projection_hash_preserved": true,
+      "plan_hash": "sha256:65c654a15bfcd03f695fc44ddd6e5c1ab93faae2c202238deb87581ad00110ec",
+      "reservation_count": 7,
+      "structural_interface_capacity_gate": {
+        "assessments": [
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          }
+        ],
+        "contract_errors": [],
+        "metric_geometric_attachment_capacity_proven": false,
+        "scope": "TOPOLOGICAL_RESERVATION_ONLY",
+        "status": "PASS_TO_EXACT_PLACEMENT"
+      }
+    },
+    {
+      "assessment_count": 7,
+      "axis": "Y",
+      "composition_identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+      "cross_group_reservations": [
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "RAW_UPSTREAM_BAND",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "PROCESS_CORE_BAND",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "RAW_UPSTREAM_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "PROCESS_CORE_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "ADJACENT_PRINCIPAL_BAND_INTERFACE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PROCESS_CORE_BAND",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PROCESS_CORE_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "FINISHED_TERMINAL_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "ADJACENT_PRINCIPAL_BAND_INTERFACE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": null,
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PERSONNEL_INGRESS_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "host_b": {
+            "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        }
+      ],
+      "direction": "POSITIVE",
+      "family": "LINEAR_BANDED",
+      "handoff_projection": {
+        "canonical_hash": "sha256:4e2987f93f09a979b7a1275da55083817687acc8caa8d4c462a910385397eea4",
+        "gate_equal": true,
+        "reservation_source_edges": [
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel"
+        ],
+        "reservations_equal": true
+      },
+      "interface_count": 7,
+      "mandatory_interface_reservations": [
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "RAW_UPSTREAM_BAND",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "raw_fruit_buffer",
+          "endpoint_b_band": "RAW_UPSTREAM_BAND",
+          "endpoint_b_group": "RAW_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "primary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "RAW_UPSTREAM_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "RAW_UPSTREAM_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "RAW_UPSTREAM_BAND",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "PROCESS_CORE_BAND",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "RAW_UPSTREAM_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "PROCESS_CORE_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "ADJACENT_PRINCIPAL_BAND_INTERFACE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PROCESS_CORE_BAND",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "sorting_packaging_room",
+          "endpoint_b_band": "PROCESS_CORE_BAND",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "secondary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PROCESS_CORE_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "PROCESS_CORE_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PROCESS_CORE_BAND",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "secondary_precooling_room",
+          "endpoint_b_band": "PROCESS_CORE_BAND",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "coating_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PROCESS_CORE_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "PROCESS_CORE_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PROCESS_CORE_BAND",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PROCESS_CORE_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "FINISHED_TERMINAL_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "ADJACENT_PRINCIPAL_BAND_INTERFACE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_a_group": "FINISHED_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "finished_goods_room",
+          "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "FINISHED_TERMINAL_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "FINISHED_TERMINAL_BAND",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": null,
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PERSONNEL_INGRESS_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "host_b": {
+            "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        }
+      ],
+      "mandatory_interfaces": [
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "RAW_UPSTREAM_BAND",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "raw_fruit_buffer",
+          "endpoint_b_band": "RAW_UPSTREAM_BAND",
+          "endpoint_b_group": "RAW_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "primary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "RAW_UPSTREAM_BAND",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "PROCESS_CORE_BAND",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "PROCESS_CORE_BAND",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "sorting_packaging_room",
+          "endpoint_b_band": "PROCESS_CORE_BAND",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "secondary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "PROCESS_CORE_BAND",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "secondary_precooling_room",
+          "endpoint_b_band": "PROCESS_CORE_BAND",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "coating_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "PROCESS_CORE_BAND",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_a_group": "FINISHED_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "finished_goods_room",
+          "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": null,
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        }
+      ],
+      "office_shipping_reservation": {
+        "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+        "creates_new_hard_edge": false,
+        "downstream_consumption_required": true,
+        "endpoint_a_band": null,
+        "endpoint_a_group": "PERSONNEL_GROUP",
+        "endpoint_a_peripheral_domains": [
+          "PERSONNEL_INGRESS_DOMAIN"
+        ],
+        "endpoint_a_role": "office",
+        "endpoint_b_band": "FINISHED_TERMINAL_BAND",
+        "endpoint_b_group": "FINISHED_SIDE_GROUP",
+        "endpoint_b_peripheral_domains": [
+          "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+        ],
+        "endpoint_b_role": "shipping_channel",
+        "engineering_authority": false,
+        "geometry_authority": false,
+        "host_a": {
+          "container_id": "PERSONNEL_INGRESS_DOMAIN",
+          "kind": "PERIPHERAL_DOMAIN"
+        },
+        "host_b": {
+          "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+          "kind": "PERIPHERAL_DOMAIN"
+        },
+        "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+        "references_existing_mandatory_interface": true,
+        "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+        "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+        "reservation_scope": "CROSS_GROUP",
+        "source_graph_identity": "charles-v22-process-flow@1.1.0",
+        "validation_authority": false
+      },
+      "p0_projection_hash_preserved": true,
+      "plan_hash": "sha256:f6ad84ecfb7b00d724388b1374281de7336274b2fced9393e98104741878c1c9",
+      "reservation_count": 7,
+      "structural_interface_capacity_gate": {
+        "assessments": [
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          }
+        ],
+        "contract_errors": [],
+        "metric_geometric_attachment_capacity_proven": false,
+        "scope": "TOPOLOGICAL_RESERVATION_ONLY",
+        "status": "PASS_TO_EXACT_PLACEMENT"
+      }
+    },
+    {
+      "assessment_count": 7,
+      "axis": "Y",
+      "composition_identity": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:Y:POSITIVE:r1",
+      "cross_group_reservations": [
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "RAW_CORE_FACE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "CENTRAL_SORTING_CORE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "RAW_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "CENTRAL_SORTING_CORE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "ADJACENT_PRINCIPAL_BAND_INTERFACE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PROCESS_CORE_FACE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PROCESS_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "FINISHED_OPPOSING_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": null,
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PERSONNEL_INGRESS_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "host_b": {
+            "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        }
+      ],
+      "direction": "POSITIVE",
+      "family": "CENTRAL_PROCESS_CORE",
+      "handoff_projection": {
+        "canonical_hash": "sha256:b87a2db6ddb4e6ce2b02bfe61069fa71118ae7e86fce896c5f5d697aef4d83e7",
+        "gate_equal": true,
+        "reservation_source_edges": [
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel"
+        ],
+        "reservations_equal": true
+      },
+      "interface_count": 7,
+      "mandatory_interface_reservations": [
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "RAW_CORE_FACE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "raw_fruit_buffer",
+          "endpoint_b_band": "RAW_CORE_FACE",
+          "endpoint_b_group": "RAW_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "primary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "RAW_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "RAW_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "RAW_CORE_FACE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "CENTRAL_SORTING_CORE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "RAW_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "CENTRAL_SORTING_CORE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "ADJACENT_PRINCIPAL_BAND_INTERFACE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "CENTRAL_SORTING_CORE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "sorting_packaging_room",
+          "endpoint_b_band": "PROCESS_CORE_FACE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "secondary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "CENTRAL_SORTING_CORE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "PROCESS_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "ADJACENT_PRINCIPAL_BAND_INTERFACE",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PROCESS_CORE_FACE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "secondary_precooling_room",
+          "endpoint_b_band": "PROCESS_CORE_FACE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "coating_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PROCESS_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "PROCESS_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PROCESS_CORE_FACE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PROCESS_CORE_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "FINISHED_OPPOSING_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_a_group": "FINISHED_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "finished_goods_room",
+          "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "FINISHED_OPPOSING_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "FINISHED_OPPOSING_FACE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": null,
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PERSONNEL_INGRESS_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "host_b": {
+            "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        }
+      ],
+      "mandatory_interfaces": [
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "RAW_CORE_FACE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "raw_fruit_buffer",
+          "endpoint_b_band": "RAW_CORE_FACE",
+          "endpoint_b_group": "RAW_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "primary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "RAW_CORE_FACE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "CENTRAL_SORTING_CORE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "CENTRAL_SORTING_CORE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "sorting_packaging_room",
+          "endpoint_b_band": "PROCESS_CORE_FACE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "secondary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "PROCESS_CORE_FACE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "secondary_precooling_room",
+          "endpoint_b_band": "PROCESS_CORE_FACE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "coating_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "PROCESS_CORE_FACE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_a_group": "FINISHED_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "finished_goods_room",
+          "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": null,
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        }
+      ],
+      "office_shipping_reservation": {
+        "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+        "creates_new_hard_edge": false,
+        "downstream_consumption_required": true,
+        "endpoint_a_band": null,
+        "endpoint_a_group": "PERSONNEL_GROUP",
+        "endpoint_a_peripheral_domains": [
+          "PERSONNEL_INGRESS_DOMAIN"
+        ],
+        "endpoint_a_role": "office",
+        "endpoint_b_band": "FINISHED_OPPOSING_FACE",
+        "endpoint_b_group": "FINISHED_SIDE_GROUP",
+        "endpoint_b_peripheral_domains": [
+          "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+        ],
+        "endpoint_b_role": "shipping_channel",
+        "engineering_authority": false,
+        "geometry_authority": false,
+        "host_a": {
+          "container_id": "PERSONNEL_INGRESS_DOMAIN",
+          "kind": "PERIPHERAL_DOMAIN"
+        },
+        "host_b": {
+          "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+          "kind": "PERIPHERAL_DOMAIN"
+        },
+        "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+        "references_existing_mandatory_interface": true,
+        "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+        "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+        "reservation_scope": "CROSS_GROUP",
+        "source_graph_identity": "charles-v22-process-flow@1.1.0",
+        "validation_authority": false
+      },
+      "p0_projection_hash_preserved": true,
+      "plan_hash": "sha256:9455fa0701d77ae9255ed151117004283e2862f4126667c13cab5919018cd5e6",
+      "reservation_count": 7,
+      "structural_interface_capacity_gate": {
+        "assessments": [
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          }
+        ],
+        "contract_errors": [],
+        "metric_geometric_attachment_capacity_proven": false,
+        "scope": "TOPOLOGICAL_RESERVATION_ONLY",
+        "status": "PASS_TO_EXACT_PLACEMENT"
+      }
+    },
+    {
+      "assessment_count": 7,
+      "axis": "Y",
+      "composition_identity": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:Y:POSITIVE:r1",
+      "cross_group_reservations": [
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PERSONNEL_INGRESS_BANK",
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PERSONNEL_INGRESS_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "host_b": {
+            "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        }
+      ],
+      "direction": "POSITIVE",
+      "family": "PROCESS_SPINE_WITH_PERIPHERAL_BANKS",
+      "handoff_projection": {
+        "canonical_hash": "sha256:e903569595381096206875cec6e92cf1285b54e206522a30dc990d870497a322",
+        "gate_equal": true,
+        "reservation_source_edges": [
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel"
+        ],
+        "reservations_equal": true
+      },
+      "interface_count": 7,
+      "mandatory_interface_reservations": [
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "raw_fruit_buffer",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "RAW_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "primary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "sorting_packaging_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "secondary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "secondary_precooling_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "coating_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "FINISHED_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "finished_goods_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "host_b": {
+            "container_id": "DOMINANT_PROCESS_SPINE",
+            "kind": "PRINCIPAL_BAND"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "INTRA_STRUCTURAL_CONTAINER",
+          "reservation_scope": "INTRA_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        },
+        {
+          "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+          "creates_new_hard_edge": false,
+          "downstream_consumption_required": true,
+          "endpoint_a_band": "PERSONNEL_INGRESS_BANK",
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "host_a": {
+            "container_id": "PERSONNEL_INGRESS_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "host_b": {
+            "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+            "kind": "PERIPHERAL_DOMAIN"
+          },
+          "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "references_existing_mandatory_interface": true,
+          "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+          "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+          "reservation_scope": "CROSS_GROUP",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0",
+          "validation_authority": false
+        }
+      ],
+      "mandatory_interfaces": [
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "raw_fruit_buffer",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "RAW_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "primary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "RAW_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "primary_precooling_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "sorting_packaging_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "sorting_packaging_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "secondary_precooling_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "secondary_precooling_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "PROCESSING_CORE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "coating_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "PROCESSING_CORE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "coating_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [],
+          "endpoint_b_role": "finished_goods_room",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_a_group": "FINISHED_SIDE_GROUP",
+          "endpoint_a_peripheral_domains": [],
+          "endpoint_a_role": "finished_goods_room",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "INTRA_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        },
+        {
+          "creates_new_authority": false,
+          "endpoint_a_band": "PERSONNEL_INGRESS_BANK",
+          "endpoint_a_group": "PERSONNEL_GROUP",
+          "endpoint_a_peripheral_domains": [
+            "PERSONNEL_INGRESS_DOMAIN"
+          ],
+          "endpoint_a_role": "office",
+          "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+          "endpoint_b_group": "FINISHED_SIDE_GROUP",
+          "endpoint_b_peripheral_domains": [
+            "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+          ],
+          "endpoint_b_role": "shipping_channel",
+          "engineering_authority": false,
+          "geometry_authority": false,
+          "hard_requirement": "POSITIVE_SHARED_EDGE",
+          "interface_preservation_policy": "PRESERVE_AT_LEAST_ONE_HARD_FEASIBLE_ATTACHMENT_PATH",
+          "interface_scope": "CROSS_GROUP",
+          "references_existing_hard_authority": true,
+          "requires_attachment_capacity_preservation": true,
+          "source_constraint_kind": "MUST_ADJACENCY",
+          "source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+          "source_graph_identity": "charles-v22-process-flow@1.1.0"
+        }
+      ],
+      "office_shipping_reservation": {
+        "capacity_obligation": "PRESERVE_AT_LEAST_ONE_ATTACHMENT_SLOT",
+        "creates_new_hard_edge": false,
+        "downstream_consumption_required": true,
+        "endpoint_a_band": "PERSONNEL_INGRESS_BANK",
+        "endpoint_a_group": "PERSONNEL_GROUP",
+        "endpoint_a_peripheral_domains": [
+          "PERSONNEL_INGRESS_DOMAIN"
+        ],
+        "endpoint_a_role": "office",
+        "endpoint_b_band": "DOMINANT_PROCESS_SPINE",
+        "endpoint_b_group": "FINISHED_SIDE_GROUP",
+        "endpoint_b_peripheral_domains": [
+          "SHIPPING_TRUCK_INTERFACE_DOMAIN"
+        ],
+        "endpoint_b_role": "shipping_channel",
+        "engineering_authority": false,
+        "geometry_authority": false,
+        "host_a": {
+          "container_id": "PERSONNEL_INGRESS_DOMAIN",
+          "kind": "PERIPHERAL_DOMAIN"
+        },
+        "host_b": {
+          "container_id": "SHIPPING_TRUCK_INTERFACE_DOMAIN",
+          "kind": "PERIPHERAL_DOMAIN"
+        },
+        "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+        "references_existing_mandatory_interface": true,
+        "required_attachment_kind": "POSITIVE_SHARED_EDGE",
+        "reservation_kind": "CROSS_CONTAINER_MANDATORY_BRIDGE",
+        "reservation_scope": "CROSS_GROUP",
+        "source_graph_identity": "charles-v22-process-flow@1.1.0",
+        "validation_authority": false
+      },
+      "p0_projection_hash_preserved": true,
+      "plan_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+      "reservation_count": 7,
+      "structural_interface_capacity_gate": {
+        "assessments": [
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:raw_fruit_buffer",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:primary_precooling_room:sorting_packaging_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:secondary_precooling_room:sorting_packaging_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:secondary_precooling_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:coating_room:finished_goods_room",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:finished_goods_room:shipping_channel",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          },
+          {
+            "assessment_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+            "engineering_authority": false,
+            "geometry_authority": false,
+            "interface_source_edge_identity": "charles-v22-process-flow@1.1.0:MUST_ADJACENCY:office:shipping_channel",
+            "metric_geometric_attachment_capacity_proven": false,
+            "reason": "STRUCTURAL_SLOT_BOUND",
+            "source_graph_identity": "charles-v22-process-flow@1.1.0",
+            "status": "PASS_STRUCTURAL_CAPACITY_RESERVED",
+            "validation_authority": false
+          }
+        ],
+        "contract_errors": [],
+        "metric_geometric_attachment_capacity_proven": false,
+        "scope": "TOPOLOGICAL_RESERVATION_ONLY",
+        "status": "PASS_TO_EXACT_PLACEMENT"
+      }
+    }
+  ],
+  "determinism": {
+    "first_result_hash": "sha256:aeb35a2ca12b39155eb65bfd126089af346b468a05dd28a6aa70bf42c2b2f108",
+    "same_assessment_order_and_gate": true,
+    "same_composition_order": true,
+    "same_handoff_hashes": true,
+    "same_interface_order": true,
+    "same_reservation_order": true,
+    "same_serialized_handoffs": true,
+    "second_result_hash": "sha256:aeb35a2ca12b39155eb65bfd126089af346b468a05dd28a6aa70bf42c2b2f108"
+  },
+  "full_exact_placement_search_executed": false,
+  "generation_scope": "TOPOLOGICAL_RESERVATION_ONLY",
+  "metric_geometric_attachment_capacity_proven": false,
+  "p0_baseline_sha": "aa9556369af3917825b5ee56a6011ee3747e74b2",
+  "p1_final_sha_binding": "CONTAINING_COMMIT_RESOLVED_BY_GIT_AND_EXACT_HEAD_CI",
+  "p2_authorized": false,
+  "schema_version_audit": {
+    "api_public_boundary": "server rebuilds; caller serialized composition is not an input",
+    "audited": true,
+    "decision": "PRESERVE_INTERNAL_ADDITIVE",
+    "handoff_schema": "1.0.0",
+    "hash_compatibility": "current plan/handoff/result hashes change; identities and topology signatures do not",
+    "historical_evidence": "S1/S2 and P0 blobs unchanged; old field projection hashes checked",
+    "internal_typed_consumers": [
+      "layout/application/structural_composition.py:_handoff_for_composition",
+      "layout/application/composition_placement.py:_validate_replayed_handoff",
+      "layout/application/composition_placement.py:_assert_server_replay",
+      "layout/domain/composition_placement.py:enumerate_composition_placements"
+    ],
+    "plan_schema": "2.0.0",
+    "reservation_signature_policy": "DERIVED_NOT_INCLUDED",
+    "strict_external_or_persisted_deserializers_found": false
+  },
+  "source_must_adjacencies": [
+    [
+      "raw_fruit_buffer",
+      "primary_precooling_room"
+    ],
+    [
+      "primary_precooling_room",
+      "sorting_packaging_room"
+    ],
+    [
+      "sorting_packaging_room",
+      "secondary_precooling_room"
+    ],
+    [
+      "secondary_precooling_room",
+      "coating_room"
+    ],
+    [
+      "coating_room",
+      "finished_goods_room"
+    ],
+    [
+      "finished_goods_room",
+      "shipping_channel"
+    ],
+    [
+      "office",
+      "shipping_channel"
+    ]
+  ],
+  "source_process_graph_identity": "charles-v22-process-flow@1.1.0",
+  "task_id": "V2_2_2_P1A_STRUCTURAL_HARD_INTERFACE_RESERVATION_P1"
+}

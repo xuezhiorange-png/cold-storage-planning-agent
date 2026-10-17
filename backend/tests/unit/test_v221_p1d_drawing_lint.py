@@ -473,7 +473,9 @@ def test_evidence_status_and_source_are_part_of_lint_hash(presentation_body):
         ),
         (
             "ENGINEERING_REVIEW",
-            "sha256:48ea97310b955b3e5b94ea68eebed49c377031c74cb4eeba9db003e36042f37d",
+            # R11: corrected destination metadata changes the visible source
+            # hash only; the review drawing geometry is byte-stable otherwise.
+            "sha256:bec4d8e200af35a7c4b80618769fa4c5d3686d1786b875d9ca5fcccf6f2fa005",
         ),
     ),
 )
