@@ -1,0 +1,74 @@
+"""Explicit internal stage-A composition root; intentionally not wired to MCP.
+
+Callers supply business-derived server authorities, never room coordinates.
+The official P1A/P3 selector, deployment and production numerical budgets stay
+unchanged. This root is opt-in until a formal CP-SAT resource mapping is approved.
+"""
+
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
+
+from cold_storage.modules.layout.application.global_composition_solver import (
+    DEFAULT_STAGE_A_COMPOSITION,
+    StageALedger,
+    generate_global_composition_candidate,
+)
+from cold_storage.modules.layout.application.site_geometry import ValidatedSiteGeometryV1
+from cold_storage.modules.layout.infrastructure.global_cp_sat_solver import (
+    OrToolsGlobalCompositionSolver,
+)
+from cold_storage.modules.layout.infrastructure.stage_a_execution import OwnerExecutionStore
+from cold_storage.modules.layout.infrastructure.stage_a_production_execution import (
+    ProductionReplayStore,
+)
+
+INDEPENDENT_OWNER_TASK = "V2_2_2_R16_INDEPENDENT_EXECUTION_AND_ENGINEERING_VALIDATION_R1"
+INDEPENDENT_OWNER_INSTRUCTION_SHA256 = (
+    "4c511e5ec43e6eba17b091dcf239a8df643a820b22d36684e22506c1baed4f83"
+)
+
+
+def production_replay_execution_store() -> ProductionReplayStore:
+    """Two approved replays share one task slot; never used by the public selector."""
+    return ProductionReplayStore(
+        Path.home()
+        / "Documents/Codex/cold-storage-planning-agent/artifacts/execution-authorizations",
+        "V2_2_2_STAGE_A_FINAL_PRODUCTION_CLOSURE_R2",
+        "8b9b539b9d4b3713b40ccd9b08fb7ac66d5c739695f5f5cae2b75015e50664f9",
+    )
+
+
+def owner_approved_execution_store() -> OwnerExecutionStore:
+    """Trusted local stage-A registry; neither MCP nor output paths configure it.
+
+    This explicit Owner grant is a one-task research authorization, not a default
+    server selector or a general public authorization API. Tests use isolated
+    registries, never this real grant's one allocation slot.
+    """
+    registry = (
+        Path.home()
+        / "Documents/Codex/cold-storage-planning-agent/artifacts"
+        / "execution-authorizations"
+    )
+    return OwnerExecutionStore(
+        registry, INDEPENDENT_OWNER_TASK, INDEPENDENT_OWNER_INSTRUCTION_SHA256
+    )
+
+
+def generate_controlled_global_layout(
+    canonical_zone_plan: Mapping[str, Any],
+    p1_handoff: Mapping[str, Any],
+    site_geometry: ValidatedSiteGeometryV1,
+    *,
+    composition_identity: str = DEFAULT_STAGE_A_COMPOSITION,
+    execution_ledger: StageALedger | None = None,
+) -> dict[str, Any]:
+    return generate_global_composition_candidate(
+        canonical_zone_plan,
+        p1_handoff,
+        site_geometry,
+        solver=OrToolsGlobalCompositionSolver(),
+        composition_identity=composition_identity,
+        execution_ledger=execution_ledger,
+    )

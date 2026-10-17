@@ -740,7 +740,32 @@ def _find_route(
     incident_refs: frozenset[str],
     node_budget: int,
     safety_cache: dict[tuple[Any, ...], Any] | None = None,
+    search_hint: Sequence[tuple[int, int]] = (),
 ) -> tuple[tuple[tuple[int, int], ...] | None, str, tuple[PlacedRectangleV1, ...]]:
+    # Hints propose search order only. They cannot introduce portals or approve
+    # geometry: endpoints, shape and the original complete predicate are checked.
+    if (
+        len(search_hint) >= 2
+        and search_hint[0] == start
+        and search_hint[-1] == end
+        and all(
+            a[0] == b[0] or a[1] == b[1] for a, b in zip(search_hint, search_hint[1:], strict=False)
+        )
+    ):
+        hinted = _compact_path(search_hint)
+        if not straight_only or _turn_count(hinted) == 0:
+            safe, _, envelopes = _cached_route_is_safe(
+                hinted,
+                width_mm=width_mm,
+                boundary=boundary,
+                obstacles=obstacles,
+                zones=zones,
+                incident_refs=incident_refs,
+                cache=safety_cache,
+                capacity=node_budget,
+            )
+            if safe:
+                return hinted, "", envelopes
     reasons: list[str] = []
     for path in _candidate_paths(start, end, straight_only=straight_only):
         safe, reason, envelopes = _cached_route_is_safe(
@@ -884,6 +909,22 @@ def _hashed(payload: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _normalise_route_hint(
+    hint: Sequence[tuple[int, int]], *, node_budget: int
+) -> tuple[tuple[int, int], ...]:
+    """Bound optional hints by the existing budget; reject malformed coordinates."""
+    if not hint:
+        return ()
+    if len(hint) < 2 or len(hint) > node_budget:
+        raise _error("INVALID_ACCESS_SEARCH_HINT")
+    if any(
+        not isinstance(p, Sequence) or len(p) != 2 or any(type(v) is not int for v in p)
+        for p in hint
+    ):
+        raise _error("INVALID_ACCESS_SEARCH_HINT")
+    return tuple((p[0], p[1]) for p in hint)
+
+
 def route_access_requirement(
     requirement: Mapping[str, Any],
     *,
@@ -893,9 +934,11 @@ def route_access_requirement(
     obstacles: Sequence[PolygonMM],
     entrances: Mapping[str, SegmentMM],
     route_node_budget: int = DEFAULT_ROUTE_NODE_BUDGET,
+    route_hint: Sequence[tuple[int, int]] = (),
 ) -> tuple[dict[str, Any], tuple[PolygonMM, ...]]:
     """Return one portal/corridor result and its corridor polygons."""
     result = _access_result_base(requirement)
+    hint = _normalise_route_hint(route_hint, node_budget=route_node_budget)
     requirement_object = _requirement_object(requirement)
     profile = resolve_access_profile(requirement_object.profile_identity)
     portal_width_mm = _mm(profile.portal_clear_width_m, field="portal_clear_width_m")
@@ -995,6 +1038,24 @@ def route_access_requirement(
     straight_only = requirement_object.route_shape_constraint == "STRAIGHT_ONLY"
     route_failures: list[str] = []
     safety_cache: dict[tuple[Any, ...], Any] = {}
+    if hint:
+
+        def hint_matches(first: Mapping[str, Any]) -> bool:
+            center = _portal_center(first["segment_mm"])
+            start = (
+                _boundary_interior_point(
+                    center, entrances[from_ref], boundary, corridor_width_mm // 2
+                )
+                if from_ref in entrances
+                else center
+            )
+            return hint[0] in (center, start)
+
+        # Stable partition of unchanged native candidates; never add a portal.
+        from_options = tuple(sorted(from_options, key=lambda first: not hint_matches(first)))
+        to_options = tuple(
+            sorted(to_options, key=lambda second: _portal_center(second["segment_mm"]) != hint[-1])
+        )
     for from_candidate in from_options:
         for to_candidate in to_options:
             start = _portal_center(from_candidate["segment_mm"])
@@ -1057,10 +1118,35 @@ def route_access_requirement(
                 incident_refs=frozenset((from_ref, to_ref)),
                 node_budget=route_node_budget,
                 safety_cache=safety_cache,
+                search_hint=(start, *hint[1:])
+                if hint
+                and hint[0] in (_portal_center(from_candidate["segment_mm"]), start)
+                and hint[-1] == end
+                else (),
             )
             if path is None:
                 route_failures.append(reason)
                 continue
+            if hint and from_ref in entrances:
+                # The inward point is a graph-search aid, not the actual portal.
+                # Retain the real entrance connector in hinted route geometry;
+                # it must pass the same full-width predicate, not a fabricated
+                # envelope or a trusted external certificate.
+                full_path = _compact_path((_portal_center(from_candidate["segment_mm"]), *path))
+                safe, connector_reason, full_envelopes = _cached_route_is_safe(
+                    full_path,
+                    width_mm=corridor_width_mm,
+                    boundary=boundary,
+                    obstacles=obstacles,
+                    zones=zones,
+                    incident_refs=frozenset((from_ref, to_ref)),
+                    cache=safety_cache,
+                    capacity=route_node_budget,
+                )
+                if not safe:
+                    route_failures.append(connector_reason or "ROUTE_SEARCH_EXHAUSTED")
+                    continue
+                path, envelopes = full_path, full_envelopes
             aligned = (expected_from is None or from_candidate["edge_class"] == expected_from) and (
                 expected_to is None or to_candidate["edge_class"] == expected_to
             )
