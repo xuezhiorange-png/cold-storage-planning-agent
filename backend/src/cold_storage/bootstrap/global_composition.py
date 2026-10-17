@@ -9,6 +9,9 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from cold_storage.modules.layout.application.global_composition_pool import (
+    generate_global_composition_pool,
+)
 from cold_storage.modules.layout.application.global_composition_solver import (
     DEFAULT_STAGE_A_COMPOSITION,
     StageALedger,
@@ -70,5 +73,26 @@ def generate_controlled_global_layout(
         site_geometry,
         solver=OrToolsGlobalCompositionSolver(),
         composition_identity=composition_identity,
+        execution_ledger=execution_ledger,
+    )
+
+
+def generate_controlled_global_layout_pool(
+    canonical_zone_plan: Mapping[str, Any],
+    p1_handoff: Mapping[str, Any],
+    site_geometry: ValidatedSiteGeometryV1,
+    *,
+    execution_ledger: StageALedger | None = None,
+) -> dict[str, Any]:
+    """Internal Stage B only; no MCP/selector hookup and no inherited A grant.
+
+    Without a separately approved durable pool lease this returns quota-required
+    BEFORE any native solve. This task deliberately issues no such lease.
+    """
+    return generate_global_composition_pool(
+        canonical_zone_plan,
+        p1_handoff,
+        site_geometry,
+        solver=OrToolsGlobalCompositionSolver(),
         execution_ledger=execution_ledger,
     )

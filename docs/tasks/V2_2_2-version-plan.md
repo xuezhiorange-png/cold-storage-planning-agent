@@ -613,3 +613,38 @@ NO_STEP_IMPLIES_THE_NEXT=true
 本次实际检查：单文件范围、去掉新增导航后历史全文一致、17条任务索引/14项目标及字段覆盖、目标/UNKNOWN保留、相对链接/表格/代码围栏自检通过，`git diff --check`通过。现有完整Architecture Suite为 **768 passed / 16 skipped**（19.28秒）；未修改测试或运行新布局/Truck验证。本地文档门禁通过不冒充提交后的CI成功。
 
 提交后只读取本次精确HEAD的PR状态/CI。尚未结束写`PENDING`；不得用R14的绿色CI冒充本次文档commit CI。历史归档读验不等于重跑工程PASS，Owner回执不伪装独立复测。计划仍待Owner审核/冻结；`VERSION_COMPLETE=false`、`NEXT_DEVELOPMENT_AUTHORIZED=false`。不Ready、Merge、Deploy，不自动启动任何新布局开发，完成后STOP。
+
+### 12.8 2026-10-17 阶段A交付与阶段B范围开工记录
+
+本节追加当前事实，不改写第1–12.7节历史授权与验收记录。正式工作包仍为
+`REVIEW-MULTI-CANDIDATE`，阶段B只是其中的`STAGE_B_MULTI_STRUCTURAL_CONSTRUCTION`切片。
+
+* `STAGE_A_ENGINEERING=PASS`：封存的两次真实回放各12区/7 MUST/11原生非Truck
+  Access/通道共存，建筑单连通、零孔洞及Footprint/Site通过；资源与确定性证据保留。
+* `STAGE_A_CODE_DELIVERY=PASS`：生产实现已提交；当前开工基线
+  `9d6d6c054295f589075441bbd75d71b9eb54a470`。
+* `STAGE_A_PR_CI=SUCCESS`：GitHub run `39014412638`，绑定该SHA。
+* `STAGE_A_PUSH_CI=SUCCESS`：GitHub run `39014409166`，绑定同一SHA。PR保持Draft。
+* 阶段B已获本轮Owner范围实施授权，状态为`IMPLEMENTED_TESTED_REAL_EXECUTION_QUOTA_PENDING`；
+  真实多候选求解配额尚未批准，合格候选集合/五三目标/真实确定性回放仍未交付。
+
+开工D01/D03/D04适用审核与保守几何去重、共享资源及具体配额申请见
+[阶段B范围说明](V2_2_2-multi-structural-construction-stage-b.md)。成功阶段A上的候选池新功能
+不是失败恢复或新架构；不清零旧恢复次数、不追认历史未决轮次、不复制阶段A执行授权。
+出现需Owner裁决的旧轮次问题仍须先停下取得具名决定。
+
+第12.4节当前能力增量仅限：全局构造已生产整合，新结构候选池/去重已实现并完成合成测试。
+不能据此把`DISTINCT_FULL_PASS_CANDIDATES`、实际family覆盖、质量排序、最终图集、
+Owner视觉签认或新链Tool7改为COMPLETE。最终目标仍为≥5套distinct structured
+P2D full-pass、≥3类实质结构。历史262 UNKNOWN、零UNKNOWN强门禁、D03分组历史及
+未校准0.90目标均保留。`P3_COMPLETE=false`、`P2_COMPLETE=false`、
+`VERSION_COMPLETE=false`。不Ready、不Merge、不Deploy。
+
+本轮本地实际验证：阶段B新增30项、原资源44项、Access安全43项、MCP兼容98项、
+直接依赖的P1A来源/结构74项、完整Architecture 771项通过（16项原有Skip），
+Linux测试隔离基础设施6项通过，且同一源码的阶段B 30项在Linux再次通过；
+macOS基础设施组5通过/1失败（600MiB申请后RSS压力前置条件未达512MiB），原失败保留，
+未修改断言、RSS或上限，也未扩充PDF例外。Ruff/Format/Mypy/diff检查通过。一次可选旧P1A全量扩展
+在耗时历史placement fixture中被终止，明确不记PASS；未修改任何原断言或CI过滤。
+本轮未在本地执行完整Backend，提交及最终exact-head完整CI状态以本轮交付证据为准。
+真实阶段B候选、实际结构覆盖和P2D full-pass计数均为0；合成测试的五方案编排不抵扣。
