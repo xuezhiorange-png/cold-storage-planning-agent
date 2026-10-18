@@ -17,6 +17,9 @@ from cold_storage.modules.layout.application.global_composition_solver import (
     StageALedger,
     generate_global_composition_candidate,
 )
+from cold_storage.modules.layout.application.global_multi_solution_pool import (
+    generate_multi_solution_pool,
+)
 from cold_storage.modules.layout.application.site_geometry import ValidatedSiteGeometryV1
 from cold_storage.modules.layout.infrastructure.global_cp_sat_solver import (
     OrToolsGlobalCompositionSolver,
@@ -27,6 +30,9 @@ from cold_storage.modules.layout.infrastructure.stage_a_production_execution imp
 )
 from cold_storage.modules.layout.infrastructure.stage_b_construction_guidance import (
     StageBGuidedConstructionSolver,
+)
+from cold_storage.modules.layout.infrastructure.stage_b_multi_solution import (
+    StageBMultiSolutionSolver,
 )
 from cold_storage.modules.layout.infrastructure.stage_b_pool_execution import PoolExecutionStore
 
@@ -130,5 +136,22 @@ def generate_guided_global_layout_pool(
         p1_handoff,
         site_geometry,
         solver=StageBGuidedConstructionSolver(),
+        execution_ledger=execution_ledger,
+    )
+
+
+def generate_multi_solution_global_layout_pool(
+    canonical_zone_plan: Mapping[str, Any],
+    p1_handoff: Mapping[str, Any],
+    site_geometry: ValidatedSiteGeometryV1,
+    *,
+    execution_ledger: StageALedger | None = None,
+) -> dict[str, Any]:
+    """Explicit internal enumeration; never creates or refreshes an Owner grant."""
+    return generate_multi_solution_pool(
+        canonical_zone_plan,
+        p1_handoff,
+        site_geometry,
+        solver=StageBMultiSolutionSolver(),
         execution_ledger=execution_ledger,
     )

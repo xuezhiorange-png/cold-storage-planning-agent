@@ -240,6 +240,7 @@ class PoolLease:
             **{k: getattr(self.ledger, k) for k in _SCALARS if k != "elapsed_seconds"},
             "elapsed_seconds": time.monotonic() - self.ledger.started,
             **{k: getattr(self.ledger, k) for k in _LISTS},
+            "resource_events": dict(self.ledger.resource_events),
         }
 
     @staticmethod
@@ -248,6 +249,11 @@ class PoolLease:
             len(new.get(k, [])) < len(old.get(k, [])) for k in _LISTS
         ):
             raise LayoutAuthorityError("POOL_COUNTER_ROLLBACK_DENIED")
+        if any(
+            new.get("resource_events", {}).get(k, 0) < count
+            for k, count in old.get("resource_events", {}).items()
+        ):
+            raise LayoutAuthorityError("POOL_EVENT_COUNTER_ROLLBACK_DENIED")
 
     def validate_pool(
         self, ledger: StageALedger, sources: Mapping[str, str], plan: tuple[str, ...]
@@ -298,7 +304,35 @@ class PoolLease:
             "peak_rss_bytes": max(c.get("peak_rss_bytes", 0) for c in counters),
             "native_calls": sum(len(c.get("attempts", [])) for c in counters),
             "composition_calls": sum(r["cursor"] for r in self.state["pools"]),
+            "candidate_validation_calls": sum(
+                c.get("resource_events", {}).get("STAGE_B_CANDIDATE_VALIDATION", 0)
+                for c in counters
+            ),
         }
+
+    def record_enumeration(self, sources: Mapping[str, str], event: Mapping[str, Any]) -> None:
+        """Compatible audit extension inside the SAME active composition claim.
+
+        No begin(), new allowance, counter reset or resumed unknown native call.
+        Full cuts/results survive interruption in the existing atomic task ledger.
+        """
+        self.validate(self.ledger)
+        if not self.record["composition_active"] or not self.state["accounting_complete"]:
+            raise LayoutAuthorityError("POOL_ENUMERATION_OUTSIDE_ACTIVE_ACCOUNTED_COMPOSITION")
+        required = {k: self.decision[k] for k in ("zone_plan_hash", "p1_hash", "site_hash")}
+        required["composition_hash"] = self.decision["compositions"][self.record["cursor"] - 1][
+            "composition_hash"
+        ]
+        if dict(sources) != required:
+            raise LayoutAuthorityError("POOL_ENUMERATION_SOURCE_MISMATCH")
+        self.ledger.charge("STAGE_B_ENUMERATION_AUDIT_RECORD", 1)
+        events = self.record.setdefault("enumeration_events", [])
+        entry = json.loads(_bytes(dict(event)))
+        entry["sequence"] = len(events) + 1
+        entry["sources"] = dict(sources)
+        entry["canonical_event_hash"] = canonical_hash(entry)
+        events.append(entry)
+        self.ledger.checkpoint("STAGE_B_ENUMERATION_AUDIT_RECORDED")
 
     def remaining_solver_seconds(self, ledger: StageALedger) -> float:
         self.validate(ledger)

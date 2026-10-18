@@ -1,5 +1,9 @@
 # REVIEW-MULTI-CANDIDATE — Stage B scoped construction
 
+Subsequent scoped enumeration implementation (no new real execution): see
+[single-handoff multi-solution mechanism and bounded UNSAT analysis](V2_2_2-stage-b-multi-solution-construction.md).
+Earlier reports and their actual single-candidate counts below remain historical.
+
 Owner instruction: `STAGE_B_MULTI_STRUCTURAL_CONSTRUCTION`, 2026-10-17.
 Baseline PR #307: `9d6d6c054295f589075441bbd75d71b9eb54a470`.
 This is a delivery slice of the original work package, not a new version task,

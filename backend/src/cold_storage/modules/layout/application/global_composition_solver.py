@@ -677,6 +677,25 @@ def generate_global_composition_candidate(
         proposal = solver.solve(context, selected[0])
     finally:
         ledger.checkpoint("GENERATION_RETURNED_OR_INTERRUPTED")
+    return validate_generated_global_proposal(
+        canonical_zone_plan, p1_handoff, site_geometry, context, selected[0], proposal
+    )
+
+
+def validate_generated_global_proposal(
+    canonical_zone_plan: Mapping[str, Any],
+    p1_handoff: Mapping[str, Any],
+    site_geometry: ValidatedSiteGeometryV1,
+    context: GlobalGenerationContext,
+    handoff: StructuralCompositionPlacementHandoffV1,
+    proposal: dict[str, Any],
+) -> dict[str, Any]:
+    """Existing complete oracle, shared after trusted one-time context admission.
+
+    Internal continuation helper, not an alternate public authority boundary.
+    Every proposal repeats its own geometry/Access/Footprint validation.
+    """
+    ledger, binding, selected = context.ledger, context.binding, [handoff]
     if proposal.get("zones"):
         proposal["geometry_hash"] = zone_geometry_hash(proposal["zones"])
     result: dict[str, Any] = {

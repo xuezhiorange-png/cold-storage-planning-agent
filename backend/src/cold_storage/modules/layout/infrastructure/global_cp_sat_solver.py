@@ -8,6 +8,7 @@ The native footprint predicate rejects holes before a candidate is exported.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable, Generator
 from decimal import Decimal
 from importlib.metadata import version
 from typing import Any
@@ -129,15 +130,37 @@ class OrToolsGlobalCompositionSolver:
     def solve(
         self, context: GlobalGenerationContext, handoff: StructuralCompositionPlacementHandoffV1
     ) -> dict[str, Any]:
+        # Stage A consumes exactly one result; no continuation cut/search occurs.
+        proposals = self.iter_solutions(context, handoff)
+        try:
+            return next(proposals)
+        finally:
+            proposals.close()
+
+    def iter_solutions(
+        self,
+        context: GlobalGenerationContext,
+        handoff: StructuralCompositionPlacementHandoffV1,
+        *,
+        event_sink: Callable[[dict[str, Any]], None] | None = None,
+    ) -> Generator[dict[str, Any], str | None, None]:
+        """One preparation, one final model; bounded physical enumeration.
+
+        Repeated native Solve calls do not retain learned SAT clauses. They do
+        reuse this prepared CpModel, current hints and all accumulated cuts.
+        Accepted-room cuts enumerate already represented geometry; they are not
+        infeasibility certificates. Unknown/resource returns never receive cuts.
+        """
         try:
             context.ledger.remaining_solver_seconds()
         except LayoutAuthorityError as error:
-            return {
+            yield {
                 "solver_status": "NOT_STARTED",
                 "codes": [error.code],
                 "global_infeasibility_claimed": False,
                 "candidate_generated": False,
             }
+            return
         global_model = GlobalModel(context, handoff)
         hints: dict[str, PlacedRectangleV1] | None = None
         for phase, cut, seconds in (
@@ -194,6 +217,8 @@ class OrToolsGlobalCompositionSolver:
         model.m.add_decision_strategy(
             [r["corridor"] for r in model.routes], cp_model.CHOOSE_FIRST, cp_model.SELECT_MIN_VALUE
         )
+        if event_sink:
+            event_sink({"kind": "FINAL_MODEL_PREPARED", "variables": len(model.m.proto.variables)})
         cuts: list[dict[str, Any]] = []
         for refinement in range(max(0, 20 - context.ledger.checked_solutions)):
             solver, status = self._run(
@@ -212,7 +237,8 @@ class OrToolsGlobalCompositionSolver:
                 "topology_checked_solution_index": refinement,
             }
             if status not in (cp_model.FEASIBLE, cp_model.OPTIMAL):
-                return record
+                yield record
+                return
             context.ledger.checked_solutions += 1
             zones, interface = model.export(solver)
             routes = model.export_routes(solver, zones, interface)
@@ -230,9 +256,12 @@ class OrToolsGlobalCompositionSolver:
             record["model_witness_topology"] = topology
             if not checked["pass"]:
                 record["model_validation_mismatch"] = True
-                return record
+                yield record
+                return
             if not topology["valid"]:
                 variables = physical_assignment_variables(model, solver)
+                if event_sink:
+                    context.ledger.charge("STAGE_B_PHYSICAL_ENUMERATION_CUT", len(variables) + 1)
                 model.m.add_forbidden_assignments(variables, [[solver.value(v) for v in variables]])
                 cuts.append(
                     {
@@ -241,6 +270,17 @@ class OrToolsGlobalCompositionSolver:
                         "certificate": topology,
                     }
                 )
+                if event_sink:
+                    event_sink(
+                        {
+                            "kind": "TOPOLOGY_REJECTED_WITNESS_CUT",
+                            "proposal": record,
+                            "variable_indices": [v.index for v in variables],
+                            "variable_names": [v.name for v in variables],
+                            "values": [solver.value(v) for v in variables],
+                            "certificate": topology,
+                        }
+                    )
                 context.ledger.checkpoint("EXACT_INVALID_WITNESS_CUT")
                 continue
             if checked["pass"]:
@@ -264,9 +304,36 @@ class OrToolsGlobalCompositionSolver:
                         "code": error.code,
                         "details": error.details,
                     }
-            return record
+            feedback = yield record
+            # This code is unreachable for the original single-solution entry.
+            # Only engineering-accepted geometry can exclude all its witnesses.
+            accepted = feedback == "ENGINEERING_ACCEPTED"
+            variables = (
+                [r[k] for r in model.rooms.values() for k in ("x", "y", "w", "d")]
+                if accepted
+                else physical_assignment_variables(model, solver)
+            )
+            values = [solver.value(v) for v in variables]
+            context.ledger.charge("STAGE_B_PHYSICAL_ENUMERATION_CUT", len(variables) + 1)
+            model.m.add_forbidden_assignments(variables, [values])
+            event = {
+                "kind": "ACCEPTED_GEOMETRY_ENUMERATION_CUT"
+                if accepted
+                else "EXAMINED_WITNESS_ENUMERATION_CUT",
+                "scope": "EXACT_PHYSICAL_ROOM_GEOMETRY_ALL_WITNESSES"
+                if accepted
+                else "EXACT_ROOM_AND_SELECTED_WITNESS_ASSIGNMENT_ONLY",
+                "engineering_infeasibility_claimed": False,
+                "variable_indices": [v.index for v in variables],
+                "variable_names": [v.name for v in variables],
+                "values": values,
+            }
+            cuts.append(event)
+            if event_sink:
+                event_sink(event)
+            context.ledger.checkpoint("STAGE_B_PHYSICAL_ENUMERATION_CUT")
 
-        return {
+        yield {
             "solver_status": "BOUNDED_TOPOLOGY_REFINEMENT_LIMIT",
             "topology_refinement_cuts": cuts,
             "candidate_generated": False,
