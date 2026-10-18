@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import resource
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -183,8 +186,13 @@ def test_actual_resident_memory_is_rejected_without_mocking_rss(tmp_path):
     ledger = store.open("MAIN")
     admit(ledger, binding)
     pressure = bytearray(600 * 1024 * 1024)
-    for i in range(0, len(pressure), 4096):
-        pressure[i] = 1
+    # Sparse identical pages are compressible on macOS: allocation size is not
+    # resident usage. Fill the SAME allocation with real noncompressible data,
+    # in small chunks so there is no second 600MiB temporary allocation.
+    for i in range(0, len(pressure), 1024 * 1024):
+        pressure[i : i + 1024 * 1024] = os.urandom(1024 * 1024)
+    rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    print("ACTUAL_PRESSURE_RSS_BYTES=" + str(rss if sys.platform == "darwin" else rss * 1024))
     with pytest.raises(LayoutAuthorityError, match="RESOURCE_LIMIT"):
         ledger.guard()
     assert ledger.peak_rss_bytes > 512 * 1024 * 1024

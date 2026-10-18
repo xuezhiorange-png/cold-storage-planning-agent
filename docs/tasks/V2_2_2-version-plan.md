@@ -664,3 +664,17 @@ Owner随后批准`REAL_MULTI_STRUCTURAL_CONSTRUCTION_AND_VALIDATION`：一个真
 本次不修改D01/D03/D04历史合同或恢复次数、不追加第三池、不启动质量排序、Tool7或阶段外任务。
 最终≥5套distinct structured P2D full-pass、≥3实质结构目标不变；真实Truck仍独立待验。
 `P3_COMPLETE=false`、`P2_COMPLETE=false`、`VERSION_COMPLETE=false`。PR保持Draft，不部署。
+
+### 12.10 阶段B真实构造及质量诊断增量
+
+在`06a82077835fd7a8a1a66e0f181394a754a137df`执行的一个真实池及一次回放已封存：
+10次结构准入、52次原生调用，总native99.802643秒，实际计数1套/1类，不满足5/3。
+CENTRAL X合格；另外三域有限模型INFEASIBLE；LINEAR Y曾有孔洞赋值被精确拒绝，
+切割后UNKNOWN；SPINE Y未启动。已消耗授权不允许重用，历史原报告及Hash不改。
+
+本次`STAGE_B_CONSTRUCTION_QUALITY_IMPROVEMENT`仅新增显式启用的构造软引导和
+不参与PASS的诊断，默认阶段A、结构硬域、调度、资源上限及多样性计数不变。
+真实新求解=0，真实质量改善未验证。详细几何、根因及5套覆盖上限见
+[candidate-01诊断](V2_2_2-stage-b-candidate-01-diagnosis.md)。需要结构域或调度变更的部分
+只提案、不实施；下一次真实执行须另批配额，未在此签发。
+construction仍1、major family仍1、P2D full-pass仍0；阶段B及全版本未完成。

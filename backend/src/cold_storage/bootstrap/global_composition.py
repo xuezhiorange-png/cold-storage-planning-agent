@@ -25,6 +25,9 @@ from cold_storage.modules.layout.infrastructure.stage_a_execution import OwnerEx
 from cold_storage.modules.layout.infrastructure.stage_a_production_execution import (
     ProductionReplayStore,
 )
+from cold_storage.modules.layout.infrastructure.stage_b_construction_guidance import (
+    StageBGuidedConstructionSolver,
+)
 from cold_storage.modules.layout.infrastructure.stage_b_pool_execution import PoolExecutionStore
 
 INDEPENDENT_OWNER_TASK = "V2_2_2_R16_INDEPENDENT_EXECUTION_AND_ENGINEERING_VALIDATION_R1"
@@ -106,5 +109,26 @@ def generate_controlled_global_layout_pool(
         p1_handoff,
         site_geometry,
         solver=OrToolsGlobalCompositionSolver(),
+        execution_ledger=execution_ledger,
+    )
+
+
+def generate_guided_global_layout_pool(
+    canonical_zone_plan: Mapping[str, Any],
+    p1_handoff: Mapping[str, Any],
+    site_geometry: ValidatedSiteGeometryV1,
+    *,
+    execution_ledger: StageALedger | None = None,
+) -> dict[str, Any]:
+    """Explicit Stage-B soft-guidance entry; no quota or public Tool7 contract.
+
+    Original Stage-A and pool entry signatures/behavior are preserved. A new
+    real execution still requires a separately approved, source-bound PoolLease.
+    """
+    return generate_global_composition_pool(
+        canonical_zone_plan,
+        p1_handoff,
+        site_geometry,
+        solver=StageBGuidedConstructionSolver(),
         execution_ledger=execution_ledger,
     )

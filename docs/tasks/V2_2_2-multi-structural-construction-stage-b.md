@@ -163,3 +163,21 @@ the repository. This source documentation does not predict five candidates,
 three families or deterministic replay success. Empty accepted sets do not prove
 candidate determinism. No third pool or post-execution algorithm adjustment is
 authorized; Truck, P3, quality ranking and Tool7 remain outside this slice.
+
+## Subsequent construction-quality slice — no new real execution grant
+
+The approved real pool/replay produced one accepted geometry/organization/family,
+not five/three. Their consumed grant remains consumed. See the immutable-evidence
+[candidate-01 diagnosis](V2_2_2-stage-b-candidate-01-diagnosis.md) for all six
+handoffs, ten admissions and 52 native calls, including a topology-rejected
+LINEAR-Y assignment before UNKNOWN. Three other finite domains were INFEASIBLE;
+this is not an all-resource explanation or a project infeasibility proof.
+
+The explicit internal `generate_guided_global_layout_pool` entry uses policy
+`stage-b-phase-construction-guidance@1.0.0` with the same solver/ledger/oracles
+and phase-specific definitional soft proxies. Existing entry signatures are unchanged.
+Default Stage-A and default pool behavior remain unchanged. It does not edit
+structural hard domains, the schedule, counting policy, Selector, Tool7 or public
+schemas. Uncalibrated P0 diagnostics cannot produce quality PASS. Soft guidance
+does not recover bounded UNSAT domains or prove real improvement. This slice
+authorizes tests, not a new pool; no lease or execution identity is issued.
