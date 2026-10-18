@@ -34,6 +34,9 @@ from cold_storage.modules.layout.infrastructure.stage_b_construction_guidance im
 from cold_storage.modules.layout.infrastructure.stage_b_multi_solution import (
     StageBMultiSolutionSolver,
 )
+from cold_storage.modules.layout.infrastructure.stage_b_multi_solution_execution import (
+    MultiSolutionPoolExecutionStore,
+)
 from cold_storage.modules.layout.infrastructure.stage_b_pool_execution import PoolExecutionStore
 
 INDEPENDENT_OWNER_TASK = "V2_2_2_R16_INDEPENDENT_EXECUTION_AND_ENGINEERING_VALIDATION_R1"
@@ -42,6 +45,17 @@ INDEPENDENT_OWNER_INSTRUCTION_SHA256 = (
 )
 STAGE_B_OWNER_TASK = "REAL_MULTI_STRUCTURAL_CONSTRUCTION_AND_VALIDATION"
 STAGE_B_OWNER_SHA256 = "d24dde1e2a51abfb35920884165cf0e01e72d5f1f731c88c7de01b77073af1e3"
+MULTI_SOLUTION_OWNER_TASK = "REAL_MULTI_SOLUTION_VALIDATION_01"
+MULTI_SOLUTION_OWNER_SHA256 = "5e2c4a256aaa61c4d0572bf533c184d06d397df7efec63489b8248f8f3aa27e1"
+
+
+def approved_stage_b_multi_solution_store() -> MultiSolutionPoolExecutionStore:
+    """New explicitly approved task slot; never reopens the old consumed grant."""
+    return MultiSolutionPoolExecutionStore(
+        Path.home() / ".local/state/cold-storage-planning-agent/owner-pools",
+        MULTI_SOLUTION_OWNER_TASK,
+        MULTI_SOLUTION_OWNER_SHA256,
+    )
 
 
 def approved_stage_b_pool_store() -> PoolExecutionStore:

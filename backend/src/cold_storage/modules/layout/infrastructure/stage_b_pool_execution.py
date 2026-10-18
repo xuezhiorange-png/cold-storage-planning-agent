@@ -336,6 +336,9 @@ class PoolLease:
 
     def remaining_solver_seconds(self, ledger: StageALedger) -> float:
         self.validate(ledger)
+        enumeration = self.decision.get("enumeration_contract")
+        if enumeration and self.totals()["native_calls"] >= enumeration["native_call_limit"]:
+            raise LayoutAuthorityError("STAGE_B_NATIVE_CALL_LIMIT")
         local = max(ledger.solver_wall, ledger.solver_monotonic_wall)
         remaining = min(POOL_SOLVER_TARGET - local, 100 - self.totals()["native_solver_seconds"])
         if remaining <= 0:
@@ -348,6 +351,12 @@ class PoolLease:
         self._monotonic(self.record["counters"], self._snapshot())
         total = self.totals()
         local_work = ledger.model_work + ledger.native_host_work
+        enumeration = self.decision.get("enumeration_contract")
+        if enumeration and (
+            total["native_calls"] > enumeration["native_call_limit"]
+            or ledger.checked_solutions > enumeration["checked_assignments_per_pool"]
+        ):
+            raise LayoutAuthorityError("STAGE_B_ENUMERATION_RESOURCE_LIMIT")
         if (
             total["elapsed_seconds"] < 0
             or total["elapsed_seconds"] > 180
