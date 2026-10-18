@@ -143,3 +143,14 @@ Stage B/P3/P2/version remain incomplete. No ranking, Owner visual acceptance,
 Truck, Tool7, Ready/Merge/deployment or automatic further solve is authorized.
 
 Next request (not a grant): [bounded real validation proposal](V2_2_2-stage-b-fair-search-execution-request.md).
+
+## Scoped family-count correction
+
+`FAIR_POOL_MAJOR_FAMILY_COUNT_CORRECTION` fixes premature fair-pool coverage:
+only a candidate actually appended to the accepted construction collection may
+contribute its major-family hash. Engineering failures, incomplete personnel
+evidence, duplicate geometry/functional organization, UNKNOWN and interruptions
+cannot contribute coverage or prematurely satisfy the 5/3 target. Physical
+geometry diagnostics remain independent. V1/V2 recognition, scheduling, cuts,
+grants, budgets, Authority and historical 2-meaningful/1-family evidence are
+unchanged; this correction authorizes no real solve or new resource allocation.

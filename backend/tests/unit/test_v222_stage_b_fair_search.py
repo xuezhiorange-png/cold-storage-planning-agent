@@ -12,6 +12,7 @@ from cold_storage.bootstrap.global_composition import (
 )
 from cold_storage.modules.layout.application import global_multi_solution_pool as pool
 from cold_storage.modules.layout.application.stage_b_search_policy import POLICY_HASH, schedule_hash
+from cold_storage.modules.layout.domain.adjacency import PROCESS_FLOW
 from cold_storage.modules.layout.domain.construction_branch_diversity import (
     construction_branch_diversity,
 )
@@ -347,3 +348,145 @@ def test_fair_pool_keeps_candidates_covers_six_and_separates_counts(monkeypatch)
     assert len(result["candidates"]) == 2
     assert result["p2d_full_pass_count"] == 0
     assert all(c["error"]["code"] == fair.SHARE_STOP for c in result["compositions"])
+
+
+def _family_proposal(path="EEENNN", *, north=False, east=False, defect=None):
+    zones, branches = branch_case(north)
+    before = physical_boxes(zones)["sorting_packaging_room"]
+    main = {r["zone_code"]: r for r in rooms(path)}
+    for row in zones:
+        if row["zone_code"] in PROCESS_FLOW:
+            row.update(main[row["zone_code"]])
+    after = physical_boxes(zones)["sorting_packaging_room"]
+    dx, dy = ((after[i] - before[i]) / 1000 for i in (0, 1))
+    changing = next(r for r in zones if r["zone_code"] == "changing_room")
+    changing.update(x=changing["x"] + dx, y=changing["y"] + dy)
+    for branch in branches:
+        for key in ("portal_from", "portal_to"):
+            if key in branch:
+                for point in branch[key]["segment"].values():
+                    point.update(
+                        x=str(Decimal(point["x"]) + Decimal(str(dx))),
+                        y=str(Decimal(point["y"]) + Decimal(str(dy))),
+                    )
+    if east:
+        changing["width_m"] = 2
+        right = physical_boxes(zones)["changing_room"][2]
+        for point in branches[0]["portal_to"]["segment"].values():
+            point["x"] = str(Decimal(right) / 1000)
+    if defect == "microshift":
+        office = next(r for r in zones if r["zone_code"] == "office")
+        office["x"] = str(Decimal(str(office["x"])) + Decimal("0.001"))
+    return dict(zones=zones, branches=branches, defect=defect)
+
+
+def _collect_families(monkeypatch, proposals):
+    plan, p1, site, ledger, _, _ = setup_ports(monkeypatch, ["EEENNN"] * len(proposals))
+    ledger.execution_authorization = EnumerationLease()
+    from cold_storage.modules.layout.application import global_composition_pool as original
+
+    generate = original.generate_global_composition_candidate
+    emitted = []
+
+    class Port:
+        policy_hash = POLICY_HASH
+
+        def start_handoff(self, ledger, remaining):
+            pass
+
+    def candidates(*args, **kwargs):
+        # Only first handoff has these synthetic proposals; other streams end.
+        if emitted:
+            return
+        emitted.append(kwargs["composition_identity"])
+        for data in proposals:
+            body = generate(*args, **kwargs)
+            body["proposal"]["zones"] = deepcopy(data["zones"])
+            for branch in data["branches"]:
+                row = next(
+                    r
+                    for r in body["engineering_validation"]["access_results"]
+                    if r["requirement_identity"]
+                    == f"access:{branch['from_ref']}->{branch['to_ref']}@1.0.0"
+                )
+                row.update(deepcopy(branch))
+            if data["defect"] == "missing_branch":
+                # Identities/PASS alone are insufficient: actual Portal evidence missing.
+                del body["engineering_validation"]["access_results"][0]["portal_to"]
+            if data["defect"] == "engineering_failure":
+                body["native_independent_validation"]["pass"] = False
+            if data["defect"] == "unknown":
+                body["proposal"] = {"solver_status": "UNKNOWN"}
+                body["stage_a_engineering_accepted"] = False
+            if data["defect"] == "resource_interrupt":
+                body["engineering_validation"]["access_results"][0]["status"] = (
+                    "RESOURCE_INTERRUPTED"
+                )
+            body["canonical_result_hash"] = canonical_hash(
+                {k: v for k, v in body.items() if k != "canonical_result_hash"}
+            )
+            yield body
+
+    monkeypatch.setattr(pool, "generate_global_composition_candidates", candidates)
+    result = pool.generate_multi_solution_pool(
+        plan, p1, site, solver=Port(), execution_ledger=ledger, fair_search=True
+    )
+    accepted_families = {c["diversity"]["major_family_hash"] for c in result["candidates"]}
+    assert result["major_structural_family_count"] == len(accepted_families)
+    assert result["construction_candidate_count"] == len(result["candidates"])
+    assert result["p2d_full_pass_count"] == 0
+    return result
+
+
+def test_a_new_family_missing_branch_does_not_count(monkeypatch):
+    result = _collect_families(monkeypatch, [_family_proposal(defect="missing_branch")])
+    assert result["distinct_physical_geometry_count"] == 1
+    assert result["construction_candidate_count"] == result["major_structural_family_count"] == 0
+
+
+def test_b_duplicate_geometry_does_not_add_candidate_or_family(monkeypatch):
+    data = _family_proposal()
+    result = _collect_families(monkeypatch, [data, deepcopy(data)])
+    assert result["distinct_physical_geometry_count"] == 1
+    assert result["construction_candidate_count"] == result["major_structural_family_count"] == 1
+    assert result["attempts"][1]["status"] == "DUPLICATE_GEOMETRY_NOT_COUNTED"
+
+
+def test_c_same_functional_organization_does_not_add_family(monkeypatch):
+    result = _collect_families(
+        monkeypatch, [_family_proposal(), _family_proposal(defect="microshift")]
+    )
+    assert result["distinct_physical_geometry_count"] == 2
+    assert result["construction_candidate_count"] == result["major_structural_family_count"] == 1
+    assert result["attempts"][1]["status"] == "SAME_FUNCTIONAL_ORGANIZATION_NOT_COUNTED"
+
+
+def test_d_two_constructions_one_actual_family(monkeypatch):
+    result = _collect_families(monkeypatch, [_family_proposal(), _family_proposal(north=True)])
+    assert result["construction_candidate_count"] == 2
+    assert result["major_structural_family_count"] == 1
+
+
+def test_e_two_accepted_constructions_two_actual_families(monkeypatch):
+    result = _collect_families(monkeypatch, [_family_proposal(), _family_proposal("EEEEEE")])
+    assert result["construction_candidate_count"] == 2
+    assert result["major_structural_family_count"] == 2
+
+
+def test_f_rejected_third_family_cannot_complete_five_three_target(monkeypatch):
+    proposals = [_family_proposal("ENENEN", defect="missing_branch")]
+    proposals.extend(
+        _family_proposal(north=n, east=e)
+        for n, e in ((False, False), (True, False), (False, True), (True, True))
+    )
+    proposals.append(_family_proposal("EENNWW"))
+    result = _collect_families(monkeypatch, proposals)
+    assert result["construction_candidate_count"] == 5
+    assert result["major_structural_family_count"] == 2
+    assert result["status"] != "CONSTRUCTION_TARGETS_MET_NOT_P2D"
+
+
+@pytest.mark.parametrize("defect", ["engineering_failure", "unknown", "resource_interrupt"])
+def test_nonaccepted_outcomes_never_add_families(monkeypatch, defect):
+    result = _collect_families(monkeypatch, [_family_proposal(defect=defect)])
+    assert result["construction_candidate_count"] == result["major_structural_family_count"] == 0

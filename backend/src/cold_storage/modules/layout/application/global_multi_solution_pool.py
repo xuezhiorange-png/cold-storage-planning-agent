@@ -148,7 +148,6 @@ def generate_multi_solution_pool(
                 organization = diversity["major_organization_hash"]
                 legacy_organizations.add(organization)
                 if fair_search:
-                    families.add(diversity["major_family_hash"])
                     branches = construction_branch_diversity(
                         candidate["proposal"]["zones"],
                         candidate["engineering_validation"]["access_results"],
@@ -172,7 +171,6 @@ def generate_multi_solution_pool(
                     )
                     continue
                 organizations.add(organization)
-                families.add(diversity["major_family_hash"])
                 record["status"] = "CONSTRUCTION_ACCEPTED_NOT_P2D"
                 result["candidates"].append(
                     {
@@ -183,6 +181,7 @@ def generate_multi_solution_pool(
                         "candidate_result": candidate,
                     }
                 )
+                families.add(diversity["major_family_hash"])
                 accepted += 1
                 if fair_search:
                     result["candidates"][-1]["functional_diversity"] = branches
