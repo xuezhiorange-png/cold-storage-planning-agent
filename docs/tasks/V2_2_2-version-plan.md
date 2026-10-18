@@ -648,3 +648,19 @@ macOS基础设施组5通过/1失败（600MiB申请后RSS压力前置条件未达
 在耗时历史placement fixture中被终止，明确不记PASS；未修改任何原断言或CI过滤。
 本轮未在本地执行完整Backend，提交及最终exact-head完整CI状态以本轮交付证据为准。
 真实阶段B候选、实际结构覆盖和P2D full-pass计数均为0；合成测试的五方案编排不抵扣。
+
+### 12.9 阶段B真实池执行授权增量（结果待实际执行）
+
+Owner随后批准`REAL_MULTI_STRUCTURAL_CONSTRUCTION_AND_VALIDATION`：一个真实池及一次
+同输入回放，每池最多六个server-derived结构，共享100秒native、180秒墙钟、
+1,200,000工作量、512MiB及每需求20,000 Host保护；不是每family重新分配。
+实现独立持久化Pool Lease、排他Claim、逐结构有序准入及共享账本，保留原阶段A Lease
+语义。可信操作端固定Owner指令SHA并绑定提交、实际源码/依赖及Plan/P1/Site/六结构顺序。
+中断未知消耗不允许无账本续跑，已消耗授权不得以新目录或UUID刷新。
+
+当前状态为`DURABLE_ADMISSION_IMPLEMENTED_EXECUTION_PENDING`，先完成测试及代码交付，
+再以冻结源码实际执行并封存真实候选和回放证据；不得以本节代替运行结果。具体软预留、
+安全拒绝及可复现入口见[阶段B范围说明](V2_2_2-multi-structural-construction-stage-b.md)。
+本次不修改D01/D03/D04历史合同或恢复次数、不追加第三池、不启动质量排序、Tool7或阶段外任务。
+最终≥5套distinct structured P2D full-pass、≥3实质结构目标不变；真实Truck仍独立待验。
+`P3_COMPLETE=false`、`P2_COMPLETE=false`、`VERSION_COMPLETE=false`。PR保持Draft，不部署。

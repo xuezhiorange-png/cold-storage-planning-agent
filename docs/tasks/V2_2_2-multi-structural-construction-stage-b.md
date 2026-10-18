@@ -121,3 +121,45 @@ Real candidate comparison/gallery and real deterministic replay remain pending
 the separate execution approval. P3_COMPLETE=false, P2_COMPLETE=false and
 VERSION_COMPLETE=false. The original final five distinct structured P2D full-pass
 and three-family product acceptance, quality and Owner visual gates remain intact.
+
+## Subsequent Owner grant: one real pool and one replay
+
+The subsequent `REAL_MULTI_STRUCTURAL_CONSTRUCTION_AND_VALIDATION` instruction
+authorizes the dedicated trusted bootstrap issuer and exactly one main pool plus
+one replay. The preserved UTF-8 instruction has SHA256
+`d24dde1e2a51abfb35920884165cf0e01e72d5f1f731c88c7de01b77073af1e3`.
+This supersedes only the execution-quota-pending status above, not historical
+results, D04 recovery counts, engineering Authority or Stage-A lease semantics.
+
+`scripts/run_stage_b_owner_pool.py` is a trusted operator entry, not an MCP input
+or a new layout algorithm. It reconstructs the server-owned canonical inputs,
+binds the exact clean commit, actual source/lockfile/fixture hashes, solver
+version, six server-derived handoffs and deterministic schedule. The bootstrap
+pins the task, Owner digest and local durable registry; callers cannot select a
+budget, grant identity, composition or candidate geometry. Each ordered
+composition uses the same pool ledger. The second composition is not a second
+Stage-A main invocation.
+
+The durable task retains an exclusive active claim, non-reusable pool claims,
+atomic cumulative ledger and fsynced checkpoint journal. Repeated, out-of-order,
+foreign or seventh composition admissions fail closed. Unknown interrupted native
+consumption cannot be reset; mid-composition resume is deliberately unsupported
+and refused. Only a completed, fully accounted main pool may admit its single
+replay, with all previous consumption retained. Filesystem administrators remain
+outside the in-process trust boundary; a JSON verified flag is not authority.
+
+Both pools share the original approved ceilings: 100 native seconds, 180 elapsed
+seconds, 1,200,000 observable work, 512 MiB peak RSS and 20,000 Host work per
+requirement. The soft reservation per pool is 49.9 native seconds, 85 elapsed
+seconds and 600,000 work, with a hard 50-native-second phase ceiling inside the
+100-second task ceiling. These are subdivisions, not additional allowances.
+Replay requires its entire reservation still available. Native warmup/refinement
+and final calls all count. No family, run UUID or output directory creates quota.
+
+Commit and source verification precede the real execution. Execution results,
+candidate-specific native validation, actual preview SVGs (only for accepted
+candidates), replay comparison and exact-head CI receipts are preserved outside
+the repository. This source documentation does not predict five candidates,
+three families or deterministic replay success. Empty accepted sets do not prove
+candidate determinism. No third pool or post-execution algorithm adjustment is
+authorized; Truck, P3, quality ranking and Tool7 remain outside this slice.

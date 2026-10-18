@@ -25,11 +25,23 @@ from cold_storage.modules.layout.infrastructure.stage_a_execution import OwnerEx
 from cold_storage.modules.layout.infrastructure.stage_a_production_execution import (
     ProductionReplayStore,
 )
+from cold_storage.modules.layout.infrastructure.stage_b_pool_execution import PoolExecutionStore
 
 INDEPENDENT_OWNER_TASK = "V2_2_2_R16_INDEPENDENT_EXECUTION_AND_ENGINEERING_VALIDATION_R1"
 INDEPENDENT_OWNER_INSTRUCTION_SHA256 = (
     "4c511e5ec43e6eba17b091dcf239a8df643a820b22d36684e22506c1baed4f83"
 )
+STAGE_B_OWNER_TASK = "REAL_MULTI_STRUCTURAL_CONSTRUCTION_AND_VALIDATION"
+STAGE_B_OWNER_SHA256 = "d24dde1e2a51abfb35920884165cf0e01e72d5f1f731c88c7de01b77073af1e3"
+
+
+def approved_stage_b_pool_store() -> PoolExecutionStore:
+    """Pinned trusted operator grant; no MCP/caller registry or approval input."""
+    return PoolExecutionStore(
+        Path.home() / ".local/state/cold-storage-planning-agent/owner-pools",
+        STAGE_B_OWNER_TASK,
+        STAGE_B_OWNER_SHA256,
+    )
 
 
 def production_replay_execution_store() -> ProductionReplayStore:

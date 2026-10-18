@@ -1,7 +1,7 @@
 """Bounded multi-structure collection on the unchanged stage-A validation chain.
 
-This internal entry has no real execution grant in bootstrap. A future, separately
-approved durable pool authorization must cover every composition in one shared
+This internal entry requires a separately approved durable pool authorization,
+covering every composition in one shared
 ledger. The old stage-A replay grants are explicitly insufficient. No UUID,
 family label, output directory or remaining numerical allowance admits a pool.
 """
@@ -39,7 +39,7 @@ class PoolExecutionAuthorization(ExecutionAuthorization, Protocol):
     atomically reserve the entire ordered plan, not refill per family. Inherited
     begin/checkpoint/validate retain NEW/RESUME, interruption and shared counters.
     The lease must reject unplanned/repeated calls and incomplete history.
-    No implementation is issued by this task, which has no new solve quota.
+    Trusted bootstrap alone supplies a separately pinned Owner pool grant.
     """
 
     def validate_pool(
