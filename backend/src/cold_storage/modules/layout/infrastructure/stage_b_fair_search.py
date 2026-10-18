@@ -116,4 +116,5 @@ class StageBFairSearchSolver:
             handoff,
             event_sink=lambda e: audit(sources, dict(e, policy_hash=POLICY_HASH)),
             topology_variables=union_input_variables,
+            propagate_base_infeasible=True,
         )

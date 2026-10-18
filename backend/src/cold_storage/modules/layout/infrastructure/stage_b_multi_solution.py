@@ -23,5 +23,8 @@ class StageBMultiSolutionSolver:
             "composition_hash": handoff.source_composition_hash,
         }
         return OrToolsGlobalCompositionSolver().iter_solutions(
-            context, handoff, event_sink=lambda event: audit(sources, dict(event, policy=POLICY))
+            context,
+            handoff,
+            event_sink=lambda event: audit(sources, dict(event, policy=POLICY)),
+            propagate_base_infeasible=True,
         )

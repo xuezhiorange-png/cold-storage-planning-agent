@@ -16,6 +16,11 @@ from cold_storage.modules.layout.domain.construction_diversity import constructi
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError, canonical_hash
 from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
 from cold_storage.modules.layout.infrastructure import global_cp_sat_solver as native
+from cold_storage.modules.layout.infrastructure import stage_b_fair_search as fair
+from cold_storage.modules.layout.infrastructure.global_cp_sat_model import AccessModel, GlobalModel
+from cold_storage.modules.layout.infrastructure.stage_b_multi_solution import (
+    StageBMultiSolutionSolver,
+)
 from tests.unit.test_v222_construction_diversity import rooms
 from tests.unit.test_v222_global_composition_pool import SyntheticLease, setup_ports
 from tests.unit.test_v222_p1a_composition_authority_handoff import _context
@@ -197,6 +202,242 @@ def test_stage_a_takes_first_only_without_continuation_cut(monkeypatch):
     assert result["zones"]
     assert len(context.ledger.attempts) == 5
     assert "STAGE_B_PHYSICAL_ENUMERATION_CUT" not in context.ledger.resource_events
+
+
+class InfeasibleBase(TinyModel):
+    """The first two hint slices are SAT; the complete base is genuinely UNSAT."""
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.m.add_bool_or([])
+
+
+def test_proven_complete_base_infeasible_skips_access_and_retains_native_proof(monkeypatch):
+    context, lease = native_setup(monkeypatch)
+    monkeypatch.setattr(native, "GlobalModel", InfeasibleBase)
+
+    def forbidden_access(*args):
+        pytest.fail("A supermodel of the proven UNSAT base must not be constructed")
+
+    monkeypatch.setattr(native, "AccessModel", forbidden_access)
+    proposals = list(
+        native.OrToolsGlobalCompositionSolver().iter_solutions(
+            context, None, event_sink=lease.events.append, propagate_base_infeasible=True
+        )
+    )
+    assert len(proposals) == 1
+    result = proposals[0]
+    assert result["solver_status"] == "INFEASIBLE"
+    assert result["base_model_proof"] == context.ledger.attempts[-1]
+    assert result["base_model_proof"]["phase"] == "COMPOSITION_PACKAGING_HINT"
+    assert "status: INFEASIBLE" in result["base_model_proof"]["response_stats"]
+    assert result["skipped_phases"] == ["ALL_ACCESS_FRESH_HINT_ONLY", "ALL_ROOMS_ALL_ACCESS"]
+    assert result["candidate_generated"] is False
+    assert result["global_infeasibility_claimed"] is False
+    assert "zones" not in result
+    assert len(context.ledger.attempts) == 3
+    assert context.ledger.checked_solutions == 0
+    assert context.ledger.solver_wall > 0
+    assert len(lease.events) == 1
+    assert lease.events[0]["kind"] == "PROVEN_BASE_INFEASIBLE_SHORT_CIRCUIT"
+    assert lease.events[0]["proposal"] == result
+
+
+def test_stage_a_default_does_not_propagate_base_infeasibility(monkeypatch):
+    context, lease = native_setup(monkeypatch)
+    monkeypatch.setattr(native, "GlobalModel", InfeasibleBase)
+    monkeypatch.setattr(native, "AccessModel", InfeasibleBase)
+    result = native.OrToolsGlobalCompositionSolver().solve(context, None)
+    assert result["solver_status"] == "INFEASIBLE"
+    assert len(context.ledger.attempts) == 5
+    assert context.ledger.attempts[-1]["phase"] == "ALL_ROOMS_ALL_ACCESS"
+    assert "base_model_proof" not in result
+    assert not lease.events
+
+
+@pytest.mark.parametrize("base_status", [cp_model.FEASIBLE, cp_model.OPTIMAL, cp_model.UNKNOWN])
+def test_unproven_or_feasible_base_continues_original_access_flow(monkeypatch, base_status):
+    context, lease = native_setup(monkeypatch)
+    original = native.OrToolsGlobalCompositionSolver._run
+
+    def base_response(self, ctx, model, seconds, phase):
+        # Exercise actual bounded native accounting. The SAT witness is reused
+        # only to test the response-status branch, never as engineering evidence.
+        solver, status = original(self, ctx, model, seconds, phase)
+        return solver, base_status if phase == "COMPOSITION_PACKAGING_HINT" else status
+
+    monkeypatch.setattr(native.OrToolsGlobalCompositionSolver, "_run", base_response)
+    stream = native.OrToolsGlobalCompositionSolver().iter_solutions(
+        context, None, event_sink=lease.events.append, propagate_base_infeasible=True
+    )
+    result = next(stream)
+    stream.close()
+    assert result["zones"]
+    assert len(TinyModel.created) == 3
+    assert [a["phase"] for a in context.ledger.attempts][-2:] == [
+        "ALL_ACCESS_FRESH_HINT_ONLY",
+        "ALL_ROOMS_ALL_ACCESS",
+    ]
+    assert not any(e["kind"] == "PROVEN_BASE_INFEASIBLE_SHORT_CIRCUIT" for e in lease.events)
+
+
+def test_model_invalid_is_not_promoted_to_infeasible(monkeypatch):
+    context, lease = native_setup(monkeypatch)
+    original = native.OrToolsGlobalCompositionSolver._run
+
+    def invalid_complete_base(self, ctx, model, seconds, phase):
+        if phase == "COMPOSITION_PACKAGING_HINT":
+            # MODEL_INVALID is returned by CP-SAT itself, not relabelled UNSAT.
+            model.proto.variables[0].domain.clear()
+            solver = cp_model.CpSolver()
+            status = solver.solve(model)
+            assert status == cp_model.MODEL_INVALID
+            return solver, status
+        return original(self, ctx, model, seconds, phase)
+
+    monkeypatch.setattr(native.OrToolsGlobalCompositionSolver, "_run", invalid_complete_base)
+    stream = native.OrToolsGlobalCompositionSolver().iter_solutions(
+        context, None, event_sink=lease.events.append, propagate_base_infeasible=True
+    )
+    result = next(stream)
+    stream.close()
+    assert result["zones"]  # Original behavior; invalid hint never proves UNSAT.
+    assert not any(e["kind"] == "PROVEN_BASE_INFEASIBLE_SHORT_CIRCUIT" for e in lease.events)
+
+
+@pytest.mark.parametrize("phase", ["ALL_ROOM_GEOMETRY_HINT", "ALL_ROOM_MUST_HINT"])
+def test_partial_hint_infeasible_does_not_enter_complete_base_short_circuit(monkeypatch, phase):
+    context, lease = native_setup(monkeypatch)
+    original = native.OrToolsGlobalCompositionSolver._run
+
+    def partial_response(self, ctx, model, seconds, current_phase):
+        solver, status = original(self, ctx, model, seconds, current_phase)
+        return solver, cp_model.INFEASIBLE if current_phase == phase else status
+
+    monkeypatch.setattr(native.OrToolsGlobalCompositionSolver, "_run", partial_response)
+    stream = native.OrToolsGlobalCompositionSolver().iter_solutions(
+        context, None, event_sink=lease.events.append, propagate_base_infeasible=True
+    )
+    result = next(stream)
+    stream.close()
+    assert result["zones"]
+    assert len(context.ledger.attempts) == 5
+    assert not any(e["kind"] == "PROVEN_BASE_INFEASIBLE_SHORT_CIRCUIT" for e in lease.events)
+
+
+def test_post_native_guard_failure_prevents_infeasible_short_circuit(monkeypatch):
+    context, lease = native_setup(monkeypatch)
+    monkeypatch.setattr(native, "GlobalModel", InfeasibleBase)
+    original = context.ledger.guard
+    error = LayoutAuthorityError("STAGE_A_RESOURCE_LIMIT")
+
+    def post_native_guard():
+        original()
+        if context.ledger.attempts and context.ledger.attempts[-1]["phase"] == (
+            "COMPOSITION_PACKAGING_HINT"
+        ):
+            raise error
+
+    monkeypatch.setattr(context.ledger, "guard", post_native_guard)
+    with pytest.raises(LayoutAuthorityError) as caught:
+        next(
+            native.OrToolsGlobalCompositionSolver().iter_solutions(
+                context, None, event_sink=lease.events.append, propagate_base_infeasible=True
+            )
+        )
+    assert caught.value is error
+    assert context.ledger.attempts[-1]["solver_status"] == "INFEASIBLE"
+    assert not lease.events
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        LayoutAuthorityError("STAGE_A_RESOURCE_LIMIT"),
+        LayoutAuthorityError("STAGE_A_REQUIREMENT_HOST_LIMIT"),
+        LayoutAuthorityError(fair.SHARE_STOP),
+        RuntimeError("synthetic native interruption"),
+    ],
+)
+def test_resource_or_native_exception_is_not_converted_to_infeasible(monkeypatch, error):
+    context, lease = native_setup(monkeypatch)
+    original = native.OrToolsGlobalCompositionSolver._run
+
+    def interrupt(self, ctx, model, seconds, phase):
+        if phase == "COMPOSITION_PACKAGING_HINT":
+            raise error
+        return original(self, ctx, model, seconds, phase)
+
+    monkeypatch.setattr(native.OrToolsGlobalCompositionSolver, "_run", interrupt)
+    with pytest.raises(type(error)) as caught:
+        next(
+            native.OrToolsGlobalCompositionSolver().iter_solutions(
+                context, None, event_sink=lease.events.append, propagate_base_infeasible=True
+            )
+        )
+    assert caught.value is error
+    assert len(context.ledger.attempts) == 2
+    assert not lease.events
+
+
+@pytest.mark.parametrize("fair_entry", [False, True])
+def test_only_stage_b_streaming_ports_opt_in(monkeypatch, fair_entry):
+    context, lease = native_setup(monkeypatch)
+    context.binding = SimpleNamespace(
+        canonical_zone_plan_hash="synthetic-plan",
+        p1_handoff_hash="synthetic-p1",
+        site_geometry_hash="synthetic-site",
+    )
+    handoff = SimpleNamespace(source_composition_hash="synthetic-composition")
+    calls = []
+
+    def capture(self, *args, **kwargs):
+        calls.append(kwargs)
+        yield {"solver_status": "UNKNOWN"}
+
+    monkeypatch.setattr(native.OrToolsGlobalCompositionSolver, "iter_solutions", capture)
+    port = fair.StageBFairSearchSolver() if fair_entry else StageBMultiSolutionSolver()
+    if fair_entry:
+        port.start_handoff(context.ledger, 6)
+    assert list(port.solutions(context, handoff)) == [{"solver_status": "UNKNOWN"}]
+    assert len(calls) == 1 and calls[0]["propagate_base_infeasible"] is True
+
+
+def test_actual_access_model_keeps_complete_base_constraint_prefix_without_solving():
+    # Actual production model builders and bound synthetic server context, not
+    # TinyModel. Inspection only: no native factory solve and no Owner grant.
+    class InspectSuperset:
+        def solve(self, context, handoff):
+            base = GlobalModel(context, handoff)
+            extension = AccessModel(context, handoff, True)
+            nvars = len(base.m.proto.variables)
+            ncons = len(base.m.proto.constraints)
+            assert len(extension.m.proto.variables) > nvars
+            assert len(extension.m.proto.constraints) > ncons
+            assert all(
+                str(v) == str(extension.m.proto.variables[i])
+                for i, v in enumerate(base.m.proto.variables)
+            )
+            assert all(
+                str(c) == str(extension.m.proto.constraints[i])
+                for i, c in enumerate(base.m.proto.constraints)
+            )
+            return {"solver_status": "MODEL_INSPECTION_ONLY_NOT_SOLVED"}
+
+    plan, p1, site = _context()
+    handoffs = application.build_structural_compositions(
+        plan, p1.to_dict(), site
+    ).placement_handoffs
+    assert len(handoffs) == 6
+    for handoff in handoffs:
+        result = application.generate_global_composition_candidate(
+            plan,
+            p1.to_dict(),
+            site,
+            solver=InspectSuperset(),
+            composition_identity=handoff.composition_identity,
+        )
+        assert result["proposal"]["solver_status"] == "MODEL_INSPECTION_ONLY_NOT_SOLVED"
 
 
 def test_unknown_creates_no_cut_and_keeps_accounting(monkeypatch):

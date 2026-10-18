@@ -144,6 +144,7 @@ class OrToolsGlobalCompositionSolver:
         *,
         event_sink: Callable[[dict[str, Any]], None] | None = None,
         topology_variables: Callable[[Any, Any], list[Any]] | None = None,
+        propagate_base_infeasible: bool = False,
     ) -> Generator[dict[str, Any], str | None, None]:
         """One preparation, one final model; bounded physical enumeration.
 
@@ -151,6 +152,9 @@ class OrToolsGlobalCompositionSolver:
         reuse this prepared CpModel, current hints and all accumulated cuts.
         Accepted-room cuts enumerate already represented geometry; they are not
         infeasibility certificates. Unknown/resource returns never receive cuts.
+        Stage B may propagate native INFEASIBLE from the complete GlobalModel:
+        AccessModel first constructs that same base and only adds constraints.
+        Default/Stage-A behavior and all unresolved/error paths are unchanged.
         """
         try:
             context.ledger.remaining_solver_seconds()
@@ -185,6 +189,32 @@ class OrToolsGlobalCompositionSolver:
                 ):
                     partial.add_hint(partial.get_int_var_from_proto_index(hint_var), value)
             solver, status = self._run(context, partial, seconds, phase)
+            if propagate_base_infeasible and cut is None and status == cp_model.INFEASIBLE:
+                # Only the complete base, same context and handoff. Hints are
+                # not constraints. No AccessModel is built or solved here;
+                # UNKNOWN/MODEL_INVALID and exceptions never enter this branch.
+                terminal_record = {
+                    "solver_status": solver.status_name(status),
+                    "candidate_generated": False,
+                    "global_infeasibility_claimed": False,
+                    "model_scope": "COMPLETE_GLOBAL_ROOM_COMPOSITION_PACKAGING_MODEL",
+                    "model_zone_count": len(global_model.rooms),
+                    "must_constraint_count": len(context.must),
+                    "codes": ["STAGE_B_PROVEN_BASE_MODEL_INFEASIBLE"],
+                    "base_model_proof": dict(context.ledger.attempts[-1]),
+                    "skipped_phases": ["ALL_ACCESS_FRESH_HINT_ONLY", "ALL_ROOMS_ALL_ACCESS"],
+                    "skip_reason": "SAME_HANDOFF_ACCESS_MODELS_RETAIN_INFEASIBLE_BASE",
+                }
+                if event_sink:
+                    event_sink(
+                        {
+                            "kind": "PROVEN_BASE_INFEASIBLE_SHORT_CIRCUIT",
+                            "proposal": terminal_record,
+                        }
+                    )
+                context.ledger.checkpoint("STAGE_B_PROVEN_BASE_MODEL_INFEASIBLE")
+                yield terminal_record
+                return
             if status in (cp_model.FEASIBLE, cp_model.OPTIMAL):
                 hints = {
                     k: PlacedRectangleV1(
