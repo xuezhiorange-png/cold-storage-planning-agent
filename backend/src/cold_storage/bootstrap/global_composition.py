@@ -31,6 +31,9 @@ from cold_storage.modules.layout.infrastructure.stage_a_production_execution imp
 from cold_storage.modules.layout.infrastructure.stage_b_construction_guidance import (
     StageBGuidedConstructionSolver,
 )
+from cold_storage.modules.layout.infrastructure.stage_b_fair_execution import (
+    FairMultiSolutionPoolExecutionStore,
+)
 from cold_storage.modules.layout.infrastructure.stage_b_fair_search import StageBFairSearchSolver
 from cold_storage.modules.layout.infrastructure.stage_b_multi_solution import (
     StageBMultiSolutionSolver,
@@ -48,6 +51,17 @@ STAGE_B_OWNER_TASK = "REAL_MULTI_STRUCTURAL_CONSTRUCTION_AND_VALIDATION"
 STAGE_B_OWNER_SHA256 = "d24dde1e2a51abfb35920884165cf0e01e72d5f1f731c88c7de01b77073af1e3"
 MULTI_SOLUTION_OWNER_TASK = "REAL_MULTI_SOLUTION_VALIDATION_01"
 MULTI_SOLUTION_OWNER_SHA256 = "5e2c4a256aaa61c4d0572bf533c184d06d397df7efec63489b8248f8f3aa27e1"
+FAIR_POOL_OWNER_TASK = "REAL_FAIR_MULTI_STRUCTURE_VALIDATION_01"
+FAIR_POOL_OWNER_SHA256 = "0df70b59d3b7789d226af941018e36f8709db3213763bf37a0a041a193ea49ff"
+
+
+def approved_stage_b_fair_pool_store() -> FairMultiSolutionPoolExecutionStore:
+    """One new explicitly approved slot, never an old grant or caller parameter."""
+    return FairMultiSolutionPoolExecutionStore(
+        Path.home() / ".local/state/cold-storage-planning-agent/owner-pools",
+        FAIR_POOL_OWNER_TASK,
+        FAIR_POOL_OWNER_SHA256,
+    )
 
 
 def generate_fair_multi_solution_global_layout_pool(
