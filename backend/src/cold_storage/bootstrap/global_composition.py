@@ -31,6 +31,7 @@ from cold_storage.modules.layout.infrastructure.stage_a_production_execution imp
 from cold_storage.modules.layout.infrastructure.stage_b_construction_guidance import (
     StageBGuidedConstructionSolver,
 )
+from cold_storage.modules.layout.infrastructure.stage_b_fair_search import StageBFairSearchSolver
 from cold_storage.modules.layout.infrastructure.stage_b_multi_solution import (
     StageBMultiSolutionSolver,
 )
@@ -47,6 +48,28 @@ STAGE_B_OWNER_TASK = "REAL_MULTI_STRUCTURAL_CONSTRUCTION_AND_VALIDATION"
 STAGE_B_OWNER_SHA256 = "d24dde1e2a51abfb35920884165cf0e01e72d5f1f731c88c7de01b77073af1e3"
 MULTI_SOLUTION_OWNER_TASK = "REAL_MULTI_SOLUTION_VALIDATION_01"
 MULTI_SOLUTION_OWNER_SHA256 = "5e2c4a256aaa61c4d0572bf533c184d06d397df7efec63489b8248f8f3aa27e1"
+
+
+def generate_fair_multi_solution_global_layout_pool(
+    canonical_zone_plan: Mapping[str, Any],
+    p1_handoff: Mapping[str, Any],
+    site_geometry: ValidatedSiteGeometryV1,
+    *,
+    execution_ledger: StageALedger | None = None,
+) -> dict[str, Any]:
+    """New policy-bound schedule. No grant is issued by this entry.
+
+    Old consumed grants have a different schedule hash and cannot admit this
+    path. Future trusted Owner admission must bind the new hash/source files.
+    """
+    return generate_multi_solution_pool(
+        canonical_zone_plan,
+        p1_handoff,
+        site_geometry,
+        solver=StageBFairSearchSolver(),
+        execution_ledger=execution_ledger,
+        fair_search=True,
+    )
 
 
 def approved_stage_b_multi_solution_store() -> MultiSolutionPoolExecutionStore:

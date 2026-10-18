@@ -20,8 +20,16 @@ from cold_storage.modules.layout.application.global_composition_solver import (
 )
 from cold_storage.modules.layout.application.layout_authority_binding import bind_layout_authority
 from cold_storage.modules.layout.application.site_geometry import ValidatedSiteGeometryV1
+from cold_storage.modules.layout.application.stage_b_search_policy import (
+    POLICY,
+    POLICY_HASH,
+    schedule_hash,
+)
 from cold_storage.modules.layout.application.structural_composition import (
     build_structural_compositions,
+)
+from cold_storage.modules.layout.domain.construction_branch_diversity import (
+    construction_branch_diversity,
 )
 from cold_storage.modules.layout.domain.construction_diversity import construction_diversity
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError, canonical_hash
@@ -36,6 +44,7 @@ def generate_multi_solution_pool(
     *,
     solver: MultiSolutionSolver,
     execution_ledger: StageALedger | None = None,
+    fair_search: bool = False,
 ) -> dict[str, Any]:
     # This quota-free call only derives the original deterministic server schedule.
     # Its solver port is never called without a ledger.
@@ -44,6 +53,13 @@ def generate_multi_solution_pool(
     )
     result.pop("canonical_result_hash")
     result.update(identity="controlled-multi-solution-construction@1.0.0", compositions=[])
+    if fair_search:
+        if getattr(solver, "policy_hash", None) != POLICY_HASH:
+            raise LayoutAuthorityError("STAGE_B_FAIR_SOLVER_POLICY_MISMATCH")
+        result["sources"]["schedule_hash"] = schedule_hash(result["sources"]["schedule_hash"])
+        result.update(
+            identity="controlled-fair-multi-solution-construction@1.0.0", search_policy=dict(POLICY)
+        )
     ledger = execution_ledger
     lease = ledger.execution_authorization if ledger else None
     admit = getattr(lease, "validate_pool", None)
@@ -63,9 +79,10 @@ def generate_multi_solution_pool(
     geometries: set[str] = set()
     organizations: set[str] = set()
     families: set[str] = set()
+    legacy_organizations: set[str] = set()
     result["status"] = "BOUNDED_SCHEDULE_COMPLETE_TARGET_NOT_MET"
     stop = False
-    for identity in result["schedule"]:
+    for index, identity in enumerate(result["schedule"]):
         h = handoffs[identity]
         composition = {"composition_identity": identity, "resources_before": _resources(ledger)}
         result["compositions"].append(composition)
@@ -76,6 +93,11 @@ def generate_multi_solution_pool(
         try:
             ledger.guard()
             ledger.remaining_solver_seconds()
+            if fair_search:
+                start_handoff = getattr(solver, "start_handoff", None)
+                if not callable(start_handoff):
+                    raise LayoutAuthorityError("STAGE_B_FAIR_SOLVER_POLICY_MISMATCH")
+                start_handoff(ledger, len(result["schedule"]) - index)
             for candidate in stream:
                 record = {
                     "composition_identity": identity,
@@ -100,6 +122,11 @@ def generate_multi_solution_pool(
                 ):
                     raise LayoutAuthorityError("STAGE_B_CANDIDATE_SOURCE_OR_HASH_MISMATCH")
                 ledger.guard()
+                if fair_search and "STAGE_B_HANDOFF_SHARE_EXHAUSTED" in candidate["proposal"].get(
+                    "codes", []
+                ):
+                    record["status"] = "HANDOFF_SHARE_COMPLETE_NOT_INFEASIBLE"
+                    break
                 if record["solver_status"] == "BOUNDED_TOPOLOGY_REFINEMENT_LIMIT":
                     record["status"] = "SHARED_CHECKED_ASSIGNMENT_LIMIT_NOT_COUNTED"
                     result["status"] = "RESOURCE_LIMITED_NOT_PROJECT_INFEASIBLE"
@@ -119,13 +146,30 @@ def generate_multi_solution_pool(
                 diversity = construction_diversity(candidate["proposal"]["zones"])
                 geometry = diversity["symmetry_invariant_geometry_hash"]
                 organization = diversity["major_organization_hash"]
+                legacy_organizations.add(organization)
+                if fair_search:
+                    families.add(diversity["major_family_hash"])
+                    branches = construction_branch_diversity(
+                        candidate["proposal"]["zones"],
+                        candidate["engineering_validation"]["access_results"],
+                    )
+                    record["functional_diversity"] = branches
+                    if not branches["countable"]:
+                        record["status"] = "FUNCTIONAL_EVIDENCE_INCOMPLETE_NOT_COUNTED"
+                        geometries.add(geometry)
+                        continue
+                    organization = branches["meaningful_construction_hash"]
                 record["diversity"] = diversity
                 if geometry in geometries:
                     record["status"] = "DUPLICATE_GEOMETRY_NOT_COUNTED"
                     continue
                 geometries.add(geometry)
                 if organization in organizations:
-                    record["status"] = "SAME_MAJOR_ORGANIZATION_NOT_COUNTED"
+                    record["status"] = (
+                        "SAME_FUNCTIONAL_ORGANIZATION_NOT_COUNTED"
+                        if fair_search
+                        else "SAME_MAJOR_ORGANIZATION_NOT_COUNTED"
+                    )
                     continue
                 organizations.add(organization)
                 families.add(diversity["major_family_hash"])
@@ -140,6 +184,8 @@ def generate_multi_solution_pool(
                     }
                 )
                 accepted += 1
+                if fair_search:
+                    result["candidates"][-1]["functional_diversity"] = branches
                 if len(result["candidates"]) >= 5 and len(families) >= 3:
                     result["status"] = "CONSTRUCTION_TARGETS_MET_NOT_P2D"
                     stop = True
@@ -148,8 +194,11 @@ def generate_multi_solution_pool(
                     break
         except LayoutAuthorityError as error:
             composition["error"] = {"code": error.code, "details": error.details}
-            result["status"] = "INTERRUPTED_UNKNOWN_NOT_PROJECT_INFEASIBLE"
-            stop = True
+            if fair_search and error.code == "STAGE_B_HANDOFF_SHARE_EXHAUSTED":
+                composition["status"] = "HANDOFF_SHARE_COMPLETE_NOT_INFEASIBLE"
+            else:
+                result["status"] = "INTERRUPTED_UNKNOWN_NOT_PROJECT_INFEASIBLE"
+                stop = True
         finally:
             stream.close()
             composition["resources_after"] = _resources(ledger)
@@ -172,5 +221,12 @@ def generate_multi_solution_pool(
             Counter(a["source_family_intent"] for a in result["attempts"])
         ),
     )
+    if fair_search:
+        result.update(
+            distinct_physical_geometry_count=len(geometries),
+            distinct_meaningful_construction_count=len(organizations),
+            legacy_distinct_organization_count=len(legacy_organizations),
+            historical_statistics_rewritten=False,
+        )
     result["canonical_result_hash"] = canonical_hash(result)
     return result

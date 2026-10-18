@@ -678,3 +678,15 @@ CENTRAL X合格；另外三域有限模型INFEASIBLE；LINEAR Y曾有孔洞赋�
 [candidate-01诊断](V2_2_2-stage-b-candidate-01-diagnosis.md)。需要结构域或调度变更的部分
 只提案、不实施；下一次真实执行须另批配额，未在此签发。
 construction仍1、major family仍1、P2D full-pass仍0；阶段B及全版本未完成。
+
+### 12.11 阶段B孔洞、公平搜索与独立去重口径增量
+
+Owner范围`HOLE_FAIR_SEARCH_AND_DISTINCTNESS_IMPROVEMENT`仅批准代码与合成测试，
+未批准新的真实整厂求解或资源Grant。保留原入口、结构域及历史统计，新增显式启用的
+并集等价安全切割、六Handoff有界份额及V2人员功能接口去重策略。
+历史两套物理方案在新口径下可核查为2套实质方案、1主要家族；旧口径1/5、1/3原件不改写。
+真实新求解为0，5/3目标均未完成，P2D full-pass仍0；代码测试不等于真实质量改善。
+详细证明、局限及仅待审批的资源申请见
+[本轮阶段B说明](V2_2_2-stage-b-hole-fair-distinctness.md)。不修改D01/D03/D04合同，
+不清零恢复次数，不追加授权，不进入质量排序、Tool7、Truck或阶段外任务。
+`P3_COMPLETE=false`、`P2_COMPLETE=false`、`VERSION_COMPLETE=false`。

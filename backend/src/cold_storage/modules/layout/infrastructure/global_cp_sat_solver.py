@@ -143,6 +143,7 @@ class OrToolsGlobalCompositionSolver:
         handoff: StructuralCompositionPlacementHandoffV1,
         *,
         event_sink: Callable[[dict[str, Any]], None] | None = None,
+        topology_variables: Callable[[Any, Any], list[Any]] | None = None,
     ) -> Generator[dict[str, Any], str | None, None]:
         """One preparation, one final model; bounded physical enumeration.
 
@@ -259,13 +260,19 @@ class OrToolsGlobalCompositionSolver:
                 yield record
                 return
             if not topology["valid"]:
-                variables = physical_assignment_variables(model, solver)
+                variables = (
+                    topology_variables(model, solver)
+                    if topology_variables is not None
+                    else physical_assignment_variables(model, solver)
+                )
                 if event_sink:
                     context.ledger.charge("STAGE_B_PHYSICAL_ENUMERATION_CUT", len(variables) + 1)
                 model.m.add_forbidden_assignments(variables, [[solver.value(v) for v in variables]])
                 cuts.append(
                     {
-                        "scope": "EXACT_ROOM_AND_SELECTED_WITNESS_ASSIGNMENT_ONLY",
+                        "scope": "EXACT_EXPORTED_UNION_INPUT_EQUIVALENCE"
+                        if topology_variables is not None
+                        else "EXACT_ROOM_AND_SELECTED_WITNESS_ASSIGNMENT_ONLY",
                         "room_only_pruning": False,
                         "certificate": topology,
                     }
