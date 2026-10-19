@@ -1,0 +1,62 @@
+{
+  "actual_station_dimensions": null,
+  "cleaning_maintenance_state": "Equipment/guards/service access and retained circulation; production stopped/shared only if specifically approved",
+  "components": [
+    {
+      "actual_project_geometry": null,
+      "name": "PACKING_STATION_ENVELOPE",
+      "source_required": true,
+      "status": "UNAVAILABLE"
+    },
+    {
+      "actual_project_geometry": null,
+      "name": "OPERATOR_ENVELOPE",
+      "source_required": true,
+      "status": "UNAVAILABLE"
+    },
+    {
+      "actual_project_geometry": null,
+      "name": "MATERIAL_SUPPLY_ENVELOPE",
+      "source_required": true,
+      "status": "UNAVAILABLE"
+    },
+    {
+      "actual_project_geometry": null,
+      "name": "PRODUCT_OUTFEED_ENVELOPE",
+      "source_required": true,
+      "status": "UNAVAILABLE"
+    },
+    {
+      "actual_project_geometry": null,
+      "name": "CIRCULATION_ENVELOPE",
+      "source_required": true,
+      "status": "UNAVAILABLE"
+    },
+    {
+      "actual_project_geometry": null,
+      "name": "CLEANING_MAINTENANCE_ENVELOPE",
+      "source_required": true,
+      "status": "UNAVAILABLE"
+    }
+  ],
+  "formal_area_m2": null,
+  "formula": "L=max(x)-min(x),D=max(y)-min(y) of actual state geometry plus only separately documented, non-duplicated perimeter allowances",
+  "functional_pass": null,
+  "missing_case": {
+    "formal_area_m2": null,
+    "functional_pass": null,
+    "missing": [
+      "PACKING_STATION_ENVELOPE",
+      "OPERATOR_ENVELOPE",
+      "MATERIAL_SUPPLY_ENVELOPE",
+      "PRODUCT_OUTFEED_ENVELOPE",
+      "CIRCULATION_ENVELOPE",
+      "CLEANING_MAINTENANCE_ENVELOPE",
+      "EXPLICIT_STATE_AND_SIMULTANEITY"
+    ],
+    "status": "OWNER_INPUT_REQUIRED"
+  },
+  "normal_state": "Equipment, all3operator activities, supply, outfeed and circulation; explicit buffers/line connections needed",
+  "state_policy": "All simultaneously active envelopes use actual geometric union with overlap review; no automatic max or temporal sharing",
+  "status": "ENGINEERING_PROPOSAL_NOT_APPROVED"
+}
