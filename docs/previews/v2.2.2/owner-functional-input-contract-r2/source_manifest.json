@@ -1,0 +1,25 @@
+{
+  "files": {
+    "README.md": "b1ee5eec34dac11c2311204bf4f5dff4d9a74574203cca713e4b029f5e407578",
+    "default-192kg-source.json": "1a2ee540322bbc555b8461a5578e4c3d78d298331c49e74903e576341afde498",
+    "default-1kg-source.json": "54725b45749bea7a1f4eb9ed56167479656fe1999a4933e1b606cf28c01f65b8",
+    "default-20t-product-source.json": "1057e9ea827fb84dc65b5b48ef7bd7f8a7b635d007266e94ba5a2eb8fd7760c0",
+    "default-384kg-source.json": "58c3440d551784e3fffd38dba4eb22591868046315766c7231b7a8809800f31d",
+    "explicit-no-daily-source.json": "8af9bd5d2c5450d359bb4cb2ff81b71c6e9622f3976349a7bf77b86ac31e9554",
+    "explicit-unequal-20t-product-source.json": "a3c63c10f92fc28734131cb25eedc6a0dba69b68910da99ab1bd59653853e07c",
+    "historical-compatibility.json": "eb798f0020cf0af07ffa403bf0451ad2311990b2c33bc4a6b1885090ebbd63c4",
+    "missing-authority-and-engineering-inputs.json": "7cbcaa7309182ae70a4034fc8f9b173d0ba0eecc1ba4ba740d781ec0f7570178",
+    "offline_contract_v2.py": "696aa7062b2fe05ede4c6eb7911bf5ec672b0deb840cbad1004fb1e057f2010a",
+    "owner-confirmed-business-rules-v2.json": "7c6d37327e4a3819332937473a6c1a37b3b324b7405b995a9ab963397c08392c",
+    "p1-integration-boundary.md": "27ede194435429b26265abcdf318d477ba0e26473432bb80bef8070991eb71eb",
+    "packing-table-policy.json": "1f336592088b80a5e7807fb80f56a518f6fbce7d3c2bf2f5c2cac2c5fe2a8a45",
+    "shift-allocation-policy.json": "6844d560643f256430edf513f8eba8918a518d8db09989fb4de6c6ad132be6ba",
+    "staffing-and-locker-calculation.json": "8e745af1cdd25dbeff2f03854e60cf6c01c11bee0bb8e05f09658ef36280d37e",
+    "test_offline_contract_v2.py": "b8435a7ace935f1816da9215137044b6b57c39a047ac904d57233fccf099b3b3",
+    "v1-v2-compatibility-matrix.md": "b7a0a030b8f3ab581a7a3781403562b317201d705c2485d08e492b658102c7fc",
+    "validation.json": "1b7be54b6434fdb60677167a2d4cf6afcd12ad2473ac230d66e0a59ca10e4b5e"
+  },
+  "reference_head": "3787008de1206797dc098d42f420730590bfe929",
+  "self_exclusion": "Manifest excludes itself to avoid circular digest",
+  "task": "V2_2_2_OWNER_FACTORY_FUNCTIONAL_INPUT_CONTRACT_R2"
+}

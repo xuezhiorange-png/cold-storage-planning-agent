@@ -1,0 +1,551 @@
+{
+  "confirmation_date_basis": "Owner task received 2026-10-19 Asia/Shanghai; not retrospective project approval",
+  "contract_version": "owner-factory-functional-inputs@2.0.0",
+  "identity": "OwnerFactoryFunctionalInputsV2",
+  "reference_head": "3787008de1206797dc098d42f420730590bfe929",
+  "rules": [
+    {
+      "APPLICABILITY": "Explicitly selected SMALL factory",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "OFFICE_DESIGN_STAFF.SMALL",
+      "INHERITED_FROM": {
+        "field": "OFFICE_DESIGN_STAFF.SMALL",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "people",
+      "VALUE": 12
+    },
+    {
+      "APPLICABILITY": "Explicitly selected MEDIUM factory",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "OFFICE_DESIGN_STAFF.MEDIUM",
+      "INHERITED_FROM": {
+        "field": "OFFICE_DESIGN_STAFF.MEDIUM",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "people",
+      "VALUE": 20
+    },
+    {
+      "APPLICABILITY": "Explicitly selected LARGE factory",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "OFFICE_DESIGN_STAFF.LARGE",
+      "INHERITED_FROM": {
+        "field": "OFFICE_DESIGN_STAFF.LARGE",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "people",
+      "VALUE": 30
+    },
+    {
+      "APPLICABILITY": "Packaging staff",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "PACKAGING_PIECES_PER_PERSON_HOUR",
+      "INHERITED_FROM": {
+        "field": "PACKAGING_PIECES_PER_PERSON_HOUR",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "pieces/person/hour",
+      "VALUE": 15
+    },
+    {
+      "APPLICABILITY": "Packaged-product mass",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "PACKAGING_WEIGHT_PER_PIECE_KG",
+      "INHERITED_FROM": {
+        "field": "PACKAGING_WEIGHT_PER_PIECE_KG",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "kg/piece",
+      "VALUE": "1.6"
+    },
+    {
+      "APPLICABILITY": "Each of the two packaging shifts",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "SHIFT_HOURS",
+      "INHERITED_FROM": {
+        "field": "SHIFT_HOURS",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "hours/shift",
+      "VALUE": 8
+    },
+    {
+      "APPLICABILITY": "Separate staffing per shift",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "SHIFTS_PER_DAY",
+      "INHERITED_FROM": {
+        "field": "SHIFTS_PER_DAY",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "shifts/day",
+      "VALUE": 2
+    },
+    {
+      "APPLICABILITY": "Facility packaging schedule only",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "PACKAGING_WORK_HOURS_PER_DAY",
+      "INHERITED_FROM": {
+        "field": "PACKAGING_WORK_HOURS_PER_DAY",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "hours/day",
+      "VALUE": 16
+    },
+    {
+      "APPLICABILITY": "15 * 1.6 * 8; not per-person day",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "PERSON_SHIFT_CAPACITY_KG",
+      "INHERITED_FROM": {
+        "field": "PERSON_SHIFT_CAPACITY_KG",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "kg/person/shift",
+      "VALUE": 192
+    },
+    {
+      "APPLICABILITY": "Both shift inputs",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "PACKAGING_MASS_BASIS",
+      "INHERITED_FROM": {
+        "field": "PACKAGING_MASS_BASIS",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "enum",
+      "VALUE": "PACKAGED_PRODUCT_MASS"
+    },
+    {
+      "APPLICABILITY": "V2 only; requires sourced packaged-product daily mass",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "SHIFT_ALLOCATION_POLICY",
+      "INHERITED_FROM": {
+        "field": "SHIFT_ALLOCATION_POLICY",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "REVISION_FROM": "EXPLICIT_INPUT_REQUIRED",
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "enum",
+      "VALUE": "DEFAULT_EQUAL_SPLIT"
+    },
+    {
+      "APPLICABILITY": "No other jobs included",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "CHANGING_ROOM_USERS",
+      "INHERITED_FROM": {
+        "field": "CHANGING_ROOM_USERS",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "enum",
+      "VALUE": "PACKAGING_WORKERS_ONLY"
+    },
+    {
+      "APPLICABILITY": "Two shifts do not change together",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "SHIFT_CHANGE_POLICY",
+      "INHERITED_FROM": {
+        "field": "SHIFT_CHANGE_POLICY",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "enum",
+      "VALUE": "NON_OVERLAPPING"
+    },
+    {
+      "APPLICABILITY": "One per distinct shift employee",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "PERSONAL_LOCKER_PER_EMPLOYEE",
+      "INHERITED_FROM": {
+        "field": "PERSONAL_LOCKER_PER_EMPLOYEE",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "locker/employee",
+      "VALUE": 1
+    },
+    {
+      "APPLICABILITY": "Separate employee sets per shift",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "LOCKER_SHARED_BETWEEN_SHIFTS",
+      "INHERITED_FROM": {
+        "field": "LOCKER_SHARED_BETWEEN_SHIFTS",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "boolean",
+      "VALUE": false
+    },
+    {
+      "APPLICABILITY": "Inside each personal locker",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "LOCKER_INTERNAL_SEPARATION",
+      "INHERITED_FROM": {
+        "field": "LOCKER_INTERNAL_SEPARATION",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "boolean",
+      "VALUE": true
+    },
+    {
+      "APPLICABILITY": "Internal segregation does not double locker count",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "INTERNAL_STORAGE",
+      "INHERITED_FROM": {
+        "field": "INTERNAL_STORAGE",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "enum",
+      "VALUE": "WORK_CLOTHES_AND_PERSONAL_CLOTHES_SEPARATE"
+    },
+    {
+      "APPLICABILITY": "Two shifts",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "LOCKER_COUNT_FORMULA",
+      "INHERITED_FROM": {
+        "field": "LOCKER_COUNT_FORMULA",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "expression",
+      "VALUE": "SHIFT_1_WORKERS + SHIFT_2_WORKERS"
+    },
+    {
+      "APPLICABILITY": "Whole-shift changing; no intra-shift staggering assumed",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "SIMULTANEOUS_CHANGING_USERS_FORMULA",
+      "INHERITED_FROM": {
+        "field": "SIMULTANEOUS_CHANGING_USERS_FORMULA",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "expression",
+      "VALUE": "max(SHIFT_1_WORKERS, SHIFT_2_WORKERS)"
+    },
+    {
+      "APPLICABILITY": "Owner business preference only; professional hygiene/privacy review still required",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "GENDER_INDEPENDENT_ZONING_PRESET",
+      "INHERITED_FROM": {
+        "field": "GENDER_INDEPENDENT_ZONING_PRESET",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "boolean",
+      "VALUE": false
+    },
+    {
+      "APPLICABILITY": "Existing role identity retained",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "ZONE_CODE",
+      "INHERITED_FROM": {
+        "field": "ZONE_CODE",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "zone_code",
+      "VALUE": "coating_room"
+    },
+    {
+      "APPLICABILITY": "Not fruit wax/pallet wrapping",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "PROCESS_TYPE",
+      "INHERITED_FROM": {
+        "field": "PROCESS_TYPE",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "enum",
+      "VALUE": "PACKAGING_BOX_FILM_SEALING"
+    },
+    {
+      "APPLICABILITY": "Existing coating_room",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "ROOM_TYPE",
+      "INHERITED_FROM": {
+        "field": "ROOM_TYPE",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "enum",
+      "VALUE": "INDEPENDENT"
+    },
+    {
+      "APPLICABILITY": "No process reordering or new room implied",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "PROCESS_SEQUENCE",
+      "INHERITED_FROM": {
+        "field": "PROCESS_SEQUENCE",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "ordered_roles",
+      "VALUE": [
+        "SORTING_PACKAGING",
+        "SECONDARY_PRECOOLING",
+        "COATING_ROOM",
+        "FINISHED_GOODS"
+      ]
+    },
+    {
+      "APPLICABILITY": "All entering packaged product at design",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "DESIGN_FILM_SEALING_RATIO",
+      "INHERITED_FROM": {
+        "field": "DESIGN_FILM_SEALING_RATIO",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "fraction",
+      "VALUE": "1.0"
+    },
+    {
+      "APPLICABILITY": "Not a design-load reduction",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "ACTUAL_FILM_SEALING_RATIO",
+      "INHERITED_FROM": {
+        "field": "ACTUAL_FILM_SEALING_RATIO",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "policy",
+      "VALUE": "PROJECT_DEPENDENT"
+    },
+    {
+      "APPLICABILITY": "Inside coating_room",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "NON_SEALING_PRODUCT_PASS_THROUGH_ALLOWED",
+      "INHERITED_FROM": {
+        "field": "NON_SEALING_PRODUCT_PASS_THROUGH_ALLOWED",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "boolean",
+      "VALUE": true
+    },
+    {
+      "APPLICABILITY": "No equipment processing",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "PASS_THROUGH_MUST_USE_SEALING_EQUIPMENT",
+      "INHERITED_FROM": {
+        "field": "PASS_THROUGH_MUST_USE_SEALING_EQUIPMENT",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "boolean",
+      "VALUE": false
+    },
+    {
+      "APPLICABILITY": "No extra bypass room default",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "INDEPENDENT_BYPASS_ROOM_ASSUMED",
+      "INHERITED_FROM": {
+        "field": "INDEPENDENT_BYPASS_ROOM_ASSUMED",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "boolean",
+      "VALUE": false
+    },
+    {
+      "APPLICABILITY": "Confirm separately",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "SEALING_RUNTIME_INHERITS_PACKAGING_HOURS",
+      "INHERITED_FROM": {
+        "field": "SEALING_RUNTIME_INHERITS_PACKAGING_HOURS",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "boolean",
+      "VALUE": false
+    },
+    {
+      "APPLICABILITY": "Existing P1 geometric area unchanged",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "OFFICE_AREA_AUTHORITY",
+      "INHERITED_FROM": {
+        "field": "OFFICE_AREA_AUTHORITY",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "m2",
+      "VALUE": 60
+    },
+    {
+      "APPLICABILITY": "Existing P1 geometric area unchanged",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "CHANGING_AREA_AUTHORITY",
+      "INHERITED_FROM": {
+        "field": "CHANGING_AREA_AUTHORITY",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "m2",
+      "VALUE": 40
+    },
+    {
+      "APPLICABILITY": "Existing P1 geometric area unchanged",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "COATING_AREA_AUTHORITY",
+      "INHERITED_FROM": {
+        "field": "COATING_AREA_AUTHORITY",
+        "identity": "OwnerFactoryFunctionalInputsV1",
+        "version": "owner-factory-functional-inputs@1.0.0"
+      },
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "m2",
+      "VALUE": 80
+    },
+    {
+      "APPLICABILITY": "V2 default mode only",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "SHIFT_1_RATIO",
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "fraction",
+      "VALUE": "0.5"
+    },
+    {
+      "APPLICABILITY": "V2 default mode only",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "SHIFT_2_RATIO",
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "fraction",
+      "VALUE": "0.5"
+    },
+    {
+      "APPLICABILITY": "Both shift quantities supplied",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "EXPLICIT_SHIFT_OVERRIDE_ALLOWED",
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "boolean",
+      "VALUE": true
+    },
+    {
+      "APPLICABILITY": "Owner V2 business policy",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "WORKERS_PER_PACKING_TABLE",
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "people/table",
+      "VALUE": 3
+    },
+    {
+      "APPLICABILITY": "Same station set; engineering turnover review remains",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "PACKING_TABLE_SHARED_BETWEEN_SHIFTS",
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "boolean",
+      "VALUE": true
+    },
+    {
+      "APPLICABILITY": "max(N1,N2), not total employees",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "PACKING_TABLE_CAPACITY_POLICY",
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "enum",
+      "VALUE": "PEAK_CONCURRENT_WORKERS"
+    },
+    {
+      "APPLICABILITY": "Required tables, not layout n_actual cells",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "PACKING_TABLE_COUNT_FORMULA",
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "expression",
+      "VALUE": "ceil(max(N1,N2)/3)"
+    },
+    {
+      "APPLICABILITY": "No default ratios applied",
+      "CONFIRMATION_DATE": "2026-10-19",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+      "FIELD_NAME": "EXPLICIT_SHIFT_OVERRIDE_MODE",
+      "SOURCE": "OWNER_CONFIRMED",
+      "UNIT": "enum",
+      "VALUE": "EXPLICIT_SHIFT_OVERRIDE"
+    }
+  ],
+  "status": "OWNER_BUSINESS_POLICY_CONFIRMED_NOT_PRODUCTION_P1",
+  "task": "V2_2_2_OWNER_FACTORY_FUNCTIONAL_INPUT_CONTRACT_R2",
+  "v1_original_rules_sha256": "5e2d2cb251f3bba0655983ce808bc15fa16c7d6c13902baaedb83c7b8af758cf"
+}

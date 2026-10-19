@@ -1,0 +1,14 @@
+{
+  "PACKING_TABLE_CAPACITY_POLICY": "PEAK_CONCURRENT_WORKERS",
+  "PACKING_TABLE_SHARED_BETWEEN_SHIFTS": true,
+  "SOURCE": "OWNER_CONFIRMED",
+  "WORKERS_PER_PACKING_TABLE": 3,
+  "confirmed_field_metadata": "owner-confirmed-business-rules-v2.json",
+  "count_semantics": "Required stations n_need, not layout n_actual cells",
+  "formula": "ceil(max(ceil(Q1/192),ceil(Q2/192))/3)",
+  "identity": "OwnerFactoryFunctionalInputsV2",
+  "production_area_formula_approved_for_v2": false,
+  "production_area_m2": null,
+  "turnover_review": "Cleaning, actual availability and necessary buffers require engineering review",
+  "version": "owner-factory-functional-inputs@2.0.0"
+}

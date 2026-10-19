@@ -1,0 +1,36 @@
+{
+  "BLOCKING_AUTHORITY_DECISIONS": [
+    "Legacy grid/pitches/clearances/rank/1.1 formula applicability to V2",
+    "New functional areas, dimensions, exact/reporting profiles and migration approval"
+  ],
+  "BLOCKING_IMPLEMENTATION_ITEMS": [
+    "Trusted input and approval binding, explicit P1 version selection",
+    "Separately authorized consumers, regression, CI and activation/rollback"
+  ],
+  "BLOCKING_INPUTS": [
+    "Approved real packaged-product mass and project/period provenance",
+    "Office size classification thresholds or explicit project size, furniture and clear-space reference",
+    "Locker model/dimensions, doors/operation/aisles and hygiene/privacy review",
+    "Sealing model/capacity/count/envelopes and independent effective runtime",
+    "Station turnover cleaning, availability and buffers"
+  ],
+  "BUSINESS_POLICY_READY": true,
+  "P1_AREA_CALIBRATION_READY": false,
+  "P1_PRODUCTION_ACTIVATED": false,
+  "UNRESOLVED_SPATIAL_VALUES": {
+    "aisle_clear_width_m": null,
+    "minimum_clear_width_m": null,
+    "minimum_functional_depth_m": null,
+    "new_functional_area_m2": {
+      "changing_room": null,
+      "coating_room": null,
+      "office": null
+    },
+    "status": "OWNER_INPUT_REQUIRED_OR_NUMERIC_CALIBRATION_NOT_APPROVED"
+  },
+  "resolved_owner_policy_decisions": [
+    "Default equal split and explicit override",
+    "3people/table",
+    "Shared table set and peak-based table count"
+  ]
+}

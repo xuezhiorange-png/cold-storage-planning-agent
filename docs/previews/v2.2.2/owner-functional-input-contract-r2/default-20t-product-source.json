@@ -1,0 +1,8 @@
+{
+  "daily_packaged_kg": "20000",
+  "mass_basis": "PACKAGED_PRODUCT_MASS",
+  "period_id": "EXAMPLE_DAY",
+  "project_id": "SYNTHETIC_V2_ONLY",
+  "scope": "SYNTHETIC_TEST_ONLY_NOT_PROJECT_APPROVAL",
+  "unit": "kg"
+}
