@@ -145,6 +145,7 @@ class OrToolsGlobalCompositionSolver:
         event_sink: Callable[[dict[str, Any]], None] | None = None,
         topology_variables: Callable[[Any, Any], list[Any]] | None = None,
         propagate_base_infeasible: bool = False,
+        final_model_guidance: Callable[[Any], dict[str, Any]] | None = None,
     ) -> Generator[dict[str, Any], str | None, None]:
         """One preparation, one final model; bounded physical enumeration.
 
@@ -248,6 +249,11 @@ class OrToolsGlobalCompositionSolver:
         model.m.add_decision_strategy(
             [r["corridor"] for r in model.routes], cp_model.CHOOSE_FIRST, cp_model.SELECT_MIN_VALUE
         )
+        guidance: dict[str, Any] | None = None
+        if final_model_guidance is not None:
+            guidance = final_model_guidance(model)
+            if event_sink:
+                event_sink({"kind": "FINAL_MODEL_GUIDANCE_APPLIED", "guidance": guidance})
         if event_sink:
             event_sink({"kind": "FINAL_MODEL_PREPARED", "variables": len(model.m.proto.variables)})
         cuts: list[dict[str, Any]] = []
@@ -267,6 +273,8 @@ class OrToolsGlobalCompositionSolver:
                 "topology_refinement_cuts": list(cuts),
                 "topology_checked_solution_index": refinement,
             }
+            if guidance is not None:
+                record["construction_guidance"] = dict(guidance)
             if status not in (cp_model.FEASIBLE, cp_model.OPTIMAL):
                 yield record
                 return

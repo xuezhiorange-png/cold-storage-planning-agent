@@ -14,6 +14,9 @@ from cold_storage.modules.layout.infrastructure.stage_b_pool_execution import (
     POOL_ELAPSED_TARGET,
     POOL_WORK_TARGET,
 )
+from cold_storage.modules.layout.infrastructure.stage_b_wall_alignment import (
+    apply_wall_alignment_guidance,
+)
 
 SHARE_STOP = "STAGE_B_HANDOFF_SHARE_EXHAUSTED"
 
@@ -117,4 +120,7 @@ class StageBFairSearchSolver:
             event_sink=lambda e: audit(sources, dict(e, policy_hash=POLICY_HASH)),
             topology_variables=union_input_variables,
             propagate_base_infeasible=True,
+            final_model_guidance=lambda model: apply_wall_alignment_guidance(
+                model, charge=context.ledger.charge
+            ),
         )

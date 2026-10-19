@@ -1,7 +1,9 @@
 """Synthetic policy/cut tests only; no real Owner grant or factory execution."""
 
+import json
 from copy import deepcopy
 from decimal import Decimal
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -10,6 +12,7 @@ from ortools.sat.python import cp_model
 from cold_storage.bootstrap.global_composition import (
     generate_fair_multi_solution_global_layout_pool,
 )
+from cold_storage.modules.layout.application import global_composition_solver as generation
 from cold_storage.modules.layout.application import global_multi_solution_pool as pool
 from cold_storage.modules.layout.application.stage_b_search_policy import POLICY_HASH, schedule_hash
 from cold_storage.modules.layout.domain.adjacency import PROCESS_FLOW
@@ -21,6 +24,10 @@ from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.domain.orthogonal_union import inspect_rectangular_union
 from cold_storage.modules.layout.infrastructure import global_cp_sat_solver as native
 from cold_storage.modules.layout.infrastructure import stage_b_fair_search as fair
+from cold_storage.modules.layout.infrastructure.global_cp_sat_model import AccessModel, GlobalModel
+from cold_storage.modules.layout.infrastructure.stage_b_wall_alignment import (
+    apply_wall_alignment_guidance,
+)
 from tests.unit.test_v222_construction_diversity import rooms
 from tests.unit.test_v222_global_composition_pool import setup_ports
 from tests.unit.test_v222_p1a_composition_authority_handoff import _context
@@ -490,3 +497,330 @@ def test_f_rejected_third_family_cannot_complete_five_three_target(monkeypatch):
 def test_nonaccepted_outcomes_never_add_families(monkeypatch, defect):
     result = _collect_families(monkeypatch, [_family_proposal(defect=defect)])
     assert result["construction_candidate_count"] == result["major_structural_family_count"] == 0
+
+
+def _wall_benchmark_layouts(case):
+    """Finite synthetic domains, fixed per-role areas and allowed 90deg rotation."""
+    if case == "large":
+        return (
+            [
+                (0, 0, 10000, 2000),
+                (0, 8000, 10000, 10000),
+                (0, 2000, 2000, 8000),
+                (8000, 2000, 10000, 8000),
+            ],
+            [
+                (0, 0, 10000, 2000),
+                (0, 2000, 10000, 4000),
+                (0, 4000, 6000, 6000),
+                (0, 6000, 6000, 8000),
+            ],
+        )
+    gap, width = (7, 2690) if case == "7mm" else (108, 9389)
+    bad = [
+        (0, 0, width, 2000),
+        (0, 2000 + gap, width, 4000 + gap),
+        (-2000, 0, 0, 4000 + gap),
+        (width, 0, width + 2000, 4000 + gap),
+    ]
+    return bad, [bad[0], (0, 2000, width, 4000), bad[2], bad[3]]
+
+
+def _wall_benchmark_model(case):
+    m = cp_model.CpModel()
+    choice = m.new_bool_var("synthetic_organization")
+    rooms_map = {}
+    for i, (a, b) in enumerate(zip(*_wall_benchmark_layouts(case), strict=True)):
+        values = [(p[0], p[1], p[2] - p[0], p[3] - p[1]) for p in (a, b)]
+        assert (a[2] - a[0]) * (a[3] - a[1]) == (b[2] - b[0]) * (b[3] - b[1])
+        assert sorted((a[2] - a[0], a[3] - a[1])) == sorted((b[2] - b[0], b[3] - b[1]))
+        row = {
+            key: m.new_int_var(min(v[j] for v in values), max(v[j] for v in values), f"r{i}{key}")
+            for j, key in enumerate(("x", "y", "w", "d"))
+        }
+        m.add_allowed_assignments([choice, *row.values()], [(j, *v) for j, v in enumerate(values)])
+        rooms_map[str(i)] = row
+    return SimpleNamespace(m=m, rooms=rooms_map), choice
+
+
+def _wall_solver():
+    solver = cp_model.CpSolver()
+    solver.parameters.num_search_workers = 1
+    solver.parameters.random_seed = 3
+    solver.parameters.stop_after_first_solution = True
+    solver.parameters.max_time_in_seconds = 1
+    solver.parameters.max_memory_in_mb = 512
+    solver.parameters.search_branching = cp_model.PARTIAL_FIXED_SEARCH
+    return solver
+
+
+@pytest.mark.parametrize("case", ["large", "7mm", "108mm"])
+def test_wall_guidance_same_budget_synthetic_first_solution_comparison(case):
+    seen = []
+    for _ in range(3):
+        results = []
+        for guided in (False, True):
+            model, choice = _wall_benchmark_model(case)
+            charges = []
+            if guided:
+                receipt = apply_wall_alignment_guidance(
+                    model, charge=lambda k, n, rows=charges: rows.append((k, n))
+                )
+                assert receipt["formal_quality_gate"] is False
+                assert receipt["topology_pruning"] is False
+                assert sum(n for _, n in charges) > 0
+            solver = _wall_solver()
+            assert solver.solve(model.m) in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+            geometry = []
+            for room in model.rooms.values():
+                x, y, w, d = [solver.value(room[k]) for k in ("x", "y", "w", "d")]
+                geometry.append((x, y, x + w, y + d))
+            results.append((solver.value(choice), inspect_rectangular_union(geometry)["valid"]))
+        assert results == [(0, False), (1, True)]
+        seen.append(results)
+    assert seen[0] == seen[1] == seen[2]
+
+
+@pytest.mark.parametrize("case", ["large", "7mm", "108mm"])
+@pytest.mark.parametrize("physical_choice", [0, 1])
+def test_wall_guidance_projection_keeps_even_invalid_room_assignments(case, physical_choice):
+    model, choice = _wall_benchmark_model(case)
+    old_constraints = [str(c) for c in model.m.proto.constraints]
+    apply_wall_alignment_guidance(model, charge=lambda *_: None)
+    assert old_constraints == [
+        str(model.m.proto.constraints[i]) for i in range(len(old_constraints))
+    ]
+    # Fix each original assignment, not just its preferred optimum. The entire
+    # finite physical domain still has a valid auxiliary extension.
+    model.m.add(choice == physical_choice)
+    model.m.clear_objective()
+    assert _wall_solver().solve(model.m) == cp_model.OPTIMAL
+
+
+def _fixed_wall_model(boxes):
+    m = cp_model.CpModel()
+    return SimpleNamespace(
+        m=m,
+        rooms={
+            str(i): {
+                k: m.new_constant(v)
+                for k, v in zip(
+                    ("x", "y", "w", "d"), (b[0], b[1], b[2] - b[0], b[3] - b[1]), strict=True
+                )
+            }
+            for i, b in enumerate(boxes)
+        },
+    )
+
+
+def test_corridor_fill_remains_valid_and_is_not_room_only_pruned():
+    ring = [
+        (0, 0, 4000, 1000),
+        (0, 3000, 4000, 4000),
+        (0, 1000, 1000, 3000),
+        (3000, 1000, 4000, 3000),
+    ]
+    assert inspect_rectangular_union(ring)["hole_count"] == 1
+    # Synthetic personnel route:2m clear width,1.5m portals on opposing faces.
+    route = dict(
+        topology="CORRIDOR_MEDIATED",
+        path_mm=[(1000, 2000), (3000, 2000)],
+        portal_from_center_mm=(1000, 2000),
+        portal_to_center_mm=(3000, 2000),
+        width_mm=2000,
+        length_mm=2000,
+        turn_count=0,
+        envelopes_mm=[(1000, 1000, 3000, 3000)],
+    )
+    assert generation._route_geometry_errors(route) == []
+    assert all(not generation._overlap(box, route["envelopes_mm"][0]) for box in ring)
+    model = _fixed_wall_model(ring)
+    receipt = apply_wall_alignment_guidance(model, charge=lambda *_: None)
+    assert receipt["room_hole_repairability"] == "NOT_PROVEN_NO_PRUNING"
+    assert _wall_solver().solve(model.m) == cp_model.OPTIMAL
+    assert inspect_rectangular_union(ring + route["envelopes_mm"])["valid"]
+
+
+@pytest.mark.parametrize(
+    "swap,sx,sy", [(a, b, c) for a in (False, True) for b in (-1, 1) for c in (-1, 1)]
+)
+def test_wall_guidance_proxy_is_rotation_mirror_translation_invariant(swap, sx, sy):
+    original = _wall_benchmark_layouts("large")[0]
+    transformed = []
+    for x, y, r, t in original:
+        ps = [
+            (sx * b + 12345, sy * a - 7000) if swap else (sx * a + 12345, sy * b - 7000)
+            for a, b in ((x, y), (r, t))
+        ]
+        transformed.append(
+            (
+                min(p[0] for p in ps),
+                min(p[1] for p in ps),
+                max(p[0] for p in ps),
+                max(p[1] for p in ps),
+            )
+        )
+    scores = []
+    for boxes in (original, transformed):
+        model = _fixed_wall_model(boxes)
+        apply_wall_alignment_guidance(model, charge=lambda *_: None)
+        solver = _wall_solver()
+        assert solver.solve(model.m) == cp_model.OPTIMAL
+        scores.append(solver.objective_value)
+    assert scores[0] == scores[1]
+
+
+@pytest.mark.parametrize("index", range(5))
+def test_sealed_holes_and_historical_valid_geometry_unchanged_without_native_solve(index):
+    fixture = Path(__file__).parents[1] / "fixtures/v22/stage_b_hole_geometry_regressions_v1.json"
+    record = json.loads(fixture.read_text())["cases"][index]
+    before = deepcopy(record)
+    physical = physical_boxes(record["zones"])
+    boxes = list(physical.values()) + [tuple(b) for b in record["corridor_boxes_mm"]]
+    topology = inspect_rectangular_union(boxes)
+    assert topology["hole_count"] == record["expected_hole_count"]
+    if "expected_hole_area_mm2" in record:
+        assert (
+            sum(
+                -loop["signed_area_twice_mm2"]
+                for loop in topology["boundary_loops"]
+                if loop["kind"] == "HOLE"
+            )
+            == record["expected_hole_area_mm2"] * 2
+        )
+    else:
+        assert topology["valid"]
+    # Only construct definitions for sealed real geometry; NEVER solve the
+    # 12-room historical model or turn this into a new factory candidate.
+    model = _fixed_wall_model(list(physical.values()))
+    receipt = apply_wall_alignment_guidance(model, charge=lambda *_: None)
+    assert model.m.validate() == ""
+    assert not receipt["hard_domain_changed"] and not receipt["topology_pruning"]
+    assert record == before
+    assert inspect_rectangular_union(boxes) == topology
+
+
+def test_wall_guidance_runs_once_on_prepared_final_model_and_preserves_multisolution(monkeypatch):
+    context, lease = native_setup(monkeypatch)
+    calls = []
+
+    def guidance(model):
+        calls.append(model)
+        return apply_wall_alignment_guidance(model, charge=context.ledger.charge)
+
+    stream = native.OrToolsGlobalCompositionSolver().iter_solutions(
+        context,
+        None,
+        event_sink=lease.events.append,
+        final_model_guidance=guidance,
+        topology_variables=fair.union_input_variables,
+        propagate_base_infeasible=True,
+    )
+    first = next(stream)
+    second = stream.send("ENGINEERING_ACCEPTED")
+    assert first["zones"] != second["zones"]
+    assert first["model_witness_topology"]["valid"] and second["model_witness_topology"]["valid"]
+    assert len(calls) == 1
+    assert first["construction_guidance"] == second["construction_guidance"]
+    assert first["construction_guidance"]["formal_quality_gate"] is False
+    assert context.ledger.resource_events["STAGE_B_WALL_GUIDANCE_DEFINITIONS"] > 0
+    assert len([e for e in lease.events if e["kind"] == "FINAL_MODEL_GUIDANCE_APPLIED"]) == 1
+    stream.close()
+
+
+def test_wall_guidance_does_not_override_existing_objective_or_resource_guard():
+    model, choice = _wall_benchmark_model("large")
+    model.m.minimize(choice)
+    with pytest.raises(LayoutAuthorityError, match="OBJECTIVE_ALREADY_PRESENT"):
+        apply_wall_alignment_guidance(model, charge=lambda *_: None)
+    model.m.clear_objective()
+    error = LayoutAuthorityError("STAGE_A_RESOURCE_LIMIT")
+
+    def guard(*_):
+        raise error
+
+    with pytest.raises(LayoutAuthorityError) as caught:
+        apply_wall_alignment_guidance(model, charge=guard)
+    assert caught.value is error and not model.m.has_objective()
+
+
+def test_wall_guidance_preserves_nonrectangular_site_and_obstacle_authority():
+    from cold_storage.modules.layout.domain.site_geometry import (
+        PlacedRectangleV1,
+        rectangle_inside_polygon,
+        rectangle_intersects_closed_obstacle,
+    )
+
+    site = ((0, 0), (6000, 0), (6000, 2000), (3000, 2000), (3000, 6000), (0, 6000))
+    obstacle = ((4000, 0), (6000, 0), (6000, 2000), (4000, 2000))
+    first = PlacedRectangleV1("a", 0, 0, 2, 2)
+    second = PlacedRectangleV1("b", 0, 2, 2, 2)
+    blocked = PlacedRectangleV1("c", 4, 0, 2, 2)
+    outside = PlacedRectangleV1("d", 4, 4, 2, 2)
+    assert rectangle_inside_polygon(first, site) and rectangle_inside_polygon(second, site)
+    assert not rectangle_intersects_closed_obstacle(first, obstacle)
+    assert rectangle_intersects_closed_obstacle(blocked, obstacle)
+    assert not rectangle_inside_polygon(outside, site)
+    model = _fixed_wall_model([first.bounds_mm, second.bounds_mm])
+    apply_wall_alignment_guidance(model, charge=lambda *_: None)
+    assert _wall_solver().solve(model.m) == cp_model.OPTIMAL
+    assert rectangle_inside_polygon(first, site) and rectangle_inside_polygon(second, site)
+    # The original adapter's unsupported nonrectangular-site rejection is not
+    # replaced with a bbox by the new preference.
+    with pytest.raises(LayoutAuthorityError, match="RECTANGULAR_SCOPE"):
+        generation.rectangular_scope(site)
+
+
+def test_wall_guidance_six_actual_handoff_models_compatible_without_solving():
+    class Inspect:
+        def solve(self, context, handoff):
+            model = AccessModel(context, handoff, True)
+            base = GlobalModel(context, handoff)
+            prefix = [str(c) for c in model.m.proto.constraints]
+            counts_before = (len(model.rooms), len(model.routes), len(context.must))
+            receipt = apply_wall_alignment_guidance(model, charge=context.ledger.charge)
+            assert model.m.validate() == ""
+            assert prefix == [str(model.m.proto.constraints[i]) for i in range(len(prefix))]
+            assert [str(c) for c in base.m.proto.constraints] == prefix[
+                : len(base.m.proto.constraints)
+            ]
+            assert counts_before == (12, 10, 7)
+            assert receipt["hard_domain_changed"] is False
+            return {"solver_status": "INSPECTION_ONLY_NOT_SOLVED"}
+
+    plan, p1, site = _context()
+    handoffs = generation.build_structural_compositions(plan, p1.to_dict(), site).placement_handoffs
+    assert len(handoffs) == 6
+    for handoff in handoffs:
+        result = generation.generate_global_composition_candidate(
+            plan,
+            p1.to_dict(),
+            site,
+            solver=Inspect(),
+            composition_identity=handoff.composition_identity,
+        )
+        assert result["proposal"]["solver_status"] == "INSPECTION_ONLY_NOT_SOLVED"
+
+
+def test_stage_a_default_does_not_construct_wall_guidance(monkeypatch):
+    context, _ = native_setup(monkeypatch)
+    result = native.OrToolsGlobalCompositionSolver().solve(context, None)
+    assert result["zones"] and len(context.ledger.attempts) == 5
+    assert not any(k.startswith("STAGE_B_WALL_GUIDANCE") for k in context.ledger.resource_events)
+
+
+def test_proven_infeasible_short_circuit_precedes_wall_guidance(monkeypatch):
+    from tests.unit.test_v222_stage_b_multi_solution import InfeasibleBase
+
+    context, _ = native_setup(monkeypatch)
+    monkeypatch.setattr(native, "GlobalModel", InfeasibleBase)
+
+    def never(_):
+        pytest.fail("An INFEASIBLE base must not construct final guidance")
+
+    result = next(
+        native.OrToolsGlobalCompositionSolver().iter_solutions(
+            context, None, propagate_base_infeasible=True, final_model_guidance=never
+        )
+    )
+    assert result["solver_status"] == "INFEASIBLE" and len(context.ledger.attempts) == 3
