@@ -1,0 +1,38 @@
+{
+  "OPERATORS": [
+    {
+      "ENTRY_PATH": null,
+      "OPERATOR_ID": "OPERATOR_1",
+      "REACH_ENVELOPE": null,
+      "SIMULTANEOUS_ACTIVITY": null,
+      "SOURCE_ID": null,
+      "STANDING_POSITION": null,
+      "TASK": null,
+      "WORK_DIRECTION": null
+    },
+    {
+      "ENTRY_PATH": null,
+      "OPERATOR_ID": "OPERATOR_2",
+      "REACH_ENVELOPE": null,
+      "SIMULTANEOUS_ACTIVITY": null,
+      "SOURCE_ID": null,
+      "STANDING_POSITION": null,
+      "TASK": null,
+      "WORK_DIRECTION": null
+    },
+    {
+      "ENTRY_PATH": null,
+      "OPERATOR_ID": "OPERATOR_3",
+      "REACH_ENVELOPE": null,
+      "SIMULTANEOUS_ACTIVITY": null,
+      "SOURCE_ID": null,
+      "STANDING_POSITION": null,
+      "TASK": null,
+      "WORK_DIRECTION": null
+    }
+  ],
+  "OPERATOR_FIT_APPROVED": false,
+  "OPERATOR_LAYOUT_STATUS": "REVIEW_REQUIRED",
+  "SOURCE": "owner-factory-functional-inputs@2.0.0; prior unchanged Owner V2 record",
+  "WORKERS_PER_PACKING_TABLE": 3
+}

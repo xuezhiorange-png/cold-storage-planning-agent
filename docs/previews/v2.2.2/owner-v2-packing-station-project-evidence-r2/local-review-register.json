@@ -1,0 +1,24 @@
+{
+  "DENIED_SOURCE_HASHES": [
+    "1afe9cb13237450172f5c3c17831b947721e9abb3897a5e6f1815da345b578c4",
+    "2c36aa871a1d185f8473e3136e6cc0ebd3d08391b669cc76c703979d97670ae2",
+    "2c37acaa9bc1a0fee8e9c9f40220c00172e810b6c5bc3364d6db73a84a77f4e4",
+    "2eefc57ba632baf3382fef07a7b18e9eef12e6f6b98797117a4381a3fe33cd1a",
+    "32ab503566cde57049d83f5521c7d7e1557f29438404fbf1fe1174dd899346e9",
+    "53e3634f680701913edc0d63043ea8826bccbdf051ed7ab557bc0293fb9a3891",
+    "684df9589ea3e7a43bfe675e8d998b0a22cd2ada9b3380a52f653f5b63d2af83",
+    "8d78381bc763af8f2ef3be6e4d8f928475b4f86b220e83dfd546f9a1b30118e3",
+    "8ea233d73f0fa53e0e7a83d933105f09da08d620cc880d90da2e1496494dbd56",
+    "9cdec41f6e26dc389abf62b0fb6ab370898ee3f1d37697925d58e43e748a69c1",
+    "af3458ad354647946ce7371eb79c188c94e43f14c99618e9ffa00a61562f6010",
+    "cb10c4905d4f407473bc8214f543429c0fb888280451494aed2b9e1ec19ed803",
+    "f0a8d67fc826ccb8641b57f556282125845f38982ffc18fd1537afd7aa9a1cb2",
+    "f94f1e66f506d64300e935ea95a55fb46cba69ae9ae357578471177e51613dc5"
+  ],
+  "FACTORY_ID": "FACTORY_INPUT_REQUIRED",
+  "IDENTITY": "LocalStationEvidenceReviewRegisterV1",
+  "NOTE": "Empty register: no sources approved for extraction. Local evidence review only, not Owner execution Grant or engineering/selection approval.",
+  "PROJECT_ID": "PROJECT_INPUT_REQUIRED",
+  "SCOPE": "PROJECT_EVIDENCE_REVIEW",
+  "SOURCES": {}
+}

@@ -1,0 +1,31 @@
+{
+  "files": {
+    "README.md": "0dea50c76fa99cfe05d7db49d9b369a3f0b174a4503323cf608c9248254c966a",
+    "build_project_evidence.py": "b210b284ab361e3b9608e89d6c7121fbabc55e72772cda772efea0995f3b99fe",
+    "dimension-record-template.json": "bfa324fc615f606f2e50f0a250bf7e5d48f55d567caf4753b45632bf22fb5ed4",
+    "engineering-review-matrix.json": "01bd627989785be1d24d095596c99a16683a78e32aa80abe0870741fc4a80eb5",
+    "historical-evidence-integrity.json": "3cb7ad423bc00f5f325a9e62e6c57b9900ef660fde9b327e15e1a6ef43d79af7",
+    "legacy-canonical-replay.json": "149c44d0b9ddf101e72d59659b694771c8463974473e3fc5b7993a5184e3c8ad",
+    "local-review-register.json": "3c93cc9d155158dfa2705e6b9e5e5c0b30286c3f8760f24585d003fcc900eded",
+    "material-flow-evidence.json": "e54728897e479b9a0cec81a14ef0e860118967c95ef603cac78cb93d24929d10",
+    "missing-engineering-inputs.json": "dc0bda9c7702260be2de0b8bd970ad50f2d559d1c9f0bbd80a21806ffe71209e",
+    "offline_project_diagnostic.py": "ac105385189fa5af8a6d3cd14bf65970863f430a42927f4dd2efc4fc6325b96c",
+    "offline_project_input_adapter.py": "b99a385953a3c5e143c223a6b68949f8c248723474ac3b4ea8464432e3ecd2d3",
+    "operator-layout-evidence.json": "a477197d9c3f565a686bac59d0bc0b9ba2e753d12fc2b56613d57bedcd42782e",
+    "previews/project-input-required.svg": "529362d81b93b6bdb77c88af264e345b4296183ed8a69995405cafe07140c2e3",
+    "project-equipment-evidence-index.json": "9303c9778a5e64000a7fef74dac611f13db7f3d8d0fb0a656f46e4e9c8880dba",
+    "project-information-request.md": "4ab537e52d3d11f223b331fa9ea6b5bef284750ed1a50c1dd1329e56fc0477f4",
+    "project-input-admission-contract.json": "062bff7898e24a0bfbe60781f49d557ab0728b0aa3bf9a57cfeda8dd14c52ef4",
+    "project-input-template.json": "fb7a5c46cb82bbcf5419e654d082e41228bffcb18c11598b2a99c4ecece8e4ee",
+    "project-source-verification.json": "6fdde6321dbf812317e06f3d16fdd98361037aa0848e1c7fe6a58aeb4289e479",
+    "project-station-dimension-contract.json": "2e2d3d54f765224d0f84f22c471692df30eddbb47b5aa57314eda5cf3f1a9494",
+    "software_test_evidence.py": "9a711ade4ce6c9e4b81094ebb1a0b8e0839a846cf8118a8cd6d234b313441ed5",
+    "state-and-maintenance-evidence.json": "bc763ed54d0ed1b53964802af804a411065cf3b78181958fa7a4358d4e0351b0",
+    "test_project_input_adapter.py": "dcefaa41165c3230ffeca7d29be7b0f9d57daad43b5736345ff5b1e7c5de2ea9",
+    "validate_delivery.py": "132c6ecb2f2a0ab719cc216e2274deee93c6a275b42ebf680ee89d19792341d6",
+    "validation.json": "d018225d8d5828474341d2d7a7029ee24eef120d49234bb1f577f30a24b58cce"
+  },
+  "reference_head": "a48a0ec6830b15ce0d37f0234c99e916743c477e",
+  "self_excluded": true,
+  "task": "V2_2_2_OWNER_V2_PACKING_STATION_PROJECT_INPUT_ADMISSION_R2"
+}

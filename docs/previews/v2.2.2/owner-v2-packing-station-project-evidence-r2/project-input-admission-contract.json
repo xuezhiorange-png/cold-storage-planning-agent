@@ -1,0 +1,54 @@
+{
+  "DOCUMENT_FIELDS": [
+    "PROJECT_ID",
+    "FACTORY_ID",
+    "EQUIPMENT_ID",
+    "MANUFACTURER",
+    "MODEL",
+    "DRAWING_NUMBER",
+    "DOCUMENT_REVISION",
+    "ISSUE_DATE",
+    "SOURCE_PATH_OR_URL",
+    "SOURCE_FILE_SHA256",
+    "SHEET_OR_PAGE",
+    "SOURCE_TYPE",
+    "PROJECT_APPLICABILITY",
+    "SELECTION_STATUS",
+    "REVIEW_STATUS",
+    "APPROVAL_EVIDENCE",
+    "SOURCE_ID"
+  ],
+  "IDENTITY": "ProjectPackingStationEvidenceV1",
+  "LIMITATIONS": [
+    "File SHA is not authenticity or engineering approval",
+    "Trusted launcher compromise/register+pin replacement outside request threat model",
+    "Structured/text callout extractor not a general drawing parser",
+    "Selected/approved source class needs independent verifier, not implemented",
+    "Test fixture issuer is SOFTWARE_TEST_ONLY, not real source review"
+  ],
+  "PROHIBITED_STAGES": [
+    "ENGINEERING_APPROVED",
+    "FORMAL_P1_AUTHORITY_APPROVED"
+  ],
+  "REGISTER_PIN": "3c93cc9d155158dfa2705e6b9e5e5c0b30286c3f8760f24585d003fcc900eded",
+  "REUSED_MODULE": "PackingStationModuleV1",
+  "REVIEW_CONTENT": "Source bytes, full identity/revision/classification hash, exact structural citation hash and each dimension-record hash. Reviewer must verify actual source and project applicability outside this adapter.",
+  "SOURCE_CLASSES": [
+    "PUBLIC_MANUFACTURER_REFERENCE",
+    "PROJECT_CANDIDATE_EQUIPMENT",
+    "PROJECT_SELECTED_EQUIPMENT",
+    "PROJECT_APPROVED_GEOMETRY"
+  ],
+  "SOURCE_STATUS": "No actual sources admitted; current default project request BLOCKED",
+  "STAGES": [
+    "DISCOVERED",
+    "INDEXED",
+    "SOURCE_BYTES_VERIFIED",
+    "DIMENSIONS_EXTRACTED",
+    "GEOMETRY_NORMALIZED",
+    "GEOMETRY_DIAGNOSTIC_COMPLETE",
+    "ENGINEERING_REVIEW_REQUIRED"
+  ],
+  "TRUST_BOUNDARY": "Local reviewer and launcher pin immutable extraction-review register; request cannot supply review context or approved/verified flags. Register pin is operator-side configuration, not a caller security token.",
+  "VERSION": "project-packing-station-evidence@1.0.0"
+}

@@ -1,0 +1,10 @@
+{
+  "DIMENSIONS": [],
+  "DOCUMENTS": [],
+  "FACTORY_ID": "FACTORY_INPUT_REQUIRED",
+  "IDENTITY": "ProjectPackingStationEvidenceV1",
+  "MODULE_TEMPLATE": null,
+  "PROJECT_ID": "PROJECT_INPUT_REQUIRED",
+  "STRUCTURAL_EVIDENCE": null,
+  "VERSION": "project-packing-station-evidence@1.0.0"
+}
