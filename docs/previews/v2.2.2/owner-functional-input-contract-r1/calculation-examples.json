@@ -1,0 +1,218 @@
+{
+  "contract_version": "owner-factory-functional-inputs@1.0.0",
+  "equal_split_is_example_only": true,
+  "examples": [
+    {
+      "allocation_source": "Example author explicitly chooses 500+500, not a contract default",
+      "name": "EXPLICIT_EQUAL_1000_KG",
+      "output": {
+        "LOCKER_COUNT": 6,
+        "LOCKER_COUNT_UNIT": "independent_personal_lockers",
+        "LOCKER_INTERNAL_SEPARATION": true,
+        "OTHER_JOB_USERS_ADDED": 0,
+        "SHIFT_1_WORKERS": 3,
+        "SHIFT_2_WORKERS": 3,
+        "SHIFT_CHANGE_POLICY": "NON_OVERLAPPING",
+        "SIMULTANEOUS_CHANGING_USERS": 3,
+        "area_authority_m2": 40,
+        "contract_version": "owner-factory-functional-inputs@1.0.0",
+        "formulas": {
+          "lockers": "shift_1_workers + shift_2_workers",
+          "shift_workers": "ceil(shift_packaged_product_kg / (15 * 1.6 * 8))",
+          "simultaneous_changing": "max(shift_1_workers, shift_2_workers)"
+        },
+        "functional_space_pass": null,
+        "hygiene_privacy_compliance": "PROFESSIONAL_REVIEW_REQUIRED",
+        "input": {
+          "mass_basis": "PACKAGED_PRODUCT_MASS",
+          "mass_source": "SYNTHETIC_EXAMPLE_EXPLICIT_PACKAGED_PRODUCT_QUANTITIES",
+          "shift_1_packaging_kg": {
+            "denominator": 1,
+            "numerator": 500
+          },
+          "shift_2_packaging_kg": {
+            "denominator": 1,
+            "numerator": 500
+          }
+        },
+        "person_shift_capacity_kg": {
+          "denominator": 1,
+          "numerator": 192
+        },
+        "source_reference_verification": "REFERENCE_RECORDED_NOT_FILE_AUTHENTICATED",
+        "status": "OFFLINE_BUSINESS_CALCULATION_ONLY"
+      }
+    },
+    {
+      "allocation_source": "Example author explicitly chooses 800+200",
+      "name": "EXPLICIT_UNEQUAL_SAME_1000_KG",
+      "output": {
+        "LOCKER_COUNT": 7,
+        "LOCKER_COUNT_UNIT": "independent_personal_lockers",
+        "LOCKER_INTERNAL_SEPARATION": true,
+        "OTHER_JOB_USERS_ADDED": 0,
+        "SHIFT_1_WORKERS": 5,
+        "SHIFT_2_WORKERS": 2,
+        "SHIFT_CHANGE_POLICY": "NON_OVERLAPPING",
+        "SIMULTANEOUS_CHANGING_USERS": 5,
+        "area_authority_m2": 40,
+        "contract_version": "owner-factory-functional-inputs@1.0.0",
+        "formulas": {
+          "lockers": "shift_1_workers + shift_2_workers",
+          "shift_workers": "ceil(shift_packaged_product_kg / (15 * 1.6 * 8))",
+          "simultaneous_changing": "max(shift_1_workers, shift_2_workers)"
+        },
+        "functional_space_pass": null,
+        "hygiene_privacy_compliance": "PROFESSIONAL_REVIEW_REQUIRED",
+        "input": {
+          "mass_basis": "PACKAGED_PRODUCT_MASS",
+          "mass_source": "SYNTHETIC_EXAMPLE_EXPLICIT_PACKAGED_PRODUCT_QUANTITIES",
+          "shift_1_packaging_kg": {
+            "denominator": 1,
+            "numerator": 800
+          },
+          "shift_2_packaging_kg": {
+            "denominator": 1,
+            "numerator": 200
+          }
+        },
+        "person_shift_capacity_kg": {
+          "denominator": 1,
+          "numerator": 192
+        },
+        "source_reference_verification": "REFERENCE_RECORDED_NOT_FILE_AUTHENTICATED",
+        "status": "OFFLINE_BUSINESS_CALCULATION_ONLY"
+      }
+    },
+    {
+      "name": "SHIFT_ALLOCATION_MISSING",
+      "output": {
+        "missing_inputs": [
+          "SHIFT_1_PACKAGING_KG",
+          "SHIFT_2_PACKAGING_KG"
+        ],
+        "result": null,
+        "status": "OWNER_INPUT_REQUIRED"
+      }
+    },
+    {
+      "name": "RAW_MASS_NOT_CONVERTED",
+      "output": {
+        "missing_inputs": [
+          "PACKAGED_PRODUCT_MASS_BASIS_OR_VERIFIED_UPSTREAM_CONVERSION"
+        ],
+        "result": null,
+        "status": "OWNER_INPUT_REQUIRED"
+      }
+    },
+    {
+      "name": "PACKAGED_MASS_SOURCE_MISSING",
+      "output": {
+        "missing_inputs": [
+          "PACKAGING_PRODUCT_MASS_SOURCE"
+        ],
+        "result": null,
+        "status": "OWNER_INPUT_REQUIRED"
+      }
+    },
+    {
+      "name": "OFFICE_EXPLICIT_CLASSES",
+      "outputs": [
+        {
+          "OFFICE_DESIGN_STAFF": 12,
+          "OFFICE_STAFF_STATUS": "OWNER_CONFIRMED",
+          "area_authority_m2": 60,
+          "classification_thresholds": null,
+          "contract_version": "owner-factory-functional-inputs@1.0.0",
+          "factory_size": "SMALL",
+          "functional_space_pass": null,
+          "status": "OWNER_RULE_APPLIED_OFFLINE",
+          "unit": "people"
+        },
+        {
+          "OFFICE_DESIGN_STAFF": 20,
+          "OFFICE_STAFF_STATUS": "OWNER_CONFIRMED",
+          "area_authority_m2": 60,
+          "classification_thresholds": null,
+          "contract_version": "owner-factory-functional-inputs@1.0.0",
+          "factory_size": "MEDIUM",
+          "functional_space_pass": null,
+          "status": "OWNER_RULE_APPLIED_OFFLINE",
+          "unit": "people"
+        },
+        {
+          "OFFICE_DESIGN_STAFF": 30,
+          "OFFICE_STAFF_STATUS": "OWNER_CONFIRMED",
+          "area_authority_m2": 60,
+          "classification_thresholds": null,
+          "contract_version": "owner-factory-functional-inputs@1.0.0",
+          "factory_size": "LARGE",
+          "functional_space_pass": null,
+          "status": "OWNER_RULE_APPLIED_OFFLINE",
+          "unit": "people"
+        },
+        {
+          "OFFICE_STAFF_STATUS": "OWNER_INPUT_REQUIRED",
+          "missing_inputs": [
+            "EXPLICIT_FACTORY_SIZE"
+          ],
+          "result": null,
+          "status": "OWNER_INPUT_REQUIRED"
+        }
+      ]
+    },
+    {
+      "name": "FILM_ACTUAL_HALF_DESIGN_ALL",
+      "output": {
+        "ACTUAL_FILM_SEALING_RATIO": {
+          "denominator": 2,
+          "numerator": 1
+        },
+        "DESIGN_FILM_SEALING_RATIO": "1.0",
+        "EFFECTIVE_EQUIPMENT_RUNTIME_HOURS": {
+          "status": "OWNER_INPUT_REQUIRED",
+          "value": null
+        },
+        "EQUIPMENT_CAPACITY": {
+          "status": "UNAVAILABLE",
+          "value": null
+        },
+        "EQUIPMENT_COUNT": {
+          "status": "UNAVAILABLE",
+          "value": null
+        },
+        "EQUIPMENT_ENVELOPE": {
+          "status": "UNAVAILABLE",
+          "value": null
+        },
+        "EQUIPMENT_MODEL": {
+          "status": "UNAVAILABLE",
+          "value": null
+        },
+        "INDEPENDENT_BYPASS_ROOM_ASSUMED": false,
+        "NON_SEALING_PRODUCT_PASS_THROUGH_ALLOWED": true,
+        "PROCESS_TYPE": "PACKAGING_BOX_FILM_SEALING",
+        "ROOM_TYPE": "INDEPENDENT",
+        "actual_ratio_status": "PROJECT_SCENARIO_ONLY",
+        "area_authority_m2": 80,
+        "contract_version": "owner-factory-functional-inputs@1.0.0",
+        "design_load_kg": {
+          "denominator": 1,
+          "numerator": 1000
+        },
+        "functional_space_pass": null,
+        "mass_source": "SYNTHETIC_EXAMPLE_EXPLICIT_PACKAGED_PRODUCT_QUANTITIES",
+        "missing_inputs": [
+          "EQUIPMENT_SELECTION_AND_STATE_ENVELOPES",
+          "EFFECTIVE_EQUIPMENT_RUNTIME_HOURS"
+        ],
+        "source_reference_verification": "REFERENCE_RECORDED_NOT_FILE_AUTHENTICATED",
+        "status": "OWNER_RULE_RECORDED_EQUIPMENT_INPUT_REQUIRED"
+      }
+    }
+  ],
+  "identity": "OwnerFactoryFunctionalInputsV1",
+  "reference_head": "f1b284f94f153153c8b67d5eb963bc7378056aaa",
+  "status": "SYNTHETIC_EXAMPLES_NOT_REAL_FACTORY_INPUT",
+  "task": "V2_2_2_OWNER_FACTORY_FUNCTIONAL_INPUT_CONTRACT_R1"
+}
