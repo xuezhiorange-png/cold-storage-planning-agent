@@ -1,0 +1,1388 @@
+{
+  "task": "REAL_GUIDED_FAIR_MULTI_STRUCTURE_VALIDATION_02",
+  "execution_source_head": "953009a9b61cea818b0b9d37b15e2c9951a752a1",
+  "instruction_sha256": "b9e340edfc7993ec53031e56004d709c3c986c012a2109cc7a68fad7cdc9e47d",
+  "caps": {
+    "access_route_nodes": 20000,
+    "checked_solutions": 20,
+    "compositions_per_pool": 6,
+    "elapsed_seconds": 180,
+    "experiment_seconds": 180,
+    "joint_evaluations": 256,
+    "joint_events": 1024,
+    "joint_work": 8192,
+    "memory_mib": 512,
+    "observable_work": 1200000,
+    "placement_nodes": 60000,
+    "pools": 2,
+    "requirement_host_work": 20000,
+    "solver_seconds": 100,
+    "truck_nodes": 20000,
+    "workers": 1
+  },
+  "enumeration_contract": {
+    "checked_assignments_per_pool": 20,
+    "counted_candidates_per_handoff": 5,
+    "diversity_policy": "main-process-and-personnel-interface-organization@2.0.0",
+    "enumeration_policy": "stage-b-exact-physical-multi-solution@1.0.0",
+    "fair_search_policy_hash": "sha256:76acde3420a51c063af0cfc3f379bc49c8ad65579a7ea5da162a356d5af419d4",
+    "legacy_diversity_policy": "main-process-positive-edge-organization@1.0.0",
+    "native_call_limit": 100,
+    "version": "STAGE_B_REAL_FAIR_MULTI_STRUCTURE_VALIDATION_01_RESOURCE_V1"
+  },
+  "guidance_contract": {
+    "strict_base_infeasible_short_circuit": true,
+    "version": "STAGE_B_REAL_GUIDED_FAIR_VALIDATION_02_BINDING_V1",
+    "wall_guidance_policy": "stage-b-wall-coordinate-coherence-and-span@1.0.0",
+    "wall_guidance_policy_hash": "sha256:f2ff3fa48505e60fadcefe74fc41c69c5e41242eb7c381a0c91b30b9426dacf8"
+  },
+  "pool_reservations": {
+    "elapsed_target": 85.0,
+    "solver_target": 49.9,
+    "work_target": 600000
+  },
+  "modes": {
+    "main": {
+      "status": "BOUNDED_SCHEDULE_COMPLETE_TARGET_NOT_MET",
+      "scheduled": 6,
+      "native_started": 6,
+      "base_infeasible_short_circuited": 3,
+      "final_model_started": 3,
+      "physical_assignments": 10,
+      "hole_rejections": 4,
+      "engineering_valid_geometries": 6,
+      "distinct_physical_geometry_count": 6,
+      "v1_construction_count": 4,
+      "v2_meaningful_construction_count": 4,
+      "major_structural_family_count": 3,
+      "guidance_auxiliary_variables": 1740,
+      "guidance_additional_constraints": 1740,
+      "guidance_resource_events": {
+        "STAGE_B_WALL_GUIDANCE_DEFINITIONS": 3480,
+        "STAGE_B_WALL_GUIDANCE_INPUT": 144,
+        "STAGE_B_WALL_GUIDANCE_OBJECTIVE": 3
+      },
+      "native_call_count": 34,
+      "peak_rss_bytes": 213663744,
+      "native_host_work": 175715,
+      "native_requirement_max_host": 195,
+      "hole_rejection_rate": 0.4
+    },
+    "replay": {
+      "status": "BOUNDED_SCHEDULE_COMPLETE_TARGET_NOT_MET",
+      "scheduled": 6,
+      "native_started": 6,
+      "base_infeasible_short_circuited": 3,
+      "final_model_started": 3,
+      "physical_assignments": 11,
+      "hole_rejections": 5,
+      "engineering_valid_geometries": 6,
+      "distinct_physical_geometry_count": 6,
+      "v1_construction_count": 4,
+      "v2_meaningful_construction_count": 4,
+      "major_structural_family_count": 3,
+      "guidance_auxiliary_variables": 1740,
+      "guidance_additional_constraints": 1740,
+      "guidance_resource_events": {
+        "STAGE_B_WALL_GUIDANCE_DEFINITIONS": 3480,
+        "STAGE_B_WALL_GUIDANCE_INPUT": 144,
+        "STAGE_B_WALL_GUIDANCE_OBJECTIVE": 3
+      },
+      "native_call_count": 35,
+      "peak_rss_bytes": 243957760,
+      "native_host_work": 175715,
+      "native_requirement_max_host": 195,
+      "hole_rejection_rate": 0.45454545454545453
+    }
+  },
+  "totals": {
+    "candidate_validation_calls": 12,
+    "composition_calls": 12,
+    "elapsed_seconds": 132.2133106669644,
+    "native_calls": 69,
+    "native_solver_seconds": 99.47605438029859,
+    "observable_work": 757304,
+    "peak_rss_bytes": 243957760
+  },
+  "resource_compliance": true,
+  "handoffs": {
+    "main": [
+      {
+        "identity": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:X:NEGATIVE:r0",
+        "scheduled": true,
+        "native_started": true,
+        "base_infeasible_short_circuit": false,
+        "final_model_started": true,
+        "status": null,
+        "error": null,
+        "attempt_outcomes": [
+          "SEARCH_UNKNOWN_NOT_ACCEPTED"
+        ],
+        "native_seconds": 8.318987292062957,
+        "resources_before": {
+          "solver_seconds": 0,
+          "model_work": 0,
+          "native_host_work": 0,
+          "checked_solutions": 0,
+          "native_call_count": 0
+        },
+        "resources_after": {
+          "solver_seconds": 8.30865,
+          "model_work": 52908,
+          "native_host_work": 0,
+          "checked_solutions": 1,
+          "native_call_count": 6
+        },
+        "physical_assignments": 1,
+        "hole_rejections": 1,
+        "guidance_auxiliary_variables": 580,
+        "guidance_additional_constraints": 580,
+        "guidance_count_provenance": "STATIC_EXACT_12_ROOM_POLICY_FORMULA_2*(264+24+2)",
+        "v2_contributions": 0,
+        "engineering_valid_geometries": 0,
+        "major_families_in_handoff": 0,
+        "new_families_added": 0,
+        "native_call_count": 6,
+        "warmup_native_seconds": 2.680226834025234,
+        "final_native_seconds": 5.638760458037723,
+        "native_phase_statistics": [
+          {
+            "phase": "ALL_ROOM_GEOMETRY_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.24252200000000002,
+            "monotonic_wall_time": 0.2500316249788739,
+            "branches": 15701,
+            "conflicts": 2026
+          },
+          {
+            "phase": "ALL_ROOM_MUST_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.345905,
+            "monotonic_wall_time": 0.3460281669977121,
+            "branches": 21661,
+            "conflicts": 5499
+          },
+          {
+            "phase": "COMPOSITION_PACKAGING_HINT",
+            "solver_status": "UNKNOWN",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 1.039812,
+            "monotonic_wall_time": 1.0399568330030888,
+            "branches": 28989,
+            "conflicts": 7159
+          },
+          {
+            "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+            "solver_status": "UNKNOWN",
+            "variables": 27387,
+            "constraints": 38627,
+            "wall_time": 1.0438580000000002,
+            "monotonic_wall_time": 1.0442102090455592,
+            "branches": 8189,
+            "conflicts": 1
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39327,
+            "wall_time": 2.970349,
+            "monotonic_wall_time": 2.9712531249970198,
+            "branches": 1114673,
+            "conflicts": 202
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "UNKNOWN",
+            "variables": 27967,
+            "constraints": 39328,
+            "wall_time": 2.666204,
+            "monotonic_wall_time": 2.667507333040703,
+            "branches": 121232,
+            "conflicts": 114
+          }
+        ]
+      },
+      {
+        "identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:X:NEGATIVE:r0",
+        "scheduled": true,
+        "native_started": true,
+        "base_infeasible_short_circuit": true,
+        "final_model_started": false,
+        "status": null,
+        "error": null,
+        "attempt_outcomes": [
+          "BOUNDED_MODEL_UNSAT_NOT_PROJECT_INFEASIBLE"
+        ],
+        "native_seconds": 0.7110733760055155,
+        "resources_before": {
+          "solver_seconds": 8.30865,
+          "model_work": 52908,
+          "native_host_work": 0,
+          "checked_solutions": 1,
+          "native_call_count": 6
+        },
+        "resources_after": {
+          "solver_seconds": 9.019283,
+          "model_work": 53683,
+          "native_host_work": 0,
+          "checked_solutions": 1,
+          "native_call_count": 9
+        },
+        "physical_assignments": 0,
+        "hole_rejections": 0,
+        "guidance_auxiliary_variables": 0,
+        "guidance_additional_constraints": 0,
+        "guidance_count_provenance": "STATIC_EXACT_12_ROOM_POLICY_FORMULA_2*(264+24+2)",
+        "v2_contributions": 0,
+        "engineering_valid_geometries": 0,
+        "major_families_in_handoff": 0,
+        "new_families_added": 0,
+        "native_call_count": 3,
+        "warmup_native_seconds": 0.7110733760055155,
+        "final_native_seconds": 0,
+        "native_phase_statistics": [
+          {
+            "phase": "ALL_ROOM_GEOMETRY_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.19825700000000002,
+            "monotonic_wall_time": 0.1984103339491412,
+            "branches": 15701,
+            "conflicts": 2026
+          },
+          {
+            "phase": "ALL_ROOM_MUST_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.34103700000000003,
+            "monotonic_wall_time": 0.34117583400802687,
+            "branches": 21661,
+            "conflicts": 5499
+          },
+          {
+            "phase": "COMPOSITION_PACKAGING_HINT",
+            "solver_status": "INFEASIBLE",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.17133900000000002,
+            "monotonic_wall_time": 0.17148720804834738,
+            "branches": 7459,
+            "conflicts": 2250
+          }
+        ]
+      },
+      {
+        "identity": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:X:NEGATIVE:r0",
+        "scheduled": true,
+        "native_started": true,
+        "base_infeasible_short_circuit": true,
+        "final_model_started": false,
+        "status": null,
+        "error": null,
+        "attempt_outcomes": [
+          "BOUNDED_MODEL_UNSAT_NOT_PROJECT_INFEASIBLE"
+        ],
+        "native_seconds": 0.6301059999968857,
+        "resources_before": {
+          "solver_seconds": 9.019283,
+          "model_work": 53683,
+          "native_host_work": 0,
+          "checked_solutions": 1,
+          "native_call_count": 9
+        },
+        "resources_after": {
+          "solver_seconds": 9.648989,
+          "model_work": 54458,
+          "native_host_work": 0,
+          "checked_solutions": 1,
+          "native_call_count": 12
+        },
+        "physical_assignments": 0,
+        "hole_rejections": 0,
+        "guidance_auxiliary_variables": 0,
+        "guidance_additional_constraints": 0,
+        "guidance_count_provenance": "STATIC_EXACT_12_ROOM_POLICY_FORMULA_2*(264+24+2)",
+        "v2_contributions": 0,
+        "engineering_valid_geometries": 0,
+        "major_families_in_handoff": 0,
+        "new_families_added": 0,
+        "native_call_count": 3,
+        "warmup_native_seconds": 0.6301059999968857,
+        "final_native_seconds": 0,
+        "native_phase_statistics": [
+          {
+            "phase": "ALL_ROOM_GEOMETRY_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 893,
+            "wall_time": 0.20956000000000002,
+            "monotonic_wall_time": 0.20973254198906943,
+            "branches": 15701,
+            "conflicts": 2026
+          },
+          {
+            "phase": "ALL_ROOM_MUST_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 893,
+            "wall_time": 0.35347900000000004,
+            "monotonic_wall_time": 0.3536067500244826,
+            "branches": 21661,
+            "conflicts": 5499
+          },
+          {
+            "phase": "COMPOSITION_PACKAGING_HINT",
+            "solver_status": "INFEASIBLE",
+            "variables": 600,
+            "constraints": 893,
+            "wall_time": 0.066667,
+            "monotonic_wall_time": 0.06676670798333362,
+            "branches": 1763,
+            "conflicts": 513
+          }
+        ]
+      },
+      {
+        "identity": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:Y:POSITIVE:r1",
+        "scheduled": true,
+        "native_started": true,
+        "base_infeasible_short_circuit": true,
+        "final_model_started": false,
+        "status": null,
+        "error": null,
+        "attempt_outcomes": [
+          "BOUNDED_MODEL_UNSAT_NOT_PROJECT_INFEASIBLE"
+        ],
+        "native_seconds": 0.6020401250571012,
+        "resources_before": {
+          "solver_seconds": 9.648989,
+          "model_work": 54458,
+          "native_host_work": 0,
+          "checked_solutions": 1,
+          "native_call_count": 12
+        },
+        "resources_after": {
+          "solver_seconds": 10.250548,
+          "model_work": 55233,
+          "native_host_work": 0,
+          "checked_solutions": 1,
+          "native_call_count": 15
+        },
+        "physical_assignments": 0,
+        "hole_rejections": 0,
+        "guidance_auxiliary_variables": 0,
+        "guidance_additional_constraints": 0,
+        "guidance_count_provenance": "STATIC_EXACT_12_ROOM_POLICY_FORMULA_2*(264+24+2)",
+        "v2_contributions": 0,
+        "engineering_valid_geometries": 0,
+        "major_families_in_handoff": 0,
+        "new_families_added": 0,
+        "native_call_count": 3,
+        "warmup_native_seconds": 0.6020401250571012,
+        "final_native_seconds": 0,
+        "native_phase_statistics": [
+          {
+            "phase": "ALL_ROOM_GEOMETRY_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.178902,
+            "monotonic_wall_time": 0.17903204105095938,
+            "branches": 15701,
+            "conflicts": 2026
+          },
+          {
+            "phase": "ALL_ROOM_MUST_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.354712,
+            "monotonic_wall_time": 0.35492666700156406,
+            "branches": 21661,
+            "conflicts": 5499
+          },
+          {
+            "phase": "COMPOSITION_PACKAGING_HINT",
+            "solver_status": "INFEASIBLE",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.067945,
+            "monotonic_wall_time": 0.06808141700457782,
+            "branches": 2258,
+            "conflicts": 440
+          }
+        ]
+      },
+      {
+        "identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+        "scheduled": true,
+        "native_started": true,
+        "base_infeasible_short_circuit": false,
+        "final_model_started": true,
+        "status": null,
+        "error": null,
+        "attempt_outcomes": [
+          "CONSTRUCTION_ACCEPTED_NOT_P2D",
+          "SEARCH_UNKNOWN_NOT_ACCEPTED"
+        ],
+        "native_seconds": 19.825202503066976,
+        "resources_before": {
+          "solver_seconds": 10.250548,
+          "model_work": 55233,
+          "native_host_work": 0,
+          "checked_solutions": 1,
+          "native_call_count": 15
+        },
+        "resources_after": {
+          "solver_seconds": 30.069465,
+          "model_work": 105058,
+          "native_host_work": 30580,
+          "checked_solutions": 2,
+          "native_call_count": 21
+        },
+        "physical_assignments": 1,
+        "hole_rejections": 0,
+        "guidance_auxiliary_variables": 580,
+        "guidance_additional_constraints": 580,
+        "guidance_count_provenance": "STATIC_EXACT_12_ROOM_POLICY_FORMULA_2*(264+24+2)",
+        "v2_contributions": 1,
+        "engineering_valid_geometries": 1,
+        "major_families_in_handoff": 1,
+        "new_families_added": 1,
+        "native_call_count": 6,
+        "warmup_native_seconds": 4.941059002070688,
+        "final_native_seconds": 14.884143500996288,
+        "native_phase_statistics": [
+          {
+            "phase": "ALL_ROOM_GEOMETRY_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.166361,
+            "monotonic_wall_time": 0.16646345902699977,
+            "branches": 15701,
+            "conflicts": 2026
+          },
+          {
+            "phase": "ALL_ROOM_MUST_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.35243,
+            "monotonic_wall_time": 0.3525632090168074,
+            "branches": 21661,
+            "conflicts": 5499
+          },
+          {
+            "phase": "COMPOSITION_PACKAGING_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 1.9430310000000002,
+            "monotonic_wall_time": 1.943224583985284,
+            "branches": 176891,
+            "conflicts": 20421
+          },
+          {
+            "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+            "solver_status": "UNKNOWN",
+            "variables": 27387,
+            "constraints": 38627,
+            "wall_time": 2.4783380000000004,
+            "monotonic_wall_time": 2.4788077500415966,
+            "branches": 138942,
+            "conflicts": 5804
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39327,
+            "wall_time": 1.386676,
+            "monotonic_wall_time": 1.3874439170467667,
+            "branches": 96224,
+            "conflicts": 47
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "UNKNOWN",
+            "variables": 27967,
+            "constraints": 39328,
+            "wall_time": 13.492081,
+            "monotonic_wall_time": 13.496699583949521,
+            "branches": 11405763,
+            "conflicts": 1068
+          }
+        ]
+      },
+      {
+        "identity": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:Y:POSITIVE:r1",
+        "scheduled": true,
+        "native_started": true,
+        "base_infeasible_short_circuit": false,
+        "final_model_started": true,
+        "status": null,
+        "error": null,
+        "attempt_outcomes": [
+          "CONSTRUCTION_ACCEPTED_NOT_P2D",
+          "CONSTRUCTION_ACCEPTED_NOT_P2D",
+          "CONSTRUCTION_ACCEPTED_NOT_P2D",
+          "SAME_FUNCTIONAL_ORGANIZATION_NOT_COUNTED",
+          "SAME_FUNCTIONAL_ORGANIZATION_NOT_COUNTED",
+          "SEARCH_UNKNOWN_NOT_ACCEPTED"
+        ],
+        "native_seconds": 19.482267415965907,
+        "resources_before": {
+          "solver_seconds": 30.069465,
+          "model_work": 105058,
+          "native_host_work": 30580,
+          "checked_solutions": 2,
+          "native_call_count": 21
+        },
+        "resources_after": {
+          "solver_seconds": 49.54320299999999,
+          "model_work": 199939,
+          "native_host_work": 175715,
+          "checked_solutions": 10,
+          "native_call_count": 34
+        },
+        "physical_assignments": 8,
+        "hole_rejections": 3,
+        "guidance_auxiliary_variables": 580,
+        "guidance_additional_constraints": 580,
+        "guidance_count_provenance": "STATIC_EXACT_12_ROOM_POLICY_FORMULA_2*(264+24+2)",
+        "v2_contributions": 3,
+        "engineering_valid_geometries": 5,
+        "major_families_in_handoff": 3,
+        "new_families_added": 2,
+        "native_call_count": 13,
+        "warmup_native_seconds": 3.4496620839927346,
+        "final_native_seconds": 16.032605331973173,
+        "native_phase_statistics": [
+          {
+            "phase": "ALL_ROOM_GEOMETRY_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 893,
+            "wall_time": 0.164302,
+            "monotonic_wall_time": 0.1644737920141779,
+            "branches": 15701,
+            "conflicts": 2026
+          },
+          {
+            "phase": "ALL_ROOM_MUST_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 893,
+            "wall_time": 0.326247,
+            "monotonic_wall_time": 0.32635579199995846,
+            "branches": 21661,
+            "conflicts": 5499
+          },
+          {
+            "phase": "COMPOSITION_PACKAGING_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 893,
+            "wall_time": 0.480746,
+            "monotonic_wall_time": 0.4808937089983374,
+            "branches": 38245,
+            "conflicts": 3472
+          },
+          {
+            "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+            "solver_status": "UNKNOWN",
+            "variables": 27387,
+            "constraints": 38631,
+            "wall_time": 2.477484,
+            "monotonic_wall_time": 2.477938790980261,
+            "branches": 140487,
+            "conflicts": 3656
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39331,
+            "wall_time": 2.10378,
+            "monotonic_wall_time": 2.104603790969122,
+            "branches": 237648,
+            "conflicts": 239
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39332,
+            "wall_time": 2.6159790000000003,
+            "monotonic_wall_time": 2.6171335830003954,
+            "branches": 912152,
+            "conflicts": 206
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39333,
+            "wall_time": 1.377807,
+            "monotonic_wall_time": 1.3785999999963678,
+            "branches": 60496,
+            "conflicts": 26
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39334,
+            "wall_time": 1.3775840000000001,
+            "monotonic_wall_time": 1.378344415978063,
+            "branches": 57041,
+            "conflicts": 49
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39335,
+            "wall_time": 1.4261970000000002,
+            "monotonic_wall_time": 1.4273869580356404,
+            "branches": 57026,
+            "conflicts": 42
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39336,
+            "wall_time": 3.7213010000000004,
+            "monotonic_wall_time": 3.72252191696316,
+            "branches": 1894027,
+            "conflicts": 298
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39337,
+            "wall_time": 1.4450930000000002,
+            "monotonic_wall_time": 1.4458495000144467,
+            "branches": 57211,
+            "conflicts": 41
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39338,
+            "wall_time": 1.416061,
+            "monotonic_wall_time": 1.4168195420061238,
+            "branches": 57106,
+            "conflicts": 40
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "UNKNOWN",
+            "variables": 27967,
+            "constraints": 39339,
+            "wall_time": 0.541157,
+            "monotonic_wall_time": 0.5413456250098534,
+            "branches": 0,
+            "conflicts": 0
+          }
+        ]
+      }
+    ],
+    "replay": [
+      {
+        "identity": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:X:NEGATIVE:r0",
+        "scheduled": true,
+        "native_started": true,
+        "base_infeasible_short_circuit": false,
+        "final_model_started": true,
+        "status": null,
+        "error": null,
+        "attempt_outcomes": [
+          "SEARCH_UNKNOWN_NOT_ACCEPTED"
+        ],
+        "native_seconds": 8.002709667081945,
+        "resources_before": {
+          "solver_seconds": 0,
+          "model_work": 0,
+          "native_host_work": 0,
+          "checked_solutions": 0,
+          "native_call_count": 0
+        },
+        "resources_after": {
+          "solver_seconds": 8.000049,
+          "model_work": 58904,
+          "native_host_work": 0,
+          "checked_solutions": 2,
+          "native_call_count": 7
+        },
+        "physical_assignments": 2,
+        "hole_rejections": 2,
+        "guidance_auxiliary_variables": 580,
+        "guidance_additional_constraints": 580,
+        "guidance_count_provenance": "STATIC_EXACT_12_ROOM_POLICY_FORMULA_2*(264+24+2)",
+        "v2_contributions": 0,
+        "engineering_valid_geometries": 0,
+        "major_families_in_handoff": 0,
+        "new_families_added": 0,
+        "native_call_count": 7,
+        "warmup_native_seconds": 2.5671339170075953,
+        "final_native_seconds": 5.435575750074349,
+        "native_phase_statistics": [
+          {
+            "phase": "ALL_ROOM_GEOMETRY_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.155552,
+            "monotonic_wall_time": 0.1556766249705106,
+            "branches": 15701,
+            "conflicts": 2026
+          },
+          {
+            "phase": "ALL_ROOM_MUST_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.32684,
+            "monotonic_wall_time": 0.3269681250094436,
+            "branches": 21661,
+            "conflicts": 5499
+          },
+          {
+            "phase": "COMPOSITION_PACKAGING_HINT",
+            "solver_status": "UNKNOWN",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 1.0398960000000002,
+            "monotonic_wall_time": 1.040101875027176,
+            "branches": 30197,
+            "conflicts": 7461
+          },
+          {
+            "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+            "solver_status": "UNKNOWN",
+            "variables": 27387,
+            "constraints": 38627,
+            "wall_time": 1.0441070000000001,
+            "monotonic_wall_time": 1.044387292000465,
+            "branches": 35823,
+            "conflicts": 3
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39327,
+            "wall_time": 2.7994130000000004,
+            "monotonic_wall_time": 2.80042033304926,
+            "branches": 1114673,
+            "conflicts": 202
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39328,
+            "wall_time": 2.133096,
+            "monotonic_wall_time": 2.133850625017658,
+            "branches": 159548,
+            "conflicts": 151
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "UNKNOWN",
+            "variables": 27967,
+            "constraints": 39329,
+            "wall_time": 0.5011450000000001,
+            "monotonic_wall_time": 0.5013047920074314,
+            "branches": 0,
+            "conflicts": 0
+          }
+        ]
+      },
+      {
+        "identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:X:NEGATIVE:r0",
+        "scheduled": true,
+        "native_started": true,
+        "base_infeasible_short_circuit": true,
+        "final_model_started": false,
+        "status": null,
+        "error": null,
+        "attempt_outcomes": [
+          "BOUNDED_MODEL_UNSAT_NOT_PROJECT_INFEASIBLE"
+        ],
+        "native_seconds": 0.6213619589689188,
+        "resources_before": {
+          "solver_seconds": 8.000049,
+          "model_work": 58904,
+          "native_host_work": 0,
+          "checked_solutions": 2,
+          "native_call_count": 7
+        },
+        "resources_after": {
+          "solver_seconds": 8.621063,
+          "model_work": 59679,
+          "native_host_work": 0,
+          "checked_solutions": 2,
+          "native_call_count": 10
+        },
+        "physical_assignments": 0,
+        "hole_rejections": 0,
+        "guidance_auxiliary_variables": 0,
+        "guidance_additional_constraints": 0,
+        "guidance_count_provenance": "STATIC_EXACT_12_ROOM_POLICY_FORMULA_2*(264+24+2)",
+        "v2_contributions": 0,
+        "engineering_valid_geometries": 0,
+        "major_families_in_handoff": 0,
+        "new_families_added": 0,
+        "native_call_count": 3,
+        "warmup_native_seconds": 0.6213619589689188,
+        "final_native_seconds": 0,
+        "native_phase_statistics": [
+          {
+            "phase": "ALL_ROOM_GEOMETRY_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.156196,
+            "monotonic_wall_time": 0.15631466696504503,
+            "branches": 15701,
+            "conflicts": 2026
+          },
+          {
+            "phase": "ALL_ROOM_MUST_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.326861,
+            "monotonic_wall_time": 0.3269837920088321,
+            "branches": 21661,
+            "conflicts": 5499
+          },
+          {
+            "phase": "COMPOSITION_PACKAGING_HINT",
+            "solver_status": "INFEASIBLE",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.137957,
+            "monotonic_wall_time": 0.13806349999504164,
+            "branches": 7459,
+            "conflicts": 2250
+          }
+        ]
+      },
+      {
+        "identity": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:X:NEGATIVE:r0",
+        "scheduled": true,
+        "native_started": true,
+        "base_infeasible_short_circuit": true,
+        "final_model_started": false,
+        "status": null,
+        "error": null,
+        "attempt_outcomes": [
+          "BOUNDED_MODEL_UNSAT_NOT_PROJECT_INFEASIBLE"
+        ],
+        "native_seconds": 0.5549755409592763,
+        "resources_before": {
+          "solver_seconds": 8.621063,
+          "model_work": 59679,
+          "native_host_work": 0,
+          "checked_solutions": 2,
+          "native_call_count": 10
+        },
+        "resources_after": {
+          "solver_seconds": 9.175657999999999,
+          "model_work": 60454,
+          "native_host_work": 0,
+          "checked_solutions": 2,
+          "native_call_count": 13
+        },
+        "physical_assignments": 0,
+        "hole_rejections": 0,
+        "guidance_auxiliary_variables": 0,
+        "guidance_additional_constraints": 0,
+        "guidance_count_provenance": "STATIC_EXACT_12_ROOM_POLICY_FORMULA_2*(264+24+2)",
+        "v2_contributions": 0,
+        "engineering_valid_geometries": 0,
+        "major_families_in_handoff": 0,
+        "new_families_added": 0,
+        "native_call_count": 3,
+        "warmup_native_seconds": 0.5549755409592763,
+        "final_native_seconds": 0,
+        "native_phase_statistics": [
+          {
+            "phase": "ALL_ROOM_GEOMETRY_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 893,
+            "wall_time": 0.16044,
+            "monotonic_wall_time": 0.16057433298556134,
+            "branches": 15701,
+            "conflicts": 2026
+          },
+          {
+            "phase": "ALL_ROOM_MUST_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 893,
+            "wall_time": 0.336032,
+            "monotonic_wall_time": 0.33617520797997713,
+            "branches": 21661,
+            "conflicts": 5499
+          },
+          {
+            "phase": "COMPOSITION_PACKAGING_HINT",
+            "solver_status": "INFEASIBLE",
+            "variables": 600,
+            "constraints": 893,
+            "wall_time": 0.058123,
+            "monotonic_wall_time": 0.05822599999373779,
+            "branches": 1763,
+            "conflicts": 513
+          }
+        ]
+      },
+      {
+        "identity": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:Y:POSITIVE:r1",
+        "scheduled": true,
+        "native_started": true,
+        "base_infeasible_short_circuit": true,
+        "final_model_started": false,
+        "status": null,
+        "error": null,
+        "attempt_outcomes": [
+          "BOUNDED_MODEL_UNSAT_NOT_PROJECT_INFEASIBLE"
+        ],
+        "native_seconds": 0.5530495009734295,
+        "resources_before": {
+          "solver_seconds": 9.175657999999999,
+          "model_work": 60454,
+          "native_host_work": 0,
+          "checked_solutions": 2,
+          "native_call_count": 13
+        },
+        "resources_after": {
+          "solver_seconds": 9.728199,
+          "model_work": 61229,
+          "native_host_work": 0,
+          "checked_solutions": 2,
+          "native_call_count": 16
+        },
+        "physical_assignments": 0,
+        "hole_rejections": 0,
+        "guidance_auxiliary_variables": 0,
+        "guidance_additional_constraints": 0,
+        "guidance_count_provenance": "STATIC_EXACT_12_ROOM_POLICY_FORMULA_2*(264+24+2)",
+        "v2_contributions": 0,
+        "engineering_valid_geometries": 0,
+        "major_families_in_handoff": 0,
+        "new_families_added": 0,
+        "native_call_count": 3,
+        "warmup_native_seconds": 0.5530495009734295,
+        "final_native_seconds": 0,
+        "native_phase_statistics": [
+          {
+            "phase": "ALL_ROOM_GEOMETRY_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.164279,
+            "monotonic_wall_time": 0.16452449996722862,
+            "branches": 15701,
+            "conflicts": 2026
+          },
+          {
+            "phase": "ALL_ROOM_MUST_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.32503200000000004,
+            "monotonic_wall_time": 0.3251884590135887,
+            "branches": 21661,
+            "conflicts": 5499
+          },
+          {
+            "phase": "COMPOSITION_PACKAGING_HINT",
+            "solver_status": "INFEASIBLE",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.06323000000000001,
+            "monotonic_wall_time": 0.06333654199261218,
+            "branches": 2258,
+            "conflicts": 440
+          }
+        ]
+      },
+      {
+        "identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+        "scheduled": true,
+        "native_started": true,
+        "base_infeasible_short_circuit": false,
+        "final_model_started": true,
+        "status": null,
+        "error": null,
+        "attempt_outcomes": [
+          "CONSTRUCTION_ACCEPTED_NOT_P2D",
+          "SEARCH_UNKNOWN_NOT_ACCEPTED"
+        ],
+        "native_seconds": 20.086883251031395,
+        "resources_before": {
+          "solver_seconds": 9.728199,
+          "model_work": 61229,
+          "native_host_work": 0,
+          "checked_solutions": 2,
+          "native_call_count": 16
+        },
+        "resources_after": {
+          "solver_seconds": 29.811034000000003,
+          "model_work": 111054,
+          "native_host_work": 30580,
+          "checked_solutions": 3,
+          "native_call_count": 22
+        },
+        "physical_assignments": 1,
+        "hole_rejections": 0,
+        "guidance_auxiliary_variables": 580,
+        "guidance_additional_constraints": 580,
+        "guidance_count_provenance": "STATIC_EXACT_12_ROOM_POLICY_FORMULA_2*(264+24+2)",
+        "v2_contributions": 1,
+        "engineering_valid_geometries": 1,
+        "major_families_in_handoff": 1,
+        "new_families_added": 1,
+        "native_call_count": 6,
+        "warmup_native_seconds": 4.875131207983941,
+        "final_native_seconds": 15.211752043047454,
+        "native_phase_statistics": [
+          {
+            "phase": "ALL_ROOM_GEOMETRY_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.15596100000000002,
+            "monotonic_wall_time": 0.15606391697656363,
+            "branches": 15701,
+            "conflicts": 2026
+          },
+          {
+            "phase": "ALL_ROOM_MUST_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 0.32513800000000004,
+            "monotonic_wall_time": 0.3252647500485182,
+            "branches": 21661,
+            "conflicts": 5499
+          },
+          {
+            "phase": "COMPOSITION_PACKAGING_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 889,
+            "wall_time": 1.881636,
+            "monotonic_wall_time": 1.8818762499722652,
+            "branches": 176891,
+            "conflicts": 20421
+          },
+          {
+            "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+            "solver_status": "UNKNOWN",
+            "variables": 27387,
+            "constraints": 38627,
+            "wall_time": 2.511412,
+            "monotonic_wall_time": 2.511926290986594,
+            "branches": 138516,
+            "conflicts": 5633
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39327,
+            "wall_time": 1.4239950000000001,
+            "monotonic_wall_time": 1.4251927090226673,
+            "branches": 96224,
+            "conflicts": 47
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "UNKNOWN",
+            "variables": 27967,
+            "constraints": 39328,
+            "wall_time": 13.784693,
+            "monotonic_wall_time": 13.786559334024787,
+            "branches": 12193082,
+            "conflicts": 1111
+          }
+        ]
+      },
+      {
+        "identity": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:Y:POSITIVE:r1",
+        "scheduled": true,
+        "native_started": true,
+        "base_infeasible_short_circuit": false,
+        "final_model_started": true,
+        "status": null,
+        "error": null,
+        "attempt_outcomes": [
+          "CONSTRUCTION_ACCEPTED_NOT_P2D",
+          "CONSTRUCTION_ACCEPTED_NOT_P2D",
+          "CONSTRUCTION_ACCEPTED_NOT_P2D",
+          "SAME_FUNCTIONAL_ORGANIZATION_NOT_COUNTED",
+          "SAME_FUNCTIONAL_ORGANIZATION_NOT_COUNTED",
+          "SEARCH_UNKNOWN_NOT_ACCEPTED"
+        ],
+        "native_seconds": 20.087397749128286,
+        "resources_before": {
+          "solver_seconds": 29.811034000000003,
+          "model_work": 111054,
+          "native_host_work": 30580,
+          "checked_solutions": 3,
+          "native_call_count": 22
+        },
+        "resources_after": {
+          "solver_seconds": 49.890981000000004,
+          "model_work": 205935,
+          "native_host_work": 175715,
+          "checked_solutions": 11,
+          "native_call_count": 35
+        },
+        "physical_assignments": 8,
+        "hole_rejections": 3,
+        "guidance_auxiliary_variables": 580,
+        "guidance_additional_constraints": 580,
+        "guidance_count_provenance": "STATIC_EXACT_12_ROOM_POLICY_FORMULA_2*(264+24+2)",
+        "v2_contributions": 3,
+        "engineering_valid_geometries": 5,
+        "major_families_in_handoff": 3,
+        "new_families_added": 2,
+        "native_call_count": 13,
+        "warmup_native_seconds": 3.458683999022469,
+        "final_native_seconds": 16.628713750105817,
+        "native_phase_statistics": [
+          {
+            "phase": "ALL_ROOM_GEOMETRY_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 893,
+            "wall_time": 0.154613,
+            "monotonic_wall_time": 0.1547485829796642,
+            "branches": 15701,
+            "conflicts": 2026
+          },
+          {
+            "phase": "ALL_ROOM_MUST_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 893,
+            "wall_time": 0.32481200000000005,
+            "monotonic_wall_time": 0.32493925001472235,
+            "branches": 21661,
+            "conflicts": 5499
+          },
+          {
+            "phase": "COMPOSITION_PACKAGING_HINT",
+            "solver_status": "OPTIMAL",
+            "variables": 600,
+            "constraints": 893,
+            "wall_time": 0.467602,
+            "monotonic_wall_time": 0.4677420830121264,
+            "branches": 38245,
+            "conflicts": 3472
+          },
+          {
+            "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+            "solver_status": "UNKNOWN",
+            "variables": 27387,
+            "constraints": 38631,
+            "wall_time": 2.510972,
+            "monotonic_wall_time": 2.511254083015956,
+            "branches": 141534,
+            "conflicts": 4179
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39331,
+            "wall_time": 2.065882,
+            "monotonic_wall_time": 2.066654334019404,
+            "branches": 237648,
+            "conflicts": 239
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39332,
+            "wall_time": 2.5678870000000003,
+            "monotonic_wall_time": 2.5688202920136973,
+            "branches": 912152,
+            "conflicts": 206
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39333,
+            "wall_time": 1.3389460000000002,
+            "monotonic_wall_time": 1.3397595420246944,
+            "branches": 60496,
+            "conflicts": 26
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39334,
+            "wall_time": 1.370003,
+            "monotonic_wall_time": 1.370763375016395,
+            "branches": 57041,
+            "conflicts": 49
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39335,
+            "wall_time": 1.402767,
+            "monotonic_wall_time": 1.4034888750175014,
+            "branches": 57026,
+            "conflicts": 42
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39336,
+            "wall_time": 3.7029080000000003,
+            "monotonic_wall_time": 3.703742790967226,
+            "branches": 1894027,
+            "conflicts": 298
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39337,
+            "wall_time": 1.4187340000000002,
+            "monotonic_wall_time": 1.4195099170319736,
+            "branches": 57211,
+            "conflicts": 41
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "variables": 27967,
+            "constraints": 39338,
+            "wall_time": 1.430797,
+            "monotonic_wall_time": 1.4316666660015471,
+            "branches": 57106,
+            "conflicts": 40
+          },
+          {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "UNKNOWN",
+            "variables": 27967,
+            "constraints": 39339,
+            "wall_time": 1.324024,
+            "monotonic_wall_time": 1.324307958013378,
+            "branches": 38485,
+            "conflicts": 8
+          }
+        ]
+      }
+    ]
+  },
+  "determinism": {
+    "status": "PARTIAL_ACCEPTED_SET_PASS_REJECTED_TRACE_DIFF",
+    "accepted_candidate_set_and_native_geometry": "PASS_ACTUAL_PARTIAL_POOL",
+    "all_handoff_normalized_traces_equal": false,
+    "handoffs": [
+      {
+        "identity": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:X:NEGATIVE:r0",
+        "normalized_trace_equal": false,
+        "main_holes": 1,
+        "replay_holes": 2,
+        "common_cut_prefix_equal": true,
+        "outcomes_equal": true
+      },
+      {
+        "identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:X:NEGATIVE:r0",
+        "normalized_trace_equal": true,
+        "main_holes": 0,
+        "replay_holes": 0,
+        "common_cut_prefix_equal": true,
+        "outcomes_equal": true
+      },
+      {
+        "identity": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:X:NEGATIVE:r0",
+        "normalized_trace_equal": true,
+        "main_holes": 0,
+        "replay_holes": 0,
+        "common_cut_prefix_equal": true,
+        "outcomes_equal": true
+      },
+      {
+        "identity": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:Y:POSITIVE:r1",
+        "normalized_trace_equal": true,
+        "main_holes": 0,
+        "replay_holes": 0,
+        "common_cut_prefix_equal": true,
+        "outcomes_equal": true
+      },
+      {
+        "identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+        "normalized_trace_equal": true,
+        "main_holes": 0,
+        "replay_holes": 0,
+        "common_cut_prefix_equal": true,
+        "outcomes_equal": true
+      },
+      {
+        "identity": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:Y:POSITIVE:r1",
+        "normalized_trace_equal": true,
+        "main_holes": 3,
+        "replay_holes": 3,
+        "common_cut_prefix_equal": true,
+        "outcomes_equal": true
+      }
+    ],
+    "runner_comparison_excludes_rejected_witness_cuts": true,
+    "runner_raw_receipt_preserved": true,
+    "no_retry_authorized_or_executed": true
+  },
+  "cross_run_counts": {
+    "distinct_physical_geometry_count": 8,
+    "distinct_meaningful_construction_count": 6,
+    "major_structural_family_count": 4,
+    "p2d_full_pass_count": 0,
+    "replay_not_counted": true
+  },
+  "guidance_tagged_work_total": 7254,
+  "guidance_tagged_work_already_included_in_total": true,
+  "short_circuit_skipped_phase_calls": 12,
+  "short_circuit_net_time_saving_not_measured": true,
+  "historical_comparison_non_paired": true,
+  "stage_b_complete": false,
+  "p2d_full_pass_count": 0,
+  "p3_complete": false,
+  "version_complete": false,
+  "post_export_process_resource": {
+    "raw_ru_maxrss": 258801664,
+    "peak_rss_bytes": 258801664,
+    "includes_preflight_and_post_solver_export": true
+  },
+  "full_process_peak_rss_bytes": 258801664
+}
