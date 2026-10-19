@@ -1,0 +1,107 @@
+{
+  "CAPACITY_VALIDATED": false,
+  "CONFLICTS": [],
+  "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+  "FUNCTIONAL_FIT_STATUS": "GEOMETRY_CHECK_ONLY",
+  "FUNCTIONAL_ROOM_AREA": null,
+  "IDENTITY": "FunctionalRoomFitEvaluatorV1",
+  "MISSING_INPUTS": [],
+  "MODEL_ORIENTATION": "EXPLICIT_LOCAL_XY_NO_PLACEMENT_SEARCH",
+  "NO_FIT_PROOF_SCOPE": null,
+  "OFFICE_BUSINESS_INPUT": {
+    "OFFICE_DESIGN_STAFF": 12,
+    "OFFICE_STAFF_STATUS": "OWNER_CONFIRMED",
+    "area_authority_m2": 60,
+    "classification_thresholds": null,
+    "contract_version": "owner-factory-functional-inputs@1.0.0",
+    "factory_size": "SMALL",
+    "functional_space_pass": null,
+    "status": "OWNER_RULE_APPLIED_OFFLINE",
+    "unit": "people"
+  },
+  "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+  "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+  "ROOM_GEOMETRIC_AREA_MM2": 60000000,
+  "SOURCE_STATUS": "SYNTHETIC_TEST",
+  "STATE_RESULTS": {
+    "CLEANING": {
+      "BOUNDS_MM": [
+        0,
+        500,
+        10000,
+        5900
+      ],
+      "CONFLICTS": [],
+      "GEOMETRIC_UNION_AREA_MM2": 16820000,
+      "ROUTES": [
+        {
+          "FULL_WIDTH_GEOMETRY_CLEAR": true,
+          "ID": "inside_route",
+          "PORTAL_CONNECTION_PROVEN": true,
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED"
+        }
+      ],
+      "STATUS": "GEOMETRY_CHECK_ONLY"
+    },
+    "MAINTENANCE": {
+      "BOUNDS_MM": [
+        0,
+        500,
+        10000,
+        5900
+      ],
+      "CONFLICTS": [],
+      "GEOMETRIC_UNION_AREA_MM2": 16820000,
+      "ROUTES": [
+        {
+          "FULL_WIDTH_GEOMETRY_CLEAR": true,
+          "ID": "inside_route",
+          "PORTAL_CONNECTION_PROVEN": true,
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED"
+        }
+      ],
+      "STATUS": "GEOMETRY_CHECK_ONLY"
+    },
+    "NORMAL_OPERATION": {
+      "BOUNDS_MM": [
+        0,
+        500,
+        10000,
+        5100
+      ],
+      "CONFLICTS": [],
+      "GEOMETRIC_UNION_AREA_MM2": 18990000,
+      "ROUTES": [
+        {
+          "FULL_WIDTH_GEOMETRY_CLEAR": true,
+          "ID": "inside_route",
+          "PORTAL_CONNECTION_PROVEN": true,
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED"
+        }
+      ],
+      "STATUS": "GEOMETRY_CHECK_ONLY"
+    },
+    "SHIFT_CHANGE": {
+      "BOUNDS_MM": [
+        0,
+        500,
+        10000,
+        5100
+      ],
+      "CONFLICTS": [],
+      "GEOMETRIC_UNION_AREA_MM2": 13860000,
+      "ROUTES": [
+        {
+          "FULL_WIDTH_GEOMETRY_CLEAR": true,
+          "ID": "inside_route",
+          "PORTAL_CONNECTION_PROVEN": true,
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED"
+        }
+      ],
+      "STATUS": "GEOMETRY_CHECK_ONLY"
+    }
+  },
+  "TIME_SHARING_APPROVED": false,
+  "TIME_SHARING_STATUS": "ENGINEERING_REVIEW_REQUIRED_NOT_GRANTED_BY_INACTIVE_STATES",
+  "VERSION": "functional-room-fit@1.0.0"
+}

@@ -1,0 +1,186 @@
+{
+  "BOUND_TO_HISTORICAL_LAYOUT_STAFFING": false,
+  "CONDITIONAL_20T_PACKAGED_PRODUCT_EXAMPLE": {
+    "BUSINESS_POLICY_READY": true,
+    "P1_AREA_CALIBRATION_READY": false,
+    "P1_AUTHORITY_PASS": false,
+    "P1_PRODUCTION_ACTIVATED": false,
+    "allocation_mode": "DEFAULT_EQUAL_SPLIT",
+    "allocation_origin": "Owner V2 default ratios applied exactly to sourced daily product mass",
+    "allocation_source": {
+      "daily_mass_origin": "EXPLICIT_DAILY_INPUT",
+      "packaged_product_mass_source": {
+        "path": "default-20t-product-source.json",
+        "sha256": "1057e9ea827fb84dc65b5b48ef7bd7f8a7b635d007266e94ba5a2eb8fd7760c0"
+      },
+      "policy_version": "owner-factory-functional-inputs@2.0.0",
+      "project_override_source": null
+    },
+    "contract_version": "owner-factory-functional-inputs@2.0.0",
+    "engineering_review_required": [
+      "Shift-change cleaning and station availability/buffers",
+      "Office workstations and clear-space basis",
+      "Locker model, door sweep, operation, aisles and hygiene/privacy",
+      "Sealing equipment, runtime, all state envelopes and pass-through conflicts",
+      "Legacy packing area formula applicability to V2"
+    ],
+    "film_sealing": {
+      "ACTUAL_RATIO": {
+        "status": "PROJECT_DEPENDENT",
+        "value": null
+      },
+      "DESIGN_FILM_SEALING_RATIO": "1.0",
+      "EFFECTIVE_RUNTIME_HOURS": {
+        "status": "OWNER_INPUT_REQUIRED",
+        "value": null
+      },
+      "EQUIPMENT_CAPACITY": {
+        "status": "UNAVAILABLE",
+        "value": null
+      },
+      "EQUIPMENT_COUNT": {
+        "status": "UNAVAILABLE",
+        "value": null
+      },
+      "EQUIPMENT_ENVELOPE": {
+        "status": "UNAVAILABLE",
+        "value": null
+      },
+      "EQUIPMENT_MODEL": {
+        "status": "UNAVAILABLE",
+        "value": null
+      },
+      "NON_SEALING_PRODUCT_PASS_THROUGH_ALLOWED": true,
+      "PASS_THROUGH_USES_EQUIPMENT": false,
+      "SEPARATE_BYPASS_ROOM_ASSUMED": false,
+      "functional_area_m2": null,
+      "process_sequence": [
+        "SORTING_PACKAGING",
+        "SECONDARY_PRECOOLING",
+        "COATING_ROOM",
+        "FINISHED_GOODS"
+      ],
+      "process_type": "PACKAGING_BOX_FILM_SEALING",
+      "room_type": "INDEPENDENT",
+      "zone_code": "coating_room"
+    },
+    "hash_scope": "Offline V2 business result, never a production P1 canonical Hash or approval",
+    "identity": "OwnerFactoryFunctionalInputsV2",
+    "mass_source_verification": "LOCAL_CONTENT_MATCH_NOT_PROJECT_APPROVAL",
+    "office": {
+      "design_staff": null,
+      "factory_size": null,
+      "functional_area_m2": null,
+      "rule_version": "owner-factory-functional-inputs@2.0.0",
+      "size_thresholds": null,
+      "status": "OWNER_INPUT_REQUIRED"
+    },
+    "offline_result_sha256": "6287af8edc44db406c7ce7329ce7c1855179194b6cfb63b09c90792c8d7d12df",
+    "owner_rule_file_sha256": "7c6d37327e4a3819332937473a6c1a37b3b324b7405b995a9ab963397c08392c",
+    "person_shift_capacity_kg": {
+      "denominator": 1,
+      "numerator": 192
+    },
+    "production_p1_area_m2": null,
+    "quantities": {
+      "DAILY_PACKAGED_KG": {
+        "denominator": 1,
+        "numerator": 20000
+      },
+      "SHIFT_1_PACKAGING_KG": {
+        "denominator": 1,
+        "numerator": 10000
+      },
+      "SHIFT_2_PACKAGING_KG": {
+        "denominator": 1,
+        "numerator": 10000
+      },
+      "unit": "kg"
+    },
+    "request_identity": {
+      "period_id": "EXAMPLE_DAY",
+      "project_id": "SYNTHETIC_V2_ONLY"
+    },
+    "source_approval_status": "NOT_ESTABLISHED_BY_OFFLINE_FILE_BINDING",
+    "source_record": {
+      "daily_packaged_kg": "20000",
+      "mass_basis": "PACKAGED_PRODUCT_MASS",
+      "period_id": "EXAMPLE_DAY",
+      "project_id": "SYNTHETIC_V2_ONLY",
+      "scope": "SYNTHETIC_TEST_ONLY_NOT_PROJECT_APPROVAL",
+      "unit": "kg"
+    },
+    "staffing_and_tables": {
+      "LOCKER_COUNT": 106,
+      "LOCKER_INTERNAL_SEPARATION": true,
+      "LOCKER_SHARED_BETWEEN_SHIFTS": false,
+      "OTHER_JOB_STAFF_ADDED": 0,
+      "PACKING_TABLE_COUNT": 18,
+      "PEAK_WORKERS": 53,
+      "SHIFT_1_WORKERS": 53,
+      "SHIFT_2_WORKERS": 53,
+      "SIMULTANEOUS_CHANGING_USERS": 53,
+      "TABLE_SHARED_BETWEEN_SHIFTS": true,
+      "TOTAL_WORKERS": 106,
+      "WORKERS_PER_PACKING_TABLE": 3,
+      "n_actual_grid_cells": null
+    },
+    "status": "OFFLINE_V2_BUSINESS_CALCULATION_ONLY",
+    "unapproved_spatial_values": {
+      "aisle_clear_width_m": null,
+      "minimum_clear_width_m": null,
+      "minimum_functional_depth_m": null,
+      "new_functional_area_m2": {
+        "changing_room": null,
+        "coating_room": null,
+        "office": null
+      },
+      "status": "OWNER_INPUT_REQUIRED_OR_NUMERIC_CALIBRATION_NOT_APPROVED"
+    }
+  },
+  "OFFICE_CONDITIONAL_SCENARIOS": {
+    "LARGE": {
+      "OFFICE_DESIGN_STAFF": 30,
+      "OFFICE_STAFF_STATUS": "OWNER_CONFIRMED",
+      "area_authority_m2": 60,
+      "classification_thresholds": null,
+      "contract_version": "owner-factory-functional-inputs@1.0.0",
+      "factory_size": "LARGE",
+      "functional_space_pass": null,
+      "status": "OWNER_RULE_APPLIED_OFFLINE",
+      "unit": "people"
+    },
+    "MEDIUM": {
+      "OFFICE_DESIGN_STAFF": 20,
+      "OFFICE_STAFF_STATUS": "OWNER_CONFIRMED",
+      "area_authority_m2": 60,
+      "classification_thresholds": null,
+      "contract_version": "owner-factory-functional-inputs@1.0.0",
+      "factory_size": "MEDIUM",
+      "functional_space_pass": null,
+      "status": "OWNER_RULE_APPLIED_OFFLINE",
+      "unit": "people"
+    },
+    "SMALL": {
+      "OFFICE_DESIGN_STAFF": 12,
+      "OFFICE_STAFF_STATUS": "OWNER_CONFIRMED",
+      "area_authority_m2": 60,
+      "classification_thresholds": null,
+      "contract_version": "owner-factory-functional-inputs@1.0.0",
+      "factory_size": "SMALL",
+      "functional_space_pass": null,
+      "status": "OWNER_RULE_APPLIED_OFFLINE",
+      "unit": "people"
+    }
+  },
+  "PROJECT_STAFFING": null,
+  "UNKNOWN_FACTORY_SIZE": {
+    "OFFICE_STAFF_STATUS": "OWNER_INPUT_REQUIRED",
+    "missing_inputs": [
+      "EXPLICIT_FACTORY_SIZE"
+    ],
+    "result": null,
+    "status": "OWNER_INPUT_REQUIRED"
+  },
+  "VERSION": "owner-factory-functional-inputs@2.0.0"
+}

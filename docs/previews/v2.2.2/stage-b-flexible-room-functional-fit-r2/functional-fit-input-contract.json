@@ -1,0 +1,43 @@
+{
+  "BODY": "Active in all states; other envelopes explicitly state-bound",
+  "COMPONENT_ROLES": [
+    "AISLE",
+    "BODY",
+    "BUFFER",
+    "CHAIR",
+    "DOOR_SWEEP",
+    "OUTFEED",
+    "REACH",
+    "SERVICE",
+    "STANDING",
+    "SUPPLY"
+  ],
+  "COORDINATE_SYSTEM": "ROOM_LOCAL_XY_Y_UP",
+  "DIMENSION_UNIT": "integer mm",
+  "GEOMETRY_REUSE": "R1 transform_rect/intersection/covered/union_area/path_envelope",
+  "IDENTITY": "FunctionalRoomFitEvaluatorV1",
+  "MODELS": {
+    "changing_room": "ChangingRoomFunctionalModuleV1",
+    "coating_room": "FilmSealingRoomFunctionalModuleV1",
+    "office": "OfficeFunctionalModuleV1"
+  },
+  "NEW_HARD_AUTHORITY": false,
+  "NO_FIT_SCOPE": "Supplied configuration/orientation only; no search over alternatives",
+  "PORTAL": "Geometric connection is separate from door operation and professional review",
+  "PROJECT_ADMISSION": "Existing R2 review context supplied by trusted launcher, never request JSON",
+  "STATES": [
+    "NORMAL_OPERATION",
+    "SHIFT_CHANGE",
+    "CLEANING",
+    "MAINTENANCE"
+  ],
+  "STATUS_CLASSES": [
+    "INPUT_REQUIRED",
+    "CONDITIONAL_SCENARIO_NOT_FIT",
+    "HARD_GEOMETRY_CONFLICT",
+    "INTERACTION_REVIEW_REQUIRED",
+    "GEOMETRY_CHECK_ONLY"
+  ],
+  "TIME_SHARING": "Different active states alone do not approve sharing",
+  "VERSION": "functional-room-fit@1.0.0"
+}

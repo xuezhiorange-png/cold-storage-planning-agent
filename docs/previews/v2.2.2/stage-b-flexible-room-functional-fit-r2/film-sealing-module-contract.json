@@ -1,0 +1,30 @@
+{
+  "FORMAL_APPROVAL": false,
+  "IDENTITY": "FilmSealingRoomFunctionalModuleV1",
+  "PROCESS_TYPE": "PACKAGING_BOX_FILM_SEALING",
+  "REQUIRED_CONFIGURATION": [
+    "process_type",
+    "equipment_model",
+    "equipment_count",
+    "capacity",
+    "effective_runtime_hours",
+    "body_height_mm",
+    "infeed_direction",
+    "outfeed_direction",
+    "operator_tasks",
+    "product_buffer",
+    "finished_clear_bounds_mm",
+    "door_operation",
+    "shift_change_duration",
+    "cleaning_duration",
+    "maintenance_procedure"
+  ],
+  "SPATIAL_DEFAULTS": null,
+  "STATES": [
+    "NORMAL_OPERATION",
+    "SHIFT_CHANGE",
+    "CLEANING",
+    "MAINTENANCE"
+  ],
+  "ZONE_CODE": "coating_room"
+}

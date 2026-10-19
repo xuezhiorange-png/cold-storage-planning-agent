@@ -1,0 +1,991 @@
+{
+  "COMPONENTS": [
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        500,
+        500,
+        1500,
+        1100
+      ],
+      "ID": "desk_1",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        500,
+        1150,
+        1100,
+        1600
+      ],
+      "ID": "staff_1",
+      "ROLE": "STANDING",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        1150,
+        1150,
+        1500,
+        1600
+      ],
+      "ID": "chair_1",
+      "ROLE": "CHAIR",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        1900,
+        500,
+        2900,
+        1100
+      ],
+      "ID": "desk_2",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        1900,
+        1150,
+        2500,
+        1600
+      ],
+      "ID": "staff_2",
+      "ROLE": "STANDING",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        2550,
+        1150,
+        2900,
+        1600
+      ],
+      "ID": "chair_2",
+      "ROLE": "CHAIR",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        3300,
+        500,
+        4300,
+        1100
+      ],
+      "ID": "desk_3",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        3300,
+        1150,
+        3900,
+        1600
+      ],
+      "ID": "staff_3",
+      "ROLE": "STANDING",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        3950,
+        1150,
+        4300,
+        1600
+      ],
+      "ID": "chair_3",
+      "ROLE": "CHAIR",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        4700,
+        500,
+        5700,
+        1100
+      ],
+      "ID": "desk_4",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        4700,
+        1150,
+        5300,
+        1600
+      ],
+      "ID": "staff_4",
+      "ROLE": "STANDING",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        5350,
+        1150,
+        5700,
+        1600
+      ],
+      "ID": "chair_4",
+      "ROLE": "CHAIR",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        6100,
+        500,
+        7100,
+        1100
+      ],
+      "ID": "desk_5",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        6100,
+        1150,
+        6700,
+        1600
+      ],
+      "ID": "staff_5",
+      "ROLE": "STANDING",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        6750,
+        1150,
+        7100,
+        1600
+      ],
+      "ID": "chair_5",
+      "ROLE": "CHAIR",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        7500,
+        500,
+        8500,
+        1100
+      ],
+      "ID": "desk_6",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        7500,
+        1150,
+        8100,
+        1600
+      ],
+      "ID": "staff_6",
+      "ROLE": "STANDING",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        8150,
+        1150,
+        8500,
+        1600
+      ],
+      "ID": "chair_6",
+      "ROLE": "CHAIR",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        500,
+        2300,
+        1500,
+        2900
+      ],
+      "ID": "desk_7",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        500,
+        2950,
+        1100,
+        3400
+      ],
+      "ID": "staff_7",
+      "ROLE": "STANDING",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        1150,
+        2950,
+        1500,
+        3400
+      ],
+      "ID": "chair_7",
+      "ROLE": "CHAIR",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        1900,
+        2300,
+        2900,
+        2900
+      ],
+      "ID": "desk_8",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        1900,
+        2950,
+        2500,
+        3400
+      ],
+      "ID": "staff_8",
+      "ROLE": "STANDING",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        2550,
+        2950,
+        2900,
+        3400
+      ],
+      "ID": "chair_8",
+      "ROLE": "CHAIR",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        3300,
+        2300,
+        4300,
+        2900
+      ],
+      "ID": "desk_9",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        3300,
+        2950,
+        3900,
+        3400
+      ],
+      "ID": "staff_9",
+      "ROLE": "STANDING",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        3950,
+        2950,
+        4300,
+        3400
+      ],
+      "ID": "chair_9",
+      "ROLE": "CHAIR",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        4700,
+        2300,
+        5700,
+        2900
+      ],
+      "ID": "desk_10",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        4700,
+        2950,
+        5300,
+        3400
+      ],
+      "ID": "staff_10",
+      "ROLE": "STANDING",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        5350,
+        2950,
+        5700,
+        3400
+      ],
+      "ID": "chair_10",
+      "ROLE": "CHAIR",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        6100,
+        2300,
+        7100,
+        2900
+      ],
+      "ID": "desk_11",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        6100,
+        2950,
+        6700,
+        3400
+      ],
+      "ID": "staff_11",
+      "ROLE": "STANDING",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        6750,
+        2950,
+        7100,
+        3400
+      ],
+      "ID": "chair_11",
+      "ROLE": "CHAIR",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        7500,
+        2300,
+        8500,
+        2900
+      ],
+      "ID": "desk_12",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        7500,
+        2950,
+        8100,
+        3400
+      ],
+      "ID": "staff_12",
+      "ROLE": "STANDING",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        8150,
+        2950,
+        8500,
+        3400
+      ],
+      "ID": "chair_12",
+      "ROLE": "CHAIR",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        9000,
+        500,
+        9600,
+        1200
+      ],
+      "ID": "storage",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        0,
+        4500,
+        10000,
+        5100
+      ],
+      "ID": "personnel_aisle",
+      "ROLE": "AISLE",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        1000,
+        5500,
+        9000,
+        5900
+      ],
+      "ID": "service",
+      "ROLE": "SERVICE",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE"
+      ],
+      "BOUNDS_MM": [
+        0,
+        4100,
+        600,
+        4500
+      ],
+      "ID": "entry_sweep",
+      "ROLE": "DOOR_SWEEP",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "CONFIGURATION": {
+    "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+    "chair_movement": true,
+    "cleaning_duration": "SYNTHETIC_30_MIN_NOT_PROJECT_DEFAULT",
+    "design_staff": 12,
+    "door_operation": "SYNTHETIC_EXPLICIT_SWEEP_NOT_PROJECT_DOOR",
+    "factory_size": "SMALL",
+    "finished_clear_bounds_mm": [
+      0,
+      0,
+      10000,
+      6000
+    ],
+    "furniture_model": "SYNTHETIC_DESK_NOT_PROJECT_PRODUCT",
+    "maintenance_procedure": "SYNTHETIC_STOPPED_MACHINE_INSPECTION",
+    "necessary_functions": [
+      "SYNTHETIC_OFFICE_WORK"
+    ],
+    "shift_change_duration": "SYNTHETIC_20_MIN_NOT_PROJECT_DEFAULT",
+    "storage": true,
+    "workstations": 12
+  },
+  "COORDINATE_SYSTEM": "ROOM_LOCAL_XY_Y_UP",
+  "DIMENSION_UNIT": "mm",
+  "EXAMPLE_NAME": "office / specified geometry fits",
+  "IDENTITY": "FunctionalRoomFitEvaluatorV1",
+  "MODE": "SYNTHETIC_TEST",
+  "MODEL": "OfficeFunctionalModuleV1",
+  "MODEL_ORIENTATION": "EXPLICIT_LOCAL_XY_NO_PLACEMENT_SEARCH",
+  "PORTALS": [
+    {
+      "DOOR_SWING_STATUS": "SYNTHETIC_TEST_ONLY",
+      "ID": "entry",
+      "SEGMENT_MM": [
+        [
+          0,
+          4200
+        ],
+        [
+          0,
+          5400
+        ]
+      ],
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST"
+    },
+    {
+      "DOOR_SWING_STATUS": "SYNTHETIC_TEST_ONLY",
+      "ID": "exit",
+      "SEGMENT_MM": [
+        [
+          10000,
+          4200
+        ],
+        [
+          10000,
+          5400
+        ]
+      ],
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST"
+    }
+  ],
+  "PROJECT_ID": "SYNTHETIC_ROOM_TEST_ONLY",
+  "ROOM_BOUNDS_MM": [
+    0,
+    0,
+    10000,
+    6000
+  ],
+  "ROUTES": [
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "EXIT_PORTAL_ID": "exit",
+      "ID": "inside_route",
+      "KIND": "PERSONNEL",
+      "POINTS_MM": [
+        [
+          0,
+          4800
+        ],
+        [
+          10000,
+          4800
+        ]
+      ],
+      "PORTAL_ID": "entry",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "WIDTH_MM": 500
+    }
+  ],
+  "SOURCES": {
+    "SYNTHETIC_ROOM_TEST": {
+      "EVIDENCE_KIND": "SYNTHETIC_TEST_GEOMETRY",
+      "PATH": "office-positive-evidence.json",
+      "SHA256": "560570332ab1c195db3ef08d33466fa82a876112a66483e8dfd9464c8246a007"
+    }
+  },
+  "VERSION": "functional-room-fit@1.0.0",
+  "ZONE_CODE": "office"
+}

@@ -1,0 +1,153 @@
+{
+  "CAPACITY_VALIDATED": false,
+  "CONFLICTS": [
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "service"
+      ],
+      "STATE": "CLEANING"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "service"
+      ],
+      "STATE": "MAINTENANCE"
+    }
+  ],
+  "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+  "FUNCTIONAL_FIT_STATUS": "CONDITIONAL_SCENARIO_NOT_FIT",
+  "FUNCTIONAL_ROOM_AREA": null,
+  "IDENTITY": "FunctionalRoomFitEvaluatorV1",
+  "MISSING_INPUTS": [],
+  "MODEL_ORIENTATION": "EXPLICIT_LOCAL_XY_NO_PLACEMENT_SEARCH",
+  "NO_FIT_PROOF_SCOPE": "SUPPLIED_CONFIGURATION_AND_ORIENTATION_ONLY_NOT_ALL_ROOM_USES",
+  "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+  "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+  "ROOM_GEOMETRIC_AREA_MM2": 60000000,
+  "SOURCE_STATUS": "SYNTHETIC_TEST",
+  "STATE_RESULTS": {
+    "CLEANING": {
+      "BOUNDS_MM": [
+        0,
+        1800,
+        10000,
+        5900
+      ],
+      "CONFLICTS": [
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "service"
+          ]
+        }
+      ],
+      "GEOMETRIC_UNION_AREA_MM2": 14000000,
+      "ROUTES": [
+        {
+          "FULL_WIDTH_GEOMETRY_CLEAR": true,
+          "ID": "inside_route",
+          "PORTAL_CONNECTION_PROVEN": true,
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED"
+        },
+        {
+          "FULL_WIDTH_GEOMETRY_CLEAR": true,
+          "ID": "non_film_route",
+          "PORTAL_CONNECTION_PROVEN": true,
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED"
+        }
+      ],
+      "STATUS": "HARD_GEOMETRY_CONFLICT"
+    },
+    "MAINTENANCE": {
+      "BOUNDS_MM": [
+        0,
+        1800,
+        10000,
+        5900
+      ],
+      "CONFLICTS": [
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "service"
+          ]
+        }
+      ],
+      "GEOMETRIC_UNION_AREA_MM2": 14000000,
+      "ROUTES": [
+        {
+          "FULL_WIDTH_GEOMETRY_CLEAR": true,
+          "ID": "inside_route",
+          "PORTAL_CONNECTION_PROVEN": true,
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED"
+        },
+        {
+          "FULL_WIDTH_GEOMETRY_CLEAR": true,
+          "ID": "non_film_route",
+          "PORTAL_CONNECTION_PROVEN": true,
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED"
+        }
+      ],
+      "STATUS": "HARD_GEOMETRY_CONFLICT"
+    },
+    "NORMAL_OPERATION": {
+      "BOUNDS_MM": [
+        0,
+        800,
+        10000,
+        5100
+      ],
+      "CONFLICTS": [],
+      "GEOMETRIC_UNION_AREA_MM2": 16330000,
+      "ROUTES": [
+        {
+          "FULL_WIDTH_GEOMETRY_CLEAR": true,
+          "ID": "inside_route",
+          "PORTAL_CONNECTION_PROVEN": true,
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED"
+        },
+        {
+          "FULL_WIDTH_GEOMETRY_CLEAR": true,
+          "ID": "non_film_route",
+          "PORTAL_CONNECTION_PROVEN": true,
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED"
+        }
+      ],
+      "STATUS": "GEOMETRY_CHECK_ONLY"
+    },
+    "SHIFT_CHANGE": {
+      "BOUNDS_MM": [
+        0,
+        1800,
+        10000,
+        5100
+      ],
+      "CONFLICTS": [],
+      "GEOMETRIC_UNION_AREA_MM2": 11040000,
+      "ROUTES": [
+        {
+          "FULL_WIDTH_GEOMETRY_CLEAR": true,
+          "ID": "inside_route",
+          "PORTAL_CONNECTION_PROVEN": true,
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED"
+        },
+        {
+          "FULL_WIDTH_GEOMETRY_CLEAR": true,
+          "ID": "non_film_route",
+          "PORTAL_CONNECTION_PROVEN": true,
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED"
+        }
+      ],
+      "STATUS": "GEOMETRY_CHECK_ONLY"
+    }
+  },
+  "TIME_SHARING_APPROVED": false,
+  "TIME_SHARING_STATUS": "ENGINEERING_REVIEW_REQUIRED_NOT_GRANTED_BY_INACTIVE_STATES",
+  "VERSION": "functional-room-fit@1.0.0"
+}

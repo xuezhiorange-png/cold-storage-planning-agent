@@ -1,0 +1,29 @@
+{
+  "FORMAL_APPROVAL": false,
+  "IDENTITY": "ChangingRoomFunctionalModuleV1",
+  "PROCESS_TYPE": null,
+  "REQUIRED_CONFIGURATION": [
+    "locker_count",
+    "simultaneous_users",
+    "locker_model",
+    "locker_unit_mm",
+    "arrangement",
+    "door_sweep",
+    "bench",
+    "clothing_separation",
+    "hygiene_facilities",
+    "finished_clear_bounds_mm",
+    "door_operation",
+    "shift_change_duration",
+    "cleaning_duration",
+    "maintenance_procedure"
+  ],
+  "SPATIAL_DEFAULTS": null,
+  "STATES": [
+    "NORMAL_OPERATION",
+    "SHIFT_CHANGE",
+    "CLEANING",
+    "MAINTENANCE"
+  ],
+  "ZONE_CODE": "changing_room"
+}
