@@ -1,0 +1,52 @@
+{
+  "approval_boundary": "Public product dimensions are examples, never approved project equipment or universal room limits.",
+  "catalogue_only_scope": [
+    "S02: current cold-store catalogue metadata, not full technical numeric clauses",
+    "S03: current office standard catalogue and chapter metadata, not numeric clauses"
+  ],
+  "method": "Primary publisher pages and public PDFs; selected PDF pages extracted and visually checked. No full standards or manuals redistributed.",
+  "owner_instruction_sha256": "b5eb73820716a102c9b6e900502f6c396e7b5003de47637a0a49cc6056060cf9",
+  "pdfs": [
+    {
+      "downloaded_bytes_sha256": "07ac0b616a8b4d6a426e039ed852f33fea1e8c67c3daac4600bc2a1031bf8209",
+      "pdf_pages_text_checked_one_based": [
+        1,
+        5,
+        7,
+        8
+      ],
+      "pdf_pages_visually_checked_one_based": [
+        7
+      ],
+      "source_id": "S01",
+      "source_url": "https://www.jiyang.gov.cn/resources/public/20260527/6a16b7c6122a6678fef32fe9.pdf"
+    },
+    {
+      "downloaded_bytes_sha256": "238f74b6115b5ba4c468f3a205c544b43945b5e80ddc37926b010edadd1cf81e",
+      "pdf_pages_text_checked_one_based": [
+        11
+      ],
+      "pdf_pages_visually_checked_one_based": [
+        11
+      ],
+      "source_id": "S06",
+      "source_url": "https://store.bisley.de/wp-content/uploads/bisley-_most_wanted.pdf"
+    },
+    {
+      "downloaded_bytes_sha256": "ccc6c89338f194e45aea035000a1a53146e469f81fddcd7221a53ce361328151",
+      "pdf_pages_text_checked_one_based": [
+        20,
+        29,
+        32
+      ],
+      "pdf_pages_visually_checked_one_based": [
+        20,
+        29
+      ],
+      "source_id": "S09",
+      "source_url": "https://robopacusa.com/wp-content/uploads/2020/05/EcoPlat-Plus-User-Manual.pdf"
+    }
+  ],
+  "review_date": "2026-10-19",
+  "source_files_not_redistributed": true
+}

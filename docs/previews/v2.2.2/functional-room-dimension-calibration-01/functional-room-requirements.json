@@ -1,0 +1,167 @@
+{
+  "changing_room": {
+    "calibration_status": "NUMERIC_CALIBRATION_NOT_READY",
+    "condition_for_hard": "Applicable requirement plus verified project inputs, dimension basis and Owner approval; separate solver-consumption implementation required",
+    "current_area_authority_m2": "40",
+    "current_area_basis": "GEOMETRIC_RECTANGLE; clear/axis/gross basis not specified",
+    "current_authority": {
+      "area_requirement": {
+        "exact_authority": null,
+        "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+        "reported_required_area_m2": "40",
+        "reporting_projection": null
+      },
+      "aspect_ratio_bounds": null,
+      "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+      "dimension_authority_identity": "charles-flexible-changing_room@1.0.0",
+      "dimension_mode": "FLEXIBLE_RECTANGLE",
+      "grid_m": "0.001",
+      "max_depth_m": null,
+      "max_width_m": null,
+      "min_depth_m": null,
+      "min_width_m": null,
+      "orientation_constraints": [],
+      "p2_may_change_required_area": false,
+      "p2_may_select_width_depth": true,
+      "personnel_portal_authorized": false,
+      "required_area_m2": "40",
+      "required_connection_edges": [],
+      "rotation_allowed": [
+        0,
+        90
+      ],
+      "source_zone_hash": "sha256:031176f917fc7596d93c38a4eef15bbd488e4ec20633f3095dd2b57f6454b2fb",
+      "status": "FLEXIBLE_AUTHORIZED",
+      "zone_code": "changing_room"
+    },
+    "formal_threshold_approved": false,
+    "functional_minimum_depth_m": null,
+    "functional_minimum_short_side_m": null,
+    "if_missing": "OWNER_INPUT_REQUIRED / NUMERIC_CALIBRATION_NOT_READY; no new functional PASS",
+    "missing_inputs": [
+      "PEAK_SHIFT_COUNT",
+      "SIMULTANEOUS_CHANGE_COUNT",
+      "STORAGE_USERS",
+      "LOCKER_MODEL_AND_COUNT",
+      "CLEAN_DIRTY_CLOTHING_POLICY",
+      "DOOR_SWEEP",
+      "FRONT_SERVICE_ZONE",
+      "BENCH_AND_AISLE",
+      "HYGIENE_FUNCTIONS"
+    ],
+    "reasonable_exceptions": "Purposeful line-shaped room or site-constrained form may be acceptable only with evidenced functional envelopes and all existing engineering validation; no aspect-only rejection",
+    "recommended_aspect_ratio_range": null,
+    "staff_count": null,
+    "status": "OWNER_INPUT_REQUIRED"
+  },
+  "coating_room": {
+    "calibration_status": "NUMERIC_CALIBRATION_NOT_READY",
+    "condition_for_hard": "Applicable requirement plus verified project inputs, dimension basis and Owner approval; separate solver-consumption implementation required",
+    "current_area_authority_m2": "80",
+    "current_area_basis": "GEOMETRIC_RECTANGLE; clear/axis/gross basis not specified",
+    "current_authority": {
+      "area_requirement": {
+        "exact_authority": null,
+        "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+        "reported_required_area_m2": "80",
+        "reporting_projection": null
+      },
+      "aspect_ratio_bounds": null,
+      "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+      "dimension_authority_identity": "charles-flexible-coating_room@1.0.0",
+      "dimension_mode": "FLEXIBLE_RECTANGLE",
+      "grid_m": "0.001",
+      "max_depth_m": null,
+      "max_width_m": null,
+      "min_depth_m": null,
+      "min_width_m": null,
+      "orientation_constraints": [],
+      "p2_may_change_required_area": false,
+      "p2_may_select_width_depth": true,
+      "personnel_portal_authorized": false,
+      "required_area_m2": "80",
+      "required_connection_edges": [],
+      "rotation_allowed": [
+        0,
+        90
+      ],
+      "source_zone_hash": "sha256:28c0092bf2860b056ab0ac80119d3e40b00bb6955ab15c5083f9d24e79db86ee",
+      "status": "FLEXIBLE_AUTHORIZED",
+      "zone_code": "coating_room"
+    },
+    "formal_threshold_approved": false,
+    "functional_minimum_depth_m": null,
+    "functional_minimum_short_side_m": null,
+    "if_missing": "OWNER_INPUT_REQUIRED / NUMERIC_CALIBRATION_NOT_READY; no new functional PASS",
+    "missing_inputs": [
+      "COATING_PROCESS_TYPE",
+      "OPERATOR_COUNT_AND_SHIFTS",
+      "PRODUCT_AND_PACKAGE",
+      "EQUIPMENT_MODELS_AND_COUNT",
+      "CAPACITY_AND_LINE",
+      "INSTALLATION_REVISION",
+      "OPERATION_ENVELOPE",
+      "MAINTENANCE_ENVELOPE",
+      "MATERIAL_FLOW_ENVELOPE",
+      "PORTAL_ENDPOINTS",
+      "HEIGHT_UTILITIES"
+    ],
+    "reasonable_exceptions": "Purposeful line-shaped room or site-constrained form may be acceptable only with evidenced functional envelopes and all existing engineering validation; no aspect-only rejection",
+    "recommended_aspect_ratio_range": null,
+    "staff_count": null,
+    "status": "OWNER_INPUT_REQUIRED"
+  },
+  "office": {
+    "calibration_status": "NUMERIC_CALIBRATION_NOT_READY",
+    "condition_for_hard": "Applicable requirement plus verified project inputs, dimension basis and Owner approval; separate solver-consumption implementation required",
+    "current_area_authority_m2": "60",
+    "current_area_basis": "GEOMETRIC_RECTANGLE; clear/axis/gross basis not specified",
+    "current_authority": {
+      "area_requirement": {
+        "exact_authority": null,
+        "reported_area_source_identity": "cold_room_zone_plan@1.0.0:required_area_m2",
+        "reported_required_area_m2": "60",
+        "reporting_projection": null
+      },
+      "aspect_ratio_bounds": null,
+      "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+      "dimension_authority_identity": "charles-flexible-office@1.0.0",
+      "dimension_mode": "FLEXIBLE_RECTANGLE",
+      "grid_m": "0.001",
+      "max_depth_m": null,
+      "max_width_m": null,
+      "min_depth_m": null,
+      "min_width_m": null,
+      "orientation_constraints": [],
+      "p2_may_change_required_area": false,
+      "p2_may_select_width_depth": true,
+      "personnel_portal_authorized": false,
+      "required_area_m2": "60",
+      "required_connection_edges": [],
+      "rotation_allowed": [
+        0,
+        90
+      ],
+      "source_zone_hash": "sha256:2e38495f1e9162cb2d90b96dae93d854b16600645d642de9c3baf4ffad21e821",
+      "status": "FLEXIBLE_AUTHORIZED",
+      "zone_code": "office"
+    },
+    "formal_threshold_approved": false,
+    "functional_minimum_depth_m": null,
+    "functional_minimum_short_side_m": null,
+    "if_missing": "OWNER_INPUT_REQUIRED / NUMERIC_CALIBRATION_NOT_READY; no new functional PASS",
+    "missing_inputs": [
+      "STAFF_COUNT",
+      "FURNITURE_SELECTION",
+      "CHAIR_AND_PULLBACK_ENVELOPE",
+      "PASSAGE",
+      "DOORS_WINDOWS",
+      "WALLS_COLUMNS",
+      "MEETING_OR_DUTY_USE"
+    ],
+    "reasonable_exceptions": "Purposeful line-shaped room or site-constrained form may be acceptable only with evidenced functional envelopes and all existing engineering validation; no aspect-only rejection",
+    "recommended_aspect_ratio_range": null,
+    "staff_count": null,
+    "status": "OWNER_INPUT_REQUIRED"
+  }
+}

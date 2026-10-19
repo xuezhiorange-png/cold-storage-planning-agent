@@ -1,0 +1,22 @@
+{
+  "files": {
+    "README.md": "1a1c07b63e3c2cadf7471fb9749a0638bbc347c0b83aa5eefe56d9bc3e0d74e9",
+    "baseline-integrity.json": "8a92f2725db8fb5f6321e27a6b0a703041265acd25fa7c591a9ae47fa24886b9",
+    "calibrate.py": "393d33eb8194049a7f14a226c51fe77b89f2ae4c322eee130736c17c2732d868",
+    "code-audit.json": "16c1039b0f3a42632a2baf194a7172fbe26ba6159771ec95797a5026832ed6d3",
+    "dimension-calibration-proposal.json": "1a7484f3660c08b89bbacfbc2e283f3d7aff74cb162397ce6b73bf39b7ce4ec9",
+    "engineering-sources.json": "7d110a1311144e14450621276b13dd8c465d1b8f7417d8b982f3cce73d461a36",
+    "existing-layout-impact.csv": "4ee26570f8bd5d01bccb1114e77a2f4688eb73b9b807de919e7ee88f7c0a73a4",
+    "existing-layout-impact.json": "2595326fd0adcaf2a4670d4a845940162872dd66296495b2e6853a5931a5e955",
+    "functional-room-requirements.json": "926e28b00ebb0c19026a9292b70f10f02e8b565c0324f386e9aba8167318c4ee",
+    "owner-decision-matrix.md": "e68bfb8c1b128d8cad3a0d5a7b2d29f04d1cb7c96c3d3629157b155d8036d979",
+    "p1-cpsat-consumption-design.md": "c4abd3ed747ddb967bbc798f282ba3407e06796c8ce957f77ca5b0ad41ab1790",
+    "render_review.py": "5550c1d1c25fdb638d71542bc89e58046b55e50c7b65efc09116dedfaceaa68f",
+    "research-verification.json": "9e5e091f9354c6037e0f8e7d5b582f03b90e1de74e61ed7f46945db68c016810",
+    "test_calibrate.py": "0ff956b27d02f89a365d17a952e377101fa32aac4edd8d4133084cc0a5537f41",
+    "validation.json": "262a52a99781404fbec48719576f3e06fcff630059544365e2cbc751746a6a5f"
+  },
+  "reference_head": "78f42b3956d3569e5a887fb578ce5e773275cc5b",
+  "self_exclusion": "This manifest excludes its own bytes to avoid a circular digest.",
+  "task": "REVIEW_FUNCTIONAL_ROOM_DIMENSION_CALIBRATION_01"
+}

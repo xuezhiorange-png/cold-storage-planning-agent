@@ -1,0 +1,256 @@
+{
+  "baseline_and_inspected_source_hashes": "PASS",
+  "deterministic_regeneration": "PASS",
+  "existing_contract_tests": {
+    "cases": [
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_canonical_hybrid_and_unchanged_eight",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_canonical_hybrid_and_unchanged_eight",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_flexible_has_no_fake_geometry[coating_room]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_flexible_has_no_fake_geometry[coating_room]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_flexible_has_no_fake_geometry[changing_room]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_flexible_has_no_fake_geometry[changing_room]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_flexible_has_no_fake_geometry[office]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_flexible_has_no_fake_geometry[office]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_mutable_copy_cannot_override_canonical_authority[area]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_mutable_copy_cannot_override_canonical_authority[area]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_mutable_copy_cannot_override_canonical_authority[resize]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_mutable_copy_cannot_override_canonical_authority[resize]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_mutable_copy_cannot_override_canonical_authority[geometry]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_mutable_copy_cannot_override_canonical_authority[geometry]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_mutable_copy_cannot_override_canonical_authority[flexible_width]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_mutable_copy_cannot_override_canonical_authority[flexible_width]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_connection_is_neither_extra_flow_nor_shared_edge_requirement",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_connection_is_neither_extra_flow_nor_shared_edge_requirement",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_packaging_integer_search_and_aisle_not_added[1-10]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_packaging_integer_search_and_aisle_not_added[1-10]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_packaging_integer_search_and_aisle_not_added[2-20]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_packaging_integer_search_and_aisle_not_added[2-20]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_packaging_integer_search_and_aisle_not_added[3-20]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_packaging_integer_search_and_aisle_not_added[3-20]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_packaging_integer_search_and_aisle_not_added[7-40]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_packaging_integer_search_and_aisle_not_added[7-40]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_packaging_integer_search_and_aisle_not_added[67-250.85]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_packaging_integer_search_and_aisle_not_added[67-250.85]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_invalid_packaging_count_fails_closed[None]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_invalid_packaging_count_fails_closed[None]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_invalid_packaging_count_fails_closed[True]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_invalid_packaging_count_fails_closed[True]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_invalid_packaging_count_fails_closed[0]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_invalid_packaging_count_fails_closed[0]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_invalid_packaging_count_fails_closed[-1]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_invalid_packaging_count_fails_closed[-1]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_invalid_packaging_count_fails_closed[67]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_invalid_packaging_count_fails_closed[67]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_invalid_packaging_count_fails_closed[1.5]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_invalid_packaging_count_fails_closed[1.5]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_invalid_packaging_count_fails_closed[10001]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_invalid_packaging_count_fails_closed[10001]",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_packaging_resource_block_does_not_block_flexible_or_guess_count",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_packaging_resource_block_does_not_block_flexible_or_guess_count",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_20t_rotation_and_independent_exact_area_optimum",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_20t_rotation_and_independent_exact_area_optimum",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_no_epsilon_or_additive_aisle_rounding",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_no_epsilon_or_additive_aisle_rounding",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.architecture.test_v22_p1d3_hybrid_handoff",
+        "name": "test_scope_immutable_introducing_commit_or_precommit_candidate",
+        "node_id": "backend/tests/architecture/test_v22_p1d3_hybrid_handoff.py::test_scope_immutable_introducing_commit_or_precommit_candidate",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.architecture.test_v22_p1d3_hybrid_handoff",
+        "name": "test_hybrid_contract_not_p2_implementation",
+        "node_id": "backend/tests/architecture/test_v22_p1d3_hybrid_handoff.py::test_hybrid_contract_not_p2_implementation",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_p0c_is_limited_to_offline_evidence_docs_and_tests",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_p0c_is_limited_to_offline_evidence_docs_and_tests",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_release_and_layout_runtime_are_unchanged",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_release_and_layout_runtime_are_unchanged",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_five_references_and_one_negative_are_non_authoritative",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_five_references_and_one_negative_are_non_authoritative",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_outline_classifier_and_metric_unavailability_are_explicit",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_outline_classifier_and_metric_unavailability_are_explicit",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_structural_and_numeric_entry_are_separate_and_no_release_authority",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_structural_and_numeric_entry_are_separate_and_no_release_authority",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_overlay_pack_contains_five_viewable_pngs_without_original_pdf_assets",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_overlay_pack_contains_five_viewable_pngs_without_original_pdf_assets",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_owner_review_closure_preserves_historical_abstractions",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_owner_review_closure_preserves_historical_abstractions",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_gd003_alignment_correction_is_isolated_from_other_owner_reviewed_overlays",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_gd003_alignment_correction_is_isolated_from_other_owner_reviewed_overlays",
+        "status": "PASS"
+      },
+      {
+        "classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_owner_accepted_gd004_and_gd005_abstractions_and_pngs_are_unchanged",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_owner_accepted_gd004_and_gd005_abstractions_and_pngs_are_unchanged",
+        "status": "PASS"
+      }
+    ],
+    "failed": 0,
+    "junit_sha256": "9fbdadacbe6b225e633fea15c1988427b1f00782d32ce668982eb6d44a32c5c3",
+    "passed": 35,
+    "warning_note": "Existing PyMuPDF/SWIG deprecation warnings",
+    "warnings": 5
+  },
+  "full_backend": "NOT_EXECUTED_NOT_REQUIRED_FOR_OFFLINE_ONLY_SCOPE",
+  "native_solver_calls": 0,
+  "new_offline_tests": {
+    "failed": 0,
+    "log_sha256": "f1fca4acaf89cdf1c292a6c07dd14155f22e7fe2d24d281b005c96293697d3ad",
+    "passed": 16
+  },
+  "owner_grant_created": false,
+  "production_constraint_tests": "NOT_IMPLEMENTED_THIS_TASK_DESIGN_ONLY",
+  "quality_checks": {
+    "diff_check": {
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "PASS"
+    },
+    "format": {
+      "exit_code": 0,
+      "log_sha256": "eee76f865de5a9f2456950f710ae5d5f9b5bd0ea02aa54f614c5eed6642a0bfd",
+      "status": "PASS"
+    },
+    "mypy": {
+      "exit_code": 0,
+      "log_sha256": "8228fcc5ce46d42d01caf3cd941f4e9c5f2bcc372bb5b147a2f0572d2dd675a8",
+      "status": "PASS"
+    },
+    "ruff": {
+      "exit_code": 0,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "status": "PASS"
+    }
+  },
+  "real_factory_solves": 0,
+  "scope": "Offline research scripts and existing P1/P0C contracts only"
+}

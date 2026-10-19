@@ -1,0 +1,56 @@
+{
+  "A_to_G": {
+    "A": "Retain existing60/40/80m2 authority; clarify area reference before deriving net needs",
+    "B": "Minimum short side is derived from an approved functional arrangement, not a default scalar",
+    "C": "Minimum local depth depends on chosen arrangement/orientation and actual envelopes",
+    "D": "Recommended aspect range UNAVAILABLE pending comparable positive functional cases",
+    "E": "Equipment/personnel/door/column/hygiene arrangement must actually fit",
+    "F": "Evidence-backed long line or irregular-site solutions remain admissible; no beauty-only gate",
+    "G": "Missing inputs return OWNER_INPUT_REQUIRED; source unverified returns UNVERIFIED; no PASS"
+  },
+  "calibration_status": "NUMERIC_CALIBRATION_NOT_READY",
+  "changing_room": {
+    "formula": "units=ceil(storage_users/slots_per_unit); columns=ceil(units/rows); L_clear >= columns*locker_width+2*end_space; W_clear >= rows*locker_depth+front_service_zone+bench+independent_aisle",
+    "front_service_zone": "Project envelope for door movement, changing users and any approved sharing. Never use max() to assume simultaneous overlap safe. Peak shift, stored-clothes users and simultaneous users are different inputs.",
+    "source_ids": [
+      "S01",
+      "S06",
+      "S10",
+      "S11"
+    ]
+  },
+  "coating_room": {
+    "condition": "All sets project-bound in a common local frame; absence is not an empty envelope. Assess both states; overlap/shutdown assumptions need explicit approval.",
+    "maintenance": "U_equipment union U_maintenance union U_material_flow_if_that_state_requires_it",
+    "normal": "U_equipment union U_operation union U_material_flow",
+    "selected_process_or_model": null,
+    "source_ids": [
+      "S01",
+      "S07",
+      "S08",
+      "S09",
+      "S11"
+    ]
+  },
+  "formal_thresholds_frozen": false,
+  "hypothetical_screening_counts": {
+    "double_opposing_500mm_lockers_furniture_alone_impossible": 2,
+    "scope": "Only two Changing rooms under the explicitly unselected S06 scenario; not project rejection or calibration"
+  },
+  "numeric_calibration_ready": false,
+  "office": {
+    "N_staff": null,
+    "conditions": "Separate non-overlapping user/passage lanes assumed; different actual furniture layouts need their own envelope, not this module as a universal hard bound",
+    "formula": "W_clear >= rows*(desk_depth + user_zone) + independent_aisle + side_storage; L_clear >= ceil(N_staff/rows)*desk_width +2*end_space",
+    "source_ids": [
+      "S03",
+      "S05",
+      "S10",
+      "S11"
+    ]
+  },
+  "status": "ENGINEERING_PROPOSAL_NOT_APPROVED_NOT_IMPLEMENTED",
+  "universal_minimum_width_m": null,
+  "universal_recommended_aspect_ratio": null,
+  "version": "functional-room-conditional-screening@1.0.0"
+}

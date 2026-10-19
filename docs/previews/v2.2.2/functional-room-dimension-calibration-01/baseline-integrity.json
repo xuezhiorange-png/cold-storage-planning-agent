@@ -1,0 +1,21 @@
+{
+  "all_source_projections_match_sealed_manifest": true,
+  "baseline_reference_head": "78f42b3956d3569e5a887fb578ce5e773275cc5b",
+  "files": {
+    "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/facts.json": "8f70fab5c887632e05082f9f2498abb64b026adfa1ee815be07907bf8e76437a",
+    "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/inputs/guided-candidate-01.json": "a726b9f7199a10bc4d51f502f989ecc81c15fbeedf8b4bbea2216bac20b45c18",
+    "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/inputs/guided-candidate-02.json": "7d4ce460f298bb79505a52dd65ad5ff7c518caca5fc449bd48fcb2399271eeb3",
+    "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/inputs/guided-candidate-03.json": "df1b211a135e974a83f0e6ed491fbc333b1b5bb3140e020336b41e00101413ac",
+    "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/inputs/guided-candidate-04.json": "ab71056f4a00c5baa3c77687541bc4f8d5851a80a9ccdfabfadbb6d98c907f46",
+    "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/inputs/guided-candidate-05.json": "69875f14e4481fa804368db2acf264aa9a4f293b904027be49aa925dd0f63431",
+    "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/inputs/guided-candidate-06.json": "7800318d9306cc697b2d659a51cc1b069fe1eba9eb3b0a78848780b99a056c8e",
+    "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/inputs/historical-candidate-01.json": "790f2e7b698a8da1b4a222e1c86c5b45ec4b85d27ccf4018537b9344cb10960e",
+    "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/inputs/historical-candidate-02.json": "79f70eb778f82b6c79525776c9a2ffdb501edaeda896012772487290488de0b9",
+    "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/inputs/server_authorities.json": "8c01595a66899aa372225669d33da2f302976f335b597dd66a36f332ed5dd3dd",
+    "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/rooms.csv": "3d8191aee0090a19505a65b1e8cf22a28a504ad8ffac3abf4d90e8cccfa2c36f",
+    "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/source_manifest.json": "b0432814a870e824fca7d91df580e50bf33fae83da5471ec4c386c3f887b6e24",
+    "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/sources.json": "5e616effe7d7f484987dc30f9112cc6a3194533b06569438868e7a7c452d4cc2"
+  },
+  "no_source_geometries_edited": true,
+  "source_count": 8
+}
