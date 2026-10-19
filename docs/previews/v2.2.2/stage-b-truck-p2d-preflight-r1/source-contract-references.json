@@ -1,0 +1,92 @@
+[
+  {
+    "line": 91,
+    "path": "docs/tasks/V2_2-P1F-project-truck-input-and-p1-closure.md",
+    "quote": "本验证器不读取资料，不核验摘要与文件内容，也不认证提供方，因此",
+    "source_sha256": "f8c354db0a0a85f61cc656c37f2cf588a2d3a6d01b9b025c42f560b13de7a6d0"
+  },
+  {
+    "line": 114,
+    "path": "docs/tasks/V2_2-P2B1-truck-maneuver-template-contract.md",
+    "quote": "binds only the maneuvers actually needed by a later candidate; no project is",
+    "source_sha256": "4210bae5cfad0cde850c427856abc3993e6242a2d7de2b6291e29b62fb269050"
+  },
+  {
+    "line": 93,
+    "path": "docs/tasks/V2_2-P2D-access-routing-and-truck-validation.md",
+    "quote": "continuity. The first entry must be on the supplied truck entrance segment and",
+    "source_sha256": "9c56735717e7ee7801cfd0467a69a37e2c14bf019d7a479581a30e859bf46c11"
+  },
+  {
+    "line": 35,
+    "path": "docs/tasks/V2_2_2-R13-parameterized-truck-preview.md",
+    "quote": "| `entrance.locator_segment` | Reference-point search segment, not clear opening width |",
+    "source_sha256": "9f82614448f8f1e4759d93443863ee14587fe83be814f61bbdff44f477d98acb"
+  },
+  {
+    "line": 112,
+    "path": "docs/tasks/V2_2-P2A-site-geometry-foundation.md",
+    "quote": "Entrances are positive-length segments whose entire segment lies on the site",
+    "source_sha256": "6495276fc2be96cce172900a2de22744677c3f1c28322a37cbf4cc15a6d52111"
+  },
+  {
+    "line": 65,
+    "path": "backend/src/cold_storage/modules/layout/domain/project_truck_input.py",
+    "quote": "\"evidence_contents_verified\": False,",
+    "source_sha256": "9bc44541577c25e9048cb5dadf3b74e0c1b7117cd918ddae561792eaedee5ef8"
+  },
+  {
+    "line": 1292,
+    "path": "backend/src/cold_storage/modules/layout/domain/truck_maneuver.py",
+    "quote": "def validate_truck_maneuver_project_binding(",
+    "source_sha256": "b489eb082bd967512621e56ccc14980d56cd9a82da1d45266aaf78f876cedbfa"
+  },
+  {
+    "line": 76,
+    "path": "backend/src/cold_storage/modules/layout/domain/truck_parameter_input.py",
+    "quote": "def _evidence(payload: Mapping[str, Any], references: Mapping[str, str]) -> dict[str, Any]:",
+    "source_sha256": "97884d519ba21cd6978aee3f9517cc5f6596c2d8cf813b15b8dff36c74d411b6"
+  },
+  {
+    "line": 270,
+    "path": "backend/src/cold_storage/modules/layout/domain/truck_parameter_input.py",
+    "quote": "result = routing.validate_truck_maneuver_chain(",
+    "source_sha256": "97884d519ba21cd6978aee3f9517cc5f6596c2d8cf813b15b8dff36c74d411b6"
+  },
+  {
+    "line": 1395,
+    "path": "backend/src/cold_storage/modules/layout/domain/access_routing.py",
+    "quote": "if binding is None:",
+    "source_sha256": "a56cafd7a69cd3c0e356a806384cc1425ddbe956a2f3d42c56c647e379e3734f"
+  },
+  {
+    "line": 1461,
+    "path": "backend/src/cold_storage/modules/layout/domain/access_routing.py",
+    "quote": "desired_entries = _segment_lattice_points(truck_entrance)",
+    "source_sha256": "a56cafd7a69cd3c0e356a806384cc1425ddbe956a2f3d42c56c647e379e3734f"
+  },
+  {
+    "line": 151,
+    "path": "backend/src/cold_storage/modules/layout/application/access_routing.py",
+    "quote": "def _validate_selected_loading_face(",
+    "source_sha256": "64a31ec98772fbb83c5ce1f4df1cc53fcf7247ac960cc755e7391102c1131166"
+  },
+  {
+    "line": 751,
+    "path": "backend/src/cold_storage/modules/layout/application/global_composition_solver.py",
+    "quote": "application = route_site_placement(",
+    "source_sha256": "038196480a3954bffa7de10e5860eb4ee57b29e28628123742b768c7326c8ab9"
+  },
+  {
+    "line": 238,
+    "path": "backend/src/cold_storage/modules/layout/application/site_geometry.py",
+    "quote": "truck = normalize_segment(site[\"truck_entrance\"], error_code=\"INVALID_ENTRANCE\")",
+    "source_sha256": "ae07100494b128a69710bc01b93bfc4f9e4c38ba66e51193e1ab1ee0a0945347"
+  },
+  {
+    "line": 402,
+    "path": "backend/src/cold_storage/modules/layout/application/site_geometry.py",
+    "quote": "\"truck_entrance\": segment_to_dict(truck),",
+    "source_sha256": "ae07100494b128a69710bc01b93bfc4f9e4c38ba66e51193e1ab1ee0a0945347"
+  }
+]

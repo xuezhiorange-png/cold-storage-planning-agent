@@ -1,0 +1,24 @@
+{
+  "files": {
+    "README.md": "3b28924bd8132087f3255a829cb3b902a90cc3d4100ee38fe1e53b2a138f30a6",
+    "build_preflight_evidence.py": "70d7cb031e2294b2b3f955df7475225671c3212209f00b7687681d7ab541f20b",
+    "eight-candidate-preflight.json": "c352a931a04c08a09a638bf9952d0e4667425c6116d2546be46e1845ff2a6ffa",
+    "eight-candidate-truck-status.json": "fed08f7d323ef1150226619645edcdf7427267f8c398f0e042be38e613dbe0c0",
+    "historical-evidence-integrity.json": "367ab8315b0b10ff0c11d4d7f089a53c61ea4147704d5c0664cd47f0572e136a",
+    "offline_stage_b_truck_preflight.py": "319b961352a063a52911b4fdfe76441b79b3e8dab4e9a2ffb2f84adafde3135a",
+    "project-truck-information-request.md": "b84f7e457f7fa51ac097c55ef02c5ece4c7bb79ca4701075ad26866278311ef0",
+    "reference-truck-contract-audit.json": "b6c63ddfd321e0367f4d03aed5360b8aca9a3ecd94f4052fe5c4df97c0f68f07",
+    "source-contract-references.json": "c1db597d755440eb728d8226ca20dab871a2565c226fa782c9416836be88a103",
+    "test_stage_b_truck_preflight.py": "972a7873e811d1d72a6a799d95825fd1b56d21deebce78a1b84659cf95fa164d",
+    "truck-entrance-semantic-audit.md": "5acbd349eb5449cce7b15289ac694789539e57da0265021ff208100da4184f91",
+    "truck-evidence-index.json": "cd2d4cc6499b9dd3ecc4dbeca925c51de4e806753246dbe7467e9db44dda358f",
+    "truck-p2d-admission-contract.json": "de454aafb4d0b886b93034d4e3e0af60ed9cee78c0a70110f84739d24b880a16",
+    "truck-project-input-gap-matrix.json": "d5519bea28c5404f05890903995c01d484e131895b639f3180f261f5f308024a",
+    "truck-site-loading-face-matrix.json": "44a2f3b5b5bd7eb1fd928e94fac9373442562846599cb5144294e3fd82920868",
+    "validation.json": "1661108b9133185df4c1eda54464656aef35abb8611c41e13d079bf91f91d239",
+    "validator-reuse-boundaries.md": "ba22f8b8371e430980f3f9c08e7520488820d606eba5ada2a674f49e22dfbd5a"
+  },
+  "reference_head": "64537de0c8fe146277bbb28d9b995dfc27ab3ba3",
+  "self_excluded": true,
+  "task": "V2_2_2_STAGE_B_TRUCK_P2D_INPUT_ADMISSION_PREFLIGHT_R1"
+}

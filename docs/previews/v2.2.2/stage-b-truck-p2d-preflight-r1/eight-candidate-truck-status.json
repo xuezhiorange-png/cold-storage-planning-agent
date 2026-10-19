@@ -1,0 +1,202 @@
+{
+  "ACTUAL_STAGE_B_NULL_BINDINGS": 8,
+  "CANDIDATES": [
+    {
+      "HISTORICAL_TRUCK_STATE": "PROJECT_INPUT_BLOCKED",
+      "candidate_id": "multi-solution-validation-01/candidate-01",
+      "geometry_hash": "sha256:48c48e4514a812132c2bdec1f2863f1c62162ccb5c95fe366ab7aa84ee439525",
+      "must_pass_count": 7,
+      "non_truck_access_pass_count": 11,
+      "p2_complete": false,
+      "source_application_hash": "sha256:c6f2316251caa3c6505b91be652c9bb5e5588124296f7cf1551c9944ee581fa8",
+      "source_p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+      "source_truck_maneuver_binding_hash": null,
+      "truck_route_codes": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED"
+      ],
+      "truck_route_status": "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+      "truck_search_provenance": {
+        "node_budget": 20000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": false,
+        "template_reuse_allowed": false,
+        "visited_nodes": 0
+      },
+      "zone_count": 12
+    },
+    {
+      "HISTORICAL_TRUCK_STATE": "PROJECT_INPUT_BLOCKED",
+      "candidate_id": "multi-solution-validation-01/candidate-02",
+      "geometry_hash": "sha256:01dc0a46e213c7e92071ca1d88d7482d7cf829cd2411965ef3a323d1ca9095be",
+      "must_pass_count": 7,
+      "non_truck_access_pass_count": 11,
+      "p2_complete": false,
+      "source_application_hash": "sha256:84cfe6c8224928739993ccda150578f87cdd7c526990a91c9f3d520052bdffd9",
+      "source_p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+      "source_truck_maneuver_binding_hash": null,
+      "truck_route_codes": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED"
+      ],
+      "truck_route_status": "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+      "truck_search_provenance": {
+        "node_budget": 20000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": false,
+        "template_reuse_allowed": false,
+        "visited_nodes": 0
+      },
+      "zone_count": 12
+    },
+    {
+      "HISTORICAL_TRUCK_STATE": "PROJECT_INPUT_BLOCKED",
+      "candidate_id": "guided-fair-validation-02/candidate-01",
+      "geometry_hash": "sha256:a8873398fbf9fa257dc6c4633b7e0137e4f16fc85f4b42aeaa5d9ba1d82736d6",
+      "must_pass_count": 7,
+      "non_truck_access_pass_count": 11,
+      "p2_complete": false,
+      "source_application_hash": "sha256:b805c1392e2398ad21ce1c4dd44a7831e005cb3f0feb21c3b35bfcc28d0af8b6",
+      "source_p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+      "source_truck_maneuver_binding_hash": null,
+      "truck_route_codes": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED"
+      ],
+      "truck_route_status": "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+      "truck_search_provenance": {
+        "node_budget": 20000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": false,
+        "template_reuse_allowed": false,
+        "visited_nodes": 0
+      },
+      "zone_count": 12
+    },
+    {
+      "HISTORICAL_TRUCK_STATE": "PROJECT_INPUT_BLOCKED",
+      "candidate_id": "guided-fair-validation-02/candidate-02",
+      "geometry_hash": "sha256:b60a8b043353ec2aed3bd26f71791c1e5f11e8041ae98ceb0fbdfdd75e2c60ae",
+      "must_pass_count": 7,
+      "non_truck_access_pass_count": 11,
+      "p2_complete": false,
+      "source_application_hash": "sha256:b398d8671b695ff0ca2e86758ca57ebdc151f56e7e8a44eac116277d885117ad",
+      "source_p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+      "source_truck_maneuver_binding_hash": null,
+      "truck_route_codes": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED"
+      ],
+      "truck_route_status": "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+      "truck_search_provenance": {
+        "node_budget": 20000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": false,
+        "template_reuse_allowed": false,
+        "visited_nodes": 0
+      },
+      "zone_count": 12
+    },
+    {
+      "HISTORICAL_TRUCK_STATE": "PROJECT_INPUT_BLOCKED",
+      "candidate_id": "guided-fair-validation-02/candidate-03",
+      "geometry_hash": "sha256:77b1023e62b8877f07df81a6c90c8455af249848a2cc604c92685ac7872658fb",
+      "must_pass_count": 7,
+      "non_truck_access_pass_count": 11,
+      "p2_complete": false,
+      "source_application_hash": "sha256:58af70bf47710c8640982eba76ccf74f24114506c0e50e73d9f627f1971d3e1f",
+      "source_p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+      "source_truck_maneuver_binding_hash": null,
+      "truck_route_codes": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED"
+      ],
+      "truck_route_status": "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+      "truck_search_provenance": {
+        "node_budget": 20000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": false,
+        "template_reuse_allowed": false,
+        "visited_nodes": 0
+      },
+      "zone_count": 12
+    },
+    {
+      "HISTORICAL_TRUCK_STATE": "PROJECT_INPUT_BLOCKED",
+      "candidate_id": "guided-fair-validation-02/candidate-04",
+      "geometry_hash": "sha256:110c73358a13b504b3c8e3e3b03d46f3ee8a2652648b326c961641e023857359",
+      "must_pass_count": 7,
+      "non_truck_access_pass_count": 11,
+      "p2_complete": false,
+      "source_application_hash": "sha256:8c463c2034e7d2adb248ec7a9c51be564d681429a4c08f9b865e9bfc54dc4a0a",
+      "source_p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+      "source_truck_maneuver_binding_hash": null,
+      "truck_route_codes": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED"
+      ],
+      "truck_route_status": "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+      "truck_search_provenance": {
+        "node_budget": 20000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": false,
+        "template_reuse_allowed": false,
+        "visited_nodes": 0
+      },
+      "zone_count": 12
+    },
+    {
+      "HISTORICAL_TRUCK_STATE": "PROJECT_INPUT_BLOCKED",
+      "candidate_id": "guided-fair-validation-02/candidate-05",
+      "geometry_hash": "sha256:f9cbb4ccfae57eb43fdad2e0aa6731c03585803ec3b164754182bb3208dee216",
+      "must_pass_count": 7,
+      "non_truck_access_pass_count": 11,
+      "p2_complete": false,
+      "source_application_hash": "sha256:7a84c9f44fa072e4d281cee6cc805e43df483bfb0963d217892fc7323ecdfb33",
+      "source_p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+      "source_truck_maneuver_binding_hash": null,
+      "truck_route_codes": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED"
+      ],
+      "truck_route_status": "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+      "truck_search_provenance": {
+        "node_budget": 20000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": false,
+        "template_reuse_allowed": false,
+        "visited_nodes": 0
+      },
+      "zone_count": 12
+    },
+    {
+      "HISTORICAL_TRUCK_STATE": "PROJECT_INPUT_BLOCKED",
+      "candidate_id": "guided-fair-validation-02/candidate-06",
+      "geometry_hash": "sha256:b7353dcda7daf1b58743d2a8b6d3a53a683b9fc81cec02fba250a2f9dca579e4",
+      "must_pass_count": 7,
+      "non_truck_access_pass_count": 11,
+      "p2_complete": false,
+      "source_application_hash": "sha256:94d3f65bf6fc8a46233470e3170f10615d241b8015a474956c44f67b41ecd34f",
+      "source_p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+      "source_truck_maneuver_binding_hash": null,
+      "truck_route_codes": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED"
+      ],
+      "truck_route_status": "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+      "truck_search_provenance": {
+        "node_budget": 20000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": false,
+        "template_reuse_allowed": false,
+        "visited_nodes": 0
+      },
+      "zone_count": 12
+    }
+  ],
+  "CANONICAL_PLAN_HASH": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd",
+  "NEW_SEARCHES": 0,
+  "P1F_INPUT_COMPLETE_NOT_DOCUMENT_VERIFIED": true,
+  "P1_HASH": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+  "SITE_HASH": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a"
+}

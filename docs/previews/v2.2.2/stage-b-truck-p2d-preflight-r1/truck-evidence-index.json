@@ -1,0 +1,720 @@
+{
+  "FILENAME_DISCOVERY": [
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-access-native-consistency-r1-20261015T071722Z/source_snapshot/backend/src/cold_storage/modules/aily/application/truck_preview.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-access-native-consistency-r1-20261015T071722Z/source_snapshot/backend/tests/pilot/data/stage9-controlled-acceptance-evidence/verify-gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-complete-pdf-baseline-audit-20261016T062922Z/final_delivery_gate_matrix.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-complete-pdf-baseline-audit-20261016T063411Z/final_delivery_gate_matrix.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-stage-a-final-github-delivery-20261016T075806Z/final_delivery_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-stage-a-final-github-delivery-20261016T075806Z/sealed_pdf_reference/final_delivery_gate_matrix.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-stage-a-final-production-closure-r2-20261015T084423Z/source_snapshot/backend/src/cold_storage/modules/aily/application/truck_preview.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-stage-a-final-production-closure-r2-20261015T084423Z/source_snapshot/backend/tests/pilot/data/stage9-controlled-acceptance-evidence/verify-gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-stage-a-lifecycle-final-delivery-20261017T050608Z/final_delivery_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-stage-a-lifecycle-final-delivery-20261017T050608Z/quality_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-stage-a-linux-ci-resource-closure-20261017T074048Z/r16-stage-a-linux-ci-resource-closure/local_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-stage-a-linux-ci-resource-closure-20261017T100054Z/r16-stage-a-linux-ci-resource-closure/local_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-stage-a-linux-ci-resource-closure-20261017T100055Z/r16-stage-a-linux-ci-resource-closure/local_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-stage-a-native-final-delivery-20261016T141431Z/final_delivery_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-stage-a-native-final-delivery-20261016T141431Z/quality_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-stage-a-profiler-final-delivery-20261016T131842Z/quality_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-stage-a-resource-final-closure-20261016T092552Z/verified_previous/final_delivery_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-stage-a-resource-final-closure-20261016T092552Z/verified_previous/sealed_pdf_reference/final_delivery_gate_matrix.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-stage-a-uv-path-final-delivery-20261016T151136Z/final_delivery_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readback/r16-stage-a-uv-path-final-delivery-20261016T151136Z/quality_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readbacks/c1-20261015T053810Z/r16-stage-a-engineering-closure-c1/source_after_c1/backend/src/cold_storage/modules/aily/application/truck_preview.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readbacks/c1-20261015T053810Z/r16-stage-a-engineering-closure-c1/source_after_c1/backend/tests/pilot/data/stage9-controlled-acceptance-evidence/verify-gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readbacks/independent-execution-r1-20261015T063509Z/r16-independent-execution-r1/engineering_gate_matrix.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readbacks/independent-execution-r1-20261015T063509Z/r16-independent-execution-r1/source_snapshot/backend/src/cold_storage/modules/aily/application/truck_preview.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/archive-readbacks/independent-execution-r1-20261015T063509Z/r16-independent-execution-r1/source_snapshot/backend/tests/pilot/data/stage9-controlled-acceptance-evidence/verify-gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r12-truck-p2d-engineering-validation/evidence/revalidate_nontruck_execution.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r12-truck-p2d-engineering-validation/personnel_truck_interaction_validation.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r12-truck-p2d-engineering-validation/truck_authority_binding.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r12-truck-p2d-engineering-validation/truck_independent_geometry_validation.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r12-truck-p2d-engineering-validation/truck_input_inventory.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r12-truck-p2d-engineering-validation/truck_maneuver_validation.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r12-truck-p2d-engineering-validation/truck_owner_input_requirements.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r13-truck-parameterized/missing_gate_evidence_result.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r13-truck-parameterized/missing_vehicle_result.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r13-truck-parameterized/quality_gate_results.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r13-truck-parameterized/source/production_snapshot/docs/tasks/V2_2_2-parameterized-truck-preview-v1.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r14-truck-mcp-integration/mcp_truck_call_result.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r14-truck-mcp-integration/mcp_truck_invalid_input.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r14-truck-mcp-integration/mcp_truck_svg_sha256.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r14-truck-mcp-integration/source/production_snapshot/backend/src/cold_storage/modules/aily/application/truck_preview.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r15-controlled-backend-restart-deployment/validation/public-external/truck_call.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r15-controlled-backend-restart-deployment/validation/public-external/truck_summary.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r15-controlled-backend-restart-deployment/validation/public-results/truck_call.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r15-controlled-backend-restart-deployment/validation/public-results/truck_summary.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r15-controlled-backend-restart-deployment/validation/staging-results/truck_call.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r15-controlled-backend-restart-deployment/validation/staging-results/truck_summary.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r15-public-mcp-deployment/public_truck_call_result.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-access-native-consistency-r1/source_snapshot/backend/src/cold_storage/modules/aily/application/truck_preview.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-access-native-consistency-r1/source_snapshot/backend/tests/pilot/data/stage9-controlled-acceptance-evidence/verify-gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-complete-pdf-baseline-audit/final_delivery_gate_matrix.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-global-solver-production-integration/source_snapshot/backend/src/cold_storage/modules/aily/application/truck_preview.schema 2.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-global-solver-production-integration/source_snapshot/backend/src/cold_storage/modules/aily/application/truck_preview.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-independent-execution-r1/engineering_gate_matrix.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-independent-execution-r1/source_snapshot/backend/src/cold_storage/modules/aily/application/truck_preview.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-independent-execution-r1/source_snapshot/backend/tests/pilot/data/stage9-controlled-acceptance-evidence/verify-gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-engineering-closure-c1/source_after_c1/backend/src/cold_storage/modules/aily/application/truck_preview.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-engineering-closure-c1/source_after_c1/backend/tests/pilot/data/stage9-controlled-acceptance-evidence/verify-gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-final-github-delivery/final_delivery_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-final-github-delivery/sealed_pdf_reference/final_delivery_gate_matrix.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-final-production-closure-r2/source_snapshot/backend/src/cold_storage/modules/aily/application/truck_preview.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-final-production-closure-r2/source_snapshot/backend/tests/pilot/data/stage9-controlled-acceptance-evidence/verify-gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-lifecycle-final-delivery/final_delivery_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-lifecycle-final-delivery/quality_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-linux-ci-resource-closure/local_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-native-final-delivery/final_delivery_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-native-final-delivery/quality_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-pdf-regression-closure-r1/clean-head/backend/src/cold_storage/modules/aily/application/truck_preview.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-pdf-regression-closure-r1/clean-head/backend/tests/pilot/data/stage9-controlled-acceptance-evidence/verify-gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-pdf-regression-closure-r1/clean-head/docs/tasks/V2_2-truck-project-access-input-v1.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-pdf-regression-closure-r1/clean-head/docs/tasks/V2_2_2-parameterized-truck-preview-v1.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-pdf-regression-closure-r1/clean-head/docs/tasks/evidence/v2_2_1_p1f/p2d_representative_20t_rectangular_site-mobile_preview-context-loading-face-detail.png",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-pdf-regression-closure-r1/clean-head/docs/tasks/evidence/v2_2_1_p1f/p2d_representative_20t_rectangular_site-presentation-context-loading-face-detail.png",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-pdf-regression-closure-r1/clean-head/docs/tasks/evidence/v2_2_2_p1a_structural_hard_interface_reservation_p1/xinzhao_structural_interface_reservation_capacity_gate.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-profiler-final-delivery/quality_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-resource-final-closure/verified_previous/final_delivery_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-resource-final-closure/verified_previous/sealed_pdf_reference/final_delivery_gate_matrix.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-uv-path-final-delivery/final_delivery_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-uv-path-final-delivery/pytest-temp/test_assemble_release_evidence0/incomplete-stage9/verify-gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/r16-stage-a-uv-path-final-delivery/quality_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/rebuilt-baseline/baseline_gate.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/stage-b-construction-quality-improvement/precommit_authorization_and_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/stage-b-family-count-correction/precommit_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/stage-b-hole-free-layout-construction-01-readback-20261019T002528Z/stage-b-hole-free-layout-construction-01/precommit_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/stage-b-hole-free-layout-construction-01/precommit_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/stage-b-multi-structural-construction/local_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/stage-b-proven-infeasible-short-circuit-01-readback-20261018T153107Z/stage-b-proven-infeasible-short-circuit-01/precommit_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/stage-b-proven-infeasible-short-circuit-01/precommit_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/stage-b-real-fair-multi-structure-validation-01/frozen-execution-source/backend/src/cold_storage/modules/aily/application/truck_preview.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/stage-b-real-fair-multi-structure-validation-01/precommit_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/stage-b-real-guided-fair-validation-02/initial_committed_ci_gate.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/stage-b-real-guided-fair-validation-02/local_gate_results.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/stage-b-real-multi-solution-validation-01/precommit_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/stage-b-real-multi-structural-construction/precommit_gate.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "PROJECT_ARTIFACTS/stage-b-structural-multi-solution/precommit_gates.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "REPOSITORY/docs/tasks/V2_2-truck-project-access-input-v1.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "REPOSITORY/docs/tasks/V2_2_2-parameterized-truck-preview-v1.schema.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "REPOSITORY/docs/tasks/evidence/v2_2_1_p1f/p2d_representative_20t_rectangular_site-mobile_preview-context-loading-face-detail.png",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "REPOSITORY/docs/tasks/evidence/v2_2_1_p1f/p2d_representative_20t_rectangular_site-presentation-context-loading-face-detail.png",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    },
+    {
+      "PROJECT_APPLICABILITY": "REVIEW_REQUIRED",
+      "SELECTION_APPROVAL": "NOT_GRANTED",
+      "SOURCE_PATH_REFERENCE": "REPOSITORY/docs/tasks/evidence/v2_2_2_p1a_structural_hard_interface_reservation_p1/xinzhao_structural_interface_reservation_capacity_gate.json",
+      "SOURCE_SHA256": null,
+      "STATUS": "DISCOVERED_NAME_ONLY_NOT_ADMITTED"
+    }
+  ],
+  "KNOWN_REVIEWED_RECORDS": [
+    {
+      "PATH_REFERENCE": "PROJECT_ARTIFACTS/r12-truck-p2d-engineering-validation/truck_input_inventory.json",
+      "PROJECT_ADMISSION": "BLOCKED",
+      "SOURCE_SHA256": "7d0eec4a457ef0ddf843fab9a35cdc7cd1c137f236dbfdda15ea10f7338a44fe",
+      "STATUS": "HISTORICAL_MISSING_INPUT_AUDIT",
+      "limitation": "Historical bounded search, not a universal assertion about Owner records",
+      "owner_input_found": false,
+      "owner_input_verified": false
+    },
+    {
+      "NOTE": "R13 synthetic bytes are not actual project vehicle evidence",
+      "PATH_REFERENCE": "PROJECT_ARTIFACTS/r13-truck-parameterized/synthetic_input.json",
+      "PROJECT_ADMISSION": "BLOCKED",
+      "SOURCE_SHA256": "1517914df8d0f8eb23905ca685a379f1a33e7c45368ba98c1784f337cee0a6b6",
+      "STATUS": "SYNTHETIC_TEST_ONLY",
+      "mode": "SYNTHETIC_TEST"
+    }
+  ],
+  "LIMITATION": "Name-only hits unreviewed; R12 inventory and R13 synthetic source read explicitly. No authenticated selected vehicle/gate/template package supplied.",
+  "PROJECT_SELECTED_TRUCK": "UNAVAILABLE",
+  "PROJECT_TRUCK_INPUT_ADMISSION": "BLOCKED",
+  "SCOPE": "Repository docs/fixtures and this project artifacts only; no private home/other projects, archive/Grant stores or mirror contents"
+}

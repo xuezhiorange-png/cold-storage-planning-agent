@@ -1,0 +1,39 @@
+{
+  "APPROVAL_BOUNDARY": "No parallel approver: original R13 matching documentary record and all native checks are left to separately authorized original execution. SHA/verified/APPROVED labels never approve a project.",
+  "CURRENT_INPUT_ONLY_LIMITATION": "R13 full validation is coupled to search. Static subset cannot certify full R13 input validity, documentary approval, route or P2D. TRUCK_SEARCH_READY=false until reviewed project input and separately authorized original validation.",
+  "EVIDENCE_STATUS_VOCABULARY": [
+    "UNAVAILABLE",
+    "REFERENCE_ONLY",
+    "SOURCE_BYTES_VERIFIED",
+    "PROJECT_APPLICABILITY_REVIEW_REQUIRED",
+    "PROJECT_APPROVAL_REQUIRED",
+    "INPUT_VALIDATED_NOT_ROUTE_PASS",
+    "ENGINEERING_REVIEW_REQUIRED"
+  ],
+  "FORMAL_DOCUMENT_REVISION": "Schema version is not source drawing revision. Actual revision and project applicability need original document/manual review; unavailable here.",
+  "IDENTITY": "StageBTruckP2DPreflightV1",
+  "NATIVE_SOLVER_CALLS": 0,
+  "NEW_OWNER_GRANT": false,
+  "P2D_FULL_PASS_COUNT": 0,
+  "PIPELINE": [
+    "PINNED_CATALOG_RAW_PROJECTION_AND_SVG_BYTES",
+    "ORIGINAL_P1F_REFERENCE_VALIDATION",
+    "ORIGINAL_P2B1_PROJECT_BINDING",
+    "R13_INPUT_ONLY_PREDICATE_SUBSET",
+    "CANDIDATE_LOADING_SITE_CONTEXT_AUDIT",
+    "PROJECT_ENGINEERING_REVIEW_REQUIRED"
+  ],
+  "PROJECT_TRUCK_INPUT_ADMISSION": "BLOCKED",
+  "REAL_FACTORY_SOLVES": 0,
+  "REAL_TRUCK_SEARCHES": 0,
+  "REFERENCE_HEAD": "64537de0c8fe146277bbb28d9b995dfc27ab3ba3",
+  "REQUIRED_CLASSES_POLICY": "Use project binding classes; P2B1 does not require all three. P2D additionally needs DOCK_REVERSE; current Stage B binding/required classes absent, legacy three-class fixture is reference only.",
+  "SAFE_REUSE": "Pure P1F, P2B1, original P2D selected loading-face predicates and immutable result hash reader; R13 _evidence/_vehicle_body/_verify_body_envelopes only. Never call preview, route_site_placement or validate_truck_maneuver_chain.",
+  "TRUCK_STATUS_VOCABULARY": [
+    "PROJECT_INPUT_BLOCKED",
+    "TRUCK_SEARCH_EXECUTED_WITHOUT_VALIDATED_ROUTE_NOT_GLOBAL_INFEASIBILITY",
+    "TRUCK_ROUTE_ENGINEERING_REVIEW_REQUIRED",
+    "TRUCK_ROUTE_VALIDATED_NOT_P2D_FULL_PASS"
+  ],
+  "VERSION": "stage-b-truck-p2d-preflight@1.0.0"
+}
