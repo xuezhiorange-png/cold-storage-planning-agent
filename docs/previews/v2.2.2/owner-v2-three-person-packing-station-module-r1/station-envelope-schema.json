@@ -1,0 +1,723 @@
+{
+  "$comment": "Structural schema only; source bytes, geometry, exact references and engineering statuses require offline_station_geometry.evaluate",
+  "$id": "urn:offline:PackingStationModuleV1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "ARRANGEMENT": {
+      "enum": [
+        "SINGLE",
+        "LINEAR_ARRANGEMENT",
+        "OPPOSED_ARRANGEMENT",
+        "PARALLEL_ROWS"
+      ]
+    },
+    "ASSEMBLY_CIRCULATION": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "ACTIVE_STATES": {
+            "items": {
+              "enum": [
+                "NORMAL_PRODUCTION",
+                "SHIFT_CHANGE",
+                "CLEANING",
+                "MAINTENANCE"
+              ]
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "APPROVAL_STATUS": {
+            "const": "NOT_PROJECT_APPROVED"
+          },
+          "COMPONENT_ID": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "COMPONENT_TYPE": {
+            "const": "CIRCULATION_ENVELOPE"
+          },
+          "COORDINATE_SYSTEM": {
+            "const": "ASSEMBLY_GLOBAL"
+          },
+          "DIMENSION_UNIT": {
+            "const": "mm"
+          },
+          "GEOMETRY": {
+            "additionalProperties": false,
+            "properties": {
+              "BOUNDS_MM": {
+                "items": {
+                  "type": "integer"
+                },
+                "maxItems": 4,
+                "minItems": 4,
+                "type": "array"
+              },
+              "TYPE": {
+                "const": "RECTANGLE"
+              }
+            },
+            "required": [
+              "TYPE",
+              "BOUNDS_MM"
+            ],
+            "type": "object"
+          },
+          "OVERLAP_POLICY": {
+            "const": "EXPLICIT_SHARED_REVIEW"
+          },
+          "ROLE": {
+            "enum": [
+              "MATERIAL_AISLE",
+              "PERSONNEL_AISLE",
+              "SHARED_AISLE"
+            ]
+          },
+          "SIMULTANEITY": {
+            "const": "ALL_ACTIVE_COMPONENTS_IN_STATE"
+          },
+          "SOURCE_ID": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "SOURCE_VERIFICATION": {
+            "const": "CONTENT_REQUIRED"
+          },
+          "TRANSFORM": {
+            "additionalProperties": false,
+            "properties": {
+              "ROTATION_DEG": {
+                "enum": [
+                  0,
+                  90,
+                  180,
+                  270
+                ]
+              },
+              "TRANSLATION_MM": {
+                "items": {
+                  "type": "integer"
+                },
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+              }
+            },
+            "required": [
+              "TRANSLATION_MM",
+              "ROTATION_DEG"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "COMPONENT_ID",
+          "COMPONENT_TYPE",
+          "ROLE",
+          "SOURCE_ID",
+          "GEOMETRY",
+          "TRANSFORM",
+          "COORDINATE_SYSTEM",
+          "DIMENSION_UNIT",
+          "ACTIVE_STATES",
+          "SIMULTANEITY",
+          "OVERLAP_POLICY",
+          "SOURCE_VERIFICATION",
+          "APPROVAL_STATUS"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "ASSEMBLY_ROUTES": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "ACTIVE_STATES": {
+            "items": {
+              "enum": [
+                "NORMAL_PRODUCTION",
+                "SHIFT_CHANGE",
+                "CLEANING",
+                "MAINTENANCE"
+              ]
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "FLOW_KIND": {
+            "enum": [
+              "PERSONNEL",
+              "MATERIAL_IN",
+              "PRODUCT_OUT"
+            ]
+          },
+          "FROM_KEY": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "POINTS_MM": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "minItems": 2,
+            "type": "array"
+          },
+          "ROUTE_ID": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "SOURCE_ID": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "TO_KEY": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "WIDTH_MM": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ROUTE_ID",
+          "FLOW_KIND",
+          "FROM_KEY",
+          "TO_KEY",
+          "POINTS_MM",
+          "WIDTH_MM",
+          "ACTIVE_STATES",
+          "SOURCE_ID"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "COMPONENTS": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "ACTIVE_STATES": {
+            "items": {
+              "enum": [
+                "NORMAL_PRODUCTION",
+                "SHIFT_CHANGE",
+                "CLEANING",
+                "MAINTENANCE"
+              ]
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "APPROVAL_STATUS": {
+            "const": "NOT_PROJECT_APPROVED"
+          },
+          "COMPONENT_ID": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "COMPONENT_TYPE": {
+            "enum": [
+              "PACKING_STATION_ENVELOPE",
+              "OPERATOR_ENVELOPE",
+              "MATERIAL_SUPPLY_ENVELOPE",
+              "PRODUCT_OUTFEED_ENVELOPE",
+              "CIRCULATION_ENVELOPE",
+              "CLEANING_MAINTENANCE_ENVELOPE"
+            ]
+          },
+          "COORDINATE_SYSTEM": {
+            "const": "STATION_LOCAL"
+          },
+          "DIMENSION_UNIT": {
+            "const": "mm"
+          },
+          "GEOMETRY": {
+            "additionalProperties": false,
+            "properties": {
+              "BOUNDS_MM": {
+                "items": {
+                  "type": "integer"
+                },
+                "maxItems": 4,
+                "minItems": 4,
+                "type": "array"
+              },
+              "TYPE": {
+                "const": "RECTANGLE"
+              }
+            },
+            "required": [
+              "TYPE",
+              "BOUNDS_MM"
+            ],
+            "type": "object"
+          },
+          "OVERLAP_POLICY": {
+            "enum": [
+              "PHYSICAL_EXCLUSIVE",
+              "INTERACTION_REVIEW",
+              "EXPLICIT_SHARED_REVIEW"
+            ]
+          },
+          "ROLE": {
+            "enum": [
+              "BODY",
+              "MATERIAL_AISLE",
+              "OUTFEED",
+              "PERSONNEL_AISLE",
+              "REACH",
+              "REJECT",
+              "SERVICE",
+              "SHARED_AISLE",
+              "STANDING",
+              "SUPPLY"
+            ]
+          },
+          "SIMULTANEITY": {
+            "const": "ALL_ACTIVE_COMPONENTS_IN_STATE"
+          },
+          "SOURCE_ID": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "SOURCE_VERIFICATION": {
+            "const": "CONTENT_REQUIRED"
+          },
+          "TRANSFORM": {
+            "additionalProperties": false,
+            "properties": {
+              "ROTATION_DEG": {
+                "enum": [
+                  0,
+                  90,
+                  180,
+                  270
+                ]
+              },
+              "TRANSLATION_MM": {
+                "items": {
+                  "type": "integer"
+                },
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+              }
+            },
+            "required": [
+              "TRANSLATION_MM",
+              "ROTATION_DEG"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "COMPONENT_ID",
+          "COMPONENT_TYPE",
+          "ROLE",
+          "SOURCE_ID",
+          "GEOMETRY",
+          "TRANSFORM",
+          "COORDINATE_SYSTEM",
+          "DIMENSION_UNIT",
+          "ACTIVE_STATES",
+          "SIMULTANEITY",
+          "OVERLAP_POLICY",
+          "SOURCE_VERIFICATION",
+          "APPROVAL_STATUS"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "COORDINATE_SYSTEM": {
+      "const": "RIGHT_HANDED_XY_Y_UP"
+    },
+    "DIMENSION_UNIT": {
+      "const": "mm"
+    },
+    "IDENTITY": {
+      "const": "PackingStationModuleV1"
+    },
+    "INSTANCES": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "INSTANCE_ID": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "SOURCE_ID": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "TRANSFORM": {
+            "additionalProperties": false,
+            "properties": {
+              "ROTATION_DEG": {
+                "enum": [
+                  0,
+                  90,
+                  180,
+                  270
+                ]
+              },
+              "TRANSLATION_MM": {
+                "items": {
+                  "type": "integer"
+                },
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+              }
+            },
+            "required": [
+              "TRANSLATION_MM",
+              "ROTATION_DEG"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "INSTANCE_ID",
+          "TRANSFORM",
+          "SOURCE_ID"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "INTERFACES": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "COMPONENT_ID": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "INTERFACE_ID": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "KIND": {
+            "enum": [
+              "PERSONNEL_ENTRY",
+              "OPERATOR_POSITION",
+              "MATERIAL_IN",
+              "SUPPLY",
+              "PRODUCT_OUT",
+              "OUTFEED"
+            ]
+          },
+          "POINT_MM": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "SOURCE_ID": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "INTERFACE_ID",
+          "COMPONENT_ID",
+          "KIND",
+          "POINT_MM",
+          "SOURCE_ID"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "MODE": {
+      "enum": [
+        "SYNTHETIC_TEST",
+        "OWNER_PROJECT"
+      ]
+    },
+    "OPERATORS": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "ENTRY_PATH": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "OPERATOR_ID": {
+            "enum": [
+              "OPERATOR_1",
+              "OPERATOR_2",
+              "OPERATOR_3"
+            ]
+          },
+          "REACH_COMPONENT": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "SOURCE_ID": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "STANDING_COMPONENT": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "TASK": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "WORK_DIRECTION": {
+            "enum": [
+              "X_POS",
+              "Y_POS",
+              "X_NEG",
+              "Y_NEG"
+            ]
+          }
+        },
+        "required": [
+          "OPERATOR_ID",
+          "SOURCE_ID",
+          "TASK",
+          "WORK_DIRECTION",
+          "STANDING_COMPONENT",
+          "REACH_COMPONENT",
+          "ENTRY_PATH"
+        ],
+        "type": "object"
+      },
+      "maxItems": 3,
+      "minItems": 3,
+      "type": "array"
+    },
+    "PROJECT_ID": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "ROUTES": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "ACTIVE_STATES": {
+            "items": {
+              "enum": [
+                "NORMAL_PRODUCTION",
+                "SHIFT_CHANGE",
+                "CLEANING",
+                "MAINTENANCE"
+              ]
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "END_COMPONENTS": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "FLOW_KIND": {
+            "enum": [
+              "PERSONNEL",
+              "MATERIAL_IN",
+              "PRODUCT_OUT"
+            ]
+          },
+          "FROM_INTERFACE": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "POINTS_MM": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "minItems": 2,
+            "type": "array"
+          },
+          "ROUTE_ID": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "SOURCE_ID": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "TO_INTERFACE": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "WIDTH_MM": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ROUTE_ID",
+          "FLOW_KIND",
+          "POINTS_MM",
+          "WIDTH_MM",
+          "ACTIVE_STATES",
+          "FROM_INTERFACE",
+          "TO_INTERFACE",
+          "END_COMPONENTS",
+          "SOURCE_ID"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "SHARING_CONDITIONS": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "COMPONENT_KEYS": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "CONDITION_TEXT": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "RULE_ID": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "SOURCE_ID": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "STATES": {
+            "items": {
+              "enum": [
+                "NORMAL_PRODUCTION",
+                "SHIFT_CHANGE",
+                "CLEANING",
+                "MAINTENANCE"
+              ]
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "RULE_ID",
+          "COMPONENT_KEYS",
+          "STATES",
+          "CONDITION_TEXT",
+          "SOURCE_ID"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "SHIFT_CHANGE": {
+      "additionalProperties": false,
+      "properties": {
+        "DURATION_MINUTES": {
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "STATUS": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "DURATION_MINUTES",
+        "STATUS"
+      ],
+      "type": "object"
+    },
+    "SOURCES": {
+      "additionalProperties": {
+        "additionalProperties": false,
+        "properties": {
+          "EVIDENCE_KIND": {
+            "enum": [
+              "SYNTHETIC_TEST_GEOMETRY",
+              "PROJECT_INPUT"
+            ]
+          },
+          "PATH": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "SHA256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "PATH",
+          "SHA256",
+          "EVIDENCE_KIND"
+        ],
+        "type": "object"
+      },
+      "minProperties": 1,
+      "type": "object"
+    },
+    "VERSION": {
+      "const": "packing-station-module@1.0.0"
+    },
+    "WARNING": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "IDENTITY",
+    "VERSION",
+    "MODE",
+    "PROJECT_ID",
+    "DIMENSION_UNIT",
+    "COORDINATE_SYSTEM",
+    "ARRANGEMENT",
+    "SOURCES",
+    "COMPONENTS",
+    "OPERATORS",
+    "INTERFACES",
+    "ROUTES",
+    "INSTANCES",
+    "ASSEMBLY_CIRCULATION",
+    "ASSEMBLY_ROUTES",
+    "SHARING_CONDITIONS",
+    "SHIFT_CHANGE",
+    "WARNING"
+  ],
+  "type": "object"
+}

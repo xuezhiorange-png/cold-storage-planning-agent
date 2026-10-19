@@ -1,0 +1,408 @@
+{
+  "IDENTITY": "PROJECT_EQUIPMENT_EVIDENCE_INDEX",
+  "LIMITATION": "No project-approved station, conveyor, three-operator or material-carrier dimension source identified in searched scope; absence here is not a claim about all Owner records.",
+  "PROJECT_SELECTED_EQUIPMENT": "UNAVAILABLE",
+  "RECORDS": [
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "1f336592088b80a5e7807fb80f56a518f6fbce7d3c2bf2f5c2cac2c5fe2a8a45",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_5af97c0ca715",
+      "SOURCE_PATH_OR_URL": "docs/previews/v2.2.2/owner-functional-input-contract-r2/packing-table-policy.json",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "9e4375dc427953292a426597791ee9bf68b22e5e59c5f4e4ca360ea110f79104",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_635228d619e0",
+      "SOURCE_PATH_OR_URL": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/README.md",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "b92420eb3173a0a7a30f0c1b221a1aa97a3deda7389003cac240f4655f87c5a8",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_a61a997f33fa",
+      "SOURCE_PATH_OR_URL": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/area-and-dimension-impact-matrix.md",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "924989a3cc674e51780622b8556382fda3cee213fa3693625c913d571f1fb1cd",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_72eccd0ca96f",
+      "SOURCE_PATH_OR_URL": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/engineering-sources.json",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "6ac6660b71d791551a2e381adcdfadaefd689ff209906060d8ffe995f4ccbfda",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_e6d9b91ee35f",
+      "SOURCE_PATH_OR_URL": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/layout-geometry-calibration.md",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "b75e09f291fd6f5f472f29c3c96f9bac729397ed1b573c6a5ca386e4633c2fda",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_817ba25dc1a8",
+      "SOURCE_PATH_OR_URL": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/legacy-geometry-authority-audit.json",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "9274a9a068b40d16e6af48a6350ce18a442ff3d4621e852952f129d7c967dd3e",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_47f9cbdd150c",
+      "SOURCE_PATH_OR_URL": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/legacy-projection-scenarios.json",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "0fb093ee6a38e8c1b310322803054bb1a59a4d4d074b72e43ebfbfe2a99dcfd2",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_c106927448b2",
+      "SOURCE_PATH_OR_URL": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/offline_geometry_calibration.py",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "20de7d9589e0d7aae3ec63271489720a261dab32621ff25591b674e19977854f",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_6ccd63156ccf",
+      "SOURCE_PATH_OR_URL": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/owner-decision-matrix.md",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "088f3a0e2f55608cacfc127de8a7508599c27c03e9b322d54faf0fb4ab3023c9",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_bea82e939827",
+      "SOURCE_PATH_OR_URL": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/p1-integration-readiness.md",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "fefdfdf9be8f892fda250232a9281be2bc39caf6851f71dbd3c2fd27889461f0",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_03b7e9469f7d",
+      "SOURCE_PATH_OR_URL": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/packing-station-evidence-matrix.json",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "4e337a30526fae6bf68dc73485f9ef31d120b203b7adcc8ab451c49fd4db7718",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_10a85d08d946",
+      "SOURCE_PATH_OR_URL": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/real-layout-interface-review.json",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "dcc0bf7191b74a0291147d4592028b758a8519105efa6af89caad9b787b8249e",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_1b8c80b7bf8a",
+      "SOURCE_PATH_OR_URL": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/source_manifest.json",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "a43dac6ca71db54769737e004eaede87147f2a93f4940b8e7dff8a12289de7d9",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_7c726dc69aed",
+      "SOURCE_PATH_OR_URL": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/station-space-requirements.json",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "b4ddbac1df7802c5530c74f13f15b90665ce93660af098eb81e1f8269cd72034",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_a07294a19393",
+      "SOURCE_PATH_OR_URL": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "36dfddda23e25d17363f387ac3bf59078e45b54f2f40e7d23c98a1b0023e3087",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_dd5faee091fe",
+      "SOURCE_PATH_OR_URL": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/validation.json",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Repository name match; not a selected project equipment drawing",
+      "DOCUMENT_VERSION": "Reference HEAD6e6972e1adf012b397343bd5d53a2c65c9d81fad",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "4c5f07eff17af85fdafcd02f9f5d844bbd35e2639d77498c1bfa6ce5405d3952",
+      "OWNER_APPROVAL_STATUS": "NO_SELECTION_APPROVAL_LOCATED",
+      "PROJECT_APPLICABILITY": "CANDIDATE_METADATA_ONLY_NO_EQUIPMENT_SELECTION_PROOF",
+      "SOURCE_ID": "REPO_df702201e09e",
+      "SOURCE_PATH_OR_URL": "docs/tasks/V2_2-P1C-sorting-packaging-dimension-authority.md",
+      "VERIFICATION_STATUS": "FILE_BYTES_HASHED_APPLICABILITY_NOT_PROVEN"
+    },
+    {
+      "DIMENSION_EVIDENCE": "NOT_A_SELECTED_PACKING_STATION_DRAWING",
+      "DOCUMENT_VERSION": "EXISTING_RESEARCH_CACHE_OR_DIAGNOSTIC",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "5ccfbc9d8bd2d81aeb59ec2bec07201954a1742adb09ba924afbdaa9a8c78634",
+      "OWNER_APPROVAL_STATUS": "NOT_PROVEN",
+      "PROJECT_APPLICABILITY": "REFERENCE_OR_DIAGNOSTIC_ONLY",
+      "SOURCE_ID": "LOCAL_784c43e55f21",
+      "SOURCE_PATH_OR_URL": "PROJECT_FILES/artifacts/owner-v2-packaging-area-geometry-calibration-r1/research-cache/geis4.pdf",
+      "VERIFICATION_STATUS": "LOCAL_BYTES_HASHED_NOT_PROJECT_AUTHENTICATED"
+    },
+    {
+      "DIMENSION_EVIDENCE": "NOT_A_SELECTED_PACKING_STATION_DRAWING",
+      "DOCUMENT_VERSION": "EXISTING_RESEARCH_CACHE_OR_DIAGNOSTIC",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "929e338d864374c1e8b5bdb6d4f557c6ce0efcc755f04f210ab61a4fc6a9921d",
+      "OWNER_APPROVAL_STATUS": "NOT_PROVEN",
+      "PROJECT_APPLICABILITY": "REFERENCE_OR_DIAGNOSTIC_ONLY",
+      "SOURCE_ID": "LOCAL_ccf1da272002",
+      "SOURCE_PATH_OR_URL": "PROJECT_FILES/artifacts/owner-v2-packaging-area-geometry-calibration-r1/research-cache/gb14881-page5.png",
+      "VERIFICATION_STATUS": "LOCAL_BYTES_HASHED_NOT_PROJECT_AUTHENTICATED"
+    },
+    {
+      "DIMENSION_EVIDENCE": "NOT_A_SELECTED_PACKING_STATION_DRAWING",
+      "DOCUMENT_VERSION": "EXISTING_RESEARCH_CACHE_OR_DIAGNOSTIC",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "b746deb5b424d467c0c9fedb6e0250976d9c03aba877ae836571d35a96876d7c",
+      "OWNER_APPROVAL_STATUS": "NOT_PROVEN",
+      "PROJECT_APPLICABILITY": "REFERENCE_OR_DIAGNOSTIC_ONLY",
+      "SOURCE_ID": "LOCAL_8c26a0defd11",
+      "SOURCE_PATH_OR_URL": "PROJECT_FILES/artifacts/owner-v2-packaging-area-geometry-calibration-r1/research-cache/gb14881-page8.png",
+      "VERIFICATION_STATUS": "LOCAL_BYTES_HASHED_NOT_PROJECT_AUTHENTICATED"
+    },
+    {
+      "DIMENSION_EVIDENCE": "NOT_A_SELECTED_PACKING_STATION_DRAWING",
+      "DOCUMENT_VERSION": "EXISTING_RESEARCH_CACHE_OR_DIAGNOSTIC",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "c7555838552059daf603b8786467f07e91e86907cf9adb798d4337e4623640a9",
+      "OWNER_APPROVAL_STATUS": "NOT_PROVEN",
+      "PROJECT_APPLICABILITY": "REFERENCE_OR_DIAGNOSTIC_ONLY",
+      "SOURCE_ID": "LOCAL_a4c84a906eea",
+      "SOURCE_PATH_OR_URL": "PROJECT_FILES/artifacts/owner-v2-packaging-area-geometry-calibration-r1/research-cache/geis4-page8.png",
+      "VERIFICATION_STATUS": "LOCAL_BYTES_HASHED_NOT_PROJECT_AUTHENTICATED"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Clauses4.1.3,5.2.1.1.1,5.2.1.3.1-3.2 require capacity-appropriate space, process organization, and access for operation, cleaning and maintenance; no universal three-worker station pitch is supplied.",
+      "DOCUMENT_VERSION": "GB14881-2025",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "07ac0b616a8b4d6a426e039ed852f33fea1e8c67c3daac4600bc2a1031bf8209",
+      "LIMITATIONS": "Effective2026-09-02. Live web fetch failed this task; previously downloaded government PDF bytes reverified and relevant pages5/8 visually checked. No numeric aisle or table size adopted.",
+      "OWNER_APPROVAL_STATUS": "NOT_APPROVED_AS_PROJECT_EQUIPMENT",
+      "PROJECT_APPLICABILITY": "PRIOR_VERIFIED_REFERENCE_ONLY_NOT_SELECTED_PROJECT_EQUIPMENT",
+      "SOURCE_ID": "E01",
+      "SOURCE_PATH_OR_URL": "https://www.jiyang.gov.cn/resources/public/20260527/6a16b7c6122a6678fef32fe9.pdf",
+      "SOURCE_RECORD_SHA256": "23ec333cde20260c8006703a95f300105b8ef5770a3ffe55b4ad554c9f6643ff",
+      "VERIFICATION_STATUS": "PREVIOUS_TASK_SOURCE_RECORD_REVERIFIED_NOT_NEW_FETCH"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Pages3/5/8 distinguish workstation height, working height, reach and foot/leg access; multiple operators may obstruct one another. A whole station cannot be inferred from nominal belt/table size.",
+      "DOCUMENT_VERSION": "GEIS4",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": "5ccfbc9d8bd2d81aeb59ec2bec07201954a1742adb09ba924afbdaa9a8c78634",
+      "LIMITATIONS": "Not Chinese mandatory code and not project anthropometric approval. No published reach/foot-clearance number is imported as a project hard default.",
+      "OWNER_APPROVAL_STATUS": "NOT_APPROVED_AS_PROJECT_EQUIPMENT",
+      "PROJECT_APPLICABILITY": "PRIOR_VERIFIED_REFERENCE_ONLY_NOT_SELECTED_PROJECT_EQUIPMENT",
+      "SOURCE_ID": "E02",
+      "SOURCE_PATH_OR_URL": "https://www.hse.gov.uk/PuBns/geis4.pdf",
+      "SOURCE_RECORD_SHA256": "d42370770772142bc7f69f311a31dd0e414232e05f2eb0676336ede2e852da5e",
+      "VERIFICATION_STATUS": "PREVIOUS_TASK_SOURCE_RECORD_REVERIFIED_NOT_NEW_FETCH"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Routine conveyor cleaning requires a safe work system; removal/access around guards and maintenance must be considered, rather than treating a production envelope as sufficient for every state.",
+      "DOCUMENT_VERSION": "Web guidance, updated2025-05-20",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": null,
+      "LIMITATIONS": "Foreign guidance, not a Chinese legal clearance table. Historical standard references on the page are not adopted as verified-current standards.",
+      "OWNER_APPROVAL_STATUS": "NOT_APPROVED_AS_PROJECT_EQUIPMENT",
+      "PROJECT_APPLICABILITY": "PRIOR_VERIFIED_REFERENCE_ONLY_NOT_SELECTED_PROJECT_EQUIPMENT",
+      "SOURCE_ID": "E03",
+      "SOURCE_PATH_OR_URL": "https://www.hse.gov.uk/food/safety-hazards/machinery.htm",
+      "SOURCE_RECORD_SHA256": "1306e8f9dfe25b046a563a3c2f433add038b5629c55553eda6f099780b258efc",
+      "VERIFICATION_STATUS": "PREVIOUS_TASK_SOURCE_RECORD_REVERIFIED_NOT_NEW_FETCH"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Packaging supply is perpendicular to the line, product arrives via lower conveyors, packaging moves through an inclined section and returns horizontal, and reject fruit has a separate path.",
+      "DOCUMENT_VERSION": "Public product configuration",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": null,
+      "LIMITATIONS": "No verified overall length/depth or project three-worker station dimensions. The image label1280x800 is not an equipment dimension. Not selected project machinery.",
+      "OWNER_APPROVAL_STATUS": "NOT_APPROVED_AS_PROJECT_EQUIPMENT",
+      "PROJECT_APPLICABILITY": "PRIOR_VERIFIED_REFERENCE_ONLY_NOT_SELECTED_PROJECT_EQUIPMENT",
+      "SOURCE_ID": "E04",
+      "SOURCE_PATH_OR_URL": "https://wymasolutions.com/product-category/packaging/burg-fruit-packing-table",
+      "SOURCE_RECORD_SHA256": "997f48f2c53d205934a51c9064c0062ab4f90b8670a14c0e4792d15fc4bcf7e7",
+      "VERIFICATION_STATUS": "PREVIOUS_TASK_SOURCE_RECORD_REVERIFIED_NOT_NEW_FETCH"
+    },
+    {
+      "DIMENSION_EVIDENCE": "A rotary, adjustable-height arrangement is offered for up to four staff; operator organization depends on equipment architecture.",
+      "DOCUMENT_VERSION": "Public product configuration",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": null,
+      "LIMITATIONS": "No verified diameter/footprint or project worker allocation. Up-to-four vendor capacity does not establish a three-worker rectangular station or its pitch.",
+      "OWNER_APPROVAL_STATUS": "NOT_APPROVED_AS_PROJECT_EQUIPMENT",
+      "PROJECT_APPLICABILITY": "PRIOR_VERIFIED_REFERENCE_ONLY_NOT_SELECTED_PROJECT_EQUIPMENT",
+      "SOURCE_ID": "E05",
+      "SOURCE_PATH_OR_URL": "https://wymasolutions.com/products/packaging/rotary-packing-table",
+      "SOURCE_RECORD_SHA256": "94222035d434ae9e0a62ac1f4d2e56ba71625e9b6bb138be0139cf0a865ce3c8",
+      "VERIFICATION_STATUS": "PREVIOUS_TASK_SOURCE_RECORD_REVERIFIED_NOT_NEW_FETCH"
+    },
+    {
+      "DIMENSION_EVIDENCE": "Published assembled table/work surface is1800mm wide and700mm deep; feet adjust850-900mm. This is a physical product size, unlike station pitch.",
+      "DOCUMENT_VERSION": "Product307187 / GTIN4015613600109",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": null,
+      "LIMITATIONS": "Generic kitchen stainless table, not selected fruit-packing equipment. No evidence of three-person reach, feed/outfeed, hygienic process suitability or work envelope; not used as a proposed project size.",
+      "OWNER_APPROVAL_STATUS": "NOT_APPROVED_AS_PROJECT_EQUIPMENT",
+      "PROJECT_APPLICABILITY": "PRIOR_VERIFIED_REFERENCE_ONLY_NOT_SELECTED_PROJECT_EQUIPMENT",
+      "SOURCE_ID": "E06",
+      "SOURCE_PATH_OR_URL": "https://www.bartscher.com/de/de/product/307187/arbeitstisch-700-b1800",
+      "SOURCE_RECORD_SHA256": "1775979728783c459b3a4af0a61966bb4521b8ebcff2fc622375bc57d4fd236f",
+      "VERIFICATION_STATUS": "PREVIOUS_TASK_SOURCE_RECORD_REVERIFIED_NOT_NEW_FETCH"
+    },
+    {
+      "DIMENSION_EVIDENCE": "The published case combines height-adjustable conveyors and a packing table, oriented product delivery and a separate cleaning shutdown. The working system includes more than table footprint.",
+      "DOCUMENT_VERSION": "Manufacturer case study; installation reported fall2015",
+      "EQUIPMENT_ID": null,
+      "FILE_SHA256": null,
+      "LIMITATIONS": "Cheese packaging, not blueberries; reported benefits are manufacturer claims, not an independent validation for this project. No project line count, runtime, room area or staffing imported. Main URL redirected to/europe; matching publisher HTML was also read directly.",
+      "OWNER_APPROVAL_STATUS": "NOT_APPROVED_AS_PROJECT_EQUIPMENT",
+      "PROJECT_APPLICABILITY": "PRIOR_VERIFIED_REFERENCE_ONLY_NOT_SELECTED_PROJECT_EQUIPMENT",
+      "SOURCE_ID": "E07",
+      "SOURCE_PATH_OR_URL": "https://www.dornerconveyors.com/resource/alpine-slicing-and-cheese-conversion",
+      "SOURCE_RECORD_SHA256": "9386563d1d8d8e58a141793c4fd3d9f660a03ef3bf5b847fe8a6ff929c968b7d",
+      "VERIFICATION_STATUS": "PREVIOUS_TASK_SOURCE_RECORD_REVERIFIED_NOT_NEW_FETCH"
+    }
+  ],
+  "SEARCH_SCOPE": {
+    "excluded": "Other projects, private folders, old Grant stores, unrelated backend/artifacts, archive contents and duplicate readback copies",
+    "filename_keywords": "包装|分选|工位|输送|周转|设备总图|packing|packaging|conveyor|supplier|sorting|workstation",
+    "local_root_alias": "PROJECT_FILES (cold-storage-planning-agent only)",
+    "repository_roots": [
+      "docs",
+      "backend/tests/fixtures"
+    ]
+  },
+  "repository_candidate_documents": [
+    {
+      "path": "docs/previews/v2.2.2/owner-functional-input-contract-r2/packing-table-policy.json",
+      "sha256": "1f336592088b80a5e7807fb80f56a518f6fbce7d3c2bf2f5c2cac2c5fe2a8a45"
+    },
+    {
+      "path": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/README.md",
+      "sha256": "9e4375dc427953292a426597791ee9bf68b22e5e59c5f4e4ca360ea110f79104"
+    },
+    {
+      "path": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/area-and-dimension-impact-matrix.md",
+      "sha256": "b92420eb3173a0a7a30f0c1b221a1aa97a3deda7389003cac240f4655f87c5a8"
+    },
+    {
+      "path": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/engineering-sources.json",
+      "sha256": "924989a3cc674e51780622b8556382fda3cee213fa3693625c913d571f1fb1cd"
+    },
+    {
+      "path": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/layout-geometry-calibration.md",
+      "sha256": "6ac6660b71d791551a2e381adcdfadaefd689ff209906060d8ffe995f4ccbfda"
+    },
+    {
+      "path": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/legacy-geometry-authority-audit.json",
+      "sha256": "b75e09f291fd6f5f472f29c3c96f9bac729397ed1b573c6a5ca386e4633c2fda"
+    },
+    {
+      "path": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/legacy-projection-scenarios.json",
+      "sha256": "9274a9a068b40d16e6af48a6350ce18a442ff3d4621e852952f129d7c967dd3e"
+    },
+    {
+      "path": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/offline_geometry_calibration.py",
+      "sha256": "0fb093ee6a38e8c1b310322803054bb1a59a4d4d074b72e43ebfbfe2a99dcfd2"
+    },
+    {
+      "path": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/owner-decision-matrix.md",
+      "sha256": "20de7d9589e0d7aae3ec63271489720a261dab32621ff25591b674e19977854f"
+    },
+    {
+      "path": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/p1-integration-readiness.md",
+      "sha256": "088f3a0e2f55608cacfc127de8a7508599c27c03e9b322d54faf0fb4ab3023c9"
+    },
+    {
+      "path": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/packing-station-evidence-matrix.json",
+      "sha256": "fefdfdf9be8f892fda250232a9281be2bc39caf6851f71dbd3c2fd27889461f0"
+    },
+    {
+      "path": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/real-layout-interface-review.json",
+      "sha256": "4e337a30526fae6bf68dc73485f9ef31d120b203b7adcc8ab451c49fd4db7718"
+    },
+    {
+      "path": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/source_manifest.json",
+      "sha256": "dcc0bf7191b74a0291147d4592028b758a8519105efa6af89caad9b787b8249e"
+    },
+    {
+      "path": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/station-space-requirements.json",
+      "sha256": "a43dac6ca71db54769737e004eaede87147f2a93f4940b8e7dff8a12289de7d9"
+    },
+    {
+      "path": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py",
+      "sha256": "b4ddbac1df7802c5530c74f13f15b90665ce93660af098eb81e1f8269cd72034"
+    },
+    {
+      "path": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/validation.json",
+      "sha256": "36dfddda23e25d17363f387ac3bf59078e45b54f2f40e7d23c98a1b0023e3087"
+    },
+    {
+      "path": "docs/tasks/V2_2-P1C-sorting-packaging-dimension-authority.md",
+      "sha256": "4c5f07eff17af85fdafcd02f9f5d844bbd35e2639d77498c1bfa6ce5405d3952"
+    }
+  ]
+}

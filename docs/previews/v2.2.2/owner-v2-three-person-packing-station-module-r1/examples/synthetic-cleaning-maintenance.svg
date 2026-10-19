@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="910" height="650" viewBox="0 0 910 650" data-scale-px-per-mm="0.1">
+<rect width="100%" height="100%" fill="#f7f9fc"/>
+<g font-family="sans-serif">
+<text x="24" y="30" font-size="21" fill="#172b42">PACKING STATION MODULE R1 / SINGLE</text>
+<text x="24" y="56" font-size="15" fill="#a33d17">SYNTHETIC_TEST_GEOMETRY | CLEANING</text>
+<text x="24" y="79" font-size="13" fill="#172b42">NOT PROJECT APPROVED · NO P1 AREA · XY y-up · integer mm inputs</text>
+<g transform="translate(40,115) scale(0.1)">
+<rect x="1400" y="1900" width="2400" height="800" fill="#c5ccd5" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="1430" y="2060" font-size="94" fill="#172b42">A/EQUIPMENT</text>
+<text x="1430" y="2220" font-size="100" fill="#172b42">2400 x 800 mm</text>
+<rect x="400" y="400" width="200" height="3000" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<rect x="4000" y="1900" width="600" height="600" fill="#dbc9f0" fill-opacity="0.12" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="4600" y="400" width="600" height="3000" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="4630" y="560" font-size="94" fill="#172b42">A/OUT</text>
+<rect x="400" y="3400" width="4800" height="1100" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="430" y="3560" font-size="94" fill="#172b42">A/PEOPLE</text>
+<rect x="400" y="400" width="4800" height="600" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="430" y="560" font-size="94" fill="#172b42">A/REAR</text>
+<rect x="1200" y="1000" width="2800" height="800" fill="#f8cbb9" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="1230" y="1160" font-size="94" fill="#172b42">A/SERVICE</text>
+<rect x="600" y="1900" width="600" height="600" fill="#ffe0a1" fill-opacity="0.12" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="1500" y="2400" width="600" height="600" fill="#c6e8e0" fill-opacity="0.12" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="2200" y="2400" width="600" height="600" fill="#c6e8e0" fill-opacity="0.12" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="2900" y="2400" width="600" height="600" fill="#c6e8e0" fill-opacity="0.12" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="1500" y="2800" width="600" height="600" fill="#c6e8e0" fill-opacity="0.12" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="2200" y="2800" width="600" height="600" fill="#c6e8e0" fill-opacity="0.12" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="2900" y="2800" width="600" height="600" fill="#c6e8e0" fill-opacity="0.12" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<text x="150" y="180" font-size="110" fill="#172b42">Y+</text>
+<text x="5350" y="4740" font-size="110" fill="#172b42">X+</text>
+</g>
+<text x="630" y="125" font-size="15" fill="#172b42">SOURCE / STATUS</text>
+<text x="630" y="146" font-size="11" fill="#172b42">All depicted dimensions: SYNTHETIC_TEST_GEOMETRY</text>
+<text x="630" y="167" font-size="11" fill="#172b42">Input source IDs: synthetic</text>
+<text x="630" y="188" font-size="11" fill="#172b42">Source content SHA: 2c36aa871a1d185f8473e313</text>
+<text x="630" y="209" font-size="11" fill="#172b42">Input SHA256: 684df9589ea3e7a43bfe675e</text>
+<text x="630" y="230" font-size="11" fill="#172b42">Same scale: 0.1 px per mm in every SVG</text>
+<text x="630" y="251" font-size="11" fill="#172b42">Uncalibrated: all project fit / aisle values</text>
+<text x="630" y="272" font-size="11" fill="#172b42">Each station: exactly OP1, OP2, OP3</text>
+<text x="630" y="293" font-size="11" fill="#172b42">Solid gray: equipment body</text>
+<text x="630" y="314" font-size="11" fill="#172b42">Green: standing; dashed green: reach</text>
+<text x="630" y="335" font-size="11" fill="#172b42">Amber: supply | Purple: outfeed</text>
+<text x="630" y="356" font-size="11" fill="#172b42">Blue: circulation | Coral: service</text>
+<text x="630" y="377" font-size="11" fill="#172b42">Faded: inactive in displayed state</text>
+<text x="630" y="398" font-size="11" fill="#172b42">Lines: full-width paths + centerlines</text>
+<text x="630" y="419" font-size="11" fill="#172b42">Arrows: declared work direction</text>
+<text x="630" y="440" font-size="11" fill="#172b42">Overlap is not automatically permitted</text>
+<text x="630" y="461" font-size="11" fill="#172b42">Envelope: 4800 x 4100 mm</text>
+<text x="630" y="482" font-size="11" fill="#172b42">Displayed state union: 14240000 mm2</text>
+<text x="630" y="503" font-size="11" fill="#172b42">Bounding rectangle differs from union</text>
+<text x="630" y="524" font-size="11" fill="#172b42">FUNCTIONAL_ROOM_AREA = null</text>
+<text x="630" y="545" font-size="11" fill="#172b42">Physical collisions: 0</text>
+<text x="630" y="566" font-size="11" fill="#172b42">Functional reviews: 14</text>
+<text x="630" y="587" font-size="11" fill="#172b42">Turnover time / safety still require review</text>
+</g></svg>

@@ -1,0 +1,728 @@
+{
+  "ARRANGEMENT": "SINGLE",
+  "ASSEMBLY_CIRCULATION": [],
+  "ASSEMBLY_ROUTES": [],
+  "COMPONENTS": [
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "APPROVAL_STATUS": "NOT_PROJECT_APPROVED",
+      "COMPONENT_ID": "EQUIPMENT",
+      "COMPONENT_TYPE": "PACKING_STATION_ENVELOPE",
+      "COORDINATE_SYSTEM": "STATION_LOCAL",
+      "DIMENSION_UNIT": "mm",
+      "GEOMETRY": {
+        "BOUNDS_MM": [
+          1000,
+          2200,
+          3400,
+          3000
+        ],
+        "TYPE": "RECTANGLE"
+      },
+      "OVERLAP_POLICY": "PHYSICAL_EXCLUSIVE",
+      "ROLE": "BODY",
+      "SIMULTANEITY": "ALL_ACTIVE_COMPONENTS_IN_STATE",
+      "SOURCE_ID": "synthetic",
+      "SOURCE_VERIFICATION": "CONTENT_REQUIRED",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION"
+      ],
+      "APPROVAL_STATUS": "NOT_PROJECT_APPROVED",
+      "COMPONENT_ID": "SUPPLY",
+      "COMPONENT_TYPE": "MATERIAL_SUPPLY_ENVELOPE",
+      "COORDINATE_SYSTEM": "STATION_LOCAL",
+      "DIMENSION_UNIT": "mm",
+      "GEOMETRY": {
+        "BOUNDS_MM": [
+          200,
+          2400,
+          800,
+          3000
+        ],
+        "TYPE": "RECTANGLE"
+      },
+      "OVERLAP_POLICY": "INTERACTION_REVIEW",
+      "ROLE": "SUPPLY",
+      "SIMULTANEITY": "ALL_ACTIVE_COMPONENTS_IN_STATE",
+      "SOURCE_ID": "synthetic",
+      "SOURCE_VERIFICATION": "CONTENT_REQUIRED",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION"
+      ],
+      "APPROVAL_STATUS": "NOT_PROJECT_APPROVED",
+      "COMPONENT_ID": "OUTFEED",
+      "COMPONENT_TYPE": "PRODUCT_OUTFEED_ENVELOPE",
+      "COORDINATE_SYSTEM": "STATION_LOCAL",
+      "DIMENSION_UNIT": "mm",
+      "GEOMETRY": {
+        "BOUNDS_MM": [
+          3600,
+          2400,
+          4200,
+          3000
+        ],
+        "TYPE": "RECTANGLE"
+      },
+      "OVERLAP_POLICY": "INTERACTION_REVIEW",
+      "ROLE": "OUTFEED",
+      "SIMULTANEITY": "ALL_ACTIVE_COMPONENTS_IN_STATE",
+      "SOURCE_ID": "synthetic",
+      "SOURCE_VERIFICATION": "CONTENT_REQUIRED",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "APPROVAL_STATUS": "NOT_PROJECT_APPROVED",
+      "COMPONENT_ID": "PEOPLE_AISLE",
+      "COMPONENT_TYPE": "CIRCULATION_ENVELOPE",
+      "COORDINATE_SYSTEM": "STATION_LOCAL",
+      "DIMENSION_UNIT": "mm",
+      "GEOMETRY": {
+        "BOUNDS_MM": [
+          0,
+          400,
+          4800,
+          1500
+        ],
+        "TYPE": "RECTANGLE"
+      },
+      "OVERLAP_POLICY": "INTERACTION_REVIEW",
+      "ROLE": "PERSONNEL_AISLE",
+      "SIMULTANEITY": "ALL_ACTIVE_COMPONENTS_IN_STATE",
+      "SOURCE_ID": "synthetic",
+      "SOURCE_VERIFICATION": "CONTENT_REQUIRED",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "APPROVAL_STATUS": "NOT_PROJECT_APPROVED",
+      "COMPONENT_ID": "IN_AISLE",
+      "COMPONENT_TYPE": "CIRCULATION_ENVELOPE",
+      "COORDINATE_SYSTEM": "STATION_LOCAL",
+      "DIMENSION_UNIT": "mm",
+      "GEOMETRY": {
+        "BOUNDS_MM": [
+          0,
+          1500,
+          200,
+          4500
+        ],
+        "TYPE": "RECTANGLE"
+      },
+      "OVERLAP_POLICY": "INTERACTION_REVIEW",
+      "ROLE": "MATERIAL_AISLE",
+      "SIMULTANEITY": "ALL_ACTIVE_COMPONENTS_IN_STATE",
+      "SOURCE_ID": "synthetic",
+      "SOURCE_VERIFICATION": "CONTENT_REQUIRED",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "APPROVAL_STATUS": "NOT_PROJECT_APPROVED",
+      "COMPONENT_ID": "OUT_AISLE",
+      "COMPONENT_TYPE": "CIRCULATION_ENVELOPE",
+      "COORDINATE_SYSTEM": "STATION_LOCAL",
+      "DIMENSION_UNIT": "mm",
+      "GEOMETRY": {
+        "BOUNDS_MM": [
+          4200,
+          1500,
+          4800,
+          4500
+        ],
+        "TYPE": "RECTANGLE"
+      },
+      "OVERLAP_POLICY": "INTERACTION_REVIEW",
+      "ROLE": "MATERIAL_AISLE",
+      "SIMULTANEITY": "ALL_ACTIVE_COMPONENTS_IN_STATE",
+      "SOURCE_ID": "synthetic",
+      "SOURCE_VERIFICATION": "CONTENT_REQUIRED",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "APPROVAL_STATUS": "NOT_PROJECT_APPROVED",
+      "COMPONENT_ID": "REAR_AISLE",
+      "COMPONENT_TYPE": "CIRCULATION_ENVELOPE",
+      "COORDINATE_SYSTEM": "STATION_LOCAL",
+      "DIMENSION_UNIT": "mm",
+      "GEOMETRY": {
+        "BOUNDS_MM": [
+          0,
+          3900,
+          4800,
+          4500
+        ],
+        "TYPE": "RECTANGLE"
+      },
+      "OVERLAP_POLICY": "INTERACTION_REVIEW",
+      "ROLE": "SHARED_AISLE",
+      "SIMULTANEITY": "ALL_ACTIVE_COMPONENTS_IN_STATE",
+      "SOURCE_ID": "synthetic",
+      "SOURCE_VERIFICATION": "CONTENT_REQUIRED",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "APPROVAL_STATUS": "NOT_PROJECT_APPROVED",
+      "COMPONENT_ID": "SERVICE",
+      "COMPONENT_TYPE": "CLEANING_MAINTENANCE_ENVELOPE",
+      "COORDINATE_SYSTEM": "STATION_LOCAL",
+      "DIMENSION_UNIT": "mm",
+      "GEOMETRY": {
+        "BOUNDS_MM": [
+          800,
+          3100,
+          3600,
+          3900
+        ],
+        "TYPE": "RECTANGLE"
+      },
+      "OVERLAP_POLICY": "INTERACTION_REVIEW",
+      "ROLE": "SERVICE",
+      "SIMULTANEITY": "ALL_ACTIVE_COMPONENTS_IN_STATE",
+      "SOURCE_ID": "synthetic",
+      "SOURCE_VERIFICATION": "CONTENT_REQUIRED",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION"
+      ],
+      "APPROVAL_STATUS": "NOT_PROJECT_APPROVED",
+      "COMPONENT_ID": "STAND_1",
+      "COMPONENT_TYPE": "OPERATOR_ENVELOPE",
+      "COORDINATE_SYSTEM": "STATION_LOCAL",
+      "DIMENSION_UNIT": "mm",
+      "GEOMETRY": {
+        "BOUNDS_MM": [
+          1100,
+          1500,
+          1700,
+          2100
+        ],
+        "TYPE": "RECTANGLE"
+      },
+      "OVERLAP_POLICY": "PHYSICAL_EXCLUSIVE",
+      "ROLE": "STANDING",
+      "SIMULTANEITY": "ALL_ACTIVE_COMPONENTS_IN_STATE",
+      "SOURCE_ID": "synthetic",
+      "SOURCE_VERIFICATION": "CONTENT_REQUIRED",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION"
+      ],
+      "APPROVAL_STATUS": "NOT_PROJECT_APPROVED",
+      "COMPONENT_ID": "REACH_1",
+      "COMPONENT_TYPE": "OPERATOR_ENVELOPE",
+      "COORDINATE_SYSTEM": "STATION_LOCAL",
+      "DIMENSION_UNIT": "mm",
+      "GEOMETRY": {
+        "BOUNDS_MM": [
+          1100,
+          1900,
+          1700,
+          2500
+        ],
+        "TYPE": "RECTANGLE"
+      },
+      "OVERLAP_POLICY": "INTERACTION_REVIEW",
+      "ROLE": "REACH",
+      "SIMULTANEITY": "ALL_ACTIVE_COMPONENTS_IN_STATE",
+      "SOURCE_ID": "synthetic",
+      "SOURCE_VERIFICATION": "CONTENT_REQUIRED",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION"
+      ],
+      "APPROVAL_STATUS": "NOT_PROJECT_APPROVED",
+      "COMPONENT_ID": "STAND_2",
+      "COMPONENT_TYPE": "OPERATOR_ENVELOPE",
+      "COORDINATE_SYSTEM": "STATION_LOCAL",
+      "DIMENSION_UNIT": "mm",
+      "GEOMETRY": {
+        "BOUNDS_MM": [
+          1800,
+          1500,
+          2400,
+          2100
+        ],
+        "TYPE": "RECTANGLE"
+      },
+      "OVERLAP_POLICY": "PHYSICAL_EXCLUSIVE",
+      "ROLE": "STANDING",
+      "SIMULTANEITY": "ALL_ACTIVE_COMPONENTS_IN_STATE",
+      "SOURCE_ID": "synthetic",
+      "SOURCE_VERIFICATION": "CONTENT_REQUIRED",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION"
+      ],
+      "APPROVAL_STATUS": "NOT_PROJECT_APPROVED",
+      "COMPONENT_ID": "REACH_2",
+      "COMPONENT_TYPE": "OPERATOR_ENVELOPE",
+      "COORDINATE_SYSTEM": "STATION_LOCAL",
+      "DIMENSION_UNIT": "mm",
+      "GEOMETRY": {
+        "BOUNDS_MM": [
+          1800,
+          1900,
+          2400,
+          2500
+        ],
+        "TYPE": "RECTANGLE"
+      },
+      "OVERLAP_POLICY": "INTERACTION_REVIEW",
+      "ROLE": "REACH",
+      "SIMULTANEITY": "ALL_ACTIVE_COMPONENTS_IN_STATE",
+      "SOURCE_ID": "synthetic",
+      "SOURCE_VERIFICATION": "CONTENT_REQUIRED",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION"
+      ],
+      "APPROVAL_STATUS": "NOT_PROJECT_APPROVED",
+      "COMPONENT_ID": "STAND_3",
+      "COMPONENT_TYPE": "OPERATOR_ENVELOPE",
+      "COORDINATE_SYSTEM": "STATION_LOCAL",
+      "DIMENSION_UNIT": "mm",
+      "GEOMETRY": {
+        "BOUNDS_MM": [
+          2500,
+          1500,
+          3100,
+          2100
+        ],
+        "TYPE": "RECTANGLE"
+      },
+      "OVERLAP_POLICY": "PHYSICAL_EXCLUSIVE",
+      "ROLE": "STANDING",
+      "SIMULTANEITY": "ALL_ACTIVE_COMPONENTS_IN_STATE",
+      "SOURCE_ID": "synthetic",
+      "SOURCE_VERIFICATION": "CONTENT_REQUIRED",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION"
+      ],
+      "APPROVAL_STATUS": "NOT_PROJECT_APPROVED",
+      "COMPONENT_ID": "REACH_3",
+      "COMPONENT_TYPE": "OPERATOR_ENVELOPE",
+      "COORDINATE_SYSTEM": "STATION_LOCAL",
+      "DIMENSION_UNIT": "mm",
+      "GEOMETRY": {
+        "BOUNDS_MM": [
+          2500,
+          1900,
+          3100,
+          2500
+        ],
+        "TYPE": "RECTANGLE"
+      },
+      "OVERLAP_POLICY": "INTERACTION_REVIEW",
+      "ROLE": "REACH",
+      "SIMULTANEITY": "ALL_ACTIVE_COMPONENTS_IN_STATE",
+      "SOURCE_ID": "synthetic",
+      "SOURCE_VERIFICATION": "CONTENT_REQUIRED",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "COORDINATE_SYSTEM": "RIGHT_HANDED_XY_Y_UP",
+  "DIMENSION_UNIT": "mm",
+  "IDENTITY": "PackingStationModuleV1",
+  "INSTANCES": [
+    {
+      "INSTANCE_ID": "A",
+      "SOURCE_ID": "synthetic",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "INTERFACES": [
+    {
+      "COMPONENT_ID": "PEOPLE_AISLE",
+      "INTERFACE_ID": "ENTRY",
+      "KIND": "PERSONNEL_ENTRY",
+      "POINT_MM": [
+        2400,
+        800
+      ],
+      "SOURCE_ID": "synthetic"
+    },
+    {
+      "COMPONENT_ID": "IN_AISLE",
+      "INTERFACE_ID": "MATERIAL_ENTRY",
+      "KIND": "MATERIAL_IN",
+      "POINT_MM": [
+        100,
+        2700
+      ],
+      "SOURCE_ID": "synthetic"
+    },
+    {
+      "COMPONENT_ID": "SUPPLY",
+      "INTERFACE_ID": "SUPPLY_PORT",
+      "KIND": "SUPPLY",
+      "POINT_MM": [
+        500,
+        2700
+      ],
+      "SOURCE_ID": "synthetic"
+    },
+    {
+      "COMPONENT_ID": "OUT_AISLE",
+      "INTERFACE_ID": "PRODUCT_EXIT",
+      "KIND": "PRODUCT_OUT",
+      "POINT_MM": [
+        4500,
+        2700
+      ],
+      "SOURCE_ID": "synthetic"
+    },
+    {
+      "COMPONENT_ID": "OUTFEED",
+      "INTERFACE_ID": "OUTFEED_PORT",
+      "KIND": "OUTFEED",
+      "POINT_MM": [
+        3900,
+        2700
+      ],
+      "SOURCE_ID": "synthetic"
+    },
+    {
+      "COMPONENT_ID": "STAND_1",
+      "INTERFACE_ID": "OP_PORT_1",
+      "KIND": "OPERATOR_POSITION",
+      "POINT_MM": [
+        1400,
+        1800
+      ],
+      "SOURCE_ID": "synthetic"
+    },
+    {
+      "COMPONENT_ID": "STAND_2",
+      "INTERFACE_ID": "OP_PORT_2",
+      "KIND": "OPERATOR_POSITION",
+      "POINT_MM": [
+        2100,
+        1800
+      ],
+      "SOURCE_ID": "synthetic"
+    },
+    {
+      "COMPONENT_ID": "STAND_3",
+      "INTERFACE_ID": "OP_PORT_3",
+      "KIND": "OPERATOR_POSITION",
+      "POINT_MM": [
+        2800,
+        1800
+      ],
+      "SOURCE_ID": "synthetic"
+    }
+  ],
+  "MODE": "OWNER_PROJECT",
+  "OPERATORS": [
+    {
+      "ENTRY_PATH": "ENTRY_OP_1",
+      "OPERATOR_ID": "OPERATOR_1",
+      "REACH_COMPONENT": "REACH_1",
+      "SOURCE_ID": "synthetic",
+      "STANDING_COMPONENT": "STAND_1",
+      "TASK": "Receive and inspect test product",
+      "WORK_DIRECTION": "Y_POS"
+    },
+    {
+      "ENTRY_PATH": "ENTRY_OP_2",
+      "OPERATOR_ID": "OPERATOR_2",
+      "REACH_COMPONENT": "REACH_2",
+      "SOURCE_ID": "synthetic",
+      "STANDING_COMPONENT": "STAND_2",
+      "TASK": "Fill test package",
+      "WORK_DIRECTION": "Y_POS"
+    },
+    {
+      "ENTRY_PATH": "ENTRY_OP_3",
+      "OPERATOR_ID": "OPERATOR_3",
+      "REACH_COMPONENT": "REACH_3",
+      "SOURCE_ID": "synthetic",
+      "STANDING_COMPONENT": "STAND_3",
+      "TASK": "Close and transfer test package",
+      "WORK_DIRECTION": "Y_POS"
+    }
+  ],
+  "PROJECT_ID": "SYNTHETIC_STATION_ONLY",
+  "ROUTES": [
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION"
+      ],
+      "END_COMPONENTS": [
+        "STAND_1"
+      ],
+      "FLOW_KIND": "PERSONNEL",
+      "FROM_INTERFACE": "ENTRY",
+      "POINTS_MM": [
+        [
+          2400,
+          800
+        ],
+        [
+          1400,
+          800
+        ],
+        [
+          1400,
+          1800
+        ]
+      ],
+      "ROUTE_ID": "ENTRY_OP_1",
+      "SOURCE_ID": "synthetic",
+      "TO_INTERFACE": "OP_PORT_1",
+      "WIDTH_MM": 300
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION"
+      ],
+      "END_COMPONENTS": [
+        "STAND_2"
+      ],
+      "FLOW_KIND": "PERSONNEL",
+      "FROM_INTERFACE": "ENTRY",
+      "POINTS_MM": [
+        [
+          2400,
+          800
+        ],
+        [
+          2100,
+          800
+        ],
+        [
+          2100,
+          1800
+        ]
+      ],
+      "ROUTE_ID": "ENTRY_OP_2",
+      "SOURCE_ID": "synthetic",
+      "TO_INTERFACE": "OP_PORT_2",
+      "WIDTH_MM": 300
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION"
+      ],
+      "END_COMPONENTS": [
+        "STAND_3"
+      ],
+      "FLOW_KIND": "PERSONNEL",
+      "FROM_INTERFACE": "ENTRY",
+      "POINTS_MM": [
+        [
+          2400,
+          800
+        ],
+        [
+          2800,
+          800
+        ],
+        [
+          2800,
+          1800
+        ]
+      ],
+      "ROUTE_ID": "ENTRY_OP_3",
+      "SOURCE_ID": "synthetic",
+      "TO_INTERFACE": "OP_PORT_3",
+      "WIDTH_MM": 300
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION"
+      ],
+      "END_COMPONENTS": [
+        "SUPPLY"
+      ],
+      "FLOW_KIND": "MATERIAL_IN",
+      "FROM_INTERFACE": "MATERIAL_ENTRY",
+      "POINTS_MM": [
+        [
+          100,
+          2700
+        ],
+        [
+          500,
+          2700
+        ]
+      ],
+      "ROUTE_ID": "SUPPLY_PATH",
+      "SOURCE_ID": "synthetic",
+      "TO_INTERFACE": "SUPPLY_PORT",
+      "WIDTH_MM": 100
+    },
+    {
+      "ACTIVE_STATES": [
+        "NORMAL_PRODUCTION"
+      ],
+      "END_COMPONENTS": [
+        "OUTFEED"
+      ],
+      "FLOW_KIND": "PRODUCT_OUT",
+      "FROM_INTERFACE": "OUTFEED_PORT",
+      "POINTS_MM": [
+        [
+          3900,
+          2700
+        ],
+        [
+          4500,
+          2700
+        ]
+      ],
+      "ROUTE_ID": "OUTFEED_PATH",
+      "SOURCE_ID": "synthetic",
+      "TO_INTERFACE": "PRODUCT_EXIT",
+      "WIDTH_MM": 100
+    }
+  ],
+  "SHARING_CONDITIONS": [],
+  "SHIFT_CHANGE": {
+    "DURATION_MINUTES": null,
+    "STATUS": "ENGINEERING_INPUT_REQUIRED"
+  },
+  "SOURCES": {},
+  "VERSION": "packing-station-module@1.0.0",
+  "WARNING": "Every dimension is invented test geometry, not a project or vendor selection"
+}

@@ -1,0 +1,16 @@
+{
+  "FORMAL_MODULE_DIMENSIONS_APPROVED": false,
+  "FUNCTIONAL_ROOM_AREA": null,
+  "MISSING": [
+    "Selected equipment/conveyor model and complete dimensions",
+    "Three-person tasks, standing, reach and actual operator entry paths",
+    "Supply/outfeed/reject carriers, cycles and buffers",
+    "Applicable independent personnel/material circulation and entry geometry",
+    "Cleaning, guard opening and maintenance procedures/envelopes",
+    "Shift-change duration and approved temporal sharing",
+    "Project source authenticity and professional approvals"
+  ],
+  "PACKAGING_AREA_CALIBRATION_READY": false,
+  "PROJECT_SELECTED_EQUIPMENT": "UNAVAILABLE",
+  "REAL_PROJECT_MODULE_VALIDATED": false
+}

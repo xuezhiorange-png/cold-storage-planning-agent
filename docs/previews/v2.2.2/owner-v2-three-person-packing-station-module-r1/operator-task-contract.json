@@ -1,0 +1,19 @@
+{
+  "APPROVED_LAYOUT": false,
+  "ASSUMPTIONS": "Same-side example only demonstrates software; opposed sides or2+1 require their own sourced coordinates, not an implicit real default",
+  "EXCLUSIVITY": "Three distinct standing and three distinct reach component identities; three independent bound access paths",
+  "OPERATORS": [
+    "OPERATOR_1",
+    "OPERATOR_2",
+    "OPERATOR_3"
+  ],
+  "REQUIRED_PER_OPERATOR": [
+    "SOURCE_ID",
+    "TASK",
+    "WORK_DIRECTION",
+    "STANDING_COMPONENT",
+    "REACH_COMPONENT",
+    "ENTRY_PATH"
+  ],
+  "WORK_DIRECTION": "Explicit local X_POS/X_NEG/Y_POS/Y_NEG transformed with instance pose"
+}

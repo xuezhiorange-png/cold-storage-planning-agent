@@ -1,0 +1,32 @@
+{
+  "AREA_SCOPE": "State union, all-state swept union and bounding rectangle differ; FUNCTIONAL_ROOM_AREA always null",
+  "ASSEMBLY_POLICY": "Explicit poses, shared circulation and full-width inter-station paths; labels do not prove process organization",
+  "COORDINATES": "Explicit right-handed XY, y-up, station-local rectangles; explicit instance quarter-turn then translation",
+  "DIMENSION_UNIT": "integer mm; exact Fraction intermediate path half-widths",
+  "GEOMETRY_SCOPE": "Axis-aligned rectangles after quarter-turns; orthogonal finite-width paths with square end caps; unsupported geometry rejects, never approximated",
+  "IDENTITY": "PackingStationModuleV1",
+  "MAX_REAL_FACTORY_SOLVES": 0,
+  "MODES": [
+    "SYNTHETIC_TEST",
+    "OWNER_PROJECT"
+  ],
+  "OFFLINE_ONLY": true,
+  "PROJECT_APPROVAL": "Always NOT_APPROVED in this prototype",
+  "REQUIRED_TYPES": [
+    "PACKING_STATION_ENVELOPE",
+    "OPERATOR_ENVELOPE",
+    "MATERIAL_SUPPLY_ENVELOPE",
+    "PRODUCT_OUTFEED_ENVELOPE",
+    "CIRCULATION_ENVELOPE",
+    "CLEANING_MAINTENANCE_ENVELOPE"
+  ],
+  "SOURCE_POLICY": "Actual local bytes SHA256 and entire record equality required; no self-asserted verified or approval accepted",
+  "STATES": [
+    "NORMAL_PRODUCTION",
+    "SHIFT_CHANGE",
+    "CLEANING",
+    "MAINTENANCE"
+  ],
+  "VERSION": "packing-station-module@1.0.0",
+  "WORKERS_PER_STATION": 3
+}

@@ -1,0 +1,371 @@
+{
+  "ASSEMBLY_CONNECTIVITY_STATUS": "EXPLICIT_PERSONNEL_ROUTES_CONNECTED",
+  "CIRCULATION_STATUS": "EXPLICIT_FULL_WIDTH_PATHS_CHECKED_NOT_SAFETY_APPROVAL",
+  "DIMENSION_UNIT": "mm",
+  "FORMAL_MODULE_DIMENSIONS_APPROVED": false,
+  "FUNCTIONAL_CONFLICTS": [
+    {
+      "FIRST": "A/EQUIPMENT",
+      "POSITIVE_OVERLAP_MM2": 180000,
+      "SECOND": "A/REACH_1",
+      "SOURCE_BOUND_CONDITIONS": [],
+      "STATE": "NORMAL_PRODUCTION",
+      "STATUS": "REVIEW_REQUIRED",
+      "TYPE": "REACH_INTERACTION_NOT_SOLID_COLLISION"
+    },
+    {
+      "FIRST": "A/EQUIPMENT",
+      "POSITIVE_OVERLAP_MM2": 180000,
+      "SECOND": "A/REACH_2",
+      "SOURCE_BOUND_CONDITIONS": [],
+      "STATE": "NORMAL_PRODUCTION",
+      "STATUS": "REVIEW_REQUIRED",
+      "TYPE": "REACH_INTERACTION_NOT_SOLID_COLLISION"
+    },
+    {
+      "FIRST": "A/EQUIPMENT",
+      "POSITIVE_OVERLAP_MM2": 180000,
+      "SECOND": "A/REACH_3",
+      "SOURCE_BOUND_CONDITIONS": [],
+      "STATE": "NORMAL_PRODUCTION",
+      "STATUS": "REVIEW_REQUIRED",
+      "TYPE": "REACH_INTERACTION_NOT_SOLID_COLLISION"
+    },
+    {
+      "FIRST": "A/IN_AISLE",
+      "POSITIVE_OVERLAP_MM2": 120000,
+      "SECOND": "A/REAR_AISLE",
+      "SOURCE_BOUND_CONDITIONS": [],
+      "STATE": "NORMAL_PRODUCTION",
+      "STATUS": "REVIEW_REQUIRED",
+      "TYPE": "CIRCULATION_SHARING_REVIEW"
+    },
+    {
+      "FIRST": "A/OUT_AISLE",
+      "POSITIVE_OVERLAP_MM2": 360000,
+      "SECOND": "A/REAR_AISLE",
+      "SOURCE_BOUND_CONDITIONS": [],
+      "STATE": "NORMAL_PRODUCTION",
+      "STATUS": "REVIEW_REQUIRED",
+      "TYPE": "CIRCULATION_SHARING_REVIEW"
+    },
+    {
+      "FIRST": "A/STAND_1",
+      "POSITIVE_OVERLAP_MM2": 120000,
+      "SECOND": "A/REACH_1",
+      "SOURCE_BOUND_CONDITIONS": [],
+      "STATE": "NORMAL_PRODUCTION",
+      "STATUS": "REVIEW_REQUIRED",
+      "TYPE": "REACH_INTERACTION_NOT_SOLID_COLLISION"
+    },
+    {
+      "FIRST": "A/STAND_2",
+      "POSITIVE_OVERLAP_MM2": 120000,
+      "SECOND": "A/REACH_2",
+      "SOURCE_BOUND_CONDITIONS": [],
+      "STATE": "NORMAL_PRODUCTION",
+      "STATUS": "REVIEW_REQUIRED",
+      "TYPE": "REACH_INTERACTION_NOT_SOLID_COLLISION"
+    },
+    {
+      "FIRST": "A/STAND_3",
+      "POSITIVE_OVERLAP_MM2": 120000,
+      "SECOND": "A/REACH_3",
+      "SOURCE_BOUND_CONDITIONS": [],
+      "STATE": "NORMAL_PRODUCTION",
+      "STATUS": "REVIEW_REQUIRED",
+      "TYPE": "REACH_INTERACTION_NOT_SOLID_COLLISION"
+    },
+    {
+      "FIRST": "A/IN_AISLE",
+      "POSITIVE_OVERLAP_MM2": 120000,
+      "SECOND": "A/REAR_AISLE",
+      "SOURCE_BOUND_CONDITIONS": [],
+      "STATE": "SHIFT_CHANGE",
+      "STATUS": "REVIEW_REQUIRED",
+      "TYPE": "CIRCULATION_SHARING_REVIEW"
+    },
+    {
+      "FIRST": "A/OUT_AISLE",
+      "POSITIVE_OVERLAP_MM2": 360000,
+      "SECOND": "A/REAR_AISLE",
+      "SOURCE_BOUND_CONDITIONS": [],
+      "STATE": "SHIFT_CHANGE",
+      "STATUS": "REVIEW_REQUIRED",
+      "TYPE": "CIRCULATION_SHARING_REVIEW"
+    },
+    {
+      "FIRST": "A/IN_AISLE",
+      "POSITIVE_OVERLAP_MM2": 120000,
+      "SECOND": "A/REAR_AISLE",
+      "SOURCE_BOUND_CONDITIONS": [],
+      "STATE": "CLEANING",
+      "STATUS": "REVIEW_REQUIRED",
+      "TYPE": "CIRCULATION_SHARING_REVIEW"
+    },
+    {
+      "FIRST": "A/OUT_AISLE",
+      "POSITIVE_OVERLAP_MM2": 360000,
+      "SECOND": "A/REAR_AISLE",
+      "SOURCE_BOUND_CONDITIONS": [],
+      "STATE": "CLEANING",
+      "STATUS": "REVIEW_REQUIRED",
+      "TYPE": "CIRCULATION_SHARING_REVIEW"
+    },
+    {
+      "FIRST": "A/IN_AISLE",
+      "POSITIVE_OVERLAP_MM2": 120000,
+      "SECOND": "A/REAR_AISLE",
+      "SOURCE_BOUND_CONDITIONS": [],
+      "STATE": "MAINTENANCE",
+      "STATUS": "REVIEW_REQUIRED",
+      "TYPE": "CIRCULATION_SHARING_REVIEW"
+    },
+    {
+      "FIRST": "A/OUT_AISLE",
+      "POSITIVE_OVERLAP_MM2": 360000,
+      "SECOND": "A/REAR_AISLE",
+      "SOURCE_BOUND_CONDITIONS": [],
+      "STATE": "MAINTENANCE",
+      "STATUS": "REVIEW_REQUIRED",
+      "TYPE": "CIRCULATION_SHARING_REVIEW"
+    }
+  ],
+  "FUNCTIONAL_ROOM_AREA": null,
+  "GEOMETRIC_COLLISIONS": [],
+  "GEOMETRY_INPUT_STATUS": "VALID_SOURCE_BOUND_OFFLINE_INPUT",
+  "IDENTITY": "PackingStationModuleV1",
+  "INPUT_SHA256": "684df9589ea3e7a43bfe675e8d998b0a22cd2ada9b3380a52f653f5b63d2af83",
+  "LIMITATIONS": [
+    "Axis-aligned rectangles and orthogonal full-width paths only",
+    "Source-bound overlap conditions are recorded, not automatically approved",
+    "No anthropometric reach, task suitability, door sweep or fire/hygiene approval",
+    "Arrangement labels do not prove line continuity or room capacity"
+  ],
+  "MAINTENANCE_STATUS": "REVIEW_REQUIRED_STATE_GEOMETRY_NOT_PROCEDURE_APPROVAL",
+  "MATERIAL_FLOW_STATUS": "GEOMETRY_ONLY_ENGINEERING_REVIEW_REQUIRED",
+  "MODE": "SYNTHETIC_TEST",
+  "MODULE_BOUNDS": [
+    0,
+    400,
+    4800,
+    4500
+  ],
+  "MODULE_ENGINEERING_APPROVAL": "NOT_APPROVED",
+  "MODULE_GEOMETRIC_AREA": {
+    "BOUNDING_RECTANGLE_AREA_MM2": 19680000,
+    "FUNCTIONAL_ROOM_AREA": null,
+    "GEOMETRIC_UNION_AREA_MM2": 16220000,
+    "SCOPE": "All-state swept occupation, not room demand or simultaneous-state area"
+  },
+  "NATIVE_SOLVER_CALLS": 0,
+  "NEW_OWNER_GRANT": false,
+  "NON_SIMULTANEOUS_OCCUPATIONS": [],
+  "OPERATORS": [
+    {
+      "DIRECTION": [
+        0,
+        1
+      ],
+      "ENTRY_PATH": "ENTRY_OP_1",
+      "KEY": "A/OPERATOR_1",
+      "OPERATOR_ID": "OPERATOR_1",
+      "POSITION": [
+        1400,
+        1800
+      ],
+      "REACH_COMPONENT": "REACH_1",
+      "SOURCE_ID": "synthetic",
+      "STANDING_COMPONENT": "STAND_1",
+      "STATION": "A",
+      "TASK": "Receive and inspect test product",
+      "WORK_DIRECTION": "Y_POS"
+    },
+    {
+      "DIRECTION": [
+        0,
+        1
+      ],
+      "ENTRY_PATH": "ENTRY_OP_2",
+      "KEY": "A/OPERATOR_2",
+      "OPERATOR_ID": "OPERATOR_2",
+      "POSITION": [
+        2100,
+        1800
+      ],
+      "REACH_COMPONENT": "REACH_2",
+      "SOURCE_ID": "synthetic",
+      "STANDING_COMPONENT": "STAND_2",
+      "STATION": "A",
+      "TASK": "Fill test package",
+      "WORK_DIRECTION": "Y_POS"
+    },
+    {
+      "DIRECTION": [
+        0,
+        1
+      ],
+      "ENTRY_PATH": "ENTRY_OP_3",
+      "KEY": "A/OPERATOR_3",
+      "OPERATOR_ID": "OPERATOR_3",
+      "POSITION": [
+        2800,
+        1800
+      ],
+      "REACH_COMPONENT": "REACH_3",
+      "SOURCE_ID": "synthetic",
+      "STANDING_COMPONENT": "STAND_3",
+      "STATION": "A",
+      "TASK": "Close and transfer test package",
+      "WORK_DIRECTION": "Y_POS"
+    }
+  ],
+  "OPERATOR_FIT_STATUS": "REVIEW_REQUIRED_TASK_AND_REACH",
+  "OPERATOR_LAYOUT_APPROVED": false,
+  "PACKAGING_AREA_CALIBRATION_READY": false,
+  "PATH_CHECKS": [
+    {
+      "EQUIPMENT_BLOCKERS": [],
+      "FLOW_KIND": "PERSONNEL",
+      "FULL_WIDTH_COVERED": true,
+      "KEY": "A/ENTRY_OP_1",
+      "STATE": "NORMAL_PRODUCTION",
+      "STATUS": "GEOMETRY_PASS_ONLY"
+    },
+    {
+      "EQUIPMENT_BLOCKERS": [],
+      "FLOW_KIND": "PERSONNEL",
+      "FULL_WIDTH_COVERED": true,
+      "KEY": "A/ENTRY_OP_2",
+      "STATE": "NORMAL_PRODUCTION",
+      "STATUS": "GEOMETRY_PASS_ONLY"
+    },
+    {
+      "EQUIPMENT_BLOCKERS": [],
+      "FLOW_KIND": "PERSONNEL",
+      "FULL_WIDTH_COVERED": true,
+      "KEY": "A/ENTRY_OP_3",
+      "STATE": "NORMAL_PRODUCTION",
+      "STATUS": "GEOMETRY_PASS_ONLY"
+    },
+    {
+      "EQUIPMENT_BLOCKERS": [],
+      "FLOW_KIND": "MATERIAL_IN",
+      "FULL_WIDTH_COVERED": true,
+      "KEY": "A/SUPPLY_PATH",
+      "STATE": "NORMAL_PRODUCTION",
+      "STATUS": "GEOMETRY_PASS_ONLY"
+    },
+    {
+      "EQUIPMENT_BLOCKERS": [],
+      "FLOW_KIND": "PRODUCT_OUT",
+      "FULL_WIDTH_COVERED": true,
+      "KEY": "A/OUTFEED_PATH",
+      "STATE": "NORMAL_PRODUCTION",
+      "STATUS": "GEOMETRY_PASS_ONLY"
+    }
+  ],
+  "PHYSICAL_COMPONENT_STATUS": "GEOMETRY_PASS_ONLY",
+  "REAL_FACTORY_SOLVES": 0,
+  "REAL_PROJECT_MODULE_VALIDATED": false,
+  "SHIFT_CHANGE_STATUS": "REVIEW_REQUIRED_NO_ZERO_TIME_ASSUMPTION",
+  "SOURCE_STATUS": "ACTUAL_LOCAL_CONTENT_MATCH_NOT_PUBLISHER_AUTHENTICATION",
+  "STATES": {
+    "CLEANING": {
+      "ACTIVE_COMPONENT_KEYS": [
+        "A/EQUIPMENT",
+        "A/PEOPLE_AISLE",
+        "A/IN_AISLE",
+        "A/OUT_AISLE",
+        "A/REAR_AISLE",
+        "A/SERVICE"
+      ],
+      "BOUNDING_RECTANGLE_AREA_MM2": 19680000,
+      "BOUNDS_MM": [
+        0,
+        400,
+        4800,
+        4500
+      ],
+      "DEPTH_MM": 4100,
+      "FUNCTIONAL_ROOM_AREA": null,
+      "GEOMETRIC_UNION_AREA_MM2": 14240000,
+      "SUM_COMPONENT_AREAS_MM2": 14720000,
+      "WIDTH_MM": 4800
+    },
+    "MAINTENANCE": {
+      "ACTIVE_COMPONENT_KEYS": [
+        "A/EQUIPMENT",
+        "A/PEOPLE_AISLE",
+        "A/IN_AISLE",
+        "A/OUT_AISLE",
+        "A/REAR_AISLE",
+        "A/SERVICE"
+      ],
+      "BOUNDING_RECTANGLE_AREA_MM2": 19680000,
+      "BOUNDS_MM": [
+        0,
+        400,
+        4800,
+        4500
+      ],
+      "DEPTH_MM": 4100,
+      "FUNCTIONAL_ROOM_AREA": null,
+      "GEOMETRIC_UNION_AREA_MM2": 14240000,
+      "SUM_COMPONENT_AREAS_MM2": 14720000,
+      "WIDTH_MM": 4800
+    },
+    "NORMAL_PRODUCTION": {
+      "ACTIVE_COMPONENT_KEYS": [
+        "A/EQUIPMENT",
+        "A/SUPPLY",
+        "A/OUTFEED",
+        "A/PEOPLE_AISLE",
+        "A/IN_AISLE",
+        "A/OUT_AISLE",
+        "A/REAR_AISLE",
+        "A/STAND_1",
+        "A/REACH_1",
+        "A/STAND_2",
+        "A/REACH_2",
+        "A/STAND_3",
+        "A/REACH_3"
+      ],
+      "BOUNDING_RECTANGLE_AREA_MM2": 19680000,
+      "BOUNDS_MM": [
+        0,
+        400,
+        4800,
+        4500
+      ],
+      "DEPTH_MM": 4100,
+      "FUNCTIONAL_ROOM_AREA": null,
+      "GEOMETRIC_UNION_AREA_MM2": 13980000,
+      "SUM_COMPONENT_AREAS_MM2": 15360000,
+      "WIDTH_MM": 4800
+    },
+    "SHIFT_CHANGE": {
+      "ACTIVE_COMPONENT_KEYS": [
+        "A/EQUIPMENT",
+        "A/PEOPLE_AISLE",
+        "A/IN_AISLE",
+        "A/OUT_AISLE",
+        "A/REAR_AISLE"
+      ],
+      "BOUNDING_RECTANGLE_AREA_MM2": 19680000,
+      "BOUNDS_MM": [
+        0,
+        400,
+        4800,
+        4500
+      ],
+      "DEPTH_MM": 4100,
+      "FUNCTIONAL_ROOM_AREA": null,
+      "GEOMETRIC_UNION_AREA_MM2": 12000000,
+      "SUM_COMPONENT_AREAS_MM2": 12480000,
+      "WIDTH_MM": 4800
+    }
+  },
+  "SYNTHETIC_GEOMETRY_TEST_PASS": true,
+  "VERSION": "packing-station-module@1.0.0"
+}
