@@ -31,6 +31,7 @@ from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.domain.svg_projection import build_projection_payload
 from cold_storage.modules.layout.infrastructure.stage_b_fair_execution import (
     FAIR_ENUMERATION_CONTRACT,
+    FairMultiSolutionPoolExecutionStore,
 )
 from cold_storage.modules.layout.infrastructure.stage_b_pool_execution import PoolLease
 
@@ -174,14 +175,29 @@ def main() -> None:
         dict(canonical_zone_plan=plan, p1_handoff=p1, typed_site=site.to_dict()),
     )
     store = approved_stage_b_fair_pool_store()
-    store.approve(args.owner_instruction.read_bytes(), binding)
+    execute_fair_pools(
+        args.output, plan, p1, site, store, args.owner_instruction.read_bytes(), binding
+    )
+
+
+def execute_fair_pools(
+    output: Path,
+    plan: Any,
+    p1: Any,
+    site: Any,
+    store: FairMultiSolutionPoolExecutionStore,
+    instruction: bytes,
+    binding: dict[str, Any],
+) -> None:
+    """Shared unchanged two-pool execution/export; approval remains bootstrap-owned."""
+    store.approve(instruction, binding)
     results = []
     for mode in ("MAIN", "REPLAY"):
         try:
             ledger = store.open(mode)
         except LayoutAuthorityError as error:
             dump(
-                args.output / (mode.lower() + "_not_executed.json"),
+                output / (mode.lower() + "_not_executed.json"),
                 dict(code=error.code, details=error.details),
             )
             break
@@ -192,11 +208,11 @@ def main() -> None:
             result = generate_fair_multi_solution_global_layout_pool(
                 plan, p1, site, execution_ledger=ledger
             )
-            dump(args.output / (mode.lower() + "_pool.json"), result)
+            dump(output / (mode.lower() + "_pool.json"), result)
             results.append(result)
         except Exception as error:
             dump(
-                args.output / (mode.lower() + "_failure.json"),
+                output / (mode.lower() + "_failure.json"),
                 dict(type=type(error).__name__, message=str(error)),
             )
         finally:
@@ -204,11 +220,11 @@ def main() -> None:
         if result is None:
             break
     state = json.loads((store.root / "task_ledger.json").read_text())
-    dump(args.output / "resource_ledger.json", state)
+    dump(output / "resource_ledger.json", state)
     semantics = [fair_semantics(r) for r in results]
     compared = len(semantics) == 2 and semantics[0] == semantics[1]
     dump(
-        args.output / "determinism.json",
+        output / "determinism.json",
         dict(
             status="PASS_ACTUAL_PARTIAL_POOL"
             if compared and results[0]["candidates"]
@@ -224,17 +240,17 @@ def main() -> None:
         ),
     )
     for mode, semantic in zip(("main", "replay"), semantics, strict=False):
-        dump(args.output / (mode + "_semantics.json"), semantic)
+        dump(output / (mode + "_semantics.json"), semantic)
     ids = {
         r["identity"]
         for r in bind_layout_authority(plan, p1, site).access_requirements
         if r["flow_kind"] != "TRUCK"
     }
     for mode, result in zip(("main", "replay"), results, strict=False):
-        export_fair_pool(args.output / mode, result, site, ids)
+        export_fair_pool(output / mode, result, site, ids)
     rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     dump(
-        args.output / "post_export_process_resource.json",
+        output / "post_export_process_resource.json",
         dict(
             raw_ru_maxrss=rss,
             peak_rss_bytes=rss if sys.platform == "darwin" else rss * 1024,

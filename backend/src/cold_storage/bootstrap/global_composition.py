@@ -35,6 +35,9 @@ from cold_storage.modules.layout.infrastructure.stage_b_fair_execution import (
     FairMultiSolutionPoolExecutionStore,
 )
 from cold_storage.modules.layout.infrastructure.stage_b_fair_search import StageBFairSearchSolver
+from cold_storage.modules.layout.infrastructure.stage_b_guided_fair_execution import (
+    GuidedFairPoolExecutionStore,
+)
 from cold_storage.modules.layout.infrastructure.stage_b_multi_solution import (
     StageBMultiSolutionSolver,
 )
@@ -53,6 +56,17 @@ MULTI_SOLUTION_OWNER_TASK = "REAL_MULTI_SOLUTION_VALIDATION_01"
 MULTI_SOLUTION_OWNER_SHA256 = "5e2c4a256aaa61c4d0572bf533c184d06d397df7efec63489b8248f8f3aa27e1"
 FAIR_POOL_OWNER_TASK = "REAL_FAIR_MULTI_STRUCTURE_VALIDATION_01"
 FAIR_POOL_OWNER_SHA256 = "0df70b59d3b7789d226af941018e36f8709db3213763bf37a0a041a193ea49ff"
+GUIDED_FAIR_OWNER_TASK = "REAL_GUIDED_FAIR_MULTI_STRUCTURE_VALIDATION_02"
+GUIDED_FAIR_OWNER_SHA256 = "b9e340edfc7993ec53031e56004d709c3c986c012a2109cc7a68fad7cdc9e47d"
+
+
+def approved_stage_b_guided_fair_store() -> GuidedFairPoolExecutionStore:
+    """One fixed new task slot; never aliases or replenishes a historical grant."""
+    return GuidedFairPoolExecutionStore(
+        Path.home() / ".local/state/cold-storage-planning-agent/owner-pools",
+        GUIDED_FAIR_OWNER_TASK,
+        GUIDED_FAIR_OWNER_SHA256,
+    )
 
 
 def approved_stage_b_fair_pool_store() -> FairMultiSolutionPoolExecutionStore:

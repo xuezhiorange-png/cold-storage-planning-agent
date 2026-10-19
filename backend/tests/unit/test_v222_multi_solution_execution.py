@@ -309,3 +309,125 @@ def test_fair_replay_comparison_includes_counts_branch_metadata_and_stop_reason(
         changed = deepcopy(result)
         changed[key] = "DIFFERENT"
         assert module.fair_semantics(changed) != before
+
+
+def _guided_registry(tmp_path):
+    from cold_storage.modules.layout.infrastructure.stage_b_guided_fair_execution import (
+        GUIDED_EXECUTION_CONTRACT,
+        GuidedFairPoolExecutionStore,
+    )
+
+    _, binding = _fair_registry(tmp_path)
+    instruction = b"SYNTHETIC_POOL_TEST not a real project approval"
+    binding["guided_execution_contract"] = dict(GUIDED_EXECUTION_CONTRACT)
+    store = GuidedFairPoolExecutionStore(
+        tmp_path / "guided", "SYNTHETIC_POOL_TEST", hashlib.sha256(instruction).hexdigest()
+    )
+    store.approve(instruction, binding)
+    return store, binding, instruction
+
+
+def test_guided_fixed_slot_cannot_alias_any_consumed_owner_grant():
+    from cold_storage.bootstrap.global_composition import (
+        GUIDED_FAIR_OWNER_SHA256,
+        GUIDED_FAIR_OWNER_TASK,
+        approved_stage_b_fair_pool_store,
+        approved_stage_b_guided_fair_store,
+    )
+
+    assert not inspect.signature(approved_stage_b_guided_fair_store).parameters
+    assert GUIDED_FAIR_OWNER_TASK == "REAL_GUIDED_FAIR_MULTI_STRUCTURE_VALIDATION_02"
+    assert (
+        GUIDED_FAIR_OWNER_SHA256
+        == "b9e340edfc7993ec53031e56004d709c3c986c012a2109cc7a68fad7cdc9e47d"
+    )
+    assert approved_stage_b_guided_fair_store().root not in {
+        approved_stage_b_fair_pool_store().root,
+        approved_stage_b_multi_solution_store().root,
+        approved_stage_b_pool_store().root,
+    }
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "version",
+        "wall_guidance_policy",
+        "wall_guidance_policy_hash",
+        "strict_base_infeasible_short_circuit",
+    ],
+)
+def test_guided_policy_binding_tamper_rejected(tmp_path, key):
+    store, binding, instruction = _guided_registry(tmp_path)
+    binding["guided_execution_contract"][key] = "changed"
+    with pytest.raises(LayoutAuthorityError, match="GUIDED_FAIR_BINDING"):
+        store.approve(instruction, binding)
+
+
+def test_guided_claims_share_counts_and_consumed_slot_never_refills(tmp_path):
+    store, binding, instruction = _guided_registry(tmp_path)
+    with pytest.raises(LayoutAuthorityError, match="OWNER_SOURCE_MISMATCH"):
+        store.approve(instruction + b"changed", binding)
+    for mode in ("MAIN", "REPLAY"):
+        ledger = store.open(mode)
+        lease = admit(ledger, binding)
+        with pytest.raises(LayoutAuthorityError, match="ACTIVE"):
+            store.open(mode)
+        for i in range(6):
+            begin(lease, binding, i)
+            ledger.charge("SYNTHETIC_GUIDANCE_ACCOUNTING", 1)
+            ledger.checkpoint("STAGE_B_CANDIDATE_RETURNED_OR_INTERRUPTED")
+        lease.finish_pool()
+    state = json.loads((store.root / "task_ledger.json").read_text())
+    assert state["totals"]["composition_calls"] == 12
+    assert state["totals"]["observable_work"] == 12
+    for mode in ("MAIN", "REPLAY"):
+        with pytest.raises(LayoutAuthorityError, match="CONSUMED"):
+            store.open(mode)
+
+
+@pytest.mark.parametrize("bad", ["pending", "failure", "missing_push", "different_head"])
+def test_guided_runner_ci_gate_denies_without_creating_grant(tmp_path, monkeypatch, bad):
+    import importlib
+
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "scripts"))
+    module = importlib.import_module("run_stage_b_guided_fair_pool")
+    head = "unit-head"
+    pr = dict(headRefOid=head, isDraft=True, state="OPEN")
+    runs = [
+        dict(databaseId=i, event=e, status="completed", conclusion="success", headSha=head)
+        for i, e in enumerate(("pull_request", "push"))
+    ]
+    if bad in {"pending", "failure"}:
+        runs[0]["conclusion"] = bad
+    elif bad == "missing_push":
+        runs.pop()
+    else:
+        pr["headRefOid"] = "another-head"
+
+    def read(args, **kwargs):
+        return head if args[0] == "git" else json.dumps(pr if args[1] == "pr" else runs)
+
+    monkeypatch.setattr(module.subprocess, "check_output", read)
+    monkeypatch.setattr(module.subprocess, "run", lambda *a, **k: None)
+    with pytest.raises(LayoutAuthorityError, match="CI_ADMISSION_BLOCKED"):
+        module.github_admission(tmp_path)
+    assert not list(tmp_path.iterdir())
+
+
+def test_guided_runner_binding_and_help_have_no_caller_quota(monkeypatch):
+    import importlib
+    import sys
+
+    from tests.unit.test_v222_p1a_composition_authority_handoff import _context
+
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "scripts"))
+    module = importlib.import_module("run_stage_b_guided_fair_pool")
+    plan, p1, site = _context()
+    binding = module.fair_binding(Path(__file__).resolve().parents[3], plan, p1.to_dict(), site)
+    assert len(binding["compositions"]) == 6
+    assert module.GUIDED_EXECUTION_CONTRACT["strict_base_infeasible_short_circuit"] is True
+    monkeypatch.setattr(sys, "argv", ["run_stage_b_guided_fair_pool.py", "--help"])
+    with pytest.raises(SystemExit) as result:
+        module.main()
+    assert result.value.code == 0
