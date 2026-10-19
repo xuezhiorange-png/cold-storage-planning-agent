@@ -1,0 +1,23 @@
+{
+  "files": {
+    "README.md": "ebe41a2085ed5440fa8e5158febd6d9e258f74d8ddee9e3f2add8737648669b7",
+    "area-impact-matrix.md": "10ac2f02a1df1d042ece837027f97c9f1170b4ce62bb0055b96b43376bca9239",
+    "legacy-canonical-replay.json": "149c44d0b9ddf101e72d59659b694771c8463974473e3fc5b7993a5184e3c8ad",
+    "legacy-current-rule-audit.json": "8256eca820ee88698a89b5bf652910bb540c2df56a58307c793d7fcb98dbe833",
+    "mass-basis-and-shift-allocation.md": "3552d50f77280eb2ab3dcef848f2b8501b873e1bc85d4b09d5179c158aecfb61",
+    "missing-input-admission.json": "48ed1be916eda958a53786217f7d3e5eece8af3bb9feff52280a1e16c9cec1ea",
+    "offline_compatibility.py": "1325ea2d0f50fa9353247b2f249b7aef5e9212e5a667d1278543d621f0c03d8c",
+    "owner-v1-input-mapping.json": "7aa3102a9d96aaa7a90978ad239ad3688a262aac7f1a16035b572cd318aa115a",
+    "p1-compatibility-output-contract.json": "a0d7c375d20117978ad002f9047c4ba0069a1b22a9aff0b4a72cb292a1a7e79c",
+    "p1-integration-readiness.md": "ebbe6bede473e36607063a6440cc5d03ef569f0ede323de36aac2e23f2fe50c1",
+    "role-and-field-alias-mapping.json": "5181e24c73411df54a8e42287b53871dcf1caad86be6c4e8d8f6597db0682528",
+    "staffing-and-table-compatibility.json": "699ba089a94f8df4e2f02a2aa946ffbe88abae8f9047bb76bd78c9f2851350ac",
+    "synthetic-equal-mass-source.json": "edfa1edb12d04d3422cc5c5001ee47bc32d9e5d0dcc85378814761b05692767f",
+    "synthetic-unequal-mass-source.json": "097e60748d175825a8b1087300e48e3553902f82e5c0bc37b870a44360840970",
+    "test_offline_compatibility.py": "81c1ed57bc5f6e76c6abe9423d49c16f3369aa5961b1b24365ef87ca89027eb2",
+    "validation.json": "d3805eeea89b8b495b4c5c3f6438fe0b9eb562e15dd9dd37417bce70b0bd13bf"
+  },
+  "reference_head": "75188edb520c49bd4500008a68bd13aaa3448426",
+  "self_exclusion": "Manifest excludes its own bytes to avoid circular digest",
+  "task": "V2_2_2_OWNER_FACTORY_INPUT_P1_COMPATIBILITY_READINESS_R1"
+}

@@ -1,0 +1,42 @@
+{
+  "P1_INTEGRATION_IMPLEMENTATION_READY": false,
+  "P1_PRODUCTION_ACTIVATED": false,
+  "explicit_modes": [
+    "LEGACY_CANONICAL",
+    "OWNER_V1_PROPOSED"
+  ],
+  "identity": "OwnerFactoryP1CompatibilityReadinessV1",
+  "legacy": "Actual production result and identity unchanged; separate wrapper only",
+  "output_hash_semantics": "Offline sidecar digest only; never substitute for production canonical_hash or source approval",
+  "owner": "Proposed staffing and locker facts, never canonical P1",
+  "registration": "UNREGISTERED_OFFLINE_DRAFT",
+  "required_fields": [
+    "identity",
+    "version",
+    "mode",
+    "input_identity",
+    "input_mass_basis",
+    "source_verification",
+    "source_record",
+    "input_mass_source",
+    "owner_contract_version",
+    "owner_contract_source_manifest_sha256",
+    "staffing_and_lockers",
+    "office",
+    "table_policy",
+    "film_sealing",
+    "new_functional_area_m2",
+    "COMPARISON_STATUS",
+    "comparison_reason",
+    "canonical_p1_result",
+    "server_authority_created",
+    "formal_source_admission",
+    "BLOCKING_INPUTS",
+    "BLOCKING_AUTHORITY_DECISIONS",
+    "BLOCKING_IMPLEMENTATION_ITEMS",
+    "BUSINESS_RULES_READY",
+    "P1_INTEGRATION_IMPLEMENTATION_READY",
+    "P1_PRODUCTION_ACTIVATED"
+  ],
+  "version": "owner-factory-p1-compatibility-readiness@1.0.0"
+}

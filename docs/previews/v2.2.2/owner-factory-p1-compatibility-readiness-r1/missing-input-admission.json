@@ -1,0 +1,33 @@
+{
+  "BLOCKING_AUTHORITY_DECISIONS": [
+    "New table concurrency/reuse and three-worker capacity approval",
+    "Functional areas and profile version/supersession approval"
+  ],
+  "BLOCKING_IMPLEMENTATION_ITEMS": [
+    "Trusted upstream content/provenance binding",
+    "Separate version selector, canonical identity and P1/P2 migration",
+    "Consumer implementation, regression, CI and rollback gates"
+  ],
+  "BLOCKING_INPUTS": [
+    "Project size, workstations and clear-space basis",
+    "Locker and equipment/state envelopes",
+    "Equipment effective runtime and actual mass provenance approval"
+  ],
+  "BUSINESS_RULES_READY": true,
+  "P1_INTEGRATION_IMPLEMENTATION_READY": false,
+  "P1_PRODUCTION_ACTIVATED": false,
+  "actual_file_and_hash_checked": true,
+  "caller_verified_flag_accepted": false,
+  "hash_alone_is_project_approval": false,
+  "source_fail_closed_reasons": [
+    "PACKAGED_MASS_SOURCE_REQUIRED",
+    "SOURCE_FILE_MISSING",
+    "SOURCE_CONTENT_HASH_MISMATCH",
+    "PACKAGED_PRODUCT_MASS_KG_REQUIRED",
+    "EXPLICIT_BOTH_SHIFT_ALLOCATIONS_REQUIRED",
+    "SOURCE_SHIFT_QUANTITY_MISMATCH",
+    "SOURCE_PROJECT_OR_PERIOD_MISMATCH",
+    "CALLER_AUTHORITY_ASSERTION_NOT_ACCEPTED"
+  ],
+  "status": "DESIGN_AND_OFFLINE_CHECK_NOT_FORMAL_ADMISSION"
+}

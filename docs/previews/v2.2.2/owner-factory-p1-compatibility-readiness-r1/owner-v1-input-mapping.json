@@ -1,0 +1,244 @@
+{
+  "owner_contract_version": "owner-factory-functional-inputs@1.0.0",
+  "owner_source_manifest_sha256": "a641e21b5c5d60f4f635db0ed1af4744215dc88951c6b1bc7c1dfbce43671b84",
+  "rows": [
+    {
+      "AUTHORITY_IMPACT": "Canonical source changes if activated",
+      "BUSINESS_SEMANTICS": "Raw input differs from packaged product",
+      "COMPATIBILITY_STATUS": "NOT_INTERCHANGEABLE",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "daily_inbound_mass_kg",
+      "MISSING_INPUT_BEHAVIOR": "BLOCKED_MASS_SOURCE",
+      "OWNER_V1_INPUT": "PACKAGED_PRODUCT_MASS",
+      "TRANSFORMATION_REQUIRED": "Traceable yield/mass-balance and common period; never default1",
+      "UNIT": "kg/day"
+    },
+    {
+      "AUTHORITY_IMPACT": "New staffing source",
+      "BUSINESS_SEMANTICS": "Explicit first shift allocation",
+      "COMPATIBILITY_STATUS": "EXPLICIT_INPUT_REQUIRED",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "daily_inbound_mass_kg",
+      "MISSING_INPUT_BEHAVIOR": "OWNER_INPUT_REQUIRED",
+      "OWNER_V1_INPUT": "SHIFT_1_PACKAGING_KG",
+      "TRANSFORMATION_REQUIRED": "Product source and shift allocation",
+      "UNIT": "kg/shift"
+    },
+    {
+      "AUTHORITY_IMPACT": "New staffing source",
+      "BUSINESS_SEMANTICS": "Explicit second shift allocation",
+      "COMPATIBILITY_STATUS": "EXPLICIT_INPUT_REQUIRED",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "daily_inbound_mass_kg",
+      "MISSING_INPUT_BEHAVIOR": "OWNER_INPUT_REQUIRED",
+      "OWNER_V1_INPUT": "SHIFT_2_PACKAGING_KG",
+      "TRANSFORMATION_REQUIRED": "No equal allocation or daily remainder default",
+      "UNIT": "kg/shift"
+    },
+    {
+      "AUTHORITY_IMPACT": "New formula/profile identity needed",
+      "BUSINESS_SEMANTICS": "16*1.5*14 versus15*1.6*8",
+      "COMPATIBILITY_STATUS": "DIFFERENT_SEMANTICS",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "person_daily_capacity_kg_day=336",
+      "MISSING_INPUT_BEHAVIOR": "KEEP_LEGACY_UNCHANGED",
+      "OWNER_V1_INPUT": "PERSON_SHIFT_CAPACITY_KG=192",
+      "TRANSFORMATION_REQUIRED": "Independent version selector, never simple coefficient replacement",
+      "UNIT": "kg/person/day vs kg/person/shift"
+    },
+    {
+      "AUTHORITY_IMPACT": "Staffing changes may affect layout",
+      "BUSINESS_SEMANTICS": "Old ceil(raw/336) vs ceil(Q1/192)",
+      "COMPATIBILITY_STATUS": "NOT_EQUIVALENT",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "worker_count",
+      "MISSING_INPUT_BEHAVIOR": "OWNER_INPUT_REQUIRED",
+      "OWNER_V1_INPUT": "SHIFT_1_WORKERS",
+      "TRANSFORMATION_REQUIRED": "Explicit Q1",
+      "UNIT": "people"
+    },
+    {
+      "AUTHORITY_IMPACT": "Staffing changes may affect layout",
+      "BUSINESS_SEMANTICS": "Old daily count vs second shift",
+      "COMPATIBILITY_STATUS": "NOT_EQUIVALENT",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "worker_count",
+      "MISSING_INPUT_BEHAVIOR": "OWNER_INPUT_REQUIRED",
+      "OWNER_V1_INPUT": "SHIFT_2_WORKERS",
+      "TRANSFORMATION_REQUIRED": "Explicit Q2",
+      "UNIT": "people"
+    },
+    {
+      "AUTHORITY_IMPACT": "Locker input only until area calibrated",
+      "BUSINESS_SEMANTICS": "N1+N2 for personal lockers",
+      "COMPATIBILITY_STATUS": "NOT_TABLE_CONCURRENCY",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "worker_count",
+      "MISSING_INPUT_BEHAVIOR": "OWNER_INPUT_REQUIRED",
+      "OWNER_V1_INPUT": "TOTAL_SHIFT_WORKERS",
+      "TRANSFORMATION_REQUIRED": "Independent shift employee sets",
+      "UNIT": "distinct employees"
+    },
+    {
+      "AUTHORITY_IMPACT": "Table policy approval pending",
+      "BUSINESS_SEMANTICS": "max(N1,N2), not N1+N2",
+      "COMPATIBILITY_STATUS": "PROPOSAL_FOR_TABLES",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "worker_count",
+      "MISSING_INPUT_BEHAVIOR": "OWNER_INPUT_REQUIRED",
+      "OWNER_V1_INPUT": "PEAK_CONCURRENT_PACKAGING_WORKERS",
+      "TRANSFORMATION_REQUIRED": "Non-overlapping shifts; time/overlap policy",
+      "UNIT": "people concurrently"
+    },
+    {
+      "AUTHORITY_IMPACT": "Would change sorting area and P1 dimensions",
+      "BUSINESS_SEMANTICS": "Legacy ceil(worker/3), proposal ceil(max(N1,N2)/3) if reused",
+      "COMPATIBILITY_STATUS": "ENGINEERING_PROPOSAL_NOT_APPROVED",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "table_count",
+      "MISSING_INPUT_BEHAVIOR": "NO_FORMAL_TABLE_RESULT",
+      "OWNER_V1_INPUT": "PROPOSED_PEAK_CONCURRENCY_TABLE_POLICY",
+      "TRANSFORMATION_REQUIRED": "Approve reuse and three-worker station suitability",
+      "UNIT": "tables"
+    },
+    {
+      "AUTHORITY_IMPACT": "Do not mistake spare cells for installed inventory",
+      "BUSINESS_SEMANTICS": "Actual grid can exceed required table count",
+      "COMPATIBILITY_STATUS": "SENSITIVITY_ONLY",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "n_actual/position_count",
+      "MISSING_INPUT_BEHAVIOR": "NO_FORMAL_P1_RESULT",
+      "OWNER_V1_INPUT": "PROPOSAL_GRID_CELLS",
+      "TRANSFORMATION_REQUIRED": "Retain n_need/n_actual/unused separately",
+      "UNIT": "grid cells"
+    },
+    {
+      "AUTHORITY_IMPACT": "Exact-area binder and downstream envelopes affected",
+      "BUSINESS_SEMANTICS": "Grid pitches, clearances, rank, factor and reporting matter",
+      "COMPATIBILITY_STATUS": "NO_APPROVED_AREA_DELTA",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "sorting_packaging_room.required_area_m2",
+      "MISSING_INPUT_BEHAVIOR": "AREA_CALIBRATION_REQUIRED",
+      "OWNER_V1_INPUT": "PROPOSED_SORTING_AREA",
+      "TRANSFORMATION_REQUIRED": "Same legacy formula only as hypothetical projection",
+      "UNIT": "m2"
+    },
+    {
+      "AUTHORITY_IMPACT": "Legacy60/80/100 retained",
+      "BUSINESS_SEMANTICS": "Explicit size12/20/30 not raw tonnage classification",
+      "COMPATIBILITY_STATUS": "NO_AUTOMATIC_MAPPING",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "office area by raw25/50t bands",
+      "MISSING_INPUT_BEHAVIOR": "UNKNOWN_SIZE_OWNER_INPUT_REQUIRED",
+      "OWNER_V1_INPUT": "OFFICE_DESIGN_STAFF",
+      "TRANSFORMATION_REQUIRED": "Approve scale definitions and furniture/clear-space model",
+      "UNIT": "m2 vs people"
+    },
+    {
+      "AUTHORITY_IMPACT": "No new area/person rule",
+      "BUSINESS_SEMANTICS": "Sum of shift employee sets, no sharing",
+      "COMPATIBILITY_STATUS": "STAFFING_ONLY",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "changing area40/80/120",
+      "MISSING_INPUT_BEHAVIOR": "AREA_UNAVAILABLE",
+      "OWNER_V1_INPUT": "LOCKER_COUNT",
+      "TRANSFORMATION_REQUIRED": "Locker dimensions, door sweep, operation, aisles",
+      "UNIT": "m2 vs personal lockers"
+    },
+    {
+      "AUTHORITY_IMPACT": "No inference40m2 sufficient",
+      "BUSINESS_SEMANTICS": "Whole largest shift, no intra-shift staging",
+      "COMPATIBILITY_STATUS": "STAFFING_ONLY",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "changing area40/80/120",
+      "MISSING_INPUT_BEHAVIOR": "AREA_UNAVAILABLE",
+      "OWNER_V1_INPUT": "SIMULTANEOUS_CHANGING_USERS",
+      "TRANSFORMATION_REQUIRED": "Actual hygiene/operation/door envelopes",
+      "UNIT": "m2 vs concurrent people"
+    },
+    {
+      "AUTHORITY_IMPACT": "Legacy areas and process order preserved",
+      "BUSINESS_SEMANTICS": "Packaging box sealing, all entering products at design",
+      "COMPATIBILITY_STATUS": "PROCESS_SPECIFIC_NEW_INPUT",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "coating area80/120/200",
+      "MISSING_INPUT_BEHAVIOR": "EQUIPMENT_INPUT_REQUIRED",
+      "OWNER_V1_INPUT": "DESIGN_FILM_SEALING_RATIO=1.0",
+      "TRANSFORMATION_REQUIRED": "Product mass period, equipment and runtime",
+      "UNIT": "m2 vs fraction/load"
+    },
+    {
+      "AUTHORITY_IMPACT": "No implicit equipment count",
+      "BUSINESS_SEMANTICS": "Facility schedule not equipment effective runtime",
+      "COMPATIBILITY_STATUS": "NOT_EQUIPMENT_RUNTIME",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "working_time_h_per_day / packing hours14",
+      "MISSING_INPUT_BEHAVIOR": "OWNER_INPUT_REQUIRED",
+      "OWNER_V1_INPUT": "PACKAGING_WORK_HOURS_PER_DAY=16",
+      "TRANSFORMATION_REQUIRED": "Separate sealing runtime source",
+      "UNIT": "hours/day"
+    },
+    {
+      "AUTHORITY_IMPACT": "No compliance waiver",
+      "BUSINESS_SEMANTICS": "Explicit Owner intent resolves ambiguous name",
+      "COMPATIBILITY_STATUS": "MIGRATION_DESIGN_ONLY",
+      "DATA_SOURCE": {
+        "legacy": "legacy-current-rule-audit.json source_locations and frozen canonical snapshot",
+        "owner": "../owner-functional-input-contract-r1/owner-confirmed-business-rules.json"
+      },
+      "LEGACY_INPUT": "GENDER_INDEPENDENT_ZONING_PRESET",
+      "MISSING_INPUT_BEHAVIOR": "PROFESSIONAL_REVIEW_REQUIRED",
+      "OWNER_V1_INPUT": "SEPARATE_GENDER_ZONES_PRESET (proposal)",
+      "TRANSFORMATION_REQUIRED": "Versioned alias, keep historical bytes",
+      "UNIT": "boolean"
+    }
+  ]
+}

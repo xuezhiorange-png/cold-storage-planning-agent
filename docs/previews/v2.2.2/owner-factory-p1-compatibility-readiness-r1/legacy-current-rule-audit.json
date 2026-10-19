@@ -1,0 +1,501 @@
+{
+  "band_boundary_replays": [
+    {
+      "changing_room": 40,
+      "coating_room": 80,
+      "office": 60,
+      "raw_kg_day": 24999
+    },
+    {
+      "changing_room": 80,
+      "coating_room": 120,
+      "office": 80,
+      "raw_kg_day": 25000
+    },
+    {
+      "changing_room": 80,
+      "coating_room": 120,
+      "office": 80,
+      "raw_kg_day": 49999
+    },
+    {
+      "changing_room": 120,
+      "coating_room": 200,
+      "office": 100,
+      "raw_kg_day": 50000
+    }
+  ],
+  "constants": {
+    "CHANGING_AREA_BY_BAND_M2": [
+      40,
+      80,
+      120
+    ],
+    "COATING_AREA_BY_BAND_M2": [
+      80,
+      120,
+      200
+    ],
+    "OFFICE_AREA_BY_BAND_M2": [
+      60,
+      80,
+      100
+    ],
+    "PACKING_PIECES_PER_PERSON_HOUR": 16,
+    "PACKING_TABLE_PITCH_LONG_M": 5.6,
+    "PACKING_TABLE_PITCH_SHORT_M": 3.0,
+    "PACKING_WEIGHT_PER_PIECE_KG": 1.5,
+    "PACKING_WORKING_HOURS_PER_DAY": 14,
+    "PERSON_DAILY_CAPACITY_KG": 336.0,
+    "SORTING_CLEARANCE_LONG_M": 8.0,
+    "SORTING_CLEARANCE_SHORT_M": 7.6,
+    "SORTING_PACKAGING_AREA_FACTOR": 1.1,
+    "WORKERS_PER_PACKING_TABLE": 3
+  },
+  "fixed_area_input_audit": {
+    "defaults": {
+      "changing_fixed_area_m2": 100,
+      "coating_fixed_area_m2": 120,
+      "office_fixed_area_m2": 60
+    },
+    "meaning": "Fields are serialized and positivity-validated but not consumed as the three areas; full input/hash changes under override, result areas do not",
+    "positive_override_1_2_3_result_unchanged": true,
+    "positive_override_full_snapshot_hash_changed": true,
+    "zero_still_rejected_by_generic_validation": true
+  },
+  "reference_head": "75188edb520c49bd4500008a68bd13aaa3448426",
+  "scope": "Read-only deterministic area/dimension arithmetic, not CP-SAT or layout generation",
+  "sorting_grid_rank": [
+    "aspect-band membership of n_long/n_short",
+    "unused cells",
+    "distance from2.0",
+    "raw area"
+  ],
+  "sorting_input_vs_active_formula": {
+    "active_pitches": [
+      5.6,
+      3.0
+    ],
+    "active_sorting_area_factor": 1.1,
+    "input_packing_area_factor": 1.5,
+    "input_pitches": [
+      5.6,
+      3.0
+    ],
+    "source_explanation": "_sorting_packaging_zone reads constructor-owned self._sorting_packaging_area_factor, not data.packing_area_factor; _pack_sorting_rectangle uses global pitches, not input pitch fields. workers_per_packing_table is actually read from data."
+  },
+  "source_locations": {
+    "backend/src/cold_storage/modules/calculations/domain/zone_planning.py": {
+      "sha256": "32c6de78ff74bb3512754675bbcb48349b63b424223d5e503cc9831094db22f6",
+      "symbols": {
+        "ColdRoomZonePlanInput": {
+          "end_line": 120,
+          "line": 80
+        },
+        "ColdRoomZonePlanner": {
+          "end_line": 932,
+          "line": 173
+        },
+        "DemoZoneCoefficient": {
+          "end_line": 145,
+          "line": 124
+        },
+        "PackedRectangleLayout": {
+          "end_line": 170,
+          "line": 149
+        },
+        "__init__": {
+          "end_line": 304,
+          "line": 174
+        },
+        "_area_by_throughput_band": {
+          "end_line": 516,
+          "line": 509
+        },
+        "_finished_goods_zone": {
+          "end_line": 655,
+          "line": 634
+        },
+        "_first_non_positive": {
+          "end_line": 932,
+          "line": 928
+        },
+        "_fixed_zone": {
+          "end_line": 540,
+          "line": 521
+        },
+        "_frozen_fruit_zone": {
+          "end_line": 703,
+          "line": 681
+        },
+        "_number": {
+          "end_line": 926,
+          "line": 923
+        },
+        "_pack_one_long_side_aisle_rectangle": {
+          "end_line": 835,
+          "line": 828
+        },
+        "_pack_rectangle": {
+          "end_line": 883,
+          "line": 846
+        },
+        "_pack_sorting_rectangle": {
+          "end_line": 844,
+          "line": 837
+        },
+        "_pack_three_side_aisle_rectangle": {
+          "end_line": 826,
+          "line": 817
+        },
+        "_packaging_area_factor_k": {
+          "end_line": 519,
+          "line": 518
+        },
+        "_packaging_material_zone": {
+          "end_line": 794,
+          "line": 776
+        },
+        "_packaging_position_count": {
+          "end_line": 904,
+          "line": 885
+        },
+        "_packing_person_daily_capacity_kg": {
+          "end_line": 774,
+          "line": 769
+        },
+        "_precooling_scheme": {
+          "end_line": 612,
+          "line": 597
+        },
+        "_precooling_schemes": {
+          "end_line": 595,
+          "line": 581
+        },
+        "_precooling_zone": {
+          "end_line": 579,
+          "line": 542
+        },
+        "_raw_fruit_buffer_zone": {
+          "end_line": 632,
+          "line": 614
+        },
+        "_secondary_fruit_buffer_zone": {
+          "end_line": 679,
+          "line": 657
+        },
+        "_shipping_channel_zone": {
+          "end_line": 815,
+          "line": 796
+        },
+        "_sorting_packaging_zone": {
+          "end_line": 767,
+          "line": 736
+        },
+        "_storage_layout_zone": {
+          "end_line": 734,
+          "line": 705
+        },
+        "_total_area_with_eight_position_precool": {
+          "end_line": 921,
+          "line": 906
+        },
+        "plan": {
+          "end_line": 507,
+          "line": 306
+        },
+        "to_dict": {
+          "end_line": 170,
+          "line": 157
+        },
+        "to_reference": {
+          "end_line": 145,
+          "line": 131
+        }
+      }
+    },
+    "backend/src/cold_storage/modules/layout/application/dimension_handoff.py": {
+      "sha256": "9a8711299f6b9a41c077635224cfdf78af1cffde0ae530381736b41bd15644b6",
+      "symbols": {
+        "build_dimension_handoff": {
+          "end_line": 113,
+          "line": 30
+        },
+        "validate_handoff_integrity": {
+          "end_line": 118,
+          "line": 116
+        }
+      }
+    },
+    "backend/src/cold_storage/modules/layout/application/dimension_zones.py": {
+      "sha256": "0266645abff66f17ede9a2b687ba9d10ef675efcb1cbd0f829250429941b6158",
+      "symbols": {
+        "ZoneDimensioningResultV1": {
+          "end_line": 105,
+          "line": 91
+        },
+        "_bind_storage_grid_profiles": {
+          "end_line": 87,
+          "line": 61
+        },
+        "canonical_json": {
+          "end_line": 101,
+          "line": 100
+        },
+        "canonical_result_hash": {
+          "end_line": 105,
+          "line": 104
+        },
+        "dimension_zones": {
+          "end_line": 219,
+          "line": 108
+        },
+        "to_dict": {
+          "end_line": 98,
+          "line": 96
+        },
+        "upstream_profiles": {
+          "end_line": 58,
+          "line": 55
+        }
+      }
+    },
+    "backend/src/cold_storage/modules/layout/application/layout_authority_binding.py": {
+      "sha256": "7406812469e2893b8e8c9af0d0599951853fffb200e2ed821e8b6d21a9d6616e",
+      "symbols": {
+        "LayoutAuthorityBindingV1": {
+          "end_line": 55,
+          "line": 29
+        },
+        "_error": {
+          "end_line": 59,
+          "line": 58
+        },
+        "_mapping": {
+          "end_line": 65,
+          "line": 62
+        },
+        "_p1_body": {
+          "end_line": 85,
+          "line": 79
+        },
+        "as_legacy_tuple": {
+          "end_line": 55,
+          "line": 40
+        },
+        "bind_layout_authority": {
+          "end_line": 228,
+          "line": 88
+        },
+        "validate_canonical_zone_plan": {
+          "end_line": 76,
+          "line": 68
+        }
+      }
+    },
+    "backend/src/cold_storage/modules/layout/application/sorting_dimension_authority.py": {
+      "sha256": "d75c13681186057f86f3cc644782e4a531ecb2710896c48267a0a75956874aba",
+      "symbols": {
+        "_validate_sorting_geometry": {
+          "end_line": 121,
+          "line": 82
+        },
+        "dimension_sorting_zone": {
+          "end_line": 79,
+          "line": 54
+        },
+        "sorting_profile": {
+          "end_line": 51,
+          "line": 35
+        }
+      }
+    },
+    "backend/src/cold_storage/modules/layout/domain/dimension_handoff.py": {
+      "sha256": "bfff2f4f52dcdb4674aed09782875599bccead2f6a587c693000615ef29a931d",
+      "symbols": {
+        "EdgeOrientedConnectionV1": {
+          "end_line": 31,
+          "line": 14
+        },
+        "accepts_topology": {
+          "end_line": 31,
+          "line": 27
+        },
+        "flexible_authority": {
+          "end_line": 58,
+          "line": 34
+        }
+      }
+    },
+    "backend/src/cold_storage/modules/layout/domain/dimensioning.py": {
+      "sha256": "a853f4313851b788cd829762b159c1a2fa74cf881c112e659533fcc4993d54bd",
+      "symbols": {
+        "AccessProfileV1": {
+          "end_line": 373,
+          "line": 365
+        },
+        "AreaReportingProjectionV1": {
+          "end_line": 203,
+          "line": 179
+        },
+        "AreaRequirementV1": {
+          "end_line": 238,
+          "line": 207
+        },
+        "ExactAreaAuthorityV1": {
+          "end_line": 175,
+          "line": 121
+        },
+        "LayoutAuthorityError": {
+          "end_line": 25,
+          "line": 21
+        },
+        "ZoneDimensionProfileV1": {
+          "end_line": 117,
+          "line": 74
+        },
+        "ZoneDimensionV1": {
+          "end_line": 284,
+          "line": 242
+        },
+        "__init__": {
+          "end_line": 25,
+          "line": 22
+        },
+        "__post_init__": {
+          "end_line": 373,
+          "line": 370
+        },
+        "canonical_hash": {
+          "end_line": 70,
+          "line": 69
+        },
+        "canonical_json": {
+          "end_line": 66,
+          "line": 43
+        },
+        "decimal_value": {
+          "end_line": 40,
+          "line": 28
+        },
+        "dimension_zone": {
+          "end_line": 361,
+          "line": 287
+        },
+        "geometric_lower_bound_m2": {
+          "end_line": 238,
+          "line": 235
+        },
+        "identity": {
+          "end_line": 97,
+          "line": 96
+        },
+        "normalize": {
+          "end_line": 64,
+          "line": 44
+        },
+        "profile_payload": {
+          "end_line": 384,
+          "line": 383
+        },
+        "project": {
+          "end_line": 203,
+          "line": 195
+        },
+        "require_access_profile": {
+          "end_line": 380,
+          "line": 376
+        }
+      }
+    },
+    "backend/src/cold_storage/modules/layout/infrastructure/global_cp_sat_model.py": {
+      "sha256": "eb20621dd37584f08d81b9e8d44da9f18e053b7f42b928a9d5d613b5ab9b72ed",
+      "symbols": {
+        "AccessModel": {
+          "end_line": 701,
+          "line": 407
+        },
+        "GlobalModel": {
+          "end_line": 404,
+          "line": 139
+        },
+        "__init__": {
+          "end_line": 618,
+          "line": 408
+        },
+        "bind_native_portal_positions": {
+          "end_line": 82,
+          "line": 51
+        },
+        "bind_native_shared_portal": {
+          "end_line": 104,
+          "line": 85
+        },
+        "bounds": {
+          "end_line": 32,
+          "line": 25
+        },
+        "center": {
+          "end_line": 677,
+          "line": 676
+        },
+        "disjoint": {
+          "end_line": 121,
+          "line": 107
+        },
+        "endpoint": {
+          "end_line": 470,
+          "line": 420
+        },
+        "env": {
+          "end_line": 520,
+          "line": 472
+        },
+        "envelopes": {
+          "end_line": 48,
+          "line": 35
+        },
+        "export": {
+          "end_line": 404,
+          "line": 354
+        },
+        "export_routes": {
+          "end_line": 701,
+          "line": 620
+        },
+        "mean": {
+          "end_line": 329,
+          "line": 326
+        },
+        "touch": {
+          "end_line": 136,
+          "line": 124
+        },
+        "var": {
+          "end_line": 418,
+          "line": 417
+        }
+      }
+    },
+    "docs/tasks/V2_2-P1C-sorting-packaging-dimension-authority.md": {
+      "sha256": "4c5f07eff17af85fdafcd02f9f5d844bbd35e2639d77498c1bfa6ce5405d3952",
+      "symbols": {}
+    },
+    "docs/tasks/V2_2-P1D3-flexible-rectangle-handoff-contract.md": {
+      "sha256": "59edaaf31d0378d4c5089db56a927c0c041afbdd32153153d7bab0306cd61b7e",
+      "symbols": {}
+    },
+    "docs/tasks/V2_2-P2C-deterministic-placement-engine.md": {
+      "sha256": "13c0547a881ca8dabf14417a8a11db0dd9a3e1c5182a78c88a7243bd7bc59bf0",
+      "symbols": {}
+    },
+    "docs/tasks/V2_2_2-P0-process-flow-layout-regularity-contract.md": {
+      "sha256": "0fba1824417f9a91496b70bd568ad6441b83f387171762dc15da32853ee253b5",
+      "symbols": {}
+    },
+    "docs/tasks/V2_2_2-version-plan.md": {
+      "sha256": "cc2f6071c77b5d594bd1909d4964c910abcb344bb1198a859734d513dccf1880",
+      "symbols": {}
+    }
+  }
+}
