@@ -1,0 +1,214 @@
+{
+  "deterministic_regeneration": {
+    "after": {
+      "README.md": "6274f38068aa7f3ef39d9f2c73ad9bf6412053a004fc5fb815b4b509cc84d282",
+      "facts.json": "8f70fab5c887632e05082f9f2498abb64b026adfa1ee815be07907bf8e76437a",
+      "rooms.csv": "3d8191aee0090a19505a65b1e8cf22a28a504ad8ffac3abf4d90e8cccfa2c36f",
+      "rooms.md": "829e23964c067e5f51a0d9b41488dda52eae9fd69f3add5e499e674c905c82e7",
+      "routes.md": "923f226d84aab2b0766165c49014050512a2992ae47b40a7f941edee7bb95a32"
+    },
+    "before": {
+      "README.md": "6274f38068aa7f3ef39d9f2c73ad9bf6412053a004fc5fb815b4b509cc84d282",
+      "facts.json": "8f70fab5c887632e05082f9f2498abb64b026adfa1ee815be07907bf8e76437a",
+      "rooms.csv": "3d8191aee0090a19505a65b1e8cf22a28a504ad8ffac3abf4d90e8cccfa2c36f",
+      "rooms.md": "829e23964c067e5f51a0d9b41488dda52eae9fd69f3add5e499e674c905c82e7",
+      "routes.md": "923f226d84aab2b0766165c49014050512a2992ae47b40a7f941edee7bb95a32"
+    },
+    "pass": true
+  },
+  "existing_p0c_evaluation_and_architecture": {
+    "failed": 0,
+    "junit_sha256": "964f0a86fac609b4d5ab0c71f2b347962be49488e02496146e6ac907a355d8c5",
+    "log_sha256": "b6d2359523385280500bf04e5de6ae2b78ac8d96dae17681cb1a319219dbaf09",
+    "passed": 19,
+    "skipped": 0,
+    "test_cases": [
+      {
+        "class": "tests.evaluation.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_five_positive_abstractions_are_normalized_non_authoritative_and_stable"
+      },
+      {
+        "class": "tests.evaluation.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_metric_evidence_does_not_promote_coarse_envelopes_to_room_facts"
+      },
+      {
+        "class": "tests.evaluation.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_mouding_keeps_site_constraint_separate_from_building_shape"
+      },
+      {
+        "class": "tests.evaluation.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_mouding_major_groups_align_to_one_principal_building_source_bbox"
+      },
+      {
+        "class": "tests.evaluation.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_mouding_finished_and_storage_groups_stay_inside_mass_and_away_from_table"
+      },
+      {
+        "class": "tests.evaluation.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_owner_corrections_make_zhuyuan_process_hall_and_annex_explicit"
+      },
+      {
+        "class": "tests.evaluation.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_owner_correction_keeps_xiaoxiang_as_one_central_process_hub"
+      },
+      {
+        "class": "tests.evaluation.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_outline_classifier_distinguishes_rectangle_l_shape_and_reflex_from_notch"
+      },
+      {
+        "class": "tests.evaluation.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_golden_overlay_review_pack_is_present_and_not_runtime_input"
+      },
+      {
+        "class": "tests.evaluation.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_xinzhao_negative_uses_existing_structured_evidence_without_inventing_missing_facts"
+      },
+      {
+        "class": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_p0c_is_limited_to_offline_evidence_docs_and_tests"
+      },
+      {
+        "class": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_release_and_layout_runtime_are_unchanged"
+      },
+      {
+        "class": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_five_references_and_one_negative_are_non_authoritative"
+      },
+      {
+        "class": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_outline_classifier_and_metric_unavailability_are_explicit"
+      },
+      {
+        "class": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_structural_and_numeric_entry_are_separate_and_no_release_authority"
+      },
+      {
+        "class": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_overlay_pack_contains_five_viewable_pngs_without_original_pdf_assets"
+      },
+      {
+        "class": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_owner_review_closure_preserves_historical_abstractions"
+      },
+      {
+        "class": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_gd003_alignment_correction_is_isolated_from_other_owner_reviewed_overlays"
+      },
+      {
+        "class": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_owner_accepted_gd004_and_gd005_abstractions_and_pngs_are_unchanged"
+      }
+    ]
+  },
+  "full_backend": "NOT_RUN_OFFLINE_DOCUMENTATION_SCOPE",
+  "independent_existing_helper_comparison": [
+    {
+      "candidate_id": "multi-solution-validation-01/candidate-01",
+      "grid_reflex_notch_match_existing_p0_helpers": true
+    },
+    {
+      "candidate_id": "multi-solution-validation-01/candidate-02",
+      "grid_reflex_notch_match_existing_p0_helpers": true
+    },
+    {
+      "candidate_id": "guided-fair-validation-02/candidate-01",
+      "grid_reflex_notch_match_existing_p0_helpers": true
+    },
+    {
+      "candidate_id": "guided-fair-validation-02/candidate-02",
+      "grid_reflex_notch_match_existing_p0_helpers": true
+    },
+    {
+      "candidate_id": "guided-fair-validation-02/candidate-03",
+      "grid_reflex_notch_match_existing_p0_helpers": true
+    },
+    {
+      "candidate_id": "guided-fair-validation-02/candidate-04",
+      "grid_reflex_notch_match_existing_p0_helpers": true
+    },
+    {
+      "candidate_id": "guided-fair-validation-02/candidate-05",
+      "grid_reflex_notch_match_existing_p0_helpers": true
+    },
+    {
+      "candidate_id": "guided-fair-validation-02/candidate-06",
+      "grid_reflex_notch_match_existing_p0_helpers": true
+    }
+  ],
+  "native_solver_calls": 0,
+  "new_owner_grant": false,
+  "new_p2d_validation": "NOT_PERFORMED",
+  "offline_fact_tests": {
+    "failed": 0,
+    "log_sha256": "920f08a57a570a1d19ef45d5196a307d2f0af58e49e8c50196751f6bd5362943",
+    "names": [
+      "test_01_all_eight_sealed_sources_and_authority",
+      "test_02_ninety_six_areas_and_rotations",
+      "test_03_aspect_and_short_side_extreme_samples",
+      "test_04_outline_rectangle_l_and_multireflex",
+      "test_05_grid_requires_actual_positive_shared_wall",
+      "test_06_missing_complete_process_route_abstains",
+      "test_07_adjacency_directions_are_not_route_turns",
+      "test_08_historical_and_latest_independent_counts",
+      "test_09_latest_five_six_do_not_add_organizations",
+      "test_10_uncalibrated_metrics_do_not_pass",
+      "test_11_deterministic_facts_bytes_and_hash",
+      "test_12_metric_metadata_complete_no_null_as_zero",
+      "test_13_personnel_actual_centerline_and_no_indoor_inference",
+      "test_14_mm_grid_has_no_rounding_tolerance",
+      "test_15_source_secondary_ownership_is_current_p1a",
+      "test_16_no_solver_or_production_imports",
+      "test_17_zero_eligible_depth_pairs_are_not_a_numeric_rate"
+    ],
+    "passed": 17
+  },
+  "python": "3.12.13 (main, May 10 2026, 19:20:41) [Clang 22.1.3 ]",
+  "quality_commands": [
+    {
+      "command": [
+        "backend/.venv/bin/ruff",
+        "check",
+        "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01",
+        "--config",
+        "backend/pyproject.toml"
+      ],
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "returncode": 0
+    },
+    {
+      "command": [
+        "backend/.venv/bin/ruff",
+        "format",
+        "--check",
+        "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01",
+        "--config",
+        "backend/pyproject.toml"
+      ],
+      "log_sha256": "177f260a5645724013185e4b140c7045cc39e56c0c97b120f5cb23599f85f0de",
+      "returncode": 0
+    },
+    {
+      "command": [
+        "backend/.venv/bin/mypy",
+        "--strict",
+        "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/analyze.py",
+        "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/prepare_sources.py",
+        "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/render_report.py",
+        "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/test_analyze.py"
+      ],
+      "log_sha256": "71144743c83babea384888a735db0c4daba3d4d7b7942b6839984bd5c21b52bb",
+      "returncode": 0
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "returncode": 0
+    }
+  ],
+  "real_factory_solves": 0
+}

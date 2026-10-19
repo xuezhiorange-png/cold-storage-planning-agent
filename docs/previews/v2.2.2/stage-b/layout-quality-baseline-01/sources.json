@@ -1,0 +1,110 @@
+{
+  "archives": [
+    {
+      "archive": "stage-b-real-multi-solution-validation-01-20261018T083040Z.tar.gz",
+      "candidate_bytes_match_archive_and_manifest": true,
+      "manifest_sha256": "cb04cc5bfa69e40fc8898451285a1bbe34f2874e65edb60fdd2c6a0e46b24048",
+      "sha256": "3fb5357af44c6a0142c757469920a5a5ac12d22b48748d8e52b25234408ef6ca"
+    },
+    {
+      "archive": "stage-b-real-guided-fair-validation-02-completed-20261019T061910Z.tar.gz",
+      "candidate_bytes_match_archive_and_manifest": true,
+      "manifest_sha256": "a939e358b829196a3fe16a4b4091ed7e480d12703508a95182450a0f3cbb0496",
+      "sha256": "32ea66618d683784a5369fbbe7068a95b5370d50f9fe9454606f5a18357f3326"
+    }
+  ],
+  "authority_sha256": "8c01595a66899aa372225669d33da2f302976f335b597dd66a36f332ed5dd3dd",
+  "candidates": [
+    {
+      "candidate_id": "multi-solution-validation-01/candidate-01",
+      "input": "inputs/historical-candidate-01.json",
+      "projection_sha256": "790f2e7b698a8da1b4a222e1c86c5b45ec4b85d27ccf4018537b9344cb10960e",
+      "raw_candidate_sha256": "db6da34efa1161aab3225d6d9bb6949d2783914a98ca8fe34cb70dba288bcf22",
+      "svg_path": "docs/previews/v2.2.2/stage-b/multi-solution-validation-01/candidate-01/layout.svg",
+      "svg_sha256": "e28ec6efe882764bf15a5315ca66683ae08e9dde7fab75f32c5f73846bd10de7",
+      "svg_url": "https://github.com/xuezhiorange-png/cold-storage-planning-agent/blob/2219ab6ce8ae4f1a493d083810c29b0364b5efc6/docs/previews/v2.2.2/stage-b/multi-solution-validation-01/candidate-01/layout.svg"
+    },
+    {
+      "candidate_id": "multi-solution-validation-01/candidate-02",
+      "input": "inputs/historical-candidate-02.json",
+      "projection_sha256": "79f70eb778f82b6c79525776c9a2ffdb501edaeda896012772487290488de0b9",
+      "raw_candidate_sha256": "6272e8ab1c31e6dd90cf12ceebb1b3fa8f8621a4912c5c926c48aee25496253b",
+      "svg_path": "docs/previews/v2.2.2/stage-b/multi-solution-validation-01/candidate-02/layout.svg",
+      "svg_sha256": "4346cbec87de7105369c42288116210bea6659e577ccdcb0eb4a32addfdd8c36",
+      "svg_url": "https://github.com/xuezhiorange-png/cold-storage-planning-agent/blob/2219ab6ce8ae4f1a493d083810c29b0364b5efc6/docs/previews/v2.2.2/stage-b/multi-solution-validation-01/candidate-02/layout.svg"
+    },
+    {
+      "candidate_id": "guided-fair-validation-02/candidate-01",
+      "input": "inputs/guided-candidate-01.json",
+      "projection_sha256": "a726b9f7199a10bc4d51f502f989ecc81c15fbeedf8b4bbea2216bac20b45c18",
+      "raw_candidate_sha256": "42b20791862454a346e51d0fc4237e27824463708159c2b923db616072ca2ba1",
+      "svg_path": "docs/previews/v2.2.2/stage-b/guided-fair-validation-02/candidate-01/layout.svg",
+      "svg_sha256": "9d1b31fe47284ab2445cd54e82cde658f2664749f1f4c1365f663d6a920f426f",
+      "svg_url": "https://github.com/xuezhiorange-png/cold-storage-planning-agent/blob/2219ab6ce8ae4f1a493d083810c29b0364b5efc6/docs/previews/v2.2.2/stage-b/guided-fair-validation-02/candidate-01/layout.svg"
+    },
+    {
+      "candidate_id": "guided-fair-validation-02/candidate-02",
+      "input": "inputs/guided-candidate-02.json",
+      "projection_sha256": "7d4ce460f298bb79505a52dd65ad5ff7c518caca5fc449bd48fcb2399271eeb3",
+      "raw_candidate_sha256": "249eebe4410be1fa6f0da11299d57b30101c5f05d04c7c6d119a839448e9c486",
+      "svg_path": "docs/previews/v2.2.2/stage-b/guided-fair-validation-02/candidate-02/layout.svg",
+      "svg_sha256": "72c9a516f041e4e649ace669c9844b49a74603806a57a1164a772709ab888500",
+      "svg_url": "https://github.com/xuezhiorange-png/cold-storage-planning-agent/blob/2219ab6ce8ae4f1a493d083810c29b0364b5efc6/docs/previews/v2.2.2/stage-b/guided-fair-validation-02/candidate-02/layout.svg"
+    },
+    {
+      "candidate_id": "guided-fair-validation-02/candidate-03",
+      "input": "inputs/guided-candidate-03.json",
+      "projection_sha256": "df1b211a135e974a83f0e6ed491fbc333b1b5bb3140e020336b41e00101413ac",
+      "raw_candidate_sha256": "d52500dd974f7563fba59b0268c504795aac941cbf8e430d70349363f871b77b",
+      "svg_path": "docs/previews/v2.2.2/stage-b/guided-fair-validation-02/candidate-03/layout.svg",
+      "svg_sha256": "5cc9569308f483c5ccd4e3f55b82853a79fe85bbb43cc4bac6a1ab273245f01c",
+      "svg_url": "https://github.com/xuezhiorange-png/cold-storage-planning-agent/blob/2219ab6ce8ae4f1a493d083810c29b0364b5efc6/docs/previews/v2.2.2/stage-b/guided-fair-validation-02/candidate-03/layout.svg"
+    },
+    {
+      "candidate_id": "guided-fair-validation-02/candidate-04",
+      "input": "inputs/guided-candidate-04.json",
+      "projection_sha256": "ab71056f4a00c5baa3c77687541bc4f8d5851a80a9ccdfabfadbb6d98c907f46",
+      "raw_candidate_sha256": "6efc6aa78c7f85d3a4a8aefb27b02ab2cd4d70d5c2fcd7e2140254186486a434",
+      "svg_path": "docs/previews/v2.2.2/stage-b/guided-fair-validation-02/candidate-04/layout.svg",
+      "svg_sha256": "f72fe66fc21f8a0d632825069f192e9dd4c56e5e7bbe8993578f7f93326dfa27",
+      "svg_url": "https://github.com/xuezhiorange-png/cold-storage-planning-agent/blob/2219ab6ce8ae4f1a493d083810c29b0364b5efc6/docs/previews/v2.2.2/stage-b/guided-fair-validation-02/candidate-04/layout.svg"
+    },
+    {
+      "candidate_id": "guided-fair-validation-02/candidate-05",
+      "input": "inputs/guided-candidate-05.json",
+      "projection_sha256": "69875f14e4481fa804368db2acf264aa9a4f293b904027be49aa925dd0f63431",
+      "raw_candidate_sha256": "72cfe4dbc42a20b26885be0cfb927a1b976b49b0b307e807394055896937d769",
+      "svg_path": "docs/previews/v2.2.2/stage-b/guided-fair-validation-02/candidate-05/layout.svg",
+      "svg_sha256": "082dc3fc5ab576331b6e33f5db7cc80ed174ecf9a1d019ee48a1e8c05a7702f7",
+      "svg_url": "https://github.com/xuezhiorange-png/cold-storage-planning-agent/blob/2219ab6ce8ae4f1a493d083810c29b0364b5efc6/docs/previews/v2.2.2/stage-b/guided-fair-validation-02/candidate-05/layout.svg"
+    },
+    {
+      "candidate_id": "guided-fair-validation-02/candidate-06",
+      "input": "inputs/guided-candidate-06.json",
+      "projection_sha256": "7800318d9306cc697b2d659a51cc1b069fe1eba9eb3b0a78848780b99a056c8e",
+      "raw_candidate_sha256": "865258d6bdcc2a67a5c4947be9956b9cbfac701cd88b369d51ec7fe0094ecab0",
+      "svg_path": "docs/previews/v2.2.2/stage-b/guided-fair-validation-02/candidate-06/layout.svg",
+      "svg_sha256": "d1ae2e0bc4ec6babcab212689b29d2188629730664f8cb80724eb6ba5474842e",
+      "svg_url": "https://github.com/xuezhiorange-png/cold-storage-planning-agent/blob/2219ab6ce8ae4f1a493d083810c29b0364b5efc6/docs/previews/v2.2.2/stage-b/guided-fair-validation-02/candidate-06/layout.svg"
+    }
+  ],
+  "contracts": {
+    "backend/src/cold_storage/modules/layout/domain/structural_composition.py": "31dd481b541ffd984f1b7813d57f6b792a2a5c70c0dc10829751d3343725f142",
+    "backend/tests/evaluation/v222_p0a_regularity_metrics.py": "eb6872113499a5026abee0f031794f92e4267fc5e2a77ce99939d5fdae6c42ce",
+    "backend/tests/evaluation/v222_p0c_golden_layout_metrics.py": "0c799b6968b4355b6fd1b0f2bab96ea20c1777bc67c5222df6fc1067189d33c2",
+    "docs/architecture/ADR-047-process-flow-layout-regularity-authority.md": "aa2d5ab8cf6c6ca59e371d02740efb61cfdd9a1b53ec4577e7592daab0041e7d",
+    "docs/tasks/V2_2_2-P0-process-flow-layout-regularity-contract.md": "0fba1824417f9a91496b70bd568ad6441b83f387171762dc15da32853ee253b5",
+    "docs/tasks/V2_2_2-P0C-golden-layout-abstraction-and-calibration.md": "ee8159ff31a15406bd071326578b30ddf1608867bba2f0e93412d103564090b0",
+    "docs/tasks/V2_2_2-multi-structural-construction-stage-b.md": "b231e63a4034ec182e99866fc444e51d489855259a645271fa8de0101ee4d433",
+    "docs/tasks/V2_2_2-stage-b-guided-fair-validation-02.md": "bbe8b8d1d4c59a31e071cfdc9e055c8bfc7f6c621ab1aebf970244d91e47a499",
+    "docs/tasks/V2_2_2-version-plan.md": "cc2f6071c77b5d594bd1909d4964c910abcb344bb1198a859734d513dccf1880"
+  },
+  "counts": {
+    "major_families": 4,
+    "meaningful": 6,
+    "physical": 8
+  },
+  "cross_run_receipt_sha256": "2c68bc677292d6745edeb884823a2bce117f49e806a1ca388734923a3880c8e9",
+  "projection_rule": "Exact selected JSON subtrees; no geometry edits; raw bytes in named archives",
+  "reference_head": "2219ab6ce8ae4f1a493d083810c29b0364b5efc6"
+}
