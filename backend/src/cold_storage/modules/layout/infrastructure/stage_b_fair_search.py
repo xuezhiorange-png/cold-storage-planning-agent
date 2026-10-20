@@ -10,6 +10,10 @@ from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.infrastructure.global_cp_sat_solver import (
     OrToolsGlobalCompositionSolver,
 )
+from cold_storage.modules.layout.infrastructure.stage_b_construction_guidance import (
+    FUNCTIONAL_SHAPE_POLICY_HASH,
+    apply_functional_shape_guidance,
+)
 from cold_storage.modules.layout.infrastructure.stage_b_pool_execution import (
     POOL_ELAPSED_TARGET,
     POOL_WORK_TARGET,
@@ -93,6 +97,9 @@ class StageBFairSearchSolver:
     def start_handoff(self, ledger: StageALedger, remaining_handoffs: int) -> None:
         self.native = FairNativeSolver(ledger, remaining_handoffs)
 
+    def _final_guidance(self, model: Any, context: Any) -> dict[str, Any]:
+        return apply_wall_alignment_guidance(model, charge=context.ledger.charge)
+
     def solutions(self, context: Any, handoff: Any) -> Generator[dict[str, Any], str | None, None]:
         audit = getattr(context.ledger.execution_authorization, "record_enumeration", None)
         if audit is None or not hasattr(self, "native") or self.native.ledger is not context.ledger:
@@ -120,7 +127,23 @@ class StageBFairSearchSolver:
             event_sink=lambda e: audit(sources, dict(e, policy_hash=POLICY_HASH)),
             topology_variables=union_input_variables,
             propagate_base_infeasible=True,
-            final_model_guidance=lambda model: apply_wall_alignment_guidance(
-                model, charge=context.ledger.charge
-            ),
+            final_model_guidance=lambda model: self._final_guidance(model, context),
         )
+
+
+class StageBFunctionalShapeFairSearchSolver(StageBFairSearchSolver):
+    """Independent opt-in experiment, never selected by existing bootstraps.
+
+    A future trusted decision must bind this exact policy as well as the normal
+    source/input/schedule hashes. Existing consumed or wall-guided grants cannot
+    be reused. Claim creation and production activation are NOT provided here.
+    """
+
+    def solutions(self, context: Any, handoff: Any) -> Generator[dict[str, Any], str | None, None]:
+        decision = getattr(context.ledger.execution_authorization, "decision", {})
+        if decision.get("functional_shape_policy_hash") != FUNCTIONAL_SHAPE_POLICY_HASH:
+            raise LayoutAuthorityError("STAGE_B_FUNCTIONAL_SHAPE_BOUND_POLICY_REQUIRED")
+        return super().solutions(context, handoff)
+
+    def _final_guidance(self, model: Any, context: Any) -> dict[str, Any]:
+        return apply_functional_shape_guidance(model, context)

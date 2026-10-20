@@ -313,3 +313,42 @@ def test_real_model_variable_contract_all_phases_without_any_native_search(monke
     )
     assert not result["stage_a_engineering_accepted"]
     assert result["proposal"]["solver_status"] == "UNKNOWN"
+
+
+def test_six_handoffs_final_functional_shape_preserves_original_model_without_search(monkeypatch):
+    # This file uses the existing process-lifetime resource-test isolation.
+    from cold_storage.modules.layout.application import global_composition_solver as generation
+    from cold_storage.modules.layout.infrastructure.global_cp_sat_model import AccessModel
+    from cold_storage.modules.layout.infrastructure.stage_b_construction_guidance import (
+        FUNCTIONAL_SHAPE_ROLES,
+        apply_functional_shape_guidance,
+    )
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Real factory search is not authorized")
+
+    monkeypatch.setattr(cp_model.CpSolver, "solve", forbidden)
+
+    class Inspect:
+        def solve(self, context, handoff):
+            final = AccessModel(context, handoff, True)
+            before = str(final.m.proto)
+            receipt = apply_functional_shape_guidance(final, context)
+            assert receipt["target_roles"] == list(FUNCTIONAL_SHAPE_ROLES)
+            assert final.m.validate() == ""
+            final.m.clear_objective()
+            assert str(final.m.proto) == before
+            return {"solver_status": "MODEL_INSPECTION_ONLY"}
+
+    plan, p1, site = _context()
+    handoffs = generation.build_structural_compositions(plan, p1.to_dict(), site).placement_handoffs
+    assert len(handoffs) == 6
+    for handoff in handoffs:
+        result = generation.generate_global_composition_candidate(
+            plan,
+            p1.to_dict(),
+            site,
+            solver=Inspect(),
+            composition_identity=handoff.composition_identity,
+        )
+        assert result["proposal"]["solver_status"] == "MODEL_INSPECTION_ONLY"

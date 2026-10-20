@@ -15,12 +15,68 @@ from typing import Any
 from ortools.sat.python import cp_model
 
 from cold_storage.modules.layout.domain.adjacency import PROCESS_FLOW, ZONE_CODES
-from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
+from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError, canonical_hash
 from cold_storage.modules.layout.infrastructure.global_cp_sat_solver import (
     OrToolsGlobalCompositionSolver,
 )
 
 POLICY = "stage-b-phase-construction-guidance@1.0.0"
+FUNCTIONAL_SHAPE_POLICY = "stage-b-final-flexible-functional-semiperimeter@1.0.0"
+FUNCTIONAL_SHAPE_ROLES = ("office", "changing_room", "coating_room")
+FUNCTIONAL_SHAPE_POLICY_HASH = canonical_hash(
+    {
+        "version": FUNCTIONAL_SHAPE_POLICY,
+        "roles": FUNCTIONAL_SHAPE_ROLES,
+        "dimension_mode": "FLEXIBLE_RECTANGLE",
+        "objective": "SUM_PHYSICAL_WIDTH_PLUS_DEPTH_MM",
+        "phase": "FINAL_MODEL_ONLY",
+        "other_objectives": "REFUSE_NOT_COMBINE_OR_OVERWRITE",
+        "first_solution_termination": "UNCHANGED_NOT_OPTIMALITY_CLAIM",
+    }
+)
+
+
+def apply_functional_shape_guidance(model: Any, context: Any) -> dict[str, Any]:
+    """Reuse the existing semiperimeter proxy on the final server-bound model.
+
+    No new variables, inequalities, aspect limits, target coordinates or area
+    rules. Every original assignment remains feasible, including slender ones.
+    This independent experiment does not combine wall/span/route objectives.
+    """
+    if model.c is not context:
+        raise LayoutAuthorityError("STAGE_B_FUNCTIONAL_SHAPE_CONTEXT_MISMATCH")
+    if model.m.has_objective():
+        raise LayoutAuthorityError("STAGE_B_FUNCTIONAL_SHAPE_OBJECTIVE_ALREADY_PRESENT")
+    if not all(role in context.binding.dimension_authorities for role in FUNCTIONAL_SHAPE_ROLES):
+        raise LayoutAuthorityError("STAGE_B_FUNCTIONAL_SHAPE_AUTHORITY_MISSING")
+    roles = tuple(
+        role
+        for role in FUNCTIONAL_SHAPE_ROLES
+        if context.binding.dimension_authorities[role]["dimension_mode"] == "FLEXIBLE_RECTANGLE"
+    )
+    receipt = apply_construction_guidance(
+        model.m,
+        phase="ALL_ROOM_GEOMETRY_HINT",
+        axis="X",  # Not consumed by the semiperimeter branch.
+        direction="POSITIVE",
+        flexible_roles=roles,
+        bands=(),
+        charge=context.ledger.charge,
+    )
+    return {
+        **receipt,
+        "policy": FUNCTIONAL_SHAPE_POLICY,
+        "policy_hash": FUNCTIONAL_SHAPE_POLICY_HASH,
+        "phase": "ALL_ROOMS_ALL_ACCESS",
+        "target_roles": list(roles),
+        "dimension_authority_source": "CONTEXT_SERVER_BOUND_P1_ONLY",
+        "source_p1_handoff_hash": context.binding.p1_handoff_hash,
+        "source_zone_plan_hash": context.binding.canonical_zone_plan_hash,
+        "source_site_geometry_hash": context.binding.site_geometry_hash,
+        "coating_process": "PACKAGING_BOX_FILM_SEALING",
+        "real_layout_quality_improved": False,
+        "functional_fit_status": "INPUT_REQUIRED",
+    }
 
 
 def apply_construction_guidance(
