@@ -64,7 +64,8 @@ class FairNativeSolver(OrToolsGlobalCompositionSolver):
             max(1, remaining_checked // remaining_handoffs) if remaining_checked else 0
         )
 
-    def _run(self, context: Any, model: Any, seconds: float, phase: str) -> Any:
+    def remaining_share(self, context: Any) -> tuple[float, float]:
+        """Inspect the existing handoff quantum, without allocating/resetting it."""
         ledger = context.ledger
         ledger.guard()
         remaining = self.native_share - (
@@ -78,6 +79,10 @@ class FairNativeSolver(OrToolsGlobalCompositionSolver):
             or ledger.checked_solutions - self.checked_before >= self.checked_share
         ):
             raise LayoutAuthorityError(SHARE_STOP)
+        return remaining, elapsed
+
+    def _run(self, context: Any, model: Any, seconds: float, phase: str) -> Any:
+        remaining, elapsed = self.remaining_share(context)
         cap = (
             remaining if phase == "ALL_ROOMS_ALL_ACCESS" else min(remaining, self.native_share / 8)
         )
@@ -99,6 +104,9 @@ class StageBFairSearchSolver:
 
     def _final_guidance(self, model: Any, context: Any) -> dict[str, Any]:
         return apply_wall_alignment_guidance(model, charge=context.ledger.charge)
+
+    def _continuation_options(self, context: Any) -> dict[str, Any]:
+        return {}
 
     def solutions(self, context: Any, handoff: Any) -> Generator[dict[str, Any], str | None, None]:
         audit = getattr(context.ledger.execution_authorization, "record_enumeration", None)
@@ -128,6 +136,7 @@ class StageBFairSearchSolver:
             topology_variables=union_input_variables,
             propagate_base_infeasible=True,
             final_model_guidance=lambda model: self._final_guidance(model, context),
+            **self._continuation_options(context),
         )
 
 

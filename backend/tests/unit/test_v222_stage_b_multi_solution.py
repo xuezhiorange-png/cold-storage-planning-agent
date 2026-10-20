@@ -17,6 +17,7 @@ from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.domain.site_geometry import PlacedRectangleV1
 from cold_storage.modules.layout.infrastructure import global_cp_sat_solver as native
 from cold_storage.modules.layout.infrastructure import stage_b_fair_search as fair
+from cold_storage.modules.layout.infrastructure import stage_b_feasibility_first as feasibility
 from cold_storage.modules.layout.infrastructure.global_cp_sat_model import AccessModel, GlobalModel
 from cold_storage.modules.layout.infrastructure.stage_b_multi_solution import (
     StageBMultiSolutionSolver,
@@ -627,6 +628,408 @@ def test_native_enumeration_deterministic_geometry_and_cut_values(monkeypatch):
             ([r["zones"] for r in results], [e for e in lease.events if "CUT" in e["kind"]])
         )
         stream.close()
+    assert snapshots[0] == snapshots[1]
+
+
+def feasibility_context(monkeypatch):
+    context, lease = native_setup(monkeypatch)
+    context.binding = SimpleNamespace(
+        canonical_zone_plan_hash="synthetic-plan",
+        p1_handoff_hash="synthetic-p1",
+        site_geometry_hash="synthetic-site",
+        dimension_authorities={
+            role: {"dimension_mode": "FLEXIBLE_RECTANGLE"}
+            for role in feasibility.FUNCTIONAL_SHAPE_ROLES
+        },
+    )
+    lease.decision = {"feasibility_first_policy_hash": feasibility.POLICY_HASH}
+    return context, lease
+
+
+def _exercise_opt_in_wall_first_then_functional_objective(monkeypatch):
+    context, lease = feasibility_context(monkeypatch)
+
+    class ContinuationModel(TinyModel):
+        def __init__(self, *args):
+            super().__init__(*args)
+            self.c = args[0]
+            for role, row in self.rooms.items():
+                for k in ("w", "d"):
+                    row[k].proto.name = role + "_physical_" + k
+
+    monkeypatch.setattr(native, "GlobalModel", ContinuationModel)
+    monkeypatch.setattr(native, "AccessModel", ContinuationModel)
+    port = feasibility.StageBFeasibilityFirstFairSearchSolver()
+    port.start_handoff(context.ledger, 6)
+    engine = port.native
+    share = (engine.native_share, engine.work_share, engine.elapsed_share, engine.checked_share)
+    stream = port.solutions(context, SimpleNamespace(source_composition_hash="synthetic-handoff"))
+    first = next(stream)
+    before = deepcopy(first)
+    assert first["construction_guidance"]["policy"].startswith("stage-b-wall-coordinate")
+    final = TinyModel.created[-1]
+    constraints = [str(c) for c in final.m.proto.constraints]
+    second = stream.send("ENGINEERING_ACCEPTED")  # Existing oracle feedback protocol.
+    assert second["construction_guidance"]["policy_hash"] == feasibility.POLICY_HASH
+    assert second["construction_guidance"]["preference_policy_hash"] == (
+        feasibility.FUNCTIONAL_SHAPE_POLICY_HASH
+    )
+    assert [str(c) for c in final.m.proto.constraints] == constraints
+    assert port.native is engine and engine.ledger is context.ledger
+    assert share == (
+        engine.native_share,
+        engine.work_share,
+        engine.elapsed_share,
+        engine.checked_share,
+    )
+    assert first == before and second["search_stage"] == "BOUNDED_QUALITY_IMPROVEMENT"
+    assert len(TinyModel.created) == 3
+    assert len(context.ledger.attempts) == 6
+    assert [a["phase"] for a in context.ledger.attempts].count("ALL_ROOMS_ALL_ACCESS") == 2
+    assert len([e for e in lease.events if e["kind"] == "BOUNDED_IMPROVEMENT_STARTED"]) == 1
+    stream.close()
+    return first["zones"], second["zones"], second["construction_guidance"]
+
+
+def test_opt_in_two_stage_deterministic_model_reuse_and_same_resource_share(monkeypatch):
+    assert _exercise_opt_in_wall_first_then_functional_objective(monkeypatch) == (
+        _exercise_opt_in_wall_first_then_functional_objective(monkeypatch)
+    )
+
+
+def test_two_stage_soft_transition_reuses_model_and_improves_synthetic_shape(monkeypatch):
+    from tests.unit.test_v222_stage_b_functional_shape import prepared, v
+
+    context, _ = feasibility_context(monkeypatch)
+    final, _, _ = prepared()
+    final.c = context
+    width, depth = (v(final.m, "office_physical_" + k) for k in ("w", "d"))
+    final.m.add_allowed_assignments([width, depth], [(2, 8), (4, 4)])
+    for role in ("changing_room", "coating_room"):
+        for k in ("w", "d"):
+            final.m.add(v(final.m, role + "_physical_" + k) == 4)
+    # A synthetic wall-aligned first-stage incumbent. It remains admissible
+    # after replacing the objective; it is a Hint, never a room-position cut.
+    final.m.minimize(width)
+    engine = feasibility._FeasibilityFirstNative(context.ledger, 6)
+    first, status = engine._run(context, final.m, 1, "ALL_ROOMS_ALL_ACCESS")
+    assert status in (cp_model.FEASIBLE, cp_model.OPTIMAL)
+    assert (first.value(width), first.value(depth)) == (2, 8)
+    constraints = [str(c) for c in final.m.proto.constraints]
+    receipt = engine.begin_improvement(final, context, first)
+    assert [str(c) for c in final.m.proto.constraints] == constraints
+    assert receipt["hint_source"].startswith("THIS_EXECUTION")
+    assert not receipt["optimality_claimed"]
+    assert not receipt["first_solution_termination_unchanged"]
+    improved, status = engine._run(context, final.m, 1, "ALL_ROOMS_ALL_ACCESS")
+    assert status in (cp_model.FEASIBLE, cp_model.OPTIMAL)
+    assert (improved.value(width), improved.value(depth)) == (4, 4)
+    assert improved.value(width) + improved.value(depth) < first.value(width) + first.value(depth)
+    assert first.value(width) == 2  # The accepted baseline is NOT mutated.
+    assert len(context.ledger.attempts) == 2
+    assert engine.ledger is context.ledger
+    assert context.ledger.resource_events["STAGE_B_CURRENT_VALID_ASSIGNMENT_HINT"] > 0
+    # Pin the former incumbent in a TEST clone: still legal with identical hard constraints.
+    clone = final.m.clone()
+    clone.clear_hints()
+    clone.add(clone.get_int_var_from_proto_index(width.index) == 2)
+    clone.add(clone.get_int_var_from_proto_index(depth.index) == 8)
+    _, status = engine._run(context, clone, 1, "ALL_ROOMS_ALL_ACCESS")
+    assert status in (cp_model.FEASIBLE, cp_model.OPTIMAL)
+
+
+def test_no_switch_before_independent_acceptance_and_same_final_model_reused(monkeypatch):
+    context, lease = native_setup(monkeypatch)
+    switches = []
+
+    def transition(model, solver):
+        switches.append(model)
+        return {"synthetic_continuation": True}
+
+    stream = native.OrToolsGlobalCompositionSolver().iter_solutions(
+        context, None, event_sink=lease.events.append, accepted_model_guidance=transition
+    )
+    first = deepcopy(next(stream))
+    assert not switches
+    examined = stream.send("EXAMINED_WITNESS")
+    assert not switches
+    second = stream.send("ENGINEERING_ACCEPTED")
+    assert second["search_stage"] == "BOUNDED_QUALITY_IMPROVEMENT"
+    assert len(switches) == 1 and switches[0] is TinyModel.created[-1]
+    assert len(TinyModel.created) == 3  # No repeated preparation in stage two.
+    assert first["search_stage"] == examined["search_stage"] == "FEASIBILITY_FIRST"
+    assert first["zones"] == second["zones"]  # No accepted-room no-good at transition.
+    stream.close()
+
+
+@pytest.mark.parametrize("status", [cp_model.UNKNOWN, cp_model.INFEASIBLE, cp_model.MODEL_INVALID])
+def test_quality_unresolved_terminal_keeps_previously_saved_valid_candidate(monkeypatch, status):
+    context, lease = native_setup(monkeypatch)
+    original = native.OrToolsGlobalCompositionSolver._run
+    switched = []
+
+    def run(self, ctx, model, seconds, phase):
+        if switched and phase == "ALL_ROOMS_ALL_ACCESS":
+            solver, _ = original(self, ctx, model, 1, phase)
+            return solver, status  # Synthetic terminal injection; no altered engineering assertion.
+        return original(self, ctx, model, seconds, phase)
+
+    monkeypatch.setattr(native.OrToolsGlobalCompositionSolver, "_run", run)
+    stream = native.OrToolsGlobalCompositionSolver().iter_solutions(
+        context,
+        None,
+        event_sink=lease.events.append,
+        accepted_model_guidance=lambda *_: switched.append(True) or {},
+    )
+    saved = deepcopy(next(stream))
+    terminal = stream.send("ENGINEERING_ACCEPTED")
+    assert saved["zones"] and saved["model_witness_topology"]["valid"]
+    assert not terminal.get("zones") and not terminal["global_infeasibility_claimed"]
+    assert not any("CUT" in e["kind"] for e in lease.events)
+    stream.close()
+
+
+@pytest.mark.parametrize("exhaustion", ["native", "elapsed", "work", "checked", "global"])
+def test_no_remaining_share_skips_improvement_without_new_call_or_objective(
+    monkeypatch, exhaustion
+):
+    context, _ = feasibility_context(monkeypatch)
+    engine = feasibility._FeasibilityFirstNative(context.ledger, 6)
+    m = cp_model.CpModel()
+    m.minimize(m.new_int_var(0, 1, "synthetic"))
+    if exhaustion == "native":
+        context.ledger.solver_monotonic_wall = engine.native_share
+    elif exhaustion == "elapsed":
+        engine.elapsed_share = 0
+    elif exhaustion == "work":
+        context.ledger.model_work = int(engine.work_share) + 1
+    elif exhaustion == "checked":
+        context.ledger.checked_solutions = engine.checked_share
+    else:
+        context.ledger.model_work = 1_200_001
+    before = str(m.proto)
+    with pytest.raises(LayoutAuthorityError):
+        engine.begin_improvement(SimpleNamespace(m=m), context, None)
+    assert str(m.proto) == before and not engine.improving
+    assert context.ledger.attempts == []
+
+
+@pytest.mark.parametrize("decision", [{}, {"feasibility_first_policy_hash": "forged"}])
+def test_opt_in_refuses_unbound_or_old_grant_without_native_call(monkeypatch, decision):
+    context, lease = feasibility_context(monkeypatch)
+    lease.decision = decision
+    port = feasibility.StageBFeasibilityFirstFairSearchSolver()
+    port.start_handoff(context.ledger, 6)
+    with pytest.raises(LayoutAuthorityError, match="BOUND_POLICY_REQUIRED"):
+        port.solutions(context, None)
+    assert not context.ledger.attempts
+
+
+def synthetic_quality_candidate(office=(1, 8), route_length=3):
+    # Facts-only test fixture, NOT a project layout or an engineering approval.
+    from tests.unit.test_v222_stage_b_fair_search import branch_case
+
+    zones, rows = branch_case()
+    next(r for r in zones if r["zone_code"] == "office").update(
+        width_m=office[0], depth_m=office[1]
+    )
+    for i, row in enumerate(rows):
+        row.update(
+            requirement_identity=str(i),
+            flow_kind="PERSONNEL",
+            centerline=[dict(x=0, y=0), dict(x=route_length, y=0)],
+            route_length_m=route_length,
+        )
+    candidate = {
+        "proposal": {"zones": zones, "geometry_hash": canonical_hash(zones)},
+        "engineering_validation": {
+            "access_results": rows,
+            "building_footprint": {
+                "footprint": {
+                    "points": [
+                        dict(x=0, y=0),
+                        dict(x=20, y=0),
+                        dict(x=20, y=20),
+                        dict(x=0, y=20),
+                    ]
+                }
+            },
+        },
+        "resource_ledger": {"synthetic_test_only": True},
+    }
+    candidate["canonical_result_hash"] = canonical_hash(candidate)
+    return candidate
+
+
+@pytest.mark.parametrize(
+    "route_length,expected",
+    [(3, "GEOMETRIC_PARETO_IMPROVEMENT"), (5, "FACTS_ONLY_OWNER_REVIEW_REQUIRED")],
+)
+def test_route_tradeoff_visible_not_hidden_by_shape_proxy(monkeypatch, route_length, expected):
+    context, lease = feasibility_context(monkeypatch)
+    port = feasibility.StageBFeasibilityFirstFairSearchSolver()
+    port.start_handoff(context.ledger, 6)
+    h = SimpleNamespace(source_composition_hash="synthetic-handoff")
+    first = synthetic_quality_candidate()
+    port.observe_validated_candidate(context, h, first, "ENGINEERING_ACCEPTED")
+    saved = deepcopy(port.baseline)
+    improved_shape = synthetic_quality_candidate((2, 4), route_length)
+    port.observe_validated_candidate(context, h, improved_shape, "EXAMINED_WITNESS")
+    assert len(lease.events) == 1  # An engineering failure is NOT compared or promoted.
+    port.observe_validated_candidate(context, h, improved_shape, "ENGINEERING_ACCEPTED")
+    event = lease.events[-1]
+    assert event["status"] == expected
+    assert event["metric_directions_minus_one_better"]["personnel_route_m"] == (route_length > 3)
+    assert event["metric_directions_minus_one_better"]["office_aspect"] == -1
+    assert not event["overall_quality_improvement_claimed"]
+    assert event["candidate"]["functional_fit_status"] == "INPUT_REQUIRED"
+    assert port.baseline == saved
+    assert first["canonical_result_hash"] == canonical_hash(
+        {k: v for k, v in first.items() if k != "canonical_result_hash"}
+    )
+
+
+def test_unknown_metrics_never_produce_pareto_or_forged_functional_pass(monkeypatch):
+    context, lease = feasibility_context(monkeypatch)
+    port = feasibility.StageBFeasibilityFirstFairSearchSolver()
+    port.start_handoff(context.ledger, 6)
+    h = SimpleNamespace(source_composition_hash="synthetic-handoff")
+    for shape in ((1, 8), (2, 4)):
+        candidate = synthetic_quality_candidate(shape)
+        candidate["engineering_validation"]["access_results"][0]["centerline"] = []
+        port.observe_validated_candidate(context, h, candidate, "ENGINEERING_ACCEPTED")
+    event = lease.events[-1]
+    assert event["status"] == "FACTS_ONLY_OWNER_REVIEW_REQUIRED"
+    assert event["candidate"]["metrics"]["personnel_route_m"] is None
+    assert not event["all_comparison_metrics_available"]
+
+
+def test_opt_in_configuration_does_not_change_default_native_or_fair_solver(monkeypatch):
+    context, _ = feasibility_context(monkeypatch)
+    port = feasibility.StageBFeasibilityFirstFairSearchSolver()
+    port.start_handoff(context.ledger, 6)
+    for engine in (native.OrToolsGlobalCompositionSolver(), port.native):
+        solver = cp_model.CpSolver()
+        solver.parameters.stop_after_first_solution = True
+        engine._configure_search(solver, "ALL_ROOMS_ALL_ACCESS")
+        assert solver.parameters.stop_after_first_solution
+    assert port._final_guidance.__func__ is fair.StageBFairSearchSolver._final_guidance
+
+
+@pytest.mark.parametrize("valid_second", [True, False])
+def test_baseline_saved_before_continuation_and_each_proposal_revalidated(
+    monkeypatch, valid_second
+):
+    plan, p1, site = _context()
+    lease = EnumerationLease()
+    ledger = StageALedger(solver_history_verified=True, execution_authorization=lease)
+    validated, observed, saved = [], [], []
+
+    def oracle(plan, p1, site, context, handoff, proposal):
+        i = proposal["synthetic_sequence"]
+        validated.append(i)
+        body = dict(
+            proposal=proposal,
+            stage_a_engineering_accepted=(i == 0 or valid_second),
+            independent_validation={"pass": True},
+            native_independent_validation={"pass": True, "coexistence": True},
+            engineering_validation={
+                "building_footprint": {"synthetic": True},
+                "access_results": [
+                    {
+                        "requirement_identity": r["identity"],
+                        "flow_kind": r["flow_kind"],
+                        "status": "PASS",
+                    }
+                    for r in context.binding.access_requirements
+                    if r["flow_kind"] != "TRUCK"
+                ],
+            },
+            source_zone_plan_hash=context.binding.canonical_zone_plan_hash,
+            source_p1_handoff_hash=context.binding.p1_handoff_hash,
+            source_site_geometry_hash=context.binding.site_geometry_hash,
+            source_composition_hash=handoff.source_composition_hash,
+        )
+        body["canonical_result_hash"] = canonical_hash(body)
+        return body
+
+    monkeypatch.setattr(application, "validate_generated_global_proposal", oracle)
+    monkeypatch.setattr(enumeration, "validate_generated_global_proposal", oracle)
+
+    class Port:
+        def solutions(self, *args):
+            first_feedback = yield {"zones": ["synthetic"], "synthetic_sequence": 0}
+            assert saved and saved[0]["stage_a_engineering_accepted"]
+            assert first_feedback == "ENGINEERING_ACCEPTED"
+            yield {"zones": ["synthetic"], "synthetic_sequence": 1}
+            raise LayoutAuthorityError(fair.SHARE_STOP)
+
+        def observe_validated_candidate(self, context, handoff, candidate, feedback):
+            assert saved  # Consumer already has its immutable baseline.
+            assert lease.events[-1]["kind"] == "VALIDATION_RESULT"
+            observed.append(feedback)
+
+    handoff = application.build_structural_compositions(
+        plan, p1.to_dict(), site
+    ).placement_handoffs[0]
+    stream = enumeration.generate_global_composition_candidates(
+        plan,
+        p1.to_dict(),
+        site,
+        solver=Port(),
+        composition_identity=handoff.composition_identity,
+        execution_ledger=ledger,
+    )
+    with pytest.raises(LayoutAuthorityError, match=fair.SHARE_STOP):
+        for candidate in stream:
+            saved.append(deepcopy(candidate))
+    assert validated == [0, 1]
+    assert observed == [
+        "ENGINEERING_ACCEPTED",
+        "ENGINEERING_ACCEPTED" if valid_second else "EXAMINED_WITNESS",
+    ]
+    assert saved[0]["stage_a_engineering_accepted"]
+    assert len(lease.begins) == 1
+    assert ledger.resource_events["STAGE_B_CANDIDATE_VALIDATION"] == 2
+
+
+def test_no_valid_baseline_unknown_never_starts_improvement(monkeypatch):
+    context, lease = native_setup(monkeypatch)
+    original = native.OrToolsGlobalCompositionSolver._run
+
+    def unknown(self, ctx, model, seconds, phase):
+        return original(
+            self, ctx, model, 1e-9 if phase == "ALL_ROOMS_ALL_ACCESS" else seconds, phase
+        )
+
+    monkeypatch.setattr(native.OrToolsGlobalCompositionSolver, "_run", unknown)
+    results = list(
+        native.OrToolsGlobalCompositionSolver().iter_solutions(
+            context,
+            None,
+            event_sink=lease.events.append,
+            accepted_model_guidance=lambda *_: pytest.fail("No engineering-valid baseline"),
+        )
+    )
+    assert len(results) == 1 and results[0]["solver_status"] == "UNKNOWN"
+    assert not results[0].get("zones")
+    assert not any("CUT" in e["kind"] or "IMPROVEMENT" in e["kind"] for e in lease.events)
+
+
+def test_quality_comparison_deterministic_and_new_handoff_cannot_inherit_baseline(monkeypatch):
+    snapshots = []
+    for _ in range(2):
+        context, lease = feasibility_context(monkeypatch)
+        port = feasibility.StageBFeasibilityFirstFairSearchSolver()
+        port.start_handoff(context.ledger, 6)
+        h = SimpleNamespace(source_composition_hash="synthetic-handoff")
+        for shape in ((1, 8), (2, 4)):
+            port.observe_validated_candidate(
+                context, h, synthetic_quality_candidate(shape), "ENGINEERING_ACCEPTED"
+            )
+        snapshots.append(lease.events)
+        port.start_handoff(context.ledger, 5)
+        assert port.baseline is None and not port.native.improving
     assert snapshots[0] == snapshots[1]
 
 

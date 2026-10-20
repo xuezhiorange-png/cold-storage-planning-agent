@@ -73,6 +73,9 @@ def physical_assignment_variables(model: Any, solver: Any) -> list[Any]:
 class OrToolsGlobalCompositionSolver:
     """Stage-A single deterministic configuration, not an automatic recovery loop."""
 
+    def _configure_search(self, solver: cp_model.CpSolver, phase: str) -> None:
+        """Internal opt-in continuation hook; the default keeps first-solution search."""
+
     def _run(
         self, context: GlobalGenerationContext, model: cp_model.CpModel, seconds: float, phase: str
     ) -> tuple[cp_model.CpSolver, Any]:
@@ -90,6 +93,7 @@ class OrToolsGlobalCompositionSolver:
         solver.parameters.max_time_in_seconds = allowance
         solver.parameters.max_memory_in_mb = 512
         solver.parameters.stop_after_first_solution = True
+        self._configure_search(solver, phase)
         error = model.validate()
         if error:
             raise LayoutAuthorityError("GLOBAL_CP_SAT_MODEL_INVALID", reason=error)
@@ -146,6 +150,7 @@ class OrToolsGlobalCompositionSolver:
         topology_variables: Callable[[Any, Any], list[Any]] | None = None,
         propagate_base_infeasible: bool = False,
         final_model_guidance: Callable[[Any], dict[str, Any]] | None = None,
+        accepted_model_guidance: Callable[[Any, Any], dict[str, Any]] | None = None,
     ) -> Generator[dict[str, Any], str | None, None]:
         """One preparation, one final model; bounded physical enumeration.
 
@@ -257,6 +262,7 @@ class OrToolsGlobalCompositionSolver:
         if event_sink:
             event_sink({"kind": "FINAL_MODEL_PREPARED", "variables": len(model.m.proto.variables)})
         cuts: list[dict[str, Any]] = []
+        improvement_started = False
         for refinement in range(max(0, 20 - context.ledger.checked_solutions)):
             solver, status = self._run(
                 context, model.m, context.ledger.remaining_solver_seconds(), "ALL_ROOMS_ALL_ACCESS"
@@ -275,6 +281,10 @@ class OrToolsGlobalCompositionSolver:
             }
             if guidance is not None:
                 record["construction_guidance"] = dict(guidance)
+            if accepted_model_guidance is not None:
+                record["search_stage"] = (
+                    "BOUNDED_QUALITY_IMPROVEMENT" if improvement_started else "FEASIBILITY_FIRST"
+                )
             if status not in (cp_model.FEASIBLE, cp_model.OPTIMAL):
                 yield record
                 return
@@ -353,6 +363,17 @@ class OrToolsGlobalCompositionSolver:
             # This code is unreachable for the original single-solution entry.
             # Only engineering-accepted geometry can exclude all its witnesses.
             accepted = feedback == "ENGINEERING_ACCEPTED"
+            if accepted and accepted_model_guidance is not None and not improvement_started:
+                # Feedback arrives ONLY after the application oracle has rerun
+                # Access/Footprint/Site and its result has been audited and
+                # yielded to the pool. Never cut away that baseline before the
+                # improvement attempt. Reuse this model and the same ledger.
+                context.ledger.checkpoint("STAGE_B_VALID_BASE_BEFORE_IMPROVEMENT")
+                guidance = accepted_model_guidance(model, solver)
+                improvement_started = True
+                if event_sink:
+                    event_sink({"kind": "BOUNDED_IMPROVEMENT_STARTED", "guidance": guidance})
+                continue
             variables = (
                 [r[k] for r in model.rooms.values() for k in ("x", "y", "w", "d")]
                 if accepted

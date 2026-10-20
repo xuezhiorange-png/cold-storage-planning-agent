@@ -103,6 +103,11 @@ def generate_global_composition_candidates(
             feedback = (
                 "ENGINEERING_ACCEPTED" if _eligible(current, identities) else "EXAMINED_WITNESS"
             )
+            # Optional internal diagnostics run AFTER the immutable validation
+            # result was audited/yielded, never instead of the engineering oracle.
+            observe = getattr(solver, "observe_validated_candidate", None)
+            if callable(observe):
+                observe(capture.context, capture.handoff, deepcopy(current), feedback)
             try:
                 proposal = capture.stream.send(feedback)
             except StopIteration:
