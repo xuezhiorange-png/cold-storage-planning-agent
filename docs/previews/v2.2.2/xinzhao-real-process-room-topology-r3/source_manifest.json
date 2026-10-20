@@ -1,0 +1,29 @@
+{
+  "files": {
+    "README.md": {
+      "bytes": 5375,
+      "sha256": "cff625ed3a59b47cdd05c0d802c523546debd68f03957bae52920750f9ba73d4"
+    },
+    "offline_process_review.py": {
+      "bytes": 10508,
+      "sha256": "6f5872e36759635cad5a5ecebdb75ea5c340b36202a2cebdfd800379fbdfb018"
+    },
+    "offline_process_topology.py": {
+      "bytes": 15011,
+      "sha256": "102c63036d81d555db24658c217efe4ea0c5c7be7d45a75b4cee0ade5dd36f44"
+    },
+    "test_process_topology.py": {
+      "bytes": 13367,
+      "sha256": "a88d57efbd1d90044071100730a74616fd9409083c23eb33456b72ea19eb458e"
+    },
+    "validation.json": {
+      "bytes": 3583,
+      "sha256": "4e1f83b7edff351bd5e4996d030a37dc3eafe7dcebe2786cf5da95c7a44497cf"
+    }
+  },
+  "immutable_dependency_manifests": {
+    "xinzhao-real-drawing-geometry-ingest-r1": "4dd009feef6d861382ad46c1b657acc26323a57c1c5839ea43faa31086a8c82d",
+    "xinzhao-source-bound-room-boundary-r2": "4915a2ae0d4b8863da700ff772941e68e635b9ae2aabfaaeca32e50defd1e0c0"
+  },
+  "self_excluded": true
+}

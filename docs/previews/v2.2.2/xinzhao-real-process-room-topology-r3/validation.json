@@ -1,0 +1,108 @@
+{
+  "actual_statistics": {
+    "approved_net_areas": 0,
+    "derived_reference_areas": 1,
+    "end_count_scope": "PARTIAL_SELECTION_ENDPOINTS_NOT_A_CLAIM_OF_PHYSICAL_BUILDING_DEFECTS",
+    "finished_clear_boundaries_verified": 0,
+    "logical_mapping_approval": "PENDING_PROFESSIONAL_REVIEW",
+    "logical_mapping_groups_reviewed": 10,
+    "outer_reference_rings_closed": 2,
+    "p2d_full_pass_count": 0,
+    "physical_room_candidates": 17,
+    "portals_source_bound": 12,
+    "portals_two_sided_bound": 11,
+    "reference_boundaries_closed": 1,
+    "room_regions_reviewed": 22,
+    "source_labels_verified": 21,
+    "source_pdf_sha256": "a2654279dbdefac8e225d7554e35463902e4abca1b4769418cd83e3a5ff6d139",
+    "source_vector_count": 80279,
+    "unresolved_endpoint_count": 34,
+    "verified_portal_clear_widths": 0,
+    "wall_only_boundaries_closed": 0
+  },
+  "browser_interaction": "NOT_EXECUTED_LOCAL_FILE_URL_POLICY",
+  "check_receipts": [
+    {
+      "command": [
+        "backend/.venv/bin/ruff",
+        "check",
+        "docs/previews/v2.2.2/xinzhao-real-process-room-topology-r3"
+      ],
+      "exit_code": 0,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "command": [
+        "backend/.venv/bin/ruff",
+        "format",
+        "--check",
+        "docs/previews/v2.2.2/xinzhao-real-process-room-topology-r3"
+      ],
+      "exit_code": 0,
+      "log_sha256": "eee76f865de5a9f2456950f710ae5d5f9b5bd0ea02aa54f614c5eed6642a0bfd"
+    },
+    {
+      "command": [
+        "backend/.venv/bin/mypy",
+        "--config-file",
+        "backend/pyproject.toml",
+        "--follow-imports=silent",
+        "docs/previews/v2.2.2/xinzhao-real-process-room-topology-r3/offline_process_review.py",
+        "docs/previews/v2.2.2/xinzhao-real-process-room-topology-r3/offline_process_topology.py",
+        "docs/previews/v2.2.2/xinzhao-real-process-room-topology-r3/test_process_topology.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "8228fcc5ce46d42d01caf3cd941f4e9c5f2bcc372bb5b147a2f0572d2dd675a8"
+    },
+    {
+      "command": [
+        "backend/.venv/bin/python3",
+        "-m",
+        "pytest",
+        "-q",
+        "docs/previews/v2.2.2/xinzhao-real-process-room-topology-r3/test_process_topology.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "31ee159033aa45836d381208f735e6c2f4d0deb994320fe6e744f2da0641c89a"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "determinism": "PASS_ACTUAL_SOURCE_JSON_FOUR_SVGS_HTML",
+  "diff_check": "PASS",
+  "engineering_review_required": true,
+  "format": "PASS",
+  "historical_evidence_integrity": "PASS",
+  "historical_regression": {
+    "failed": 0,
+    "log_sha256": "79e33b60bee41a26ebede9bfb7e39515e0430236e4b9d04a638ac0de055e2fe3",
+    "passed": 261,
+    "subtests_passed": 8
+  },
+  "mypy": "PASS_THREE_FILES",
+  "native_solver_calls": 0,
+  "new_owner_grant": false,
+  "offline_tests": {
+    "failed": 0,
+    "passed": 32
+  },
+  "private_geometry_published": false,
+  "production_code_changed": false,
+  "real_factory_solves": 0,
+  "real_truck_searches": 0,
+  "result": "PARTIAL_SOURCE_BOUND_REVIEW_DELIVERED",
+  "ruff": "PASS",
+  "source_drawing_approved": false,
+  "stage_b_complete": false,
+  "start_head": "bc3c3f3118f15fbf6646136d6b23b80ad6aaf6ab",
+  "task": "V2_2_2_XINZHAO_REAL_PROCESS_ROOM_TOPOLOGY_R3",
+  "version_complete": false,
+  "visual_review": "FOUR_SOURCE_ALIGNED_SVGS_INSPECTED"
+}
