@@ -5,6 +5,7 @@ import importlib
 import inspect
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -267,6 +268,8 @@ def test_no_candidates_report_is_deterministic_and_inconclusive(tmp_path, monkey
                     "distinct_meaningful_construction_count": 0,
                     "major_structural_family_count": 0,
                     "compositions": [],
+                    "candidates": [],
+                    "sources": {},
                 }
             )
         )
@@ -282,10 +285,334 @@ def test_no_candidates_report_is_deterministic_and_inconclusive(tmp_path, monkey
             )
         )
     repo = Path(__file__).resolve().parents[3]
-    module.analyze(output, repo)
-    first = (output / "candidate-quality-comparison.json").read_bytes()
-    module.analyze(output, repo)
-    assert first == (output / "candidate-quality-comparison.json").read_bytes()
-    receipt = json.loads((output / "ab-conclusion.json").read_text())
+    reports = tmp_path / "reports"
+    before = _evidence_hashes(output)
+    module.analyze(output, repo, output=reports)
+    first = _evidence_hashes(reports)
+    module.analyze(output, repo, output=reports)
+    assert first == _evidence_hashes(reports)
+    assert before == _evidence_hashes(output)
+    receipt = json.loads((reports / "ab-conclusion.json").read_text())
     assert receipt["conclusion"] == "INCONCLUSIVE"
     assert receipt["real_replay_determinism"] == "NOT_EVALUATED"
+
+
+def _analyzer(monkeypatch):
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "scripts"))
+    return importlib.import_module("analyze_stage_b_functional_shape_ab")
+
+
+def _evidence_hashes(root):
+    return {
+        str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in sorted(root.rglob("*"))
+        if p.is_file()
+    }
+
+
+def _topology(certificate):
+    return {"kind": "TOPOLOGY_REJECTED_WITNESS_CUT", "certificate": certificate}
+
+
+@pytest.mark.parametrize(
+    "holes,error,category,known,anomalies",
+    [
+        (2, "ENCLOSED_HOLE", "CONFIRMED_HOLE", True, 0),
+        (0, "MULTIPLE_COMPONENTS", "MULTIPLE_COMPONENTS", True, 0),
+        (None, "SINGULAR_POINT_CONTACT", "SINGULAR_POINT_CONTACT", False, 0),
+        ("2", "ENCLOSED_HOLE", "UNCLASSIFIED_CERTIFICATE", False, 1),
+        (True, "ENCLOSED_HOLE", "UNCLASSIFIED_CERTIFICATE", False, 1),
+        (1.0, "ENCLOSED_HOLE", "UNCLASSIFIED_CERTIFICATE", False, 1),
+        (-1, "ENCLOSED_HOLE", "UNCLASSIFIED_CERTIFICATE", False, 1),
+        (0, "NONPOSITIVE_OR_EMPTY_RECTANGLE_UNION", "OTHER_TOPOLOGY_REJECTION", True, 0),
+    ],
+)
+def test_offline_topology_count_semantics(monkeypatch, holes, error, category, known, anomalies):
+    module = _analyzer(monkeypatch)
+    result = module.classify_topology_rejections([_topology({"hole_count": holes, "error": error})])
+    row = result["witnesses"][0]
+    assert category in row["categories"]
+    assert row["hole_count_status"] == ("KNOWN" if known else "UNKNOWN")
+    assert result["certificate_field_anomaly_count"] == anomalies
+    if not known:
+        assert row["hole_count"] is None
+        assert result["total_hole_loop_count"] is None
+        assert not result["total_hole_loop_count_determinable"]
+
+
+@pytest.mark.parametrize("certificate", [{}, None, [], "malformed", {"error": "ENCLOSED_HOLE"}])
+def test_offline_missing_or_invalid_certificate_never_becomes_zero(monkeypatch, certificate):
+    result = _analyzer(monkeypatch).classify_topology_rejections([_topology(certificate)])
+    assert result["unknown_hole_count_witness_count"] == 1
+    assert result["total_hole_loop_count"] is None
+    assert result["certificate_field_anomaly_count"] > 0
+    assert result["unclassified_certificate_count"] == 1
+
+
+def test_topology_facts_overlap_and_hole_loops_are_not_witness_counts(monkeypatch):
+    module = _analyzer(monkeypatch)
+    events = [
+        _topology({"hole_count": 3, "error": "ENCLOSED_HOLE", "connected_component_count": 2}),
+        _topology({"hole_count": 2, "error": "ENCLOSED_HOLE"}),
+        _topology({"hole_count": None, "error": "SINGULAR_POINT_CONTACT"}),
+        {"kind": "VALIDATION_RESULT", "certificate": {"hole_count": 99}},
+        None,
+    ]
+    result = module.classify_topology_rejections(events)
+    assert result["rejected_witness_count"] == 3
+    assert result["hole_rejected_witness_count"] == 2
+    assert result["confirmed_hole_loop_count"] == 5
+    assert result["multiple_component_witness_count"] == 1
+    assert result["singular_contact_witness_count"] == 1
+    assert result["unknown_hole_count_witness_count"] == 1
+    assert result["total_hole_loop_count"] is None
+    assert result["certificate_field_anomaly_count"] == 0
+    assert not result["categories_are_mutually_exclusive"]
+    assert json.dumps(result, sort_keys=True) == json.dumps(
+        module.classify_topology_rejections(events), sort_keys=True
+    )
+
+
+def test_zero_holes_is_known_but_not_confirmed_hole_rejection(monkeypatch):
+    result = _analyzer(monkeypatch).classify_topology_rejections(
+        [
+            _topology(
+                {"hole_count": 0, "error": "MULTIPLE_COMPONENTS", "connected_component_count": 2}
+            )
+        ]
+    )
+    assert result["total_hole_loop_count"] == 0
+    assert result["total_hole_loop_count_determinable"]
+    assert result["hole_rejected_witness_count"] == 0
+
+
+@pytest.mark.parametrize("relative", [".", "reports", ".."])
+def test_analysis_cannot_write_into_or_above_sealed_source(tmp_path, monkeypatch, relative):
+    source = tmp_path / "sealed"
+    with pytest.raises(ValueError, match="DISJOINT"):
+        _analyzer(monkeypatch).analyze(source, tmp_path, output=source / relative)
+    assert not source.exists()
+
+
+def _synthetic_analysis_source(tmp_path, monkeypatch):
+    """Synthetic consumer fixture, not project data or a new geometry validator."""
+    module = _analyzer(monkeypatch)
+    root = tmp_path / "sealed"
+    root.mkdir()
+    module.dump(root / "source-admission.json", {"head": "SYNTHETIC_NOT_EXECUTION_HEAD"})
+    v1s, v2s, facts = {}, {}, {}
+    for arm in ("a", "b"):
+        accepted = []
+        for i in range(2):
+            key = f"{arm}-{i}"
+            v1 = {"symmetry_invariant_geometry_hash": key, "major_family_hash": "same-family"}
+            v2 = {"meaningful_construction_hash": "same-organization", "countable": True}
+            v1s[key], v2s[key] = v1, v2
+            body = {
+                "identity": "SYNTHETIC",
+                "canonical_result_hash": key,
+                "composition_handoff": {"composition_identity": "same-handoff", "family": "intent"},
+                "proposal": {"zones": key},
+                "engineering_validation": {
+                    "access_results": key,
+                    "building_footprint": {},
+                    "source_zone_plan_hash": "synthetic",
+                    "source_p1_handoff_hash": "synthetic",
+                    "source_site_geometry_hash": "synthetic",
+                    "truck_route_status": "BLOCKED",
+                    "truck_route_validated": False,
+                    "project_layout_validated": False,
+                    "p2_complete": False,
+                },
+                "independent_validation": {"pass": True},
+                "native_independent_validation": {"pass": True},
+                "acceptance_status": "SYNTHETIC",
+                "stage_a_engineering_accepted": True,
+                **{
+                    f"source_{s}_hash": "synthetic"
+                    for s in (
+                        "zone_plan",
+                        "p1_handoff",
+                        "site_geometry",
+                        "composition",
+                        "composition_handoff",
+                    )
+                },
+            }
+            path = root / "previews" / f"arm-{arm}" / f"candidate-{i}"
+            path.mkdir(parents=True)
+            module.dump(path / "candidate.json", body)
+            module.dump(
+                path / "diversity.json",
+                {
+                    "v1": v1,
+                    "v2": v2,
+                    "geometry_hash": key,
+                    "major_family_hash": "same-family",
+                    "v2_construction_counted": i == 0,
+                },
+            )
+            module.dump(
+                path / "drawing_provenance.json",
+                {
+                    "candidate_file_sha256": hashlib.sha256(
+                        (path / "candidate.json").read_bytes()
+                    ).hexdigest(),
+                    "source_application_hash": module.canonical_hash(
+                        body["engineering_validation"]
+                    ),
+                    "candidate_canonical_hash": key,
+                },
+            )
+            metrics = {
+                name: {"STATUS": "DERIVED", "VALUE": "1"}
+                for name in (
+                    "PERSONNEL_ROUTE_LENGTH_M",
+                    "PERSONNEL_ROUTE_TURN_COUNT",
+                    "BUILDING_AREA_M2",
+                    "BUILDING_PERIMETER_M",
+                    "EXTERIOR_TURN_COUNT",
+                    "EXTERIOR_REFLEX_CORNER_COUNT",
+                    "MAJOR_ZONE_GRID_ALIGNMENT_RATE",
+                )
+            }
+            metrics["PROCESS_FLOW"] = {"STATUS": "UNAVAILABLE", "VALUE": None}
+            metrics["ROOM_DIMENSION_FACTS"] = {
+                "STATUS": "MEASURED",
+                "VALUE": [
+                    {"zone": role, "width_m": "2", "depth_m": "3", "aspect_exact": "3/2"}
+                    for role in ("office", "changing_room", "coating_room")
+                ],
+            }
+            facts[key] = {"METRICS": metrics}
+            if i == 0:
+                accepted.append(
+                    {
+                        "candidate_id": f"accepted-{key}",
+                        "geometry_hash": key,
+                        "candidate_result": body,
+                    }
+                )
+        folder = root / f"arm-{arm}"
+        folder.mkdir()
+        module.dump(
+            folder / "pool.json",
+            {
+                "status": "BOUNDED",
+                "candidates": accepted,
+                "distinct_physical_geometry_count": 2,
+                "distinct_meaningful_construction_count": 1,
+                "major_structural_family_count": 1,
+                "compositions": [],
+                "sources": {k: "synthetic" for k in ("zone_plan_hash", "p1_hash", "site_hash")},
+            },
+        )
+        module.dump(
+            folder / "resource-ledger.json",
+            {
+                "pools": [
+                    {
+                        "counters": {
+                            "checked_solutions": 2,
+                            "attempts": [],
+                        },
+                        "enumeration_events": [
+                            _topology({"error": "SINGULAR_POINT_CONTACT", "hole_count": None})
+                        ],
+                    }
+                ]
+            },
+        )
+    monkeypatch.setattr(module, "construction_diversity", lambda key: v1s[key])
+    monkeypatch.setattr(module, "construction_branch_diversity", lambda key, _: v2s[key])
+    monkeypatch.setattr(
+        module,
+        "quality_extractor",
+        lambda _: SimpleNamespace(
+            analyze=lambda projection: facts[projection["canonical_result_hash"]]
+        ),
+    )
+    return module, root
+
+
+def test_offline_full_consumer_preserves_variants_hashes_ledgers_and_determinism(
+    tmp_path, monkeypatch
+):
+    module, source = _synthetic_analysis_source(tmp_path, monkeypatch)
+    # Fail immediately if analysis tries to invoke a native solver or execution authorization.
+    from ortools.sat.python import cp_model
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("Offline analysis must not solve or access any execution lease")
+
+    monkeypatch.setattr(cp_model.CpSolver, "solve", forbidden)
+    monkeypatch.setattr(cp_model.CpSolver, "Solve", forbidden)
+    monkeypatch.setattr(ab.FunctionalShapeABStore, "approve", forbidden)
+    monkeypatch.setattr(ab.FunctionalShapeABStore, "open", forbidden)
+    before = _evidence_hashes(source)
+    reports = tmp_path / "reports"
+    result = module.analyze(source, tmp_path, output=reports)
+    first = _evidence_hashes(reports)
+    assert before == _evidence_hashes(source)
+    assert result["arms"]["A"]["physical_geometry_count"] == 2
+    assert result["arms"]["A"]["meaningful_constructions"] == 1
+    assert result["arms"]["A"]["major_families"] == 1
+    assert len(result["arms"]["A"]["candidates"]) == 2  # retain uncounted variant facts
+    assert result["arms"]["A"]["topology_rejections"]["total_hole_loop_count"] is None
+    assert result["arms"]["A"]["metric_distributions"]["BUILDING_AREA_M2"]["count"] == 2
+    module.analyze(source, tmp_path, output=reports)
+    assert first == _evidence_hashes(reports)
+    assert before == _evidence_hashes(source)
+
+
+def test_offline_tampered_candidate_or_counts_stop_without_rewriting_source(tmp_path, monkeypatch):
+    module, source = _synthetic_analysis_source(tmp_path, monkeypatch)
+    path = source / "previews/arm-a/candidate-0/candidate.json"
+    path.write_bytes(path.read_bytes() + b" ")
+    before = _evidence_hashes(source)
+    with pytest.raises(ValueError, match="SHA256_MISMATCH"):
+        module.analyze(source, tmp_path, output=tmp_path / "reports")
+    assert before == _evidence_hashes(source)
+
+
+def test_offline_variant_cannot_inflate_accepted_counts(tmp_path, monkeypatch):
+    module, source = _synthetic_analysis_source(tmp_path, monkeypatch)
+    path = source / "arm-a/pool.json"
+    pool = json.loads(path.read_text())
+    pool["distinct_meaningful_construction_count"] = 2
+    module.dump(path, pool)
+    before = _evidence_hashes(source)
+    with pytest.raises(ValueError, match="POOL_COUNTS_INCONSISTENT"):
+        module.analyze(source, tmp_path, output=tmp_path / "reports")
+    assert before == _evidence_hashes(source)
+
+
+def test_offline_json_tuple_roundtrip_preserves_existing_diversity_identity(tmp_path, monkeypatch):
+    module, source = _synthetic_analysis_source(tmp_path, monkeypatch)
+    original = module.construction_branch_diversity
+
+    def tuple_signature(key, routes):
+        return {**original(key, routes), "signature": ("same", "identity")}
+
+    monkeypatch.setattr(module, "construction_branch_diversity", tuple_signature)
+    for path in source.glob("previews/*/candidate-*/diversity.json"):
+        div = json.loads(path.read_text())
+        div["v2"]["signature"] = ["same", "identity"]
+        module.dump(path, div)
+    module.analyze(source, tmp_path, output=tmp_path / "reports")
+
+
+def test_offline_module_has_no_execution_or_native_imports(monkeypatch):
+    import ast
+
+    module = _analyzer(monkeypatch)
+    tree = ast.parse(Path(module.__file__).read_text())
+    imports = [n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)]
+    assert not any(
+        name
+        and any(
+            x in name
+            for x in ("ortools", "run_stage_b", "bootstrap", "infrastructure", "subprocess")
+        )
+        for name in imports
+    )
