@@ -1,0 +1,132 @@
+{
+  "actual_result": {
+    "approved_net_areas": 0,
+    "continuous_wall_closures": 0,
+    "contract": "XinzhaoProcessTopologyEvidenceClosureR4",
+    "engineering_review_required": true,
+    "finished_clear_boundaries": 0,
+    "finished_multiring_reference_area_status": "BLOCKED_TYPE_AND_AREA_BASIS_UNCONFIRMED",
+    "finished_ring_classification": "UNVERIFIED_COLUMN_VS_BASE_OR_OTHER_ENTITY",
+    "finished_status": "PARTIAL_SOURCE_BOUND",
+    "native_solver_calls": 0,
+    "negative_pressure_subspace": "UNVERIFIED",
+    "new_closure_scope": "PRIMARY_02_WHOLE_SOURCE_ENCLOSURE_ONLY_NOT_PRESSURE_SUBSPACE_APPROVAL_OR_NET_FUNCTIONAL_AREA",
+    "new_owner_grant": false,
+    "north_portal_status": "ONE_SIDE_VERIFIED",
+    "p2d_full_pass_count": 0,
+    "primary_outer_reference_ring_closed": true,
+    "primary_status": "PASS_SOURCE_BOUND_REFERENCE",
+    "production_code_changed": false,
+    "r3_reference_boundaries_closed": 1,
+    "r3_source_bound_portals": 12,
+    "r3_two_sided_portals": 11,
+    "r3_unresolved_endpoints": 34,
+    "r4_new_reference_closures": 1,
+    "r4_reference_boundaries_closed": 2,
+    "r4_source_bound_portals": 12,
+    "r4_target_endpoints_resolved": 8,
+    "r4_target_endpoints_reviewed": 10,
+    "r4_target_endpoints_unresolved": 2,
+    "r4_two_sided_portals": 11,
+    "real_factory_solves": 0,
+    "real_truck_searches": 0,
+    "so2_object": "SO2_FUMIGATION_TRANSFER_UNCHANGED_NOT_CO2",
+    "sorting_2_boundary_closed": false,
+    "sorting_2_status": "PARTIAL_SOURCE_BOUND",
+    "source_drawing_approved": false,
+    "source_sha256": "a2654279dbdefac8e225d7554e35463902e4abca1b4769418cd83e3a5ff6d139",
+    "stage_b_complete": false,
+    "version_complete": false
+  },
+  "browser_interaction": "NOT_EXECUTED",
+  "checks": [
+    {
+      "command": [
+        "backend/.venv/bin/ruff",
+        "check",
+        "docs/previews/v2.2.2/xinzhao-process-topology-evidence-closure-r4"
+      ],
+      "exit_code": 0,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "command": [
+        "backend/.venv/bin/ruff",
+        "format",
+        "--check",
+        "docs/previews/v2.2.2/xinzhao-process-topology-evidence-closure-r4"
+      ],
+      "exit_code": 0,
+      "log_sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938"
+    },
+    {
+      "command": [
+        "backend/.venv/bin/mypy",
+        "--config-file",
+        "backend/pyproject.toml",
+        "--follow-imports=silent",
+        "docs/previews/v2.2.2/xinzhao-process-topology-evidence-closure-r4/offline_evidence_closure.py",
+        "docs/previews/v2.2.2/xinzhao-process-topology-evidence-closure-r4/test_evidence_closure.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+    },
+    {
+      "command": [
+        "backend/.venv/bin/python3",
+        "-m",
+        "pytest",
+        "-q",
+        "docs/previews/v2.2.2/xinzhao-process-topology-evidence-closure-r4/test_evidence_closure.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "4220a87b904c1fe2f0052bb67e60890a8643eca4dea2fb18481a0a58930c3e39"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "backend/.venv/bin/python3",
+        "-m",
+        "pytest",
+        "-q",
+        "docs/previews/v2.2.2/xinzhao-real-process-room-topology-r3/test_process_topology.py",
+        "docs/previews/v2.2.2/xinzhao-source-bound-room-boundary-r2/test_room_boundary.py",
+        "docs/previews/v2.2.2/xinzhao-real-drawing-geometry-ingest-r1/test_drawing_extract.py",
+        "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py",
+        "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py",
+        "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py",
+        "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/test_analyze.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "cc5b8d5a89bd055d25836dd84a218fe519208fb57db464b9db258d2f3c009155"
+    }
+  ],
+  "determinism": "PASS_ACTUAL_SOURCE_JSON_SVG_HTML",
+  "diff_check": "PASS",
+  "format": "PASS",
+  "historical_regression": {
+    "failed": 0,
+    "passed": 293,
+    "subtests_passed": 8
+  },
+  "mypy": "PASS",
+  "offline_tests": {
+    "failed": 0,
+    "passed": 15
+  },
+  "old_canonical_p1_eight_layout_hashes": "PASS_EXISTING_MANIFEST_TESTS_AND_UNCHANGED_TRACKED_FILES",
+  "private_geometry_published": false,
+  "r1_r2_r3_integrity": "PASS",
+  "ruff": "PASS",
+  "start_head": "b406904c509c5ce4af116b0933304ecad0ad44c1",
+  "task": "V2_2_2_XINZHAO_PROCESS_TOPOLOGY_EVIDENCE_CLOSURE_R4",
+  "visual_review": "FOUR_TARGET_SVGS_INSPECTED"
+}
