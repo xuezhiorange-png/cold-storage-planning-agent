@@ -201,6 +201,41 @@ def test_exhausted_target_is_resource_not_infeasible(tmp_path, monkeypatch):
         ledger.remaining_solver_seconds()
 
 
+@pytest.mark.parametrize("arm", [0, 1])
+def test_declared_arm_rejects_other_arm_actual_final_guidance_receipt(tmp_path, monkeypatch, arm):
+    stores, bindings, _ = setup(tmp_path, monkeypatch)
+    first = stores[0].open("MAIN")
+    if arm:
+        first.execution_authorization.finish_pool()
+        ledger = stores[1].open("MAIN")
+    else:
+        ledger = first
+    lease = admit(ledger, bindings[arm])
+    begin(lease, bindings[arm], 0)
+    sources = {
+        **{k: bindings[arm][k] for k in ("zone_plan_hash", "p1_hash", "site_hash")},
+        "composition_hash": bindings[arm]["compositions"][0]["composition_hash"],
+    }
+    wrong = ab.ARM_POLICIES["A" if arm else "B"]
+    with pytest.raises(LayoutAuthorityError, match="GUIDANCE_RECEIPT_MISMATCH"):
+        lease.record_enumeration(
+            sources,
+            {
+                "kind": "FINAL_MODEL_GUIDANCE_APPLIED",
+                "guidance": {"policy": wrong[0], "policy_hash": wrong[1]},
+            },
+        )
+    expected = ab.ARM_POLICIES["B" if arm else "A"]
+    lease.record_enumeration(
+        sources,
+        {
+            "kind": "FINAL_MODEL_GUIDANCE_APPLIED",
+            "guidance": {"policy": expected[0], "policy_hash": expected[1]},
+        },
+    )
+    assert len(lease.record["enumeration_events"]) == 1
+
+
 def test_peer_summary_cannot_erase_verified_consumption(tmp_path, monkeypatch):
     stores, _, _ = setup(tmp_path, monkeypatch)
     ledger = stores[0].open("MAIN")

@@ -279,6 +279,16 @@ class FunctionalShapeABStore(FairMultiSolutionPoolExecutionStore):
 class FunctionalShapeABLease(PoolLease):
     store: FunctionalShapeABStore
 
+    def record_enumeration(self, sources: Mapping[str, str], event: Mapping[str, Any]) -> None:
+        if event.get("kind") == "FINAL_MODEL_GUIDANCE_APPLIED":
+            receipt = event.get("guidance", {})
+            if (
+                receipt.get("policy") != self.decision["final_guidance_policy"]
+                or receipt.get("policy_hash") != self.decision["final_guidance_policy_hash"]
+            ):
+                raise LayoutAuthorityError("AB_ARM_FINAL_GUIDANCE_RECEIPT_MISMATCH")
+        super().record_enumeration(sources, event)
+
     def totals(self) -> dict[str, Any]:
         local = super().totals()
         shared = self.store.shared_state()
