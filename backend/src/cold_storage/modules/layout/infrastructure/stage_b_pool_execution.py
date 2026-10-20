@@ -203,13 +203,23 @@ class PoolExecutionStore:
             )
             state["pools"].append(record)
             ledger = StageALedger(solver_history_verified=True)
-            lease = PoolLease(_SEAL, self, decision, state, record, ledger)
+            lease = self._make_lease(decision, state, record, ledger)
             ledger.execution_authorization = lease
             ledger.checkpoint("POOL_ALLOCATED")
             return ledger
         except BaseException:
             lock.unlink()
             raise
+
+    def _make_lease(
+        self,
+        decision: dict[str, Any],
+        state: dict[str, Any],
+        record: dict[str, Any],
+        ledger: StageALedger,
+    ) -> PoolLease:
+        """Default lease semantics unchanged; specialized trusted experiments may tighten them."""
+        return PoolLease(_SEAL, self, decision, state, record, ledger)
 
 
 class PoolLease:
