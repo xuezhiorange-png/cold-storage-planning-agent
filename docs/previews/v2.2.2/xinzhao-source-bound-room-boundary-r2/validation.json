@@ -1,0 +1,41 @@
+{
+  "approved_net_areas": 0,
+  "classification": "TARGETED_MANUAL_SOURCE_SELECTION_NOT_GLOBAL_AUTOMATIC_SEMANTICS",
+  "column_structural_type": "PROFESSIONAL_REVIEW_REQUIRED",
+  "continuous_closed_walls": 0,
+  "determinism": "IDENTICAL_RESULT_JSON_AND_THREE_SVGS",
+  "eight_layout_hash_unchanged": true,
+  "finished_clear_boundaries": 0,
+  "formal_area_authority_changed": false,
+  "format": "PASS",
+  "geometry_areas": "PRIVATE_SOURCE_DRAWN_REFERENCE_ONLY_NOT_P1",
+  "historical_regression": {
+    "errors": 0,
+    "failed": 0,
+    "log_sha256": "09d9e5c6a0688727f708ba486df3b72b6908fc7dc4235eb12248a9684222cd55",
+    "passed": 221,
+    "subtests_passed": 8
+  },
+  "mypy": "PASS_EXISTING_BACKEND_STRICT_CONFIGURATION",
+  "native_solver_calls": 0,
+  "new_owner_grant": false,
+  "observed_corner_intrusions_retained": 2,
+  "offline_tests": {
+    "errors": 0,
+    "failed": 0,
+    "log_sha256": "8ce6aec7de5472bd943b232f1f578e28cc8f6244c61fc21f47e982d7bce6b1f0",
+    "passed": 40
+  },
+  "old_canonical_and_p1_unchanged": true,
+  "production_code_changed": false,
+  "r1_files_and_evidence_unchanged": true,
+  "real_factory_solves": 0,
+  "real_truck_searches": 0,
+  "reference_closures_include_explicit_door_openings": 7,
+  "reviewed_rooms": 3,
+  "ruff": "PASS",
+  "source_sha256": "a2654279dbdefac8e225d7554e35463902e4abca1b4769418cd83e3a5ff6d139",
+  "source_vector_count": 80279,
+  "topological_reference_closures": 3,
+  "visual_review": "AI_SOURCE_OVERLAY_REVIEW_COMPLETED_OWNER_HUMAN_SIGNOFF_PENDING"
+}
