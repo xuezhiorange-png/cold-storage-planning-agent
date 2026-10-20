@@ -1,0 +1,21 @@
+{
+  "contract": "XinzhaoDrawingGeometryV1",
+  "version": "source-bound-drawing-review@1.0.0",
+  "object_types": ["BUILDING", "PHYSICAL_ROOM", "FUNCTIONAL_ZONE", "EQUIPMENT", "PORTAL", "CORRIDOR", "LOADING_INTERFACE"],
+  "source_fields": ["source_sha256", "source_page", "source_region", "review_method", "validation_status"],
+  "source_region_frame": "DISPLAY_PDF_POINTS_TOP_LEFT_ROTATION_ALREADY_APPLIED",
+  "vector_source_frame": "UNROTATED_PDF_POINTS_WITH_EXPLICIT_ROTATION_MATRIX",
+  "required_metric_anchors": "TWO_INDEPENDENT_AXIS_DIRECTIONS_WITH_SOURCE_PATH_AND_DIMENSION_CHAIN",
+  "roi_is_wall_boundary": false,
+  "room_net_dimensions_supported": false,
+  "room_areas_supported": false,
+  "uncalibrated_mm_output": null,
+  "door_mark_is_clear_dimension": false,
+  "equipment_depiction_is_selection": false,
+  "adjacency_is_portal": false,
+  "portal_is_validated_route": false,
+  "engineering_authority_approved": false,
+  "process_flow_pass": null,
+  "public_detail_policy": "PRIVATE_PDF_COORDINATES_LABEL_REGISTER_AND_SOURCE_OVERLAY_VIEWS_NOT_FOR_PUBLICATION",
+  "manual_review_limit": "REFERENCE_VALIDATION_IS_NOT_SEMANTIC_TRANSCRIPTION_ACCURACY_PROOF"
+}

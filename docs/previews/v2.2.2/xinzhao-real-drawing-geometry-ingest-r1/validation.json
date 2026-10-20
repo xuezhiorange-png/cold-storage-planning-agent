@@ -1,0 +1,35 @@
+{
+  "determinism": "IDENTICAL_SOURCE_INVENTORY_AND_THREE_SVGS_ON_REPEAT_GENERATION",
+  "diff_check": "PASS",
+  "drawing_tests": {
+    "errors": 0,
+    "failed": 0,
+    "log_sha256": "a9155f26205f0d54db07a5b3b78d6a26a00c13bae65f66f76814c9c950fb6681",
+    "passed": 37
+  },
+  "format": "PASS",
+  "full_backend": "NOT_RUN_OFFLINE_TOOL_ONLY_SCOPE",
+  "historical_8_candidates_and_authority": "EXISTING_SEALED_LOADER_AND_MANIFEST_REGRESSIONS_PASS",
+  "historical_offline_regression": {
+    "errors": 0,
+    "failed": 0,
+    "log_sha256": "543001fae74a671e8397e27c26440af8cda1b82dc0b3290f757ba3c01d586f6a",
+    "passed": 184,
+    "subtests_passed": 8
+  },
+  "initial_regression_attempt": {
+    "errors": 109,
+    "log_sha256": "81ed13819b637018ec233b802d285248977d9d99de1e9dbe3e6623d8bcdf8a10",
+    "passed": 75,
+    "reason": "MISSING_EXPLICIT_EVIDENCE_ROOT_AND_BACKEND_IMPORT_PATH",
+    "test_or_production_files_changed": false
+  },
+  "mypy": "PASS_WITH_EXISTING_BACKEND_STRICT_CONFIGURATION",
+  "native_solver_calls": 0,
+  "new_owner_grant": false,
+  "production_code_changed": false,
+  "real_factory_solves": 0,
+  "real_truck_searches": 0,
+  "ruff": "PASS",
+  "svg_visual_review": "THREE_RENDERED_OVERLAYS_INSPECTED_ROI_NOT_WALL_BOUNDARIES"
+}

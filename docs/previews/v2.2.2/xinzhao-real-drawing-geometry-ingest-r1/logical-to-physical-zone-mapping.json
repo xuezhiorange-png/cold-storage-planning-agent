@@ -1,0 +1,8 @@
+{
+  "cardinality": "ONE_LOGICAL_ZONE_TO_MULTIPLE_PHYSICAL_OBJECTS",
+  "mapping_count": 12,
+  "production_12_zone_model_changed": false,
+  "public_status": "REDACTED_DETAIL_RETAINED_LOCALLY",
+  "status": "MAPPING_REVIEW_REQUIRED",
+  "unmatched_drawing_objects_preserved": true
+}
