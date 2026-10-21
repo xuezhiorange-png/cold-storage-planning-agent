@@ -27,6 +27,7 @@ RESOURCE_TEST_FILES = frozenset(
         "test_v222_stage_b_fair_search.py",
         "test_v222_functional_shape_ab.py",
         "test_v222_feasibility_first_main_execution.py",
+        "test_v222_stage_b_balanced_quality.py",
         "test_v222_multi_solution_execution.py",
         "test_v222_native_access_hints.py",
         "test_v222_production_execution_policy.py",
@@ -35,7 +36,7 @@ RESOURCE_TEST_FILES = frozenset(
 )
 
 
-def run_resource_test_worker(node_id: str) -> str:
+def run_resource_test_worker(node_id: str, *, report_copy: Path | None = None) -> str:
     """Run the same parametrized test; require one actual, non-skipped PASS."""
     import pytest
 
@@ -68,6 +69,8 @@ def run_resource_test_worker(node_id: str) -> str:
             check=False,
         )
         output = result.stdout + result.stderr
+        if report_copy is not None and report.is_file():
+            report_copy.write_bytes(report.read_bytes())
         if result.returncode != 0 or not report.is_file():
             pytest.fail(f"Isolated resource worker failed ({result.returncode}):\n{output}")
         xml = report.read_text()

@@ -44,6 +44,11 @@ POLICY_HASH = canonical_hash(
 
 class _FeasibilityFirstNative(FairNativeSolver):
     improving = False
+    continuation_policy = POLICY
+    continuation_policy_hash = POLICY_HASH
+
+    def _apply_improvement_guidance(self, model: Any, context: Any) -> dict[str, Any]:
+        return apply_functional_shape_guidance(model, context)
 
     def _configure_search(self, solver: Any, phase: str) -> None:
         if self.improving and phase == "ALL_ROOMS_ALL_ACCESS":
@@ -61,14 +66,14 @@ class _FeasibilityFirstNative(FairNativeSolver):
             variable = model.m.get_int_var_from_proto_index(index)
             model.m.add_hint(variable, solver.value(variable))
         model.m.clear_objective()
-        receipt = apply_functional_shape_guidance(model, context)
+        receipt = self._apply_improvement_guidance(model, context)
         self.improving = True
         return {
             **receipt,
             "preference_policy": receipt["policy"],
             "preference_policy_hash": receipt["policy_hash"],
-            "policy": POLICY,
-            "policy_hash": POLICY_HASH,
+            "policy": self.continuation_policy,
+            "policy_hash": self.continuation_policy_hash,
             "first_solution_termination_unchanged": False,
             "optimality_claimed": False,
             "hint_source": "THIS_EXECUTION_INDEPENDENTLY_ACCEPTED_NATIVE_ASSIGNMENT",

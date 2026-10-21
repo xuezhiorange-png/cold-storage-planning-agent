@@ -60,6 +60,7 @@ def test_resource_worker_failure_is_not_hidden(monkeypatch) -> None:
         run_resource_test_worker("tests/unit/example.py::test_case")
 
 
+@pytest.mark.physical_rss_linux
 def test_resource_worker_excludes_parent_live_memory_not_worker_initialization() -> None:
     # Real touched memory: Linux must not inherit the full-suite parent's RSS
     # into the worker's process-lifetime budget. Never mock getrusage/guard.
@@ -75,6 +76,7 @@ def test_resource_worker_excludes_parent_live_memory_not_worker_initialization()
     assert len(pressure) + sum(map(len, retained)) <= 768 * 1024 * 1024
 
 
+@pytest.mark.physical_rss_linux
 def test_resource_worker_own_memory_limit_still_rejects() -> None:
     if os.environ.get(WORKER_ENV) != "1":
         output = run_resource_test_worker(

@@ -146,7 +146,8 @@ def test_counter_rollback_and_fake_native_return_denied(tmp_path):
     "field,value",
     [("model_work", 1_200_001), ("solver_wall", 101), ("peak_rss_bytes", 513 * 1024 * 1024)],
 )
-def test_real_guard_rejects_over_budget_counters(tmp_path, field, value):
+def test_real_guard_rejects_over_budget_counters(tmp_path, field, value, record_property):
+    record_property("resource_test_kind", "SYNTHETIC_RESOURCE_STATE_TEST")
     store, binding = registry(tmp_path)
     ledger = store.open("MAIN")
     admit(ledger, binding)
@@ -181,6 +182,7 @@ def test_missing_owner_changed_head_dependency_and_source_fail_closed(tmp_path):
         store.open("MAIN")
 
 
+@pytest.mark.physical_rss_linux
 def test_actual_resident_memory_is_rejected_without_mocking_rss(tmp_path, record_property):
     store, binding = registry(tmp_path)
     ledger = store.open("MAIN")
