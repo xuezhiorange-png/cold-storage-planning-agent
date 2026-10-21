@@ -106,6 +106,8 @@ class AcceptanceBoundaryTests(unittest.TestCase):
         self.assertIn("  fast-ci-gate:\n", fast)
         self.assertIn("CI_GATE_KIND: DEVELOPMENT", fast)
         self.assertIn("contents: read", fast)
+        self.assertIn("fonts-wqy-zenhei", fast)
+        self.assertLess(fast.index("fonts-wqy-zenhei"), fast.index("Stage B, geometry"))
         self.assertNotIn("secrets.", fast)
         self.assertNotIn("continue-on-error", fast)
         jobs = matrix.job_blocks(full)

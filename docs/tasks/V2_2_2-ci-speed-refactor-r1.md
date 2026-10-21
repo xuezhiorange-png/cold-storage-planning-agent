@@ -98,3 +98,10 @@ same final HEAD. Record measured durations only; PENDING is not PASS.
 Private evidence remains local. D01/D03/D04, historical UNKNOWN, engineering
 authorities, algorithms, source candidates, ledgers and production defaults
 are unchanged. Completion does not authorize Ready/Merge/Deploy or MAIN.
+
+The first Linux fast run exposed a missing prerequisite: the shared autouse
+pytest font fixture failed on its builtin-font fallback. Fast CI therefore
+installs the same fonts-wqy-zenhei package already used by full CI, before any
+pytest selection. The failed run is retained, not rerun or relabeled PASS.
+This environment-only correction requires one additional scoped commit; it
+does not change the renderer, resource guard, test selection or assertions.
