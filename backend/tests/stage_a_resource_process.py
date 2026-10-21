@@ -26,6 +26,7 @@ RESOURCE_TEST_FILES = frozenset(
         "test_v222_stage_b_multi_solution.py",
         "test_v222_stage_b_fair_search.py",
         "test_v222_functional_shape_ab.py",
+        "test_v222_feasibility_first_main_execution.py",
         "test_v222_multi_solution_execution.py",
         "test_v222_native_access_hints.py",
         "test_v222_production_execution_policy.py",

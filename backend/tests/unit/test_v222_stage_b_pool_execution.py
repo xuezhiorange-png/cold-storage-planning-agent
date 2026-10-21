@@ -181,22 +181,63 @@ def test_missing_owner_changed_head_dependency_and_source_fail_closed(tmp_path):
         store.open("MAIN")
 
 
-def test_actual_resident_memory_is_rejected_without_mocking_rss(tmp_path):
+def test_actual_resident_memory_is_rejected_without_mocking_rss(tmp_path, record_property):
     store, binding = registry(tmp_path)
     ledger = store.open("MAIN")
     admit(ledger, binding)
-    pressure = bytearray(600 * 1024 * 1024)
-    # Sparse identical pages are compressible on macOS: allocation size is not
-    # resident usage. Fill the SAME allocation with real noncompressible data,
-    # in small chunks so there is no second 600MiB temporary allocation.
-    for i in range(0, len(pressure), 1024 * 1024):
-        pressure[i : i + 1024 * 1024] = os.urandom(1024 * 1024)
-    rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    print("ACTUAL_PRESSURE_RSS_BYTES=" + str(rss if sys.platform == "darwin" else rss * 1024))
-    with pytest.raises(LayoutAuthorityError, match="RESOURCE_LIMIT"):
-        ledger.guard()
-    assert ledger.peak_rss_bytes > 512 * 1024 * 1024
-    assert len(pressure) == 600 * 1024 * 1024
+    mib = 1024 * 1024
+    threshold = 512 * mib
+    samples = []
+    evidence = {
+        "pid": os.getpid(),
+        "platform": sys.platform,
+        "python": sys.version,
+        "rss_semantics": "PROCESS_LIFETIME_PEAK_RUSAGE_SELF_AS_USED_BY_GUARD",
+        "samples": samples,
+        "written_bytes": 0,
+        "guard_status": "NOT_EXECUTED",
+    }
+
+    def observe(stage):
+        raw = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        rss_bytes = raw if sys.platform == "darwin" else raw * 1024
+        samples.append(
+            {"stage": stage, "pid": os.getpid(), "ru_maxrss": raw, "rss_bytes": rss_bytes}
+        )
+        return rss_bytes
+
+    try:
+        observe("BEFORE_ALLOCATION")
+        pressure = bytearray(600 * mib)
+        # Fill the SAME allocation; never create a second 600MiB temporary buffer.
+        for i in range(0, len(pressure), mib):
+            pressure[i : i + mib] = os.urandom(mib)
+            evidence["written_bytes"] += mib
+        rss_bytes = observe("AFTER_600_MIB_RANDOM_WRITE")
+        retained_chunks = []
+        # Allocated bytes do not prove resident pressure. Retain bounded random
+        # increments until the actual metric used by the production guard crosses.
+        while rss_bytes <= threshold and evidence["written_bytes"] < 768 * mib:
+            retained_chunks.append(os.urandom(mib))
+            evidence["written_bytes"] += mib
+            rss_bytes = observe("AFTER_RETAINED_1_MIB_RANDOM_APPEND")
+        if observe("BEFORE_GUARD") <= threshold:
+            pytest.fail("ACTUAL_RSS_THRESHOLD_NOT_REACHED")
+        evidence["guard_pid"] = os.getpid()
+        with pytest.raises(LayoutAuthorityError, match="^STAGE_A_RESOURCE_LIMIT$"):
+            ledger.guard()
+        evidence["guard_status"] = "STAGE_A_RESOURCE_LIMIT"
+        evidence["ledger_peak_rss_bytes"] = ledger.peak_rss_bytes
+        observe("AFTER_GUARD_REJECTION")
+        assert ledger.peak_rss_bytes > threshold
+        assert len(pressure) == 600 * mib
+        assert len(pressure) + sum(map(len, retained_chunks)) == evidence["written_bytes"]
+        assert evidence["written_bytes"] <= 768 * mib
+        assert all(sample["pid"] == evidence["guard_pid"] for sample in samples)
+    finally:
+        receipt = json.dumps(evidence, sort_keys=True)
+        record_property("actual_rss_pressure_evidence", receipt)
+        print("ACTUAL_RSS_PRESSURE_EVIDENCE=" + receipt, flush=True)
 
 
 def test_insufficient_replay_reserve_does_not_allocate_second_claim(tmp_path):

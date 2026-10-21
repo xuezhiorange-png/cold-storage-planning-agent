@@ -13,6 +13,28 @@ import pytest
 from tests.stage_a_resource_process import WORKER_ENV, run_resource_test_worker
 
 
+def _retain_actual_resident_pressure() -> tuple[bytearray, list[bytes]]:
+    """Test setup only: allocation length is not the guard's measured RSS."""
+    mib = 1024 * 1024
+    pressure = bytearray(600 * mib)
+    for offset in range(0, len(pressure), mib):
+        pressure[offset : offset + mib] = os.urandom(mib)
+    extra: list[bytes] = []
+    while True:
+        raw = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        rss = raw if sys.platform == "darwin" else raw * 1024
+        print(
+            f"WORKER_PRESSURE pid={os.getpid()} raw_ru_maxrss={raw} "
+            f"peak_rss_bytes={rss} written_bytes={len(pressure) + len(extra) * mib}",
+            flush=True,
+        )
+        if rss > 512 * mib:
+            return pressure, extra
+        if len(pressure) + len(extra) * mib >= 768 * mib:
+            pytest.fail("ACTUAL_RSS_THRESHOLD_NOT_REACHED")
+        extra.append(os.urandom(mib))
+
+
 @pytest.mark.parametrize("child", ["<failure/>", "<error/>", "<skipped/>"])
 def test_resource_worker_does_not_promote_nonpass(monkeypatch, child: str) -> None:
     def run(args, **kwargs):
@@ -41,7 +63,7 @@ def test_resource_worker_failure_is_not_hidden(monkeypatch) -> None:
 def test_resource_worker_excludes_parent_live_memory_not_worker_initialization() -> None:
     # Real touched memory: Linux must not inherit the full-suite parent's RSS
     # into the worker's process-lifetime budget. Never mock getrusage/guard.
-    pressure = bytearray(600 * 1024 * 1024)
+    pressure, retained = _retain_actual_resident_pressure()
     raw = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     assert (raw if sys.platform == "darwin" else raw * 1024) > 512 * 1024 * 1024
     output = run_resource_test_worker(
@@ -50,6 +72,7 @@ def test_resource_worker_excludes_parent_live_memory_not_worker_initialization()
     )
     assert "1 passed" in output
     assert len(pressure) == 600 * 1024 * 1024
+    assert len(pressure) + sum(map(len, retained)) <= 768 * 1024 * 1024
 
 
 def test_resource_worker_own_memory_limit_still_rejects() -> None:
@@ -65,10 +88,11 @@ def test_resource_worker_own_memory_limit_still_rejects() -> None:
     from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 
     # The broker must not hide real memory consumed inside the guarded worker.
-    pressure = bytearray(600 * 1024 * 1024)
+    pressure, retained = _retain_actual_resident_pressure()
     ledger = StageALedger()
     with pytest.raises(LayoutAuthorityError, match="^STAGE_A_RESOURCE_LIMIT$"):
         ledger.guard()
     assert ledger.peak_rss_bytes > 512 * 1024 * 1024
     assert ledger.model_work == ledger.native_host_work == 0
     assert len(pressure) == 600 * 1024 * 1024
+    assert len(pressure) + sum(map(len, retained)) <= 768 * 1024 * 1024
