@@ -21,6 +21,12 @@ from tests.unit.test_v222_multi_solution_execution import _fair_registry
 from tests.unit.test_v222_stage_b_pool_execution import admit, begin
 
 
+def test_new_resource_contract_tests_use_existing_independent_worker():
+    from tests.stage_a_resource_process import RESOURCE_TEST_FILES
+
+    assert Path(__file__).name in RESOURCE_TEST_FILES
+
+
 def setup(tmp_path, monkeypatch):
     _, common = _fair_registry(tmp_path)
     raw = ("SYNTHETIC ACCOUNTING NOT OWNER EXECUTION " + main.TASK).encode()

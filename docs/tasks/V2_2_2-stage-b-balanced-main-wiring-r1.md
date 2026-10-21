@@ -67,3 +67,8 @@ export, full-CI admission and architecture regressions remain required.
 Fast CI explicitly includes the new wiring tests. Full CI is requested once by
 PR labeled event only after fast SUCCESS. No real MAIN, resource consumption,
 Grant, Ready, Merge, Release or Deploy is part of this task.
+
+The new resource-contract test file is registered in the existing independent
+Worker allowlist, just like the old MAIN tests. Otherwise a full-suite parent's
+process-lifetime PDF memory peak could contaminate these synthetic ledger tests.
+This changes test isolation only, not getrusage, production guard or any limit.
