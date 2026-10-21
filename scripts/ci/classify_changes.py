@@ -22,6 +22,7 @@ REGULAR_JOBS = (
     "recovery-foundation",
 )
 SCOPE_JOBS: dict[str, frozenset[str]] = {
+    "STAGE_B_FAST": frozenset({"fast-checks"}),
     "DOCS_ARCHITECTURE_ONLY": frozenset({"lightweight"}),
     "BACKEND": frozenset(
         {
@@ -80,6 +81,19 @@ MANIFEST_NAMES = {
 }
 SHA = re.compile(r"[0-9a-fA-F]{40}\Z")
 
+# Exact opt-in preference files only. Shared solvers, authorities, execution
+# admission, resource guards, dependencies and CI files are never fast-allowlisted.
+STAGE_B_FAST_PATHS = frozenset(
+    {
+        "backend/src/cold_storage/modules/layout/infrastructure/stage_b_balanced_quality.py",
+        "backend/src/cold_storage/modules/layout/infrastructure/stage_b_wall_alignment.py",
+        "backend/src/cold_storage/modules/layout/infrastructure/stage_b_construction_guidance.py",
+        "backend/tests/unit/test_v222_stage_b_balanced_quality.py",
+        "backend/tests/unit/test_v222_stage_b_construction_guidance.py",
+        "docs/tasks/V2_2_2-stage-b-balanced-layout-quality-r1.md",
+    }
+)
+
 
 @dataclass(frozen=True)
 class Plan:
@@ -99,9 +113,11 @@ class Plan:
         }
 
 
-def classify_paths(paths: Sequence[str]) -> Plan:
+def classify_paths(paths: Sequence[str], *, development: bool = False) -> Plan:
     if not paths:
         return Plan("FULL", "EMPTY_CHANGE_SET")
+    if development and all(path in STAGE_B_FAST_PATHS for path in paths):
+        return Plan("STAGE_B_FAST", "EXPLICIT_OPT_IN_PREFERENCE_ALLOWLIST_NOT_ACCEPTANCE")
     kinds: set[str] = set()
     for raw in paths:
         if (
@@ -165,7 +181,9 @@ def _commit(repo: Path, value: object) -> str:
     return value.lower()
 
 
-def classify_event(event_name: str, event: object, github_sha: str, repo: Path) -> Plan:
+def classify_event(
+    event_name: str, event: object, github_sha: str, repo: Path, *, development: bool = False
+) -> Plan:
     if event_name == "workflow_dispatch":
         return Plan("FULL", "MANUAL_DEFAULT_FULL")
     try:
@@ -192,7 +210,7 @@ def classify_event(event_name: str, event: object, github_sha: str, repo: Path) 
             stderr=subprocess.DEVNULL,
         )
         paths = [part.decode("utf-8", errors="strict") for part in raw.split(b"\0") if part]
-        plan = classify_paths(paths)
+        plan = classify_paths(paths, development=development)
         return Plan(plan.scope, plan.reason, base, head)
     except (KeyError, TypeError, ValueError, OSError, subprocess.CalledProcessError):
         return Plan("FULL", "INVALID_OR_UNAVAILABLE_DIFF")
@@ -201,9 +219,12 @@ def classify_event(event_name: str, event: object, github_sha: str, repo: Path) 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--paths", nargs="*", help="local simulation; bypass event loading")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--full", action="store_true", help="force every full acceptance job")
+    mode.add_argument("--development", action="store_true", help="non-authoritative PR feedback")
     args = parser.parse_args()
     if args.paths is not None:
-        plan = classify_paths(args.paths)
+        plan = classify_paths(args.paths, development=args.development)
     else:
         try:
             event: Any = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
@@ -214,7 +235,10 @@ def main() -> None:
             event,
             os.environ.get("GITHUB_SHA", ""),
             Path.cwd(),
+            development=args.development,
         )
+    if args.full:
+        plan = Plan("FULL", "EXPLICIT_FULL_ACCEPTANCE", plan.base, plan.head)
     outputs = plan.outputs()
     print(json.dumps(outputs, sort_keys=True))
     if output := os.environ.get("GITHUB_OUTPUT"):
@@ -222,8 +246,13 @@ def main() -> None:
             stream.write("".join(f"{key}={value}\n" for key, value in outputs.items()))
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
         with Path(summary).open("a", encoding="utf-8") as stream:
-            stream.write(f"CI scope: **{plan.scope}** ({plan.reason})\n")
-            stream.write("Required jobs: " + ", ".join(sorted(SCOPE_JOBS[plan.scope])) + "\n")
+            if args.development:
+                stream.write("**DEVELOPMENT FEEDBACK ONLY — NOT FORMAL ACCEPTANCE**\n")
+                stream.write(f"Risk classification: **{plan.scope}** ({plan.reason})\n")
+                stream.write("Full acceptance still requires ci.yml / pull_request labeled.\n")
+            else:
+                stream.write(f"CI scope: **{plan.scope}** ({plan.reason})\n")
+                stream.write("Required jobs: " + ", ".join(sorted(SCOPE_JOBS[plan.scope])) + "\n")
 
 
 if __name__ == "__main__":

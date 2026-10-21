@@ -239,7 +239,7 @@ def main() -> None:
         raise LayoutAuthorityError("POOL_OWNER_SOURCE_MISMATCH")
     repo = Path(__file__).resolve().parents[2]
     committed_source(repo)
-    admission = github_admission(repo)  # both exact-head terminal successes BEFORE approval/claim
+    admission = github_admission(repo)  # Exact-head formal PR acceptance BEFORE approval/claim.
     execute(args.output, repo, instruction, admission)
 
 

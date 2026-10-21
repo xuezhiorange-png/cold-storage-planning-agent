@@ -19,7 +19,7 @@ MANUAL_JOBS = (
 )
 
 
-def gate_errors(needs: Mapping[str, Any]) -> list[str]:
+def gate_errors(needs: Mapping[str, Any], *, require_full: bool = False) -> list[str]:
     classifier = needs.get("classify-changes", {})
     if not isinstance(classifier, Mapping) or classifier.get("result") != "success":
         return ["classify-changes did not succeed"]
@@ -27,6 +27,8 @@ def gate_errors(needs: Mapping[str, Any]) -> list[str]:
     if not isinstance(outputs, Mapping) or outputs.get("scope") not in SCOPE_JOBS:
         return ["missing or invalid classification"]
     scope = outputs["scope"]
+    if scope == "STAGE_B_FAST" or require_full and scope != "FULL":
+        return ["development or partial scope cannot satisfy formal ci-gate"]
     expected = Plan(scope, "").outputs()
     errors = [
         f"invalid {key} output"
@@ -44,15 +46,33 @@ def gate_errors(needs: Mapping[str, Any]) -> list[str]:
     return errors
 
 
+def development_gate_errors(needs: Mapping[str, Any]) -> list[str]:
+    job = needs.get("fast-checks", {})
+    if not isinstance(job, Mapping) or job.get("result") != "success":
+        return ["fast-checks must actually succeed (not skipped/cancelled)"]
+    outputs = job.get("outputs", {})
+    if not isinstance(outputs, Mapping) or outputs.get("scope") not in SCOPE_JOBS:
+        return ["missing development classification"]
+    return []
+
+
 def main() -> None:
     try:
         needs = json.loads(os.environ["CI_NEEDS"])
-        errors = gate_errors(needs) if isinstance(needs, dict) else ["invalid needs payload"]
+        if not isinstance(needs, dict):
+            errors = ["invalid needs payload"]
+        elif os.environ.get("CI_GATE_KIND") == "DEVELOPMENT":
+            errors = development_gate_errors(needs)
+        else:
+            errors = gate_errors(needs, require_full=os.environ.get("CI_FULL_REQUIRED") == "true")
     except (ValueError, KeyError):
         errors = ["missing or invalid needs payload"]
     if errors:
         raise SystemExit("CI gate failed: " + "; ".join(errors))
-    print("CI gate passed: every required job succeeded")
+    if os.environ.get("CI_GATE_KIND") == "DEVELOPMENT":
+        print("Fast feedback passed; NOT formal acceptance and NOT real MAIN admission")
+    else:
+        print("CI gate passed: every required job succeeded")
 
 
 if __name__ == "__main__":

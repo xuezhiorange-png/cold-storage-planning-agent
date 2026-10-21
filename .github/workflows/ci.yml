@@ -2,7 +2,9 @@ name: ci
 
 on:
   push:
+    branches: [main]
   pull_request:
+    types: [labeled]
   workflow_dispatch:
     inputs:
       execute_live_evidence_capture:
@@ -152,7 +154,7 @@ jobs:
         run: python3 -m unittest discover -s scripts/ci/tests -v
       - name: Classify event paths
         id: classify
-        run: python3 scripts/ci/classify_changes.py
+        run: python3 scripts/ci/classify_changes.py --full
       - name: Changed-lines whitespace check
         if: ${{ steps.classify.outputs.base != '' }}
         env:
@@ -222,6 +224,7 @@ jobs:
       - name: Require all selected checks
         env:
           CI_NEEDS: ${{ toJSON(needs) }}
+          CI_FULL_REQUIRED: "true"
         run: python3 scripts/ci/ci_gate.py
 
   compose-config:

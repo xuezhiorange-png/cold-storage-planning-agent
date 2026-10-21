@@ -188,7 +188,7 @@ def run_main(output: Path, instruction_path: Path) -> None:
     subprocess.run(
         ["git", "merge-base", "--is-ancestor", REFERENCE_HEAD, "HEAD"], cwd=repo, check=True
     )
-    admission = github_admission(repo)  # No approval/claim before BOTH exact-head successes.
+    admission = github_admission(repo)  # No approval/claim before exact-head formal PR acceptance.
     store = approved_feasibility_first_main_store()
     if store.root.exists():
         raise LayoutAuthorityError("FEASIBILITY_EXISTING_FIXED_SLOT_REQUIRES_INSPECTION")
