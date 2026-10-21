@@ -42,7 +42,9 @@ from cold_storage.modules.layout.infrastructure.stage_b_feasibility_main_executi
 REFERENCE_HEAD = "0a5e5e77ced298dda58eeb773ad8386a8e7d6562"
 
 
-def export_evidence(output: Path, result: Any, lease: Any, site: Any, ids: set[str]) -> None:
+def export_evidence(
+    output: Path, result: Any, lease: Any, site: Any, ids: set[str], *, task: str = TASK
+) -> None:
     """Read original validation events/results; no new search or engineering oracle."""
     events = lease.record.get("enumeration_events", [])
     transitions = [
@@ -124,7 +126,7 @@ def export_evidence(output: Path, result: Any, lease: Any, site: Any, ids: set[s
     compared_hashes = {e["candidate"]["candidate_hash"] for e in comparisons if "candidate" in e}
     unreviewed = any(r["candidate_hash"] not in compared_hashes for r in improvements)
     summary = {
-        "task": TASK,
+        "task": task,
         "main_status": (result or {}).get("status", "INTERRUPTED_SEE_FAILURE_AND_DURABLE_EVENTS"),
         "main_execution_count": 1,
         "handoffs_attempted": lease.record["cursor"],
@@ -167,7 +169,8 @@ def export_evidence(output: Path, result: Any, lease: Any, site: Any, ids: set[s
     )
     dump(output / "execution-summary.json", summary)
     (output / "results.md").write_text(
-        "# Feasibility-first MAIN — actual result\n\n```json\n"
+        ("# Feasibility-first MAIN" if task == TASK else "# Balanced Stage B MAIN")
+        + " — actual result\n\n```json\n"
         + json.dumps(summary, ensure_ascii=False, indent=2)
         + "\n```\n\n"
         + "All facts: quality-comparison.json.\n"
