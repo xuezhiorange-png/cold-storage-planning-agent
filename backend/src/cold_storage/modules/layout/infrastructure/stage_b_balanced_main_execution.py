@@ -1,6 +1,7 @@
-"""Unarmed fixed balanced MAIN adapter; no execution approval is issued here."""
+"""Hash-bound fixed balanced MAIN adapter; execution requires a preissued Grant."""
 
 from collections.abc import Mapping
+from hashlib import sha256
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
@@ -27,11 +28,11 @@ from cold_storage.modules.layout.infrastructure.stage_b_wall_alignment import (
 )
 
 TASK = "V2_2_2_STAGE_B_BALANCED_LAYOUT_REAL_VALIDATION_R1"
-# Wiring authorization is NOT authorization to execute. A future Owner-approved
-# full execution instruction must be byte-hashed and pinned in trusted source,
-# then that new HEAD must obtain formal PR CI. No environment/CLI override.
-OWNER_SHA256: str | None = None
-CONTRACT = MappingProxyType(
+# Actual private UTF-8 instruction bytes, pinned under the Owner hash-binding
+# task. This digest is NOT Grant issuance or permission to execute this commit.
+# Separate final Owner confirmation and exact-head formal PR CI remain required.
+OWNER_SHA256: str | None = "83ef14b7f0c62e685cbf3cc8556348616d1645207d027bc16042dd88dc7bb055"
+CONTRACT: Mapping[str, Any] = MappingProxyType(
     dict(ORIGINAL_CONTRACT, version="stage-b-balanced-single-main@1.0.0", task=TASK)
 )
 CONTRACT_HASH = canonical_hash(dict(CONTRACT))
@@ -86,7 +87,40 @@ class BalancedMainStore(FairMultiSolutionPoolExecutionStore):
         owner_execution_digest()
         decision = super()._decision()
         self._validate_binding(decision)
+        if decision.get("task_id") != TASK:
+            raise LayoutAuthorityError("BALANCED_MAIN_TASK_IDENTITY_MISMATCH")
         return decision
+
+    def require_unclaimed_grant(self) -> None:
+        """Read the fixed trusted registry, never issue a Grant from runner input.
+
+        Use the existing filesystem-admin trust boundary and original decision
+        verifier (Owner bytes, caps, source HEAD/files/dependencies). Any execution
+        residue requires inspection, not a new slot or a reset.
+        """
+        owner_execution_digest()
+        if self.root.exists() and any(
+            p.name not in {"owner_decision.json", "owner_instruction.json"}
+            for p in self.root.iterdir()
+        ):
+            raise LayoutAuthorityError("BALANCED_EXISTING_FIXED_SLOT_REQUIRES_INSPECTION")
+        path = self.root / "owner_decision.json"
+        if not path.is_file():
+            raise LayoutAuthorityError("BALANCED_PREISSUED_OWNER_GRANT_REQUIRED")
+        self.approved_digest = sha256(path.read_bytes()).hexdigest()
+        self._decision()
+
+    def validate_existing_binding(self, instruction: bytes, binding: Mapping[str, Any]) -> None:
+        """Fresh server-derived binding must equal the previously issued scope."""
+        if sha256(instruction).hexdigest() != owner_execution_digest():
+            raise LayoutAuthorityError("BALANCED_OWNER_SOURCE_MISMATCH")
+        self._validate_binding(binding)
+        decision = self._decision()
+        if any(
+            key not in decision or canonical_hash(value) != canonical_hash(decision[key])
+            for key, value in binding.items()
+        ):
+            raise LayoutAuthorityError("BALANCED_PREISSUED_GRANT_BINDING_MISMATCH")
 
     def open(self, mode: str) -> StageALedger:
         owner_execution_digest()

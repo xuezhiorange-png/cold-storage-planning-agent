@@ -45,22 +45,24 @@ def runner(monkeypatch):
         return importlib.import_module("run_stage_b_balanced_main")
 
 
-def test_bootstrap_fixed_identity_and_unarmed_no_files_created(tmp_path):
-    assert main.OWNER_SHA256 is None
+def test_bootstrap_fixed_identity_hash_bound_but_no_grant_created(tmp_path):
+    assert main.owner_execution_digest() == (
+        "83ef14b7f0c62e685cbf3cc8556348616d1645207d027bc16042dd88dc7bb055"
+    )
     assert not inspect.signature(approved_balanced_main_store).parameters
     store = main.BalancedMainStore(tmp_path / "registry")
     assert store.task_id == main.TASK != OLD_TASK
     assert store.root.name == hashlib.sha256(main.TASK.encode()).hexdigest()
     assert not store.root.exists()
-    for mode in ("MAIN", "REPLAY"):
-        with pytest.raises(LayoutAuthorityError, match="OWNER_EXECUTION_NOT_PINNED"):
-            store.open(mode)
-    with pytest.raises(LayoutAuthorityError, match="OWNER_EXECUTION_NOT_PINNED"):
-        store.approve(b"OWNER_AUTHORIZED=true wiring only", {})
+    with pytest.raises(LayoutAuthorityError, match="PREISSUED_OWNER_GRANT_REQUIRED"):
+        store.require_unclaimed_grant()
+    with pytest.raises(LayoutAuthorityError, match="OWNER_DECISION_REQUIRED"):
+        store.open("MAIN")
     assert not store.root.exists()
 
 
 def test_unarmed_entry_refuses_before_ci_inputs_or_output(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "OWNER_SHA256", None)
     entry = runner(monkeypatch)
     for name in ("github_admission", "server_inputs", "approved_balanced_main_store"):
         monkeypatch.setattr(entry, name, lambda *_: pytest.fail("unarmed execution reached gate"))
@@ -74,6 +76,92 @@ def test_caller_approval_strings_are_not_execution_digests(monkeypatch, digest):
     monkeypatch.setattr(main, "OWNER_SHA256", digest)
     with pytest.raises(LayoutAuthorityError, match="NOT_PINNED"):
         main.owner_execution_digest()
+
+
+def test_correct_owner_bytes_without_grant_refuse_before_inputs(tmp_path, monkeypatch):
+    entry = runner(monkeypatch)
+    raw = ("SYNTHETIC " + main.TASK).encode()
+    monkeypatch.setattr(main, "OWNER_SHA256", hashlib.sha256(raw).hexdigest())
+    p = tmp_path / "owner.txt"
+    p.write_bytes(raw)
+    store = main.BalancedMainStore(tmp_path / "no-grant")
+    monkeypatch.setattr(entry, "committed_source", lambda _: None)
+    monkeypatch.setattr(entry, "github_admission", lambda _: {"status": "SYNTHETIC_SUCCESS"})
+    monkeypatch.setattr(entry, "approved_balanced_main_store", lambda: store)
+    monkeypatch.setattr(entry, "server_inputs", lambda *_: pytest.fail("inputs without Grant"))
+    with pytest.raises(LayoutAuthorityError, match="PREISSUED_OWNER_GRANT_REQUIRED"):
+        entry.run_main(tmp_path / "output", p)
+    assert not store.root.exists() and not (tmp_path / "output").exists()
+
+
+def test_preissued_grant_reopens_read_only_with_original_checks(tmp_path, monkeypatch):
+    store, binding, raw = setup(tmp_path, monkeypatch)
+    original = {p.name: p.read_bytes() for p in store.root.iterdir()}
+    fresh = main.BalancedMainStore(store.root.parent)
+    fresh.require_unclaimed_grant()
+    fresh.validate_existing_binding(raw, binding)
+    assert {p.name: p.read_bytes() for p in store.root.iterdir()} == original
+    assert not (store.root / "task_ledger.json").exists()
+
+
+@pytest.mark.parametrize("field", ["head", "zone_plan_hash", "p1_hash", "site_hash"])
+def test_preissued_scope_cannot_be_rebound(tmp_path, monkeypatch, field):
+    store, binding, raw = setup(tmp_path, monkeypatch)
+    store.require_unclaimed_grant()
+    binding[field] = "FORGED"
+    with pytest.raises(LayoutAuthorityError, match="GRANT_BINDING_MISMATCH"):
+        store.validate_existing_binding(raw, binding)
+    assert not (store.root / "task_ledger.json").exists()
+
+
+@pytest.mark.parametrize(
+    "residue", ["pool_1_claim.json", "active.lock", "task_ledger.json", "journal.jsonl"]
+)
+def test_orphan_or_consumed_slot_never_resets(tmp_path, monkeypatch, residue):
+    store, _, _ = setup(tmp_path, monkeypatch)
+    p = store.root / residue
+    p.write_bytes(b"SYNTHETIC CONSUMED OR INTERRUPTED")
+    fresh = main.BalancedMainStore(store.root.parent)
+    with pytest.raises(LayoutAuthorityError, match="EXISTING_FIXED_SLOT"):
+        fresh.require_unclaimed_grant()
+    assert p.read_bytes() == b"SYNTHETIC CONSUMED OR INTERRUPTED"
+
+
+@pytest.mark.parametrize("field", ["task_id", "owner_instruction_sha256", "caps", "head"])
+def test_reloaded_forged_or_old_decision_rejected(tmp_path, monkeypatch, field):
+    store, _, _ = setup(tmp_path, monkeypatch)
+    p = store.root / "owner_decision.json"
+    body = json.loads(p.read_text())
+    body[field] = OLD_TASK if field == "task_id" else "APPROVED"
+    p.write_text(json.dumps(body))
+    fresh = main.BalancedMainStore(store.root.parent)
+    with pytest.raises(LayoutAuthorityError):
+        fresh.require_unclaimed_grant()
+    assert not (store.root / "task_ledger.json").exists()
+
+
+@pytest.mark.parametrize(
+    "old,new", [(b"49.9", b"50.0"), (b"600000", b"600001"), (b"false", b"true")]
+)
+def test_tampered_owner_budget_bytes_rejected_before_any_ci(tmp_path, monkeypatch, old, new):
+    entry = runner(monkeypatch)
+    raw = (
+        main.TASK + "\nNATIVE_SECONDS_MAX=49.9\nWORK_MAX=600000\nREPLAY_AUTHORIZED=false\n"
+    ).encode()
+    monkeypatch.setattr(main, "OWNER_SHA256", hashlib.sha256(raw).hexdigest())
+    p = tmp_path / "owner.txt"
+    p.write_bytes(raw.replace(old, new))
+    monkeypatch.setattr(entry, "github_admission", lambda *_: pytest.fail("tamper reached CI"))
+    with pytest.raises(LayoutAuthorityError, match="OWNER_SOURCE_MISMATCH"):
+        entry.run_main(tmp_path / "output", p)
+    assert not (tmp_path / "output").exists()
+
+
+def test_original_source_and_dependency_checks_remain_on_reload(tmp_path, monkeypatch):
+    store, binding, _ = setup(tmp_path, monkeypatch)
+    Path(binding["dependency_file"]).write_bytes(b"SYNTHETIC DEPENDENCY TAMPER")
+    with pytest.raises(LayoutAuthorityError, match="HEAD_OR_DEPENDENCY_CHANGED"):
+        main.BalancedMainStore(store.root.parent).require_unclaimed_grant()
 
 
 def test_single_use_claim_and_six_handoffs_share_one_ledger(tmp_path, monkeypatch):
@@ -262,6 +350,18 @@ def test_real_operator_flow_with_mocked_pool_never_calls_native(tmp_path, monkey
     monkeypatch.setattr(entry, "server_inputs", lambda _: ({}, {}, site))
     monkeypatch.setattr(entry, "runtime_dependencies", lambda: {"synthetic": "not-installed-data"})
     monkeypatch.setattr(entry, "fair_binding", lambda *_: common)
+    repo = Path(entry.__file__).resolve().parents[2]
+    tracked = entry.subprocess.check_output(
+        ["git", "ls-files", "backend/src", "backend/scripts"], cwd=repo, text=True
+    ).splitlines()
+    common["source_files"].update(
+        {str(repo / n): hashlib.sha256((repo / n).read_bytes()).hexdigest() for n in tracked}
+    )
+    common["runtime_dependency_hash"] = main.canonical_hash(entry.runtime_dependencies())
+    # Independent synthetic issuance in a temporary registry, BEFORE execution.
+    store.approve(raw, main.main_binding(common))
+    decision_bytes = (store.root / "owner_decision.json").read_bytes()
+    monkeypatch.setattr(store, "approve", lambda *_: pytest.fail("runner issued a Grant"))
     monkeypatch.setattr(
         entry, "bind_layout_authority", lambda *_: SimpleNamespace(access_requirements=[])
     )
@@ -283,6 +383,7 @@ def test_real_operator_flow_with_mocked_pool_never_calls_native(tmp_path, monkey
     out = tmp_path / "output"
     entry.run_main(out, source)
     assert len(seen) == 1
+    assert (store.root / "owner_decision.json").read_bytes() == decision_bytes
     assert json.loads((out / "execution-summary.json").read_text())["task"] == main.TASK
     usage = json.loads((out / "resource-usage.json").read_text())
     assert usage["native_calls"] == usage["native_solver_seconds"] == 0
@@ -339,8 +440,10 @@ def test_operator_exposes_no_caller_policy_budget_seed_or_task(monkeypatch):
     assert source.count('store.open("MAIN")') == 1
     assert "StageBBalancedQualityFairSearchSolver()" in source
     assert "execution_ledger=ledger" in source
-    assert source.index("github_admission(repo)") < source.index("store.approve(")
-    assert source.index("store.approve(") < source.index('store.open("MAIN")')
+    assert "store.approve(" not in source
+    assert source.index("github_admission(repo)") < source.index("store.require_unclaimed_grant()")
+    assert source.index("store.require_unclaimed_grant()") < source.index("server_inputs(repo)")
+    assert source.index("store.validate_existing_binding(") < source.index('store.open("MAIN")')
     assert "task=TASK" in source
     assert "--budget" not in inspect.getsource(entry.main)
     assert "--policy" not in inspect.getsource(entry.main)

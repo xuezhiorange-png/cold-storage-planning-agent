@@ -1,4 +1,4 @@
-"""One fixed balanced MAIN; unarmed until a future Owner execution digest is pinned."""
+"""One fixed balanced MAIN; consume a preissued Grant, never issue one here."""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ REFERENCE_HEAD = "ec324151d02aa45a3cbb555d4a14c3325e021ac7"
 
 
 def run_main(output: Path, instruction_path: Path) -> None:
-    digest = owner_execution_digest()  # Unissued wiring approval cannot start anything.
+    digest = owner_execution_digest()  # Hash matching is necessary, not a Grant.
     instruction = instruction_path.read_bytes()
     if hashlib.sha256(instruction).hexdigest() != digest:
         raise LayoutAuthorityError("BALANCED_OWNER_SOURCE_MISMATCH")
@@ -50,8 +50,7 @@ def run_main(output: Path, instruction_path: Path) -> None:
     )
     admission = github_admission(repo)
     store = approved_balanced_main_store()
-    if store.root.exists():
-        raise LayoutAuthorityError("BALANCED_EXISTING_FIXED_SLOT_REQUIRES_INSPECTION")
+    store.require_unclaimed_grant()
     StageALedger().guard()
     plan, p1, site = server_inputs(repo)
     dependencies = runtime_dependencies()
@@ -70,6 +69,7 @@ def run_main(output: Path, instruction_path: Path) -> None:
         or canonical_hash(runtime_dependencies()) != (binding["runtime_dependency_hash"])
     ):
         raise LayoutAuthorityError("BALANCED_SOURCE_OR_RUNTIME_CHANGED")
+    store.validate_existing_binding(instruction, binding)
     output.mkdir(parents=True, exist_ok=False)
     dump(output / "ci-admission.json", admission)
     dump(output / "source-binding.json", binding)
@@ -80,7 +80,6 @@ def run_main(output: Path, instruction_path: Path) -> None:
     dump(output / "runtime-dependencies.json", dependencies)
     dump(output / "server-authorities.json", dict(plan=plan, p1=p1, site=site.to_dict()))
     (output / "owner-instruction.txt").write_bytes(instruction)
-    store.approve(instruction, binding)
     ledger = store.open("MAIN")  # One exclusive durable Claim; no loop or retry.
     lease = ledger.execution_authorization
     if not isinstance(lease, BalancedMainLease):
