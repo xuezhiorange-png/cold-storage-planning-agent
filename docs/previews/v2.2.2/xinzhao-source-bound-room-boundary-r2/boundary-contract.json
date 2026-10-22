@@ -1,0 +1,23 @@
+{
+  "contract": "XinzhaoRoomBoundaryV1",
+  "version": "source-bound-exact-room-topology@1.0.0",
+  "source_reference": ["source_pdf_sha256", "source_page", "path_id", "item_id", "edge"],
+  "source_rectangle_edge_convention": "raw bbox corners (x0,y0),(x1,y0),(x1,y1),(x0,y1); edge k to k+1; not inferred CAD layer/winding",
+  "coordinate_frame": "DISPLAY_PDF_POINTS_FROM_EXPLICIT_PAGE_ROTATION_MATRIX",
+  "engineering_origin": null,
+  "metric_calibration": "IMMUTABLE_R1_TWO_DIRECTION_SOURCE_DIMENSION_ANCHORS",
+  "endpoint_matching": "EXACT_RATIONAL_NO_SNAP",
+  "source_bound_trimming": "ONLY_ANOTHER_SOURCE_ENDPOINT_EXACTLY_ON_ORIGINAL_SEGMENT",
+  "door_reference": "OPEN_SOURCE_ENDS_WITH_LEAF_AND_UNFLATTENED_SWING_REFERENCES_AND_MANUAL_REVIEW",
+  "door_is_solid_wall": false,
+  "door_mark_is_net_width": false,
+  "caller_approval_accepted": false,
+  "allowed_selected_geometry": ["WALL_SEGMENT", "COLUMN_GEOMETRY", "BOUNDARY_CONTINUATION"],
+  "nonlinear_wall_policy": "RETAIN_SOURCE_AND_BLOCK_NO_APPROXIMATION",
+  "multiple_ring_policy": "BLOCK_AREA_NO_SILENT_HOLE_OMISSION",
+  "area_scope": "SOURCE_DRAWN_INNER_FACE_REFERENCE_WITH_EXPLICIT_OPENINGS_AND_OBSERVED_INTRUSIONS",
+  "finished_clear_boundary": null,
+  "approved_net_area": null,
+  "engineering_approved": false,
+  "private_source_coordinates_and_review_views_publication": "PROHIBITED"
+}

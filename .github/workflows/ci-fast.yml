@@ -1,0 +1,83 @@
+name: ci-fast
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+# This group cannot cancel ci.yml, main, dispatch or controlled specialist jobs.
+concurrency:
+  group: ci-fast-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  fast-checks:
+    runs-on: ubuntu-latest
+    outputs:
+      scope: ${{ steps.classify.outputs.scope }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: CI classifier and gate regression
+        run: python3 -m unittest discover -s scripts/ci/tests -v
+      - name: Identify non-authoritative development scope
+        id: classify
+        run: python3 scripts/ci/classify_changes.py --development
+      - name: Locked backend dependencies
+        run: cd backend && uv sync --locked
+      - name: Shared pytest CJK font prerequisite
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y fonts-wqy-zenhei
+      - name: Stage B, geometry and deterministic resource regression (no factory solve)
+        run: >-
+          cd backend && PYTHONPATH=src:scripts DATABASE_BACKEND=sqlite uv run pytest
+          tests/unit/test_v222_stage_b_balanced_quality.py
+          tests/unit/test_v222_stage_b_construction_guidance.py
+          tests/unit/test_v222_construction_diversity.py
+          tests/unit/test_v222_stage_b_pool_execution.py
+          tests/unit/test_linux_rss_gate.py
+          tests/unit/test_v222_github_full_ci_admission.py
+          tests/unit/test_v222_balanced_main_execution.py
+          tests/unit/test_v222_balanced_feedback_main_execution.py
+          -m "not physical_rss_linux" -q
+      - name: Architecture and security boundaries
+        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run pytest tests/architecture -q
+      - name: Ruff
+        run: cd backend && uv run ruff check . && uv run ruff check --config pyproject.toml ../scripts/ci
+      - name: Format
+        run: cd backend && uv run ruff format --check . && uv run ruff format --check --config pyproject.toml ../scripts/ci
+      - name: Mypy
+        run: cd backend && uv run mypy src && uv run mypy --strict ../scripts/ci/classify_changes.py ../scripts/ci/ci_gate.py
+      - name: Diff whitespace
+        if: ${{ steps.classify.outputs.base != '' }}
+        env:
+          DIFF_BASE: ${{ steps.classify.outputs.base }}
+          DIFF_HEAD: ${{ steps.classify.outputs.head }}
+        run: git diff --check "$DIFF_BASE" "$DIFF_HEAD"
+      - name: Explicit acceptance boundary
+        run: echo 'Development feedback only. Full ci.yml pull_request labeled SUCCESS at this exact HEAD is still required.' >> "$GITHUB_STEP_SUMMARY"
+
+  fast-ci-gate:
+    if: ${{ always() }}
+    needs: fast-checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Require real fast-checks success
+        env:
+          CI_NEEDS: ${{ toJSON(needs) }}
+          CI_GATE_KIND: DEVELOPMENT
+        run: python3 scripts/ci/ci_gate.py

@@ -254,8 +254,18 @@ def test_every_emitted_candidate_is_exact_hard_subset_and_keeps_intent(xinzhao_p
             and attempt.complete_layout_found
         )
         primary_domain_counts = dict(complete_attempt.domain_derived_anchor_count_by_role)
+        metric = complete_attempt.metric_reservation_diagnostics
+        final_certificates = metric["final_consumed"]
+        # R2's verified partner hint precedes DOMAIN. A successful hint need
+        # not enumerate later fallback anchors; require its actual provenance.
         assert all(
             primary_domain_counts[role] > 0
+            or any(
+                role in proof["roles"]
+                and proof["certificate_source"] == "DIRECT_FINAL"
+                and metric["by_edge"][proof["source_edge_identity"]].get("candidate_accepts", 0) > 0
+                for proof in final_certificates
+            )
             for role in (
                 "packaging_material_storage",
                 "secondary_fruit_buffer",
@@ -270,6 +280,12 @@ def test_every_emitted_candidate_is_exact_hard_subset_and_keeps_intent(xinzhao_p
         assert candidate.zone_count == 12
         assert {zone.zone_code for zone in candidate.zones} == set(ZONE_CODES)
         by_role = {zone.zone_code: zone for zone in candidate.zones}
+        assert len(final_certificates) == len(process_graph().must_adjacencies)
+        assert all(
+            tuple(by_role[role].bounds_mm for role in proof["roles"])
+            == tuple(tuple(bounds) for bounds in proof["endpoint_bounds_mm"])
+            for proof in final_certificates
+        )
         assert all(rectangle_inside_polygon(zone, boundary) for zone in candidate.zones)
         assert all(
             not rectangle_intersects_closed_obstacle(zone, obstacle)

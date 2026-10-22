@@ -1,0 +1,776 @@
+{
+  "P1_PRODUCTION_ACTIVATED": false,
+  "PACKAGING_AREA_CALIBRATION_READY": false,
+  "determinism": "PASS_BYTE_IDENTICAL_REGENERATION",
+  "diff-check": {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "log": "diff-check.log",
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "existing_contract_regression": {
+    "command": [
+      "backend/.venv/bin/python3",
+      "-m",
+      "pytest",
+      "-q",
+      "backend/tests/unit/test_zone_planner.py",
+      "backend/tests/unit/test_post_v09_p4_zone_area_recut.py",
+      "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py",
+      "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py",
+      "backend/tests/architecture/test_v22_p1c_sorting_dimensioning.py",
+      "backend/tests/architecture/test_v22_p1d3_hybrid_handoff.py",
+      "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py",
+      "--junitxml=<evidence>/existing-contracts.xml"
+    ],
+    "errors": 0,
+    "exit_code": 0,
+    "failed": 0,
+    "log": "existing-contracts.log",
+    "log_sha256": "ac8c13eab5bf45ad50e302e316e88c6b3716c79bf18cd0c2f483f292fffe0897",
+    "passed": 73,
+    "skipped": 0,
+    "tests": [
+      {
+        "junit_classname": "tests.unit.test_zone_planner",
+        "name": "test_zone_planner_converts_known_production_to_room_capacities_and_areas",
+        "node_id": "backend/tests/unit/test_zone_planner.py::test_zone_planner_converts_known_production_to_room_capacities_and_areas",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_zone_planner",
+        "name": "test_zone_planner_rejects_zero_production",
+        "node_id": "backend/tests/unit/test_zone_planner.py::test_zone_planner_rejects_zero_production",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_zone_planner",
+        "name": "test_zone_planner_accepts_explicit_planning_assumption_overrides",
+        "node_id": "backend/tests/unit/test_zone_planner.py::test_zone_planner_accepts_explicit_planning_assumption_overrides",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_post_v09_p4_zone_area_recut",
+        "name": "test_post_v09_p4_sample_key_oracle",
+        "node_id": "backend/tests/unit/test_post_v09_p4_zone_area_recut.py::test_post_v09_p4_sample_key_oracle",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_post_v09_p4_zone_area_recut",
+        "name": "test_post_v09_p4_throughput_band_edges[24999-60-40-80-2.4]",
+        "node_id": "backend/tests/unit/test_post_v09_p4_zone_area_recut.py::test_post_v09_p4_throughput_band_edges[24999-60-40-80-2.4]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_post_v09_p4_zone_area_recut",
+        "name": "test_post_v09_p4_throughput_band_edges[25000-80-80-120-2.3]",
+        "node_id": "backend/tests/unit/test_post_v09_p4_zone_area_recut.py::test_post_v09_p4_throughput_band_edges[25000-80-80-120-2.3]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_post_v09_p4_zone_area_recut",
+        "name": "test_post_v09_p4_throughput_band_edges[49999-80-80-120-2.3]",
+        "node_id": "backend/tests/unit/test_post_v09_p4_zone_area_recut.py::test_post_v09_p4_throughput_band_edges[49999-80-80-120-2.3]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_post_v09_p4_zone_area_recut",
+        "name": "test_post_v09_p4_throughput_band_edges[50000-100-120-200-2.2]",
+        "node_id": "backend/tests/unit/test_post_v09_p4_zone_area_recut.py::test_post_v09_p4_throughput_band_edges[50000-100-120-200-2.2]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_post_v09_p4_zone_area_recut",
+        "name": "test_post_v09_p4_zone_planning_matches_independent_oracles[25000-2.5-5]",
+        "node_id": "backend/tests/unit/test_post_v09_p4_zone_area_recut.py::test_post_v09_p4_zone_planning_matches_independent_oracles[25000-2.5-5]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_post_v09_p4_zone_area_recut",
+        "name": "test_post_v09_p4_zone_planning_matches_independent_oracles[5000-2.0-7]",
+        "node_id": "backend/tests/unit/test_post_v09_p4_zone_area_recut.py::test_post_v09_p4_zone_planning_matches_independent_oracles[5000-2.0-7]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_production_20t_seven_dimensions_and_exact_source_binding",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_production_20t_seven_dimensions_and_exact_source_binding",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_generic_precheck_uses_requirement_and_no_exact_stays_strict",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_generic_precheck_uses_requirement_and_no_exact_stays_strict",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_tampered_upstream_fails_closed[raw_required_area_m2-565.75-SORTING_RAW_AREA_GEOMETRY_MISMATCH]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_tampered_upstream_fails_closed[raw_required_area_m2-565.75-SORTING_RAW_AREA_GEOMETRY_MISMATCH]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_tampered_upstream_fails_closed[raw_required_area_m2-None-INVALID_DIMENSIONING_VALUE]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_tampered_upstream_fails_closed[raw_required_area_m2-None-INVALID_DIMENSIONING_VALUE]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_tampered_upstream_fails_closed[sorting_packaging_area_factor-1.2-SORTING_AREA_FACTOR_AUTHORITY_MISMATCH]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_tampered_upstream_fails_closed[sorting_packaging_area_factor-1.2-SORTING_AREA_FACTOR_AUTHORITY_MISMATCH]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_tampered_upstream_fails_closed[sorting_packaging_area_factor-True-INVALID_DIMENSIONING_VALUE]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_tampered_upstream_fails_closed[sorting_packaging_area_factor-True-INVALID_DIMENSIONING_VALUE]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_tampered_upstream_fails_closed[required_area_m2-622.33-AREA_REPORTING_PROJECTION_MISMATCH]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_tampered_upstream_fails_closed[required_area_m2-622.33-AREA_REPORTING_PROJECTION_MISMATCH]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_tampered_upstream_fails_closed[n_long-8-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_tampered_upstream_fails_closed[n_long-8-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_tampered_upstream_fails_closed[n_short-4-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_tampered_upstream_fails_closed[n_short-4-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_tampered_upstream_fails_closed[n_actual-22-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_tampered_upstream_fails_closed[n_actual-22-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_tampered_upstream_fails_closed[n_long-True-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_tampered_upstream_fails_closed[n_long-True-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_tampered_upstream_fails_closed[position_count-22-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_tampered_upstream_fails_closed[position_count-22-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_tampered_upstream_fails_closed[table_count-19-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_tampered_upstream_fails_closed[table_count-19-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_tampered_upstream_fails_closed[unused_cells-0-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_tampered_upstream_fails_closed[unused_cells-0-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_tampered_upstream_fails_closed[layout-value12-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_tampered_upstream_fails_closed[layout-value12-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_tampered_upstream_fails_closed[aisle_layout-guess-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_tampered_upstream_fails_closed[aisle_layout-guess-INVALID_UPSTREAM_CAPACITY_GEOMETRY]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_no_caller_area_authority_or_profile_override",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_no_caller_area_authority_or_profile_override",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_real_multi_grid_production_parity[500]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_real_multi_grid_production_parity[500]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_real_multi_grid_production_parity[1000]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_real_multi_grid_production_parity[1000]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_real_multi_grid_production_parity[5000]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_real_multi_grid_production_parity[5000]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_real_multi_grid_production_parity[10000]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_real_multi_grid_production_parity[10000]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_real_multi_grid_production_parity[20000]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_real_multi_grid_production_parity[20000]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_real_multi_grid_production_parity[30000]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_real_multi_grid_production_parity[30000]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_real_multi_grid_production_parity[50000]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_real_multi_grid_production_parity[50000]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_real_multi_grid_production_parity[100000]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_real_multi_grid_production_parity[100000]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1c_sorting_dimensioning",
+        "name": "test_real_multi_grid_production_parity[200000]",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_real_multi_grid_production_parity[200000]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_canonical_hybrid_and_unchanged_eight",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_canonical_hybrid_and_unchanged_eight",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_flexible_has_no_fake_geometry[coating_room]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_flexible_has_no_fake_geometry[coating_room]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_flexible_has_no_fake_geometry[changing_room]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_flexible_has_no_fake_geometry[changing_room]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_flexible_has_no_fake_geometry[office]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_flexible_has_no_fake_geometry[office]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_mutable_copy_cannot_override_canonical_authority[area]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_mutable_copy_cannot_override_canonical_authority[area]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_mutable_copy_cannot_override_canonical_authority[resize]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_mutable_copy_cannot_override_canonical_authority[resize]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_mutable_copy_cannot_override_canonical_authority[geometry]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_mutable_copy_cannot_override_canonical_authority[geometry]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_mutable_copy_cannot_override_canonical_authority[flexible_width]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_mutable_copy_cannot_override_canonical_authority[flexible_width]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_connection_is_neither_extra_flow_nor_shared_edge_requirement",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_connection_is_neither_extra_flow_nor_shared_edge_requirement",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_packaging_integer_search_and_aisle_not_added[1-10]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_packaging_integer_search_and_aisle_not_added[1-10]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_packaging_integer_search_and_aisle_not_added[2-20]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_packaging_integer_search_and_aisle_not_added[2-20]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_packaging_integer_search_and_aisle_not_added[3-20]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_packaging_integer_search_and_aisle_not_added[3-20]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_packaging_integer_search_and_aisle_not_added[7-40]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_packaging_integer_search_and_aisle_not_added[7-40]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_packaging_integer_search_and_aisle_not_added[67-250.85]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_packaging_integer_search_and_aisle_not_added[67-250.85]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_invalid_packaging_count_fails_closed[None]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_invalid_packaging_count_fails_closed[None]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_invalid_packaging_count_fails_closed[True]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_invalid_packaging_count_fails_closed[True]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_invalid_packaging_count_fails_closed[0]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_invalid_packaging_count_fails_closed[0]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_invalid_packaging_count_fails_closed[-1]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_invalid_packaging_count_fails_closed[-1]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_invalid_packaging_count_fails_closed[67]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_invalid_packaging_count_fails_closed[67]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_invalid_packaging_count_fails_closed[1.5]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_invalid_packaging_count_fails_closed[1.5]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_invalid_packaging_count_fails_closed[10001]",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_invalid_packaging_count_fails_closed[10001]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_packaging_resource_block_does_not_block_flexible_or_guess_count",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_packaging_resource_block_does_not_block_flexible_or_guess_count",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_20t_rotation_and_independent_exact_area_optimum",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_20t_rotation_and_independent_exact_area_optimum",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.unit.test_v22_p1d3_hybrid_handoff",
+        "name": "test_no_epsilon_or_additive_aisle_rounding",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_no_epsilon_or_additive_aisle_rounding",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.architecture.test_v22_p1c_sorting_dimensioning",
+        "name": "test_immutable_scope_preserves_upstream_and_all_non_layout_runtime",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_immutable_scope_preserves_upstream_and_all_non_layout_runtime",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.architecture.test_v22_p1c_sorting_dimensioning",
+        "name": "test_one_new_profile_and_no_solver_or_consumer_entrypoint",
+        "node_id": "backend/tests/unit/test_v22_p1c_sorting_dimensioning.py::test_one_new_profile_and_no_solver_or_consumer_entrypoint",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.architecture.test_v22_p1d3_hybrid_handoff",
+        "name": "test_scope_immutable_introducing_commit_or_precommit_candidate",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_scope_immutable_introducing_commit_or_precommit_candidate",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.architecture.test_v22_p1d3_hybrid_handoff",
+        "name": "test_hybrid_contract_not_p2_implementation",
+        "node_id": "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py::test_hybrid_contract_not_p2_implementation",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_p0c_is_limited_to_offline_evidence_docs_and_tests",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_p0c_is_limited_to_offline_evidence_docs_and_tests",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_release_and_layout_runtime_are_unchanged",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_release_and_layout_runtime_are_unchanged",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_five_references_and_one_negative_are_non_authoritative",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_five_references_and_one_negative_are_non_authoritative",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_outline_classifier_and_metric_unavailability_are_explicit",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_outline_classifier_and_metric_unavailability_are_explicit",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_structural_and_numeric_entry_are_separate_and_no_release_authority",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_structural_and_numeric_entry_are_separate_and_no_release_authority",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_overlay_pack_contains_five_viewable_pngs_without_original_pdf_assets",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_overlay_pack_contains_five_viewable_pngs_without_original_pdf_assets",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_owner_review_closure_preserves_historical_abstractions",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_owner_review_closure_preserves_historical_abstractions",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_gd003_alignment_correction_is_isolated_from_other_owner_reviewed_overlays",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_gd003_alignment_correction_is_isolated_from_other_owner_reviewed_overlays",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "tests.architecture.test_v222_p0c_golden_layout_abstraction",
+        "name": "test_owner_accepted_gd004_and_gd005_abstractions_and_pngs_are_unchanged",
+        "node_id": "backend/tests/architecture/test_v222_p0c_golden_layout_abstraction.py::test_owner_accepted_gd004_and_gd005_abstractions_and_pngs_are_unchanged",
+        "status": "PASS"
+      }
+    ],
+    "total": 73,
+    "xml_sha256": "ef796347a43f60c5496e220adac836407deb1c5276908e18b23502bfadcf5ab3"
+  },
+  "formal_area_authority_changed": false,
+  "format": {
+    "command": [
+      "backend/.venv/bin/ruff",
+      "format",
+      "--check",
+      "--config",
+      "backend/pyproject.toml",
+      "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1"
+    ],
+    "exit_code": 0,
+    "log": "format.log",
+    "log_sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938"
+  },
+  "full_backend_regression": "NOT_RUN_SCOPED_OFFLINE_CHANGE",
+  "historical_integrity": {
+    "functional-room-dimension-calibration-01": {
+      "files_verified": 15,
+      "manifest_sha256": "bd46d2199c15ae7b5129bccf6bec1849d29d2f50f83a5d9a704d886a7690707a",
+      "status": "PASS_CURRENT_AND_REFERENCE_BYTES"
+    },
+    "owner-factory-p1-compatibility-readiness-r1": {
+      "files_verified": 16,
+      "manifest_sha256": "973cbc2137b38879e71aa025833f6f258b94403d7c93856a0de1806a3017cfe9",
+      "status": "PASS_CURRENT_AND_REFERENCE_BYTES"
+    },
+    "owner-functional-input-contract-r1": {
+      "files_verified": 11,
+      "manifest_sha256": "a641e21b5c5d60f4f635db0ed1af4744215dc88951c6b1bc7c1dfbce43671b84",
+      "status": "PASS_CURRENT_AND_REFERENCE_BYTES"
+    },
+    "owner-functional-input-contract-r2": {
+      "files_verified": 18,
+      "manifest_sha256": "63c33b66661ded8c7ad5f8b0d88908a7529f360230da5ba5a10e9c2cf8cf264d",
+      "status": "PASS_CURRENT_AND_REFERENCE_BYTES"
+    },
+    "stage-b/layout-quality-baseline-01": {
+      "files_verified": 20,
+      "manifest_sha256": "b0432814a870e824fca7d91df580e50bf33fae83da5471ec4c386c3f887b6e24",
+      "status": "PASS_CURRENT_AND_REFERENCE_BYTES"
+    }
+  },
+  "initial_test_iteration": {
+    "cause": "New test compared in-memory tuples to JSON lists; replaced with complete canonical-byte comparison. Historical tests and expectations untouched.",
+    "evidence": "offline-initial.xml",
+    "failed": 1,
+    "passed": 30,
+    "sha256": "ac9d4e43b2e660e56929c03a2ab52a320bc68c5278f7d53c9674b2b559ea0503"
+  },
+  "mypy": {
+    "command": [
+      "backend/.venv/bin/mypy",
+      "--strict",
+      "--config-file",
+      "backend/pyproject.toml",
+      "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/offline_geometry_calibration.py",
+      "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py"
+    ],
+    "exit_code": 0,
+    "log": "mypy.log",
+    "log_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+  },
+  "native_solver_calls": 0,
+  "new_owner_grant": false,
+  "offline_calibration_tests": {
+    "command": [
+      "backend/.venv/bin/python3",
+      "-m",
+      "pytest",
+      "-q",
+      "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py",
+      "--junitxml=<evidence>/offline-final.xml"
+    ],
+    "errors": 0,
+    "exit_code": 0,
+    "failed": 0,
+    "log": "offline-final.log",
+    "log_sha256": "80ed48ca68fdf49bc70b5b85c0d90b11048e12abf369a863e071469e4a5da9e5",
+    "passed": 31,
+    "skipped": 0,
+    "tests": [
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_legacy_canonical_and_dimension_hashes_and_bytes_unchanged",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_legacy_canonical_and_dimension_hashes_and_bytes_unchanged",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_actual_legacy_function_and_exact_projection[20-grid0-565.76-622.336-622.34]",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_actual_legacy_function_and_exact_projection[20-grid0-565.76-622.336-622.34]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_actual_legacy_function_and_exact_projection[18-grid1-489.6-538.56-538.56]",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_actual_legacy_function_and_exact_projection[18-grid1-489.6-538.56-538.56]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_actual_legacy_function_and_exact_projection[28-grid2-690.56-759.616-759.62]",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_actual_legacy_function_and_exact_projection[28-grid2-690.56-759.616-759.62]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_demand_twenty_is_not_twenty_one_installed_tables",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_demand_twenty_is_not_twenty_one_installed_tables",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_owner_v2_actual_calculator_not_total_worker_tables[0-staff0-18-106-53]",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_owner_v2_actual_calculator_not_total_worker_tables[0-staff0-18-106-53]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_owner_v2_actual_calculator_not_total_worker_tables[1-staff1-28-105-84]",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_owner_v2_actual_calculator_not_total_worker_tables[1-staff1-28-105-84]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_raw_mass_cannot_substitute_packaged_mass",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_raw_mass_cannot_substitute_packaged_mass",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_no_formal_new_area_or_factory_total",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_no_formal_new_area_or_factory_total",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_pitch_not_equipment_and_aggregate_not_individual_aisles",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_pitch_not_equipment_and_aggregate_not_individual_aisles",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_rank_prefers_grid_ratio_before_area_not_engineering_optimum",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_rank_prefers_grid_ratio_before_area_not_engineering_optimum",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_count_ratio_is_not_room_aspect",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_count_ratio_is_not_room_aspect",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_binary_float_repr_and_decimal_report_are_separate",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_binary_float_repr_and_decimal_report_are_separate",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_missing_component_does_not_receive_default[PACKING_STATION_ENVELOPE]",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_missing_component_does_not_receive_default[PACKING_STATION_ENVELOPE]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_missing_component_does_not_receive_default[OPERATOR_ENVELOPE]",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_missing_component_does_not_receive_default[OPERATOR_ENVELOPE]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_missing_component_does_not_receive_default[MATERIAL_SUPPLY_ENVELOPE]",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_missing_component_does_not_receive_default[MATERIAL_SUPPLY_ENVELOPE]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_missing_component_does_not_receive_default[PRODUCT_OUTFEED_ENVELOPE]",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_missing_component_does_not_receive_default[PRODUCT_OUTFEED_ENVELOPE]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_missing_component_does_not_receive_default[CIRCULATION_ENVELOPE]",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_missing_component_does_not_receive_default[CIRCULATION_ENVELOPE]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_missing_component_does_not_receive_default[CLEANING_MAINTENANCE_ENVELOPE]",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_missing_component_does_not_receive_default[CLEANING_MAINTENANCE_ENVELOPE]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_missing_state_not_assumed_production",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_missing_state_not_assumed_production",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_simultaneous_overlap_not_automatically_shared",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_simultaneous_overlap_not_automatically_shared",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_touching_not_positive_overlap_and_holes_not_floor_area",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_touching_not_positive_overlap_and_holes_not_floor_area",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_bad_envelope_rejected[rect0]",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_bad_envelope_rejected[rect0]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_bad_envelope_rejected[rect1]",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_bad_envelope_rejected[rect1]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_bad_envelope_rejected[rect2]",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_bad_envelope_rejected[rect2]",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_eight_layouts_and_forty_eight_real_interfaces_unchanged",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_eight_layouts_and_forty_eight_real_interfaces_unchanged",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_wall_exact_and_rotated_room_support_without_access_search",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_wall_exact_and_rotated_room_support_without_access_search",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_sources_have_scope_limits_not_project_equipment_defaults",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_sources_have_scope_limits_not_project_equipment_defaults",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_protected_sources_contracts_and_owner_files_unchanged",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_protected_sources_contracts_and_owner_files_unchanged",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_no_solver_or_grant_or_network_execution_imports",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_no_solver_or_grant_or_network_execution_imports",
+        "status": "PASS"
+      },
+      {
+        "junit_classname": "docs.previews.v2.2.2.owner-v2-packaging-area-geometry-calibration-r1.test_offline_geometry_calibration",
+        "name": "test_generated_outputs_byte_deterministic_and_match_records",
+        "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_generated_outputs_byte_deterministic_and_match_records",
+        "status": "PASS"
+      }
+    ],
+    "total": 31,
+    "xml_sha256": "eae2a0668a03435b112c80a85523b4fafbef642dd7a976f42fe8ffdd22b01475"
+  },
+  "p0_process_authority_changed": false,
+  "privacy": "Private absolute runtime paths are removed from public commands below; original logs retained locally",
+  "production_code_changed": false,
+  "real_factory_solves": 0,
+  "reference_head": "15d2d7759bc0192813122c7aba16dcc11e4be0cd",
+  "ruff": {
+    "command": [
+      "backend/.venv/bin/ruff",
+      "check",
+      "--config",
+      "backend/pyproject.toml",
+      "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1"
+    ],
+    "exit_code": 0,
+    "log": "ruff.log",
+    "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+  },
+  "second_test_iteration": {
+    "cause": "New test compared source decimal strings with Python floats; now compares exact Decimals without changing expected dimensions.",
+    "evidence": "offline-iteration-2.xml",
+    "failed": 1,
+    "passed": 30,
+    "sha256": "4c1b91e6406d971bb58491c5c79243fd70f76261e2e6f34281b1f9f648a6532e"
+  },
+  "task": "V2_2_2_OWNER_V2_PACKAGING_AREA_GEOMETRY_CALIBRATION_R1"
+}

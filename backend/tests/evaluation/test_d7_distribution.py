@@ -8,9 +8,8 @@ These tests assert the **D7 binding invariant**:
 
     "cold_storage.evaluation.schema" = ["manifest.schema.json"]
 
-* No other ``[tool.setuptools.package-data]`` entries are
-  added by C-1 (and no other pyproject.toml sections are
-  modified).
+* R14 additionally ships the Truck preview input schema. No other
+  ``[tool.setuptools.package-data]`` entries are authorized.
 """
 
 from __future__ import annotations
@@ -44,12 +43,13 @@ def test_d7_package_data_declares_schema_package() -> None:
 
 
 def test_d7_no_unauthorized_package_data_entries() -> None:
-    """C-1 only adds the schema package-data entry. Any other
-    entry would be an unauthorized scope expansion."""
+    """Preserve D7 and allow only the explicitly authorized R14 schema."""
     cfg = _read_pyproject()
     package_data = cfg["tool"]["setuptools"]["package-data"]
-    # Only the schema package is allowed in C-1.
-    assert set(package_data.keys()) == {"cold_storage.evaluation.schema"}
+    assert package_data == {
+        "cold_storage.evaluation.schema": ["manifest.schema.json"],
+        "cold_storage.modules.aily.application": ["truck_preview.schema.json"],
+    }
 
 
 def test_d7_schema_file_exists_in_package() -> None:

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "parameterized-truck-preview-input@1.0.0",
+  "title": "Additive parameterized Option C Truck preview input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "mode", "vehicle_type", "vehicle_body", "vehicle_source_reference", "truck_access", "truck_maneuver", "entrance", "shipping_loading_face", "loading_face_reference", "site_geometry", "evidence", "approval_reference"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "mode": {"enum": ["SYNTHETIC_TEST", "OWNER_PROJECT"]},
+    "vehicle_type": {"type": "string", "minLength": 1},
+    "vehicle_body": {"$ref": "#/$defs/polygon"},
+    "vehicle_source_reference": {"type": "string", "minLength": 1},
+    "truck_access": {"type": "object", "description": "Unchanged original TruckProjectAccessInputV1; validated by existing production code"},
+    "truck_maneuver": {"type": "object", "description": "Unchanged original Option C project input; exact validation and binding by production code"},
+    "entrance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["locator_segment", "clear_opening_segment", "clear_width_m", "measurement_reference", "clearance_reference"],
+      "properties": {
+        "locator_segment": {"$ref": "#/$defs/segment"},
+        "clear_opening_segment": {"$ref": "#/$defs/segment"},
+        "clear_width_m": {"$ref": "#/$defs/coordinate"},
+        "measurement_reference": {"type": "string", "minLength": 1},
+        "clearance_reference": {"type": "string", "minLength": 1}
+      }
+    },
+    "shipping_loading_face": {"$ref": "#/$defs/segment"},
+    "loading_face_reference": {"type": "string", "minLength": 1},
+    "site_geometry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["effective_buildable_boundary", "hard_obstacles", "zones", "personnel_corridors"],
+      "properties": {
+        "effective_buildable_boundary": {"$ref": "#/$defs/polygon"},
+        "hard_obstacles": {"type": "array", "items": {"$ref": "#/$defs/polygon"}},
+        "personnel_corridors": {"type": "array", "items": {"$ref": "#/$defs/polygon"}},
+        "zones": {"type": "array", "items": {
+          "type": "object", "additionalProperties": false,
+          "required": ["zone_code", "x", "y", "width_m", "depth_m", "rotation_deg"],
+          "properties": {
+            "zone_code": {"type": "string", "minLength": 1},
+            "x": {"$ref": "#/$defs/coordinate"}, "y": {"$ref": "#/$defs/coordinate"},
+            "width_m": {"$ref": "#/$defs/coordinate"}, "depth_m": {"$ref": "#/$defs/coordinate"},
+            "rotation_deg": {"enum": [0, 90]}
+          }
+        }}
+      }
+    },
+    "evidence": {"type": "array", "maxItems": 32, "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reference", "content_sha256", "content_base64"],
+      "properties": {
+        "reference": {"type": "string", "minLength": 1},
+        "content_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "content_base64": {"type": "string", "maxLength": 1398104}
+      }
+    }},
+    "approval_reference": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "coordinate": {"type": ["number", "string"], "description": "Metres; production exact 0.001 m normalization rejects invalid values"},
+    "point": {"type": "object", "additionalProperties": false, "required": ["x", "y"], "properties": {"x": {"$ref": "#/$defs/coordinate"}, "y": {"$ref": "#/$defs/coordinate"}}},
+    "segment": {"type": "object", "additionalProperties": false, "required": ["start", "end"], "properties": {"start": {"$ref": "#/$defs/point"}, "end": {"$ref": "#/$defs/point"}}},
+    "polygon": {"type": "object", "additionalProperties": false, "required": ["type", "points"], "properties": {"type": {"const": "polygon"}, "points": {"type": "array", "minItems": 3, "items": {"$ref": "#/$defs/point"}}}}
+  }
+}

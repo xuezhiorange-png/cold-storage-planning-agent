@@ -144,6 +144,7 @@ def test_aily_mcp_streamable_tools_list_includes_preview_zone_plan() -> None:
         PREVIEW_INVESTMENT_TOOL_NAME,
         PREVIEW_FACTORY_POWER_TOOL_NAME,
         PREVIEW_SITE_LAYOUT_TOOL_NAME,
+        "preview_truck",
     ]
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import anyio
 from mcp.client.session import ClientSession
@@ -42,6 +43,7 @@ _EXPECTED_TOOL_ORDER = (
     PREVIEW_INVESTMENT_TOOL_NAME,
     PREVIEW_FACTORY_POWER_TOOL_NAME,
     PREVIEW_SITE_LAYOUT_TOOL_NAME,
+    "preview_truck",
 )
 
 
@@ -69,6 +71,14 @@ async def _list_tools() -> None:
     result = await _with_session(lambda session: session.list_tools())
     names = [tool.name for tool in result.tools]
     assert names == list(_EXPECTED_TOOL_ORDER)
+    frozen = json.loads(
+        (Path(__file__).parents[1] / "fixtures/v22/r14_frozen_seven_mcp_tools.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert [(tool.name, tool.inputSchema) for tool in result.tools[:7]] == [
+        (tool["name"], tool["inputSchema"]) for tool in frozen
+    ]
     tool = result.tools[0]
     assert tool.name == PREVIEW_ZONE_PLAN_TOOL_NAME
     required = tool.inputSchema.get("required")

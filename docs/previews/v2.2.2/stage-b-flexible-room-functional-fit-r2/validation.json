@@ -1,0 +1,2337 @@
+{
+  "NATIVE_SOLVER_CALLS": 0,
+  "NEW_OWNER_GRANT": false,
+  "REAL_FACTORY_SOLVES": 0,
+  "REAL_TRUCK_SEARCHES": 0,
+  "SVG_VISUAL_REVIEW": "PASS_11_RENDERED_AND_VIEWED",
+  "SVG_XML_AND_EXTERNAL_RESOURCE_CHECK": "PASS_11_OF_11",
+  "build": {
+    "exit_code": 0,
+    "log_reference": "LOCAL_EVIDENCE/build.log",
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "status": "PASS"
+  },
+  "deterministic_output_files": 44,
+  "deterministic_rebuild": {
+    "exit_code": 0,
+    "log_reference": "LOCAL_EVIDENCE/repeat-build.log",
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "status": "PASS"
+  },
+  "diff-check": {
+    "exit_code": 0,
+    "log_reference": "LOCAL_EVIDENCE/diff-check.log",
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "status": "PASS"
+  },
+  "errors": 0,
+  "failed": 0,
+  "format": {
+    "exit_code": 0,
+    "log_reference": "LOCAL_EVIDENCE/format.log",
+    "log_sha256": "177f260a5645724013185e4b140c7045cc39e56c0c97b120f5cb23599f85f0de",
+    "status": "PASS"
+  },
+  "historical_integrity": {
+    "BASELINE_MANIFEST_SHA256": "b0432814a870e824fca7d91df580e50bf33fae83da5471ec4c386c3f887b6e24",
+    "CHANGED_PREEXISTING_FILES": [],
+    "LEGACY_REPLAY": {
+      "authority_changed": false,
+      "canonical_result": {
+        "assumptions": [
+          "POST-V2.1.1-charles-engineering-rule-adjustments Charles 书面锁定当前工时与面积公式；operator KEY 仅提供 M、成品天数、冻果天数、包材天数。",
+          "所有区域面积为概念设计阶段估算值，需结合工艺、货架、通道、消防和建筑条件复核。"
+        ],
+        "calculator_name": "cold_room_zone_plan",
+        "calculator_version": "1.0.0",
+        "coefficients": [
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "raw_holding_hours",
+            "name": "原果暂存小时数",
+            "notes": "按日入库量折算的演示暂存时间",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "h",
+            "validity_status": "unverified",
+            "value": 6.6666666667,
+            "version": "demo-1"
+          },
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "raw_area_loading",
+            "name": "原果暂存单位面积承载量",
+            "notes": "POST-V0.9 P4 已替代为托盘矩形排布，不再作为面积依据",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "kg/m2",
+            "validity_status": "unverified",
+            "value": 240,
+            "version": "demo-1"
+          },
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "primary_precooling_area_loading",
+            "name": "一级预冷间单位面积日处理量",
+            "notes": "POST-V0.9 P4 已替代为双方案模块面积，不再作为面积依据",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "kg/day/m2",
+            "validity_status": "unverified",
+            "value": 620,
+            "version": "demo-1"
+          },
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "secondary_precooling_area_loading",
+            "name": "二级预冷间单位面积日处理量",
+            "notes": "POST-V0.9 P4 已替代为双方案模块面积，不再作为面积依据",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "kg/day/m2",
+            "validity_status": "unverified",
+            "value": 550,
+            "version": "demo-1"
+          },
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "sorting_area_loading",
+            "name": "分选包装间单位面积日处理量",
+            "notes": "POST-V0.9 P4 已替代为分选台矩形排布，不再作为面积依据",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "kg/day/m2",
+            "validity_status": "unverified",
+            "value": 420,
+            "version": "demo-1"
+          },
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "coating_area_loading",
+            "name": "覆膜间单位面积日处理量",
+            "notes": "POST-V0.9 P4 为吨位分档固定面积，不再作为面积依据",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "kg/day/m2",
+            "validity_status": "unverified",
+            "value": 500,
+            "version": "demo-1"
+          },
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "storage_area_loading",
+            "name": "成品间单位面积储量",
+            "notes": "POST-V0.9 P4 已替代为托盘矩形排布，不再作为面积依据",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "kg/m2",
+            "validity_status": "unverified",
+            "value": 216,
+            "version": "demo-1"
+          },
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "secondary_fruit_ratio",
+            "name": "次果比例",
+            "notes": "POST-V0.9 P4 面积使用硬编码 10%，此演示系数仅保留元数据",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "ratio",
+            "validity_status": "unverified",
+            "value": 0.08,
+            "version": "demo-1"
+          },
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "secondary_fruit_area_loading",
+            "name": "次果暂存单位面积承载量",
+            "notes": "POST-V0.9 P4 已替代为托盘矩形排布，不再作为面积依据",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "kg/m2",
+            "validity_status": "unverified",
+            "value": 220,
+            "version": "demo-1"
+          },
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "frozen_fruit_ratio",
+            "name": "冻果比例",
+            "notes": "POST-V0.9 P4 面积使用硬编码 10%，此演示系数仅保留元数据",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "ratio",
+            "validity_status": "unverified",
+            "value": 0.05,
+            "version": "demo-1"
+          },
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "frozen_storage_days",
+            "name": "冻果暂存天数",
+            "notes": "POST-V0.9 P4 面积使用 operator frozen_storage_days KEY",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "day",
+            "validity_status": "unverified",
+            "value": 14,
+            "version": "demo-1"
+          },
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "frozen_area_loading",
+            "name": "冻果间单位面积储量",
+            "notes": "POST-V0.9 P4 已替代为托盘矩形排布，不再作为面积依据",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "kg/m2",
+            "validity_status": "unverified",
+            "value": 320,
+            "version": "demo-1"
+          },
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "office_area_per_t_day",
+            "name": "办公室单位日处理吨位面积",
+            "notes": "POST-V0.9 P4 为吨位分档固定面积，不再作为面积依据",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "m2/(t/day)",
+            "validity_status": "unverified",
+            "value": 1.2,
+            "version": "demo-1"
+          },
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "changing_area_per_t_day",
+            "name": "更衣室单位日处理吨位面积",
+            "notes": "POST-V0.9 P4 为吨位分档固定面积，不再作为面积依据",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "m2/(t/day)",
+            "validity_status": "unverified",
+            "value": 0.8,
+            "version": "demo-1"
+          },
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "packaging_area_per_t_day",
+            "name": "包材库单位吨日库存面积",
+            "notes": "POST-V0.9 P4 已替代为位面积 1.56×k(M_t)",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "m2/(t/day*day)",
+            "validity_status": "unverified",
+            "value": 0.6685,
+            "version": "demo-1"
+          },
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "precooling_position_daily_capacity_kg",
+            "name": "预冷板位单位日处理量",
+            "notes": "POST-V0.9 P4 已替代为托盘日处理量公式",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "kg/day/position",
+            "validity_status": "unverified",
+            "value": 1250,
+            "version": "demo-1"
+          },
+          {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "storage_position_capacity_kg",
+            "name": "存储板位单位容量",
+            "notes": "POST-V0.9 P4 已替代为各区域托盘重量",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "kg/position",
+            "validity_status": "unverified",
+            "value": 500,
+            "version": "demo-1"
+          }
+        ],
+        "errors": [],
+        "formula_references": [
+          {
+            "description": "日处理量",
+            "expression": "daily_mass",
+            "formula_id": "ZP-001",
+            "formula_version": "1.0.0"
+          },
+          {
+            "description": "托盘/分选台矩形排布面积",
+            "expression": "packed_rectangle_layout",
+            "formula_id": "ZP-002",
+            "formula_version": "1.0.0"
+          },
+          {
+            "description": "一级/二级预冷双方案模块",
+            "expression": "dual_precooling_schemes",
+            "formula_id": "ZP-003",
+            "formula_version": "1.0.0"
+          }
+        ],
+        "input": {
+          "auxiliary_packaging_storage_days": 12,
+          "changing_fixed_area_m2": 100,
+          "coating_fixed_area_m2": 120,
+          "daily_inbound_mass_kg": 20000,
+          "finished_goods_pallet_weight_kg": 400,
+          "finished_storage_days": 7,
+          "frozen_fruit_ratio": 0.1,
+          "frozen_goods_pallet_weight_kg": 600,
+          "frozen_storage_days": 10,
+          "main_packaging_storage_days": 4,
+          "office_fixed_area_m2": 60,
+          "packaging_area_factor": 1.5,
+          "packaging_storage_days": 3,
+          "packing_area_factor": 1.5,
+          "packing_pieces_per_person_hour": 16,
+          "packing_table_horizontal_spacing_m": 5.6,
+          "packing_table_vertical_spacing_m": 3.0,
+          "packing_weight_per_piece_kg": 1.5,
+          "packing_working_hours_per_day": 14,
+          "pallet_length_m": 1.2,
+          "pallet_longitudinal_gap_m": 0.3,
+          "pallet_width_m": 1.0,
+          "precooling_position_area_m2": 5.6,
+          "precooling_position_daily_capacity_kg": 1250,
+          "precooling_required_ratio": 1,
+          "primary_precooling_hours_per_pallet": 1,
+          "primary_precooling_pallet_weight_kg": 220,
+          "primary_precooling_working_hours_per_day": 7,
+          "raw_fruit_pallet_weight_kg": 220,
+          "raw_holding_hours": 6.6666666667,
+          "raw_storage_ratio": 0.4,
+          "secondary_fruit_area_ratio": 0.8,
+          "secondary_fruit_ratio": 0.08,
+          "secondary_precooling_hours_per_pallet": 2,
+          "secondary_precooling_pallet_weight_kg": 400,
+          "secondary_precooling_working_hours_per_day": 14,
+          "storage_area_factor": 1.2,
+          "storage_position_capacity_kg": 400,
+          "workers_per_packing_table": 3,
+          "working_time_h_per_day": 16
+        },
+        "requires_review": true,
+        "result": {
+          "daily_inbound_mass_kg": 20000,
+          "design_daily_mass_kg": 20000,
+          "planning_parameters": {
+            "auxiliary_packaging_storage_days": 12,
+            "dataclass_override_note": "Non-default dataclass fields override §4 written-dead parameters when explicitly supplied; default path matches §4.",
+            "finished_storage_days": 7,
+            "formula_authority": "POST-V2.1.1-charles-engineering-rule-adjustments",
+            "frozen_fruit_ratio_hardcoded": 0.1,
+            "frozen_storage_days": 10,
+            "main_packaging_storage_days": 4,
+            "packaging_area_factor_k": 2.4,
+            "packaging_position_area_m2": 3.744,
+            "packing_person_daily_capacity_kg": 336.0,
+            "primary_precooling_q_d_kg_day": 1540.0,
+            "raw_storage_ratio": 0.4,
+            "reporting_precool_scheme_id": "6_position",
+            "secondary_fruit_ratio_hardcoded": 0.1,
+            "secondary_fruit_storage_days_hardcoded": 2,
+            "secondary_precooling_q_d_kg_day": 2800.0,
+            "sorting_packaging_area_factor": 1.1,
+            "sorting_packaging_raw_required_area_m2": 565.76,
+            "sorting_packaging_required_area_m2": 622.34
+          },
+          "total_area_m2": 2194.59,
+          "total_area_m2_8_position_scheme": 2152.59,
+          "total_required_area_m2": 2194.59,
+          "zones": [
+            {
+              "daily_throughput_kg_day": 20000,
+              "design_storage_mass_kg": 0,
+              "function": "生产管理、品控记录、访客和日常办公",
+              "position_count": 0,
+              "required_area_m2": 60,
+              "requires_review": true,
+              "temperature_band": "常温",
+              "zone_code": "office",
+              "zone_name": "办公室"
+            },
+            {
+              "daily_throughput_kg_day": 20000,
+              "design_storage_mass_kg": 0,
+              "function": "人员更衣、洗手消毒和进入洁净作业区缓冲",
+              "position_count": 0,
+              "required_area_m2": 40,
+              "requires_review": true,
+              "temperature_band": "常温",
+              "zone_code": "changing_room",
+              "zone_name": "更衣室"
+            },
+            {
+              "cooling_estimation_basis": {
+                "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+                "basis_type": "FINAL_POSITION_COUNT",
+                "reference_factor": 20,
+                "reference_factor_unit": "kW(r)/final position",
+                "requires_review": true,
+                "source_field": "position_count",
+                "source_unit": "position",
+                "source_value": 18
+              },
+              "daily_throughput_kg_day": 20000,
+              "design_storage_mass_kg": 0,
+              "function": "田间热初步去除，承接原果入厂后第一段降温",
+              "hours_per_pallet": 1,
+              "minimum_estimated_cooling_load_kw_r": 360,
+              "n_need": 13,
+              "pallet_weight_kg": 220,
+              "position_count": 18,
+              "position_daily_capacity_kg_day": 1540.0,
+              "position_hourly_capacity_kg_h": 220.0,
+              "raw_position_count": 13,
+              "reporting_scheme_id": "6_position",
+              "required_area_m2": 126,
+              "requires_review": true,
+              "schemes": [
+                {
+                  "position_count": 18,
+                  "positions_per_room": 6,
+                  "required_area_m2": 126,
+                  "room_count": 3,
+                  "scheme_id": "6_position"
+                },
+                {
+                  "position_count": 16,
+                  "positions_per_room": 8,
+                  "required_area_m2": 112,
+                  "room_count": 2,
+                  "scheme_id": "8_position"
+                }
+              ],
+              "temperature_band": "8~10℃",
+              "working_hours_per_day": 7,
+              "zone_code": "primary_precooling_room",
+              "zone_name": "一级预冷间"
+            },
+            {
+              "cooling_estimation_basis": {
+                "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+                "basis_type": "FINAL_POSITION_COUNT",
+                "reference_factor": 15,
+                "reference_factor_unit": "kW(r)/final position",
+                "requires_review": true,
+                "source_field": "position_count",
+                "source_unit": "position",
+                "source_value": 12
+              },
+              "daily_throughput_kg_day": 20000,
+              "design_storage_mass_kg": 0,
+              "function": "进入低温链前的二段降温和温度均衡",
+              "hours_per_pallet": 2,
+              "minimum_estimated_cooling_load_kw_r": 180,
+              "n_need": 8,
+              "pallet_weight_kg": 400,
+              "position_count": 12,
+              "position_daily_capacity_kg_day": 2800.0,
+              "position_hourly_capacity_kg_h": 200.0,
+              "raw_position_count": 8,
+              "reporting_scheme_id": "6_position",
+              "required_area_m2": 84,
+              "requires_review": true,
+              "schemes": [
+                {
+                  "position_count": 12,
+                  "positions_per_room": 6,
+                  "required_area_m2": 84,
+                  "room_count": 2,
+                  "scheme_id": "6_position"
+                },
+                {
+                  "position_count": 8,
+                  "positions_per_room": 8,
+                  "required_area_m2": 56,
+                  "room_count": 1,
+                  "scheme_id": "8_position"
+                }
+              ],
+              "temperature_band": "1~3℃",
+              "working_hours_per_day": 14,
+              "zone_code": "secondary_precooling_room",
+              "zone_name": "二级预冷间"
+            },
+            {
+              "aisle_layout": "three_side_2.2m",
+              "cooling_estimation_basis": {
+                "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+                "basis_type": "ZONE_AREA",
+                "reference_factor": 400,
+                "reference_factor_unit": "W/m2",
+                "requires_review": true,
+                "source_field": "required_area_m2",
+                "source_unit": "m2",
+                "source_value": 132.24
+              },
+              "daily_throughput_kg_day": 20000,
+              "design_storage_mass_kg": 8000.0,
+              "function": "原果短时暂存，平衡收货与预冷节拍",
+              "layout": {
+                "aspect_ratio": 1.8,
+                "n_long": 9,
+                "n_short": 5
+              },
+              "minimum_estimated_cooling_load_kw_r": 52.896,
+              "n_actual": 45,
+              "n_long": 9,
+              "n_need": 37,
+              "n_short": 5,
+              "pallet_weight_kg": 220,
+              "position_count": 45,
+              "required_area_m2": 132.24,
+              "requires_review": true,
+              "temperature_band": "8~10℃",
+              "unused_cells": 8,
+              "zone_code": "raw_fruit_buffer",
+              "zone_name": "原果暂存间"
+            },
+            {
+              "aisle_layout": "four_side_architectural",
+              "cooling_estimation_basis": {
+                "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+                "basis_type": "ZONE_AREA",
+                "reference_factor": 300,
+                "reference_factor_unit": "W/m2",
+                "requires_review": true,
+                "source_field": "required_area_m2",
+                "source_unit": "m2",
+                "source_value": 622.34
+              },
+              "daily_throughput_kg_day": 20000,
+              "design_storage_mass_kg": 0,
+              "function": "分选、称重、包装和在线周转",
+              "layout": {
+                "aspect_ratio": 2.3333,
+                "n_long": 7,
+                "n_short": 3
+              },
+              "minimum_estimated_cooling_load_kw_r": 186.702,
+              "n_actual": 21,
+              "n_long": 7,
+              "n_need": 20,
+              "n_short": 3,
+              "packing_table_area_m2": 16.8,
+              "person_daily_capacity_kg_day": 336.0,
+              "position_count": 21,
+              "raw_required_area_m2": 565.76,
+              "required_area_m2": 622.34,
+              "requires_review": true,
+              "sorting_packaging_area_factor": 1.1,
+              "table_count": 20,
+              "temperature_band": "8~10℃",
+              "unused_cells": 1,
+              "worker_count": 60,
+              "zone_code": "sorting_packaging_room",
+              "zone_name": "分选包装间"
+            },
+            {
+              "cooling_estimation_basis": {
+                "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+                "basis_type": "ZONE_AREA",
+                "reference_factor": 300,
+                "reference_factor_unit": "W/m2",
+                "requires_review": true,
+                "source_field": "required_area_m2",
+                "source_unit": "m2",
+                "source_value": 80
+              },
+              "daily_throughput_kg_day": 20000,
+              "design_storage_mass_kg": 0,
+              "function": "覆膜作业和覆膜后低温缓冲",
+              "minimum_estimated_cooling_load_kw_r": 24,
+              "position_count": 0,
+              "required_area_m2": 80,
+              "requires_review": true,
+              "temperature_band": "1~3℃",
+              "zone_code": "coating_room",
+              "zone_name": "覆膜间"
+            },
+            {
+              "aisle_layout": "one_long_side_3m",
+              "cooling_estimation_basis": {
+                "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+                "basis_type": "ZONE_AREA",
+                "reference_factor": 300,
+                "reference_factor_unit": "W/m2",
+                "requires_review": true,
+                "source_field": "required_area_m2",
+                "source_unit": "m2",
+                "source_value": 602.64
+              },
+              "daily_throughput_kg_day": 20000,
+              "design_storage_mass_kg": 126000.0,
+              "frozen_deduction_ratio": 0.1,
+              "function": "成品周转储存，按库存天数配置",
+              "layout": {
+                "aspect_ratio": 2.25,
+                "n_long": 27,
+                "n_short": 12
+              },
+              "minimum_estimated_cooling_load_kw_r": 180.792,
+              "n_actual": 324,
+              "n_long": 27,
+              "n_need": 315,
+              "n_short": 12,
+              "pallet_weight_kg": 400,
+              "position_count": 324,
+              "required_area_m2": 602.64,
+              "requires_review": true,
+              "temperature_band": "1~3℃",
+              "unused_cells": 9,
+              "zone_code": "finished_goods_room",
+              "zone_name": "成品间"
+            },
+            {
+              "aisle_layout": "one_long_side_3m",
+              "cooling_estimation_basis": {
+                "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+                "basis_type": "ZONE_AREA",
+                "reference_factor": 400,
+                "reference_factor_unit": "W/m2",
+                "requires_review": true,
+                "source_field": "required_area_m2",
+                "source_unit": "m2",
+                "source_value": 57.96
+              },
+              "daily_throughput_kg_day": 20000,
+              "design_storage_mass_kg": 4000.0,
+              "function": "次果临时存放和后续处置等待",
+              "layout": {
+                "aspect_ratio": 2.3333,
+                "n_long": 7,
+                "n_short": 3
+              },
+              "minimum_estimated_cooling_load_kw_r": 23.184,
+              "n_actual": 21,
+              "n_long": 7,
+              "n_need": 19,
+              "n_short": 3,
+              "pallet_weight_kg": 220,
+              "position_count": 21,
+              "required_area_m2": 57.96,
+              "requires_review": true,
+              "secondary_fruit_ratio": 0.1,
+              "secondary_fruit_storage_days": 2,
+              "temperature_band": "8~10℃",
+              "unused_cells": 2,
+              "zone_code": "secondary_fruit_buffer",
+              "zone_name": "次果暂存间"
+            },
+            {
+              "aisle_layout": "one_long_side_3m",
+              "cooling_estimation_basis": {
+                "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+                "basis_type": "ZONE_AREA",
+                "reference_factor": 550,
+                "reference_factor_unit": "W/m2",
+                "requires_review": true,
+                "source_field": "required_area_m2",
+                "source_unit": "m2",
+                "source_value": 88.56
+              },
+              "daily_throughput_kg_day": 2000.0,
+              "design_storage_mass_kg": 20000.0,
+              "frozen_fruit_ratio": 0.1,
+              "frozen_storage_days": 10,
+              "function": "冻果库存和冻结品低温储存",
+              "layout": {
+                "aspect_ratio": 2.25,
+                "n_long": 9,
+                "n_short": 4
+              },
+              "minimum_estimated_cooling_load_kw_r": 48.708,
+              "n_actual": 36,
+              "n_long": 9,
+              "n_need": 34,
+              "n_short": 4,
+              "pallet_weight_kg": 600,
+              "position_count": 36,
+              "required_area_m2": 88.56,
+              "requires_review": true,
+              "temperature_band": "-18℃",
+              "unused_cells": 2,
+              "zone_code": "frozen_fruit_room",
+              "zone_name": "冻果间"
+            },
+            {
+              "daily_throughput_kg_day": 20000,
+              "design_storage_mass_kg": 0,
+              "function": "包装材料、纸箱、托盘和辅料存放",
+              "packaging_area_factor_k": 2.4,
+              "packaging_position_area_m2": 3.744,
+              "position_count": 67,
+              "required_area_m2": 250.85,
+              "requires_review": true,
+              "temperature_band": "常温",
+              "zone_code": "packaging_material_storage",
+              "zone_name": "包材库"
+            },
+            {
+              "cooling_estimation_basis": {
+                "authority_source": "CHARLES_CONFIRMED_ENGINEERING_REFERENCE",
+                "basis_type": "ZONE_AREA",
+                "reference_factor": 300,
+                "reference_factor_unit": "W/m2",
+                "requires_review": true,
+                "source_field": "required_area_m2",
+                "source_unit": "m2",
+                "source_value": 50
+              },
+              "daily_throughput_kg_day": 20000,
+              "design_storage_mass_kg": 0,
+              "function": "成品装车出货月台与通道",
+              "minimum_estimated_cooling_load_kw_r": 15,
+              "pallet_count": 50,
+              "pallet_weight_kg": 400,
+              "platform_count": 1,
+              "position_count": 1,
+              "required_area_m2": 50,
+              "requires_review": true,
+              "temperature_band": "1~3℃",
+              "truck_count": 4,
+              "zone_code": "shipping_channel",
+              "zone_name": "出货通道"
+            }
+          ]
+        },
+        "source_references": [],
+        "success": true,
+        "warnings": [
+          {
+            "code": "DEMO_ASSUMPTIONS_REQUIRE_REVIEW",
+            "details": {
+              "requires_review": true
+            },
+            "message": "冷间分区规划使用未审核演示系数，不能作为正式设计依据。"
+          }
+        ]
+      },
+      "canonical_result_hash": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd",
+      "dimension_handoff_hash": "sha256:7a41ba026375a1f7085106772d761b946c32c32661320bb4db8565e02848c468",
+      "identity_changed": false,
+      "mode": "LEGACY_CANONICAL",
+      "new_canonical_result_created_for_owner_mode": false,
+      "project_canonical_bytes_equal": true,
+      "sorted_compact_json_bytes_equal": true,
+      "sorted_compact_json_sha256": "fc85180548515c951f9291cec54dc9e3ca26ea97f145b33b61ca9b102e144deb",
+      "source_file_sha256": "8c01595a66899aa372225669d33da2f302976f335b597dd66a36f332ed5dd3dd",
+      "status": "READ_ONLY_FULL_SNAPSHOT_AND_DIMENSION_REPLAY_PASS"
+    },
+    "PROTECTED_TRACKED_FILE_COUNT": 1757,
+    "REFERENCE": "a34dff1f45dcbc930b3ca3d4e0a07117dbf8d592",
+    "STATUS": "PASS",
+    "UNMODELED_FLEXIBLE_DIMENSION_RULE_UNCHANGED": true
+  },
+  "mypy": {
+    "exit_code": 0,
+    "log_reference": "LOCAL_EVIDENCE/mypy.log",
+    "log_sha256": "71144743c83babea384888a735db0c4daba3d4d7b7942b6839984bd5c21b52bb",
+    "status": "PASS"
+  },
+  "new_offline_tests": 78,
+  "owner_instruction_sha256": "53adda00cd24512c80a388336463ff4c6bc5ca379c09654af579de0a575ef264",
+  "passed": 370,
+  "ruff": {
+    "exit_code": 0,
+    "log_reference": "LOCAL_EVIDENCE/ruff.log",
+    "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "status": "PASS"
+  },
+  "scope": "OFFLINE_ONLY_NOT_COMPLETE_BACKEND_OR_REAL_PROJECT_ACCEPTANCE",
+  "skipped": 0,
+  "test_cases": [
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[0]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[1]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[2]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[3]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[4]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[5]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[6]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[7]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[8]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[9]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[10]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[11]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[12]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[13]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[14]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[15]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[16]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[17]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[18]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[19]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[20]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[21]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[22]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_each_real_room_source_geometry_portals_and_missing_function[23]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_exact_eight_twentyfour_and_extreme_geometry_are_not_inferred",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_three_functional_models_positive_and_counterexample[False-office]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_three_functional_models_positive_and_counterexample[False-changing_room]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_three_functional_models_positive_and_counterexample[False-coating_room]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_three_functional_models_positive_and_counterexample[True-office]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_three_functional_models_positive_and_counterexample[True-changing_room]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_three_functional_models_positive_and_counterexample[True-coating_room]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_exact_rotation[0-expected0]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_exact_rotation[90-expected1]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_area_union_not_bounding_or_room_area",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_opposed_rows_necessary_failure_only_for_explicit_configuration[875]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_opposed_rows_necessary_failure_only_for_explicit_configuration[977]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_opposed_necessary_width_is_not_functional_pass",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_owner_business_is_reused_not_project_staffing",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_office_unknown_factory_size_not_inferred",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_wrong_film_process_rejected[FRUIT_WAXING]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_wrong_film_process_rejected[FRUIT_COATING]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_wrong_film_process_rejected[PALLET_STRETCH_WRAPPING]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_missing_real_operating_inputs_never_filled[coating_room-effective_runtime_hours]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_missing_real_operating_inputs_never_filled[coating_room-equipment_model]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_missing_real_operating_inputs_never_filled[changing_room-locker_model]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_missing_real_operating_inputs_never_filled[office-furniture_model]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_missing_real_operating_inputs_never_filled[coating_room-maintenance_procedure]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_missing_real_operating_inputs_never_filled[office-door_operation]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_locker_door_body_collision",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_reach_overlap_is_review_not_body_collision",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_supply_outfeed_crossing_recorded",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_missing_circulation_and_cleaning_not_pass",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_full_width_not_just_centerline",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_full_width_bound_portal_crossing_no_outside_route_approval",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_portal_body_block_recorded",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_maintenance_independent_and_non_film_through_route",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_invalid_or_forged_input_fail_closed[float]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_invalid_or_forged_input_fail_closed[angle]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_invalid_or_forged_input_fail_closed[unknown]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_invalid_or_forged_input_fail_closed[body_state]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_invalid_or_forged_input_fail_closed[mode]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_invalid_or_forged_input_fail_closed[approval]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_invalid_or_forged_input_fail_closed[hash]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_invalid_or_forged_input_fail_closed[changed_fact]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_real_svg_uniform_scale_safe_deterministic[0]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_real_svg_uniform_scale_safe_deterministic[1]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_real_svg_uniform_scale_safe_deterministic[2]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_real_svg_uniform_scale_safe_deterministic[3]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_real_svg_uniform_scale_safe_deterministic[4]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_real_svg_uniform_scale_safe_deterministic[5]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_real_svg_uniform_scale_safe_deterministic[6]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_real_svg_uniform_scale_safe_deterministic[7]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_synthetic_svg_and_json_deterministic[office]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_synthetic_svg_and_json_deterministic[changing_room]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_synthetic_svg_and_json_deterministic[coating_room]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_integer_mm_conversion_exact_no_pixels",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_all_old_tracked_bytes_and_p1_canonical_replay",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-flexible-room-functional-fit-r2/test_functional_fit.py::test_false_completion_and_zero_calls",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_complete_synthetic_single_has_three_operators_and_no_approval",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_exactly_three_workers_required[0]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_exactly_three_workers_required[2]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_exactly_three_workers_required[4]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_distinct_worker_ids_required",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_worker_missing_task_geometry_or_path_rejected[TASK]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_worker_missing_task_geometry_or_path_rejected[STANDING_COMPONENT]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_worker_missing_task_geometry_or_path_rejected[REACH_COMPONENT]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_worker_missing_task_geometry_or_path_rejected[ENTRY_PATH]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_worker_missing_task_geometry_or_path_rejected[WORK_DIRECTION]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_missing_equipment_geometry_no_real_dimensioned_result",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_geometry_input_fail_closed[unknown_type]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_geometry_input_fail_closed[unknown_role]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_geometry_input_fail_closed[float]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_geometry_input_fail_closed[bool]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_geometry_input_fail_closed[metres]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_geometry_input_fail_closed[rotation]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_geometry_input_fail_closed[polygon]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_geometry_input_fail_closed[degenerate]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_actual_source_hash_and_entire_geometry_fact_binding",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_source_path_escape_rejected",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_malformed_source_content_is_fail_closed_not_traceback",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_source_container_not_an_object_rejects",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_synthetic_sources_cannot_masquerade_as_project",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_caller_verified_approval_cannot_override",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_source_matched_project_data_still_never_engineering_approval",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_equipment_body_collision_is_hard",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_standing_equipment_conflict_cannot_be_shared_away",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_reach_overlap_not_body_collision_or_automatic_permission",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_supply_outfeed_overlap_reported",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_width_checked_not_centerline_only",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_personnel_material_crossing_retains_review",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_missing_flow_or_maintenance_not_filled[aisle]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_missing_flow_or_maintenance_not_filled[service]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_missing_flow_or_maintenance_not_filled[material_route]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_states_not_unconditional_max_or_disappearing_body",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_disjoint_state_overlap_is_not_time_sharing_approval",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_outfeed_direction_cannot_be_inverted_by_label",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_multi_station_explicit_geometry_paths_and_union[LINEAR_ARRANGEMENT-2]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_multi_station_explicit_geometry_paths_and_union[OPPOSED_ARRANGEMENT-2]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_multi_station_explicit_geometry_paths_and_union[PARALLEL_ROWS-4]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_arrangement_name_does_not_infer_connectivity",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_union_bounding_and_room_area_not_interchangeable",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_integer_quarter_turn_and_exact_odd_width",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_svg_coordinate_formatting_is_exact_without_float_or_context_rounding",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_operator_positions_directions_and_paths_rotate_together[0]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_operator_positions_directions_and_paths_rotate_together[90]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_operator_positions_directions_and_paths_rotate_together[180]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_operator_positions_directions_and_paths_rotate_together[270]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_svg_xml_determinism_same_scale_and_no_external_resources",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_missing_project_svg_not_dimensioned",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_schema_validates_all_positive_examples",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_examples_reproduce_without_geometry_or_svg_drift",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_both_actual_command_line_interfaces_work_from_other_directory",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_historical_eight_layout_hashes_and_forty_eight_portals_unchanged",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_v1_v2_contract_hashes_and_legacy_p1_replay_unchanged",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-three-person-packing-station-module-r1/test_offline_station_geometry.py::test_no_production_changes_or_solver_grant_imports",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_bound_source_pipeline_is_synthetic_not_project_approval",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_untrusted_request_cannot_promote_or_mutate_evidence[hash-SOURCE_FILE_HASH_MISMATCH]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_untrusted_request_cannot_promote_or_mutate_evidence[identity-PROJECT_FACTORY_ID_MISMATCH]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_untrusted_request_cannot_promote_or_mutate_evidence[revision-DOCUMENT_IDENTITY_REVISION_OR_CLASSIFICATION_CONFLICT]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_untrusted_request_cannot_promote_or_mutate_evidence[unreviewed-SOURCE_BYTES_MATCH_BUT_NO_TRUSTED_REVIEW]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_untrusted_request_cannot_promote_or_mutate_evidence[denied-HISTORICAL_SYNTHETIC_OR_REFERENCE_SOURCE_DENIED]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_untrusted_request_cannot_promote_or_mutate_evidence[numeric-UNBOUND_NUMERIC_TEMPLATE_VALUE_NO_DEFAULTS]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_untrusted_request_cannot_promote_or_mutate_evidence[task-TASK_STATE_OR_TEMPLATE_SOURCE_MISMATCH]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_untrusted_request_cannot_promote_or_mutate_evidence[claim-DIMENSION_LOCATION_OR_SEMANTICS_NOT_REVIEWED]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_untrusted_request_cannot_promote_or_mutate_evidence[verified-EXACT_REQUEST_FIELDS_NO_VERIFIED_APPROVED_OR_REGISTER_OVERRIDE]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_untrusted_request_cannot_promote_or_mutate_evidence[approved-EXACT_REQUEST_FIELDS_NO_VERIFIED_APPROVED_OR_REGISTER_OVERRIDE]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_untrusted_request_cannot_promote_or_mutate_evidence[register-EXACT_REQUEST_FIELDS_NO_VERIFIED_APPROVED_OR_REGISTER_OVERRIDE]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_untrusted_request_cannot_promote_or_mutate_evidence[purpose-SOURCE_PURPOSE_CANNOT_BE_RELABELLED_AS_REAL_PROJECT]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_untrusted_request_cannot_promote_or_mutate_evidence[traversal-SOURCE_OUTSIDE_PRIVATE_ROOT_OR_MISSING]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_reference_and_caller_approval_cannot_be_project_selection[PUBLIC_MANUFACTURER_REFERENCE]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_reference_and_caller_approval_cannot_be_project_selection[PROJECT_SELECTED_EQUIPMENT]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_reference_and_caller_approval_cannot_be_project_selection[PROJECT_APPROVED_GEOMETRY]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_pin_mismatch_rejected",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_matching_bytes_without_any_review_are_not_admitted",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_exact_integer_mm_conversion[2400-mm-2400]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_exact_integer_mm_conversion[2.4-m-2400]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_exact_integer_mm_conversion[240-cm-2400]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_exact_integer_mm_conversion[0-mm-0]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_exact_integer_mm_conversion[-7-mm--7]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_bad_or_nonpositive_dimensions_not_guessed[True-mm]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_bad_or_nonpositive_dimensions_not_guessed[2.4-m]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_bad_or_nonpositive_dimensions_not_guessed[0.0001-m]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_bad_or_nonpositive_dimensions_not_guessed[2400-pixels]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_bad_or_nonpositive_dimensions_not_guessed[0-mm]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_bad_or_nonpositive_dimensions_not_guessed[-1-mm]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_text_callout_not_image_scaling",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_dimension_classes_cannot_substitute_for_equipment[STATION_PITCH]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_dimension_classes_cannot_substitute_for_equipment[ROOM_CLEAR_INTERNAL_DIMENSION]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_dimension_classes_cannot_substitute_for_equipment[BUILDING_EXTERNAL_DIMENSION]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_missing_dimension_no_historical_pitch_default",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_body_height_required_and_body_not_module_size",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_three_operator_identity_and_tasks_preserved",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_missing_functional_evidence_does_not_pass[OPERATORS]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_missing_functional_evidence_does_not_pass[ROUTES]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_missing_functional_evidence_does_not_pass[MAINTENANCE]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_known_entity_collision_remains_detected",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_multi_station_reuses_r1_union_routes_and_transforms[LINEAR_ARRANGEMENT]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_multi_station_reuses_r1_union_routes_and_transforms[OPPOSED_ARRANGEMENT]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_multi_station_reuses_r1_union_routes_and_transforms[PARALLEL_ROWS]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_deterministic_bytes_and_svg_safety",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_historical_r1_manifest_unmodified",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_no_overwrite_private_diagnostic",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_two_reviewed_revisions_conflict_instead_of_choosing_latest",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_rehashing_synthetic_file_does_not_refresh_review",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_changing_test_context_scope_does_not_promote_test_file",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_reviewed_wrong_body_size_does_not_override_geometry",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_cli_works_from_other_directory_and_preserves_review_boundary",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_adapter_has_no_production_solver_or_network_imports",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_explicit_rotations_remain_exact[0-0]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_explicit_rotations_remain_exact[90-90]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_explicit_rotations_remain_exact[180-180]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_explicit_rotations_remain_exact[270-270]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packing-station-project-evidence-r2/test_project_input_adapter.py::test_missing_real_project_template_is_rejected_and_undimensioned",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_01_capacity_is_192_per_person_per_shift",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_02_each_shift_ceil_separately_at_exact_boundaries",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_03_lockers_are_sum_not_shared_between_shifts",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_04_simultaneous_is_whole_largest_shift",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_05_equal_and_unequal_allocations_can_change_totals",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_06_internal_separation_does_not_double_lockers",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_07_explicit_office_mapping",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_08_unknown_scale_not_inferred_from_throughput_or_area",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_09_film_design_is_all_entering_product_not_actual_fraction",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_10_non_sealing_product_can_cross_same_independent_room",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_11_unknown_equipment_has_no_invented_count_or_area",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_12_historical_area_process_and_source_hashes_unchanged",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_13_raw_mass_and_missing_source_do_not_become_product_mass",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_14_same_inputs_and_regeneration_are_byte_identical",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_15_no_default_shift_split_or_derived_missing_shift",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_16_daily_mass_consistency_not_silently_corrected",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_17_invalid_exact_quantities_fail_closed",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_18_all_confirmed_values_carry_metadata",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_19_no_functional_pass_or_privacy_waiver",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_20_legacy_336_is_separately_preserved_not_overridden",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_21_zero_mass_does_not_create_non_packaging_staff",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_22_invalid_actual_ratio_rejected_and_missing_stays_missing",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_23_mass_source_reference_is_not_forged_file_verification",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r1/test_contract.py::OwnerInputContractTest::test_24_no_production_solver_or_network_imports",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_01_default_equal_split_exact",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_02_round_each_shift_up",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_03_explicit_override_not_default",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_04_explicit_sum_mismatch_fails_closed",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_05_single_shift_rejected_even_with_daily_mass",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_06_raw_inbound_cannot_become_q",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_07_no_source_means_no_default_calculation",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_08_three_workers_per_table",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_09_same_station_set_shared_across_shifts",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_10_stations_use_peak_not_total",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_11_total_employees_not_peak_concurrency",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_12_lockers_sum_both_employee_sets",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_13_internal_partition_never_doubles_locker_count",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_14_whole_shift_changing_uses_peak",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_15_twenty_tonne_product_business_result",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_16_explicit_both_shifts_without_daily_mass",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_17_one_192_384_kg_and_unrounded_half_kg",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_18_no_unknown_equipment_or_area_invented",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_19_unknown_office_size_not_tonnage_derived",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_20_v1_rules_results_and_manifest_still_unchanged",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_21_legacy_canonical_full_replay_and_p1_hash",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_22_v1_v2_identities_cannot_impersonate",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_23_file_hash_not_formal_source_or_p1_authority",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_24_repeated_bytes_and_result_hash_are_identical",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_25_confirmed_metadata_and_unchanged_v1_inheritance",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_26_source_tampering_and_project_mismatch_rejected",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_27_fractional_boundaries_no_mass_prerounding",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_28_negative_nonfinite_float_and_inconsistent_source_rejected",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_29_film_and_process_inheritance_no_compliance_claim",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_30_no_native_solver_or_new_area_projection",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-functional-input-contract-r2/test_offline_contract_v2.py::OwnerV2Test::test_31_default_cannot_silently_ignore_explicit_source_shifts",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_01_full_legacy_20t_bytes_and_hashes_unchanged",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_02_legacy_336_still_actual_production_parameter",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_03_new_192_is_separate_rule_and_version",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_04_round_each_shift_not_total",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_05_total_and_peak_are_separate",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_06_lockers_sum_not_concurrent_or_internal_compartments",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_07_table_policy_not_total_employee_division",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_08_equal_and_unequal_change_peak_and_sensitivity",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_09_missing_allocations_fail_closed",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_10_raw_mass_not_implicitly_packaged",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_11_actual_product_bytes_checked_but_not_owner_approval",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_12_unknown_factory_size_never_inferred",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_13_actual_25_and_50_tonne_boundaries_preserved",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_14_office_staff_classes_do_not_use_tonnage",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_15_unknown_lockers_never_generate_area_pass",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_16_unknown_equipment_has_no_count_or_area",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_17_design_ratio_not_reduced_by_actual_ratio",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_18_packaging_16_hours_not_sealing_runtime",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_19_business_roles_map_to_p0_ordered_roles",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_20_gender_field_ambiguity_mapped_without_rewriting_history",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_21_original_dimension_and_source_identity_still_frozen",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_22_explicit_modes_cannot_override_or_impersonate",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_23_missing_forged_and_mismatched_sources_fail_closed",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_24_identical_inputs_and_generated_bytes_deterministic",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_25_fixed_area_fields_validate_but_do_not_select_areas",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_26_unknown_reuse_means_no_table_or_area_even_if_staff_known",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_27_no_new_total_or_formal_area_and_no_algorithm_quality_claim",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_28_grid_cells_not_required_tables_or_equipment_inventory",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_29_authentic_hash_of_synthetic_content_is_not_project_approval",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-factory-p1-compatibility-readiness-r1/test_offline_compatibility.py::P1CompatibilityTest::test_30_no_native_solver_loaded",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_legacy_canonical_and_dimension_hashes_and_bytes_unchanged",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_actual_legacy_function_and_exact_projection[20-grid0-565.76-622.336-622.34]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_actual_legacy_function_and_exact_projection[18-grid1-489.6-538.56-538.56]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_actual_legacy_function_and_exact_projection[28-grid2-690.56-759.616-759.62]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_demand_twenty_is_not_twenty_one_installed_tables",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_owner_v2_actual_calculator_not_total_worker_tables[0-staff0-18-106-53]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_owner_v2_actual_calculator_not_total_worker_tables[1-staff1-28-105-84]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_raw_mass_cannot_substitute_packaged_mass",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_no_formal_new_area_or_factory_total",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_pitch_not_equipment_and_aggregate_not_individual_aisles",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_rank_prefers_grid_ratio_before_area_not_engineering_optimum",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_count_ratio_is_not_room_aspect",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_binary_float_repr_and_decimal_report_are_separate",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_missing_component_does_not_receive_default[PACKING_STATION_ENVELOPE]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_missing_component_does_not_receive_default[OPERATOR_ENVELOPE]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_missing_component_does_not_receive_default[MATERIAL_SUPPLY_ENVELOPE]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_missing_component_does_not_receive_default[PRODUCT_OUTFEED_ENVELOPE]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_missing_component_does_not_receive_default[CIRCULATION_ENVELOPE]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_missing_component_does_not_receive_default[CLEANING_MAINTENANCE_ENVELOPE]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_missing_state_not_assumed_production",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_simultaneous_overlap_not_automatically_shared",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_touching_not_positive_overlap_and_holes_not_floor_area",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_bad_envelope_rejected[rect0]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_bad_envelope_rejected[rect1]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_bad_envelope_rejected[rect2]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_eight_layouts_and_forty_eight_real_interfaces_unchanged",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_wall_exact_and_rotated_room_support_without_access_search",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_sources_have_scope_limits_not_project_equipment_defaults",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_protected_sources_contracts_and_owner_files_unchanged",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_no_solver_or_grant_or_network_execution_imports",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/owner-v2-packaging-area-geometry-calibration-r1/test_offline_geometry_calibration.py::test_generated_outputs_byte_deterministic_and_match_records",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/functional-room-dimension-calibration-01/test_calibrate.py::FunctionalRoomCalibrationTest::test_01_source_records_have_required_metadata_and_no_guessed_dates",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/functional-room-dimension-calibration-01/test_calibrate.py::FunctionalRoomCalibrationTest::test_02_exact_eight_geometries_twenty_four_rooms",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/functional-room-dimension-calibration-01/test_calibrate.py::FunctionalRoomCalibrationTest::test_03_area_physical_sides_and_aspect_are_exact",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/functional-room-dimension-calibration-01/test_calibrate.py::FunctionalRoomCalibrationTest::test_04_staff_missing_cannot_be_inferred_from_area",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/functional-room-dimension-calibration-01/test_calibrate.py::FunctionalRoomCalibrationTest::test_05_explicit_synthetic_office_module_not_a_project_design",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/functional-room-dimension-calibration-01/test_calibrate.py::FunctionalRoomCalibrationTest::test_06_double_lockers_furniture_lower_bound_two_failures_only",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/functional-room-dimension-calibration-01/test_calibrate.py::FunctionalRoomCalibrationTest::test_07_single_row_residual_is_not_an_approved_aisle",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/functional-room-dimension-calibration-01/test_calibrate.py::FunctionalRoomCalibrationTest::test_08_storage_and_simultaneous_users_not_defaulted",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/functional-room-dimension-calibration-01/test_calibrate.py::FunctionalRoomCalibrationTest::test_09_equipment_is_not_operation_or_maintenance_envelope",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/functional-room-dimension-calibration-01/test_calibrate.py::FunctionalRoomCalibrationTest::test_10_states_are_not_silently_added_or_omitted",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/functional-room-dimension-calibration-01/test_calibrate.py::FunctionalRoomCalibrationTest::test_11_numeric_requirements_remain_unapproved_and_null",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/functional-room-dimension-calibration-01/test_calibrate.py::FunctionalRoomCalibrationTest::test_12_actual_fail_closed_guard_and_parent_constructor_preserved_statically",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/functional-room-dimension-calibration-01/test_calibrate.py::FunctionalRoomCalibrationTest::test_13_baseline_integrity_and_duplicate_organizations_not_changed",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/functional-room-dimension-calibration-01/test_calibrate.py::FunctionalRoomCalibrationTest::test_14_invalid_negative_zero_and_fractional_inputs_fail_closed",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/functional-room-dimension-calibration-01/test_calibrate.py::FunctionalRoomCalibrationTest::test_15_deterministic_source_bound_outputs",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/functional-room-dimension-calibration-01/test_calibrate.py::FunctionalRoomCalibrationTest::test_16_no_production_or_solver_imports",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_each_raw_candidate_hash_context_and_eleven_access_readback[0]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_each_raw_candidate_hash_context_and_eleven_access_readback[1]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_each_raw_candidate_hash_context_and_eleven_access_readback[2]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_each_raw_candidate_hash_context_and_eleven_access_readback[3]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_each_raw_candidate_hash_context_and_eleven_access_readback[4]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_each_raw_candidate_hash_context_and_eleven_access_readback[5]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_each_raw_candidate_hash_context_and_eleven_access_readback[6]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_each_raw_candidate_hash_context_and_eleven_access_readback[7]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_exact_one_mm_is_locator_not_measured_gate",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_original_p1f_complete_is_not_p2b1_or_document_complete",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_synthetic_input_uses_original_predicates_without_search_or_project_pass",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_missing_vehicle_dimensions_rejected[vehicle_width_m]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_missing_vehicle_dimensions_rejected[vehicle_length_m]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_caller_flags_cannot_override_preflight[verified]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_caller_flags_cannot_override_preflight[APPROVED]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_caller_flags_cannot_override_preflight[TRUCK_SEARCH_READY]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_caller_flags_cannot_override_preflight[p2_complete]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_original_validator_fail_closed_paths[project]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_original_validator_fail_closed_paths[vehicle]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_original_validator_fail_closed_paths[version]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_original_validator_fail_closed_paths[template_hash]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_original_validator_fail_closed_paths[document_bytes]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_original_validator_fail_closed_paths[no_documents]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_original_validator_fail_closed_paths[gate]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_original_validator_fail_closed_paths[locator]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_original_validator_fail_closed_paths[body]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_original_validator_fail_closed_paths[loading_face]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_original_validator_fail_closed_paths[source_reference]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_original_validator_fail_closed_paths[missing_class]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_expected_project_identity_cannot_be_relabelled",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_two_required_classes_do_not_require_unneeded_turn",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_p2b1_subset_complete_does_not_imply_p2d_docking_ready",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_wrong_selected_loading_face_rejected_by_original_p2d[shipping_loading_face_side]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_wrong_selected_loading_face_rejected_by_original_p2d[shipping_loading_face_segment]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_result_copy_between_candidates_rejected",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_stale_site_and_handoff_detected",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_raw_file_hash_tampering_rejected_before_facts",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_prospective_input_bound_to_exact_candidate_not_just_project",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_all_contexts_independent_and_repeated_bytes_deterministic",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_state_categories_not_conflated[review-TRUCK_ROUTE_ENGINEERING_REVIEW_REQUIRED]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_state_categories_not_conflated[failed-TRUCK_SEARCH_EXECUTED_WITHOUT_VALIDATED_ROUTE_NOT_GLOBAL_INFEASIBILITY]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_state_categories_not_conflated[valid-TRUCK_ROUTE_VALIDATED_NOT_P2D_FULL_PASS]",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_no_solver_grant_or_forbidden_entry_calls_in_tool",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_uploaded_approved_label_and_matching_digest_are_not_project_approval",
+      "status": "PASS"
+    },
+    {
+      "node_id": "docs/previews/v2.2.2/stage-b-truck-p2d-preflight-r1/test_stage_b_truck_preflight.py::test_personnel_interaction_review_not_hidden_by_valid_truck_flag",
+      "status": "PASS"
+    }
+  ],
+  "tests": {
+    "exit_code": 0,
+    "log_reference": "LOCAL_EVIDENCE/offline-and-historical-tests.log",
+    "log_sha256": "548514b65458cb10d90b7756bd799ed84c9c99b3dff5b7c810f8950ad15bf713",
+    "status": "PASS"
+  },
+  "visual_review": [
+    {
+      "rendered_png_sha256": "4b8eba83547309dd274e92fcc1d68043557dede0afbdcd1aa44fab172da69f5c",
+      "review": "Rendered image inspected; source/synthetic markings, room dimensions, portals and conflict callouts visible",
+      "svg": "previews/candidate-01.svg",
+      "svg_sha256": "0ff3464974d6efe04dc15eb63060e375dab5dd77216e164dbf274a1ebc78dcba"
+    },
+    {
+      "rendered_png_sha256": "eddeacf3aed4162a2686402e6325987bcd3caf59248d1d3c1a4473ee9c7dc891",
+      "review": "Rendered image inspected; source/synthetic markings, room dimensions, portals and conflict callouts visible",
+      "svg": "previews/candidate-02.svg",
+      "svg_sha256": "cf861c13a22f7c19ee8fbb8c1283f03eac3ec023c1b62c33f27dfca57a0fc2b1"
+    },
+    {
+      "rendered_png_sha256": "a09d53c688ff8c312c8cdcc315d9009fc990b6f45d9d489204928326332bd995",
+      "review": "Rendered image inspected; source/synthetic markings, room dimensions, portals and conflict callouts visible",
+      "svg": "previews/candidate-03.svg",
+      "svg_sha256": "41e287a1e0da4d5207cb329cb0002aa1595f0952cf821cae8fe34e172d1a7a45"
+    },
+    {
+      "rendered_png_sha256": "bbf1274f8fe23498d90e47139d8142212499341c9e9b75d72b2119700d938959",
+      "review": "Rendered image inspected; source/synthetic markings, room dimensions, portals and conflict callouts visible",
+      "svg": "previews/candidate-04.svg",
+      "svg_sha256": "a9c444e8d657650516403fa6c10efc3084a1125bcd6fc5cafd649dc19b193149"
+    },
+    {
+      "rendered_png_sha256": "53485d77214ed1c1941a4373c2a5e777c84f4893e108bcd2fb445d5b31bd6700",
+      "review": "Rendered image inspected; source/synthetic markings, room dimensions, portals and conflict callouts visible",
+      "svg": "previews/candidate-05.svg",
+      "svg_sha256": "eabffe1028c7bab863741710dcc37db301e502c477b7f03eb8e4e83cace05db6"
+    },
+    {
+      "rendered_png_sha256": "a5976b71691a720b755e0b6e3e024414dbf1a90d3f780fb83af516de7f897414",
+      "review": "Rendered image inspected; source/synthetic markings, room dimensions, portals and conflict callouts visible",
+      "svg": "previews/candidate-06.svg",
+      "svg_sha256": "4c06780db74606c3ba36af645e9fb38825f45d27c29a4140f406b28f71697bdb"
+    },
+    {
+      "rendered_png_sha256": "38ee6d5cd642ec80f454c0d0a21d950efe87ce147aa13afcbdd6097ccc489030",
+      "review": "Rendered image inspected; source/synthetic markings, room dimensions, portals and conflict callouts visible",
+      "svg": "previews/candidate-07.svg",
+      "svg_sha256": "34906384159fdf07ed7692b98dd07800e3c58e91a90c4db5f9c644c67b5a0f2f"
+    },
+    {
+      "rendered_png_sha256": "eaaabe845b0f093f27fcf49a116e2c8d3c480cd5fdd25383fcd6de4f1c6cb9f3",
+      "review": "Rendered image inspected; source/synthetic markings, room dimensions, portals and conflict callouts visible",
+      "svg": "previews/candidate-08.svg",
+      "svg_sha256": "99c46db8469309886150325d31b3d1b4233ac1374870c92cb53f365df4ee41e8"
+    },
+    {
+      "rendered_png_sha256": "59f678467990b29243aaa32f76e4e5222a2519dd786e0dc626c97a0f32ea7a18",
+      "review": "Rendered image inspected; source/synthetic markings, room dimensions, portals and conflict callouts visible",
+      "svg": "previews/changing-synthetic.svg",
+      "svg_sha256": "853c11a8a846b2abade04d4e7f0e0b368e106ee031bb65ed554301ce238028fb"
+    },
+    {
+      "rendered_png_sha256": "5baa8f27dcd5fc1b4346542425b1c26087b9774c583da1f86b87fbfe9cbeb3dc",
+      "review": "Rendered image inspected; source/synthetic markings, room dimensions, portals and conflict callouts visible",
+      "svg": "previews/film-sealing-synthetic.svg",
+      "svg_sha256": "221bdea0f35d04be67b9f5f41de48e1a2fd7b528352dbb49f630ae952fb59fd1"
+    },
+    {
+      "rendered_png_sha256": "7612f52368bedcd6af1a13baaa1926db9ee142ff4941e9283b6c5a6f46830ca0",
+      "review": "Rendered image inspected; source/synthetic markings, room dimensions, portals and conflict callouts visible",
+      "svg": "previews/office-synthetic.svg",
+      "svg_sha256": "e937518bc8c72a9967df42c8fce794216cac7c80ed17044ae95582e250965905"
+    }
+  ]
+}

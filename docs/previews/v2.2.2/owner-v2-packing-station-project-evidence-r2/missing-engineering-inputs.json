@@ -1,0 +1,95 @@
+{
+  "FIT_18_TABLES": "NOT_EVALUATED",
+  "FIT_28_TABLES": "NOT_EVALUATED",
+  "ITEMS": [
+    {
+      "ACCEPTABLE_EVIDENCE": "具备项目身份和版本的设计文件",
+      "AFFECTED_CALCULATION": "全部诊断",
+      "CURRENT_STATUS": "UNAVAILABLE",
+      "FIELD": "PROJECT_AND_FACTORY_ID",
+      "REQUIRED_DOCUMENT": "项目工艺设计条件及设备适用性说明",
+      "WHY_REQUIRED": "防止跨项目套用"
+    },
+    {
+      "ACCEPTABLE_EVIDENCE": "带尺寸标注、图号、修订版的总图；不可按图片像素估算",
+      "AFFECTED_CALCULATION": "设备实体包络",
+      "CURRENT_STATUS": "UNAVAILABLE",
+      "FIELD": "EQUIPMENT_BODY_LENGTH_WIDTH_HEIGHT",
+      "REQUIRED_DOCUMENT": "设备总图及型号规格书",
+      "WHY_REQUIRED": "设备实体及高度独立记录"
+    },
+    {
+      "ACCEPTABLE_EVIDENCE": "可核实的既有审批文件；文件Hash不替代审批",
+      "AFFECTED_CALCULATION": "选型状态记录；适配器无批准权",
+      "CURRENT_STATUS": "UNAVAILABLE",
+      "FIELD": "SELECTION_EVIDENCE",
+      "REQUIRED_DOCUMENT": "选型评审或批准记录",
+      "WHY_REQUIRED": "公开参考与项目选型不同"
+    },
+    {
+      "ACCEPTABLE_EVIDENCE": "有局部坐标和设备方向的接口尺寸",
+      "AFFECTED_CALCULATION": "物料路径",
+      "CURRENT_STATUS": "UNAVAILABLE",
+      "FIELD": "INFEED_OUTFEED_REJECT_INTERFACES",
+      "REQUIRED_DOCUMENT": "输送接口及物流图",
+      "WHY_REQUIRED": "进料、包材、成品与剔除物分别连通"
+    },
+    {
+      "ACCEPTABLE_EVIDENCE": "每人任务、站位、朝向、动作区、入口路径的工艺复核",
+      "AFFECTED_CALCULATION": "三人适配",
+      "CURRENT_STATUS": "UNAVAILABLE",
+      "FIELD": "THREE_OPERATOR_TASKS_AND_POSITIONS",
+      "REQUIRED_DOCUMENT": "三人任务及站位布置图",
+      "WHY_REQUIRED": "3人/台不等于站位已可用"
+    },
+    {
+      "ACCEPTABLE_EVIDENCE": "型号、外廓、运输方式和使用状态",
+      "AFFECTED_CALCULATION": "供出料占用",
+      "CURRENT_STATUS": "UNAVAILABLE",
+      "FIELD": "MATERIAL_CARRIER_ENVELOPES",
+      "REQUIRED_DOCUMENT": "周转箱、车及包材规格",
+      "WHY_REQUIRED": "物料占用独立于设备尺寸"
+    },
+    {
+      "ACCEPTABLE_EVIDENCE": "分别有来源的路径中心线、全宽与净空要求",
+      "AFFECTED_CALCULATION": "全宽扫掠校核",
+      "CURRENT_STATUS": "UNAVAILABLE",
+      "FIELD": "PERSONNEL_AND_MATERIAL_ROUTE_WIDTHS",
+      "REQUIRED_DOCUMENT": "通道与净空设计条件",
+      "WHY_REQUIRED": "历史房间Portal不证明室内净宽"
+    },
+    {
+      "ACCEPTABLE_EVIDENCE": "设备常驻、开启范围、共享条件及审核记录",
+      "AFFECTED_CALCULATION": "工况碰撞与共享复核",
+      "CURRENT_STATUS": "UNAVAILABLE",
+      "FIELD": "FOUR_STATE_OCCUPANCY",
+      "REQUIRED_DOCUMENT": "生产、交班、清洗、检修工况图",
+      "WHY_REQUIRED": "非同时不等于自动允许共用"
+    },
+    {
+      "ACCEPTABLE_EVIDENCE": "独立确认时长、人员、物料与状态",
+      "AFFECTED_CALCULATION": "时间空间共用",
+      "CURRENT_STATUS": "UNAVAILABLE",
+      "FIELD": "SHIFT_CHANGE_CLEANING_DURATION_BUFFER",
+      "REQUIRED_DOCUMENT": "交班清洁SOP及生产节拍",
+      "WHY_REQUIRED": "不得默认零耗时或零缓冲"
+    },
+    {
+      "ACCEPTABLE_EVIDENCE": "明确检修侧、开门包络、所需通行",
+      "AFFECTED_CALCULATION": "清洁检修",
+      "CURRENT_STATUS": "UNAVAILABLE",
+      "FIELD": "MAINTENANCE_ACCESS_AND_GUARD_SWING",
+      "REQUIRED_DOCUMENT": "维护手册与护罩开启图",
+      "WHY_REQUIRED": "设备本体不包含检修空间"
+    },
+    {
+      "ACCEPTABLE_EVIDENCE": "带墙体、门、障碍及Portal身份的设计资料",
+      "AFFECTED_CALCULATION": "18/28台适配仍未评价",
+      "CURRENT_STATUS": "UNAVAILABLE",
+      "FIELD": "ROOM_CLEAR_AND_PORTAL_BOUNDARIES",
+      "REQUIRED_DOCUMENT": "建筑净尺寸及工艺接口图",
+      "WHY_REQUIRED": "房间外包络不等于净可用面积"
+    }
+  ],
+  "PROJECT_INPUT_ADMISSION": "BLOCKED"
+}

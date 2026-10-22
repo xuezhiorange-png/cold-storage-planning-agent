@@ -1,0 +1,29 @@
+{
+  "files": {
+    "README.md": {
+      "bytes": 4269,
+      "sha256": "1b6c5fb31dde4e0c6b1a0bf92ee9e0c0b763db7ac9f91318bd6177d8d48a9601"
+    },
+    "boundary-contract.json": {
+      "bytes": 1352,
+      "sha256": "fb52d0334ae4c4394531eae4c579f29b5addc02ef3e013c28e6bb697f4d330e7"
+    },
+    "offline_boundary_review.py": {
+      "bytes": 7036,
+      "sha256": "251060e2c2886486c45d92c0a239f31d7295d14c279ce25d12329ef09463909e"
+    },
+    "offline_room_boundary.py": {
+      "bytes": 13743,
+      "sha256": "c089702ae3c5b2281836442c31edb3427785d4ae44d65f8d7667c482dbc70fc8"
+    },
+    "test_room_boundary.py": {
+      "bytes": 11468,
+      "sha256": "75c70e35eb4ff5dd2190237f934cf396ab77f5c1e0465ef1f34fa0dafc603ae3"
+    },
+    "validation.json": {
+      "bytes": 1503,
+      "sha256": "cdd4b4074be7b4804badf1d8862bd75c39ecb02c4e951dbbc5c0acd832bfc306"
+    }
+  },
+  "self_excluded": true
+}

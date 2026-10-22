@@ -180,9 +180,13 @@ def test_mcp_surface_is_exactly_six_existing_tools_plus_tool_seven() -> None:
         "preview_factory_power",
     )
     assert expected_first_six == _PREVIEW_TOOL_ORDER
-    assert (*expected_first_six, "preview_site_layout") == _MCP_TOOL_ORDER
+    # Historical P5 seven-tool contract remains an exact prefix; R14 appends
+    # precisely Tool 8 without rewriting the P5 release facts or schemas.
+    assert (*expected_first_six, "preview_site_layout") == _MCP_TOOL_ORDER[:7]
+    assert len(_MCP_TOOL_ORDER) == 8
+    assert _MCP_TOOL_ORDER[7:] == ("preview_truck",)
     assert PREVIEW_SITE_LAYOUT_TOOL_NAME == "preview_site_layout"
-    assert len(_MCP_TOOL_ORDER) == 7
+    assert len(_MCP_TOOL_ORDER) == 8
     assert (
         *OPERATOR_V09_FIVE_KEY_FIELDS,
         "site_constraints",

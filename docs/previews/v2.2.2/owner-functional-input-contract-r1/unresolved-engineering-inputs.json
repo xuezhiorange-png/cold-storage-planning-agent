@@ -1,0 +1,147 @@
+{
+  "blocks_functional_space_acceptance": true,
+  "contract_version": "owner-factory-functional-inputs@1.0.0",
+  "identity": "OwnerFactoryFunctionalInputsV1",
+  "inputs": [
+    {
+      "APPLICABILITY": "office",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "FACTORY_SIZE_CLASS_THRESHOLDS",
+      "REQUIRED_EVIDENCE": "No throughput-derived class",
+      "STATUS": "OWNER_INPUT_REQUIRED",
+      "VALUE": null
+    },
+    {
+      "APPLICABILITY": "office",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "PROJECT_FACTORY_SIZE",
+      "REQUIRED_EVIDENCE": "Explicit size choice; 12/20/30 are design staff",
+      "STATUS": "OWNER_INPUT_REQUIRED",
+      "VALUE": null
+    },
+    {
+      "APPLICABILITY": "staffing",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "SHIFT_PRODUCT_MASS_AND_SOURCE",
+      "REQUIRED_EVIDENCE": "Two shift quantities, kg of packaged product",
+      "STATUS": "OWNER_INPUT_REQUIRED",
+      "VALUE": null
+    },
+    {
+      "APPLICABILITY": "staffing",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "UPSTREAM_YIELD_CONVERSION",
+      "REQUIRED_EVIDENCE": "Traceable product yield/mass balance",
+      "STATUS": "IF_RAW_MASS_USED_INPUT_REQUIRED",
+      "VALUE": null
+    },
+    {
+      "APPLICABILITY": "office",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "OFFICE_FURNITURE_AND_AISLES",
+      "REQUIRED_EVIDENCE": "Stations, furnishings, use envelopes, doors/windows",
+      "STATUS": "OWNER_INPUT_REQUIRED",
+      "VALUE": null
+    },
+    {
+      "APPLICABILITY": "changing_room",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "LOCKER_MODEL_AND_DIMENSIONS",
+      "REQUIRED_EVIDENCE": "Assembled width/depth, internal separation, door sweep",
+      "STATUS": "UNAVAILABLE",
+      "VALUE": null
+    },
+    {
+      "APPLICABILITY": "changing_room",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "CHANGING_OPERATION_AND_AISLES",
+      "REQUIRED_EVIDENCE": "Whole-shift operation, bench and traffic envelopes",
+      "STATUS": "OWNER_INPUT_REQUIRED",
+      "VALUE": null
+    },
+    {
+      "APPLICABILITY": "changing_room",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "HYGIENE_PRIVACY_APPLICABILITY",
+      "REQUIRED_EVIDENCE": "No preset gender split is not a compliance waiver",
+      "STATUS": "PROFESSIONAL_REVIEW_REQUIRED",
+      "VALUE": null
+    },
+    {
+      "APPLICABILITY": "coating_room",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "ACTUAL_FILM_SEALING_RATIO",
+      "REQUIRED_EVIDENCE": "Does not reduce design ratio 1.0",
+      "STATUS": "PROJECT_DEPENDENT",
+      "VALUE": null
+    },
+    {
+      "APPLICABILITY": "coating_room",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "EQUIPMENT_MODEL",
+      "REQUIRED_EVIDENCE": "Packaging box film sealing model/revision",
+      "STATUS": "UNAVAILABLE",
+      "VALUE": null
+    },
+    {
+      "APPLICABILITY": "coating_room",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "EQUIPMENT_CAPACITY",
+      "REQUIRED_EVIDENCE": "Rated/effective capacity and product/operating basis",
+      "STATUS": "UNAVAILABLE",
+      "VALUE": null
+    },
+    {
+      "APPLICABILITY": "coating_room",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "EQUIPMENT_COUNT",
+      "REQUIRED_EVIDENCE": "Derived only after selected capacity/runtime",
+      "STATUS": "UNAVAILABLE",
+      "VALUE": null
+    },
+    {
+      "APPLICABILITY": "coating_room",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "EQUIPMENT_ENVELOPE",
+      "REQUIRED_EVIDENCE": "Actual equipment geometry, not inferred from room area",
+      "STATUS": "UNAVAILABLE",
+      "VALUE": null
+    },
+    {
+      "APPLICABILITY": "coating_room",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "EFFECTIVE_EQUIPMENT_RUNTIME_HOURS",
+      "REQUIRED_EVIDENCE": "Independent of packaging 16h/day",
+      "STATUS": "OWNER_INPUT_REQUIRED",
+      "VALUE": null
+    },
+    {
+      "APPLICABILITY": "coating_room",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "FILM_SEALING_OPERATION_MAINTENANCE_MATERIAL_ENVELOPES",
+      "REQUIRED_EVIDENCE": "Infeed/outfeed, staff, service and unsealed pass-through",
+      "STATUS": "OWNER_INPUT_REQUIRED",
+      "VALUE": null
+    },
+    {
+      "APPLICABILITY": "all_rooms",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "CLEAR_SPACE_REFERENCE",
+      "REQUIRED_EVIDENCE": "Geometric/axis/gross/finished-clear basis and deductions",
+      "STATUS": "OWNER_INPUT_REQUIRED",
+      "VALUE": null
+    },
+    {
+      "APPLICABILITY": "all_rooms",
+      "CONTRACT_VERSION": "owner-factory-functional-inputs@1.0.0",
+      "FIELD_NAME": "FUNCTIONAL_LAYOUT_AND_CONFLICT_REVIEW",
+      "REQUIRED_EVIDENCE": "Personnel/material conflicts and applicable codes",
+      "STATUS": "PROFESSIONAL_REVIEW_REQUIRED",
+      "VALUE": null
+    }
+  ],
+  "not_blocking_offline_business_arithmetic": true,
+  "numeric_calibration_ready": false,
+  "reference_head": "f1b284f94f153153c8b67d5eb963bc7378056aaa",
+  "task": "V2_2_2_OWNER_FACTORY_FUNCTIONAL_INPUT_CONTRACT_R1"
+}

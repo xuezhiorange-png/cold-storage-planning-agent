@@ -1,0 +1,32 @@
+{
+  "field_migration": {
+    "ambiguity": "Could be read as gender-neutral zoning or as gender-based separate zones; do not infer from name alone",
+    "historical_field": "GENDER_INDEPENDENT_ZONING_PRESET",
+    "historical_value": false,
+    "migration_status": "PROPOSAL_ONLY_HISTORICAL_CONTRACT_UNCHANGED",
+    "owner_intent": "Do not preset separate male/female functional zones",
+    "professional_review": "HYGIENE_PRIVACY_AND_APPLICABLE_CODES_REQUIRED",
+    "proposed_field": "SEPARATE_GENDER_ZONES_PRESET",
+    "proposed_value": false
+  },
+  "identity": "owner-business-alias-map-proposal@1.0.0",
+  "ordered_business_roles": [
+    "SORTING_PACKAGING",
+    "SECONDARY_PRECOOLING",
+    "COATING_ROOM",
+    "FINISHED_GOODS"
+  ],
+  "ordered_p0_roles": [
+    "SORTING_PACKAGING",
+    "SECONDARY_PRECOOL",
+    "COATING",
+    "FINISHED_STORAGE"
+  ],
+  "roles": {
+    "COATING_ROOM": "COATING",
+    "FINISHED_GOODS": "FINISHED_STORAGE",
+    "SECONDARY_PRECOOLING": "SECONDARY_PRECOOL",
+    "SORTING_PACKAGING": "SORTING_PACKAGING"
+  },
+  "status": "EXPLICIT_OFFLINE_MAPPING_NOT_PRODUCTION_ENUM_CHANGE"
+}

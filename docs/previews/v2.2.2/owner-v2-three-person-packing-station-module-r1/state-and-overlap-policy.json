@@ -1,0 +1,27 @@
+{
+  "ACTIVE_STATE_POLICY": "Only simultaneously active geometry compared; equipment body never disappears; cleaning and maintenance geometry required",
+  "BOUNDARY_POLICY": "Positive area triggers component collision classification; flow-path boundary contact also recorded for review",
+  "HARD_COLLISIONS": [
+    "BODY_BODY",
+    "BODY_STANDING",
+    "STANDING_STANDING",
+    "BODY_FLOW_OR_CIRCULATION",
+    "STANDING_FLOW_OR_CIRCULATION"
+  ],
+  "POLICY_VERSION": "station-state-conflicts@1.0.0",
+  "REVIEW_REQUIRED": [
+    "REACH_INTERACTION",
+    "SERVICE_INTERACTION",
+    "SUPPLY_OUTFEED_OR_FLOW_INTERACTION",
+    "CIRCULATION_SHARING",
+    "PERSONNEL_MATERIAL_CROSSING"
+  ],
+  "SHIFT_CHANGE": "Duration remains missing; non-overlapping staff shifts do not imply zero cleaning or turnover time",
+  "STATES": [
+    "NORMAL_PRODUCTION",
+    "SHIFT_CHANGE",
+    "CLEANING",
+    "MAINTENANCE"
+  ],
+  "TIME_SHARING": "Non-simultaneous occupation is not clearance approval; source-bound conditions recorded, never override hard collision or grant engineering approval"
+}

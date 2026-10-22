@@ -1,0 +1,295 @@
+[
+  {
+    "BLOCKING_STAGE": "P1F",
+    "CURRENT_STATUS": "REFERENCE_ONLY",
+    "CURRENT_VALUE": 2.731,
+    "DOCUMENT_REVISION": "input_v3",
+    "EXPECTED_AUTHORITY": "P1F_PROJECT_INPUT",
+    "FIELD_NAME": "vehicle_width_m",
+    "PROJECT_ID": "fixture-project",
+    "REMEDIATION_ACTION": "取得项目真实资料并按原合同复核；本任务不修改Authority、不执行搜索",
+    "REQUIRED_EVIDENCE": "实测/车型规格书车宽、适用项目及批准选型记录",
+    "SOURCE_ID": "CANONICAL_REGRESSION_FIXTURE_NOT_SELECTED_TRUCK",
+    "SOURCE_SHA256": "d03ecae9e1e2808cba346eb83a39f853c8a4b366acc103669af1cf868363901e"
+  },
+  {
+    "BLOCKING_STAGE": "P1F",
+    "CURRENT_STATUS": "REFERENCE_ONLY",
+    "CURRENT_VALUE": 11.113,
+    "DOCUMENT_REVISION": "input_v3",
+    "EXPECTED_AUTHORITY": "P1F_PROJECT_INPUT",
+    "FIELD_NAME": "vehicle_length_m",
+    "PROJECT_ID": "fixture-project",
+    "REMEDIATION_ACTION": "取得项目真实资料并按原合同复核；本任务不修改Authority、不执行搜索",
+    "REQUIRED_EVIDENCE": "车型规格书车长、版本、参考点与项目适用性",
+    "SOURCE_ID": "CANONICAL_REGRESSION_FIXTURE_NOT_SELECTED_TRUCK",
+    "SOURCE_SHA256": "d03ecae9e1e2808cba346eb83a39f853c8a4b366acc103669af1cf868363901e"
+  },
+  {
+    "BLOCKING_STAGE": "SOURCE_ADMISSION",
+    "CURRENT_STATUS": "UNAVAILABLE",
+    "CURRENT_VALUE": null,
+    "DOCUMENT_REVISION": null,
+    "EXPECTED_AUTHORITY": "PROJECT_VEHICLE_EVIDENCE",
+    "FIELD_NAME": "vehicle_type_model_and_revision",
+    "PROJECT_ID": "fixture-project",
+    "REMEDIATION_ACTION": "取得项目真实资料并按原合同复核；本任务不修改Authority、不执行搜索",
+    "REQUIRED_EVIDENCE": "制造商、型号、修订和有来源的实际车辆尺寸",
+    "SOURCE_ID": null,
+    "SOURCE_SHA256": null
+  },
+  {
+    "BLOCKING_STAGE": "SOURCE_ADMISSION",
+    "CURRENT_STATUS": "UNAVAILABLE",
+    "CURRENT_VALUE": null,
+    "DOCUMENT_REVISION": null,
+    "EXPECTED_AUTHORITY": "P1F_R13_SOURCE_BYTES",
+    "FIELD_NAME": "project_vehicle_source_bytes",
+    "PROJECT_ID": "fixture-project",
+    "REMEDIATION_ACTION": "取得项目真实资料并按原合同复核；本任务不修改Authority、不执行搜索",
+    "REQUIRED_EVIDENCE": "原始设备/车辆资料字节与实际SHA；示例a/b摘要不可替代",
+    "SOURCE_ID": null,
+    "SOURCE_SHA256": null
+  },
+  {
+    "BLOCKING_STAGE": "SITE_BINDING",
+    "CURRENT_STATUS": "SOURCE_BYTES_VERIFIED",
+    "CURRENT_VALUE": {
+      "end": {
+        "x": "0",
+        "y": "33.701"
+      },
+      "start": {
+        "x": "0",
+        "y": "33.7"
+      }
+    },
+    "DOCUMENT_REVISION": "schema@1.0.0_NOT_SURVEY_REVISION",
+    "EXPECTED_AUTHORITY": "FROZEN_TYPED_SITE",
+    "FIELD_NAME": "site_truck_entrance_segment",
+    "PROJECT_ID": "fixture-project",
+    "REMEDIATION_ACTION": "取得项目真实资料并按原合同复核；本任务不修改Authority、不执行搜索",
+    "REQUIRED_EVIDENCE": "已有参考点定位线段；与实测开口之间的工程映射仍需确认",
+    "SOURCE_ID": "FROZEN_TYPED_SITE",
+    "SOURCE_SHA256": "8c01595a66899aa372225669d33da2f302976f335b597dd66a36f332ed5dd3dd"
+  },
+  {
+    "BLOCKING_STAGE": "TRUCK_INPUT",
+    "CURRENT_STATUS": "UNAVAILABLE",
+    "CURRENT_VALUE": null,
+    "DOCUMENT_REVISION": null,
+    "EXPECTED_AUTHORITY": "R13_ENTRANCE_CLEAR_OPENING_SEGMENT",
+    "FIELD_NAME": "measured_gate_clear_opening",
+    "PROJECT_ID": "fixture-project",
+    "REMEDIATION_ACTION": "取得项目真实资料并按原合同复核；本任务不修改Authority、不执行搜索",
+    "REQUIRED_EVIDENCE": "带坐标、净宽和现场测量依据的有效开口线段",
+    "SOURCE_ID": null,
+    "SOURCE_SHA256": null
+  },
+  {
+    "BLOCKING_STAGE": "TRUCK_INPUT",
+    "CURRENT_STATUS": "UNAVAILABLE",
+    "CURRENT_VALUE": null,
+    "DOCUMENT_REVISION": null,
+    "EXPECTED_AUTHORITY": "PROJECT_GATE_AND_TEMPLATE_FRAME",
+    "FIELD_NAME": "gate_clearance_and_inward_direction",
+    "PROJECT_ID": "fixture-project",
+    "REMEDIATION_ACTION": "取得项目真实资料并按原合同复核；本任务不修改Authority、不执行搜索",
+    "REQUIRED_EVIDENCE": "通行方向、限制及显式安全净空依据；不得默认半径或余量",
+    "SOURCE_ID": null,
+    "SOURCE_SHA256": null
+  },
+  {
+    "BLOCKING_STAGE": "P2B1",
+    "CURRENT_STATUS": "UNAVAILABLE",
+    "CURRENT_VALUE": null,
+    "DOCUMENT_REVISION": null,
+    "EXPECTED_AUTHORITY": "P2B1_PROJECT_REQUIREMENT",
+    "FIELD_NAME": "required_maneuver_classes",
+    "PROJECT_ID": "fixture-project",
+    "REMEDIATION_ACTION": "取得项目真实资料并按原合同复核；本任务不修改Authority、不执行搜索",
+    "REQUIRED_EVIDENCE": "声明本项目需要的类别；P2D靠台要求DOCK_REVERSE，不能无依据强制全部三类",
+    "SOURCE_ID": null,
+    "SOURCE_SHA256": null
+  },
+  {
+    "BLOCKING_STAGE": "P2D",
+    "CURRENT_STATUS": "UNAVAILABLE",
+    "CURRENT_VALUE": null,
+    "DOCUMENT_REVISION": null,
+    "EXPECTED_AUTHORITY": "P1F_BOUND_P2B1_OPTION_C",
+    "FIELD_NAME": "bound_maneuver_project_input",
+    "PROJECT_ID": "fixture-project",
+    "REMEDIATION_ACTION": "取得项目真实资料并按原合同复核；本任务不修改Authority、不执行搜索",
+    "REQUIRED_EVIDENCE": "与项目和车宽车长一致的完整模板、姿态及绑定Hash",
+    "SOURCE_ID": null,
+    "SOURCE_SHA256": null
+  },
+  {
+    "BLOCKING_STAGE": "SOURCE_ADMISSION",
+    "CURRENT_STATUS": "UNAVAILABLE",
+    "CURRENT_VALUE": null,
+    "DOCUMENT_REVISION": null,
+    "EXPECTED_AUTHORITY": "P2B1_R13_SOURCE_PROVENANCE",
+    "FIELD_NAME": "maneuver_source_bytes_and_revision",
+    "PROJECT_ID": "fixture-project",
+    "REMEDIATION_ACTION": "取得项目真实资料并按原合同复核；本任务不修改Authority、不执行搜索",
+    "REQUIRED_EVIDENCE": "直行/所需转弯/倒靠模板及完整扫掠包络、图号、修订、来源字节",
+    "SOURCE_ID": null,
+    "SOURCE_SHA256": null
+  },
+  {
+    "BLOCKING_STAGE": "P2D_CANDIDATE_BINDING",
+    "CURRENT_STATUS": "INPUT_VALIDATED_NOT_ROUTE_PASS",
+    "CURRENT_VALUE": "PER_CANDIDATE_SEE_FACE_MATRIX",
+    "DOCUMENT_REVISION": null,
+    "EXPECTED_AUTHORITY": "P2C_SELECTED_SHIPPING_LONG_EDGE",
+    "FIELD_NAME": "actual_shipping_loading_face",
+    "PROJECT_ID": "fixture-project",
+    "REMEDIATION_ACTION": "取得项目真实资料并按原合同复核；本任务不修改Authority、不执行搜索",
+    "REQUIRED_EVIDENCE": "当前长边几何可复核；实际装卸面确认与候选身份需逐套批准",
+    "SOURCE_ID": null,
+    "SOURCE_SHA256": null
+  },
+  {
+    "BLOCKING_STAGE": "ENGINEERING_REVIEW",
+    "CURRENT_STATUS": "PROJECT_APPROVAL_REQUIRED",
+    "CURRENT_VALUE": null,
+    "DOCUMENT_REVISION": null,
+    "EXPECTED_AUTHORITY": "PROJECT_LOADING_INTERFACE",
+    "FIELD_NAME": "dock_face_project_approval",
+    "PROJECT_ID": "fixture-project",
+    "REMEDIATION_ACTION": "取得项目真实资料并按原合同复核；本任务不修改Authority、不执行搜索",
+    "REQUIRED_EVIDENCE": "装卸平台与车辆到达姿态、实际接口设计确认",
+    "SOURCE_ID": null,
+    "SOURCE_SHA256": null
+  },
+  {
+    "BLOCKING_STAGE": "P2D",
+    "CURRENT_STATUS": "SOURCE_BYTES_VERIFIED",
+    "CURRENT_VALUE": [
+      {
+        "footprint": {
+          "points": [
+            {
+              "x": "0",
+              "y": "8.701"
+            },
+            {
+              "x": "14.699",
+              "y": "8.701"
+            },
+            {
+              "x": "14.699",
+              "y": "18.75"
+            },
+            {
+              "x": "0",
+              "y": "18.75"
+            }
+          ],
+          "type": "polygon"
+        },
+        "hard": true,
+        "kind": "NO_BUILD_ZONE"
+      },
+      {
+        "footprint": {
+          "points": [
+            {
+              "x": "41.718",
+              "y": "27"
+            },
+            {
+              "x": "74.999",
+              "y": "27"
+            },
+            {
+              "x": "74.999",
+              "y": "39.385"
+            },
+            {
+              "x": "41.718",
+              "y": "39.385"
+            }
+          ],
+          "type": "polygon"
+        },
+        "hard": true,
+        "kind": "NO_BUILD_ZONE"
+      },
+      {
+        "footprint": {
+          "points": [
+            {
+              "x": "41.718",
+              "y": "39.386"
+            },
+            {
+              "x": "74.999",
+              "y": "39.386"
+            },
+            {
+              "x": "74.999",
+              "y": "53.886"
+            },
+            {
+              "x": "41.718",
+              "y": "53.886"
+            }
+          ],
+          "type": "polygon"
+        },
+        "hard": true,
+        "kind": "NO_BUILD_ZONE"
+      }
+    ],
+    "DOCUMENT_REVISION": "schema@1.0.0_NOT_SURVEY_REVISION",
+    "EXPECTED_AUTHORITY": "TYPED_SITE_FULL_HARD_OBSTACLES",
+    "FIELD_NAME": "site_obstacles",
+    "PROJECT_ID": "fixture-project",
+    "REMEDIATION_ACTION": "取得项目真实资料并按原合同复核；本任务不修改Authority、不执行搜索",
+    "REQUIRED_EVIDENCE": "冻结场地三块禁建障碍原样保留；不等同于道路可通行批准",
+    "SOURCE_ID": "FROZEN_TYPED_SITE",
+    "SOURCE_SHA256": "8c01595a66899aa372225669d33da2f302976f335b597dd66a36f332ed5dd3dd"
+  },
+  {
+    "BLOCKING_STAGE": "ENGINEERING_REVIEW",
+    "CURRENT_STATUS": "UNAVAILABLE",
+    "CURRENT_VALUE": null,
+    "DOCUMENT_REVISION": null,
+    "EXPECTED_AUTHORITY": "PROJECT_SITE_ENGINEERING",
+    "FIELD_NAME": "approved_truck_road_use_area",
+    "PROJECT_ID": "fixture-project",
+    "REMEDIATION_ACTION": "取得项目真实资料并按原合同复核；本任务不修改Authority、不执行搜索",
+    "REQUIRED_EVIDENCE": "道路用途、承载/通行限制及可用区域；buildable不等于批准行车道路",
+    "SOURCE_ID": null,
+    "SOURCE_SHA256": null
+  },
+  {
+    "BLOCKING_STAGE": "P2D",
+    "CURRENT_STATUS": "ENGINEERING_REVIEW_REQUIRED",
+    "CURRENT_VALUE": null,
+    "DOCUMENT_REVISION": null,
+    "EXPECTED_AUTHORITY": "P1_P2D_PERSONNEL_TRUCK_POLICY",
+    "FIELD_NAME": "personnel_truck_conflict_review",
+    "PROJECT_ID": "fixture-project",
+    "REMEDIATION_ACTION": "取得项目真实资料并按原合同复核；本任务不修改Authority、不执行搜索",
+    "REQUIRED_EVIDENCE": "结合该候选人员通道和实际Truck包络复核，不跨候选复制",
+    "SOURCE_ID": null,
+    "SOURCE_SHA256": null
+  },
+  {
+    "BLOCKING_STAGE": "ENGINEERING_REVIEW",
+    "CURRENT_STATUS": "PROJECT_APPROVAL_REQUIRED",
+    "CURRENT_VALUE": null,
+    "DOCUMENT_REVISION": null,
+    "EXPECTED_AUTHORITY": "EXISTING_PROJECT_APPROVAL_AUTHORITY",
+    "FIELD_NAME": "template_approval_and_review_identity",
+    "PROJECT_ID": "fixture-project",
+    "REMEDIATION_ACTION": "取得项目真实资料并按原合同复核；本任务不修改Authority、不执行搜索",
+    "REQUIRED_EVIDENCE": "审批记录及专业审核身份；Hash或调用方APPROVED不证明审批有效",
+    "SOURCE_ID": null,
+    "SOURCE_SHA256": null
+  }
+]

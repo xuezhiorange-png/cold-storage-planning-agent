@@ -203,12 +203,15 @@ class GateTests(unittest.TestCase):
             "classify-changes": {"result": "success", "outputs": Plan(scope, "test").outputs()},
             **{
                 job: {"result": "success" if job in SCOPE_JOBS[scope] else "skipped"}
-                for job in (*REGULAR_JOBS, *MANUAL_JOBS)
+                for job in (*REGULAR_JOBS, *MANUAL_JOBS, "fast-checks")
             },
         }
 
     def test_each_scope_allows_only_expected_skips(self) -> None:
         for scope in SCOPE_JOBS:
+            if scope == "STAGE_B_FAST":
+                self.assertTrue(gate_errors(self.needs(scope)))
+                continue
             self.assertEqual(gate_errors(self.needs(scope)), [])
 
     def test_every_required_job_failure_cancel_or_skip_fails_gate(self) -> None:
@@ -256,7 +259,11 @@ class WorkflowTests(unittest.TestCase):
             ["git", "show", f"{BASE}:.github/workflows/ci.yml"], cwd=ROOT, text=True
         )
         new = (ROOT / ".github/workflows/ci.yml").read_text()
-        self.assertEqual(old.split("\njobs:\n")[0], new.split("\njobs:\n")[0])
+        # Owner changed automatic triggers; manual input contracts are frozen.
+        self.assertEqual(
+            old.split("  workflow_dispatch:", 1)[1].split("\njobs:\n")[0],
+            new.split("  workflow_dispatch:", 1)[1].split("\njobs:\n")[0],
+        )
         before, after = job_blocks(old), job_blocks(new)
         for name in MANUAL_JOBS:
             with self.subTest(job=name):

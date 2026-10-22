@@ -1,0 +1,33 @@
+{
+  "AccessModel_line": 407,
+  "GlobalModel_line": 139,
+  "cause": "Nominal integer dimensions begin at1mm; product area lower bound; rotation/site/interfaces restrict rest. Function-specific use constraints absent.",
+  "constraint_inheritance": "AccessModel inherits GlobalModel and calls super().__init__; this task only inspects source",
+  "files": {
+    "backend/src/cold_storage/modules/layout/application/dimension_handoff.py": "9a8711299f6b9a41c077635224cfdf78af1cffde0ae530381736b41bd15644b6",
+    "backend/src/cold_storage/modules/layout/application/layout_authority_binding.py": "7406812469e2893b8e8c9af0d0599951853fffb200e2ed821e8b6d21a9d6616e",
+    "backend/src/cold_storage/modules/layout/domain/dimension_handoff.py": "bfff2f4f52dcdb4674aed09782875599bccead2f6a587c693000615ef29a931d",
+    "backend/src/cold_storage/modules/layout/domain/dimensioning.py": "a853f4313851b788cd829762b159c1a2fa74cf881c112e659533fcc4993d54bd",
+    "backend/src/cold_storage/modules/layout/domain/placement.py": "2355d514349ca26d90f22cd66b86c904f2503e258058a142dcee0e1ef9ed92bf",
+    "backend/src/cold_storage/modules/layout/infrastructure/global_cp_sat_model.py": "eb20621dd37584f08d81b9e8d44da9f18e053b7f42b928a9d5d613b5ab9b72ed",
+    "backend/tests/unit/test_v22_p1d3_hybrid_handoff.py": "44462dd450d65d384becaf197e8e563865b7c5ed72bde9e5db100b69236346bc",
+    "docs/architecture/ADR-047-process-flow-layout-regularity-authority.md": "aa2d5ab8cf6c6ca59e371d02740efb61cfdd9a1b53ec4577e7592daab0041e7d",
+    "docs/architecture/ADR-049-whole-building-group-band-composition.md": "b258afa0facf9b4e43957a86de7443f117356ed4e0b6809e629666213bea6a8c",
+    "docs/architecture/ADR-050-structural-hard-interface-projection.md": "0f1dde1020efca68edfebd604acaf5dd50796b8f1e4f929bd19f5e78af95075a",
+    "docs/tasks/V2_2_2-P0-process-flow-layout-regularity-contract.md": "0fba1824417f9a91496b70bd568ad6441b83f387171762dc15da32853ee253b5",
+    "docs/tasks/V2_2_2-P0C-golden-layout-abstraction-and-calibration.md": "ee8159ff31a15406bd071326578b30ddf1608867bba2f0e93412d103564090b0",
+    "docs/tasks/V2_2_2-multi-structural-construction-stage-b.md": "b231e63a4034ec182e99866fc444e51d489855259a645271fa8de0101ee4d433",
+    "docs/tasks/V2_2_2-version-plan.md": "cc2f6071c77b5d594bd1909d4964c910abcb344bb1198a859734d513dccf1880"
+  },
+  "guard_fields": [
+    "aspect_ratio_bounds",
+    "min_width_m",
+    "min_depth_m",
+    "max_width_m",
+    "max_depth_m"
+  ],
+  "guard_preserved": true,
+  "production_code_imported": false,
+  "reference_head": "78f42b3956d3569e5a887fb578ce5e773275cc5b",
+  "unsupported_rule_guard_line": 176
+}

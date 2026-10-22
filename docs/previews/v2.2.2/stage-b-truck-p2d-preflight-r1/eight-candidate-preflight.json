@@ -1,0 +1,1216 @@
+{
+  "CANDIDATES": [
+    {
+      "CANDIDATE_PREFLIGHT_STATUS": "PROJECT_INPUT_BLOCKED",
+      "CANDIDATE_TRUCK_CONTEXT_HASH": "sha256:ab7a983d60ce2bbf3f004d3e6bcb4d9afc443675ac00312b3cdc9457b8c56d07",
+      "HISTORICAL_TRUCK_STATE": "PROJECT_INPUT_BLOCKED",
+      "LOADING_FACE_BINDING_STATUS": "VALID_HISTORICAL_GEOMETRY_ONLY",
+      "LOADING_FACE_FACTS": {
+        "FACE_HASH": "sha256:1673dba42d0ea80903c7d5b43790d6c25a4c528e1ac9e842cfa69d946545426f",
+        "LOADING_FACE": {
+          "end": {
+            "x": "32.4",
+            "y": "40.772"
+          },
+          "start": {
+            "x": "32.4",
+            "y": "33.079"
+          }
+        },
+        "LOADING_FACE_SIDE": "LEFT_LONG_EDGE",
+        "P2D_SELECTED_LONG_EDGE_BINDING": "VALID_HISTORICAL_GEOMETRY_ONLY",
+        "PROJECT_DOCK_APPROVAL": "UNAVAILABLE",
+        "R13_FULL_LONG_EDGE_MATCH": true,
+        "SHIPPING": {
+          "actual_area_m2": "50.0045",
+          "depth_m": "7.693",
+          "rotation_deg": 0,
+          "width_m": "6.5",
+          "x": "32.4",
+          "y": "33.079",
+          "zone_code": "shipping_channel"
+        }
+      },
+      "MISSING_PROJECT_INPUTS": [
+        "Actual project vehicle/model and source bytes",
+        "Measured gate opening and clearance basis",
+        "Project-bound required maneuver geometry and source/revision records",
+        "Dock approval and personnel/truck engineering review"
+      ],
+      "NON_TRUCK_EVIDENCE_MODE": "SEALED_RESULT_READBACK_NOT_REROUTED",
+      "P2D_FULL_PASS": false,
+      "REASON_CODES": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+        "P1F_REFERENCE_COMPLETENESS_NOT_SOURCE_VERIFICATION",
+        "MEASURED_TRUCK_GATE_OPENING_UNAVAILABLE",
+        "PROJECT_MANEUVER_SOURCE_BYTES_AND_APPROVAL_UNAVAILABLE",
+        "CANDIDATE_SPECIFIC_TRUCK_VALIDATION_NOT_EXECUTED"
+      ],
+      "TRUCK_BINDING_STATUS": "NO_ADMITTED_MANEUVER_BINDING",
+      "TRUCK_ENTRANCE_SEMANTICS": {
+        "AUTOMATIC_SEGMENT_ENLARGEMENT_ALLOWED": false,
+        "AXIS_ALIGNED": true,
+        "LENGTH_M": "0.001",
+        "LENGTH_MM": 1,
+        "MEASURED_GATE_CLEAR_OPENING": null,
+        "MEASURED_GATE_STATUS": "UNAVAILABLE",
+        "PHYSICAL_GATE_SEMANTICS": "UNCONFIRMED_UPSTREAM_INPUT_NOT_MEASURED_OPENING_PROOF",
+        "R13_CLEAR_OPENING_SEGMENT": null,
+        "RUNTIME_SEMANTICS": "ENTRY_REFERENCE_POINT_SEARCH_LOCUS",
+        "SITE_TRUCK_ENTRANCE_SEGMENT": {
+          "end": {
+            "x": "0",
+            "y": "33.701"
+          },
+          "start": {
+            "x": "0",
+            "y": "33.7"
+          }
+        }
+      },
+      "TRUCK_SEARCH_READY": false,
+      "candidate_canonical_hash": "sha256:a1c12a164a0aa5232f33e575bdcda6caacbe305f4767b0b2c302213ab476153c",
+      "candidate_id": "multi-solution-validation-01/candidate-01",
+      "geometry_hash": "sha256:48c48e4514a812132c2bdec1f2863f1c62162ccb5c95fe366ab7aa84ee439525",
+      "must_pass_count": 7,
+      "non_truck_access_pass_count": 11,
+      "non_truck_access_results": [
+        {
+          "canonical_hash": "sha256:660ef9f52753e2af8753304fb855505cefa55843d95c2ebf02b3889cd54ffe4d",
+          "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:8ee945595d2f40e4011022d9ddbb7d8564e541994d5fe606471212b1c8eff798",
+          "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:0d7f27b8c78494965982489029b80fcab70e79df048ede91237c549df3eba7cf",
+          "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:00326894fa90e3a4f2e6e1161006d86c3135f3fd1cfc2dcf3a43969c0998c340",
+          "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:0f60c9453357eccbd35a78d99482d0b6a64d420ef2c94ecac6f67bb24f8e2cc3",
+          "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:6fc55d9ae846ddb6d58b7c4a773ca264c6295ac06709fc9400f7562c9490fe04",
+          "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:7d8b972339ce5cc0ef3792bb33020a05f600b959e7184af6a84d7bae4e5e552a",
+          "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:e7568c26806ace78af89a2cf3e8ea6eade7c7f9346dc9c463ff389a6fad5cfb6",
+          "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:580ff26a3aa89002f8d7a605dd330380749ebc2ce7487a5929b2712fb9c70180",
+          "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:8cf2f6d303f3c14f2c7ae93cbe5f99300e8a706e9c71c8e177054a241ca40f8e",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:34753cf0d0cc4d81fabcb80ef104db2dc7b2fb616e468ad0c3992082a36d70ed",
+          "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+          "status": "PASS"
+        }
+      ],
+      "p2_complete": false,
+      "source_application_hash": "sha256:c6f2316251caa3c6505b91be652c9bb5e5588124296f7cf1551c9944ee581fa8",
+      "source_candidate_sha256": "db6da34efa1161aab3225d6d9bb6949d2783914a98ca8fe34cb70dba288bcf22",
+      "source_p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+      "source_truck_maneuver_binding_hash": null,
+      "truck_route_codes": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED"
+      ],
+      "truck_route_status": "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+      "truck_search_provenance": {
+        "node_budget": 20000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": false,
+        "template_reuse_allowed": false,
+        "visited_nodes": 0
+      },
+      "zone_count": 12
+    },
+    {
+      "CANDIDATE_PREFLIGHT_STATUS": "PROJECT_INPUT_BLOCKED",
+      "CANDIDATE_TRUCK_CONTEXT_HASH": "sha256:e2bc33ed8520b4f520a7c2a80d0ee86c42effb36442a22fbec412c21c79c5426",
+      "HISTORICAL_TRUCK_STATE": "PROJECT_INPUT_BLOCKED",
+      "LOADING_FACE_BINDING_STATUS": "VALID_HISTORICAL_GEOMETRY_ONLY",
+      "LOADING_FACE_FACTS": {
+        "FACE_HASH": "sha256:eda7f6c8936c051673198b87b4b6bc58dcad969e23456fbb10186ba740564a52",
+        "LOADING_FACE": {
+          "end": {
+            "x": "32.4",
+            "y": "40.771"
+          },
+          "start": {
+            "x": "32.4",
+            "y": "33.078"
+          }
+        },
+        "LOADING_FACE_SIDE": "LEFT_LONG_EDGE",
+        "P2D_SELECTED_LONG_EDGE_BINDING": "VALID_HISTORICAL_GEOMETRY_ONLY",
+        "PROJECT_DOCK_APPROVAL": "UNAVAILABLE",
+        "R13_FULL_LONG_EDGE_MATCH": true,
+        "SHIPPING": {
+          "actual_area_m2": "50.0045",
+          "depth_m": "7.693",
+          "rotation_deg": 0,
+          "width_m": "6.5",
+          "x": "32.4",
+          "y": "33.078",
+          "zone_code": "shipping_channel"
+        }
+      },
+      "MISSING_PROJECT_INPUTS": [
+        "Actual project vehicle/model and source bytes",
+        "Measured gate opening and clearance basis",
+        "Project-bound required maneuver geometry and source/revision records",
+        "Dock approval and personnel/truck engineering review"
+      ],
+      "NON_TRUCK_EVIDENCE_MODE": "SEALED_RESULT_READBACK_NOT_REROUTED",
+      "P2D_FULL_PASS": false,
+      "REASON_CODES": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+        "P1F_REFERENCE_COMPLETENESS_NOT_SOURCE_VERIFICATION",
+        "MEASURED_TRUCK_GATE_OPENING_UNAVAILABLE",
+        "PROJECT_MANEUVER_SOURCE_BYTES_AND_APPROVAL_UNAVAILABLE",
+        "CANDIDATE_SPECIFIC_TRUCK_VALIDATION_NOT_EXECUTED"
+      ],
+      "TRUCK_BINDING_STATUS": "NO_ADMITTED_MANEUVER_BINDING",
+      "TRUCK_ENTRANCE_SEMANTICS": {
+        "AUTOMATIC_SEGMENT_ENLARGEMENT_ALLOWED": false,
+        "AXIS_ALIGNED": true,
+        "LENGTH_M": "0.001",
+        "LENGTH_MM": 1,
+        "MEASURED_GATE_CLEAR_OPENING": null,
+        "MEASURED_GATE_STATUS": "UNAVAILABLE",
+        "PHYSICAL_GATE_SEMANTICS": "UNCONFIRMED_UPSTREAM_INPUT_NOT_MEASURED_OPENING_PROOF",
+        "R13_CLEAR_OPENING_SEGMENT": null,
+        "RUNTIME_SEMANTICS": "ENTRY_REFERENCE_POINT_SEARCH_LOCUS",
+        "SITE_TRUCK_ENTRANCE_SEGMENT": {
+          "end": {
+            "x": "0",
+            "y": "33.701"
+          },
+          "start": {
+            "x": "0",
+            "y": "33.7"
+          }
+        }
+      },
+      "TRUCK_SEARCH_READY": false,
+      "candidate_canonical_hash": "sha256:69d12de832d59bda4748899af1ea0b987a473a1f7f9910e43b579a79fdba7784",
+      "candidate_id": "multi-solution-validation-01/candidate-02",
+      "geometry_hash": "sha256:01dc0a46e213c7e92071ca1d88d7482d7cf829cd2411965ef3a323d1ca9095be",
+      "must_pass_count": 7,
+      "non_truck_access_pass_count": 11,
+      "non_truck_access_results": [
+        {
+          "canonical_hash": "sha256:538b6bcbce0b50f84c2f7fdee044d8f8c549a9f3de840cfb977a34fe296f9700",
+          "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:348900aa0649a29e5bd0199bad8b47bd1b623e8b4178a27ebdd99e39c3913a01",
+          "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:e2d743d3886d960d3fcc86c15032d81d21547e1af0cc8db2bcad6f101b930d3f",
+          "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:5e250d5ef4695a1fd3c854cc4f3781893ac0320787c31fae84a61d551e1d1860",
+          "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:921819216daa9781edf57bbba3d81b586457877554e96a9df058f02538b17ad9",
+          "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:4f97bcc7c8086d44e52e1718b0123d02b421767effcf0082e439a4010c1d12c0",
+          "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:962177be2d8280e7fa158f64cf50186c5724160b21a3fba949b57d65287d0851",
+          "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:048578482b5662fa6071ae0c1346655c6de622768c1496fb03b0d042cd705f5d",
+          "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:c4195640279a445dac50c693d93ad3243c5f03c2c7a39d78586b1a9582c75d46",
+          "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:05c1f5fd4da30d6a77173a3165278272ebd9a12555bb7a4ac7b271bb3005f6d8",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:183785c7c4913c27ee853feb75a5e17e260ce67678d854fc91a228b31d902df6",
+          "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+          "status": "PASS"
+        }
+      ],
+      "p2_complete": false,
+      "source_application_hash": "sha256:84cfe6c8224928739993ccda150578f87cdd7c526990a91c9f3d520052bdffd9",
+      "source_candidate_sha256": "6272e8ab1c31e6dd90cf12ceebb1b3fa8f8621a4912c5c926c48aee25496253b",
+      "source_p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+      "source_truck_maneuver_binding_hash": null,
+      "truck_route_codes": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED"
+      ],
+      "truck_route_status": "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+      "truck_search_provenance": {
+        "node_budget": 20000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": false,
+        "template_reuse_allowed": false,
+        "visited_nodes": 0
+      },
+      "zone_count": 12
+    },
+    {
+      "CANDIDATE_PREFLIGHT_STATUS": "PROJECT_INPUT_BLOCKED",
+      "CANDIDATE_TRUCK_CONTEXT_HASH": "sha256:0fcef70e23ebb1b74a927dfb475e0f8aed92ded00097cf354757b4910f6b5a3b",
+      "HISTORICAL_TRUCK_STATE": "PROJECT_INPUT_BLOCKED",
+      "LOADING_FACE_BINDING_STATUS": "VALID_HISTORICAL_GEOMETRY_ONLY",
+      "LOADING_FACE_FACTS": {
+        "FACE_HASH": "sha256:76f41865e75d4be7144439fe3fe3aaeba98f5a55fb98571d4cf330f69625bda5",
+        "LOADING_FACE": {
+          "end": {
+            "x": "2.817",
+            "y": "38.194"
+          },
+          "start": {
+            "x": "2.817",
+            "y": "30.501"
+          }
+        },
+        "LOADING_FACE_SIDE": "LEFT_LONG_EDGE",
+        "P2D_SELECTED_LONG_EDGE_BINDING": "VALID_HISTORICAL_GEOMETRY_ONLY",
+        "PROJECT_DOCK_APPROVAL": "UNAVAILABLE",
+        "R13_FULL_LONG_EDGE_MATCH": true,
+        "SHIPPING": {
+          "actual_area_m2": "50.0045",
+          "depth_m": "7.693",
+          "rotation_deg": 0,
+          "width_m": "6.5",
+          "x": "2.817",
+          "y": "30.501",
+          "zone_code": "shipping_channel"
+        }
+      },
+      "MISSING_PROJECT_INPUTS": [
+        "Actual project vehicle/model and source bytes",
+        "Measured gate opening and clearance basis",
+        "Project-bound required maneuver geometry and source/revision records",
+        "Dock approval and personnel/truck engineering review"
+      ],
+      "NON_TRUCK_EVIDENCE_MODE": "SEALED_RESULT_READBACK_NOT_REROUTED",
+      "P2D_FULL_PASS": false,
+      "REASON_CODES": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+        "P1F_REFERENCE_COMPLETENESS_NOT_SOURCE_VERIFICATION",
+        "MEASURED_TRUCK_GATE_OPENING_UNAVAILABLE",
+        "PROJECT_MANEUVER_SOURCE_BYTES_AND_APPROVAL_UNAVAILABLE",
+        "CANDIDATE_SPECIFIC_TRUCK_VALIDATION_NOT_EXECUTED"
+      ],
+      "TRUCK_BINDING_STATUS": "NO_ADMITTED_MANEUVER_BINDING",
+      "TRUCK_ENTRANCE_SEMANTICS": {
+        "AUTOMATIC_SEGMENT_ENLARGEMENT_ALLOWED": false,
+        "AXIS_ALIGNED": true,
+        "LENGTH_M": "0.001",
+        "LENGTH_MM": 1,
+        "MEASURED_GATE_CLEAR_OPENING": null,
+        "MEASURED_GATE_STATUS": "UNAVAILABLE",
+        "PHYSICAL_GATE_SEMANTICS": "UNCONFIRMED_UPSTREAM_INPUT_NOT_MEASURED_OPENING_PROOF",
+        "R13_CLEAR_OPENING_SEGMENT": null,
+        "RUNTIME_SEMANTICS": "ENTRY_REFERENCE_POINT_SEARCH_LOCUS",
+        "SITE_TRUCK_ENTRANCE_SEGMENT": {
+          "end": {
+            "x": "0",
+            "y": "33.701"
+          },
+          "start": {
+            "x": "0",
+            "y": "33.7"
+          }
+        }
+      },
+      "TRUCK_SEARCH_READY": false,
+      "candidate_canonical_hash": "sha256:fc408787c9d3e2037d6e82c01c84dca564a0b15573ec88a092f93215c7f7e501",
+      "candidate_id": "guided-fair-validation-02/candidate-01",
+      "geometry_hash": "sha256:a8873398fbf9fa257dc6c4633b7e0137e4f16fc85f4b42aeaa5d9ba1d82736d6",
+      "must_pass_count": 7,
+      "non_truck_access_pass_count": 11,
+      "non_truck_access_results": [
+        {
+          "canonical_hash": "sha256:89f3ba142bcd93773622a7dab655beced4b2a4252efaf9d4a54351e98e1c272d",
+          "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:040a39b21b4e90d45208bb82a7939f31c81aa754d1ef75ecce4a42cb5ead0bd9",
+          "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:7d507c17de8a5bd079ce6d1ee0ec84fe2c431c3de131a78b5dc6fc238cf56df1",
+          "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:6b014cc125714a61e17af2d05764865262e016312009bb1bf84d2d33139167b2",
+          "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:351c3ffad95e4831e1b9ecd802e6bc52e5866f9d6a7f8fee0473b63431f4ba15",
+          "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:9b35de335a8c638af164adc29e5c18e65650bb2dd572a20d004045af460857c5",
+          "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:3503a5f71ca1404042c6baf3bf7c1c276dd1e53d1cccbdb2057a83853ddf1e74",
+          "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:aba0164c55a90b7e7b5b200e7f75ee30f9d83040ec340239ba09308b8541bb33",
+          "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:eaaae68e3d3a5520eee34f28316e132a592a0dbfc8c0443250971d45e5058595",
+          "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:3d9d43f93516101a2a0bc2b41abf6a3f1cf41f48ef5243ffcf17ff115f8c0778",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:70dd7dd770c096dd9e2d54efec0cb9afb5cf6d913375651a5049f5bb3484ec99",
+          "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+          "status": "PASS"
+        }
+      ],
+      "p2_complete": false,
+      "source_application_hash": "sha256:b805c1392e2398ad21ce1c4dd44a7831e005cb3f0feb21c3b35bfcc28d0af8b6",
+      "source_candidate_sha256": "42b20791862454a346e51d0fc4237e27824463708159c2b923db616072ca2ba1",
+      "source_p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+      "source_truck_maneuver_binding_hash": null,
+      "truck_route_codes": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED"
+      ],
+      "truck_route_status": "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+      "truck_search_provenance": {
+        "node_budget": 20000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": false,
+        "template_reuse_allowed": false,
+        "visited_nodes": 0
+      },
+      "zone_count": 12
+    },
+    {
+      "CANDIDATE_PREFLIGHT_STATUS": "PROJECT_INPUT_BLOCKED",
+      "CANDIDATE_TRUCK_CONTEXT_HASH": "sha256:cbab727e9f82a3764fbbe06d457521309037e6ce054218c7fb216702ae6e3b3a",
+      "HISTORICAL_TRUCK_STATE": "PROJECT_INPUT_BLOCKED",
+      "LOADING_FACE_BINDING_STATUS": "VALID_HISTORICAL_GEOMETRY_ONLY",
+      "LOADING_FACE_FACTS": {
+        "FACE_HASH": "sha256:a3361dd72d7f1de439c4f9a0a42a89965d4633e56e9dedb1e54e1b7f0b02d10e",
+        "LOADING_FACE": {
+          "end": {
+            "x": "0",
+            "y": "47.077"
+          },
+          "start": {
+            "x": "0",
+            "y": "39.384"
+          }
+        },
+        "LOADING_FACE_SIDE": "LEFT_LONG_EDGE",
+        "P2D_SELECTED_LONG_EDGE_BINDING": "VALID_HISTORICAL_GEOMETRY_ONLY",
+        "PROJECT_DOCK_APPROVAL": "UNAVAILABLE",
+        "R13_FULL_LONG_EDGE_MATCH": true,
+        "SHIPPING": {
+          "actual_area_m2": "50.0045",
+          "depth_m": "7.693",
+          "rotation_deg": 0,
+          "width_m": "6.5",
+          "x": "0",
+          "y": "39.384",
+          "zone_code": "shipping_channel"
+        }
+      },
+      "MISSING_PROJECT_INPUTS": [
+        "Actual project vehicle/model and source bytes",
+        "Measured gate opening and clearance basis",
+        "Project-bound required maneuver geometry and source/revision records",
+        "Dock approval and personnel/truck engineering review"
+      ],
+      "NON_TRUCK_EVIDENCE_MODE": "SEALED_RESULT_READBACK_NOT_REROUTED",
+      "P2D_FULL_PASS": false,
+      "REASON_CODES": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+        "P1F_REFERENCE_COMPLETENESS_NOT_SOURCE_VERIFICATION",
+        "MEASURED_TRUCK_GATE_OPENING_UNAVAILABLE",
+        "PROJECT_MANEUVER_SOURCE_BYTES_AND_APPROVAL_UNAVAILABLE",
+        "CANDIDATE_SPECIFIC_TRUCK_VALIDATION_NOT_EXECUTED"
+      ],
+      "TRUCK_BINDING_STATUS": "NO_ADMITTED_MANEUVER_BINDING",
+      "TRUCK_ENTRANCE_SEMANTICS": {
+        "AUTOMATIC_SEGMENT_ENLARGEMENT_ALLOWED": false,
+        "AXIS_ALIGNED": true,
+        "LENGTH_M": "0.001",
+        "LENGTH_MM": 1,
+        "MEASURED_GATE_CLEAR_OPENING": null,
+        "MEASURED_GATE_STATUS": "UNAVAILABLE",
+        "PHYSICAL_GATE_SEMANTICS": "UNCONFIRMED_UPSTREAM_INPUT_NOT_MEASURED_OPENING_PROOF",
+        "R13_CLEAR_OPENING_SEGMENT": null,
+        "RUNTIME_SEMANTICS": "ENTRY_REFERENCE_POINT_SEARCH_LOCUS",
+        "SITE_TRUCK_ENTRANCE_SEGMENT": {
+          "end": {
+            "x": "0",
+            "y": "33.701"
+          },
+          "start": {
+            "x": "0",
+            "y": "33.7"
+          }
+        }
+      },
+      "TRUCK_SEARCH_READY": false,
+      "candidate_canonical_hash": "sha256:821d3f8987a99c6730e66e2e648113b8af193e197fe017f8859c4156070c9e24",
+      "candidate_id": "guided-fair-validation-02/candidate-02",
+      "geometry_hash": "sha256:b60a8b043353ec2aed3bd26f71791c1e5f11e8041ae98ceb0fbdfdd75e2c60ae",
+      "must_pass_count": 7,
+      "non_truck_access_pass_count": 11,
+      "non_truck_access_results": [
+        {
+          "canonical_hash": "sha256:2749b3191da4bb8558fdb6f96886681900b3c86eed35595d4e8a8721e47d6cbb",
+          "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:1e7cf2d4feabe6e47e597571c1321bb18a754d759c9fd5fc37948205875fdf19",
+          "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:dd9db82162a5507fac1c510e252fa076350dc4c2b064808eee8dbe62c2cacd02",
+          "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:3370d80ed9486ea58d890c23b0b65a803eae6380024796b641e538f07e10df73",
+          "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:351c3ffad95e4831e1b9ecd802e6bc52e5866f9d6a7f8fee0473b63431f4ba15",
+          "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:4df623683bd07ebd64abdf31eecdb305c84136dbba008915fed5c716a76e1bd1",
+          "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:0c6c1ae2c5c41f243b999a5ca863ff1e358bedd8e2308efb93fcdeeed6ef51d9",
+          "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:7ab0e3c59ad4190deeee310570b2134de7e54143e1d645a31b4a10504949e25e",
+          "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:0755d3000b1ee16c9434e26d913da5ecda92a7dd00d6c181f0d7a025741a3d5c",
+          "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:a938820e8b0d822e5a67c32eb80f330a5e4430c51884bec0399644caa13981a6",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:1eee56120df74a448057e1e71ea502b279b4636ab9248e4564fdcb1b666762db",
+          "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+          "status": "PASS"
+        }
+      ],
+      "p2_complete": false,
+      "source_application_hash": "sha256:b398d8671b695ff0ca2e86758ca57ebdc151f56e7e8a44eac116277d885117ad",
+      "source_candidate_sha256": "249eebe4410be1fa6f0da11299d57b30101c5f05d04c7c6d119a839448e9c486",
+      "source_p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+      "source_truck_maneuver_binding_hash": null,
+      "truck_route_codes": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED"
+      ],
+      "truck_route_status": "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+      "truck_search_provenance": {
+        "node_budget": 20000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": false,
+        "template_reuse_allowed": false,
+        "visited_nodes": 0
+      },
+      "zone_count": 12
+    },
+    {
+      "CANDIDATE_PREFLIGHT_STATUS": "PROJECT_INPUT_BLOCKED",
+      "CANDIDATE_TRUCK_CONTEXT_HASH": "sha256:7fd896f9a2f689cbbda9c595555af6a4f24fd93a8af6011c376e9f8828038589",
+      "HISTORICAL_TRUCK_STATE": "PROJECT_INPUT_BLOCKED",
+      "LOADING_FACE_BINDING_STATUS": "VALID_HISTORICAL_GEOMETRY_ONLY",
+      "LOADING_FACE_FACTS": {
+        "FACE_HASH": "sha256:76a699036c9533054d464c1580b7d0f26c661d30f9b33cb90995ef3f2b911737",
+        "LOADING_FACE": {
+          "end": {
+            "x": "1.656",
+            "y": "46.597"
+          },
+          "start": {
+            "x": "1.656",
+            "y": "38.904"
+          }
+        },
+        "LOADING_FACE_SIDE": "LEFT_LONG_EDGE",
+        "P2D_SELECTED_LONG_EDGE_BINDING": "VALID_HISTORICAL_GEOMETRY_ONLY",
+        "PROJECT_DOCK_APPROVAL": "UNAVAILABLE",
+        "R13_FULL_LONG_EDGE_MATCH": true,
+        "SHIPPING": {
+          "actual_area_m2": "50.0045",
+          "depth_m": "7.693",
+          "rotation_deg": 0,
+          "width_m": "6.5",
+          "x": "1.656",
+          "y": "38.904",
+          "zone_code": "shipping_channel"
+        }
+      },
+      "MISSING_PROJECT_INPUTS": [
+        "Actual project vehicle/model and source bytes",
+        "Measured gate opening and clearance basis",
+        "Project-bound required maneuver geometry and source/revision records",
+        "Dock approval and personnel/truck engineering review"
+      ],
+      "NON_TRUCK_EVIDENCE_MODE": "SEALED_RESULT_READBACK_NOT_REROUTED",
+      "P2D_FULL_PASS": false,
+      "REASON_CODES": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+        "P1F_REFERENCE_COMPLETENESS_NOT_SOURCE_VERIFICATION",
+        "MEASURED_TRUCK_GATE_OPENING_UNAVAILABLE",
+        "PROJECT_MANEUVER_SOURCE_BYTES_AND_APPROVAL_UNAVAILABLE",
+        "CANDIDATE_SPECIFIC_TRUCK_VALIDATION_NOT_EXECUTED"
+      ],
+      "TRUCK_BINDING_STATUS": "NO_ADMITTED_MANEUVER_BINDING",
+      "TRUCK_ENTRANCE_SEMANTICS": {
+        "AUTOMATIC_SEGMENT_ENLARGEMENT_ALLOWED": false,
+        "AXIS_ALIGNED": true,
+        "LENGTH_M": "0.001",
+        "LENGTH_MM": 1,
+        "MEASURED_GATE_CLEAR_OPENING": null,
+        "MEASURED_GATE_STATUS": "UNAVAILABLE",
+        "PHYSICAL_GATE_SEMANTICS": "UNCONFIRMED_UPSTREAM_INPUT_NOT_MEASURED_OPENING_PROOF",
+        "R13_CLEAR_OPENING_SEGMENT": null,
+        "RUNTIME_SEMANTICS": "ENTRY_REFERENCE_POINT_SEARCH_LOCUS",
+        "SITE_TRUCK_ENTRANCE_SEGMENT": {
+          "end": {
+            "x": "0",
+            "y": "33.701"
+          },
+          "start": {
+            "x": "0",
+            "y": "33.7"
+          }
+        }
+      },
+      "TRUCK_SEARCH_READY": false,
+      "candidate_canonical_hash": "sha256:a1491df2aa5c3ecf496e88ba3e612e52e61daf8815aaaab431ac95ebfef9365c",
+      "candidate_id": "guided-fair-validation-02/candidate-03",
+      "geometry_hash": "sha256:77b1023e62b8877f07df81a6c90c8455af249848a2cc604c92685ac7872658fb",
+      "must_pass_count": 7,
+      "non_truck_access_pass_count": 11,
+      "non_truck_access_results": [
+        {
+          "canonical_hash": "sha256:ca91048c4f8edb35f54a4fd3eeae626c49a32f62a5bf22c028265d2675772c6d",
+          "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:16757d7e4bcdf02d0f6247259dc7c03cc74d82ef1d45c14eb2d8c72ddabc5e7d",
+          "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:9b68f7236dbe99668001d81c50f3db5bd5bdd7cc098b7839a3f82916fbd0b23d",
+          "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:e34835b85f0ef3502783953775529682517f9a8a048000ee68042fc9c46fdf35",
+          "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:cf5c4c9ccbe10389b5c355b7ae351a52073e3f330f8d1fd48c50dbe389dc1c93",
+          "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:4df623683bd07ebd64abdf31eecdb305c84136dbba008915fed5c716a76e1bd1",
+          "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:0c6c1ae2c5c41f243b999a5ca863ff1e358bedd8e2308efb93fcdeeed6ef51d9",
+          "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:68eb3debbddd2567a1ef9113be30352706862c6889ec59b0c9850151727a4c25",
+          "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:c580eb29b9da77c9de895379f7322d09ea0bf1e6532383bce6d49b6cb5f6fc70",
+          "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:056eb482db4f53a4ccc509a52fa9b810f555622375ccb9177351f980716bcf23",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:7bdefa9ab2115a5bb7075d9e57e5595cd864652c896416dee42649f995651663",
+          "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+          "status": "PASS"
+        }
+      ],
+      "p2_complete": false,
+      "source_application_hash": "sha256:58af70bf47710c8640982eba76ccf74f24114506c0e50e73d9f627f1971d3e1f",
+      "source_candidate_sha256": "d52500dd974f7563fba59b0268c504795aac941cbf8e430d70349363f871b77b",
+      "source_p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+      "source_truck_maneuver_binding_hash": null,
+      "truck_route_codes": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED"
+      ],
+      "truck_route_status": "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+      "truck_search_provenance": {
+        "node_budget": 20000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": false,
+        "template_reuse_allowed": false,
+        "visited_nodes": 0
+      },
+      "zone_count": 12
+    },
+    {
+      "CANDIDATE_PREFLIGHT_STATUS": "PROJECT_INPUT_BLOCKED",
+      "CANDIDATE_TRUCK_CONTEXT_HASH": "sha256:9da8e5a5fac38b56dcff356b9cbf915fc1879aab136dd4fd140176529a71921f",
+      "HISTORICAL_TRUCK_STATE": "PROJECT_INPUT_BLOCKED",
+      "LOADING_FACE_BINDING_STATUS": "VALID_HISTORICAL_GEOMETRY_ONLY",
+      "LOADING_FACE_FACTS": {
+        "FACE_HASH": "sha256:71387b3d93ecbcd19ca24ea3f8a7a8bed09797e9f8406e70e08059d0a4f0b5f6",
+        "LOADING_FACE": {
+          "end": {
+            "x": "1.656",
+            "y": "48.73"
+          },
+          "start": {
+            "x": "1.656",
+            "y": "41.037"
+          }
+        },
+        "LOADING_FACE_SIDE": "LEFT_LONG_EDGE",
+        "P2D_SELECTED_LONG_EDGE_BINDING": "VALID_HISTORICAL_GEOMETRY_ONLY",
+        "PROJECT_DOCK_APPROVAL": "UNAVAILABLE",
+        "R13_FULL_LONG_EDGE_MATCH": true,
+        "SHIPPING": {
+          "actual_area_m2": "50.0045",
+          "depth_m": "7.693",
+          "rotation_deg": 0,
+          "width_m": "6.5",
+          "x": "1.656",
+          "y": "41.037",
+          "zone_code": "shipping_channel"
+        }
+      },
+      "MISSING_PROJECT_INPUTS": [
+        "Actual project vehicle/model and source bytes",
+        "Measured gate opening and clearance basis",
+        "Project-bound required maneuver geometry and source/revision records",
+        "Dock approval and personnel/truck engineering review"
+      ],
+      "NON_TRUCK_EVIDENCE_MODE": "SEALED_RESULT_READBACK_NOT_REROUTED",
+      "P2D_FULL_PASS": false,
+      "REASON_CODES": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+        "P1F_REFERENCE_COMPLETENESS_NOT_SOURCE_VERIFICATION",
+        "MEASURED_TRUCK_GATE_OPENING_UNAVAILABLE",
+        "PROJECT_MANEUVER_SOURCE_BYTES_AND_APPROVAL_UNAVAILABLE",
+        "CANDIDATE_SPECIFIC_TRUCK_VALIDATION_NOT_EXECUTED"
+      ],
+      "TRUCK_BINDING_STATUS": "NO_ADMITTED_MANEUVER_BINDING",
+      "TRUCK_ENTRANCE_SEMANTICS": {
+        "AUTOMATIC_SEGMENT_ENLARGEMENT_ALLOWED": false,
+        "AXIS_ALIGNED": true,
+        "LENGTH_M": "0.001",
+        "LENGTH_MM": 1,
+        "MEASURED_GATE_CLEAR_OPENING": null,
+        "MEASURED_GATE_STATUS": "UNAVAILABLE",
+        "PHYSICAL_GATE_SEMANTICS": "UNCONFIRMED_UPSTREAM_INPUT_NOT_MEASURED_OPENING_PROOF",
+        "R13_CLEAR_OPENING_SEGMENT": null,
+        "RUNTIME_SEMANTICS": "ENTRY_REFERENCE_POINT_SEARCH_LOCUS",
+        "SITE_TRUCK_ENTRANCE_SEGMENT": {
+          "end": {
+            "x": "0",
+            "y": "33.701"
+          },
+          "start": {
+            "x": "0",
+            "y": "33.7"
+          }
+        }
+      },
+      "TRUCK_SEARCH_READY": false,
+      "candidate_canonical_hash": "sha256:02154fed78d3cef76c0918467cabf20e1b86fc5ea3f0060ebd99b2117a5e7c34",
+      "candidate_id": "guided-fair-validation-02/candidate-04",
+      "geometry_hash": "sha256:110c73358a13b504b3c8e3e3b03d46f3ee8a2652648b326c961641e023857359",
+      "must_pass_count": 7,
+      "non_truck_access_pass_count": 11,
+      "non_truck_access_results": [
+        {
+          "canonical_hash": "sha256:1f355adcb0cf1bf755d980750f4b871d3b1d4ada13942530e618d0c10a270fe9",
+          "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:e07a39d1457fc0668acde8eb8f9bb1a8d38fdb7cb3526e03a1d03db6e4d9257a",
+          "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:15fc4bb7b77add238cce6ee71e3ad7b918b48475bd99b870dbf055185b5c5472",
+          "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:e7963ac359381406496ea721ae3af1246bd47474f3711f9b432439726120238e",
+          "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:e44fae3e9763e997f7c5c10bdabc91d8443f20f7b9f69237766309d1b20ebefb",
+          "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:a5739a62d14f695a818f3207b5305cf610e6180a979b9ad9c8f8ac7d839bab73",
+          "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:490d1738c415d6979c5c2506b765e985ab73932cd0c939c588b2e6d1d8b58028",
+          "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:158ad6b4a5766826580fe290826c0605702644b3106fd88fc38eef8d5605f4a6",
+          "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:1f7292758ede8335401490570ca191bec1178298e762bd9ebcf99f03d6215266",
+          "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:3c84e657a689dd7662fac1b5aa0a894b092f2cd9740c2a321896d29e3a4a7872",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:9103a2eea8a68ff9f540d19497bf9b0fbc85c4b848f2ffa22f8bb0e6470e106e",
+          "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+          "status": "PASS"
+        }
+      ],
+      "p2_complete": false,
+      "source_application_hash": "sha256:8c463c2034e7d2adb248ec7a9c51be564d681429a4c08f9b865e9bfc54dc4a0a",
+      "source_candidate_sha256": "6efc6aa78c7f85d3a4a8aefb27b02ab2cd4d70d5c2fcd7e2140254186486a434",
+      "source_p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+      "source_truck_maneuver_binding_hash": null,
+      "truck_route_codes": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED"
+      ],
+      "truck_route_status": "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+      "truck_search_provenance": {
+        "node_budget": 20000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": false,
+        "template_reuse_allowed": false,
+        "visited_nodes": 0
+      },
+      "zone_count": 12
+    },
+    {
+      "CANDIDATE_PREFLIGHT_STATUS": "PROJECT_INPUT_BLOCKED",
+      "CANDIDATE_TRUCK_CONTEXT_HASH": "sha256:1a7111b8649a4d962f58504c2682f79bd37116ef04b8ae3b88cf72d65672a1ea",
+      "HISTORICAL_TRUCK_STATE": "PROJECT_INPUT_BLOCKED",
+      "LOADING_FACE_BINDING_STATUS": "VALID_HISTORICAL_GEOMETRY_ONLY",
+      "LOADING_FACE_FACTS": {
+        "FACE_HASH": "sha256:57bd95bf4bad2803b845694e70db28e3f746a14adbb1eade7c3a0172025f1da4",
+        "LOADING_FACE": {
+          "end": {
+            "x": "1.656",
+            "y": "48.729"
+          },
+          "start": {
+            "x": "1.656",
+            "y": "41.036"
+          }
+        },
+        "LOADING_FACE_SIDE": "LEFT_LONG_EDGE",
+        "P2D_SELECTED_LONG_EDGE_BINDING": "VALID_HISTORICAL_GEOMETRY_ONLY",
+        "PROJECT_DOCK_APPROVAL": "UNAVAILABLE",
+        "R13_FULL_LONG_EDGE_MATCH": true,
+        "SHIPPING": {
+          "actual_area_m2": "50.0045",
+          "depth_m": "7.693",
+          "rotation_deg": 0,
+          "width_m": "6.5",
+          "x": "1.656",
+          "y": "41.036",
+          "zone_code": "shipping_channel"
+        }
+      },
+      "MISSING_PROJECT_INPUTS": [
+        "Actual project vehicle/model and source bytes",
+        "Measured gate opening and clearance basis",
+        "Project-bound required maneuver geometry and source/revision records",
+        "Dock approval and personnel/truck engineering review"
+      ],
+      "NON_TRUCK_EVIDENCE_MODE": "SEALED_RESULT_READBACK_NOT_REROUTED",
+      "P2D_FULL_PASS": false,
+      "REASON_CODES": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+        "P1F_REFERENCE_COMPLETENESS_NOT_SOURCE_VERIFICATION",
+        "MEASURED_TRUCK_GATE_OPENING_UNAVAILABLE",
+        "PROJECT_MANEUVER_SOURCE_BYTES_AND_APPROVAL_UNAVAILABLE",
+        "CANDIDATE_SPECIFIC_TRUCK_VALIDATION_NOT_EXECUTED"
+      ],
+      "TRUCK_BINDING_STATUS": "NO_ADMITTED_MANEUVER_BINDING",
+      "TRUCK_ENTRANCE_SEMANTICS": {
+        "AUTOMATIC_SEGMENT_ENLARGEMENT_ALLOWED": false,
+        "AXIS_ALIGNED": true,
+        "LENGTH_M": "0.001",
+        "LENGTH_MM": 1,
+        "MEASURED_GATE_CLEAR_OPENING": null,
+        "MEASURED_GATE_STATUS": "UNAVAILABLE",
+        "PHYSICAL_GATE_SEMANTICS": "UNCONFIRMED_UPSTREAM_INPUT_NOT_MEASURED_OPENING_PROOF",
+        "R13_CLEAR_OPENING_SEGMENT": null,
+        "RUNTIME_SEMANTICS": "ENTRY_REFERENCE_POINT_SEARCH_LOCUS",
+        "SITE_TRUCK_ENTRANCE_SEGMENT": {
+          "end": {
+            "x": "0",
+            "y": "33.701"
+          },
+          "start": {
+            "x": "0",
+            "y": "33.7"
+          }
+        }
+      },
+      "TRUCK_SEARCH_READY": false,
+      "candidate_canonical_hash": "sha256:b704873e9a66ae9b137d2cbf4e55aff49b02675240b81f13386c646f31bffc68",
+      "candidate_id": "guided-fair-validation-02/candidate-05",
+      "geometry_hash": "sha256:f9cbb4ccfae57eb43fdad2e0aa6731c03585803ec3b164754182bb3208dee216",
+      "must_pass_count": 7,
+      "non_truck_access_pass_count": 11,
+      "non_truck_access_results": [
+        {
+          "canonical_hash": "sha256:845d7b6e43f86db24822bffad3f4c9d1a6ab3f79eab1aabf2caa8e306e871344",
+          "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:b62383a4c7ec9cb98c0bdc1de481f1a8a167a0b2d61800ad59b977057abf1ae2",
+          "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:47741500ed87575fe3af5132f001bfe9c3731ca1631a4ddf6dbcd41f8afd4a62",
+          "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:2c6f17ba9f25f3ffd010279f34c5755764183e0f28d1213cd433a934646da559",
+          "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:e44fae3e9763e997f7c5c10bdabc91d8443f20f7b9f69237766309d1b20ebefb",
+          "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:5224ef1eaa0cb9162a6d76d9b9240ba08840cf5dda651f802576d8e7b3e7b09c",
+          "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:490d1738c415d6979c5c2506b765e985ab73932cd0c939c588b2e6d1d8b58028",
+          "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:5869895cd2b99c6f2e230e7a3feaab74839eb9a65b24f3e437577e5a3af6d06b",
+          "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:17546ff6f6ebf8a35b4107fa13d5650e2b7a0cdfa4dd7a12468edca7c3fc3a11",
+          "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:36e641fead7ae0c228cfaeaa29ea1292c8e8dc66c2e6102c8a30bb58c6156992",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:fc5bbb9d9355f507ed24e429076a04bbeff81c968b51c83236ebc5f1abb112b4",
+          "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+          "status": "PASS"
+        }
+      ],
+      "p2_complete": false,
+      "source_application_hash": "sha256:7a84c9f44fa072e4d281cee6cc805e43df483bfb0963d217892fc7323ecdfb33",
+      "source_candidate_sha256": "72cfe4dbc42a20b26885be0cfb927a1b976b49b0b307e807394055896937d769",
+      "source_p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+      "source_truck_maneuver_binding_hash": null,
+      "truck_route_codes": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED"
+      ],
+      "truck_route_status": "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+      "truck_search_provenance": {
+        "node_budget": 20000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": false,
+        "template_reuse_allowed": false,
+        "visited_nodes": 0
+      },
+      "zone_count": 12
+    },
+    {
+      "CANDIDATE_PREFLIGHT_STATUS": "PROJECT_INPUT_BLOCKED",
+      "CANDIDATE_TRUCK_CONTEXT_HASH": "sha256:e2284bb1b44bf500541c3805538d715c5e0d67c3b084339e3c8de22867b7f2bb",
+      "HISTORICAL_TRUCK_STATE": "PROJECT_INPUT_BLOCKED",
+      "LOADING_FACE_BINDING_STATUS": "VALID_HISTORICAL_GEOMETRY_ONLY",
+      "LOADING_FACE_FACTS": {
+        "FACE_HASH": "sha256:38c3489d2c75fb804a8ed40bc75d684876630f2ce087076f65ea8f26a9020918",
+        "LOADING_FACE": {
+          "end": {
+            "x": "1.656",
+            "y": "48.728"
+          },
+          "start": {
+            "x": "1.656",
+            "y": "41.035"
+          }
+        },
+        "LOADING_FACE_SIDE": "LEFT_LONG_EDGE",
+        "P2D_SELECTED_LONG_EDGE_BINDING": "VALID_HISTORICAL_GEOMETRY_ONLY",
+        "PROJECT_DOCK_APPROVAL": "UNAVAILABLE",
+        "R13_FULL_LONG_EDGE_MATCH": true,
+        "SHIPPING": {
+          "actual_area_m2": "50.0045",
+          "depth_m": "7.693",
+          "rotation_deg": 0,
+          "width_m": "6.5",
+          "x": "1.656",
+          "y": "41.035",
+          "zone_code": "shipping_channel"
+        }
+      },
+      "MISSING_PROJECT_INPUTS": [
+        "Actual project vehicle/model and source bytes",
+        "Measured gate opening and clearance basis",
+        "Project-bound required maneuver geometry and source/revision records",
+        "Dock approval and personnel/truck engineering review"
+      ],
+      "NON_TRUCK_EVIDENCE_MODE": "SEALED_RESULT_READBACK_NOT_REROUTED",
+      "P2D_FULL_PASS": false,
+      "REASON_CODES": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+        "P1F_REFERENCE_COMPLETENESS_NOT_SOURCE_VERIFICATION",
+        "MEASURED_TRUCK_GATE_OPENING_UNAVAILABLE",
+        "PROJECT_MANEUVER_SOURCE_BYTES_AND_APPROVAL_UNAVAILABLE",
+        "CANDIDATE_SPECIFIC_TRUCK_VALIDATION_NOT_EXECUTED"
+      ],
+      "TRUCK_BINDING_STATUS": "NO_ADMITTED_MANEUVER_BINDING",
+      "TRUCK_ENTRANCE_SEMANTICS": {
+        "AUTOMATIC_SEGMENT_ENLARGEMENT_ALLOWED": false,
+        "AXIS_ALIGNED": true,
+        "LENGTH_M": "0.001",
+        "LENGTH_MM": 1,
+        "MEASURED_GATE_CLEAR_OPENING": null,
+        "MEASURED_GATE_STATUS": "UNAVAILABLE",
+        "PHYSICAL_GATE_SEMANTICS": "UNCONFIRMED_UPSTREAM_INPUT_NOT_MEASURED_OPENING_PROOF",
+        "R13_CLEAR_OPENING_SEGMENT": null,
+        "RUNTIME_SEMANTICS": "ENTRY_REFERENCE_POINT_SEARCH_LOCUS",
+        "SITE_TRUCK_ENTRANCE_SEGMENT": {
+          "end": {
+            "x": "0",
+            "y": "33.701"
+          },
+          "start": {
+            "x": "0",
+            "y": "33.7"
+          }
+        }
+      },
+      "TRUCK_SEARCH_READY": false,
+      "candidate_canonical_hash": "sha256:e45ef912192af987d401c98076be8548492cc07d6d4aeaaaa64d1829ef44947f",
+      "candidate_id": "guided-fair-validation-02/candidate-06",
+      "geometry_hash": "sha256:b7353dcda7daf1b58743d2a8b6d3a53a683b9fc81cec02fba250a2f9dca579e4",
+      "must_pass_count": 7,
+      "non_truck_access_pass_count": 11,
+      "non_truck_access_results": [
+        {
+          "canonical_hash": "sha256:0116f0d4c2a0cf2dadc49965b04c8f2a0bf35d5fa2a2e51b9d0446300671c17c",
+          "requirement_identity": "access:changing_room->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:ff570575916ad13f1c2809884263abd99458d2dab2ae9900f69f1cb83f82e176",
+          "requirement_identity": "access:coating_room->finished_goods_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:83376aebad86c34ba2b433b0cb505e69c1478d6b3fc321bb1ad587fdc34d492a",
+          "requirement_identity": "access:finished_goods_room->shipping_channel@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:df4ba575a16a85ed99fb55c257978f04d3dbb0a605856f3579b7fa2879ba262b",
+          "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:9ac71860394e1e7b60282a6e96946a6795f124281adfe7ce3745f70f66239c3a",
+          "requirement_identity": "access:packaging_material_storage->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:b8ed24b32c48a45c72912d000c075df4341f27b2defb328e560b675b711eae07",
+          "requirement_identity": "access:primary_precooling_room->sorting_packaging_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:ffdf8eb97386fd7eb555c8b0ac76be1e70c56e00a6ab4780b3f8596d3b118bb9",
+          "requirement_identity": "access:raw_fruit_buffer->primary_precooling_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:26e661b4c1a6855298b75463a963b2233bee3fc68471863f09b9696d7c8019e9",
+          "requirement_identity": "access:secondary_precooling_room->coating_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:6dca9fb147a1c275da5c7f4dbd6e43912a213652ab00f32842965760ce59965d",
+          "requirement_identity": "access:sorting_packaging_room->frozen_fruit_room@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:ffbcaa76543db8860dede41c41ba6d1a636d75d6add3dfa421efa93d2c75f7a5",
+          "requirement_identity": "access:sorting_packaging_room->secondary_fruit_buffer@1.0.0",
+          "status": "PASS"
+        },
+        {
+          "canonical_hash": "sha256:448b61f80bc2c1fd2091e378ea5bdcc05e0fe08f984121c50c660839380dcd9c",
+          "requirement_identity": "access:sorting_packaging_room->secondary_precooling_room@1.0.0",
+          "status": "PASS"
+        }
+      ],
+      "p2_complete": false,
+      "source_application_hash": "sha256:94d3f65bf6fc8a46233470e3170f10615d241b8015a474956c44f67b41ecd34f",
+      "source_candidate_sha256": "865258d6bdcc2a67a5c4947be9956b9cbfac701cd88b369d51ec7fe0094ecab0",
+      "source_p1_handoff_hash": "sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+      "source_site_geometry_hash": "sha256:79e0b2eaf16b6fb1165eebae535368a8bed2cbb4c679446945b0abe426de454a",
+      "source_truck_maneuver_binding_hash": null,
+      "truck_route_codes": [
+        "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED"
+      ],
+      "truck_route_status": "BLOCKED_PROJECT_MANEUVER_INPUT_REQUIRED",
+      "truck_search_provenance": {
+        "node_budget": 20000,
+        "node_budget_exhausted": false,
+        "search_tree_exhausted": false,
+        "template_reuse_allowed": false,
+        "visited_nodes": 0
+      },
+      "zone_count": 12
+    }
+  ],
+  "CANDIDATES_AUDITED": 8,
+  "CANDIDATE_HASH_VERIFICATION": "RAW_BYTES_PROJECTION_SVG_AND_ORIGINAL_CANONICAL_HASHES_VERIFIED",
+  "IDENTITY": "StageBTruckP2DPreflightV1",
+  "NATIVE_SOLVER_CALLS": 0,
+  "NEW_OWNER_GRANT": false,
+  "P2D_FULL_PASS_COUNT": 0,
+  "PROJECT_TRUCK_INPUT_ADMISSION": "BLOCKED",
+  "REAL_FACTORY_SOLVES": 0,
+  "REAL_TRUCK_SEARCHES": 0,
+  "REFERENCE_HEAD": "64537de0c8fe146277bbb28d9b995dfc27ab3ba3",
+  "TRUCK_SEARCH_READY_COUNT": 0,
+  "VERSION": "stage-b-truck-p2d-preflight@1.0.0"
+}

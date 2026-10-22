@@ -1,0 +1,21 @@
+{
+  "files": {
+    "README.md": "9e4375dc427953292a426597791ee9bf68b22e5e59c5f4e4ca360ea110f79104",
+    "area-and-dimension-impact-matrix.md": "b92420eb3173a0a7a30f0c1b221a1aa97a3deda7389003cac240f4655f87c5a8",
+    "engineering-sources.json": "924989a3cc674e51780622b8556382fda3cee213fa3693625c913d571f1fb1cd",
+    "layout-geometry-calibration.md": "6ac6660b71d791551a2e381adcdfadaefd689ff209906060d8ffe995f4ccbfda",
+    "legacy-geometry-authority-audit.json": "b75e09f291fd6f5f472f29c3c96f9bac729397ed1b573c6a5ca386e4633c2fda",
+    "legacy-projection-scenarios.json": "9274a9a068b40d16e6af48a6350ce18a442ff3d4621e852952f129d7c967dd3e",
+    "offline_geometry_calibration.py": "0fb093ee6a38e8c1b310322803054bb1a59a4d4d074b72e43ebfbfe2a99dcfd2",
+    "owner-decision-matrix.md": "20de7d9589e0d7aae3ec63271489720a261dab32621ff25591b674e19977854f",
+    "p1-integration-readiness.md": "088f3a0e2f55608cacfc127de8a7508599c27c03e9b322d54faf0fb4ab3023c9",
+    "packing-station-evidence-matrix.json": "fefdfdf9be8f892fda250232a9281be2bc39caf6851f71dbd3c2fd27889461f0",
+    "real-layout-interface-review.json": "4e337a30526fae6bf68dc73485f9ef31d120b203b7adcc8ab451c49fd4db7718",
+    "station-space-requirements.json": "a43dac6ca71db54769737e004eaede87147f2a93f4940b8e7dff8a12289de7d9",
+    "test_offline_geometry_calibration.py": "b4ddbac1df7802c5530c74f13f15b90665ce93660af098eb81e1f8269cd72034",
+    "validation.json": "36dfddda23e25d17363f387ac3bf59078e45b54f2f40e7d23c98a1b0023e3087"
+  },
+  "reference_head": "15d2d7759bc0192813122c7aba16dcc11e4be0cd",
+  "self_excluded": true,
+  "task": "V2_2_2_OWNER_V2_PACKAGING_AREA_GEOMETRY_CALIBRATION_R1"
+}

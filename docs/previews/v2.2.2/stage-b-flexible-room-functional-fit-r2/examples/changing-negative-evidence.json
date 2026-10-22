@@ -1,0 +1,623 @@
+{
+  "EVIDENCE_KIND": "SYNTHETIC_TEST_GEOMETRY",
+  "FACTS": {
+    "COMPONENT:bench": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        500,
+        3000,
+        3000,
+        3400
+      ],
+      "ID": "bench",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:door_1": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        500,
+        1000,
+        900,
+        1400
+      ],
+      "ID": "door_1",
+      "ROLE": "DOOR_SWEEP",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:door_2": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        900,
+        1000,
+        1300,
+        1400
+      ],
+      "ID": "door_2",
+      "ROLE": "DOOR_SWEEP",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:door_3": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        1300,
+        1000,
+        1700,
+        1400
+      ],
+      "ID": "door_3",
+      "ROLE": "DOOR_SWEEP",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:door_4": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        1700,
+        1000,
+        2100,
+        1400
+      ],
+      "ID": "door_4",
+      "ROLE": "DOOR_SWEEP",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:door_5": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        2100,
+        1000,
+        2500,
+        1400
+      ],
+      "ID": "door_5",
+      "ROLE": "DOOR_SWEEP",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:door_6": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        2500,
+        1000,
+        2900,
+        1400
+      ],
+      "ID": "door_6",
+      "ROLE": "DOOR_SWEEP",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:door_7": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        2900,
+        1000,
+        3300,
+        1400
+      ],
+      "ID": "door_7",
+      "ROLE": "DOOR_SWEEP",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:door_8": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        3300,
+        1000,
+        3700,
+        1400
+      ],
+      "ID": "door_8",
+      "ROLE": "DOOR_SWEEP",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:entry_sweep": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE"
+      ],
+      "BOUNDS_MM": [
+        0,
+        4100,
+        600,
+        4500
+      ],
+      "ID": "entry_sweep",
+      "ROLE": "DOOR_SWEEP",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:locker_1": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        500,
+        0,
+        900,
+        500
+      ],
+      "ID": "locker_1",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:locker_2": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        900,
+        0,
+        1300,
+        500
+      ],
+      "ID": "locker_2",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:locker_3": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        1300,
+        0,
+        1700,
+        500
+      ],
+      "ID": "locker_3",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:locker_4": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        1700,
+        0,
+        2100,
+        500
+      ],
+      "ID": "locker_4",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:locker_5": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        500,
+        375,
+        900,
+        875
+      ],
+      "ID": "locker_5",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:locker_6": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        900,
+        375,
+        1300,
+        875
+      ],
+      "ID": "locker_6",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:locker_7": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        1300,
+        375,
+        1700,
+        875
+      ],
+      "ID": "locker_7",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:locker_8": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        1700,
+        375,
+        2100,
+        875
+      ],
+      "ID": "locker_8",
+      "ROLE": "BODY",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:personnel_aisle": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        0,
+        4500,
+        10000,
+        5100
+      ],
+      "ID": "personnel_aisle",
+      "ROLE": "AISLE",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:service": {
+      "ACTIVE_STATES": [
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "BOUNDS_MM": [
+        1000,
+        5500,
+        9000,
+        5900
+      ],
+      "ID": "service",
+      "ROLE": "SERVICE",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:user_1": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        500,
+        1500,
+        1100,
+        2100
+      ],
+      "ID": "user_1",
+      "ROLE": "STANDING",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:user_2": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        1300,
+        1500,
+        1900,
+        2100
+      ],
+      "ID": "user_2",
+      "ROLE": "STANDING",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:user_3": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        2100,
+        1500,
+        2700,
+        2100
+      ],
+      "ID": "user_3",
+      "ROLE": "STANDING",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "COMPONENT:user_4": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION"
+      ],
+      "BOUNDS_MM": [
+        2900,
+        1500,
+        3500,
+        2100
+      ],
+      "ID": "user_4",
+      "ROLE": "STANDING",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "TRANSFORM": {
+        "ROTATION_DEG": 0,
+        "TRANSLATION_MM": [
+          0,
+          0
+        ]
+      }
+    },
+    "CONFIGURATION": {
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "arrangement": "OPPOSED_ROWS",
+      "bench": true,
+      "cleaning_duration": "SYNTHETIC_30_MIN_NOT_PROJECT_DEFAULT",
+      "clothing_separation": "INTERNAL_SEPARATE_STORAGE_NOT_DOUBLE_COUNT",
+      "door_operation": "SYNTHETIC_EXPLICIT_SWEEP_NOT_PROJECT_DOOR",
+      "door_sweep": true,
+      "finished_clear_bounds_mm": [
+        0,
+        0,
+        10000,
+        875
+      ],
+      "hygiene_facilities": "SYNTHETIC_EXPLICIT_PLACEHOLDER_NOT_PROJECT_REVIEW",
+      "locker_count": 8,
+      "locker_model": "SYNTHETIC_TEST_LOCKER",
+      "locker_unit_mm": [
+        400,
+        500,
+        1700
+      ],
+      "maintenance_procedure": "SYNTHETIC_STOPPED_MACHINE_INSPECTION",
+      "shift_change_duration": "SYNTHETIC_20_MIN_NOT_PROJECT_DEFAULT",
+      "simultaneous_users": 4
+    },
+    "PORTAL:entry": {
+      "DOOR_SWING_STATUS": "SYNTHETIC_TEST_ONLY",
+      "ID": "entry",
+      "SEGMENT_MM": [
+        [
+          0,
+          4200
+        ],
+        [
+          0,
+          5400
+        ]
+      ],
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST"
+    },
+    "PORTAL:exit": {
+      "DOOR_SWING_STATUS": "SYNTHETIC_TEST_ONLY",
+      "ID": "exit",
+      "SEGMENT_MM": [
+        [
+          10000,
+          4200
+        ],
+        [
+          10000,
+          5400
+        ]
+      ],
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST"
+    },
+    "ROUTE:inside_route": {
+      "ACTIVE_STATES": [
+        "NORMAL_OPERATION",
+        "SHIFT_CHANGE",
+        "CLEANING",
+        "MAINTENANCE"
+      ],
+      "EXIT_PORTAL_ID": "exit",
+      "ID": "inside_route",
+      "KIND": "PERSONNEL",
+      "POINTS_MM": [
+        [
+          0,
+          4800
+        ],
+        [
+          10000,
+          4800
+        ]
+      ],
+      "PORTAL_ID": "entry",
+      "SOURCE_ID": "SYNTHETIC_ROOM_TEST",
+      "WIDTH_MM": 500
+    }
+  },
+  "PROJECT_ID": "SYNTHETIC_ROOM_TEST_ONLY",
+  "PURPOSE": "SOFTWARE_TEST_ONLY"
+}

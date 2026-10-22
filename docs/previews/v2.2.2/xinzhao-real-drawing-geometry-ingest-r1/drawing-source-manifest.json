@@ -1,0 +1,12 @@
+{
+  "cad_text_status": "MANUAL_REVIEW_REQUIRED",
+  "dates": "PDF_EXPORT_METADATA_NOT_FORMAL_ISSUE_OR_APPROVAL_DATES",
+  "drawing_revision_status": "UNVERIFIED",
+  "engineering_drawing_approved": false,
+  "pdf_library_version": "1.27.2.3",
+  "pdf_page_count": 1,
+  "private_original_and_detailed_results": "LOCAL_AUTHORIZED_EVIDENCE_ONLY",
+  "source_bytes": 2149007,
+  "source_sha256": "a2654279dbdefac8e225d7554e35463902e4abca1b4769418cd83e3a5ff6d139",
+  "source_status": "SOURCE_BYTES_VERIFIED"
+}

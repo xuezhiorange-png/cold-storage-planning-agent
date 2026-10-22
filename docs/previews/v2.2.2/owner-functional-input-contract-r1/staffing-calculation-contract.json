@@ -1,0 +1,42 @@
+{
+  "arithmetic": "Exact rational quantities; ceil each shift separately; no binary-float rounding",
+  "contract_version": "owner-factory-functional-inputs@1.0.0",
+  "fixed_parameter_field_refs": [
+    "PACKAGING_PIECES_PER_PERSON_HOUR",
+    "PACKAGING_WEIGHT_PER_PIECE_KG",
+    "SHIFT_HOURS",
+    "SHIFTS_PER_DAY"
+  ],
+  "formulas": {
+    "LOCKER_COUNT": "SHIFT_1_WORKERS + SHIFT_2_WORKERS",
+    "PACKAGING_WORK_HOURS_PER_DAY": "2 shifts/day * 8 hours/shift = 16 hours/day (facility schedule)",
+    "PERSON_SHIFT_CAPACITY_KG": "15 pieces/person/hour * 1.6 kg/piece * 8 hours/shift = 192 kg/person/shift",
+    "SHIFT_1_WORKERS": "ceil(SHIFT_1_PACKAGING_KG / 192)",
+    "SHIFT_2_WORKERS": "ceil(SHIFT_2_PACKAGING_KG / 192)",
+    "SIMULTANEOUS_CHANGING_USERS": "max(SHIFT_1_WORKERS, SHIFT_2_WORKERS)"
+  },
+  "identity": "OwnerFactoryFunctionalInputsV1",
+  "inputs": [
+    "SHIFT_1_PACKAGING_KG",
+    "SHIFT_2_PACKAGING_KG",
+    "PACKAGED_PRODUCT_MASS_BASIS",
+    "PACKAGING_PRODUCT_MASS_SOURCE"
+  ],
+  "legacy_rule": {
+    "document": "docs/tasks/V2_1_2-patch-release-closure-readiness.md:48",
+    "frozen_fixture": "docs/previews/v2.2.2/stage-b/layout-quality-baseline-01/inputs/server_authorities.json",
+    "future_activation": "Separate Owner-authorized version selection, source binding, compatibility tests and explicit migration; never silent override",
+    "person_daily_capacity_kg": 336,
+    "production_consumer": "backend/src/cold_storage/modules/calculations/domain/zone_planning.py:_packing_person_daily_capacity_kg",
+    "status": "PRESERVED_UNCHANGED_NOT_REPLACED"
+  },
+  "missing_shift_allocation": "OWNER_INPUT_REQUIRED; never infer equal allocation or derive a missing shift",
+  "optional_consistency_input": "DAILY_PACKAGED_KG must equal both shift quantities added",
+  "product_mass_rule": "Raw inbound fruit is not packaged-product mass. A documented upstream conversion is needed; this offline module does not invent or calculate yield.",
+  "productivity_policy": "packaging-owner-two-shift@1.0.0",
+  "reference_head": "f1b284f94f153153c8b67d5eb963bc7378056aaa",
+  "source_verification_limit": "Requires and records an explicit mass-basis/reference; it does not authenticate external files or create server authority.",
+  "staffing_semantics": "Independent shift employee sets; no lockers shared. No other job staff and no intra-shift changing batches.",
+  "task": "V2_2_2_OWNER_FACTORY_FUNCTIONAL_INPUT_CONTRACT_R1",
+  "zero_mass": "Zero assigned product yields zero packaging staff for that shift; not proof a real facility needs no other workers"
+}

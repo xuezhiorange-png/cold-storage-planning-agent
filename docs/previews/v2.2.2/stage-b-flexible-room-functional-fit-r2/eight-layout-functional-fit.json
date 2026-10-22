@@ -1,0 +1,2906 @@
+{
+  "AUTHORITY_BYTE_HASH": "8c01595a66899aa372225669d33da2f302976f335b597dd66a36f332ed5dd3dd",
+  "CANDIDATES_AUDITED": 8,
+  "CANONICAL_HASH": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd",
+  "IDENTITY": "FunctionalRoomFitEvaluatorV1",
+  "NATIVE_SOLVER_CALLS": 0,
+  "NEW_OWNER_GRANT": false,
+  "P1_DIMENSION_HASH": "sha256:7a41ba026375a1f7085106772d761b946c32c32661320bb4db8565e02848c468",
+  "P2D_FULL_PASS_COUNT": 0,
+  "REAL_FACTORY_SOLVES": 0,
+  "REAL_TRUCK_SEARCHES": 0,
+  "ROOMS": [
+    {
+      "AREA_AUTHORITY_M2": 60,
+      "CANDIDATE_ID": "multi-solution-validation-01/candidate-01",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 24430,
+      "MISSING_INPUTS": [
+        "factory_size",
+        "design_staff",
+        "workstations",
+        "furniture_model",
+        "chair_movement",
+        "storage",
+        "necessary_functions",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "db6da34efa1161aab3225d6d9bb6949d2783914a98ca8fe34cb70dba288bcf22",
+      "ROOM_AREA_MM2": 60000080,
+      "ROOM_DEPTH_MM": 24430,
+      "ROOM_WIDTH_MM": 2456,
+      "SHORT_EDGE_MM": 2456,
+      "SOURCE_GEOMETRY_HASH": "sha256:48c48e4514a812132c2bdec1f2863f1c62162ccb5c95fe366ab7aa84ee439525",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "60.00008",
+        "depth_m": "24.43",
+        "rotation_deg": 0,
+        "width_m": "2.456",
+        "x": "38.9",
+        "y": "30.57",
+        "zone_code": "office"
+      },
+      "WORLD_BOUNDS_MM": [
+        38900,
+        30570,
+        41356,
+        55000
+      ],
+      "ZONE_CODE": "office"
+    },
+    {
+      "AREA_AUTHORITY_M2": 40,
+      "CANDIDATE_ID": "multi-solution-validation-01/candidate-01",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 8700,
+      "MISSING_INPUTS": [
+        "locker_count",
+        "simultaneous_users",
+        "locker_model",
+        "locker_unit_mm",
+        "arrangement",
+        "door_sweep",
+        "bench",
+        "clothing_separation",
+        "hygiene_facilities",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [
+        {
+          "CLEAR_WIDTH_MM": 1500,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "PEOPLE"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              2154,
+              0
+            ],
+            [
+              3654,
+              0
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "changing_room",
+            "clear_width_m": "1.5",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "43.106",
+                "y": "2"
+              },
+              "start": {
+                "x": "41.606",
+                "y": "2"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              41606,
+              2000
+            ],
+            [
+              43106,
+              2000
+            ]
+          ]
+        },
+        {
+          "CLEAR_WIDTH_MM": 1500,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "PEOPLE"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              2154,
+              8700
+            ],
+            [
+              3654,
+              8700
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "changing_room",
+            "clear_width_m": "1.5",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "43.106",
+                "y": "10.7"
+              },
+              "start": {
+                "x": "41.606",
+                "y": "10.7"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              41606,
+              10700
+            ],
+            [
+              43106,
+              10700
+            ]
+          ]
+        }
+      ],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "db6da34efa1161aab3225d6d9bb6949d2783914a98ca8fe34cb70dba288bcf22",
+      "ROOM_AREA_MM2": 50529600,
+      "ROOM_DEPTH_MM": 8700,
+      "ROOM_WIDTH_MM": 5808,
+      "SHORT_EDGE_MM": 5808,
+      "SOURCE_GEOMETRY_HASH": "sha256:48c48e4514a812132c2bdec1f2863f1c62162ccb5c95fe366ab7aa84ee439525",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "50.5296",
+        "depth_m": "8.7",
+        "rotation_deg": 0,
+        "width_m": "5.808",
+        "x": "39.452",
+        "y": "2",
+        "zone_code": "changing_room"
+      },
+      "WORLD_BOUNDS_MM": [
+        39452,
+        2000,
+        45260,
+        10700
+      ],
+      "ZONE_CODE": "changing_room"
+    },
+    {
+      "AREA_AUTHORITY_M2": 80,
+      "CANDIDATE_ID": "multi-solution-validation-01/candidate-01",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 12100,
+      "MISSING_INPUTS": [
+        "process_type",
+        "equipment_model",
+        "equipment_count",
+        "capacity",
+        "effective_runtime_hours",
+        "body_height_mm",
+        "infeed_direction",
+        "outfeed_direction",
+        "operator_tasks",
+        "product_buffer",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [
+        {
+          "CLEAR_WIDTH_MM": 2400,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "MATERIAL"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              6612,
+              3825
+            ],
+            [
+              6612,
+              6225
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "coating_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "21.312",
+                "y": "30.525"
+              },
+              "start": {
+                "x": "21.312",
+                "y": "28.125"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              21312,
+              28125
+            ],
+            [
+              21312,
+              30525
+            ]
+          ]
+        },
+        {
+          "CLEAR_WIDTH_MM": 2400,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "MATERIAL"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              2106,
+              12100
+            ],
+            [
+              4506,
+              12100
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "coating_room",
+            "clear_width_m": "2.4",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "19.206",
+                "y": "36.4"
+              },
+              "start": {
+                "x": "16.806",
+                "y": "36.4"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              16806,
+              36400
+            ],
+            [
+              19206,
+              36400
+            ]
+          ]
+        }
+      ],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "db6da34efa1161aab3225d6d9bb6949d2783914a98ca8fe34cb70dba288bcf22",
+      "ROOM_AREA_MM2": 80005200,
+      "ROOM_DEPTH_MM": 12100,
+      "ROOM_WIDTH_MM": 6612,
+      "SHORT_EDGE_MM": 6612,
+      "SOURCE_GEOMETRY_HASH": "sha256:48c48e4514a812132c2bdec1f2863f1c62162ccb5c95fe366ab7aa84ee439525",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "80.0052",
+        "depth_m": "12.1",
+        "rotation_deg": 0,
+        "width_m": "6.612",
+        "x": "14.7",
+        "y": "24.3",
+        "zone_code": "coating_room"
+      },
+      "WORLD_BOUNDS_MM": [
+        14700,
+        24300,
+        21312,
+        36400
+      ],
+      "ZONE_CODE": "coating_room"
+    },
+    {
+      "AREA_AUTHORITY_M2": 60,
+      "CANDIDATE_ID": "multi-solution-validation-01/candidate-02",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 24430,
+      "MISSING_INPUTS": [
+        "factory_size",
+        "design_staff",
+        "workstations",
+        "furniture_model",
+        "chair_movement",
+        "storage",
+        "necessary_functions",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "6272e8ab1c31e6dd90cf12ceebb1b3fa8f8621a4912c5c926c48aee25496253b",
+      "ROOM_AREA_MM2": 60000080,
+      "ROOM_DEPTH_MM": 24430,
+      "ROOM_WIDTH_MM": 2456,
+      "SHORT_EDGE_MM": 2456,
+      "SOURCE_GEOMETRY_HASH": "sha256:01dc0a46e213c7e92071ca1d88d7482d7cf829cd2411965ef3a323d1ca9095be",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "60.00008",
+        "depth_m": "24.43",
+        "rotation_deg": 0,
+        "width_m": "2.456",
+        "x": "38.9",
+        "y": "30.57",
+        "zone_code": "office"
+      },
+      "WORLD_BOUNDS_MM": [
+        38900,
+        30570,
+        41356,
+        55000
+      ],
+      "ZONE_CODE": "office"
+    },
+    {
+      "AREA_AUTHORITY_M2": 40,
+      "CANDIDATE_ID": "multi-solution-validation-01/candidate-02",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 12038,
+      "MISSING_INPUTS": [
+        "locker_count",
+        "simultaneous_users",
+        "locker_model",
+        "locker_unit_mm",
+        "arrangement",
+        "door_sweep",
+        "bench",
+        "clothing_separation",
+        "hygiene_facilities",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [
+        {
+          "CLEAR_WIDTH_MM": 1500,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "PEOPLE"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              10538,
+              3323
+            ],
+            [
+              12038,
+              3323
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "changing_room",
+            "clear_width_m": "1.5",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "72.498",
+                "y": "18.023"
+              },
+              "start": {
+                "x": "70.998",
+                "y": "18.023"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              70998,
+              18023
+            ],
+            [
+              72498,
+              18023
+            ]
+          ]
+        },
+        {
+          "CLEAR_WIDTH_MM": 1500,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "PEOPLE"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              0,
+              911
+            ],
+            [
+              0,
+              2411
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "changing_room",
+            "clear_width_m": "1.5",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "60.46",
+                "y": "17.111"
+              },
+              "start": {
+                "x": "60.46",
+                "y": "15.611"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              60460,
+              15611
+            ],
+            [
+              60460,
+              17111
+            ]
+          ]
+        }
+      ],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "6272e8ab1c31e6dd90cf12ceebb1b3fa8f8621a4912c5c926c48aee25496253b",
+      "ROOM_AREA_MM2": 40002274,
+      "ROOM_DEPTH_MM": 3323,
+      "ROOM_WIDTH_MM": 12038,
+      "SHORT_EDGE_MM": 3323,
+      "SOURCE_GEOMETRY_HASH": "sha256:01dc0a46e213c7e92071ca1d88d7482d7cf829cd2411965ef3a323d1ca9095be",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "40.002274",
+        "depth_m": "3.323",
+        "rotation_deg": 0,
+        "width_m": "12.038",
+        "x": "60.46",
+        "y": "14.7",
+        "zone_code": "changing_room"
+      },
+      "WORLD_BOUNDS_MM": [
+        60460,
+        14700,
+        72498,
+        18023
+      ],
+      "ZONE_CODE": "changing_room"
+    },
+    {
+      "AREA_AUTHORITY_M2": 80,
+      "CANDIDATE_ID": "multi-solution-validation-01/candidate-02",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 13027,
+      "MISSING_INPUTS": [
+        "process_type",
+        "equipment_model",
+        "equipment_count",
+        "capacity",
+        "effective_runtime_hours",
+        "body_height_mm",
+        "infeed_direction",
+        "outfeed_direction",
+        "operator_tasks",
+        "product_buffer",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [
+        {
+          "CLEAR_WIDTH_MM": 2400,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "MATERIAL"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              6143,
+              3825
+            ],
+            [
+              6143,
+              6225
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "coating_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "21.083",
+                "y": "29.253"
+              },
+              "start": {
+                "x": "21.083",
+                "y": "26.853"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              21083,
+              26853
+            ],
+            [
+              21083,
+              29253
+            ]
+          ]
+        },
+        {
+          "CLEAR_WIDTH_MM": 2400,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "MATERIAL"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              1871,
+              13027
+            ],
+            [
+              4271,
+              13027
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "coating_room",
+            "clear_width_m": "2.4",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "19.211",
+                "y": "36.055"
+              },
+              "start": {
+                "x": "16.811",
+                "y": "36.055"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              16811,
+              36055
+            ],
+            [
+              19211,
+              36055
+            ]
+          ]
+        }
+      ],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "6272e8ab1c31e6dd90cf12ceebb1b3fa8f8621a4912c5c926c48aee25496253b",
+      "ROOM_AREA_MM2": 80024861,
+      "ROOM_DEPTH_MM": 13027,
+      "ROOM_WIDTH_MM": 6143,
+      "SHORT_EDGE_MM": 6143,
+      "SOURCE_GEOMETRY_HASH": "sha256:01dc0a46e213c7e92071ca1d88d7482d7cf829cd2411965ef3a323d1ca9095be",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "80.024861",
+        "depth_m": "6.143",
+        "rotation_deg": 90,
+        "width_m": "13.027",
+        "x": "14.94",
+        "y": "23.028",
+        "zone_code": "coating_room"
+      },
+      "WORLD_BOUNDS_MM": [
+        14940,
+        23028,
+        21083,
+        36055
+      ],
+      "ZONE_CODE": "coating_room"
+    },
+    {
+      "AREA_AUTHORITY_M2": 60,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-01",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 21307,
+      "MISSING_INPUTS": [
+        "factory_size",
+        "design_staff",
+        "workstations",
+        "furniture_model",
+        "chair_movement",
+        "storage",
+        "necessary_functions",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "42b20791862454a346e51d0fc4237e27824463708159c2b923db616072ca2ba1",
+      "ROOM_AREA_MM2": 60000512,
+      "ROOM_DEPTH_MM": 21307,
+      "ROOM_WIDTH_MM": 2816,
+      "SHORT_EDGE_MM": 2816,
+      "SOURCE_GEOMETRY_HASH": "sha256:a8873398fbf9fa257dc6c4633b7e0137e4f16fc85f4b42aeaa5d9ba1d82736d6",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "60.000512",
+        "depth_m": "2.816",
+        "rotation_deg": 90,
+        "width_m": "21.307",
+        "x": "0.001",
+        "y": "33.45",
+        "zone_code": "office"
+      },
+      "WORLD_BOUNDS_MM": [
+        1,
+        33450,
+        2817,
+        54757
+      ],
+      "ZONE_CODE": "office"
+    },
+    {
+      "AREA_AUTHORITY_M2": 40,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-01",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 26331,
+      "MISSING_INPUTS": [
+        "locker_count",
+        "simultaneous_users",
+        "locker_model",
+        "locker_unit_mm",
+        "arrangement",
+        "door_sweep",
+        "bench",
+        "clothing_separation",
+        "hygiene_facilities",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [
+        {
+          "CLEAR_WIDTH_MM": 1500,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "PEOPLE"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              26331,
+              875
+            ],
+            [
+              26331,
+              2375
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "changing_room",
+            "clear_width_m": "1.5",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "41.031",
+                "y": "26.025"
+              },
+              "start": {
+                "x": "41.031",
+                "y": "24.525"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              41031,
+              24525
+            ],
+            [
+              41031,
+              26025
+            ]
+          ]
+        },
+        {
+          "CLEAR_WIDTH_MM": 1500,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "PEOPLE"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              12415,
+              0
+            ],
+            [
+              13915,
+              0
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "changing_room",
+            "clear_width_m": "1.5",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "28.615",
+                "y": "23.65"
+              },
+              "start": {
+                "x": "27.115",
+                "y": "23.65"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              27115,
+              23650
+            ],
+            [
+              28615,
+              23650
+            ]
+          ]
+        }
+      ],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "42b20791862454a346e51d0fc4237e27824463708159c2b923db616072ca2ba1",
+      "ROOM_AREA_MM2": 85575750,
+      "ROOM_DEPTH_MM": 3250,
+      "ROOM_WIDTH_MM": 26331,
+      "SHORT_EDGE_MM": 3250,
+      "SOURCE_GEOMETRY_HASH": "sha256:a8873398fbf9fa257dc6c4633b7e0137e4f16fc85f4b42aeaa5d9ba1d82736d6",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "85.57575",
+        "depth_m": "3.25",
+        "rotation_deg": 0,
+        "width_m": "26.331",
+        "x": "14.7",
+        "y": "23.65",
+        "zone_code": "changing_room"
+      },
+      "WORLD_BOUNDS_MM": [
+        14700,
+        23650,
+        41031,
+        26900
+      ],
+      "ZONE_CODE": "changing_room"
+    },
+    {
+      "AREA_AUTHORITY_M2": 80,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-01",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 41026,
+      "MISSING_INPUTS": [
+        "process_type",
+        "equipment_model",
+        "equipment_count",
+        "capacity",
+        "effective_runtime_hours",
+        "body_height_mm",
+        "infeed_direction",
+        "outfeed_direction",
+        "operator_tasks",
+        "product_buffer",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [
+        {
+          "CLEAR_WIDTH_MM": 2400,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "MATERIAL"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              8475,
+              0
+            ],
+            [
+              10875,
+              0
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "coating_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "10.875",
+                "y": "28.551"
+              },
+              "start": {
+                "x": "8.475",
+                "y": "28.551"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              8475,
+              28551
+            ],
+            [
+              10875,
+              28551
+            ]
+          ]
+        },
+        {
+          "CLEAR_WIDTH_MM": 2400,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "MATERIAL"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              23971,
+              1950
+            ],
+            [
+              26371,
+              1950
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "coating_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "26.371",
+                "y": "30.501"
+              },
+              "start": {
+                "x": "23.971",
+                "y": "30.501"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              23971,
+              30501
+            ],
+            [
+              26371,
+              30501
+            ]
+          ]
+        }
+      ],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "42b20791862454a346e51d0fc4237e27824463708159c2b923db616072ca2ba1",
+      "ROOM_AREA_MM2": 80000700,
+      "ROOM_DEPTH_MM": 1950,
+      "ROOM_WIDTH_MM": 41026,
+      "SHORT_EDGE_MM": 1950,
+      "SOURCE_GEOMETRY_HASH": "sha256:a8873398fbf9fa257dc6c4633b7e0137e4f16fc85f4b42aeaa5d9ba1d82736d6",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "80.0007",
+        "depth_m": "41.026",
+        "rotation_deg": 90,
+        "width_m": "1.95",
+        "x": "0",
+        "y": "28.551",
+        "zone_code": "coating_room"
+      },
+      "WORLD_BOUNDS_MM": [
+        0,
+        28551,
+        41026,
+        30501
+      ],
+      "ZONE_CODE": "coating_room"
+    },
+    {
+      "AREA_AUTHORITY_M2": 60,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-02",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 20633,
+      "MISSING_INPUTS": [
+        "factory_size",
+        "design_staff",
+        "workstations",
+        "furniture_model",
+        "chair_movement",
+        "storage",
+        "necessary_functions",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "249eebe4410be1fa6f0da11299d57b30101c5f05d04c7c6d119a839448e9c486",
+      "ROOM_AREA_MM2": 60000764,
+      "ROOM_DEPTH_MM": 20633,
+      "ROOM_WIDTH_MM": 2908,
+      "SHORT_EDGE_MM": 2908,
+      "SOURCE_GEOMETRY_HASH": "sha256:b60a8b043353ec2aed3bd26f71791c1e5f11e8041ae98ceb0fbdfdd75e2c60ae",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "60.000764",
+        "depth_m": "20.633",
+        "rotation_deg": 0,
+        "width_m": "2.908",
+        "x": "0",
+        "y": "18.751",
+        "zone_code": "office"
+      },
+      "WORLD_BOUNDS_MM": [
+        0,
+        18751,
+        2908,
+        39384
+      ],
+      "ZONE_CODE": "office"
+    },
+    {
+      "AREA_AUTHORITY_M2": 40,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-02",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 40942,
+      "MISSING_INPUTS": [
+        "locker_count",
+        "simultaneous_users",
+        "locker_model",
+        "locker_unit_mm",
+        "arrangement",
+        "door_sweep",
+        "bench",
+        "clothing_separation",
+        "hygiene_facilities",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [
+        {
+          "CLEAR_WIDTH_MM": 1500,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "PEOPLE"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              19721,
+              977
+            ],
+            [
+              21221,
+              977
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "changing_room",
+            "clear_width_m": "1.5",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "38.321",
+                "y": "24.627"
+              },
+              "start": {
+                "x": "36.821",
+                "y": "24.627"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              36821,
+              24627
+            ],
+            [
+              38321,
+              24627
+            ]
+          ]
+        },
+        {
+          "CLEAR_WIDTH_MM": 1500,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "PEOPLE"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              19721,
+              0
+            ],
+            [
+              21221,
+              0
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "changing_room",
+            "clear_width_m": "1.5",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "38.321",
+                "y": "23.65"
+              },
+              "start": {
+                "x": "36.821",
+                "y": "23.65"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              36821,
+              23650
+            ],
+            [
+              38321,
+              23650
+            ]
+          ]
+        }
+      ],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "249eebe4410be1fa6f0da11299d57b30101c5f05d04c7c6d119a839448e9c486",
+      "ROOM_AREA_MM2": 40000334,
+      "ROOM_DEPTH_MM": 977,
+      "ROOM_WIDTH_MM": 40942,
+      "SHORT_EDGE_MM": 977,
+      "SOURCE_GEOMETRY_HASH": "sha256:b60a8b043353ec2aed3bd26f71791c1e5f11e8041ae98ceb0fbdfdd75e2c60ae",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "40.000334",
+        "depth_m": "40.942",
+        "rotation_deg": 90,
+        "width_m": "0.977",
+        "x": "17.1",
+        "y": "23.65",
+        "zone_code": "changing_room"
+      },
+      "WORLD_BOUNDS_MM": [
+        17100,
+        23650,
+        58042,
+        24627
+      ],
+      "ZONE_CODE": "changing_room"
+    },
+    {
+      "AREA_AUTHORITY_M2": 80,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-02",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 9068,
+      "MISSING_INPUTS": [
+        "process_type",
+        "equipment_model",
+        "equipment_count",
+        "capacity",
+        "effective_runtime_hours",
+        "body_height_mm",
+        "infeed_direction",
+        "outfeed_direction",
+        "operator_tasks",
+        "product_buffer",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [
+        {
+          "CLEAR_WIDTH_MM": 2400,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "MATERIAL"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              0,
+              3211
+            ],
+            [
+              0,
+              5611
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "coating_room",
+            "clear_width_m": "2.4",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "17.1",
+                "y": "30.238"
+              },
+              "start": {
+                "x": "17.1",
+                "y": "27.838"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              17100,
+              27838
+            ],
+            [
+              17100,
+              30238
+            ]
+          ]
+        },
+        {
+          "CLEAR_WIDTH_MM": 2400,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "MATERIAL"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              3334,
+              8823
+            ],
+            [
+              5734,
+              8823
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "coating_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "22.834",
+                "y": "33.45"
+              },
+              "start": {
+                "x": "20.434",
+                "y": "33.45"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              20434,
+              33450
+            ],
+            [
+              22834,
+              33450
+            ]
+          ]
+        }
+      ],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "249eebe4410be1fa6f0da11299d57b30101c5f05d04c7c6d119a839448e9c486",
+      "ROOM_AREA_MM2": 80006964,
+      "ROOM_DEPTH_MM": 8823,
+      "ROOM_WIDTH_MM": 9068,
+      "SHORT_EDGE_MM": 8823,
+      "SOURCE_GEOMETRY_HASH": "sha256:b60a8b043353ec2aed3bd26f71791c1e5f11e8041ae98ceb0fbdfdd75e2c60ae",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "80.006964",
+        "depth_m": "9.068",
+        "rotation_deg": 90,
+        "width_m": "8.823",
+        "x": "17.1",
+        "y": "24.627",
+        "zone_code": "coating_room"
+      },
+      "WORLD_BOUNDS_MM": [
+        17100,
+        24627,
+        26168,
+        33450
+      ],
+      "ZONE_CODE": "coating_room"
+    },
+    {
+      "AREA_AUTHORITY_M2": 60,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-03",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 36232,
+      "MISSING_INPUTS": [
+        "factory_size",
+        "design_staff",
+        "workstations",
+        "furniture_model",
+        "chair_movement",
+        "storage",
+        "necessary_functions",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "d52500dd974f7563fba59b0268c504795aac941cbf8e430d70349363f871b77b",
+      "ROOM_AREA_MM2": 60000192,
+      "ROOM_DEPTH_MM": 36232,
+      "ROOM_WIDTH_MM": 1656,
+      "SHORT_EDGE_MM": 1656,
+      "SOURCE_GEOMETRY_HASH": "sha256:77b1023e62b8877f07df81a6c90c8455af249848a2cc604c92685ac7872658fb",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "60.000192",
+        "depth_m": "36.232",
+        "rotation_deg": 0,
+        "width_m": "1.656",
+        "x": "0",
+        "y": "18.751",
+        "zone_code": "office"
+      },
+      "WORLD_BOUNDS_MM": [
+        0,
+        18751,
+        1656,
+        54983
+      ],
+      "ZONE_CODE": "office"
+    },
+    {
+      "AREA_AUTHORITY_M2": 40,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-03",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 45759,
+      "MISSING_INPUTS": [
+        "locker_count",
+        "simultaneous_users",
+        "locker_model",
+        "locker_unit_mm",
+        "arrangement",
+        "door_sweep",
+        "bench",
+        "clothing_separation",
+        "hygiene_facilities",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [
+        {
+          "CLEAR_WIDTH_MM": 1500,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "PEOPLE"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              44259,
+              875
+            ],
+            [
+              45759,
+              875
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "changing_room",
+            "clear_width_m": "1.5",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "60.708",
+                "y": "24.525"
+              },
+              "start": {
+                "x": "59.208",
+                "y": "24.525"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              59208,
+              24525
+            ],
+            [
+              60708,
+              24525
+            ]
+          ]
+        },
+        {
+          "CLEAR_WIDTH_MM": 1500,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "PEOPLE"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              22129,
+              0
+            ],
+            [
+              23629,
+              0
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "changing_room",
+            "clear_width_m": "1.5",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "38.578",
+                "y": "23.65"
+              },
+              "start": {
+                "x": "37.078",
+                "y": "23.65"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              37078,
+              23650
+            ],
+            [
+              38578,
+              23650
+            ]
+          ]
+        }
+      ],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "d52500dd974f7563fba59b0268c504795aac941cbf8e430d70349363f871b77b",
+      "ROOM_AREA_MM2": 40039125,
+      "ROOM_DEPTH_MM": 875,
+      "ROOM_WIDTH_MM": 45759,
+      "SHORT_EDGE_MM": 875,
+      "SOURCE_GEOMETRY_HASH": "sha256:77b1023e62b8877f07df81a6c90c8455af249848a2cc604c92685ac7872658fb",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "40.039125",
+        "depth_m": "45.759",
+        "rotation_deg": 90,
+        "width_m": "0.875",
+        "x": "14.949",
+        "y": "23.65",
+        "zone_code": "changing_room"
+      },
+      "WORLD_BOUNDS_MM": [
+        14949,
+        23650,
+        60708,
+        24525
+      ],
+      "ZONE_CODE": "changing_room"
+    },
+    {
+      "AREA_AUTHORITY_M2": 80,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-03",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 8964,
+      "MISSING_INPUTS": [
+        "process_type",
+        "equipment_model",
+        "equipment_count",
+        "capacity",
+        "effective_runtime_hours",
+        "body_height_mm",
+        "infeed_direction",
+        "outfeed_direction",
+        "operator_tasks",
+        "product_buffer",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [
+        {
+          "CLEAR_WIDTH_MM": 2400,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "MATERIAL"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              0,
+              813
+            ],
+            [
+              0,
+              3213
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "coating_room",
+            "clear_width_m": "2.4",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "14.949",
+                "y": "27.738"
+              },
+              "start": {
+                "x": "14.949",
+                "y": "25.338"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              14949,
+              25338
+            ],
+            [
+              14949,
+              27738
+            ]
+          ]
+        },
+        {
+          "CLEAR_WIDTH_MM": 2400,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "MATERIAL"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              3282,
+              8925
+            ],
+            [
+              5682,
+              8925
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "coating_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "20.631",
+                "y": "33.45"
+              },
+              "start": {
+                "x": "18.231",
+                "y": "33.45"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              18231,
+              33450
+            ],
+            [
+              20631,
+              33450
+            ]
+          ]
+        }
+      ],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "d52500dd974f7563fba59b0268c504795aac941cbf8e430d70349363f871b77b",
+      "ROOM_AREA_MM2": 80003700,
+      "ROOM_DEPTH_MM": 8925,
+      "ROOM_WIDTH_MM": 8964,
+      "SHORT_EDGE_MM": 8925,
+      "SOURCE_GEOMETRY_HASH": "sha256:77b1023e62b8877f07df81a6c90c8455af249848a2cc604c92685ac7872658fb",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "80.0037",
+        "depth_m": "8.964",
+        "rotation_deg": 90,
+        "width_m": "8.925",
+        "x": "14.949",
+        "y": "24.525",
+        "zone_code": "coating_room"
+      },
+      "WORLD_BOUNDS_MM": [
+        14949,
+        24525,
+        23913,
+        33450
+      ],
+      "ZONE_CODE": "coating_room"
+    },
+    {
+      "AREA_AUTHORITY_M2": 60,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-04",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 36232,
+      "MISSING_INPUTS": [
+        "factory_size",
+        "design_staff",
+        "workstations",
+        "furniture_model",
+        "chair_movement",
+        "storage",
+        "necessary_functions",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "6efc6aa78c7f85d3a4a8aefb27b02ab2cd4d70d5c2fcd7e2140254186486a434",
+      "ROOM_AREA_MM2": 60000192,
+      "ROOM_DEPTH_MM": 36232,
+      "ROOM_WIDTH_MM": 1656,
+      "SHORT_EDGE_MM": 1656,
+      "SOURCE_GEOMETRY_HASH": "sha256:110c73358a13b504b3c8e3e3b03d46f3ee8a2652648b326c961641e023857359",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "60.000192",
+        "depth_m": "36.232",
+        "rotation_deg": 0,
+        "width_m": "1.656",
+        "x": "0",
+        "y": "18.751",
+        "zone_code": "office"
+      },
+      "WORLD_BOUNDS_MM": [
+        0,
+        18751,
+        1656,
+        54983
+      ],
+      "ZONE_CODE": "office"
+    },
+    {
+      "AREA_AUTHORITY_M2": 40,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-04",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 9801,
+      "MISSING_INPUTS": [
+        "locker_count",
+        "simultaneous_users",
+        "locker_model",
+        "locker_unit_mm",
+        "arrangement",
+        "door_sweep",
+        "bench",
+        "clothing_separation",
+        "hygiene_facilities",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [
+        {
+          "CLEAR_WIDTH_MM": 1500,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "PEOPLE"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              2582,
+              9801
+            ],
+            [
+              4082,
+              9801
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "changing_room",
+            "clear_width_m": "1.5",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "38.536",
+                "y": "33.453"
+              },
+              "start": {
+                "x": "37.036",
+                "y": "33.453"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              37036,
+              33453
+            ],
+            [
+              38536,
+              33453
+            ]
+          ]
+        },
+        {
+          "CLEAR_WIDTH_MM": 1500,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "PEOPLE"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              1291,
+              0
+            ],
+            [
+              2791,
+              0
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "changing_room",
+            "clear_width_m": "1.5",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "37.245",
+                "y": "23.652"
+              },
+              "start": {
+                "x": "35.745",
+                "y": "23.652"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              35745,
+              23652
+            ],
+            [
+              37245,
+              23652
+            ]
+          ]
+        }
+      ],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "6efc6aa78c7f85d3a4a8aefb27b02ab2cd4d70d5c2fcd7e2140254186486a434",
+      "ROOM_AREA_MM2": 40007682,
+      "ROOM_DEPTH_MM": 9801,
+      "ROOM_WIDTH_MM": 4082,
+      "SHORT_EDGE_MM": 4082,
+      "SOURCE_GEOMETRY_HASH": "sha256:110c73358a13b504b3c8e3e3b03d46f3ee8a2652648b326c961641e023857359",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "40.007682",
+        "depth_m": "4.082",
+        "rotation_deg": 90,
+        "width_m": "9.801",
+        "x": "34.454",
+        "y": "23.652",
+        "zone_code": "changing_room"
+      },
+      "WORLD_BOUNDS_MM": [
+        34454,
+        23652,
+        38536,
+        33453
+      ],
+      "ZONE_CODE": "changing_room"
+    },
+    {
+      "AREA_AUTHORITY_M2": 80,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-04",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 10955,
+      "MISSING_INPUTS": [
+        "process_type",
+        "equipment_model",
+        "equipment_count",
+        "capacity",
+        "effective_runtime_hours",
+        "body_height_mm",
+        "infeed_direction",
+        "outfeed_direction",
+        "operator_tasks",
+        "product_buffer",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [
+        {
+          "CLEAR_WIDTH_MM": 2400,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "MATERIAL"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              7303,
+              3212
+            ],
+            [
+              7303,
+              5612
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "coating_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "24.404",
+                "y": "30.24"
+              },
+              "start": {
+                "x": "24.404",
+                "y": "27.84"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              24404,
+              27840
+            ],
+            [
+              24404,
+              30240
+            ]
+          ]
+        },
+        {
+          "CLEAR_WIDTH_MM": 2400,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "MATERIAL"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              2451,
+              10955
+            ],
+            [
+              4851,
+              10955
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "coating_room",
+            "clear_width_m": "2.4",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "21.952",
+                "y": "35.583"
+              },
+              "start": {
+                "x": "19.552",
+                "y": "35.583"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              19552,
+              35583
+            ],
+            [
+              21952,
+              35583
+            ]
+          ]
+        }
+      ],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "6efc6aa78c7f85d3a4a8aefb27b02ab2cd4d70d5c2fcd7e2140254186486a434",
+      "ROOM_AREA_MM2": 80004365,
+      "ROOM_DEPTH_MM": 10955,
+      "ROOM_WIDTH_MM": 7303,
+      "SHORT_EDGE_MM": 7303,
+      "SOURCE_GEOMETRY_HASH": "sha256:110c73358a13b504b3c8e3e3b03d46f3ee8a2652648b326c961641e023857359",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "80.004365",
+        "depth_m": "10.955",
+        "rotation_deg": 0,
+        "width_m": "7.303",
+        "x": "17.101",
+        "y": "24.628",
+        "zone_code": "coating_room"
+      },
+      "WORLD_BOUNDS_MM": [
+        17101,
+        24628,
+        24404,
+        35583
+      ],
+      "ZONE_CODE": "coating_room"
+    },
+    {
+      "AREA_AUTHORITY_M2": 60,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-05",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 36232,
+      "MISSING_INPUTS": [
+        "factory_size",
+        "design_staff",
+        "workstations",
+        "furniture_model",
+        "chair_movement",
+        "storage",
+        "necessary_functions",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "72cfe4dbc42a20b26885be0cfb927a1b976b49b0b307e807394055896937d769",
+      "ROOM_AREA_MM2": 60000192,
+      "ROOM_DEPTH_MM": 36232,
+      "ROOM_WIDTH_MM": 1656,
+      "SHORT_EDGE_MM": 1656,
+      "SOURCE_GEOMETRY_HASH": "sha256:f9cbb4ccfae57eb43fdad2e0aa6731c03585803ec3b164754182bb3208dee216",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "60.000192",
+        "depth_m": "36.232",
+        "rotation_deg": 0,
+        "width_m": "1.656",
+        "x": "0",
+        "y": "18.751",
+        "zone_code": "office"
+      },
+      "WORLD_BOUNDS_MM": [
+        0,
+        18751,
+        1656,
+        54983
+      ],
+      "ZONE_CODE": "office"
+    },
+    {
+      "AREA_AUTHORITY_M2": 40,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-05",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 9802,
+      "MISSING_INPUTS": [
+        "locker_count",
+        "simultaneous_users",
+        "locker_model",
+        "locker_unit_mm",
+        "arrangement",
+        "door_sweep",
+        "bench",
+        "clothing_separation",
+        "hygiene_facilities",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [
+        {
+          "CLEAR_WIDTH_MM": 1500,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "PEOPLE"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              2583,
+              9802
+            ],
+            [
+              4083,
+              9802
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "changing_room",
+            "clear_width_m": "1.5",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "38.471",
+                "y": "33.455"
+              },
+              "start": {
+                "x": "36.971",
+                "y": "33.455"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              36971,
+              33455
+            ],
+            [
+              38471,
+              33455
+            ]
+          ]
+        },
+        {
+          "CLEAR_WIDTH_MM": 1500,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "PEOPLE"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              1291,
+              0
+            ],
+            [
+              2791,
+              0
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "changing_room",
+            "clear_width_m": "1.5",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "37.179",
+                "y": "23.653"
+              },
+              "start": {
+                "x": "35.679",
+                "y": "23.653"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              35679,
+              23653
+            ],
+            [
+              37179,
+              23653
+            ]
+          ]
+        }
+      ],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "72cfe4dbc42a20b26885be0cfb927a1b976b49b0b307e807394055896937d769",
+      "ROOM_AREA_MM2": 40021566,
+      "ROOM_DEPTH_MM": 9802,
+      "ROOM_WIDTH_MM": 4083,
+      "SHORT_EDGE_MM": 4083,
+      "SOURCE_GEOMETRY_HASH": "sha256:f9cbb4ccfae57eb43fdad2e0aa6731c03585803ec3b164754182bb3208dee216",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "40.021566",
+        "depth_m": "4.083",
+        "rotation_deg": 90,
+        "width_m": "9.802",
+        "x": "34.388",
+        "y": "23.653",
+        "zone_code": "changing_room"
+      },
+      "WORLD_BOUNDS_MM": [
+        34388,
+        23653,
+        38471,
+        33455
+      ],
+      "ZONE_CODE": "changing_room"
+    },
+    {
+      "AREA_AUTHORITY_M2": 80,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-05",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 11056,
+      "MISSING_INPUTS": [
+        "process_type",
+        "equipment_model",
+        "equipment_count",
+        "capacity",
+        "effective_runtime_hours",
+        "body_height_mm",
+        "infeed_direction",
+        "outfeed_direction",
+        "operator_tasks",
+        "product_buffer",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [
+        {
+          "CLEAR_WIDTH_MM": 2400,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "MATERIAL"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              7236,
+              3263
+            ],
+            [
+              7236,
+              5663
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "coating_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "24.338",
+                "y": "30.189"
+              },
+              "start": {
+                "x": "24.338",
+                "y": "27.789"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              24338,
+              27789
+            ],
+            [
+              24338,
+              30189
+            ]
+          ]
+        },
+        {
+          "CLEAR_WIDTH_MM": 2400,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "MATERIAL"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              2418,
+              11056
+            ],
+            [
+              4818,
+              11056
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "coating_room",
+            "clear_width_m": "2.4",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "21.92",
+                "y": "35.582"
+              },
+              "start": {
+                "x": "19.52",
+                "y": "35.582"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              19520,
+              35582
+            ],
+            [
+              21920,
+              35582
+            ]
+          ]
+        }
+      ],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "72cfe4dbc42a20b26885be0cfb927a1b976b49b0b307e807394055896937d769",
+      "ROOM_AREA_MM2": 80001216,
+      "ROOM_DEPTH_MM": 11056,
+      "ROOM_WIDTH_MM": 7236,
+      "SHORT_EDGE_MM": 7236,
+      "SOURCE_GEOMETRY_HASH": "sha256:f9cbb4ccfae57eb43fdad2e0aa6731c03585803ec3b164754182bb3208dee216",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "80.001216",
+        "depth_m": "11.056",
+        "rotation_deg": 0,
+        "width_m": "7.236",
+        "x": "17.102",
+        "y": "24.526",
+        "zone_code": "coating_room"
+      },
+      "WORLD_BOUNDS_MM": [
+        17102,
+        24526,
+        24338,
+        35582
+      ],
+      "ZONE_CODE": "coating_room"
+    },
+    {
+      "AREA_AUTHORITY_M2": 60,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-06",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 36232,
+      "MISSING_INPUTS": [
+        "factory_size",
+        "design_staff",
+        "workstations",
+        "furniture_model",
+        "chair_movement",
+        "storage",
+        "necessary_functions",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "865258d6bdcc2a67a5c4947be9956b9cbfac701cd88b369d51ec7fe0094ecab0",
+      "ROOM_AREA_MM2": 60000192,
+      "ROOM_DEPTH_MM": 36232,
+      "ROOM_WIDTH_MM": 1656,
+      "SHORT_EDGE_MM": 1656,
+      "SOURCE_GEOMETRY_HASH": "sha256:b7353dcda7daf1b58743d2a8b6d3a53a683b9fc81cec02fba250a2f9dca579e4",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "60.000192",
+        "depth_m": "36.232",
+        "rotation_deg": 0,
+        "width_m": "1.656",
+        "x": "0",
+        "y": "18.751",
+        "zone_code": "office"
+      },
+      "WORLD_BOUNDS_MM": [
+        0,
+        18751,
+        1656,
+        54983
+      ],
+      "ZONE_CODE": "office"
+    },
+    {
+      "AREA_AUTHORITY_M2": 40,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-06",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 9803,
+      "MISSING_INPUTS": [
+        "locker_count",
+        "simultaneous_users",
+        "locker_model",
+        "locker_unit_mm",
+        "arrangement",
+        "door_sweep",
+        "bench",
+        "clothing_separation",
+        "hygiene_facilities",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [
+        {
+          "CLEAR_WIDTH_MM": 1500,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "PEOPLE"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              2584,
+              9803
+            ],
+            [
+              4084,
+              9803
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "changing_room",
+            "clear_width_m": "1.5",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "37.945",
+                "y": "33.457"
+              },
+              "start": {
+                "x": "36.445",
+                "y": "33.457"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              36445,
+              33457
+            ],
+            [
+              37945,
+              33457
+            ]
+          ]
+        },
+        {
+          "CLEAR_WIDTH_MM": 1500,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "PEOPLE"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              1292,
+              0
+            ],
+            [
+              2792,
+              0
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "changing_room",
+            "clear_width_m": "1.5",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "36.653",
+                "y": "23.654"
+              },
+              "start": {
+                "x": "35.153",
+                "y": "23.654"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              35153,
+              23654
+            ],
+            [
+              36653,
+              23654
+            ]
+          ]
+        }
+      ],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "865258d6bdcc2a67a5c4947be9956b9cbfac701cd88b369d51ec7fe0094ecab0",
+      "ROOM_AREA_MM2": 40035452,
+      "ROOM_DEPTH_MM": 9803,
+      "ROOM_WIDTH_MM": 4084,
+      "SHORT_EDGE_MM": 4084,
+      "SOURCE_GEOMETRY_HASH": "sha256:b7353dcda7daf1b58743d2a8b6d3a53a683b9fc81cec02fba250a2f9dca579e4",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "40.035452",
+        "depth_m": "4.084",
+        "rotation_deg": 90,
+        "width_m": "9.803",
+        "x": "33.861",
+        "y": "23.654",
+        "zone_code": "changing_room"
+      },
+      "WORLD_BOUNDS_MM": [
+        33861,
+        23654,
+        37945,
+        33457
+      ],
+      "ZONE_CODE": "changing_room"
+    },
+    {
+      "AREA_AUTHORITY_M2": 80,
+      "CANDIDATE_ID": "guided-fair-validation-02/candidate-06",
+      "CIRCULATION_STATUS": "NOT_EVALUATED",
+      "CLEANING_MAINTENANCE_STATUS": "NOT_EVALUATED",
+      "CONFLICTS": [],
+      "EQUIPMENT_FIT_STATUS": "NOT_EVALUATED",
+      "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+      "FUNCTIONAL_FIT_STATUS": "INPUT_REQUIRED",
+      "FUNCTIONAL_INPUT_STATUS": "INPUT_REQUIRED",
+      "LOCAL_COORDINATES": "PHYSICAL_XY_LOWER_LEFT_NOT_NOMINAL_ROTATED_FRAME",
+      "LONG_EDGE_MM": 11927,
+      "MISSING_INPUTS": [
+        "process_type",
+        "equipment_model",
+        "equipment_count",
+        "capacity",
+        "effective_runtime_hours",
+        "body_height_mm",
+        "infeed_direction",
+        "outfeed_direction",
+        "operator_tasks",
+        "product_buffer",
+        "finished_clear_bounds_mm",
+        "door_operation",
+        "shift_change_duration",
+        "cleaning_duration",
+        "maintenance_procedure",
+        "state_bound_components",
+        "full_width_internal_routes",
+        "project_source_review"
+      ],
+      "MODEL_ORIENTATION": null,
+      "OPERATION_STATUS": "NOT_EVALUATED",
+      "PORTALS": [
+        {
+          "CLEAR_WIDTH_MM": 2400,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "MATERIAL"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              6708,
+              3700
+            ],
+            [
+              6708,
+              6100
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "coating_room",
+            "clear_width_m": "2.4",
+            "edge_class": "LONG_EDGE",
+            "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "23.811",
+                "y": "29.754"
+              },
+              "start": {
+                "x": "23.811",
+                "y": "27.354"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              23811,
+              27354
+            ],
+            [
+              23811,
+              29754
+            ]
+          ]
+        },
+        {
+          "CLEAR_WIDTH_MM": 2400,
+          "DOOR_SWING": null,
+          "FLOW_KINDS": [
+            "MATERIAL"
+          ],
+          "LOCAL_SEGMENT_MM": [
+            [
+              2154,
+              11927
+            ],
+            [
+              4554,
+              11927
+            ]
+          ],
+          "ORIGINAL": {
+            "access_ref": "coating_room",
+            "clear_width_m": "2.4",
+            "edge_class": "SHORT_EDGE",
+            "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment": {
+              "end": {
+                "x": "21.657",
+                "y": "35.581"
+              },
+              "start": {
+                "x": "19.257",
+                "y": "35.581"
+              }
+            },
+            "status": "VALID"
+          },
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+          "WORLD_SEGMENT_MM": [
+            [
+              19257,
+              35581
+            ],
+            [
+              21657,
+              35581
+            ]
+          ]
+        }
+      ],
+      "PORTAL_ACCESS_STATUS": "NOT_EVALUATED",
+      "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+      "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+      "RAW_CANDIDATE_SHA256": "865258d6bdcc2a67a5c4947be9956b9cbfac701cd88b369d51ec7fe0094ecab0",
+      "ROOM_AREA_MM2": 80006316,
+      "ROOM_DEPTH_MM": 11927,
+      "ROOM_WIDTH_MM": 6708,
+      "SHORT_EDGE_MM": 6708,
+      "SOURCE_GEOMETRY_HASH": "sha256:b7353dcda7daf1b58743d2a8b6d3a53a683b9fc81cec02fba250a2f9dca579e4",
+      "SOURCE_ZONE": {
+        "actual_area_m2": "80.006316",
+        "depth_m": "11.927",
+        "rotation_deg": 0,
+        "width_m": "6.708",
+        "x": "17.103",
+        "y": "23.654",
+        "zone_code": "coating_room"
+      },
+      "WORLD_BOUNDS_MM": [
+        17103,
+        23654,
+        23811,
+        35581
+      ],
+      "ZONE_CODE": "coating_room"
+    }
+  ],
+  "ROOMS_AUDITED": 24,
+  "STAGE_B_COMPLETE": false,
+  "VERSION": "functional-room-fit@1.0.0",
+  "VERSION_COMPLETE": false
+}

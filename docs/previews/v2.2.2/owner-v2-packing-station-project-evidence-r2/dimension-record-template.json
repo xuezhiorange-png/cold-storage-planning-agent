@@ -1,0 +1,18 @@
+{
+  "IDENTITY": "ProjectStationDimensionRecordV1",
+  "RECORD_ID": null,
+  "VALUE": null,
+  "UNIT": null,
+  "SOURCE_ID": null,
+  "SOURCE_LOCATION": {
+    "FORMAT": "JSON",
+    "JSON_POINTER": null
+  },
+  "DIMENSION_TYPE": null,
+  "COORDINATE_REFERENCE": null,
+  "EXTRACTION_METHOD": null,
+  "MEASUREMENT": null,
+  "TARGET_PATH": null,
+  "COMPONENT_ID": null,
+  "VALIDATION_STATUS": "UNAVAILABLE"
+}

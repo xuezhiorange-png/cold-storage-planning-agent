@@ -2,7 +2,9 @@ name: ci
 
 on:
   push:
+    branches: [main]
   pull_request:
+    types: [labeled]
   workflow_dispatch:
     inputs:
       execute_live_evidence_capture:
@@ -152,7 +154,7 @@ jobs:
         run: python3 -m unittest discover -s scripts/ci/tests -v
       - name: Classify event paths
         id: classify
-        run: python3 scripts/ci/classify_changes.py
+        run: python3 scripts/ci/classify_changes.py --full
       - name: Changed-lines whitespace check
         if: ${{ steps.classify.outputs.base != '' }}
         env:
@@ -222,6 +224,7 @@ jobs:
       - name: Require all selected checks
         env:
           CI_NEEDS: ${{ toJSON(needs) }}
+          CI_FULL_REQUIRED: "true"
         run: python3 scripts/ci/ci_gate.py
 
   compose-config:
@@ -826,8 +829,26 @@ jobs:
             fi
           done
           exit 1
+      # Fixed two runs, not a retry loop. These steps are part of the existing
+      # required backend-sqlite job and therefore the final ci-gate.
+      - name: Linux physical RSS independent worker 1
+        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run python -m tests.linux_rss_gate run artifacts/linux-rss/run-1
+      - name: Linux physical RSS independent worker 2
+        if: ${{ !cancelled() }}
+        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run python -m tests.linux_rss_gate run artifacts/linux-rss/run-2
+      - name: Require two real Linux RSS overlimit rejections
+        run: cd backend && uv run python -m tests.linux_rss_gate verify artifacts/linux-rss/run-1.xml artifacts/linux-rss/run-2.xml
+      - name: Linux physical RSS worker isolation regressions
+        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run pytest tests/unit/test_stage_a_resource_process.py -m physical_rss_linux
+      - name: Preserve Linux RSS measurements and JUnit
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-physical-rss-${{ github.run_id }}
+          path: backend/artifacts/linux-rss/
+          if-no-files-found: error
       - name: Backend tests (SQLite)
-        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run pytest
+        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run pytest -m "not physical_rss_linux"
       - name: Backend architecture tests
         run: cd backend && PYTHONPATH=src uv run pytest tests/architecture
       - name: Backend lint
@@ -962,7 +983,7 @@ jobs:
           POSTGRES_DB: cold_storage_test
           POSTGRES_USER: cold_storage
           POSTGRES_PASSWORD: cold_storage
-        run: cd backend && PYTHONPATH=src uv run pytest -k "not architecture and not postgresql and not sqlite"
+        run: cd backend && PYTHONPATH=src uv run pytest -m "not physical_rss_linux" -k "not architecture and not postgresql and not sqlite"
 
   frontend:
     needs: classify-changes

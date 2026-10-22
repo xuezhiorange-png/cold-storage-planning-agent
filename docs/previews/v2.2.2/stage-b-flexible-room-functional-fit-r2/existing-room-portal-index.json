@@ -1,0 +1,1578 @@
+[
+  {
+    "CANDIDATE_ID": "multi-solution-validation-01/candidate-01",
+    "PORTALS": [],
+    "ZONE_CODE": "office"
+  },
+  {
+    "CANDIDATE_ID": "multi-solution-validation-01/candidate-01",
+    "PORTALS": [
+      {
+        "CLEAR_WIDTH_MM": 1500,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "PEOPLE"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            2154,
+            0
+          ],
+          [
+            3654,
+            0
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "changing_room",
+          "clear_width_m": "1.5",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "43.106",
+              "y": "2"
+            },
+            "start": {
+              "x": "41.606",
+              "y": "2"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            41606,
+            2000
+          ],
+          [
+            43106,
+            2000
+          ]
+        ]
+      },
+      {
+        "CLEAR_WIDTH_MM": 1500,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "PEOPLE"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            2154,
+            8700
+          ],
+          [
+            3654,
+            8700
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "changing_room",
+          "clear_width_m": "1.5",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "43.106",
+              "y": "10.7"
+            },
+            "start": {
+              "x": "41.606",
+              "y": "10.7"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            41606,
+            10700
+          ],
+          [
+            43106,
+            10700
+          ]
+        ]
+      }
+    ],
+    "ZONE_CODE": "changing_room"
+  },
+  {
+    "CANDIDATE_ID": "multi-solution-validation-01/candidate-01",
+    "PORTALS": [
+      {
+        "CLEAR_WIDTH_MM": 2400,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "MATERIAL"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            6612,
+            3825
+          ],
+          [
+            6612,
+            6225
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "coating_room",
+          "clear_width_m": "2.4",
+          "edge_class": "LONG_EDGE",
+          "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "21.312",
+              "y": "30.525"
+            },
+            "start": {
+              "x": "21.312",
+              "y": "28.125"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            21312,
+            28125
+          ],
+          [
+            21312,
+            30525
+          ]
+        ]
+      },
+      {
+        "CLEAR_WIDTH_MM": 2400,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "MATERIAL"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            2106,
+            12100
+          ],
+          [
+            4506,
+            12100
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "coating_room",
+          "clear_width_m": "2.4",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "19.206",
+              "y": "36.4"
+            },
+            "start": {
+              "x": "16.806",
+              "y": "36.4"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            16806,
+            36400
+          ],
+          [
+            19206,
+            36400
+          ]
+        ]
+      }
+    ],
+    "ZONE_CODE": "coating_room"
+  },
+  {
+    "CANDIDATE_ID": "multi-solution-validation-01/candidate-02",
+    "PORTALS": [],
+    "ZONE_CODE": "office"
+  },
+  {
+    "CANDIDATE_ID": "multi-solution-validation-01/candidate-02",
+    "PORTALS": [
+      {
+        "CLEAR_WIDTH_MM": 1500,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "PEOPLE"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            10538,
+            3323
+          ],
+          [
+            12038,
+            3323
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "changing_room",
+          "clear_width_m": "1.5",
+          "edge_class": "LONG_EDGE",
+          "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "72.498",
+              "y": "18.023"
+            },
+            "start": {
+              "x": "70.998",
+              "y": "18.023"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            70998,
+            18023
+          ],
+          [
+            72498,
+            18023
+          ]
+        ]
+      },
+      {
+        "CLEAR_WIDTH_MM": 1500,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "PEOPLE"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            0,
+            911
+          ],
+          [
+            0,
+            2411
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "changing_room",
+          "clear_width_m": "1.5",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "60.46",
+              "y": "17.111"
+            },
+            "start": {
+              "x": "60.46",
+              "y": "15.611"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            60460,
+            15611
+          ],
+          [
+            60460,
+            17111
+          ]
+        ]
+      }
+    ],
+    "ZONE_CODE": "changing_room"
+  },
+  {
+    "CANDIDATE_ID": "multi-solution-validation-01/candidate-02",
+    "PORTALS": [
+      {
+        "CLEAR_WIDTH_MM": 2400,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "MATERIAL"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            6143,
+            3825
+          ],
+          [
+            6143,
+            6225
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "coating_room",
+          "clear_width_m": "2.4",
+          "edge_class": "LONG_EDGE",
+          "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "21.083",
+              "y": "29.253"
+            },
+            "start": {
+              "x": "21.083",
+              "y": "26.853"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            21083,
+            26853
+          ],
+          [
+            21083,
+            29253
+          ]
+        ]
+      },
+      {
+        "CLEAR_WIDTH_MM": 2400,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "MATERIAL"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            1871,
+            13027
+          ],
+          [
+            4271,
+            13027
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "coating_room",
+          "clear_width_m": "2.4",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "19.211",
+              "y": "36.055"
+            },
+            "start": {
+              "x": "16.811",
+              "y": "36.055"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            16811,
+            36055
+          ],
+          [
+            19211,
+            36055
+          ]
+        ]
+      }
+    ],
+    "ZONE_CODE": "coating_room"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-01",
+    "PORTALS": [],
+    "ZONE_CODE": "office"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-01",
+    "PORTALS": [
+      {
+        "CLEAR_WIDTH_MM": 1500,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "PEOPLE"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            26331,
+            875
+          ],
+          [
+            26331,
+            2375
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "changing_room",
+          "clear_width_m": "1.5",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "41.031",
+              "y": "26.025"
+            },
+            "start": {
+              "x": "41.031",
+              "y": "24.525"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            41031,
+            24525
+          ],
+          [
+            41031,
+            26025
+          ]
+        ]
+      },
+      {
+        "CLEAR_WIDTH_MM": 1500,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "PEOPLE"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            12415,
+            0
+          ],
+          [
+            13915,
+            0
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "changing_room",
+          "clear_width_m": "1.5",
+          "edge_class": "LONG_EDGE",
+          "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "28.615",
+              "y": "23.65"
+            },
+            "start": {
+              "x": "27.115",
+              "y": "23.65"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            27115,
+            23650
+          ],
+          [
+            28615,
+            23650
+          ]
+        ]
+      }
+    ],
+    "ZONE_CODE": "changing_room"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-01",
+    "PORTALS": [
+      {
+        "CLEAR_WIDTH_MM": 2400,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "MATERIAL"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            8475,
+            0
+          ],
+          [
+            10875,
+            0
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "coating_room",
+          "clear_width_m": "2.4",
+          "edge_class": "LONG_EDGE",
+          "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "10.875",
+              "y": "28.551"
+            },
+            "start": {
+              "x": "8.475",
+              "y": "28.551"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            8475,
+            28551
+          ],
+          [
+            10875,
+            28551
+          ]
+        ]
+      },
+      {
+        "CLEAR_WIDTH_MM": 2400,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "MATERIAL"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            23971,
+            1950
+          ],
+          [
+            26371,
+            1950
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "coating_room",
+          "clear_width_m": "2.4",
+          "edge_class": "LONG_EDGE",
+          "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "26.371",
+              "y": "30.501"
+            },
+            "start": {
+              "x": "23.971",
+              "y": "30.501"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            23971,
+            30501
+          ],
+          [
+            26371,
+            30501
+          ]
+        ]
+      }
+    ],
+    "ZONE_CODE": "coating_room"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-02",
+    "PORTALS": [],
+    "ZONE_CODE": "office"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-02",
+    "PORTALS": [
+      {
+        "CLEAR_WIDTH_MM": 1500,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "PEOPLE"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            19721,
+            977
+          ],
+          [
+            21221,
+            977
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "changing_room",
+          "clear_width_m": "1.5",
+          "edge_class": "LONG_EDGE",
+          "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "38.321",
+              "y": "24.627"
+            },
+            "start": {
+              "x": "36.821",
+              "y": "24.627"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            36821,
+            24627
+          ],
+          [
+            38321,
+            24627
+          ]
+        ]
+      },
+      {
+        "CLEAR_WIDTH_MM": 1500,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "PEOPLE"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            19721,
+            0
+          ],
+          [
+            21221,
+            0
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "changing_room",
+          "clear_width_m": "1.5",
+          "edge_class": "LONG_EDGE",
+          "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "38.321",
+              "y": "23.65"
+            },
+            "start": {
+              "x": "36.821",
+              "y": "23.65"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            36821,
+            23650
+          ],
+          [
+            38321,
+            23650
+          ]
+        ]
+      }
+    ],
+    "ZONE_CODE": "changing_room"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-02",
+    "PORTALS": [
+      {
+        "CLEAR_WIDTH_MM": 2400,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "MATERIAL"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            0,
+            3211
+          ],
+          [
+            0,
+            5611
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "coating_room",
+          "clear_width_m": "2.4",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "17.1",
+              "y": "30.238"
+            },
+            "start": {
+              "x": "17.1",
+              "y": "27.838"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            17100,
+            27838
+          ],
+          [
+            17100,
+            30238
+          ]
+        ]
+      },
+      {
+        "CLEAR_WIDTH_MM": 2400,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "MATERIAL"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            3334,
+            8823
+          ],
+          [
+            5734,
+            8823
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "coating_room",
+          "clear_width_m": "2.4",
+          "edge_class": "LONG_EDGE",
+          "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "22.834",
+              "y": "33.45"
+            },
+            "start": {
+              "x": "20.434",
+              "y": "33.45"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            20434,
+            33450
+          ],
+          [
+            22834,
+            33450
+          ]
+        ]
+      }
+    ],
+    "ZONE_CODE": "coating_room"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-03",
+    "PORTALS": [],
+    "ZONE_CODE": "office"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-03",
+    "PORTALS": [
+      {
+        "CLEAR_WIDTH_MM": 1500,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "PEOPLE"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            44259,
+            875
+          ],
+          [
+            45759,
+            875
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "changing_room",
+          "clear_width_m": "1.5",
+          "edge_class": "LONG_EDGE",
+          "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "60.708",
+              "y": "24.525"
+            },
+            "start": {
+              "x": "59.208",
+              "y": "24.525"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            59208,
+            24525
+          ],
+          [
+            60708,
+            24525
+          ]
+        ]
+      },
+      {
+        "CLEAR_WIDTH_MM": 1500,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "PEOPLE"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            22129,
+            0
+          ],
+          [
+            23629,
+            0
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "changing_room",
+          "clear_width_m": "1.5",
+          "edge_class": "LONG_EDGE",
+          "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "38.578",
+              "y": "23.65"
+            },
+            "start": {
+              "x": "37.078",
+              "y": "23.65"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            37078,
+            23650
+          ],
+          [
+            38578,
+            23650
+          ]
+        ]
+      }
+    ],
+    "ZONE_CODE": "changing_room"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-03",
+    "PORTALS": [
+      {
+        "CLEAR_WIDTH_MM": 2400,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "MATERIAL"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            0,
+            813
+          ],
+          [
+            0,
+            3213
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "coating_room",
+          "clear_width_m": "2.4",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "14.949",
+              "y": "27.738"
+            },
+            "start": {
+              "x": "14.949",
+              "y": "25.338"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            14949,
+            25338
+          ],
+          [
+            14949,
+            27738
+          ]
+        ]
+      },
+      {
+        "CLEAR_WIDTH_MM": 2400,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "MATERIAL"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            3282,
+            8925
+          ],
+          [
+            5682,
+            8925
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "coating_room",
+          "clear_width_m": "2.4",
+          "edge_class": "LONG_EDGE",
+          "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "20.631",
+              "y": "33.45"
+            },
+            "start": {
+              "x": "18.231",
+              "y": "33.45"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            18231,
+            33450
+          ],
+          [
+            20631,
+            33450
+          ]
+        ]
+      }
+    ],
+    "ZONE_CODE": "coating_room"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-04",
+    "PORTALS": [],
+    "ZONE_CODE": "office"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-04",
+    "PORTALS": [
+      {
+        "CLEAR_WIDTH_MM": 1500,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "PEOPLE"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            2582,
+            9801
+          ],
+          [
+            4082,
+            9801
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "changing_room",
+          "clear_width_m": "1.5",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "38.536",
+              "y": "33.453"
+            },
+            "start": {
+              "x": "37.036",
+              "y": "33.453"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            37036,
+            33453
+          ],
+          [
+            38536,
+            33453
+          ]
+        ]
+      },
+      {
+        "CLEAR_WIDTH_MM": 1500,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "PEOPLE"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            1291,
+            0
+          ],
+          [
+            2791,
+            0
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "changing_room",
+          "clear_width_m": "1.5",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "37.245",
+              "y": "23.652"
+            },
+            "start": {
+              "x": "35.745",
+              "y": "23.652"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            35745,
+            23652
+          ],
+          [
+            37245,
+            23652
+          ]
+        ]
+      }
+    ],
+    "ZONE_CODE": "changing_room"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-04",
+    "PORTALS": [
+      {
+        "CLEAR_WIDTH_MM": 2400,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "MATERIAL"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            7303,
+            3212
+          ],
+          [
+            7303,
+            5612
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "coating_room",
+          "clear_width_m": "2.4",
+          "edge_class": "LONG_EDGE",
+          "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "24.404",
+              "y": "30.24"
+            },
+            "start": {
+              "x": "24.404",
+              "y": "27.84"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            24404,
+            27840
+          ],
+          [
+            24404,
+            30240
+          ]
+        ]
+      },
+      {
+        "CLEAR_WIDTH_MM": 2400,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "MATERIAL"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            2451,
+            10955
+          ],
+          [
+            4851,
+            10955
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "coating_room",
+          "clear_width_m": "2.4",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "21.952",
+              "y": "35.583"
+            },
+            "start": {
+              "x": "19.552",
+              "y": "35.583"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            19552,
+            35583
+          ],
+          [
+            21952,
+            35583
+          ]
+        ]
+      }
+    ],
+    "ZONE_CODE": "coating_room"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-05",
+    "PORTALS": [],
+    "ZONE_CODE": "office"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-05",
+    "PORTALS": [
+      {
+        "CLEAR_WIDTH_MM": 1500,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "PEOPLE"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            2583,
+            9802
+          ],
+          [
+            4083,
+            9802
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "changing_room",
+          "clear_width_m": "1.5",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "38.471",
+              "y": "33.455"
+            },
+            "start": {
+              "x": "36.971",
+              "y": "33.455"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            36971,
+            33455
+          ],
+          [
+            38471,
+            33455
+          ]
+        ]
+      },
+      {
+        "CLEAR_WIDTH_MM": 1500,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "PEOPLE"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            1291,
+            0
+          ],
+          [
+            2791,
+            0
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "changing_room",
+          "clear_width_m": "1.5",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "37.179",
+              "y": "23.653"
+            },
+            "start": {
+              "x": "35.679",
+              "y": "23.653"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            35679,
+            23653
+          ],
+          [
+            37179,
+            23653
+          ]
+        ]
+      }
+    ],
+    "ZONE_CODE": "changing_room"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-05",
+    "PORTALS": [
+      {
+        "CLEAR_WIDTH_MM": 2400,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "MATERIAL"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            7236,
+            3263
+          ],
+          [
+            7236,
+            5663
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "coating_room",
+          "clear_width_m": "2.4",
+          "edge_class": "LONG_EDGE",
+          "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "24.338",
+              "y": "30.189"
+            },
+            "start": {
+              "x": "24.338",
+              "y": "27.789"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            24338,
+            27789
+          ],
+          [
+            24338,
+            30189
+          ]
+        ]
+      },
+      {
+        "CLEAR_WIDTH_MM": 2400,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "MATERIAL"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            2418,
+            11056
+          ],
+          [
+            4818,
+            11056
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "coating_room",
+          "clear_width_m": "2.4",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "21.92",
+              "y": "35.582"
+            },
+            "start": {
+              "x": "19.52",
+              "y": "35.582"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            19520,
+            35582
+          ],
+          [
+            21920,
+            35582
+          ]
+        ]
+      }
+    ],
+    "ZONE_CODE": "coating_room"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-06",
+    "PORTALS": [],
+    "ZONE_CODE": "office"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-06",
+    "PORTALS": [
+      {
+        "CLEAR_WIDTH_MM": 1500,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "PEOPLE"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            2584,
+            9803
+          ],
+          [
+            4084,
+            9803
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "changing_room",
+          "clear_width_m": "1.5",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "37.945",
+              "y": "33.457"
+            },
+            "start": {
+              "x": "36.445",
+              "y": "33.457"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            36445,
+            33457
+          ],
+          [
+            37945,
+            33457
+          ]
+        ]
+      },
+      {
+        "CLEAR_WIDTH_MM": 1500,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "PEOPLE"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            1292,
+            0
+          ],
+          [
+            2792,
+            0
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "changing_room",
+          "clear_width_m": "1.5",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "36.653",
+              "y": "23.654"
+            },
+            "start": {
+              "x": "35.153",
+              "y": "23.654"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            35153,
+            23654
+          ],
+          [
+            36653,
+            23654
+          ]
+        ]
+      }
+    ],
+    "ZONE_CODE": "changing_room"
+  },
+  {
+    "CANDIDATE_ID": "guided-fair-validation-02/candidate-06",
+    "PORTALS": [
+      {
+        "CLEAR_WIDTH_MM": 2400,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "MATERIAL"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            6708,
+            3700
+          ],
+          [
+            6708,
+            6100
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "coating_room",
+          "clear_width_m": "2.4",
+          "edge_class": "LONG_EDGE",
+          "identity": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "23.811",
+              "y": "29.754"
+            },
+            "start": {
+              "x": "23.811",
+              "y": "27.354"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            23811,
+            27354
+          ],
+          [
+            23811,
+            29754
+          ]
+        ]
+      },
+      {
+        "CLEAR_WIDTH_MM": 2400,
+        "DOOR_SWING": null,
+        "FLOW_KINDS": [
+          "MATERIAL"
+        ],
+        "LOCAL_SEGMENT_MM": [
+          [
+            2154,
+            11927
+          ],
+          [
+            4554,
+            11927
+          ]
+        ],
+        "ORIGINAL": {
+          "access_ref": "coating_room",
+          "clear_width_m": "2.4",
+          "edge_class": "SHORT_EDGE",
+          "identity": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+          "segment": {
+            "end": {
+              "x": "21.657",
+              "y": "35.581"
+            },
+            "start": {
+              "x": "19.257",
+              "y": "35.581"
+            }
+          },
+          "status": "VALID"
+        },
+        "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+        "WORLD_SEGMENT_MM": [
+          [
+            19257,
+            35581
+          ],
+          [
+            21657,
+            35581
+          ]
+        ]
+      }
+    ],
+    "ZONE_CODE": "coating_room"
+  }
+]

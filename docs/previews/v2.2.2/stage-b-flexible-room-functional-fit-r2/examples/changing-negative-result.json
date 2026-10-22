@@ -1,0 +1,793 @@
+{
+  "CAPACITY_VALIDATED": false,
+  "CONFLICTS": [
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "door_1"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "door_2"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "door_3"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "door_4"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "door_5"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "door_6"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "door_7"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "door_8"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "user_1"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "user_2"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "user_3"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "user_4"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "bench"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "personnel_aisle"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "entry_sweep"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "ACTIVE_BODY",
+      "COMPONENT_IDS": [
+        "locker_1",
+        "locker_5"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "ACTIVE_BODY",
+      "COMPONENT_IDS": [
+        "locker_2",
+        "locker_6"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "ACTIVE_BODY",
+      "COMPONENT_IDS": [
+        "locker_3",
+        "locker_7"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "ACTIVE_BODY",
+      "COMPONENT_IDS": [
+        "locker_4",
+        "locker_8"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "FULL_WIDTH_ROUTE_BLOCKED_OR_UNCOVERED",
+      "COMPONENT_IDS": [
+        "inside_route"
+      ],
+      "STATE": "NORMAL_OPERATION"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "bench"
+      ],
+      "STATE": "SHIFT_CHANGE"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "personnel_aisle"
+      ],
+      "STATE": "SHIFT_CHANGE"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "entry_sweep"
+      ],
+      "STATE": "SHIFT_CHANGE"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "ACTIVE_BODY",
+      "COMPONENT_IDS": [
+        "locker_1",
+        "locker_5"
+      ],
+      "STATE": "SHIFT_CHANGE"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "ACTIVE_BODY",
+      "COMPONENT_IDS": [
+        "locker_2",
+        "locker_6"
+      ],
+      "STATE": "SHIFT_CHANGE"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "ACTIVE_BODY",
+      "COMPONENT_IDS": [
+        "locker_3",
+        "locker_7"
+      ],
+      "STATE": "SHIFT_CHANGE"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "ACTIVE_BODY",
+      "COMPONENT_IDS": [
+        "locker_4",
+        "locker_8"
+      ],
+      "STATE": "SHIFT_CHANGE"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "FULL_WIDTH_ROUTE_BLOCKED_OR_UNCOVERED",
+      "COMPONENT_IDS": [
+        "inside_route"
+      ],
+      "STATE": "SHIFT_CHANGE"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "bench"
+      ],
+      "STATE": "CLEANING"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "personnel_aisle"
+      ],
+      "STATE": "CLEANING"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "service"
+      ],
+      "STATE": "CLEANING"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "ACTIVE_BODY",
+      "COMPONENT_IDS": [
+        "locker_1",
+        "locker_5"
+      ],
+      "STATE": "CLEANING"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "ACTIVE_BODY",
+      "COMPONENT_IDS": [
+        "locker_2",
+        "locker_6"
+      ],
+      "STATE": "CLEANING"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "ACTIVE_BODY",
+      "COMPONENT_IDS": [
+        "locker_3",
+        "locker_7"
+      ],
+      "STATE": "CLEANING"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "ACTIVE_BODY",
+      "COMPONENT_IDS": [
+        "locker_4",
+        "locker_8"
+      ],
+      "STATE": "CLEANING"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "FULL_WIDTH_ROUTE_BLOCKED_OR_UNCOVERED",
+      "COMPONENT_IDS": [
+        "inside_route"
+      ],
+      "STATE": "CLEANING"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "bench"
+      ],
+      "STATE": "MAINTENANCE"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "personnel_aisle"
+      ],
+      "STATE": "MAINTENANCE"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+      "COMPONENT_IDS": [
+        "service"
+      ],
+      "STATE": "MAINTENANCE"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "ACTIVE_BODY",
+      "COMPONENT_IDS": [
+        "locker_1",
+        "locker_5"
+      ],
+      "STATE": "MAINTENANCE"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "ACTIVE_BODY",
+      "COMPONENT_IDS": [
+        "locker_2",
+        "locker_6"
+      ],
+      "STATE": "MAINTENANCE"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "ACTIVE_BODY",
+      "COMPONENT_IDS": [
+        "locker_3",
+        "locker_7"
+      ],
+      "STATE": "MAINTENANCE"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "ACTIVE_BODY",
+      "COMPONENT_IDS": [
+        "locker_4",
+        "locker_8"
+      ],
+      "STATE": "MAINTENANCE"
+    },
+    {
+      "CLASS": "HARD_GEOMETRY_CONFLICT",
+      "CODE": "FULL_WIDTH_ROUTE_BLOCKED_OR_UNCOVERED",
+      "COMPONENT_IDS": [
+        "inside_route"
+      ],
+      "STATE": "MAINTENANCE"
+    }
+  ],
+  "FORMAL_AUTHORITY_STATUS": "NOT_APPROVED",
+  "FUNCTIONAL_FIT_STATUS": "CONDITIONAL_SCENARIO_NOT_FIT",
+  "FUNCTIONAL_ROOM_AREA": null,
+  "IDENTITY": "FunctionalRoomFitEvaluatorV1",
+  "MISSING_INPUTS": [],
+  "MODEL_ORIENTATION": "EXPLICIT_LOCAL_XY_NO_PLACEMENT_SEARCH",
+  "NO_FIT_PROOF_SCOPE": "SUPPLIED_CONFIGURATION_AND_ORIENTATION_ONLY_NOT_ALL_ROOM_USES",
+  "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED",
+  "PROJECT_FUNCTIONAL_FIT_APPROVED": false,
+  "ROOM_GEOMETRIC_AREA_MM2": 60000000,
+  "SOURCE_STATUS": "SYNTHETIC_TEST",
+  "STATE_RESULTS": {
+    "CLEANING": {
+      "BOUNDS_MM": [
+        0,
+        0,
+        10000,
+        5900
+      ],
+      "CONFLICTS": [
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "bench"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "personnel_aisle"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "service"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "ACTIVE_BODY",
+          "COMPONENT_IDS": [
+            "locker_1",
+            "locker_5"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "ACTIVE_BODY",
+          "COMPONENT_IDS": [
+            "locker_2",
+            "locker_6"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "ACTIVE_BODY",
+          "COMPONENT_IDS": [
+            "locker_3",
+            "locker_7"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "ACTIVE_BODY",
+          "COMPONENT_IDS": [
+            "locker_4",
+            "locker_8"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "FULL_WIDTH_ROUTE_BLOCKED_OR_UNCOVERED",
+          "COMPONENT_IDS": [
+            "inside_route"
+          ]
+        }
+      ],
+      "GEOMETRIC_UNION_AREA_MM2": 11600000,
+      "ROUTES": [
+        {
+          "FULL_WIDTH_GEOMETRY_CLEAR": false,
+          "ID": "inside_route",
+          "PORTAL_CONNECTION_PROVEN": true,
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED"
+        }
+      ],
+      "STATUS": "HARD_GEOMETRY_CONFLICT"
+    },
+    "MAINTENANCE": {
+      "BOUNDS_MM": [
+        0,
+        0,
+        10000,
+        5900
+      ],
+      "CONFLICTS": [
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "bench"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "personnel_aisle"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "service"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "ACTIVE_BODY",
+          "COMPONENT_IDS": [
+            "locker_1",
+            "locker_5"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "ACTIVE_BODY",
+          "COMPONENT_IDS": [
+            "locker_2",
+            "locker_6"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "ACTIVE_BODY",
+          "COMPONENT_IDS": [
+            "locker_3",
+            "locker_7"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "ACTIVE_BODY",
+          "COMPONENT_IDS": [
+            "locker_4",
+            "locker_8"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "FULL_WIDTH_ROUTE_BLOCKED_OR_UNCOVERED",
+          "COMPONENT_IDS": [
+            "inside_route"
+          ]
+        }
+      ],
+      "GEOMETRIC_UNION_AREA_MM2": 11600000,
+      "ROUTES": [
+        {
+          "FULL_WIDTH_GEOMETRY_CLEAR": false,
+          "ID": "inside_route",
+          "PORTAL_CONNECTION_PROVEN": true,
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED"
+        }
+      ],
+      "STATUS": "HARD_GEOMETRY_CONFLICT"
+    },
+    "NORMAL_OPERATION": {
+      "BOUNDS_MM": [
+        0,
+        0,
+        10000,
+        5100
+      ],
+      "CONFLICTS": [
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "door_1"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "door_2"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "door_3"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "door_4"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "door_5"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "door_6"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "door_7"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "door_8"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "user_1"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "user_2"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "user_3"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "user_4"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "bench"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "personnel_aisle"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "entry_sweep"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "ACTIVE_BODY",
+          "COMPONENT_IDS": [
+            "locker_1",
+            "locker_5"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "ACTIVE_BODY",
+          "COMPONENT_IDS": [
+            "locker_2",
+            "locker_6"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "ACTIVE_BODY",
+          "COMPONENT_IDS": [
+            "locker_3",
+            "locker_7"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "ACTIVE_BODY",
+          "COMPONENT_IDS": [
+            "locker_4",
+            "locker_8"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "FULL_WIDTH_ROUTE_BLOCKED_OR_UNCOVERED",
+          "COMPONENT_IDS": [
+            "inside_route"
+          ]
+        }
+      ],
+      "GEOMETRIC_UNION_AREA_MM2": 11360000,
+      "ROUTES": [
+        {
+          "FULL_WIDTH_GEOMETRY_CLEAR": false,
+          "ID": "inside_route",
+          "PORTAL_CONNECTION_PROVEN": true,
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED"
+        }
+      ],
+      "STATUS": "HARD_GEOMETRY_CONFLICT"
+    },
+    "SHIFT_CHANGE": {
+      "BOUNDS_MM": [
+        0,
+        0,
+        10000,
+        5100
+      ],
+      "CONFLICTS": [
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "bench"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "personnel_aisle"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "OUTSIDE_FINISHED_CLEAR_ROOM",
+          "COMPONENT_IDS": [
+            "entry_sweep"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "ACTIVE_BODY",
+          "COMPONENT_IDS": [
+            "locker_1",
+            "locker_5"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "ACTIVE_BODY",
+          "COMPONENT_IDS": [
+            "locker_2",
+            "locker_6"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "ACTIVE_BODY",
+          "COMPONENT_IDS": [
+            "locker_3",
+            "locker_7"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "ACTIVE_BODY",
+          "COMPONENT_IDS": [
+            "locker_4",
+            "locker_8"
+          ]
+        },
+        {
+          "CLASS": "HARD_GEOMETRY_CONFLICT",
+          "CODE": "FULL_WIDTH_ROUTE_BLOCKED_OR_UNCOVERED",
+          "COMPONENT_IDS": [
+            "inside_route"
+          ]
+        }
+      ],
+      "GEOMETRIC_UNION_AREA_MM2": 8640000,
+      "ROUTES": [
+        {
+          "FULL_WIDTH_GEOMETRY_CLEAR": false,
+          "ID": "inside_route",
+          "PORTAL_CONNECTION_PROVEN": true,
+          "PORTAL_FUNCTIONAL_ACCESS": "NOT_EVALUATED"
+        }
+      ],
+      "STATUS": "HARD_GEOMETRY_CONFLICT"
+    }
+  },
+  "TIME_SHARING_APPROVED": false,
+  "TIME_SHARING_STATUS": "ENGINEERING_REVIEW_REQUIRED_NOT_GRANTED_BY_INACTIVE_STATES",
+  "VERSION": "functional-room-fit@1.0.0"
+}

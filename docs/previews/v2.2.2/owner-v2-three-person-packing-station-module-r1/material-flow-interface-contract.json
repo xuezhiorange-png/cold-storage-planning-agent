@@ -1,0 +1,19 @@
+{
+  "ASSEMBLY_POLICY": "Explicit source-bound global routes connect named station interfaces; missing routes never inferred from arrangement name",
+  "BOUNDARY_WARNING": "Room Portal facts are not station-entry or internal-logistics proof; transport capacity, buffers, reach and production continuity remain engineering review",
+  "ENDPOINT_POLICY": "Exact equality with source-bound interfaces on/in their own component",
+  "KINDS": [
+    "PERSONNEL_ENTRY",
+    "OPERATOR_POSITION",
+    "MATERIAL_IN",
+    "SUPPLY",
+    "PRODUCT_OUT",
+    "OUTFEED"
+  ],
+  "REQUIRED_FLOWS": [
+    "PERSONNEL",
+    "MATERIAL_IN",
+    "PRODUCT_OUT"
+  ],
+  "ROUTE_POLICY": "Full square-cap swept envelope within explicit active circulation plus named terminal zones; equipment intersections reject"
+}

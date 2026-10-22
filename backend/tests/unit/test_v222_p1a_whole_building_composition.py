@@ -162,9 +162,15 @@ def test_machine_readable_evidence_is_a_deterministic_projection_of_runtime_plan
     assert evidence["summary"]["family_count"] == 3
     assert evidence["summary"]["complete_12_role_composition_count"] == 3
     assert evidence["summary"]["family_first_round_complete"] is True
-    assert evidence["candidates"] == [
-        {"candidate_id": chr(65 + index), **plan.to_dict()} for index, plan in enumerate(plans)
-    ]
+    # Preserve S1 historical evidence across the additive P0 contract field.
+    historical_projection = []
+    for index, plan in enumerate(plans):
+        body = plan.to_dict()
+        body.pop("mandatory_hard_interfaces")
+        body.pop("mandatory_interface_reservations")
+        body.pop("structural_interface_capacity_gate")
+        historical_projection.append({"candidate_id": chr(65 + index), **body})
+    assert evidence["candidates"] == historical_projection
 
 
 def test_each_composition_assigns_all_twelve_roles_and_five_groups_once() -> None:

@@ -1,0 +1,49 @@
+{
+  "files": {
+    "README.md": {
+      "bytes": 4389,
+      "sha256": "5d3d504c450f9062ef451287fc0d7d913f638dc2f92cffa817d8b6448d6f73b7"
+    },
+    "drawing-data-quality-report.json": {
+      "bytes": 1037,
+      "sha256": "7ed4dfb23943de673e87850aedecf0b0b883e4a22c5f88db6122c09db9b01583"
+    },
+    "drawing-extraction-contract.json": {
+      "bytes": 1165,
+      "sha256": "a5a325abafe2f7a5e79d3f70f00ca1b091d934f822829155ca2494d26fae877d"
+    },
+    "drawing-source-manifest.json": {
+      "bytes": 498,
+      "sha256": "8473ca9eb4a66345f3ccfb65c2496e0b35747bce921f3cefeaa96ea489cdf595"
+    },
+    "drawing-vs-stage-b-comparison.md": {
+      "bytes": 1415,
+      "sha256": "b4423c49241b21b89c45565bf4032c313726e2a207a5121dff824c6277702dae"
+    },
+    "logical-to-physical-zone-mapping.json": {
+      "bytes": 278,
+      "sha256": "ce9fd89ea954bb324eecd1db2906ad8368284a65af75e5a15b8fc01212225145"
+    },
+    "offline_drawing_extract.py": {
+      "bytes": 3344,
+      "sha256": "958c8b39f250d53ea7e12ce115a3d16de2f164817a71712a4e0f5fc0cab1675e"
+    },
+    "offline_drawing_render.py": {
+      "bytes": 3544,
+      "sha256": "0a542c9bc454fa0f56e8f78467cc32810e1e2a14fbca7911e632ceed3604bc53"
+    },
+    "offline_drawing_validate.py": {
+      "bytes": 7938,
+      "sha256": "58e7c76586b9fb638a36d62de5610d11b49098e48e6522027cfb5af14628d1e9"
+    },
+    "test_drawing_extract.py": {
+      "bytes": 8913,
+      "sha256": "73ee1051c5befb14468c4d0921f7ca4832333b4ef39232a97b2b836aac1cde2e"
+    },
+    "validation.json": {
+      "bytes": 1242,
+      "sha256": "21dc2df2b407a24ac3589623a53caa7f83e3aeccf8624dedb8dc0d7402ecb1fa"
+    }
+  },
+  "self_excluded": true
+}

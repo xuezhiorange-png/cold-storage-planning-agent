@@ -400,6 +400,7 @@ def route_site_placement(
     *,
     route_node_budget: int = 20_000,
     truck_node_budget: int = 20_000,
+    route_search_hints: Mapping[str, Sequence[tuple[int, int]]] | None = None,
 ) -> SiteAccessRoutingResultV1:
     """Validate all P1 access requirements against one P2C placement."""
     if not isinstance(canonical_zone_plan, Mapping):
@@ -491,6 +492,10 @@ def route_site_placement(
     route_metrics: list[dict[str, Any]] = []
     non_truck_requirements = [row for row in requirements if row.get("flow_kind") != "TRUCK"]
     truck_requirements = [row for row in requirements if row.get("flow_kind") == "TRUCK"]
+    if route_search_hints is not None and not set(route_search_hints) <= {
+        str(row["identity"]) for row in non_truck_requirements
+    }:
+        raise _error("ACCESS_SEARCH_HINT_REQUIREMENT_INVALID")
     for requirement in non_truck_requirements:
         routed, polygons = route_access_requirement(
             requirement,
@@ -500,6 +505,7 @@ def route_site_placement(
             obstacles=obstacles,
             entrances=entrances,
             route_node_budget=route_node_budget,
+            route_hint=(route_search_hints or {}).get(str(requirement["identity"]), ()),
         )
         access_results.append(routed)
         if routed.get("portal_from") is not None:

@@ -1,0 +1,217 @@
+{
+  "REFERENCE_HEAD": "a34dff1f45dcbc930b3ca3d4e0a07117dbf8d592",
+  "TASK": "V2_2_2_STAGE_B_FLEXIBLE_ROOM_FUNCTIONAL_FIT_R2",
+  "dependencies": {
+    "functional-room-dimension-calibration-01": "bd46d2199c15ae7b5129bccf6bec1849d29d2f50f83a5d9a704d886a7690707a",
+    "owner-functional-input-contract-r2": "63c33b66661ded8c7ad5f8b0d88908a7529f360230da5ba5a10e9c2cf8cf264d",
+    "owner-v2-packing-station-project-evidence-r2": "9ed3c36f01baf83693f097819c2a9e54c54a3082ce6d25d294b95f7300c460d6",
+    "owner-v2-three-person-packing-station-module-r1": "409d0e6bc83d81b51f1664dc611e52b716c250a5b02bfc6ec814339999c306ae",
+    "stage-b-truck-p2d-preflight-r1": "b8e3bdacdbd3493b2d8947e0cda432adbaaeac6726c04784ba88cfd70ce84927",
+    "stage-b/layout-quality-baseline-01": "b0432814a870e824fca7d91df580e50bf33fae83da5471ec4c386c3f887b6e24"
+  },
+  "files": {
+    "README.md": {
+      "bytes": 9038,
+      "sha256": "56dbcb98ac275df740363f3facec948aa471a0b0c602a7661f8b206ad1feb55b"
+    },
+    "build_review.py": {
+      "bytes": 15506,
+      "sha256": "0a50c2b4bc322566838c883255222ede14c2b8f180fbbfe5c30d5cb4ad3e078c"
+    },
+    "changing-module-contract.json": {
+      "bytes": 622,
+      "sha256": "7c2b7b382ef701c3af9ea4f9a70595cf98f157294c509065ad7b7d563617d3ff"
+    },
+    "conditional-width-proofs.json": {
+      "bytes": 925,
+      "sha256": "97f20544c0d28498712f5d7c95c9b10c52f0cac40a27353ccab49080947b7a1d"
+    },
+    "eight-layout-functional-fit.json": {
+      "bytes": 83135,
+      "sha256": "539bb092c03abc628f89d7dbb9a33d839a5fac9030dafa728e3caca5bea4c212"
+    },
+    "examples/changing-negative-evidence.json": {
+      "bytes": 12040,
+      "sha256": "cc9d50e67d87e34d158a59f559deb3c1c435ccab0e99f26405cbe9b7f4817e67"
+    },
+    "examples/changing-negative-input.json": {
+      "bytes": 12074,
+      "sha256": "8792e21473b61baacd3e38168e622fd2c74f686513e684e09872507bbb37c14e"
+    },
+    "examples/changing-negative-result.json": {
+      "bytes": 18771,
+      "sha256": "184ba34672738dc3a03c39c811aaf20b84c0a77544af84893d2d1391aada4875"
+    },
+    "examples/changing-positive-evidence.json": {
+      "bytes": 12058,
+      "sha256": "2dd4500855575ba5bd62bf6859ffaea35976a141f2fc46b9c3ad5a479fd10a04"
+    },
+    "examples/changing-positive-input.json": {
+      "bytes": 12091,
+      "sha256": "3d97e57da4d2e1d320ea2bb324e8c0791a8b18824070e6a35119584d7e482e49"
+    },
+    "examples/changing-positive-result.json": {
+      "bytes": 2449,
+      "sha256": "6d0360f64499cf6287fcd170e2ebfa197983c3a47ee9ed582c082e8e04e028a5"
+    },
+    "examples/film-sealing-negative-evidence.json": {
+      "bytes": 5828,
+      "sha256": "efd143762f13678ac74eb0dd8bf687a111c65307eb14dff5b01ebb46548e2ea5"
+    },
+    "examples/film-sealing-negative-input.json": {
+      "bytes": 6177,
+      "sha256": "02606ed716e08688d6486dd47e411dca57233c80d93b200ff56bff0f15acc63d"
+    },
+    "examples/film-sealing-negative-result.json": {
+      "bytes": 4046,
+      "sha256": "cfdd0d2e4e5cb6ad2764e938506d7e91ba117f9289603f72379803e5367b7d47"
+    },
+    "examples/film-sealing-positive-evidence.json": {
+      "bytes": 5828,
+      "sha256": "013141215acb5e85b8b00bc0750d0588dd44cc4a50227af47b93070631ccd4fe"
+    },
+    "examples/film-sealing-positive-input.json": {
+      "bytes": 6176,
+      "sha256": "2fbef636fe350b2b73e01c68cc9488ce12fe37011ed2710ab419c019865739b8"
+    },
+    "examples/film-sealing-positive-result.json": {
+      "bytes": 3245,
+      "sha256": "db55ee6437d343d66d67ee0164613737e3d19e402035d44a7236815c62a95348"
+    },
+    "examples/office-negative-evidence.json": {
+      "bytes": 18364,
+      "sha256": "363b06f490404dc39ad6deb5b988f6707292d77b4b25195a257806c36c8d9f9d"
+    },
+    "examples/office-negative-input.json": {
+      "bytes": 18045,
+      "sha256": "8a6da8a96bbf5c1195302f70ba0e2c898fbce468077fcc6d5bbbb45855df8953"
+    },
+    "examples/office-negative-result.json": {
+      "bytes": 12453,
+      "sha256": "1aa63e59f020e962025ebcdd6c2e4c43a8e68a79ecae29f7655cf6cc777b0485"
+    },
+    "examples/office-positive-evidence.json": {
+      "bytes": 18365,
+      "sha256": "560570332ab1c195db3ef08d33466fa82a876112a66483e8dfd9464c8246a007"
+    },
+    "examples/office-positive-input.json": {
+      "bytes": 18045,
+      "sha256": "06f845a2b4874cea971180adb7daafd410ecead562ccf039813f168279dd840a"
+    },
+    "examples/office-positive-result.json": {
+      "bytes": 2823,
+      "sha256": "b964e8b47fdddeae3c7d83629b5d8209052137cee9846d0d375d0566d5886d3d"
+    },
+    "existing-room-geometry-index.json": {
+      "bytes": 18231,
+      "sha256": "6ba443cc8720374888655656774d153240501e93e49abc3c4ef8424f200740e1"
+    },
+    "existing-room-portal-index.json": {
+      "bytes": 35006,
+      "sha256": "51f2f723f1aefa563b13c5c84ab98de6f911aab6ee7a678f4fb2f059c783aeb0"
+    },
+    "film-sealing-module-contract.json": {
+      "bytes": 685,
+      "sha256": "11ca0623fe7b295b387e4a3667b75bf73d41e8c5ff809f022d22a4b604000c69"
+    },
+    "functional-fit-input-contract.json": {
+      "bytes": 1335,
+      "sha256": "ce09497c59f3176488f51aba8858f592192586f9b2e1835a10a1dbad44365b65"
+    },
+    "functional-fit-review-matrix.md": {
+      "bytes": 2417,
+      "sha256": "da069bc8fe35c898e5f335da1234e2d1abb661186255973a72123edc5972d282"
+    },
+    "historical-integrity.json": {
+      "bytes": 29210,
+      "sha256": "56b29fc3252a15d66f171014bd7d2a905c84129b9685f5c75f9054235a692fba"
+    },
+    "missing-project-inputs.json": {
+      "bytes": 1579,
+      "sha256": "3006fbff8ca0cfc7401a98a3082c970a835b93db0f3dd6b4c52c77a6a5e3e948"
+    },
+    "office-module-contract.json": {
+      "bytes": 565,
+      "sha256": "9e60d7589507fc58239faaa269e55fe8f67644b066fa75b8d97b2d54b47d05a5"
+    },
+    "offline_functional_fit.py": {
+      "bytes": 25284,
+      "sha256": "17114f861127f30fa5f9165e3656a51291926b2389dbd5082e7de7275b011020"
+    },
+    "offline_functional_renderer.py": {
+      "bytes": 9474,
+      "sha256": "bb75a0973087f481c34c42787a3759f59bffac492a81623cc29e4598b825c92e"
+    },
+    "owner-v2-business-examples.json": {
+      "bytes": 6208,
+      "sha256": "a0e624e13613556320e9fc5b3039778e0c252043b382dc8804d0f4d117fb132e"
+    },
+    "previews/candidate-01.svg": {
+      "bytes": 5830,
+      "sha256": "0ff3464974d6efe04dc15eb63060e375dab5dd77216e164dbf274a1ebc78dcba"
+    },
+    "previews/candidate-02.svg": {
+      "bytes": 5879,
+      "sha256": "cf861c13a22f7c19ee8fbb8c1283f03eac3ec023c1b62c33f27dfca57a0fc2b1"
+    },
+    "previews/candidate-03.svg": {
+      "bytes": 5864,
+      "sha256": "41e287a1e0da4d5207cb329cb0002aa1595f0952cf821cae8fe34e172d1a7a45"
+    },
+    "previews/candidate-04.svg": {
+      "bytes": 5857,
+      "sha256": "a9c444e8d657650516403fa6c10efc3084a1125bcd6fc5cafd649dc19b193149"
+    },
+    "previews/candidate-05.svg": {
+      "bytes": 5879,
+      "sha256": "eabffe1028c7bab863741710dcc37db301e502c477b7f03eb8e4e83cace05db6"
+    },
+    "previews/candidate-06.svg": {
+      "bytes": 5888,
+      "sha256": "4c06780db74606c3ba36af645e9fb38825f45d27c29a4140f406b28f71697bdb"
+    },
+    "previews/candidate-07.svg": {
+      "bytes": 5888,
+      "sha256": "34906384159fdf07ed7692b98dd07800e3c58e91a90c4db5f9c644c67b5a0f2f"
+    },
+    "previews/candidate-08.svg": {
+      "bytes": 5890,
+      "sha256": "99c46db8469309886150325d31b3d1b4233ac1374870c92cb53f365df4ee41e8"
+    },
+    "previews/changing-synthetic.svg": {
+      "bytes": 16064,
+      "sha256": "853c11a8a846b2abade04d4e7f0e0b368e106ee031bb65ed554301ce238028fb"
+    },
+    "previews/film-sealing-synthetic.svg": {
+      "bytes": 7608,
+      "sha256": "221bdea0f35d04be67b9f5f41de48e1a2fd7b528352dbb49f630ae952fb59fd1"
+    },
+    "previews/office-synthetic.svg": {
+      "bytes": 23523,
+      "sha256": "e937518bc8c72a9967df42c8fce794216cac7c80ed17044ae95582e250965905"
+    },
+    "source-provenance-matrix.json": {
+      "bytes": 486,
+      "sha256": "753c8d05eea5ae741f9660db3aaaa4123f14a491c98e49aee0b9936de13cf2fb"
+    },
+    "synthetic-scenario-results.json": {
+      "bytes": 50942,
+      "sha256": "37a0a67c75e3c2a90b32204d4cad03f03d358ff5e2a13e9ca4a746c385558221"
+    },
+    "test_functional_fit.py": {
+      "bytes": 13863,
+      "sha256": "1a8c048f7ed181ddf6e785cf94430e48c7d83dcb9bd3a57245c225e20a44c6c5"
+    },
+    "validation.json": {
+      "bytes": 114955,
+      "sha256": "13c43026216732304a30b27cf549f136008e3e77aee18e50deebea1062f371b2"
+    }
+  },
+  "native_solver_calls": 0,
+  "new_owner_grant": false,
+  "owner_instruction_sha256": "53adda00cd24512c80a388336463ff4c6bc5ca379c09654af579de0a575ef264",
+  "production_changed": false,
+  "real_factory_solves": 0,
+  "real_truck_searches": 0,
+  "self_excluded": true
+}

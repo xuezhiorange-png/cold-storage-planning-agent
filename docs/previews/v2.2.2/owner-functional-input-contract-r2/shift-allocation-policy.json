@@ -1,0 +1,18 @@
+{
+  "daily_mass_optional_for_explicit": true,
+  "daily_mass_required_for_default": true,
+  "default_ratios": [
+    "0.5",
+    "0.5"
+  ],
+  "explicit_version_required": true,
+  "formal_source_approval": "NOT_ESTABLISHED_BY_OFFLINE_HASH",
+  "identity": "OwnerFactoryFunctionalInputsV2",
+  "override_allowed": true,
+  "override_mode": "EXPLICIT_SHIFT_OVERRIDE",
+  "partial_override": "REJECT",
+  "policy": "DEFAULT_EQUAL_SPLIT",
+  "source_basis": "PACKAGED_PRODUCT_MASS_WITH_ACTUAL_FILE_HASH_AND_QUANTITY_BINDING",
+  "sum_check_if_daily_given": "EXACT_Q1_PLUS_Q2_EQUALS_Q",
+  "version": "owner-factory-functional-inputs@2.0.0"
+}

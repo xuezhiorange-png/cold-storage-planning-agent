@@ -1,0 +1,29 @@
+{
+  "closed_building_outline": "NOT_TOPOLOGICALLY_VERIFIED",
+  "conflicts": [
+    "GAS_PROCESS_LABEL_DIFFERS_FROM_REQUEST_CANDIDATE_NAME",
+    "CANOPY_SUBITEM_LABELS_REQUIRE_SCOPE_RECONCILIATION",
+    "PLANNING_AND_HISTORICAL_AREAS_NOT_RECONCILED"
+  ],
+  "corridor_regions": 5,
+  "door_index_complete": false,
+  "engineering_authority_approved": false,
+  "equipment_index_complete": false,
+  "equipment_symbol_regions": 15,
+  "functional_zone_regions": 3,
+  "inventory_complete": false,
+  "loading_interface_regions": 5,
+  "metric_calibration": "TWO_SOURCE_DIMENSION_AXES_ONLY_NOT_NET_ROOM_AUTHORITY",
+  "portal_review_regions": 8,
+  "process_flow_pass": null,
+  "readable_room_labels": 24,
+  "review_svg_count": 3,
+  "review_views_private": true,
+  "room_review_regions": 25,
+  "source_geometry_changed": false,
+  "source_paths": 80279,
+  "status": "PARTIAL_SOURCE_BOUND_REVIEW_NOT_ENGINEERING_MODEL",
+  "title_block": "FORMAL_REVISION_AND_ISSUE_CHAIN_UNAVAILABLE",
+  "verified_clear_openings": 0,
+  "verified_net_room_boundaries": 0
+}

@@ -1,0 +1,21 @@
+{
+  "files": {
+    "README.md": {
+      "bytes": 4678,
+      "sha256": "4d895698061b5de84763e4e985a9fbaef46d0294afb30d027b746edc1721b655"
+    },
+    "offline_evidence_closure.py": {
+      "bytes": 6059,
+      "sha256": "3d11029161c6d250031868f1d882f58cfdeebdcfb9b60e1085546d68cc3ea33a"
+    },
+    "test_evidence_closure.py": {
+      "bytes": 4472,
+      "sha256": "d5ea667ec0aef0817c1d7fd6c37b1f306e16a46f2f2f91e6af10fcf617cbeada"
+    },
+    "validation.json": {
+      "bytes": 4881,
+      "sha256": "b9745aba9355fef97a696b68e47f21854e7442c844a59e343f648059211b2286"
+    }
+  },
+  "self_excluded": true
+}

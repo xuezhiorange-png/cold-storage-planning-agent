@@ -1,0 +1,318 @@
+[
+  {
+    "name": "preview_zone_plan",
+    "title": null,
+    "description": "根据五个过程参数生成冷库分区规划表。吨=每天。调用前把吨/天×1000得到 daily_inbound_mass_kg（kg/day）。只传五个 KEY，不要传聊天原文，不要自己算面积。成功时把 markdown_table 原样展示给用户，并说明这是概念设计、需要复核、不是施工图。失败时按 ask_operator 向用户追问，不要编造数字。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "daily_inbound_mass_kg": {
+          "type": "number",
+          "description": "每天进货质量，kg/day。用户说吨时先×1000。"
+        },
+        "finished_storage_days": {
+          "type": "number",
+          "description": "成品储存天数。"
+        },
+        "frozen_storage_days": {
+          "type": "number",
+          "description": "冻果储存天数。"
+        },
+        "main_packaging_storage_days": {
+          "type": "number",
+          "description": "主包材储存天数。"
+        },
+        "auxiliary_packaging_storage_days": {
+          "type": "number",
+          "description": "辅包材储存天数。"
+        }
+      },
+      "required": [
+        "daily_inbound_mass_kg",
+        "finished_storage_days",
+        "frozen_storage_days",
+        "main_packaging_storage_days",
+        "auxiliary_packaging_storage_days"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": null,
+    "icons": null,
+    "annotations": null,
+    "meta": null,
+    "execution": null
+  },
+  {
+    "name": "preview_cooling_load",
+    "title": null,
+    "description": "根据五个过程参数生成冷负荷预览表。冷负荷预览（分区冷量按内核五项加总；地板、墙、屋面来自分区几何（正方形平面 + 演示层高）；U 值与设计温度仍为演示目录；室内设计温度取分区规划温区低端（8 / 1 / −18 ℃），层高为演示目录 4.0 m，货品目标温度与室内设计温度相同，货品质量仍为 v05 演示目录，需复核）吨=每天。只传五个 KEY。成功时原样展示 markdown_table 与 extra_tables，并说明概念设计、需复核、演示系数。失败时按 ask_operator 追问，不要编造数字。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "daily_inbound_mass_kg": {
+          "type": "number",
+          "description": "每天进货质量，kg/day。用户说吨时先×1000。"
+        },
+        "finished_storage_days": {
+          "type": "number",
+          "description": "成品储存天数。"
+        },
+        "frozen_storage_days": {
+          "type": "number",
+          "description": "冻果储存天数。"
+        },
+        "main_packaging_storage_days": {
+          "type": "number",
+          "description": "主包材储存天数。"
+        },
+        "auxiliary_packaging_storage_days": {
+          "type": "number",
+          "description": "辅包材储存天数。"
+        }
+      },
+      "required": [
+        "daily_inbound_mass_kg",
+        "finished_storage_days",
+        "frozen_storage_days",
+        "main_packaging_storage_days",
+        "auxiliary_packaging_storage_days"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": null,
+    "icons": null,
+    "annotations": null,
+    "meta": null,
+    "execution": null
+  },
+  {
+    "name": "preview_equipment",
+    "title": null,
+    "description": "根据五个过程参数生成设备能力预览表。吨=每天。只传五个 KEY。成功时原样展示 markdown_table，并说明概念设计、需复核、演示系数。失败时按 ask_operator 追问，不要编造数字。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "daily_inbound_mass_kg": {
+          "type": "number",
+          "description": "每天进货质量，kg/day。用户说吨时先×1000。"
+        },
+        "finished_storage_days": {
+          "type": "number",
+          "description": "成品储存天数。"
+        },
+        "frozen_storage_days": {
+          "type": "number",
+          "description": "冻果储存天数。"
+        },
+        "main_packaging_storage_days": {
+          "type": "number",
+          "description": "主包材储存天数。"
+        },
+        "auxiliary_packaging_storage_days": {
+          "type": "number",
+          "description": "辅包材储存天数。"
+        }
+      },
+      "required": [
+        "daily_inbound_mass_kg",
+        "finished_storage_days",
+        "frozen_storage_days",
+        "main_packaging_storage_days",
+        "auxiliary_packaging_storage_days"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": null,
+    "icons": null,
+    "annotations": null,
+    "meta": null,
+    "execution": null
+  },
+  {
+    "name": "preview_installed_power",
+    "title": null,
+    "description": "根据五个过程参数生成装机功率预览表。压缩机电气 kW(e) 来自设备结果，不是 kW(r)/COP 换算。蒸发/冷凝风机电气来自 v05 演示目录（10 / 8 kW(e)），不是设备结果，需复核。吨=每天。只传五个 KEY。成功时原样展示 markdown_table，并说明概念设计、需复核。失败时按 ask_operator 追问，不要编造数字。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "daily_inbound_mass_kg": {
+          "type": "number",
+          "description": "每天进货质量，kg/day。用户说吨时先×1000。"
+        },
+        "finished_storage_days": {
+          "type": "number",
+          "description": "成品储存天数。"
+        },
+        "frozen_storage_days": {
+          "type": "number",
+          "description": "冻果储存天数。"
+        },
+        "main_packaging_storage_days": {
+          "type": "number",
+          "description": "主包材储存天数。"
+        },
+        "auxiliary_packaging_storage_days": {
+          "type": "number",
+          "description": "辅包材储存天数。"
+        }
+      },
+      "required": [
+        "daily_inbound_mass_kg",
+        "finished_storage_days",
+        "frozen_storage_days",
+        "main_packaging_storage_days",
+        "auxiliary_packaging_storage_days"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": null,
+    "icons": null,
+    "annotations": null,
+    "meta": null,
+    "execution": null
+  },
+  {
+    "name": "preview_investment",
+    "title": null,
+    "description": "根据五个过程参数生成投资估算预览表。面积与功率来自分区规划与装机功率结果，不是演示目录占位。吨=每天。只传五个 KEY。成功时原样展示 markdown_table，并说明概念设计、需复核、演示系数。失败时按 ask_operator 追问，不要编造数字。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "daily_inbound_mass_kg": {
+          "type": "number",
+          "description": "每天进货质量，kg/day。用户说吨时先×1000。"
+        },
+        "finished_storage_days": {
+          "type": "number",
+          "description": "成品储存天数。"
+        },
+        "frozen_storage_days": {
+          "type": "number",
+          "description": "冻果储存天数。"
+        },
+        "main_packaging_storage_days": {
+          "type": "number",
+          "description": "主包材储存天数。"
+        },
+        "auxiliary_packaging_storage_days": {
+          "type": "number",
+          "description": "辅包材储存天数。"
+        }
+      },
+      "required": [
+        "daily_inbound_mass_kg",
+        "finished_storage_days",
+        "frozen_storage_days",
+        "main_packaging_storage_days",
+        "auxiliary_packaging_storage_days"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": null,
+    "icons": null,
+    "annotations": null,
+    "meta": null,
+    "execution": null
+  },
+  {
+    "name": "preview_factory_power",
+    "title": null,
+    "description": "根据五个过程参数生成估算工厂电功率表。只传五个 KEY，不要传 factory_area_m2、cold_storage_area_m2 或任何面积。单位为 kW，这是概念设计阶段估算，requires_review=true，需工程复核，不是施工图。后端从 canonical zone-plan 绑定面积并调用 factory_power_estimation@2.0.0-p2；成功时原样展示 markdown_table，失败时按 ask_operator 处理，不要编造数字。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "daily_inbound_mass_kg": {
+          "type": "number",
+          "description": "每天进货质量，kg/day。用户说吨时先×1000。"
+        },
+        "finished_storage_days": {
+          "type": "number",
+          "description": "成品储存天数。"
+        },
+        "frozen_storage_days": {
+          "type": "number",
+          "description": "冻果储存天数。"
+        },
+        "main_packaging_storage_days": {
+          "type": "number",
+          "description": "主包材储存天数。"
+        },
+        "auxiliary_packaging_storage_days": {
+          "type": "number",
+          "description": "辅包材储存天数。"
+        }
+      },
+      "required": [
+        "daily_inbound_mass_kg",
+        "finished_storage_days",
+        "frozen_storage_days",
+        "main_packaging_storage_days",
+        "auxiliary_packaging_storage_days"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": null,
+    "icons": null,
+    "annotations": null,
+    "meta": null,
+    "execution": null
+  },
+  {
+    "name": "preview_site_layout",
+    "title": null,
+    "description": "当用户明确需要受场地约束的冷库/蓝莓加工厂概念平面图时调用 preview_site_layout。必须同时提供五个业务 KEY：daily_inbound_mass_kg、finished_storage_days、frozen_storage_days、main_packaging_storage_days、auxiliary_packaging_storage_days，以及原始项目级 truck_access 和项目批准的 truck_maneuver。后端会先绑定这两个输入，调用者不得传入 BoundTruckManeuverProjectInputV1。不要传入面积、zone_plan、hash、layout 或 SVG，也不要自行计算面积和布局。后端复用 canonical zone-plan、P1/P2/P3 authority；成功结果是概念设计图，需要工程复核，不是施工图。失败时按 ask_operator 追问，不要编造默认场地或车型。",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "daily_inbound_mass_kg": {
+          "type": "number",
+          "description": "每天进货质量，kg/day。用户说吨时先×1000。"
+        },
+        "finished_storage_days": {
+          "type": "number",
+          "description": "成品储存天数。"
+        },
+        "frozen_storage_days": {
+          "type": "number",
+          "description": "冻果储存天数。"
+        },
+        "main_packaging_storage_days": {
+          "type": "number",
+          "description": "主包材储存天数。"
+        },
+        "auxiliary_packaging_storage_days": {
+          "type": "number",
+          "description": "辅包材储存天数。"
+        },
+        "site_constraints": {
+          "type": "object",
+          "description": "SiteLayoutInputV1: site boundary, optional buildable boundary, entrances, obstacles, and existing buildings."
+        },
+        "truck_access": {
+          "type": "object",
+          "description": "Raw P1F project truck access input; the server binds it with truck_maneuver."
+        },
+        "truck_maneuver": {
+          "type": "object",
+          "description": "Raw project-approved maneuver templates; no default vehicle or template."
+        }
+      },
+      "required": [
+        "daily_inbound_mass_kg",
+        "finished_storage_days",
+        "frozen_storage_days",
+        "main_packaging_storage_days",
+        "auxiliary_packaging_storage_days",
+        "site_constraints",
+        "truck_access",
+        "truck_maneuver"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": null,
+    "icons": null,
+    "annotations": null,
+    "meta": null,
+    "execution": null
+  }
+]

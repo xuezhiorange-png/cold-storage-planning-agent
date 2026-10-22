@@ -1,0 +1,27 @@
+{
+  "IMPORTANT": "Old v2.2.1 fixture PASS is historical regression evidence, not current real Truck/P2D acceptance",
+  "P1F_REVALIDATION": {
+    "evidence_contents_verified": false,
+    "final_layout_pass_allowed": false,
+    "input_contract_identity": "truck-project-access-input@1.0.0",
+    "p2a_truck_turning_representation_decision_required": true,
+    "project_layout_ready": false,
+    "project_layout_validated": false,
+    "project_truck_input_complete": true,
+    "requires_review": true,
+    "status": "COMPLETE",
+    "truck_route_validated": false,
+    "validated_input_canonical_json": "{\"loading_operation_clearance\":{\"content_sha256\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"project_id\":\"fixture-project\",\"provided_by\":\"fixture-engineer\",\"reference\":\"fixture:loading_operation_clearance\",\"schema_version\":\"1.0.0\",\"source_authority\":\"PROJECT_INPUT\"},\"project_id\":\"fixture-project\",\"schema_version\":\"1.0.0\",\"source_authority\":\"PROJECT_INPUT\",\"straight_approach\":{\"content_sha256\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"project_id\":\"fixture-project\",\"provided_by\":\"fixture-engineer\",\"reference\":\"fixture:straight_approach\",\"schema_version\":\"1.0.0\",\"source_authority\":\"PROJECT_INPUT\"},\"turning_envelope\":{\"content_sha256\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"project_id\":\"fixture-project\",\"provided_by\":\"fixture-engineer\",\"reference\":\"fixture:turning_envelope\",\"schema_version\":\"1.0.0\",\"source_authority\":\"PROJECT_INPUT\"},\"vehicle_length_m\":\"11.113\",\"vehicle_width_m\":\"2.731\"}",
+    "value_source": "PROJECT_INPUT"
+  },
+  "P2B1_REFERENCE_INPUT_COMPLETE": true,
+  "REFERENCE_BINDING_HASH_NOT_ADMITTED": "sha256:7b5bcb11b088dc9b2a90de75f968bbdd92a6decf6b8c94936b31cfd4f50ec0ea",
+  "REFERENCE_REQUIRED_CLASSES": [
+    "DOCK_REVERSE",
+    "STRAIGHT_APPROACH",
+    "TURN_90"
+  ],
+  "SOURCE": "Owner-ingested regression fixture; not current project Truck approval",
+  "SOURCE_BYTES_FOR_REFERENCED_A_B_DIGESTS": "UNAVAILABLE",
+  "STAGE_B_ACTUAL_BINDING": null
+}

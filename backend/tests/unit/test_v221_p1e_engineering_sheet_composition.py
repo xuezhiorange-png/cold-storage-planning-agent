@@ -192,7 +192,8 @@ def test_engineering_sheet_hides_debug_metadata_but_keeps_review_policy(
     assert review["internal_zone_code_visible"] is True
     assert review_root.find(f"{SVG_NS}metadata") is not None
     assert review["svg_sha256"] == (
-        "sha256:48ea97310b955b3e5b94ea68eebed49c377031c74cb4eeba9db003e36042f37d"
+        # R11 corrects Direct destination metadata and its displayed source hash.
+        "sha256:bec4d8e200af35a7c4b80618769fa4c5d3686d1786b875d9ca5fcccf6f2fa005"
     )
 
 
@@ -227,7 +228,7 @@ def test_engineering_sheet_selection_is_deterministic_and_other_profiles_are_byt
         "PRESENTATION": "sha256:e89ca6e1f797fedca41780d2027e728b3a3f37db19c979c0fa9dc863531b2f1a",
         "MOBILE_PREVIEW": "sha256:dc0b5313113e69fdfc6c59b88f4bd911316d74b71762bae83768c1bdd70153f2",
         "ENGINEERING_REVIEW": (
-            "sha256:48ea97310b955b3e5b94ea68eebed49c377031c74cb4eeba9db003e36042f37d"
+            "sha256:bec4d8e200af35a7c4b80618769fa4c5d3686d1786b875d9ca5fcccf6f2fa005"
         ),
     }
     for profile, expected in expected_hashes.items():

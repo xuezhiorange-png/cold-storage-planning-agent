@@ -1,0 +1,115 @@
+{
+  "provenance": "Owner frozen rebuilt CP-SAT candidate; R10 archive 04f175b519fc40815a7b1c1fddae85df78484fdb111347f470a1886b00158e10; regression input only, not server-produced placement",
+  "fixture_sha256": "d03ecae9e1e2808cba346eb83a39f853c8a4b366acc103669af1cf868363901e",
+  "geometry_hash": "sha256:870d7c48cf2a1f65f8bcf5df0ecc3030e422e0707b9831f9e85565ff62690811",
+  "zones": [
+    {
+      "zone_code": "changing_room",
+      "x": "24.751",
+      "y": "23.65",
+      "width_m": "13.763",
+      "depth_m": "3.35",
+      "rotation_deg": 0,
+      "actual_area_m2": "46.10605"
+    },
+    {
+      "zone_code": "coating_room",
+      "x": "24.751",
+      "y": "28.28",
+      "width_m": "14.763",
+      "depth_m": "5.419",
+      "rotation_deg": 0,
+      "actual_area_m2": "80.000697"
+    },
+    {
+      "zone_code": "finished_goods_room",
+      "x": "5.218",
+      "y": "33.699",
+      "width_m": "32.4",
+      "depth_m": "18.6",
+      "rotation_deg": 0,
+      "actual_area_m2": "602.64"
+    },
+    {
+      "zone_code": "frozen_fruit_room",
+      "x": "32.181",
+      "y": "1.85",
+      "width_m": "10.8",
+      "depth_m": "8.2",
+      "rotation_deg": 0,
+      "actual_area_m2": "88.56"
+    },
+    {
+      "zone_code": "office",
+      "x": "0.001",
+      "y": "26.276",
+      "width_m": "5.217",
+      "depth_m": "13.11",
+      "rotation_deg": 0,
+      "actual_area_m2": "68.39487"
+    },
+    {
+      "zone_code": "packaging_material_storage",
+      "x": "60.46",
+      "y": "0",
+      "width_m": "17.3",
+      "depth_m": "14.5",
+      "rotation_deg": 90,
+      "actual_area_m2": "250.85"
+    },
+    {
+      "zone_code": "primary_precooling_room",
+      "x": "15.201",
+      "y": "0",
+      "width_m": "14.7",
+      "depth_m": "10.05",
+      "rotation_deg": 0,
+      "actual_area_m2": "147.735"
+    },
+    {
+      "zone_code": "raw_fruit_buffer",
+      "x": "0.001",
+      "y": "0",
+      "width_m": "15.2",
+      "depth_m": "8.7",
+      "rotation_deg": 0,
+      "actual_area_m2": "132.24"
+    },
+    {
+      "zone_code": "secondary_fruit_buffer",
+      "x": "42.981",
+      "y": "3.15",
+      "width_m": "8.4",
+      "depth_m": "6.9",
+      "rotation_deg": 0,
+      "actual_area_m2": "57.96"
+    },
+    {
+      "zone_code": "secondary_precooling_room",
+      "x": "14.701",
+      "y": "23.65",
+      "width_m": "9.8",
+      "depth_m": "10.05",
+      "rotation_deg": 90,
+      "actual_area_m2": "98.49"
+    },
+    {
+      "zone_code": "shipping_channel",
+      "x": "5.218",
+      "y": "26.006",
+      "width_m": "6.5",
+      "depth_m": "7.693",
+      "rotation_deg": 0,
+      "actual_area_m2": "50.0045"
+    },
+    {
+      "zone_code": "sorting_packaging_room",
+      "x": "14.7",
+      "y": "10.05",
+      "width_m": "45.76",
+      "depth_m": "13.6",
+      "rotation_deg": 0,
+      "actual_area_m2": "622.336"
+    }
+  ]
+}

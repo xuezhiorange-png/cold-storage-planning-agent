@@ -1,0 +1,211 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1505" height="1130" viewBox="0 0 1505 1130" data-scale-px-per-mm="0.1">
+<rect width="100%" height="100%" fill="#f7f9fc"/>
+<g font-family="sans-serif">
+<text x="24" y="30" font-size="21" fill="#172b42">PACKING STATION MODULE R1 / PARALLEL_ROWS</text>
+<text x="24" y="56" font-size="15" fill="#a33d17">SYNTHETIC_TEST_GEOMETRY | NORMAL_PRODUCTION</text>
+<text x="24" y="79" font-size="13" fill="#172b42">NOT PROJECT APPROVED · NO P1 AREA · XY y-up · integer mm inputs</text>
+<g transform="translate(40,115) scale(0.1)">
+<rect x="1950" y="7000" width="2400" height="800" fill="#c5ccd5" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="1980" y="7160" font-size="94" fill="#172b42">A/EQUIPMENT</text>
+<text x="1980" y="7320" font-size="100" fill="#172b42">2400 x 800 mm</text>
+<rect x="950" y="5500" width="200" height="3000" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<rect x="4550" y="7000" width="600" height="600" fill="#dbc9f0" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="4580" y="7160" font-size="94" fill="#172b42">A/OUTFEED</text>
+<rect x="5150" y="5500" width="600" height="3000" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="5180" y="5660" font-size="94" fill="#172b42">A/OUT</text>
+<rect x="950" y="8500" width="4800" height="1100" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="980" y="8660" font-size="94" fill="#172b42">A/PEOPLE</text>
+<rect x="950" y="5500" width="4800" height="600" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="980" y="5660" font-size="94" fill="#172b42">A/REAR</text>
+<rect x="1750" y="6100" width="2800" height="800" fill="#f8cbb9" fill-opacity="0.12" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="1150" y="7000" width="600" height="600" fill="#ffe0a1" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="1180" y="7160" font-size="94" fill="#172b42">A/SUPPLY</text>
+<rect x="3200" y="9050" width="5700" height="300" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="3230" y="9210" font-size="94" fill="#172b42">ASM/LINK_B_0</text>
+<rect x="400" y="9050" width="3100" height="300" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="430" y="9210" font-size="94" fill="#172b42">ASM/LINK_C_0</text>
+<rect x="400" y="3950" width="300" height="5400" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<rect x="400" y="3950" width="3100" height="300" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="430" y="4110" font-size="94" fill="#172b42">ASM/LINK_C_2</text>
+<rect x="400" y="9050" width="3100" height="300" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<rect x="400" y="3950" width="300" height="5400" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<rect x="400" y="3950" width="8500" height="300" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="430" y="4110" font-size="94" fill="#172b42">ASM/LINK_D_2</text>
+<rect x="7350" y="7000" width="2400" height="800" fill="#c5ccd5" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="7380" y="7160" font-size="94" fill="#172b42">B/EQUIPMENT</text>
+<text x="7380" y="7320" font-size="100" fill="#172b42">2400 x 800 mm</text>
+<rect x="6350" y="5500" width="200" height="3000" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<rect x="9950" y="7000" width="600" height="600" fill="#dbc9f0" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="9980" y="7160" font-size="94" fill="#172b42">B/OUTFEED</text>
+<rect x="10550" y="5500" width="600" height="3000" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="10580" y="5660" font-size="94" fill="#172b42">B/OUT</text>
+<rect x="6350" y="8500" width="4800" height="1100" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="6380" y="8660" font-size="94" fill="#172b42">B/PEOPLE</text>
+<rect x="6350" y="5500" width="4800" height="600" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="6380" y="5660" font-size="94" fill="#172b42">B/REAR</text>
+<rect x="7150" y="6100" width="2800" height="800" fill="#f8cbb9" fill-opacity="0.12" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="6550" y="7000" width="600" height="600" fill="#ffe0a1" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="6580" y="7160" font-size="94" fill="#172b42">B/SUPPLY</text>
+<rect x="1950" y="1900" width="2400" height="800" fill="#c5ccd5" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="1980" y="2060" font-size="94" fill="#172b42">C/EQUIPMENT</text>
+<text x="1980" y="2220" font-size="100" fill="#172b42">2400 x 800 mm</text>
+<rect x="950" y="400" width="200" height="3000" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<rect x="4550" y="1900" width="600" height="600" fill="#dbc9f0" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="4580" y="2060" font-size="94" fill="#172b42">C/OUTFEED</text>
+<rect x="5150" y="400" width="600" height="3000" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="5180" y="560" font-size="94" fill="#172b42">C/OUT</text>
+<rect x="950" y="3400" width="4800" height="1100" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="980" y="3560" font-size="94" fill="#172b42">C/PEOPLE</text>
+<rect x="950" y="400" width="4800" height="600" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="980" y="560" font-size="94" fill="#172b42">C/REAR</text>
+<rect x="1750" y="1000" width="2800" height="800" fill="#f8cbb9" fill-opacity="0.12" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="1150" y="1900" width="600" height="600" fill="#ffe0a1" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="1180" y="2060" font-size="94" fill="#172b42">C/SUPPLY</text>
+<rect x="7350" y="1900" width="2400" height="800" fill="#c5ccd5" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="7380" y="2060" font-size="94" fill="#172b42">D/EQUIPMENT</text>
+<text x="7380" y="2220" font-size="100" fill="#172b42">2400 x 800 mm</text>
+<rect x="6350" y="400" width="200" height="3000" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<rect x="9950" y="1900" width="600" height="600" fill="#dbc9f0" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="9980" y="2060" font-size="94" fill="#172b42">D/OUTFEED</text>
+<rect x="10550" y="400" width="600" height="3000" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="10580" y="560" font-size="94" fill="#172b42">D/OUT</text>
+<rect x="6350" y="3400" width="4800" height="1100" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="6380" y="3560" font-size="94" fill="#172b42">D/PEOPLE</text>
+<rect x="6350" y="400" width="4800" height="600" fill="#d3e8fa" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="6380" y="560" font-size="94" fill="#172b42">D/REAR</text>
+<rect x="7150" y="1000" width="2800" height="800" fill="#f8cbb9" fill-opacity="0.12" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="6550" y="1900" width="600" height="600" fill="#ffe0a1" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="6580" y="2060" font-size="94" fill="#172b42">D/SUPPLY</text>
+<rect x="2050" y="7500" width="600" height="600" fill="#c6e8e0" fill-opacity="0.40" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="2750" y="7500" width="600" height="600" fill="#c6e8e0" fill-opacity="0.40" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="3450" y="7500" width="600" height="600" fill="#c6e8e0" fill-opacity="0.40" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="2050" y="7900" width="600" height="600" fill="#c6e8e0" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="2080" y="8060" font-size="94" fill="#172b42">A/OP1</text>
+<rect x="2750" y="7900" width="600" height="600" fill="#c6e8e0" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="2780" y="8060" font-size="94" fill="#172b42">A/OP2</text>
+<rect x="3450" y="7900" width="600" height="600" fill="#c6e8e0" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="3480" y="8060" font-size="94" fill="#172b42">A/OP3</text>
+<rect x="7450" y="7500" width="600" height="600" fill="#c6e8e0" fill-opacity="0.40" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="8150" y="7500" width="600" height="600" fill="#c6e8e0" fill-opacity="0.40" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="8850" y="7500" width="600" height="600" fill="#c6e8e0" fill-opacity="0.40" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="7450" y="7900" width="600" height="600" fill="#c6e8e0" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="7480" y="8060" font-size="94" fill="#172b42">B/OP1</text>
+<rect x="8150" y="7900" width="600" height="600" fill="#c6e8e0" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="8180" y="8060" font-size="94" fill="#172b42">B/OP2</text>
+<rect x="8850" y="7900" width="600" height="600" fill="#c6e8e0" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="8880" y="8060" font-size="94" fill="#172b42">B/OP3</text>
+<rect x="2050" y="2400" width="600" height="600" fill="#c6e8e0" fill-opacity="0.40" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="2750" y="2400" width="600" height="600" fill="#c6e8e0" fill-opacity="0.40" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="3450" y="2400" width="600" height="600" fill="#c6e8e0" fill-opacity="0.40" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="2050" y="2800" width="600" height="600" fill="#c6e8e0" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="2080" y="2960" font-size="94" fill="#172b42">C/OP1</text>
+<rect x="2750" y="2800" width="600" height="600" fill="#c6e8e0" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="2780" y="2960" font-size="94" fill="#172b42">C/OP2</text>
+<rect x="3450" y="2800" width="600" height="600" fill="#c6e8e0" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="3480" y="2960" font-size="94" fill="#172b42">C/OP3</text>
+<rect x="7450" y="2400" width="600" height="600" fill="#c6e8e0" fill-opacity="0.40" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="8150" y="2400" width="600" height="600" fill="#c6e8e0" fill-opacity="0.40" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="8850" y="2400" width="600" height="600" fill="#c6e8e0" fill-opacity="0.40" stroke="#5b7186" stroke-width="8" stroke-dasharray="55 30"/>
+<rect x="7450" y="2800" width="600" height="600" fill="#c6e8e0" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="7480" y="2960" font-size="94" fill="#172b42">D/OP1</text>
+<rect x="8150" y="2800" width="600" height="600" fill="#c6e8e0" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="8180" y="2960" font-size="94" fill="#172b42">D/OP2</text>
+<rect x="8850" y="2800" width="600" height="600" fill="#c6e8e0" fill-opacity="0.80" stroke="#5b7186" stroke-width="8"/>
+<text x="8880" y="2960" font-size="94" fill="#172b42">D/OP3</text>
+<polyline points="3350,9200 2350,9200 2350,8200" stroke="#227c69" stroke-opacity="0.22" stroke-width="300" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="3350,9200 2350,9200 2350,8200" stroke="#227c69" stroke-width="15" fill="none"/>
+<polyline points="3350,9200 3050,9200 3050,8200" stroke="#227c69" stroke-opacity="0.22" stroke-width="300" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="3350,9200 3050,9200 3050,8200" stroke="#227c69" stroke-width="15" fill="none"/>
+<polyline points="3350,9200 3750,9200 3750,8200" stroke="#227c69" stroke-opacity="0.22" stroke-width="300" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="3350,9200 3750,9200 3750,8200" stroke="#227c69" stroke-width="15" fill="none"/>
+<polyline points="1050,7300 1450,7300" stroke="#d1841b" stroke-opacity="0.22" stroke-width="100" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="1050,7300 1450,7300" stroke="#d1841b" stroke-width="15" fill="none"/>
+<polyline points="4850,7300 5450,7300" stroke="#7043a0" stroke-opacity="0.22" stroke-width="100" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="4850,7300 5450,7300" stroke="#7043a0" stroke-width="15" fill="none"/>
+<polyline points="8750,9200 7750,9200 7750,8200" stroke="#227c69" stroke-opacity="0.22" stroke-width="300" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="8750,9200 7750,9200 7750,8200" stroke="#227c69" stroke-width="15" fill="none"/>
+<polyline points="8750,9200 8450,9200 8450,8200" stroke="#227c69" stroke-opacity="0.22" stroke-width="300" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="8750,9200 8450,9200 8450,8200" stroke="#227c69" stroke-width="15" fill="none"/>
+<polyline points="8750,9200 9150,9200 9150,8200" stroke="#227c69" stroke-opacity="0.22" stroke-width="300" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="8750,9200 9150,9200 9150,8200" stroke="#227c69" stroke-width="15" fill="none"/>
+<polyline points="6450,7300 6850,7300" stroke="#d1841b" stroke-opacity="0.22" stroke-width="100" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="6450,7300 6850,7300" stroke="#d1841b" stroke-width="15" fill="none"/>
+<polyline points="10250,7300 10850,7300" stroke="#7043a0" stroke-opacity="0.22" stroke-width="100" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="10250,7300 10850,7300" stroke="#7043a0" stroke-width="15" fill="none"/>
+<polyline points="3350,4100 2350,4100 2350,3100" stroke="#227c69" stroke-opacity="0.22" stroke-width="300" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="3350,4100 2350,4100 2350,3100" stroke="#227c69" stroke-width="15" fill="none"/>
+<polyline points="3350,4100 3050,4100 3050,3100" stroke="#227c69" stroke-opacity="0.22" stroke-width="300" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="3350,4100 3050,4100 3050,3100" stroke="#227c69" stroke-width="15" fill="none"/>
+<polyline points="3350,4100 3750,4100 3750,3100" stroke="#227c69" stroke-opacity="0.22" stroke-width="300" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="3350,4100 3750,4100 3750,3100" stroke="#227c69" stroke-width="15" fill="none"/>
+<polyline points="1050,2200 1450,2200" stroke="#d1841b" stroke-opacity="0.22" stroke-width="100" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="1050,2200 1450,2200" stroke="#d1841b" stroke-width="15" fill="none"/>
+<polyline points="4850,2200 5450,2200" stroke="#7043a0" stroke-opacity="0.22" stroke-width="100" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="4850,2200 5450,2200" stroke="#7043a0" stroke-width="15" fill="none"/>
+<polyline points="8750,4100 7750,4100 7750,3100" stroke="#227c69" stroke-opacity="0.22" stroke-width="300" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="8750,4100 7750,4100 7750,3100" stroke="#227c69" stroke-width="15" fill="none"/>
+<polyline points="8750,4100 8450,4100 8450,3100" stroke="#227c69" stroke-opacity="0.22" stroke-width="300" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="8750,4100 8450,4100 8450,3100" stroke="#227c69" stroke-width="15" fill="none"/>
+<polyline points="8750,4100 9150,4100 9150,3100" stroke="#227c69" stroke-opacity="0.22" stroke-width="300" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="8750,4100 9150,4100 9150,3100" stroke="#227c69" stroke-width="15" fill="none"/>
+<polyline points="6450,2200 6850,2200" stroke="#d1841b" stroke-opacity="0.22" stroke-width="100" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="6450,2200 6850,2200" stroke="#d1841b" stroke-width="15" fill="none"/>
+<polyline points="10250,2200 10850,2200" stroke="#7043a0" stroke-opacity="0.22" stroke-width="100" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="10250,2200 10850,2200" stroke="#7043a0" stroke-width="15" fill="none"/>
+<polyline points="3350,9200 8750,9200" stroke="#227c69" stroke-opacity="0.22" stroke-width="300" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="3350,9200 8750,9200" stroke="#227c69" stroke-width="15" fill="none"/>
+<polyline points="3350,9200 550,9200 550,4100 3350,4100" stroke="#227c69" stroke-opacity="0.22" stroke-width="300" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="3350,9200 550,9200 550,4100 3350,4100" stroke="#227c69" stroke-width="15" fill="none"/>
+<polyline points="3350,9200 550,9200 550,4100 8750,4100" stroke="#227c69" stroke-opacity="0.22" stroke-width="300" stroke-linejoin="miter" stroke-linecap="square" fill="none"/>
+<polyline points="3350,9200 550,9200 550,4100 8750,4100" stroke="#227c69" stroke-width="15" fill="none"/>
+<path d="M 2350 8200 L 2350 7900" stroke="#125947" stroke-width="22"/>
+<polygon points="2350,7900 2295,7995 2405,7995" fill="#125947"/>
+<path d="M 3050 8200 L 3050 7900" stroke="#125947" stroke-width="22"/>
+<polygon points="3050,7900 2995,7995 3105,7995" fill="#125947"/>
+<path d="M 3750 8200 L 3750 7900" stroke="#125947" stroke-width="22"/>
+<polygon points="3750,7900 3695,7995 3805,7995" fill="#125947"/>
+<path d="M 7750 8200 L 7750 7900" stroke="#125947" stroke-width="22"/>
+<polygon points="7750,7900 7695,7995 7805,7995" fill="#125947"/>
+<path d="M 8450 8200 L 8450 7900" stroke="#125947" stroke-width="22"/>
+<polygon points="8450,7900 8395,7995 8505,7995" fill="#125947"/>
+<path d="M 9150 8200 L 9150 7900" stroke="#125947" stroke-width="22"/>
+<polygon points="9150,7900 9095,7995 9205,7995" fill="#125947"/>
+<path d="M 2350 3100 L 2350 2800" stroke="#125947" stroke-width="22"/>
+<polygon points="2350,2800 2295,2895 2405,2895" fill="#125947"/>
+<path d="M 3050 3100 L 3050 2800" stroke="#125947" stroke-width="22"/>
+<polygon points="3050,2800 2995,2895 3105,2895" fill="#125947"/>
+<path d="M 3750 3100 L 3750 2800" stroke="#125947" stroke-width="22"/>
+<polygon points="3750,2800 3695,2895 3805,2895" fill="#125947"/>
+<path d="M 7750 3100 L 7750 2800" stroke="#125947" stroke-width="22"/>
+<polygon points="7750,2800 7695,2895 7805,2895" fill="#125947"/>
+<path d="M 8450 3100 L 8450 2800" stroke="#125947" stroke-width="22"/>
+<polygon points="8450,2800 8395,2895 8505,2895" fill="#125947"/>
+<path d="M 9150 3100 L 9150 2800" stroke="#125947" stroke-width="22"/>
+<polygon points="9150,2800 9095,2895 9205,2895" fill="#125947"/>
+<text x="150" y="180" font-size="110" fill="#172b42">Y+</text>
+<text x="11300" y="9840" font-size="110" fill="#172b42">X+</text>
+</g>
+<text x="1225" y="125" font-size="15" fill="#172b42">SOURCE / STATUS</text>
+<text x="1225" y="146" font-size="11" fill="#172b42">All depicted dimensions: SYNTHETIC_TEST_GEOMETRY</text>
+<text x="1225" y="167" font-size="11" fill="#172b42">Input source IDs: synthetic</text>
+<text x="1225" y="188" font-size="11" fill="#172b42">Source content SHA: 2eefc57ba632baf3382fef07</text>
+<text x="1225" y="209" font-size="11" fill="#172b42">Input SHA256: 8ea233d73f0fa53e0e7a83d9</text>
+<text x="1225" y="230" font-size="11" fill="#172b42">Same scale: 0.1 px per mm in every SVG</text>
+<text x="1225" y="251" font-size="11" fill="#172b42">Uncalibrated: all project fit / aisle values</text>
+<text x="1225" y="272" font-size="11" fill="#172b42">Each station: exactly OP1, OP2, OP3</text>
+<text x="1225" y="293" font-size="11" fill="#172b42">Solid gray: equipment body</text>
+<text x="1225" y="314" font-size="11" fill="#172b42">Green: standing; dashed green: reach</text>
+<text x="1225" y="335" font-size="11" fill="#172b42">Amber: supply | Purple: outfeed</text>
+<text x="1225" y="356" font-size="11" fill="#172b42">Blue: circulation | Coral: service</text>
+<text x="1225" y="377" font-size="11" fill="#172b42">Faded: inactive in displayed state</text>
+<text x="1225" y="398" font-size="11" fill="#172b42">Lines: full-width paths + centerlines</text>
+<text x="1225" y="419" font-size="11" fill="#172b42">Arrows: declared work direction</text>
+<text x="1225" y="440" font-size="11" fill="#172b42">Overlap is not automatically permitted</text>
+<text x="1225" y="461" font-size="11" fill="#172b42">Envelope: 10750 x 9200 mm</text>
+<text x="1225" y="482" font-size="11" fill="#172b42">Displayed state union: 58050000 mm2</text>
+<text x="1225" y="503" font-size="11" fill="#172b42">Bounding rectangle differs from union</text>
+<text x="1225" y="524" font-size="11" fill="#172b42">FUNCTIONAL_ROOM_AREA = null</text>
+<text x="1225" y="545" font-size="11" fill="#172b42">Physical collisions: 0</text>
+<text x="1225" y="566" font-size="11" fill="#172b42">Functional reviews: 136</text>
+<text x="1225" y="587" font-size="11" fill="#172b42">Turnover time / safety still require review</text>
+</g></svg>

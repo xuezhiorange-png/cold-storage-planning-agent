@@ -1,0 +1,40 @@
+{
+  "ADAPTER_INPUT": "Every geometry numeric leaf in R1 template must be null and filled once by source-bound record; independently sourced body L/W/H required. Height is trace-only; no 3D clearance claimed.",
+  "ANGLE_UNIT": "deg, 0/90/180/270",
+  "COORDINATE_REFERENCE": "STATION_LOCAL or ASSEMBLY_GLOBAL, consistent with R1 quarter-turn transforms",
+  "COORDINATE_UNIT": "integer mm",
+  "DISTINCT_DIMENSION_CLASSES": [
+    "EQUIPMENT_BODY_DIMENSION",
+    "WORKSTATION_MODULE_DIMENSION",
+    "STATION_PITCH",
+    "CLEAR_AISLE_DIMENSION",
+    "ROOM_CLEAR_INTERNAL_DIMENSION",
+    "BUILDING_EXTERNAL_DIMENSION"
+  ],
+  "EXTRACTION": "Structured JSON exact VALUE/UNIT/type/frame; unique explicit text callout. PDF text only with explicit CALLOUT_KEY, never drawing/image scale. Native CAD/image -> manual review.",
+  "IDENTITY": "ProjectStationDimensionRecordV1",
+  "MISSING_VALUE": {
+    "STATUS": "UNAVAILABLE",
+    "VALUE": null
+  },
+  "NO_DEFAULTS": [
+    "5.6m/3.0m station pitch",
+    "8.0m/7.6m aggregate allowance",
+    "room Portal width",
+    "unknown operator positions"
+  ],
+  "PARTIAL_INPUT": "Record missing values in template/checklist; complete geometry admission is blocked until all required callouts and reviewed module structure exist.",
+  "RECORD_FIELDS": [
+    "RECORD_ID",
+    "VALUE",
+    "UNIT",
+    "SOURCE_ID",
+    "SOURCE_LOCATION",
+    "DIMENSION_TYPE",
+    "COORDINATE_REFERENCE",
+    "EXTRACTION_METHOD",
+    "MEASUREMENT",
+    "TARGET_PATH",
+    "COMPONENT_ID"
+  ]
+}

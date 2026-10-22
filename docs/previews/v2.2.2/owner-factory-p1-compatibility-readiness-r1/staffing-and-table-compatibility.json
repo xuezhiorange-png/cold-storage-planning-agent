@@ -1,0 +1,475 @@
+{
+  "historical_table_rule_not_changed": true,
+  "missing_input_scenario": {
+    "BLOCKING_AUTHORITY_DECISIONS": [
+      "New table concurrency/reuse and three-worker capacity approval",
+      "Functional areas and profile version/supersession approval"
+    ],
+    "BLOCKING_IMPLEMENTATION_ITEMS": [
+      "Trusted upstream content/provenance binding",
+      "Separate version selector, canonical identity and P1/P2 migration",
+      "Consumer implementation, regression, CI and rollback gates"
+    ],
+    "BLOCKING_INPUTS": [
+      "Project size, workstations and clear-space basis",
+      "Locker and equipment/state envelopes",
+      "Equipment effective runtime and actual mass provenance approval"
+    ],
+    "BUSINESS_RULES_READY": true,
+    "COMPARISON_STATUS": "NOT_COMPARABLE",
+    "P1_INTEGRATION_IMPLEMENTATION_READY": false,
+    "P1_PRODUCTION_ACTIVATED": false,
+    "canonical_p1_result": null,
+    "comparison_reason": "Legacy raw inbound mass and Owner packaged-product mass/staffing semantics differ; no algorithm superiority or approved area delta",
+    "film_sealing": {
+      "ACTUAL_FILM_SEALING_RATIO": null,
+      "DESIGN_FILM_SEALING_RATIO": "1.0",
+      "EFFECTIVE_EQUIPMENT_RUNTIME_HOURS": {
+        "status": "OWNER_INPUT_REQUIRED",
+        "value": null
+      },
+      "EQUIPMENT_CAPACITY": {
+        "status": "UNAVAILABLE",
+        "value": null
+      },
+      "EQUIPMENT_COUNT": {
+        "status": "UNAVAILABLE",
+        "value": null
+      },
+      "EQUIPMENT_ENVELOPE": {
+        "status": "UNAVAILABLE",
+        "value": null
+      },
+      "EQUIPMENT_MODEL": {
+        "status": "UNAVAILABLE",
+        "value": null
+      },
+      "INDEPENDENT_BYPASS_ROOM_ASSUMED": false,
+      "NON_SEALING_PRODUCT_PASS_THROUGH_ALLOWED": true,
+      "PROCESS_TYPE": "PACKAGING_BOX_FILM_SEALING",
+      "ROOM_TYPE": "INDEPENDENT",
+      "actual_ratio_status": "OWNER_INPUT_REQUIRED",
+      "area_authority_m2": 80,
+      "contract_version": "owner-factory-functional-inputs@1.0.0",
+      "design_load_kg": null,
+      "functional_space_pass": null,
+      "mass_source": null,
+      "missing_inputs": [
+        "ENTERING_PACKAGED_PRODUCT_KG",
+        "ENTERING_PACKAGED_PRODUCT_MASS_SOURCE",
+        "EQUIPMENT_SELECTION_AND_STATE_ENVELOPES",
+        "EFFECTIVE_EQUIPMENT_RUNTIME_HOURS"
+      ],
+      "source_reference_verification": "REFERENCE_RECORDED_NOT_FILE_AUTHENTICATED",
+      "status": "OWNER_RULE_RECORDED_EQUIPMENT_INPUT_REQUIRED"
+    },
+    "formal_source_admission": "BLOCKED_NOT_IMPLEMENTED_BY_OFFLINE_CONTENT_CHECK",
+    "identity": "OwnerFactoryP1CompatibilityReadinessV1",
+    "input_identity": {
+      "period_id": null,
+      "project_id": null
+    },
+    "input_mass_basis": "PACKAGED_PRODUCT_MASS_REQUIRED",
+    "input_mass_source": null,
+    "mode": "OWNER_V1_PROPOSED",
+    "new_functional_area_m2": {
+      "changing_room": null,
+      "coating_room": null,
+      "office": null
+    },
+    "office": {
+      "OFFICE_STAFF_STATUS": "OWNER_INPUT_REQUIRED",
+      "missing_inputs": [
+        "EXPLICIT_FACTORY_SIZE"
+      ],
+      "result": null,
+      "status": "OWNER_INPUT_REQUIRED"
+    },
+    "owner_contract_source_manifest_sha256": "a641e21b5c5d60f4f635db0ed1af4744215dc88951c6b1bc7c1dfbce43671b84",
+    "owner_contract_version": "owner-factory-functional-inputs@1.0.0",
+    "server_authority_created": false,
+    "source_record": null,
+    "source_verification": "PACKAGED_MASS_SOURCE_REQUIRED",
+    "staffing_and_lockers": null,
+    "table_policy": null,
+    "version": "owner-factory-p1-compatibility-readiness@1.0.0"
+  },
+  "new_sorting_area_authority": null,
+  "scenarios": [
+    {
+      "input": {
+        "daily_packaged_kg": 20000,
+        "factory_size": null,
+        "hypothetical_table_reuse": true,
+        "mass_source": {
+          "path": "synthetic-equal-mass-source.json",
+          "sha256": "edfa1edb12d04d3422cc5c5001ee47bc32d9e5d0dcc85378814761b05692767f"
+        },
+        "period_id": "EXAMPLE_DAY",
+        "project_id": "SYNTHETIC_COMPATIBILITY_ONLY",
+        "shift_1_packaging_kg": "10000",
+        "shift_2_packaging_kg": "10000"
+      },
+      "name": "equal",
+      "output": {
+        "BLOCKING_AUTHORITY_DECISIONS": [
+          "New table concurrency/reuse and three-worker capacity approval",
+          "Functional areas and profile version/supersession approval"
+        ],
+        "BLOCKING_IMPLEMENTATION_ITEMS": [
+          "Trusted upstream content/provenance binding",
+          "Separate version selector, canonical identity and P1/P2 migration",
+          "Consumer implementation, regression, CI and rollback gates"
+        ],
+        "BLOCKING_INPUTS": [
+          "Project size, workstations and clear-space basis",
+          "Locker and equipment/state envelopes",
+          "Equipment effective runtime and actual mass provenance approval"
+        ],
+        "BUSINESS_RULES_READY": true,
+        "COMPARISON_STATUS": "NOT_COMPARABLE",
+        "P1_INTEGRATION_IMPLEMENTATION_READY": false,
+        "P1_PRODUCTION_ACTIVATED": false,
+        "canonical_p1_result": null,
+        "comparison_reason": "Legacy raw inbound mass and Owner packaged-product mass/staffing semantics differ; no algorithm superiority or approved area delta",
+        "film_sealing": {
+          "ACTUAL_FILM_SEALING_RATIO": null,
+          "DESIGN_FILM_SEALING_RATIO": "1.0",
+          "EFFECTIVE_EQUIPMENT_RUNTIME_HOURS": {
+            "status": "OWNER_INPUT_REQUIRED",
+            "value": null
+          },
+          "EQUIPMENT_CAPACITY": {
+            "status": "UNAVAILABLE",
+            "value": null
+          },
+          "EQUIPMENT_COUNT": {
+            "status": "UNAVAILABLE",
+            "value": null
+          },
+          "EQUIPMENT_ENVELOPE": {
+            "status": "UNAVAILABLE",
+            "value": null
+          },
+          "EQUIPMENT_MODEL": {
+            "status": "UNAVAILABLE",
+            "value": null
+          },
+          "INDEPENDENT_BYPASS_ROOM_ASSUMED": false,
+          "NON_SEALING_PRODUCT_PASS_THROUGH_ALLOWED": true,
+          "PROCESS_TYPE": "PACKAGING_BOX_FILM_SEALING",
+          "ROOM_TYPE": "INDEPENDENT",
+          "actual_ratio_status": "OWNER_INPUT_REQUIRED",
+          "area_authority_m2": 80,
+          "contract_version": "owner-factory-functional-inputs@1.0.0",
+          "design_load_kg": null,
+          "functional_space_pass": null,
+          "mass_source": null,
+          "missing_inputs": [
+            "ENTERING_PACKAGED_PRODUCT_KG",
+            "ENTERING_PACKAGED_PRODUCT_MASS_SOURCE",
+            "EQUIPMENT_SELECTION_AND_STATE_ENVELOPES",
+            "EFFECTIVE_EQUIPMENT_RUNTIME_HOURS"
+          ],
+          "source_reference_verification": "REFERENCE_RECORDED_NOT_FILE_AUTHENTICATED",
+          "status": "OWNER_RULE_RECORDED_EQUIPMENT_INPUT_REQUIRED"
+        },
+        "formal_source_admission": "BLOCKED_NOT_IMPLEMENTED_BY_OFFLINE_CONTENT_CHECK",
+        "identity": "OwnerFactoryP1CompatibilityReadinessV1",
+        "input_identity": {
+          "period_id": "EXAMPLE_DAY",
+          "project_id": "SYNTHETIC_COMPATIBILITY_ONLY"
+        },
+        "input_mass_basis": "PACKAGED_PRODUCT_MASS_REQUIRED",
+        "input_mass_source": {
+          "path": "synthetic-equal-mass-source.json",
+          "sha256": "edfa1edb12d04d3422cc5c5001ee47bc32d9e5d0dcc85378814761b05692767f"
+        },
+        "mode": "OWNER_V1_PROPOSED",
+        "new_functional_area_m2": {
+          "changing_room": null,
+          "coating_room": null,
+          "office": null
+        },
+        "office": {
+          "OFFICE_STAFF_STATUS": "OWNER_INPUT_REQUIRED",
+          "missing_inputs": [
+            "EXPLICIT_FACTORY_SIZE"
+          ],
+          "result": null,
+          "status": "OWNER_INPUT_REQUIRED"
+        },
+        "owner_contract_source_manifest_sha256": "a641e21b5c5d60f4f635db0ed1af4744215dc88951c6b1bc7c1dfbce43671b84",
+        "owner_contract_version": "owner-factory-functional-inputs@1.0.0",
+        "server_authority_created": false,
+        "source_record": {
+          "mass_basis": "PACKAGED_PRODUCT_MASS",
+          "period_id": "EXAMPLE_DAY",
+          "project_id": "SYNTHETIC_COMPATIBILITY_ONLY",
+          "scope": "SYNTHETIC_TEST_ONLY_NOT_APPROVED_PROJECT",
+          "shift_1_packaging_kg": "10000",
+          "shift_2_packaging_kg": "10000",
+          "unit": "kg"
+        },
+        "source_verification": "ACTUAL_LOCAL_BYTES_AND_QUANTITIES_MATCH_NOT_APPROVAL",
+        "staffing_and_lockers": {
+          "LOCKER_COUNT": 106,
+          "LOCKER_COUNT_UNIT": "independent_personal_lockers",
+          "LOCKER_INTERNAL_SEPARATION": true,
+          "OTHER_JOB_USERS_ADDED": 0,
+          "SHIFT_1_WORKERS": 53,
+          "SHIFT_2_WORKERS": 53,
+          "SHIFT_CHANGE_POLICY": "NON_OVERLAPPING",
+          "SIMULTANEOUS_CHANGING_USERS": 53,
+          "area_authority_m2": 40,
+          "contract_version": "owner-factory-functional-inputs@1.0.0",
+          "formulas": {
+            "lockers": "shift_1_workers + shift_2_workers",
+            "shift_workers": "ceil(shift_packaged_product_kg / (15 * 1.6 * 8))",
+            "simultaneous_changing": "max(shift_1_workers, shift_2_workers)"
+          },
+          "functional_space_pass": null,
+          "hygiene_privacy_compliance": "PROFESSIONAL_REVIEW_REQUIRED",
+          "input": {
+            "mass_basis": "PACKAGED_PRODUCT_MASS",
+            "mass_source": "Local matching source bytes, not project approval",
+            "shift_1_packaging_kg": {
+              "denominator": 1,
+              "numerator": 10000
+            },
+            "shift_2_packaging_kg": {
+              "denominator": 1,
+              "numerator": 10000
+            }
+          },
+          "person_shift_capacity_kg": {
+            "denominator": 1,
+            "numerator": 192
+          },
+          "source_reference_verification": "REFERENCE_RECORDED_NOT_FILE_AUTHENTICATED",
+          "status": "OFFLINE_BUSINESS_CALCULATION_ONLY"
+        },
+        "table_policy": {
+          "area_projection": {
+            "assumptions": "If existing three-worker stations, pitches, clearances, packing rank and1.1 factor remain suitable and are separately approved",
+            "factor": 1.1,
+            "grid": {
+              "n_actual": 18,
+              "n_long": 6,
+              "n_need": 18,
+              "n_short": 3,
+              "required_area_m2": 489.59999999999997,
+              "unused_cells": 0
+            },
+            "grid_cells_not_installed_inventory_authority": true,
+            "raw_area_m2": 489.6,
+            "reported_area_m2": 538.56,
+            "status": "HYPOTHETICAL_LEGACY_FORMULA_PROJECTION_NOT_NEW_P1"
+          },
+          "formal_p1_area_m2": null,
+          "formal_p1_table_count": null,
+          "formula": "max(ceil(N1/3),ceil(N2/3))",
+          "new_total_factory_area_m2": null,
+          "peak_basis": "Proposed non-overlapping production-shift scenario; changing non-overlap alone does not approve workstation handover, cleaning or overlap policy",
+          "peak_concurrent_packaging_workers": 53,
+          "policy": "PROPOSED_PEAK_CONCURRENCY_TABLE_POLICY",
+          "proposal_table_count": 18,
+          "reuse_between_shifts": true,
+          "status": "ENGINEERING_PROPOSAL_NOT_APPROVED",
+          "total_shift_workers": 106,
+          "workers_per_table": 3,
+          "workers_per_table_source": "Legacy constant only; Owner approval for new policy pending"
+        },
+        "version": "owner-factory-p1-compatibility-readiness@1.0.0"
+      }
+    },
+    {
+      "input": {
+        "daily_packaged_kg": 20000,
+        "factory_size": null,
+        "hypothetical_table_reuse": true,
+        "mass_source": {
+          "path": "synthetic-unequal-mass-source.json",
+          "sha256": "097e60748d175825a8b1087300e48e3553902f82e5c0bc37b870a44360840970"
+        },
+        "period_id": "EXAMPLE_DAY",
+        "project_id": "SYNTHETIC_COMPATIBILITY_ONLY",
+        "shift_1_packaging_kg": "16000",
+        "shift_2_packaging_kg": "4000"
+      },
+      "name": "unequal",
+      "output": {
+        "BLOCKING_AUTHORITY_DECISIONS": [
+          "New table concurrency/reuse and three-worker capacity approval",
+          "Functional areas and profile version/supersession approval"
+        ],
+        "BLOCKING_IMPLEMENTATION_ITEMS": [
+          "Trusted upstream content/provenance binding",
+          "Separate version selector, canonical identity and P1/P2 migration",
+          "Consumer implementation, regression, CI and rollback gates"
+        ],
+        "BLOCKING_INPUTS": [
+          "Project size, workstations and clear-space basis",
+          "Locker and equipment/state envelopes",
+          "Equipment effective runtime and actual mass provenance approval"
+        ],
+        "BUSINESS_RULES_READY": true,
+        "COMPARISON_STATUS": "NOT_COMPARABLE",
+        "P1_INTEGRATION_IMPLEMENTATION_READY": false,
+        "P1_PRODUCTION_ACTIVATED": false,
+        "canonical_p1_result": null,
+        "comparison_reason": "Legacy raw inbound mass and Owner packaged-product mass/staffing semantics differ; no algorithm superiority or approved area delta",
+        "film_sealing": {
+          "ACTUAL_FILM_SEALING_RATIO": null,
+          "DESIGN_FILM_SEALING_RATIO": "1.0",
+          "EFFECTIVE_EQUIPMENT_RUNTIME_HOURS": {
+            "status": "OWNER_INPUT_REQUIRED",
+            "value": null
+          },
+          "EQUIPMENT_CAPACITY": {
+            "status": "UNAVAILABLE",
+            "value": null
+          },
+          "EQUIPMENT_COUNT": {
+            "status": "UNAVAILABLE",
+            "value": null
+          },
+          "EQUIPMENT_ENVELOPE": {
+            "status": "UNAVAILABLE",
+            "value": null
+          },
+          "EQUIPMENT_MODEL": {
+            "status": "UNAVAILABLE",
+            "value": null
+          },
+          "INDEPENDENT_BYPASS_ROOM_ASSUMED": false,
+          "NON_SEALING_PRODUCT_PASS_THROUGH_ALLOWED": true,
+          "PROCESS_TYPE": "PACKAGING_BOX_FILM_SEALING",
+          "ROOM_TYPE": "INDEPENDENT",
+          "actual_ratio_status": "OWNER_INPUT_REQUIRED",
+          "area_authority_m2": 80,
+          "contract_version": "owner-factory-functional-inputs@1.0.0",
+          "design_load_kg": null,
+          "functional_space_pass": null,
+          "mass_source": null,
+          "missing_inputs": [
+            "ENTERING_PACKAGED_PRODUCT_KG",
+            "ENTERING_PACKAGED_PRODUCT_MASS_SOURCE",
+            "EQUIPMENT_SELECTION_AND_STATE_ENVELOPES",
+            "EFFECTIVE_EQUIPMENT_RUNTIME_HOURS"
+          ],
+          "source_reference_verification": "REFERENCE_RECORDED_NOT_FILE_AUTHENTICATED",
+          "status": "OWNER_RULE_RECORDED_EQUIPMENT_INPUT_REQUIRED"
+        },
+        "formal_source_admission": "BLOCKED_NOT_IMPLEMENTED_BY_OFFLINE_CONTENT_CHECK",
+        "identity": "OwnerFactoryP1CompatibilityReadinessV1",
+        "input_identity": {
+          "period_id": "EXAMPLE_DAY",
+          "project_id": "SYNTHETIC_COMPATIBILITY_ONLY"
+        },
+        "input_mass_basis": "PACKAGED_PRODUCT_MASS_REQUIRED",
+        "input_mass_source": {
+          "path": "synthetic-unequal-mass-source.json",
+          "sha256": "097e60748d175825a8b1087300e48e3553902f82e5c0bc37b870a44360840970"
+        },
+        "mode": "OWNER_V1_PROPOSED",
+        "new_functional_area_m2": {
+          "changing_room": null,
+          "coating_room": null,
+          "office": null
+        },
+        "office": {
+          "OFFICE_STAFF_STATUS": "OWNER_INPUT_REQUIRED",
+          "missing_inputs": [
+            "EXPLICIT_FACTORY_SIZE"
+          ],
+          "result": null,
+          "status": "OWNER_INPUT_REQUIRED"
+        },
+        "owner_contract_source_manifest_sha256": "a641e21b5c5d60f4f635db0ed1af4744215dc88951c6b1bc7c1dfbce43671b84",
+        "owner_contract_version": "owner-factory-functional-inputs@1.0.0",
+        "server_authority_created": false,
+        "source_record": {
+          "mass_basis": "PACKAGED_PRODUCT_MASS",
+          "period_id": "EXAMPLE_DAY",
+          "project_id": "SYNTHETIC_COMPATIBILITY_ONLY",
+          "scope": "SYNTHETIC_TEST_ONLY_NOT_APPROVED_PROJECT",
+          "shift_1_packaging_kg": "16000",
+          "shift_2_packaging_kg": "4000",
+          "unit": "kg"
+        },
+        "source_verification": "ACTUAL_LOCAL_BYTES_AND_QUANTITIES_MATCH_NOT_APPROVAL",
+        "staffing_and_lockers": {
+          "LOCKER_COUNT": 105,
+          "LOCKER_COUNT_UNIT": "independent_personal_lockers",
+          "LOCKER_INTERNAL_SEPARATION": true,
+          "OTHER_JOB_USERS_ADDED": 0,
+          "SHIFT_1_WORKERS": 84,
+          "SHIFT_2_WORKERS": 21,
+          "SHIFT_CHANGE_POLICY": "NON_OVERLAPPING",
+          "SIMULTANEOUS_CHANGING_USERS": 84,
+          "area_authority_m2": 40,
+          "contract_version": "owner-factory-functional-inputs@1.0.0",
+          "formulas": {
+            "lockers": "shift_1_workers + shift_2_workers",
+            "shift_workers": "ceil(shift_packaged_product_kg / (15 * 1.6 * 8))",
+            "simultaneous_changing": "max(shift_1_workers, shift_2_workers)"
+          },
+          "functional_space_pass": null,
+          "hygiene_privacy_compliance": "PROFESSIONAL_REVIEW_REQUIRED",
+          "input": {
+            "mass_basis": "PACKAGED_PRODUCT_MASS",
+            "mass_source": "Local matching source bytes, not project approval",
+            "shift_1_packaging_kg": {
+              "denominator": 1,
+              "numerator": 16000
+            },
+            "shift_2_packaging_kg": {
+              "denominator": 1,
+              "numerator": 4000
+            }
+          },
+          "person_shift_capacity_kg": {
+            "denominator": 1,
+            "numerator": 192
+          },
+          "source_reference_verification": "REFERENCE_RECORDED_NOT_FILE_AUTHENTICATED",
+          "status": "OFFLINE_BUSINESS_CALCULATION_ONLY"
+        },
+        "table_policy": {
+          "area_projection": {
+            "assumptions": "If existing three-worker stations, pitches, clearances, packing rank and1.1 factor remain suitable and are separately approved",
+            "factor": 1.1,
+            "grid": {
+              "n_actual": 28,
+              "n_long": 7,
+              "n_need": 28,
+              "n_short": 4,
+              "required_area_m2": 690.56,
+              "unused_cells": 0
+            },
+            "grid_cells_not_installed_inventory_authority": true,
+            "raw_area_m2": 690.56,
+            "reported_area_m2": 759.62,
+            "status": "HYPOTHETICAL_LEGACY_FORMULA_PROJECTION_NOT_NEW_P1"
+          },
+          "formal_p1_area_m2": null,
+          "formal_p1_table_count": null,
+          "formula": "max(ceil(N1/3),ceil(N2/3))",
+          "new_total_factory_area_m2": null,
+          "peak_basis": "Proposed non-overlapping production-shift scenario; changing non-overlap alone does not approve workstation handover, cleaning or overlap policy",
+          "peak_concurrent_packaging_workers": 84,
+          "policy": "PROPOSED_PEAK_CONCURRENCY_TABLE_POLICY",
+          "proposal_table_count": 28,
+          "reuse_between_shifts": true,
+          "status": "ENGINEERING_PROPOSAL_NOT_APPROVED",
+          "total_shift_workers": 105,
+          "workers_per_table": 3,
+          "workers_per_table_source": "Legacy constant only; Owner approval for new policy pending"
+        },
+        "version": "owner-factory-p1-compatibility-readiness@1.0.0"
+      }
+    }
+  ],
+  "status": "OFFLINE_SENSITIVITY_NOT_APPROVED_POLICY"
+}
