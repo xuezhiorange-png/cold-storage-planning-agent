@@ -38,11 +38,14 @@ def context_and_model(ranges=None):
         ),
     )
     m = cp_model.CpModel()
+    rooms = {}
     for i, role in enumerate(old.FUNCTIONAL_SHAPE_ROLES):
         w, d = ranges[i] if ranges else ((1, 4), (1, 4))
-        m.new_int_var(*w, role + "_physical_w")
-        m.new_int_var(*d, role + "_physical_d")
-    return context, SimpleNamespace(m=m, c=context), lease
+        rooms[role] = {
+            "w": m.new_int_var(*w, role + "_physical_w"),
+            "d": m.new_int_var(*d, role + "_physical_d"),
+        }
+    return context, SimpleNamespace(m=m, c=context, rooms=rooms), lease
 
 
 def variable(model, name):
@@ -368,6 +371,7 @@ def test_native_transition_uses_same_ledger_partial_hints_and_unknown_retains_ba
     engine = balanced._BalancedNative(context.ledger, 1)
     shares = (engine.native_share, engine.work_share, engine.checked_share)
     first, _ = engine._run(context, wrapper.m, 1, "ALL_ROOMS_ALL_ACCESS")
+    assert "search_feedback" not in context.ledger.attempts[-1]
     incumbent = tuple(first.value(wrapper.m.get_int_var_from_proto_index(i)) for i in range(6))
     receipt = engine.begin_improvement(wrapper, context, first)
     assert receipt["policy_hash"] == balanced.POLICY_HASH
@@ -495,31 +499,35 @@ def test_balanced_stream_retains_wall_first_stage_model_and_original_handoff_qua
 @pytest.mark.parametrize(
     "requested,remaining,elapsed,global_remaining,expected",
     [
-        (30, 30, 30, 30, 2),
-        (3, 30, 30, 30, 1.5),
-        (30, 3, 30, 30, 1.5),
-        (30, 30, 1, 30, 0.5),
-        (30, 30, 30, 0.2, 0.1),
+        (30, 30, 30, 30, 30),
+        (3, 30, 30, 30, 3),
+        (30, 3, 30, 30, 3),
+        (30, 30, 1, 30, 1),
+        (30, 30, 30, 0.2, 0.2),
     ],
 )
-def test_improvement_quantum_bounded_by_every_time_allowance(
+def test_feedback_waits_for_witness_within_every_original_time_allowance(
     monkeypatch, requested, remaining, elapsed, global_remaining, expected
 ):
     context, wrapper, _ = context_and_model()
     engine = balanced._BalancedNative(context.ledger, 1)
     engine.improving = True
+    engine._feedback_model = wrapper.m
+    engine._feedback_proxy_index = 0
+    engine._baseline_proxy = 10  # Synthetic scalar observer, not factory approval.
     monkeypatch.setattr(engine, "remaining_share", lambda _: (remaining, elapsed))
     monkeypatch.setattr(context.ledger, "remaining_solver_seconds", lambda: global_remaining)
     calls = []
-    result = object()
+    original = balanced._BalancedNative._solve_with_feedback
 
-    def parent(self, ctx, model, seconds, phase):
-        calls.append((self, ctx, model, seconds, phase))
-        return result
+    def observe(self, ctx, solver, model, phase):
+        calls.append(solver.parameters.max_time_in_seconds)
+        return original(self, ctx, solver, model, phase)
 
-    monkeypatch.setattr(FairNativeSolver, "_run", parent)
-    assert engine._run(context, wrapper.m, requested, "ALL_ROOMS_ALL_ACCESS") is result
-    assert calls == [(engine, context, wrapper.m, expected, "ALL_ROOMS_ALL_ACCESS")]
+    monkeypatch.setattr(balanced._BalancedNative, "_solve_with_feedback", observe)
+    _, status = engine._run(context, wrapper.m, requested, "ALL_ROOMS_ALL_ACCESS")
+    assert status in (cp_model.FEASIBLE, cp_model.OPTIMAL)
+    assert calls == [expected]
 
 
 @pytest.mark.parametrize(
@@ -554,7 +562,9 @@ def test_improvement_quanta_cannot_refill_exhausted_resources(monkeypatch, exhau
     else:
         context.ledger.model_work = 1_200_001
     calls = []
-    monkeypatch.setattr(FairNativeSolver, "_run", lambda *args: calls.append(args))
+    monkeypatch.setattr(
+        native.OrToolsGlobalCompositionSolver, "_run", lambda *args: calls.append(args)
+    )
     with pytest.raises(LayoutAuthorityError):
         engine._run(context, wrapper.m, 30, "ALL_ROOMS_ALL_ACCESS")
     assert not calls and not context.ledger.attempts
@@ -593,9 +603,17 @@ def test_real_synthetic_hole_cuts_survive_quanta_without_model_rebuild_or_repeat
 
     monkeypatch.setattr(native, "GlobalModel", HoleModel)
     monkeypatch.setattr(native, "AccessModel", HoleModel)
-    engine = (balanced._BalancedNative if bounded else old._FeasibilityFirstNative)(
-        context.ledger, 1
-    )
+
+    class FixedTwoSecondNative(old._FeasibilityFirstNative):
+        def _run(self, ctx, model, seconds, phase):
+            if self.improving and phase == "ALL_ROOMS_ALL_ACCESS":
+                remaining, elapsed = self.remaining_share(ctx)
+                seconds = min(
+                    2, min(seconds, remaining, elapsed, ctx.ledger.remaining_solver_seconds()) / 2
+                )
+            return super()._run(ctx, model, seconds, phase)
+
+    engine = (balanced._BalancedNative if bounded else FixedTwoSecondNative)(context.ledger, 1)
     engine.improving = True  # Isolate second-stage scheduling, no grant or MAIN.
     calls = []
     parent = native.OrToolsGlobalCompositionSolver._run
@@ -608,6 +626,10 @@ def test_real_synthetic_hole_cuts_survive_quanta_without_model_rebuild_or_repeat
 
     def prefer_hole(model):
         model.m.minimize(variable(model.m, "organization"))
+        if bounded:
+            engine._feedback_model = model.m
+            engine._feedback_proxy_index = variable(model.m, "organization").index
+            engine._baseline_proxy = 2  # Both alternative witnesses qualify in this toy model.
         return {"synthetic_only": True}
 
     stream = engine.iter_solutions(
@@ -623,12 +645,11 @@ def test_real_synthetic_hole_cuts_survive_quanta_without_model_rebuild_or_repeat
     final_calls = [c for c in calls if c[2] == "ALL_ROOMS_ALL_ACCESS"]
     assert len(final_calls) == len(cuts) + 1
     assert len({c[0] for c in final_calls}) == 1
-    if bounded:
-        assert all(0 < c[1] <= balanced.NATIVE_QUANTUM_SECONDS for c in final_calls)
+    assert all(0 < c[1] <= engine.native_share for c in final_calls)
     assert len(TinyModel.created) == 3  # No repeated warmup/model preparation.
     assert len(context.ledger.attempts) == len(calls)
     assert context.ledger.solver_monotonic_wall < engine.native_share
-    record_property("SYNTHETIC_ONLY_bounded", bounded)
+    record_property("SYNTHETIC_ONLY_feedback_enabled", bounded)
     record_property("SYNTHETIC_ONLY_final_native_calls", len(final_calls))
     record_property("SYNTHETIC_ONLY_exact_hole_cuts", len(cuts))
     record_property("SYNTHETIC_ONLY_native_seconds", context.ledger.solver_monotonic_wall)
@@ -647,14 +668,16 @@ def test_quantum_repeated_calls_debit_existing_share_not_fresh_budget(monkeypatc
 
     def consume(self, ctx, model, seconds, phase):
         caps.append(seconds)
-        ctx.ledger.solver_monotonic_wall += seconds
+        ctx.ledger.solver_monotonic_wall += min(seconds, 2)
         return None, cp_model.FEASIBLE
 
     monkeypatch.setattr(native.OrToolsGlobalCompositionSolver, "_run", consume)
-    for _ in range(4):
+    for _ in range(3):
         engine._run(context, wrapper.m, 100, "ALL_ROOMS_ALL_ACCESS")
-    assert caps == [2, 2, 1, 0.5]
-    assert context.ledger.solver_monotonic_wall == 5.5
+    with pytest.raises(LayoutAuthorityError, match="SHARE_EXHAUSTED"):
+        engine._run(context, wrapper.m, 100, "ALL_ROOMS_ALL_ACCESS")
+    assert caps == [6, 4, 2]
+    assert context.ledger.solver_monotonic_wall == 6
     assert engine.native_share == 6 and engine.ledger is context.ledger
 
 
@@ -730,3 +753,193 @@ def test_quanta_policy_rejects_r1_binding_without_changing_shape_or_comparator()
         == "NO_MEASURABLE_IMPROVEMENT"
     )
     assert not context.ledger.attempts
+
+
+def test_real_callback_skips_baseline_then_returns_first_gain_before_timeout(record_property):
+    # Tiny actual CP-SAT: ascending improvement sequence forced by fixed search.
+    model = cp_model.CpModel()
+    proxy = model.new_int_var(0, 10, "synthetic_proxy")
+    model.minimize(proxy)
+    model.add_decision_strategy([proxy], cp_model.CHOOSE_FIRST, cp_model.SELECT_MAX_VALUE)
+    charges = []
+    callback = balanced._FirstImprovingWitness(proxy, 10, lambda *x: charges.append(x))
+    solver = cp_model.CpSolver()
+    solver.parameters.num_search_workers = 1
+    solver.parameters.cp_model_presolve = False
+    solver.parameters.search_branching = cp_model.FIXED_SEARCH
+    solver.parameters.max_time_in_seconds = 2
+    status = solver.solve(model, callback)
+    assert status == cp_model.FEASIBLE  # Stop did not prove optimum (which is 0).
+    assert solver.value(proxy) == 9
+    receipt = callback.receipt()
+    assert receipt["solution_count"] == 2  # Baseline 10 was not a stop condition.
+    assert receipt["feedback_proxy"] == 9 and receipt["stop_requested"]
+    assert 0 <= receipt["first_solution_seconds"] <= receipt["feedback_seconds"] < 2
+    assert not receipt["engineering_validated"]
+    assert len(charges) == 2
+    record_property("ACTUAL_TINY_CP_feedback_seconds", receipt["feedback_seconds"])
+    record_property("ACTUAL_TINY_CP_status", solver.status_name(status))
+
+
+@pytest.mark.parametrize("baseline", [0, 10, 11])
+def test_callback_without_strict_gain_does_not_force_stop_or_claim_engineering(baseline):
+    model = cp_model.CpModel()
+    proxy = model.new_int_var(10, 10, "constant_proxy")
+    model.minimize(proxy)
+    callback = balanced._FirstImprovingWitness(proxy, baseline, lambda *_: None)
+    solver = cp_model.CpSolver()
+    solver.parameters.num_search_workers = 1
+    assert solver.solve(model, callback) == cp_model.OPTIMAL
+    receipt = callback.receipt()
+    assert receipt["stop_requested"] == (baseline > 10)
+    assert (receipt["feedback_proxy"] is not None) == (baseline > 10)
+    assert not receipt["engineering_validated"]
+
+
+def test_no_solution_feedback_keeps_unknown_and_charges_actual_single_call():
+    context, wrapper, _ = context_and_model()
+    engine = balanced._BalancedNative(context.ledger, 1)
+    first, _ = engine._run(context, wrapper.m, 1, "ALL_ROOMS_ALL_ACCESS")
+    engine.begin_improvement(wrapper, context, first)
+    _, status = engine._run(context, wrapper.m, 1e-9, "ALL_ROOMS_ALL_ACCESS")
+    assert status == cp_model.UNKNOWN
+    receipt = context.ledger.attempts[-1]["search_feedback"]
+    assert receipt["solution_count"] == 0
+    assert receipt["first_solution_seconds"] is None and receipt["feedback_seconds"] is None
+    assert not receipt["stop_requested"] and len(context.ledger.attempts) == 2
+
+
+@pytest.mark.parametrize("phase", ["ALL_ROOMS_ALL_ACCESS", "ALL_ACCESS_FRESH_HINT_ONLY"])
+def test_shared_hook_and_first_stage_delegate_original_signature_without_feedback(phase):
+    context, wrapper, _ = context_and_model()
+    calls = []
+    solver = SimpleNamespace(solve=lambda *args: calls.append(args) or cp_model.FEASIBLE)
+    engine = balanced._BalancedNative(context.ledger, 1)
+    assert engine._solve_with_feedback(context, solver, wrapper.m, phase) == (
+        cp_model.FEASIBLE,
+        None,
+    )
+    assert calls == [(wrapper.m,)]
+
+
+def test_callback_budget_exception_marks_native_history_unverified_not_success():
+    context, wrapper, _ = context_and_model()
+    engine = balanced._BalancedNative(context.ledger, 1)
+    engine.improving = True
+    engine._feedback_model = wrapper.m
+    engine._feedback_proxy_index = 0
+    engine._baseline_proxy = 10
+    # A synthetic ledger boundary, NOT a real RSS overlimit test.
+    context.ledger.model_work = 1_200_000
+    engine.work_share = 1_200_001
+    with pytest.raises(LayoutAuthorityError, match="STAGE_A_RESOURCE_LIMIT"):
+        engine._run(context, wrapper.m, 1, "ALL_ROOMS_ALL_ACCESS")
+    assert not context.ledger.solver_history_verified and not context.ledger.attempts
+    with pytest.raises(LayoutAuthorityError, match="HISTORY_UNVERIFIED"):
+        context.ledger.remaining_solver_seconds()
+
+
+def test_delayed_witness_protocol_fixed_two_second_cutoff_vs_feedback(record_property):
+    # Deterministic simulated Native kernel. 3 seconds is scenario data, NOT
+    # a measured factory witness latency or a claim of performance improvement.
+    context, wrapper, _ = context_and_model()
+
+    class Callback(balanced._FirstImprovingWitness):
+        @property
+        def wall_time(self):
+            return 3.0
+
+        def value(self, _):
+            return 9
+
+        def stop_search(self):
+            self.stopped = True
+
+    class Kernel:
+        def __init__(self, allowance):
+            self.allowance = allowance
+            self.calls = 0
+
+        def solve(self, model, callback=None):
+            self.calls += 1
+            if self.allowance < 3:
+                return cp_model.UNKNOWN
+            if callback is not None:
+                callback.on_solution_callback()
+            return cp_model.FEASIBLE
+
+    old_kernel, feedback_kernel = Kernel(2), Kernel(6)
+    original_status, original_feedback = (
+        native.OrToolsGlobalCompositionSolver()._solve_with_feedback(
+            context, old_kernel, wrapper.m, "ALL_ROOMS_ALL_ACCESS"
+        )
+    )
+    assert original_status == cp_model.UNKNOWN and original_feedback is None
+    callback = Callback(variable(wrapper.m, "office_physical_w"), 10, context.ledger.charge)
+    corrected_status = feedback_kernel.solve(wrapper.m, callback)
+    assert corrected_status == cp_model.FEASIBLE and callback.stopped
+    assert callback.receipt()["feedback_seconds"] == 3
+    assert old_kernel.calls == feedback_kernel.calls == 1
+    assert not callback.receipt()["engineering_validated"]
+    record_property("SIMULATED_KERNEL_NOT_MEASURED_witness_time", 3)
+
+
+@pytest.mark.parametrize(
+    "old_hash",
+    [
+        "sha256:7eade090fb1f173473dd050f8a5cbfba9ab66c0c3a8180bdf8a1becf6d8ac3ed",
+        "sha256:c1aed0b63d610538ce0c66f3e6bf88e9811d7f6d7f350b9d77c38e7aa2db6911",
+    ],
+)
+def test_feedback_strategy_rejects_both_previous_policy_bindings(old_hash):
+    context, _, lease = context_and_model()
+    lease.decision = {"balanced_quality_policy_hash": old_hash}
+    port = balanced.StageBBalancedQualityFairSearchSolver()
+    port.start_handoff(context.ledger, 1)
+    with pytest.raises(LayoutAuthorityError, match="BALANCED_BOUND_POLICY_REQUIRED"):
+        port.solutions(context, None)
+    assert not context.ledger.attempts
+
+
+def test_feedback_cannot_rebind_another_model_or_learn_invalid_witness_threshold():
+    context, wrapper, _ = context_and_model()
+    engine = balanced._BalancedNative(context.ledger, 1)
+    first, _ = engine._run(context, wrapper.m, 1, "ALL_ROOMS_ALL_ACCESS")
+    engine.begin_improvement(wrapper, context, first)
+    saved = engine._baseline_proxy
+    with pytest.raises(LayoutAuthorityError, match="FEEDBACK_MODEL_MISMATCH"):
+        engine._solve_with_feedback(
+            context, cp_model.CpSolver(), wrapper.m.clone(), "ALL_ROOMS_ALL_ACCESS"
+        )
+    engine._run(context, wrapper.m, 1, "ALL_ROOMS_ALL_ACCESS")
+    assert engine._baseline_proxy == saved  # Never tighten using an unvalidated incumbent.
+
+
+def test_real_minimax_feedback_uses_same_model_and_accounts_callback_work_and_native_once():
+    context, wrapper, _ = context_and_model([((1, 8), (1, 8))] * 3)
+    m = wrapper.m
+    original_vars = [m.get_int_var_from_proto_index(i) for i in range(6)]
+    baseline = (1, 8, 5, 5, 5, 5)
+    m.add_allowed_assignments(original_vars, [baseline, (2, 4, 8, 8, 8, 8), (4, 4, 8, 8, 8, 8)])
+    m.minimize(original_vars[0])
+    engine = balanced._BalancedNative(context.ledger, 1)
+    first, _ = engine._run(context, m, 1, "ALL_ROOMS_ALL_ACCESS")
+    assert tuple(first.value(v) for v in original_vars) == baseline
+    share = (engine.native_share, engine.work_share, engine.checked_share)
+    receipt = engine.begin_improvement(wrapper, context, first)
+    assert receipt["baseline_proxy"] == 8000
+    constraints = [str(c) for c in m.proto.constraints]
+    second, status = engine._run(context, m, 1, "ALL_ROOMS_ALL_ACCESS")
+    assert status in (cp_model.FEASIBLE, cp_model.OPTIMAL)
+    feedback = context.ledger.attempts[-1]["search_feedback"]
+    assert feedback["stop_requested"] and feedback["feedback_proxy"] < 8000
+    assert feedback["feedback_proxy"] == second.value(variable(m, "balanced_shape_worst"))
+    assert (
+        context.ledger.resource_events["STAGE_B_BALANCED_FEEDBACK_OBSERVATION"]
+        == feedback["solution_count"]
+    )
+    assert len(context.ledger.attempts) == 2
+    assert context.ledger.solver_wall == sum(a["wall_time"] for a in context.ledger.attempts)
+    assert engine.ledger is context.ledger and [str(c) for c in m.proto.constraints] == constraints
+    assert share == (engine.native_share, engine.work_share, engine.checked_share)
+    assert tuple(first.value(v) for v in original_vars) == baseline

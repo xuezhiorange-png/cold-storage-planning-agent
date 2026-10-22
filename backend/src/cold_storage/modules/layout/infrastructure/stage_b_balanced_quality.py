@@ -6,7 +6,7 @@ relations; neither the proxy nor a Pareto relation approves functional room fit.
 
 from copy import deepcopy
 from fractions import Fraction
-from typing import Any, cast
+from typing import Any
 
 from ortools.sat.python import cp_model
 
@@ -52,26 +52,26 @@ COMPARISON_METRICS = (
     "footprint_outline_turn_count",
     "footprint_reflex_corner_count",
 )
-NATIVE_QUANTUM_SECONDS = 2.0
-QUANTA_POLICY = "stage-b-balanced-second-stage-native-quanta@1.0.0"
-QUANTA_POLICY_HASH = canonical_hash(
+FEEDBACK_POLICY = "stage-b-balanced-first-improving-witness-feedback@1.0.0"
+FEEDBACK_POLICY_HASH = canonical_hash(
     {
-        "version": QUANTA_POLICY,
-        "max_seconds": NATIVE_QUANTUM_SECONDS,
-        "remaining_share_fraction": "1/2",
+        "version": FEEDBACK_POLICY,
+        "stop": "FIRST_PROXY_STRICTLY_BELOW_PERSISTED_BASELINE",
+        "baseline": "SAME_HANDOFF_INCUMBENT_BEFORE_OBJECTIVE_SWITCH",
+        "allowance": "ORIGINAL_REMAINING_SHARE_NO_FIXED_TWO_SECOND_CAP",
         "scope": "IMPROVING_ALL_ROOMS_ALL_ACCESS_ONLY",
         "unknown": "END_CURRENT_STREAM_WITHOUT_CUT_OR_RETRY",
         "continuation": "EXISTING_EXACT_WITNESS_CUT_SAME_MODEL_SAME_LEDGER",
         "learning": "NOT_PRESERVED_BETWEEN_SOLVES",
     }
 )
-POLICY = "stage-b-feasibility-first-balanced-quality@2.0.0"
+POLICY = "stage-b-feasibility-first-balanced-quality@2.1.0"
 POLICY_HASH = canonical_hash(
     {
         "version": POLICY,
         "first_stage": WALL_HASH,
         "continuation": SHAPE_POLICY_HASH,
-        "native_quanta": QUANTA_POLICY_HASH,
+        "native_feedback": FEEDBACK_POLICY_HASH,
         "comparison": COMPARISON_POLICY,
         "metrics": COMPARISON_METRICS,
         "area": "FACT_ONLY_NOT_MINIMIZED_BY_COMPARATOR",
@@ -312,30 +312,86 @@ def compare_balanced_quality(before: dict[str, Any], after: dict[str, Any]) -> d
     }
 
 
+class _FirstImprovingWitness(cp_model.CpSolverSolutionCallback):
+    """Scalar search observation only; no export, cuts or engineering acceptance."""
+
+    def __init__(self, proxy: Any, baseline: int, charge: Any) -> None:
+        super().__init__()
+        self.proxy, self.baseline, self.charge = proxy, baseline, charge
+        self.solution_count = 0
+        self.first_solution_seconds: float | None = None
+        self.feedback_seconds: float | None = None
+        self.feedback_proxy: int | None = None
+
+    def on_solution_callback(self) -> None:
+        self.solution_count += 1
+        self.charge("STAGE_B_BALANCED_FEEDBACK_OBSERVATION", 1)
+        if self.first_solution_seconds is None:
+            self.first_solution_seconds = self.wall_time
+        value = self.value(self.proxy)
+        if value < self.baseline:
+            self.feedback_seconds, self.feedback_proxy = self.wall_time, value
+            self.stop_search()  # Return through normal Solve accounting/validators.
+
+    def receipt(self) -> dict[str, Any]:
+        return {
+            "policy_hash": FEEDBACK_POLICY_HASH,
+            "baseline_proxy": self.baseline,
+            "solution_count": self.solution_count,
+            "first_solution_seconds": self.first_solution_seconds,
+            "feedback_seconds": self.feedback_seconds,
+            "feedback_proxy": self.feedback_proxy,
+            "stop_requested": self.feedback_proxy is not None,
+            "engineering_validated": False,
+        }
+
+
 class _BalancedNative(_FeasibilityFirstNative):
     continuation_policy = POLICY
     continuation_policy_hash = POLICY_HASH
 
-    def _run(
-        self, context: GlobalGenerationContext, model: cp_model.CpModel, seconds: float, phase: str
-    ) -> tuple[cp_model.CpSolver, Any]:
-        if self.improving and phase == "ALL_ROOMS_ALL_ACCESS":
-            # Reserve time for host topology feedback and a later exact-cut
-            # refinement. This is a cap, not a fresh budget or a retry loop.
-            # Work/checked/RSS/call limits remain guarded by the original ledger.
-            remaining, elapsed = self.remaining_share(context)
-            seconds = min(
-                NATIVE_QUANTUM_SECONDS,
-                min(seconds, remaining, elapsed, context.ledger.remaining_solver_seconds()) / 2,
-            )
-        return cast(tuple[cp_model.CpSolver, Any], super()._run(context, model, seconds, phase))
+    def _solve_with_feedback(
+        self,
+        context: GlobalGenerationContext,
+        solver: cp_model.CpSolver,
+        model: cp_model.CpModel,
+        phase: str,
+    ) -> tuple[Any, dict[str, Any] | None]:
+        if not self.improving or phase != "ALL_ROOMS_ALL_ACCESS":
+            return super()._solve_with_feedback(context, solver, model, phase)
+        if model is not getattr(self, "_feedback_model", None):
+            raise LayoutAuthorityError("STAGE_B_BALANCED_FEEDBACK_MODEL_MISMATCH")
+        proxy = model.get_int_var_from_proto_index(self._feedback_proxy_index)
+        callback = _FirstImprovingWitness(proxy, self._baseline_proxy, context.ledger.charge)
+        status = solver.solve(model, callback)
+        return status, callback.receipt()  # Never rewrite FEASIBLE/OPTIMAL/UNKNOWN.
 
     def begin_improvement(self, model: Any, context: Any, solver: Any) -> dict[str, Any]:
+        # Capture exact incumbent dimensions before adding proxy variables.
+        # This is a callback stop preference, NEVER a new feasibility cut.
+        self.remaining_share(context)
+        context.ledger.remaining_solver_seconds()
+        context.ledger.charge("STAGE_B_BALANCED_FEEDBACK_BASELINE", 6)
+        ratios = []
+        for role in FUNCTIONAL_SHAPE_ROLES:
+            dimensions = [model.rooms[role][side] for side in ("w", "d")]
+            if [v.name for v in dimensions] != [role + "_physical_" + s for s in ("w", "d")]:
+                raise LayoutAuthorityError("STAGE_B_BALANCED_FEEDBACK_DIMENSION_MISMATCH")
+            w, d = (solver.value(v) for v in dimensions)
+            if min(w, d) <= 0:
+                raise LayoutAuthorityError("STAGE_B_BALANCED_FEEDBACK_INVALID_BASELINE")
+            ratios.append((RATIO_SCALE * max(w, d) + min(w, d) - 1) // min(w, d))
+        receipt = super().begin_improvement(model, context, solver)
+        self._feedback_model = model.m
+        self._baseline_proxy = max(ratios)
+        self._feedback_proxy_index = len(model.m.proto.variables) - 1
+        if model.m.proto.variables[self._feedback_proxy_index].name != "balanced_shape_worst":
+            raise LayoutAuthorityError("STAGE_B_BALANCED_FEEDBACK_PROXY_MISMATCH")
         return {
-            **super().begin_improvement(model, context, solver),
-            "native_quanta_policy": QUANTA_POLICY,
-            "native_quanta_policy_hash": QUANTA_POLICY_HASH,
-            "native_quantum_max_seconds": NATIVE_QUANTUM_SECONDS,
+            **receipt,
+            "native_feedback_policy": FEEDBACK_POLICY,
+            "native_feedback_policy_hash": FEEDBACK_POLICY_HASH,
+            "baseline_proxy": self._baseline_proxy,
             "unknown_ends_stream_without_retry": True,
             "cross_solve_learning_preserved": False,
         }

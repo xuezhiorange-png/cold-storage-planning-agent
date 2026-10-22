@@ -76,6 +76,16 @@ class OrToolsGlobalCompositionSolver:
     def _configure_search(self, solver: cp_model.CpSolver, phase: str) -> None:
         """Internal opt-in continuation hook; the default keeps first-solution search."""
 
+    def _solve_with_feedback(
+        self,
+        context: GlobalGenerationContext,
+        solver: cp_model.CpSolver,
+        model: cp_model.CpModel,
+        phase: str,
+    ) -> tuple[Any, dict[str, Any] | None]:
+        """Default delegates unchanged; optional feedback is NOT engineering approval."""
+        return solver.solve(model), None
+
     def _run(
         self, context: GlobalGenerationContext, model: cp_model.CpModel, seconds: float, phase: str
     ) -> tuple[cp_model.CpSolver, Any]:
@@ -101,7 +111,7 @@ class OrToolsGlobalCompositionSolver:
         ledger.checkpoint("CP_SAT_STARTED")
         started = time.monotonic()
         try:
-            status = solver.solve(model)
+            status, feedback = self._solve_with_feedback(context, solver, model, phase)
         except BaseException:
             ledger.solver_history_verified = False
             ledger.checkpoint("CP_SAT_INTERRUPTED_NATIVE_COUNTERS_INCOMPLETE")
@@ -125,6 +135,7 @@ class OrToolsGlobalCompositionSolver:
                 "constraints": len(model.proto.constraints),
                 "warmup_only": phase != "ALL_ROOMS_ALL_ACCESS",
                 "ortools_version": version("ortools"),
+                **({"search_feedback": feedback} if feedback is not None else {}),
             }
         )
         ledger.checkpoint("CP_SAT_RETURNED")
