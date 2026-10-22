@@ -199,11 +199,17 @@ class EventTests(unittest.TestCase):
 class GateTests(unittest.TestCase):
     @staticmethod
     def needs(scope: str) -> dict:
+        from ci_gate import BACKEND_PARALLEL_JOBS
+
         return {
             "classify-changes": {"result": "success", "outputs": Plan(scope, "test").outputs()},
             **{
                 job: {"result": "success" if job in SCOPE_JOBS[scope] else "skipped"}
                 for job in (*REGULAR_JOBS, *MANUAL_JOBS, "fast-checks")
+            },
+            **{
+                job: {"result": "success" if "backend-sqlite" in SCOPE_JOBS[scope] else "skipped"}
+                for job in BACKEND_PARALLEL_JOBS
             },
         }
 
@@ -277,8 +283,12 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("CI_NEEDS: ${{ toJSON(needs) }}", jobs["ci-gate"])
         self.assertIn("fetch-depth: 0", jobs["classify-changes"])
         for name, flag in (
-            ("backend-sqlite", "backend"),
-            ("backend-postgresql", "backend"),
+            ("backend-sqlite-shards", "backend"),
+            ("backend-postgresql-shards", "backend"),
+            ("backend-postgresql-integration", "backend"),
+            ("backend-architecture", "backend"),
+            ("backend-lint", "backend"),
+            ("backend-mypy", "backend"),
             ("frontend", "frontend"),
             ("compose-config", "infra"),
             ("release-evidence", "release"),
