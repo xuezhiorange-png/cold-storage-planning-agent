@@ -49,6 +49,7 @@ jobs:
           tests/unit/test_linux_rss_gate.py
           tests/unit/test_v222_github_full_ci_admission.py
           tests/unit/test_v222_balanced_main_execution.py
+          tests/unit/test_v222_balanced_feedback_main_execution.py
           -m "not physical_rss_linux" -q
       - name: Architecture and security boundaries
         run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run pytest tests/architecture -q
