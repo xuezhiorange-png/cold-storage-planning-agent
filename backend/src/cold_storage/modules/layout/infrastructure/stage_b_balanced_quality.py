@@ -6,8 +6,13 @@ relations; neither the proxy nor a Pareto relation approves functional room fit.
 
 from copy import deepcopy
 from fractions import Fraction
-from typing import Any
+from typing import Any, cast
 
+from ortools.sat.python import cp_model
+
+from cold_storage.modules.layout.application.global_composition_solver import (
+    GlobalGenerationContext,
+)
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError, canonical_hash
 from cold_storage.modules.layout.infrastructure.stage_b_construction_guidance import (
     FUNCTIONAL_SHAPE_ROLES,
@@ -47,12 +52,26 @@ COMPARISON_METRICS = (
     "footprint_outline_turn_count",
     "footprint_reflex_corner_count",
 )
-POLICY = "stage-b-feasibility-first-balanced-quality@1.0.0"
+NATIVE_QUANTUM_SECONDS = 2.0
+QUANTA_POLICY = "stage-b-balanced-second-stage-native-quanta@1.0.0"
+QUANTA_POLICY_HASH = canonical_hash(
+    {
+        "version": QUANTA_POLICY,
+        "max_seconds": NATIVE_QUANTUM_SECONDS,
+        "remaining_share_fraction": "1/2",
+        "scope": "IMPROVING_ALL_ROOMS_ALL_ACCESS_ONLY",
+        "unknown": "END_CURRENT_STREAM_WITHOUT_CUT_OR_RETRY",
+        "continuation": "EXISTING_EXACT_WITNESS_CUT_SAME_MODEL_SAME_LEDGER",
+        "learning": "NOT_PRESERVED_BETWEEN_SOLVES",
+    }
+)
+POLICY = "stage-b-feasibility-first-balanced-quality@2.0.0"
 POLICY_HASH = canonical_hash(
     {
         "version": POLICY,
         "first_stage": WALL_HASH,
         "continuation": SHAPE_POLICY_HASH,
+        "native_quanta": QUANTA_POLICY_HASH,
         "comparison": COMPARISON_POLICY,
         "metrics": COMPARISON_METRICS,
         "area": "FACT_ONLY_NOT_MINIMIZED_BY_COMPARATOR",
@@ -296,6 +315,30 @@ def compare_balanced_quality(before: dict[str, Any], after: dict[str, Any]) -> d
 class _BalancedNative(_FeasibilityFirstNative):
     continuation_policy = POLICY
     continuation_policy_hash = POLICY_HASH
+
+    def _run(
+        self, context: GlobalGenerationContext, model: cp_model.CpModel, seconds: float, phase: str
+    ) -> tuple[cp_model.CpSolver, Any]:
+        if self.improving and phase == "ALL_ROOMS_ALL_ACCESS":
+            # Reserve time for host topology feedback and a later exact-cut
+            # refinement. This is a cap, not a fresh budget or a retry loop.
+            # Work/checked/RSS/call limits remain guarded by the original ledger.
+            remaining, elapsed = self.remaining_share(context)
+            seconds = min(
+                NATIVE_QUANTUM_SECONDS,
+                min(seconds, remaining, elapsed, context.ledger.remaining_solver_seconds()) / 2,
+            )
+        return cast(tuple[cp_model.CpSolver, Any], super()._run(context, model, seconds, phase))
+
+    def begin_improvement(self, model: Any, context: Any, solver: Any) -> dict[str, Any]:
+        return {
+            **super().begin_improvement(model, context, solver),
+            "native_quanta_policy": QUANTA_POLICY,
+            "native_quanta_policy_hash": QUANTA_POLICY_HASH,
+            "native_quantum_max_seconds": NATIVE_QUANTUM_SECONDS,
+            "unknown_ends_stream_without_retry": True,
+            "cross_solve_learning_preserved": False,
+        }
 
     def _apply_improvement_guidance(self, model: Any, context: Any) -> dict[str, Any]:
         return apply_balanced_shape_guidance(model, context)

@@ -13,10 +13,12 @@ from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.infrastructure import global_cp_sat_solver as native
 from cold_storage.modules.layout.infrastructure import stage_b_balanced_quality as balanced
 from cold_storage.modules.layout.infrastructure import stage_b_feasibility_first as old
+from cold_storage.modules.layout.infrastructure.stage_b_fair_search import FairNativeSolver
 from tests.unit.test_v222_stage_b_multi_solution import (
     EnumerationLease,
     TinyModel,
     feasibility_context,
+    rooms,
     synthetic_quality_candidate,
 )
 
@@ -488,3 +490,243 @@ def test_balanced_stream_retains_wall_first_stage_model_and_original_handoff_qua
     assert first["search_stage"] == "FEASIBILITY_FIRST"
     assert len([e for e in lease.events if e["kind"] == "BOUNDED_IMPROVEMENT_STARTED"]) == 1
     stream.close()
+
+
+@pytest.mark.parametrize(
+    "requested,remaining,elapsed,global_remaining,expected",
+    [
+        (30, 30, 30, 30, 2),
+        (3, 30, 30, 30, 1.5),
+        (30, 3, 30, 30, 1.5),
+        (30, 30, 1, 30, 0.5),
+        (30, 30, 30, 0.2, 0.1),
+    ],
+)
+def test_improvement_quantum_bounded_by_every_time_allowance(
+    monkeypatch, requested, remaining, elapsed, global_remaining, expected
+):
+    context, wrapper, _ = context_and_model()
+    engine = balanced._BalancedNative(context.ledger, 1)
+    engine.improving = True
+    monkeypatch.setattr(engine, "remaining_share", lambda _: (remaining, elapsed))
+    monkeypatch.setattr(context.ledger, "remaining_solver_seconds", lambda: global_remaining)
+    calls = []
+    result = object()
+
+    def parent(self, ctx, model, seconds, phase):
+        calls.append((self, ctx, model, seconds, phase))
+        return result
+
+    monkeypatch.setattr(FairNativeSolver, "_run", parent)
+    assert engine._run(context, wrapper.m, requested, "ALL_ROOMS_ALL_ACCESS") is result
+    assert calls == [(engine, context, wrapper.m, expected, "ALL_ROOMS_ALL_ACCESS")]
+
+
+@pytest.mark.parametrize(
+    "improving,phase",
+    [
+        (False, "ALL_ROOMS_ALL_ACCESS"),
+        (False, "GLOBAL_GEOMETRY"),
+        (True, "ALL_ACCESS_FRESH_HINT_ONLY"),
+    ],
+)
+def test_quanta_do_not_change_first_stage_or_warmup_call(monkeypatch, improving, phase):
+    context, wrapper, _ = context_and_model()
+    engine = balanced._BalancedNative(context.ledger, 6)
+    engine.improving = improving
+    monkeypatch.setattr(FairNativeSolver, "_run", lambda self, ctx, m, seconds, p: (m, seconds, p))
+    assert engine._run(context, wrapper.m, 17, phase) == (wrapper.m, 17, phase)
+
+
+@pytest.mark.parametrize("exhaustion", ["native", "elapsed", "work", "checked", "global"])
+def test_improvement_quanta_cannot_refill_exhausted_resources(monkeypatch, exhaustion):
+    context, wrapper, _ = context_and_model()
+    engine = balanced._BalancedNative(context.ledger, 6)
+    engine.improving = True
+    if exhaustion == "native":
+        context.ledger.solver_monotonic_wall = engine.native_share
+    elif exhaustion == "elapsed":
+        engine.elapsed_share = 0
+    elif exhaustion == "work":
+        context.ledger.model_work = int(engine.work_share) + 1
+    elif exhaustion == "checked":
+        context.ledger.checked_solutions = engine.checked_share
+    else:
+        context.ledger.model_work = 1_200_001
+    calls = []
+    monkeypatch.setattr(FairNativeSolver, "_run", lambda *args: calls.append(args))
+    with pytest.raises(LayoutAuthorityError):
+        engine._run(context, wrapper.m, 30, "ALL_ROOMS_ALL_ACCESS")
+    assert not calls and not context.ledger.attempts
+
+
+@pytest.mark.parametrize("bounded", [False, True])
+def test_real_synthetic_hole_cuts_survive_quanta_without_model_rebuild_or_repeat(
+    monkeypatch, bounded, record_property
+):
+    # Real union validator and CP-SAT on a tiny finite domain; NOT a factory solve.
+    context, lease = feasibility_context(monkeypatch)
+
+    class HoleModel(TinyModel):
+        @staticmethod
+        def layouts():
+            hole = rooms()
+            positions = (
+                (0, 0),
+                (1, 0),
+                (2, 0),
+                (2, 1),
+                (2, 2),
+                (1, 2),
+                (0, 2),
+                (0, 1),
+                (0, -1),
+                (1, -1),
+                (2, -1),
+                (3, -1),
+            )
+            for row, (x, y) in zip(hole, positions, strict=True):
+                row.update(x=x, y=y)
+            opened = deepcopy(hole)
+            opened[5].update(x=3, y=0)
+            return [hole, opened]
+
+    monkeypatch.setattr(native, "GlobalModel", HoleModel)
+    monkeypatch.setattr(native, "AccessModel", HoleModel)
+    engine = (balanced._BalancedNative if bounded else old._FeasibilityFirstNative)(
+        context.ledger, 1
+    )
+    engine.improving = True  # Isolate second-stage scheduling, no grant or MAIN.
+    calls = []
+    parent = native.OrToolsGlobalCompositionSolver._run
+
+    def measured(self, ctx, model, seconds, phase):
+        calls.append((id(model), seconds, phase))
+        return parent(self, ctx, model, seconds, phase)
+
+    monkeypatch.setattr(native.OrToolsGlobalCompositionSolver, "_run", measured)
+
+    def prefer_hole(model):
+        model.m.minimize(variable(model.m, "organization"))
+        return {"synthetic_only": True}
+
+    stream = engine.iter_solutions(
+        context, None, event_sink=lease.events.append, final_model_guidance=prefer_hole
+    )
+    result = next(stream)
+    stream.close()
+    cuts = [e for e in lease.events if e["kind"] == "TOPOLOGY_REJECTED_WITNESS_CUT"]
+    assert cuts and all(e["certificate"]["hole_count"] == 1 for e in cuts)
+    # The two portal witnesses may share geometry; neither exact witness repeats.
+    assert len({tuple(e["values"]) for e in cuts}) == len(cuts)
+    assert result["model_witness_topology"]["valid"]
+    final_calls = [c for c in calls if c[2] == "ALL_ROOMS_ALL_ACCESS"]
+    assert len(final_calls) == len(cuts) + 1
+    assert len({c[0] for c in final_calls}) == 1
+    if bounded:
+        assert all(0 < c[1] <= balanced.NATIVE_QUANTUM_SECONDS for c in final_calls)
+    assert len(TinyModel.created) == 3  # No repeated warmup/model preparation.
+    assert len(context.ledger.attempts) == len(calls)
+    assert context.ledger.solver_monotonic_wall < engine.native_share
+    record_property("SYNTHETIC_ONLY_bounded", bounded)
+    record_property("SYNTHETIC_ONLY_final_native_calls", len(final_calls))
+    record_property("SYNTHETIC_ONLY_exact_hole_cuts", len(cuts))
+    record_property("SYNTHETIC_ONLY_native_seconds", context.ledger.solver_monotonic_wall)
+    record_property("SYNTHETIC_ONLY_branches", sum(a["branches"] for a in context.ledger.attempts))
+    # This finite domain needs at most both invalid portal witnesses + one valid
+    # solve. More restarts would reduce candidate efficiency, not prove progress.
+    assert len(final_calls) <= 3
+
+
+def test_quantum_repeated_calls_debit_existing_share_not_fresh_budget(monkeypatch):
+    context, wrapper, _ = context_and_model()
+    engine = balanced._BalancedNative(context.ledger, 1)
+    engine.improving = True
+    engine.native_share = 6
+    caps = []
+
+    def consume(self, ctx, model, seconds, phase):
+        caps.append(seconds)
+        ctx.ledger.solver_monotonic_wall += seconds
+        return None, cp_model.FEASIBLE
+
+    monkeypatch.setattr(native.OrToolsGlobalCompositionSolver, "_run", consume)
+    for _ in range(4):
+        engine._run(context, wrapper.m, 100, "ALL_ROOMS_ALL_ACCESS")
+    assert caps == [2, 2, 1, 0.5]
+    assert context.ledger.solver_monotonic_wall == 5.5
+    assert engine.native_share == 6 and engine.ledger is context.ledger
+
+
+@pytest.mark.parametrize("status", [cp_model.UNKNOWN, cp_model.FEASIBLE, cp_model.OPTIMAL])
+def test_quantum_status_is_not_reinterpreted_or_retried_and_baseline_is_preserved(
+    monkeypatch, status
+):
+    context, lease = feasibility_context(monkeypatch)
+    lease.decision = {"balanced_quality_policy_hash": balanced.POLICY_HASH}
+
+    class NamedModel(TinyModel):
+        def __init__(self, *args):
+            super().__init__(*args)
+            self.c = args[0]
+            for role, row in self.rooms.items():
+                for side in ("w", "d"):
+                    row[side].proto.name = role + "_physical_" + side
+
+    monkeypatch.setattr(native, "GlobalModel", NamedModel)
+    monkeypatch.setattr(native, "AccessModel", NamedModel)
+    parent = native.OrToolsGlobalCompositionSolver._run
+    improvement_calls = []
+
+    def controlled(self, ctx, model, seconds, phase):
+        solver, actual = parent(self, ctx, model, seconds, phase)
+        if self.improving and phase == "ALL_ROOMS_ALL_ACCESS":
+            improvement_calls.append(seconds)
+            return solver, status  # Explicit synthetic protocol outcome injection.
+        return solver, actual
+
+    monkeypatch.setattr(native.OrToolsGlobalCompositionSolver, "_run", controlled)
+    port = balanced.StageBBalancedQualityFairSearchSolver()
+    port.start_handoff(context.ledger, 1)
+    handoff = SimpleNamespace(source_composition_hash="synthetic-handoff")
+    stream = port.solutions(context, handoff)
+    first = deepcopy(next(stream))
+    port.observe_validated_candidate(
+        context, handoff, diagnostic_candidate(), "ENGINEERING_ACCEPTED"
+    )
+    saved = deepcopy(port.baseline)
+    result = stream.send("ENGINEERING_ACCEPTED")
+    assert result["solver_status"] == cp_model.CpSolver().status_name(status)
+    assert port.baseline == saved and first["search_stage"] == "FEASIBILITY_FIRST"
+    assert len(improvement_calls) == 1
+    if status == cp_model.UNKNOWN:
+        assert not result["global_infeasibility_claimed"] and "zones" not in result
+        with pytest.raises(StopIteration):
+            next(stream)
+        assert not any("CUT" in e["kind"] for e in lease.events)
+    else:
+        assert result["model_witness_topology"]["valid"]
+    stream.close()
+
+
+def test_quanta_policy_rejects_r1_binding_without_changing_shape_or_comparator():
+    assert (
+        balanced.POLICY_HASH
+        != "sha256:7eade090fb1f173473dd050f8a5cbfba9ab66c0c3a8180bdf8a1becf6d8ac3ed"
+    )
+    assert (
+        balanced.SHAPE_POLICY_HASH
+        == "sha256:4f03968760711b1ab090fbcabc2d45ea367428065ec23a47d6986671b7c3ddb0"
+    )
+    context, _, lease = context_and_model()
+    r1_hash = "sha256:7eade090fb1f173473dd050f8a5cbfba9ab66c0c3a8180bdf8a1becf6d8ac3ed"
+    lease.decision = {"balanced_quality_policy_hash": r1_hash}
+    port = balanced.StageBBalancedQualityFairSearchSolver()
+    port.start_handoff(context.ledger, 1)
+    with pytest.raises(LayoutAuthorityError, match="BALANCED_BOUND_POLICY_REQUIRED"):
+        port.solutions(context, None)
+    assert (
+        balanced.compare_balanced_quality(snapshot(), snapshot())["status"]
+        == "NO_MEASURABLE_IMPROVEMENT"
+    )
+    assert not context.ledger.attempts
