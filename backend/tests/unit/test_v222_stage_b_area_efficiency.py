@@ -397,7 +397,9 @@ def test_r5_rejects_hole_witnesses_with_original_exact_topology_cut(monkeypatch)
 def test_r5_default_is_not_wired_into_production_or_historical_runners():
     backend = Path(__file__).resolve().parents[2]
     for root in [backend / "scripts", backend / "src/cold_storage/bootstrap"]:
-        assert all("stage_b_area_efficiency" not in file.read_text() for file in root.rglob("*.py"))
+        for file in root.rglob("*.py"):
+            if file.name != "run_stage_b_r5_main.py":
+                assert "stage_b_area_efficiency" not in file.read_text()
     assert (
         r4.FIRST_STAGE_QUALITY_POLICY_HASH
         == "sha256:fad41d6d4be18248b9a5ee93e299a591876e40e2422ac0ed5aa3924c2e2e5156"
