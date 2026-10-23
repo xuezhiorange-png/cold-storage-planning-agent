@@ -355,6 +355,15 @@ class PoolLease:
             raise LayoutAuthorityError("STAGE_B_SOLVER_RESERVE_LIMIT")
         return float(remaining)
 
+    def precharge_work(self, ledger: StageALedger, n: int) -> None:
+        """Use existing pool/task allowances, including other pools or AB arms."""
+        if self.closed or ledger is not self.ledger:
+            raise LayoutAuthorityError("POOL_LEASE_LEDGER_MISMATCH")
+        if self.totals()["observable_work"] + n > 1_200_000:
+            raise LayoutAuthorityError("STAGE_B_TASK_RESOURCE_LIMIT")
+        if ledger.model_work + ledger.native_host_work + n > POOL_WORK_TARGET:
+            raise LayoutAuthorityError("STAGE_B_REPLAY_RESERVATION_LIMIT")
+
     def guard(self, ledger: StageALedger) -> None:
         if self.closed or ledger is not self.ledger:
             raise LayoutAuthorityError("POOL_LEASE_LEDGER_MISMATCH")

@@ -62,6 +62,88 @@ def begin(lease, binding, i):
     )
 
 
+@pytest.mark.parametrize("amount", [1, 2, 1000])
+def test_batch_charge_refuses_before_any_counter_or_event_mutation(tmp_path, amount):
+    store, binding = registry(tmp_path)
+    ledger = store.open("MAIN")
+    lease = admit(ledger, binding)
+    ledger.model_work = 600_000 - amount + 1
+    before = ledger.model_work
+    with pytest.raises(LayoutAuthorityError, match="REPLAY_RESERVATION_LIMIT"):
+        ledger.charge("SYNTHETIC_REJECTED_BATCH", amount)
+    assert ledger.model_work == before and ledger.native_host_work == 0
+    assert "SYNTHETIC_REJECTED_BATCH" not in ledger.resource_events
+    lease.finish_pool()
+    saved = json.loads((store.root / "task_ledger.json").read_text())
+    assert saved["totals"]["observable_work"] == before <= 600_000
+
+
+def test_exact_work_boundary_accepts_last_unit_then_refuses_cleanup_and_audit(tmp_path):
+    store, binding = registry(tmp_path)
+    ledger = store.open("MAIN")
+    lease = admit(ledger, binding)
+    ledger.model_work, ledger.native_host_work = 406_891, 193_108
+    ledger.charge("NATIVE_ENVELOPE_COVERAGE_CELL")
+    assert ledger.model_work + ledger.native_host_work == 600_000
+    for label in ("NATIVE_ENVELOPE_COVERAGE_CELL", "STAGE_B_ENUMERATION_AUDIT_RECORD"):
+        with pytest.raises(LayoutAuthorityError, match="REPLAY_RESERVATION_LIMIT"):
+            ledger.charge(label)
+    assert ledger.resource_events == {"NATIVE_ENVELOPE_COVERAGE_CELL": 1}
+    assert ledger.model_work + ledger.native_host_work == 600_000
+    lease.finish_pool()
+
+
+@pytest.mark.parametrize("amount", [-1, 1.5, True, "1"])
+def test_work_charge_cannot_decrease_or_corrupt_counters(amount):
+    from cold_storage.modules.layout.application.global_composition_solver import StageALedger
+
+    ledger = StageALedger(model_work=10)
+    with pytest.raises(LayoutAuthorityError, match="INVALID_WORK_CHARGE"):
+        ledger.charge("INVALID", amount)
+    assert ledger.model_work == 10 and not ledger.resource_events
+
+
+def test_global_work_batch_respects_original_stage_a_ceiling():
+    from cold_storage.modules.layout.application.global_composition_solver import StageALedger
+
+    ledger = StageALedger(model_work=1_199_998)
+    ledger.charge("LAST_BATCH", 2)
+    with pytest.raises(LayoutAuthorityError, match="STAGE_A_RESOURCE_LIMIT"):
+        ledger.charge("TOO_LARGE", 2)
+    assert ledger.model_work == 1_200_000 and ledger.resource_events == {"LAST_BATCH": 2}
+
+
+def test_native_primitive_is_refused_before_host_counter_or_body_executes(tmp_path):
+    from cold_storage.modules.layout.domain.site_geometry import rectangles_overlap
+
+    store, binding = registry(tmp_path)
+    ledger = store.open("MAIN")
+    lease = admit(ledger, binding)
+    ledger.model_work = 600_000
+    with (
+        pytest.raises(LayoutAuthorityError, match="REPLAY_RESERVATION_LIMIT"),
+        ledger.observe_native(),
+    ):
+        rectangles_overlap(None, None)  # Body would fail; profiler must reject first.
+    assert ledger.model_work == 600_000 and ledger.native_host_work == 0
+    lease.finish_pool()
+
+
+def test_shared_work_precheck_includes_other_pool_before_current_batch(tmp_path):
+    store, binding = registry(tmp_path)
+    first = store.open("MAIN")
+    lease = admit(first, binding)
+    first.charge("FIRST_POOL", 600_000)
+    lease.finish_pool()
+    second = store.open("REPLAY")  # Synthetic temporary registry only.
+    lease = admit(second, binding)
+    second.charge("SECOND_POOL", 600_000)
+    with pytest.raises(LayoutAuthorityError, match="TASK_RESOURCE_LIMIT"):
+        second.charge("NO_SHARED_ROOM", 1)
+    assert lease.totals()["observable_work"] == 1_200_000
+    lease.finish_pool()
+
+
 def test_six_ordered_compositions_two_pools_and_no_third(tmp_path):
     store, binding = registry(tmp_path)
     for mode in ("MAIN", "REPLAY"):

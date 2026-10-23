@@ -199,6 +199,12 @@ class _ProductionLease:
             raise LayoutAuthorityError("CP_SAT_CUMULATIVE_ALLOWANCE_EXHAUSTED")
         return remaining
 
+    def precharge_work(self, ledger: StageALedger, n: int) -> None:
+        if self.closed or ledger is not self.ledger:
+            raise LayoutAuthorityError("EXECUTION_LEASE_LEDGER_MISMATCH")
+        if self.previous_work + ledger.model_work + ledger.native_host_work + n > TASK_WORK:
+            raise LayoutAuthorityError("STAGE_A_TASK_WORK_LIMIT")
+
     def guard(self, ledger: StageALedger) -> None:
         if max(ledger.solver_wall, ledger.solver_monotonic_wall) > REPLAY_SECONDS:
             raise LayoutAuthorityError("STAGE_A_REQUEST_SOLVER_LIMIT")
