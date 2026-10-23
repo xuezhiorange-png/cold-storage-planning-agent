@@ -96,6 +96,253 @@ def snapshot(**updates):
     }
 
 
+def test_r4_first_stage_definitions_preserve_all_729_physical_assignments():
+    context, wrapper, _ = context_and_model([((1, 3), (1, 3))] * 3)
+    engine = balanced._FirstStageBalancedNative(context.ledger, 1)
+    receipt = engine.prepare_first_stage(wrapper, context)
+    physical = [wrapper.m.get_int_var_from_proto_index(i) for i in range(6)]
+    wrapper.m.clear_objective()
+
+    class Collect(cp_model.CpSolverSolutionCallback):
+        def __init__(self):
+            super().__init__()
+            self.rows = []
+
+        def on_solution_callback(self):
+            self.rows.append(tuple(self.value(v) for v in physical))
+
+    callback = Collect()
+    solver = cp_model.CpSolver()
+    solver.parameters.num_search_workers = 1
+    solver.parameters.enumerate_all_solutions = True
+    assert solver.solve(wrapper.m, callback) == cp_model.OPTIMAL
+    assert set(callback.rows) == set(product(range(1, 4), repeat=6))
+    assert len(callback.rows) == 729  # One total extension, not just containment.
+    assert receipt["policy_hash"] == balanced.FIRST_STAGE_POLICY_HASH
+    assert not receipt["wall_span_objective_active"] and not receipt["topology_pruning"]
+    assert not engine.improving and not context.ledger.attempts
+
+
+def test_r4_existing_minimax_and_wall_span_prefer_different_synthetic_geometry():
+    # Two tiny legal assignments: a wall-aligned strip and offset square.
+    # This proves a preference, NOT an independently valid factory alternative.
+    from cold_storage.modules.layout.infrastructure.stage_b_wall_alignment import (
+        apply_wall_alignment_guidance,
+    )
+
+    choices = []
+    for first_stage in (False, True):
+        context, wrapper, _ = context_and_model([((1, 4), (1, 4))] * 3)
+        engine = (balanced._FirstStageBalancedNative if first_stage else balanced._BalancedNative)(
+            context.ledger, 1
+        )
+        physical = [wrapper.m.get_int_var_from_proto_index(i) for i in range(6)]
+        choice = wrapper.m.new_bool_var("synthetic_choice")
+        wrapper.m.add_allowed_assignments(
+            [choice, *physical], [(0, 1, 4, 1, 4, 1, 4), (1, 2, 2, 2, 2, 2, 2)]
+        )
+        for i, room in enumerate(wrapper.rooms.values()):
+            room["x"] = wrapper.m.new_int_var(0, 20, f"synthetic_x_{i}")
+            room["y"] = wrapper.m.new_constant(0)
+            wrapper.m.add(room["x"] == i * 10 * choice)
+        if first_stage:
+            engine.prepare_first_stage(wrapper, context)
+        else:
+            apply_wall_alignment_guidance(wrapper, charge=context.ledger.charge)
+        result, status = engine._run(context, wrapper.m, 1, "ALL_ROOMS_ALL_ACCESS")
+        assert status in (cp_model.FEASIBLE, cp_model.OPTIMAL)
+        assert result.parameters.stop_after_first_solution and len(context.ledger.attempts) == 1
+        choices.append(result.value(choice))
+    assert choices == [0, 1]
+
+
+def test_r4_model_receipt_and_first_witness_are_reproducible_without_extra_solves():
+    outputs = []
+    for _ in range(2):
+        context, wrapper, _ = context_and_model([((1, 4), (1, 4))] * 3)
+        engine = balanced._FirstStageBalancedNative(context.ledger, 1)
+        receipt = engine.prepare_first_stage(wrapper, context)
+        model_bytes = str(wrapper.m.proto)
+        result, status = engine._run(context, wrapper.m, 1, "ALL_ROOMS_ALL_ACCESS")
+        assert result.parameters.stop_after_first_solution
+        assert "search_feedback" not in context.ledger.attempts[-1]
+        assert len(context.ledger.attempts) == 1 and not engine.improving
+        outputs.append(
+            (
+                model_bytes,
+                receipt,
+                status,
+                tuple(
+                    result.value(variable(wrapper.m, r + "_physical_" + side))
+                    for r in old.FUNCTIONAL_SHAPE_ROLES
+                    for side in ("w", "d")
+                ),
+            )
+        )
+    assert outputs[0] == outputs[1]
+
+
+@pytest.mark.parametrize("appended_cut_variable", [False, True])
+def test_r4_transition_reuses_definitions_cuts_share_and_current_assignment(
+    appended_cut_variable,
+):
+    context, wrapper, _ = context_and_model([((1, 4), (1, 4))] * 3)
+    engine = balanced._FirstStageBalancedNative(context.ledger, 1)
+    engine.prepare_first_stage(wrapper, context)
+    if appended_cut_variable:
+        extra = wrapper.m.new_bool_var("synthetic_exact_cut_auxiliary")
+        wrapper.m.add(extra == 1)
+    first, _ = engine._run(context, wrapper.m, 1, "ALL_ROOMS_ALL_ACCESS")
+    before = [str(c) for c in wrapper.m.proto.constraints]
+    variables = len(wrapper.m.proto.variables)
+    shares = (engine.native_share, engine.work_share, engine.checked_share)
+    receipt = engine.begin_improvement(wrapper, context, first)
+    assert receipt["definitions_reused"] and receipt["baseline_proxy"] == 1000
+    assert receipt["policy_hash"] == balanced.FIRST_STAGE_QUALITY_POLICY_HASH
+    assert len(wrapper.m.proto.variables) == variables
+    assert [str(c) for c in wrapper.m.proto.constraints] == before
+    assert shares == (engine.native_share, engine.work_share, engine.checked_share)
+    assert len(wrapper.m.proto.solution_hint.vars) == variables
+    assert engine.ledger is context.ledger and len(context.ledger.attempts) == 1
+    assert wrapper.m.proto.variables[engine._feedback_proxy_index].name == "balanced_shape_worst"
+    assert context.ledger.resource_events["STAGE_B_FIRST_STAGE_PROXY_REUSE"] == 1
+    # UNKNOWN is neither an invalid witness nor a new infeasibility proof.
+    _, status = engine._run(context, wrapper.m, 1e-9, "ALL_ROOMS_ALL_ACCESS")
+    assert status == cp_model.UNKNOWN
+    assert [str(c) for c in wrapper.m.proto.constraints] == before
+    assert context.ledger.attempts[-1]["search_feedback"]["solution_count"] == 0
+
+
+@pytest.mark.parametrize("old_hash", [None, balanced.POLICY_HASH, old.POLICY_HASH, "forged"])
+def test_r4_rejects_previous_decisions_before_any_native_call(old_hash):
+    context, _, lease = context_and_model()
+    lease.decision = {"balanced_quality_policy_hash": old_hash}
+    port = balanced.StageBFirstStageBalancedQualityFairSearchSolver()
+    port.start_handoff(context.ledger, 6)
+    with pytest.raises(LayoutAuthorityError, match="BALANCED_BOUND_POLICY_REQUIRED"):
+        port.solutions(context, None)
+    assert not context.ledger.attempts and not lease.events
+
+
+def test_r4_proxy_reuse_rejects_foreign_model_and_insufficient_work():
+    context, wrapper, _ = context_and_model()
+    engine = balanced._FirstStageBalancedNative(context.ledger, 1)
+    engine.prepare_first_stage(wrapper, context)
+    other = SimpleNamespace(m=wrapper.m.clone(), c=context)
+    with pytest.raises(LayoutAuthorityError, match="FIRST_STAGE_MODEL_MISMATCH"):
+        engine._apply_improvement_guidance(other, context)
+    wrapper.m.clear_objective()
+    context.ledger.model_work = 1_200_000  # SYNTHETIC_RESOURCE_STATE_TEST.
+    with pytest.raises(LayoutAuthorityError, match="STAGE_A_RESOURCE_LIMIT"):
+        engine._apply_improvement_guidance(wrapper, context)
+    assert not wrapper.m.has_objective() and context.ledger.model_work == 1_200_000
+
+
+@pytest.mark.parametrize("terminal", ["SHARE", "WORK"])
+def test_r4_validated_baseline_survives_continuation_failure(monkeypatch, terminal):
+    context, _, lease = context_and_model()
+    port = balanced.StageBFirstStageBalancedQualityFairSearchSolver()
+    port.start_handoff(context.ledger, 1)
+    monkeypatch.setattr(balanced, "balanced_quality_snapshot", lambda candidate, _: candidate)
+    baseline = snapshot()
+    handoff = SimpleNamespace(source_composition_hash="synthetic-handoff")
+    port.observe_validated_candidate(context, handoff, baseline, "ENGINEERING_ACCEPTED")
+    before = deepcopy(port.baseline)
+    if terminal == "WORK":
+        context.ledger.model_work = 1_200_000
+    else:
+        port.native.native_share = 0
+    with pytest.raises(LayoutAuthorityError):
+        port.native.remaining_share(context)
+    assert port.baseline == before == baseline and port.pending_guidance is None
+    assert lease.events[-1]["policy_hash"] == balanced.FIRST_STAGE_QUALITY_POLICY_HASH
+
+
+def test_r4_same_model_stream_keeps_baseline_and_topology_checks(monkeypatch):
+    context, lease = feasibility_context(monkeypatch)
+    lease.decision = {"balanced_quality_policy_hash": balanced.FIRST_STAGE_QUALITY_POLICY_HASH}
+
+    class NamedModel(TinyModel):
+        def __init__(self, *args):
+            super().__init__(*args)
+            self.c = args[0]
+            for role, room in self.rooms.items():
+                for side in ("w", "d"):
+                    room[side].proto.name = role + "_physical_" + side
+
+    monkeypatch.setattr(native, "GlobalModel", NamedModel)
+    monkeypatch.setattr(native, "AccessModel", NamedModel)
+    port = balanced.StageBFirstStageBalancedQualityFairSearchSolver()
+    port.start_handoff(context.ledger, 6)
+    stream = port.solutions(context, SimpleNamespace(source_composition_hash="synthetic-handoff"))
+    first = deepcopy(next(stream))
+    assert first["construction_guidance"]["policy_hash"] == balanced.FIRST_STAGE_POLICY_HASH
+    assert first["model_witness_topology"]["valid"]
+    model = TinyModel.created[-1].m
+    definitions = sum(v.name == "balanced_shape_worst" for v in model.proto.variables)
+    second = stream.send("ENGINEERING_ACCEPTED")
+    assert second["construction_guidance"]["definitions_reused"]
+    assert second["model_witness_topology"]["valid"]
+    assert sum(v.name == "balanced_shape_worst" for v in model.proto.variables) == definitions == 1
+    assert first["search_stage"] == "FEASIBILITY_FIRST"
+    assert second["search_stage"] == "BOUNDED_QUALITY_IMPROVEMENT"
+    assert port.native.ledger is context.ledger
+    stream.close()
+
+
+def test_r4_first_stage_rejects_every_hole_witness_without_broad_geometry_cut(monkeypatch):
+    context, lease = feasibility_context(monkeypatch)
+    lease.decision = {"balanced_quality_policy_hash": balanced.FIRST_STAGE_QUALITY_POLICY_HASH}
+
+    class OnlyHoleModel(TinyModel):
+        @staticmethod
+        def layouts():
+            hole = rooms()
+            positions = (
+                (0, 0),
+                (1, 0),
+                (2, 0),
+                (2, 1),
+                (2, 2),
+                (1, 2),
+                (0, 2),
+                (0, 1),
+                (0, -1),
+                (1, -1),
+                (2, -1),
+                (3, -1),
+            )
+            for row, (x, y) in zip(hole, positions, strict=True):
+                row.update(x=x, y=y)
+            return [hole, deepcopy(hole)]
+
+        def __init__(self, *args):
+            super().__init__(*args)
+            self.c = args[0]
+            self.interfaces[0]["corridor"] = False
+            for role, room in self.rooms.items():
+                for side in ("w", "d"):
+                    room[side].proto.name = role + "_physical_" + side
+
+    monkeypatch.setattr(native, "GlobalModel", OnlyHoleModel)
+    monkeypatch.setattr(native, "AccessModel", OnlyHoleModel)
+    port = balanced.StageBFirstStageBalancedQualityFairSearchSolver()
+    port.start_handoff(context.ledger, 1)
+    stream = port.solutions(context, SimpleNamespace(source_composition_hash="synthetic-handoff"))
+    terminal = next(stream)
+    cuts = [e for e in lease.events if e["kind"] == "TOPOLOGY_REJECTED_WITNESS_CUT"]
+    # Moving a direct Portal does NOT change this union, so one exact union cut
+    # covers both redundant Portal positions, not a different room/path geometry.
+    assert len(cuts) == 1
+    assert all(e["certificate"]["hole_count"] == 1 for e in cuts)
+    assert "portal-position" not in cuts[0]["variable_names"]
+    assert terminal["solver_status"] == "INFEASIBLE"
+    assert terminal["global_infeasibility_claimed"] is False
+    assert port.baseline is None and not port.native.improving
+    assert len(TinyModel.created) == 3  # No model recreation/rebudgeting after rejection.
+    stream.close()
+
+
 def test_r3_guidance_accepts_only_pareto_improvement_over_validated_incumbent(monkeypatch):
     context, _, lease = context_and_model()
     port = balanced.StageBBalancedQualityFairSearchSolver()
