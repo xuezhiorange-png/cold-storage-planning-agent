@@ -97,10 +97,37 @@ class ParallelWorkflowTests(unittest.TestCase):
         self.assertNotIn("pytest tests/architecture", architecture)
         coverage = self.jobs["backend-partition-coverage"]
         self.assertIn("verify_partitions.py artifacts/ci-partitions", coverage)
-        self.assertIn("pattern: ci-partition-*-${{ github.run_attempt }}", coverage)
-        self.assertIn("merge-multiple: true", coverage)
+        self.assertIn("pattern: ci-partition-*\n", coverage)
+        self.assertNotIn("pattern: ci-partition-*-${{ github.run_attempt }}", coverage)
+        self.assertIn("merge-multiple: false", coverage)
+        self.assertIn("run-id: ${{ github.run_id }}", coverage)
+        self.assertIn("github-token: ${{ github.token }}", coverage)
+        self.assertIn("      actions: read", coverage)
+        self.assertIn("GH_TOKEN: ${{ github.token }}", coverage)
+        self.assertIn("github.event.pull_request.head.sha || github.sha", coverage)
+        for flag, variable in (
+            ("repository", "GITHUB_REPOSITORY"),
+            ("run-id", "GITHUB_RUN_ID"),
+            ("attempt", "GITHUB_RUN_ATTEMPT"),
+            ("head", "PARTITION_HEAD"),
+        ):
+            self.assertIn(f'--{flag} "${variable}"', coverage)
+        self.assertNotIn("continue-on-error", coverage)
+        self.assertNotIn("|| true", coverage)
         for job in ("backend-sqlite", "backend-postgresql"):
             self.assertIn("      - backend-partition-coverage\n", self.jobs[job])
+
+    def test_cross_attempt_fix_does_not_change_other_job_contracts(self):
+        baseline = subprocess.check_output(
+            ["git", "show", "e9a0c98f7c4b8ad0d279427c98b60195a2f1ddbd:.github/workflows/ci.yml"],
+            cwd=ROOT,
+            text=True,
+        )
+        before = matrix.job_blocks(baseline)
+        self.assertEqual(set(before), set(self.jobs))
+        for name in before.keys() - {"backend-partition-coverage"}:
+            with self.subTest(job=name):
+                self.assertEqual(before[name], self.jobs[name])
 
     def test_rss_and_pg_integration_commands_preserved_verbatim(self):
         old_rss = self.before["backend-sqlite"].split("      # Fixed two runs", 1)[1]

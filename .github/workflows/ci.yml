@@ -1164,6 +1164,9 @@ jobs:
       - backend-postgresql-shards
     if: ${{ always() && needs.classify-changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Require every backend dependency to succeed
         env:
@@ -1185,14 +1188,22 @@ jobs:
       - uses: astral-sh/setup-uv@v4
       - name: Backend install
         run: cd backend && uv sync
-      - name: Download all partition manifests from this attempt
+      - name: Download partition artifacts from all attempts of this run
         uses: actions/download-artifact@v4
         with:
-          pattern: ci-partition-*-${{ github.run_attempt }}
+          pattern: ci-partition-*
+          run-id: ${{ github.run_id }}
+          github-token: ${{ github.token }}
           path: backend/artifacts/ci-partitions
-          merge-multiple: true
+          merge-multiple: false
       - name: Require exact collection and execution coverage
-        run: cd backend && uv run python ../scripts/ci/verify_partitions.py artifacts/ci-partitions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PARTITION_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: >-
+          cd backend && uv run python ../scripts/ci/verify_partitions.py artifacts/ci-partitions
+          --repository "$GITHUB_REPOSITORY" --run-id "$GITHUB_RUN_ID"
+          --attempt "$GITHUB_RUN_ATTEMPT" --head "$PARTITION_HEAD"
 
   backend-sqlite:
     needs:
