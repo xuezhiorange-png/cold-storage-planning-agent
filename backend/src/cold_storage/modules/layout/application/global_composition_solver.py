@@ -146,10 +146,21 @@ class StageALedger:
             raise LayoutAuthorityError("CP_SAT_CUMULATIVE_ALLOWANCE_EXHAUSTED")
         return remaining
 
+    def precharge_work(self, n: int) -> None:
+        """Admit the whole operation before changing any cumulative counter."""
+        if type(n) is not int or n < 0:
+            raise LayoutAuthorityError("STAGE_A_INVALID_WORK_CHARGE")
+        self.guard()
+        if self.model_work + self.native_host_work + n > 1_200_000:
+            raise LayoutAuthorityError("STAGE_A_RESOURCE_LIMIT")
+        scoped = getattr(self.execution_authorization, "precharge_work", None)
+        if scoped is not None:
+            scoped(self, n)
+
     def charge(self, label: str, n: int = 1) -> None:
+        self.precharge_work(n)
         self.model_work += n
         self.resource_events[label] = self.resource_events.get(label, 0) + n
-        self.guard()
 
     def guard(self) -> None:
         scoped_guard = getattr(self.execution_authorization, "guard", None)
@@ -221,21 +232,21 @@ class StageALedger:
                 self.native_requirements.append(current)
                 self.checkpoint("NATIVE_REQUIREMENT_STARTED")
             if event == "call" and name in primitives:
+                if current and current["host_work"] >= 20_000:
+                    current["status"] = "RESOURCE_INTERRUPTED"
+                    ancestor: FrameType | None = frame
+                    while ancestor is not None:
+                        if id(ancestor) in grid_frames:
+                            grid_frames[id(ancestor)]["visited_nodes"] = ancestor.f_locals.get(
+                                "visited", 0
+                            )
+                        ancestor = ancestor.f_back
+                    self.checkpoint("NATIVE_REQUIREMENT_HOST_LIMIT")
+                    raise LayoutAuthorityError("STAGE_A_REQUIREMENT_HOST_LIMIT")
+                self.precharge_work(1)
                 if current:
-                    if current["host_work"] >= 20_000:
-                        current["status"] = "RESOURCE_INTERRUPTED"
-                        ancestor: FrameType | None = frame
-                        while ancestor is not None:
-                            if id(ancestor) in grid_frames:
-                                grid_frames[id(ancestor)]["visited_nodes"] = ancestor.f_locals.get(
-                                    "visited", 0
-                                )
-                            ancestor = ancestor.f_back
-                        self.checkpoint("NATIVE_REQUIREMENT_HOST_LIMIT")
-                        raise LayoutAuthorityError("STAGE_A_REQUIREMENT_HOST_LIMIT")
                     current["host_work"] += 1
                 self.native_host_work += 1
-                self.guard()
             if event == "return" and name == "route_access_requirement" and current:
                 if value is not None:
                     current["status"] = value[0]["status"]

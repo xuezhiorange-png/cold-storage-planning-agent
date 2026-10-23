@@ -162,6 +162,7 @@ class OrToolsGlobalCompositionSolver:
         propagate_base_infeasible: bool = False,
         final_model_guidance: Callable[[Any], dict[str, Any]] | None = None,
         accepted_model_guidance: Callable[[Any, Any], dict[str, Any]] | None = None,
+        accepted_continuation_guidance: Callable[[Any, Any], dict[str, Any] | None] | None = None,
     ) -> Generator[dict[str, Any], str | None, None]:
         """One preparation, one final model; bounded physical enumeration.
 
@@ -385,6 +386,12 @@ class OrToolsGlobalCompositionSolver:
                 if event_sink:
                     event_sink({"kind": "BOUNDED_IMPROVEMENT_STARTED", "guidance": guidance})
                 continue
+            if accepted and improvement_started and accepted_continuation_guidance is not None:
+                guidance_update = accepted_continuation_guidance(model, solver)
+                if guidance_update is not None and event_sink:
+                    event_sink(
+                        {"kind": "VALIDATED_QUALITY_HINT_UPDATED", "guidance": guidance_update}
+                    )
             variables = (
                 [r[k] for r in model.rooms.values() for k in ("x", "y", "w", "d")]
                 if accepted

@@ -6,7 +6,7 @@ relations; neither the proxy nor a Pareto relation approves functional room fit.
 
 from copy import deepcopy
 from fractions import Fraction
-from typing import Any
+from typing import Any, cast
 
 from ortools.sat.python import cp_model
 
@@ -17,7 +17,10 @@ from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.infrastructure.stage_b_construction_guidance import (
     FUNCTIONAL_SHAPE_ROLES,
 )
-from cold_storage.modules.layout.infrastructure.stage_b_fair_search import StageBFairSearchSolver
+from cold_storage.modules.layout.infrastructure.stage_b_fair_search import (
+    StageBFairSearchSolver,
+    union_input_variables,
+)
 from cold_storage.modules.layout.infrastructure.stage_b_feasibility_first import (
     StageBFeasibilityFirstFairSearchSolver,
     _FeasibilityFirstNative,
@@ -52,12 +55,13 @@ COMPARISON_METRICS = (
     "footprint_outline_turn_count",
     "footprint_reflex_corner_count",
 )
-FEEDBACK_POLICY = "stage-b-balanced-first-improving-witness-feedback@1.0.0"
+FEEDBACK_POLICY = "stage-b-balanced-first-improving-witness-feedback@1.1.0"
 FEEDBACK_POLICY_HASH = canonical_hash(
     {
         "version": FEEDBACK_POLICY,
         "stop": "FIRST_PROXY_STRICTLY_BELOW_PERSISTED_BASELINE",
-        "baseline": "SAME_HANDOFF_INCUMBENT_BEFORE_OBJECTIVE_SWITCH",
+        "baseline": "SAME_HANDOFF_VALIDATED_PARETO_INCUMBENT_OR_FIRST_BASELINE",
+        "hint_refresh": "CURRENT_ACCEPTED_UNION_INPUTS_ONLY_AFTER_EXACT_NINE_METRIC_PARETO",
         "allowance": "ORIGINAL_REMAINING_SHARE_NO_FIXED_TWO_SECOND_CAP",
         "scope": "IMPROVING_ALL_ROOMS_ALL_ACCESS_ONLY",
         "unknown": "END_CURRENT_STREAM_WITHOUT_CUT_OR_RETRY",
@@ -65,7 +69,7 @@ FEEDBACK_POLICY_HASH = canonical_hash(
         "learning": "NOT_PRESERVED_BETWEEN_SOLVES",
     }
 )
-POLICY = "stage-b-feasibility-first-balanced-quality@2.1.0"
+POLICY = "stage-b-feasibility-first-balanced-quality@2.2.0"
 POLICY_HASH = canonical_hash(
     {
         "version": POLICY,
@@ -399,6 +403,30 @@ class _BalancedNative(_FeasibilityFirstNative):
     def _apply_improvement_guidance(self, model: Any, context: Any) -> dict[str, Any]:
         return apply_balanced_shape_guidance(model, context)
 
+    def refresh_validated_hint(self, model: Any, context: Any, solver: Any) -> dict[str, Any]:
+        """Only the stream's independently accepted current assignment may guide us."""
+        if not self.improving or model.m is not self._feedback_model:
+            raise LayoutAuthorityError("STAGE_B_BALANCED_FEEDBACK_MODEL_MISMATCH")
+        variables = union_input_variables(model, solver)
+        values = [solver.value(v) for v in variables]
+        proxy = model.m.get_int_var_from_proto_index(self._feedback_proxy_index)
+        incumbent = solver.value(proxy)
+        context.ledger.charge("STAGE_B_VALIDATED_PARETO_HINT", len(variables) + 1)
+        model.m.clear_hints()
+        for variable, value in zip(variables, values, strict=True):
+            model.m.add_hint(variable, value)
+        previous = self._baseline_proxy
+        self._baseline_proxy = incumbent
+        return {
+            "policy_hash": POLICY_HASH,
+            "hint_source": "CURRENT_EXECUTION_INDEPENDENTLY_VALIDATED_PARETO_INCUMBENT",
+            "hint_variables": len(variables),
+            "previous_feedback_proxy": previous,
+            "feedback_proxy": incumbent,
+            "hard_domain_changed": False,
+            "original_baseline_preserved": True,
+        }
+
 
 class StageBBalancedQualityFairSearchSolver(StageBFeasibilityFirstFairSearchSolver):
     """Only a future independently bound decision can authorize this strategy."""
@@ -406,6 +434,26 @@ class StageBBalancedQualityFairSearchSolver(StageBFeasibilityFirstFairSearchSolv
     def start_handoff(self, ledger: Any, remaining_handoffs: int) -> None:
         self.native = _BalancedNative(ledger, remaining_handoffs)
         self.baseline = None
+        self.guidance_incumbent: dict[str, Any] | None = None
+        self.pending_guidance: dict[str, Any] | None = None
+
+    def _continuation_options(self, context: Any) -> dict[str, Any]:
+        return {
+            **super()._continuation_options(context),
+            "accepted_continuation_guidance": lambda model, solver: self._refresh_validated_hint(
+                model, context, solver
+            ),
+        }
+
+    def _refresh_validated_hint(
+        self, model: Any, context: Any, solver: Any
+    ) -> dict[str, Any] | None:
+        if self.pending_guidance is None:
+            return None
+        receipt = cast(_BalancedNative, self.native).refresh_validated_hint(model, context, solver)
+        receipt["candidate_hash"] = self.pending_guidance["candidate_hash"]
+        self.pending_guidance = None
+        return receipt
 
     def solutions(self, context: Any, handoff: Any) -> Any:
         decision = getattr(context.ledger.execution_authorization, "decision", {})
@@ -421,12 +469,19 @@ class StageBBalancedQualityFairSearchSolver(StageBFeasibilityFirstFairSearchSolv
         snapshot = balanced_quality_snapshot(candidate, handoff.source_composition_hash)
         if self.baseline is None:
             self.baseline = deepcopy(snapshot)
+            self.guidance_incumbent = deepcopy(snapshot)
             comparison = {"status": "BASE_VALID_CANDIDATE_PRESERVED", "baseline": snapshot}
         else:
             comparison = {
                 **compare_balanced_quality(self.baseline, snapshot),
                 "candidate": snapshot,
             }
+        if self.guidance_incumbent is not None and (
+            compare_balanced_quality(self.guidance_incumbent, snapshot)["status"]
+            == "GEOMETRIC_PARETO_IMPROVEMENT"
+        ):
+            self.guidance_incumbent = deepcopy(snapshot)
+            self.pending_guidance = deepcopy(snapshot)
         context.ledger.execution_authorization.record_enumeration(
             {
                 "zone_plan_hash": context.binding.canonical_zone_plan_hash,
