@@ -11,7 +11,6 @@ import pytest
 
 from cold_storage.modules.layout.application.composition_placement import (
     CompositionPlacementApplicationResultV1,
-    enumerate_composition_placements,
 )
 from cold_storage.modules.layout.application.layout_authority_binding import bind_layout_authority
 from cold_storage.modules.layout.application.site_geometry import ValidatedSiteGeometryV1
@@ -29,9 +28,18 @@ from tests.unit.test_v222_p1a_composition_authority_handoff import _context
 ROOT = Path(__file__).resolve().parents[3]
 XINZHAO_FIXTURE = ROOT / "backend/tests/fixtures/v22/xinzhao_20t_site_layout_input_v3.json"
 
+pytest_plugins = ("tests.composition_placement_fixtures",)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _composition_database_guard(composition_no_database: None) -> None:
+    """Keep every test in this module independent of database availability."""
+
 
 @pytest.fixture(scope="module")
-def xinzhao_server_replay() -> tuple[
+def xinzhao_server_replay(
+    xinzhao_placement,
+) -> tuple[
     dict[str, Any],
     Any,
     ValidatedSiteGeometryV1,
@@ -39,12 +47,11 @@ def xinzhao_server_replay() -> tuple[
     CompositionPlacementApplicationResultV1,
     CompositionPlacementCandidateV1,
 ]:
-    zone_plan, p1_handoff, site_geometry = _context()
+    zone_plan, p1_handoff, site_geometry, replay = xinzhao_placement
     source = json.loads(XINZHAO_FIXTURE.read_text())
     truck_binding = validate_truck_maneuver_project_binding(
         source["truck_access"], source["truck_maneuver"]
     )
-    replay = enumerate_composition_placements(zone_plan, p1_handoff, site_geometry)
     assert replay.placements.candidates
     return (
         zone_plan,
