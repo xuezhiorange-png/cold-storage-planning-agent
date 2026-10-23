@@ -6,7 +6,6 @@ import inspect
 import json
 from dataclasses import replace
 from decimal import Decimal
-from typing import Any
 
 import pytest
 
@@ -44,12 +43,105 @@ from tests.unit.test_v222_p1a_composition_authority_handoff import (
     _result,
 )
 
+pytest_plugins = ("tests.composition_placement_fixtures",)
 
-@pytest.fixture(scope="module")
-def xinzhao_placement() -> tuple[Any, Any, Any, Any]:
-    zone_plan, p1_handoff, site_geometry = _context()
-    result = enumerate_composition_placements(zone_plan, p1_handoff, site_geometry)
-    return zone_plan, p1_handoff, site_geometry, result
+
+@pytest.fixture(scope="module", autouse=True)
+def _composition_database_guard(composition_no_database: None) -> None:
+    """Keep every test in this module independent of database availability."""
+
+
+def test_composition_database_guard_rejects_sqlite_connection() -> None:
+    from sqlalchemy import create_engine
+
+    engine = create_engine("sqlite:///:memory:")
+    try:
+        with (
+            pytest.raises(AssertionError, match="COMPOSITION_TEST_DATABASE_ACCESS_FORBIDDEN"),
+            engine.connect(),
+        ):
+            pytest.fail("Database guard allowed a physical connection")
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.parametrize("module_name", ("sqlite3", "sqlite3.dbapi2", "psycopg2"))
+def test_composition_database_guard_rejects_direct_dbapi_connection(module_name: str) -> None:
+    from importlib import import_module
+
+    with pytest.raises(AssertionError, match="COMPOSITION_TEST_DATABASE_ACCESS_FORBIDDEN"):
+        import_module(module_name).connect(":memory:")
+
+
+def test_baseline_fixture_is_shared_across_actual_pytest_modules() -> None:
+    """Exercise pytest's real fixture cache without performing a placement search."""
+    import subprocess
+    import sys
+    import textwrap
+    from pathlib import Path
+
+    probe = textwrap.dedent("""\
+        import sys
+        from pathlib import Path
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        sys.path.insert(0, str(Path.cwd() / "src"))
+        import pytest
+        import tests.composition_placement_fixtures as fixtures
+
+        context = (object(), object(), object())
+        result = SimpleNamespace(placements=SimpleNamespace(candidates=(object(),)))
+        seen = []
+
+        class Probe:
+            @pytest.hookimpl(tryfirst=True)
+            def pytest_pyfunc_call(self, pyfuncitem):
+                # Run the actual module fixtures, then check wiring instead of
+                # geometry assertions: the sentinel is not engineering evidence.
+                baseline = pyfuncitem.funcargs["xinzhao_placement"]
+                assert baseline[:3] == context
+                assert baseline[3] is result
+                seen.append(baseline)
+                if "xinzhao_server_replay" in pyfuncitem.funcargs:
+                    server = pyfuncitem.funcargs["xinzhao_server_replay"]
+                    assert server[:3] == context
+                    assert server[4] is result
+                    assert server[5] is result.placements.candidates[0]
+                return True
+
+        with (
+            patch.object(fixtures, "_context", return_value=context) as make_context,
+            patch.object(
+                fixtures, "enumerate_composition_placements", return_value=result
+            ) as search,
+        ):
+            status = pytest.main([
+                "-q",
+                "tests/unit/test_v222_p1a_composition_exact_placement.py::"
+                "test_xinzhao_has_a_complete_composition_native_candidate",
+                "tests/unit/test_v222_p1a_composition_candidate_validation.py::"
+                "test_adapter_preserves_candidate_geometry_dimensions_roles_and_provenance",
+            ], plugins=[Probe()])
+            assert status == 0, status
+            assert len(seen) == 2
+            assert seen[0] is seen[1]
+            make_context.assert_called_once_with()
+            search.assert_called_once_with(*context)
+        print("SHARED_BASELINE_PROBE: two modules, one context, one search, same tuple")
+        """)
+    completed = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=Path(__file__).resolve().parents[2],
+        capture_output=True,
+        text=True,
+        timeout=180,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert "SHARED_BASELINE_PROBE: two modules, one context, one search, same tuple" in (
+        completed.stdout
+    )
 
 
 def test_public_api_replays_server_compositions_and_never_accepts_a_handoff() -> None:

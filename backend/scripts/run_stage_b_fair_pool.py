@@ -71,7 +71,7 @@ def export_fair_pool(root: Path, result: dict[str, Any], site: Any, identities: 
     root.mkdir()
     accepted = {c["geometry_hash"] for c in result["candidates"]}
     seen: set[str] = set()
-    index = []
+    index: list[dict[str, Any]] = []
     for attempt in result["attempts"]:
         body = attempt["candidate_result"]
         if not _eligible(body, identities):

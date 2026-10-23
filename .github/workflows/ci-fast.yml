@@ -50,7 +50,14 @@ jobs:
           tests/unit/test_v222_github_full_ci_admission.py
           tests/unit/test_v222_balanced_main_execution.py
           tests/unit/test_v222_balanced_feedback_main_execution.py
+          tests/unit/test_v222_stage_b_r4_main_execution.py
           -m "not physical_rss_linux" -q
+      - name: Partition execution and shared fixture contracts (no layout search)
+        run: >-
+          cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run pytest
+          tests/unit/test_ci_partition_execution.py
+          tests/unit/test_v222_p1a_composition_exact_placement.py
+          -k "partition or database_guard or baseline_fixture_is_shared" -q
       - name: Architecture and security boundaries
         run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run pytest tests/architecture -q
       - name: Ruff

@@ -32,6 +32,15 @@ PR269_PATHS = [
     "docs/tasks/V2_2-version-plan.md",
 ]
 
+# These short-lived repositories must not leave detached writers racing cleanup.
+# Keep cleanup strict: a leftover file or process must still fail the test.
+FIXTURE_GIT_CONFIG = {
+    "maintenance.auto": "false",
+    "maintenance.autoDetach": "false",
+    "gc.auto": "0",
+    "gc.autoDetach": "false",
+}
+
 
 class PathTests(unittest.TestCase):
     def test_classification_matrix(self) -> None:
@@ -115,6 +124,8 @@ class EventTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.repo = Path(self.temp.name)
         self.git("init", "-q")
+        for key, value in FIXTURE_GIT_CONFIG.items():
+            self.git("config", "--local", key, value)
         self.git("config", "user.name", "CI classifier test")
         self.git("config", "user.email", "ci-test@example.invalid")
         self.write("backend/src/original.py", "original\n")
@@ -195,15 +206,100 @@ class EventTests(unittest.TestCase):
             classify_event("push", {"before": tag_object}, self.head, self.repo).scope, "FULL"
         )
 
+    def test_fixture_disables_automatic_background_writers(self) -> None:
+        for key, value in FIXTURE_GIT_CONFIG.items():
+            with self.subTest(key=key):
+                self.assertEqual(self.git("config", "--local", "--get", key), value)
+
+    def test_commit_does_not_spawn_maintenance_even_at_forced_threshold(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="ci-classifier-trace-") as trace_dir:
+            trace = Path(trace_dir) / "events.jsonl"
+            env = {**os.environ, "GIT_TRACE2_EVENT": str(trace)}
+            # Force an eligible task; maintenance.auto=false must prevent dispatch,
+            # rather than relying on the fixture being below Git's size threshold.
+            subprocess.check_output(
+                [
+                    "git",
+                    "-c",
+                    "maintenance.commit-graph.enabled=true",
+                    "-c",
+                    "maintenance.commit-graph.auto=-1",
+                    "commit",
+                    "--allow-empty",
+                    "-qm",
+                    "maintenance regression",
+                ],
+                cwd=self.repo,
+                env=env,
+                text=True,
+            )
+            events = [json.loads(line) for line in trace.read_text().splitlines()]
+            self.assertTrue(any(event["event"] == "exit" for event in events))
+            starts = [event for event in events if event["event"] == "child_start"]
+            for event in starts:
+                self.assertFalse({"maintenance", "gc"}.intersection(event["argv"]), event)
+            # check_output waits for the direct Git process; any non-maintenance
+            # children must also have exited before the temporary repo is removed.
+            self.assertEqual(
+                {(event["sid"], event["child_id"]) for event in starts},
+                {
+                    (event["sid"], event["child_id"])
+                    for event in events
+                    if event["event"] == "child_exit"
+                },
+            )
+
+
+class FixtureCleanupRegressionTests(unittest.TestCase):
+    def test_event_fixtures_clean_up_in_fifty_independent_runs(self) -> None:
+        # Runs in the existing fast/full stdlib step, including on Ubuntu. These
+        # are 50 fixed validations, not retries: the first failure fails the gate.
+        git_version = subprocess.check_output(["git", "--version"], text=True).strip()
+        for iteration in range(1, 51):
+            suite = unittest.defaultTestLoader.loadTestsFromTestCase(EventTests)
+            cases = list(suite)
+            result = unittest.TestResult()
+            suite.run(result)
+            self.assertEqual(result.testsRun, len(cases))
+            self.assertFalse(result.errors, result.errors)
+            self.assertFalse(result.failures, result.failures)
+            self.assertFalse(result.skipped, result.skipped)
+            self.assertFalse(result.expectedFailures, result.expectedFailures)
+            self.assertTrue(result.wasSuccessful())
+            for case in cases:
+                self.assertFalse(Path(case.temp.name).exists(), case.temp.name)
+            print(
+                "CLASSIFIER_CLEANUP_REPEAT "
+                + json.dumps(
+                    {
+                        "iteration": iteration,
+                        "tests": result.testsRun,
+                        "failures": 0,
+                        "repositories_removed": len(cases),
+                        "platform": sys.platform,
+                        "python": sys.version.split()[0],
+                        "git": git_version,
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+
 
 class GateTests(unittest.TestCase):
     @staticmethod
     def needs(scope: str) -> dict:
+        from ci_gate import BACKEND_PARALLEL_JOBS
+
         return {
             "classify-changes": {"result": "success", "outputs": Plan(scope, "test").outputs()},
             **{
                 job: {"result": "success" if job in SCOPE_JOBS[scope] else "skipped"}
                 for job in (*REGULAR_JOBS, *MANUAL_JOBS, "fast-checks")
+            },
+            **{
+                job: {"result": "success" if "backend-sqlite" in SCOPE_JOBS[scope] else "skipped"}
+                for job in BACKEND_PARALLEL_JOBS
             },
         }
 
@@ -277,8 +373,12 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("CI_NEEDS: ${{ toJSON(needs) }}", jobs["ci-gate"])
         self.assertIn("fetch-depth: 0", jobs["classify-changes"])
         for name, flag in (
-            ("backend-sqlite", "backend"),
-            ("backend-postgresql", "backend"),
+            ("backend-sqlite-shards", "backend"),
+            ("backend-postgresql-shards", "backend"),
+            ("backend-postgresql-integration", "backend"),
+            ("backend-architecture", "backend"),
+            ("backend-lint", "backend"),
+            ("backend-mypy", "backend"),
             ("frontend", "frontend"),
             ("compose-config", "infra"),
             ("release-evidence", "release"),

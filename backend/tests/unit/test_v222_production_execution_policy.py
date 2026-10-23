@@ -73,6 +73,8 @@ def test_original_work_counters_share_task_limit(tmp_path: Path) -> None:
     second.guard()
     with pytest.raises(LayoutAuthorityError, match="TASK_WORK_LIMIT"):
         second.charge("EXISTING_COUNTER_INCREMENT")
+    assert second.model_work == 500_000 and second.native_host_work == 100_000
+    assert "EXISTING_COUNTER_INCREMENT" not in second.resource_events
 
 
 def test_request_and_task_native_limits_not_dfs(tmp_path: Path) -> None:

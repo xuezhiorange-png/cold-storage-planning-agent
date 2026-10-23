@@ -18,6 +18,16 @@ MANUAL_JOBS = (
     "controlled-recovery-acceptance",
 )
 
+BACKEND_PARALLEL_JOBS = (
+    "backend-sqlite-shards",
+    "backend-postgresql-shards",
+    "backend-postgresql-integration",
+    "backend-architecture",
+    "backend-lint",
+    "backend-mypy",
+    "backend-partition-coverage",
+)
+
 
 def gate_errors(needs: Mapping[str, Any], *, require_full: bool = False) -> list[str]:
     classifier = needs.get("classify-changes", {})
@@ -35,10 +45,13 @@ def gate_errors(needs: Mapping[str, Any], *, require_full: bool = False) -> list
         for key, value in expected.items()
         if key not in {"reason", "base", "head"} and outputs.get(key) != value
     ]
-    for job in (*REGULAR_JOBS, *MANUAL_JOBS):
+    required = set(SCOPE_JOBS[scope])
+    if "backend-sqlite" in required:
+        required.update(BACKEND_PARALLEL_JOBS)
+    for job in (*REGULAR_JOBS, *MANUAL_JOBS, *BACKEND_PARALLEL_JOBS):
         info = needs.get(job, {})
         result = info.get("result") if isinstance(info, Mapping) else None
-        if job in SCOPE_JOBS[scope]:
+        if job in required:
             if result != "success":
                 errors.append(f"required {job}: {result}")
         elif result not in {"success", "skipped"}:

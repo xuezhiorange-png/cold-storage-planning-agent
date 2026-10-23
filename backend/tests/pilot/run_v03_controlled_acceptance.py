@@ -24,6 +24,7 @@ for _path in (str(_SRC_ROOT), str(_BACKEND_ROOT)):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
+from cold_storage.evaluation.followup_acceptance import ControlledSourceRuntime  # noqa: E402
 from cold_storage.evaluation.v03_controlled_acceptance import (  # noqa: E402
     ScenarioAExecutionBinding,
     ScenarioExecutionSupport,
@@ -35,7 +36,6 @@ from cold_storage.evaluation.v03_controlled_acceptance import (  # noqa: E402
     refuse_scenario_execution,
     verify_harness_gates,
 )
-from cold_storage.evaluation.followup_acceptance import ControlledSourceRuntime  # noqa: E402
 
 SQLITE_URL_SCHEME = "sqlite:///"
 SQLITE_ALEMBIC_TIMEOUT_SECONDS = 180
@@ -50,7 +50,9 @@ def _seed_scenario_a_prereqs(session: object) -> None:
 
     from tests.evaluation import _seed_helpers as seed_helpers  # noqa: PLC0415
 
-    original_capacity = seed_helpers.EQUIPMENT_RESULT_SNAPSHOT.get("compressor_operating_capacity_kw")
+    original_capacity = seed_helpers.EQUIPMENT_RESULT_SNAPSHOT.get(
+        "compressor_operating_capacity_kw"
+    )
     seed_helpers.EQUIPMENT_RESULT_SNAPSHOT["compressor_operating_capacity_kw"] = (
         _SCENARIO_A_EQUIPMENT_OPERATING_CAPACITY_KW
     )
@@ -60,7 +62,9 @@ def _seed_scenario_a_prereqs(session: object) -> None:
         if original_capacity is None:
             seed_helpers.EQUIPMENT_RESULT_SNAPSHOT.pop("compressor_operating_capacity_kw", None)
         else:
-            seed_helpers.EQUIPMENT_RESULT_SNAPSHOT["compressor_operating_capacity_kw"] = original_capacity
+            seed_helpers.EQUIPMENT_RESULT_SNAPSHOT["compressor_operating_capacity_kw"] = (
+                original_capacity
+            )
 
 
 def _build_scenario_execution_support() -> ScenarioExecutionSupport:
@@ -163,10 +167,14 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="V0.3 P5 controlled acceptance harness")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    status = subparsers.add_parser("harness-status", help="emit frozen harness authorization posture")
+    status = subparsers.add_parser(
+        "harness-status", help="emit frozen harness authorization posture"
+    )
     status.add_argument("--output", type=Path)
 
-    verify = subparsers.add_parser("verify-gates", help="verify harness gates without scenario execution")
+    verify = subparsers.add_parser(
+        "verify-gates", help="verify harness gates without scenario execution"
+    )
     verify.add_argument("--authorization-record-id", required=True)
     verify.add_argument("--trusted-operator", required=True)
     verify.add_argument("--execution-source-sha", required=True)
@@ -177,7 +185,9 @@ def _build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--checked-out-tree-sha")
     verify.add_argument("--output", type=Path)
 
-    run = subparsers.add_parser("run", help="attempt one scenario after explicit authorization gates")
+    run = subparsers.add_parser(
+        "run", help="attempt one scenario after explicit authorization gates"
+    )
     run.add_argument("--scenario", choices=("A", "B", "C"), required=True)
     run.add_argument("--authorization-record-id", required=True)
     run.add_argument("--trusted-operator", required=True)
@@ -252,7 +262,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 backend=args.backend,
                 database_url=args.database_url,
             )
-            output_root = args.artifact_root or args.output.parent / f"{args.backend}-{args.run_index}"
+            output_root = (
+                args.artifact_root or args.output.parent / f"{args.backend}-{args.run_index}"
+            )
             payload = execute_scenario(
                 scenario=args.scenario,
                 authorization_record_id=args.authorization_record_id,

@@ -6,7 +6,7 @@ relations; neither the proxy nor a Pareto relation approves functional room fit.
 
 from copy import deepcopy
 from fractions import Fraction
-from typing import Any
+from typing import Any, cast
 
 from ortools.sat.python import cp_model
 
@@ -17,7 +17,10 @@ from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.infrastructure.stage_b_construction_guidance import (
     FUNCTIONAL_SHAPE_ROLES,
 )
-from cold_storage.modules.layout.infrastructure.stage_b_fair_search import StageBFairSearchSolver
+from cold_storage.modules.layout.infrastructure.stage_b_fair_search import (
+    StageBFairSearchSolver,
+    union_input_variables,
+)
 from cold_storage.modules.layout.infrastructure.stage_b_feasibility_first import (
     StageBFeasibilityFirstFairSearchSolver,
     _FeasibilityFirstNative,
@@ -52,12 +55,13 @@ COMPARISON_METRICS = (
     "footprint_outline_turn_count",
     "footprint_reflex_corner_count",
 )
-FEEDBACK_POLICY = "stage-b-balanced-first-improving-witness-feedback@1.0.0"
+FEEDBACK_POLICY = "stage-b-balanced-first-improving-witness-feedback@1.1.0"
 FEEDBACK_POLICY_HASH = canonical_hash(
     {
         "version": FEEDBACK_POLICY,
         "stop": "FIRST_PROXY_STRICTLY_BELOW_PERSISTED_BASELINE",
-        "baseline": "SAME_HANDOFF_INCUMBENT_BEFORE_OBJECTIVE_SWITCH",
+        "baseline": "SAME_HANDOFF_VALIDATED_PARETO_INCUMBENT_OR_FIRST_BASELINE",
+        "hint_refresh": "CURRENT_ACCEPTED_UNION_INPUTS_ONLY_AFTER_EXACT_NINE_METRIC_PARETO",
         "allowance": "ORIGINAL_REMAINING_SHARE_NO_FIXED_TWO_SECOND_CAP",
         "scope": "IMPROVING_ALL_ROOMS_ALL_ACCESS_ONLY",
         "unknown": "END_CURRENT_STREAM_WITHOUT_CUT_OR_RETRY",
@@ -65,7 +69,7 @@ FEEDBACK_POLICY_HASH = canonical_hash(
         "learning": "NOT_PRESERVED_BETWEEN_SOLVES",
     }
 )
-POLICY = "stage-b-feasibility-first-balanced-quality@2.1.0"
+POLICY = "stage-b-feasibility-first-balanced-quality@2.2.0"
 POLICY_HASH = canonical_hash(
     {
         "version": POLICY,
@@ -77,6 +81,28 @@ POLICY_HASH = canonical_hash(
         "area": "FACT_ONLY_NOT_MINIMIZED_BY_COMPARATOR",
         "baseline": "PERSIST_BEFORE_TRANSITION_NEVER_REPLACED",
         "resources": "SAME_HANDOFF_SAME_MODEL_SAME_LEDGER_NO_REFILL",
+    }
+)
+FIRST_STAGE_POLICY = "stage-b-first-stage-functional-minimax@1.0.0"
+FIRST_STAGE_POLICY_HASH = canonical_hash(
+    {
+        "version": FIRST_STAGE_POLICY,
+        "guidance": SHAPE_POLICY_HASH,
+        "phase": "FINAL_COMPLETE_MODEL_BEFORE_FIRST_VALID_BASELINE",
+        "wall_span_objective": "REPLACED_NOT_WEIGHTED_OR_COMBINED",
+        "warmups_and_first_solution_termination": "UNCHANGED",
+        "continuation": "REUSE_SAME_TOTAL_DEFINITIONS",
+        "topology": "UNCHANGED_EXACT_UNION_AND_WITNESS_CUTS",
+    }
+)
+FIRST_STAGE_QUALITY_POLICY = "stage-b-first-stage-and-continuation-balanced-quality@1.0.0"
+FIRST_STAGE_QUALITY_POLICY_HASH = canonical_hash(
+    {
+        "version": FIRST_STAGE_QUALITY_POLICY,
+        "first_stage": FIRST_STAGE_POLICY_HASH,
+        "continuation": POLICY_HASH,
+        "activation": "INDEPENDENT_EXPLICIT_BOUND_POLICY_NOT_PRODUCTION_DEFAULT",
+        "resources": "ORIGINAL_FAIR_HANDOFF_SHARE_AND_LEDGER_NO_EXTRA_SOLVE",
     }
 )
 
@@ -350,6 +376,9 @@ class _BalancedNative(_FeasibilityFirstNative):
     continuation_policy = POLICY
     continuation_policy_hash = POLICY_HASH
 
+    def _shape_proxy_index(self, model: Any) -> int:
+        return len(model.m.proto.variables) - 1
+
     def _solve_with_feedback(
         self,
         context: GlobalGenerationContext,
@@ -384,7 +413,7 @@ class _BalancedNative(_FeasibilityFirstNative):
         receipt = super().begin_improvement(model, context, solver)
         self._feedback_model = model.m
         self._baseline_proxy = max(ratios)
-        self._feedback_proxy_index = len(model.m.proto.variables) - 1
+        self._feedback_proxy_index = self._shape_proxy_index(model)
         if model.m.proto.variables[self._feedback_proxy_index].name != "balanced_shape_worst":
             raise LayoutAuthorityError("STAGE_B_BALANCED_FEEDBACK_PROXY_MISMATCH")
         return {
@@ -399,17 +428,64 @@ class _BalancedNative(_FeasibilityFirstNative):
     def _apply_improvement_guidance(self, model: Any, context: Any) -> dict[str, Any]:
         return apply_balanced_shape_guidance(model, context)
 
+    def refresh_validated_hint(self, model: Any, context: Any, solver: Any) -> dict[str, Any]:
+        """Only the stream's independently accepted current assignment may guide us."""
+        if not self.improving or model.m is not self._feedback_model:
+            raise LayoutAuthorityError("STAGE_B_BALANCED_FEEDBACK_MODEL_MISMATCH")
+        variables = union_input_variables(model, solver)
+        values = [solver.value(v) for v in variables]
+        proxy = model.m.get_int_var_from_proto_index(self._feedback_proxy_index)
+        incumbent = solver.value(proxy)
+        context.ledger.charge("STAGE_B_VALIDATED_PARETO_HINT", len(variables) + 1)
+        model.m.clear_hints()
+        for variable, value in zip(variables, values, strict=True):
+            model.m.add_hint(variable, value)
+        previous = self._baseline_proxy
+        self._baseline_proxy = incumbent
+        return {
+            "policy_hash": self.continuation_policy_hash,
+            "hint_source": "CURRENT_EXECUTION_INDEPENDENTLY_VALIDATED_PARETO_INCUMBENT",
+            "hint_variables": len(variables),
+            "previous_feedback_proxy": previous,
+            "feedback_proxy": incumbent,
+            "hard_domain_changed": False,
+            "original_baseline_preserved": True,
+        }
+
 
 class StageBBalancedQualityFairSearchSolver(StageBFeasibilityFirstFairSearchSolver):
     """Only a future independently bound decision can authorize this strategy."""
 
+    quality_policy_hash = POLICY_HASH
+    native_type = _BalancedNative
+
     def start_handoff(self, ledger: Any, remaining_handoffs: int) -> None:
-        self.native = _BalancedNative(ledger, remaining_handoffs)
+        self.native = self.native_type(ledger, remaining_handoffs)
         self.baseline = None
+        self.guidance_incumbent: dict[str, Any] | None = None
+        self.pending_guidance: dict[str, Any] | None = None
+
+    def _continuation_options(self, context: Any) -> dict[str, Any]:
+        return {
+            **super()._continuation_options(context),
+            "accepted_continuation_guidance": lambda model, solver: self._refresh_validated_hint(
+                model, context, solver
+            ),
+        }
+
+    def _refresh_validated_hint(
+        self, model: Any, context: Any, solver: Any
+    ) -> dict[str, Any] | None:
+        if self.pending_guidance is None:
+            return None
+        receipt = cast(_BalancedNative, self.native).refresh_validated_hint(model, context, solver)
+        receipt["candidate_hash"] = self.pending_guidance["candidate_hash"]
+        self.pending_guidance = None
+        return receipt
 
     def solutions(self, context: Any, handoff: Any) -> Any:
         decision = getattr(context.ledger.execution_authorization, "decision", {})
-        if decision.get("balanced_quality_policy_hash") != POLICY_HASH:
+        if decision.get("balanced_quality_policy_hash") != self.quality_policy_hash:
             raise LayoutAuthorityError("STAGE_B_BALANCED_BOUND_POLICY_REQUIRED")
         return StageBFairSearchSolver.solutions(self, context, handoff)
 
@@ -421,12 +497,19 @@ class StageBBalancedQualityFairSearchSolver(StageBFeasibilityFirstFairSearchSolv
         snapshot = balanced_quality_snapshot(candidate, handoff.source_composition_hash)
         if self.baseline is None:
             self.baseline = deepcopy(snapshot)
+            self.guidance_incumbent = deepcopy(snapshot)
             comparison = {"status": "BASE_VALID_CANDIDATE_PRESERVED", "baseline": snapshot}
         else:
             comparison = {
                 **compare_balanced_quality(self.baseline, snapshot),
                 "candidate": snapshot,
             }
+        if self.guidance_incumbent is not None and (
+            compare_balanced_quality(self.guidance_incumbent, snapshot)["status"]
+            == "GEOMETRIC_PARETO_IMPROVEMENT"
+        ):
+            self.guidance_incumbent = deepcopy(snapshot)
+            self.pending_guidance = deepcopy(snapshot)
         context.ledger.execution_authorization.record_enumeration(
             {
                 "zone_plan_hash": context.binding.canonical_zone_plan_hash,
@@ -434,5 +517,62 @@ class StageBBalancedQualityFairSearchSolver(StageBFeasibilityFirstFairSearchSolv
                 "site_hash": context.binding.site_geometry_hash,
                 "composition_hash": handoff.source_composition_hash,
             },
-            {"kind": "FEASIBILITY_FIRST_QUALITY_FACTS", "policy_hash": POLICY_HASH, **comparison},
+            {
+                "kind": "FEASIBILITY_FIRST_QUALITY_FACTS",
+                "policy_hash": self.quality_policy_hash,
+                **comparison,
+            },
         )
+
+
+class _FirstStageBalancedNative(_BalancedNative):
+    """Reuse Minimax before feasibility; never optimize an unvalidated seed."""
+
+    continuation_policy = FIRST_STAGE_QUALITY_POLICY
+    continuation_policy_hash = FIRST_STAGE_QUALITY_POLICY_HASH
+
+    def _shape_proxy_index(self, model: Any) -> int:
+        return self._first_stage_proxy_index
+
+    def prepare_first_stage(self, model: Any, context: Any) -> dict[str, Any]:
+        receipt = apply_balanced_shape_guidance(model, context)
+        self._first_stage_model = model.m
+        self._first_stage_proxy_index = len(model.m.proto.variables) - 1
+        self._first_stage_receipt = deepcopy(receipt)
+        return {
+            **receipt,
+            "policy": FIRST_STAGE_POLICY,
+            "policy_hash": FIRST_STAGE_POLICY_HASH,
+            "preference_policy_hash": SHAPE_POLICY_HASH,
+            "first_solution_termination_unchanged": True,
+            "wall_span_objective_active": False,
+            "topology_pruning": False,
+        }
+
+    def _apply_improvement_guidance(self, model: Any, context: Any) -> dict[str, Any]:
+        current = cast(cp_model.CpModel, model.m)
+        if model.c is not context or current is not getattr(self, "_first_stage_model", None):
+            raise LayoutAuthorityError("STAGE_B_FIRST_STAGE_MODEL_MISMATCH")
+        # Topology refinements may append auxiliary variables after our proxy.
+        # Retain its original index and ALL existing exact witness cuts.
+        proxy = current.get_int_var_from_proto_index(self._first_stage_proxy_index)
+        if proxy.name != "balanced_shape_worst":
+            raise LayoutAuthorityError("STAGE_B_BALANCED_FEEDBACK_PROXY_MISMATCH")
+        context.ledger.charge("STAGE_B_FIRST_STAGE_PROXY_REUSE", 1)
+        current.minimize(proxy)
+        return {**self._first_stage_receipt, "definitions_reused": True}
+
+
+class StageBFirstStageBalancedQualityFairSearchSolver(StageBBalancedQualityFairSearchSolver):
+    """Independent R4 opt-in; no existing runner, selector or grant activates it.
+
+    One existing Minimax replaces wall/span guidance in the complete first-stage
+    model. No weighted sum, hard shape gate, historical coordinates or extra
+    solve. First-feasible stopping remains, so improvement is NOT guaranteed.
+    """
+
+    quality_policy_hash = FIRST_STAGE_QUALITY_POLICY_HASH
+    native_type = _FirstStageBalancedNative
+
+    def _final_guidance(self, model: Any, context: Any) -> dict[str, Any]:
+        return cast(_FirstStageBalancedNative, self.native).prepare_first_stage(model, context)

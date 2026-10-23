@@ -119,7 +119,12 @@ def test_existing_required_job_contains_both_fixed_runs_and_functional_gate():
     for name in ("run-1", "run-2"):
         assert sqlite.count(f"tests.linux_rss_gate run artifacts/linux-rss/{name}") == 1
     assert "tests.linux_rss_gate verify artifacts/linux-rss/run-1.xml" in sqlite
-    assert 'pytest -m "not physical_rss_linux"' in sqlite
+    shards = workflow.split("  backend-sqlite-shards:", 1)[1].split("  backend-architecture:", 1)[0]
+    assert ' -m "not physical_rss_linux"' in " ".join(shards.split())
+    assert "--ci-partition ${{ matrix.partition }}" in shards
+    assert "      - backend-sqlite-shards\n" in sqlite
+    assert "      - backend-partition-coverage\n" in sqlite
+    assert 'needs[name].get("result") != "success"' in sqlite
     gate = sqlite.split("# Fixed two runs", 1)[1].split("Backend tests (SQLite)", 1)[0]
     assert "continue-on-error" not in gate and "|| true" not in gate
     assert "if-no-files-found: error" in gate

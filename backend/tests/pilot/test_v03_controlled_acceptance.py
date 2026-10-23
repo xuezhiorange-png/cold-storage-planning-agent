@@ -310,8 +310,8 @@ def test_workflow_is_dispatch_only_main_bound_and_production_operation_free() ->
     assert "workflow_dispatch:" in workflow_text
     assert "pull_request:" not in workflow_text
     assert "push:" not in workflow_text
-    assert 'if: github.ref == \'refs/heads/main\'' in workflow_text
-    assert 'ref: main' in workflow_text
+    assert "if: github.ref == 'refs/heads/main'" in workflow_text
+    assert "ref: main" in workflow_text
     assert 'test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"' in workflow_text
     assert 'test "${GITHUB_REF}" = "refs/heads/main"' in workflow_text
     assert "DROP DATABASE" not in workflow_text
@@ -323,28 +323,33 @@ def test_workflow_contains_scenario_backend_matrix_for_execution_authorized_yes(
     workflow_text = WORKFLOW_FILE.read_text(encoding="utf-8")
     assert 'default: "NO"' in workflow_text
     assert 'if [ "${EXECUTION_AUTHORIZED_INPUT}" = "YES" ]; then' in workflow_text
-    assert 'for scenario in A B C; do' in workflow_text
+    assert "for scenario in A B C; do" in workflow_text
     for scenario in ("A", "B", "C"):
-        assert f'--scenario "${{scenario}}"' in workflow_text or f'--scenario "{scenario}"' in workflow_text
-    assert '--backend sqlite' in workflow_text
-    assert '--backend postgresql' in workflow_text
+        assert (
+            '--scenario "${scenario}"' in workflow_text
+            or f'--scenario "{scenario}"' in workflow_text
+        )
+    assert "--backend sqlite" in workflow_text
+    assert "--backend postgresql" in workflow_text
     assert "--execution-authorized" in workflow_text
     assert "--database-url" in workflow_text
     assert "pgvector/pgvector:pg16" in workflow_text
     assert "CONTROLLED_ACCEPTANCE_SCENARIO_MATRIX_EXECUTED=YES" in workflow_text
     assert "CONTROLLED_ACCEPTANCE_EXECUTION_REFUSED=YES" in workflow_text
-    assert '--scenario A' in workflow_text
+    assert "--scenario A" in workflow_text
     assert "scenario execution must fail closed without explicit authorization" in workflow_text
 
 
 def test_workflow_does_not_modify_p1_workflow_file() -> None:
-    p1_workflow = (REPO_ROOT / ".github/workflows/v0-3-p1-review-formal-report-acceptance.yml").read_text(
-        encoding="utf-8"
-    )
+    p1_workflow = (
+        REPO_ROOT / ".github/workflows/v0-3-p1-review-formal-report-acceptance.yml"
+    ).read_text(encoding="utf-8")
     assert "v03-p1-review-formal-report-acceptance" in p1_workflow
 
 
-def test_runner_respects_env_execution_authorization_flag(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_runner_respects_env_execution_authorization_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv(EXECUTION_AUTHORIZATION_ENV, "YES")
     output = tmp_path / "blocked-authorized.json"
     completed = subprocess.run(
@@ -416,17 +421,17 @@ def test_execute_scenario_a_on_fresh_sqlite(tmp_path: Path) -> None:
 
 
 def test_execute_scenario_a_fails_closed_when_report_stays_draft(tmp_path: Path) -> None:
+    from cold_storage.evaluation.v03_controlled_acceptance import (
+        ScenarioAExecutionBinding,
+        ScenarioExecutionSupport,
+        execute_scenario,
+    )
     from tests.evaluation._seed_helpers import (
         SOURCE_BINDING_ID,
         WEIGHT_REVISION_ID,
         seed_a1_all_prereqs,
     )
     from tests.pilot.run_v03_controlled_acceptance import _provision_sqlite_database
-    from cold_storage.evaluation.v03_controlled_acceptance import (
-        ScenarioAExecutionBinding,
-        ScenarioExecutionSupport,
-        execute_scenario,
-    )
 
     support = ScenarioExecutionSupport(
         scenario_a=ScenarioAExecutionBinding(
@@ -457,8 +462,7 @@ def test_execute_scenario_a_fails_closed_when_report_stays_draft(tmp_path: Path)
     assert exc_info.value.details["report_status_after_generate_revision"] == "draft"
     blockers = exc_info.value.details["quality_blockers_after_generate_revision"]
     assert any(
-        blocker.get("field_path") == "scheme_comparison.recommended_scheme"
-        for blocker in blockers
+        blocker.get("field_path") == "scheme_comparison.recommended_scheme" for blocker in blockers
     )
 
 
@@ -596,18 +600,15 @@ def test_assemble_release_evidence_from_locked_stage9_fixture() -> None:
     }
     assert section_7["10_unresolved_blockers"] == []
     assert payload["harness_authorization_flags_remain_no"]["V0_3_TAG_AUTHORIZED"] == "NO"
-    assert (
-        section_7["9_operator_authorization_record"]["stage9_workflow_run_id"]
-        == "32627831343"
-    )
+    assert section_7["9_operator_authorization_record"]["stage9_workflow_run_id"] == "32627831343"
 
 
 def test_assemble_release_evidence_contains_contract_section_7_items() -> None:
     from cold_storage.evaluation.v03_controlled_acceptance import assemble_release_evidence
 
-    section_7 = assemble_release_evidence(
-        stage9_evidence_root=STAGE9_EVIDENCE_FIXTURE_ROOT
-    )["contract_section_7"]
+    section_7 = assemble_release_evidence(stage9_evidence_root=STAGE9_EVIDENCE_FIXTURE_ROOT)[
+        "contract_section_7"
+    ]
     expected_keys = {
         "1_main_sha_tree",
         "2_scenario_backend_matrix",

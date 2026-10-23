@@ -206,6 +206,13 @@ jobs:
       - lightweight
       - backend-sqlite
       - backend-postgresql
+      - backend-sqlite-shards
+      - backend-postgresql-shards
+      - backend-postgresql-integration
+      - backend-architecture
+      - backend-lint
+      - backend-mypy
+      - backend-partition-coverage
       - frontend
       - compose-config
       - release-evidence
@@ -790,10 +797,17 @@ jobs:
 
           docker stop "backend-${STAMP}" >/dev/null 2>&1 || true
 
-  backend-sqlite:
+  # Each matrix child has its own runner and database. Do not fail-fast:
+  # all manifests are required, and skipped/cancelled dependencies fail closed.
+  backend-sqlite-shards:
     needs: classify-changes
     if: ${{ needs.classify-changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        partition: [general-0, general-1, general-2, general-3, composition]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -829,40 +843,207 @@ jobs:
             fi
           done
           exit 1
-      # Fixed two runs, not a retry loop. These steps are part of the existing
-      # required backend-sqlite job and therefore the final ci-gate.
-      - name: Linux physical RSS independent worker 1
-        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run python -m tests.linux_rss_gate run artifacts/linux-rss/run-1
-      - name: Linux physical RSS independent worker 2
-        if: ${{ !cancelled() }}
-        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run python -m tests.linux_rss_gate run artifacts/linux-rss/run-2
-      - name: Require two real Linux RSS overlimit rejections
-        run: cd backend && uv run python -m tests.linux_rss_gate verify artifacts/linux-rss/run-1.xml artifacts/linux-rss/run-2.xml
-      - name: Linux physical RSS worker isolation regressions
-        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run pytest tests/unit/test_stage_a_resource_process.py -m physical_rss_linux
-      - name: Preserve Linux RSS measurements and JUnit
+      - name: Backend partition (sqlite)
+        run: >-
+          cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run python -m pytest
+          -p tests.ci_partition --ci-backend sqlite
+          --ci-partition ${{ matrix.partition }}
+          --ci-manifest artifacts/ci-sqlite-${{ matrix.partition }}.json
+          --durations=30 --durations-min=1
+          -m "not physical_rss_linux"
+      - name: Preserve partition execution manifest
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: linux-physical-rss-${{ github.run_id }}
-          path: backend/artifacts/linux-rss/
+          name: ci-partition-sqlite-${{ matrix.partition }}-${{ github.run_attempt }}
+          path: backend/artifacts/ci-sqlite-${{ matrix.partition }}.json
           if-no-files-found: error
-      - name: Backend tests (SQLite)
-        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run pytest -m "not physical_rss_linux"
-      - name: Backend architecture tests
-        run: cd backend && PYTHONPATH=src uv run pytest tests/architecture
+
+  backend-architecture:
+    needs: classify-changes
+    if: ${{ needs.classify-changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v4
+      - name: Backend install
+        run: cd backend && uv sync
+      - name: Install CJK font
+        run: |
+          set -euo pipefail
+          for attempt in 1 2; do
+            if timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              update && \
+              timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              install -y fonts-wqy-zenhei; then
+              exit 0
+            fi
+            if [ "${attempt}" -lt 2 ]; then
+              sleep 5
+            fi
+          done
+          exit 1
+      # Keep the original SQLite selectors: the plugin records the complete
+      # pre-partition suite, then selects architecture nodes only.
+      - name: Backend partition (sqlite)
+        run: >-
+          cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run python -m pytest
+          -p tests.ci_partition --ci-backend sqlite
+          --ci-partition architecture
+          --ci-manifest artifacts/ci-sqlite-architecture.json
+          -m "not physical_rss_linux"
+      - name: Preserve partition execution manifest
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-partition-sqlite-architecture-${{ github.run_attempt }}
+          path: backend/artifacts/ci-sqlite-architecture.json
+          if-no-files-found: error
+
+  backend-lint:
+    needs: classify-changes
+    if: ${{ needs.classify-changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v4
+      - name: Backend install
+        run: cd backend && uv sync
       - name: Backend lint
         run: cd backend && uv run ruff check . && uv run ruff format --check .
-      - name: Backend typecheck
-        run: cd backend && uv run mypy src
-      - name: CI scripts lint and typecheck
+      - name: CI scripts lint
         run: |
           cd backend
           uv run ruff check --config pyproject.toml ../scripts/ci
           uv run ruff format --check --config pyproject.toml ../scripts/ci
-          uv run mypy --strict ../scripts/ci/classify_changes.py ../scripts/ci/ci_gate.py
 
-  backend-postgresql:
+  backend-mypy:
+    needs: classify-changes
+    if: ${{ needs.classify-changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v4
+      - name: Backend install
+        run: cd backend && uv sync
+      - name: Backend typecheck
+        run: cd backend && uv run mypy src
+      - name: CI scripts typecheck
+        run: cd backend && uv run mypy --strict ../scripts/ci/classify_changes.py ../scripts/ci/ci_gate.py
+
+  backend-postgresql-shards:
+    needs: classify-changes
+    if: ${{ needs.classify-changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        partition: [general-0, general-1, general-2, general-3]
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+          POSTGRES_DB: cold_storage_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U cold_storage"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v4
+      - name: Backend install
+        run: cd backend && uv sync
+      - name: Alembic upgrade (PostgreSQL)
+        env:
+          DATABASE_BACKEND: postgresql
+          DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: cold_storage_test
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+        run: cd backend && PYTHONPATH=src uv run alembic upgrade head
+      - name: Alembic downgrade/re-upgrade roundtrip (PostgreSQL)
+        env:
+          DATABASE_BACKEND: postgresql
+          DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: cold_storage_test
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+        run: |
+          cd backend
+          PYTHONPATH=src uv run alembic downgrade 0013_add_templates_artifacts
+          PYTHONPATH=src uv run alembic upgrade head
+      - name: Install CJK font
+        run: |
+          set -euo pipefail
+          for attempt in 1 2; do
+            if timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              update && \
+              timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              install -y fonts-wqy-zenhei; then
+              exit 0
+            fi
+            if [ "${attempt}" -lt 2 ]; then
+              sleep 5
+            fi
+          done
+          exit 1
+      # The plugin alone owns the exact documented DB-independent composition
+      # exclusions; shared_with_sqlite must be verified against SQLite execution.
+      - name: Backend partition (postgresql)
+        env:
+          DATABASE_BACKEND: postgresql
+          DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: cold_storage_test
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+        run: >-
+          cd backend && PYTHONPATH=src uv run python -m pytest
+          -p tests.ci_partition --ci-backend postgresql
+          --ci-partition ${{ matrix.partition }}
+          --ci-manifest artifacts/ci-postgresql-${{ matrix.partition }}.json
+          --durations=30 --durations-min=1
+          -m "not physical_rss_linux" -k "not architecture and not postgresql and not sqlite"
+      - name: Preserve partition execution manifest
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-partition-postgresql-${{ matrix.partition }}-${{ github.run_attempt }}
+          path: backend/artifacts/ci-postgresql-${{ matrix.partition }}.json
+          if-no-files-found: error
+
+  backend-postgresql-integration:
     needs: classify-changes
     if: ${{ needs.classify-changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
@@ -974,16 +1155,149 @@ jobs:
               tests/integration/test_orchestration_attempt_races_postgresql.py \
               -q
           done
-      - name: Backend tests (PostgreSQL)
+
+  backend-partition-coverage:
+    needs:
+      - classify-changes
+      - backend-sqlite-shards
+      - backend-architecture
+      - backend-postgresql-shards
+    if: ${{ always() && needs.classify-changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every backend dependency to succeed
         env:
-          DATABASE_BACKEND: postgresql
-          DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          POSTGRES_DB: cold_storage_test
-          POSTGRES_USER: cold_storage
-          POSTGRES_PASSWORD: cold_storage
-        run: cd backend && PYTHONPATH=src uv run pytest -m "not physical_rss_linux" -k "not architecture and not postgresql and not sqlite"
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          expected = ["classify-changes","backend-sqlite-shards","backend-architecture","backend-postgresql-shards"]
+          needs = json.loads(os.environ["CI_NEEDS"])
+          if set(needs) != set(expected) or any(
+              needs[name].get("result") != "success" for name in expected
+          ):
+              raise SystemExit("Backend dependencies failed, cancelled, skipped, or missing")
+          PY
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v4
+      - name: Backend install
+        run: cd backend && uv sync
+      - name: Download all partition manifests from this attempt
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ci-partition-*-${{ github.run_attempt }}
+          path: backend/artifacts/ci-partitions
+          merge-multiple: true
+      - name: Require exact collection and execution coverage
+        run: cd backend && uv run python ../scripts/ci/verify_partitions.py artifacts/ci-partitions
+
+  backend-sqlite:
+    needs:
+      - classify-changes
+      - backend-sqlite-shards
+      - backend-architecture
+      - backend-lint
+      - backend-mypy
+      - backend-partition-coverage
+    if: ${{ always() && needs.classify-changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every backend dependency to succeed
+        env:
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          expected = ["classify-changes","backend-sqlite-shards","backend-architecture","backend-lint","backend-mypy","backend-partition-coverage"]
+          needs = json.loads(os.environ["CI_NEEDS"])
+          if set(needs) != set(expected) or any(
+              needs[name].get("result") != "success" for name in expected
+          ):
+              raise SystemExit("Backend dependencies failed, cancelled, skipped, or missing")
+          PY
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v4
+      - name: Backend install
+        run: cd backend && uv sync
+      - name: Alembic upgrade (SQLite)
+        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run alembic upgrade head
+      - name: Alembic downgrade/re-upgrade roundtrip (SQLite)
+        run: |
+          cd backend
+          PYTHONPATH=src DATABASE_BACKEND=sqlite uv run alembic downgrade 0013_add_templates_artifacts
+          PYTHONPATH=src DATABASE_BACKEND=sqlite uv run alembic upgrade head
+      - name: Install CJK font
+        run: |
+          set -euo pipefail
+          for attempt in 1 2; do
+            if timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              update && \
+              timeout 180s sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=30 \
+              -o Acquire::https::Timeout=30 \
+              install -y fonts-wqy-zenhei; then
+              exit 0
+            fi
+            if [ "${attempt}" -lt 2 ]; then
+              sleep 5
+            fi
+          done
+          exit 1
+      # Fixed two runs, not a retry loop. These steps are part of the existing
+      # required backend-sqlite job and therefore the final ci-gate.
+      - name: Linux physical RSS independent worker 1
+        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run python -m tests.linux_rss_gate run artifacts/linux-rss/run-1
+      - name: Linux physical RSS independent worker 2
+        if: ${{ !cancelled() }}
+        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run python -m tests.linux_rss_gate run artifacts/linux-rss/run-2
+      - name: Require two real Linux RSS overlimit rejections
+        run: cd backend && uv run python -m tests.linux_rss_gate verify artifacts/linux-rss/run-1.xml artifacts/linux-rss/run-2.xml
+      - name: Linux physical RSS worker isolation regressions
+        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run pytest tests/unit/test_stage_a_resource_process.py -m physical_rss_linux
+      - name: Preserve Linux RSS measurements and JUnit
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-physical-rss-${{ github.run_id }}
+          path: backend/artifacts/linux-rss/
+          if-no-files-found: error
+
+  backend-postgresql:
+    needs:
+      - classify-changes
+      - backend-postgresql-shards
+      - backend-postgresql-integration
+      - backend-architecture
+      - backend-lint
+      - backend-mypy
+      - backend-partition-coverage
+    if: ${{ always() && needs.classify-changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every backend dependency to succeed
+        env:
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          expected = ["classify-changes","backend-postgresql-shards","backend-postgresql-integration","backend-architecture","backend-lint","backend-mypy","backend-partition-coverage"]
+          needs = json.loads(os.environ["CI_NEEDS"])
+          if set(needs) != set(expected) or any(
+              needs[name].get("result") != "success" for name in expected
+          ):
+              raise SystemExit("Backend dependencies failed, cancelled, skipped, or missing")
+          PY
 
   frontend:
     needs: classify-changes
