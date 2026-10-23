@@ -96,6 +96,182 @@ def snapshot(**updates):
     }
 
 
+def test_r3_guidance_accepts_only_pareto_improvement_over_validated_incumbent(monkeypatch):
+    context, _, lease = context_and_model()
+    port = balanced.StageBBalancedQualityFairSearchSolver()
+    port.start_handoff(context.ledger, 1)
+    monkeypatch.setattr(balanced, "balanced_quality_snapshot", lambda candidate, _: candidate)
+    handoff = SimpleNamespace(source_composition_hash="synthetic-handoff")
+    baseline = snapshot()
+    better = snapshot(office_aspect="3", worst_room_aspect="3", footprint_perimeter_m="90")
+    port.observe_validated_candidate(context, handoff, baseline, "ENGINEERING_ACCEPTED")
+    port.observe_validated_candidate(context, handoff, better, "ENGINEERING_REJECTED")
+    assert port.pending_guidance is None and port.guidance_incumbent == baseline
+    port.observe_validated_candidate(context, handoff, better, "ENGINEERING_ACCEPTED")
+    assert port.baseline == baseline and port.guidance_incumbent == better
+    port.pending_guidance = None  # Model refresh is tested separately below.
+    # Better than the original baseline but WORSE perimeter than the incumbent.
+    tradeoff = snapshot(office_aspect="2", worst_room_aspect="3", footprint_perimeter_m="95")
+    port.observe_validated_candidate(context, handoff, tradeoff, "ENGINEERING_ACCEPTED")
+    assert port.guidance_incumbent == better and port.pending_guidance is None
+    assert port.baseline == baseline
+    assert lease.events[-1]["baseline_candidate_hash"] == baseline["candidate_hash"]
+
+
+@pytest.mark.parametrize("unusable", ["INCOMPLETE", "OTHER_HANDOFF", "OTHER_ORGANIZATION"])
+def test_r3_unusable_quality_evidence_cannot_update_search_hint(monkeypatch, unusable):
+    context, _, _ = context_and_model()
+    port = balanced.StageBBalancedQualityFairSearchSolver()
+    port.start_handoff(context.ledger, 1)
+    monkeypatch.setattr(balanced, "balanced_quality_snapshot", lambda candidate, _: candidate)
+    handoff = SimpleNamespace(source_composition_hash="synthetic-handoff")
+    port.observe_validated_candidate(context, handoff, snapshot(), "ENGINEERING_ACCEPTED")
+    candidate = snapshot(office_aspect="3", footprint_perimeter_m="90")
+    if unusable == "INCOMPLETE":
+        candidate["metrics"]["personnel_route_m"] = None
+    elif unusable == "OTHER_HANDOFF":
+        candidate["composition_hash"] = "other"
+    else:
+        candidate["functional_diversity"]["meaningful_construction_hash"] = "other"
+    port.observe_validated_candidate(context, handoff, candidate, "ENGINEERING_ACCEPTED")
+    assert port.pending_guidance is None
+
+
+def test_r3_millimetric_changing_gain_remains_tradeoff_not_pareto():
+    before = snapshot(
+        changing_room_aspect="40942/977",
+        worst_room_aspect="40942/977",
+        footprint_perimeter_m="482.522",
+        footprint_outline_turn_count=44,
+        footprint_reflex_corner_count=20,
+        personnel_route_m="39.037",
+    )
+    after = deepcopy(before)
+    after["metrics"].update(
+        changing_room_aspect="20471/489",
+        worst_room_aspect="20471/489",
+        footprint_perimeter_m="502.622",
+        footprint_outline_turn_count=46,
+        footprint_reflex_corner_count=21,
+        personnel_route_m="39.036",
+    )
+    assert balanced.compare_balanced_quality(before, after)["status"] == "QUALITY_TRADEOFF"
+
+
+def test_r3_hint_and_feedback_reference_change_only_soft_guidance():
+    context, model, _ = context_and_model([((1, 1), (4, 4))] * 3)
+    model.interfaces, model.routes = [], []
+    for room in model.rooms.values():
+        room.update(x=model.m.new_constant(0), y=model.m.new_constant(0))
+    balanced.apply_balanced_shape_guidance(model, context)
+    solver = solve(model.m)
+    engine = balanced._BalancedNative(context.ledger, 1)
+    engine.improving = True
+    engine._feedback_model = model.m
+    engine._feedback_proxy_index = variable(model.m, "balanced_shape_worst").index
+    engine._baseline_proxy = 8000
+    constraints = [str(c) for c in model.m.proto.constraints]
+    objective = str(model.m.proto.objective)
+    receipt = engine.refresh_validated_hint(model, context, solver)
+    assert receipt["previous_feedback_proxy"] == 8000
+    assert engine._baseline_proxy == receipt["feedback_proxy"] == 4000
+    assert [str(c) for c in model.m.proto.constraints] == constraints
+    assert str(model.m.proto.objective) == objective
+    assert not receipt["hard_domain_changed"]
+    assert len(model.m.proto.solution_hint.vars) == receipt["hint_variables"]
+    assert context.ledger.resource_events["STAGE_B_VALIDATED_PARETO_HINT"] == (
+        receipt["hint_variables"] + 1
+    )
+    assert solve(model.m).value(variable(model.m, "balanced_shape_worst")) == 4000
+
+
+def test_r3_hint_batch_failure_leaves_hint_and_reference_unchanged():
+    context, model, _ = context_and_model()
+    model.interfaces, model.routes = [], []
+    for room in model.rooms.values():
+        room.update(x=model.m.new_constant(0), y=model.m.new_constant(0))
+    balanced.apply_balanced_shape_guidance(model, context)
+    solver = solve(model.m)
+    engine = balanced._BalancedNative(context.ledger, 1)
+    engine.improving = True
+    engine._feedback_model = model.m
+    engine._feedback_proxy_index = variable(model.m, "balanced_shape_worst").index
+    engine._baseline_proxy = 8000
+    model.m.add_hint(variable(model.m, "balanced_shape_worst"), 1000)
+    before = str(model.m.proto.solution_hint)
+    context.ledger.model_work = 1_200_000
+    with pytest.raises(LayoutAuthorityError, match="RESOURCE_LIMIT"):
+        engine.refresh_validated_hint(model, context, solver)
+    assert str(model.m.proto.solution_hint) == before and engine._baseline_proxy == 8000
+    assert context.ledger.model_work == 1_200_000
+
+
+def test_r3_policy_identity_rejects_consumed_r2_strategy():
+    assert balanced.POLICY_HASH != (
+        "sha256:201bf90a47095fe6831ca7ea6c41b42c24fc82006cb9683a6508b3ac9d1cb06e"
+    )
+    assert balanced.SHAPE_POLICY_HASH == (
+        "sha256:4f03968760711b1ab090fbcabc2d45ea367428065ec23a47d6986671b7c3ddb0"
+    )
+    assert balanced.COMPARISON_POLICY == "same-handoff-exact-nine-metric-pareto@1.0.0"
+
+
+def test_r3_validated_reference_skips_proxy_values_worse_than_known_good_incumbent():
+    # Same tiny objective/order; only the accepted incumbent reference differs.
+    observed = []
+    for reference in (10, 7):
+        model = cp_model.CpModel()
+        proxy = model.new_int_var(0, 10, "synthetic_proxy")
+        model.minimize(proxy)
+        model.add_decision_strategy([proxy], cp_model.CHOOSE_FIRST, cp_model.SELECT_MAX_VALUE)
+        callback = balanced._FirstImprovingWitness(proxy, reference, lambda *_: None)
+        solver = cp_model.CpSolver()
+        solver.parameters.num_search_workers = 1
+        solver.parameters.cp_model_presolve = False
+        solver.parameters.search_branching = cp_model.FIXED_SEARCH
+        assert solver.solve(model, callback) == cp_model.FEASIBLE
+        observed.append(solver.value(proxy))
+        assert not callback.receipt()["engineering_validated"]
+    assert observed == [9, 6]
+
+
+def test_r3_continuation_hint_hook_runs_only_after_accepted_improvement_feedback(monkeypatch):
+    context, lease = feasibility_context(monkeypatch)
+    lease.decision = {"balanced_quality_policy_hash": balanced.POLICY_HASH}
+
+    class NamedModel(TinyModel):
+        def __init__(self, *args):
+            super().__init__(*args)
+            self.c = args[0]
+            for role, room in self.rooms.items():
+                for side in ("w", "d"):
+                    room[side].proto.name = role + "_physical_" + side
+
+    monkeypatch.setattr(native, "GlobalModel", NamedModel)
+    monkeypatch.setattr(native, "AccessModel", NamedModel)
+    port = balanced.StageBBalancedQualityFairSearchSolver()
+    port.start_handoff(context.ledger, 1)
+    calls = []
+
+    def observed(model, ctx, solver):
+        calls.append((model, ctx, solver))
+        return {"policy_hash": balanced.POLICY_HASH, "synthetic_test_only": True}
+
+    monkeypatch.setattr(port, "_refresh_validated_hint", observed)
+    stream = port.solutions(context, SimpleNamespace(source_composition_hash="synthetic-handoff"))
+    baseline = deepcopy(next(stream))
+    assert not calls
+    second = stream.send("ENGINEERING_ACCEPTED")
+    assert second["search_stage"] == "BOUNDED_QUALITY_IMPROVEMENT" and not calls
+    stream.send("ENGINEERING_ACCEPTED")
+    assert len(calls) == 1
+    assert any(e["kind"] == "VALIDATED_QUALITY_HINT_UPDATED" for e in lease.events)
+    stream.send("ENGINEERING_REJECTED")
+    assert len(calls) == 1
+    assert baseline["search_stage"] == "FEASIBILITY_FIRST"
+    stream.close()
+
+
 def diagnostic_candidate(office=(1, 8), route_length=3):
     candidate = synthetic_quality_candidate(office, route_length)
     candidate.update(snapshot()["authority_hashes"])

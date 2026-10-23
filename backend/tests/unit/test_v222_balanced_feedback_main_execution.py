@@ -44,19 +44,22 @@ def test_actual_normalized_scope_is_pinned_and_requires_future_execution_confirm
     assert main.TASK.encode() in raw and OLD_BALANCED_TASK.encode() not in raw
     assert b"EXECUTION_REQUIRES_SEPARATE_OWNER_EXACT_HEAD_CONFIRMATION=true\n" in raw
     assert b"PREPARATION_AUTHORIZES_GRANT_OR_CLAIM_CREATION=false\n" in raw
-    assert main.POLICY_HASH == (
+    assert main.POLICY_HASH != (
         "sha256:201bf90a47095fe6831ca7ea6c41b42c24fc82006cb9683a6508b3ac9d1cb06e"
     )
-    assert main.FEEDBACK_POLICY_HASH == (
+    assert main.FEEDBACK_POLICY_HASH != (
         "sha256:78b6566b21568cba14b4f8ef574bb6db30e3d7e381aefbdd6bf0139c8792155e"
     )
     # Original verifier, actual normalized bytes, only a temporary synthetic repo.
     _, common = _fair_registry(tmp_path)
     common["runtime_dependency_hash"] = "SYNTHETIC_NO_INSTALLED_DEPENDENCIES"
     store = main.BalancedMainStore(tmp_path / "synthetic-pinned-scope-only")
-    store.approve(raw, main.main_binding(common))
-    store.require_unclaimed_grant()
-    store.validate_existing_binding(raw, main.main_binding(common))
+    obsolete = main.main_binding(common)
+    obsolete["balanced_quality_policy_hash"] = (
+        "sha256:201bf90a47095fe6831ca7ea6c41b42c24fc82006cb9683a6508b3ac9d1cb06e"
+    )
+    with pytest.raises(LayoutAuthorityError, match="POLICY_OR_SOURCE"):
+        store.approve(raw, obsolete)
     assert not (store.root / "task_ledger.json").exists()
     assert not list(store.root.glob("pool_*_claim.json"))
 
