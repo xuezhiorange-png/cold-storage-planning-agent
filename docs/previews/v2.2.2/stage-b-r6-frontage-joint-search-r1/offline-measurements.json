@@ -1,0 +1,294 @@
+{
+  "preparation": {
+    "scope": "FULL_MODEL_BUILD_AND_PREPARATION_ONLY_NO_NATIVE",
+    "input": "FROZEN_20T_REGRESSION_BUILD_ONLY",
+    "baseline": "f38f98c3a36346bc0837939558ee2d9936b5687b",
+    "paired_samples": [
+      {
+        "repeat": 1,
+        "kind": "R5",
+        "work": 104383,
+        "preparation_seconds": 0.2685632089851424,
+        "variables": 27400,
+        "constraints": 38760,
+        "events": {
+          "MODEL_ROLE_VARIABLES": 144,
+          "MODEL_OBSTACLE_SEPARATION": 144,
+          "MODEL_MUST_DISJUNCTION": 84,
+          "MODEL_INTERFACE_CASE": 400,
+          "MODEL_ROUTE_ROOM_SEPARATION": 4320,
+          "MODEL_ROUTE_OBSTACLE": 1080,
+          "MODEL_ROUTE_COEXISTENCE": 16020,
+          "R5_MODEL_FACTS_READ": 82164,
+          "R5_TOTAL_DEFINITIONS": 27
+        }
+      },
+      {
+        "repeat": 1,
+        "kind": "R6",
+        "work": 49975,
+        "preparation_seconds": 0.3257037909934297,
+        "variables": 27400,
+        "constraints": 38760,
+        "events": {
+          "MODEL_ROLE_VARIABLES": 144,
+          "R6_CREATED_DOMAIN_FACT": 27400,
+          "MODEL_OBSTACLE_SEPARATION": 144,
+          "MODEL_MUST_DISJUNCTION": 84,
+          "MODEL_INTERFACE_CASE": 400,
+          "MODEL_ROUTE_ROOM_SEPARATION": 4320,
+          "MODEL_ROUTE_OBSTACLE": 1080,
+          "R6_IMPLICIT_CONSTANT_READ": 3,
+          "MODEL_ROUTE_COEXISTENCE": 16020,
+          "R6_FRONTAGE_REFERENCE_READ": 166,
+          "R6_FRONTAGE_STRATEGY_WRITE": 166,
+          "R6_PHYSICAL_FACTS_READ": 21,
+          "R5_TOTAL_DEFINITIONS": 27
+        }
+      },
+      {
+        "repeat": 2,
+        "kind": "R6",
+        "work": 49975,
+        "preparation_seconds": 0.3152082499873359,
+        "variables": 27400,
+        "constraints": 38760,
+        "events": {
+          "MODEL_ROLE_VARIABLES": 144,
+          "R6_CREATED_DOMAIN_FACT": 27400,
+          "MODEL_OBSTACLE_SEPARATION": 144,
+          "MODEL_MUST_DISJUNCTION": 84,
+          "MODEL_INTERFACE_CASE": 400,
+          "MODEL_ROUTE_ROOM_SEPARATION": 4320,
+          "MODEL_ROUTE_OBSTACLE": 1080,
+          "R6_IMPLICIT_CONSTANT_READ": 3,
+          "MODEL_ROUTE_COEXISTENCE": 16020,
+          "R6_FRONTAGE_REFERENCE_READ": 166,
+          "R6_FRONTAGE_STRATEGY_WRITE": 166,
+          "R6_PHYSICAL_FACTS_READ": 21,
+          "R5_TOTAL_DEFINITIONS": 27
+        }
+      },
+      {
+        "repeat": 2,
+        "kind": "R5",
+        "work": 104383,
+        "preparation_seconds": 0.2584360829787329,
+        "variables": 27400,
+        "constraints": 38760,
+        "events": {
+          "MODEL_ROLE_VARIABLES": 144,
+          "MODEL_OBSTACLE_SEPARATION": 144,
+          "MODEL_MUST_DISJUNCTION": 84,
+          "MODEL_INTERFACE_CASE": 400,
+          "MODEL_ROUTE_ROOM_SEPARATION": 4320,
+          "MODEL_ROUTE_OBSTACLE": 1080,
+          "MODEL_ROUTE_COEXISTENCE": 16020,
+          "R5_MODEL_FACTS_READ": 82164,
+          "R5_TOTAL_DEFINITIONS": 27
+        }
+      },
+      {
+        "repeat": 3,
+        "kind": "R5",
+        "work": 104383,
+        "preparation_seconds": 0.2600913330097683,
+        "variables": 27400,
+        "constraints": 38760,
+        "events": {
+          "MODEL_ROLE_VARIABLES": 144,
+          "MODEL_OBSTACLE_SEPARATION": 144,
+          "MODEL_MUST_DISJUNCTION": 84,
+          "MODEL_INTERFACE_CASE": 400,
+          "MODEL_ROUTE_ROOM_SEPARATION": 4320,
+          "MODEL_ROUTE_OBSTACLE": 1080,
+          "MODEL_ROUTE_COEXISTENCE": 16020,
+          "R5_MODEL_FACTS_READ": 82164,
+          "R5_TOTAL_DEFINITIONS": 27
+        }
+      },
+      {
+        "repeat": 3,
+        "kind": "R6",
+        "work": 49975,
+        "preparation_seconds": 0.32007424999028444,
+        "variables": 27400,
+        "constraints": 38760,
+        "events": {
+          "MODEL_ROLE_VARIABLES": 144,
+          "R6_CREATED_DOMAIN_FACT": 27400,
+          "MODEL_OBSTACLE_SEPARATION": 144,
+          "MODEL_MUST_DISJUNCTION": 84,
+          "MODEL_INTERFACE_CASE": 400,
+          "MODEL_ROUTE_ROOM_SEPARATION": 4320,
+          "MODEL_ROUTE_OBSTACLE": 1080,
+          "R6_IMPLICIT_CONSTANT_READ": 3,
+          "MODEL_ROUTE_COEXISTENCE": 16020,
+          "R6_FRONTAGE_REFERENCE_READ": 166,
+          "R6_FRONTAGE_STRATEGY_WRITE": 166,
+          "R6_PHYSICAL_FACTS_READ": 21,
+          "R5_TOTAL_DEFINITIONS": 27
+        }
+      }
+    ],
+    "medians": {
+      "R5": {
+        "work": 104383,
+        "seconds": 0.2600913330097683
+      },
+      "R6": {
+        "work": 49975,
+        "seconds": 0.32007424999028444
+      }
+    },
+    "six_handoff_exact_base_proto_parity": [
+      {
+        "ordinal": 0,
+        "physical_and_auxiliary_domains_constraints_objective_identical": true,
+        "native_solve": false
+      },
+      {
+        "ordinal": 1,
+        "physical_and_auxiliary_domains_constraints_objective_identical": true,
+        "native_solve": false
+      },
+      {
+        "ordinal": 2,
+        "physical_and_auxiliary_domains_constraints_objective_identical": true,
+        "native_solve": false
+      },
+      {
+        "ordinal": 3,
+        "physical_and_auxiliary_domains_constraints_objective_identical": true,
+        "native_solve": false
+      },
+      {
+        "ordinal": 4,
+        "physical_and_auxiliary_domains_constraints_objective_identical": true,
+        "native_solve": false
+      },
+      {
+        "ordinal": 5,
+        "physical_and_auxiliary_domains_constraints_objective_identical": true,
+        "native_solve": false
+      }
+    ],
+    "warmups_retained": 4,
+    "warmup_clones_retained": 3,
+    "native_calls": 0,
+    "exclusions": "server input binding and final C++ validate outside paired timing; both identical and still performed"
+  },
+  "physical_hint": {
+    "scope": "SYNTHETIC_PHYSICAL_MODEL_1000_UNUSED_AUXILIARIES",
+    "samples": [
+      {
+        "kind": "R5",
+        "seconds": 0.0059773329994641244,
+        "model_variables": 1007,
+        "hint_writes": 1007,
+        "work": 1007,
+        "events": {
+          "STAGE_B_CURRENT_VALID_ASSIGNMENT_HINT": 1007
+        }
+      },
+      {
+        "kind": "R6",
+        "seconds": 7.308399653993547e-05,
+        "model_variables": 1007,
+        "hint_writes": 7,
+        "work": 19,
+        "events": {
+          "R6_PHYSICAL_HINT_REFERENCE": 12,
+          "R6_CURRENT_VALID_PHYSICAL_HINT": 7
+        }
+      }
+    ]
+  },
+  "warmup": {
+    "scope": "CONSTRUCTION_AND_CLONE_ONLY_NO_NATIVE",
+    "global_build_seconds": 0.004820499976631254,
+    "global_build_work": 772,
+    "clones": [
+      {
+        "phase": "ALL_ROOM_GEOMETRY_HINT",
+        "clone_seconds": 0.00026108301244676113,
+        "variables": 600,
+        "constraints": 889
+      },
+      {
+        "phase": "ALL_ROOM_MUST_HINT",
+        "clone_seconds": 0.00032579101389274,
+        "variables": 600,
+        "constraints": 889
+      },
+      {
+        "phase": "COMPOSITION_PACKAGING_HINT",
+        "clone_seconds": 0.00021737499628216028,
+        "variables": 600,
+        "constraints": 889
+      }
+    ],
+    "original_clone_work": 0,
+    "access_hint_build_seconds": 0.1907395419839304,
+    "access_hint_build_work": 22192,
+    "all_four_warmup_native_phases_retained": true,
+    "necessary_to_remove_not_proven": true,
+    "notes": "Original clone operation has no dedicated charge. R6 neither removes its measured time nor changes accounting; no warmup Solve executed."
+  },
+  "sealed_readback": {
+    "source_files": 223,
+    "registry_files": 60,
+    "all_sha256_unchanged": true,
+    "valid_candidate_count": 14,
+    "rejected": [
+      {
+        "experiment": "R2",
+        "sequence": 4,
+        "original_certificate_matches": true,
+        "error": "ENCLOSED_HOLE",
+        "hole_count": 2
+      },
+      {
+        "experiment": "R2",
+        "sequence": 5,
+        "original_certificate_matches": true,
+        "error": "ENCLOSED_HOLE",
+        "hole_count": 2
+      },
+      {
+        "experiment": "R4",
+        "sequence": 29,
+        "original_certificate_matches": true,
+        "error": "ENCLOSED_HOLE",
+        "hole_count": 1
+      },
+      {
+        "experiment": "R5",
+        "sequence": 28,
+        "original_certificate_matches": true,
+        "error": "ENCLOSED_HOLE",
+        "hole_count": 2
+      }
+    ],
+    "comparisons": [
+      {
+        "baseline": "proposal-01",
+        "candidate": "proposal-02",
+        "nine": "GEOMETRIC_PARETO_IMPROVEMENT",
+        "twelve": "QUALITY_TRADEOFF"
+      },
+      {
+        "baseline": "proposal-01",
+        "candidate": "proposal-03",
+        "nine": "QUALITY_TRADEOFF",
+        "twelve": "QUALITY_TRADEOFF"
+      }
+    ]
+  },
+  "limitations": [
+    "No real 20t Native Solve",
+    "No real-layout quality or end-to-end speed conclusion",
+    "Preparation timing includes creation-record overhead; R6 median is slower",
+    "Synthetic hints only; historical coordinates never injected"
+  ]
+}

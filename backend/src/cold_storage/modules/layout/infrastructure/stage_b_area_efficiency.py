@@ -111,16 +111,30 @@ def apply_area_efficient_guidance(model: Any, context: Any) -> dict[str, Any]:
         magnitude += max(abs(var.domain[0]), abs(var.domain[len(var.domain) - 1]))
     if any(n.startswith("r5_area_") for n in index):
         raise LayoutAuthorityError("R5_DEFINITIONS_ALREADY_PRESENT")
-    specs = []
-    for role, demand in demands.items():
+    physical = {}
+    for role in demands:
         names = [role + "_physical_" + side for side in ("w", "d")]
         if any(len(index.get(n, [])) != 1 for n in names):
             raise LayoutAuthorityError("R5_ORIGINAL_PHYSICAL_VARIABLE_REQUIRED")
         w, d = [m.get_int_var_from_proto_index(index[n][0]) for n in names]
         if any(model.rooms[role][s].index != v.index for s, v in (("w", w), ("d", d))):
             raise LayoutAuthorityError("R5_ORIGINAL_PHYSICAL_VARIABLE_REQUIRED")
-        wl, wu = w.proto.domain[0], w.proto.domain[len(w.proto.domain) - 1]
-        dl, du = d.proto.domain[0], d.proto.domain[len(d.proto.domain) - 1]
+        physical[role] = (
+            (w, w.proto.domain[0], w.proto.domain[len(w.proto.domain) - 1]),
+            (d, d.proto.domain[0], d.proto.domain[len(d.proto.domain) - 1]),
+        )
+    specs = _area_specs(demands, physical, magnitude)
+    _define_area_proxy(model, context, specs)
+    return _area_receipt(context, demands)
+
+
+def _area_specs(
+    demands: dict[str, Fraction], physical: dict[str, Any], magnitude: int
+) -> list[Any]:
+    """Same P1 rounding and global/derived int64 tests for both preparation paths."""
+    specs = []
+    for role, demand in demands.items():
+        (w, wl, wu), (d, dl, du) = physical[role]
         if min(wl, dl) <= 0:
             raise LayoutAuthorityError("R5_POSITIVE_PHYSICAL_DOMAIN_REQUIRED")
         minimum_mm2 = -(-(demand * 1_000_000).numerator // (demand * 1_000_000).denominator)
@@ -132,6 +146,12 @@ def apply_area_efficient_guidance(model: Any, context: Any) -> dict[str, Any]:
         if max(4 * magnitude, upper * denominator, denominator) > (1 << 63) - 1:
             raise LayoutAuthorityError("R5_INT64_OVERFLOW")
         specs.append((role, w, d, lo, hi, denominator, numerator, upper))
+    return specs
+
+
+def _define_area_proxy(model: Any, context: Any, specs: list[Any]) -> None:
+    """Shared original total definitions; callers prevalidate their own references."""
+    m = model.m
     # Precharge the entire definitional batch before changing the model.
     context.ledger.charge("R5_TOTAL_DEFINITIONS", 27)
     proxies = []
@@ -148,6 +168,9 @@ def apply_area_efficient_guidance(model: Any, context: Any) -> dict[str, Any]:
     worst = m.new_int_var(1, max(s[-1] for s in specs), "r5_area_worst")
     m.add_max_equality(worst, proxies)
     m.minimize(worst)
+
+
+def _area_receipt(context: Any, demands: dict[str, Fraction]) -> dict[str, Any]:
     return dict(
         policy=SHAPE_POLICY,
         policy_hash=SHAPE_POLICY_HASH,
@@ -306,6 +329,9 @@ class StageBAreaEfficientQualityFairSearchSolver(StageBBalancedQualityFairSearch
     def _final_guidance(self, model: Any, context: Any) -> dict[str, Any]:
         return cast(_AreaEfficientNative, self.native).prepare_first_stage(model, context)
 
+    def _observe_search_frontier(self, snapshot: dict[str, Any]) -> None:
+        """R5 has no separate frontier. Optional descendants consume this same snapshot."""
+
     def observe_validated_candidate(
         self, context: Any, handoff: Any, candidate: dict[str, Any], feedback: str
     ) -> None:
@@ -336,5 +362,10 @@ class StageBAreaEfficientQualityFairSearchSolver(StageBBalancedQualityFairSearch
                 "site_hash": context.binding.site_geometry_hash,
                 "composition_hash": handoff.source_composition_hash,
             },
-            {"kind": "FEASIBILITY_FIRST_QUALITY_FACTS", "policy_hash": POLICY_HASH, **comparison},
+            {
+                "kind": "FEASIBILITY_FIRST_QUALITY_FACTS",
+                "policy_hash": self.quality_policy_hash,
+                **comparison,
+            },
         )
+        self._observe_search_frontier(snapshot)
