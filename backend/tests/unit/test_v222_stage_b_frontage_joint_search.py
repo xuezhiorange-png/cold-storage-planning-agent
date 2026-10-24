@@ -636,6 +636,7 @@ def test_r5_policy_and_original_comparison_versions_are_not_replaced():
         "stage_b_frontage_joint_search" not in p.read_text()
         for root in ("src/cold_storage/bootstrap", "scripts")
         for p in (backend / root).rglob("*.py")
+        if p != backend / "scripts/run_stage_b_r6_main.py"  # Explicit, separately gated opt-in.
     )
     assert Path(__file__).name in (backend / "tests/stage_a_resource_process.py").read_text()
     assert Path(__file__).name in (backend.parent / ".github/workflows/ci-fast.yml").read_text()
