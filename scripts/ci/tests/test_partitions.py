@@ -7,9 +7,11 @@ import hashlib
 import inspect
 import io
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 from zipfile import ZipFile
@@ -107,6 +109,70 @@ class PartitionCoverageTests(unittest.TestCase):
                 row["reports"][0].update(mutation)
                 with self.assertRaises(ValueError):
                     verify(rows)
+
+
+class GithubLogTransportTests(unittest.TestCase):
+    def test_normal_and_ansi_job_logs_are_captured_without_terminal_echo(self):
+        for raw in (b"timestamp ordinary log\n", b"timestamp \x1b[31mred\x1b[0m\n\x1b]0;title\x07"):
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with (
+                self.subTest(raw=raw),
+                patch.object(verifier.subprocess, "check_output", return_value=raw) as api,
+                redirect_stdout(stdout),
+                redirect_stderr(stderr),
+            ):
+                self.assertEqual(verifier.github_bytes("owner/repo", "jobs/123/logs"), raw)
+            api.assert_called_once_with(
+                ["gh", "api", "repos/owner/repo/actions/jobs/123/logs", "--allow-escape-sequences"],
+                stderr=subprocess.PIPE,
+            )
+            self.assertEqual(stdout.getvalue(), "")
+            self.assertEqual(stderr.getvalue(), "")
+
+    def test_non_job_log_endpoints_keep_original_arguments_and_capture_behavior(self):
+        for path in (
+            "runs/100",
+            "runs/100/attempts/2",
+            "runs/100/attempts/2/jobs?per_page=100",
+            "runs/100/artifacts?per_page=100",
+            "artifacts/123/zip",
+            "runs/100/logs",
+            "jobs/123",
+            "jobs/123/logs/extra",
+            "jobs/not-a-job/logs",
+            "jobs/0/logs",
+        ):
+            for paginate in (False, True):
+                with (
+                    self.subTest(path=path, paginate=paginate),
+                    patch.object(verifier.subprocess, "check_output", return_value=b"raw") as api,
+                ):
+                    self.assertEqual(
+                        verifier.github_bytes("owner/repo", path, paginate=paginate), b"raw"
+                    )
+                expected = ["gh", "api", f"repos/owner/repo/actions/{path}"]
+                if paginate:
+                    expected += ["--paginate", "--slurp"]
+                api.assert_called_once_with(expected)
+
+    def test_job_log_api_failure_preserves_captured_error_without_echo_or_retry(self):
+        error = subprocess.CalledProcessError(
+            1, ["gh", "api"], output=b"partial\x1b[31m", stderr=b"error\x1b[0m"
+        )
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with (
+            patch.object(verifier.subprocess, "check_output", side_effect=error) as api,
+            redirect_stdout(stdout),
+            redirect_stderr(stderr),
+            self.assertRaises(subprocess.CalledProcessError) as raised,
+        ):
+            verifier.github_bytes("owner/repo", "jobs/123/logs")
+        self.assertIs(raised.exception, error)
+        self.assertEqual(raised.exception.output, b"partial\x1b[31m")
+        self.assertEqual(raised.exception.stderr, b"error\x1b[0m")
+        api.assert_called_once()
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertEqual(stderr.getvalue(), "")
 
 
 class CrossAttemptTests(unittest.TestCase):
@@ -426,6 +492,53 @@ class CrossAttemptTests(unittest.TestCase):
             with self.subTest(log=log), self.assertRaises(ValueError):
                 self.verified()
         self.logs[job_id] = saved
+
+    def test_ansi_elsewhere_in_log_preserves_raw_upload_proof(self):
+        original = self.verified()
+        for job_id, log in self.logs.items():
+            self.logs[job_id] = (
+                "\x1b[2J\x1b[31mbackend output\x1b[0m\n" + log + "\x1b]0;title\x07\n"
+            )
+        self.assertEqual(original, self.verified())
+
+    def test_ansi_logs_still_reject_bad_missing_duplicate_and_truncated_upload_proof(self):
+        selected = self.selection()["selected"][0]
+        job_id = selected["job"]["id"]
+        saved = self.logs[job_id]
+        digest_line, id_line = saved.splitlines(keepends=True)
+        for log in (
+            saved.replace(f"Artifact ID {selected['artifact']['id']}", "Artifact ID 999999"),
+            saved.replace(selected["artifact"]["digest"][7:], "0" * 64),
+            digest_line,
+            id_line,
+            saved + id_line,
+            saved + digest_line,
+            saved + saved,
+            digest_line + id_line[:-10],
+            "\x1b[31m" + digest_line + "\x1b[0m" + id_line,
+        ):
+            self.logs[job_id] = "\x1b[32mbackend\x1b[0m\n" + log
+            with self.subTest(log=log), self.assertRaises(ValueError):
+                self.verified()
+        self.logs[job_id] = saved
+
+    def test_job_log_api_exception_cannot_be_treated_as_successful_readback(self):
+        error = subprocess.CalledProcessError(
+            1, ["gh", "api"], output=b"truncated\x1b[31m", stderr=b"HTTP failure"
+        )
+        with (
+            patch.object(verifier.subprocess, "check_output", side_effect=error) as api,
+            self.assertRaises(subprocess.CalledProcessError),
+        ):
+            verifier.verify_downloads(
+                self.directory,
+                self.selection(),
+                self.archives.__getitem__,
+                lambda identifier: verifier.github_bytes(
+                    "owner/repo", f"jobs/{identifier}/logs"
+                ).decode(),
+            )
+        api.assert_called_once()
 
     def test_zip_digest_and_local_receipt_cannot_be_forged(self):
         selected = self.selection()["selected"][0]

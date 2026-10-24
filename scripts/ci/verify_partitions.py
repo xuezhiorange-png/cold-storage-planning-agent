@@ -370,6 +370,9 @@ def github_bytes(repository: str, path: str, *, paginate: bool = False) -> bytes
     args = ["gh", "api", f"repos/{repository}/actions/{path}"]
     if paginate:
         args += ["--paginate", "--slurp"]
+    if re.fullmatch(r"jobs/[1-9][0-9]*/logs", path):
+        # Keep raw Job log bytes in pipes, never echo terminal control sequences.
+        return subprocess.check_output([*args, "--allow-escape-sequences"], stderr=subprocess.PIPE)
     return subprocess.check_output(args)
 
 
