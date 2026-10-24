@@ -1,0 +1,3658 @@
+[
+  {
+    "arm": "A",
+    "packing": true,
+    "production": true,
+    "drop_groups": [],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.057729,
+      "branches": 1116,
+      "conflicts": 98,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.058388,
+    "deterministic_seconds": 0.002140478797055424,
+    "branches": 1116,
+    "conflicts": 98,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [
+        [
+          2,
+          0,
+          3,
+          3
+        ],
+        [
+          5,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          2,
+          3
+        ],
+        [
+          0,
+          0,
+          2,
+          3
+        ]
+      ],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 13\nbooleans: 73\nconflicts: 98\nbranches: 1116\npropagations: 5711\ninteger_propagations: 2364\nrestarts: 1\nlp_iterations: 0\nwalltime: 0.058388\nusertime: 0.058388\ndeterministic_time: 0.00214048\ngap_integral: 0\nsolution_fingerprint: 0x385ca0165ce078e8\n",
+    "work": 2592,
+    "repeat": 0,
+    "case": "SERVICE_BANK",
+    "presolve_log_sha256": "158889f97c6362409d67229af8e63630b8e0d9f24a8910b9bb5906be36c02962"
+  },
+  {
+    "arm": "B",
+    "packing": true,
+    "production": true,
+    "drop_groups": [],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.009688,
+      "branches": 1116,
+      "conflicts": 98,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.009829000000000001,
+    "deterministic_seconds": 0.002140478797055424,
+    "branches": 1116,
+    "conflicts": 98,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [
+        [
+          2,
+          0,
+          3,
+          3
+        ],
+        [
+          5,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          2,
+          3
+        ],
+        [
+          0,
+          0,
+          2,
+          3
+        ]
+      ],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 13\nbooleans: 73\nconflicts: 98\nbranches: 1116\npropagations: 5711\ninteger_propagations: 2364\nrestarts: 1\nlp_iterations: 0\nwalltime: 0.009829\nusertime: 0.009829\ndeterministic_time: 0.00214048\ngap_integral: 0\nsolution_fingerprint: 0x385ca0165ce078e8\n",
+    "work": 918,
+    "repeat": 0,
+    "case": "SERVICE_BANK",
+    "presolve_log_sha256": "8d0ea0e0f835cb69d8062ec74f966e02720702377849bbf39214abfab21ada0c"
+  },
+  {
+    "arm": "C",
+    "packing": true,
+    "production": true,
+    "drop_groups": [],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.01259,
+      "branches": 1347,
+      "conflicts": 207,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.01276,
+    "deterministic_seconds": 0.0029241174966405546,
+    "branches": 1347,
+    "conflicts": 207,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [
+        [
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          0,
+          3,
+          3
+        ],
+        [
+          2,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          0,
+          2,
+          3
+        ],
+        [
+          3,
+          3,
+          2,
+          3
+        ]
+      ],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 13\nbooleans: 73\nconflicts: 207\nbranches: 1347\npropagations: 8918\ninteger_propagations: 3108\nrestarts: 2\nlp_iterations: 0\nwalltime: 0.01276\nusertime: 0.01276\ndeterministic_time: 0.00292412\ngap_integral: 0\nsolution_fingerprint: 0x4dc77d14df970a26\n",
+    "work": 1060,
+    "repeat": 0,
+    "case": "SERVICE_BANK",
+    "presolve_log_sha256": "33b86f6db5a34a91541df92a928988aedce6e4ab5549c2d438103e5d0c8b621f"
+  },
+  {
+    "arm": "C",
+    "packing": true,
+    "production": true,
+    "drop_groups": [],
+    "delayed": true,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.008925,
+      "branches": 1116,
+      "conflicts": 98,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.009025,
+    "deterministic_seconds": 0.002140478797055424,
+    "branches": 1116,
+    "conflicts": 98,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [
+        [
+          2,
+          0,
+          3,
+          3
+        ],
+        [
+          5,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          2,
+          3
+        ],
+        [
+          0,
+          0,
+          2,
+          3
+        ]
+      ],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 13\nbooleans: 73\nconflicts: 98\nbranches: 1116\npropagations: 5711\ninteger_propagations: 2364\nrestarts: 1\nlp_iterations: 0\nwalltime: 0.009025\nusertime: 0.009025\ndeterministic_time: 0.00214048\ngap_integral: 0\nsolution_fingerprint: 0x385ca0165ce078e8\n",
+    "work": 918,
+    "repeat": 0,
+    "case": "SERVICE_BANK_R7",
+    "presolve_log_sha256": "1bdc12caa06a22bb56d5c71d85f22d1463a68505f232629a2d0c62b663c0a961"
+  },
+  {
+    "arm": "B",
+    "packing": true,
+    "production": true,
+    "drop_groups": [],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.009198000000000001,
+      "branches": 1116,
+      "conflicts": 98,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.009309000000000001,
+    "deterministic_seconds": 0.002140478797055424,
+    "branches": 1116,
+    "conflicts": 98,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [
+        [
+          2,
+          0,
+          3,
+          3
+        ],
+        [
+          5,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          2,
+          3
+        ],
+        [
+          0,
+          0,
+          2,
+          3
+        ]
+      ],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 13\nbooleans: 73\nconflicts: 98\nbranches: 1116\npropagations: 5711\ninteger_propagations: 2364\nrestarts: 1\nlp_iterations: 0\nwalltime: 0.009309\nusertime: 0.009309\ndeterministic_time: 0.00214048\ngap_integral: 0\nsolution_fingerprint: 0x385ca0165ce078e8\n",
+    "work": 918,
+    "repeat": 1,
+    "case": "SERVICE_BANK",
+    "presolve_log_sha256": "4a83268c8baeabc2b5abab22d7841046ed960a14d7152fb53b37cbe4ada17c11"
+  },
+  {
+    "arm": "C",
+    "packing": true,
+    "production": true,
+    "drop_groups": [],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.010657,
+      "branches": 1347,
+      "conflicts": 207,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.010836,
+    "deterministic_seconds": 0.0029241174966405546,
+    "branches": 1347,
+    "conflicts": 207,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [
+        [
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          0,
+          3,
+          3
+        ],
+        [
+          2,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          0,
+          2,
+          3
+        ],
+        [
+          3,
+          3,
+          2,
+          3
+        ]
+      ],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 13\nbooleans: 73\nconflicts: 207\nbranches: 1347\npropagations: 8918\ninteger_propagations: 3108\nrestarts: 2\nlp_iterations: 0\nwalltime: 0.010836\nusertime: 0.010836\ndeterministic_time: 0.00292412\ngap_integral: 0\nsolution_fingerprint: 0x4dc77d14df970a26\n",
+    "work": 1060,
+    "repeat": 1,
+    "case": "SERVICE_BANK",
+    "presolve_log_sha256": "f0e05e3ac0d631dd19d1a73894d948338cfc45edada6dd1d102ce9dd3a8f94f4"
+  },
+  {
+    "arm": "A",
+    "packing": true,
+    "production": true,
+    "drop_groups": [],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.009115,
+      "branches": 1116,
+      "conflicts": 98,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.009231000000000001,
+    "deterministic_seconds": 0.002140478797055424,
+    "branches": 1116,
+    "conflicts": 98,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [
+        [
+          2,
+          0,
+          3,
+          3
+        ],
+        [
+          5,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          2,
+          3
+        ],
+        [
+          0,
+          0,
+          2,
+          3
+        ]
+      ],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 13\nbooleans: 73\nconflicts: 98\nbranches: 1116\npropagations: 5711\ninteger_propagations: 2364\nrestarts: 1\nlp_iterations: 0\nwalltime: 0.009231\nusertime: 0.009231\ndeterministic_time: 0.00214048\ngap_integral: 0\nsolution_fingerprint: 0x385ca0165ce078e8\n",
+    "work": 2592,
+    "repeat": 1,
+    "case": "SERVICE_BANK",
+    "presolve_log_sha256": "09bafde393fa27abdc1671f9ed5afd73079a0c63525f326718c38848a63051fc"
+  },
+  {
+    "arm": "C",
+    "packing": true,
+    "production": true,
+    "drop_groups": [],
+    "delayed": true,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.009245,
+      "branches": 1116,
+      "conflicts": 98,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.009383,
+    "deterministic_seconds": 0.002140478797055424,
+    "branches": 1116,
+    "conflicts": 98,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [
+        [
+          2,
+          0,
+          3,
+          3
+        ],
+        [
+          5,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          2,
+          3
+        ],
+        [
+          0,
+          0,
+          2,
+          3
+        ]
+      ],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 13\nbooleans: 73\nconflicts: 98\nbranches: 1116\npropagations: 5711\ninteger_propagations: 2364\nrestarts: 1\nlp_iterations: 0\nwalltime: 0.009383\nusertime: 0.009383\ndeterministic_time: 0.00214048\ngap_integral: 0\nsolution_fingerprint: 0x385ca0165ce078e8\n",
+    "work": 918,
+    "repeat": 1,
+    "case": "SERVICE_BANK_R7",
+    "presolve_log_sha256": "65b5cf892bc9454f94235e9a962ce5588159e8a60e5f549b81a7194c9ae20ef6"
+  },
+  {
+    "arm": "C",
+    "packing": true,
+    "production": true,
+    "drop_groups": [],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.010748,
+      "branches": 1347,
+      "conflicts": 207,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.010927000000000001,
+    "deterministic_seconds": 0.0029241174966405546,
+    "branches": 1347,
+    "conflicts": 207,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [
+        [
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          0,
+          3,
+          3
+        ],
+        [
+          2,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          0,
+          2,
+          3
+        ],
+        [
+          3,
+          3,
+          2,
+          3
+        ]
+      ],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 13\nbooleans: 73\nconflicts: 207\nbranches: 1347\npropagations: 8918\ninteger_propagations: 3108\nrestarts: 2\nlp_iterations: 0\nwalltime: 0.010927\nusertime: 0.010927\ndeterministic_time: 0.00292412\ngap_integral: 0\nsolution_fingerprint: 0x4dc77d14df970a26\n",
+    "work": 1060,
+    "repeat": 2,
+    "case": "SERVICE_BANK",
+    "presolve_log_sha256": "83418879ce2b8088995176aec300afe1437adb430a57fd7c46ba8fb59989a1e9"
+  },
+  {
+    "arm": "A",
+    "packing": true,
+    "production": true,
+    "drop_groups": [],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.008696,
+      "branches": 1116,
+      "conflicts": 98,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.008795,
+    "deterministic_seconds": 0.002140478797055424,
+    "branches": 1116,
+    "conflicts": 98,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [
+        [
+          2,
+          0,
+          3,
+          3
+        ],
+        [
+          5,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          2,
+          3
+        ],
+        [
+          0,
+          0,
+          2,
+          3
+        ]
+      ],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 13\nbooleans: 73\nconflicts: 98\nbranches: 1116\npropagations: 5711\ninteger_propagations: 2364\nrestarts: 1\nlp_iterations: 0\nwalltime: 0.008795\nusertime: 0.008795\ndeterministic_time: 0.00214048\ngap_integral: 0\nsolution_fingerprint: 0x385ca0165ce078e8\n",
+    "work": 2592,
+    "repeat": 2,
+    "case": "SERVICE_BANK",
+    "presolve_log_sha256": "714327b194a5f5ea5370eece3c81caecaad5ad0dc953e3ade5597593476892b0"
+  },
+  {
+    "arm": "B",
+    "packing": true,
+    "production": true,
+    "drop_groups": [],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.00905,
+      "branches": 1116,
+      "conflicts": 98,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.009155,
+    "deterministic_seconds": 0.002140478797055424,
+    "branches": 1116,
+    "conflicts": 98,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [
+        [
+          2,
+          0,
+          3,
+          3
+        ],
+        [
+          5,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          2,
+          3
+        ],
+        [
+          0,
+          0,
+          2,
+          3
+        ]
+      ],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 13\nbooleans: 73\nconflicts: 98\nbranches: 1116\npropagations: 5711\ninteger_propagations: 2364\nrestarts: 1\nlp_iterations: 0\nwalltime: 0.009155\nusertime: 0.009155\ndeterministic_time: 0.00214048\ngap_integral: 0\nsolution_fingerprint: 0x385ca0165ce078e8\n",
+    "work": 918,
+    "repeat": 2,
+    "case": "SERVICE_BANK",
+    "presolve_log_sha256": "22d6767de6f6045a4281a1f884cd58f22e286279da82b577036d6d50054e71b0"
+  },
+  {
+    "arm": "C",
+    "packing": true,
+    "production": true,
+    "drop_groups": [],
+    "delayed": true,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.009108,
+      "branches": 1116,
+      "conflicts": 98,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.009215000000000001,
+    "deterministic_seconds": 0.002140478797055424,
+    "branches": 1116,
+    "conflicts": 98,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [
+        [
+          2,
+          0,
+          3,
+          3
+        ],
+        [
+          5,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          2,
+          3
+        ],
+        [
+          0,
+          0,
+          2,
+          3
+        ]
+      ],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 13\nbooleans: 73\nconflicts: 98\nbranches: 1116\npropagations: 5711\ninteger_propagations: 2364\nrestarts: 1\nlp_iterations: 0\nwalltime: 0.009215\nusertime: 0.009215\ndeterministic_time: 0.00214048\ngap_integral: 0\nsolution_fingerprint: 0x385ca0165ce078e8\n",
+    "work": 918,
+    "repeat": 2,
+    "case": "SERVICE_BANK_R7",
+    "presolve_log_sha256": "f3f410f218fc1e6de76421344b8c709b6fc8ca22ba00d53b6ca942c93b8be230"
+  },
+  {
+    "arm": "A",
+    "packing": false,
+    "production": true,
+    "drop_groups": [],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.002317,
+      "branches": 0,
+      "conflicts": 0,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.0023810000000000003,
+    "deterministic_seconds": 0.000133008,
+    "branches": 0,
+    "conflicts": 0,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 1\nbooleans: 0\nconflicts: 0\nbranches: 0\npropagations: 0\ninteger_propagations: 0\nrestarts: 0\nlp_iterations: 0\nwalltime: 0.002381\nusertime: 0.002381\ndeterministic_time: 0.000133008\ngap_integral: 0\nsolution_fingerprint: 0xb8b80ed10b0fb5aa\n",
+    "work": 2556,
+    "case": "NEGATIVE_CONTROL_PRODUCTION",
+    "presolve_log_sha256": "0649361cd9a419e2e428c69ea23e68f4a65848108fbddbee7e680bfa071a7b14"
+  },
+  {
+    "arm": "B",
+    "packing": false,
+    "production": true,
+    "drop_groups": [],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.002252,
+      "branches": 0,
+      "conflicts": 0,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.002313,
+    "deterministic_seconds": 0.000133008,
+    "branches": 0,
+    "conflicts": 0,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 1\nbooleans: 0\nconflicts: 0\nbranches: 0\npropagations: 0\ninteger_propagations: 0\nrestarts: 0\nlp_iterations: 0\nwalltime: 0.002313\nusertime: 0.002313\ndeterministic_time: 0.000133008\ngap_integral: 0\nsolution_fingerprint: 0xb8b80ed10b0fb5aa\n",
+    "work": 906,
+    "case": "NEGATIVE_CONTROL_PRODUCTION",
+    "presolve_log_sha256": "92839a3da6c8f963f8abafcad3f11a89317d426a0f5a8f3a0e680f307e95d6e1"
+  },
+  {
+    "arm": "C",
+    "packing": false,
+    "production": true,
+    "drop_groups": [],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.002285,
+      "branches": 0,
+      "conflicts": 0,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.002349,
+    "deterministic_seconds": 0.000133008,
+    "branches": 0,
+    "conflicts": 0,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 1\nbooleans: 0\nconflicts: 0\nbranches: 0\npropagations: 0\ninteger_propagations: 0\nrestarts: 0\nlp_iterations: 0\nwalltime: 0.002349\nusertime: 0.002349\ndeterministic_time: 0.000133008\ngap_integral: 0\nsolution_fingerprint: 0xb8b80ed10b0fb5aa\n",
+    "work": 1048,
+    "case": "NEGATIVE_CONTROL_PRODUCTION",
+    "presolve_log_sha256": "6cccdfa6331112b9039dd032b56c5e8a58ce0df0a196512c2445834b3a13d0a5"
+  },
+  {
+    "arm": "A",
+    "packing": false,
+    "production": false,
+    "drop_groups": [],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: FIXED_SEARCH\ncp_model_presolve: false\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.005183,
+      "branches": 1432,
+      "conflicts": 0,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.005464,
+    "deterministic_seconds": 0.008488196599999876,
+    "branches": 1432,
+    "conflicts": 0,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 165\nbooleans: 736\nconflicts: 0\nbranches: 1432\npropagations: 70352\ninteger_propagations: 7224\nrestarts: 0\nlp_iterations: 1\nwalltime: 0.005464\nusertime: 0.005464\ndeterministic_time: 0.0084882\ngap_integral: 0\nsolution_fingerprint: 0x238913377050b541\n",
+    "work": 2556,
+    "case": "ORIGINAL_TEST_ONLY_CONTROL",
+    "presolve_log_sha256": "0a8da01c9b1715566472323d9e0f8aac0f0d7dd9609d74e841ac7de984f5751c"
+  },
+  {
+    "arm": "C",
+    "packing": false,
+    "production": false,
+    "drop_groups": [],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: FIXED_SEARCH\ncp_model_presolve: false\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.004419,
+      "branches": 1433,
+      "conflicts": 0,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.00453,
+    "deterministic_seconds": 0.008488206599999892,
+    "branches": 1433,
+    "conflicts": 0,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          5000
+        ],
+        [
+          8000,
+          5000
+        ]
+      ],
+      "route_length_mm": 9000,
+      "route_turns": 2,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                16000,
+                4000
+              ],
+              [
+                16000,
+                7000
+              ],
+              [
+                14000,
+                7000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 276000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 643,
+        "error": null
+      },
+      "service_blocks": [],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 165\nbooleans: 736\nconflicts: 0\nbranches: 1433\npropagations: 70351\ninteger_propagations: 7224\nrestarts: 0\nlp_iterations: 1\nwalltime: 0.00453\nusertime: 0.00453\ndeterministic_time: 0.00848821\ngap_integral: 0\nsolution_fingerprint: 0x2d1f384b9a103797\n",
+    "work": 1048,
+    "case": "ORIGINAL_TEST_ONLY_CONTROL",
+    "presolve_log_sha256": "310a92d8c3822e89df22d2fbb8c4d6ec6c8f46af99c44f571ab667ccf832da8d"
+  },
+  {
+    "arm": "C",
+    "packing": true,
+    "production": true,
+    "drop_groups": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.010438000000000001,
+      "branches": 1347,
+      "conflicts": 207,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.010549000000000001,
+    "deterministic_seconds": 0.0029241174966405546,
+    "branches": 1347,
+    "conflicts": 207,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [
+        [
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          0,
+          3,
+          3
+        ],
+        [
+          2,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          0,
+          2,
+          3
+        ],
+        [
+          3,
+          3,
+          2,
+          3
+        ]
+      ],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 13\nbooleans: 73\nconflicts: 207\nbranches: 1347\npropagations: 8918\ninteger_propagations: 3108\nrestarts: 2\nlp_iterations: 0\nwalltime: 0.010549\nusertime: 0.010549\ndeterministic_time: 0.00292412\ngap_integral: 0\nsolution_fingerprint: 0x4dc77d14df970a26\n",
+    "work": 1060,
+    "case": "SINGLE_GROUP_0",
+    "presolve_log_sha256": "9d4eae17efea37cc70354e0d1fef12c06dd989debed9ce49882fed9ec0758383"
+  },
+  {
+    "arm": "C",
+    "packing": true,
+    "production": true,
+    "drop_groups": [
+      0,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.009032,
+      "branches": 1116,
+      "conflicts": 98,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.00918,
+    "deterministic_seconds": 0.002140478797055424,
+    "branches": 1116,
+    "conflicts": 98,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [
+        [
+          2,
+          0,
+          3,
+          3
+        ],
+        [
+          5,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          2,
+          3
+        ],
+        [
+          0,
+          0,
+          2,
+          3
+        ]
+      ],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 13\nbooleans: 73\nconflicts: 98\nbranches: 1116\npropagations: 5711\ninteger_propagations: 2364\nrestarts: 1\nlp_iterations: 0\nwalltime: 0.00918\nusertime: 0.00918\ndeterministic_time: 0.00214048\ngap_integral: 0\nsolution_fingerprint: 0x385ca0165ce078e8\n",
+    "work": 1060,
+    "case": "SINGLE_GROUP_1",
+    "presolve_log_sha256": "35f2b40b9b3907f43418c8e7e123c3a0f13250dc16090ab61c3194430c2e9eca"
+  },
+  {
+    "arm": "C",
+    "packing": true,
+    "production": true,
+    "drop_groups": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      8,
+      9,
+      10,
+      11
+    ],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.009993,
+      "branches": 1116,
+      "conflicts": 98,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.010165,
+    "deterministic_seconds": 0.002140478797055424,
+    "branches": 1116,
+    "conflicts": 98,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [
+        [
+          2,
+          0,
+          3,
+          3
+        ],
+        [
+          5,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          2,
+          3
+        ],
+        [
+          0,
+          0,
+          2,
+          3
+        ]
+      ],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 13\nbooleans: 73\nconflicts: 98\nbranches: 1116\npropagations: 5711\ninteger_propagations: 2364\nrestarts: 1\nlp_iterations: 0\nwalltime: 0.010165\nusertime: 0.010165\ndeterministic_time: 0.00214048\ngap_integral: 0\nsolution_fingerprint: 0x385ca0165ce078e8\n",
+    "work": 1060,
+    "case": "SINGLE_GROUP_7",
+    "presolve_log_sha256": "47c1393af43fa23851874f5c7568391132434c7d5172bd5d8bc35adda1afb51a"
+  },
+  {
+    "arm": "C",
+    "packing": true,
+    "production": true,
+    "drop_groups": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "delayed": false,
+    "ortools_version": "9.15.6755",
+    "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+    "status": "OPTIMAL",
+    "first": {
+      "seconds": 0.010302,
+      "branches": 1347,
+      "conflicts": 207,
+      "objective": 1125.0
+    },
+    "wall_seconds": 0.010476000000000001,
+    "deterministic_seconds": 0.0029241174966405546,
+    "branches": 1347,
+    "conflicts": 207,
+    "geometry": {
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          7000
+        ],
+        [
+          6000,
+          7000
+        ],
+        [
+          6000,
+          6000
+        ]
+      ],
+      "route_length_mm": 12000,
+      "route_turns": 3,
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                8000,
+                4000
+              ],
+              [
+                8000,
+                6000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                14000,
+                5000
+              ],
+              [
+                16000,
+                5000
+              ],
+              [
+                16000,
+                8000
+              ],
+              [
+                5000,
+                8000
+              ],
+              [
+                5000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 288000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 1028,
+        "error": null
+      },
+      "service_blocks": [
+        [
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          3,
+          3,
+          3
+        ],
+        [
+          5,
+          0,
+          3,
+          3
+        ],
+        [
+          2,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          0,
+          2,
+          3
+        ],
+        [
+          3,
+          3,
+          2,
+          3
+        ]
+      ],
+      "service_geometry_valid": true,
+      "valid": true,
+      "scope": "SYNTHETIC_NATIVE_ROUTE_AND_UNION_NOT_FACTORY_APPLICATION_PASS"
+    },
+    "response_stats": "CpSolverResponse summary:\nstatus: OPTIMAL\nobjective: 1125\nbest_bound: 1125\nintegers: 13\nbooleans: 73\nconflicts: 207\nbranches: 1347\npropagations: 8918\ninteger_propagations: 3108\nrestarts: 2\nlp_iterations: 0\nwalltime: 0.010476\nusertime: 0.010477\ndeterministic_time: 0.00292412\ngap_integral: 0\nsolution_fingerprint: 0x4dc77d14df970a26\n",
+    "work": 1060,
+    "case": "SINGLE_GROUP_11",
+    "presolve_log_sha256": "47e9195d1d5589d52cc165be6308f21bde97637fc3c55c7f05cce4eb40a2ce6b"
+  }
+]

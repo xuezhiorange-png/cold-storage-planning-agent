@@ -36,7 +36,7 @@ PATHS = (
 )
 
 
-def build_scene(reference=False):
+def build_scene(reference=False, before_seal=None):
     context, _, _ = setup(area="16")
     requirements(context, "16")
     auth = context.binding.dimension_authorities["changing_room"]
@@ -196,6 +196,8 @@ def build_scene(reference=False):
         )
     )
     context.binding.access_requirements = tuple(reqs)
+    if before_seal is not None:
+        before_seal(context, model)
     if reference:
         m.seal(model)
     return context, model
