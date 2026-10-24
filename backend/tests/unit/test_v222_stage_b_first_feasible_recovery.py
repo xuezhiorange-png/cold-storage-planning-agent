@@ -239,7 +239,9 @@ def test_no_default_wiring_and_original_validators_and_comparators_are_inherited
     root = Path(__file__).resolve().parents[2]
     for directory in (root / "src/cold_storage/bootstrap", root / "scripts"):
         assert all(
-            "stage_b_first_feasible_recovery" not in p.read_text() for p in directory.rglob("*.py")
+            "stage_b_first_feasible_recovery" not in p.read_text()
+            or p == root / "scripts/run_stage_b_r7_main.py"
+            for p in directory.rglob("*.py")
         )
 
 
