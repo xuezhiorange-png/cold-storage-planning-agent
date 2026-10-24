@@ -1,0 +1,4682 @@
+{
+  "calls": [
+    {
+      "native_call_count": 1,
+      "phase": "ALL_ROOM_GEOMETRY_HINT",
+      "solver_status": "OPTIMAL",
+      "wall_time": 0.190278,
+      "monotonic_wall_time": 0.19597008300479501,
+      "deterministic_time": 0.13351300862472265,
+      "branches": 15701,
+      "conflicts": 2026,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 889,
+      "handoff_ordinal": 1,
+      "handoff": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:X:NEGATIVE:r0",
+      "native_share": 8.299999999999999,
+      "work_share": 100000.0,
+      "elapsed_share": 14.141851208327958,
+      "native_cap_before_elapsed_and_guard": 1.0374999999999999,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "WARMUP_SOLUTION_NOT_ENGINEERING_ACCEPTANCE"
+    },
+    {
+      "native_call_count": 2,
+      "phase": "ALL_ROOM_MUST_HINT",
+      "solver_status": "OPTIMAL",
+      "wall_time": 0.321352,
+      "monotonic_wall_time": 0.32148574996972457,
+      "deterministic_time": 0.0724260333351398,
+      "branches": 21661,
+      "conflicts": 5499,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 889,
+      "handoff_ordinal": 1,
+      "handoff": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:X:NEGATIVE:r0",
+      "native_share": 8.299999999999999,
+      "work_share": 100000.0,
+      "elapsed_share": 14.141851208327958,
+      "native_cap_before_elapsed_and_guard": 1.0374999999999999,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "WARMUP_SOLUTION_NOT_ENGINEERING_ACCEPTANCE"
+    },
+    {
+      "native_call_count": 3,
+      "phase": "COMPOSITION_PACKAGING_HINT",
+      "solver_status": "UNKNOWN",
+      "wall_time": 1.037713,
+      "monotonic_wall_time": 1.0378515000338666,
+      "deterministic_time": 1.5247248726509348,
+      "branches": 30192,
+      "conflicts": 7459,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 889,
+      "handoff_ordinal": 1,
+      "handoff": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:X:NEGATIVE:r0",
+      "native_share": 8.299999999999999,
+      "work_share": 100000.0,
+      "elapsed_share": 14.141851208327958,
+      "native_cap_before_elapsed_and_guard": 1.0374999999999999,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "UNKNOWN_WITHOUT_WITNESS_BOUNDED_TIME"
+    },
+    {
+      "native_call_count": 4,
+      "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+      "solver_status": "UNKNOWN",
+      "wall_time": 1.0417260000000002,
+      "monotonic_wall_time": 1.0421092080068775,
+      "deterministic_time": 0.7720579185498334,
+      "branches": 42921,
+      "conflicts": 17,
+      "warmup_only": true,
+      "variables": 27387,
+      "constraints": 38627,
+      "handoff_ordinal": 1,
+      "handoff": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:X:NEGATIVE:r0",
+      "native_share": 8.299999999999999,
+      "work_share": 100000.0,
+      "elapsed_share": 14.141851208327958,
+      "native_cap_before_elapsed_and_guard": 1.0374999999999999,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "UNKNOWN_WITHOUT_WITNESS_BOUNDED_TIME"
+    },
+    {
+      "native_call_count": 5,
+      "phase": "ALL_ROOMS_ALL_ACCESS",
+      "solver_status": "UNKNOWN",
+      "wall_time": 5.703429000000001,
+      "monotonic_wall_time": 5.703985375002958,
+      "deterministic_time": 1.6019561987368487,
+      "branches": 5253623,
+      "conflicts": 995,
+      "warmup_only": false,
+      "variables": 27400,
+      "constraints": 38760,
+      "handoff_ordinal": 1,
+      "handoff": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:X:NEGATIVE:r0",
+      "native_share": 8.299999999999999,
+      "work_share": 100000.0,
+      "elapsed_share": 14.141851208327958,
+      "native_cap_before_elapsed_and_guard": 5.702583458984735,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 3,
+        "presolve_default": true,
+        "search": "PARTIAL_FIXED_SEARCH"
+      },
+      "end_reason": "UNKNOWN_WITHOUT_WITNESS_BOUNDED_TIME"
+    },
+    {
+      "native_call_count": 6,
+      "phase": "ALL_ROOM_GEOMETRY_HINT",
+      "solver_status": "OPTIMAL",
+      "wall_time": 0.15135700000000002,
+      "monotonic_wall_time": 0.15147254202747717,
+      "deterministic_time": 0.13351300862472265,
+      "branches": 15701,
+      "conflicts": 2026,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 889,
+      "handoff_ordinal": 2,
+      "handoff": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:X:NEGATIVE:r0",
+      "native_share": 8.299719616796356,
+      "work_share": 105411.2,
+      "elapsed_share": 14.959722774999682,
+      "native_cap_before_elapsed_and_guard": 1.0374649520995445,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "WARMUP_SOLUTION_NOT_ENGINEERING_ACCEPTANCE"
+    },
+    {
+      "native_call_count": 7,
+      "phase": "ALL_ROOM_MUST_HINT",
+      "solver_status": "OPTIMAL",
+      "wall_time": 0.316608,
+      "monotonic_wall_time": 0.31671020801877603,
+      "deterministic_time": 0.0724260333351398,
+      "branches": 21661,
+      "conflicts": 5499,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 889,
+      "handoff_ordinal": 2,
+      "handoff": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:X:NEGATIVE:r0",
+      "native_share": 8.299719616796356,
+      "work_share": 105411.2,
+      "elapsed_share": 14.959722774999682,
+      "native_cap_before_elapsed_and_guard": 1.0374649520995445,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "WARMUP_SOLUTION_NOT_ENGINEERING_ACCEPTANCE"
+    },
+    {
+      "native_call_count": 8,
+      "phase": "COMPOSITION_PACKAGING_HINT",
+      "solver_status": "INFEASIBLE",
+      "wall_time": 0.13264600000000001,
+      "monotonic_wall_time": 0.1327315829694271,
+      "deterministic_time": 0.03832298527522977,
+      "branches": 7459,
+      "conflicts": 2250,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 889,
+      "handoff_ordinal": 2,
+      "handoff": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:X:NEGATIVE:r0",
+      "native_share": 8.299719616796356,
+      "work_share": 105411.2,
+      "elapsed_share": 14.959722774999682,
+      "native_cap_before_elapsed_and_guard": 1.0374649520995445,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "BASE_MODEL_INFEASIBILITY_PROOF"
+    },
+    {
+      "native_call_count": 9,
+      "phase": "ALL_ROOM_GEOMETRY_HINT",
+      "solver_status": "OPTIMAL",
+      "wall_time": 0.150811,
+      "monotonic_wall_time": 0.15091600001323968,
+      "deterministic_time": 0.13351300862472265,
+      "branches": 15701,
+      "conflicts": 2026,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 893,
+      "handoff_ordinal": 3,
+      "handoff": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:X:NEGATIVE:r0",
+      "native_share": 10.224420937741524,
+      "work_share": 131570.25,
+      "elapsed_share": 18.396768020742456,
+      "native_cap_before_elapsed_and_guard": 1.2780526172176905,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "WARMUP_SOLUTION_NOT_ENGINEERING_ACCEPTANCE"
+    },
+    {
+      "native_call_count": 10,
+      "phase": "ALL_ROOM_MUST_HINT",
+      "solver_status": "OPTIMAL",
+      "wall_time": 0.31831000000000004,
+      "monotonic_wall_time": 0.31841058301506564,
+      "deterministic_time": 0.0724260333351398,
+      "branches": 21661,
+      "conflicts": 5499,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 893,
+      "handoff_ordinal": 3,
+      "handoff": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:X:NEGATIVE:r0",
+      "native_share": 10.224420937741524,
+      "work_share": 131570.25,
+      "elapsed_share": 18.396768020742456,
+      "native_cap_before_elapsed_and_guard": 1.2780526172176905,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "WARMUP_SOLUTION_NOT_ENGINEERING_ACCEPTANCE"
+    },
+    {
+      "native_call_count": 11,
+      "phase": "COMPOSITION_PACKAGING_HINT",
+      "solver_status": "INFEASIBLE",
+      "wall_time": 0.052973000000000006,
+      "monotonic_wall_time": 0.05306045903125778,
+      "deterministic_time": 0.014806005345201477,
+      "branches": 1763,
+      "conflicts": 513,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 893,
+      "handoff_ordinal": 3,
+      "handoff": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:X:NEGATIVE:r0",
+      "native_share": 10.224420937741524,
+      "work_share": 131570.25,
+      "elapsed_share": 18.396768020742456,
+      "native_cap_before_elapsed_and_guard": 1.2780526172176905,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "BASE_MODEL_INFEASIBILITY_PROOF"
+    },
+    {
+      "native_call_count": 12,
+      "phase": "ALL_ROOM_GEOMETRY_HINT",
+      "solver_status": "OPTIMAL",
+      "wall_time": 0.15168600000000002,
+      "monotonic_wall_time": 0.1517952919821255,
+      "deterministic_time": 0.13351300862472265,
+      "branches": 15701,
+      "conflicts": 2026,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 889,
+      "handoff_ordinal": 4,
+      "handoff": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:Y:POSITIVE:r1",
+      "native_share": 13.458432236302178,
+      "work_share": 175168.66666666666,
+      "elapsed_share": 24.146359069331083,
+      "native_cap_before_elapsed_and_guard": 1.6823040295377722,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "WARMUP_SOLUTION_NOT_ENGINEERING_ACCEPTANCE"
+    },
+    {
+      "native_call_count": 13,
+      "phase": "ALL_ROOM_MUST_HINT",
+      "solver_status": "OPTIMAL",
+      "wall_time": 0.318452,
+      "monotonic_wall_time": 0.31855391699355096,
+      "deterministic_time": 0.0724260333351398,
+      "branches": 21661,
+      "conflicts": 5499,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 889,
+      "handoff_ordinal": 4,
+      "handoff": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:Y:POSITIVE:r1",
+      "native_share": 13.458432236302178,
+      "work_share": 175168.66666666666,
+      "elapsed_share": 24.146359069331083,
+      "native_cap_before_elapsed_and_guard": 1.6823040295377722,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "WARMUP_SOLUTION_NOT_ENGINEERING_ACCEPTANCE"
+    },
+    {
+      "native_call_count": 14,
+      "phase": "COMPOSITION_PACKAGING_HINT",
+      "solver_status": "INFEASIBLE",
+      "wall_time": 0.059349000000000006,
+      "monotonic_wall_time": 0.059444457991048694,
+      "deterministic_time": 0.013583151290907244,
+      "branches": 2258,
+      "conflicts": 440,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 889,
+      "handoff_ordinal": 4,
+      "handoff": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:Y:POSITIVE:r1",
+      "native_share": 13.458432236302178,
+      "work_share": 175168.66666666666,
+      "elapsed_share": 24.146359069331083,
+      "native_cap_before_elapsed_and_guard": 1.6823040295377722,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "BASE_MODEL_INFEASIBILITY_PROOF"
+    },
+    {
+      "native_call_count": 15,
+      "phase": "ALL_ROOM_GEOMETRY_HINT",
+      "solver_status": "OPTIMAL",
+      "wall_time": 0.15157900000000002,
+      "monotonic_wall_time": 0.15167554200161248,
+      "deterministic_time": 0.13351300862472265,
+      "branches": 15701,
+      "conflicts": 2026,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 889,
+      "handoff_ordinal": 5,
+      "handoff": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+      "native_share": 19.922751520969904,
+      "work_share": 262365.5,
+      "elapsed_share": 35.63099964600406,
+      "native_cap_before_elapsed_and_guard": 2.490343940121238,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "WARMUP_SOLUTION_NOT_ENGINEERING_ACCEPTANCE"
+    },
+    {
+      "native_call_count": 16,
+      "phase": "ALL_ROOM_MUST_HINT",
+      "solver_status": "OPTIMAL",
+      "wall_time": 0.317881,
+      "monotonic_wall_time": 0.3179789580171928,
+      "deterministic_time": 0.0724260333351398,
+      "branches": 21661,
+      "conflicts": 5499,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 889,
+      "handoff_ordinal": 5,
+      "handoff": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+      "native_share": 19.922751520969904,
+      "work_share": 262365.5,
+      "elapsed_share": 35.63099964600406,
+      "native_cap_before_elapsed_and_guard": 2.490343940121238,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "WARMUP_SOLUTION_NOT_ENGINEERING_ACCEPTANCE"
+    },
+    {
+      "native_call_count": 17,
+      "phase": "COMPOSITION_PACKAGING_HINT",
+      "solver_status": "OPTIMAL",
+      "wall_time": 1.821703,
+      "monotonic_wall_time": 1.821940416994039,
+      "deterministic_time": 1.691915824800923,
+      "branches": 176891,
+      "conflicts": 20421,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 889,
+      "handoff_ordinal": 5,
+      "handoff": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+      "native_share": 19.922751520969904,
+      "work_share": 262365.5,
+      "elapsed_share": 35.63099964600406,
+      "native_cap_before_elapsed_and_guard": 2.490343940121238,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "WARMUP_SOLUTION_NOT_ENGINEERING_ACCEPTANCE"
+    },
+    {
+      "native_call_count": 18,
+      "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+      "solver_status": "UNKNOWN",
+      "wall_time": 2.491324,
+      "monotonic_wall_time": 2.4917362090200186,
+      "deterministic_time": 1.4735592642326978,
+      "branches": 140074,
+      "conflicts": 6157,
+      "warmup_only": true,
+      "variables": 27387,
+      "constraints": 38627,
+      "handoff_ordinal": 5,
+      "handoff": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+      "native_share": 19.922751520969904,
+      "work_share": 262365.5,
+      "elapsed_share": 35.63099964600406,
+      "native_cap_before_elapsed_and_guard": 2.490343940121238,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "UNKNOWN_WITHOUT_WITNESS_BOUNDED_TIME"
+    },
+    {
+      "native_call_count": 19,
+      "phase": "ALL_ROOMS_ALL_ACCESS",
+      "solver_status": "UNKNOWN",
+      "wall_time": 15.142105,
+      "monotonic_wall_time": 15.143841875018552,
+      "deterministic_time": 3.611248395892214,
+      "branches": 16970827,
+      "conflicts": 1462,
+      "warmup_only": false,
+      "variables": 27400,
+      "constraints": 38760,
+      "handoff_ordinal": 5,
+      "handoff": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+      "native_share": 19.922751520969904,
+      "work_share": 262365.5,
+      "elapsed_share": 35.63099964600406,
+      "native_cap_before_elapsed_and_guard": 15.13942039493704,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 3,
+        "presolve_default": true,
+        "search": "PARTIAL_FIXED_SEARCH"
+      },
+      "end_reason": "UNKNOWN_WITHOUT_WITNESS_BOUNDED_TIME"
+    },
+    {
+      "native_call_count": 20,
+      "phase": "ALL_ROOM_GEOMETRY_HINT",
+      "solver_status": "OPTIMAL",
+      "wall_time": 0.153002,
+      "monotonic_wall_time": 0.15311829099664465,
+      "deterministic_time": 0.13351300862472265,
+      "branches": 15701,
+      "conflicts": 2026,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 893,
+      "handoff_ordinal": 6,
+      "handoff": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:Y:POSITIVE:r1",
+      "native_share": 19.918330040888392,
+      "work_share": 451787.0,
+      "elapsed_share": 49.48341020796215,
+      "native_cap_before_elapsed_and_guard": 2.489791255111049,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "WARMUP_SOLUTION_NOT_ENGINEERING_ACCEPTANCE"
+    },
+    {
+      "native_call_count": 21,
+      "phase": "ALL_ROOM_MUST_HINT",
+      "solver_status": "OPTIMAL",
+      "wall_time": 0.326579,
+      "monotonic_wall_time": 0.3266905409982428,
+      "deterministic_time": 0.0724260333351398,
+      "branches": 21661,
+      "conflicts": 5499,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 893,
+      "handoff_ordinal": 6,
+      "handoff": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:Y:POSITIVE:r1",
+      "native_share": 19.918330040888392,
+      "work_share": 451787.0,
+      "elapsed_share": 49.48341020796215,
+      "native_cap_before_elapsed_and_guard": 2.489791255111049,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "WARMUP_SOLUTION_NOT_ENGINEERING_ACCEPTANCE"
+    },
+    {
+      "native_call_count": 22,
+      "phase": "COMPOSITION_PACKAGING_HINT",
+      "solver_status": "OPTIMAL",
+      "wall_time": 0.460152,
+      "monotonic_wall_time": 0.46027745900209993,
+      "deterministic_time": 0.12728508127282126,
+      "branches": 38245,
+      "conflicts": 3472,
+      "warmup_only": true,
+      "variables": 600,
+      "constraints": 893,
+      "handoff_ordinal": 6,
+      "handoff": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:Y:POSITIVE:r1",
+      "native_share": 19.918330040888392,
+      "work_share": 451787.0,
+      "elapsed_share": 49.48341020796215,
+      "native_cap_before_elapsed_and_guard": 2.489791255111049,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "WARMUP_SOLUTION_NOT_ENGINEERING_ACCEPTANCE"
+    },
+    {
+      "native_call_count": 23,
+      "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+      "solver_status": "UNKNOWN",
+      "wall_time": 2.4906230000000003,
+      "monotonic_wall_time": 2.491048374969978,
+      "deterministic_time": 1.3968543587196671,
+      "branches": 141822,
+      "conflicts": 4323,
+      "warmup_only": true,
+      "variables": 27387,
+      "constraints": 38631,
+      "handoff_ordinal": 6,
+      "handoff": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:Y:POSITIVE:r1",
+      "native_share": 19.918330040888392,
+      "work_share": 451787.0,
+      "elapsed_share": 49.48341020796215,
+      "native_cap_before_elapsed_and_guard": 2.489791255111049,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 0,
+        "presolve_default": true,
+        "search": "AUTOMATIC_SEARCH"
+      },
+      "end_reason": "UNKNOWN_WITHOUT_WITNESS_BOUNDED_TIME"
+    },
+    {
+      "native_call_count": 24,
+      "phase": "ALL_ROOMS_ALL_ACCESS",
+      "solver_status": "UNKNOWN",
+      "wall_time": 16.488860000000003,
+      "monotonic_wall_time": 16.49355245800689,
+      "deterministic_time": 3.62127904588547,
+      "branches": 18699466,
+      "conflicts": 1495,
+      "warmup_only": false,
+      "variables": 27400,
+      "constraints": 38764,
+      "handoff_ordinal": 6,
+      "handoff": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:Y:POSITIVE:r1",
+      "native_share": 19.918330040888392,
+      "work_share": 451787.0,
+      "elapsed_share": 49.48341020796215,
+      "native_cap_before_elapsed_and_guard": 16.487195374921427,
+      "presolve_trace": "NOT_RECORDED",
+      "historical_exact_max_time": "NOT_RECORDED",
+      "source_configuration": {
+        "workers": 1,
+        "seed": 3,
+        "presolve_default": true,
+        "search": "PARTIAL_FIXED_SEARCH"
+      },
+      "end_reason": "UNKNOWN_WITHOUT_WITNESS_BOUNDED_TIME"
+    }
+  ],
+  "strategies": [
+    {
+      "composition_identity": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:X:NEGATIVE:r0",
+      "composition_hash": "sha256:63fce88ab68e39302a1c3d97a93799376f21796f996f0fc1600d1fdc245565ce",
+      "group_count": 13,
+      "prefix_distinct_vars": 166,
+      "groups": [
+        {
+          "order": 0,
+          "selection": 1,
+          "variable_indices": [
+            6060,
+            6055,
+            6065,
+            6070
+          ],
+          "variable_names": [
+            "to9face1",
+            "to9face0",
+            "to9face2",
+            "to9face3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            6055,
+            6070
+          ]
+        },
+        {
+          "order": 1,
+          "selection": 0,
+          "variable_indices": [
+            6682
+          ],
+          "variable_names": [
+            "route10corridor"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            6682,
+            6682
+          ]
+        },
+        {
+          "order": 2,
+          "selection": 1,
+          "variable_indices": [
+            6689,
+            6683,
+            6695,
+            6701
+          ],
+          "variable_names": [
+            "direct10_1",
+            "direct10_0",
+            "direct10_2",
+            "direct10_3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            6683,
+            6701
+          ]
+        },
+        {
+          "order": 3,
+          "selection": 0,
+          "variable_indices": [
+            2640
+          ],
+          "variable_names": [
+            "route3corridor"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            2640,
+            2640
+          ]
+        },
+        {
+          "order": 4,
+          "selection": 1,
+          "variable_indices": [
+            2647,
+            2641,
+            2653,
+            2659
+          ],
+          "variable_names": [
+            "direct3_1",
+            "direct3_0",
+            "direct3_2",
+            "direct3_3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            2641,
+            2659
+          ]
+        },
+        {
+          "order": 5,
+          "selection": 0,
+          "variable_indices": [
+            3320
+          ],
+          "variable_names": [
+            "route4corridor"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            3320,
+            3320
+          ]
+        },
+        {
+          "order": 6,
+          "selection": 1,
+          "variable_indices": [
+            3327,
+            3321,
+            3333,
+            3339
+          ],
+          "variable_names": [
+            "direct4_1",
+            "direct4_0",
+            "direct4_2",
+            "direct4_3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            3321,
+            3339
+          ]
+        },
+        {
+          "order": 7,
+          "selection": 1,
+          "variable_indices": [
+            271,
+            265,
+            277,
+            283,
+            360,
+            289,
+            431,
+            502
+          ],
+          "variable_names": [
+            "interface_False_WEST",
+            "interface_False_EAST",
+            "interface_False_NORTH",
+            "interface_False_SOUTH",
+            "interface_True_WEST",
+            "interface_True_EAST",
+            "interface_True_NORTH",
+            "interface_True_SOUTH"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            265,
+            502
+          ]
+        },
+        {
+          "order": 8,
+          "selection": 1,
+          "variable_indices": [
+            250,
+            249,
+            251,
+            252
+          ],
+          "variable_names": [
+            "secondary_precooling_room_coating_room1",
+            "secondary_precooling_room_coating_room0",
+            "secondary_precooling_room_coating_room2",
+            "secondary_precooling_room_coating_room3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            249,
+            252
+          ]
+        },
+        {
+          "order": 9,
+          "selection": 1,
+          "variable_indices": [
+            254,
+            253,
+            255,
+            256
+          ],
+          "variable_names": [
+            "coating_room_finished_goods_room1",
+            "coating_room_finished_goods_room0",
+            "coating_room_finished_goods_room2",
+            "coating_room_finished_goods_room3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            253,
+            256
+          ]
+        },
+        {
+          "order": 10,
+          "selection": 1,
+          "variable_indices": [
+            262,
+            261,
+            263,
+            264
+          ],
+          "variable_names": [
+            "office_shipping_channel1",
+            "office_shipping_channel0",
+            "office_shipping_channel2",
+            "office_shipping_channel3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            261,
+            264
+          ]
+        },
+        {
+          "order": 11,
+          "selection": 1,
+          "variable_indices": [
+            6694,
+            6688,
+            6700,
+            6706,
+            2652,
+            2646,
+            2658,
+            2664,
+            3332,
+            3326,
+            3338,
+            3344,
+            6048,
+            6049,
+            6050,
+            6057,
+            6058,
+            6059,
+            6062,
+            6063,
+            6064,
+            6067,
+            6068,
+            6069,
+            6072,
+            6073,
+            6074,
+            6713,
+            6714,
+            6715,
+            6718,
+            6719,
+            6720,
+            6723,
+            6724,
+            6725,
+            6728,
+            6729,
+            6730,
+            6737,
+            6738,
+            6739,
+            6742,
+            6743,
+            6744,
+            6747,
+            6748,
+            6749,
+            6752,
+            6753,
+            6754,
+            2671,
+            2672,
+            2673,
+            2676,
+            2677,
+            2678,
+            2681,
+            2682,
+            2683,
+            2686,
+            2687,
+            2688,
+            2695,
+            2696,
+            2697,
+            2700,
+            2701,
+            2702,
+            2705,
+            2706,
+            2707,
+            2710,
+            2711,
+            2712,
+            3351,
+            3352,
+            3353,
+            3356,
+            3357,
+            3358,
+            3361,
+            3362,
+            3363,
+            3366,
+            3367,
+            3368,
+            3375,
+            3376,
+            3377,
+            3380,
+            3381,
+            3382,
+            3385,
+            3386,
+            3387,
+            3390,
+            3391,
+            3392,
+            276,
+            270,
+            282,
+            288,
+            363,
+            364,
+            365,
+            367,
+            368,
+            369,
+            292,
+            293,
+            294,
+            296,
+            297,
+            298,
+            434,
+            435,
+            436,
+            438,
+            439,
+            440,
+            505,
+            506,
+            507,
+            509,
+            510,
+            511
+          ],
+          "variable_names": [
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "from9_native0_offset0",
+            "from9_native0_offset1",
+            "from9_native0_offset2",
+            "to9_native0_offset0",
+            "to9_native0_offset1",
+            "to9_native0_offset2",
+            "to9_native1_offset0",
+            "to9_native1_offset1",
+            "to9_native1_offset2",
+            "to9_native2_offset0",
+            "to9_native2_offset1",
+            "to9_native2_offset2",
+            "to9_native3_offset0",
+            "to9_native3_offset1",
+            "to9_native3_offset2",
+            "from10_native0_offset0",
+            "from10_native0_offset1",
+            "from10_native0_offset2",
+            "from10_native1_offset0",
+            "from10_native1_offset1",
+            "from10_native1_offset2",
+            "from10_native2_offset0",
+            "from10_native2_offset1",
+            "from10_native2_offset2",
+            "from10_native3_offset0",
+            "from10_native3_offset1",
+            "from10_native3_offset2",
+            "to10_native0_offset0",
+            "to10_native0_offset1",
+            "to10_native0_offset2",
+            "to10_native1_offset0",
+            "to10_native1_offset1",
+            "to10_native1_offset2",
+            "to10_native2_offset0",
+            "to10_native2_offset1",
+            "to10_native2_offset2",
+            "to10_native3_offset0",
+            "to10_native3_offset1",
+            "to10_native3_offset2",
+            "from3_native0_offset0",
+            "from3_native0_offset1",
+            "from3_native0_offset2",
+            "from3_native1_offset0",
+            "from3_native1_offset1",
+            "from3_native1_offset2",
+            "from3_native2_offset0",
+            "from3_native2_offset1",
+            "from3_native2_offset2",
+            "from3_native3_offset0",
+            "from3_native3_offset1",
+            "from3_native3_offset2",
+            "to3_native0_offset0",
+            "to3_native0_offset1",
+            "to3_native0_offset2",
+            "to3_native1_offset0",
+            "to3_native1_offset1",
+            "to3_native1_offset2",
+            "to3_native2_offset0",
+            "to3_native2_offset1",
+            "to3_native2_offset2",
+            "to3_native3_offset0",
+            "to3_native3_offset1",
+            "to3_native3_offset2",
+            "from4_native0_offset0",
+            "from4_native0_offset1",
+            "from4_native0_offset2",
+            "from4_native1_offset0",
+            "from4_native1_offset1",
+            "from4_native1_offset2",
+            "from4_native2_offset0",
+            "from4_native2_offset1",
+            "from4_native2_offset2",
+            "from4_native3_offset0",
+            "from4_native3_offset1",
+            "from4_native3_offset2",
+            "to4_native0_offset0",
+            "to4_native0_offset1",
+            "to4_native0_offset2",
+            "to4_native1_offset0",
+            "to4_native1_offset1",
+            "to4_native1_offset2",
+            "to4_native2_offset0",
+            "to4_native2_offset1",
+            "to4_native2_offset2",
+            "to4_native3_offset0",
+            "to4_native3_offset1",
+            "to4_native3_offset2",
+            "packaging_shared_offset0",
+            "packaging_shared_offset0",
+            "packaging_shared_offset0",
+            "packaging_shared_offset0",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            270,
+            6754
+          ]
+        },
+        {
+          "order": 12,
+          "selection": 0,
+          "variable_indices": [
+            600,
+            1280,
+            1960,
+            2640,
+            3320,
+            4000,
+            4680,
+            5360,
+            6040,
+            6682
+          ],
+          "variable_names": [
+            "route0corridor",
+            "route1corridor",
+            "route2corridor",
+            "route3corridor",
+            "route4corridor",
+            "route5corridor",
+            "route7corridor",
+            "route8corridor",
+            "route9corridor",
+            "route10corridor"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            600,
+            6682
+          ]
+        }
+      ]
+    },
+    {
+      "composition_identity": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+      "composition_hash": "sha256:f6ad84ecfb7b00d724388b1374281de7336274b2fced9393e98104741878c1c9",
+      "group_count": 13,
+      "prefix_distinct_vars": 166,
+      "groups": [
+        {
+          "order": 0,
+          "selection": 1,
+          "variable_indices": [
+            6060,
+            6055,
+            6065,
+            6070
+          ],
+          "variable_names": [
+            "to9face1",
+            "to9face0",
+            "to9face2",
+            "to9face3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            6055,
+            6070
+          ]
+        },
+        {
+          "order": 1,
+          "selection": 0,
+          "variable_indices": [
+            6682
+          ],
+          "variable_names": [
+            "route10corridor"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            6682,
+            6682
+          ]
+        },
+        {
+          "order": 2,
+          "selection": 1,
+          "variable_indices": [
+            6683,
+            6689,
+            6695,
+            6701
+          ],
+          "variable_names": [
+            "direct10_0",
+            "direct10_1",
+            "direct10_2",
+            "direct10_3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            6683,
+            6701
+          ]
+        },
+        {
+          "order": 3,
+          "selection": 0,
+          "variable_indices": [
+            2640
+          ],
+          "variable_names": [
+            "route3corridor"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            2640,
+            2640
+          ]
+        },
+        {
+          "order": 4,
+          "selection": 1,
+          "variable_indices": [
+            2653,
+            2641,
+            2647,
+            2659
+          ],
+          "variable_names": [
+            "direct3_2",
+            "direct3_0",
+            "direct3_1",
+            "direct3_3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            2641,
+            2659
+          ]
+        },
+        {
+          "order": 5,
+          "selection": 0,
+          "variable_indices": [
+            3320
+          ],
+          "variable_names": [
+            "route4corridor"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            3320,
+            3320
+          ]
+        },
+        {
+          "order": 6,
+          "selection": 1,
+          "variable_indices": [
+            3333,
+            3321,
+            3327,
+            3339
+          ],
+          "variable_names": [
+            "direct4_2",
+            "direct4_0",
+            "direct4_1",
+            "direct4_3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            3321,
+            3339
+          ]
+        },
+        {
+          "order": 7,
+          "selection": 1,
+          "variable_indices": [
+            265,
+            277,
+            283,
+            271,
+            289,
+            431,
+            502,
+            360
+          ],
+          "variable_names": [
+            "interface_False_EAST",
+            "interface_False_NORTH",
+            "interface_False_SOUTH",
+            "interface_False_WEST",
+            "interface_True_EAST",
+            "interface_True_NORTH",
+            "interface_True_SOUTH",
+            "interface_True_WEST"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            265,
+            502
+          ]
+        },
+        {
+          "order": 8,
+          "selection": 1,
+          "variable_indices": [
+            251,
+            249,
+            250,
+            252
+          ],
+          "variable_names": [
+            "secondary_precooling_room_coating_room2",
+            "secondary_precooling_room_coating_room0",
+            "secondary_precooling_room_coating_room1",
+            "secondary_precooling_room_coating_room3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            249,
+            252
+          ]
+        },
+        {
+          "order": 9,
+          "selection": 1,
+          "variable_indices": [
+            255,
+            253,
+            254,
+            256
+          ],
+          "variable_names": [
+            "coating_room_finished_goods_room2",
+            "coating_room_finished_goods_room0",
+            "coating_room_finished_goods_room1",
+            "coating_room_finished_goods_room3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            253,
+            256
+          ]
+        },
+        {
+          "order": 10,
+          "selection": 1,
+          "variable_indices": [
+            263,
+            261,
+            262,
+            264
+          ],
+          "variable_names": [
+            "office_shipping_channel2",
+            "office_shipping_channel0",
+            "office_shipping_channel1",
+            "office_shipping_channel3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            261,
+            264
+          ]
+        },
+        {
+          "order": 11,
+          "selection": 1,
+          "variable_indices": [
+            6688,
+            6694,
+            6700,
+            6706,
+            2658,
+            2646,
+            2652,
+            2664,
+            3338,
+            3326,
+            3332,
+            3344,
+            6048,
+            6049,
+            6050,
+            6057,
+            6058,
+            6059,
+            6062,
+            6063,
+            6064,
+            6067,
+            6068,
+            6069,
+            6072,
+            6073,
+            6074,
+            6713,
+            6714,
+            6715,
+            6718,
+            6719,
+            6720,
+            6723,
+            6724,
+            6725,
+            6728,
+            6729,
+            6730,
+            6737,
+            6738,
+            6739,
+            6742,
+            6743,
+            6744,
+            6747,
+            6748,
+            6749,
+            6752,
+            6753,
+            6754,
+            2671,
+            2672,
+            2673,
+            2676,
+            2677,
+            2678,
+            2681,
+            2682,
+            2683,
+            2686,
+            2687,
+            2688,
+            2695,
+            2696,
+            2697,
+            2700,
+            2701,
+            2702,
+            2705,
+            2706,
+            2707,
+            2710,
+            2711,
+            2712,
+            3351,
+            3352,
+            3353,
+            3356,
+            3357,
+            3358,
+            3361,
+            3362,
+            3363,
+            3366,
+            3367,
+            3368,
+            3375,
+            3376,
+            3377,
+            3380,
+            3381,
+            3382,
+            3385,
+            3386,
+            3387,
+            3390,
+            3391,
+            3392,
+            270,
+            282,
+            288,
+            276,
+            292,
+            293,
+            294,
+            296,
+            297,
+            298,
+            434,
+            435,
+            436,
+            438,
+            439,
+            440,
+            505,
+            506,
+            507,
+            509,
+            510,
+            511,
+            363,
+            364,
+            365,
+            367,
+            368,
+            369
+          ],
+          "variable_names": [
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "from9_native0_offset0",
+            "from9_native0_offset1",
+            "from9_native0_offset2",
+            "to9_native0_offset0",
+            "to9_native0_offset1",
+            "to9_native0_offset2",
+            "to9_native1_offset0",
+            "to9_native1_offset1",
+            "to9_native1_offset2",
+            "to9_native2_offset0",
+            "to9_native2_offset1",
+            "to9_native2_offset2",
+            "to9_native3_offset0",
+            "to9_native3_offset1",
+            "to9_native3_offset2",
+            "from10_native0_offset0",
+            "from10_native0_offset1",
+            "from10_native0_offset2",
+            "from10_native1_offset0",
+            "from10_native1_offset1",
+            "from10_native1_offset2",
+            "from10_native2_offset0",
+            "from10_native2_offset1",
+            "from10_native2_offset2",
+            "from10_native3_offset0",
+            "from10_native3_offset1",
+            "from10_native3_offset2",
+            "to10_native0_offset0",
+            "to10_native0_offset1",
+            "to10_native0_offset2",
+            "to10_native1_offset0",
+            "to10_native1_offset1",
+            "to10_native1_offset2",
+            "to10_native2_offset0",
+            "to10_native2_offset1",
+            "to10_native2_offset2",
+            "to10_native3_offset0",
+            "to10_native3_offset1",
+            "to10_native3_offset2",
+            "from3_native0_offset0",
+            "from3_native0_offset1",
+            "from3_native0_offset2",
+            "from3_native1_offset0",
+            "from3_native1_offset1",
+            "from3_native1_offset2",
+            "from3_native2_offset0",
+            "from3_native2_offset1",
+            "from3_native2_offset2",
+            "from3_native3_offset0",
+            "from3_native3_offset1",
+            "from3_native3_offset2",
+            "to3_native0_offset0",
+            "to3_native0_offset1",
+            "to3_native0_offset2",
+            "to3_native1_offset0",
+            "to3_native1_offset1",
+            "to3_native1_offset2",
+            "to3_native2_offset0",
+            "to3_native2_offset1",
+            "to3_native2_offset2",
+            "to3_native3_offset0",
+            "to3_native3_offset1",
+            "to3_native3_offset2",
+            "from4_native0_offset0",
+            "from4_native0_offset1",
+            "from4_native0_offset2",
+            "from4_native1_offset0",
+            "from4_native1_offset1",
+            "from4_native1_offset2",
+            "from4_native2_offset0",
+            "from4_native2_offset1",
+            "from4_native2_offset2",
+            "from4_native3_offset0",
+            "from4_native3_offset1",
+            "from4_native3_offset2",
+            "to4_native0_offset0",
+            "to4_native0_offset1",
+            "to4_native0_offset2",
+            "to4_native1_offset0",
+            "to4_native1_offset1",
+            "to4_native1_offset2",
+            "to4_native2_offset0",
+            "to4_native2_offset1",
+            "to4_native2_offset2",
+            "to4_native3_offset0",
+            "to4_native3_offset1",
+            "to4_native3_offset2",
+            "packaging_shared_offset0",
+            "packaging_shared_offset0",
+            "packaging_shared_offset0",
+            "packaging_shared_offset0",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            270,
+            6754
+          ]
+        },
+        {
+          "order": 12,
+          "selection": 0,
+          "variable_indices": [
+            600,
+            1280,
+            1960,
+            2640,
+            3320,
+            4000,
+            4680,
+            5360,
+            6040,
+            6682
+          ],
+          "variable_names": [
+            "route0corridor",
+            "route1corridor",
+            "route2corridor",
+            "route3corridor",
+            "route4corridor",
+            "route5corridor",
+            "route7corridor",
+            "route8corridor",
+            "route9corridor",
+            "route10corridor"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            600,
+            6682
+          ]
+        }
+      ]
+    },
+    {
+      "composition_identity": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:Y:POSITIVE:r1",
+      "composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+      "group_count": 13,
+      "prefix_distinct_vars": 166,
+      "groups": [
+        {
+          "order": 0,
+          "selection": 1,
+          "variable_indices": [
+            6060,
+            6055,
+            6065,
+            6070
+          ],
+          "variable_names": [
+            "to9face1",
+            "to9face0",
+            "to9face2",
+            "to9face3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            6055,
+            6070
+          ]
+        },
+        {
+          "order": 1,
+          "selection": 0,
+          "variable_indices": [
+            6682
+          ],
+          "variable_names": [
+            "route10corridor"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            6682,
+            6682
+          ]
+        },
+        {
+          "order": 2,
+          "selection": 1,
+          "variable_indices": [
+            6683,
+            6689,
+            6695,
+            6701
+          ],
+          "variable_names": [
+            "direct10_0",
+            "direct10_1",
+            "direct10_2",
+            "direct10_3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            6683,
+            6701
+          ]
+        },
+        {
+          "order": 3,
+          "selection": 0,
+          "variable_indices": [
+            2640
+          ],
+          "variable_names": [
+            "route3corridor"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            2640,
+            2640
+          ]
+        },
+        {
+          "order": 4,
+          "selection": 1,
+          "variable_indices": [
+            2653,
+            2641,
+            2647,
+            2659
+          ],
+          "variable_names": [
+            "direct3_2",
+            "direct3_0",
+            "direct3_1",
+            "direct3_3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            2641,
+            2659
+          ]
+        },
+        {
+          "order": 5,
+          "selection": 0,
+          "variable_indices": [
+            3320
+          ],
+          "variable_names": [
+            "route4corridor"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            3320,
+            3320
+          ]
+        },
+        {
+          "order": 6,
+          "selection": 1,
+          "variable_indices": [
+            3333,
+            3321,
+            3327,
+            3339
+          ],
+          "variable_names": [
+            "direct4_2",
+            "direct4_0",
+            "direct4_1",
+            "direct4_3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            3321,
+            3339
+          ]
+        },
+        {
+          "order": 7,
+          "selection": 1,
+          "variable_indices": [
+            265,
+            277,
+            283,
+            271,
+            289,
+            431,
+            502,
+            360
+          ],
+          "variable_names": [
+            "interface_False_EAST",
+            "interface_False_NORTH",
+            "interface_False_SOUTH",
+            "interface_False_WEST",
+            "interface_True_EAST",
+            "interface_True_NORTH",
+            "interface_True_SOUTH",
+            "interface_True_WEST"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            265,
+            502
+          ]
+        },
+        {
+          "order": 8,
+          "selection": 1,
+          "variable_indices": [
+            251,
+            249,
+            250,
+            252
+          ],
+          "variable_names": [
+            "secondary_precooling_room_coating_room2",
+            "secondary_precooling_room_coating_room0",
+            "secondary_precooling_room_coating_room1",
+            "secondary_precooling_room_coating_room3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            249,
+            252
+          ]
+        },
+        {
+          "order": 9,
+          "selection": 1,
+          "variable_indices": [
+            255,
+            253,
+            254,
+            256
+          ],
+          "variable_names": [
+            "coating_room_finished_goods_room2",
+            "coating_room_finished_goods_room0",
+            "coating_room_finished_goods_room1",
+            "coating_room_finished_goods_room3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            253,
+            256
+          ]
+        },
+        {
+          "order": 10,
+          "selection": 1,
+          "variable_indices": [
+            263,
+            261,
+            262,
+            264
+          ],
+          "variable_names": [
+            "office_shipping_channel2",
+            "office_shipping_channel0",
+            "office_shipping_channel1",
+            "office_shipping_channel3"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            261,
+            264
+          ]
+        },
+        {
+          "order": 11,
+          "selection": 1,
+          "variable_indices": [
+            6688,
+            6694,
+            6700,
+            6706,
+            2658,
+            2646,
+            2652,
+            2664,
+            3338,
+            3326,
+            3332,
+            3344,
+            6048,
+            6049,
+            6050,
+            6057,
+            6058,
+            6059,
+            6062,
+            6063,
+            6064,
+            6067,
+            6068,
+            6069,
+            6072,
+            6073,
+            6074,
+            6713,
+            6714,
+            6715,
+            6718,
+            6719,
+            6720,
+            6723,
+            6724,
+            6725,
+            6728,
+            6729,
+            6730,
+            6737,
+            6738,
+            6739,
+            6742,
+            6743,
+            6744,
+            6747,
+            6748,
+            6749,
+            6752,
+            6753,
+            6754,
+            2671,
+            2672,
+            2673,
+            2676,
+            2677,
+            2678,
+            2681,
+            2682,
+            2683,
+            2686,
+            2687,
+            2688,
+            2695,
+            2696,
+            2697,
+            2700,
+            2701,
+            2702,
+            2705,
+            2706,
+            2707,
+            2710,
+            2711,
+            2712,
+            3351,
+            3352,
+            3353,
+            3356,
+            3357,
+            3358,
+            3361,
+            3362,
+            3363,
+            3366,
+            3367,
+            3368,
+            3375,
+            3376,
+            3377,
+            3380,
+            3381,
+            3382,
+            3385,
+            3386,
+            3387,
+            3390,
+            3391,
+            3392,
+            270,
+            282,
+            288,
+            276,
+            292,
+            293,
+            294,
+            296,
+            297,
+            298,
+            434,
+            435,
+            436,
+            438,
+            439,
+            440,
+            505,
+            506,
+            507,
+            509,
+            510,
+            511,
+            363,
+            364,
+            365,
+            367,
+            368,
+            369
+          ],
+          "variable_names": [
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "direct_native_offset0",
+            "from9_native0_offset0",
+            "from9_native0_offset1",
+            "from9_native0_offset2",
+            "to9_native0_offset0",
+            "to9_native0_offset1",
+            "to9_native0_offset2",
+            "to9_native1_offset0",
+            "to9_native1_offset1",
+            "to9_native1_offset2",
+            "to9_native2_offset0",
+            "to9_native2_offset1",
+            "to9_native2_offset2",
+            "to9_native3_offset0",
+            "to9_native3_offset1",
+            "to9_native3_offset2",
+            "from10_native0_offset0",
+            "from10_native0_offset1",
+            "from10_native0_offset2",
+            "from10_native1_offset0",
+            "from10_native1_offset1",
+            "from10_native1_offset2",
+            "from10_native2_offset0",
+            "from10_native2_offset1",
+            "from10_native2_offset2",
+            "from10_native3_offset0",
+            "from10_native3_offset1",
+            "from10_native3_offset2",
+            "to10_native0_offset0",
+            "to10_native0_offset1",
+            "to10_native0_offset2",
+            "to10_native1_offset0",
+            "to10_native1_offset1",
+            "to10_native1_offset2",
+            "to10_native2_offset0",
+            "to10_native2_offset1",
+            "to10_native2_offset2",
+            "to10_native3_offset0",
+            "to10_native3_offset1",
+            "to10_native3_offset2",
+            "from3_native0_offset0",
+            "from3_native0_offset1",
+            "from3_native0_offset2",
+            "from3_native1_offset0",
+            "from3_native1_offset1",
+            "from3_native1_offset2",
+            "from3_native2_offset0",
+            "from3_native2_offset1",
+            "from3_native2_offset2",
+            "from3_native3_offset0",
+            "from3_native3_offset1",
+            "from3_native3_offset2",
+            "to3_native0_offset0",
+            "to3_native0_offset1",
+            "to3_native0_offset2",
+            "to3_native1_offset0",
+            "to3_native1_offset1",
+            "to3_native1_offset2",
+            "to3_native2_offset0",
+            "to3_native2_offset1",
+            "to3_native2_offset2",
+            "to3_native3_offset0",
+            "to3_native3_offset1",
+            "to3_native3_offset2",
+            "from4_native0_offset0",
+            "from4_native0_offset1",
+            "from4_native0_offset2",
+            "from4_native1_offset0",
+            "from4_native1_offset1",
+            "from4_native1_offset2",
+            "from4_native2_offset0",
+            "from4_native2_offset1",
+            "from4_native2_offset2",
+            "from4_native3_offset0",
+            "from4_native3_offset1",
+            "from4_native3_offset2",
+            "to4_native0_offset0",
+            "to4_native0_offset1",
+            "to4_native0_offset2",
+            "to4_native1_offset0",
+            "to4_native1_offset1",
+            "to4_native1_offset2",
+            "to4_native2_offset0",
+            "to4_native2_offset1",
+            "to4_native2_offset2",
+            "to4_native3_offset0",
+            "to4_native3_offset1",
+            "to4_native3_offset2",
+            "packaging_shared_offset0",
+            "packaging_shared_offset0",
+            "packaging_shared_offset0",
+            "packaging_shared_offset0",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2",
+            "packaging_native_offset0",
+            "packaging_native_offset1",
+            "packaging_native_offset2"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            270,
+            6754
+          ]
+        },
+        {
+          "order": 12,
+          "selection": 0,
+          "variable_indices": [
+            600,
+            1280,
+            1960,
+            2640,
+            3320,
+            4000,
+            4680,
+            5360,
+            6040,
+            6682
+          ],
+          "variable_names": [
+            "route0corridor",
+            "route1corridor",
+            "route2corridor",
+            "route3corridor",
+            "route4corridor",
+            "route5corridor",
+            "route7corridor",
+            "route8corridor",
+            "route9corridor",
+            "route10corridor"
+          ],
+          "domains": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "index_range": [
+            600,
+            6682
+          ]
+        }
+      ]
+    }
+  ],
+  "warmup_fingerprints": [
+    {
+      "phase": "ALL_ROOM_GEOMETRY_HINT",
+      "r5": "0x3409de7261a68b82",
+      "r6": "0x3409de7261a68b82",
+      "same": true
+    },
+    {
+      "phase": "ALL_ROOM_MUST_HINT",
+      "r5": "0x6d3ad57179e9e746",
+      "r6": "0x6d3ad57179e9e746",
+      "same": true
+    },
+    {
+      "phase": "COMPOSITION_PACKAGING_HINT",
+      "r5": null,
+      "r6": null,
+      "same": "NOT_EVALUATED"
+    },
+    {
+      "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+      "r5": null,
+      "r6": null,
+      "same": "NOT_EVALUATED"
+    },
+    {
+      "phase": "ALL_ROOM_GEOMETRY_HINT",
+      "r5": "0x3409de7261a68b82",
+      "r6": "0x3409de7261a68b82",
+      "same": true
+    },
+    {
+      "phase": "ALL_ROOM_MUST_HINT",
+      "r5": "0x6d3ad57179e9e746",
+      "r6": "0x6d3ad57179e9e746",
+      "same": true
+    },
+    {
+      "phase": "COMPOSITION_PACKAGING_HINT",
+      "r5": null,
+      "r6": null,
+      "same": "NOT_EVALUATED"
+    },
+    {
+      "phase": "ALL_ROOM_GEOMETRY_HINT",
+      "r5": "0x3409de7261a68b82",
+      "r6": "0x3409de7261a68b82",
+      "same": true
+    },
+    {
+      "phase": "ALL_ROOM_MUST_HINT",
+      "r5": "0x6d3ad57179e9e746",
+      "r6": "0x6d3ad57179e9e746",
+      "same": true
+    },
+    {
+      "phase": "COMPOSITION_PACKAGING_HINT",
+      "r5": null,
+      "r6": null,
+      "same": "NOT_EVALUATED"
+    },
+    {
+      "phase": "ALL_ROOM_GEOMETRY_HINT",
+      "r5": "0x3409de7261a68b82",
+      "r6": "0x3409de7261a68b82",
+      "same": true
+    },
+    {
+      "phase": "ALL_ROOM_MUST_HINT",
+      "r5": "0x6d3ad57179e9e746",
+      "r6": "0x6d3ad57179e9e746",
+      "same": true
+    },
+    {
+      "phase": "COMPOSITION_PACKAGING_HINT",
+      "r5": null,
+      "r6": null,
+      "same": "NOT_EVALUATED"
+    },
+    {
+      "phase": "ALL_ROOM_GEOMETRY_HINT",
+      "r5": "0x3409de7261a68b82",
+      "r6": "0x3409de7261a68b82",
+      "same": true
+    },
+    {
+      "phase": "ALL_ROOM_MUST_HINT",
+      "r5": "0x6d3ad57179e9e746",
+      "r6": "0x6d3ad57179e9e746",
+      "same": true
+    },
+    {
+      "phase": "COMPOSITION_PACKAGING_HINT",
+      "r5": "0x445ecfdd10ba9500",
+      "r6": "0x445ecfdd10ba9500",
+      "same": true
+    },
+    {
+      "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+      "r5": null,
+      "r6": null,
+      "same": "NOT_EVALUATED"
+    },
+    {
+      "phase": "ALL_ROOM_GEOMETRY_HINT",
+      "r5": "0x3409de7261a68b82",
+      "r6": "0x3409de7261a68b82",
+      "same": true
+    },
+    {
+      "phase": "ALL_ROOM_MUST_HINT",
+      "r5": "0x6d3ad57179e9e746",
+      "r6": "0x6d3ad57179e9e746",
+      "same": true
+    },
+    {
+      "phase": "COMPOSITION_PACKAGING_HINT",
+      "r5": "0xf625d2855a3d6c7",
+      "r6": "0xf625d2855a3d6c7",
+      "same": true
+    },
+    {
+      "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+      "r5": null,
+      "r6": null,
+      "same": "NOT_EVALUATED"
+    }
+  ],
+  "presolve_trace": "NOT_RECORDED_NO_RETROSPECTIVE_FABRICATION",
+  "actual_factory_prefix_causality": "UNPROVEN",
+  "r5_r6_shared_configuration_ast_comparison": [
+    {
+      "file": "backend/src/cold_storage/modules/layout/infrastructure/global_cp_sat_solver.py",
+      "cls": "OrToolsGlobalCompositionSolver",
+      "method": "_run",
+      "ast_equal": true
+    },
+    {
+      "file": "backend/src/cold_storage/modules/layout/infrastructure/stage_b_fair_search.py",
+      "cls": "FairNativeSolver",
+      "method": "__init__",
+      "ast_equal": true
+    },
+    {
+      "file": "backend/src/cold_storage/modules/layout/infrastructure/stage_b_fair_search.py",
+      "cls": "FairNativeSolver",
+      "method": "remaining_share",
+      "ast_equal": true
+    },
+    {
+      "file": "backend/src/cold_storage/modules/layout/infrastructure/stage_b_fair_search.py",
+      "cls": "FairNativeSolver",
+      "method": "_run",
+      "ast_equal": true
+    }
+  ],
+  "r5_comparable_handoff_calls": [
+    {
+      "handoff": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:X:NEGATIVE:r0",
+      "full_calls": [],
+      "warmup_phases": [
+        "ALL_ROOM_GEOMETRY_HINT",
+        "ALL_ROOM_MUST_HINT",
+        "COMPOSITION_PACKAGING_HINT",
+        "ALL_ACCESS_FRESH_HINT_ONLY"
+      ]
+    },
+    {
+      "handoff": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:X:NEGATIVE:r0",
+      "full_calls": [],
+      "warmup_phases": [
+        "ALL_ROOM_GEOMETRY_HINT",
+        "ALL_ROOM_MUST_HINT",
+        "COMPOSITION_PACKAGING_HINT"
+      ]
+    },
+    {
+      "handoff": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:X:NEGATIVE:r0",
+      "full_calls": [],
+      "warmup_phases": [
+        "ALL_ROOM_GEOMETRY_HINT",
+        "ALL_ROOM_MUST_HINT",
+        "COMPOSITION_PACKAGING_HINT"
+      ]
+    },
+    {
+      "handoff": "whole-building-structural-composition@2.0.0:CENTRAL_PROCESS_CORE:Y:POSITIVE:r1",
+      "full_calls": [],
+      "warmup_phases": [
+        "ALL_ROOM_GEOMETRY_HINT",
+        "ALL_ROOM_MUST_HINT",
+        "COMPOSITION_PACKAGING_HINT"
+      ]
+    },
+    {
+      "handoff": "whole-building-structural-composition@2.0.0:LINEAR_BANDED:Y:POSITIVE:r1",
+      "full_calls": [
+        {
+          "wall_time": 1.162504,
+          "monotonic_wall_time": 1.163209459016798,
+          "deterministic_time": 0.75872977834536,
+          "branches": 87201,
+          "conflicts": 48,
+          "solver_status": "FEASIBLE"
+        },
+        {
+          "wall_time": 1.7869490000000001,
+          "monotonic_wall_time": 1.7878373340063263,
+          "deterministic_time": 0.9741044721996048,
+          "branches": 166878,
+          "conflicts": 147,
+          "solver_status": "FEASIBLE"
+        },
+        {
+          "wall_time": 1.925477,
+          "monotonic_wall_time": 1.9278457500040531,
+          "deterministic_time": 0.9790955876985666,
+          "branches": 168419,
+          "conflicts": 157,
+          "solver_status": "FEASIBLE"
+        }
+      ],
+      "warmup_phases": [
+        "ALL_ROOM_GEOMETRY_HINT",
+        "ALL_ROOM_MUST_HINT",
+        "COMPOSITION_PACKAGING_HINT",
+        "ALL_ACCESS_FRESH_HINT_ONLY"
+      ]
+    },
+    {
+      "handoff": "whole-building-structural-composition@2.0.0:PROCESS_SPINE_WITH_PERIPHERAL_BANKS:Y:POSITIVE:r1",
+      "full_calls": [
+        {
+          "wall_time": 1.832397,
+          "monotonic_wall_time": 1.8332962499989662,
+          "deterministic_time": 0.984269401843366,
+          "branches": 168390,
+          "conflicts": 337,
+          "solver_status": "FEASIBLE"
+        },
+        {
+          "wall_time": 1.1895410000000002,
+          "monotonic_wall_time": 1.1904327499796636,
+          "deterministic_time": 0.7603553692665276,
+          "branches": 56578,
+          "conflicts": 49,
+          "solver_status": "FEASIBLE"
+        },
+        {
+          "wall_time": 1.806337,
+          "monotonic_wall_time": 1.8072264170041308,
+          "deterministic_time": 0.9718690913372335,
+          "branches": 164995,
+          "conflicts": 137,
+          "solver_status": "FEASIBLE"
+        }
+      ],
+      "warmup_phases": [
+        "ALL_ROOM_GEOMETRY_HINT",
+        "ALL_ROOM_MUST_HINT",
+        "COMPOSITION_PACKAGING_HINT",
+        "ALL_ACCESS_FRESH_HINT_ONLY"
+      ]
+    }
+  ],
+  "r7_policy_hash": "sha256:e669e1a82f2e59cfa8cda122cda45596ba812e816aec673d4a67b7717e63e458"
+}
