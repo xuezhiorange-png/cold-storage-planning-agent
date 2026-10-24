@@ -59,7 +59,7 @@ def bind_native_portal_positions(
     name: str,
     *,
     center_only: bool = False,
-) -> None:
+) -> tuple[Any, ...]:
     """Original _portal_candidates offsets: centered, lower and upper.
 
     A validator-domain mapping, not a new engineering clearance or a claim
@@ -80,6 +80,7 @@ def bind_native_portal_positions(
         model.add_implication(flag, active)
         model.add(position == value).only_enforce_if(flag)
     model.add(sum(choices) == active)
+    return tuple(choices)
 
 
 def bind_native_shared_portal(
@@ -92,14 +93,14 @@ def bind_native_shared_portal(
     active: Any,
     bound: int,
     name: str,
-) -> None:
+) -> tuple[Any, ...]:
     low = model.new_int_var(-2 * bound, 2 * bound, name + "_low")
     high = model.new_int_var(-2 * bound, 2 * bound, name + "_high")
     model.add_max_equality(low, [first["y" if vertical else "x"], second["y" if vertical else "x"]])
     model.add_min_equality(
         high, [first["Y" if vertical else "X"], second["Y" if vertical else "X"]]
     )
-    bind_native_portal_positions(
+    return bind_native_portal_positions(
         model, position, low, high, width, active, bound, name, center_only=True
     )
 
@@ -137,11 +138,14 @@ def touch(m: Any, A: Any, B: Any, prefix: str, min_overlap: int = 1) -> list[Any
 
 
 class GlobalModel:
+    def _new_cp_model(self) -> Any:
+        return cp_model.CpModel()
+
     def __init__(self, c: Any, handoff: Any, bank: int = 1) -> None:
         self.c = c
         self.handoff = handoff
         self.bank = bank
-        self.m = cp_model.CpModel()
+        self.m = self._new_cp_model()
         m = self.m
         self.rooms: dict[str, dict[str, Any]] = {}
         self.interfaces: list[dict[str, Any]] = []
@@ -208,8 +212,9 @@ class GlobalModel:
                 c.ledger.charge("MODEL_OBSTACLE_SEPARATION", 4)
         m.add_no_overlap_2d(ix, iy)
         self.geometry_constraint_count = len(m.proto.constraints)
+        self.must_choices: dict[tuple[str, str], tuple[Any, ...]] = {}
         for a, b in c.must:
-            touch(m, self.rooms[a], self.rooms[b], a + "_" + b)
+            self.must_choices[a, b] = tuple(touch(m, self.rooms[a], self.rooms[b], a + "_" + b))
             c.ledger.charge("MODEL_MUST_DISJUNCTION", 12)
         self.must_constraint_count = len(m.proto.constraints)
         A = self.rooms[c.pack_req["from_ref"]]
@@ -226,23 +231,36 @@ class GlobalModel:
                 )
                 lower = center - span // 2
                 upper = lower + span
+                portal_choices = []
                 for R in (A, B):
                     m.add(lower >= R["y"] if vertical else lower >= R["x"]).only_enforce_if(active)
                     m.add(upper <= R["Y"] if vertical else upper <= R["X"]).only_enforce_if(active)
                     if corridor:
-                        bind_native_portal_positions(
+                        portal_choices.append(
+                            bind_native_portal_positions(
+                                m,
+                                center,
+                                R["y" if vertical else "x"],
+                                R["Y" if vertical else "X"],
+                                portal,
+                                active,
+                                max(sr, st),
+                                "packaging_native",
+                            )
+                        )
+                if not corridor:
+                    portal_choices.append(
+                        bind_native_shared_portal(
                             m,
                             center,
-                            R["y" if vertical else "x"],
-                            R["Y" if vertical else "X"],
+                            A,
+                            B,
+                            vertical,
                             portal,
                             active,
                             max(sr, st),
-                            "packaging_native",
+                            "packaging_shared",
                         )
-                if not corridor:
-                    bind_native_shared_portal(
-                        m, center, A, B, vertical, portal, active, max(sr, st), "packaging_shared"
                     )
                 # Existing access authority resolves role-relative LONG / SHORT faces.
                 m.add(A["d"] >= A["w"] if vertical else A["w"] >= A["d"]).only_enforce_if(active)
@@ -303,6 +321,7 @@ class GlobalModel:
                         fa=fa,
                         fb=fb,
                         vertical=vertical,
+                        portal_choices=tuple(portal_choices),
                     )
                 )
                 c.ledger.charge("MODEL_INTERFACE_CASE", 50)
@@ -422,6 +441,7 @@ class AccessModel(GlobalModel):
         ) -> Any:
             px, py, qx, qy = [var(tag + k) for k in ("px", "py", "qx", "qy")]
             options = []
+            offsets = []
             if role in c.entrances:
                 a, b = c.entrances[role]
                 vertical = a[0] == b[0]
@@ -454,8 +474,10 @@ class AccessModel(GlobalModel):
                 m.add(px == fixed if vertical else py == fixed).only_enforce_if(b)
                 m.add(2 * pos >= 2 * lo + pw).only_enforce_if(b)
                 m.add(2 * pos <= 2 * hi - pw).only_enforce_if(b)
-                bind_native_portal_positions(
-                    m, pos, lo, hi, pw, b, max(sr, st), tag + "_native" + str(n)
+                offsets.append(
+                    bind_native_portal_positions(
+                        m, pos, lo, hi, pw, b, max(sr, st), tag + "_native" + str(n)
+                    )
                 )
                 m.add(qx == px + normal[0] * (cw // 2)).only_enforce_if(b)
                 m.add(qy == py + normal[1] * (cw // 2)).only_enforce_if(b)
@@ -467,7 +489,7 @@ class AccessModel(GlobalModel):
                         length >= other if edge == "LONG_EDGE" else length <= other
                     ).only_enforce_if(b)
             m.add(sum(options) == active)
-            return (px, py), (qx, qy), options
+            return (px, py), (qx, qy), options, offsets
 
         def env(
             A: Any, B: Any, cw: int, act: Any, tag: str, corner: bool = False
@@ -552,14 +574,15 @@ class AccessModel(GlobalModel):
                         for R in (A, B):
                             m.add(2 * t >= 2 * R["x"] + pw).only_enforce_if(b)
                             m.add(2 * t <= 2 * R["X"] - pw).only_enforce_if(b)
-                    bind_native_shared_portal(
+                    choices = bind_native_shared_portal(
                         m, t, A, B, side < 2, pw, b, max(sr, st), "direct_native"
                     )
+                    direct[-1]["portal_choices"] = choices
             m.add(sum(d["active"] for d in direct) + corridor == 1)
             if not req["corridor_allowed"]:
                 m.add(corridor == 0)
-            P, Q, ff = endpoint(req["from_ref"], pw, cw, corridor, "from" + str(ri))
-            T, U, ft = endpoint(req["to_ref"], pw, cw, corridor, "to" + str(ri))
+            P, Q, ff, fo = endpoint(req["from_ref"], pw, cw, corridor, "from" + str(ri))
+            T, U, ft, to = endpoint(req["to_ref"], pw, cw, corridor, "to" + str(ri))
             horizontal = m.new_bool_var("middle_HVH" + str(ri))
             b1 = (var("bendx1"), var("bendy1"))
             b2 = (var("bendx2"), var("bendy2"))
@@ -585,6 +608,10 @@ class AccessModel(GlobalModel):
                     direct=direct,
                     points=points,
                     envelopes=E,
+                    from_faces=ff,
+                    to_faces=ft,
+                    from_offsets=fo,
+                    to_offsets=to,
                 )
             )
             allenv.append((req["identity"], E))

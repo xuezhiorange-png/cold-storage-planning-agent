@@ -54,17 +54,20 @@ class _FeasibilityFirstNative(FairNativeSolver):
         if self.improving and phase == "ALL_ROOMS_ALL_ACCESS":
             solver.parameters.stop_after_first_solution = False
 
+    def _hint_current_assignment(self, model: Any, context: Any, solver: Any) -> None:
+        context.ledger.charge("STAGE_B_CURRENT_VALID_ASSIGNMENT_HINT", len(model.m.proto.variables))
+        model.m.clear_hints()
+        for index in range(len(model.m.proto.variables)):
+            variable = model.m.get_int_var_from_proto_index(index)
+            model.m.add_hint(variable, solver.value(variable))
+
     def begin_improvement(self, model: Any, context: Any, solver: Any) -> dict[str, Any]:
         self.remaining_share(context)  # No room, family or phase receives a fresh quantum.
         context.ledger.remaining_solver_seconds()
         # The same model retains every hard constraint, including total wall
         # definitions and exact invalid-witness cuts. Replace ONE soft objective.
         # Native indices/values are from this very model, not caller coordinates.
-        context.ledger.charge("STAGE_B_CURRENT_VALID_ASSIGNMENT_HINT", len(model.m.proto.variables))
-        model.m.clear_hints()
-        for index in range(len(model.m.proto.variables)):
-            variable = model.m.get_int_var_from_proto_index(index)
-            model.m.add_hint(variable, solver.value(variable))
+        self._hint_current_assignment(model, context, solver)
         model.m.clear_objective()
         receipt = self._apply_improvement_guidance(model, context)
         self.improving = True

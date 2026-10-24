@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+<rect width="1440" height="900" fill="#f1f4f8"/>
+<style>text{font-family:Arial,sans-serif;fill:#18324b} .small{font-size:14px} .label{font-size:13px;font-weight:600}</style>
+<text x="40" y="46" font-size="26" font-weight="700">R6 synthetic frontage / personnel-route comparison</text>
+<text x="40" y="75" font-size="16">Eight-room synthetic CP-SAT scene | actual solver choices | identical physical domains / area objective</text>
+<rect x="30" y="112" width="680" height="720" rx="12" fill="white"/>
+<text x="50" y="145" font-size="21" font-weight="700">R5 original decision order</text>
+<text x="50" y="174" font-size="16">Route 12 m | 3 turns | proxy 1125</text>
+<rect x="65.0" y="202.0" width="592.0" height="518.0" fill="#fafcfe" stroke="#8094a9"/>
+<rect x="213.0" y="572.0" width="222.0" height="148.0" fill="#dce8f1" stroke="#45627c" stroke-width="1.5"/>
+<text x="324.0" y="650.0" text-anchor="middle" class="label">Sorting</text>
+<rect x="435.0" y="572.0" width="148.0" height="148.0" fill="#dce8f1" stroke="#45627c" stroke-width="1.5"/>
+<text x="509.0" y="650.0" text-anchor="middle" class="label">Packaging</text>
+<rect x="65.0" y="572.0" width="148.0" height="148.0" fill="#dce8f1" stroke="#45627c" stroke-width="1.5"/>
+<text x="139.0" y="650.0" text-anchor="middle" class="label">Secondary</text>
+<rect x="65.0" y="424.0" width="148.0" height="148.0" fill="#dce8f1" stroke="#45627c" stroke-width="1.5"/>
+<text x="139.0" y="502.0" text-anchor="middle" class="label">Box film sealing</text>
+<rect x="65.0" y="276.0" width="148.0" height="148.0" fill="#dce8f1" stroke="#45627c" stroke-width="1.5"/>
+<text x="139.0" y="354.0" text-anchor="middle" class="label">Finished</text>
+<rect x="213.0" y="239.0" width="148.0" height="148.0" fill="#dce8f1" stroke="#45627c" stroke-width="1.5"/>
+<text x="287.0" y="317.0" text-anchor="middle" class="label">Office</text>
+<rect x="361.0" y="239.0" width="74.0" height="148.0" fill="#dce8f1" stroke="#45627c" stroke-width="1.5"/>
+<text x="398.0" y="317.0" text-anchor="middle" class="label">Shipping</text>
+<rect x="213.0" y="498.0" width="148.0" height="74.0" fill="#fbe5b2" stroke="#45627c" stroke-width="1.5"/>
+<text x="287.0" y="539.0" text-anchor="middle" class="label">Changing</text>
+<polyline points="657.00,498.00 620.00,498.00 620.00,461.00 287.00,461.00 287.00,461.00 287.00,498.00" fill="none" stroke="#24a88c" stroke-width="74.0" opacity=".16" stroke-linejoin="miter"/>
+<polyline points="657.00,498.00 620.00,498.00 620.00,461.00 287.00,461.00 287.00,461.00 287.00,498.00" fill="none" stroke="#07836c" stroke-width="4" stroke-linejoin="miter"/>
+<path d="M 657.0 461.0 L 657.0 535.0" stroke="#dc7a20" stroke-width="7"/>
+<circle cx="287.0" cy="498.0" r="6" fill="#dc7a20"/>
+<text x="65" y="765" font-size="16">North Changing portal | single component | zero holes</text>
+<text x="65" y="795" class="small">Physical rooms unchanged; only existing portal/path choice differs.</text>
+<rect x="740" y="112" width="680" height="720" rx="12" fill="white"/>
+<text x="760" y="145" font-size="21" font-weight="700">R6 frontage decision prefix</text>
+<text x="760" y="174" font-size="16">Route 9 m | 2 turns | proxy 1125</text>
+<rect x="775.0" y="202.0" width="592.0" height="518.0" fill="#fafcfe" stroke="#8094a9"/>
+<rect x="923.0" y="572.0" width="222.0" height="148.0" fill="#dce8f1" stroke="#45627c" stroke-width="1.5"/>
+<text x="1034.0" y="650.0" text-anchor="middle" class="label">Sorting</text>
+<rect x="1145.0" y="572.0" width="148.0" height="148.0" fill="#dce8f1" stroke="#45627c" stroke-width="1.5"/>
+<text x="1219.0" y="650.0" text-anchor="middle" class="label">Packaging</text>
+<rect x="775.0" y="572.0" width="148.0" height="148.0" fill="#dce8f1" stroke="#45627c" stroke-width="1.5"/>
+<text x="849.0" y="650.0" text-anchor="middle" class="label">Secondary</text>
+<rect x="775.0" y="424.0" width="148.0" height="148.0" fill="#dce8f1" stroke="#45627c" stroke-width="1.5"/>
+<text x="849.0" y="502.0" text-anchor="middle" class="label">Box film sealing</text>
+<rect x="775.0" y="276.0" width="148.0" height="148.0" fill="#dce8f1" stroke="#45627c" stroke-width="1.5"/>
+<text x="849.0" y="354.0" text-anchor="middle" class="label">Finished</text>
+<rect x="923.0" y="239.0" width="148.0" height="148.0" fill="#dce8f1" stroke="#45627c" stroke-width="1.5"/>
+<text x="997.0" y="317.0" text-anchor="middle" class="label">Office</text>
+<rect x="1071.0" y="239.0" width="74.0" height="148.0" fill="#dce8f1" stroke="#45627c" stroke-width="1.5"/>
+<text x="1108.0" y="317.0" text-anchor="middle" class="label">Shipping</text>
+<rect x="923.0" y="498.0" width="148.0" height="74.0" fill="#fbe5b2" stroke="#45627c" stroke-width="1.5"/>
+<text x="997.0" y="539.0" text-anchor="middle" class="label">Changing</text>
+<polyline points="1367.00,498.00 1330.00,498.00 1330.00,498.00 1330.00,535.00 1108.00,535.00 1071.00,535.00" fill="none" stroke="#24a88c" stroke-width="74.0" opacity=".16" stroke-linejoin="miter"/>
+<polyline points="1367.00,498.00 1330.00,498.00 1330.00,498.00 1330.00,535.00 1108.00,535.00 1071.00,535.00" fill="none" stroke="#07836c" stroke-width="4" stroke-linejoin="miter"/>
+<path d="M 1367.0 461.0 L 1367.0 535.0" stroke="#dc7a20" stroke-width="7"/>
+<circle cx="1071.0" cy="535.0" r="6" fill="#dc7a20"/>
+<text x="775" y="765" font-size="16">East Changing portal | single component | zero holes</text>
+<text x="775" y="795" class="small">Physical rooms unchanged; only existing portal/path choice differs.</text>
+<text x="40" y="864" font-size="15">SYNTHETIC ONLY — no frozen 20t MAIN; no real-factory efficiency or engineering acceptance claim.</text>
+</svg>

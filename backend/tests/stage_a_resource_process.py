@@ -33,6 +33,7 @@ RESOURCE_TEST_FILES = frozenset(
         "test_v222_stage_b_r5_main_execution.py",
         "test_v222_stage_b_balanced_quality.py",
         "test_v222_stage_b_area_efficiency.py",
+        "test_v222_stage_b_frontage_joint_search.py",
         "test_v222_multi_solution_execution.py",
         "test_v222_native_access_hints.py",
         "test_v222_production_execution_policy.py",

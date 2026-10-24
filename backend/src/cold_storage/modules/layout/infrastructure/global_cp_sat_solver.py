@@ -73,6 +73,9 @@ def physical_assignment_variables(model: Any, solver: Any) -> list[Any]:
 class OrToolsGlobalCompositionSolver:
     """Stage-A single deterministic configuration, not an automatic recovery loop."""
 
+    def _new_final_model(self, context: Any, handoff: Any) -> Any:
+        return AccessModel(context, handoff, True)
+
     def _configure_search(self, solver: cp_model.CpSolver, phase: str) -> None:
         """Internal opt-in continuation hook; the default keeps first-solution search."""
 
@@ -163,6 +166,7 @@ class OrToolsGlobalCompositionSolver:
         final_model_guidance: Callable[[Any], dict[str, Any]] | None = None,
         accepted_model_guidance: Callable[[Any, Any], dict[str, Any]] | None = None,
         accepted_continuation_guidance: Callable[[Any, Any], dict[str, Any] | None] | None = None,
+        final_model_search: Callable[[Any], dict[str, Any]] | None = None,
     ) -> Generator[dict[str, Any], str | None, None]:
         """One preparation, one final model; bounded physical enumeration.
 
@@ -255,7 +259,7 @@ class OrToolsGlobalCompositionSolver:
         )
         if hint_status in (cp_model.FEASIBLE, cp_model.OPTIMAL):
             hints, _ = access_hint_model.export(hint_solver)
-        model = AccessModel(context, handoff, True)
+        model = self._new_final_model(context, handoff)
         if hints:
             _room_hint(model, hints)
         # Unused corridor variables have no physical meaning when direct is selected.
@@ -263,6 +267,10 @@ class OrToolsGlobalCompositionSolver:
             for point in route["points"]:
                 for var in point:
                     model.m.add(var == 0).only_enforce_if(route["corridor"].Not())
+        if final_model_search is not None:
+            search_receipt = final_model_search(model)
+            if event_sink:
+                event_sink({"kind": "FINAL_MODEL_SEARCH_APPLIED", "search": search_receipt})
         model.m.add_decision_strategy(
             [r["corridor"] for r in model.routes], cp_model.CHOOSE_FIRST, cp_model.SELECT_MIN_VALUE
         )
