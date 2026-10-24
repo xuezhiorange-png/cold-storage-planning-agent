@@ -27,9 +27,6 @@ from cold_storage.modules.layout.application.global_multi_solution_pool import (
 )
 from cold_storage.modules.layout.application.layout_authority_binding import bind_layout_authority
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError, canonical_hash
-from cold_storage.modules.layout.infrastructure.stage_b_area_efficiency import (
-    COMPARISON_POLICY,
-)
 from cold_storage.modules.layout.infrastructure.stage_b_balanced_quality import (
     COMPARISON_POLICY as NINE_METRIC_POLICY,
 )
@@ -38,6 +35,7 @@ from cold_storage.modules.layout.infrastructure.stage_b_frontage_joint_search im
 )
 from cold_storage.modules.layout.infrastructure.stage_b_r6_main_execution import (
     CI_IDENTITY,
+    COMPARISON_POLICY,
     CONTRACT,
     REFERENCE_HEAD,
     TASK,
