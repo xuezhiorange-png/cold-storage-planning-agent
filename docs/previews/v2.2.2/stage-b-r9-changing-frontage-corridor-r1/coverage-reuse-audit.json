@@ -1,0 +1,80 @@
+{
+  "scope": "READ_ONLY_COVERAGE_PREDICATE_REEXECUTION_NOT_NATIVE_OR_HISTORICAL_WORK",
+  "historical_postroute_work": 234796,
+  "rows": [
+    {
+      "candidate": "P01",
+      "coverage_queries": 12,
+      "same_footprint_edge_decompositions": 117,
+      "all_covered": true,
+      "offline_profile_seconds": 0.09401512501062825
+    },
+    {
+      "candidate": "P02",
+      "coverage_queries": 12,
+      "same_footprint_edge_decompositions": 117,
+      "all_covered": true,
+      "offline_profile_seconds": 0.09419199998956174
+    },
+    {
+      "candidate": "P03",
+      "coverage_queries": 12,
+      "same_footprint_edge_decompositions": 114,
+      "all_covered": true,
+      "offline_profile_seconds": 0.08813191700028256
+    },
+    {
+      "candidate": "P04",
+      "coverage_queries": 12,
+      "same_footprint_edge_decompositions": 116,
+      "all_covered": true,
+      "offline_profile_seconds": 0.09376912500010803
+    },
+    {
+      "candidate": "P05",
+      "coverage_queries": 12,
+      "same_footprint_edge_decompositions": 114,
+      "all_covered": true,
+      "offline_profile_seconds": 0.08398116700118408
+    },
+    {
+      "candidate": "P06",
+      "coverage_queries": 12,
+      "same_footprint_edge_decompositions": 114,
+      "all_covered": true,
+      "offline_profile_seconds": 0.08561558299697936
+    },
+    {
+      "candidate": "P07",
+      "coverage_queries": 12,
+      "same_footprint_edge_decompositions": 113,
+      "all_covered": true,
+      "offline_profile_seconds": 0.09304658399196342
+    },
+    {
+      "candidate": "P08",
+      "coverage_queries": 12,
+      "same_footprint_edge_decompositions": 114,
+      "all_covered": true,
+      "offline_profile_seconds": 0.08484075003070757
+    },
+    {
+      "candidate": "P09",
+      "coverage_queries": 12,
+      "same_footprint_edge_decompositions": 114,
+      "all_covered": true,
+      "offline_profile_seconds": 0.08054120797896758
+    },
+    {
+      "candidate": "P10",
+      "coverage_queries": 12,
+      "same_footprint_edge_decompositions": 114,
+      "all_covered": true,
+      "offline_profile_seconds": 0.08418120897840708
+    }
+  ],
+  "unchanged_site_normalization_inputs": 1,
+  "changed_candidate_footprints": 10,
+  "caching_implemented": false,
+  "reason": "Repeated immutable edge derivation established; complete identity, lifetime, metering and exception equivalence of a production cache are not established. No validation or billing changed."
+}

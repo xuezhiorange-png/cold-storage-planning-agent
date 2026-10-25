@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="650" viewBox="0 0 1240 650">
+<rect width="1240" height="650" fill="#f2f4f7"/>
+<g font-family="Arial,sans-serif" fill="#162332">
+<text x="30" y="35" font-size="23">R9: actual synthetic position / portal / corridor comparison</text>
+<text x="30" y="60" font-size="14">Same eight-room hard model, 1.5m door / 2m corridor, Presolve ON. Not a factory result.</text>
+<text x="40" y="105" font-size="20">R7 frontage order</text>
+<text x="40" y="128" font-size="14">Staff 9m / 2 turns; Changing 8m2 / aspect 2</text>
+<rect x="40" y="145" width="512" height="448" fill="white" stroke="#a6b0bc"/>
+<rect x="520.0" y="305.0" width="32.0" height="64.0" fill="#f7ddaa"/>
+<rect x="488.0" y="305.0" width="64.0" height="32.0" fill="#f7ddaa"/>
+<rect x="296.0" y="273.0" width="224.0" height="64.0" fill="#f7ddaa"/>
+<rect x="488.0" y="305.0" width="64.0" height="64.0" fill="#f7ddaa"/>
+<rect x="488.0" y="273.0" width="64.0" height="64.0" fill="#f7ddaa"/>
+<rect x="168.0" y="145.0" width="192.0" height="128.0" fill="#d6e0e8" stroke="#364b5d"/>
+<text x="264.0" y="209.0" text-anchor="middle" font-size="9">sorting packaging</text>
+<rect x="360.0" y="145.0" width="128.0" height="128.0" fill="#d6e0e8" stroke="#364b5d"/>
+<text x="424.0" y="209.0" text-anchor="middle" font-size="9">packaging material storage</text>
+<rect x="40.0" y="145.0" width="128.0" height="128.0" fill="#d6e0e8" stroke="#364b5d"/>
+<text x="104.0" y="209.0" text-anchor="middle" font-size="9">secondary precooling</text>
+<rect x="40.0" y="273.0" width="128.0" height="128.0" fill="#d6e0e8" stroke="#364b5d"/>
+<text x="104.0" y="337.0" text-anchor="middle" font-size="9">coating</text>
+<rect x="40.0" y="401.0" width="128.0" height="128.0" fill="#d6e0e8" stroke="#364b5d"/>
+<text x="104.0" y="465.0" text-anchor="middle" font-size="9">finished goods</text>
+<rect x="168.0" y="433.0" width="128.0" height="128.0" fill="#d6e0e8" stroke="#364b5d"/>
+<text x="232.0" y="497.0" text-anchor="middle" font-size="9">office</text>
+<rect x="296.0" y="433.0" width="64.0" height="128.0" fill="#d6e0e8" stroke="#364b5d"/>
+<text x="328.0" y="497.0" text-anchor="middle" font-size="9">shipping channel</text>
+<rect x="168.0" y="273.0" width="128.0" height="64.0" fill="#bfa8e6" stroke="#364b5d"/>
+<text x="232.0" y="305.0" text-anchor="middle" font-size="9">changing</text>
+<polyline points="552.0,337.0 520.0,337.0 520.0,305.0 296.0,305.0" fill="none" stroke="#bb4c14" stroke-width="3"/>
+<line x1="296.0" y1="281.0" x2="296.0" y2="329.0" stroke="#009eae" stroke-width="5"/>
+<text x="40" y="620" font-size="13">Independent Access PASS; exact union 1 component / 0 holes</text>
+<text x="650" y="105" font-size="20">R9 joint physical order</text>
+<text x="650" y="128" font-size="14">Staff 7m / 2 turns; Changing 8m2 / aspect 2</text>
+<rect x="650" y="145" width="512" height="448" fill="white" stroke="#a6b0bc"/>
+<rect x="1130.0" y="305.0" width="32.0" height="64.0" fill="#f7ddaa"/>
+<rect x="1098.0" y="305.0" width="64.0" height="32.0" fill="#f7ddaa"/>
+<rect x="970.0" y="273.0" width="160.0" height="64.0" fill="#f7ddaa"/>
+<rect x="1098.0" y="305.0" width="64.0" height="64.0" fill="#f7ddaa"/>
+<rect x="1098.0" y="273.0" width="64.0" height="64.0" fill="#f7ddaa"/>
+<rect x="778.0" y="145.0" width="192.0" height="128.0" fill="#d6e0e8" stroke="#364b5d"/>
+<text x="874.0" y="209.0" text-anchor="middle" font-size="9">sorting packaging</text>
+<rect x="970.0" y="145.0" width="128.0" height="128.0" fill="#d6e0e8" stroke="#364b5d"/>
+<text x="1034.0" y="209.0" text-anchor="middle" font-size="9">packaging material storage</text>
+<rect x="650.0" y="145.0" width="128.0" height="128.0" fill="#d6e0e8" stroke="#364b5d"/>
+<text x="714.0" y="209.0" text-anchor="middle" font-size="9">secondary precooling</text>
+<rect x="650.0" y="273.0" width="128.0" height="128.0" fill="#d6e0e8" stroke="#364b5d"/>
+<text x="714.0" y="337.0" text-anchor="middle" font-size="9">coating</text>
+<rect x="650.0" y="401.0" width="128.0" height="128.0" fill="#d6e0e8" stroke="#364b5d"/>
+<text x="714.0" y="465.0" text-anchor="middle" font-size="9">finished goods</text>
+<rect x="778.0" y="433.0" width="128.0" height="128.0" fill="#d6e0e8" stroke="#364b5d"/>
+<text x="842.0" y="497.0" text-anchor="middle" font-size="9">office</text>
+<rect x="906.0" y="433.0" width="64.0" height="128.0" fill="#d6e0e8" stroke="#364b5d"/>
+<text x="938.0" y="497.0" text-anchor="middle" font-size="9">shipping channel</text>
+<rect x="842.0" y="273.0" width="128.0" height="64.0" fill="#bfa8e6" stroke="#364b5d"/>
+<text x="906.0" y="305.0" text-anchor="middle" font-size="9">changing</text>
+<polyline points="1162.0,337.0 1130.0,337.0 1130.0,305.0 970.0,305.0" fill="none" stroke="#bb4c14" stroke-width="3"/>
+<line x1="970.0" y1="281.0" x2="970.0" y2="329.0" stroke="#009eae" stroke-width="5"/>
+<text x="650" y="620" font-size="13">Independent Access PASS; exact union 1 component / 0 holes</text>
+</g></svg>

@@ -1,0 +1,1001 @@
+{
+  "scope": "SYNTHETIC_EIGHT_ROOM_GEOMETRY_ONLY_NOT_FACTORY_IMPROVEMENT",
+  "policy_hash": "sha256:73866388edf08ab4f2805cc99d145ad930dc2bdd86752e0badac7cffdfda559e",
+  "rows": [
+    {
+      "status": "OPTIMAL",
+      "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1",
+      "wall_seconds": 0.007505,
+      "branches": 16,
+      "conflicts": 0,
+      "joint": false,
+      "receipt": null,
+      "work": 1565,
+      "resource_events": {
+        "R6_CREATED_DOMAIN_FACT": 1372,
+        "R6_IMPLICIT_CONSTANT_READ": 3,
+        "R6_PHYSICAL_FACTS_READ": 21,
+        "R5_TOTAL_DEFINITIONS": 27,
+        "R6_FRONTAGE_REFERENCE_READ": 71,
+        "R6_FRONTAGE_STRATEGY_WRITE": 71
+      },
+      "scope": "SYNTHETIC_ONLY_NOT_FACTORY_QUALITY_OR_APPLICATION_PASS",
+      "independent_access": {
+        "requirement_identity": "synthetic:main_entrance->changing_room",
+        "from_ref": "main_entrance",
+        "to_ref": "changing_room",
+        "flow_kind": "PEOPLE",
+        "access_class": "PERSONNEL",
+        "profile_identity": "personnel-clear-envelope@1.0.0",
+        "portal_required": true,
+        "corridor_allowed": true,
+        "direct_allowed": false,
+        "edge_orientation_requirement": null,
+        "route_shape_constraint": "NOT_FROZEN",
+        "topology": "CORRIDOR_MEDIATED",
+        "portal_from": {
+          "identity": "portal:synthetic:main_entrance->changing_room:main_entrance@1.0.0",
+          "access_ref": "main_entrance",
+          "edge_class": "BOUNDARY_ACCESS",
+          "segment": {
+            "start": {
+              "x": "16",
+              "y": "5.25"
+            },
+            "end": {
+              "x": "16",
+              "y": "6.75"
+            }
+          },
+          "clear_width_m": "1.5",
+          "status": "VALID"
+        },
+        "portal_to": {
+          "identity": "portal:synthetic:main_entrance->changing_room:changing_room@1.0.0",
+          "access_ref": "changing_room",
+          "edge_class": "SHORT_EDGE",
+          "segment": {
+            "start": {
+              "x": "8",
+              "y": "4.25"
+            },
+            "end": {
+              "x": "8",
+              "y": "5.75"
+            }
+          },
+          "clear_width_m": "1.5",
+          "status": "VALID"
+        },
+        "centerline": [
+          {
+            "x": "16",
+            "y": "6"
+          },
+          {
+            "x": "15",
+            "y": "6"
+          },
+          {
+            "x": "15",
+            "y": "5"
+          },
+          {
+            "x": "8",
+            "y": "5"
+          }
+        ],
+        "clear_width_m": "2",
+        "corridor_envelope": [
+          {
+            "type": "polygon",
+            "points": [
+              {
+                "x": "15",
+                "y": "5"
+              },
+              {
+                "x": "16",
+                "y": "5"
+              },
+              {
+                "x": "16",
+                "y": "7"
+              },
+              {
+                "x": "15",
+                "y": "7"
+              }
+            ]
+          },
+          {
+            "type": "polygon",
+            "points": [
+              {
+                "x": "14",
+                "y": "5"
+              },
+              {
+                "x": "16",
+                "y": "5"
+              },
+              {
+                "x": "16",
+                "y": "6"
+              },
+              {
+                "x": "14",
+                "y": "6"
+              }
+            ]
+          },
+          {
+            "type": "polygon",
+            "points": [
+              {
+                "x": "8",
+                "y": "4"
+              },
+              {
+                "x": "15",
+                "y": "4"
+              },
+              {
+                "x": "15",
+                "y": "6"
+              },
+              {
+                "x": "8",
+                "y": "6"
+              }
+            ]
+          },
+          {
+            "type": "polygon",
+            "points": [
+              {
+                "x": "14",
+                "y": "5"
+              },
+              {
+                "x": "16",
+                "y": "5"
+              },
+              {
+                "x": "16",
+                "y": "7"
+              },
+              {
+                "x": "14",
+                "y": "7"
+              }
+            ]
+          },
+          {
+            "type": "polygon",
+            "points": [
+              {
+                "x": "14",
+                "y": "4"
+              },
+              {
+                "x": "16",
+                "y": "4"
+              },
+              {
+                "x": "16",
+                "y": "6"
+              },
+              {
+                "x": "14",
+                "y": "6"
+              }
+            ]
+          }
+        ],
+        "route_length_m": "9",
+        "turn_count": 2,
+        "route_shape": "ORTHOGONAL",
+        "edge_alignment_verified": true,
+        "status": "PASS",
+        "codes": [],
+        "requires_review": true,
+        "canonical_hash": "sha256:28da814f77ed8744978840b1f52511152d71bec6efce6c1c19f020c461707842"
+      },
+      "area_shape": {
+        "coating_room": {
+          "physical_width_m": "4",
+          "physical_depth_m": "4",
+          "actual_area_m2": "16",
+          "required_area_m2": "16",
+          "aspect_ratio": "1",
+          "formula": "area=w_mm*d_mm/1e6; aspect=max(w_mm,d_mm)/min(w_mm,d_mm)",
+          "calculator_version": "r9-synthetic-physical-facts@1.0.0",
+          "source_type": "synthetic",
+          "requires_review": true
+        },
+        "office": {
+          "physical_width_m": "4",
+          "physical_depth_m": "4",
+          "actual_area_m2": "16",
+          "required_area_m2": "16",
+          "aspect_ratio": "1",
+          "formula": "area=w_mm*d_mm/1e6; aspect=max(w_mm,d_mm)/min(w_mm,d_mm)",
+          "calculator_version": "r9-synthetic-physical-facts@1.0.0",
+          "source_type": "synthetic",
+          "requires_review": true
+        },
+        "changing_room": {
+          "physical_width_m": "4",
+          "physical_depth_m": "2",
+          "actual_area_m2": "8",
+          "required_area_m2": "8",
+          "aspect_ratio": "2",
+          "formula": "area=w_mm*d_mm/1e6; aspect=max(w_mm,d_mm)/min(w_mm,d_mm)",
+          "calculator_version": "r9-synthetic-physical-facts@1.0.0",
+          "source_type": "synthetic",
+          "requires_review": true
+        }
+      },
+      "boxes": {
+        "sorting_packaging_room": [
+          4000,
+          0,
+          10000,
+          4000
+        ],
+        "packaging_material_storage": [
+          10000,
+          0,
+          14000,
+          4000
+        ],
+        "secondary_precooling_room": [
+          0,
+          0,
+          4000,
+          4000
+        ],
+        "coating_room": [
+          0,
+          4000,
+          4000,
+          8000
+        ],
+        "finished_goods_room": [
+          0,
+          8000,
+          4000,
+          12000
+        ],
+        "office": [
+          4000,
+          9000,
+          8000,
+          13000
+        ],
+        "shipping_channel": [
+          8000,
+          9000,
+          10000,
+          13000
+        ],
+        "changing_room": [
+          4000,
+          4000,
+          8000,
+          6000
+        ]
+      },
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          5000
+        ],
+        [
+          8000,
+          5000
+        ]
+      ],
+      "route": {
+        "topology": "CORRIDOR_MEDIATED",
+        "path_mm": [
+          [
+            16000,
+            6000
+          ],
+          [
+            15000,
+            6000
+          ],
+          [
+            15000,
+            5000
+          ],
+          [
+            8000,
+            5000
+          ]
+        ],
+        "raw_template_points_mm": [
+          [
+            16000,
+            6000
+          ],
+          [
+            15000,
+            6000
+          ],
+          [
+            15000,
+            6000
+          ],
+          [
+            15000,
+            5000
+          ],
+          [
+            9000,
+            5000
+          ],
+          [
+            8000,
+            5000
+          ]
+        ],
+        "portal_from_center_mm": [
+          16000,
+          6000
+        ],
+        "portal_to_center_mm": [
+          8000,
+          5000
+        ],
+        "width_mm": 2000,
+        "envelopes_mm": [
+          [
+            15000,
+            5000,
+            16000,
+            7000
+          ],
+          [
+            14000,
+            5000,
+            16000,
+            6000
+          ],
+          [
+            8000,
+            4000,
+            15000,
+            6000
+          ],
+          [
+            14000,
+            5000,
+            16000,
+            7000
+          ],
+          [
+            14000,
+            4000,
+            16000,
+            6000
+          ]
+        ],
+        "length_mm": 9000,
+        "turn_count": 2
+      },
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                16000,
+                4000
+              ],
+              [
+                16000,
+                7000
+              ],
+              [
+                14000,
+                7000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                4000,
+                6000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 276000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 643,
+        "error": null
+      },
+      "changing_face": "EAST",
+      "objective": 1125.0,
+      "must_contacts": {
+        "('secondary_precooling_room', 'coating_room')": true,
+        "('coating_room', 'finished_goods_room')": true,
+        "('office', 'shipping_channel')": true
+      }
+    },
+    {
+      "status": "OPTIMAL",
+      "parameters": "random_seed: 3\nmax_time_in_seconds: 2\nmax_memory_in_mb: 512\nsearch_branching: PARTIAL_FIXED_SEARCH\ncp_model_presolve: true\nstop_after_first_solution: true\nnum_search_workers: 1",
+      "wall_seconds": 0.005483,
+      "branches": 16,
+      "conflicts": 0,
+      "joint": true,
+      "receipt": {
+        "policy_hash": "sha256:73866388edf08ab4f2805cc99d145ad930dc2bdd86752e0badac7cffdfda559e",
+        "preferred_face": "EAST",
+        "variable_indices": [
+          193,
+          187,
+          198,
+          203,
+          45,
+          47,
+          48,
+          44,
+          185,
+          183,
+          181,
+          179,
+          177,
+          175,
+          186,
+          184,
+          182,
+          180,
+          178,
+          176
+        ],
+        "physical_edge": "X",
+        "portal_width_mm": 1500,
+        "new_variables": 0,
+        "new_constraints": 0,
+        "hard_domain_changed": false,
+        "objective_changed": false,
+        "extra_native_calls": 0,
+        "real_layout_quality_improved": false
+      },
+      "work": 1703,
+      "resource_events": {
+        "R6_CREATED_DOMAIN_FACT": 1372,
+        "R6_IMPLICIT_CONSTANT_READ": 3,
+        "R6_PHYSICAL_FACTS_READ": 21,
+        "R5_TOTAL_DEFINITIONS": 27,
+        "R6_FRONTAGE_REFERENCE_READ": 71,
+        "R6_FRONTAGE_STRATEGY_WRITE": 71,
+        "R9_ROUTE_REFERENCE_READ": 4,
+        "R9_AUTHORITY_REFERENCE_READ": 5,
+        "R9_PHYSICAL_REFERENCE_READ": 20,
+        "R9_JOINT_STRATEGY_METADATA": 109
+      },
+      "scope": "SYNTHETIC_ONLY_NOT_FACTORY_QUALITY_OR_APPLICATION_PASS",
+      "independent_access": {
+        "requirement_identity": "synthetic:main_entrance->changing_room",
+        "from_ref": "main_entrance",
+        "to_ref": "changing_room",
+        "flow_kind": "PEOPLE",
+        "access_class": "PERSONNEL",
+        "profile_identity": "personnel-clear-envelope@1.0.0",
+        "portal_required": true,
+        "corridor_allowed": true,
+        "direct_allowed": false,
+        "edge_orientation_requirement": null,
+        "route_shape_constraint": "NOT_FROZEN",
+        "topology": "CORRIDOR_MEDIATED",
+        "portal_from": {
+          "identity": "portal:synthetic:main_entrance->changing_room:main_entrance@1.0.0",
+          "access_ref": "main_entrance",
+          "edge_class": "BOUNDARY_ACCESS",
+          "segment": {
+            "start": {
+              "x": "16",
+              "y": "5.25"
+            },
+            "end": {
+              "x": "16",
+              "y": "6.75"
+            }
+          },
+          "clear_width_m": "1.5",
+          "status": "VALID"
+        },
+        "portal_to": {
+          "identity": "portal:synthetic:main_entrance->changing_room:changing_room@1.0.0",
+          "access_ref": "changing_room",
+          "edge_class": "SHORT_EDGE",
+          "segment": {
+            "start": {
+              "x": "10",
+              "y": "4.25"
+            },
+            "end": {
+              "x": "10",
+              "y": "5.75"
+            }
+          },
+          "clear_width_m": "1.5",
+          "status": "VALID"
+        },
+        "centerline": [
+          {
+            "x": "16",
+            "y": "6"
+          },
+          {
+            "x": "15",
+            "y": "6"
+          },
+          {
+            "x": "15",
+            "y": "5"
+          },
+          {
+            "x": "10",
+            "y": "5"
+          }
+        ],
+        "clear_width_m": "2",
+        "corridor_envelope": [
+          {
+            "type": "polygon",
+            "points": [
+              {
+                "x": "15",
+                "y": "5"
+              },
+              {
+                "x": "16",
+                "y": "5"
+              },
+              {
+                "x": "16",
+                "y": "7"
+              },
+              {
+                "x": "15",
+                "y": "7"
+              }
+            ]
+          },
+          {
+            "type": "polygon",
+            "points": [
+              {
+                "x": "14",
+                "y": "5"
+              },
+              {
+                "x": "16",
+                "y": "5"
+              },
+              {
+                "x": "16",
+                "y": "6"
+              },
+              {
+                "x": "14",
+                "y": "6"
+              }
+            ]
+          },
+          {
+            "type": "polygon",
+            "points": [
+              {
+                "x": "10",
+                "y": "4"
+              },
+              {
+                "x": "15",
+                "y": "4"
+              },
+              {
+                "x": "15",
+                "y": "6"
+              },
+              {
+                "x": "10",
+                "y": "6"
+              }
+            ]
+          },
+          {
+            "type": "polygon",
+            "points": [
+              {
+                "x": "14",
+                "y": "5"
+              },
+              {
+                "x": "16",
+                "y": "5"
+              },
+              {
+                "x": "16",
+                "y": "7"
+              },
+              {
+                "x": "14",
+                "y": "7"
+              }
+            ]
+          },
+          {
+            "type": "polygon",
+            "points": [
+              {
+                "x": "14",
+                "y": "4"
+              },
+              {
+                "x": "16",
+                "y": "4"
+              },
+              {
+                "x": "16",
+                "y": "6"
+              },
+              {
+                "x": "14",
+                "y": "6"
+              }
+            ]
+          }
+        ],
+        "route_length_m": "7",
+        "turn_count": 2,
+        "route_shape": "ORTHOGONAL",
+        "edge_alignment_verified": true,
+        "status": "PASS",
+        "codes": [],
+        "requires_review": true,
+        "canonical_hash": "sha256:5495458204ae0e81fe662713212b0257da07f483551f069a68651b93d0e14a7d"
+      },
+      "area_shape": {
+        "coating_room": {
+          "physical_width_m": "4",
+          "physical_depth_m": "4",
+          "actual_area_m2": "16",
+          "required_area_m2": "16",
+          "aspect_ratio": "1",
+          "formula": "area=w_mm*d_mm/1e6; aspect=max(w_mm,d_mm)/min(w_mm,d_mm)",
+          "calculator_version": "r9-synthetic-physical-facts@1.0.0",
+          "source_type": "synthetic",
+          "requires_review": true
+        },
+        "office": {
+          "physical_width_m": "4",
+          "physical_depth_m": "4",
+          "actual_area_m2": "16",
+          "required_area_m2": "16",
+          "aspect_ratio": "1",
+          "formula": "area=w_mm*d_mm/1e6; aspect=max(w_mm,d_mm)/min(w_mm,d_mm)",
+          "calculator_version": "r9-synthetic-physical-facts@1.0.0",
+          "source_type": "synthetic",
+          "requires_review": true
+        },
+        "changing_room": {
+          "physical_width_m": "4",
+          "physical_depth_m": "2",
+          "actual_area_m2": "8",
+          "required_area_m2": "8",
+          "aspect_ratio": "2",
+          "formula": "area=w_mm*d_mm/1e6; aspect=max(w_mm,d_mm)/min(w_mm,d_mm)",
+          "calculator_version": "r9-synthetic-physical-facts@1.0.0",
+          "source_type": "synthetic",
+          "requires_review": true
+        }
+      },
+      "boxes": {
+        "sorting_packaging_room": [
+          4000,
+          0,
+          10000,
+          4000
+        ],
+        "packaging_material_storage": [
+          10000,
+          0,
+          14000,
+          4000
+        ],
+        "secondary_precooling_room": [
+          0,
+          0,
+          4000,
+          4000
+        ],
+        "coating_room": [
+          0,
+          4000,
+          4000,
+          8000
+        ],
+        "finished_goods_room": [
+          0,
+          8000,
+          4000,
+          12000
+        ],
+        "office": [
+          4000,
+          9000,
+          8000,
+          13000
+        ],
+        "shipping_channel": [
+          8000,
+          9000,
+          10000,
+          13000
+        ],
+        "changing_room": [
+          6000,
+          4000,
+          10000,
+          6000
+        ]
+      },
+      "path_mm": [
+        [
+          16000,
+          6000
+        ],
+        [
+          15000,
+          6000
+        ],
+        [
+          15000,
+          5000
+        ],
+        [
+          10000,
+          5000
+        ]
+      ],
+      "route": {
+        "topology": "CORRIDOR_MEDIATED",
+        "path_mm": [
+          [
+            16000,
+            6000
+          ],
+          [
+            15000,
+            6000
+          ],
+          [
+            15000,
+            5000
+          ],
+          [
+            10000,
+            5000
+          ]
+        ],
+        "raw_template_points_mm": [
+          [
+            16000,
+            6000
+          ],
+          [
+            15000,
+            6000
+          ],
+          [
+            15000,
+            6000
+          ],
+          [
+            15000,
+            5000
+          ],
+          [
+            11000,
+            5000
+          ],
+          [
+            10000,
+            5000
+          ]
+        ],
+        "portal_from_center_mm": [
+          16000,
+          6000
+        ],
+        "portal_to_center_mm": [
+          10000,
+          5000
+        ],
+        "width_mm": 2000,
+        "envelopes_mm": [
+          [
+            15000,
+            5000,
+            16000,
+            7000
+          ],
+          [
+            14000,
+            5000,
+            16000,
+            6000
+          ],
+          [
+            10000,
+            4000,
+            15000,
+            6000
+          ],
+          [
+            14000,
+            5000,
+            16000,
+            7000
+          ],
+          [
+            14000,
+            4000,
+            16000,
+            6000
+          ]
+        ],
+        "length_mm": 7000,
+        "turn_count": 2
+      },
+      "route_errors": [],
+      "topology": {
+        "valid": true,
+        "connected_component_count": 1,
+        "boundary_loop_count": 1,
+        "hole_count": 0,
+        "singular_points_mm": [],
+        "boundary_loops": [
+          {
+            "points_mm": [
+              [
+                0,
+                0
+              ],
+              [
+                14000,
+                0
+              ],
+              [
+                14000,
+                4000
+              ],
+              [
+                16000,
+                4000
+              ],
+              [
+                16000,
+                7000
+              ],
+              [
+                14000,
+                7000
+              ],
+              [
+                14000,
+                6000
+              ],
+              [
+                6000,
+                6000
+              ],
+              [
+                6000,
+                4000
+              ],
+              [
+                4000,
+                4000
+              ],
+              [
+                4000,
+                9000
+              ],
+              [
+                10000,
+                9000
+              ],
+              [
+                10000,
+                13000
+              ],
+              [
+                4000,
+                13000
+              ],
+              [
+                4000,
+                12000
+              ],
+              [
+                0,
+                12000
+              ]
+            ],
+            "signed_area_twice_mm2": 268000000,
+            "kind": "EXTERIOR"
+          }
+        ],
+        "primitive_work": 737,
+        "error": null
+      },
+      "changing_face": "EAST",
+      "objective": 1125.0,
+      "must_contacts": {
+        "('secondary_precooling_room', 'coating_room')": true,
+        "('coating_room', 'finished_goods_room')": true,
+        "('office', 'shipping_channel')": true
+      }
+    }
+  ]
+}
