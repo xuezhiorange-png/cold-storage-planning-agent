@@ -448,15 +448,19 @@ class AccessModel(GlobalModel):
                 fixed = a[0] if vertical else a[1]
                 lo = min(a[1], b[1]) if vertical else min(a[0], b[0])
                 hi = max(a[1], b[1]) if vertical else max(a[0], b[0])
-                normal = (
-                    (1, 0)
-                    if fixed == sx
-                    else (-1, 0)
-                    if fixed == sr
-                    else (0, 1)
-                    if fixed == sy
-                    else (0, -1)
-                )
+                if vertical:
+                    if fixed == sx:
+                        normal = (1, 0)
+                    elif fixed == sr:
+                        normal = (-1, 0)
+                    else:
+                        raise Limit("ENTRANCE_BOUNDARY_REFERENCE_INVALID")
+                elif fixed == sy:
+                    normal = (0, 1)
+                elif fixed == st:
+                    normal = (0, -1)
+                else:
+                    raise Limit("ENTRANCE_BOUNDARY_REFERENCE_INVALID")
                 faces = [(vertical, fixed, lo, hi, normal)]
             else:
                 R = self.rooms[role]

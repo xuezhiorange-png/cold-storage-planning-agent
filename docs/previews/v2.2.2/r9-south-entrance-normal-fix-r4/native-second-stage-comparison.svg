@@ -1,0 +1,174 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1780" height="890" viewBox="0 0 1780 890">
+<rect width="1780" height="890" fill="#f4f6f9"/>
+<g font-family="Arial,sans-serif" fill="#243d4f">
+<text x="28" y="34" font-size="24">R9 after entrance-normal fix: actual synthetic Native candidates</text>
+<text x="28" y="61" font-size="15">Original engineering chain passed for each geometry. Fixed Presolve / 1 worker / seed 3 / current valid Hint retained.</text>
+<text x="32" y="99" font-size="19">First valid baseline</text>
+<text x="32" y="124" font-size="14">Route 26.75m; proxy 1225</text>
+<rect x="32" y="139" width="548" height="502" fill="white" stroke="#b3c4cf"/>
+<polygon points="55.00000000000001,385.0 172.0,385.0 172.0,425.0 212.0,425.0 212.0,444.99 262.0,444.99 262.0,625.0 282.0,625.0 282.0,424.99 232.0,424.99 232.0,407.5 212.0,407.5 212.0,325.0 425.0,325.0 425.0,425.0 485.0,425.0 485.0,325.0 490.0,325.0 490.0,248.07000000000005 425.0,248.07000000000005 425.0,269.0 377.0,269.0 377.0,225.0 297.0,225.0 297.0,224.5 272.0,224.5 272.0,181.5 248.0,181.5 248.0,175.39999999999998 212.0,175.39999999999998 212.0,135.39999999999998 172.0,135.39999999999998 172.0,181.5 148.0,181.5 148.0,224.5 172.0,224.5 172.0,284.5 123.00000000000001,284.5 123.00000000000001,350.0 55.00000000000001,350.0" fill="#fff3d9" stroke="#215f79" stroke-width="3"/>
+<rect x="172.0" y="325.0" width="40.0" height="100.0" fill="#c7b5e3" stroke="#34576e"/>
+<text x="192.0" y="375.0" text-anchor="middle" font-size="10">Changing</text>
+<rect x="297.0" y="225.0" width="80.0" height="100.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="337.0" y="275.0" text-anchor="middle" font-size="10">Coating</text>
+<rect x="377.0" y="269.0" width="48.0" height="56.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="401.0" y="297.0" text-anchor="middle" font-size="10">Finished</text>
+<rect x="248.0" y="181.50000000000006" width="24.0" height="43.0" fill="#dce6ee" stroke="#34576e"/>
+<text transform="translate(260.00000000000006,203.00000000000006) rotate(-90)" text-anchor="middle" font-size="9">Frozen</text>
+<rect x="425.0" y="325.0" width="60.0" height="100.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="455.0" y="375.0" text-anchor="middle" font-size="10">Office</text>
+<rect x="172.0" y="135.39999999999998" width="40.0" height="40.0" fill="#9ecfc6" stroke="#34576e"/>
+<text x="192.0" y="155.39999999999998" text-anchor="middle" font-size="10">Packaging</text>
+<rect x="123.00000000000001" y="284.5" width="49.0" height="100.5" fill="#dce6ee" stroke="#34576e"/>
+<text x="147.50000000000006" y="334.75" text-anchor="middle" font-size="10">Primary</text>
+<rect x="55.00000000000001" y="350.0" width="68.0" height="35.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="89.0" y="367.5" text-anchor="middle" font-size="10">Raw</text>
+<rect x="148.0" y="181.50000000000006" width="24.0" height="43.0" fill="#dce6ee" stroke="#34576e"/>
+<text transform="translate(160.00000000000006,203.00000000000006) rotate(-90)" text-anchor="middle" font-size="9">Fruit</text>
+<rect x="248.0" y="224.5" width="49.0" height="100.5" fill="#dce6ee" stroke="#34576e"/>
+<text x="272.50000000000006" y="274.75" text-anchor="middle" font-size="10">Secondary</text>
+<rect x="425.0" y="248.07000000000005" width="65.0" height="76.92999999999999" fill="#dce6ee" stroke="#34576e"/>
+<text x="457.5" y="286.535" text-anchor="middle" font-size="10">Shipping</text>
+<rect x="172.0" y="175.39999999999998" width="76.0" height="149.60000000000002" fill="#dce6ee" stroke="#34576e"/>
+<text x="209.99999999999997" y="250.19999999999993" text-anchor="middle" font-size="10">Sorting</text>
+<polyline points="272.0,625.0 272.0,434.99 222.0,434.99 222.0,417.5 212.0,417.5" fill="none" stroke="#b56a13" stroke-width="3"/>
+<line x1="184.5" y1="325.0" x2="199.5" y2="325.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="184.5" y1="325.0" x2="199.5" y2="325.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="377.0" y1="309.0" x2="377.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="377.0" y1="309.0" x2="377.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="425.0" y1="309.0" x2="425.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="425.0" y1="309.0" x2="425.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="264.5" y1="625.0" x2="279.5" y2="625.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="212.0" y1="425.0" x2="212.0" y2="410.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="179.99999999999997" y1="175.39999999999998" x2="204.00000000000003" y2="175.39999999999998" stroke="#d84531" stroke-width="3"/>
+<line x1="179.99999999999997" y1="175.39999999999998" x2="204.00000000000003" y2="175.39999999999998" stroke="#d84531" stroke-width="3"/>
+<line x1="172.0" y1="316.75" x2="172.0" y2="292.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="172.0" y1="316.75" x2="172.0" y2="292.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="123.00000000000001" y1="379.5" x2="123.00000000000001" y2="355.5" stroke="#008d9b" stroke-width="3"/>
+<line x1="123.00000000000001" y1="379.5" x2="123.00000000000001" y2="355.5" stroke="#008d9b" stroke-width="3"/>
+<line x1="297.0" y1="287.0" x2="297.0" y2="263.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="297.0" y1="287.0" x2="297.0" y2="263.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="248.0" y1="215.0" x2="248.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="248.0" y1="215.0" x2="248.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="172.0" y1="215.0" x2="172.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="172.0" y1="215.0" x2="172.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="248.0" y1="286.75" x2="248.0" y2="262.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="248.0" y1="286.75" x2="248.0" y2="262.75" stroke="#008d9b" stroke-width="3"/>
+<text x="32" y="670" font-size="13">Changing x=40m; 4 x 10m / 40m2</text>
+<text x="32" y="694" font-size="13">Perimeter 227.906m; corners 40</text>
+<text x="32" y="718" font-size="13">12 roles / 7 MUST / 11 Access / exact topology PASS</text>
+<text x="32" y="742" font-size="13">Baseline V2: E portal</text>
+<text x="618" y="99" font-size="19">Second stage candidate 3</text>
+<text x="618" y="124" font-size="14">Route 32.749m; proxy 1225</text>
+<rect x="618" y="139" width="548" height="502" fill="white" stroke="#b3c4cf"/>
+<polygon points="641.0,385.0 758.0,385.0 758.0,325.0 758.01,325.0 758.01,407.5 738.01,407.5 738.01,614.99 848.0,614.99 848.0,625.0 868.0,625.0 868.0,594.99 758.01,594.99 758.01,425.0 798.01,425.0 798.01,325.0 1011.0,325.0 1011.0,425.0 1071.0,425.0 1071.0,325.0 1076.0,325.0 1076.0,248.07000000000005 1011.0,248.07000000000005 1011.0,269.0 963.0,269.0 963.0,225.0 883.0,225.0 883.0,224.5 858.0,224.5 858.0,181.5 834.0,181.5 834.0,175.39999999999998 798.0,175.39999999999998 798.0,135.39999999999998 758.0,135.39999999999998 758.0,181.5 734.0,181.5 734.0,224.5 758.0,224.5 758.0,284.5 709.0,284.5 709.0,350.0 641.0,350.0" fill="#fff3d9" stroke="#215f79" stroke-width="3"/>
+<rect x="758.01" y="325.0" width="40.0" height="100.0" fill="#c7b5e3" stroke="#34576e"/>
+<text x="778.01" y="375.0" text-anchor="middle" font-size="10">Changing</text>
+<rect x="883.0" y="225.0" width="80.0" height="100.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="923.0" y="275.0" text-anchor="middle" font-size="10">Coating</text>
+<rect x="963.0" y="269.0" width="48.0" height="56.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="987.0" y="297.0" text-anchor="middle" font-size="10">Finished</text>
+<rect x="834.0" y="181.50000000000006" width="24.0" height="43.0" fill="#dce6ee" stroke="#34576e"/>
+<text transform="translate(846.0,203.00000000000006) rotate(-90)" text-anchor="middle" font-size="9">Frozen</text>
+<rect x="1011.0" y="325.0" width="60.0" height="100.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="1041.0" y="375.0" text-anchor="middle" font-size="10">Office</text>
+<rect x="758.0" y="135.39999999999998" width="40.0" height="40.0" fill="#9ecfc6" stroke="#34576e"/>
+<text x="778.0" y="155.39999999999998" text-anchor="middle" font-size="10">Packaging</text>
+<rect x="709.0" y="284.5" width="49.0" height="100.5" fill="#dce6ee" stroke="#34576e"/>
+<text x="733.5" y="334.75" text-anchor="middle" font-size="10">Primary</text>
+<rect x="641.0" y="350.0" width="68.0" height="35.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="675.0" y="367.5" text-anchor="middle" font-size="10">Raw</text>
+<rect x="734.0" y="181.50000000000006" width="24.0" height="43.0" fill="#dce6ee" stroke="#34576e"/>
+<text transform="translate(746.0,203.00000000000006) rotate(-90)" text-anchor="middle" font-size="9">Fruit</text>
+<rect x="834.0" y="224.5" width="49.0" height="100.5" fill="#dce6ee" stroke="#34576e"/>
+<text x="858.5" y="274.75" text-anchor="middle" font-size="10">Secondary</text>
+<rect x="1011.0" y="248.07000000000005" width="65.0" height="76.92999999999999" fill="#dce6ee" stroke="#34576e"/>
+<text x="1043.5" y="286.535" text-anchor="middle" font-size="10">Shipping</text>
+<rect x="758.0" y="175.39999999999998" width="76.0" height="149.60000000000002" fill="#dce6ee" stroke="#34576e"/>
+<text x="796.0" y="250.19999999999993" text-anchor="middle" font-size="10">Sorting</text>
+<polyline points="858.0,625.0 858.0,604.99 748.01,604.99 748.01,417.5 758.01,417.5" fill="none" stroke="#b56a13" stroke-width="3"/>
+<line x1="770.51" y1="325.0" x2="785.51" y2="325.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="770.51" y1="325.0" x2="785.51" y2="325.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="963.0" y1="309.0" x2="963.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="963.0" y1="309.0" x2="963.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1011.0" y1="309.0" x2="1011.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1011.0" y1="309.0" x2="1011.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="850.5" y1="625.0" x2="865.5" y2="625.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="758.01" y1="425.0" x2="758.01" y2="410.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="766.0" y1="175.39999999999998" x2="790.0" y2="175.39999999999998" stroke="#d84531" stroke-width="3"/>
+<line x1="766.0" y1="175.39999999999998" x2="790.0" y2="175.39999999999998" stroke="#d84531" stroke-width="3"/>
+<line x1="758.0" y1="316.75" x2="758.0" y2="292.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="758.0" y1="316.75" x2="758.0" y2="292.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="709.0" y1="379.5" x2="709.0" y2="355.5" stroke="#008d9b" stroke-width="3"/>
+<line x1="709.0" y1="379.5" x2="709.0" y2="355.5" stroke="#008d9b" stroke-width="3"/>
+<line x1="883.0" y1="287.0" x2="883.0" y2="263.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="883.0" y1="287.0" x2="883.0" y2="263.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="834.0" y1="215.0" x2="834.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="834.0" y1="215.0" x2="834.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="758.0" y1="215.0" x2="758.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="758.0" y1="215.0" x2="758.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="834.0" y1="286.75" x2="834.0" y2="262.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="834.0" y1="286.75" x2="834.0" y2="262.75" stroke="#008d9b" stroke-width="3"/>
+<text x="618" y="670" font-size="13">Changing x=40.001m; 4 x 10m / 40m2</text>
+<text x="618" y="694" font-size="13">Perimeter 251.904m; corners 42</text>
+<text x="618" y="718" font-size="13">12 roles / 7 MUST / 11 Access / exact topology PASS</text>
+<text x="618" y="742" font-size="13">Different V2: W portal; not comparable to baseline</text>
+<text x="1204" y="99" font-size="19">Second stage candidate 4</text>
+<text x="1204" y="124" font-size="14">Route 32.748m; proxy 1225</text>
+<rect x="1204" y="139" width="548" height="502" fill="white" stroke="#b3c4cf"/>
+<polygon points="1227.0,385.0 1344.0,385.0 1344.0,325.0 1344.02,325.0 1344.02,407.5 1324.02,407.5 1324.02,614.99 1434.0,614.99 1434.0,625.0 1454.0,625.0 1454.0,594.99 1344.02,594.99 1344.02,425.0 1384.02,425.0 1384.02,325.0 1597.0,325.0 1597.0,425.0 1657.0,425.0 1657.0,325.0 1662.0,325.0 1662.0,248.07000000000005 1597.0,248.07000000000005 1597.0,269.0 1549.0,269.0 1549.0,225.0 1469.0,225.0 1469.0,224.5 1444.0,224.5 1444.0,181.5 1420.0,181.5 1420.0,175.39999999999998 1384.0,175.39999999999998 1384.0,135.39999999999998 1344.0,135.39999999999998 1344.0,181.5 1320.0,181.5 1320.0,224.5 1344.0,224.5 1344.0,284.5 1295.0,284.5 1295.0,350.0 1227.0,350.0" fill="#fff3d9" stroke="#215f79" stroke-width="3"/>
+<rect x="1344.02" y="325.0" width="40.0" height="100.0" fill="#c7b5e3" stroke="#34576e"/>
+<text x="1364.02" y="375.0" text-anchor="middle" font-size="10">Changing</text>
+<rect x="1469.0" y="225.0" width="80.0" height="100.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="1509.0" y="275.0" text-anchor="middle" font-size="10">Coating</text>
+<rect x="1549.0" y="269.0" width="48.0" height="56.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="1573.0" y="297.0" text-anchor="middle" font-size="10">Finished</text>
+<rect x="1420.0" y="181.50000000000006" width="24.0" height="43.0" fill="#dce6ee" stroke="#34576e"/>
+<text transform="translate(1432.0,203.00000000000006) rotate(-90)" text-anchor="middle" font-size="9">Frozen</text>
+<rect x="1597.0" y="325.0" width="60.0" height="100.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="1627.0" y="375.0" text-anchor="middle" font-size="10">Office</text>
+<rect x="1344.0" y="135.39999999999998" width="40.0" height="40.0" fill="#9ecfc6" stroke="#34576e"/>
+<text x="1364.0" y="155.39999999999998" text-anchor="middle" font-size="10">Packaging</text>
+<rect x="1295.0" y="284.5" width="49.0" height="100.5" fill="#dce6ee" stroke="#34576e"/>
+<text x="1319.5" y="334.75" text-anchor="middle" font-size="10">Primary</text>
+<rect x="1227.0" y="350.0" width="68.0" height="35.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="1261.0" y="367.5" text-anchor="middle" font-size="10">Raw</text>
+<rect x="1320.0" y="181.50000000000006" width="24.0" height="43.0" fill="#dce6ee" stroke="#34576e"/>
+<text transform="translate(1332.0,203.00000000000006) rotate(-90)" text-anchor="middle" font-size="9">Fruit</text>
+<rect x="1420.0" y="224.5" width="49.0" height="100.5" fill="#dce6ee" stroke="#34576e"/>
+<text x="1444.5" y="274.75" text-anchor="middle" font-size="10">Secondary</text>
+<rect x="1597.0" y="248.07000000000005" width="65.0" height="76.92999999999999" fill="#dce6ee" stroke="#34576e"/>
+<text x="1629.5" y="286.535" text-anchor="middle" font-size="10">Shipping</text>
+<rect x="1344.0" y="175.39999999999998" width="76.0" height="149.60000000000002" fill="#dce6ee" stroke="#34576e"/>
+<text x="1382.0" y="250.19999999999993" text-anchor="middle" font-size="10">Sorting</text>
+<polyline points="1444.0,625.0 1444.0,604.99 1334.02,604.99 1334.02,417.5 1344.02,417.5" fill="none" stroke="#b56a13" stroke-width="3"/>
+<line x1="1356.52" y1="325.0" x2="1371.52" y2="325.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1356.52" y1="325.0" x2="1371.52" y2="325.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1549.0" y1="309.0" x2="1549.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1549.0" y1="309.0" x2="1549.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1597.0" y1="309.0" x2="1597.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1597.0" y1="309.0" x2="1597.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1436.5" y1="625.0" x2="1451.5" y2="625.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1344.02" y1="425.0" x2="1344.02" y2="410.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1352.0" y1="175.39999999999998" x2="1376.0" y2="175.39999999999998" stroke="#d84531" stroke-width="3"/>
+<line x1="1352.0" y1="175.39999999999998" x2="1376.0" y2="175.39999999999998" stroke="#d84531" stroke-width="3"/>
+<line x1="1344.0" y1="316.75" x2="1344.0" y2="292.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="1344.0" y1="316.75" x2="1344.0" y2="292.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="1295.0" y1="379.5" x2="1295.0" y2="355.5" stroke="#008d9b" stroke-width="3"/>
+<line x1="1295.0" y1="379.5" x2="1295.0" y2="355.5" stroke="#008d9b" stroke-width="3"/>
+<line x1="1469.0" y1="287.0" x2="1469.0" y2="263.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1469.0" y1="287.0" x2="1469.0" y2="263.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1420.0" y1="215.0" x2="1420.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1420.0" y1="215.0" x2="1420.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1344.0" y1="215.0" x2="1344.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1344.0" y1="215.0" x2="1344.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1420.0" y1="286.75" x2="1420.0" y2="262.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="1420.0" y1="286.75" x2="1420.0" y2="262.75" stroke="#008d9b" stroke-width="3"/>
+<text x="1204" y="670" font-size="13">Changing x=40.002m; 4 x 10m / 40m2</text>
+<text x="1204" y="694" font-size="13">Perimeter 251.902m; corners 42</text>
+<text x="1204" y="718" font-size="13">12 roles / 7 MUST / 11 Access / exact topology PASS</text>
+<text x="1204" y="742" font-size="13">Different V2: W portal; not comparable to baseline</text>
+<text x="28" y="790" font-size="17">Candidate 2 repeated the baseline. Both R7 and R9 then produced the same two new room geometries.</text>
+<text x="28" y="819" font-size="15">No shorter route than baseline. Candidate 3 to 4: only 1mm route / 2mm perimeter strict Pareto change within their V2.</text>
+<text x="28" y="848" font-size="15" fill="#a4352c">Terminal UNKNOWN; local 8s target exceeded slightly. These synthetic results do not establish real-factory quality improvement.</text>
+</g></svg>
