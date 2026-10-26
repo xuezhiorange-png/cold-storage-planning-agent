@@ -253,6 +253,10 @@ class _RouteRefinementNative(_ChangingFrontageCorridorNative):
     continuation_policy = POLICY
     continuation_policy_hash = POLICY_HASH
 
+    def _build_local_model(self, model: Any, solver: Any, context: Any) -> tuple[Any, Any]:
+        """Default builder unchanged; optional resource policies may admit first."""
+        return _local_model(model, solver, context, self._feedback_proxy_index)
+
     def _solve_with_feedback(self, context: Any, solver: Any, model: Any, phase: str) -> Any:
         if model is getattr(self, "_route_model", None):
             return solver.solve(model), {"kind": "BOUNDED_SAME_PROXY_ROUTE_SOLVE"}
@@ -284,7 +288,7 @@ class _RouteRefinementNative(_ChangingFrontageCorridorNative):
         self._route_composition_hash = model.handoff.source_composition_hash
         before = _measured_route(record["routes"])
         best = int(before["length_mm"])
-        local, length = _local_model(model, accepted_solver, context, self._feedback_proxy_index)
+        local, length = self._build_local_model(model, accepted_solver, context)
         self._route_model = local
         seen = {canonical_hash(before)}
         try:
