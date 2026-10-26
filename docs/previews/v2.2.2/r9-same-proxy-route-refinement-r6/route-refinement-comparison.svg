@@ -1,0 +1,171 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="860" viewBox="0 0 1800 860">
+<rect width="1800" height="860" fill="#f4f6f9"/>
+<g font-family="Arial,sans-serif" fill="#243d4f">
+<text x="26" y="34" font-size="23">R9 same-proxy route refinement: original Hint and room geometry retained</text>
+<text x="26" y="62" font-size="15">All actual Native witnesses passed the original full engineering chain. Original 130-variable Hint retained in local scopes.</text>
+<text x="28" y="100" font-size="18">Original second-stage baseline / 26.750m</text>
+<rect x="28" y="120" width="555" height="515" fill="white" stroke="#b3c4cf"/>
+<polygon points="51.00000000000001,385.0 168.0,385.0 168.0,425.0 208.0,425.0 208.0,444.99 258.0,444.99 258.0,625.0 278.0,625.0 278.0,424.99 228.0,424.99 228.0,407.5 208.0,407.5 208.0,325.0 421.0,325.0 421.0,425.0 481.0,425.0 481.0,325.0 486.0,325.0 486.0,248.07000000000005 421.0,248.07000000000005 421.0,269.0 373.0,269.0 373.0,225.0 293.0,225.0 293.0,224.5 268.0,224.5 268.0,181.5 244.0,181.5 244.0,175.39999999999998 208.0,175.39999999999998 208.0,135.39999999999998 168.0,135.39999999999998 168.0,181.5 144.0,181.5 144.0,224.5 168.0,224.5 168.0,284.5 119.00000000000001,284.5 119.00000000000001,350.0 51.00000000000001,350.0" fill="#fff3d9" stroke="#215f79" stroke-width="3"/>
+<rect x="168.0" y="325.0" width="40.0" height="100.0" fill="#c7b5e3" stroke="#34576e"/>
+<text x="188.0" y="375.0" text-anchor="middle" font-size="10">Changing</text>
+<rect x="293.0" y="225.0" width="80.0" height="100.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="333.0" y="275.0" text-anchor="middle" font-size="10">Coating</text>
+<rect x="373.0" y="269.0" width="48.0" height="56.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="397.0" y="297.0" text-anchor="middle" font-size="10">Finished</text>
+<rect x="244.0" y="181.50000000000006" width="24.0" height="43.0" fill="#dce6ee" stroke="#34576e"/>
+<text transform="translate(256.00000000000006,203.00000000000006) rotate(-90)" text-anchor="middle" font-size="9">Frozen</text>
+<rect x="421.0" y="325.0" width="60.0" height="100.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="451.0" y="375.0" text-anchor="middle" font-size="10">Office</text>
+<rect x="168.0" y="135.39999999999998" width="40.0" height="40.0" fill="#9ecfc6" stroke="#34576e"/>
+<text x="188.0" y="155.39999999999998" text-anchor="middle" font-size="10">Packaging</text>
+<rect x="119.00000000000001" y="284.5" width="49.0" height="100.5" fill="#dce6ee" stroke="#34576e"/>
+<text x="143.50000000000006" y="334.75" text-anchor="middle" font-size="10">Primary</text>
+<rect x="51.00000000000001" y="350.0" width="68.0" height="35.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="85.0" y="367.5" text-anchor="middle" font-size="10">Raw</text>
+<rect x="144.0" y="181.50000000000006" width="24.0" height="43.0" fill="#dce6ee" stroke="#34576e"/>
+<text transform="translate(156.00000000000006,203.00000000000006) rotate(-90)" text-anchor="middle" font-size="9">Fruit</text>
+<rect x="244.0" y="224.5" width="49.0" height="100.5" fill="#dce6ee" stroke="#34576e"/>
+<text x="268.50000000000006" y="274.75" text-anchor="middle" font-size="10">Secondary</text>
+<rect x="421.0" y="248.07000000000005" width="65.0" height="76.92999999999999" fill="#dce6ee" stroke="#34576e"/>
+<text x="453.5" y="286.535" text-anchor="middle" font-size="10">Shipping</text>
+<rect x="168.0" y="175.39999999999998" width="76.0" height="149.60000000000002" fill="#dce6ee" stroke="#34576e"/>
+<text x="205.99999999999997" y="250.19999999999993" text-anchor="middle" font-size="10">Sorting</text>
+<polyline points="268.0,625.0 268.0,434.99 218.0,434.99 218.0,417.5 208.0,417.5" fill="none" stroke="#b56a13" stroke-width="3"/>
+<line x1="180.5" y1="325.0" x2="195.5" y2="325.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="180.5" y1="325.0" x2="195.5" y2="325.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="373.0" y1="309.0" x2="373.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="373.0" y1="309.0" x2="373.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="421.0" y1="309.0" x2="421.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="421.0" y1="309.0" x2="421.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="260.5" y1="625.0" x2="275.5" y2="625.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="208.0" y1="425.0" x2="208.0" y2="410.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="175.99999999999997" y1="175.39999999999998" x2="200.00000000000003" y2="175.39999999999998" stroke="#d84531" stroke-width="3"/>
+<line x1="175.99999999999997" y1="175.39999999999998" x2="200.00000000000003" y2="175.39999999999998" stroke="#d84531" stroke-width="3"/>
+<line x1="168.0" y1="316.75" x2="168.0" y2="292.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="168.0" y1="316.75" x2="168.0" y2="292.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="119.00000000000001" y1="379.5" x2="119.00000000000001" y2="355.5" stroke="#008d9b" stroke-width="3"/>
+<line x1="119.00000000000001" y1="379.5" x2="119.00000000000001" y2="355.5" stroke="#008d9b" stroke-width="3"/>
+<line x1="293.0" y1="287.0" x2="293.0" y2="263.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="293.0" y1="287.0" x2="293.0" y2="263.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="244.0" y1="215.0" x2="244.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="244.0" y1="215.0" x2="244.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="168.0" y1="215.0" x2="168.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="168.0" y1="215.0" x2="168.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="244.0" y1="286.75" x2="244.0" y2="262.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="244.0" y1="286.75" x2="244.0" y2="262.75" stroke="#008d9b" stroke-width="3"/>
+<text x="28" y="666" font-size="13">Changing x=40m; dimensions 4 x 10m; area 40m2</text>
+<text x="28" y="690" font-size="13">Perimeter 227.906m; corners 40; turns 3</text>
+<text x="28" y="714" font-size="13">12 zones / 7 MUST / 11 non-Truck Access PASS</text>
+<text x="28" y="738" font-size="13">Connected / zero holes / Site / Footprint / eligible PASS</text>
+<text x="620" y="100" font-size="18">Original R9 same-room witness / 32.749m</text>
+<rect x="620" y="120" width="555" height="515" fill="white" stroke="#b3c4cf"/>
+<polygon points="643.0,385.0 760.0,385.0 760.0,325.0 760.01,325.0 760.01,407.5 740.01,407.5 740.01,614.99 850.0,614.99 850.0,625.0 870.0,625.0 870.0,594.99 760.01,594.99 760.01,425.0 800.01,425.0 800.01,325.0 1013.0,325.0 1013.0,425.0 1073.0,425.0 1073.0,325.0 1078.0,325.0 1078.0,248.07000000000005 1013.0,248.07000000000005 1013.0,269.0 965.0,269.0 965.0,225.0 885.0,225.0 885.0,224.5 860.0,224.5 860.0,181.5 836.0,181.5 836.0,175.39999999999998 800.0,175.39999999999998 800.0,135.39999999999998 760.0,135.39999999999998 760.0,181.5 736.0,181.5 736.0,224.5 760.0,224.5 760.0,284.5 711.0,284.5 711.0,350.0 643.0,350.0" fill="#fff3d9" stroke="#215f79" stroke-width="3"/>
+<rect x="760.01" y="325.0" width="40.0" height="100.0" fill="#c7b5e3" stroke="#34576e"/>
+<text x="780.01" y="375.0" text-anchor="middle" font-size="10">Changing</text>
+<rect x="885.0" y="225.0" width="80.0" height="100.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="925.0" y="275.0" text-anchor="middle" font-size="10">Coating</text>
+<rect x="965.0" y="269.0" width="48.0" height="56.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="989.0" y="297.0" text-anchor="middle" font-size="10">Finished</text>
+<rect x="836.0" y="181.50000000000006" width="24.0" height="43.0" fill="#dce6ee" stroke="#34576e"/>
+<text transform="translate(848.0,203.00000000000006) rotate(-90)" text-anchor="middle" font-size="9">Frozen</text>
+<rect x="1013.0" y="325.0" width="60.0" height="100.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="1043.0" y="375.0" text-anchor="middle" font-size="10">Office</text>
+<rect x="760.0" y="135.39999999999998" width="40.0" height="40.0" fill="#9ecfc6" stroke="#34576e"/>
+<text x="780.0" y="155.39999999999998" text-anchor="middle" font-size="10">Packaging</text>
+<rect x="711.0" y="284.5" width="49.0" height="100.5" fill="#dce6ee" stroke="#34576e"/>
+<text x="735.5" y="334.75" text-anchor="middle" font-size="10">Primary</text>
+<rect x="643.0" y="350.0" width="68.0" height="35.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="677.0" y="367.5" text-anchor="middle" font-size="10">Raw</text>
+<rect x="736.0" y="181.50000000000006" width="24.0" height="43.0" fill="#dce6ee" stroke="#34576e"/>
+<text transform="translate(748.0,203.00000000000006) rotate(-90)" text-anchor="middle" font-size="9">Fruit</text>
+<rect x="836.0" y="224.5" width="49.0" height="100.5" fill="#dce6ee" stroke="#34576e"/>
+<text x="860.5" y="274.75" text-anchor="middle" font-size="10">Secondary</text>
+<rect x="1013.0" y="248.07000000000005" width="65.0" height="76.92999999999999" fill="#dce6ee" stroke="#34576e"/>
+<text x="1045.5" y="286.535" text-anchor="middle" font-size="10">Shipping</text>
+<rect x="760.0" y="175.39999999999998" width="76.0" height="149.60000000000002" fill="#dce6ee" stroke="#34576e"/>
+<text x="798.0" y="250.19999999999993" text-anchor="middle" font-size="10">Sorting</text>
+<polyline points="860.0,625.0 860.0,604.99 750.01,604.99 750.01,417.5 760.01,417.5" fill="none" stroke="#b56a13" stroke-width="3"/>
+<line x1="772.51" y1="325.0" x2="787.51" y2="325.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="772.51" y1="325.0" x2="787.51" y2="325.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="965.0" y1="309.0" x2="965.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="965.0" y1="309.0" x2="965.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1013.0" y1="309.0" x2="1013.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1013.0" y1="309.0" x2="1013.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="852.5" y1="625.0" x2="867.5" y2="625.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="760.01" y1="425.0" x2="760.01" y2="410.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="768.0" y1="175.39999999999998" x2="792.0" y2="175.39999999999998" stroke="#d84531" stroke-width="3"/>
+<line x1="768.0" y1="175.39999999999998" x2="792.0" y2="175.39999999999998" stroke="#d84531" stroke-width="3"/>
+<line x1="760.0" y1="316.75" x2="760.0" y2="292.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="760.0" y1="316.75" x2="760.0" y2="292.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="711.0" y1="379.5" x2="711.0" y2="355.5" stroke="#008d9b" stroke-width="3"/>
+<line x1="711.0" y1="379.5" x2="711.0" y2="355.5" stroke="#008d9b" stroke-width="3"/>
+<line x1="885.0" y1="287.0" x2="885.0" y2="263.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="885.0" y1="287.0" x2="885.0" y2="263.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="836.0" y1="215.0" x2="836.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="836.0" y1="215.0" x2="836.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="760.0" y1="215.0" x2="760.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="760.0" y1="215.0" x2="760.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="836.0" y1="286.75" x2="836.0" y2="262.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="836.0" y1="286.75" x2="836.0" y2="262.75" stroke="#008d9b" stroke-width="3"/>
+<text x="620" y="666" font-size="13">Changing x=40.001m; dimensions 4 x 10m; area 40m2</text>
+<text x="620" y="690" font-size="13">Perimeter 251.904m; corners 42; turns 3</text>
+<text x="620" y="714" font-size="13">12 zones / 7 MUST / 11 non-Truck Access PASS</text>
+<text x="620" y="738" font-size="13">Connected / zero holes / Site / Footprint / eligible PASS</text>
+<text x="1212" y="100" font-size="18">New bounded route refinement / 22.499m</text>
+<rect x="1212" y="120" width="555" height="515" fill="white" stroke="#b3c4cf"/>
+<polygon points="1235.0,385.0 1352.0,385.0 1352.0,325.0 1352.01,325.0 1352.01,425.0 1374.51,425.0 1374.51,625.0 1419.5,625.0 1419.5,605.0 1394.51,605.0 1394.51,425.0 1392.01,425.0 1392.01,325.0 1605.0,325.0 1605.0,425.0 1665.0,425.0 1665.0,325.0 1670.0,325.0 1670.0,248.07000000000005 1605.0,248.07000000000005 1605.0,269.0 1557.0,269.0 1557.0,225.0 1477.0,225.0 1477.0,224.5 1452.0,224.5 1452.0,181.5 1428.0,181.5 1428.0,175.39999999999998 1392.0,175.39999999999998 1392.0,135.39999999999998 1352.0,135.39999999999998 1352.0,181.5 1328.0,181.5 1328.0,224.5 1352.0,224.5 1352.0,284.5 1303.0,284.5 1303.0,350.0 1235.0,350.0" fill="#fff3d9" stroke="#215f79" stroke-width="3"/>
+<rect x="1352.01" y="325.0" width="40.0" height="100.0" fill="#c7b5e3" stroke="#34576e"/>
+<text x="1372.01" y="375.0" text-anchor="middle" font-size="10">Changing</text>
+<rect x="1477.0" y="225.0" width="80.0" height="100.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="1517.0" y="275.0" text-anchor="middle" font-size="10">Coating</text>
+<rect x="1557.0" y="269.0" width="48.0" height="56.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="1581.0" y="297.0" text-anchor="middle" font-size="10">Finished</text>
+<rect x="1428.0" y="181.50000000000006" width="24.0" height="43.0" fill="#dce6ee" stroke="#34576e"/>
+<text transform="translate(1440.0,203.00000000000006) rotate(-90)" text-anchor="middle" font-size="9">Frozen</text>
+<rect x="1605.0" y="325.0" width="60.0" height="100.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="1635.0" y="375.0" text-anchor="middle" font-size="10">Office</text>
+<rect x="1352.0" y="135.39999999999998" width="40.0" height="40.0" fill="#9ecfc6" stroke="#34576e"/>
+<text x="1372.0" y="155.39999999999998" text-anchor="middle" font-size="10">Packaging</text>
+<rect x="1303.0" y="284.5" width="49.0" height="100.5" fill="#dce6ee" stroke="#34576e"/>
+<text x="1327.5" y="334.75" text-anchor="middle" font-size="10">Primary</text>
+<rect x="1235.0" y="350.0" width="68.0" height="35.0" fill="#dce6ee" stroke="#34576e"/>
+<text x="1269.0" y="367.5" text-anchor="middle" font-size="10">Raw</text>
+<rect x="1328.0" y="181.50000000000006" width="24.0" height="43.0" fill="#dce6ee" stroke="#34576e"/>
+<text transform="translate(1340.0,203.00000000000006) rotate(-90)" text-anchor="middle" font-size="9">Fruit</text>
+<rect x="1428.0" y="224.5" width="49.0" height="100.5" fill="#dce6ee" stroke="#34576e"/>
+<text x="1452.5" y="274.75" text-anchor="middle" font-size="10">Secondary</text>
+<rect x="1605.0" y="248.07000000000005" width="65.0" height="76.92999999999999" fill="#dce6ee" stroke="#34576e"/>
+<text x="1637.5" y="286.535" text-anchor="middle" font-size="10">Shipping</text>
+<rect x="1352.0" y="175.39999999999998" width="76.0" height="149.60000000000002" fill="#dce6ee" stroke="#34576e"/>
+<text x="1390.0" y="250.19999999999993" text-anchor="middle" font-size="10">Sorting</text>
+<polyline points="1409.5,625.0 1409.5,615.0 1384.51,615.0 1384.51,425.0" fill="none" stroke="#b56a13" stroke-width="3"/>
+<line x1="1364.51" y1="325.0" x2="1379.51" y2="325.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1364.51" y1="325.0" x2="1379.51" y2="325.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1557.0" y1="309.0" x2="1557.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1557.0" y1="309.0" x2="1557.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1605.0" y1="309.0" x2="1605.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1605.0" y1="309.0" x2="1605.0" y2="285.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1402.0" y1="625.0" x2="1417.0" y2="625.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1377.01" y1="425.0" x2="1392.01" y2="425.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1360.0" y1="175.39999999999998" x2="1384.0" y2="175.39999999999998" stroke="#d84531" stroke-width="3"/>
+<line x1="1360.0" y1="175.39999999999998" x2="1384.0" y2="175.39999999999998" stroke="#d84531" stroke-width="3"/>
+<line x1="1352.0" y1="316.75" x2="1352.0" y2="292.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="1352.0" y1="316.75" x2="1352.0" y2="292.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="1303.0" y1="379.5" x2="1303.0" y2="355.5" stroke="#008d9b" stroke-width="3"/>
+<line x1="1303.0" y1="379.5" x2="1303.0" y2="355.5" stroke="#008d9b" stroke-width="3"/>
+<line x1="1477.0" y1="287.0" x2="1477.0" y2="263.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1477.0" y1="287.0" x2="1477.0" y2="263.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1428.0" y1="215.0" x2="1428.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1428.0" y1="215.0" x2="1428.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1352.0" y1="215.0" x2="1352.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1352.0" y1="215.0" x2="1352.0" y2="191.0" stroke="#008d9b" stroke-width="3"/>
+<line x1="1428.0" y1="286.75" x2="1428.0" y2="262.75" stroke="#008d9b" stroke-width="3"/>
+<line x1="1428.0" y1="286.75" x2="1428.0" y2="262.75" stroke="#008d9b" stroke-width="3"/>
+<text x="1212" y="666" font-size="13">Changing x=40.001m; dimensions 4 x 10m; area 40m2</text>
+<text x="1212" y="690" font-size="13">Perimeter 231.404m; corners 40; turns 2</text>
+<text x="1212" y="714" font-size="13">12 zones / 7 MUST / 11 non-Truck Access PASS</text>
+<text x="1212" y="738" font-size="13">Connected / zero holes / Site / Footprint / eligible PASS</text>
+<text x="26" y="782" font-size="16">Middle and right: identical room geometry / area proxy 1225. Route 32.749m to 22.499m; different Portal/V2 organization.</text>
+<text x="26" y="809" font-size="15">Official nine/twelve comparisons: NOT_COMPARABLE_STRUCTURE. No whole-factory or formal Pareto improvement is claimed.</text>
+<text x="26" y="838" font-size="14">Synthetic layout-region zoom. Full 200 x 100m Site and obstacle remain in input evidence. No real MAIN or Grant. Automatic fast CI only.</text>
+</g></svg>

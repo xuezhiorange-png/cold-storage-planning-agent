@@ -167,6 +167,10 @@ class OrToolsGlobalCompositionSolver:
         accepted_model_guidance: Callable[[Any, Any], dict[str, Any]] | None = None,
         accepted_continuation_guidance: Callable[[Any, Any], dict[str, Any] | None] | None = None,
         final_model_search: Callable[[Any], dict[str, Any]] | None = None,
+        before_accepted_geometry_cut: Callable[
+            [Any, Any, dict[str, Any]], Generator[dict[str, Any], str | None, None]
+        ]
+        | None = None,
     ) -> Generator[dict[str, Any], str | None, None]:
         """One preparation, one final model; bounded physical enumeration.
 
@@ -400,6 +404,11 @@ class OrToolsGlobalCompositionSolver:
                     event_sink(
                         {"kind": "VALIDATED_QUALITY_HINT_UPDATED", "guidance": guidance_update}
                     )
+            if accepted and improvement_started and before_accepted_geometry_cut is not None:
+                # Optional, default-off internal continuation. Application feedback
+                # still crosses the original oracle before returning to the hook.
+                # The original model/solver are retained for the exact room cut.
+                yield from before_accepted_geometry_cut(model, solver, record)
             variables = (
                 [r[k] for r in model.rooms.values() for k in ("x", "y", "w", "d")]
                 if accepted

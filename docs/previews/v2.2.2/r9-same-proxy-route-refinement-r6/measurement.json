@@ -1,0 +1,705 @@
+{
+  "policy_hash": "sha256:4e0d3b0403f714dacf6a6612514d4101be824f3a3c3d4e8d6c36cfc14dbf7f5a",
+  "target": {
+    "parent_index": 4,
+    "local_index": 5,
+    "baseline_route_m": "32.749",
+    "refined_route_m": "22.499",
+    "area_proxy": 1225,
+    "same_room_geometry": true,
+    "baseline_metrics": {
+      "office_aspect": "5/3",
+      "changing_room_aspect": "5/2",
+      "coating_room_aspect": "5/4",
+      "personnel_route_m": "32.749",
+      "personnel_route_turns": 3,
+      "footprint_area_m2": "595.0085",
+      "footprint_perimeter_m": "251.904",
+      "footprint_outline_turn_count": 42,
+      "worst_room_aspect": "5/2",
+      "footprint_reflex_corner_count": 19
+    },
+    "refined_metrics": {
+      "office_aspect": "5/3",
+      "changing_room_aspect": "5/2",
+      "coating_room_aspect": "5/4",
+      "personnel_route_m": "22.499",
+      "personnel_route_turns": 2,
+      "footprint_area_m2": "574.5085",
+      "footprint_perimeter_m": "231.404",
+      "footprint_outline_turn_count": 40,
+      "worst_room_aspect": "5/2",
+      "footprint_reflex_corner_count": 18
+    },
+    "native_route": {
+      "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+      "from_ref": "main_entrance",
+      "to_ref": "changing_room",
+      "topology": "CORRIDOR_MEDIATED",
+      "portal_from_center_mm": [
+        45750,
+        0
+      ],
+      "portal_to_center_mm": [
+        43251,
+        20000
+      ],
+      "portal_width_mm": 1500,
+      "width_mm": 2000,
+      "path_mm": [
+        [
+          45750,
+          0
+        ],
+        [
+          45750,
+          1000
+        ],
+        [
+          43251,
+          1000
+        ],
+        [
+          43251,
+          20000
+        ]
+      ],
+      "envelopes_mm": [
+        [
+          44750,
+          0,
+          46750,
+          1000
+        ],
+        [
+          43251,
+          0,
+          45750,
+          2000
+        ],
+        [
+          42251,
+          1000,
+          44251,
+          20000
+        ],
+        [
+          44750,
+          0,
+          46750,
+          2000
+        ],
+        [
+          42251,
+          0,
+          44251,
+          2000
+        ]
+      ],
+      "turn_count": 2,
+      "length_mm": 22499
+    },
+    "nine": {
+      "status": "NOT_COMPARABLE_STRUCTURE",
+      "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+      "baseline_candidate_hash": "sha256:87e8bd1f5839c19e10010a3408dc021d8f25f92807b39f6fb32449cfec92e77d",
+      "candidate_hash": "sha256:1c81a0ad5347f5189458172534832b1302dd2ef9ce74dfe93bdf72134b5c0112",
+      "metric_directions_minus_one_better": {
+        "office_aspect": 0,
+        "changing_room_aspect": 0,
+        "coating_room_aspect": 0,
+        "worst_room_aspect": 0,
+        "personnel_route_m": -1,
+        "personnel_route_turns": -1,
+        "footprint_perimeter_m": -1,
+        "footprint_outline_turn_count": -1,
+        "footprint_reflex_corner_count": -1
+      },
+      "missing_or_invalid_metrics": [],
+      "same_handoff_and_meaningful_organization": false,
+      "footprint_area_facts_only": {
+        "baseline_m2": "595.0085",
+        "candidate_m2": "574.5085"
+      },
+      "baseline_retained": true,
+      "overall_quality_improvement_claimed": false,
+      "formal_quality_acceptance": false,
+      "automatic_production_selection": false
+    },
+    "twelve": {
+      "status": "NOT_COMPARABLE_STRUCTURE",
+      "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+      "baseline_candidate_hash": "sha256:87e8bd1f5839c19e10010a3408dc021d8f25f92807b39f6fb32449cfec92e77d",
+      "candidate_hash": "sha256:1c81a0ad5347f5189458172534832b1302dd2ef9ce74dfe93bdf72134b5c0112",
+      "metric_directions_minus_one_better": {
+        "office_aspect": 0,
+        "changing_room_aspect": 0,
+        "coating_room_aspect": 0,
+        "worst_room_aspect": 0,
+        "personnel_route_m": -1,
+        "personnel_route_turns": -1,
+        "footprint_perimeter_m": -1,
+        "footprint_outline_turn_count": -1,
+        "footprint_reflex_corner_count": -1,
+        "office_area_allocation_ratio": 0,
+        "changing_room_area_allocation_ratio": 0,
+        "coating_room_area_allocation_ratio": 0
+      },
+      "missing_or_invalid_metrics": [],
+      "same_handoff_and_meaningful_organization": false,
+      "footprint_area_facts_only": {
+        "baseline_m2": "595.0085",
+        "candidate_m2": "574.5085"
+      },
+      "baseline_retained": true,
+      "overall_quality_improvement_claimed": false,
+      "formal_quality_acceptance": false,
+      "automatic_production_selection": false,
+      "original_nine_metric_comparison": {
+        "status": "NOT_COMPARABLE_STRUCTURE",
+        "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+        "baseline_candidate_hash": "sha256:87e8bd1f5839c19e10010a3408dc021d8f25f92807b39f6fb32449cfec92e77d",
+        "candidate_hash": "sha256:1c81a0ad5347f5189458172534832b1302dd2ef9ce74dfe93bdf72134b5c0112",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": 0,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": 0,
+          "personnel_route_m": -1,
+          "personnel_route_turns": -1,
+          "footprint_perimeter_m": -1,
+          "footprint_outline_turn_count": -1,
+          "footprint_reflex_corner_count": -1
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": false,
+        "footprint_area_facts_only": {
+          "baseline_m2": "595.0085",
+          "candidate_m2": "574.5085"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false
+      },
+      "area_evidence_complete": true
+    },
+    "same_v2": false,
+    "engineering_pass": true
+  },
+  "all_refinement_pairs": [
+    {
+      "parent_index": 2,
+      "local_index": 3,
+      "baseline_route_m": "26.75",
+      "refined_route_m": "22.5",
+      "area_proxy": 1225,
+      "same_room_geometry": true,
+      "baseline_metrics": {
+        "office_aspect": "5/3",
+        "changing_room_aspect": "5/2",
+        "coating_room_aspect": "5/4",
+        "personnel_route_m": "26.75",
+        "personnel_route_turns": 3,
+        "footprint_area_m2": "583.0105",
+        "footprint_perimeter_m": "227.906",
+        "footprint_outline_turn_count": 40,
+        "worst_room_aspect": "5/2",
+        "footprint_reflex_corner_count": 18
+      },
+      "refined_metrics": {
+        "office_aspect": "5/3",
+        "changing_room_aspect": "5/2",
+        "coating_room_aspect": "5/4",
+        "personnel_route_m": "22.5",
+        "personnel_route_turns": 3,
+        "footprint_area_m2": "574.5105",
+        "footprint_perimeter_m": "219.406",
+        "footprint_outline_turn_count": 40,
+        "worst_room_aspect": "5/2",
+        "footprint_reflex_corner_count": 18
+      },
+      "native_route": {
+        "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+        "from_ref": "main_entrance",
+        "to_ref": "changing_room",
+        "topology": "CORRIDOR_MEDIATED",
+        "portal_from_center_mm": [
+          45750,
+          0
+        ],
+        "portal_to_center_mm": [
+          44000,
+          20750
+        ],
+        "portal_width_mm": 1500,
+        "width_mm": 2000,
+        "path_mm": [
+          [
+            45750,
+            0
+          ],
+          [
+            45750,
+            19001
+          ],
+          [
+            45000,
+            19001
+          ],
+          [
+            45000,
+            20750
+          ],
+          [
+            44000,
+            20750
+          ]
+        ],
+        "envelopes_mm": [
+          [
+            44750,
+            0,
+            46750,
+            19001
+          ],
+          [
+            45000,
+            18001,
+            45750,
+            20001
+          ],
+          [
+            44000,
+            19001,
+            46000,
+            20750
+          ],
+          [
+            44000,
+            19750,
+            45000,
+            21750
+          ],
+          [
+            44750,
+            18001,
+            46750,
+            20001
+          ],
+          [
+            44000,
+            18001,
+            46000,
+            20001
+          ],
+          [
+            44000,
+            19750,
+            46000,
+            21750
+          ]
+        ],
+        "turn_count": 3,
+        "length_mm": 22500
+      },
+      "nine": {
+        "status": "GEOMETRIC_PARETO_IMPROVEMENT",
+        "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+        "baseline_candidate_hash": "sha256:07e888a554f9694e8f4fe483ca089817700c8b2d122f075152444501a5380ad3",
+        "candidate_hash": "sha256:a4248d243bd7b0fece3eaafab5f215f0e90ee5614572fc8fbf0bbe673df994d9",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": 0,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": 0,
+          "personnel_route_m": -1,
+          "personnel_route_turns": 0,
+          "footprint_perimeter_m": -1,
+          "footprint_outline_turn_count": 0,
+          "footprint_reflex_corner_count": 0
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": true,
+        "footprint_area_facts_only": {
+          "baseline_m2": "583.0105",
+          "candidate_m2": "574.5105"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false
+      },
+      "twelve": {
+        "status": "GEOMETRIC_PARETO_IMPROVEMENT",
+        "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+        "baseline_candidate_hash": "sha256:07e888a554f9694e8f4fe483ca089817700c8b2d122f075152444501a5380ad3",
+        "candidate_hash": "sha256:a4248d243bd7b0fece3eaafab5f215f0e90ee5614572fc8fbf0bbe673df994d9",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": 0,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": 0,
+          "personnel_route_m": -1,
+          "personnel_route_turns": 0,
+          "footprint_perimeter_m": -1,
+          "footprint_outline_turn_count": 0,
+          "footprint_reflex_corner_count": 0,
+          "office_area_allocation_ratio": 0,
+          "changing_room_area_allocation_ratio": 0,
+          "coating_room_area_allocation_ratio": 0
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": true,
+        "footprint_area_facts_only": {
+          "baseline_m2": "583.0105",
+          "candidate_m2": "574.5105"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false,
+        "original_nine_metric_comparison": {
+          "status": "GEOMETRIC_PARETO_IMPROVEMENT",
+          "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+          "baseline_candidate_hash": "sha256:07e888a554f9694e8f4fe483ca089817700c8b2d122f075152444501a5380ad3",
+          "candidate_hash": "sha256:a4248d243bd7b0fece3eaafab5f215f0e90ee5614572fc8fbf0bbe673df994d9",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": 0,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": 0,
+            "personnel_route_m": -1,
+            "personnel_route_turns": 0,
+            "footprint_perimeter_m": -1,
+            "footprint_outline_turn_count": 0,
+            "footprint_reflex_corner_count": 0
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "583.0105",
+            "candidate_m2": "574.5105"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false
+        },
+        "area_evidence_complete": true
+      },
+      "same_v2": true,
+      "engineering_pass": true
+    },
+    {
+      "parent_index": 4,
+      "local_index": 5,
+      "baseline_route_m": "32.749",
+      "refined_route_m": "22.499",
+      "area_proxy": 1225,
+      "same_room_geometry": true,
+      "baseline_metrics": {
+        "office_aspect": "5/3",
+        "changing_room_aspect": "5/2",
+        "coating_room_aspect": "5/4",
+        "personnel_route_m": "32.749",
+        "personnel_route_turns": 3,
+        "footprint_area_m2": "595.0085",
+        "footprint_perimeter_m": "251.904",
+        "footprint_outline_turn_count": 42,
+        "worst_room_aspect": "5/2",
+        "footprint_reflex_corner_count": 19
+      },
+      "refined_metrics": {
+        "office_aspect": "5/3",
+        "changing_room_aspect": "5/2",
+        "coating_room_aspect": "5/4",
+        "personnel_route_m": "22.499",
+        "personnel_route_turns": 2,
+        "footprint_area_m2": "574.5085",
+        "footprint_perimeter_m": "231.404",
+        "footprint_outline_turn_count": 40,
+        "worst_room_aspect": "5/2",
+        "footprint_reflex_corner_count": 18
+      },
+      "native_route": {
+        "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+        "from_ref": "main_entrance",
+        "to_ref": "changing_room",
+        "topology": "CORRIDOR_MEDIATED",
+        "portal_from_center_mm": [
+          45750,
+          0
+        ],
+        "portal_to_center_mm": [
+          43251,
+          20000
+        ],
+        "portal_width_mm": 1500,
+        "width_mm": 2000,
+        "path_mm": [
+          [
+            45750,
+            0
+          ],
+          [
+            45750,
+            1000
+          ],
+          [
+            43251,
+            1000
+          ],
+          [
+            43251,
+            20000
+          ]
+        ],
+        "envelopes_mm": [
+          [
+            44750,
+            0,
+            46750,
+            1000
+          ],
+          [
+            43251,
+            0,
+            45750,
+            2000
+          ],
+          [
+            42251,
+            1000,
+            44251,
+            20000
+          ],
+          [
+            44750,
+            0,
+            46750,
+            2000
+          ],
+          [
+            42251,
+            0,
+            44251,
+            2000
+          ]
+        ],
+        "turn_count": 2,
+        "length_mm": 22499
+      },
+      "nine": {
+        "status": "NOT_COMPARABLE_STRUCTURE",
+        "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+        "baseline_candidate_hash": "sha256:87e8bd1f5839c19e10010a3408dc021d8f25f92807b39f6fb32449cfec92e77d",
+        "candidate_hash": "sha256:1c81a0ad5347f5189458172534832b1302dd2ef9ce74dfe93bdf72134b5c0112",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": 0,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": 0,
+          "personnel_route_m": -1,
+          "personnel_route_turns": -1,
+          "footprint_perimeter_m": -1,
+          "footprint_outline_turn_count": -1,
+          "footprint_reflex_corner_count": -1
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": false,
+        "footprint_area_facts_only": {
+          "baseline_m2": "595.0085",
+          "candidate_m2": "574.5085"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false
+      },
+      "twelve": {
+        "status": "NOT_COMPARABLE_STRUCTURE",
+        "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+        "baseline_candidate_hash": "sha256:87e8bd1f5839c19e10010a3408dc021d8f25f92807b39f6fb32449cfec92e77d",
+        "candidate_hash": "sha256:1c81a0ad5347f5189458172534832b1302dd2ef9ce74dfe93bdf72134b5c0112",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": 0,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": 0,
+          "personnel_route_m": -1,
+          "personnel_route_turns": -1,
+          "footprint_perimeter_m": -1,
+          "footprint_outline_turn_count": -1,
+          "footprint_reflex_corner_count": -1,
+          "office_area_allocation_ratio": 0,
+          "changing_room_area_allocation_ratio": 0,
+          "coating_room_area_allocation_ratio": 0
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": false,
+        "footprint_area_facts_only": {
+          "baseline_m2": "595.0085",
+          "candidate_m2": "574.5085"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false,
+        "original_nine_metric_comparison": {
+          "status": "NOT_COMPARABLE_STRUCTURE",
+          "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+          "baseline_candidate_hash": "sha256:87e8bd1f5839c19e10010a3408dc021d8f25f92807b39f6fb32449cfec92e77d",
+          "candidate_hash": "sha256:1c81a0ad5347f5189458172534832b1302dd2ef9ce74dfe93bdf72134b5c0112",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": 0,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": 0,
+            "personnel_route_m": -1,
+            "personnel_route_turns": -1,
+            "footprint_perimeter_m": -1,
+            "footprint_outline_turn_count": -1,
+            "footprint_reflex_corner_count": -1
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": false,
+          "footprint_area_facts_only": {
+            "baseline_m2": "595.0085",
+            "candidate_m2": "574.5085"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false
+        },
+        "area_evidence_complete": true
+      },
+      "same_v2": false,
+      "engineering_pass": true
+    }
+  ],
+  "first_five_native_model_hashes_identical": true,
+  "all_global_post_refinement_models_byte_identical_to_control": true,
+  "original_130_hint_preserved": true,
+  "new_distinct_room_count": 3,
+  "valid_route_witness_count": 6,
+  "original_pool_source_unchanged": true,
+  "regular_geometry_sequence_unchanged": true,
+  "resources": {
+    "control": {
+      "native_monotonic": 7.927499708079267,
+      "native_solver_wall": 7.906116,
+      "work": 176027,
+      "native_calls": 9,
+      "checked": 4,
+      "rss_peak_bytes": 215433216,
+      "elapsed": 11.285682250047103,
+      "caps": {
+        "native_seconds": 8.0,
+        "elapsed_seconds": 85,
+        "work": 600000,
+        "rss_mib": 512,
+        "native_calls": 12,
+        "checked": 6,
+        "host_work": 20000
+      },
+      "resource_fail": false,
+      "resource_events": {
+        "MODEL_ROLE_VARIABLES": 432,
+        "MODEL_OBSTACLE_SEPARATION": 144,
+        "MODEL_MUST_DISJUNCTION": 252,
+        "MODEL_INTERFACE_CASE": 1200,
+        "MODEL_ROUTE_ROOM_SEPARATION": 8640,
+        "MODEL_ROUTE_OBSTACLE": 720,
+        "MODEL_ROUTE_COEXISTENCE": 32040,
+        "R6_CREATED_DOMAIN_FACT": 26552,
+        "R6_IMPLICIT_CONSTANT_READ": 3,
+        "R6_PHYSICAL_FACTS_READ": 21,
+        "R5_TOTAL_DEFINITIONS": 27,
+        "EXPORT_GEOMETRY": 288,
+        "EXACT_UNION_PRIMITIVE": 19566,
+        "STAGE_B_CANDIDATE_VALIDATION": 4,
+        "NATIVE_ENVELOPE_COVERAGE_CELL": 140,
+        "R6_VALIDATED_PROXY_FACTS": 40,
+        "R5_FEEDBACK_BASELINE": 1,
+        "R6_PHYSICAL_HINT_REFERENCE": 130,
+        "R6_PHYSICAL_HINT_SELECTOR": 54,
+        "R6_CURRENT_VALID_PHYSICAL_HINT": 130,
+        "R5_PROXY_REUSE": 1,
+        "R6_FRONTAGE_REFERENCE_READ": 166,
+        "R6_FRONTAGE_STRATEGY_WRITE": 166,
+        "R7_DEFERRED_STRATEGY_REORDER": 189,
+        "R9_ROUTE_REFERENCE_READ": 10,
+        "R9_AUTHORITY_REFERENCE_READ": 12,
+        "R9_PHYSICAL_REFERENCE_READ": 20,
+        "R9_JOINT_STRATEGY_METADATA": 215,
+        "STAGE_B_BALANCED_FEEDBACK_OBSERVATION": 3,
+        "STAGE_B_PHYSICAL_ENUMERATION_CUT": 147
+      }
+    },
+    "refinement": {
+      "native_monotonic": 7.893648250959814,
+      "native_solver_wall": 7.878075,
+      "work": 357531,
+      "native_calls": 10,
+      "checked": 6,
+      "rss_peak_bytes": 246923264,
+      "elapsed": 12.672958666982595,
+      "caps": {
+        "native_seconds": 8.0,
+        "elapsed_seconds": 85,
+        "work": 600000,
+        "rss_mib": 512,
+        "native_calls": 12,
+        "checked": 6,
+        "host_work": 20000
+      },
+      "resource_fail": false,
+      "resource_events": {
+        "MODEL_ROLE_VARIABLES": 432,
+        "MODEL_OBSTACLE_SEPARATION": 144,
+        "MODEL_MUST_DISJUNCTION": 252,
+        "MODEL_INTERFACE_CASE": 1200,
+        "MODEL_ROUTE_ROOM_SEPARATION": 8640,
+        "MODEL_ROUTE_OBSTACLE": 720,
+        "MODEL_ROUTE_COEXISTENCE": 32040,
+        "R6_CREATED_DOMAIN_FACT": 26552,
+        "R6_IMPLICIT_CONSTANT_READ": 3,
+        "R6_PHYSICAL_FACTS_READ": 21,
+        "R5_TOTAL_DEFINITIONS": 27,
+        "EXPORT_GEOMETRY": 432,
+        "EXACT_UNION_PRIMITIVE": 28460,
+        "STAGE_B_CANDIDATE_VALIDATION": 6,
+        "NATIVE_ENVELOPE_COVERAGE_CELL": 225,
+        "R6_VALIDATED_PROXY_FACTS": 40,
+        "R5_FEEDBACK_BASELINE": 1,
+        "R6_PHYSICAL_HINT_REFERENCE": 130,
+        "R6_PHYSICAL_HINT_SELECTOR": 54,
+        "R6_CURRENT_VALID_PHYSICAL_HINT": 130,
+        "R5_PROXY_REUSE": 1,
+        "R6_FRONTAGE_REFERENCE_READ": 166,
+        "R6_FRONTAGE_STRATEGY_WRITE": 166,
+        "R7_DEFERRED_STRATEGY_REORDER": 189,
+        "R9_ROUTE_REFERENCE_READ": 10,
+        "R9_AUTHORITY_REFERENCE_READ": 12,
+        "R9_PHYSICAL_REFERENCE_READ": 20,
+        "R9_JOINT_STRATEGY_METADATA": 215,
+        "STAGE_B_BALANCED_FEEDBACK_OBSERVATION": 3,
+        "ROUTE_LOCAL_GEOMETRY_KEY": 144,
+        "ROUTE_LOCAL_MODEL_COPY": 129281,
+        "ROUTE_LOCAL_FREE_REFERENCE": 66,
+        "ROUTE_LOCAL_SCOPE_SELECTOR": 108,
+        "ROUTE_LOCAL_SCOPE_ENUMERATION": 272,
+        "ROUTE_LOCAL_SCOPE_REFERENCE": 284,
+        "ROUTE_LOCAL_CONSTRAINT": 1450,
+        "ROUTE_LOCAL_REFERENCE": 24,
+        "ROUTE_LOCAL_VARIABLE": 672,
+        "ROUTE_LOCAL_OBJECTIVE": 2,
+        "ROUTE_LOCAL_LENGTH_READBACK": 9,
+        "STAGE_B_PHYSICAL_ENUMERATION_CUT": 147
+      }
+    }
+  },
+  "not_factory_improvement": true
+}
