@@ -56,3 +56,9 @@ PR #317 / Head ref `codex/stage-b-r9-route-resource-scaling-r7` / Base ref `code
 - Ruff/Format/Mypy（含新 Runner 和导出脚本）/YAML/diff：通过。自动快速 CI 的最终 Run/HEAD 见本轮冻结回执；不触发正式 CI。
 
 源码、资源策略、原 P1/MUST/Access/Topology 权威和比较函数未改；R5/R6/R7 的真实可信登记簿和历史 PR 不受影响。准备完成后冻结源码，仅等待 Owner 审核，不自动执行任何下一阶段。
+
+## 自动快速 CI 隔离契约修正
+
+首个接线提交 `ea348bafaa7b0f1251cb21d64b9bfc60d2a80064` 的快速 CI `40298288784` 为 FAILURE：Stage B 1139 PASS、1 项既有默认策略隔离断言失败。新报告脚本直接导入面积比较模块，触发了该模块只能由原 R5 入口直接引用的隔离契约。本地提交前漏跑了这一旧契约；失败记录保留，不将其称为通过。
+
+最小兼容修正将只读报告投影归位到 layout Infrastructure，Runner 只调用 R9 报告接口；复用原十二项比较函数及其中的原九项结果。R5 脚本未显式导出比较器，本地类型检查拒绝后未采用脚本间隐式重导出。不修改旧测试、比较函数、R5/R9 求解器、Owner Scope/Hash、资源预算或默认入口；无字符串拆分、动态导入或门禁豁免。原失败 Run 不重跑；修正提交只产生自动快速 CI，最终 Head/Run 以冻结回执为准。

@@ -12,9 +12,6 @@ from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError
 from cold_storage.modules.layout.infrastructure.stage_b_area_efficiency import (
     compare_area_efficient_quality,
 )
-from cold_storage.modules.layout.infrastructure.stage_b_balanced_quality import (
-    compare_balanced_quality,
-)
 from cold_storage.modules.layout.infrastructure.stage_b_pool_execution import POOL_ELAPSED_TARGET
 
 
@@ -146,10 +143,11 @@ def route_resource_evidence(
             pair.update(comparison="NOT_EVALUATED_UNPAIRED_CURRENT_ROUTE", baseline=None)
         else:
             b = snapshots[before["canonical_result_hash"]]
+            comparison = compare_area_efficient_quality(b, after)
             pair.update(
                 baseline=b["candidate_hash"],
-                original_nine=compare_balanced_quality(b, after),
-                twelve=compare_area_efficient_quality(b, after),
+                original_nine=comparison["original_nine_metric_comparison"],
+                twelve=comparison,
                 same_v2=b["functional_diversity"]["meaningful_construction_hash"]
                 == after["functional_diversity"]["meaningful_construction_hash"],
                 route_before_m=b["metrics"]["personnel_route_m"],

@@ -21,7 +21,6 @@ from run_stage_b_owner_pool import dump, server_inputs
 from run_stage_b_r5_main import quality_evidence
 from run_stage_b_r7_main import search_recovery_evidence as original_recovery_evidence
 from run_stage_b_r7_main import work_evidence as original_work_evidence
-from stage_b_r9_main_evidence import route_resource_evidence
 
 from cold_storage.bootstrap.stage_b_r9_main import approved_r9_main_store
 from cold_storage.modules.layout.application.global_composition_solver import StageALedger
@@ -32,6 +31,9 @@ from cold_storage.modules.layout.application.layout_authority_binding import bin
 from cold_storage.modules.layout.domain.dimensioning import LayoutAuthorityError, canonical_hash
 from cold_storage.modules.layout.infrastructure.stage_b_balanced_quality import (
     COMPARISON_POLICY as NINE_METRIC_POLICY,
+)
+from cold_storage.modules.layout.infrastructure.stage_b_r9_main_evidence import (
+    route_resource_evidence,
 )
 from cold_storage.modules.layout.infrastructure.stage_b_r9_main_execution import (
     CI_IDENTITY,
