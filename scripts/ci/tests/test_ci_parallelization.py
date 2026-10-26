@@ -15,6 +15,15 @@ from ci_gate import BACKEND_PARALLEL_JOBS, gate_errors
 ROOT = matrix.ROOT
 
 
+def original_rss_start_condition(body: str) -> str:
+    """Normalize only the explicitly corrected worker-2 start dependency."""
+    return body.replace("        id: linux_rss_worker_1\n", "").replace(
+        "if: ${{ !cancelled() && (steps.linux_rss_worker_1.outcome == 'success' "
+        "|| steps.linux_rss_worker_1.outcome == 'failure') }}",
+        "if: ${{ !cancelled() }}",
+    )
+
+
 class ParallelWorkflowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -127,18 +136,60 @@ class ParallelWorkflowTests(unittest.TestCase):
         self.assertEqual(set(before), set(self.jobs))
         for name in before.keys() - {"backend-partition-coverage"}:
             with self.subTest(job=name):
-                self.assertEqual(before[name], self.jobs[name])
+                actual = self.jobs[name]
+                if name == "backend-sqlite":
+                    actual = original_rss_start_condition(actual)
+                self.assertEqual(before[name], actual)
 
     def test_rss_and_pg_integration_commands_preserved_verbatim(self):
         old_rss = self.before["backend-sqlite"].split("      # Fixed two runs", 1)[1]
         old_rss = old_rss.split("      - name: Backend tests", 1)[0]
-        self.assertIn(old_rss, self.jobs["backend-sqlite"])
+        self.assertIn(old_rss, original_rss_start_condition(self.jobs["backend-sqlite"]))
         old_pg = self.before["backend-postgresql"].split("    services:", 1)[1]
         old_pg = old_pg.split("      - name: Backend tests", 1)[0]
         self.assertIn(old_pg, self.jobs["backend-postgresql-integration"])
         self.assertIn("    services:", self.jobs["backend-postgresql-shards"])
         for name in ("backend-architecture", "backend-lint", "backend-mypy"):
             self.assertNotIn("    services:", self.jobs[name])
+
+    def test_second_rss_worker_requires_an_executed_first_worker_even_after_failure(self):
+        sqlite = self.jobs["backend-sqlite"]
+        first = sqlite.split("      - name: Linux physical RSS independent worker 1\n", 1)[1]
+        first, second = first.split("      - name: Linux physical RSS independent worker 2\n", 1)
+        second, after = second.split(
+            "      - name: Require two real Linux RSS overlimit rejections\n", 1
+        )
+        self.assertIn("        id: linux_rss_worker_1\n", first)
+        self.assertNotIn("        if:", first)
+        condition = re.search(r"^        if: \$\{\{ (.+) \}\}$", second, re.M).group(1)
+        self.assertEqual(
+            condition,
+            "!cancelled() && (steps.linux_rss_worker_1.outcome == 'success' "
+            "|| steps.linux_rss_worker_1.outcome == 'failure')",
+        )
+        # Evaluate the exact workflow expression over every possible outcome,
+        # including a missing/skipped step when checkout never took place.
+        for cancelled in (False, True):
+            for outcome in ("success", "failure", "skipped", "cancelled", "", None):
+                with self.subTest(cancelled=cancelled, first_outcome=outcome):
+                    expression = (
+                        condition.replace("!cancelled()", repr(not cancelled))
+                        .replace("steps.linux_rss_worker_1.outcome", repr(outcome))
+                        .replace("&&", "and")
+                        .replace("||", "or")
+                    )
+                    self.assertEqual(
+                        eval(expression, {"__builtins__": {}}, {}),
+                        not cancelled and outcome in ("success", "failure"),
+                    )
+        for step in (first, second):
+            self.assertNotIn("continue-on-error", step)
+        verify = after.split("      - name: Linux physical RSS worker isolation regressions", 1)[0]
+        self.assertNotIn("if:", verify)
+        self.assertIn("run-1.xml artifacts/linux-rss/run-2.xml", verify)
+        artifact = after.split("      - name: Preserve Linux RSS measurements and JUnit", 1)[1]
+        self.assertIn("if: ${{ always() }}", artifact)
+        self.assertIn("if-no-files-found: error", artifact)
 
 
 if __name__ == "__main__":

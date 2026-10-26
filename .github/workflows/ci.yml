@@ -1267,9 +1267,10 @@ jobs:
       # Fixed two runs, not a retry loop. These steps are part of the existing
       # required backend-sqlite job and therefore the final ci-gate.
       - name: Linux physical RSS independent worker 1
+        id: linux_rss_worker_1
         run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run python -m tests.linux_rss_gate run artifacts/linux-rss/run-1
       - name: Linux physical RSS independent worker 2
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && (steps.linux_rss_worker_1.outcome == 'success' || steps.linux_rss_worker_1.outcome == 'failure') }}
         run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run python -m tests.linux_rss_gate run artifacts/linux-rss/run-2
       - name: Require two real Linux RSS overlimit rejections
         run: cd backend && uv run python -m tests.linux_rss_gate verify artifacts/linux-rss/run-1.xml artifacts/linux-rss/run-2.xml

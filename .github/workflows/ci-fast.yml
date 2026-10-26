@@ -48,6 +48,7 @@ jobs:
           tests/unit/test_v222_stage_b_first_feasible_recovery.py
           tests/unit/test_v222_stage_b_changing_frontage_corridor.py
           tests/unit/test_v222_stage_b_route_refinement.py
+          tests/unit/test_v222_stage_b_route_resources.py
           tests/unit/test_v222_access_entrance_normals.py
           tests/unit/test_v222_stage_b_construction_guidance.py
           tests/unit/test_v222_construction_diversity.py
@@ -60,6 +61,7 @@ jobs:
           tests/unit/test_v222_stage_b_r5_main_execution.py
           tests/unit/test_v222_stage_b_r6_main_execution.py
           tests/unit/test_v222_stage_b_r7_main_execution.py
+          tests/unit/test_v222_stage_b_r9_main_execution.py
           -m "not physical_rss_linux" -q
       - name: Partition execution and shared fixture contracts (no layout search)
         run: >-
