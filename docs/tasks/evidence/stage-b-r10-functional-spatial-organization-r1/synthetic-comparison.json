@@ -1,0 +1,1393 @@
+{
+  "task": "V2_2_2_STAGE_B_R10_FUNCTIONAL_SPATIAL_ORGANIZATION_R1",
+  "base_head": "8b731d7ab2f7a0ae10f1c58c34a38d763284b271",
+  "synthetic_only": true,
+  "r10_delta": {
+    "office_aspect": {
+      "before": "15/4",
+      "after": "7983/7516",
+      "delta": "-10101/3758"
+    },
+    "changing_room_aspect": {
+      "before": "10",
+      "after": "1304/1227",
+      "delta": "-10966/1227"
+    },
+    "coating_room_aspect": {
+      "before": "16/5",
+      "after": "9223/8674",
+      "delta": "-92669/43370"
+    },
+    "personnel_route_m": {
+      "before": "19.252",
+      "after": "30.415",
+      "delta": "11163/1000"
+    },
+    "personnel_route_turns": {
+      "before": 4,
+      "after": 4,
+      "delta": "0"
+    },
+    "footprint_area_m2": {
+      "before": "568.0145",
+      "after": "590.34123",
+      "delta": "2232673/100000"
+    },
+    "footprint_perimeter_m": {
+      "before": "248.31",
+      "after": "222.986",
+      "delta": "-6331/250"
+    },
+    "footprint_outline_turn_count": {
+      "before": 40,
+      "after": 40,
+      "delta": "0"
+    },
+    "worst_room_aspect": {
+      "before": "10",
+      "after": "9223/8674",
+      "delta": "-77517/8674"
+    },
+    "footprint_reflex_corner_count": {
+      "before": 18,
+      "after": 18,
+      "delta": "0"
+    }
+  },
+  "r10_area_deltas": {
+    "office": {
+      "actual_area_m2": {
+        "before": "60",
+        "after": "15000057/250000",
+        "delta": "57/250000"
+      },
+      "area_allocation_ratio": {
+        "before": "1",
+        "after": "5000019/5000000",
+        "delta": "19/5000000"
+      },
+      "physical_width_m": {
+        "before": "4",
+        "after": "7983/1000",
+        "delta": "3983/1000"
+      },
+      "physical_depth_m": {
+        "before": "15",
+        "after": "1879/250",
+        "delta": "-1871/250"
+      }
+    },
+    "changing_room": {
+      "actual_area_m2": {
+        "before": "40",
+        "after": "200001/5000",
+        "delta": "1/5000"
+      },
+      "area_allocation_ratio": {
+        "before": "1",
+        "after": "200001/200000",
+        "delta": "1/200000"
+      },
+      "physical_width_m": {
+        "before": "2",
+        "after": "1227/200",
+        "delta": "827/200"
+      },
+      "physical_depth_m": {
+        "before": "20",
+        "after": "163/25",
+        "delta": "-337/25"
+      }
+    },
+    "coating_room": {
+      "actual_area_m2": {
+        "before": "80",
+        "after": "40000151/500000",
+        "delta": "151/500000"
+      },
+      "area_allocation_ratio": {
+        "before": "1",
+        "after": "40000151/40000000",
+        "delta": "151/40000000"
+      },
+      "physical_width_m": {
+        "before": "5",
+        "after": "4337/500",
+        "delta": "1837/500"
+      },
+      "physical_depth_m": {
+        "before": "16",
+        "after": "9223/1000",
+        "delta": "-6777/1000"
+      }
+    }
+  },
+  "r10_nine": {
+    "status": "QUALITY_TRADEOFF",
+    "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+    "baseline_candidate_hash": "sha256:0774325fb62c7395d0c7166cc0692e8bb960fc6a70eb973d8520c705ed01dec5",
+    "candidate_hash": "sha256:a2446cf58be0475a4b35de1368f9a1bc32b7da99c20fde94f4af7dcccccdc23b",
+    "metric_directions_minus_one_better": {
+      "office_aspect": -1,
+      "changing_room_aspect": -1,
+      "coating_room_aspect": -1,
+      "worst_room_aspect": -1,
+      "personnel_route_m": 1,
+      "personnel_route_turns": 0,
+      "footprint_perimeter_m": -1,
+      "footprint_outline_turn_count": 0,
+      "footprint_reflex_corner_count": 0
+    },
+    "missing_or_invalid_metrics": [],
+    "same_handoff_and_meaningful_organization": true,
+    "footprint_area_facts_only": {
+      "baseline_m2": "568.0145",
+      "candidate_m2": "590.34123"
+    },
+    "baseline_retained": true,
+    "overall_quality_improvement_claimed": false,
+    "formal_quality_acceptance": false,
+    "automatic_production_selection": false
+  },
+  "r10_twelve": {
+    "status": "QUALITY_TRADEOFF",
+    "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+    "baseline_candidate_hash": "sha256:0774325fb62c7395d0c7166cc0692e8bb960fc6a70eb973d8520c705ed01dec5",
+    "candidate_hash": "sha256:a2446cf58be0475a4b35de1368f9a1bc32b7da99c20fde94f4af7dcccccdc23b",
+    "metric_directions_minus_one_better": {
+      "office_aspect": -1,
+      "changing_room_aspect": -1,
+      "coating_room_aspect": -1,
+      "worst_room_aspect": -1,
+      "personnel_route_m": 1,
+      "personnel_route_turns": 0,
+      "footprint_perimeter_m": -1,
+      "footprint_outline_turn_count": 0,
+      "footprint_reflex_corner_count": 0,
+      "office_area_allocation_ratio": 1,
+      "changing_room_area_allocation_ratio": 1,
+      "coating_room_area_allocation_ratio": 1
+    },
+    "missing_or_invalid_metrics": [],
+    "same_handoff_and_meaningful_organization": true,
+    "footprint_area_facts_only": {
+      "baseline_m2": "568.0145",
+      "candidate_m2": "590.34123"
+    },
+    "baseline_retained": true,
+    "overall_quality_improvement_claimed": false,
+    "formal_quality_acceptance": false,
+    "automatic_production_selection": false,
+    "original_nine_metric_comparison": {
+      "status": "QUALITY_TRADEOFF",
+      "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+      "baseline_candidate_hash": "sha256:0774325fb62c7395d0c7166cc0692e8bb960fc6a70eb973d8520c705ed01dec5",
+      "candidate_hash": "sha256:a2446cf58be0475a4b35de1368f9a1bc32b7da99c20fde94f4af7dcccccdc23b",
+      "metric_directions_minus_one_better": {
+        "office_aspect": -1,
+        "changing_room_aspect": -1,
+        "coating_room_aspect": -1,
+        "worst_room_aspect": -1,
+        "personnel_route_m": 1,
+        "personnel_route_turns": 0,
+        "footprint_perimeter_m": -1,
+        "footprint_outline_turn_count": 0,
+        "footprint_reflex_corner_count": 0
+      },
+      "missing_or_invalid_metrics": [],
+      "same_handoff_and_meaningful_organization": true,
+      "footprint_area_facts_only": {
+        "baseline_m2": "568.0145",
+        "candidate_m2": "590.34123"
+      },
+      "baseline_retained": true,
+      "overall_quality_improvement_claimed": false,
+      "formal_quality_acceptance": false,
+      "automatic_production_selection": false
+    },
+    "area_evidence_complete": true
+  },
+  "first_stage_proto_and_baseline_identical": true,
+  "scope": "Finite functional bays in original 1000kg complete synthetic scene; not evidence of all factory inputs or furniture/fire/structural suitability",
+  "r9": {
+    "policy_hash": "sha256:ce8c264012510d9655e9d28ca283a98c99775c913df8e976b4ad3e2d5ac17272",
+    "valid_witnesses": 4,
+    "unique_room_geometry": 3,
+    "distinct_actual_rectangle_sets": 3,
+    "v2_count": 1,
+    "native_seconds": 7.719030708016362,
+    "solver_seconds": 7.704931,
+    "elapsed": 10.170301541977096,
+    "work": 231931,
+    "native_calls": 9,
+    "checked": 4,
+    "rss_peak_mib": 244.9375,
+    "resource_fail": false,
+    "terminal_error": null,
+    "copy_work": 64637,
+    "local_native_calls": 1,
+    "r10_metadata_work": 0,
+    "first_full_model_sha256": "cee516e483fec3ac8be977a9bb57589cf51e7e51ec34ca1ec931bf11b95b4f70",
+    "baseline_geometry_hash": "sha256:d32319eb80c6e8636ad9dfd2a7e0b1088fd2919870827d49151e19d4c466cd03",
+    "candidates": [
+      {
+        "actual_rectangle_key": "sha256:f382e227f2a968c1593b1d90019dd1be90a739d94e2887f17493506a6d8bad9d",
+        "candidate_hash": "sha256:ba83216bd6e179f0bc9071d4bfec3824908b9da245d913bd2f50eb9082cf1669",
+        "geometry_hash": "sha256:d32319eb80c6e8636ad9dfd2a7e0b1088fd2919870827d49151e19d4c466cd03",
+        "stage": "FEASIBILITY_FIRST",
+        "v2": "sha256:760bf36583e038a9f173aa8579147b0f050f8f047147fce28e14f6f70ab2f3ae",
+        "metrics": {
+          "office_aspect": "15/4",
+          "changing_room_aspect": "10",
+          "coating_room_aspect": "16/5",
+          "personnel_route_m": "19.252",
+          "personnel_route_turns": 4,
+          "footprint_area_m2": "568.0145",
+          "footprint_perimeter_m": "248.31",
+          "footprint_outline_turn_count": 40,
+          "worst_room_aspect": "10",
+          "footprint_reflex_corner_count": 18
+        },
+        "rooms": {
+          "office": {
+            "required_area_m2": "60",
+            "actual_area_m2": "60",
+            "area_allocation_ratio": "1",
+            "area_overallocation_ratio": "0",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "4",
+            "physical_depth_m": "15",
+            "exact_compactness_proxy": "361/240"
+          },
+          "changing_room": {
+            "required_area_m2": "40",
+            "actual_area_m2": "40",
+            "area_allocation_ratio": "1",
+            "area_overallocation_ratio": "0",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "2",
+            "physical_depth_m": "20",
+            "exact_compactness_proxy": "121/40"
+          },
+          "coating_room": {
+            "required_area_m2": "80",
+            "actual_area_m2": "80",
+            "area_allocation_ratio": "1",
+            "area_overallocation_ratio": "0",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "5",
+            "physical_depth_m": "16",
+            "exact_compactness_proxy": "441/320"
+          }
+        },
+        "oracle": {
+          "independent": {
+            "pass": true,
+            "errors": [],
+            "zone_count": 12,
+            "must_pass_count": 7,
+            "access_count": 11,
+            "coexistence": true
+          },
+          "native": {
+            "pass": true,
+            "errors": [],
+            "coexistence": true,
+            "pass_count": 11,
+            "source": "ACTUAL_NATIVE_APPLICATION_CORRIDORS"
+          },
+          "topology": {
+            "valid": true,
+            "hole_count": 0,
+            "connected_component_count": 1
+          },
+          "footprint_present": true,
+          "truck": false,
+          "p2_complete": false
+        },
+        "nine": {
+          "status": "NO_MEASURABLE_IMPROVEMENT",
+          "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+          "baseline_candidate_hash": "sha256:ba83216bd6e179f0bc9071d4bfec3824908b9da245d913bd2f50eb9082cf1669",
+          "candidate_hash": "sha256:ba83216bd6e179f0bc9071d4bfec3824908b9da245d913bd2f50eb9082cf1669",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": 0,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": 0,
+            "personnel_route_m": 0,
+            "personnel_route_turns": 0,
+            "footprint_perimeter_m": 0,
+            "footprint_outline_turn_count": 0,
+            "footprint_reflex_corner_count": 0
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "568.0145",
+            "candidate_m2": "568.0145"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false
+        },
+        "twelve": {
+          "status": "NO_MEASURABLE_IMPROVEMENT",
+          "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+          "baseline_candidate_hash": "sha256:ba83216bd6e179f0bc9071d4bfec3824908b9da245d913bd2f50eb9082cf1669",
+          "candidate_hash": "sha256:ba83216bd6e179f0bc9071d4bfec3824908b9da245d913bd2f50eb9082cf1669",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": 0,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": 0,
+            "personnel_route_m": 0,
+            "personnel_route_turns": 0,
+            "footprint_perimeter_m": 0,
+            "footprint_outline_turn_count": 0,
+            "footprint_reflex_corner_count": 0,
+            "office_area_allocation_ratio": 0,
+            "changing_room_area_allocation_ratio": 0,
+            "coating_room_area_allocation_ratio": 0
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "568.0145",
+            "candidate_m2": "568.0145"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false,
+          "original_nine_metric_comparison": {
+            "status": "NO_MEASURABLE_IMPROVEMENT",
+            "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+            "baseline_candidate_hash": "sha256:ba83216bd6e179f0bc9071d4bfec3824908b9da245d913bd2f50eb9082cf1669",
+            "candidate_hash": "sha256:ba83216bd6e179f0bc9071d4bfec3824908b9da245d913bd2f50eb9082cf1669",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 0,
+              "changing_room_aspect": 0,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": 0,
+              "personnel_route_m": 0,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": 0,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0
+            },
+            "missing_or_invalid_metrics": [],
+            "same_handoff_and_meaningful_organization": true,
+            "footprint_area_facts_only": {
+              "baseline_m2": "568.0145",
+              "candidate_m2": "568.0145"
+            },
+            "baseline_retained": true,
+            "overall_quality_improvement_claimed": false,
+            "formal_quality_acceptance": false,
+            "automatic_production_selection": false
+          },
+          "area_evidence_complete": true
+        }
+      },
+      {
+        "actual_rectangle_key": "sha256:741c95206f490f823ae2436e9a46d00ea15143a3816619d03a1f257108a0a692",
+        "candidate_hash": "sha256:5664e5ccdeb066314c34fddadddb1479178545953931dc8a2a35f03bae5579c7",
+        "geometry_hash": "sha256:7e6c465e7277072ce8e2a06e4babf5a4bd039d0778a20ac736d051cd4fd2d808",
+        "stage": "BOUNDED_QUALITY_IMPROVEMENT",
+        "v2": "sha256:760bf36583e038a9f173aa8579147b0f050f8f047147fce28e14f6f70ab2f3ae",
+        "metrics": {
+          "office_aspect": "15/4",
+          "changing_room_aspect": "6665/667",
+          "coating_room_aspect": "16/5",
+          "personnel_route_m": "15.005",
+          "personnel_route_turns": 2,
+          "footprint_area_m2": "559.530495",
+          "footprint_perimeter_m": "240.306",
+          "footprint_outline_turn_count": 38,
+          "worst_room_aspect": "6665/667",
+          "footprint_reflex_corner_count": 17
+        },
+        "rooms": {
+          "office": {
+            "required_area_m2": "60",
+            "actual_area_m2": "60",
+            "area_allocation_ratio": "1",
+            "area_overallocation_ratio": "0",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "4",
+            "physical_depth_m": "15",
+            "exact_compactness_proxy": "361/240"
+          },
+          "changing_room": {
+            "required_area_m2": "40",
+            "actual_area_m2": "8001999/200000",
+            "area_allocation_ratio": "8001999/8000000",
+            "area_overallocation_ratio": "1999/8000000",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "2001/1000",
+            "physical_depth_m": "3999/200",
+            "exact_compactness_proxy": "30239001/10000000"
+          },
+          "coating_room": {
+            "required_area_m2": "80",
+            "actual_area_m2": "80",
+            "area_allocation_ratio": "1",
+            "area_overallocation_ratio": "0",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "5",
+            "physical_depth_m": "16",
+            "exact_compactness_proxy": "441/320"
+          }
+        },
+        "oracle": {
+          "independent": {
+            "pass": true,
+            "errors": [],
+            "zone_count": 12,
+            "must_pass_count": 7,
+            "access_count": 11,
+            "coexistence": true
+          },
+          "native": {
+            "pass": true,
+            "errors": [],
+            "coexistence": true,
+            "pass_count": 11,
+            "source": "ACTUAL_NATIVE_APPLICATION_CORRIDORS"
+          },
+          "topology": {
+            "valid": true,
+            "hole_count": 0,
+            "connected_component_count": 1
+          },
+          "footprint_present": true,
+          "truck": false,
+          "p2_complete": false
+        },
+        "nine": {
+          "status": "GEOMETRIC_PARETO_IMPROVEMENT",
+          "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+          "baseline_candidate_hash": "sha256:ba83216bd6e179f0bc9071d4bfec3824908b9da245d913bd2f50eb9082cf1669",
+          "candidate_hash": "sha256:5664e5ccdeb066314c34fddadddb1479178545953931dc8a2a35f03bae5579c7",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": -1,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": -1,
+            "personnel_route_m": -1,
+            "personnel_route_turns": -1,
+            "footprint_perimeter_m": -1,
+            "footprint_outline_turn_count": -1,
+            "footprint_reflex_corner_count": -1
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "568.0145",
+            "candidate_m2": "559.530495"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false
+        },
+        "twelve": {
+          "status": "QUALITY_TRADEOFF",
+          "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+          "baseline_candidate_hash": "sha256:ba83216bd6e179f0bc9071d4bfec3824908b9da245d913bd2f50eb9082cf1669",
+          "candidate_hash": "sha256:5664e5ccdeb066314c34fddadddb1479178545953931dc8a2a35f03bae5579c7",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": -1,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": -1,
+            "personnel_route_m": -1,
+            "personnel_route_turns": -1,
+            "footprint_perimeter_m": -1,
+            "footprint_outline_turn_count": -1,
+            "footprint_reflex_corner_count": -1,
+            "office_area_allocation_ratio": 0,
+            "changing_room_area_allocation_ratio": 1,
+            "coating_room_area_allocation_ratio": 0
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "568.0145",
+            "candidate_m2": "559.530495"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false,
+          "original_nine_metric_comparison": {
+            "status": "GEOMETRIC_PARETO_IMPROVEMENT",
+            "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+            "baseline_candidate_hash": "sha256:ba83216bd6e179f0bc9071d4bfec3824908b9da245d913bd2f50eb9082cf1669",
+            "candidate_hash": "sha256:5664e5ccdeb066314c34fddadddb1479178545953931dc8a2a35f03bae5579c7",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 0,
+              "changing_room_aspect": -1,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": -1,
+              "personnel_route_m": -1,
+              "personnel_route_turns": -1,
+              "footprint_perimeter_m": -1,
+              "footprint_outline_turn_count": -1,
+              "footprint_reflex_corner_count": -1
+            },
+            "missing_or_invalid_metrics": [],
+            "same_handoff_and_meaningful_organization": true,
+            "footprint_area_facts_only": {
+              "baseline_m2": "568.0145",
+              "candidate_m2": "559.530495"
+            },
+            "baseline_retained": true,
+            "overall_quality_improvement_claimed": false,
+            "formal_quality_acceptance": false,
+            "automatic_production_selection": false
+          },
+          "area_evidence_complete": true
+        }
+      },
+      {
+        "actual_rectangle_key": "sha256:741c95206f490f823ae2436e9a46d00ea15143a3816619d03a1f257108a0a692",
+        "candidate_hash": "sha256:54188de4b0136953d67d69e8d363e668c8b78c7c2535f777e2c0493579bd2811",
+        "geometry_hash": "sha256:7e6c465e7277072ce8e2a06e4babf5a4bd039d0778a20ac736d051cd4fd2d808",
+        "stage": "SAME_PROXY_ROUTE_REFINEMENT",
+        "v2": "sha256:760bf36583e038a9f173aa8579147b0f050f8f047147fce28e14f6f70ab2f3ae",
+        "metrics": {
+          "office_aspect": "15/4",
+          "changing_room_aspect": "6665/667",
+          "coating_room_aspect": "16/5",
+          "personnel_route_m": "14.504",
+          "personnel_route_turns": 2,
+          "footprint_area_m2": "558.528495",
+          "footprint_perimeter_m": "239.304",
+          "footprint_outline_turn_count": 38,
+          "worst_room_aspect": "6665/667",
+          "footprint_reflex_corner_count": 17
+        },
+        "rooms": {
+          "office": {
+            "required_area_m2": "60",
+            "actual_area_m2": "60",
+            "area_allocation_ratio": "1",
+            "area_overallocation_ratio": "0",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "4",
+            "physical_depth_m": "15",
+            "exact_compactness_proxy": "361/240"
+          },
+          "changing_room": {
+            "required_area_m2": "40",
+            "actual_area_m2": "8001999/200000",
+            "area_allocation_ratio": "8001999/8000000",
+            "area_overallocation_ratio": "1999/8000000",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "2001/1000",
+            "physical_depth_m": "3999/200",
+            "exact_compactness_proxy": "30239001/10000000"
+          },
+          "coating_room": {
+            "required_area_m2": "80",
+            "actual_area_m2": "80",
+            "area_allocation_ratio": "1",
+            "area_overallocation_ratio": "0",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "5",
+            "physical_depth_m": "16",
+            "exact_compactness_proxy": "441/320"
+          }
+        },
+        "oracle": {
+          "independent": {
+            "pass": true,
+            "errors": [],
+            "zone_count": 12,
+            "must_pass_count": 7,
+            "access_count": 11,
+            "coexistence": true
+          },
+          "native": {
+            "pass": true,
+            "errors": [],
+            "coexistence": true,
+            "pass_count": 11,
+            "source": "ACTUAL_NATIVE_APPLICATION_CORRIDORS"
+          },
+          "topology": {
+            "valid": true,
+            "hole_count": 0,
+            "connected_component_count": 1
+          },
+          "footprint_present": true,
+          "truck": false,
+          "p2_complete": false
+        },
+        "nine": {
+          "status": "GEOMETRIC_PARETO_IMPROVEMENT",
+          "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+          "baseline_candidate_hash": "sha256:ba83216bd6e179f0bc9071d4bfec3824908b9da245d913bd2f50eb9082cf1669",
+          "candidate_hash": "sha256:54188de4b0136953d67d69e8d363e668c8b78c7c2535f777e2c0493579bd2811",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": -1,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": -1,
+            "personnel_route_m": -1,
+            "personnel_route_turns": -1,
+            "footprint_perimeter_m": -1,
+            "footprint_outline_turn_count": -1,
+            "footprint_reflex_corner_count": -1
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "568.0145",
+            "candidate_m2": "558.528495"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false
+        },
+        "twelve": {
+          "status": "QUALITY_TRADEOFF",
+          "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+          "baseline_candidate_hash": "sha256:ba83216bd6e179f0bc9071d4bfec3824908b9da245d913bd2f50eb9082cf1669",
+          "candidate_hash": "sha256:54188de4b0136953d67d69e8d363e668c8b78c7c2535f777e2c0493579bd2811",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": -1,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": -1,
+            "personnel_route_m": -1,
+            "personnel_route_turns": -1,
+            "footprint_perimeter_m": -1,
+            "footprint_outline_turn_count": -1,
+            "footprint_reflex_corner_count": -1,
+            "office_area_allocation_ratio": 0,
+            "changing_room_area_allocation_ratio": 1,
+            "coating_room_area_allocation_ratio": 0
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "568.0145",
+            "candidate_m2": "558.528495"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false,
+          "original_nine_metric_comparison": {
+            "status": "GEOMETRIC_PARETO_IMPROVEMENT",
+            "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+            "baseline_candidate_hash": "sha256:ba83216bd6e179f0bc9071d4bfec3824908b9da245d913bd2f50eb9082cf1669",
+            "candidate_hash": "sha256:54188de4b0136953d67d69e8d363e668c8b78c7c2535f777e2c0493579bd2811",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 0,
+              "changing_room_aspect": -1,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": -1,
+              "personnel_route_m": -1,
+              "personnel_route_turns": -1,
+              "footprint_perimeter_m": -1,
+              "footprint_outline_turn_count": -1,
+              "footprint_reflex_corner_count": -1
+            },
+            "missing_or_invalid_metrics": [],
+            "same_handoff_and_meaningful_organization": true,
+            "footprint_area_facts_only": {
+              "baseline_m2": "568.0145",
+              "candidate_m2": "558.528495"
+            },
+            "baseline_retained": true,
+            "overall_quality_improvement_claimed": false,
+            "formal_quality_acceptance": false,
+            "automatic_production_selection": false
+          },
+          "area_evidence_complete": true
+        }
+      },
+      {
+        "actual_rectangle_key": "sha256:2bd6f18524d2668aff364c971a6fc55e25957871c700f1c08083637be82d9dd8",
+        "candidate_hash": "sha256:093311ffdac95c43667b1dc5c75cb8d9e0b368cec1771da7d970f5ffa27ed733",
+        "geometry_hash": "sha256:acfcd7f69a50eff0a637cd2914ec0bef36642e5b8b2c577b96c68a244b592de8",
+        "stage": "BOUNDED_QUALITY_IMPROVEMENT",
+        "v2": "sha256:760bf36583e038a9f173aa8579147b0f050f8f047147fce28e14f6f70ab2f3ae",
+        "metrics": {
+          "office_aspect": "15000/4001",
+          "changing_room_aspect": "19991/2001",
+          "coating_room_aspect": "16/5",
+          "personnel_route_m": "15.009",
+          "personnel_route_turns": 2,
+          "footprint_area_m2": "559.545491",
+          "footprint_perimeter_m": "240.306",
+          "footprint_outline_turn_count": 38,
+          "worst_room_aspect": "19991/2001",
+          "footprint_reflex_corner_count": 17
+        },
+        "rooms": {
+          "office": {
+            "required_area_m2": "60",
+            "actual_area_m2": "12003/200",
+            "area_allocation_ratio": "4001/4000",
+            "area_overallocation_ratio": "1/4000",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "4001/1000",
+            "physical_depth_m": "15",
+            "exact_compactness_proxy": "361038001/240000000"
+          },
+          "changing_room": {
+            "required_area_m2": "40",
+            "actual_area_m2": "40001991/1000000",
+            "area_allocation_ratio": "40001991/40000000",
+            "area_overallocation_ratio": "1991/40000000",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "2001/1000",
+            "physical_depth_m": "19991/1000",
+            "exact_compactness_proxy": "7557001/2500000"
+          },
+          "coating_room": {
+            "required_area_m2": "80",
+            "actual_area_m2": "80",
+            "area_allocation_ratio": "1",
+            "area_overallocation_ratio": "0",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "5",
+            "physical_depth_m": "16",
+            "exact_compactness_proxy": "441/320"
+          }
+        },
+        "oracle": {
+          "independent": {
+            "pass": true,
+            "errors": [],
+            "zone_count": 12,
+            "must_pass_count": 7,
+            "access_count": 11,
+            "coexistence": true
+          },
+          "native": {
+            "pass": true,
+            "errors": [],
+            "coexistence": true,
+            "pass_count": 11,
+            "source": "ACTUAL_NATIVE_APPLICATION_CORRIDORS"
+          },
+          "topology": {
+            "valid": true,
+            "hole_count": 0,
+            "connected_component_count": 1
+          },
+          "footprint_present": true,
+          "truck": false,
+          "p2_complete": false
+        },
+        "nine": {
+          "status": "GEOMETRIC_PARETO_IMPROVEMENT",
+          "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+          "baseline_candidate_hash": "sha256:ba83216bd6e179f0bc9071d4bfec3824908b9da245d913bd2f50eb9082cf1669",
+          "candidate_hash": "sha256:093311ffdac95c43667b1dc5c75cb8d9e0b368cec1771da7d970f5ffa27ed733",
+          "metric_directions_minus_one_better": {
+            "office_aspect": -1,
+            "changing_room_aspect": -1,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": -1,
+            "personnel_route_m": -1,
+            "personnel_route_turns": -1,
+            "footprint_perimeter_m": -1,
+            "footprint_outline_turn_count": -1,
+            "footprint_reflex_corner_count": -1
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "568.0145",
+            "candidate_m2": "559.545491"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false
+        },
+        "twelve": {
+          "status": "QUALITY_TRADEOFF",
+          "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+          "baseline_candidate_hash": "sha256:ba83216bd6e179f0bc9071d4bfec3824908b9da245d913bd2f50eb9082cf1669",
+          "candidate_hash": "sha256:093311ffdac95c43667b1dc5c75cb8d9e0b368cec1771da7d970f5ffa27ed733",
+          "metric_directions_minus_one_better": {
+            "office_aspect": -1,
+            "changing_room_aspect": -1,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": -1,
+            "personnel_route_m": -1,
+            "personnel_route_turns": -1,
+            "footprint_perimeter_m": -1,
+            "footprint_outline_turn_count": -1,
+            "footprint_reflex_corner_count": -1,
+            "office_area_allocation_ratio": 1,
+            "changing_room_area_allocation_ratio": 1,
+            "coating_room_area_allocation_ratio": 0
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "568.0145",
+            "candidate_m2": "559.545491"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false,
+          "original_nine_metric_comparison": {
+            "status": "GEOMETRIC_PARETO_IMPROVEMENT",
+            "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+            "baseline_candidate_hash": "sha256:ba83216bd6e179f0bc9071d4bfec3824908b9da245d913bd2f50eb9082cf1669",
+            "candidate_hash": "sha256:093311ffdac95c43667b1dc5c75cb8d9e0b368cec1771da7d970f5ffa27ed733",
+            "metric_directions_minus_one_better": {
+              "office_aspect": -1,
+              "changing_room_aspect": -1,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": -1,
+              "personnel_route_m": -1,
+              "personnel_route_turns": -1,
+              "footprint_perimeter_m": -1,
+              "footprint_outline_turn_count": -1,
+              "footprint_reflex_corner_count": -1
+            },
+            "missing_or_invalid_metrics": [],
+            "same_handoff_and_meaningful_organization": true,
+            "footprint_area_facts_only": {
+              "baseline_m2": "568.0145",
+              "candidate_m2": "559.545491"
+            },
+            "baseline_retained": true,
+            "overall_quality_improvement_claimed": false,
+            "formal_quality_acceptance": false,
+            "automatic_production_selection": false
+          },
+          "area_evidence_complete": true
+        }
+      }
+    ]
+  },
+  "r10": {
+    "policy_hash": "sha256:cb1e9516708056a8f113319872e57cc643f85cbbbca9a9be8d35200575a27b98",
+    "valid_witnesses": 3,
+    "unique_room_geometry": 3,
+    "distinct_actual_rectangle_sets": 2,
+    "v2_count": 1,
+    "native_seconds": 7.924393749970477,
+    "solver_seconds": 7.913822000000001,
+    "elapsed": 10.13870891701663,
+    "work": 153522,
+    "native_calls": 7,
+    "checked": 3,
+    "rss_peak_mib": 228.203125,
+    "resource_fail": false,
+    "terminal_error": {
+      "code": "STAGE_B_HANDOFF_SHARE_EXHAUSTED",
+      "details": {}
+    },
+    "copy_work": 0,
+    "local_native_calls": 0,
+    "r10_metadata_work": 247,
+    "first_full_model_sha256": "cee516e483fec3ac8be977a9bb57589cf51e7e51ec34ca1ec931bf11b95b4f70",
+    "baseline_geometry_hash": "sha256:d32319eb80c6e8636ad9dfd2a7e0b1088fd2919870827d49151e19d4c466cd03",
+    "candidates": [
+      {
+        "actual_rectangle_key": "sha256:f382e227f2a968c1593b1d90019dd1be90a739d94e2887f17493506a6d8bad9d",
+        "candidate_hash": "sha256:0774325fb62c7395d0c7166cc0692e8bb960fc6a70eb973d8520c705ed01dec5",
+        "geometry_hash": "sha256:d32319eb80c6e8636ad9dfd2a7e0b1088fd2919870827d49151e19d4c466cd03",
+        "stage": "FEASIBILITY_FIRST",
+        "v2": "sha256:760bf36583e038a9f173aa8579147b0f050f8f047147fce28e14f6f70ab2f3ae",
+        "metrics": {
+          "office_aspect": "15/4",
+          "changing_room_aspect": "10",
+          "coating_room_aspect": "16/5",
+          "personnel_route_m": "19.252",
+          "personnel_route_turns": 4,
+          "footprint_area_m2": "568.0145",
+          "footprint_perimeter_m": "248.31",
+          "footprint_outline_turn_count": 40,
+          "worst_room_aspect": "10",
+          "footprint_reflex_corner_count": 18
+        },
+        "rooms": {
+          "office": {
+            "required_area_m2": "60",
+            "actual_area_m2": "60",
+            "area_allocation_ratio": "1",
+            "area_overallocation_ratio": "0",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "4",
+            "physical_depth_m": "15",
+            "exact_compactness_proxy": "361/240"
+          },
+          "changing_room": {
+            "required_area_m2": "40",
+            "actual_area_m2": "40",
+            "area_allocation_ratio": "1",
+            "area_overallocation_ratio": "0",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "2",
+            "physical_depth_m": "20",
+            "exact_compactness_proxy": "121/40"
+          },
+          "coating_room": {
+            "required_area_m2": "80",
+            "actual_area_m2": "80",
+            "area_allocation_ratio": "1",
+            "area_overallocation_ratio": "0",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "5",
+            "physical_depth_m": "16",
+            "exact_compactness_proxy": "441/320"
+          }
+        },
+        "oracle": {
+          "independent": {
+            "pass": true,
+            "errors": [],
+            "zone_count": 12,
+            "must_pass_count": 7,
+            "access_count": 11,
+            "coexistence": true
+          },
+          "native": {
+            "pass": true,
+            "errors": [],
+            "coexistence": true,
+            "pass_count": 11,
+            "source": "ACTUAL_NATIVE_APPLICATION_CORRIDORS"
+          },
+          "topology": {
+            "valid": true,
+            "hole_count": 0,
+            "connected_component_count": 1
+          },
+          "footprint_present": true,
+          "truck": false,
+          "p2_complete": false
+        },
+        "nine": {
+          "status": "NO_MEASURABLE_IMPROVEMENT",
+          "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+          "baseline_candidate_hash": "sha256:0774325fb62c7395d0c7166cc0692e8bb960fc6a70eb973d8520c705ed01dec5",
+          "candidate_hash": "sha256:0774325fb62c7395d0c7166cc0692e8bb960fc6a70eb973d8520c705ed01dec5",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": 0,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": 0,
+            "personnel_route_m": 0,
+            "personnel_route_turns": 0,
+            "footprint_perimeter_m": 0,
+            "footprint_outline_turn_count": 0,
+            "footprint_reflex_corner_count": 0
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "568.0145",
+            "candidate_m2": "568.0145"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false
+        },
+        "twelve": {
+          "status": "NO_MEASURABLE_IMPROVEMENT",
+          "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+          "baseline_candidate_hash": "sha256:0774325fb62c7395d0c7166cc0692e8bb960fc6a70eb973d8520c705ed01dec5",
+          "candidate_hash": "sha256:0774325fb62c7395d0c7166cc0692e8bb960fc6a70eb973d8520c705ed01dec5",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": 0,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": 0,
+            "personnel_route_m": 0,
+            "personnel_route_turns": 0,
+            "footprint_perimeter_m": 0,
+            "footprint_outline_turn_count": 0,
+            "footprint_reflex_corner_count": 0,
+            "office_area_allocation_ratio": 0,
+            "changing_room_area_allocation_ratio": 0,
+            "coating_room_area_allocation_ratio": 0
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "568.0145",
+            "candidate_m2": "568.0145"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false,
+          "original_nine_metric_comparison": {
+            "status": "NO_MEASURABLE_IMPROVEMENT",
+            "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+            "baseline_candidate_hash": "sha256:0774325fb62c7395d0c7166cc0692e8bb960fc6a70eb973d8520c705ed01dec5",
+            "candidate_hash": "sha256:0774325fb62c7395d0c7166cc0692e8bb960fc6a70eb973d8520c705ed01dec5",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 0,
+              "changing_room_aspect": 0,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": 0,
+              "personnel_route_m": 0,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": 0,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0
+            },
+            "missing_or_invalid_metrics": [],
+            "same_handoff_and_meaningful_organization": true,
+            "footprint_area_facts_only": {
+              "baseline_m2": "568.0145",
+              "candidate_m2": "568.0145"
+            },
+            "baseline_retained": true,
+            "overall_quality_improvement_claimed": false,
+            "formal_quality_acceptance": false,
+            "automatic_production_selection": false
+          },
+          "area_evidence_complete": true
+        }
+      },
+      {
+        "actual_rectangle_key": "sha256:01aaf5e3ec3cc9d1ad4323704577dacb6a0ece7c6b8754830c06a158b32f7710",
+        "candidate_hash": "sha256:a2446cf58be0475a4b35de1368f9a1bc32b7da99c20fde94f4af7dcccccdc23b",
+        "geometry_hash": "sha256:1836502298cbb81ca15e0b3384ae4f4aaff83c0b0ea8bfca8ecf2f5f2be10925",
+        "stage": "BOUNDED_QUALITY_IMPROVEMENT",
+        "v2": "sha256:760bf36583e038a9f173aa8579147b0f050f8f047147fce28e14f6f70ab2f3ae",
+        "metrics": {
+          "office_aspect": "7983/7516",
+          "changing_room_aspect": "1304/1227",
+          "coating_room_aspect": "9223/8674",
+          "personnel_route_m": "30.415",
+          "personnel_route_turns": 4,
+          "footprint_area_m2": "590.34123",
+          "footprint_perimeter_m": "222.986",
+          "footprint_outline_turn_count": 40,
+          "worst_room_aspect": "9223/8674",
+          "footprint_reflex_corner_count": 18
+        },
+        "rooms": {
+          "office": {
+            "required_area_m2": "60",
+            "actual_area_m2": "15000057/250000",
+            "area_allocation_ratio": "5000019/5000000",
+            "area_overallocation_ratio": "19/5000000",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "7983/1000",
+            "physical_depth_m": "1879/250",
+            "exact_compactness_proxy": "240219001/240000000"
+          },
+          "changing_room": {
+            "required_area_m2": "40",
+            "actual_area_m2": "200001/5000",
+            "area_allocation_ratio": "200001/200000",
+            "area_overallocation_ratio": "1/200000",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "1227/200",
+            "physical_depth_m": "163/25",
+            "exact_compactness_proxy": "6405961/6400000"
+          },
+          "coating_room": {
+            "required_area_m2": "80",
+            "actual_area_m2": "40000151/500000",
+            "area_allocation_ratio": "40000151/40000000",
+            "area_overallocation_ratio": "151/40000000",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "4337/500",
+            "physical_depth_m": "9223/1000",
+            "exact_compactness_proxy": "320302609/320000000"
+          }
+        },
+        "oracle": {
+          "independent": {
+            "pass": true,
+            "errors": [],
+            "zone_count": 12,
+            "must_pass_count": 7,
+            "access_count": 11,
+            "coexistence": true
+          },
+          "native": {
+            "pass": true,
+            "errors": [],
+            "coexistence": true,
+            "pass_count": 11,
+            "source": "ACTUAL_NATIVE_APPLICATION_CORRIDORS"
+          },
+          "topology": {
+            "valid": true,
+            "hole_count": 0,
+            "connected_component_count": 1
+          },
+          "footprint_present": true,
+          "truck": false,
+          "p2_complete": false
+        },
+        "nine": {
+          "status": "QUALITY_TRADEOFF",
+          "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+          "baseline_candidate_hash": "sha256:0774325fb62c7395d0c7166cc0692e8bb960fc6a70eb973d8520c705ed01dec5",
+          "candidate_hash": "sha256:a2446cf58be0475a4b35de1368f9a1bc32b7da99c20fde94f4af7dcccccdc23b",
+          "metric_directions_minus_one_better": {
+            "office_aspect": -1,
+            "changing_room_aspect": -1,
+            "coating_room_aspect": -1,
+            "worst_room_aspect": -1,
+            "personnel_route_m": 1,
+            "personnel_route_turns": 0,
+            "footprint_perimeter_m": -1,
+            "footprint_outline_turn_count": 0,
+            "footprint_reflex_corner_count": 0
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "568.0145",
+            "candidate_m2": "590.34123"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false
+        },
+        "twelve": {
+          "status": "QUALITY_TRADEOFF",
+          "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+          "baseline_candidate_hash": "sha256:0774325fb62c7395d0c7166cc0692e8bb960fc6a70eb973d8520c705ed01dec5",
+          "candidate_hash": "sha256:a2446cf58be0475a4b35de1368f9a1bc32b7da99c20fde94f4af7dcccccdc23b",
+          "metric_directions_minus_one_better": {
+            "office_aspect": -1,
+            "changing_room_aspect": -1,
+            "coating_room_aspect": -1,
+            "worst_room_aspect": -1,
+            "personnel_route_m": 1,
+            "personnel_route_turns": 0,
+            "footprint_perimeter_m": -1,
+            "footprint_outline_turn_count": 0,
+            "footprint_reflex_corner_count": 0,
+            "office_area_allocation_ratio": 1,
+            "changing_room_area_allocation_ratio": 1,
+            "coating_room_area_allocation_ratio": 1
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "568.0145",
+            "candidate_m2": "590.34123"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false,
+          "original_nine_metric_comparison": {
+            "status": "QUALITY_TRADEOFF",
+            "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+            "baseline_candidate_hash": "sha256:0774325fb62c7395d0c7166cc0692e8bb960fc6a70eb973d8520c705ed01dec5",
+            "candidate_hash": "sha256:a2446cf58be0475a4b35de1368f9a1bc32b7da99c20fde94f4af7dcccccdc23b",
+            "metric_directions_minus_one_better": {
+              "office_aspect": -1,
+              "changing_room_aspect": -1,
+              "coating_room_aspect": -1,
+              "worst_room_aspect": -1,
+              "personnel_route_m": 1,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": -1,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0
+            },
+            "missing_or_invalid_metrics": [],
+            "same_handoff_and_meaningful_organization": true,
+            "footprint_area_facts_only": {
+              "baseline_m2": "568.0145",
+              "candidate_m2": "590.34123"
+            },
+            "baseline_retained": true,
+            "overall_quality_improvement_claimed": false,
+            "formal_quality_acceptance": false,
+            "automatic_production_selection": false
+          },
+          "area_evidence_complete": true
+        }
+      },
+      {
+        "actual_rectangle_key": "sha256:f382e227f2a968c1593b1d90019dd1be90a739d94e2887f17493506a6d8bad9d",
+        "candidate_hash": "sha256:ab8c26328710d31f3aa95f50b5c8804ca09b3999d961ef4e738b3c49a5904f31",
+        "geometry_hash": "sha256:d1329b44596191ca8bb9402f9a403aca38e67e8329952a6e1060e2f0ba84ff81",
+        "stage": "BOUNDED_QUALITY_IMPROVEMENT",
+        "v2": "sha256:760bf36583e038a9f173aa8579147b0f050f8f047147fce28e14f6f70ab2f3ae",
+        "metrics": {
+          "office_aspect": "15/4",
+          "changing_room_aspect": "10",
+          "coating_room_aspect": "16/5",
+          "personnel_route_m": "19.252",
+          "personnel_route_turns": 4,
+          "footprint_area_m2": "568.0145",
+          "footprint_perimeter_m": "248.31",
+          "footprint_outline_turn_count": 40,
+          "worst_room_aspect": "10",
+          "footprint_reflex_corner_count": 18
+        },
+        "rooms": {
+          "office": {
+            "required_area_m2": "60",
+            "actual_area_m2": "60",
+            "area_allocation_ratio": "1",
+            "area_overallocation_ratio": "0",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "4",
+            "physical_depth_m": "15",
+            "exact_compactness_proxy": "361/240"
+          },
+          "changing_room": {
+            "required_area_m2": "40",
+            "actual_area_m2": "40",
+            "area_allocation_ratio": "1",
+            "area_overallocation_ratio": "0",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "2",
+            "physical_depth_m": "20",
+            "exact_compactness_proxy": "121/40"
+          },
+          "coating_room": {
+            "required_area_m2": "80",
+            "actual_area_m2": "80",
+            "area_allocation_ratio": "1",
+            "area_overallocation_ratio": "0",
+            "area_shortfall_m2": "0",
+            "physical_width_m": "5",
+            "physical_depth_m": "16",
+            "exact_compactness_proxy": "441/320"
+          }
+        },
+        "oracle": {
+          "independent": {
+            "pass": true,
+            "errors": [],
+            "zone_count": 12,
+            "must_pass_count": 7,
+            "access_count": 11,
+            "coexistence": true
+          },
+          "native": {
+            "pass": true,
+            "errors": [],
+            "coexistence": true,
+            "pass_count": 11,
+            "source": "ACTUAL_NATIVE_APPLICATION_CORRIDORS"
+          },
+          "topology": {
+            "valid": true,
+            "hole_count": 0,
+            "connected_component_count": 1
+          },
+          "footprint_present": true,
+          "truck": false,
+          "p2_complete": false
+        },
+        "nine": {
+          "status": "NO_MEASURABLE_IMPROVEMENT",
+          "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+          "baseline_candidate_hash": "sha256:0774325fb62c7395d0c7166cc0692e8bb960fc6a70eb973d8520c705ed01dec5",
+          "candidate_hash": "sha256:ab8c26328710d31f3aa95f50b5c8804ca09b3999d961ef4e738b3c49a5904f31",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": 0,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": 0,
+            "personnel_route_m": 0,
+            "personnel_route_turns": 0,
+            "footprint_perimeter_m": 0,
+            "footprint_outline_turn_count": 0,
+            "footprint_reflex_corner_count": 0
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "568.0145",
+            "candidate_m2": "568.0145"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false
+        },
+        "twelve": {
+          "status": "NO_MEASURABLE_IMPROVEMENT",
+          "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+          "baseline_candidate_hash": "sha256:0774325fb62c7395d0c7166cc0692e8bb960fc6a70eb973d8520c705ed01dec5",
+          "candidate_hash": "sha256:ab8c26328710d31f3aa95f50b5c8804ca09b3999d961ef4e738b3c49a5904f31",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": 0,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": 0,
+            "personnel_route_m": 0,
+            "personnel_route_turns": 0,
+            "footprint_perimeter_m": 0,
+            "footprint_outline_turn_count": 0,
+            "footprint_reflex_corner_count": 0,
+            "office_area_allocation_ratio": 0,
+            "changing_room_area_allocation_ratio": 0,
+            "coating_room_area_allocation_ratio": 0
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "568.0145",
+            "candidate_m2": "568.0145"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false,
+          "original_nine_metric_comparison": {
+            "status": "NO_MEASURABLE_IMPROVEMENT",
+            "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+            "baseline_candidate_hash": "sha256:0774325fb62c7395d0c7166cc0692e8bb960fc6a70eb973d8520c705ed01dec5",
+            "candidate_hash": "sha256:ab8c26328710d31f3aa95f50b5c8804ca09b3999d961ef4e738b3c49a5904f31",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 0,
+              "changing_room_aspect": 0,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": 0,
+              "personnel_route_m": 0,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": 0,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0
+            },
+            "missing_or_invalid_metrics": [],
+            "same_handoff_and_meaningful_organization": true,
+            "footprint_area_facts_only": {
+              "baseline_m2": "568.0145",
+              "candidate_m2": "568.0145"
+            },
+            "baseline_retained": true,
+            "overall_quality_improvement_claimed": false,
+            "formal_quality_acceptance": false,
+            "automatic_production_selection": false
+          },
+          "area_evidence_complete": true
+        }
+      }
+    ]
+  },
+  "repeat_exact_metric_sequence": {
+    "r9": true,
+    "r10": true
+  },
+  "rendering_note": "Review SVG changes only original renderer status text: synthetic Stage B, non-Truck11/11, Truck/P2D NOT VALIDATED. Native originals retained in local .native.svg; no coordinates changed."
+}
