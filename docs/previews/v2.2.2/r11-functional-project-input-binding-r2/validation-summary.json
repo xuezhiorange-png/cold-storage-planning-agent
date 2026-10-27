@@ -1,0 +1,48 @@
+{
+  "task": "V2_2_2_R11_FUNCTIONAL_PROJECT_INPUT_BINDING_R2",
+  "base_head": "834acd7f0f486f01465c9030e5f7e520fc6a4b32",
+  "python": "3.12.13",
+  "package_sha256": "69720fb716ccb06ed44db30985ab95b017ea3ebc90b5163586b3f9a7a2f1ba2a",
+  "git_apply_check": "PASS",
+  "tests": {
+    "R2": {
+      "passed": 21,
+      "skipped": 0,
+      "failed": 0
+    },
+    "R11": {
+      "passed": 85,
+      "skipped": 0,
+      "failed": 0
+    },
+    "architecture": {
+      "passed": 771,
+      "skipped": 16,
+      "failed": 0
+    }
+  },
+  "ci_contract_tests": 65,
+  "static_checks": {
+    "ruff": "PASS",
+    "format": "PASS_1053_FILES",
+    "mypy": "PASS_468_FILES"
+  },
+  "historical_records": 9,
+  "physical_rectangle_groups": 8,
+  "room_records": 27,
+  "room_functional_status": "INPUT_REQUIRED",
+  "project_reviewed_inputs": 0,
+  "historical_files_hash_verified_unchanged": 291,
+  "native_solves": 0,
+  "real_main_executed": false,
+  "real_grant_created": false,
+  "claim_created": false,
+  "full_ci": "NOT_REQUESTED",
+  "production_default_changed": false,
+  "patch_followups": [
+    "immutable unit mapping to satisfy architecture boundary",
+    "locked Ruff import/format corrections on three new files",
+    "render reports from persisted JSON results",
+    "read-only generator and existing-output regression test"
+  ]
+}

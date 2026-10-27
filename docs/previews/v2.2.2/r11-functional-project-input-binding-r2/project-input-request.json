@@ -1,0 +1,47 @@
+{
+  "project_scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85",
+  "status": "UNREVIEWED_PROPOSAL_NOT_APPROVED",
+  "note": "Entries need actual project evidence and external application review.",
+  "values": {
+    "PACKAGED_PRODUCT_MASS_KG_PER_DAY": {
+      "value": null,
+      "unit": "kg/day",
+      "original_document_reference": null
+    },
+    "SHIFT_1_WORKERS": {
+      "value": null,
+      "unit": "people (optional explicit pair)",
+      "original_document_reference": null
+    },
+    "SHIFT_2_WORKERS": {
+      "value": null,
+      "unit": "people (optional explicit pair)",
+      "original_document_reference": null
+    },
+    "FACTORY_SIZE": {
+      "value": null,
+      "unit": "SMALL|MEDIUM|LARGE",
+      "original_document_reference": null
+    },
+    "LOCKER_MODEL_AND_DIMENSIONS": {
+      "value": null,
+      "unit": "manufacturer mm specification",
+      "original_document_reference": null
+    },
+    "CHANGING_FINISHED_CLEAR_BOUNDS": {
+      "value": null,
+      "unit": "mm",
+      "original_document_reference": null
+    },
+    "OFFICE_FURNITURE_AND_DOOR": {
+      "value": null,
+      "unit": "reviewed design",
+      "original_document_reference": null
+    },
+    "COATING_EQUIPMENT_AND_RUNTIME": {
+      "value": null,
+      "unit": "reviewed manufacturer data",
+      "original_document_reference": null
+    }
+  }
+}
