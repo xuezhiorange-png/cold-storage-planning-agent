@@ -1,0 +1,3188 @@
+{
+  "task_id": "V2_2_2_STAGE_B_R10_ENTRANCE_COUPLED_SPATIAL_SEARCH_R2",
+  "base_head": "f7ea97f4cf0c48e287571c4f905af4abee64dd5f",
+  "synthetic_only": true,
+  "engine": "Python 3.12.13 / OR-Tools 9.15.6755 / macOS",
+  "same_plan_p1_site_handoff": true,
+  "first_full_model_equal": true,
+  "main": false,
+  "grant_claim": false,
+  "formal_ci": false,
+  "truck_p2d": "NOT_VALIDATED",
+  "arms": {
+    "r9": {
+      "policy_hash": "sha256:ce8c264012510d9655e9d28ca283a98c99775c913df8e976b4ad3e2d5ac17272",
+      "caps": {
+        "native_seconds": 8.0,
+        "elapsed_seconds": 85,
+        "work": 600000,
+        "rss_mib": 512,
+        "native_calls": 12,
+        "checked": 6,
+        "host_work": 20000
+      },
+      "usage": {
+        "model_work": 77727,
+        "native_host_work": 34762,
+        "total_work": 112489,
+        "solver_wall": 7.914197000000001,
+        "solver_monotonic_wall": 7.9232213330687955,
+        "checked": 2,
+        "peak_rss_bytes": 232898560,
+        "elapsed_seconds": 9.534203707997221
+      },
+      "resource_events": {
+        "MODEL_ROLE_VARIABLES": 432,
+        "MODEL_OBSTACLE_SEPARATION": 144,
+        "MODEL_MUST_DISJUNCTION": 252,
+        "MODEL_INTERFACE_CASE": 1200,
+        "R10_R2_SYNTHETIC_BAY_CONSTRAINT": 126,
+        "MODEL_ROUTE_ROOM_SEPARATION": 8640,
+        "MODEL_ROUTE_OBSTACLE": 720,
+        "MODEL_ROUTE_COEXISTENCE": 32040,
+        "R6_CREATED_DOMAIN_FACT": 26552,
+        "R6_IMPLICIT_CONSTANT_READ": 3,
+        "R6_PHYSICAL_FACTS_READ": 21,
+        "R5_TOTAL_DEFINITIONS": 27,
+        "EXPORT_GEOMETRY": 144,
+        "EXACT_UNION_PRIMITIVE": 6240,
+        "STAGE_B_CANDIDATE_VALIDATION": 2,
+        "NATIVE_ENVELOPE_COVERAGE_CELL": 20,
+        "R6_VALIDATED_PROXY_FACTS": 20,
+        "R5_FEEDBACK_BASELINE": 1,
+        "R6_PHYSICAL_HINT_REFERENCE": 130,
+        "R6_PHYSICAL_HINT_SELECTOR": 54,
+        "R6_CURRENT_VALID_PHYSICAL_HINT": 130,
+        "R5_PROXY_REUSE": 1,
+        "R6_FRONTAGE_REFERENCE_READ": 166,
+        "R6_FRONTAGE_STRATEGY_WRITE": 166,
+        "R7_DEFERRED_STRATEGY_REORDER": 189,
+        "R9_ROUTE_REFERENCE_READ": 10,
+        "R9_AUTHORITY_REFERENCE_READ": 12,
+        "R9_PHYSICAL_REFERENCE_READ": 20,
+        "R9_JOINT_STRATEGY_METADATA": 215,
+        "STAGE_B_BALANCED_FEEDBACK_OBSERVATION": 1,
+        "STAGE_B_PHYSICAL_ENUMERATION_CUT": 49
+      },
+      "native_calls": 6,
+      "valid_witnesses": 2,
+      "distinct_physical_room_geometries": 1,
+      "distinct_v2": 1,
+      "full_first_model_sha256": "df04fd286acdeef26064e04766de3808e2452b030555f2abde7664d88fb71dc9",
+      "local_model_calls": 0,
+      "terminal_error": {
+        "code": "STAGE_B_HANDOFF_SHARE_EXHAUSTED",
+        "details": {}
+      },
+      "final_native_status": "FEASIBLE",
+      "resource_failed": false,
+      "call_audit": [
+        {
+          "ordinal": 1,
+          "phase": "ALL_ROOM_GEOMETRY_HINT",
+          "hint_count": 0,
+          "improving": false,
+          "requested_seconds": 4,
+          "model_sha256": "d4545d0a0473436bfd54b03373d3f102d6f813e3229ee7aff4750f627c0be1ed",
+          "native_before": 0,
+          "native_after": 0.041352792002726346,
+          "parameters": "random_seed: 0\nmax_time_in_seconds: 0.99\nmax_memory_in_mb: 512\nlog_search_progress: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ROOM_GEOMETRY_HINT",
+            "solver_status": "OPTIMAL",
+            "wall_time": 0.036529,
+            "monotonic_wall_time": 0.041352792002726346,
+            "deterministic_time": 0.001095347235916136,
+            "native_call_count": 1,
+            "branches": 749,
+            "conflicts": 39,
+            "variables": 472,
+            "constraints": 771,
+            "warmup_only": true,
+            "ortools_version": "9.15.6755"
+          }
+        },
+        {
+          "ordinal": 2,
+          "phase": "ALL_ROOM_MUST_HINT",
+          "hint_count": 42,
+          "improving": false,
+          "requested_seconds": 6,
+          "model_sha256": "ab63e1bb3dc466a8838de936054c2b3918d247b7670c24e9407e0d13ac1c8d20",
+          "native_before": 0.041352792002726346,
+          "native_after": 0.6796966670081019,
+          "parameters": "random_seed: 0\nmax_time_in_seconds: 0.99\nmax_memory_in_mb: 512\nlog_search_progress: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ROOM_MUST_HINT",
+            "solver_status": "OPTIMAL",
+            "wall_time": 0.637889,
+            "monotonic_wall_time": 0.6383438750053756,
+            "deterministic_time": 0.15109046739624793,
+            "native_call_count": 2,
+            "branches": 58287,
+            "conflicts": 7908,
+            "variables": 472,
+            "constraints": 771,
+            "warmup_only": true,
+            "ortools_version": "9.15.6755"
+          }
+        },
+        {
+          "ordinal": 3,
+          "phase": "COMPOSITION_PACKAGING_HINT",
+          "hint_count": 42,
+          "improving": false,
+          "requested_seconds": 10,
+          "model_sha256": "192044cc32b61bf30234e942d303d746d21fc893be28391ed866f5eded139936",
+          "native_before": 0.6796966670081019,
+          "native_after": 0.686738375981804,
+          "parameters": "random_seed: 0\nmax_time_in_seconds: 0.99\nmax_memory_in_mb: 512\nlog_search_progress: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "COMPOSITION_PACKAGING_HINT",
+            "solver_status": "OPTIMAL",
+            "wall_time": 0.006657000000000001,
+            "monotonic_wall_time": 0.007041708973702043,
+            "deterministic_time": 0.00020374820000000068,
+            "native_call_count": 3,
+            "branches": 23,
+            "conflicts": 1,
+            "variables": 472,
+            "constraints": 771,
+            "warmup_only": true,
+            "ortools_version": "9.15.6755"
+          }
+        },
+        {
+          "ordinal": 4,
+          "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+          "hint_count": 42,
+          "improving": false,
+          "requested_seconds": 8,
+          "model_sha256": "50f742e31bc6a6b79dbea0dc95cdd81e068b0f11ff0927281cd23776ce3a01b0",
+          "native_before": 0.686738375981804,
+          "native_after": 1.6814851670060307,
+          "parameters": "random_seed: 0\nmax_time_in_seconds: 0.99\nmax_memory_in_mb: 512\nlog_search_progress: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+            "solver_status": "UNKNOWN",
+            "wall_time": 0.9940620000000001,
+            "monotonic_wall_time": 0.9947467910242267,
+            "deterministic_time": 0.7388484088464597,
+            "native_call_count": 4,
+            "branches": 83361,
+            "conflicts": 10,
+            "variables": 26539,
+            "constraints": 37609,
+            "warmup_only": true,
+            "ortools_version": "9.15.6755"
+          }
+        },
+        {
+          "ordinal": 5,
+          "phase": "ALL_ROOMS_ALL_ACCESS",
+          "hint_count": 42,
+          "improving": false,
+          "requested_seconds": 6.238514832993969,
+          "model_sha256": "df04fd286acdeef26064e04766de3808e2452b030555f2abde7664d88fb71dc9",
+          "native_before": 1.6814851670060307,
+          "native_after": 3.264452333038207,
+          "parameters": "random_seed: 3\nmax_time_in_seconds: 6.2385148329939693\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "wall_time": 1.581917,
+            "monotonic_wall_time": 1.5829671660321765,
+            "deterministic_time": 0.8980209618622601,
+            "native_call_count": 5,
+            "branches": 224741,
+            "conflicts": 112,
+            "variables": 26552,
+            "constraints": 37742,
+            "warmup_only": false,
+            "ortools_version": "9.15.6755"
+          }
+        },
+        {
+          "ordinal": 6,
+          "phase": "ALL_ROOMS_ALL_ACCESS",
+          "hint_count": 130,
+          "improving": true,
+          "requested_seconds": 4.655547666961793,
+          "model_sha256": "ffb23afcd0b28664afd56e5eafdbec792bd71a0093633a5644ebf5bd9da7b347",
+          "native_before": 3.264452333038207,
+          "native_after": 7.9232213330687955,
+          "parameters": "random_seed: 3\nmax_time_in_seconds: 4.6555476669617928\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\nstop_after_first_solution: false\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "wall_time": 4.6571430000000005,
+            "monotonic_wall_time": 4.658769000030588,
+            "deterministic_time": 1.4915840257574842,
+            "native_call_count": 6,
+            "branches": 4907721,
+            "conflicts": 50,
+            "variables": 26552,
+            "constraints": 37742,
+            "warmup_only": false,
+            "ortools_version": "9.15.6755",
+            "search_feedback": {
+              "policy_hash": "sha256:4341a26ac10e7bca12f53a2a64866908dee10c8e1af516bb0b2e90ba578660a2",
+              "baseline_proxy": 1848,
+              "solution_count": 1,
+              "first_solution_seconds": 0.9818490000000001,
+              "feedback_seconds": null,
+              "feedback_proxy": null,
+              "stop_requested": false,
+              "engineering_validated": false
+            }
+          }
+        },
+        {
+          "ordinal": 7,
+          "phase": "ALL_ROOMS_ALL_ACCESS",
+          "hint_count": 130,
+          "improving": true,
+          "requested_seconds": 0.0,
+          "model_sha256": "a2b41d832095ebd05791d3fcefdb18c3f00a2c862105793e0c8e3ab9b25ca5df",
+          "native_before": 7.9232213330687955,
+          "native_after": 7.9232213330687955,
+          "parameters": null,
+          "native": {}
+        }
+      ],
+      "candidates": [
+        {
+          "candidate": 1,
+          "source": "moving-scene/r9/candidate-01.json",
+          "source_sha256": "abf27e7b73075c496ed5782636a89beb1e9ea3b8a4bcf791baf6a29d3a39da77",
+          "stage": "FEASIBILITY_FIRST",
+          "geometry_hash": "sha256:30f4966454b20d9967e4e420a59584e1e883aaa12c89ce5fd900be026b55aa72",
+          "physical_rectangles_hash": "sha256:f5c35ed3eff92238f64fbd7cc0fc79e13a0b690cd99772b8bcdb534311e0ac6d",
+          "v2": "sha256:eafc6487e2461f52eedc4bfbdddfc4764bc704132832e889d8c39af24059110c",
+          "metrics": {
+            "office_aspect": "8917/6729",
+            "changing_room_aspect": "7210/1387",
+            "coating_room_aspect": "16/5",
+            "personnel_route_m": "9.211",
+            "personnel_route_turns": 1,
+            "footprint_area_m2": "547.936073",
+            "footprint_perimeter_m": "204.94",
+            "footprint_outline_turn_count": 38,
+            "worst_room_aspect": "7210/1387",
+            "footprint_reflex_corner_count": 17
+          },
+          "functional_rooms": {
+            "changing_room": {
+              "physical_width_m": "2.774",
+              "physical_depth_m": "14.42",
+              "area_m2": "40.00108",
+              "aspect_ratio": "5.198269646719538572458543619"
+            },
+            "office": {
+              "physical_width_m": "8.917",
+              "physical_depth_m": "6.729",
+              "area_m2": "60.002493",
+              "aspect_ratio": "1.325159756278793282805766087"
+            },
+            "coating_room": {
+              "physical_width_m": "5",
+              "physical_depth_m": "16",
+              "area_m2": "80",
+              "aspect_ratio": "3.2"
+            }
+          },
+          "area_efficiency": {
+            "source_p1_handoff_hash": "sha256:4bf9a978123c6f03c040c62eb2363f0f06eccb5c22b2b89c8b6464cde470a6d5",
+            "area_source": "cold_room_zone_plan@1.0.0:required_area_m2",
+            "rooms": {
+              "office": {
+                "required_area_m2": "60",
+                "actual_area_m2": "60002493/1000000",
+                "area_allocation_ratio": "20000831/20000000",
+                "area_overallocation_ratio": "831/20000000"
+              },
+              "changing_room": {
+                "required_area_m2": "40",
+                "actual_area_m2": "1000027/25000",
+                "area_allocation_ratio": "1000027/1000000",
+                "area_overallocation_ratio": "27/1000000"
+              },
+              "coating_room": {
+                "required_area_m2": "80",
+                "actual_area_m2": "80",
+                "area_allocation_ratio": "1",
+                "area_overallocation_ratio": "0"
+              }
+            },
+            "diagnostic_only": true,
+            "coating_process": "PACKAGING_BOX_FILM_SEALING"
+          },
+          "personnel": {
+            "canonical_hash": "sha256:7e5ecaf5c82ad5d372c909d751955684bed380845526da4effe3928ad1f82e77",
+            "centerline": [
+              {
+                "x": "45.75",
+                "y": "0"
+              },
+              {
+                "x": "45.75",
+                "y": "8.211"
+              },
+              {
+                "x": "44.75",
+                "y": "8.211"
+              }
+            ],
+            "clear_width_m": "2",
+            "edge_alignment_verified": true,
+            "from_ref": "main_entrance",
+            "portal_from": {
+              "access_ref": "main_entrance",
+              "clear_width_m": "1.5",
+              "edge_class": "BOUNDARY_ACCESS",
+              "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+              "segment": {
+                "end": {
+                  "x": "46.5",
+                  "y": "0"
+                },
+                "start": {
+                  "x": "45",
+                  "y": "0"
+                }
+              },
+              "status": "VALID"
+            },
+            "portal_to": {
+              "access_ref": "changing_room",
+              "clear_width_m": "1.5",
+              "edge_class": "LONG_EDGE",
+              "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+              "segment": {
+                "end": {
+                  "x": "44.75",
+                  "y": "8.961"
+                },
+                "start": {
+                  "x": "44.75",
+                  "y": "7.461"
+                }
+              },
+              "status": "VALID"
+            },
+            "profile_identity": "personnel-clear-envelope@1.0.0",
+            "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+            "route_length_m": "9.211",
+            "status": "PASS",
+            "to_ref": "changing_room",
+            "turn_count": 1
+          },
+          "physical_rooms": [
+            [
+              "changing_room",
+              41976,
+              1001,
+              44750,
+              15421
+            ],
+            [
+              "coating_room",
+              51650,
+              15421,
+              56650,
+              31421
+            ],
+            [
+              "finished_goods_room",
+              56650,
+              15421,
+              61450,
+              21021
+            ],
+            [
+              "frozen_fruit_room",
+              46750,
+              25471,
+              49150,
+              29771
+            ],
+            [
+              "office",
+              61450,
+              8692,
+              70367,
+              15421
+            ],
+            [
+              "packaging_material_storage",
+              39150,
+              30381,
+              43150,
+              34381
+            ],
+            [
+              "primary_precooling_room",
+              34250,
+              9421,
+              39150,
+              19471
+            ],
+            [
+              "raw_fruit_buffer",
+              27450,
+              9421,
+              34250,
+              12921
+            ],
+            [
+              "secondary_fruit_buffer",
+              36750,
+              25471,
+              39150,
+              29771
+            ],
+            [
+              "secondary_precooling_room",
+              46750,
+              15421,
+              51650,
+              25471
+            ],
+            [
+              "shipping_channel",
+              61450,
+              15421,
+              67950,
+              23114
+            ],
+            [
+              "sorting_packaging_room",
+              39150,
+              15421,
+              46750,
+              30381
+            ]
+          ],
+          "original_engineering": {
+            "zones": 12,
+            "must": 7,
+            "non_truck_access": 11,
+            "native_independent": true,
+            "site_footprint": true,
+            "connected_components": 1,
+            "holes": 0,
+            "eligible": true
+          },
+          "original_nine": {
+            "status": "NO_MEASURABLE_IMPROVEMENT",
+            "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 0,
+              "changing_room_aspect": 0,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": 0,
+              "personnel_route_m": 0,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": 0,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0
+            },
+            "formal_quality_acceptance": false
+          },
+          "twelve": {
+            "status": "NO_MEASURABLE_IMPROVEMENT",
+            "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 0,
+              "changing_room_aspect": 0,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": 0,
+              "personnel_route_m": 0,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": 0,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0,
+              "office_area_allocation_ratio": 0,
+              "changing_room_area_allocation_ratio": 0,
+              "coating_room_area_allocation_ratio": 0
+            },
+            "formal_quality_acceptance": false,
+            "area_evidence_complete": true
+          },
+          "focus_goal_met": false
+        },
+        {
+          "candidate": 2,
+          "source": "moving-scene/r9/candidate-02.json",
+          "source_sha256": "2f7835a333e3582b1d3c6044e4bd6ae75729a7551783f5f4f585c5ea7a57f0a3",
+          "stage": "BOUNDED_QUALITY_IMPROVEMENT",
+          "geometry_hash": "sha256:a2441522b1a4de8e705d5c45137af576d8a6e09331366172b215b82f786fa478",
+          "physical_rectangles_hash": "sha256:f5c35ed3eff92238f64fbd7cc0fc79e13a0b690cd99772b8bcdb534311e0ac6d",
+          "v2": "sha256:eafc6487e2461f52eedc4bfbdddfc4764bc704132832e889d8c39af24059110c",
+          "metrics": {
+            "office_aspect": "8917/6729",
+            "changing_room_aspect": "7210/1387",
+            "coating_room_aspect": "16/5",
+            "personnel_route_m": "9.211",
+            "personnel_route_turns": 1,
+            "footprint_area_m2": "547.936073",
+            "footprint_perimeter_m": "204.94",
+            "footprint_outline_turn_count": 38,
+            "worst_room_aspect": "7210/1387",
+            "footprint_reflex_corner_count": 17
+          },
+          "functional_rooms": {
+            "changing_room": {
+              "physical_width_m": "2.774",
+              "physical_depth_m": "14.42",
+              "area_m2": "40.00108",
+              "aspect_ratio": "5.198269646719538572458543619"
+            },
+            "office": {
+              "physical_width_m": "8.917",
+              "physical_depth_m": "6.729",
+              "area_m2": "60.002493",
+              "aspect_ratio": "1.325159756278793282805766087"
+            },
+            "coating_room": {
+              "physical_width_m": "5",
+              "physical_depth_m": "16",
+              "area_m2": "80",
+              "aspect_ratio": "3.2"
+            }
+          },
+          "area_efficiency": {
+            "source_p1_handoff_hash": "sha256:4bf9a978123c6f03c040c62eb2363f0f06eccb5c22b2b89c8b6464cde470a6d5",
+            "area_source": "cold_room_zone_plan@1.0.0:required_area_m2",
+            "rooms": {
+              "office": {
+                "required_area_m2": "60",
+                "actual_area_m2": "60002493/1000000",
+                "area_allocation_ratio": "20000831/20000000",
+                "area_overallocation_ratio": "831/20000000"
+              },
+              "changing_room": {
+                "required_area_m2": "40",
+                "actual_area_m2": "1000027/25000",
+                "area_allocation_ratio": "1000027/1000000",
+                "area_overallocation_ratio": "27/1000000"
+              },
+              "coating_room": {
+                "required_area_m2": "80",
+                "actual_area_m2": "80",
+                "area_allocation_ratio": "1",
+                "area_overallocation_ratio": "0"
+              }
+            },
+            "diagnostic_only": true,
+            "coating_process": "PACKAGING_BOX_FILM_SEALING"
+          },
+          "personnel": {
+            "canonical_hash": "sha256:7e5ecaf5c82ad5d372c909d751955684bed380845526da4effe3928ad1f82e77",
+            "centerline": [
+              {
+                "x": "45.75",
+                "y": "0"
+              },
+              {
+                "x": "45.75",
+                "y": "8.211"
+              },
+              {
+                "x": "44.75",
+                "y": "8.211"
+              }
+            ],
+            "clear_width_m": "2",
+            "edge_alignment_verified": true,
+            "from_ref": "main_entrance",
+            "portal_from": {
+              "access_ref": "main_entrance",
+              "clear_width_m": "1.5",
+              "edge_class": "BOUNDARY_ACCESS",
+              "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+              "segment": {
+                "end": {
+                  "x": "46.5",
+                  "y": "0"
+                },
+                "start": {
+                  "x": "45",
+                  "y": "0"
+                }
+              },
+              "status": "VALID"
+            },
+            "portal_to": {
+              "access_ref": "changing_room",
+              "clear_width_m": "1.5",
+              "edge_class": "LONG_EDGE",
+              "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+              "segment": {
+                "end": {
+                  "x": "44.75",
+                  "y": "8.961"
+                },
+                "start": {
+                  "x": "44.75",
+                  "y": "7.461"
+                }
+              },
+              "status": "VALID"
+            },
+            "profile_identity": "personnel-clear-envelope@1.0.0",
+            "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+            "route_length_m": "9.211",
+            "status": "PASS",
+            "to_ref": "changing_room",
+            "turn_count": 1
+          },
+          "physical_rooms": [
+            [
+              "changing_room",
+              41976,
+              1001,
+              44750,
+              15421
+            ],
+            [
+              "coating_room",
+              51650,
+              15421,
+              56650,
+              31421
+            ],
+            [
+              "finished_goods_room",
+              56650,
+              15421,
+              61450,
+              21021
+            ],
+            [
+              "frozen_fruit_room",
+              46750,
+              25471,
+              49150,
+              29771
+            ],
+            [
+              "office",
+              61450,
+              8692,
+              70367,
+              15421
+            ],
+            [
+              "packaging_material_storage",
+              39150,
+              30381,
+              43150,
+              34381
+            ],
+            [
+              "primary_precooling_room",
+              34250,
+              9421,
+              39150,
+              19471
+            ],
+            [
+              "raw_fruit_buffer",
+              27450,
+              9421,
+              34250,
+              12921
+            ],
+            [
+              "secondary_fruit_buffer",
+              36750,
+              25471,
+              39150,
+              29771
+            ],
+            [
+              "secondary_precooling_room",
+              46750,
+              15421,
+              51650,
+              25471
+            ],
+            [
+              "shipping_channel",
+              61450,
+              15421,
+              67950,
+              23114
+            ],
+            [
+              "sorting_packaging_room",
+              39150,
+              15421,
+              46750,
+              30381
+            ]
+          ],
+          "original_engineering": {
+            "zones": 12,
+            "must": 7,
+            "non_truck_access": 11,
+            "native_independent": true,
+            "site_footprint": true,
+            "connected_components": 1,
+            "holes": 0,
+            "eligible": true
+          },
+          "original_nine": {
+            "status": "NO_MEASURABLE_IMPROVEMENT",
+            "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 0,
+              "changing_room_aspect": 0,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": 0,
+              "personnel_route_m": 0,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": 0,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0
+            },
+            "formal_quality_acceptance": false
+          },
+          "twelve": {
+            "status": "NO_MEASURABLE_IMPROVEMENT",
+            "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 0,
+              "changing_room_aspect": 0,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": 0,
+              "personnel_route_m": 0,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": 0,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0,
+              "office_area_allocation_ratio": 0,
+              "changing_room_area_allocation_ratio": 0,
+              "coating_room_area_allocation_ratio": 0
+            },
+            "formal_quality_acceptance": false,
+            "area_evidence_complete": true
+          },
+          "focus_goal_met": false
+        }
+      ]
+    },
+    "r10_r1": {
+      "policy_hash": "sha256:cb1e9516708056a8f113319872e57cc643f85cbbbca9a9be8d35200575a27b98",
+      "caps": {
+        "native_seconds": 8.0,
+        "elapsed_seconds": 85,
+        "work": 600000,
+        "rss_mib": 512,
+        "native_calls": 12,
+        "checked": 6,
+        "host_work": 20000
+      },
+      "usage": {
+        "model_work": 80801,
+        "native_host_work": 52163,
+        "total_work": 132964,
+        "solver_wall": 7.916501,
+        "solver_monotonic_wall": 7.922375375055708,
+        "checked": 3,
+        "peak_rss_bytes": 235864064,
+        "elapsed_seconds": 10.009751750039868
+      },
+      "resource_events": {
+        "MODEL_ROLE_VARIABLES": 432,
+        "MODEL_OBSTACLE_SEPARATION": 144,
+        "MODEL_MUST_DISJUNCTION": 252,
+        "MODEL_INTERFACE_CASE": 1200,
+        "R10_R2_SYNTHETIC_BAY_CONSTRAINT": 126,
+        "MODEL_ROUTE_ROOM_SEPARATION": 8640,
+        "MODEL_ROUTE_OBSTACLE": 720,
+        "MODEL_ROUTE_COEXISTENCE": 32040,
+        "R6_CREATED_DOMAIN_FACT": 26552,
+        "R6_IMPLICIT_CONSTANT_READ": 3,
+        "R6_PHYSICAL_FACTS_READ": 21,
+        "R5_TOTAL_DEFINITIONS": 27,
+        "EXPORT_GEOMETRY": 216,
+        "EXACT_UNION_PRIMITIVE": 9178,
+        "STAGE_B_CANDIDATE_VALIDATION": 3,
+        "NATIVE_ENVELOPE_COVERAGE_CELL": 30,
+        "R6_VALIDATED_PROXY_FACTS": 30,
+        "R5_FEEDBACK_BASELINE": 1,
+        "R6_PHYSICAL_HINT_REFERENCE": 130,
+        "R6_PHYSICAL_HINT_SELECTOR": 54,
+        "R6_CURRENT_VALID_PHYSICAL_HINT": 130,
+        "R5_PROXY_REUSE": 1,
+        "R6_FRONTAGE_REFERENCE_READ": 166,
+        "R6_FRONTAGE_STRATEGY_WRITE": 166,
+        "R7_DEFERRED_STRATEGY_REORDER": 189,
+        "R10_P1_DEMAND_READ": 3,
+        "R10_AREA_REFERENCE_READ": 13,
+        "R10_MUST_REFERENCE_READ": 3,
+        "R10_ROUTE_REFERENCE_READ": 10,
+        "R10_PHYSICAL_REFERENCE_READ": 11,
+        "R10_ORGANIZATION_SEARCH_METADATA": 207,
+        "STAGE_B_BALANCED_FEEDBACK_OBSERVATION": 4,
+        "R6_VALIDATED_SEARCH_FRONTIER": 1,
+        "STAGE_B_PHYSICAL_ENUMERATION_CUT": 98
+      },
+      "native_calls": 7,
+      "valid_witnesses": 3,
+      "distinct_physical_room_geometries": 3,
+      "distinct_v2": 1,
+      "full_first_model_sha256": "df04fd286acdeef26064e04766de3808e2452b030555f2abde7664d88fb71dc9",
+      "local_model_calls": 0,
+      "terminal_error": {
+        "code": "STAGE_B_HANDOFF_SHARE_EXHAUSTED",
+        "details": {}
+      },
+      "final_native_status": "FEASIBLE",
+      "resource_failed": false,
+      "call_audit": [
+        {
+          "ordinal": 1,
+          "phase": "ALL_ROOM_GEOMETRY_HINT",
+          "hint_count": 0,
+          "improving": false,
+          "requested_seconds": 4,
+          "model_sha256": "d4545d0a0473436bfd54b03373d3f102d6f813e3229ee7aff4750f627c0be1ed",
+          "native_before": 0,
+          "native_after": 0.011085042031481862,
+          "parameters": "random_seed: 0\nmax_time_in_seconds: 0.99\nmax_memory_in_mb: 512\nlog_search_progress: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ROOM_GEOMETRY_HINT",
+            "solver_status": "OPTIMAL",
+            "wall_time": 0.00987,
+            "monotonic_wall_time": 0.011085042031481862,
+            "deterministic_time": 0.001095347235916136,
+            "native_call_count": 1,
+            "branches": 749,
+            "conflicts": 39,
+            "variables": 472,
+            "constraints": 771,
+            "warmup_only": true,
+            "ortools_version": "9.15.6755"
+          }
+        },
+        {
+          "ordinal": 2,
+          "phase": "ALL_ROOM_MUST_HINT",
+          "hint_count": 42,
+          "improving": false,
+          "requested_seconds": 6,
+          "model_sha256": "ab63e1bb3dc466a8838de936054c2b3918d247b7670c24e9407e0d13ac1c8d20",
+          "native_before": 0.011085042031481862,
+          "native_after": 0.6057812500512227,
+          "parameters": "random_seed: 0\nmax_time_in_seconds: 0.99\nmax_memory_in_mb: 512\nlog_search_progress: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ROOM_MUST_HINT",
+            "solver_status": "OPTIMAL",
+            "wall_time": 0.594199,
+            "monotonic_wall_time": 0.5946962080197409,
+            "deterministic_time": 0.15109046739624793,
+            "native_call_count": 2,
+            "branches": 58287,
+            "conflicts": 7908,
+            "variables": 472,
+            "constraints": 771,
+            "warmup_only": true,
+            "ortools_version": "9.15.6755"
+          }
+        },
+        {
+          "ordinal": 3,
+          "phase": "COMPOSITION_PACKAGING_HINT",
+          "hint_count": 42,
+          "improving": false,
+          "requested_seconds": 10,
+          "model_sha256": "192044cc32b61bf30234e942d303d746d21fc893be28391ed866f5eded139936",
+          "native_before": 0.6057812500512227,
+          "native_after": 0.6121097500436008,
+          "parameters": "random_seed: 0\nmax_time_in_seconds: 0.99\nmax_memory_in_mb: 512\nlog_search_progress: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "COMPOSITION_PACKAGING_HINT",
+            "solver_status": "OPTIMAL",
+            "wall_time": 0.006109000000000001,
+            "monotonic_wall_time": 0.006328499992378056,
+            "deterministic_time": 0.00020374820000000068,
+            "native_call_count": 3,
+            "branches": 23,
+            "conflicts": 1,
+            "variables": 472,
+            "constraints": 771,
+            "warmup_only": true,
+            "ortools_version": "9.15.6755"
+          }
+        },
+        {
+          "ordinal": 4,
+          "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+          "hint_count": 42,
+          "improving": false,
+          "requested_seconds": 8,
+          "model_sha256": "50f742e31bc6a6b79dbea0dc95cdd81e068b0f11ff0927281cd23776ce3a01b0",
+          "native_before": 0.6121097500436008,
+          "native_after": 1.607041958021,
+          "parameters": "random_seed: 0\nmax_time_in_seconds: 0.99\nmax_memory_in_mb: 512\nlog_search_progress: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+            "solver_status": "UNKNOWN",
+            "wall_time": 0.9942010000000001,
+            "monotonic_wall_time": 0.9949322079773992,
+            "deterministic_time": 0.7371599918464669,
+            "native_call_count": 4,
+            "branches": 78473,
+            "conflicts": 10,
+            "variables": 26539,
+            "constraints": 37609,
+            "warmup_only": true,
+            "ortools_version": "9.15.6755"
+          }
+        },
+        {
+          "ordinal": 5,
+          "phase": "ALL_ROOMS_ALL_ACCESS",
+          "hint_count": 42,
+          "improving": false,
+          "requested_seconds": 6.312958041979,
+          "model_sha256": "df04fd286acdeef26064e04766de3808e2452b030555f2abde7664d88fb71dc9",
+          "native_before": 1.607041958021,
+          "native_after": 3.193805750051979,
+          "parameters": "random_seed: 3\nmax_time_in_seconds: 6.312958041979\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "wall_time": 1.585641,
+            "monotonic_wall_time": 1.586763792030979,
+            "deterministic_time": 0.8980209618622601,
+            "native_call_count": 5,
+            "branches": 224741,
+            "conflicts": 112,
+            "variables": 26552,
+            "constraints": 37742,
+            "warmup_only": false,
+            "ortools_version": "9.15.6755"
+          }
+        },
+        {
+          "ordinal": 6,
+          "phase": "ALL_ROOMS_ALL_ACCESS",
+          "hint_count": 130,
+          "improving": true,
+          "requested_seconds": 4.726194249948021,
+          "model_sha256": "a07e6a1b67bf0a50a42487f28f588a6b8ef4c8b41422f95c19d66da0f90f1fb5",
+          "native_before": 3.193805750051979,
+          "native_after": 4.738753875077236,
+          "parameters": "random_seed: 3\nmax_time_in_seconds: 4.726194249948021\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\nstop_after_first_solution: false\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "wall_time": 1.543949,
+            "monotonic_wall_time": 1.5449481250252575,
+            "deterministic_time": 0.8898431332850156,
+            "native_call_count": 6,
+            "branches": 160913,
+            "conflicts": 67,
+            "variables": 26552,
+            "constraints": 37742,
+            "warmup_only": false,
+            "ortools_version": "9.15.6755",
+            "search_feedback": {
+              "policy_hash": "sha256:4341a26ac10e7bca12f53a2a64866908dee10c8e1af516bb0b2e90ba578660a2",
+              "baseline_proxy": 1848,
+              "solution_count": 2,
+              "first_solution_seconds": 0.9716640000000001,
+              "feedback_seconds": 1.5422520000000002,
+              "feedback_proxy": 1776,
+              "stop_requested": true,
+              "engineering_validated": false
+            }
+          }
+        },
+        {
+          "ordinal": 7,
+          "phase": "ALL_ROOMS_ALL_ACCESS",
+          "hint_count": 130,
+          "improving": true,
+          "requested_seconds": 3.1812461249227635,
+          "model_sha256": "45146a951b1e027c7c7a230e324e5eb208e32ce5aa38de1f22b504486a56de6c",
+          "native_before": 4.738753875077236,
+          "native_after": 7.922375375055708,
+          "parameters": "random_seed: 3\nmax_time_in_seconds: 3.1812461249227635\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\nstop_after_first_solution: false\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "wall_time": 3.182532,
+            "monotonic_wall_time": 3.1836214999784715,
+            "deterministic_time": 1.3968054610894374,
+            "native_call_count": 7,
+            "branches": 181887,
+            "conflicts": 1894,
+            "variables": 26552,
+            "constraints": 37743,
+            "warmup_only": false,
+            "ortools_version": "9.15.6755",
+            "search_feedback": {
+              "policy_hash": "sha256:4341a26ac10e7bca12f53a2a64866908dee10c8e1af516bb0b2e90ba578660a2",
+              "baseline_proxy": 1776,
+              "solution_count": 2,
+              "first_solution_seconds": 0.9749930000000001,
+              "feedback_seconds": null,
+              "feedback_proxy": null,
+              "stop_requested": false,
+              "engineering_validated": false
+            }
+          }
+        },
+        {
+          "ordinal": 8,
+          "phase": "ALL_ROOMS_ALL_ACCESS",
+          "hint_count": 130,
+          "improving": true,
+          "requested_seconds": 0.0,
+          "model_sha256": "87db22ea2b9cfd4bb6528b6e472ca8fd47ab0db9ebbb158d95f6d854bb9db597",
+          "native_before": 7.922375375055708,
+          "native_after": 7.922375375055708,
+          "parameters": null,
+          "native": {}
+        }
+      ],
+      "candidates": [
+        {
+          "candidate": 1,
+          "source": "moving-scene/r1/candidate-01.json",
+          "source_sha256": "a463f1c51a74af3075194be4db747cde942332b7b647b223ff581c1b32c03304",
+          "stage": "FEASIBILITY_FIRST",
+          "geometry_hash": "sha256:30f4966454b20d9967e4e420a59584e1e883aaa12c89ce5fd900be026b55aa72",
+          "physical_rectangles_hash": "sha256:f5c35ed3eff92238f64fbd7cc0fc79e13a0b690cd99772b8bcdb534311e0ac6d",
+          "v2": "sha256:eafc6487e2461f52eedc4bfbdddfc4764bc704132832e889d8c39af24059110c",
+          "metrics": {
+            "office_aspect": "8917/6729",
+            "changing_room_aspect": "7210/1387",
+            "coating_room_aspect": "16/5",
+            "personnel_route_m": "9.211",
+            "personnel_route_turns": 1,
+            "footprint_area_m2": "547.936073",
+            "footprint_perimeter_m": "204.94",
+            "footprint_outline_turn_count": 38,
+            "worst_room_aspect": "7210/1387",
+            "footprint_reflex_corner_count": 17
+          },
+          "functional_rooms": {
+            "changing_room": {
+              "physical_width_m": "2.774",
+              "physical_depth_m": "14.42",
+              "area_m2": "40.00108",
+              "aspect_ratio": "5.198269646719538572458543619"
+            },
+            "office": {
+              "physical_width_m": "8.917",
+              "physical_depth_m": "6.729",
+              "area_m2": "60.002493",
+              "aspect_ratio": "1.325159756278793282805766087"
+            },
+            "coating_room": {
+              "physical_width_m": "5",
+              "physical_depth_m": "16",
+              "area_m2": "80",
+              "aspect_ratio": "3.2"
+            }
+          },
+          "area_efficiency": {
+            "source_p1_handoff_hash": "sha256:4bf9a978123c6f03c040c62eb2363f0f06eccb5c22b2b89c8b6464cde470a6d5",
+            "area_source": "cold_room_zone_plan@1.0.0:required_area_m2",
+            "rooms": {
+              "office": {
+                "required_area_m2": "60",
+                "actual_area_m2": "60002493/1000000",
+                "area_allocation_ratio": "20000831/20000000",
+                "area_overallocation_ratio": "831/20000000"
+              },
+              "changing_room": {
+                "required_area_m2": "40",
+                "actual_area_m2": "1000027/25000",
+                "area_allocation_ratio": "1000027/1000000",
+                "area_overallocation_ratio": "27/1000000"
+              },
+              "coating_room": {
+                "required_area_m2": "80",
+                "actual_area_m2": "80",
+                "area_allocation_ratio": "1",
+                "area_overallocation_ratio": "0"
+              }
+            },
+            "diagnostic_only": true,
+            "coating_process": "PACKAGING_BOX_FILM_SEALING"
+          },
+          "personnel": {
+            "canonical_hash": "sha256:7e5ecaf5c82ad5d372c909d751955684bed380845526da4effe3928ad1f82e77",
+            "centerline": [
+              {
+                "x": "45.75",
+                "y": "0"
+              },
+              {
+                "x": "45.75",
+                "y": "8.211"
+              },
+              {
+                "x": "44.75",
+                "y": "8.211"
+              }
+            ],
+            "clear_width_m": "2",
+            "edge_alignment_verified": true,
+            "from_ref": "main_entrance",
+            "portal_from": {
+              "access_ref": "main_entrance",
+              "clear_width_m": "1.5",
+              "edge_class": "BOUNDARY_ACCESS",
+              "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+              "segment": {
+                "end": {
+                  "x": "46.5",
+                  "y": "0"
+                },
+                "start": {
+                  "x": "45",
+                  "y": "0"
+                }
+              },
+              "status": "VALID"
+            },
+            "portal_to": {
+              "access_ref": "changing_room",
+              "clear_width_m": "1.5",
+              "edge_class": "LONG_EDGE",
+              "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+              "segment": {
+                "end": {
+                  "x": "44.75",
+                  "y": "8.961"
+                },
+                "start": {
+                  "x": "44.75",
+                  "y": "7.461"
+                }
+              },
+              "status": "VALID"
+            },
+            "profile_identity": "personnel-clear-envelope@1.0.0",
+            "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+            "route_length_m": "9.211",
+            "status": "PASS",
+            "to_ref": "changing_room",
+            "turn_count": 1
+          },
+          "physical_rooms": [
+            [
+              "changing_room",
+              41976,
+              1001,
+              44750,
+              15421
+            ],
+            [
+              "coating_room",
+              51650,
+              15421,
+              56650,
+              31421
+            ],
+            [
+              "finished_goods_room",
+              56650,
+              15421,
+              61450,
+              21021
+            ],
+            [
+              "frozen_fruit_room",
+              46750,
+              25471,
+              49150,
+              29771
+            ],
+            [
+              "office",
+              61450,
+              8692,
+              70367,
+              15421
+            ],
+            [
+              "packaging_material_storage",
+              39150,
+              30381,
+              43150,
+              34381
+            ],
+            [
+              "primary_precooling_room",
+              34250,
+              9421,
+              39150,
+              19471
+            ],
+            [
+              "raw_fruit_buffer",
+              27450,
+              9421,
+              34250,
+              12921
+            ],
+            [
+              "secondary_fruit_buffer",
+              36750,
+              25471,
+              39150,
+              29771
+            ],
+            [
+              "secondary_precooling_room",
+              46750,
+              15421,
+              51650,
+              25471
+            ],
+            [
+              "shipping_channel",
+              61450,
+              15421,
+              67950,
+              23114
+            ],
+            [
+              "sorting_packaging_room",
+              39150,
+              15421,
+              46750,
+              30381
+            ]
+          ],
+          "original_engineering": {
+            "zones": 12,
+            "must": 7,
+            "non_truck_access": 11,
+            "native_independent": true,
+            "site_footprint": true,
+            "connected_components": 1,
+            "holes": 0,
+            "eligible": true
+          },
+          "original_nine": {
+            "status": "NO_MEASURABLE_IMPROVEMENT",
+            "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 0,
+              "changing_room_aspect": 0,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": 0,
+              "personnel_route_m": 0,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": 0,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0
+            },
+            "formal_quality_acceptance": false
+          },
+          "twelve": {
+            "status": "NO_MEASURABLE_IMPROVEMENT",
+            "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 0,
+              "changing_room_aspect": 0,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": 0,
+              "personnel_route_m": 0,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": 0,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0,
+              "office_area_allocation_ratio": 0,
+              "changing_room_area_allocation_ratio": 0,
+              "coating_room_area_allocation_ratio": 0
+            },
+            "formal_quality_acceptance": false,
+            "area_evidence_complete": true
+          },
+          "focus_goal_met": false
+        },
+        {
+          "candidate": 2,
+          "source": "moving-scene/r1/candidate-02.json",
+          "source_sha256": "9f85226236ad41a4dbc36c6e271a2ff53e5942116543684f8a1c31b77fb176bb",
+          "stage": "BOUNDED_QUALITY_IMPROVEMENT",
+          "geometry_hash": "sha256:f7a53538e1080437b3d809805a87ae91c34101d7d505af72b645b62ca4e39222",
+          "physical_rectangles_hash": "sha256:af23cfbe81c1585c66d5b29381fee7956c120e9782675384774eb496700040b1",
+          "v2": "sha256:eafc6487e2461f52eedc4bfbdddfc4764bc704132832e889d8c39af24059110c",
+          "metrics": {
+            "office_aspect": "2378/1577",
+            "changing_room_aspect": "13999/2858",
+            "coating_room_aspect": "16/5",
+            "personnel_route_m": "9",
+            "personnel_route_turns": 1,
+            "footprint_area_m2": "547.521338",
+            "footprint_perimeter_m": "204.446",
+            "footprint_outline_turn_count": 38,
+            "worst_room_aspect": "13999/2858",
+            "footprint_reflex_corner_count": 17
+          },
+          "functional_rooms": {
+            "changing_room": {
+              "physical_width_m": "2.858",
+              "physical_depth_m": "13.999",
+              "area_m2": "40.009142",
+              "aspect_ratio": "4.898180545836249125262421274"
+            },
+            "office": {
+              "physical_width_m": "9.512",
+              "physical_depth_m": "6.308",
+              "area_m2": "60.001696",
+              "aspect_ratio": "1.507926442612555485098287888"
+            },
+            "coating_room": {
+              "physical_width_m": "5",
+              "physical_depth_m": "16",
+              "area_m2": "80",
+              "aspect_ratio": "3.2"
+            }
+          },
+          "area_efficiency": {
+            "source_p1_handoff_hash": "sha256:4bf9a978123c6f03c040c62eb2363f0f06eccb5c22b2b89c8b6464cde470a6d5",
+            "area_source": "cold_room_zone_plan@1.0.0:required_area_m2",
+            "rooms": {
+              "office": {
+                "required_area_m2": "60",
+                "actual_area_m2": "1875053/31250",
+                "area_allocation_ratio": "1875053/1875000",
+                "area_overallocation_ratio": "53/1875000"
+              },
+              "changing_room": {
+                "required_area_m2": "40",
+                "actual_area_m2": "20004571/500000",
+                "area_allocation_ratio": "20004571/20000000",
+                "area_overallocation_ratio": "4571/20000000"
+              },
+              "coating_room": {
+                "required_area_m2": "80",
+                "actual_area_m2": "80",
+                "area_allocation_ratio": "1",
+                "area_overallocation_ratio": "0"
+              }
+            },
+            "diagnostic_only": true,
+            "coating_process": "PACKAGING_BOX_FILM_SEALING"
+          },
+          "personnel": {
+            "canonical_hash": "sha256:0b8046fc025238b7994f6f2ca060bbf1847e86cacc8eb07025bda67e2af79cac",
+            "centerline": [
+              {
+                "x": "45.75",
+                "y": "0"
+              },
+              {
+                "x": "45.75",
+                "y": "8"
+              },
+              {
+                "x": "44.75",
+                "y": "8"
+              }
+            ],
+            "clear_width_m": "2",
+            "edge_alignment_verified": true,
+            "from_ref": "main_entrance",
+            "portal_from": {
+              "access_ref": "main_entrance",
+              "clear_width_m": "1.5",
+              "edge_class": "BOUNDARY_ACCESS",
+              "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+              "segment": {
+                "end": {
+                  "x": "46.5",
+                  "y": "0"
+                },
+                "start": {
+                  "x": "45",
+                  "y": "0"
+                }
+              },
+              "status": "VALID"
+            },
+            "portal_to": {
+              "access_ref": "changing_room",
+              "clear_width_m": "1.5",
+              "edge_class": "LONG_EDGE",
+              "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+              "segment": {
+                "end": {
+                  "x": "44.75",
+                  "y": "8.75"
+                },
+                "start": {
+                  "x": "44.75",
+                  "y": "7.25"
+                }
+              },
+              "status": "VALID"
+            },
+            "profile_identity": "personnel-clear-envelope@1.0.0",
+            "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+            "route_length_m": "9",
+            "status": "PASS",
+            "to_ref": "changing_room",
+            "turn_count": 1
+          },
+          "physical_rooms": [
+            [
+              "changing_room",
+              41892,
+              1001,
+              44750,
+              15000
+            ],
+            [
+              "coating_room",
+              51650,
+              15000,
+              56650,
+              31000
+            ],
+            [
+              "finished_goods_room",
+              56650,
+              15000,
+              61450,
+              20600
+            ],
+            [
+              "frozen_fruit_room",
+              46750,
+              25050,
+              49150,
+              29350
+            ],
+            [
+              "office",
+              61450,
+              8692,
+              70962,
+              15000
+            ],
+            [
+              "packaging_material_storage",
+              39150,
+              29960,
+              43150,
+              33960
+            ],
+            [
+              "primary_precooling_room",
+              34250,
+              9000,
+              39150,
+              19050
+            ],
+            [
+              "raw_fruit_buffer",
+              27450,
+              9000,
+              34250,
+              12500
+            ],
+            [
+              "secondary_fruit_buffer",
+              36750,
+              25050,
+              39150,
+              29350
+            ],
+            [
+              "secondary_precooling_room",
+              46750,
+              15000,
+              51650,
+              25050
+            ],
+            [
+              "shipping_channel",
+              61450,
+              15000,
+              67950,
+              22693
+            ],
+            [
+              "sorting_packaging_room",
+              39150,
+              15000,
+              46750,
+              29960
+            ]
+          ],
+          "original_engineering": {
+            "zones": 12,
+            "must": 7,
+            "non_truck_access": 11,
+            "native_independent": true,
+            "site_footprint": true,
+            "connected_components": 1,
+            "holes": 0,
+            "eligible": true
+          },
+          "original_nine": {
+            "status": "QUALITY_TRADEOFF",
+            "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 1,
+              "changing_room_aspect": -1,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": -1,
+              "personnel_route_m": -1,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": -1,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0
+            },
+            "formal_quality_acceptance": false
+          },
+          "twelve": {
+            "status": "QUALITY_TRADEOFF",
+            "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 1,
+              "changing_room_aspect": -1,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": -1,
+              "personnel_route_m": -1,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": -1,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0,
+              "office_area_allocation_ratio": -1,
+              "changing_room_area_allocation_ratio": 1,
+              "coating_room_area_allocation_ratio": 0
+            },
+            "formal_quality_acceptance": false,
+            "area_evidence_complete": true
+          },
+          "focus_goal_met": true
+        },
+        {
+          "candidate": 3,
+          "source": "moving-scene/r1/candidate-03.json",
+          "source_sha256": "26e31b9abf01f0aa6d2ce43a2ffd5ac1fb4f30a0accafdde3ae5db2c3cdd9f95",
+          "stage": "BOUNDED_QUALITY_IMPROVEMENT",
+          "geometry_hash": "sha256:f1479ccb0bceb6b212fefdf057ed77749c793c69bcc6e26e2bb9a797be5e7a14",
+          "physical_rectangles_hash": "sha256:7d22c77602ab5d44c9c7c1eabc34d1a643d520e988fec408868f27fe480e4992",
+          "v2": "sha256:eafc6487e2461f52eedc4bfbdddfc4764bc704132832e889d8c39af24059110c",
+          "metrics": {
+            "office_aspect": "9509/6310",
+            "changing_room_aspect": "14001/2857",
+            "coating_room_aspect": "16/5",
+            "personnel_route_m": "9.001",
+            "personnel_route_turns": 1,
+            "footprint_area_m2": "547.515147",
+            "footprint_perimeter_m": "204.448",
+            "footprint_outline_turn_count": 38,
+            "worst_room_aspect": "14001/2857",
+            "footprint_reflex_corner_count": 17
+          },
+          "functional_rooms": {
+            "changing_room": {
+              "physical_width_m": "2.857",
+              "physical_depth_m": "14.001",
+              "area_m2": "40.000857",
+              "aspect_ratio": "4.900595029751487574378718936"
+            },
+            "office": {
+              "physical_width_m": "9.509",
+              "physical_depth_m": "6.31",
+              "area_m2": "60.00179",
+              "aspect_ratio": "1.506973058637083993660855784"
+            },
+            "coating_room": {
+              "physical_width_m": "5",
+              "physical_depth_m": "16",
+              "area_m2": "80",
+              "aspect_ratio": "3.2"
+            }
+          },
+          "area_efficiency": {
+            "source_p1_handoff_hash": "sha256:4bf9a978123c6f03c040c62eb2363f0f06eccb5c22b2b89c8b6464cde470a6d5",
+            "area_source": "cold_room_zone_plan@1.0.0:required_area_m2",
+            "rooms": {
+              "office": {
+                "required_area_m2": "60",
+                "actual_area_m2": "6000179/100000",
+                "area_allocation_ratio": "6000179/6000000",
+                "area_overallocation_ratio": "179/6000000"
+              },
+              "changing_room": {
+                "required_area_m2": "40",
+                "actual_area_m2": "40000857/1000000",
+                "area_allocation_ratio": "40000857/40000000",
+                "area_overallocation_ratio": "857/40000000"
+              },
+              "coating_room": {
+                "required_area_m2": "80",
+                "actual_area_m2": "80",
+                "area_allocation_ratio": "1",
+                "area_overallocation_ratio": "0"
+              }
+            },
+            "diagnostic_only": true,
+            "coating_process": "PACKAGING_BOX_FILM_SEALING"
+          },
+          "personnel": {
+            "canonical_hash": "sha256:1b3caaaff8916b5c8bb931bc099694c3a4edacb5397059a250326cc40321ce3e",
+            "centerline": [
+              {
+                "x": "45.75",
+                "y": "0"
+              },
+              {
+                "x": "45.75",
+                "y": "8.001"
+              },
+              {
+                "x": "44.75",
+                "y": "8.001"
+              }
+            ],
+            "clear_width_m": "2",
+            "edge_alignment_verified": true,
+            "from_ref": "main_entrance",
+            "portal_from": {
+              "access_ref": "main_entrance",
+              "clear_width_m": "1.5",
+              "edge_class": "BOUNDARY_ACCESS",
+              "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+              "segment": {
+                "end": {
+                  "x": "46.5",
+                  "y": "0"
+                },
+                "start": {
+                  "x": "45",
+                  "y": "0"
+                }
+              },
+              "status": "VALID"
+            },
+            "portal_to": {
+              "access_ref": "changing_room",
+              "clear_width_m": "1.5",
+              "edge_class": "LONG_EDGE",
+              "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+              "segment": {
+                "end": {
+                  "x": "44.75",
+                  "y": "8.751"
+                },
+                "start": {
+                  "x": "44.75",
+                  "y": "7.251"
+                }
+              },
+              "status": "VALID"
+            },
+            "profile_identity": "personnel-clear-envelope@1.0.0",
+            "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+            "route_length_m": "9.001",
+            "status": "PASS",
+            "to_ref": "changing_room",
+            "turn_count": 1
+          },
+          "physical_rooms": [
+            [
+              "changing_room",
+              41893,
+              1001,
+              44750,
+              15002
+            ],
+            [
+              "coating_room",
+              51650,
+              15002,
+              56650,
+              31002
+            ],
+            [
+              "finished_goods_room",
+              56650,
+              15002,
+              61450,
+              20602
+            ],
+            [
+              "frozen_fruit_room",
+              46750,
+              25052,
+              49150,
+              29352
+            ],
+            [
+              "office",
+              61450,
+              8692,
+              70959,
+              15002
+            ],
+            [
+              "packaging_material_storage",
+              39150,
+              29962,
+              43150,
+              33962
+            ],
+            [
+              "primary_precooling_room",
+              34250,
+              9002,
+              39150,
+              19052
+            ],
+            [
+              "raw_fruit_buffer",
+              27450,
+              9002,
+              34250,
+              12502
+            ],
+            [
+              "secondary_fruit_buffer",
+              36750,
+              25052,
+              39150,
+              29352
+            ],
+            [
+              "secondary_precooling_room",
+              46750,
+              15002,
+              51650,
+              25052
+            ],
+            [
+              "shipping_channel",
+              61450,
+              15002,
+              67950,
+              22695
+            ],
+            [
+              "sorting_packaging_room",
+              39150,
+              15002,
+              46750,
+              29962
+            ]
+          ],
+          "original_engineering": {
+            "zones": 12,
+            "must": 7,
+            "non_truck_access": 11,
+            "native_independent": true,
+            "site_footprint": true,
+            "connected_components": 1,
+            "holes": 0,
+            "eligible": true
+          },
+          "original_nine": {
+            "status": "QUALITY_TRADEOFF",
+            "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 1,
+              "changing_room_aspect": -1,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": -1,
+              "personnel_route_m": -1,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": -1,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0
+            },
+            "formal_quality_acceptance": false
+          },
+          "twelve": {
+            "status": "QUALITY_TRADEOFF",
+            "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 1,
+              "changing_room_aspect": -1,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": -1,
+              "personnel_route_m": -1,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": -1,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0,
+              "office_area_allocation_ratio": -1,
+              "changing_room_area_allocation_ratio": -1,
+              "coating_room_area_allocation_ratio": 0
+            },
+            "formal_quality_acceptance": false,
+            "area_evidence_complete": true
+          },
+          "focus_goal_met": true
+        }
+      ]
+    },
+    "r10_r2": {
+      "policy_hash": "sha256:fc0082de49eb1e289c487c2f88c4a873f73b3a553077102dc7dc1aa0e11afcf5",
+      "caps": {
+        "native_seconds": 8.0,
+        "elapsed_seconds": 85,
+        "work": 600000,
+        "rss_mib": 512,
+        "native_calls": 12,
+        "checked": 6,
+        "host_work": 20000
+      },
+      "usage": {
+        "model_work": 83246,
+        "native_host_work": 55213,
+        "total_work": 138459,
+        "solver_wall": 7.669537,
+        "solver_monotonic_wall": 7.682234583015088,
+        "checked": 3,
+        "peak_rss_bytes": 246185984,
+        "elapsed_seconds": 9.934007957985159
+      },
+      "resource_events": {
+        "MODEL_ROLE_VARIABLES": 432,
+        "MODEL_OBSTACLE_SEPARATION": 144,
+        "MODEL_MUST_DISJUNCTION": 252,
+        "MODEL_INTERFACE_CASE": 1200,
+        "R10_R2_SYNTHETIC_BAY_CONSTRAINT": 126,
+        "MODEL_ROUTE_ROOM_SEPARATION": 8640,
+        "MODEL_ROUTE_OBSTACLE": 720,
+        "MODEL_ROUTE_COEXISTENCE": 32040,
+        "R6_CREATED_DOMAIN_FACT": 26552,
+        "R6_IMPLICIT_CONSTANT_READ": 3,
+        "R6_PHYSICAL_FACTS_READ": 21,
+        "R5_TOTAL_DEFINITIONS": 27,
+        "EXPORT_GEOMETRY": 216,
+        "EXACT_UNION_PRIMITIVE": 11388,
+        "STAGE_B_CANDIDATE_VALIDATION": 3,
+        "NATIVE_ENVELOPE_COVERAGE_CELL": 66,
+        "R6_VALIDATED_PROXY_FACTS": 30,
+        "R5_FEEDBACK_BASELINE": 1,
+        "R6_PHYSICAL_HINT_REFERENCE": 130,
+        "R6_PHYSICAL_HINT_SELECTOR": 54,
+        "R6_CURRENT_VALID_PHYSICAL_HINT": 130,
+        "R5_PROXY_REUSE": 1,
+        "R6_FRONTAGE_REFERENCE_READ": 166,
+        "R6_FRONTAGE_STRATEGY_WRITE": 166,
+        "R7_DEFERRED_STRATEGY_REORDER": 189,
+        "R10_P1_DEMAND_READ": 3,
+        "R10_AREA_REFERENCE_READ": 13,
+        "R10_MUST_REFERENCE_READ": 3,
+        "R10_ROUTE_REFERENCE_READ": 10,
+        "R10_PHYSICAL_REFERENCE_READ": 11,
+        "R10_R2_ACCESS_REFERENCE_READ": 10,
+        "R10_R2_AUTHORITY_REFERENCE_READ": 12,
+        "R10_R2_HINT_REFERENCE_READ": 130,
+        "R10_R2_ENTRY_POINT_READ": 2,
+        "R10_R2_VALIDATED_CENTRE_READ": 4,
+        "R10_R2_PHYSICAL_REFERENCE_READ": 19,
+        "R10_R2_COUPLED_SEARCH_METADATA": 218,
+        "STAGE_B_BALANCED_FEEDBACK_OBSERVATION": 14,
+        "R6_VALIDATED_SEARCH_FRONTIER": 2,
+        "STAGE_B_PHYSICAL_ENUMERATION_CUT": 98
+      },
+      "native_calls": 8,
+      "valid_witnesses": 3,
+      "distinct_physical_room_geometries": 3,
+      "distinct_v2": 2,
+      "full_first_model_sha256": "df04fd286acdeef26064e04766de3808e2452b030555f2abde7664d88fb71dc9",
+      "local_model_calls": 0,
+      "terminal_error": null,
+      "final_native_status": "UNKNOWN",
+      "resource_failed": false,
+      "call_audit": [
+        {
+          "ordinal": 1,
+          "phase": "ALL_ROOM_GEOMETRY_HINT",
+          "hint_count": 0,
+          "improving": false,
+          "requested_seconds": 4,
+          "model_sha256": "d4545d0a0473436bfd54b03373d3f102d6f813e3229ee7aff4750f627c0be1ed",
+          "native_before": 0,
+          "native_after": 0.04124125000089407,
+          "parameters": "random_seed: 0\nmax_time_in_seconds: 0.99\nmax_memory_in_mb: 512\nlog_search_progress: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ROOM_GEOMETRY_HINT",
+            "solver_status": "OPTIMAL",
+            "wall_time": 0.034097,
+            "monotonic_wall_time": 0.04124125000089407,
+            "deterministic_time": 0.001095347235916136,
+            "native_call_count": 1,
+            "branches": 749,
+            "conflicts": 39,
+            "variables": 472,
+            "constraints": 771,
+            "warmup_only": true,
+            "ortools_version": "9.15.6755"
+          }
+        },
+        {
+          "ordinal": 2,
+          "phase": "ALL_ROOM_MUST_HINT",
+          "hint_count": 42,
+          "improving": false,
+          "requested_seconds": 6,
+          "model_sha256": "ab63e1bb3dc466a8838de936054c2b3918d247b7670c24e9407e0d13ac1c8d20",
+          "native_before": 0.04124125000089407,
+          "native_after": 0.6518284170306288,
+          "parameters": "random_seed: 0\nmax_time_in_seconds: 0.99\nmax_memory_in_mb: 512\nlog_search_progress: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ROOM_MUST_HINT",
+            "solver_status": "OPTIMAL",
+            "wall_time": 0.6100920000000001,
+            "monotonic_wall_time": 0.6105871670297347,
+            "deterministic_time": 0.15109046739624793,
+            "native_call_count": 2,
+            "branches": 58287,
+            "conflicts": 7908,
+            "variables": 472,
+            "constraints": 771,
+            "warmup_only": true,
+            "ortools_version": "9.15.6755"
+          }
+        },
+        {
+          "ordinal": 3,
+          "phase": "COMPOSITION_PACKAGING_HINT",
+          "hint_count": 42,
+          "improving": false,
+          "requested_seconds": 10,
+          "model_sha256": "192044cc32b61bf30234e942d303d746d21fc893be28391ed866f5eded139936",
+          "native_before": 0.6518284170306288,
+          "native_after": 0.658203000028152,
+          "parameters": "random_seed: 0\nmax_time_in_seconds: 0.99\nmax_memory_in_mb: 512\nlog_search_progress: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "COMPOSITION_PACKAGING_HINT",
+            "solver_status": "OPTIMAL",
+            "wall_time": 0.006142000000000001,
+            "monotonic_wall_time": 0.006374582997523248,
+            "deterministic_time": 0.00020374820000000068,
+            "native_call_count": 3,
+            "branches": 23,
+            "conflicts": 1,
+            "variables": 472,
+            "constraints": 771,
+            "warmup_only": true,
+            "ortools_version": "9.15.6755"
+          }
+        },
+        {
+          "ordinal": 4,
+          "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+          "hint_count": 42,
+          "improving": false,
+          "requested_seconds": 8,
+          "model_sha256": "50f742e31bc6a6b79dbea0dc95cdd81e068b0f11ff0927281cd23776ce3a01b0",
+          "native_before": 0.658203000028152,
+          "native_after": 1.6529931670520455,
+          "parameters": "random_seed: 0\nmax_time_in_seconds: 0.99\nmax_memory_in_mb: 512\nlog_search_progress: true\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ACCESS_FRESH_HINT_ONLY",
+            "solver_status": "UNKNOWN",
+            "wall_time": 0.9940260000000001,
+            "monotonic_wall_time": 0.9947901670238934,
+            "deterministic_time": 0.733242594846484,
+            "native_call_count": 4,
+            "branches": 74991,
+            "conflicts": 10,
+            "variables": 26539,
+            "constraints": 37609,
+            "warmup_only": true,
+            "ortools_version": "9.15.6755"
+          }
+        },
+        {
+          "ordinal": 5,
+          "phase": "ALL_ROOMS_ALL_ACCESS",
+          "hint_count": 42,
+          "improving": false,
+          "requested_seconds": 6.2670068329479545,
+          "model_sha256": "df04fd286acdeef26064e04766de3808e2452b030555f2abde7664d88fb71dc9",
+          "native_before": 1.6529931670520455,
+          "native_after": 3.269802208058536,
+          "parameters": "random_seed: 3\nmax_time_in_seconds: 6.2670068329479545\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\nstop_after_first_solution: true\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "wall_time": 1.615645,
+            "monotonic_wall_time": 1.6168090410064906,
+            "deterministic_time": 0.8980209618622601,
+            "native_call_count": 5,
+            "branches": 224741,
+            "conflicts": 112,
+            "variables": 26552,
+            "constraints": 37742,
+            "warmup_only": false,
+            "ortools_version": "9.15.6755"
+          }
+        },
+        {
+          "ordinal": 6,
+          "phase": "ALL_ROOMS_ALL_ACCESS",
+          "hint_count": 130,
+          "improving": true,
+          "requested_seconds": 4.650197791941464,
+          "model_sha256": "1056ef40c6a917302f86424a5e831a07a5ae83ac80c0a06e02d675a6e39b5450",
+          "native_before": 3.269802208058536,
+          "native_after": 4.83853829104919,
+          "parameters": "random_seed: 3\nmax_time_in_seconds: 4.6501977919414639\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\nstop_after_first_solution: false\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "wall_time": 1.567628,
+            "monotonic_wall_time": 1.5687360829906538,
+            "deterministic_time": 0.8901509236416232,
+            "native_call_count": 6,
+            "branches": 144270,
+            "conflicts": 89,
+            "variables": 26552,
+            "constraints": 37742,
+            "warmup_only": false,
+            "ortools_version": "9.15.6755",
+            "search_feedback": {
+              "policy_hash": "sha256:4341a26ac10e7bca12f53a2a64866908dee10c8e1af516bb0b2e90ba578660a2",
+              "baseline_proxy": 1848,
+              "solution_count": 2,
+              "first_solution_seconds": 0.9998330000000001,
+              "feedback_seconds": 1.565887,
+              "feedback_proxy": 1379,
+              "stop_requested": true,
+              "engineering_validated": false
+            }
+          }
+        },
+        {
+          "ordinal": 7,
+          "phase": "ALL_ROOMS_ALL_ACCESS",
+          "hint_count": 130,
+          "improving": true,
+          "requested_seconds": 3.08146170895081,
+          "model_sha256": "5cd8b54aa46414dacc2ebbbcb61d0d9620b50070fa28fb84cbe288e31ceb1577",
+          "native_before": 4.83853829104919,
+          "native_after": 7.2645729160285555,
+          "parameters": "random_seed: 3\nmax_time_in_seconds: 3.08146170895081\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\nstop_after_first_solution: false\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "FEASIBLE",
+            "wall_time": 2.4248220000000003,
+            "monotonic_wall_time": 2.4260346249793656,
+            "deterministic_time": 1.165943522811633,
+            "native_call_count": 7,
+            "branches": 357713,
+            "conflicts": 1276,
+            "variables": 26552,
+            "constraints": 37743,
+            "warmup_only": false,
+            "ortools_version": "9.15.6755",
+            "search_feedback": {
+              "policy_hash": "sha256:4341a26ac10e7bca12f53a2a64866908dee10c8e1af516bb0b2e90ba578660a2",
+              "baseline_proxy": 1379,
+              "solution_count": 12,
+              "first_solution_seconds": 0.9892780000000001,
+              "feedback_seconds": 2.422977,
+              "feedback_proxy": 1378,
+              "stop_requested": true,
+              "engineering_validated": false
+            }
+          }
+        },
+        {
+          "ordinal": 8,
+          "phase": "ALL_ROOMS_ALL_ACCESS",
+          "hint_count": 130,
+          "improving": true,
+          "requested_seconds": 0.6554270839714446,
+          "model_sha256": "abfeae67e09d1eaa5375abe3363c8e91d5f4baddc58838d410777add7f233624",
+          "native_before": 7.2645729160285555,
+          "native_after": 7.682234583015088,
+          "parameters": "random_seed: 3\nmax_time_in_seconds: 0.65542708397144445\nmax_memory_in_mb: 512\nlog_search_progress: true\nsearch_branching: PARTIAL_FIXED_SEARCH\nstop_after_first_solution: false\nnum_search_workers: 1\nlog_to_stdout: false",
+          "native": {
+            "phase": "ALL_ROOMS_ALL_ACCESS",
+            "solver_status": "UNKNOWN",
+            "wall_time": 0.41708500000000004,
+            "monotonic_wall_time": 0.4176616669865325,
+            "deterministic_time": 0.5999348080014941,
+            "native_call_count": 8,
+            "branches": 0,
+            "conflicts": 0,
+            "variables": 26552,
+            "constraints": 37744,
+            "warmup_only": false,
+            "ortools_version": "9.15.6755",
+            "search_feedback": {
+              "policy_hash": "sha256:4341a26ac10e7bca12f53a2a64866908dee10c8e1af516bb0b2e90ba578660a2",
+              "baseline_proxy": 1378,
+              "solution_count": 0,
+              "first_solution_seconds": null,
+              "feedback_seconds": null,
+              "feedback_proxy": null,
+              "stop_requested": false,
+              "engineering_validated": false
+            }
+          }
+        }
+      ],
+      "candidates": [
+        {
+          "candidate": 1,
+          "source": "final-moving/r2/candidate-01.json",
+          "source_sha256": "d8924905dc05204f831cfb6ab4ea3ed3672f343c8b67c143aa0de8e888d422b8",
+          "stage": "FEASIBILITY_FIRST",
+          "geometry_hash": "sha256:30f4966454b20d9967e4e420a59584e1e883aaa12c89ce5fd900be026b55aa72",
+          "physical_rectangles_hash": "sha256:f5c35ed3eff92238f64fbd7cc0fc79e13a0b690cd99772b8bcdb534311e0ac6d",
+          "v2": "sha256:eafc6487e2461f52eedc4bfbdddfc4764bc704132832e889d8c39af24059110c",
+          "metrics": {
+            "office_aspect": "8917/6729",
+            "changing_room_aspect": "7210/1387",
+            "coating_room_aspect": "16/5",
+            "personnel_route_m": "9.211",
+            "personnel_route_turns": 1,
+            "footprint_area_m2": "547.936073",
+            "footprint_perimeter_m": "204.94",
+            "footprint_outline_turn_count": 38,
+            "worst_room_aspect": "7210/1387",
+            "footprint_reflex_corner_count": 17
+          },
+          "functional_rooms": {
+            "changing_room": {
+              "physical_width_m": "2.774",
+              "physical_depth_m": "14.42",
+              "area_m2": "40.00108",
+              "aspect_ratio": "5.198269646719538572458543619"
+            },
+            "office": {
+              "physical_width_m": "8.917",
+              "physical_depth_m": "6.729",
+              "area_m2": "60.002493",
+              "aspect_ratio": "1.325159756278793282805766087"
+            },
+            "coating_room": {
+              "physical_width_m": "5",
+              "physical_depth_m": "16",
+              "area_m2": "80",
+              "aspect_ratio": "3.2"
+            }
+          },
+          "area_efficiency": {
+            "source_p1_handoff_hash": "sha256:4bf9a978123c6f03c040c62eb2363f0f06eccb5c22b2b89c8b6464cde470a6d5",
+            "area_source": "cold_room_zone_plan@1.0.0:required_area_m2",
+            "rooms": {
+              "office": {
+                "required_area_m2": "60",
+                "actual_area_m2": "60002493/1000000",
+                "area_allocation_ratio": "20000831/20000000",
+                "area_overallocation_ratio": "831/20000000"
+              },
+              "changing_room": {
+                "required_area_m2": "40",
+                "actual_area_m2": "1000027/25000",
+                "area_allocation_ratio": "1000027/1000000",
+                "area_overallocation_ratio": "27/1000000"
+              },
+              "coating_room": {
+                "required_area_m2": "80",
+                "actual_area_m2": "80",
+                "area_allocation_ratio": "1",
+                "area_overallocation_ratio": "0"
+              }
+            },
+            "diagnostic_only": true,
+            "coating_process": "PACKAGING_BOX_FILM_SEALING"
+          },
+          "personnel": {
+            "canonical_hash": "sha256:7e5ecaf5c82ad5d372c909d751955684bed380845526da4effe3928ad1f82e77",
+            "centerline": [
+              {
+                "x": "45.75",
+                "y": "0"
+              },
+              {
+                "x": "45.75",
+                "y": "8.211"
+              },
+              {
+                "x": "44.75",
+                "y": "8.211"
+              }
+            ],
+            "clear_width_m": "2",
+            "edge_alignment_verified": true,
+            "from_ref": "main_entrance",
+            "portal_from": {
+              "access_ref": "main_entrance",
+              "clear_width_m": "1.5",
+              "edge_class": "BOUNDARY_ACCESS",
+              "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+              "segment": {
+                "end": {
+                  "x": "46.5",
+                  "y": "0"
+                },
+                "start": {
+                  "x": "45",
+                  "y": "0"
+                }
+              },
+              "status": "VALID"
+            },
+            "portal_to": {
+              "access_ref": "changing_room",
+              "clear_width_m": "1.5",
+              "edge_class": "LONG_EDGE",
+              "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+              "segment": {
+                "end": {
+                  "x": "44.75",
+                  "y": "8.961"
+                },
+                "start": {
+                  "x": "44.75",
+                  "y": "7.461"
+                }
+              },
+              "status": "VALID"
+            },
+            "profile_identity": "personnel-clear-envelope@1.0.0",
+            "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+            "route_length_m": "9.211",
+            "status": "PASS",
+            "to_ref": "changing_room",
+            "turn_count": 1
+          },
+          "physical_rooms": [
+            [
+              "changing_room",
+              41976,
+              1001,
+              44750,
+              15421
+            ],
+            [
+              "coating_room",
+              51650,
+              15421,
+              56650,
+              31421
+            ],
+            [
+              "finished_goods_room",
+              56650,
+              15421,
+              61450,
+              21021
+            ],
+            [
+              "frozen_fruit_room",
+              46750,
+              25471,
+              49150,
+              29771
+            ],
+            [
+              "office",
+              61450,
+              8692,
+              70367,
+              15421
+            ],
+            [
+              "packaging_material_storage",
+              39150,
+              30381,
+              43150,
+              34381
+            ],
+            [
+              "primary_precooling_room",
+              34250,
+              9421,
+              39150,
+              19471
+            ],
+            [
+              "raw_fruit_buffer",
+              27450,
+              9421,
+              34250,
+              12921
+            ],
+            [
+              "secondary_fruit_buffer",
+              36750,
+              25471,
+              39150,
+              29771
+            ],
+            [
+              "secondary_precooling_room",
+              46750,
+              15421,
+              51650,
+              25471
+            ],
+            [
+              "shipping_channel",
+              61450,
+              15421,
+              67950,
+              23114
+            ],
+            [
+              "sorting_packaging_room",
+              39150,
+              15421,
+              46750,
+              30381
+            ]
+          ],
+          "original_engineering": {
+            "zones": 12,
+            "must": 7,
+            "non_truck_access": 11,
+            "native_independent": true,
+            "site_footprint": true,
+            "connected_components": 1,
+            "holes": 0,
+            "eligible": true
+          },
+          "original_nine": {
+            "status": "NO_MEASURABLE_IMPROVEMENT",
+            "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 0,
+              "changing_room_aspect": 0,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": 0,
+              "personnel_route_m": 0,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": 0,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0
+            },
+            "formal_quality_acceptance": false
+          },
+          "twelve": {
+            "status": "NO_MEASURABLE_IMPROVEMENT",
+            "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 0,
+              "changing_room_aspect": 0,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": 0,
+              "personnel_route_m": 0,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": 0,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0,
+              "office_area_allocation_ratio": 0,
+              "changing_room_area_allocation_ratio": 0,
+              "coating_room_area_allocation_ratio": 0
+            },
+            "formal_quality_acceptance": false,
+            "area_evidence_complete": true
+          },
+          "focus_goal_met": false
+        },
+        {
+          "candidate": 2,
+          "source": "final-moving/r2/candidate-02.json",
+          "source_sha256": "46892fdda6caf845fa5acf56857feda894ee0dee1cd94d8716855fb7ac6d8184",
+          "stage": "BOUNDED_QUALITY_IMPROVEMENT",
+          "geometry_hash": "sha256:98f620e1e3f562a7d143ae6d90c58cbf39f74e7468697604a72e8e8f94ffa12e",
+          "physical_rectangles_hash": "sha256:5e765f689e6e5b8e3215f113d4a334e7558743487de1652fb7836e10715aeaac",
+          "v2": "sha256:eafc6487e2461f52eedc4bfbdddfc4764bc704132832e889d8c39af24059110c",
+          "metrics": {
+            "office_aspect": "8917/6729",
+            "changing_room_aspect": "10999/3637",
+            "coating_room_aspect": "16/5",
+            "personnel_route_m": "2.751",
+            "personnel_route_turns": 1,
+            "footprint_area_m2": "535.018356",
+            "footprint_perimeter_m": "198.098",
+            "footprint_outline_turn_count": 38,
+            "worst_room_aspect": "16/5",
+            "footprint_reflex_corner_count": 17
+          },
+          "functional_rooms": {
+            "changing_room": {
+              "physical_width_m": "3.637",
+              "physical_depth_m": "10.999",
+              "area_m2": "40.003363",
+              "aspect_ratio": "3.024195765740995325817981853"
+            },
+            "office": {
+              "physical_width_m": "8.917",
+              "physical_depth_m": "6.729",
+              "area_m2": "60.002493",
+              "aspect_ratio": "1.325159756278793282805766087"
+            },
+            "coating_room": {
+              "physical_width_m": "5",
+              "physical_depth_m": "16",
+              "area_m2": "80",
+              "aspect_ratio": "3.2"
+            }
+          },
+          "area_efficiency": {
+            "source_p1_handoff_hash": "sha256:4bf9a978123c6f03c040c62eb2363f0f06eccb5c22b2b89c8b6464cde470a6d5",
+            "area_source": "cold_room_zone_plan@1.0.0:required_area_m2",
+            "rooms": {
+              "office": {
+                "required_area_m2": "60",
+                "actual_area_m2": "60002493/1000000",
+                "area_allocation_ratio": "20000831/20000000",
+                "area_overallocation_ratio": "831/20000000"
+              },
+              "changing_room": {
+                "required_area_m2": "40",
+                "actual_area_m2": "40003363/1000000",
+                "area_allocation_ratio": "40003363/40000000",
+                "area_overallocation_ratio": "3363/40000000"
+              },
+              "coating_room": {
+                "required_area_m2": "80",
+                "actual_area_m2": "80",
+                "area_allocation_ratio": "1",
+                "area_overallocation_ratio": "0"
+              }
+            },
+            "diagnostic_only": true,
+            "coating_process": "PACKAGING_BOX_FILM_SEALING"
+          },
+          "personnel": {
+            "canonical_hash": "sha256:8aae8cc07ece7db640e6543c86deee053059df284a0a825a35682ae70b3db7bb",
+            "centerline": [
+              {
+                "x": "45.75",
+                "y": "0"
+              },
+              {
+                "x": "45.75",
+                "y": "1.751"
+              },
+              {
+                "x": "44.75",
+                "y": "1.751"
+              }
+            ],
+            "clear_width_m": "2",
+            "edge_alignment_verified": true,
+            "from_ref": "main_entrance",
+            "portal_from": {
+              "access_ref": "main_entrance",
+              "clear_width_m": "1.5",
+              "edge_class": "BOUNDARY_ACCESS",
+              "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+              "segment": {
+                "end": {
+                  "x": "46.5",
+                  "y": "0"
+                },
+                "start": {
+                  "x": "45",
+                  "y": "0"
+                }
+              },
+              "status": "VALID"
+            },
+            "portal_to": {
+              "access_ref": "changing_room",
+              "clear_width_m": "1.5",
+              "edge_class": "LONG_EDGE",
+              "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+              "segment": {
+                "end": {
+                  "x": "44.75",
+                  "y": "2.501"
+                },
+                "start": {
+                  "x": "44.75",
+                  "y": "1.001"
+                }
+              },
+              "status": "VALID"
+            },
+            "profile_identity": "personnel-clear-envelope@1.0.0",
+            "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+            "route_length_m": "2.751",
+            "status": "PASS",
+            "to_ref": "changing_room",
+            "turn_count": 1
+          },
+          "physical_rooms": [
+            [
+              "changing_room",
+              41113,
+              1001,
+              44750,
+              12000
+            ],
+            [
+              "coating_room",
+              51650,
+              12000,
+              56650,
+              28000
+            ],
+            [
+              "finished_goods_room",
+              56650,
+              12000,
+              61450,
+              17600
+            ],
+            [
+              "frozen_fruit_room",
+              46750,
+              22050,
+              49150,
+              26350
+            ],
+            [
+              "office",
+              61450,
+              5271,
+              70367,
+              12000
+            ],
+            [
+              "packaging_material_storage",
+              39150,
+              26960,
+              43150,
+              30960
+            ],
+            [
+              "primary_precooling_room",
+              34250,
+              6000,
+              39150,
+              16050
+            ],
+            [
+              "raw_fruit_buffer",
+              27450,
+              6000,
+              34250,
+              9500
+            ],
+            [
+              "secondary_fruit_buffer",
+              36750,
+              22050,
+              39150,
+              26350
+            ],
+            [
+              "secondary_precooling_room",
+              46750,
+              12000,
+              51650,
+              22050
+            ],
+            [
+              "shipping_channel",
+              61450,
+              12000,
+              67950,
+              19693
+            ],
+            [
+              "sorting_packaging_room",
+              39150,
+              12000,
+              46750,
+              26960
+            ]
+          ],
+          "original_engineering": {
+            "zones": 12,
+            "must": 7,
+            "non_truck_access": 11,
+            "native_independent": true,
+            "site_footprint": true,
+            "connected_components": 1,
+            "holes": 0,
+            "eligible": true
+          },
+          "original_nine": {
+            "status": "GEOMETRIC_PARETO_IMPROVEMENT",
+            "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 0,
+              "changing_room_aspect": -1,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": -1,
+              "personnel_route_m": -1,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": -1,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0
+            },
+            "formal_quality_acceptance": false
+          },
+          "twelve": {
+            "status": "QUALITY_TRADEOFF",
+            "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+            "metric_directions_minus_one_better": {
+              "office_aspect": 0,
+              "changing_room_aspect": -1,
+              "coating_room_aspect": 0,
+              "worst_room_aspect": -1,
+              "personnel_route_m": -1,
+              "personnel_route_turns": 0,
+              "footprint_perimeter_m": -1,
+              "footprint_outline_turn_count": 0,
+              "footprint_reflex_corner_count": 0,
+              "office_area_allocation_ratio": 0,
+              "changing_room_area_allocation_ratio": 1,
+              "coating_room_area_allocation_ratio": 0
+            },
+            "formal_quality_acceptance": false,
+            "area_evidence_complete": true
+          },
+          "focus_goal_met": true
+        },
+        {
+          "candidate": 3,
+          "source": "final-moving/r2/candidate-03.json",
+          "source_sha256": "f81bb5e1f9f49889ae8a54ed76892a2a49fb692f1b854a0bc20bf5b50d829d47",
+          "stage": "BOUNDED_QUALITY_IMPROVEMENT",
+          "geometry_hash": "sha256:08ff9356efbaddb6ee87a8e78ad6f8963f9943646d0284cfc75e90c571781add",
+          "physical_rectangles_hash": "sha256:99980b7b417858fe8532d033e4491cac035e3a60ad0f4ba357911f0812bcdb11",
+          "v2": "sha256:9e8ac10f691320d13f327ea01cae59017457c5c314e115e331bd89ed3094d7ca",
+          "metrics": {
+            "office_aspect": "7983/7516",
+            "changing_room_aspect": "11311/3537",
+            "coating_room_aspect": "9223/8674",
+            "personnel_route_m": "9.689",
+            "personnel_route_turns": 3,
+            "footprint_area_m2": "548.896037",
+            "footprint_perimeter_m": "207.752",
+            "footprint_outline_turn_count": 40,
+            "worst_room_aspect": "11311/3537",
+            "footprint_reflex_corner_count": 18
+          },
+          "functional_rooms": {
+            "changing_room": {
+              "physical_width_m": "3.537",
+              "physical_depth_m": "11.311",
+              "area_m2": "40.007007",
+              "aspect_ratio": "3.197907831495617755159739893"
+            },
+            "office": {
+              "physical_width_m": "7.516",
+              "physical_depth_m": "7.983",
+              "area_m2": "60.000228",
+              "aspect_ratio": "1.062134113890367216604576903"
+            },
+            "coating_room": {
+              "physical_width_m": "8.674",
+              "physical_depth_m": "9.223",
+              "area_m2": "80.000302",
+              "aspect_ratio": "1.063292598570440396587502882"
+            }
+          },
+          "area_efficiency": {
+            "source_p1_handoff_hash": "sha256:4bf9a978123c6f03c040c62eb2363f0f06eccb5c22b2b89c8b6464cde470a6d5",
+            "area_source": "cold_room_zone_plan@1.0.0:required_area_m2",
+            "rooms": {
+              "office": {
+                "required_area_m2": "60",
+                "actual_area_m2": "15000057/250000",
+                "area_allocation_ratio": "5000019/5000000",
+                "area_overallocation_ratio": "19/5000000"
+              },
+              "changing_room": {
+                "required_area_m2": "40",
+                "actual_area_m2": "40007007/1000000",
+                "area_allocation_ratio": "40007007/40000000",
+                "area_overallocation_ratio": "7007/40000000"
+              },
+              "coating_room": {
+                "required_area_m2": "80",
+                "actual_area_m2": "40000151/500000",
+                "area_allocation_ratio": "40000151/40000000",
+                "area_overallocation_ratio": "151/40000000"
+              }
+            },
+            "diagnostic_only": true,
+            "coating_process": "PACKAGING_BOX_FILM_SEALING"
+          },
+          "personnel": {
+            "canonical_hash": "sha256:c4c785beb88792cade7b8d5df5bc850ec001825cce61f11a66c05301576bec6b",
+            "centerline": [
+              {
+                "x": "45.75",
+                "y": "0"
+              },
+              {
+                "x": "45.75",
+                "y": "1"
+              },
+              {
+                "x": "53",
+                "y": "1"
+              },
+              {
+                "x": "53",
+                "y": "1.439"
+              },
+              {
+                "x": "54",
+                "y": "1.439"
+              }
+            ],
+            "clear_width_m": "2",
+            "edge_alignment_verified": true,
+            "from_ref": "main_entrance",
+            "portal_from": {
+              "access_ref": "main_entrance",
+              "clear_width_m": "1.5",
+              "edge_class": "BOUNDARY_ACCESS",
+              "identity": "portal:access:main_entrance->changing_room@1.0.0:main_entrance@1.0.0",
+              "segment": {
+                "end": {
+                  "x": "46.5",
+                  "y": "0"
+                },
+                "start": {
+                  "x": "45",
+                  "y": "0"
+                }
+              },
+              "status": "VALID"
+            },
+            "portal_to": {
+              "access_ref": "changing_room",
+              "clear_width_m": "1.5",
+              "edge_class": "LONG_EDGE",
+              "identity": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+              "segment": {
+                "end": {
+                  "x": "54",
+                  "y": "2.189"
+                },
+                "start": {
+                  "x": "54",
+                  "y": "0.689"
+                }
+              },
+              "status": "VALID"
+            },
+            "profile_identity": "personnel-clear-envelope@1.0.0",
+            "requirement_identity": "access:main_entrance->changing_room@1.0.0",
+            "route_length_m": "9.689",
+            "status": "PASS",
+            "to_ref": "changing_room",
+            "turn_count": 3
+          },
+          "physical_rooms": [
+            [
+              "changing_room",
+              54000,
+              689,
+              57537,
+              12000
+            ],
+            [
+              "coating_room",
+              60500,
+              12000,
+              69174,
+              21223
+            ],
+            [
+              "finished_goods_room",
+              69174,
+              12000,
+              73974,
+              17600
+            ],
+            [
+              "frozen_fruit_room",
+              55600,
+              22050,
+              58000,
+              26350
+            ],
+            [
+              "office",
+              73974,
+              4017,
+              81490,
+              12000
+            ],
+            [
+              "packaging_material_storage",
+              48000,
+              26960,
+              52000,
+              30960
+            ],
+            [
+              "primary_precooling_room",
+              43100,
+              6000,
+              48000,
+              16050
+            ],
+            [
+              "raw_fruit_buffer",
+              36300,
+              6000,
+              43100,
+              9500
+            ],
+            [
+              "secondary_fruit_buffer",
+              45600,
+              22050,
+              48000,
+              26350
+            ],
+            [
+              "secondary_precooling_room",
+              55600,
+              12000,
+              60500,
+              22050
+            ],
+            [
+              "shipping_channel",
+              73974,
+              12000,
+              80474,
+              19693
+            ],
+            [
+              "sorting_packaging_room",
+              48000,
+              12000,
+              55600,
+              26960
+            ]
+          ],
+          "original_engineering": {
+            "zones": 12,
+            "must": 7,
+            "non_truck_access": 11,
+            "native_independent": true,
+            "site_footprint": true,
+            "connected_components": 1,
+            "holes": 0,
+            "eligible": true
+          },
+          "original_nine": {
+            "status": "NOT_COMPARABLE_STRUCTURE",
+            "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+            "metric_directions_minus_one_better": {
+              "office_aspect": -1,
+              "changing_room_aspect": -1,
+              "coating_room_aspect": -1,
+              "worst_room_aspect": -1,
+              "personnel_route_m": 1,
+              "personnel_route_turns": 1,
+              "footprint_perimeter_m": 1,
+              "footprint_outline_turn_count": 1,
+              "footprint_reflex_corner_count": 1
+            },
+            "formal_quality_acceptance": false
+          },
+          "twelve": {
+            "status": "NOT_COMPARABLE_STRUCTURE",
+            "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+            "metric_directions_minus_one_better": {
+              "office_aspect": -1,
+              "changing_room_aspect": -1,
+              "coating_room_aspect": -1,
+              "worst_room_aspect": -1,
+              "personnel_route_m": 1,
+              "personnel_route_turns": 1,
+              "footprint_perimeter_m": 1,
+              "footprint_outline_turn_count": 1,
+              "footprint_reflex_corner_count": 1,
+              "office_area_allocation_ratio": -1,
+              "changing_room_area_allocation_ratio": 1,
+              "coating_room_area_allocation_ratio": 1
+            },
+            "formal_quality_acceptance": false,
+            "area_evidence_complete": true
+          },
+          "focus_goal_met": false
+        }
+      ]
+    },
+    "negative_fixed_r2_preportal": {
+      "policy_hash": "sha256:403e8b84b57005315e8f932f93d64b98f376074be3062faf18b4aa0a5a68998b",
+      "caps": {
+        "native_seconds": 8.0,
+        "elapsed_seconds": 85,
+        "work": 600000,
+        "rss_mib": 512,
+        "native_calls": 12,
+        "checked": 6,
+        "host_work": 20000
+      },
+      "usage": {
+        "model_work": 90531,
+        "native_host_work": 63408,
+        "total_work": 153939,
+        "solver_wall": 7.928008000000001,
+        "solver_monotonic_wall": 7.937396876048297,
+        "checked": 3,
+        "peak_rss_bytes": 223789056,
+        "elapsed_seconds": 10.399539000005461
+      },
+      "native_calls": 8,
+      "valid_witnesses": 3,
+      "distinct_physical_room_geometries": 3,
+      "distinct_v2": 1,
+      "full_first_model_sha256": "cee516e483fec3ac8be977a9bb57589cf51e7e51ec34ca1ec931bf11b95b4f70",
+      "local_model_calls": 0,
+      "terminal_error": null,
+      "final_native_status": "UNKNOWN",
+      "resource_failed": false,
+      "pre_final_portal_readback": true,
+      "candidate_metrics": [
+        {
+          "candidate": 1,
+          "metrics": {
+            "office_aspect": "15/4",
+            "changing_room_aspect": "10",
+            "coating_room_aspect": "16/5",
+            "personnel_route_m": "19.252",
+            "personnel_route_turns": 4,
+            "footprint_area_m2": "568.0145",
+            "footprint_perimeter_m": "248.31",
+            "footprint_outline_turn_count": 40,
+            "worst_room_aspect": "10",
+            "footprint_reflex_corner_count": 18
+          },
+          "physical_rectangles_hash": "sha256:6210be857dcd585e2dfa220f12cfd5d3984aad814da09b36b210bcbff7626bd9",
+          "v2": "sha256:760bf36583e038a9f173aa8579147b0f050f8f047147fce28e14f6f70ab2f3ae"
+        },
+        {
+          "candidate": 2,
+          "metrics": {
+            "office_aspect": "15/4",
+            "changing_room_aspect": "6665/667",
+            "coating_room_aspect": "16/5",
+            "personnel_route_m": "19.257",
+            "personnel_route_turns": 4,
+            "footprint_area_m2": "568.034495",
+            "footprint_perimeter_m": "248.308",
+            "footprint_outline_turn_count": 40,
+            "worst_room_aspect": "6665/667",
+            "footprint_reflex_corner_count": 18
+          },
+          "physical_rectangles_hash": "sha256:c9ed2f77ee418ef744d3dc652fa0fa9d57adf645e5e66309f45e461fa1399b3c",
+          "v2": "sha256:760bf36583e038a9f173aa8579147b0f050f8f047147fce28e14f6f70ab2f3ae"
+        },
+        {
+          "candidate": 3,
+          "metrics": {
+            "office_aspect": "15/4",
+            "changing_room_aspect": "9995/1001",
+            "coating_room_aspect": "16/5",
+            "personnel_route_m": "19.262",
+            "personnel_route_turns": 4,
+            "footprint_area_m2": "568.05448",
+            "footprint_perimeter_m": "248.306",
+            "footprint_outline_turn_count": 40,
+            "worst_room_aspect": "9995/1001",
+            "footprint_reflex_corner_count": 18
+          },
+          "physical_rectangles_hash": "sha256:2a9e71cd857779fd12288df394c746f6727155115fe65dc1cfddf4328103410d",
+          "v2": "sha256:760bf36583e038a9f173aa8579147b0f050f8f047147fce28e14f6f70ab2f3ae"
+        }
+      ]
+    },
+    "repeat_preportal": {
+      "policy_hash": "sha256:403e8b84b57005315e8f932f93d64b98f376074be3062faf18b4aa0a5a68998b",
+      "caps": {
+        "native_seconds": 8.0,
+        "elapsed_seconds": 85,
+        "work": 600000,
+        "rss_mib": 512,
+        "native_calls": 12,
+        "checked": 6,
+        "host_work": 20000
+      },
+      "usage": {
+        "model_work": 83244,
+        "native_host_work": 55213,
+        "total_work": 138457,
+        "solver_wall": 7.690531000000001,
+        "solver_monotonic_wall": 7.7014205430750735,
+        "checked": 3,
+        "peak_rss_bytes": 229572608,
+        "elapsed_seconds": 9.972500458010472
+      },
+      "native_calls": 8,
+      "valid_witnesses": 3,
+      "distinct_physical_room_geometries": 3,
+      "distinct_v2": 2,
+      "full_first_model_sha256": "df04fd286acdeef26064e04766de3808e2452b030555f2abde7664d88fb71dc9",
+      "local_model_calls": 0,
+      "terminal_error": null,
+      "final_native_status": "UNKNOWN",
+      "resource_failed": false,
+      "pre_final_portal_readback": true,
+      "candidate_metrics": [
+        {
+          "candidate": 1,
+          "metrics": {
+            "office_aspect": "8917/6729",
+            "changing_room_aspect": "7210/1387",
+            "coating_room_aspect": "16/5",
+            "personnel_route_m": "9.211",
+            "personnel_route_turns": 1,
+            "footprint_area_m2": "547.936073",
+            "footprint_perimeter_m": "204.94",
+            "footprint_outline_turn_count": 38,
+            "worst_room_aspect": "7210/1387",
+            "footprint_reflex_corner_count": 17
+          },
+          "physical_rectangles_hash": "sha256:f5c35ed3eff92238f64fbd7cc0fc79e13a0b690cd99772b8bcdb534311e0ac6d",
+          "v2": "sha256:eafc6487e2461f52eedc4bfbdddfc4764bc704132832e889d8c39af24059110c"
+        },
+        {
+          "candidate": 2,
+          "metrics": {
+            "office_aspect": "8917/6729",
+            "changing_room_aspect": "10999/3637",
+            "coating_room_aspect": "16/5",
+            "personnel_route_m": "2.751",
+            "personnel_route_turns": 1,
+            "footprint_area_m2": "535.018356",
+            "footprint_perimeter_m": "198.098",
+            "footprint_outline_turn_count": 38,
+            "worst_room_aspect": "16/5",
+            "footprint_reflex_corner_count": 17
+          },
+          "physical_rectangles_hash": "sha256:5e765f689e6e5b8e3215f113d4a334e7558743487de1652fb7836e10715aeaac",
+          "v2": "sha256:eafc6487e2461f52eedc4bfbdddfc4764bc704132832e889d8c39af24059110c"
+        },
+        {
+          "candidate": 3,
+          "metrics": {
+            "office_aspect": "7983/7516",
+            "changing_room_aspect": "11311/3537",
+            "coating_room_aspect": "9223/8674",
+            "personnel_route_m": "9.689",
+            "personnel_route_turns": 3,
+            "footprint_area_m2": "548.896037",
+            "footprint_perimeter_m": "207.752",
+            "footprint_outline_turn_count": 40,
+            "worst_room_aspect": "11311/3537",
+            "footprint_reflex_corner_count": 18
+          },
+          "physical_rectangles_hash": "sha256:99980b7b417858fe8532d033e4491cac035e3a60ad0f4ba357911f0812bcdb11",
+          "v2": "sha256:9e8ac10f691320d13f327ea01cae59017457c5c314e115e331bd89ed3094d7ca"
+        }
+      ]
+    },
+    "initial_r2_preportal": {
+      "policy_hash": "sha256:403e8b84b57005315e8f932f93d64b98f376074be3062faf18b4aa0a5a68998b",
+      "caps": {
+        "native_seconds": 8.0,
+        "elapsed_seconds": 85,
+        "work": 600000,
+        "rss_mib": 512,
+        "native_calls": 12,
+        "checked": 6,
+        "host_work": 20000
+      },
+      "usage": {
+        "model_work": 83244,
+        "native_host_work": 55213,
+        "total_work": 138457,
+        "solver_wall": 7.903975,
+        "solver_monotonic_wall": 7.911250208097044,
+        "checked": 3,
+        "peak_rss_bytes": 248315904,
+        "elapsed_seconds": 10.055985208018683
+      },
+      "native_calls": 8,
+      "valid_witnesses": 3,
+      "distinct_physical_room_geometries": 3,
+      "distinct_v2": 2,
+      "full_first_model_sha256": "df04fd286acdeef26064e04766de3808e2452b030555f2abde7664d88fb71dc9",
+      "local_model_calls": 0,
+      "terminal_error": null,
+      "final_native_status": "UNKNOWN",
+      "resource_failed": false,
+      "pre_final_portal_readback": true,
+      "candidate_metrics": [
+        {
+          "candidate": 1,
+          "metrics": {
+            "office_aspect": "8917/6729",
+            "changing_room_aspect": "7210/1387",
+            "coating_room_aspect": "16/5",
+            "personnel_route_m": "9.211",
+            "personnel_route_turns": 1,
+            "footprint_area_m2": "547.936073",
+            "footprint_perimeter_m": "204.94",
+            "footprint_outline_turn_count": 38,
+            "worst_room_aspect": "7210/1387",
+            "footprint_reflex_corner_count": 17
+          },
+          "physical_rectangles_hash": "sha256:f5c35ed3eff92238f64fbd7cc0fc79e13a0b690cd99772b8bcdb534311e0ac6d",
+          "v2": "sha256:eafc6487e2461f52eedc4bfbdddfc4764bc704132832e889d8c39af24059110c"
+        },
+        {
+          "candidate": 2,
+          "metrics": {
+            "office_aspect": "8917/6729",
+            "changing_room_aspect": "10999/3637",
+            "coating_room_aspect": "16/5",
+            "personnel_route_m": "2.751",
+            "personnel_route_turns": 1,
+            "footprint_area_m2": "535.018356",
+            "footprint_perimeter_m": "198.098",
+            "footprint_outline_turn_count": 38,
+            "worst_room_aspect": "16/5",
+            "footprint_reflex_corner_count": 17
+          },
+          "physical_rectangles_hash": "sha256:5e765f689e6e5b8e3215f113d4a334e7558743487de1652fb7836e10715aeaac",
+          "v2": "sha256:eafc6487e2461f52eedc4bfbdddfc4764bc704132832e889d8c39af24059110c"
+        },
+        {
+          "candidate": 3,
+          "metrics": {
+            "office_aspect": "7983/7516",
+            "changing_room_aspect": "11311/3537",
+            "coating_room_aspect": "9223/8674",
+            "personnel_route_m": "9.689",
+            "personnel_route_turns": 3,
+            "footprint_area_m2": "548.896037",
+            "footprint_perimeter_m": "207.752",
+            "footprint_outline_turn_count": 40,
+            "worst_room_aspect": "11311/3537",
+            "footprint_reflex_corner_count": 18
+          },
+          "physical_rectangles_hash": "sha256:99980b7b417858fe8532d033e4491cac035e3a60ad0f4ba357911f0812bcdb11",
+          "v2": "sha256:9e8ac10f691320d13f327ea01cae59017457c5c314e115e331bd89ed3094d7ca"
+        }
+      ]
+    }
+  }
+}

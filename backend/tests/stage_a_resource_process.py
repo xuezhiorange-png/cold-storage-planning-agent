@@ -40,6 +40,7 @@ RESOURCE_TEST_FILES = frozenset(
         "test_v222_stage_b_first_feasible_recovery.py",
         "test_v222_stage_b_changing_frontage_corridor.py",
         "test_v222_stage_b_functional_spatial_organization.py",
+        "test_v222_stage_b_entrance_coupled_spatial.py",
         "test_v222_stage_b_route_refinement.py",
         "test_v222_stage_b_route_resources.py",
         "test_v222_access_entrance_normals.py",
