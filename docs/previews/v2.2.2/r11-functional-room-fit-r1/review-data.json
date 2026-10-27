@@ -1,0 +1,4450 @@
+{
+  "version": "functional-room-fit-r11@1.0.0",
+  "task": "V2_2_2_R11_FUNCTIONAL_ROOM_FIT_R1",
+  "source_head": "288a56b768baa859cbcfb41908fbbd5d6155094d",
+  "source_manifest_sha256": "941be918a3346061382fe5e35cf20d7714c617d52c5eadc9957ecfb20437884a",
+  "original_record_count": 9,
+  "physical_group_count": 8,
+  "physical_groups": {
+    "G01": [
+      "P01",
+      "P02"
+    ],
+    "G02": [
+      "P03"
+    ],
+    "G03": [
+      "P04"
+    ],
+    "G04": [
+      "P05"
+    ],
+    "G05": [
+      "P06"
+    ],
+    "G06": [
+      "P07"
+    ],
+    "G07": [
+      "P08"
+    ],
+    "G08": [
+      "P09"
+    ]
+  },
+  "room_evaluations": [
+    {
+      "record": "P01",
+      "handoff": 5,
+      "physical_group": "G01",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece:changing_room",
+        "record": "P01",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          26331,
+          3250
+        ],
+        "world_bounds_mm": [
+          14700,
+          23650,
+          41031,
+          26900
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                26331,
+                875
+              ],
+              [
+                26331,
+                2375
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                12415,
+                0
+              ],
+              [
+                13915,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece",
+        "source_composition_hash": "sha256:f6ad84ecfb7b00d724388b1374281de7336274b2fced9393e98104741878c1c9",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 85575750,
+        "physical_facts": {
+          "width_m": "26.331",
+          "depth_m": "3.25",
+          "area_m2": "85.57575",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "26331/3250",
+          "aspect_ratio_display": "8.101846",
+          "overallocation_ratio_exact": "182303/160000",
+          "overallocation_percent_display": "113.9394",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "faa7a645bef1be1b61e84102b041a1cfe4c0bf002a5f8485d47c039158406d9f"
+    },
+    {
+      "record": "P01",
+      "handoff": 5,
+      "physical_group": "G01",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece:office",
+        "record": "P01",
+        "room_code": "office",
+        "local_bounds_mm": [
+          0,
+          0,
+          2785,
+          21544
+        ],
+        "world_bounds_mm": [
+          1,
+          33450,
+          2786,
+          54994
+        ],
+        "p1_required_area_mm2": 60000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-office@1.0.0"
+        },
+        "portals": [],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/zones/4",
+        "candidate_hash": "sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece",
+        "source_composition_hash": "sha256:f6ad84ecfb7b00d724388b1374281de7336274b2fced9393e98104741878c1c9",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece:office",
+        "room_code": "office",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "actual_room_portal",
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "staff_count",
+          "desk_dimensions_mm",
+          "chair_movement_mm",
+          "storage_count",
+          "storage_dimensions_mm",
+          "necessary_functions",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 60000040,
+        "physical_facts": {
+          "width_m": "2.785",
+          "depth_m": "21.544",
+          "area_m2": "60.00004",
+          "required_area_m2": "60",
+          "aspect_ratio_exact": "21544/2785",
+          "aspect_ratio_display": "7.735727",
+          "overallocation_ratio_exact": "1/1500000",
+          "overallocation_percent_display": "0.0001",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "faa7a645bef1be1b61e84102b041a1cfe4c0bf002a5f8485d47c039158406d9f"
+    },
+    {
+      "record": "P01",
+      "handoff": 5,
+      "physical_group": "G01",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece:coating_room",
+        "record": "P01",
+        "room_code": "coating_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          41026,
+          1950
+        ],
+        "world_bounds_mm": [
+          0,
+          28551,
+          41026,
+          30501
+        ],
+        "p1_required_area_mm2": 80000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-coating_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                8475,
+                0
+              ],
+              [
+                10875,
+                0
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                23956,
+                1950
+              ],
+              [
+                26356,
+                1950
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-01/candidate-01/candidate.json#/engineering_validation/zones/1",
+        "candidate_hash": "sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece",
+        "source_composition_hash": "sha256:f6ad84ecfb7b00d724388b1374281de7336274b2fced9393e98104741878c1c9",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece:coating_room",
+        "room_code": "coating_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "process_type",
+          "equipment_model",
+          "equipment_count",
+          "equipment_dimensions_mm",
+          "operating_clearances_mm",
+          "maintenance_clearances_mm",
+          "infeed_space_mm",
+          "outfeed_space_mm",
+          "buffer_space_mm",
+          "effective_capacity_basis",
+          "logistics_direction_basis",
+          "process_portal_roles",
+          "equipment_flow_faces",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 80000700,
+        "physical_facts": {
+          "width_m": "41.026",
+          "depth_m": "1.95",
+          "area_m2": "80.0007",
+          "required_area_m2": "80",
+          "aspect_ratio_exact": "20513/975",
+          "aspect_ratio_display": "21.038974",
+          "overallocation_ratio_exact": "7/800000",
+          "overallocation_percent_display": "0.0009",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "faa7a645bef1be1b61e84102b041a1cfe4c0bf002a5f8485d47c039158406d9f"
+    },
+    {
+      "record": "P02",
+      "handoff": 5,
+      "physical_group": "G01",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4:changing_room",
+        "record": "P02",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          26331,
+          3250
+        ],
+        "world_bounds_mm": [
+          14700,
+          23650,
+          41031,
+          26900
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                26331,
+                875
+              ],
+              [
+                26331,
+                2375
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-02/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                12415,
+                0
+              ],
+              [
+                13915,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-02/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-02/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4",
+        "source_composition_hash": "sha256:f6ad84ecfb7b00d724388b1374281de7336274b2fced9393e98104741878c1c9",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 85575750,
+        "physical_facts": {
+          "width_m": "26.331",
+          "depth_m": "3.25",
+          "area_m2": "85.57575",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "26331/3250",
+          "aspect_ratio_display": "8.101846",
+          "overallocation_ratio_exact": "182303/160000",
+          "overallocation_percent_display": "113.9394",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "c9e38907e5a6924ab261550c0478237924ac61f24f68e9185ba5782e8733c99b"
+    },
+    {
+      "record": "P02",
+      "handoff": 5,
+      "physical_group": "G01",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4:office",
+        "record": "P02",
+        "room_code": "office",
+        "local_bounds_mm": [
+          0,
+          0,
+          2785,
+          21544
+        ],
+        "world_bounds_mm": [
+          1,
+          33450,
+          2786,
+          54994
+        ],
+        "p1_required_area_mm2": 60000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-office@1.0.0"
+        },
+        "portals": [],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-02/candidate-01/candidate.json#/engineering_validation/zones/4",
+        "candidate_hash": "sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4",
+        "source_composition_hash": "sha256:f6ad84ecfb7b00d724388b1374281de7336274b2fced9393e98104741878c1c9",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4:office",
+        "room_code": "office",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "actual_room_portal",
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "staff_count",
+          "desk_dimensions_mm",
+          "chair_movement_mm",
+          "storage_count",
+          "storage_dimensions_mm",
+          "necessary_functions",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 60000040,
+        "physical_facts": {
+          "width_m": "2.785",
+          "depth_m": "21.544",
+          "area_m2": "60.00004",
+          "required_area_m2": "60",
+          "aspect_ratio_exact": "21544/2785",
+          "aspect_ratio_display": "7.735727",
+          "overallocation_ratio_exact": "1/1500000",
+          "overallocation_percent_display": "0.0001",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "c9e38907e5a6924ab261550c0478237924ac61f24f68e9185ba5782e8733c99b"
+    },
+    {
+      "record": "P02",
+      "handoff": 5,
+      "physical_group": "G01",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4:coating_room",
+        "record": "P02",
+        "room_code": "coating_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          41026,
+          1950
+        ],
+        "world_bounds_mm": [
+          0,
+          28551,
+          41026,
+          30501
+        ],
+        "p1_required_area_mm2": 80000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-coating_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                8475,
+                0
+              ],
+              [
+                10875,
+                0
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-02/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                23956,
+                1950
+              ],
+              [
+                26356,
+                1950
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-02/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-02/candidate-01/candidate.json#/engineering_validation/zones/1",
+        "candidate_hash": "sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4",
+        "source_composition_hash": "sha256:f6ad84ecfb7b00d724388b1374281de7336274b2fced9393e98104741878c1c9",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4:coating_room",
+        "room_code": "coating_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "process_type",
+          "equipment_model",
+          "equipment_count",
+          "equipment_dimensions_mm",
+          "operating_clearances_mm",
+          "maintenance_clearances_mm",
+          "infeed_space_mm",
+          "outfeed_space_mm",
+          "buffer_space_mm",
+          "effective_capacity_basis",
+          "logistics_direction_basis",
+          "process_portal_roles",
+          "equipment_flow_faces",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 80000700,
+        "physical_facts": {
+          "width_m": "41.026",
+          "depth_m": "1.95",
+          "area_m2": "80.0007",
+          "required_area_m2": "80",
+          "aspect_ratio_exact": "20513/975",
+          "aspect_ratio_display": "21.038974",
+          "overallocation_ratio_exact": "7/800000",
+          "overallocation_percent_display": "0.0009",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "c9e38907e5a6924ab261550c0478237924ac61f24f68e9185ba5782e8733c99b"
+    },
+    {
+      "record": "P03",
+      "handoff": 6,
+      "physical_group": "G02",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13:changing_room",
+        "record": "P03",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39683,
+          1008
+        ],
+        "world_bounds_mm": [
+          18214,
+          23650,
+          57897,
+          24658
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38183,
+                1008
+              ],
+              [
+                39683,
+                1008
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-03/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19091,
+                0
+              ],
+              [
+                20591,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-03/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-03/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40000464,
+        "physical_facts": {
+          "width_m": "39.683",
+          "depth_m": "1.008",
+          "area_m2": "40.000464",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "5669/144",
+          "aspect_ratio_display": "39.368056",
+          "overallocation_ratio_exact": "29/2500000",
+          "overallocation_percent_display": "0.0012",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "fe5aaff0bde6449082a0c46735d1e9b33ac4acbba553e759253ef36267093c80"
+    },
+    {
+      "record": "P03",
+      "handoff": 6,
+      "physical_group": "G02",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13:office",
+        "record": "P03",
+        "room_code": "office",
+        "local_bounds_mm": [
+          0,
+          0,
+          32400,
+          1852
+        ],
+        "world_bounds_mm": [
+          0,
+          52050,
+          32400,
+          53902
+        ],
+        "p1_required_area_mm2": 60000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-office@1.0.0"
+        },
+        "portals": [],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-03/candidate-01/candidate.json#/engineering_validation/zones/4",
+        "candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13:office",
+        "room_code": "office",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "actual_room_portal",
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "staff_count",
+          "desk_dimensions_mm",
+          "chair_movement_mm",
+          "storage_count",
+          "storage_dimensions_mm",
+          "necessary_functions",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 60004800,
+        "physical_facts": {
+          "width_m": "32.4",
+          "depth_m": "1.852",
+          "area_m2": "60.0048",
+          "required_area_m2": "60",
+          "aspect_ratio_exact": "8100/463",
+          "aspect_ratio_display": "17.494600",
+          "overallocation_ratio_exact": "1/12500",
+          "overallocation_percent_display": "0.0080",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "fe5aaff0bde6449082a0c46735d1e9b33ac4acbba553e759253ef36267093c80"
+    },
+    {
+      "record": "P03",
+      "handoff": 6,
+      "physical_group": "G02",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13:coating_room",
+        "record": "P03",
+        "room_code": "coating_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          8164,
+          9800
+        ],
+        "world_bounds_mm": [
+          0,
+          23650,
+          8164,
+          33450
+        ],
+        "p1_required_area_mm2": 80000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-coating_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                8164,
+                3700
+              ],
+              [
+                8164,
+                6100
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-03/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                2882,
+                9800
+              ],
+              [
+                5282,
+                9800
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-03/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-03/candidate-01/candidate.json#/engineering_validation/zones/1",
+        "candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13:coating_room",
+        "room_code": "coating_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "process_type",
+          "equipment_model",
+          "equipment_count",
+          "equipment_dimensions_mm",
+          "operating_clearances_mm",
+          "maintenance_clearances_mm",
+          "infeed_space_mm",
+          "outfeed_space_mm",
+          "buffer_space_mm",
+          "effective_capacity_basis",
+          "logistics_direction_basis",
+          "process_portal_roles",
+          "equipment_flow_faces",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 80007200,
+        "physical_facts": {
+          "width_m": "8.164",
+          "depth_m": "9.8",
+          "area_m2": "80.0072",
+          "required_area_m2": "80",
+          "aspect_ratio_exact": "2450/2041",
+          "aspect_ratio_display": "1.200392",
+          "overallocation_ratio_exact": "9/100000",
+          "overallocation_percent_display": "0.0090",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "fe5aaff0bde6449082a0c46735d1e9b33ac4acbba553e759253ef36267093c80"
+    },
+    {
+      "record": "P04",
+      "handoff": 6,
+      "physical_group": "G03",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb:changing_room",
+        "record": "P04",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39635,
+          1010
+        ],
+        "world_bounds_mm": [
+          18262,
+          23650,
+          57897,
+          24660
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38135,
+                1010
+              ],
+              [
+                39635,
+                1010
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19067,
+                0
+              ],
+              [
+                20567,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40031350,
+        "physical_facts": {
+          "width_m": "39.635",
+          "depth_m": "1.01",
+          "area_m2": "40.03135",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "7927/202",
+          "aspect_ratio_display": "39.242574",
+          "overallocation_ratio_exact": "627/800000",
+          "overallocation_percent_display": "0.0784",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "b3a944f0d46a302e329aa32df330297dc69c69936d7fd4469f4c21d2b80266bc"
+    },
+    {
+      "record": "P04",
+      "handoff": 6,
+      "physical_group": "G03",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb:office",
+        "record": "P04",
+        "room_code": "office",
+        "local_bounds_mm": [
+          0,
+          0,
+          32400,
+          1852
+        ],
+        "world_bounds_mm": [
+          0,
+          52050,
+          32400,
+          53902
+        ],
+        "p1_required_area_mm2": 60000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-office@1.0.0"
+        },
+        "portals": [],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/zones/4",
+        "candidate_hash": "sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb:office",
+        "room_code": "office",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "actual_room_portal",
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "staff_count",
+          "desk_dimensions_mm",
+          "chair_movement_mm",
+          "storage_count",
+          "storage_dimensions_mm",
+          "necessary_functions",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 60004800,
+        "physical_facts": {
+          "width_m": "32.4",
+          "depth_m": "1.852",
+          "area_m2": "60.0048",
+          "required_area_m2": "60",
+          "aspect_ratio_exact": "8100/463",
+          "aspect_ratio_display": "17.494600",
+          "overallocation_ratio_exact": "1/12500",
+          "overallocation_percent_display": "0.0080",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "b3a944f0d46a302e329aa32df330297dc69c69936d7fd4469f4c21d2b80266bc"
+    },
+    {
+      "record": "P04",
+      "handoff": 6,
+      "physical_group": "G03",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb:coating_room",
+        "record": "P04",
+        "room_code": "coating_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          8164,
+          9800
+        ],
+        "world_bounds_mm": [
+          0,
+          23650,
+          8164,
+          33450
+        ],
+        "p1_required_area_mm2": 80000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-coating_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                8164,
+                3700
+              ],
+              [
+                8164,
+                6100
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                2882,
+                9800
+              ],
+              [
+                5282,
+                9800
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/zones/1",
+        "candidate_hash": "sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb:coating_room",
+        "room_code": "coating_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "process_type",
+          "equipment_model",
+          "equipment_count",
+          "equipment_dimensions_mm",
+          "operating_clearances_mm",
+          "maintenance_clearances_mm",
+          "infeed_space_mm",
+          "outfeed_space_mm",
+          "buffer_space_mm",
+          "effective_capacity_basis",
+          "logistics_direction_basis",
+          "process_portal_roles",
+          "equipment_flow_faces",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 80007200,
+        "physical_facts": {
+          "width_m": "8.164",
+          "depth_m": "9.8",
+          "area_m2": "80.0072",
+          "required_area_m2": "80",
+          "aspect_ratio_exact": "2450/2041",
+          "aspect_ratio_display": "1.200392",
+          "overallocation_ratio_exact": "9/100000",
+          "overallocation_percent_display": "0.0090",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "b3a944f0d46a302e329aa32df330297dc69c69936d7fd4469f4c21d2b80266bc"
+    },
+    {
+      "record": "P05",
+      "handoff": 6,
+      "physical_group": "G04",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31:changing_room",
+        "record": "P05",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39633,
+          1011
+        ],
+        "world_bounds_mm": [
+          18261,
+          23650,
+          57894,
+          24661
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38133,
+                1011
+              ],
+              [
+                39633,
+                1011
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-05/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19066,
+                0
+              ],
+              [
+                20566,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-05/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-05/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40068963,
+        "physical_facts": {
+          "width_m": "39.633",
+          "depth_m": "1.011",
+          "area_m2": "40.068963",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "13211/337",
+          "aspect_ratio_display": "39.201780",
+          "overallocation_ratio_exact": "68963/40000000",
+          "overallocation_percent_display": "0.1724",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "1aef019ae7924c691fa08ac96855450095513af40df6cc13843e255433ae0e5c"
+    },
+    {
+      "record": "P05",
+      "handoff": 6,
+      "physical_group": "G04",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31:office",
+        "record": "P05",
+        "room_code": "office",
+        "local_bounds_mm": [
+          0,
+          0,
+          32400,
+          1852
+        ],
+        "world_bounds_mm": [
+          0,
+          52050,
+          32400,
+          53902
+        ],
+        "p1_required_area_mm2": 60000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-office@1.0.0"
+        },
+        "portals": [],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-05/candidate-01/candidate.json#/engineering_validation/zones/4",
+        "candidate_hash": "sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31:office",
+        "room_code": "office",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "actual_room_portal",
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "staff_count",
+          "desk_dimensions_mm",
+          "chair_movement_mm",
+          "storage_count",
+          "storage_dimensions_mm",
+          "necessary_functions",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 60004800,
+        "physical_facts": {
+          "width_m": "32.4",
+          "depth_m": "1.852",
+          "area_m2": "60.0048",
+          "required_area_m2": "60",
+          "aspect_ratio_exact": "8100/463",
+          "aspect_ratio_display": "17.494600",
+          "overallocation_ratio_exact": "1/12500",
+          "overallocation_percent_display": "0.0080",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "1aef019ae7924c691fa08ac96855450095513af40df6cc13843e255433ae0e5c"
+    },
+    {
+      "record": "P05",
+      "handoff": 6,
+      "physical_group": "G04",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31:coating_room",
+        "record": "P05",
+        "room_code": "coating_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          8164,
+          9800
+        ],
+        "world_bounds_mm": [
+          0,
+          23650,
+          8164,
+          33450
+        ],
+        "p1_required_area_mm2": 80000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-coating_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                8164,
+                3700
+              ],
+              [
+                8164,
+                6100
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-05/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                2882,
+                9800
+              ],
+              [
+                5282,
+                9800
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-05/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-05/candidate-01/candidate.json#/engineering_validation/zones/1",
+        "candidate_hash": "sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31:coating_room",
+        "room_code": "coating_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "process_type",
+          "equipment_model",
+          "equipment_count",
+          "equipment_dimensions_mm",
+          "operating_clearances_mm",
+          "maintenance_clearances_mm",
+          "infeed_space_mm",
+          "outfeed_space_mm",
+          "buffer_space_mm",
+          "effective_capacity_basis",
+          "logistics_direction_basis",
+          "process_portal_roles",
+          "equipment_flow_faces",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 80007200,
+        "physical_facts": {
+          "width_m": "8.164",
+          "depth_m": "9.8",
+          "area_m2": "80.0072",
+          "required_area_m2": "80",
+          "aspect_ratio_exact": "2450/2041",
+          "aspect_ratio_display": "1.200392",
+          "overallocation_ratio_exact": "9/100000",
+          "overallocation_percent_display": "0.0090",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "1aef019ae7924c691fa08ac96855450095513af40df6cc13843e255433ae0e5c"
+    },
+    {
+      "record": "P06",
+      "handoff": 6,
+      "physical_group": "G05",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8:changing_room",
+        "record": "P06",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39630,
+          1012
+        ],
+        "world_bounds_mm": [
+          18260,
+          23650,
+          57890,
+          24662
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38130,
+                1012
+              ],
+              [
+                39630,
+                1012
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-06/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19065,
+                0
+              ],
+              [
+                20565,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-06/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-06/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40105560,
+        "physical_facts": {
+          "width_m": "39.63",
+          "depth_m": "1.012",
+          "area_m2": "40.10556",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "19815/506",
+          "aspect_ratio_display": "39.160079",
+          "overallocation_ratio_exact": "2639/1000000",
+          "overallocation_percent_display": "0.2639",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "6273c6266804058b6251f1e3286cdcc0f5a19dcc676b773ba7e5684c9d5095e6"
+    },
+    {
+      "record": "P06",
+      "handoff": 6,
+      "physical_group": "G05",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8:office",
+        "record": "P06",
+        "room_code": "office",
+        "local_bounds_mm": [
+          0,
+          0,
+          32400,
+          1852
+        ],
+        "world_bounds_mm": [
+          0,
+          52050,
+          32400,
+          53902
+        ],
+        "p1_required_area_mm2": 60000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-office@1.0.0"
+        },
+        "portals": [],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-06/candidate-01/candidate.json#/engineering_validation/zones/4",
+        "candidate_hash": "sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8:office",
+        "room_code": "office",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "actual_room_portal",
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "staff_count",
+          "desk_dimensions_mm",
+          "chair_movement_mm",
+          "storage_count",
+          "storage_dimensions_mm",
+          "necessary_functions",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 60004800,
+        "physical_facts": {
+          "width_m": "32.4",
+          "depth_m": "1.852",
+          "area_m2": "60.0048",
+          "required_area_m2": "60",
+          "aspect_ratio_exact": "8100/463",
+          "aspect_ratio_display": "17.494600",
+          "overallocation_ratio_exact": "1/12500",
+          "overallocation_percent_display": "0.0080",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "6273c6266804058b6251f1e3286cdcc0f5a19dcc676b773ba7e5684c9d5095e6"
+    },
+    {
+      "record": "P06",
+      "handoff": 6,
+      "physical_group": "G05",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8:coating_room",
+        "record": "P06",
+        "room_code": "coating_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          8164,
+          9800
+        ],
+        "world_bounds_mm": [
+          0,
+          23650,
+          8164,
+          33450
+        ],
+        "p1_required_area_mm2": 80000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-coating_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                8164,
+                3700
+              ],
+              [
+                8164,
+                6100
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-06/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                2882,
+                9800
+              ],
+              [
+                5282,
+                9800
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-06/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-06/candidate-01/candidate.json#/engineering_validation/zones/1",
+        "candidate_hash": "sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8:coating_room",
+        "room_code": "coating_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "process_type",
+          "equipment_model",
+          "equipment_count",
+          "equipment_dimensions_mm",
+          "operating_clearances_mm",
+          "maintenance_clearances_mm",
+          "infeed_space_mm",
+          "outfeed_space_mm",
+          "buffer_space_mm",
+          "effective_capacity_basis",
+          "logistics_direction_basis",
+          "process_portal_roles",
+          "equipment_flow_faces",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 80007200,
+        "physical_facts": {
+          "width_m": "8.164",
+          "depth_m": "9.8",
+          "area_m2": "80.0072",
+          "required_area_m2": "80",
+          "aspect_ratio_exact": "2450/2041",
+          "aspect_ratio_display": "1.200392",
+          "overallocation_ratio_exact": "9/100000",
+          "overallocation_percent_display": "0.0090",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "6273c6266804058b6251f1e3286cdcc0f5a19dcc676b773ba7e5684c9d5095e6"
+    },
+    {
+      "record": "P07",
+      "handoff": 6,
+      "physical_group": "G06",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5:changing_room",
+        "record": "P07",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39627,
+          1013
+        ],
+        "world_bounds_mm": [
+          18259,
+          23650,
+          57886,
+          24663
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38127,
+                1013
+              ],
+              [
+                39627,
+                1013
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-07/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19063,
+                0
+              ],
+              [
+                20563,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-07/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-07/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40142151,
+        "physical_facts": {
+          "width_m": "39.627",
+          "depth_m": "1.013",
+          "area_m2": "40.142151",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "39627/1013",
+          "aspect_ratio_display": "39.118460",
+          "overallocation_ratio_exact": "142151/40000000",
+          "overallocation_percent_display": "0.3554",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "73afb4edc7eebbec7643df5bd8d9b471b96b7dff65c5a128e07e20121487979c"
+    },
+    {
+      "record": "P07",
+      "handoff": 6,
+      "physical_group": "G06",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5:office",
+        "record": "P07",
+        "room_code": "office",
+        "local_bounds_mm": [
+          0,
+          0,
+          32400,
+          1852
+        ],
+        "world_bounds_mm": [
+          0,
+          52050,
+          32400,
+          53902
+        ],
+        "p1_required_area_mm2": 60000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-office@1.0.0"
+        },
+        "portals": [],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-07/candidate-01/candidate.json#/engineering_validation/zones/4",
+        "candidate_hash": "sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5:office",
+        "room_code": "office",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "actual_room_portal",
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "staff_count",
+          "desk_dimensions_mm",
+          "chair_movement_mm",
+          "storage_count",
+          "storage_dimensions_mm",
+          "necessary_functions",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 60004800,
+        "physical_facts": {
+          "width_m": "32.4",
+          "depth_m": "1.852",
+          "area_m2": "60.0048",
+          "required_area_m2": "60",
+          "aspect_ratio_exact": "8100/463",
+          "aspect_ratio_display": "17.494600",
+          "overallocation_ratio_exact": "1/12500",
+          "overallocation_percent_display": "0.0080",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "73afb4edc7eebbec7643df5bd8d9b471b96b7dff65c5a128e07e20121487979c"
+    },
+    {
+      "record": "P07",
+      "handoff": 6,
+      "physical_group": "G06",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5:coating_room",
+        "record": "P07",
+        "room_code": "coating_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          8164,
+          9800
+        ],
+        "world_bounds_mm": [
+          0,
+          23650,
+          8164,
+          33450
+        ],
+        "p1_required_area_mm2": 80000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-coating_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                8164,
+                3700
+              ],
+              [
+                8164,
+                6100
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-07/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                2882,
+                9800
+              ],
+              [
+                5282,
+                9800
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-07/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-07/candidate-01/candidate.json#/engineering_validation/zones/1",
+        "candidate_hash": "sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5:coating_room",
+        "room_code": "coating_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "process_type",
+          "equipment_model",
+          "equipment_count",
+          "equipment_dimensions_mm",
+          "operating_clearances_mm",
+          "maintenance_clearances_mm",
+          "infeed_space_mm",
+          "outfeed_space_mm",
+          "buffer_space_mm",
+          "effective_capacity_basis",
+          "logistics_direction_basis",
+          "process_portal_roles",
+          "equipment_flow_faces",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 80007200,
+        "physical_facts": {
+          "width_m": "8.164",
+          "depth_m": "9.8",
+          "area_m2": "80.0072",
+          "required_area_m2": "80",
+          "aspect_ratio_exact": "2450/2041",
+          "aspect_ratio_display": "1.200392",
+          "overallocation_ratio_exact": "9/100000",
+          "overallocation_percent_display": "0.0090",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "73afb4edc7eebbec7643df5bd8d9b471b96b7dff65c5a128e07e20121487979c"
+    },
+    {
+      "record": "P08",
+      "handoff": 6,
+      "physical_group": "G07",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68:changing_room",
+        "record": "P08",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39624,
+          1014
+        ],
+        "world_bounds_mm": [
+          18258,
+          23650,
+          57882,
+          24664
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38124,
+                1014
+              ],
+              [
+                39624,
+                1014
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-08/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19062,
+                0
+              ],
+              [
+                20562,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-08/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-08/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40178736,
+        "physical_facts": {
+          "width_m": "39.624",
+          "depth_m": "1.014",
+          "area_m2": "40.178736",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "508/13",
+          "aspect_ratio_display": "39.076923",
+          "overallocation_ratio_exact": "11171/2500000",
+          "overallocation_percent_display": "0.4468",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "8e0181e431beebc33da70b34bbd8275e3a4c530b16a6bc09bd9a3dc9eaf93ba3"
+    },
+    {
+      "record": "P08",
+      "handoff": 6,
+      "physical_group": "G07",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68:office",
+        "record": "P08",
+        "room_code": "office",
+        "local_bounds_mm": [
+          0,
+          0,
+          32400,
+          1852
+        ],
+        "world_bounds_mm": [
+          0,
+          52050,
+          32400,
+          53902
+        ],
+        "p1_required_area_mm2": 60000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-office@1.0.0"
+        },
+        "portals": [],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-08/candidate-01/candidate.json#/engineering_validation/zones/4",
+        "candidate_hash": "sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68:office",
+        "room_code": "office",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "actual_room_portal",
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "staff_count",
+          "desk_dimensions_mm",
+          "chair_movement_mm",
+          "storage_count",
+          "storage_dimensions_mm",
+          "necessary_functions",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 60004800,
+        "physical_facts": {
+          "width_m": "32.4",
+          "depth_m": "1.852",
+          "area_m2": "60.0048",
+          "required_area_m2": "60",
+          "aspect_ratio_exact": "8100/463",
+          "aspect_ratio_display": "17.494600",
+          "overallocation_ratio_exact": "1/12500",
+          "overallocation_percent_display": "0.0080",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "8e0181e431beebc33da70b34bbd8275e3a4c530b16a6bc09bd9a3dc9eaf93ba3"
+    },
+    {
+      "record": "P08",
+      "handoff": 6,
+      "physical_group": "G07",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68:coating_room",
+        "record": "P08",
+        "room_code": "coating_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          8164,
+          9800
+        ],
+        "world_bounds_mm": [
+          0,
+          23650,
+          8164,
+          33450
+        ],
+        "p1_required_area_mm2": 80000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-coating_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                8164,
+                3700
+              ],
+              [
+                8164,
+                6100
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-08/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                2882,
+                9800
+              ],
+              [
+                5282,
+                9800
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-08/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-08/candidate-01/candidate.json#/engineering_validation/zones/1",
+        "candidate_hash": "sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68:coating_room",
+        "room_code": "coating_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "process_type",
+          "equipment_model",
+          "equipment_count",
+          "equipment_dimensions_mm",
+          "operating_clearances_mm",
+          "maintenance_clearances_mm",
+          "infeed_space_mm",
+          "outfeed_space_mm",
+          "buffer_space_mm",
+          "effective_capacity_basis",
+          "logistics_direction_basis",
+          "process_portal_roles",
+          "equipment_flow_faces",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 80007200,
+        "physical_facts": {
+          "width_m": "8.164",
+          "depth_m": "9.8",
+          "area_m2": "80.0072",
+          "required_area_m2": "80",
+          "aspect_ratio_exact": "2450/2041",
+          "aspect_ratio_display": "1.200392",
+          "overallocation_ratio_exact": "9/100000",
+          "overallocation_percent_display": "0.0090",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "8e0181e431beebc33da70b34bbd8275e3a4c530b16a6bc09bd9a3dc9eaf93ba3"
+    },
+    {
+      "record": "P09",
+      "handoff": 6,
+      "physical_group": "G08",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5:changing_room",
+        "record": "P09",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          39621,
+          1015
+        ],
+        "world_bounds_mm": [
+          18257,
+          23650,
+          57878,
+          24665
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                38121,
+                1015
+              ],
+              [
+                39621,
+                1015
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-09/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                19060,
+                0
+              ],
+              [
+                20560,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-09/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-09/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40215315,
+        "physical_facts": {
+          "width_m": "39.621",
+          "depth_m": "1.015",
+          "area_m2": "40.215315",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "39621/1015",
+          "aspect_ratio_display": "39.035468",
+          "overallocation_ratio_exact": "43063/8000000",
+          "overallocation_percent_display": "0.5383",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "f15eeab6015f77201f8db7a92d274cd29b95a700dddb52f673f3732e0fb68234"
+    },
+    {
+      "record": "P09",
+      "handoff": 6,
+      "physical_group": "G08",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5:office",
+        "record": "P09",
+        "room_code": "office",
+        "local_bounds_mm": [
+          0,
+          0,
+          32400,
+          1852
+        ],
+        "world_bounds_mm": [
+          0,
+          52050,
+          32400,
+          53902
+        ],
+        "p1_required_area_mm2": 60000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-office@1.0.0"
+        },
+        "portals": [],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-09/candidate-01/candidate.json#/engineering_validation/zones/4",
+        "candidate_hash": "sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5:office",
+        "room_code": "office",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "actual_room_portal",
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "staff_count",
+          "desk_dimensions_mm",
+          "chair_movement_mm",
+          "storage_count",
+          "storage_dimensions_mm",
+          "necessary_functions",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 60004800,
+        "physical_facts": {
+          "width_m": "32.4",
+          "depth_m": "1.852",
+          "area_m2": "60.0048",
+          "required_area_m2": "60",
+          "aspect_ratio_exact": "8100/463",
+          "aspect_ratio_display": "17.494600",
+          "overallocation_ratio_exact": "1/12500",
+          "overallocation_percent_display": "0.0080",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "f15eeab6015f77201f8db7a92d274cd29b95a700dddb52f673f3732e0fb68234"
+    },
+    {
+      "record": "P09",
+      "handoff": 6,
+      "physical_group": "G08",
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5:coating_room",
+        "record": "P09",
+        "room_code": "coating_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          8164,
+          9800
+        ],
+        "world_bounds_mm": [
+          0,
+          23650,
+          8164,
+          33450
+        ],
+        "p1_required_area_mm2": 80000000,
+        "p1_area_source": {
+          "reference": "sealed-r10:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-coating_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                8164,
+                3700
+              ],
+              [
+                8164,
+                6100
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-09/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                2882,
+                9800
+              ],
+              [
+                5282,
+                9800
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r10:previews/proposal-09/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r10:previews/proposal-09/candidate-01/candidate.json#/engineering_validation/zones/1",
+        "candidate_hash": "sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5",
+        "source_composition_hash": "sha256:60937bb23e4bc0f98fbdfea904b85787ef788270181bb46f61358a6b08390d11",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5:coating_room",
+        "room_code": "coating_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "process_type",
+          "equipment_model",
+          "equipment_count",
+          "equipment_dimensions_mm",
+          "operating_clearances_mm",
+          "maintenance_clearances_mm",
+          "infeed_space_mm",
+          "outfeed_space_mm",
+          "buffer_space_mm",
+          "effective_capacity_basis",
+          "logistics_direction_basis",
+          "process_portal_roles",
+          "equipment_flow_faces",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 80007200,
+        "physical_facts": {
+          "width_m": "8.164",
+          "depth_m": "9.8",
+          "area_m2": "80.0072",
+          "required_area_m2": "80",
+          "aspect_ratio_exact": "2450/2041",
+          "aspect_ratio_display": "1.200392",
+          "overallocation_ratio_exact": "9/100000",
+          "overallocation_percent_display": "0.0090",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "source_candidate_sha256": "f15eeab6015f77201f8db7a92d274cd29b95a700dddb52f673f3732e0fb68234"
+    }
+  ],
+  "original_records": [
+    {
+      "record": "P01",
+      "handoff": 5,
+      "physical_group": "G01",
+      "candidate_hash": "sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece",
+      "geometry_hash": "sha256:a3d0ffe50f983480540f874134cd96b59b44ea93cd4ad1881175e442d94ede47",
+      "stage": "FEASIBILITY_FIRST",
+      "svg_reference": "sealed-r10:previews/proposal-01/candidate-01/layout.svg"
+    },
+    {
+      "record": "P02",
+      "handoff": 5,
+      "physical_group": "G01",
+      "candidate_hash": "sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4",
+      "geometry_hash": "sha256:c8268999c0e3d2ee485f8afa3d5551a5a99108716650f4367893530e16b9043f",
+      "stage": "BOUNDED_QUALITY_IMPROVEMENT",
+      "svg_reference": "sealed-r10:previews/proposal-02/candidate-01/layout.svg"
+    },
+    {
+      "record": "P03",
+      "handoff": 6,
+      "physical_group": "G02",
+      "candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+      "geometry_hash": "sha256:da46307ea635018ef6664a13030e206b6670d96db7fcf742594e5271af1f077e",
+      "stage": "FEASIBILITY_FIRST",
+      "svg_reference": "sealed-r10:previews/proposal-03/candidate-01/layout.svg"
+    },
+    {
+      "record": "P04",
+      "handoff": 6,
+      "physical_group": "G03",
+      "candidate_hash": "sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb",
+      "geometry_hash": "sha256:04bdbc2064d9f557a6df5b1212c11fa14ecc4f396685b050892d3fd25c95f0f2",
+      "stage": "BOUNDED_QUALITY_IMPROVEMENT",
+      "svg_reference": "sealed-r10:previews/proposal-04/candidate-01/layout.svg"
+    },
+    {
+      "record": "P05",
+      "handoff": 6,
+      "physical_group": "G04",
+      "candidate_hash": "sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31",
+      "geometry_hash": "sha256:4c047ef1a52c42782baac393b31d124ecc1ee3adb7435a7a2a16a9197e7a0768",
+      "stage": "BOUNDED_QUALITY_IMPROVEMENT",
+      "svg_reference": "sealed-r10:previews/proposal-05/candidate-01/layout.svg"
+    },
+    {
+      "record": "P06",
+      "handoff": 6,
+      "physical_group": "G05",
+      "candidate_hash": "sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8",
+      "geometry_hash": "sha256:13531326adda417aee3b0af452f2c40b88d7ccaca8b91e98a76c1f029a8f1f9a",
+      "stage": "BOUNDED_QUALITY_IMPROVEMENT",
+      "svg_reference": "sealed-r10:previews/proposal-06/candidate-01/layout.svg"
+    },
+    {
+      "record": "P07",
+      "handoff": 6,
+      "physical_group": "G06",
+      "candidate_hash": "sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5",
+      "geometry_hash": "sha256:dc1ac6155d4cb072462088f71e08f99f092f2a754d3181589ec2522db74b45e0",
+      "stage": "BOUNDED_QUALITY_IMPROVEMENT",
+      "svg_reference": "sealed-r10:previews/proposal-07/candidate-01/layout.svg"
+    },
+    {
+      "record": "P08",
+      "handoff": 6,
+      "physical_group": "G07",
+      "candidate_hash": "sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68",
+      "geometry_hash": "sha256:85e3f3afb5949af784b3bc5275d02a614288679afbbc0b28ca00a5de840ab860",
+      "stage": "BOUNDED_QUALITY_IMPROVEMENT",
+      "svg_reference": "sealed-r10:previews/proposal-08/candidate-01/layout.svg"
+    },
+    {
+      "record": "P09",
+      "handoff": 6,
+      "physical_group": "G08",
+      "candidate_hash": "sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5",
+      "geometry_hash": "sha256:cbaa059d28192d34601c748a27ff8ae90eacf9883253f32b66bd19d18fd9e9f4",
+      "stage": "BOUNDED_QUALITY_IMPROVEMENT",
+      "svg_reference": "sealed-r10:previews/proposal-09/candidate-01/layout.svg"
+    }
+  ],
+  "historical_r9_reference": [
+    {
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:c38c6c9e267f81b46c22d3db29bad059c881a7b056d49f50aac14808891abab4:changing_room",
+        "record": "R9 P04",
+        "room_code": "changing_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          20000,
+          2000
+        ],
+        "world_bounds_mm": [
+          21029,
+          23650,
+          41029,
+          25650
+        ],
+        "p1_required_area_mm2": 40000000,
+        "p1_area_source": {
+          "reference": "sealed-r9:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-changing_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:main_entrance->changing_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                20000,
+                250
+              ],
+              [
+                20000,
+                1750
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r9:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:changing_room->sorting_packaging_room@1.0.0:changing_room@1.0.0",
+            "segment_mm": [
+              [
+                9250,
+                0
+              ],
+              [
+                10750,
+                0
+              ]
+            ],
+            "clear_width_mm": 1500,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r9:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r9:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/zones/0",
+        "candidate_hash": "sha256:c38c6c9e267f81b46c22d3db29bad059c881a7b056d49f50aac14808891abab4",
+        "source_composition_hash": "sha256:f6ad84ecfb7b00d724388b1374281de7336274b2fced9393e98104741878c1c9",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:c38c6c9e267f81b46c22d3db29bad059c881a7b056d49f50aac14808891abab4:changing_room",
+        "room_code": "changing_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "simultaneous_users",
+          "shift_locker_counts",
+          "shift_change_policy",
+          "locker_model",
+          "locker_internal_separation_available",
+          "locker_dimensions_mm",
+          "locker_arrangement",
+          "locker_front_clearance_mm",
+          "person_space_mm",
+          "bench_count",
+          "bench_dimensions_mm",
+          "bench_operation_mm",
+          "internal_clothing_separation",
+          "clean_separation",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 40000000,
+        "physical_facts": {
+          "width_m": "20",
+          "depth_m": "2",
+          "area_m2": "40",
+          "required_area_m2": "40",
+          "aspect_ratio_exact": "10",
+          "aspect_ratio_display": "10.000000",
+          "overallocation_ratio_exact": "0",
+          "overallocation_percent_display": "0.0000",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "formal_pareto_comparison": false
+    },
+    {
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:c38c6c9e267f81b46c22d3db29bad059c881a7b056d49f50aac14808891abab4:office",
+        "record": "R9 P04",
+        "room_code": "office",
+        "local_bounds_mm": [
+          0,
+          0,
+          2785,
+          21544
+        ],
+        "world_bounds_mm": [
+          1,
+          33450,
+          2786,
+          54994
+        ],
+        "p1_required_area_mm2": 60000000,
+        "p1_area_source": {
+          "reference": "sealed-r9:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-office@1.0.0"
+        },
+        "portals": [],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r9:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/zones/4",
+        "candidate_hash": "sha256:c38c6c9e267f81b46c22d3db29bad059c881a7b056d49f50aac14808891abab4",
+        "source_composition_hash": "sha256:f6ad84ecfb7b00d724388b1374281de7336274b2fced9393e98104741878c1c9",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:c38c6c9e267f81b46c22d3db29bad059c881a7b056d49f50aac14808891abab4:office",
+        "room_code": "office",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "actual_room_portal",
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "staff_count",
+          "desk_dimensions_mm",
+          "chair_movement_mm",
+          "storage_count",
+          "storage_dimensions_mm",
+          "necessary_functions",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 60000040,
+        "physical_facts": {
+          "width_m": "2.785",
+          "depth_m": "21.544",
+          "area_m2": "60.00004",
+          "required_area_m2": "60",
+          "aspect_ratio_exact": "21544/2785",
+          "aspect_ratio_display": "7.735727",
+          "overallocation_ratio_exact": "1/1500000",
+          "overallocation_percent_display": "0.0001",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "formal_pareto_comparison": false
+    },
+    {
+      "room": {
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:c38c6c9e267f81b46c22d3db29bad059c881a7b056d49f50aac14808891abab4:coating_room",
+        "record": "R9 P04",
+        "room_code": "coating_room",
+        "local_bounds_mm": [
+          0,
+          0,
+          11049,
+          7241
+        ],
+        "world_bounds_mm": [
+          9287,
+          28551,
+          20336,
+          35792
+        ],
+        "p1_required_area_mm2": 80000000,
+        "p1_area_source": {
+          "reference": "sealed-r9:server-authorities.json#/p1/p1e_historical_handoff/dimension_handoff/authorities",
+          "authority": "Charles:V2_2_P1D3_FLEXIBLE_RECTANGLE_HANDOFF_CONTRACT_R1",
+          "identity": "charles-flexible-coating_room@1.0.0"
+        },
+        "portals": [
+          {
+            "id": "portal:access:secondary_precooling_room->coating_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                1506,
+                0
+              ],
+              [
+                3906,
+                0
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r9:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/portals"
+          },
+          {
+            "id": "portal:access:coating_room->finished_goods_room@1.0.0:coating_room@1.0.0",
+            "segment_mm": [
+              [
+                4324,
+                7241
+              ],
+              [
+                6724,
+                7241
+              ]
+            ],
+            "clear_width_mm": 2400,
+            "source_label": "ENGINEERING_DERIVED",
+            "reference": "sealed-r9:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/portals"
+          }
+        ],
+        "source_label": "ENGINEERING_DERIVED",
+        "geometry_reference": "sealed-r9:previews/proposal-04/candidate-01/candidate.json#/engineering_validation/zones/1",
+        "candidate_hash": "sha256:c38c6c9e267f81b46c22d3db29bad059c881a7b056d49f50aac14808891abab4",
+        "source_composition_hash": "sha256:f6ad84ecfb7b00d724388b1374281de7336274b2fced9393e98104741878c1c9",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE",
+        "finished_clear_dimensions_status": "INPUT_REQUIRED_NOT_INFERRED_FROM_P2_BOUNDARY"
+      },
+      "evaluation": {
+        "version": "functional-room-fit-r11@1.0.0",
+        "scope_id": "sha256:61b59f8e6bd8e81c8b43751bd58ce52df82d349b82346bbfd6585a891139cddd:sha256:e1fac31df5458427a882d3669f9e79ae4edfac086db732aaa1345a626482ab85:sha256:c38c6c9e267f81b46c22d3db29bad059c881a7b056d49f50aac14808891abab4:coating_room",
+        "room_code": "coating_room",
+        "functional_status": "INPUT_REQUIRED",
+        "source_label": "INPUT_REQUIRED",
+        "engineering_approval": false,
+        "modifies_p1": false,
+        "modifies_engineering_acceptance": false,
+        "native_solves": 0,
+        "units": "integer mm; area mm2",
+        "missing_inputs": [
+          "finished_clear_bounds_mm",
+          "clear_height_mm",
+          "aisle_width_mm",
+          "door_operation",
+          "door_operation_envelopes_mm",
+          "cleaning_maintenance_basis",
+          "process_type",
+          "equipment_model",
+          "equipment_count",
+          "equipment_dimensions_mm",
+          "operating_clearances_mm",
+          "maintenance_clearances_mm",
+          "infeed_space_mm",
+          "outfeed_space_mm",
+          "buffer_space_mm",
+          "effective_capacity_basis",
+          "logistics_direction_basis",
+          "process_portal_roles",
+          "equipment_flow_faces",
+          "explicit_layout_witness"
+        ],
+        "conflicts": [],
+        "input_facts": {},
+        "state_results": {},
+        "assumptions": [
+          "Supplied arrangement only; no global room infeasibility proof"
+        ],
+        "warnings": [
+          "Source review and hygiene/fire/accessibility compliance remain separate"
+        ],
+        "formulas": [
+          "A=W*D",
+          "locker_count=sum(distinct shift locker allocations)",
+          "full_width_route=original P2 corridor envelopes",
+          "exact rectangle-union coverage"
+        ],
+        "room_area_mm2": 80005809,
+        "physical_facts": {
+          "width_m": "11.049",
+          "depth_m": "7.241",
+          "area_m2": "80.005809",
+          "required_area_m2": "80",
+          "aspect_ratio_exact": "11049/7241",
+          "aspect_ratio_display": "1.525894",
+          "overallocation_ratio_exact": "5809/80000000",
+          "overallocation_percent_display": "0.0073",
+          "source_label": "ENGINEERING_DERIVED"
+        },
+        "p1_area_status": "AREA_SATISFIED",
+        "original_engineering_status": "EXISTING_STAGE_B_ELIGIBLE"
+      },
+      "formal_pareto_comparison": false
+    }
+  ],
+  "owner_business_rules": {
+    "reference": "/Users/charles/codex-v222-r11-functional-room-fit-r1/docs/previews/v2.2.2/owner-functional-input-contract-r2/owner-confirmed-business-rules-v2.json",
+    "sha256": "7c6d37327e4a3819332937473a6c1a37b3b324b7405b995a9ab963397c08392c",
+    "source_label": "OWNER_CONFIRMED",
+    "facts": [
+      {
+        "APPLICABILITY": "Explicitly selected SMALL factory",
+        "CONFIRMATION_DATE": "2026-10-19",
+        "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+        "FIELD_NAME": "OFFICE_DESIGN_STAFF.SMALL",
+        "INHERITED_FROM": {
+          "field": "OFFICE_DESIGN_STAFF.SMALL",
+          "identity": "OwnerFactoryFunctionalInputsV1",
+          "version": "owner-factory-functional-inputs@1.0.0"
+        },
+        "SOURCE": "OWNER_CONFIRMED",
+        "UNIT": "people",
+        "VALUE": 12
+      },
+      {
+        "APPLICABILITY": "Explicitly selected MEDIUM factory",
+        "CONFIRMATION_DATE": "2026-10-19",
+        "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+        "FIELD_NAME": "OFFICE_DESIGN_STAFF.MEDIUM",
+        "INHERITED_FROM": {
+          "field": "OFFICE_DESIGN_STAFF.MEDIUM",
+          "identity": "OwnerFactoryFunctionalInputsV1",
+          "version": "owner-factory-functional-inputs@1.0.0"
+        },
+        "SOURCE": "OWNER_CONFIRMED",
+        "UNIT": "people",
+        "VALUE": 20
+      },
+      {
+        "APPLICABILITY": "Explicitly selected LARGE factory",
+        "CONFIRMATION_DATE": "2026-10-19",
+        "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+        "FIELD_NAME": "OFFICE_DESIGN_STAFF.LARGE",
+        "INHERITED_FROM": {
+          "field": "OFFICE_DESIGN_STAFF.LARGE",
+          "identity": "OwnerFactoryFunctionalInputsV1",
+          "version": "owner-factory-functional-inputs@1.0.0"
+        },
+        "SOURCE": "OWNER_CONFIRMED",
+        "UNIT": "people",
+        "VALUE": 30
+      },
+      {
+        "APPLICABILITY": "Separate staffing per shift",
+        "CONFIRMATION_DATE": "2026-10-19",
+        "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+        "FIELD_NAME": "SHIFTS_PER_DAY",
+        "INHERITED_FROM": {
+          "field": "SHIFTS_PER_DAY",
+          "identity": "OwnerFactoryFunctionalInputsV1",
+          "version": "owner-factory-functional-inputs@1.0.0"
+        },
+        "SOURCE": "OWNER_CONFIRMED",
+        "UNIT": "shifts/day",
+        "VALUE": 2
+      },
+      {
+        "APPLICABILITY": "Separate employee sets per shift",
+        "CONFIRMATION_DATE": "2026-10-19",
+        "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+        "FIELD_NAME": "LOCKER_SHARED_BETWEEN_SHIFTS",
+        "INHERITED_FROM": {
+          "field": "LOCKER_SHARED_BETWEEN_SHIFTS",
+          "identity": "OwnerFactoryFunctionalInputsV1",
+          "version": "owner-factory-functional-inputs@1.0.0"
+        },
+        "SOURCE": "OWNER_CONFIRMED",
+        "UNIT": "boolean",
+        "VALUE": false
+      },
+      {
+        "APPLICABILITY": "Inside each personal locker",
+        "CONFIRMATION_DATE": "2026-10-19",
+        "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+        "FIELD_NAME": "LOCKER_INTERNAL_SEPARATION",
+        "INHERITED_FROM": {
+          "field": "LOCKER_INTERNAL_SEPARATION",
+          "identity": "OwnerFactoryFunctionalInputsV1",
+          "version": "owner-factory-functional-inputs@1.0.0"
+        },
+        "SOURCE": "OWNER_CONFIRMED",
+        "UNIT": "boolean",
+        "VALUE": true
+      },
+      {
+        "APPLICABILITY": "Two shifts",
+        "CONFIRMATION_DATE": "2026-10-19",
+        "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+        "FIELD_NAME": "LOCKER_COUNT_FORMULA",
+        "INHERITED_FROM": {
+          "field": "LOCKER_COUNT_FORMULA",
+          "identity": "OwnerFactoryFunctionalInputsV1",
+          "version": "owner-factory-functional-inputs@1.0.0"
+        },
+        "SOURCE": "OWNER_CONFIRMED",
+        "UNIT": "expression",
+        "VALUE": "SHIFT_1_WORKERS + SHIFT_2_WORKERS"
+      },
+      {
+        "APPLICABILITY": "Whole-shift changing; no intra-shift staggering assumed",
+        "CONFIRMATION_DATE": "2026-10-19",
+        "CONTRACT_VERSION": "owner-factory-functional-inputs@2.0.0",
+        "FIELD_NAME": "SIMULTANEOUS_CHANGING_USERS_FORMULA",
+        "INHERITED_FROM": {
+          "field": "SIMULTANEOUS_CHANGING_USERS_FORMULA",
+          "identity": "OwnerFactoryFunctionalInputsV1",
+          "version": "owner-factory-functional-inputs@1.0.0"
+        },
+        "SOURCE": "OWNER_CONFIRMED",
+        "UNIT": "expression",
+        "VALUE": "max(SHIFT_1_WORKERS, SHIFT_2_WORKERS)"
+      }
+    ],
+    "applicability": "CONDITIONAL_POLICY_NOT_PROJECT_STAFFING",
+    "historical_staffing_bound": false
+  },
+  "inputs_not_project_authority": [
+    "53 simultaneous users / 106 lockers: conditional packaged-product example only",
+    "12/20/30 office staff require an explicit factory-size selection"
+  ],
+  "history_unchanged": true,
+  "original_comparisons": [
+    {
+      "baseline_candidate_hash": "sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece",
+      "candidate_hash": "sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4",
+      "original_nine": {
+        "status": "NO_MEASURABLE_IMPROVEMENT",
+        "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+        "baseline_candidate_hash": "sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece",
+        "candidate_hash": "sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": 0,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": 0,
+          "personnel_route_m": 0,
+          "personnel_route_turns": 0,
+          "footprint_perimeter_m": 0,
+          "footprint_outline_turn_count": 0,
+          "footprint_reflex_corner_count": 0
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": true,
+        "footprint_area_facts_only": {
+          "baseline_m2": "2345.74999",
+          "candidate_m2": "2345.74999"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false
+      },
+      "twelve": {
+        "status": "NO_MEASURABLE_IMPROVEMENT",
+        "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+        "baseline_candidate_hash": "sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece",
+        "candidate_hash": "sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": 0,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": 0,
+          "personnel_route_m": 0,
+          "personnel_route_turns": 0,
+          "footprint_perimeter_m": 0,
+          "footprint_outline_turn_count": 0,
+          "footprint_reflex_corner_count": 0,
+          "office_area_allocation_ratio": 0,
+          "changing_room_area_allocation_ratio": 0,
+          "coating_room_area_allocation_ratio": 0
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": true,
+        "footprint_area_facts_only": {
+          "baseline_m2": "2345.74999",
+          "candidate_m2": "2345.74999"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false,
+        "original_nine_metric_comparison": {
+          "status": "NO_MEASURABLE_IMPROVEMENT",
+          "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+          "baseline_candidate_hash": "sha256:6917ba6ed66c64aa9b4d9e17180e19ca7e11f31adf724cabeba53929e29e2ece",
+          "candidate_hash": "sha256:ce64d3db1148405e3917b1aa99915af84309536fecc90f1c363a584e517029a4",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": 0,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": 0,
+            "personnel_route_m": 0,
+            "personnel_route_turns": 0,
+            "footprint_perimeter_m": 0,
+            "footprint_outline_turn_count": 0,
+            "footprint_reflex_corner_count": 0
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "2345.74999",
+            "candidate_m2": "2345.74999"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false
+        },
+        "area_evidence_complete": true
+      }
+    },
+    {
+      "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+      "candidate_hash": "sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb",
+      "original_nine": {
+        "status": "QUALITY_TRADEOFF",
+        "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+        "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "candidate_hash": "sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": -1,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": -1,
+          "personnel_route_m": 1,
+          "personnel_route_turns": 0,
+          "footprint_perimeter_m": 1,
+          "footprint_outline_turn_count": 1,
+          "footprint_reflex_corner_count": 1
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": true,
+        "footprint_area_facts_only": {
+          "baseline_m2": "2270.219964",
+          "candidate_m2": "2270.25485"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false
+      },
+      "twelve": {
+        "status": "QUALITY_TRADEOFF",
+        "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+        "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "candidate_hash": "sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": -1,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": -1,
+          "personnel_route_m": 1,
+          "personnel_route_turns": 0,
+          "footprint_perimeter_m": 1,
+          "footprint_outline_turn_count": 1,
+          "footprint_reflex_corner_count": 1,
+          "office_area_allocation_ratio": 0,
+          "changing_room_area_allocation_ratio": 1,
+          "coating_room_area_allocation_ratio": 0
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": true,
+        "footprint_area_facts_only": {
+          "baseline_m2": "2270.219964",
+          "candidate_m2": "2270.25485"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false,
+        "original_nine_metric_comparison": {
+          "status": "QUALITY_TRADEOFF",
+          "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+          "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+          "candidate_hash": "sha256:0bb058b609f2b665253dbd1ded2d2f2ead7594b4ddbf0cd15c87aa79d49c90bb",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": -1,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": -1,
+            "personnel_route_m": 1,
+            "personnel_route_turns": 0,
+            "footprint_perimeter_m": 1,
+            "footprint_outline_turn_count": 1,
+            "footprint_reflex_corner_count": 1
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "2270.219964",
+            "candidate_m2": "2270.25485"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false
+        },
+        "area_evidence_complete": true
+      }
+    },
+    {
+      "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+      "candidate_hash": "sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31",
+      "original_nine": {
+        "status": "QUALITY_TRADEOFF",
+        "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+        "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "candidate_hash": "sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": -1,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": -1,
+          "personnel_route_m": 1,
+          "personnel_route_turns": 0,
+          "footprint_perimeter_m": 1,
+          "footprint_outline_turn_count": 1,
+          "footprint_reflex_corner_count": 1
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": true,
+        "footprint_area_facts_only": {
+          "baseline_m2": "2270.219964",
+          "candidate_m2": "2270.300463"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false
+      },
+      "twelve": {
+        "status": "QUALITY_TRADEOFF",
+        "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+        "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "candidate_hash": "sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": -1,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": -1,
+          "personnel_route_m": 1,
+          "personnel_route_turns": 0,
+          "footprint_perimeter_m": 1,
+          "footprint_outline_turn_count": 1,
+          "footprint_reflex_corner_count": 1,
+          "office_area_allocation_ratio": 0,
+          "changing_room_area_allocation_ratio": 1,
+          "coating_room_area_allocation_ratio": 0
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": true,
+        "footprint_area_facts_only": {
+          "baseline_m2": "2270.219964",
+          "candidate_m2": "2270.300463"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false,
+        "original_nine_metric_comparison": {
+          "status": "QUALITY_TRADEOFF",
+          "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+          "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+          "candidate_hash": "sha256:5700e153b035328c4ed1b2083b1ee4a44a0a33d01a1b087d38f1dfceb3babe31",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": -1,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": -1,
+            "personnel_route_m": 1,
+            "personnel_route_turns": 0,
+            "footprint_perimeter_m": 1,
+            "footprint_outline_turn_count": 1,
+            "footprint_reflex_corner_count": 1
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "2270.219964",
+            "candidate_m2": "2270.300463"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false
+        },
+        "area_evidence_complete": true
+      }
+    },
+    {
+      "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+      "candidate_hash": "sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8",
+      "original_nine": {
+        "status": "QUALITY_TRADEOFF",
+        "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+        "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "candidate_hash": "sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": -1,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": -1,
+          "personnel_route_m": 1,
+          "personnel_route_turns": 0,
+          "footprint_perimeter_m": 1,
+          "footprint_outline_turn_count": 1,
+          "footprint_reflex_corner_count": 1
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": true,
+        "footprint_area_facts_only": {
+          "baseline_m2": "2270.219964",
+          "candidate_m2": "2270.34706"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false
+      },
+      "twelve": {
+        "status": "QUALITY_TRADEOFF",
+        "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+        "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "candidate_hash": "sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": -1,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": -1,
+          "personnel_route_m": 1,
+          "personnel_route_turns": 0,
+          "footprint_perimeter_m": 1,
+          "footprint_outline_turn_count": 1,
+          "footprint_reflex_corner_count": 1,
+          "office_area_allocation_ratio": 0,
+          "changing_room_area_allocation_ratio": 1,
+          "coating_room_area_allocation_ratio": 0
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": true,
+        "footprint_area_facts_only": {
+          "baseline_m2": "2270.219964",
+          "candidate_m2": "2270.34706"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false,
+        "original_nine_metric_comparison": {
+          "status": "QUALITY_TRADEOFF",
+          "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+          "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+          "candidate_hash": "sha256:14ab69a8d46929c3ee4d63c495a924fb244e2d5e4be93923ae8793126e01b3e8",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": -1,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": -1,
+            "personnel_route_m": 1,
+            "personnel_route_turns": 0,
+            "footprint_perimeter_m": 1,
+            "footprint_outline_turn_count": 1,
+            "footprint_reflex_corner_count": 1
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "2270.219964",
+            "candidate_m2": "2270.34706"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false
+        },
+        "area_evidence_complete": true
+      }
+    },
+    {
+      "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+      "candidate_hash": "sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5",
+      "original_nine": {
+        "status": "QUALITY_TRADEOFF",
+        "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+        "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "candidate_hash": "sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": -1,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": -1,
+          "personnel_route_m": 1,
+          "personnel_route_turns": 0,
+          "footprint_perimeter_m": 1,
+          "footprint_outline_turn_count": 1,
+          "footprint_reflex_corner_count": 1
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": true,
+        "footprint_area_facts_only": {
+          "baseline_m2": "2270.219964",
+          "candidate_m2": "2270.393651"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false
+      },
+      "twelve": {
+        "status": "QUALITY_TRADEOFF",
+        "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+        "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "candidate_hash": "sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": -1,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": -1,
+          "personnel_route_m": 1,
+          "personnel_route_turns": 0,
+          "footprint_perimeter_m": 1,
+          "footprint_outline_turn_count": 1,
+          "footprint_reflex_corner_count": 1,
+          "office_area_allocation_ratio": 0,
+          "changing_room_area_allocation_ratio": 1,
+          "coating_room_area_allocation_ratio": 0
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": true,
+        "footprint_area_facts_only": {
+          "baseline_m2": "2270.219964",
+          "candidate_m2": "2270.393651"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false,
+        "original_nine_metric_comparison": {
+          "status": "QUALITY_TRADEOFF",
+          "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+          "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+          "candidate_hash": "sha256:0c7beb035e9b18b327ba1600df60f6dce8d9782e64c96c5d1ce5a5d6f72cd8b5",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": -1,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": -1,
+            "personnel_route_m": 1,
+            "personnel_route_turns": 0,
+            "footprint_perimeter_m": 1,
+            "footprint_outline_turn_count": 1,
+            "footprint_reflex_corner_count": 1
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "2270.219964",
+            "candidate_m2": "2270.393651"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false
+        },
+        "area_evidence_complete": true
+      }
+    },
+    {
+      "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+      "candidate_hash": "sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68",
+      "original_nine": {
+        "status": "QUALITY_TRADEOFF",
+        "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+        "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "candidate_hash": "sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": -1,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": -1,
+          "personnel_route_m": 1,
+          "personnel_route_turns": 0,
+          "footprint_perimeter_m": 1,
+          "footprint_outline_turn_count": 1,
+          "footprint_reflex_corner_count": 1
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": true,
+        "footprint_area_facts_only": {
+          "baseline_m2": "2270.219964",
+          "candidate_m2": "2270.440236"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false
+      },
+      "twelve": {
+        "status": "QUALITY_TRADEOFF",
+        "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+        "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "candidate_hash": "sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": -1,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": -1,
+          "personnel_route_m": 1,
+          "personnel_route_turns": 0,
+          "footprint_perimeter_m": 1,
+          "footprint_outline_turn_count": 1,
+          "footprint_reflex_corner_count": 1,
+          "office_area_allocation_ratio": 0,
+          "changing_room_area_allocation_ratio": 1,
+          "coating_room_area_allocation_ratio": 0
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": true,
+        "footprint_area_facts_only": {
+          "baseline_m2": "2270.219964",
+          "candidate_m2": "2270.440236"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false,
+        "original_nine_metric_comparison": {
+          "status": "QUALITY_TRADEOFF",
+          "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+          "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+          "candidate_hash": "sha256:598491f0bedc057b2296daebb0cf30bfb740f74df0332d2e473091339ac6ec68",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": -1,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": -1,
+            "personnel_route_m": 1,
+            "personnel_route_turns": 0,
+            "footprint_perimeter_m": 1,
+            "footprint_outline_turn_count": 1,
+            "footprint_reflex_corner_count": 1
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "2270.219964",
+            "candidate_m2": "2270.440236"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false
+        },
+        "area_evidence_complete": true
+      }
+    },
+    {
+      "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+      "candidate_hash": "sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5",
+      "original_nine": {
+        "status": "QUALITY_TRADEOFF",
+        "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+        "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "candidate_hash": "sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": -1,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": -1,
+          "personnel_route_m": 1,
+          "personnel_route_turns": 0,
+          "footprint_perimeter_m": 1,
+          "footprint_outline_turn_count": 1,
+          "footprint_reflex_corner_count": 1
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": true,
+        "footprint_area_facts_only": {
+          "baseline_m2": "2270.219964",
+          "candidate_m2": "2270.486815"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false
+      },
+      "twelve": {
+        "status": "QUALITY_TRADEOFF",
+        "comparison_policy": "same-handoff-nine-metrics-plus-three-area-allocations@1.0.0",
+        "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+        "candidate_hash": "sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5",
+        "metric_directions_minus_one_better": {
+          "office_aspect": 0,
+          "changing_room_aspect": -1,
+          "coating_room_aspect": 0,
+          "worst_room_aspect": -1,
+          "personnel_route_m": 1,
+          "personnel_route_turns": 0,
+          "footprint_perimeter_m": 1,
+          "footprint_outline_turn_count": 1,
+          "footprint_reflex_corner_count": 1,
+          "office_area_allocation_ratio": 0,
+          "changing_room_area_allocation_ratio": 1,
+          "coating_room_area_allocation_ratio": 0
+        },
+        "missing_or_invalid_metrics": [],
+        "same_handoff_and_meaningful_organization": true,
+        "footprint_area_facts_only": {
+          "baseline_m2": "2270.219964",
+          "candidate_m2": "2270.486815"
+        },
+        "baseline_retained": true,
+        "overall_quality_improvement_claimed": false,
+        "formal_quality_acceptance": false,
+        "automatic_production_selection": false,
+        "original_nine_metric_comparison": {
+          "status": "QUALITY_TRADEOFF",
+          "comparison_policy": "same-handoff-exact-nine-metric-pareto@1.0.0",
+          "baseline_candidate_hash": "sha256:337662f5471d1fa10d27c5e76011380f9c30738571915637185bffb857162a13",
+          "candidate_hash": "sha256:1393576e8e18152d1529d74d50cd9f3c04992d47ffbd0600338c85b4377b7dc5",
+          "metric_directions_minus_one_better": {
+            "office_aspect": 0,
+            "changing_room_aspect": -1,
+            "coating_room_aspect": 0,
+            "worst_room_aspect": -1,
+            "personnel_route_m": 1,
+            "personnel_route_turns": 0,
+            "footprint_perimeter_m": 1,
+            "footprint_outline_turn_count": 1,
+            "footprint_reflex_corner_count": 1
+          },
+          "missing_or_invalid_metrics": [],
+          "same_handoff_and_meaningful_organization": true,
+          "footprint_area_facts_only": {
+            "baseline_m2": "2270.219964",
+            "candidate_m2": "2270.486815"
+          },
+          "baseline_retained": true,
+          "overall_quality_improvement_claimed": false,
+          "formal_quality_acceptance": false,
+          "automatic_production_selection": false
+        },
+        "area_evidence_complete": true
+      }
+    }
+  ],
+  "native_solves": 0,
+  "new_grant": false,
+  "new_claim": false,
+  "changes_p1": false,
+  "changes_engineering_acceptance": false,
+  "functional_approval": false
+}

@@ -1,0 +1,99 @@
+{
+  "functional_tests_passed": 85,
+  "architecture_passed": 771,
+  "architecture_original_skips": 16,
+  "ci_contracts_passed": 65,
+  "ruff": "PASS",
+  "format": "PASS",
+  "mypy": "PASS_467_FILES",
+  "browser_checks": [
+    {
+      "group": "G01",
+      "history": true,
+      "functional_missing": true
+    },
+    {
+      "group": "G02",
+      "history": true,
+      "functional_missing": true
+    },
+    {
+      "group": "G03",
+      "history": true,
+      "functional_missing": true
+    },
+    {
+      "group": "G04",
+      "history": true,
+      "functional_missing": true
+    },
+    {
+      "group": "G05",
+      "history": true,
+      "functional_missing": true
+    },
+    {
+      "group": "G06",
+      "history": true,
+      "functional_missing": true
+    },
+    {
+      "group": "G07",
+      "history": true,
+      "functional_missing": true
+    },
+    {
+      "group": "G08",
+      "history": true,
+      "functional_missing": true
+    },
+    {
+      "office_door_missing": true
+    },
+    {
+      "example": 0,
+      "conditional": true,
+      "conflict": false,
+      "not_original": true
+    },
+    {
+      "example": 1,
+      "conditional": true,
+      "conflict": false,
+      "not_original": true
+    },
+    {
+      "example": 2,
+      "conditional": false,
+      "conflict": true,
+      "not_original": true
+    },
+    {
+      "example": 3,
+      "conditional": true,
+      "conflict": false,
+      "not_original": true
+    },
+    {
+      "example": 4,
+      "conditional": true,
+      "conflict": false,
+      "not_original": true
+    }
+  ],
+  "native_guard": {
+    "native_calls": 0,
+    "exitstatus": 0
+  },
+  "historical_records": 9,
+  "physical_groups": 8,
+  "functional_input_required_rooms": 27,
+  "history_unchanged": true,
+  "full_ci": "NOT_REQUESTED",
+  "main_executed": false,
+  "limitations": [
+    "Source review is an embedding-application precondition, not self-approval",
+    "Dedicated hygiene partition design stays INPUT_REQUIRED",
+    "Conditional supplied-layout fit does not establish professional compliance or all possible room uses"
+  ]
+}
