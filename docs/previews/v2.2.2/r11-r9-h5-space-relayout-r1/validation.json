@@ -1,0 +1,25 @@
+{
+  "task": "V2_2_2_R11_R9_H5_FUNCTIONAL_SPACE_RELAYOUT_R1",
+  "python": "3.12.13",
+  "dependencies": "uv sync --locked",
+  "functional_and_architecture": {
+    "passed": 1266,
+    "skipped": 16,
+    "failures": 0
+  },
+  "r9_tests_passed": 45,
+  "ci_contract_tests": 65,
+  "ruff": "PASS",
+  "format": "PASS",
+  "mypy": "PASS_497_SOURCE_FILES",
+  "yaml_syntax": "PASS_RUBY_PSYCH",
+  "javascript_syntax": "PASS",
+  "svg_static_render": "PASS_6_VIEWS",
+  "browser_interaction": "NOT_EVALUATED_FILE_PROTOCOL_BLOCKED_BY_BROWSER_POLICY",
+  "r9_functional_native_solves": 0,
+  "frozen_20t_native_solves": 0,
+  "local_legacy_native_boundary_exception": true,
+  "partial_interrupted_legacy_tests_not_counted_as_completed": true,
+  "fast_ci": "NOT_STARTED_AT_CODE_FREEZE",
+  "formal_full_ci": "NOT_REQUESTED"
+}
